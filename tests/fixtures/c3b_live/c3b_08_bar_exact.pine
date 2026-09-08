@@ -1,0 +1,10 @@
+//@version=5
+indicator("C3B Bar Exact", overlay = true, max_lines_count = 20)
+ma = ta.sma(close, 20)
+var line marker = na
+if bar_index == 4000
+    marker := line.new(bar_index, ma, bar_index, ma, color = color.red, width = 4)
+if not na(marker)
+    line.set_x2(marker, bar_index)
+    line.set_y2(marker, ma)
+plot(ma, title = "MA20")

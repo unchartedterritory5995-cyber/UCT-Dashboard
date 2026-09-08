@@ -381,3 +381,44 @@ Only after (3) can C's grade move. Everything else in C3B is done.
 one:** a `var`-initialiser bug that minted a new table on every bar, invisible to
 every unit test of the runtime, found by the one level that built a real
 dashboard over real bars.
+
+
+---
+
+# POST-C3B-CLOSE UPDATE (2026-09-08)
+
+Evidence: `C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`. Gaps: `ENDZONE_GAP_REGISTER.md`
+PART J.
+
+| # | Dimension | Before | After | Why |
+|---|---|---|---|---|
+| — | GRAPHICAL OBJECTS | 🟡 | ✅ | **Photographed now, not just wired.** 9/9 live fixtures paint real pixels after reopen on a fresh sandbox, with a self-test stroke proving the reader and a bbox proving the placement; a parameter moves an object by exactly the knob delta (765.19 → 720.19 for 5 → 50) and the move survives a reload; and TradingView's own model confirms the identity, update, delete, coordinate-sourcing, table-anchoring and colour semantics the model implements. |
+| C | COMPLEX VISUAL FIDELITY | 🟡 | 🟡 | **Still unmoved, and now for a MEASURED reason rather than an unrun test.** The parity set was re-run: 8/10 reach the chart and reopen identically, 5/10 paint an object — **and all five painted TABLES.** No line, label or box was drawn by any parity member. VISUAL FIDELITY was not measured for any of the ten. A grade cannot move on that. |
+| I | FAILURE TRANSPARENCY | ✅ | 🟡 | **Downgraded by this wave's own evidence.** The ledger is right and complete, and the member cannot see it: real parity scripts lose 8–42 ops each and the product says nothing (PART J5.4). A script can import, save, reopen and draw a table while quietly losing every line it asked for. Transparency that reaches only the log is not transparency. |
+
+⛔ **A and F remain 🔴, and Tier 2 remains the earned ceiling.** The object lane
+is now ahead of the lane feeding it, which is the whole finding of this wave.
+
+## The next wave, on the measured numbers
+
+**A COMPATIBILITY wave — the expression and statement grammar — not another
+object wave.** Three independent measurements point the same way:
+
+1. **two of ten parity members never reach the engine at all** — `pine:function`,
+   `pine:state`;
+2. **of those that do, the geometry families are what is lost** — a `pine:tuple`
+   refusal upstream of every guard in one, a dropped `create:box` in another, the
+   loop boundary in a third;
+3. **the vendor comparison on a script the object model handles perfectly
+   diverged on exactly one thing, and it was a missing VALUE-lane builtin**
+   (`last_bar_index`).
+
+So: tuples, user functions, `%`, `last_bar_index`, the `pine:state` family — plus
+J5.4, telling a member what their script lost. Polishing the object lane again
+would widen the gap between it and its supply.
+
+⚰️ **And record what the parameter probe cost, because it is the argument for
+checking an instrument's premise:** the first run measured the instance
+validator refusing an undeclared input and reported it as "the object did not
+survive a parameter change" — a clean-looking `false` from a probe that could
+never have produced a `true`.

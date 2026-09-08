@@ -44,6 +44,23 @@ export function createObjectLayer(host) {
   const cancel = host.cancel || ((id) => { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id) })
 
   const canvas = doc.createElement('canvas')
+  // ⭐⭐ C3B-CLOSE — THE PRODUCT'S OWN ANSWER TO "DID IT PAINT".
+  //
+  // ⛔ A CANVAS COUNT CANNOT SAY YES. The C0 journey already learned this the
+  // hard way: `querySelectorAll('canvas').length` read 75 before an import and
+  // 75 after, because the workspace owns every one of them — a gate that cannot
+  // fail. So the layer stamps what the PAINTER returned, after each paint, and
+  // an observer can read three independent facts off the DOM:
+  //   * this canvas belongs to an object layer, and to WHICH instance;
+  //   * how many objects of each family the painter DREW;
+  //   * how many it SKIPPED for a coordinate it could not place.
+  // ⚠️ Even that is our own counter. The strongest evidence is the canvas's own
+  // PIXELS, which an observer can read directly — this attribute exists so the
+  // observer can find the right canvas, not so it can be believed instead.
+  if (canvas.setAttribute) {
+    canvas.setAttribute('data-uct-object-layer', String((host.instanceId) || '1'))
+    canvas.setAttribute('data-uct-objects-drawn', '')
+  }
   canvas.style.position = 'absolute'
   canvas.style.inset = '0'
   canvas.style.pointerEvents = 'none'
@@ -78,6 +95,25 @@ export function createObjectLayer(host) {
     stats = paintObjects(ctx, state, {
       timeToX: map.timeToX, priceToY: map.priceToY, width: w, height: h,
     })
+    if (canvas.setAttribute) {
+      const sum = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0)
+      canvas.setAttribute('data-uct-objects-drawn',
+        `${sum(stats.drawn)}:${JSON.stringify(stats.drawn)}`)
+      canvas.setAttribute('data-uct-objects-skipped',
+        `${sum(stats.skipped)}:${JSON.stringify(stats.skipped)}`)
+      canvas.setAttribute('data-uct-objects-tables', String(tables.length))
+      canvas.setAttribute('data-uct-objects-bbox', JSON.stringify(stats.bbox || null))
+      canvas.setAttribute('data-uct-objects-pane', `${w}x${h}@${dpr}`)
+      // ⛔ THE RAW COORDINATE BESIDE THE MAPPED ONE. "we drew off-screen" has two
+      // possible causes — the object's coordinate is wrong, or the mapping is —
+      // and only showing both can tell them apart.
+      const probe = (state.lines || [])[0] || (state.labels || [])[0] || (state.boxes || [])[0]
+      if (probe) {
+        const rx = probe.x1 !== undefined ? probe.x1 : probe.x !== undefined ? probe.x : probe.left
+        canvas.setAttribute('data-uct-objects-probe',
+          JSON.stringify({ rawX: rx, mappedX: map.timeToX(rx), rawY: probe.y1 !== undefined ? probe.y1 : probe.y }))
+      }
+    }
   }
 
   const schedule = () => {
@@ -93,12 +129,23 @@ export function createObjectLayer(host) {
   return {
     /** ⭐ THE SIGNATURE IS THE WHOLE PERFORMANCE STORY. Same objects and same
      *  visible window ⇒ no repaint, however often this is called. */
-    set(next, sig) {
+    set(next, sig, meta) {
       const signature = String(sig === undefined ? '' : sig)
       const changed = next !== state || signature !== lastSig
       state = next || null
       lastSig = signature
       tables = state ? layoutTables(state) : []
+      // ⭐⭐ THE LIFECYCLE FACTS THE ENGINE ALREADY COMPUTED, MADE OBSERVABLE.
+      // ⛔ THE IDS ARE THE IDENTITY DISCRIMINATOR. Object ids are a creation
+      // counter, so a renderer that quietly re-created an object on every update
+      // would show ids in the thousands where a correct one shows single digits.
+      // That is a fact a screenshot cannot carry and a canvas count cannot see.
+      if (canvas.setAttribute && meta) {
+        canvas.setAttribute('data-uct-object-ids',
+          (state && state.lines ? [] : []).concat(meta.liveIds || []).join(','))
+        canvas.setAttribute('data-uct-object-stats', JSON.stringify(meta.stats || {}))
+        canvas.setAttribute('data-uct-object-bars', (meta.createdBars || []).join(','))
+      }
       if (changed) schedule()
       return tables
     },

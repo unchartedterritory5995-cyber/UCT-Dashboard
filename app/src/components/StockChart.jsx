@@ -9807,7 +9807,8 @@ export default function StockChart({
         // provide it draws no lines, labels or boxes and everything else — the
         // columns, the legend, the scan — is untouched. One canvas per INSTANCE,
         // because two copies of one indicator are two independent lifetimes.
-        createObjectLayer: () => createObjectLayer({
+        createObjectLayer: (inst) => createObjectLayer({
+          instanceId: inst && inst.instanceId,
           container: chart.chartElement ? chart.chartElement() : null,
           mapping: () => {
             const series = candleSeriesRef.current

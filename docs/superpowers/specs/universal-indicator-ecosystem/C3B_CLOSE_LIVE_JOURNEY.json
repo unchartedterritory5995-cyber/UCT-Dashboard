@@ -1,0 +1,2526 @@
+{
+  "base": "http://127.0.0.1:18772",
+  "fixtures": "tests/fixtures/c3b_live",
+  "rows": [
+    {
+      "script": "c3b_01_line_identity",
+      "timings_ms": {
+        "goto": 2407,
+        "open_builder": 16,
+        "new_formula": 5,
+        "import_tab": 18,
+        "paste": 32,
+        "translate": 286,
+        "apply": 9,
+        "save_click": 8,
+        "save_roundtrip": 546,
+        "instance_persist": 30,
+        "reopen": 2443,
+        "render": 216
+      },
+      "definitions_before": 13,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#2962ff"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_01_line_identity",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_080d06d4ddd0",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#2962FF",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_080d06d4ddd0:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_080d06d4ddd0:1",
+          "plotKey": "value",
+          "text": "c3b_01_line_ 742.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 14,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#2962FF",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_080d06d4ddd0:1",
+          "drawn": "2:{\"line\":2,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":-58582,\"y0\":77,\"x1\":940,\"y1\":1953}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"1995-02-16\",\"mappedX\":-58582.08813021051,\"rawY\":47.65000500000001}",
+          "ids": [
+            2,
+            477
+          ],
+          "createdBars": [
+            60,
+            7998
+          ],
+          "stats": {
+            "created": 477,
+            "updated": 21434,
+            "deleted": 475,
+            "peakLive": {
+              "line": 2,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 2,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 2803,
+          "colours": [
+            "75,177,78",
+            "74,174,78",
+            "71,170,71",
+            "76,175,80",
+            "39,98,255",
+            "36,97,255",
+            "35,97,255",
+            "41,96,255",
+            "40,96,255",
+            "46,114,206",
+            "74,173,84",
+            "39,96,255"
+          ],
+          "selfTestPixels": 8742,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 4603,
+      "screenshot": "tools\\c3b_close_live2\\c3b_01_line_identity.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_02_label_text",
+      "timings_ms": {
+        "goto": 2363,
+        "open_builder": 10,
+        "new_formula": 7,
+        "import_tab": 20,
+        "paste": 22,
+        "translate": 270,
+        "apply": 5,
+        "save_click": 6,
+        "save_roundtrip": 524,
+        "instance_persist": 527,
+        "reopen": 2400,
+        "render": 226
+      },
+      "definitions_before": 14,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_02_label_text",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_21058176c7d4",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_21058176c7d4:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_21058176c7d4:1",
+          "plotKey": "value",
+          "text": "c3b_02_label 735.87",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 15,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_21058176c7d4:1",
+          "drawn": "2:{\"line\":0,\"label\":2,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":726,\"y0\":77,\"x1\":976,\"y1\":155}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-07-31\",\"mappedX\":752.4906709011526,\"rawY\":748.9}",
+          "ids": [
+            277,
+            278
+          ],
+          "createdBars": [
+            7974,
+            7999
+          ],
+          "stats": {
+            "created": 278,
+            "updated": 0,
+            "deleted": 276,
+            "peakLive": {
+              "line": 0,
+              "label": 2,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 2,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 2307,
+          "colours": [
+            "153,34,178",
+            "155,39,178",
+            "161,40,174",
+            "156,38,176",
+            "156,39,176",
+            "156,37,177",
+            "216,171,224",
+            "239,219,242",
+            "250,244,251",
+            "192,117,205",
+            "255,255,255",
+            "206,149,216"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 4107,
+      "screenshot": "tools\\c3b_close_live2\\c3b_02_label_text.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_03_box_zone",
+      "timings_ms": {
+        "goto": 2482,
+        "open_builder": 13,
+        "new_formula": 8,
+        "import_tab": 22,
+        "paste": 23,
+        "translate": 266,
+        "apply": 7,
+        "save_click": 8,
+        "save_roundtrip": 526,
+        "instance_persist": 20,
+        "reopen": 2544,
+        "render": 295
+      },
+      "definitions_before": 15,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_03_box_zone",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_bc4341b368fd",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_bc4341b368fd:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_bc4341b368fd:1",
+          "plotKey": "value",
+          "text": "c3b_03_box_z 742.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 16,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_bc4341b368fd:1",
+          "drawn": "2:{\"line\":0,\"label\":0,\"box\":2,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":715,\"y0\":60,\"x1\":940,\"y1\":190}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-09-03\",\"mappedX\":932.4287415641144}",
+          "ids": [
+            476,
+            477
+          ],
+          "createdBars": [
+            7998,
+            7999
+          ],
+          "stats": {
+            "created": 477,
+            "updated": 5554,
+            "deleted": 475,
+            "peakLive": {
+              "line": 0,
+              "label": 0,
+              "box": 2,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 2,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 30191,
+          "colours": [
+            "0,140,123",
+            "0,137,118",
+            "0,137,123",
+            "0,136,122",
+            "0,137,122",
+            "5,137,120",
+            "17,138,114",
+            "12,137,117"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 31991,
+      "screenshot": "tools\\c3b_close_live2\\c3b_03_box_zone.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_04_table_dash",
+      "timings_ms": {
+        "goto": 2434,
+        "open_builder": 9,
+        "new_formula": 10,
+        "import_tab": 25,
+        "paste": 16,
+        "translate": 264,
+        "apply": 6,
+        "save_click": 5,
+        "save_roundtrip": 527,
+        "instance_persist": 22,
+        "reopen": 2402,
+        "render": 214
+      },
+      "definitions_before": 16,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_04_table_dash",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_daf20820c401",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_daf20820c401:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_daf20820c401:1",
+          "plotKey": "value",
+          "text": "c3b_04_table 742.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 17,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_daf20820c401:1",
+          "drawn": "1:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":1}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 1,
+          "bbox": "{\"x0\":983,\"y0\":8,\"x1\":1062,\"y1\":56}",
+          "pane": "1070x596@1",
+          "probe": "",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            0
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 6,
+            "deleted": 0,
+            "peakLive": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 1,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 3840,
+          "colours": [
+            "54,57,69",
+            "54,58,69",
+            "70,73,84",
+            "113,115,127",
+            "77,81,92",
+            "106,110,120",
+            "57,61,72",
+            "88,92,103",
+            "98,103,113",
+            "120,123,134",
+            "112,116,127",
+            "61,65,76"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 5640,
+      "screenshot": "tools\\c3b_close_live2\\c3b_04_table_dash.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_05_collection",
+      "timings_ms": {
+        "goto": 2372,
+        "open_builder": 10,
+        "new_formula": 9,
+        "import_tab": 23,
+        "paste": 32,
+        "translate": 258,
+        "apply": 7,
+        "save_click": 5,
+        "save_roundtrip": 529,
+        "instance_persist": 15,
+        "reopen": 2489,
+        "render": 211
+      },
+      "definitions_before": 17,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_05_collection",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_b4761a4be24b",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_b4761a4be24b:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_b4761a4be24b:1",
+          "plotKey": "value",
+          "text": "c3b_05_colle 691.43",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 18,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_b4761a4be24b:1",
+          "drawn": "104:{\"line\":104,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":-55906,\"y0\":60,\"x1\":940,\"y1\":1913}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"1996-07-17\",\"mappedX\":-55905.50932909895,\"rawY\":63}",
+          "ids": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104
+          ],
+          "createdBars": [
+            417,
+            424,
+            426,
+            969,
+            990,
+            992,
+            995,
+            1230,
+            1246,
+            1310,
+            1326,
+            1330,
+            1341,
+            1364,
+            1381,
+            1390,
+            1393,
+            1436,
+            1471,
+            1474,
+            1478,
+            1793,
+            1832,
+            1834,
+            1851,
+            2113,
+            2116,
+            2431,
+            2463,
+            2483,
+            2501,
+            2622,
+            2624,
+            2629,
+            2639,
+            2756,
+            2897,
+            2922,
+            2939,
+            2951,
+            2954,
+            3198,
+            3210,
+            3215,
+            3223,
+            3280,
+            3283,
+            3288,
+            3296,
+            3396,
+            3656,
+            3673,
+            3685,
+            3906,
+            3918,
+            3951,
+            3980,
+            4265,
+            4273,
+            4293,
+            4305,
+            4308,
+            4310,
+            4416,
+            4531,
+            5014,
+            5194,
+            5268,
+            5286,
+            5297,
+            5305,
+            5313,
+            5363,
+            5438,
+            5876,
+            5881,
+            6018,
+            6034,
+            6051,
+            6098,
+            6116,
+            6175,
+            6362,
+            6364,
+            6422,
+            6434,
+            6445,
+            6846,
+            6857,
+            6881,
+            6883,
+            6893,
+            7056,
+            7086,
+            7091,
+            7128,
+            7130,
+            7133,
+            7281,
+            7288,
+            7634,
+            7668,
+            7895,
+            7999
+          ],
+          "stats": {
+            "created": 104,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 104,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 104,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 345,
+          "colours": [
+            "224,64,251",
+            "155,37,176",
+            "156,39,175",
+            "157,39,177",
+            "155,39,175",
+            "156,39,176",
+            "156,36,177"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 2145,
+      "screenshot": "tools\\c3b_close_live2\\c3b_05_collection.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_06_turnover",
+      "timings_ms": {
+        "goto": 2376,
+        "open_builder": 17,
+        "new_formula": 13,
+        "import_tab": 60,
+        "paste": 18,
+        "translate": 283,
+        "apply": 7,
+        "save_click": 5,
+        "save_roundtrip": 537,
+        "instance_persist": 11,
+        "reopen": 2407,
+        "render": 242
+      },
+      "definitions_before": 18,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_06_turnover",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_f8832ec2c4a8",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_f8832ec2c4a8:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_f8832ec2c4a8:1",
+          "plotKey": "value",
+          "text": "c3b_06_turno 742.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 19,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_f8832ec2c4a8:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":640,\"y0\":87,\"x1\":940,\"y1\":87}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-07-10\",\"mappedX\":640.0293767368014,\"rawY\":769.0530000000001}",
+          "ids": [
+            8000
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 8000,
+            "updated": 0,
+            "deleted": 7999,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 900,
+          "colours": [
+            "0,187,212",
+            "0,188,212"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 2700,
+      "screenshot": "tools\\c3b_close_live2\\c3b_06_turnover.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_07_param_driven",
+      "timings_ms": {
+        "goto": 2405,
+        "open_builder": 9,
+        "new_formula": 6,
+        "import_tab": 19,
+        "paste": 23,
+        "translate": 311,
+        "apply": 10,
+        "save_click": 9,
+        "save_roundtrip": 521,
+        "instance_persist": 541,
+        "reopen": 2774,
+        "render": 431
+      },
+      "definitions_before": 19,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_07_param_driven",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_e853cbb1c280",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_e853cbb1c280:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_e853cbb1c280:1",
+          "plotKey": "value",
+          "text": "c3b_07_param 742.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 20,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_e853cbb1c280:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":87,\"x1\":940,\"y1\":87}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":769.0530000000001}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1350,
+          "colours": [
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 3150,
+      "screenshot": "tools\\c3b_close_live2\\c3b_07_param_driven.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_08_bar_exact",
+      "timings_ms": {
+        "goto": 2467,
+        "open_builder": 25,
+        "new_formula": 45,
+        "import_tab": 46,
+        "paste": 43,
+        "translate": 317,
+        "apply": 11,
+        "save_click": 6,
+        "save_roundtrip": 644,
+        "instance_persist": 565,
+        "reopen": 2458,
+        "render": 250
+      },
+      "definitions_before": 20,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_08_bar_exact",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_a7a67dfc18fe",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_a7a67dfc18fe:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_a7a67dfc18fe:1",
+          "plotKey": "value",
+          "text": "c3b_08_bar_e 742.24",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 21,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_a7a67dfc18fe:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":-29042,\"y0\":87,\"x1\":940,\"y1\":1780}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2010-10-11\",\"mappedX\":-29042.254863040944,\"rawY\":114.3625}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            4000
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 8000,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 4640,
+          "colours": [
+            "255,81,81",
+            "255,83,83",
+            "255,80,80",
+            "255,82,82",
+            "255,79,79",
+            "255,85,85",
+            "255,78,78",
+            "255,75,75",
+            "255,70,70",
+            "255,77,77",
+            "255,73,73",
+            "255,76,76"
+          ],
+          "selfTestPixels": 8716,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 6440,
+      "screenshot": "tools\\c3b_close_live2\\c3b_08_bar_exact.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    },
+    {
+      "script": "c3b_09_param_object",
+      "timings_ms": {
+        "goto": 2525,
+        "open_builder": 21,
+        "new_formula": 19,
+        "import_tab": 33,
+        "paste": 47,
+        "translate": 362,
+        "apply": 17,
+        "save_click": 17,
+        "save_roundtrip": 543,
+        "instance_persist": 534,
+        "reopen": 2562,
+        "render": 207
+      },
+      "definitions_before": 21,
+      "instances_before": 1,
+      "chips_before": 1,
+      "import_report": "",
+      "builder": {
+        "levels": "",
+        "placement": "price",
+        "styleSelects": [
+          "line"
+        ],
+        "colors": [
+          "#c9a84c"
+        ],
+        "plotRowInputs": 2
+      },
+      "named": true,
+      "repaint_ack": {
+        "present": 0,
+        "ticked": 0
+      },
+      "save_state": {
+        "nameFound": true,
+        "nameValue": "c3b_09_param_object",
+        "saveFound": true,
+        "saveDisabled": false,
+        "hint": null,
+        "formulaError": null,
+        "repaintBadge": "Non-repainting every bar this output depends on is at or before its own index",
+        "levelsProblem": null,
+        "pickerNote": null,
+        "plotProblems": [],
+        "inputProblems": []
+      },
+      "save_clicked": true,
+      "def_id": "u_9e6eecbdbc80",
+      "stored": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "off"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "off": 5
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "instance_persisted": [
+        "inst:u_9e6eecbdbc80:1"
+      ],
+      "render_settled": true,
+      "chips_after": 2,
+      "new_chips": [
+        {
+          "instanceId": "inst:u_9e6eecbdbc80:1",
+          "plotKey": "value",
+          "text": "c3b_09_param 741.77",
+          "hidden": false,
+          "drewNothing": false
+        }
+      ],
+      "persisted_defs": 22,
+      "reopened": {
+        "name": null,
+        "plot_keys": [
+          "value"
+        ],
+        "chip_plot_keys": [
+          "value"
+        ],
+        "guide_plot_keys": [],
+        "tree_keys": [],
+        "scan_plot": null,
+        "placement": null,
+        "scannable": false,
+        "input_keys": [
+          "color",
+          "lineWidth",
+          "off"
+        ],
+        "input_defaults": {
+          "color": "#c9a84c",
+          "lineWidth": 1,
+          "off": 5
+        },
+        "plot_styles": [
+          "line"
+        ],
+        "plot_colors": [
+          "$color"
+        ],
+        "targets": [],
+        "levels": null
+      },
+      "reopen_identical": true,
+      "objects_after_reopen": [
+        {
+          "instanceId": "inst:u_155800484dfc:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":213,\"x1\":940,\"y1\":213}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":720.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1800,
+          "colours": [
+            "255,236,58",
+            "255,235,58",
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        },
+        {
+          "instanceId": "inst:u_9e6eecbdbc80:1",
+          "drawn": "1:{\"line\":1,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "skipped": "0:{\"line\":0,\"label\":0,\"box\":0,\"linefill\":0,\"table\":0}",
+          "tables": 0,
+          "bbox": "{\"x0\":490,\"y0\":97,\"x1\":940,\"y1\":97}",
+          "pane": "1070x596@1",
+          "probe": "{\"rawX\":\"2026-06-10\",\"mappedX\":490.0809845176666,\"rawY\":765.19}",
+          "ids": [
+            1
+          ],
+          "createdBars": [
+            7999
+          ],
+          "stats": {
+            "created": 1,
+            "updated": 0,
+            "deleted": 0,
+            "peakLive": {
+              "line": 1,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            },
+            "liveTotal": 1,
+            "status": "ok",
+            "dropped": {
+              "line": 0,
+              "label": 0,
+              "box": 0,
+              "table": 0,
+              "linefill": 0
+            }
+          },
+          "w": 1070,
+          "h": 596,
+          "attached": true,
+          "pixels": 1350,
+          "colours": [
+            "255,234,59",
+            "255,235,59",
+            "255,234,58"
+          ],
+          "selfTestPixels": 8780,
+          "styleW": "1070px",
+          "styleH": "596px",
+          "rect": [
+            1070,
+            596
+          ],
+          "dpr": 1
+        }
+      ],
+      "object_layers": 2,
+      "object_layers_painted": 2,
+      "object_pixels": 3150,
+      "screenshot": "tools\\c3b_close_live2\\c3b_09_param_object.png",
+      "declared_plots": [
+        "value"
+      ],
+      "drawn_plots": [
+        "value"
+      ],
+      "empty_plots": [],
+      "result": "FULL_JOURNEY_PASS",
+      "cleanup_removed": 1
+    }
+  ],
+  "bars_probe": 300
+}

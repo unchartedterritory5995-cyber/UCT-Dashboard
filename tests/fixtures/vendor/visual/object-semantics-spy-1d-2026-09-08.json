@@ -1,0 +1,390 @@
+{
+  "id": "object-semantics-spy-1d-2026-09-08",
+  "kind": "visual-object-semantics",
+  "script": {
+    "language": "Pine Script v5",
+    "source": "//@version=5\nindicator(\"UCT C3B object probe\", overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500)\nvar line anchor = na\nif na(anchor)\n    anchor := line.new(bar_index, close, bar_index, close, color = color.yellow, width = 3)\nline.set_xy1(anchor, bar_index - 20, close)\nline.set_xy2(anchor, bar_index, close)\nvar line churn = na\nif not na(churn)\n    line.delete(churn)\nchurn := line.new(bar_index - 5, high, bar_index, high, color = color.red, width = 1)\nif bar_index >= last_bar_index - 2\n    label.new(bar_index, low, text = str.tostring(bar_index), color = color.blue, style = label.style_label_up, size = size.small)\nif barstate.islast\n    box.new(bar_index - 40, high + 4, bar_index - 35, low - 4, border_color = color.green)\n    box.new(bar_index - 30, high + 3, bar_index - 25, low - 3, border_color = color.green)\n    box.new(bar_index - 20, high + 2, bar_index - 15, low - 2, border_color = color.green)\n    box.new(bar_index - 10, high + 1, bar_index - 5, low - 1, border_color = color.green)\nvar table t = table.new(position.top_right, 2, 2, border_width = 1)\nif barstate.islast\n    table.cell(t, 0, 0, \"UCT\", text_color = color.white)\n    table.cell(t, 1, 0, \"PROBE\", text_color = color.orange)\n    table.cell(t, 0, 1, str.tostring(close, \"#.##\"), text_color = color.yellow)\n    table.cell(t, 1, 1, str.tostring(bar_index), text_color = color.aqua)\n",
+    "pineDigest": "7d3d5d7931421b7b7199cd7a0e4e35f474761ed0",
+    "compiledPineRuntimeVersion": "0.3",
+    "whatEachSectionDiscriminates": {
+      "anchor": "IDENTITY UNDER UPDATE - created once on bar 0, then set_xy1/set_xy2 every bar. An engine that re-created it per bar could only show a large id.",
+      "churn": "DELETE + TURNOVER - the previous line is deleted and a new one created on every bar. Exactly one may be alive.",
+      "labels": "A SECOND FAMILY, on the last three bars only, each carrying per-object TEXT that names its own bar_index.",
+      "boxes": "MULTIPLE SIMULTANEOUS OBJECTS of one family, created within a single bar, at four distinct x-spans.",
+      "table": "TABLE STATE - one table created once (a var), four cells written on the last bar only."
+    }
+  },
+  "market": {
+    "symbol": "SPY",
+    "exchange": "NYSE Arca",
+    "listedExchange": "AMEX",
+    "timezone": "America/New_York",
+    "resolution": "1D",
+    "barsInChartModel": 300,
+    "lastBar": {
+      "modelIndex": 299,
+      "t": 1788528600,
+      "o": 772.01,
+      "h": 772.87,
+      "l": 769.0,
+      "c": 770.19,
+      "v": 34054199
+    },
+    "lastBarIndexInPine": 8457
+  },
+  "vendor": {
+    "materialisedIndexes": [
+      259,
+      264,
+      269,
+      274,
+      279,
+      284,
+      289,
+      294,
+      297,
+      298,
+      299
+    ],
+    "materialisedIndexBars": [
+      {
+        "i": 259,
+        "t": 1783690200,
+        "o": 752.05,
+        "h": 755.42,
+        "l": 748.1,
+        "c": 754.95
+      },
+      {
+        "i": 264,
+        "t": 1784295000,
+        "o": 742.08,
+        "h": 747.29,
+        "l": 740.8,
+        "c": 743.29
+      },
+      {
+        "i": 269,
+        "t": 1784899800,
+        "o": 738.51,
+        "h": 743.72,
+        "l": 737.29,
+        "c": 738.93
+      },
+      {
+        "i": 274,
+        "t": 1785504600,
+        "o": 744.68,
+        "h": 748.895,
+        "l": 737.68,
+        "c": 747.03
+      },
+      {
+        "i": 279,
+        "t": 1786109400,
+        "o": 771.02,
+        "h": 773.915,
+        "l": 769.61,
+        "c": 773.26
+      },
+      {
+        "i": 284,
+        "t": 1786714200,
+        "o": 778.54,
+        "h": 778.8,
+        "l": 775.4301,
+        "c": 776.34
+      },
+      {
+        "i": 289,
+        "t": 1787319000,
+        "o": 766.05,
+        "h": 767.85,
+        "l": 764.17,
+        "c": 765.72
+      },
+      {
+        "i": 294,
+        "t": 1787923800,
+        "o": 771.76,
+        "h": 775.3,
+        "l": 768.3076,
+        "c": 769.35
+      },
+      {
+        "i": 297,
+        "t": 1788355800,
+        "o": 762.45,
+        "h": 766.43,
+        "l": 761.73,
+        "c": 765.16
+      },
+      {
+        "i": 298,
+        "t": 1788442200,
+        "o": 767.9,
+        "h": 774.03,
+        "l": 767.45,
+        "c": 773.17
+      },
+      {
+        "i": 299,
+        "t": 1788528600,
+        "o": 772.01,
+        "h": 772.87,
+        "l": 769.0,
+        "c": 770.19
+      }
+    ],
+    "palette": {
+      "0": "#FFEB3B",
+      "1": "#FF5252",
+      "2": "#2962ff",
+      "3": "#363A45",
+      "4": "#4CAF50",
+      "5": "#FFFFFF",
+      "6": "#FF9800",
+      "7": "#00BCD4"
+    },
+    "paletteMeaning": {
+      "0": "color.yellow (the anchor line)",
+      "1": "color.red (the churn line)",
+      "2": "color.blue (label background)",
+      "3": "the label's and the box's DEFAULT text colour, which Pine spells color.black",
+      "4": "color.green (box border)",
+      "5": "color.white (a table cell)",
+      "6": "color.orange (a table cell)",
+      "7": "color.aqua (a table cell)"
+    },
+    "lines": [
+      {
+        "id": 1,
+        "x1": 4,
+        "y1": 770.19,
+        "x2": 10,
+        "y2": 770.19,
+        "ex": "n",
+        "st": "sol",
+        "ci": 0,
+        "w": 3
+      },
+      {
+        "id": 8462,
+        "x1": 7,
+        "y1": 772.87,
+        "x2": 10,
+        "y2": 772.87,
+        "ex": "n",
+        "st": "sol",
+        "ci": 1,
+        "w": 1
+      }
+    ],
+    "labels": [
+      {
+        "id": 8459,
+        "x": 8,
+        "y": 761.73,
+        "yl": "pr",
+        "t": "8455",
+        "st": "lup",
+        "ci": 2,
+        "tci": 3,
+        "sz": "small",
+        "ta": "center",
+        "tt": ""
+      },
+      {
+        "id": 8461,
+        "x": 9,
+        "y": 767.45,
+        "yl": "pr",
+        "t": "8456",
+        "st": "lup",
+        "ci": 2,
+        "tci": 3,
+        "sz": "small",
+        "ta": "center",
+        "tt": ""
+      },
+      {
+        "id": 8463,
+        "x": 10,
+        "y": 769.0,
+        "yl": "pr",
+        "t": "8457",
+        "st": "lup",
+        "ci": 2,
+        "tci": 3,
+        "sz": "small",
+        "ta": "center",
+        "tt": ""
+      }
+    ],
+    "boxes": [
+      {
+        "id": 8464,
+        "x1": 0,
+        "x2": 1,
+        "y1": 776.87,
+        "y2": 765.0,
+        "c": 4,
+        "bc": 2,
+        "ex": "n",
+        "st": "sol",
+        "w": 1,
+        "t": "",
+        "ts": "auto",
+        "tc": 3,
+        "tva": "center",
+        "tha": "center",
+        "tw": "none"
+      },
+      {
+        "id": 8465,
+        "x1": 2,
+        "x2": 3,
+        "y1": 775.87,
+        "y2": 766.0,
+        "c": 4,
+        "bc": 2,
+        "ex": "n",
+        "st": "sol",
+        "w": 1,
+        "t": "",
+        "ts": "auto",
+        "tc": 3,
+        "tva": "center",
+        "tha": "center",
+        "tw": "none"
+      },
+      {
+        "id": 8466,
+        "x1": 4,
+        "x2": 5,
+        "y1": 774.87,
+        "y2": 767.0,
+        "c": 4,
+        "bc": 2,
+        "ex": "n",
+        "st": "sol",
+        "w": 1,
+        "t": "",
+        "ts": "auto",
+        "tc": 3,
+        "tva": "center",
+        "tha": "center",
+        "tw": "none"
+      },
+      {
+        "id": 8467,
+        "x1": 6,
+        "x2": 7,
+        "y1": 773.87,
+        "y2": 768.0,
+        "c": 4,
+        "bc": 2,
+        "ex": "n",
+        "st": "sol",
+        "w": 1,
+        "t": "",
+        "ts": "auto",
+        "tc": 3,
+        "tva": "center",
+        "tha": "center",
+        "tw": "none"
+      }
+    ],
+    "tables": [
+      {
+        "id": 3,
+        "pos": "top_right",
+        "rows": 2,
+        "cols": 2,
+        "bgc": null,
+        "frmc": null,
+        "frmw": 0,
+        "brdc": null,
+        "brdw": 1
+      }
+    ],
+    "tableCells": [
+      {
+        "id": 8468,
+        "tid": 3,
+        "col": 0,
+        "row": 0,
+        "t": "UCT",
+        "tc": 5,
+        "tha": "center",
+        "tva": "center",
+        "ts": "auto",
+        "bgc": null,
+        "colspan": 1,
+        "rowspan": 1
+      },
+      {
+        "id": 8469,
+        "tid": 3,
+        "col": 1,
+        "row": 0,
+        "t": "PROBE",
+        "tc": 6,
+        "tha": "center",
+        "tva": "center",
+        "ts": "auto",
+        "bgc": null,
+        "colspan": 1,
+        "rowspan": 1
+      },
+      {
+        "id": 8470,
+        "tid": 3,
+        "col": 0,
+        "row": 1,
+        "t": "770.19",
+        "tc": 0,
+        "tha": "center",
+        "tva": "center",
+        "ts": "auto",
+        "bgc": null,
+        "colspan": 1,
+        "rowspan": 1
+      },
+      {
+        "id": 8471,
+        "tid": 3,
+        "col": 1,
+        "row": 1,
+        "t": "8457",
+        "tc": 7,
+        "tha": "center",
+        "tva": "center",
+        "ts": "auto",
+        "bgc": null,
+        "colspan": 1,
+        "rowspan": 1
+      }
+    ],
+    "linefills": []
+  },
+  "visualFacts": {
+    "identityIsONEMonotonicCounterSharedByEveryFamily": "Script order on bar 0 mints anchor=1, churn=2, table=3. Every later object continues the SAME sequence regardless of family: labels 8459/8461/8463, boxes 8464-8467, table cells 8468-8471. There is no per-family id space.",
+    "anUpdatedObjectKeepsItsId": "`anchor` was created once and moved with set_xy1/set_xy2 on every one of ~8,458 bars. Its id is still 1. The churn line, recreated each bar, is 8462. The two numbers are the discrimination: a re-creating engine cannot show a small id, and an updating engine cannot show a large one.",
+    "deleteReallyRemoves": "About 8,458 churn lines were created across the history and exactly ONE is alive - dwglines holds two entries, the anchor and the newest churn.",
+    "xIsAPositionIntoAPerStudyIndexTable": "A primitive stores x as an index into the study's own `_indexes` array - not an absolute bar index and not a timestamp. Here _indexes = [259,264,269,274,279,284,289,294,297,298,299], exactly the eleven model bars some object touches. The anchor's x1=4,x2=10 resolve to model bars 279 and 299, a 20-bar span, which is what `bar_index - 20 .. bar_index` asks for.",
+    "coordinatesAreTheVendorsOwnBarValues": "Every y is a bar field to the cent: anchor y=770.19=close(299); churn y=772.87=high(299); labels y=761.73/767.45/769.00=low(297/298/299); boxes run y1=776.87=high(299)+4 down to y2=765.00=low(299)-4 stepping by 1 - so a box created on the LAST bar uses THAT bar's high/low even where its x-span sits forty bars back.",
+    "barIndexIsAbsoluteOverLoadedHistoryNotTheWindow": "The chart model held 300 bars while the label text - str.tostring(bar_index) - reads 8455/8456/8457. Pine's bar_index counts the whole loaded history; the 300 is only what the chart model keeps.",
+    "aTableCellReferencesItsTableById": "Every cell carries `tid: 3`, the table's own object id, plus col/row. Cells are not nested inside the table record.",
+    "aTableIsNotPlacedInPriceSpace": "The table record carries `pos: \"top_right\"` and no coordinates at all - it is pane-anchored, unlike every other family.",
+    "defaultLabelAndBoxTextColourIs363A45": "Neither the labels nor the boxes set a text colour, and both resolved to palette index 3 = #363A45, which is Pine's color.black."
+  },
+  "provenance": {
+    "platform": "TradingView",
+    "platformVersion": "Pine Script v5, web, 2026-09",
+    "who": "Claude (browser automation), owner-authenticated session",
+    "when": "2026-09-08",
+    "chartUrl": "https://www.tradingview.com/chart/VEeQHWPh/",
+    "note": "READ OUT OF TRADINGVIEW'S OWN CHART MODEL IN A LIVE SESSION, not transcribed from pixels and not computed here. The study was added from the Pine Editor, read through the model's own study data source - graphics().dwglines()/dwglabels()/dwgboxes()/dwgtables()/dwgtablecells(), each a Map name -> Map flag -> primitive collection whose `_primitivesDataById` holds the records verbatim - and then REMOVED again; the chart's data-source list was verified back to its pre-capture state and the layout was NOT saved. Colours are the study's own resolved properties().state().palettes.palette_common, so every palette index on a record resolves without guessing. Bars are the main series' own bars().valueAt(i)."
+  }
+}

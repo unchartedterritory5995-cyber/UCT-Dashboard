@@ -60,31 +60,77 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
  * ⭐ THE SPACING IS MEASURED FROM THE SERIES, not assumed. A daily chart's bars
  * are not 86400 apart across a weekend, so a fixed step would drift; the median
  * of the last differences is stable against holidays and half-days both.
+ *
+ * ⚰️⚰️ A BAR TIME IS NOT ALWAYS A NUMBER, AND THE FIRST LIVE RUN PROVED IT.
+ * This product feeds INTRADAY bars as unix seconds and DAILY bars as ISO date
+ * strings (`"2026-09-04"`) — the chart series carries whichever it was given. The
+ * first version of this clock did `Number(bars[i].t)`, which is `NaN` for every
+ * daily bar, so every object's x became `NaN`, survived a `=== null` check, and
+ * reached `timeToCoordinate(NaN)` — which returned a FINITE coordinate about
+ * 59,000 px to the left of the pane. The painter reported `drawn: 2` and the
+ * raster was empty. Nothing above this line could see it: every unit test builds
+ * its bars with numeric `t`.
+ *
+ * So the clock now keeps the series' OWN value for an in-range bar, and shapes an
+ * extrapolated one to match. ⛔ Never normalise a bar time to a number here — the
+ * chart is the authority on what a time looks like, and it wants the shape it was
+ * handed.
  */
 export function makeBarClock(bars) {
   const n = Array.isArray(bars) ? bars.length : 0
-  const times = new Array(n)
-  for (let i = 0; i < n; i += 1) times[i] = Number(bars[i].t)
+  const raw = new Array(n)
+  const epoch = new Array(n)
+  let stringly = false
+  for (let i = 0; i < n; i += 1) {
+    const t = bars[i].t
+    raw[i] = t
+    if (typeof t === 'number') { epoch[i] = t; continue }
+    stringly = true
+    const ms = Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
+    epoch[i] = Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
+  }
   let step = 86400
   if (n >= 3) {
     const d = []
     for (let i = Math.max(1, n - 40); i < n; i += 1) {
-      const gap = times[i] - times[i - 1]
+      const gap = epoch[i] - epoch[i - 1]
       if (gap > 0) d.push(gap)
     }
     if (d.length) { d.sort((a, b) => a - b); step = d[Math.floor(d.length / 2)] }
   }
+  /** An extrapolated point must be the SAME SHAPE as the series' own times, or
+   *  the chart cannot place it — see the note above. */
+  const shaped = (sec) => {
+    if (!stringly) return sec
+    if (!Number.isFinite(sec)) return null
+    return new Date(sec * 1000).toISOString().slice(0, 10)
+  }
+  const asEpoch = (t) => {
+    if (typeof t === 'number') return t
+    const ms = Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
+    return Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
+  }
   return {
     count: n,
     step,
-    /** a bar INDEX → a time, extrapolated on both sides */
+    stringly,
+    /** Two times, smaller first — comparing on the EPOCH, returning the ORIGINALS. */
+    orderTimes(a, b) {
+      const ea = asEpoch(a)
+      const eb = asEpoch(b)
+      if (!Number.isFinite(ea) || !Number.isFinite(eb)) return [a, b]
+      return ea <= eb ? [a, b] : [b, a]
+    },
+    /** a bar INDEX → a time IN THE SERIES' OWN SHAPE, extrapolated on both sides */
     timeAt(i) {
-      if (!Number.isFinite(i)) return null
-      if (n === 0) return null
+      if (!Number.isFinite(i) || n === 0) return null
       const k = Math.round(i)
-      if (k >= 0 && k < n) return times[k]
-      if (k >= n) return times[n - 1] + (k - (n - 1)) * step
-      return times[0] + k * step
+      // ⭐ IN RANGE, RETURN THE BAR'S OWN VALUE, UNTOUCHED. Re-deriving it from
+      // an epoch would round-trip a date through arithmetic for no reason and is
+      // one DST bug away from placing an object on the wrong day.
+      if (k >= 0 && k < n) return raw[k]
+      if (k >= n) return shaped(epoch[n - 1] + (k - (n - 1)) * step)
+      return shaped(epoch[0] + k * step)
     },
   }
 }
@@ -93,7 +139,14 @@ export function makeBarClock(bars) {
 function xOf(value, xloc, clock) {
   const v = num(value)
   if (v === null) return null
-  return xloc === 'bar_time' ? v : clock.timeAt(v)
+  if (xloc === 'bar_time') return v
+  const t = clock.timeAt(v)
+  // ⛔ `NaN` IS NOT A COORDINATE, AND `=== null` DOES NOT CATCH IT. That gap is
+  // exactly how a whole indicator drew off-pane while every counter said it had
+  // drawn — a non-finite time reached the chart and came back as a real number.
+  if (t === null || t === undefined) return null
+  if (typeof t === 'number' && !Number.isFinite(t)) return null
+  return t
 }
 
 /**
@@ -150,10 +203,18 @@ export function toRenderState(live, opts = {}) {
       const top = num(p.top)
       const bottom = num(p.bottom)
       if (left === null || right === null || top === null || bottom === null) { dropped.box += 1; continue }
+      // ⛔⛔ `Math.min` ON A TIME IS ARITHMETIC, AND A DAILY TIME IS A STRING.
+      // ⚰️ `Math.min("2026-09-04", "2026-08-01")` is `NaN`, so every box on a
+      // daily chart came out with `left = right = NaN` and painted 59,000 px off
+      // the pane — the same class of bug as the clock above, one line further on,
+      // and invisible for the same reason: every unit fixture uses numeric times.
+      // Ordering is decided on the CLOCK's epoch and the values are passed
+      // through untouched.
+      const [lo, hi] = clock.orderTimes(left, right)
       boxes.push({
         id: o.id,
-        left: Math.min(left, right),
-        right: Math.max(left, right),
+        left: lo,
+        right: hi,
         // ⭐ TOP IS THE HIGHER PRICE. Pine lets an author pass them either way
         // round and draws the same box; normalising here means the adapter never
         // has to, and a zero-height box stays zero-height rather than inverting.

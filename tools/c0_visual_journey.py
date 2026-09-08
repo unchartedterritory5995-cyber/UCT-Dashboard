@@ -477,6 +477,96 @@ def _open_workspace(page, base, timeout=30000):
     return None
 
 
+# --------------------------------------------------------------------------- #
+# C3B-CLOSE: DID THE OBJECTS ACTUALLY PAINT?
+# --------------------------------------------------------------------------- #
+#
+# The same discipline the chip probe already applies to plots, one surface newer.
+#
+# THREE INDEPENDENT FACTS, AND THE ONLY ONE THAT MATTERS IS THE PIXELS.
+#   1. a canvas carrying `data-uct-object-layer` EXISTS       -> the layer mounted
+#   2. `data-uct-objects-drawn` says the painter drew N       -> OUR OWN counter
+#   3. the canvas's own IMAGE DATA has non-transparent pixels -> it PAINTED
+#
+# (1) and (2) are the product telling us about itself, and both can be true of a
+# renderer that draws nothing: a layer that mounted and a painter that walked a
+# list are not a picture. (3) reads the actual raster the member is looking at
+# and cannot be true unless something was drawn. `lesson_did_it_render_needs_the
+# _products_own_answer` says a canvas COUNT can only say yes; a PIXEL count can
+# say no, which is the whole difference.
+#
+# `getImageData` on a tainted canvas throws. This canvas is drawn entirely by us
+# with no external images so it cannot taint -- but the read is wrapped anyway,
+# and a throw is reported as `pixels: "blocked"` rather than as zero, because
+# "we could not look" and "there was nothing there" are different findings.
+JS_OBJECT_LAYERS = """
+() => {
+  const out = []
+  for (const c of document.querySelectorAll('canvas[data-uct-object-layer]')) {
+    const row = {
+      instanceId: c.getAttribute('data-uct-object-layer'),
+      drawn: c.getAttribute('data-uct-objects-drawn') || '',
+      skipped: c.getAttribute('data-uct-objects-skipped') || '',
+      tables: Number(c.getAttribute('data-uct-objects-tables') || 0),
+      bbox: c.getAttribute('data-uct-objects-bbox') || '',
+      pane: c.getAttribute('data-uct-objects-pane') || '',
+      probe: c.getAttribute('data-uct-objects-probe') || '',
+      ids: (c.getAttribute('data-uct-object-ids') || '').split(',').filter(Boolean).map(Number),
+      createdBars: (c.getAttribute('data-uct-object-bars') || '').split(',').filter(Boolean).map(Number),
+      stats: (() => { try { return JSON.parse(c.getAttribute('data-uct-object-stats') || '{}') } catch (e) { return {} } })(),
+      w: c.width, h: c.height,
+      attached: !!c.parentNode,
+    }
+    try {
+      const ctx = c.getContext('2d', { willReadFrequently: true })
+      const d = ctx.getImageData(0, 0, c.width, c.height).data
+      let lit = 0
+      const colours = new Set()
+      for (let i = 3; i < d.length; i += 4) {
+        if (d[i] > 8) {
+          lit += 1
+          if (colours.size < 12) colours.add(`${d[i-3]},${d[i-2]},${d[i-1]}`)
+        }
+      }
+      row.pixels = lit
+      row.colours = [...colours]
+      // ⛔⛔ THE DISCRIMINATOR. If our painter drew and the raster is empty,
+      // there are two possible causes and they need different fixes: the canvas
+      // cannot hold pixels here at all (compositing, size, a later clear), or our
+      // painter's coordinates went nowhere. So the probe draws its OWN stroke on
+      // the SAME canvas and reads back. A self-test that also comes back empty
+      // acquits the painter; one that lights up convicts it.
+      const before = lit
+      ctx.save()
+      ctx.strokeStyle = '#ff00ff'
+      ctx.lineWidth = 6
+      ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(Math.max(20, c.width - 5), Math.max(20, c.height - 5)); ctx.stroke()
+      ctx.restore()
+      const d2 = ctx.getImageData(0, 0, c.width, c.height).data
+      let lit2 = 0
+      for (let i = 3; i < d2.length; i += 4) if (d2[i] > 8) lit2 += 1
+      row.selfTestPixels = lit2 - before
+      row.styleW = c.style.width
+      row.styleH = c.style.height
+      const r = c.getBoundingClientRect()
+      row.rect = [Math.round(r.width), Math.round(r.height)]
+      row.dpr = window.devicePixelRatio
+    } catch (e) { row.pixels = 'blocked'; row.pixelError = String(e).slice(0, 80) }
+    out.push(row)
+  }
+  return out
+}
+"""
+
+
+def _object_evidence(page):
+    """Every object layer on the page, with its own pixels."""
+    try:
+        return page.evaluate(JS_OBJECT_LAYERS)
+    except Exception as e:  # noqa: BLE001
+        return [{"error": str(e)[:120]}]
+
+
 def run_one(page, base, name, source, out_dir, keep=False):
     """One complete journey. Every phase timed, every claim a real read."""
     t = {}
@@ -716,6 +806,17 @@ def run_one(page, base, name, source, out_dir, keep=False):
     else:
         row["reopen_identical"] = False
         row["reopen_diff"] = ["the definition is gone after reload"]
+
+    # ⭐⭐ C3B-CLOSE — THE OBJECT LAYERS, AFTER THE REOPEN, BEFORE CLEANUP.
+    # Taken here on purpose: this is the reopened chart, recomputed from the
+    # saved PROGRAM, which is the state the wave actually asks about.
+    page.wait_for_timeout(1500)
+    row["objects_after_reopen"] = _object_evidence(page)
+    painted = [o for o in row["objects_after_reopen"]
+               if isinstance(o.get("pixels"), int) and o["pixels"] > 0]
+    row["object_layers"] = len(row["objects_after_reopen"])
+    row["object_layers_painted"] = len(painted)
+    row["object_pixels"] = sum(o["pixels"] for o in painted)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(out_dir / f"{name}.png"), full_page=False)

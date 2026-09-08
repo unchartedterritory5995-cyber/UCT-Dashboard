@@ -8850,8 +8850,34 @@ export function translatePine(source, opts = {}) {
   // translation for the sake of a drawing.
   let objectPass = { program: null, diagnostics: null }
   try {
-    objectPass = buildObjectProgram(stmts, source, env, () => new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null }))
+    objectPass = buildObjectProgram(stmts, source, env, () => {
+      const r = new Resolver(env, table, declaredTypes,
+        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null })
+      // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
+      // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns
+      // `input.int(5, "Offset")` from a welded literal into an identifier the
+      // member can move; the output loop set it and this factory did not, so one
+      // translation produced a plot reading `close * (1 + off / 100)` and a line
+      // whose y-coordinate read `close * (1 + 5 / 100)` — same document, same
+      // expression, one of them deaf to the knob.
+      //
+      // ⚰ MEASURED, NOT REASONED. `objectParams.test.js` prints both formulas off
+      // ONE `translatePine(src, { declareInputs: 'all' })` call; before this the
+      // object tree carried the literal on every pass, including the one
+      // `memberInputTranslation` annotates and `BuilderSheet` saves. So an
+      // imported script's drawing could never respond to its own declared input,
+      // while the plot beside it always did — and no rail could see it, because
+      // every object test builds its trees out of literals.
+      //
+      // ⛔ OFF BY DEFAULT HERE TOO. `opts.declareInputs` is opt-in, so a caller
+      // that asks for nothing gets byte-identical object trees to the ones every
+      // saved definition already holds.
+      if (opts.inputValues && typeof opts.inputValues === 'object') r.inputValues = opts.inputValues
+      if (opts.declareInputs) {
+        r.declareInputs = opts.declareInputs === 'all' ? 'all' : new Set(opts.declareInputs)
+      }
+      return r
+    })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
     // object reader and nothing about how, which is a diagnostic that cannot be

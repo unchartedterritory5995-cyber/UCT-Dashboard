@@ -1,0 +1,13 @@
+//@version=5
+indicator("C3B Box Zone", overlay = true, max_boxes_count = 400)
+ma = ta.sma(close, 20)
+var box zone = na
+if ta.crossover(close, ma)
+    zone := box.new(bar_index, high, bar_index, low, border_color = color.orange, border_width = 2, bgcolor = color.new(color.orange, 80))
+if not na(zone)
+    box.set_right(zone, bar_index)
+if ta.crossunder(close, ma)
+    box.delete(zone)
+if barstate.islast
+    box.new(bar_index - 30, ta.highest(high, 30), bar_index, ta.lowest(low, 30), border_color = color.teal, border_width = 2, bgcolor = color.new(color.teal, 85))
+plot(ma, title = "MA20")

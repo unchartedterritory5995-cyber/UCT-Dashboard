@@ -21,10 +21,18 @@
 // would pile every off-screen line onto the last visible bar and look like a
 // cluster the author never drew.
 //
-// ⚠️ TABLES ARE NOT DRAWN HERE. They are viewport-anchored, not bar-anchored:
-// their position is `top_right`, not a price and a time. `layoutTables` returns
-// their geometry in PANE fractions so a DOM layer can place them; forcing them
-// into price/time coordinates is exactly what the wave forbids.
+// ⭐⭐ TABLES ARE VIEWPORT-ANCHORED AND ARE DRAWN THAT WAY. Their position is
+// `top_right`, not a price and a time, so `layoutTables` gives a grid plus a PANE
+// FRACTION and `paintTables` places it against the pane's own corners. Forcing a
+// table into price/time coordinates is what the wave forbids; drawing it on a
+// pane-anchored overlay is not that — the canvas IS the viewport.
+//
+// ⚰️ AND FOR ONE ROUND OF EVIDENCE THEY WERE NOT DRAWN AT ALL. `layoutTables`
+// existed, was tested, and had no consumer: the live run reported `tables: 1`
+// beside `pixels: 0`, and the comment that used to sit here said a DOM layer
+// would place them — a layer nobody had written. 19 of the reachable 27 scripts
+// are table-driven, so that was the majority of the population rendering nothing
+// while every count looked right.
 
 /** Pine's label styles → where the label body sits relative to its anchor.
  *  ⛔ A STYLE WE DO NOT KNOW DRAWS A PLAIN BOX AT THE ANCHOR rather than
@@ -75,15 +83,33 @@ const DASH = Object.freeze({
  * @returns {{drawn:object, skipped:object}}
  */
 export function paintObjects(ctx, state, m) {
-  const drawn = { line: 0, label: 0, box: 0, linefill: 0 }
-  const skipped = { line: 0, label: 0, box: 0, linefill: 0 }
-  if (!ctx || !state) return { drawn, skipped }
+  const drawn = { line: 0, label: 0, box: 0, linefill: 0, table: 0 }
+  const skipped = { line: 0, label: 0, box: 0, linefill: 0, table: 0 }
+  // ⭐⭐ WHERE IT DREW, NOT JUST THAT IT DREW. A count says the loop ran; a
+  // bounding box says whether anything landed on the pane. The first live run
+  // reported `drawn: 2` beside an empty raster, and the two facts together are
+  // what separate "the painter never ran" from "the painter drew off-screen" —
+  // which need completely different fixes.
+  const bbox = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+  const seen = (x, y) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return
+    if (x < bbox.x0) bbox.x0 = x
+    if (y < bbox.y0) bbox.y0 = y
+    if (x > bbox.x1) bbox.x1 = x
+    if (y > bbox.y1) bbox.y1 = y
+  }
+  if (!ctx || !state) return { drawn, skipped, bbox: null }
   const { timeToX, priceToY, width, height } = m
+  // ⛔⛔ `Number.isFinite`, NOT `!Number.isNaN`. A chart asked to place a time it
+  // cannot resolve may answer `null`, `NaN` OR a real number far outside the
+  // pane; the first two are caught here and the third is a genuine off-screen
+  // object, which is why `bbox` is reported beside the counts. The earlier
+  // `isNaN`-only test let `Infinity` through as a coordinate.
+  const finite = (v) => typeof v === 'number' && Number.isFinite(v)
   const xy = (t, p) => {
     const x = timeToX(t)
     const y = p === null || p === undefined ? null : priceToY(p)
-    return (x === null || x === undefined || Number.isNaN(x)) ? null
-      : { x, y: (y === null || y === undefined || Number.isNaN(y)) ? null : y }
+    return finite(x) ? { x, y: finite(y) ? y : null } : null
   }
   /** How far right an `extend`ed edge runs — the pane, never a guess. */
   const RIGHT = width
@@ -114,6 +140,7 @@ export function paintObjects(ctx, state, m) {
       ctx.strokeRect(x1, a.y, x2 - x1, c.y - a.y)
     }
     ctx.restore()
+    seen(x1, a.y); seen(x2, c.y)
     drawn.box += 1
   }
 
@@ -144,6 +171,7 @@ export function paintObjects(ctx, state, m) {
     ctx.stroke()
     ctx.restore()
     lineById.set(l.id, { x1, y1, x2, y2 })
+    seen(x1, y1); seen(x2, y2)
     drawn.line += 1
   }
 
@@ -192,10 +220,91 @@ export function paintObjects(ctx, state, m) {
       ctx.fillText(text, tx, by + h / 2)
     }
     ctx.restore()
+    seen(bx, by); seen(bx + w, by + h)
     drawn.label += 1
   }
 
-  return { drawn, skipped }
+  // ── the viewport-anchored layer, last: a dashboard sits OVER the drawings
+  const tabs = layoutTables(state)
+  for (const tb of tabs) {
+    if (paintTable(ctx, tb, width, height, seen)) drawn.table += 1
+    else skipped.table += 1
+  }
+
+  return {
+    drawn,
+    skipped,
+    bbox: Number.isFinite(bbox.x0)
+      ? { x0: Math.round(bbox.x0), y0: Math.round(bbox.y0), x1: Math.round(bbox.x1), y1: Math.round(bbox.y1) }
+      : null,
+  }
+}
+
+const CELL_PAD = 6
+const TABLE_MARGIN = 8
+
+/**
+ * One table, placed against the pane's own corners.
+ *
+ * ⛔ THE COLUMN WIDTHS ARE MEASURED FROM THE TEXT, not fixed. A dashboard whose
+ * numbers are clipped is a dashboard that lies about its own values, and Pine
+ * sizes its columns to content for exactly that reason.
+ */
+function paintTable(ctx, tb, width, height, seen) {
+  if (!tb || !tb.rows || !tb.cols) return false
+  const size = (c) => LABEL_FONT_PX[(c && c.text_size) || 'normal'] || 12
+  const colW = []
+  const rowH = []
+  for (let r = 0; r < tb.rows; r += 1) {
+    let h = 0
+    for (let c = 0; c < tb.cols; c += 1) {
+      const cell = tb.grid[r][c]
+      const px = size(cell)
+      ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
+      const w = cell && cell.text ? ctx.measureText(String(cell.text)).width : 0
+      colW[c] = Math.max(colW[c] || 0, w + CELL_PAD * 2)
+      h = Math.max(h, px + CELL_PAD)
+    }
+    rowH[r] = Math.max(h, 14)
+  }
+  const totalW = colW.reduce((a, b) => a + b, 0)
+  const totalH = rowH.reduce((a, b) => a + b, 0)
+  if (!totalW || !totalH) return false
+  const x0 = TABLE_MARGIN + (width - totalW - TABLE_MARGIN * 2) * tb.anchor.h
+  const y0 = TABLE_MARGIN + (height - totalH - TABLE_MARGIN * 2) * tb.anchor.v
+  ctx.save()
+  if (tb.bgcolor) { ctx.fillStyle = tb.bgcolor; ctx.fillRect(x0, y0, totalW, totalH) }
+  let y = y0
+  for (let r = 0; r < tb.rows; r += 1) {
+    let x = x0
+    for (let c = 0; c < tb.cols; c += 1) {
+      const cell = tb.grid[r][c]
+      if (cell) {
+        if (cell.bgcolor) { ctx.fillStyle = cell.bgcolor; ctx.fillRect(x, y, colW[c], rowH[r]) }
+        if (cell.text) {
+          const px = size(cell)
+          ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
+          ctx.textBaseline = 'middle'
+          ctx.textAlign = cell.text_halign === 'left' ? 'left' : cell.text_halign === 'right' ? 'right' : 'center'
+          ctx.fillStyle = cell.text_color || '#D1D4DC'
+          const tx = ctx.textAlign === 'left' ? x + CELL_PAD
+            : ctx.textAlign === 'right' ? x + colW[c] - CELL_PAD : x + colW[c] / 2
+          ctx.fillText(String(cell.text), tx, y + rowH[r] / 2)
+        }
+      }
+      x += colW[c]
+    }
+    y += rowH[r]
+  }
+  if (tb.frame_width > 0 && tb.frame_color) {
+    ctx.strokeStyle = tb.frame_color
+    ctx.lineWidth = tb.frame_width
+    ctx.setLineDash([])
+    ctx.strokeRect(x0, y0, totalW, totalH)
+  }
+  ctx.restore()
+  if (seen) { seen(x0, y0); seen(x0 + totalW, y0 + totalH) }
+  return true
 }
 
 /** Pine's nine table positions → a pane-fraction anchor.

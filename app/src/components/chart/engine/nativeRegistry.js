@@ -1314,7 +1314,13 @@ function astColumnsFor(def, bars, inputs, ctx) {
 }
 
 /** Merge a caller's inputs over the definition's declared defaults. */
-function resolveInputs(def, inputs) {
+// ⭐⭐ EXPORTED FOR THE OBJECT LANE (C3B-CLOSE item 6), NOT COPIED INTO IT.
+// `objectColumns.objectReaderFor` needs exactly this merge — declared defaults
+// under the instance's overrides — to evaluate an object's coordinate the way
+// the plot beside it is evaluated. A second copy there would be a second
+// authority over one value, and the two would disagree the first time a default
+// rule moved (`lesson_a_second_authority_over_one_value`).
+export function resolveInputs(def, inputs) {
   const out = {}
   for (const input of def?.inputs || []) {
     if (input && typeof input.key === 'string') out[input.key] = input.default

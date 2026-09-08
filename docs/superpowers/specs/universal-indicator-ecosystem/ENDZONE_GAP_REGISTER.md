@@ -763,3 +763,127 @@ C3A-CLOSE forbade.
 ⭐ `lastBarOnly` is the dashboard performance story, with its control measured.
 ⚠️ The 100-object row is a pathological program (100 lines updated on every one
 of 5,000 bars); cost is linear in operations, not quadratic in bars.
+
+
+---
+
+## PART J — C3B-CLOSE: WHAT THE LIVE PRODUCT, THE VENDOR AND THE PARITY SET SAID (2026-09-08)
+
+Full report: `C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`. This register carries the
+gaps; that document carries the evidence.
+
+### J1 — the three C3B gate items are answered
+
+```
+  11  real chart rendering        ✅ 9/9 live fixtures, real pixels, after reopen
+  12  TradingView object evidence ✅ VENDOR_CONFIRMED, first object observation in the repo
+  13  fixed 10-member parity set  🟡 re-run: 8/10 draw+reopen · 5/10 paint · fidelity UNMEASURED
+```
+
+⛔ **AND THE FIVE THAT PAINTED ALL PAINTED TABLES.** No line, label or box was
+drawn by any parity-set member. `5/10 painted` is a true sentence about tables
+and a false one about drawings — the per-script classification in the closure
+document is the honest form, and this line exists so the bare fraction never
+travels on its own.
+
+### J2 — ⚰️ TWO DEFECTS THE OBJECT LANE HAD, THAT ONLY A PARAMETER COULD FIND
+
+**(a) `objectColumns.js` called `interpret` with an empty INPUTS map.**
+`interpret(ast, bars, inputs, budget, scalars, opts)`; the object lane passed
+`interpret(tree, bars, opts.interpretOpts || {})` — an empty object in the
+`inputs` position, no budget, no timeframe. `interpret` seeds its scope from
+`inputs` **by name**, so a definition declaring a member input and reading it in
+an object's coordinate resolved that name to nothing and the whole column
+refused, while the plot beside it honoured the same knob through
+`nativeRegistry.computeFor`'s `resolveInputs`. One document, two evaluators, one
+of them deaf.
+
+**(b) `pine.js`'s object pass ignored `declareInputs`.** The output loop sets
+`resolver.declareInputs`/`inputValues`; the object pass's resolver factory did
+not. On ONE call with `{declareInputs: 'all'}` the plot came back
+`close * (1 + off / 100)` and the object's y-coordinate came back
+`close * (1 + 5 / 100)`.
+
+⛔⛔ **NEITHER WAS VISIBLE TO ANY RAIL, AND THE REASON IS THE SAME BOTH TIMES:
+every object test builds its trees out of LITERALS**, where an empty inputs map
+is the correct one, and the eight original live fixtures carry no member input at
+all because their only `input.int` sits in a WINDOW slot, which this engine folds
+by design. It took a fixture whose knob sits in an ARITHMETIC position.
+Rail: `objectParams.test.js`, with a mutation control asserting an empty inputs
+map still makes the referenced node FAIL.
+
+### J3 — ⚰️ THE PROBE THAT MEASURED THE VALIDATOR INSTEAD OF THE MODEL
+
+`tools/c3b_param_probe.py` first drove `len` on a `ta.sma(close, len)` script — a
+window slot, therefore never a member knob, therefore not a declared input on the
+saved definition. Writing `inputs.len` made `instances.js` refuse the whole
+instance (correctly, fail-closed) and the chart lost the indicator: no chip, no
+object layer, `pixels_after: []`. **That reads exactly like "the object did not
+survive a parameter change".**
+
+Two instrument fixes, both worth copying elsewhere:
+- **check the premise before measuring** — the probe now reads the definition's
+  declared inputs and returns `NOT_MEASURED` with a reason rather than a number;
+- **scope every reading to this run's own instance id** — a previous run's
+  revived instance stays on the chart by design, and unscoped the probe read a
+  STALE layer's coordinate and reported `object_moved: false` while the layer
+  that belonged to the run had moved.
+
+### J4 — ⚠️ A CORRECT DRAWING OFF THE TOP OF THE PANE READS AS A FAILURE
+
+A `close * (1 + off/100)` fixture reported `drawn: line:1`, `bbox.y0: -16`,
+`pixels: 0`. The renderer was right; the object was sixteen pixels above the
+pane. **A pixel count alone cannot tell "drew nothing" from "drew off-screen"** —
+the `bbox` and the `selfTestPixels` discriminator beside it are what make the
+zero interpretable. Any future pixel probe needs both.
+
+### J5 — NEW GAPS, NAMED AND NOT FIXED
+
+| id | lane | statement |
+|---|---|---|
+| **J5.1 (H7)** | VALUE / EXPRESSION GRAMMAR | **`%` (modulo) is not in the expression grammar.** Classified per the wave's instruction as a VALUE-LANE gap, **not an object-model gap**: an object coordinate using `%` fails for exactly the reason a plot using `%` fails. Deliberately not implemented during C3B-CLOSE. |
+| **J5.2 (H8)** | VALUE / BUILTINS | **`last_bar_index` has no column.** It is in `PINE_KNOWN_BUILTINS`, so the refusal is named rather than "undefined", but nothing resolves it — so any guard using it drops its op, fail-closed. This is the SOLE cause of the one divergence in the whole vendor comparison: TradingView draws three labels there and we draw none. |
+| **J5.3 (H9)** | DOCUMENT SHAPE | **A script that only draws does not translate.** No `plot()` ⇒ no output ⇒ nothing to register. The vendor's own object probe has no plot; the parity rail adds one and says so. An object-only indicator is an ordinary TradingView shape. |
+| **J5.4 (H10)** | OBJECT / DISCLOSURE | **A dropped op is silent to the member.** The ledger records every reason (`guard:create`, `cell:text`, `update:props`, `cell:address`, `delete:target`) and real parity-set scripts lose 8–42 ops each — but nothing surfaces those counts in the Builder. **A script can import, save, reopen and draw a table while quietly losing every line it asked for, and the product says nothing.** The information exists; the door does not. |
+
+### J6 — WHAT THE VENDOR CONFIRMED, IN ONE PLACE
+
+`tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json`, rail
+`vendorObjectParity.test.js` (14 cases). SPY · 1D · NYSE Arca, read out of
+TradingView's own chart model (`graphics().dwg*()` primitive records plus the
+study's resolved `palettes.palette_common`), study removed afterwards, layout not
+saved.
+
+- **identity is ONE monotonic counter shared by every family** — bar 0 mints
+  line=1, line=2, table=3 in script order; there is no per-family id space
+- **an updated object keeps its id** — the `set_xy`-moved anchor is still id 1
+  after ~8,458 bars; the per-bar recreated line is 8462. Both numbers are needed:
+  neither engine shape can produce the other's
+- **delete really removes** — ~8,458 created, exactly one alive
+- **a coordinate is read from the bar the object was CREATED on**, not the bar it
+  is drawn at — four boxes forty bars back all use the last bar's high/low
+- **x is a position into a per-study index table**, not a bar index or a timestamp
+- **`bar_index` is absolute over loaded history**, not the chart window
+- **a table is pane-anchored with no coordinates**; **a cell references its table
+  by id**
+- **the colour palette matches ours eight for eight**, and index 1 = `#FF5252`
+  **independently re-confirms the C3A-CLOSE `color.red` correction** from a
+  different surface in a different capture
+
+⭐ Our engine reproduces every one of those structural facts on the vendor's own
+script — the anchor's id, the table's id, the 20-bar span, the four box spans,
+the high/low sourcing rule, two lines alive, three colours. **The single
+divergence is J5.2, and it is in the value lane.**
+
+### J7 — the ordering this changes
+
+The object model is **not** what is holding the parity set back, and the evidence
+says so three ways: two of ten never reach the engine (`pine:function`,
+`pine:state`); of those that do, the geometry families are lost to a `pine:tuple`
+refusal upstream of every guard, one dropped `create:box`, and the loop boundary;
+and the vendor comparison on a script the model handles perfectly diverged on
+exactly one missing VALUE-lane builtin.
+
+**⭐ The next wave that moves the governing objective is a COMPATIBILITY wave —
+the expression and statement grammar (tuples, user functions, `%`,
+`last_bar_index`, the `pine:state` family) plus J5.4 — not another object wave.**

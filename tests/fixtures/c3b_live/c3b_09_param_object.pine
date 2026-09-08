@@ -1,0 +1,22 @@
+//@version=5
+// C3B-CLOSE item 6 — DOES A PARAMETER MOVE AN OBJECT, LIVE?
+//
+// THE KNOB SITS IN AN ARITHMETIC POSITION ON PURPOSE. `c3b_07_param_driven`
+// puts its input in a WINDOW slot (`ta.sma(close, len)`), which this engine
+// deliberately folds to a literal and never offers as a member knob — so
+// patching `len` on an instance could only ever measure the instance validator
+// refusing an input the definition does not declare. `off` is a subtrahend, and
+// the Pine door declares it: the plot reads it, and so must the line.
+//
+// AND IT IS DOLLARS BELOW THE CLOSE, NOT A PERCENT ABOVE IT, so BOTH knob
+// positions land inside the candles. A first draft used `close * (1 + off/100)`
+// and drew perfectly at a y-coordinate 16 px ABOVE the pane — `drawn: line:1`,
+// `bbox.y0: -16`, `pixels: 0`. The right answer, off-screen, which reads in a
+// pixel probe exactly like a renderer that failed.
+indicator("C3B Param Object", overlay = true, max_lines_count = 400)
+off = input.int(5, "Offset", minval = 0, maxval = 200)
+lvl = close - off
+var line ln = na
+if barstate.islast
+    ln := line.new(bar_index - 60, lvl, bar_index, lvl, color = color.yellow, width = 3)
+plot(lvl, title = "LVL")

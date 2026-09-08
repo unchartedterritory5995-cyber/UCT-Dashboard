@@ -1,0 +1,13 @@
+//@version=5
+indicator("C3B Table Dash", overlay = true)
+ma = ta.sma(close, 20)
+rsi = ta.rsi(close, 14)
+var table dash = table.new(position.top_right, 2, 3, bgcolor = color.new(color.black, 20), border_width = 1)
+if barstate.islast
+    table.cell(dash, 0, 0, "MA20", text_color = color.gray, text_size = size.small)
+    table.cell(dash, 1, 0, str.tostring(ma, "#.##"), text_color = close > ma ? color.green : color.red, text_size = size.small)
+    table.cell(dash, 0, 1, "RSI14", text_color = color.gray, text_size = size.small)
+    table.cell(dash, 1, 1, str.tostring(rsi, "#.#"), text_color = color.white, text_size = size.small)
+    table.cell(dash, 0, 2, "Close", text_color = color.gray, text_size = size.small)
+    table.cell(dash, 1, 2, str.tostring(close, "#.##"), text_color = color.white, text_size = size.small)
+plot(ma, title = "MA20")

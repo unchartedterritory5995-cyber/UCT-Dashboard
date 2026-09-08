@@ -1,0 +1,11 @@
+//@version=5
+indicator("C3B Label Text", overlay = true, max_labels_count = 400)
+ma = ta.sma(close, 50)
+var label tag = na
+if ta.crossover(close, ma)
+    tag := label.new(bar_index, high, "UP " + str.tostring(close, "#.##"), style = label.style_label_down, color = color.green, textcolor = color.white, size = size.small)
+if ta.crossunder(close, ma)
+    label.delete(tag)
+if barstate.islast
+    label.new(bar_index, high, "LAST " + str.tostring(close, "#.##"), style = label.style_label_down, color = color.purple, textcolor = color.white, size = size.normal)
+plot(ma, title = "MA50")

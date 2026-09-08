@@ -106,6 +106,24 @@ as everything else here.
   daily bars, `plotshape` / `plotchar` in every location, with a per-bar
   conditional colour. Rail:
   `app/src/components/chart/builder/vendorMarkerParity.test.js`.
+- `visual/object-semantics-spy-1d-2026-09-08.json` — SPY · 1D · NYSE Arca, the
+  GRAPHICAL OBJECT half: `line` identity under `set_xy` update, `line.delete`
+  turnover, `label` with per-object text, four simultaneous `box`es, and a
+  `table` with four cells — plus the study's own resolved colour palette. Rail:
+  `app/src/components/chart/builder/vendorObjectParity.test.js`.
+
+  ⭐⭐ **AND THE TRICK HERE IS THE OBJECT ID.** A Pine study's drawings live on
+  its data source as `graphics().dwglines() / dwglabels() / dwgboxes() /
+  dwgtables() / dwgtablecells()`, each a `Map(name → Map(flag → collection))`
+  whose `_primitivesDataById` carries the records verbatim — **including the id
+  TradingView minted for every object.** That single integer answers the question
+  a picture cannot: an object moved with `set_xy` every bar is still **id 1**
+  after ~8,458 bars, while one recreated every bar is **id 8462**. A re-creating
+  engine cannot produce the small number and an updating one cannot produce the
+  large one, so the PAIR is the discrimination — and it is arithmetic, not
+  eyeballing. Colours on those records are palette INDICES; the study's own
+  `properties().state().palettes.palette_common` resolves them, which is how
+  eight named Pine colours were checked against our table without an eyedropper.
 
 ⭐⭐ **THE TRICK THAT MAKES A VISUAL CLAIM MEASURABLE: a `plotshape` carries a
 VALUE per bar in TradingView's own data model** — 1 where the glyph draws, 0

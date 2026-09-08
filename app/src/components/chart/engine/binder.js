@@ -65,7 +65,7 @@ import { markersFor, createMarkerLayer } from './markerPrimitive'
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
 import { evaluateObjects } from './objectRuntime'
-import { computeObjectColumns } from './objectColumns'
+import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 
 /** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
@@ -380,23 +380,50 @@ export function createBinder({ chart, LWC }) {
         if (!layer) continue
         objectLayers.set(inst.instanceId, layer)
       }
-      const graph = def.compute && def.compute.graph
+      // ⛔⛔ BOTH DOCUMENT FORMS. A small script stays V1 and its program stays
+      // UNBOUND; only a document over the byte budget carries a graph. Reading
+      // one form and not the other is what made the first live run paint
+      // nothing while every unit test stayed green — see `objectReaderFor`.
       const built = attempt(() => {
-        if (!graph) return null
-        const { readNode } = computeObjectColumns(graph, program, bars)
-        const run = evaluateObjects(program, {
+        // ⭐⭐ THE INSTANCE'S OWN INPUTS AND THE CHART'S TIMEFRAME, exactly as
+        // step 1 below hands them to `registry.computeFor`. Passing neither is
+        // what made a member input invisible to an object coordinate while the
+        // plot beside it honoured the same knob — see `objectColumns`'s header.
+        const reader = objectReaderFor(def, bars, { inputs: inst.inputs, tf: ctx.tf })
+        if (!reader) return null
+        const run = evaluateObjects(reader.program, {
           barCount: bars.length,
-          readNode,
+          readNode: reader.readNode,
           readTime: (i) => bars[i] && bars[i].t,
         })
-        return { run, state: toRenderState(run.live, { bars }) }
+        return { run, state: toRenderState(run.live, { bars }), form: reader.form }
       })
       if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
       const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}`
-      attempt(() => layer.set(built.value.state, sig))
+      // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
+      // evidence a live run can read off the DOM: ids are a creation counter, so
+      // an engine that re-created rather than updated would show them climbing.
+      const meta = {
+        liveIds: built.value.run.live.map((o) => o.id),
+        // ⭐⭐ THE BAR EACH LIVE OBJECT WAS BORN ON. A final picture cannot say
+        // WHEN an object was created, so a one-bar-early engine and a correct one
+        // look identical in a screenshot. This is the fact that discriminates
+        // them, and it is the engine's own record rather than a re-derivation.
+        createdBars: built.value.run.live.map((o) => o.createdBar),
+        stats: {
+          created: built.value.run.stats.created,
+          updated: built.value.run.stats.updated,
+          deleted: built.value.run.stats.deleted,
+          peakLive: built.value.run.stats.peakLive,
+          liveTotal: built.value.run.stats.liveTotal,
+          status: built.value.run.status,
+          dropped: built.value.state.dropped,
+        },
+      }
+      attempt(() => layer.set(built.value.state, sig, meta))
     }
     for (const [id, layer] of objectLayers) {
       if (alive.has(id)) continue

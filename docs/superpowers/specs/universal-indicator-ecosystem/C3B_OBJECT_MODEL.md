@@ -1,9 +1,20 @@
 # C3B — THE GENERALIZED VISUAL OBJECT MODEL
 
-**Result: the exit gate does NOT pass, on three of eighteen, and all three are
-EVIDENCE items rather than architecture.** The object model exists, evaluates,
-persists, renders and is wired end to end; what is missing is proof taken on a
-real chart and against the vendor, plus the parity-set re-run those depend on.
+> ✅ **SUPERSEDED ON ITEMS 11, 12 AND 13 BY [`C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`](./C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md)** (2026-09-08).
+> All three now have answers: 9/9 live fixtures paint real pixels after reopen;
+> TradingView's own object semantics are captured in
+> `tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json`; and the
+> parity set was re-run and reported with DRAW-AND-REOPEN and VISUAL FIDELITY as
+> separate columns. **The gate table at §9 below is the pre-closure reading and
+> is kept as the record of what was open.** Read the closure document for the
+> current one — and note that it also records three narrow defects the evidence
+> found in this model's own wiring.
+
+**Result (as of C3B, before its closure wave): the exit gate does NOT pass, on
+three of eighteen, and all three are EVIDENCE items rather than architecture.**
+The object model exists, evaluates, persists, renders and is wired end to end;
+what is missing is proof taken on a real chart and against the vendor, plus the
+parity-set re-run those depend on.
 
 ⛔⛔ **AND THE HEADLINE NUMBER IS 18/27, NOT 46/60.** The wave was corrected to
 the reachable denominator and this document keeps it: 46 of the frozen 60 demand
@@ -342,6 +353,13 @@ run that photographs the result. Until that exists, no level is complete.
 they are one piece of work: a live chart run, a vendor capture of object
 semantics using the C3A method that already worked, and the parity-set re-run
 that depends on both.
+
+> ✅ **THAT WORK WAS DONE.** See [`C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md`](./C3B_CLOSE_LIVE_VENDOR_AND_PARITY.md) §7 for the re-read gate.
+> Item 11 PASSES, item 12 PASSES, item 13 is re-run and reported: 8/10 draw and
+> reopen, 5/10 paint an object, and **every one of those five painted a TABLE** —
+> no line, label or box was drawn by any parity member. Item 14 stayed at 18/27
+> because no translator capability was added, which is precisely why the closure
+> recommends a COMPATIBILITY wave next rather than another object wave.
 
 ⛔ **14 IS AMBER, NOT GREEN, AND DELIBERATELY SO.** "18 of 27 translate" is a
 translation number. Whether those 18 now LOOK like their authors' indicators is a

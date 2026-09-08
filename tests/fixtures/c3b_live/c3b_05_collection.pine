@@ -1,0 +1,10 @@
+//@version=5
+indicator("C3B Collection", overlay = true, max_lines_count = 400)
+ma = ta.sma(close, 200)
+var marks = array.new_line()
+if ta.crossover(close, ma)
+    l = line.new(bar_index, low, bar_index, high, color = color.purple, width = 2)
+    array.push(marks, l)
+if barstate.islast
+    line.new(bar_index - 20, ta.highest(high, 20), bar_index, ta.highest(high, 20), color = color.fuchsia, width = 2)
+plot(ma, title = "MA200")
