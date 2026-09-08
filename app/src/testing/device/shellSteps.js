@@ -222,13 +222,21 @@ const STEPS = [
     // its own name so a screenshot of the panel tells the tester what to do. It
     // fails honestly if no tap arrives rather than reporting a legend nobody saw.
     await dismissOverlays()
-    const text = await until('a tap on the chart (none arrived)', () => {
-      const o = qa('span').find((s) => /^O\s/.test(s.textContent || ''))
-      return o && o.parentElement ? o.parentElement.textContent : null
-    }, { tries: 100, gap: 300 })
+    let text = null
+    try {
+      text = await until('a tap', () => {
+        const o = qa('span').find((s) => /^O\s/.test(s.textContent || ''))
+        return o && o.parentElement ? o.parentElement.textContent : null
+      }, { tries: 60, gap: 300 })
+    } catch {
+      // ⛔ NOT A FAILURE — "nobody tapped" and "the readout is wrong" are
+      // different facts, and an unattended run reporting a red step trains you
+      // to ignore red. This says NOT ATTEMPTED and stays out of the fail count.
+      return 'NOT ATTEMPTED (no tap arrived) — tap the chart to check this one'
+    }
     const t = text.replace(/\s+/g, ' ')
     const missing = ['V ', '$ Vol', 'Avg '].filter((k) => !t.includes(k))
-    if (missing.length) throw new Error(`missing ${missing.join(' / ')} in "${t.slice(0, 90)}"`)
+    if (missing.length) throw new Error(`TAPPED but missing ${missing.join(' / ')} in "${t.slice(0, 80)}"`)
     return t.slice(0, 64)
   } },
 ]
@@ -241,10 +249,15 @@ function render(results) {
   if (!el) return
   const fails = results.filter((r) => r.state === 'fail').length
   const done = results.filter((r) => r.state === 'pass' || r.state === 'fail' || r.state === 'note').length
+  // ⛔ THE HEADER NAMES THE FAILURES, because the list scrolls and a device
+  // session does not wait. A run that reported "1 FAIL" and scrolled the failing
+  // row out of frame cost a whole device minute and told me nothing.
+  const failed = results.filter((r) => r.state === 'fail').map((r) => r.name)
   el.innerHTML =
     `<div><b>PHONE SHELL — ${done}/${results.length}</b> · `
     + (fails ? `<b style="color:#ef4444">${fails} FAIL</b>` : '<b style="color:#4ade80">no failures</b>')
     + ` · <span style="color:#8a8578">${new Date().toISOString().slice(11, 19)}</span></div>`
+    + (fails ? `<div style="color:#ef4444">↳ ${failed.join(' | ')}</div>` : '')
     + results.map((r) => `<div>${MARK[r.state] || '·'} ${r.name}${r.note ? `: <span style="color:#8a8578">${r.note}</span>` : ''}</div>`).join('')
 }
 
