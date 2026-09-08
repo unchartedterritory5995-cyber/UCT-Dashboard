@@ -891,17 +891,40 @@ class TestRouteAccessControl:
             assert deps, f"{route.path} is PUBLIC"
             assert "require_member" in deps, f"{route.path} deps={deps}"
 
-    def test_free_account_is_refused_with_402(self):
+    def test_free_account_is_refused_with_402(self, monkeypatch):
         from fastapi import HTTPException
         from api.routers import company_news as cn
+        monkeypatch.setattr(cn, "is_paid_user", lambda u: False)
         with pytest.raises(HTTPException) as e:
-            cn.require_member({"plan": "free", "is_paid": False})
+            cn.require_member({"plan": "free"})
         assert e.value.status_code == 402
 
-    def test_paid_account_passes(self):
+    def test_paid_account_passes(self, monkeypatch):
         from api.routers import company_news as cn
-        for user in ({"plan": "pro"}, {"is_paid": True},
-                     {"plan_status": "active"}):
+        monkeypatch.setattr(cn, "is_paid_user", lambda u: True)
+        user = {"plan": "pro"}
+        assert cn.require_member(user) is user
+
+    def test_the_decision_is_delegated_not_re_derived(self):
+        """REGRESSION: this gate first hand-rolled its own plan check and
+        refused real signed-in members, because it did not know about admin,
+        'comped' or trial accounts. The entitlement decision must be
+        `is_paid_user` — one predicate, not two that drift."""
+        import inspect
+        from api.routers import company_news as cn
+        src = inspect.getsource(cn.require_member)
+        assert "is_paid_user(user)" in src, "gate must delegate to is_paid_user"
+        for invented in ('user.get("is_paid")', 'plan_status', '"free"'):
+            assert invented not in src, (
+                f"gate re-derives entitlement ({invented}); call is_paid_user")
+
+    def test_admin_comped_and_trial_all_pass(self, monkeypatch):
+        """The three account shapes the hand-rolled check locked out."""
+        from api.routers import company_news as cn
+        from api.middleware import auth_middleware as am
+        for user in ({"role": "admin"}, {"plan": "comped"}, {"plan": "pro"}):
+            monkeypatch.setattr(cn, "is_paid_user", am.is_paid_user)
+            monkeypatch.setattr(am, "is_paid_or_trial", lambda u: True)
             assert cn.require_member(user) is user
 
 

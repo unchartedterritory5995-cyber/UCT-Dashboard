@@ -17,7 +17,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.middleware.auth_middleware import get_current_user_with_plan, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user_with_plan, is_paid_user, require_admin)
 from api.services.news import sources as news_sources
 from api.services.news import store
 
@@ -37,14 +38,19 @@ def require_member(user: dict = Depends(get_current_user_with_plan)) -> dict:
     product the panel sells. This is NOT an extra paywall inside News — it is
     the same gate Overview, Financials and Earnings already apply, so a member
     who can open the panel can read every tab in it.
+
+    ⛔ The DECISION is `is_paid_user`, never a local re-derivation. This gate
+    originally hand-rolled its own plan check and refused real signed-in
+    members, because it did not know about admin, 'comped' and trial accounts.
+    `meets_plan_gate`'s own docstring warns about exactly this: "two copies of
+    one membership predicate drift the moment either one changes and nothing
+    catches it."
     """
-    plan = str(user.get("plan") or "").lower()
-    status = str(user.get("plan_status") or user.get("status") or "").lower()
-    if user.get("is_paid") or plan not in ("", "free") or status == "active":
-        return user
-    raise HTTPException(
-        status_code=402,
-        detail="Company Panel news requires an active UCT membership.")
+    if not is_paid_user(user):
+        raise HTTPException(
+            status_code=402,
+            detail="Company Panel news requires an active UCT membership.")
+    return user
 
 
 _ALLOWED_SENTIMENT = {"", "all", "bullish", "bearish"}
