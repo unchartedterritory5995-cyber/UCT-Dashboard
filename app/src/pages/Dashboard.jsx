@@ -71,7 +71,10 @@ function MobileSection({ icon, title, subtitle, children, expanded, onToggle }) 
           }
         }}
       >
-        <span className={styles.mSectionIcon}>{icon}</span>
+        {/* Optional. The span is a fixed 28px + 12px flex gap, so rendering it
+            empty would leave the title indented against nothing — sections
+            without an icon must omit it entirely, not pass a blank one. */}
+        {icon && <span className={styles.mSectionIcon}>{icon}</span>}
         <div className={styles.mSectionText}>
           <span className={styles.mSectionTitle}>{title}</span>
           {!expanded && subtitle && (
@@ -244,7 +247,6 @@ export default function Dashboard() {
             {hero}
             {/* 4. Movers (which now carries the tape) */}
             <MobileSection
-              icon={<UIcon name="equity" />}
               title="Movers at the Open"
               subtitle="Top gappers, drillers & the tape"
               expanded={openSection === 'movers'}
