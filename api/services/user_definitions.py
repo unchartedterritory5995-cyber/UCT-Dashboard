@@ -670,6 +670,46 @@ def materialize(definition: dict) -> dict:
     return d
 
 
+def compact(definition: dict) -> dict:
+    """A shared-graph document with its MATERIALISATION dropped again.
+
+    ⭐⭐ C2D.7 — THE READ SIDE OF THE SAME ARGUMENT THE WRITE SIDE ALREADY WON.
+    `_row_to_dict` expands every stored graph so that the dozen server-side
+    readers written against `compute.ast`/`compute.trees` keep working without
+    learning a second shape. That is right for them and wrong for the WIRE: an
+    8 KB stored document was leaving as 362 KB of forest, which defeats the
+    representation on exactly the path that will carry C3's visual payloads.
+
+    This is the compatibility boundary, stated once: a caller that can rebuild
+    the forest from the graph asks for the compact form and gets it; everyone
+    else keeps the expansion. `graph.js::expandGraph` is that rebuild, and
+    `graphDocument.hydrateGraphDocument` is the browser's door to it.
+
+    ⛔ IT IS NOT THE DEFAULT, AND THE REASON IS A CACHED BUNDLE. A member whose
+    browser is still holding yesterday's JavaScript cannot hydrate; answering
+    them compactly would blank their chart with nothing red anywhere. The client
+    ASKS (`?graph=1`), which an old bundle never does.
+
+    Returns `definition` unchanged when it declares no graph.
+    """
+    compute = (definition or {}).get("compute")
+    if not compute_graph.declares_graph(compute):
+        return definition
+    out = {k: v for k, v in compute.items() if k not in ("ast", "trees", "source", "sources")}
+    d = dict(definition)
+    d["compute"] = out
+    return d
+
+
+def compact_row(row: Any) -> Any:
+    """`compact` applied to a store row's `definition`, if it has one."""
+    if not isinstance(row, dict) or not isinstance(row.get("definition"), dict):
+        return row
+    out = dict(row)
+    out["definition"] = compact(row["definition"])
+    return out
+
+
 def normalize_graph_document(definition: dict) -> tuple:
     """``(stored, working)`` — the bytes to persist and the shape to validate.
 

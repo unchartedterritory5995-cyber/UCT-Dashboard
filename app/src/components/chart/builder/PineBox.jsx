@@ -29,7 +29,7 @@ import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
-import { buildParamManifest } from './pineParamManifest'
+import { paramLocatorsIn } from './pineParamManifest'
 import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
@@ -121,7 +121,15 @@ export function inspectPine(source, opts = undefined) {
   // ⛔ IT IS NOT A DIFFERENT TRANSLATOR. Same function, same guards, same
   // refusals; the only difference is that a threshold or a multiplier reaches the
   // formula as its own identifier instead of as somebody else's constant.
-  const translated = memberInputTranslation(translatePine, source, opts || {})
+  // ⭐⭐ C2D.1 — `paramManifest: true` RIDES ON *THIS* TRANSLATION, and that is
+  // the whole fix. It is structurally inert (measured: the saved trees are
+  // byte-identical with and without it, on every corpus script) because the
+  // parameter mint runs AFTER the fold and tags the literal it already
+  // produced, with a NON-ENUMERABLE property. What it buys is the invariant
+  // C2D.1 demands: the manifest and the saved computation come from ONE
+  // translation result.
+  const translated = memberInputTranslation(
+    translatePine, source, { paramManifest: true, ...(opts || {}) })
   const outputs = translated.outputs.map((out) => ({
     ...out,
     ...splitFoldedInputs(out),
@@ -193,7 +201,10 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     // for. A PASTE-TIME value needs only that the translator freeze it, which both
     // now do, with the same semantics and the same shared predicate.
     const t = lang === 'pine'
-      ? memberInputTranslation(translatePine, source, opts || {})
+      // ⭐⭐ C2D.1 — see `inspectPine`. Inert for thinkScript, which has no
+      // `paramManifest` option and simply ignores it, leaving `inputParams`
+      // absent exactly as it is today.
+      ? memberInputTranslation(translatePine, source, { paramManifest: true, ...(opts || {}) })
       : translateThinkScript(source, opts || {})
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
@@ -214,6 +225,13 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
       // ⭐ Pine's `notes` and thinkScript's `ignored` are the same list.
       ignored: t.ignored || t.notes || [],
       folded: t.folded || [],
+      // ⭐⭐ C2D.1 — NAMED, because this function does not spread (see the note
+      // below on exactly that). `inputParams` is the immutable per-declaration
+      // parameter metadata from the SAME translation whose `outputs` are above,
+      // and the manifest is assembled from it plus each output's own tags.
+      // Absent for a dialect with no `paramManifest` support, which is an empty
+      // list rather than a missing key.
+      inputParams: t.inputParams || [],
       // ⭐⭐ WAVE B — AND THIS LINE IS WHY THE WAVE EXISTS, COMMITTED TWICE.
       //
       // ⚰️ `inspectPine` above SPREADS its translation (`{...translated}`), so it
@@ -255,6 +273,7 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
     }),
     ignored: [],
     folded: [],
+    inputParams: [],
   }
 }
 
@@ -421,21 +440,32 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   )
   const [text, setText] = useState(initialSource)
   const [report, setReport] = useState(() => (initialSource ? inspect(initialSource) : null))
-  // ⭐⭐ TRACK F (DEC-006) — a SEPARATE, plain `translatePine` call, never
-  // routed through `inspect`/`memberInputTranslation`. Those wrap every
-  // translation in `declareInputs` (probe-all, then declare-the-survivors),
-  // which would starve THIS mechanism of exactly the window-bound inputs it
-  // exists for: a name `declareInputs` chooses NOT to declare (the common
-  // case — see `pine.js::foldWindow`'s own comment on why a length cannot be
-  // an identifier) falls through to the ordinary literal fold either way,
-  // but a name `declareInputs` DOES declare takes an early return in
-  // `resolveInput` before Track F's own tagging code ever runs — so sharing
-  // one call would silently split one script's parameters across two
-  // different, non-interoperating mechanisms depending on each input's own
-  // position. A plain call with no `declareInputs` at all routes EVERY
-  // eligible int/float input through Track F uniformly, regardless of where
-  // it lands.
-  const [paramReport, setParamReport] = useState(null)
+  // ⚰️⚰️ C2D.1 — THE SECOND TRANSLATION IS GONE, AND THE ARGUMENT FOR IT WAS
+  // WRONG IN A WAY THAT COST A CONTROL.
+  //
+  // This used to hold a SEPARATE `translatePine(text, {paramManifest: true})`
+  // call, deliberately uncoupled from `declareInputs`, on the reasoning that a
+  // name `declareInputs` declares "takes an early return in `resolveInput`
+  // before Track F's tagging runs — so sharing one call would silently split
+  // one script's parameters across two mechanisms."
+  //
+  // The early return is real. The conclusion was backwards. Splitting is
+  // exactly what SHOULD happen: a declared input already has a member-input
+  // control, and giving it a Track F slider as well would be two authorities
+  // over one Pine input. What the separate call actually bought was a manifest
+  // whose `astPath`s were measured against a DIFFERENT TREE FROM THE ONE SAVED
+  // — measured on the corpus, `…03-supertrend` and `…22-rsi-levels` disagree at
+  // output 0's astHash — so those locators resolved to `undefined` and the
+  // control arrived permanently detached. It also mis-INDEXED: the comment
+  // claimed the two passes "share the same statement-order-derived indexing",
+  // and `…12-cm-ultimate-rsi` produces 7 outputs in one pass and 6 in the
+  // other.
+  //
+  // ⛔ THE INVARIANT NOW: the parameter manifest and the saved computation come
+  // from ONE translation result. `inspect()` carries `paramManifest: true`, and
+  // enabling it is structurally inert (the saved trees are byte-identical with
+  // and without, on every corpus script) because the mint tags a literal the
+  // fold already produced, non-enumerably.
   const [chosen, setChosen] = useState(null)
   const [showNotes, setShowNotes] = useState(false)
   const [Editor, setEditor] = useState(null)
@@ -487,7 +517,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
   useEffect(() => {
     if (text.trim() === '') {
-      setReport(null); setChosen(null); setAuthorKnobs([]); setParamReport(null); return undefined
+      setReport(null); setChosen(null); setAuthorKnobs([]); return undefined
     }
     const id = setTimeout(() => {
       const values = memberSettings(settings)
@@ -502,15 +532,6 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       setChosen((prev) => ((isNewText || prev == null)
         ? (next.selected >= 0 ? next.selected : null) : prev))
       if (!overridden) setAuthorKnobs((next.outputs || []).map((o) => o.pasteInputs || []))
-      // ⭐⭐ TRACK F (DEC-006) — same text, same overrides, a DIFFERENT
-      // (uncoupled from `declareInputs`) translation. `dialect !== undefined`
-      // (thinkScript/PCF) or a non-Pine detected dialect simply refuses here
-      // (`translatePine` never throws on foreign syntax — it returns `{ok:
-      // false}` like any other refusal), leaving `paramReport.inputParams`
-      // empty, harmlessly.
-      setParamReport(translatePine(text, {
-        paramManifest: true, ...(overridden ? { inputValues: values } : {}),
-      }))
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
   }, [text, settings, inspect])
@@ -520,18 +541,29 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     return report.outputs[chosen] || null
   }, [report, chosen])
 
-  // ⭐⭐ TRACK F (DEC-006) — the manifest for the CURRENTLY CHOSEN output only.
-  // `paramReport.outputs` shares the same statement-order-derived indexing
-  // `report.outputs` does (declareInputs affects only how an `input.*` call
-  // folds, never which statements become outputs), so `chosen` validly
-  // indexes both arrays from the same debounced pass.
-  const activeParamManifest = useMemo(() => {
-    if (!paramReport || chosen == null) return null
-    const row = paramReport.outputs[chosen]
-    if (!row || !row.ast) return null
-    const manifest = buildParamManifest(paramReport.inputParams, [{ treeIndex: null, ast: row.ast }])
-    return Object.keys(manifest).length ? manifest : null
-  }, [paramReport, chosen])
+  // ⭐⭐ C2D.1/C2D.2 — PLACEMENTS, NOT A MANIFEST, AND FOR EVERY OUTPUT.
+  //
+  // Two changes from the pre-C2D shape, and each closes a measured defect:
+  //
+  //   1. It reads `report` — the translation whose trees are SAVED — so an
+  //      astPath means something in the document that eventually exists.
+  //   2. It covers EVERY output, not just the chosen one. A Pine input feeding
+  //      ten plots was previously located in one of them, so moving the slider
+  //      would have rewritten one tree and left nine holding the old literal:
+  //      one input, ten plots, two different values. `…03-supertrend`'s
+  //      "Multiplier" has seventeen occurrences in output 0 alone.
+  //
+  // ⛔ NO `treeIndex` HERE, ON PURPOSE. This component cannot know what a plot
+  // will be called — `BuilderSheet` derives every key from the author's title
+  // and deduplicates against its own `taken` set — so it hands back the
+  // placement and lets the one component that owns key assignment supply the
+  // address. See `paramLocatorsIn`'s own header.
+  const paramPlacements = useMemo(() => {
+    const params = (report && report.inputParams) || []
+    if (!params.length) return null
+    return (report.outputs || []).map((o) => (o && o.ast
+      ? paramLocatorsIn(params, o.ast) : []))
+  }, [report])
 
   // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
   // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
@@ -592,18 +624,15 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // and travel unchanged. A member who left the threshold blank gets the column.
     const wrapped = condition && condition.ok
     const picked = wrapped ? condition.formula : active.formula
-    // ⭐⭐ TRACK F (DEC-006) — NEVER ATTACHED WHEN A SCREEN THRESHOLD WRAPS THE
-    // COLUMN. `activeParamManifest`'s astPath locators were computed against
-    // `active.ast` — the UNWRAPPED tree — and `conditionFrom` builds `wrapped`
-    // as NEW TEXT (`rsi(close,14) > 50`), which the eventual save re-parses
-    // into a tree where the original positions sit one level deeper (under a
-    // comparison op node). Attaching the unwrapped locators to that saved
-    // document would point them at the wrong nodes. Known, disclosed v1
-    // scope cut: a Pine import saved AS A SCREEN CONDITION in this same
-    // action does not get an adjustable parameter — the formula still saves
-    // and screens correctly, exactly as it does today, just without the
-    // control. The pure-numeric artifact path (no condition) is unaffected.
-    const paramManifest = wrapped ? null : activeParamManifest
+    // ⭐⭐ TRACK F — NEVER ATTACHED WHEN A SCREEN THRESHOLD WRAPS THE COLUMN.
+    // The astPath locators are measured against `active.ast` — the UNWRAPPED
+    // tree — and `conditionFrom` builds `wrapped` as NEW TEXT (`rsi(close,14) >
+    // 50`), which the eventual save re-parses into a tree where the original
+    // positions sit one level deeper (under a comparison op node). Attaching
+    // the unwrapped locators to that document would point them at the wrong
+    // nodes. Known, disclosed scope cut, unchanged by C2D: a Pine import saved
+    // AS A SCREEN CONDITION in this same action does not get an adjustable
+    // parameter. The pure-numeric path is unaffected.
     // ⭐⭐ WAVE B — THE SCRIPT'S VISUAL PROGRAM TRAVELS WITH ITS FORMULA.
     //
     // ⚰️ EVERYTHING A PINE AUTHOR SAID ABOUT HOW THEIR INDICATOR LOOKS USED TO
@@ -703,6 +732,17 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // dropped siblings, was undeclared. It was never partial traversal, ternary
     // handling or manifest pruning: it was this projection dropping a field
     // (`lesson_a_projection_drops_what_it_does_not_name`).
+    // ⭐⭐ C2D.2 — EACH CARRIED OUTPUT TRAVELS WITH ITS OWN PARAMETER
+    // PLACEMENTS, attached to the row rather than shipped as a parallel array.
+    // A side list indexed by position is a second authority over "which
+    // placements belong to which output", and the defect this wave exists to
+    // fix was exactly two structures that were assumed to be index-aligned and
+    // measured not to be.
+    const placementsFor = (o) => {
+      if (!paramPlacements || !report) return []
+      const i = report.outputs.indexOf(o)
+      return i >= 0 ? (paramPlacements[i] || []) : []
+    }
     const others = wrapped || !report ? [] : report.outputs
       .filter((o) => o.formula && !o.hidden && o !== active)
       .map((o) => ({
@@ -710,15 +750,21 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
         title: o.title || null,
         presentation: o.presentation || {},
         inputs: o.memberInputs || [],
+        paramLocators: placementsFor(o),
       }))
     const outputs = wrapped ? null : [
       { source: picked, title: (active && active.title) || null, presentation: outPres,
-        inputs: rows },
+        inputs: rows, paramLocators: wrapped ? [] : placementsFor(active) },
       ...others,
     ]
-    const extra = rows.length || paramManifest || presentation || (outputs && outputs.length > 1)
+    // ⭐ THE IMMUTABLE METADATA RIDES ONCE, BESIDE THE PLACEMENTS. `BuilderSheet`
+    // assembles the manifest from the two once it knows every plot key.
+    const inputParams = wrapped || !report ? [] : (report.inputParams || [])
+    const anyPlacement = !wrapped && (outputs || []).some(
+      (o) => o.paramLocators && o.paramLocators.length)
+    const extra = rows.length || anyPlacement || presentation || (outputs && outputs.length > 1)
     onPick?.(extra
-      ? { source: picked, inputs: rows, paramManifest, presentation, outputs }
+      ? { source: picked, inputs: rows, inputParams, presentation, outputs }
       : picked)
     // ⭐ Phase One Track C — a SEPARATE, purely-additive notification channel,
     // deliberately NOT folded into `onPick`'s own payload. `onPick`'s shape
@@ -737,7 +783,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // is declared further down this component's body, and closing over it
     // here would be a temporal-dead-zone reference at first render.
     onImportTelemetry?.((report && report.dialect) || 'pine')
-  }, [active, onPick, onImportTelemetry, condition, report, activeParamManifest])
+  }, [active, onPick, onImportTelemetry, condition, report, paramPlacements])
 
   // ⚰️⚰️ THIS COUNTED EVERY ROW WITH A FORMULA, and it is what a member reads.
   //

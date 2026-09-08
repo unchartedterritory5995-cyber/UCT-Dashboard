@@ -159,6 +159,70 @@ export const PLOT_STYLES = Object.freeze([
  *  its point markers are circles; a cross marker needs W6's series primitives.
  *  Until then it is refused with the later-phase sentence, never coerced to
  *  `markers` (which is what "circles" already is). */
+/** ⭐⭐ C3A — THE EVENT-MARKER VOCABULARY, CLOSED ON PURPOSE.
+ *
+ *  A marker is the declarative half of Pine's `plotshape`/`plotchar`: a glyph on
+ *  a bar, positioned relative to that bar, optionally carrying a short label. It
+ *  is NOT the mutable object model (`label.new` and friends) — there is no id to
+ *  update, nothing to delete, and no lifetime beyond the column it reads.
+ *
+ *  ⛔ THE THREE VOCABULARIES ARE CLOSED BECAUSE THE RENDERER'S ARE. LWC 5.2
+ *  draws these four shapes at these three positions; a document naming a fifth
+ *  would register happily and draw nothing, which is the "validated but inert"
+ *  failure this schema exists to prevent (`colorMode: 'column:<key>'` shipped
+ *  that way for a whole wave). */
+export const MARKER_SHAPES = Object.freeze(['circle', 'square', 'arrowUp', 'arrowDown'])
+export const MARKER_POSITIONS = Object.freeze(['aboveBar', 'belowBar', 'inBar'])
+/** Bounds, not a list — the translator maps five named Pine sizes into it and a
+ *  hand-authored document may pick anything sane between them. */
+export const MARKER_SIZE_RANGE = Object.freeze({ min: 0.25, max: 4 })
+
+/**
+ * `plots[i].marker` — the glyph an event column draws.
+ *
+ * ⛔ ONLY ON A `markers` PLOT. A marker on a line plot would be two renderers
+ * over one column, and the one that ran would depend on read order.
+ */
+function validateMarker(plot, path, errors) {
+  const m = plot.marker
+  if (m === undefined) return
+  if (!isPlainObject(m)) {
+    errors.push(`${path}.marker: expected an object, got ${fmt(m)}`)
+    return
+  }
+  if (plot.style !== 'markers') {
+    errors.push(
+      `${path}.marker: only a plot with style "markers" draws one — this plot is ` +
+      `${fmt(plot.style)}. A marker on a line plot would be two renderers over one column.`,
+    )
+  }
+  if (!MARKER_SHAPES.includes(m.shape)) {
+    errors.push(
+      `${path}.marker.shape: expected one of ${MARKER_SHAPES.join(', ')} — got ${fmt(m.shape)}. ` +
+      `The list is closed because the renderer's is: a fifth name would register and draw nothing.`,
+    )
+  }
+  if (m.position !== undefined && !MARKER_POSITIONS.includes(m.position)) {
+    errors.push(
+      `${path}.marker.position: expected one of ${MARKER_POSITIONS.join(', ')} — got ${fmt(m.position)}`,
+    )
+  }
+  if (m.size !== undefined
+      && (typeof m.size !== 'number' || !Number.isFinite(m.size)
+          || m.size < MARKER_SIZE_RANGE.min || m.size > MARKER_SIZE_RANGE.max)) {
+    errors.push(
+      `${path}.marker.size: expected a number between ${MARKER_SIZE_RANGE.min} and ` +
+      `${MARKER_SIZE_RANGE.max}, got ${fmt(m.size)}`,
+    )
+  }
+  if (m.text !== undefined && typeof m.text !== 'string') {
+    errors.push(`${path}.marker.text: expected a string, got ${fmt(m.text)}`)
+  }
+  if (typeof m.text === 'string' && m.text.length > 24) {
+    errors.push(`${path}.marker.text: at most 24 characters, got ${m.text.length}`)
+  }
+}
+
 export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor', 'fill', 'cross'])
 
 /** Compute lanes (spec §3). Every kind here PARSES — a definition naming one is
@@ -1274,6 +1338,11 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   const styleOk = checkVocabulary(
     plot.style, PLOT_STYLES, RESERVED_PLOT_STYLES, `${path}.style`, 'plot style', errors,
   )
+
+  // ⭐ C3A — the glyph an event column draws. Checked here, beside the style it
+  // depends on, so a marker and the style that permits it are ONE refusal rather
+  // than two a member meets on separate save attempts.
+  validateMarker(plot, path, errors)
 
   // ─ substitutable fields (spec §3.1: color, width, levels) ─
 

@@ -35,6 +35,21 @@ import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 
 export const USER_DEFINITIONS_KEY = '/api/user-definitions'
 
+/** ⭐⭐ C2D.7 — THE CAPABILITY THE CLIENT DECLARES, IN ONE PLACE.
+ *
+ *  `?graph=1` tells the store "I can rebuild the forest from `compute.graph`
+ *  myself, so send me the graph". It is opt-IN on purpose: a member whose
+ *  browser is still holding yesterday's bundle cannot hydrate, and answering
+ *  them compactly would blank their chart with nothing red anywhere. An old
+ *  bundle simply never asks.
+ *
+ *  ⛔ EVERY READ DOOR THAT HYDRATES MUST USE THIS, AND ONLY THOSE. Adding the
+ *  flag to a fetch whose consumer does not call `hydrateGraphDocument` is the
+ *  same defect wearing the other sign — a document arriving with no trees at a
+ *  surface that reads trees. */
+const GRAPH_READ = 'graph=1'
+const withGraph = (url) => `${url}${url.includes('?') ? '&' : '?'}${GRAPH_READ}`
+
 /** ⚠️ THROWS on a non-ok response, deliberately.
  *
  *  A swallowed 402 renders as "you have no formulas", which is the same picture
@@ -42,7 +57,10 @@ export const USER_DEFINITIONS_KEY = '/api/user-definitions'
  *  the Save button should exist at all. SWR only populates `error` if the
  *  fetcher rejects, so the throw is what makes the paywall visible. */
 async function fetcher(url) {
-  const r = await fetch(url, { credentials: 'include' })
+  // ⭐ C2D.7 — the SWR key stays `USER_DEFINITIONS_KEY` (every `mutate` in this
+  // file names it) while the REQUEST carries the capability flag. Folding the
+  // flag into the key would silently orphan five revalidation call sites.
+  const r = await fetch(withGraph(url), { credentials: 'include' })
   if (!r.ok) {
     const err = new Error(`user-definitions ${r.status}`)
     err.status = r.status

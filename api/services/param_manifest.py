@@ -359,6 +359,59 @@ def reconcile(definition: dict, canonical_manifest: dict) -> dict:
     return state
 
 
+def _regraph_locators(compute: Any, canonical: dict) -> dict:
+    """Re-express any V1-shaped locator on a SHARED-GRAPH document.
+
+    ⛔⛔ IT OPERATES ON `canonical`, WHICH IS ALREADY TRUSTED. By the time this
+    runs, `_canonicalize_manifest` has replaced every submitted entry for a
+    known id with the PRIOR record's own fields — so the astPath being
+    translated is the server's, not the caller's, and this changes only how it
+    is spelled. A version of this that ran on `submitted_manifest` would be the
+    forged-locator hole with extra steps.
+
+    ⛔ AND IT IS ALL-OR-NOTHING PER PARAMETER, for the reason
+    `reconcile` gives itself: a control with some bindings re-expressed and
+    some not is the "partially working" state the whole design refuses. If any
+    one of a parameter's locators cannot be walked, the entry keeps its metadata
+    and loses its locators entirely, which reconciles `detached` with a sentence
+    — the same carried-but-disabled state a document gets for a parameter that
+    could never be placed. ⛔ Leaving the V1 locator in place instead would
+    store a shape `assert_graph` refuses, turning a disabled control into an
+    unsaveable document.
+    """
+    graph = compute.get("graph")
+    if not isinstance(graph, dict):
+        return canonical
+    roots = graph.get("outputRoots")
+    if not isinstance(roots, dict):
+        return canonical
+    scan = compute.get("scanPlot")
+    out = dict(canonical)
+    for pid, entry in canonical.items():
+        locators = entry.get("locators") or []
+        if not locators or all(isinstance(l, dict) and "node" in l for l in locators):
+            continue
+        moved = []
+        for loc in locators:
+            if not isinstance(loc, dict):
+                moved = None
+                break
+            if "node" in loc:
+                moved.append(loc)
+                continue
+            key = loc.get("treeIndex")
+            key = scan if key is None else key
+            root = roots.get(key)
+            nxt = compute_graph.locator_for_ast_path(graph, root, loc.get("astPath"))
+            if nxt is None:
+                moved = None
+                break
+            if nxt not in moved:
+                moved.append(nxt)
+        out[pid] = {**entry, "locators": moved if moved else []}
+    return out
+
+
 def _validate_bounds(pid: str, entry: dict, value) -> None:
     decl_type = entry.get("type")
     if decl_type in ("int", "float", "bool") and not _type_ok(value, decl_type):
@@ -417,6 +470,8 @@ def apply(definition: dict, prev_definition: Optional[dict]) -> dict:
     prev_manifest = prev_manifest if isinstance(prev_manifest, dict) else {}
 
     canonical = _canonicalize_manifest(prev_manifest, submitted_manifest, is_fresh_creation)
+    if is_graph:
+        canonical = _regraph_locators(compute, canonical)
     state = reconcile(definition, canonical)
 
     for pid, s in state.items():

@@ -273,3 +273,56 @@ def node_at(graph: Any, index: Any) -> Any:
     if index < 0 or index >= len(nodes):
         return None
     return nodes[index]
+
+
+def locator_for_ast_path(graph: Any, root: Any, ast_path: Any) -> Any:
+    """A V1 ``astPath`` re-expressed as a graph locator, or ``None``.
+
+    ⭐⭐ THIS IS HOW A MIGRATION KEEPS THE TRUST MODEL. ``locators`` is
+    immutable metadata (``param_manifest._IMMUTABLE_FIELDS``) precisely so that
+    a forged address cannot be submitted — the previous save's locator is taken
+    verbatim. That rule has a consequence: a definition stored as V1 and
+    re-saved as a shared graph would keep ``{treeIndex, astPath}`` locators,
+    which mean nothing in a graph, and every control on it would reconcile
+    ``detached`` on the save that was supposed to be a pure storage
+    improvement.
+
+    The answer is NOT to start trusting the client's new locators. It is to
+    re-express the position the server ALREADY trusts: an ``astPath`` produced
+    for a parameter is a chain of ``("args", i)`` steps (that is all
+    ``pineParamManifest.collectParamLocators`` can emit for a numeric literal),
+    and in a graph each step is one index lookup. Same position, derived, never
+    asserted.
+
+    ⚠️ A TRAILING ``"value"`` IS DROPPED AND RE-SUPPLIED. ``_literal_value``
+    accepts both a wrapping ``{"type":"num"}`` node and an ``offset`` node's own
+    bare ``value`` field; V2 spells both as ``path: ["value"]``.
+
+    ⛔ ANYTHING THIS CANNOT WALK RETURNS ``None`` AND THE CALLER LEAVES THE
+    LOCATOR ALONE — which reconciles ``detached``, with a reason. Inventing a
+    nearby address would be worse than the defect it replaces.
+    """
+    nodes = graph.get("nodes") if isinstance(graph, Mapping) else None
+    if not isinstance(nodes, list):
+        return None
+    if isinstance(root, bool) or not isinstance(root, int) or root < 0 or root >= len(nodes):
+        return None
+    steps = list(ast_path or ())
+    if steps and steps[-1] == "value":
+        steps = steps[:-1]
+    if len(steps) % 2:
+        return None
+    idx = root
+    for i in range(0, len(steps), 2):
+        if steps[i] != "args":
+            return None
+        at = steps[i + 1]
+        if isinstance(at, bool) or not isinstance(at, int):
+            return None
+        args = nodes[idx].get("args")
+        if not isinstance(args, list) or at < 0 or at >= len(args):
+            return None
+        idx = args[at]
+        if not isinstance(idx, int) or idx < 0 or idx >= len(nodes):
+            return None
+    return {"node": idx, "path": ["value"]}

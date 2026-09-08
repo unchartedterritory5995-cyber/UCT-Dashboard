@@ -53,11 +53,14 @@ import {
   seriesOptionsForPlot,
   signColorsForPlot,
   columnColorsForPlot,
+  effectiveColor,
+  DEFAULT_MARKER_COLOR,
   bindingKey,
   lineStyleValue,
 } from './pool'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
+import { markersFor, createMarkerLayer } from './markerPrimitive'
 
 /** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
  *  declares them, else its series colour at a low default alpha.
@@ -857,6 +860,45 @@ export function createBinder({ chart, LWC }) {
         }
       }
 
+      // ⭐⭐ C3A — THE GLYPH, DRAWN. `plotshape`/`plotchar` already yielded their
+      // condition as an ordinary 0/1 column (which is what makes them
+      // screenable); what the author ALSO said — a triangle above the bar
+      // reading "BUY" — reached the document as `plots[i].marker` for the first
+      // time in this wave, and this is where it becomes pixels.
+      //
+      // ⛔ THE MARKERS RIDE THE PLOT'S OWN SERIES, not the candle series. That
+      // is what makes `position: 'inBar'` mean `location.absolute` (the glyph
+      // sits at the value the author plotted) and what keeps a marker in the
+      // same pane as the indicator that produced it. A marker parked on the
+      // price series would jump panes for any oscillator.
+      //
+      // ⚠️ `ctx.createSeriesMarkers` IS INJECTED, like every other chart-library
+      // capability this module uses. A host that does not provide it simply
+      // draws no markers — the column, the legend and the scan are unaffected —
+      // rather than throwing on a chart that was otherwise fine.
+      let markerLayer = (b.from && b.from.markerLayer) || null
+      const markerSpec = b.plot && b.plot.marker
+      if (markerLayer && (b.source !== 'same' || !markerSpec)) {
+        attempt(() => markerLayer.clear())
+        markerLayer = null
+      }
+      if (markerSpec && typeof ctx.createSeriesMarkers === 'function') {
+        const own = columns.get(b.key)
+        if (own) {
+          if (!markerLayer) markerLayer = createMarkerLayer(ctx.createSeriesMarkers, series)
+          const cc = columnColorsForPlot(b.plot)
+          attempt(() => markerLayer.set(markersFor({
+            column: own,
+            times: bars.map((bar) => adjustTime(bar.t)),
+            marker: markerSpec,
+            color: effectiveColor(b.plot, DEFAULT_MARKER_COLOR),
+            condColumn: cc ? columns.get(bindingKey(b.instanceId, cc.key)) : null,
+            colorUp: cc ? cc.up : null,
+            colorDown: cc ? cc.down : null,
+          })))
+        }
+      }
+
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
       const points = pointsFor(b, columns.get(b.key))
       if (firstBindNeedsSetData(b, planMode)) {
@@ -868,6 +910,7 @@ export function createBinder({ chart, LWC }) {
       }
 
       next.push({
+        markerLayer,
         key: b.key,
         instanceId: b.instanceId,
         defId: b.defId,

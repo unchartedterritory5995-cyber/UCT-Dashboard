@@ -1,14 +1,20 @@
 // app/src/components/chart/builder/graphSaveDoor.test.js
 //
-// ─── C2C: THE DOCUMENT THE PRODUCT WOULD ACTUALLY SEND ──────────────────────
+// ─── C2C/C2D: THE DOCUMENT THE PRODUCT WOULD ACTUALLY SEND ──────────────────
 //
 // ⚰️ THIS FILE EXISTS BECAUSE A GREEN SUITE LIED FOR AN HOUR. `graphSize.measure`
 // builds its documents WITHOUT a `paramManifest`, because the recipe it copied
-// (`documentSize.measure`) did. The real import path builds one — `PineBox`
-// translates a SECOND time with `paramManifest: true` and hands the result to
-// `BuilderSheet` — and with it present, `toGraphDocument` refused, so the live
-// journey reported the ORIGINAL "exceeds 65,536 bytes" refusal for both blocked
-// scripts while every offline test said ×48.
+// (`documentSize.measure`) did. The real import path builds one, and with it
+// present `toGraphDocument` refused — so the live journey reported the ORIGINAL
+// "exceeds 65,536 bytes" refusal for both blocked scripts while every offline
+// test said the representation shrank them forty-eight fold.
+//
+// ⭐ AND THE MANIFEST IS BUILT THE WAY C2D.1 BUILDS IT — one translation,
+// placements per output, the address supplied by whoever owns the plot keys.
+// The correct V1 manifest for `…03-supertrend` is 666 astPath locators (one
+// Pine input feeds every plot, seventeen times in the first tree alone); the
+// graph form is TWO. That ratio is the C2D.2 argument for a graph-native
+// locator, measured rather than asserted.
 //
 // ⛔ THE FIXTURE MUST INCLUDE THE MANIFEST, and it must be built the way the
 // product builds it, or this file is measuring a document nobody saves.
@@ -17,7 +23,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from '../engine/ast/pine'
 import { memberInputTranslation } from './builderInputs'
-import { buildParamManifest } from './pineParamManifest'
+import { paramLocatorsIn, manifestFromPlacements } from './pineParamManifest'
 import { buildDefinition } from './BuilderSheet.jsx'
 import { evaluateFormula } from './FormulaField.jsx'
 import { BUILDER_INPUT_SCOPE, BUILDER_INPUTS } from './builderInputs.js'
@@ -33,14 +39,19 @@ const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
  *  carried multi-plot rows AND the Track F manifest `PineBox` produces. */
 function productDocument(name) {
   const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
-  const t = memberInputTranslation(translatePine, src, {})
+  // ⭐⭐ C2D.1 — ONE TRANSLATION. This used to make PineBox's second,
+  // `declareInputs`-free `translatePine(src, {paramManifest: true})` call and
+  // locate the manifest in a tree the document never saved; that is the defect
+  // the wave fixed, so replicating it here would keep measuring the old world.
+  const t = memberInputTranslation(translatePine, src, { paramManifest: true })
   const outs = (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
-  // ⭐ PineBox's SECOND translation, verbatim: uncoupled from `declareInputs`,
-  // manifest for the chosen row only, `treeIndex: null`.
-  const paramReport = translatePine(src, { paramManifest: true })
-  const pOuts = paramReport.outputs || []
-  const manifest = buildParamManifest(paramReport.inputParams,
-    pOuts.length && pOuts[0].ast ? [{ treeIndex: null, ast: pOuts[0].ast }] : [])
+  // ⭐ …and the manifest is assembled the way `BuilderSheet` assembles it: the
+  // immutable metadata once, the placements per output, the ADDRESS supplied by
+  // whoever knows the plot keys.
+  const manifest = manifestFromPlacements(t.inputParams || [], outs.map((o, i) => ({
+    treeIndex: i === 0 ? 'value' : `out${i + 1}`,
+    locators: paramLocatorsIn(t.inputParams || [], o.ast),
+  })))
   const rows = outs.map((o, i) => {
     const ev = evaluateFormula(o.formula, BUILDER_INPUT_SCOPE)
     return {
@@ -94,6 +105,14 @@ describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save d
       const before = Object.keys(doc.compute.paramManifest).sort()
       const after = Object.keys(sent.compute.graph.parameters).sort()
       expect(after).toEqual(before)
+      // ⭐⭐ C2D.5 — AND NOW EVERY ONE OF THEM IS ACTUALLY PLACED. Before the
+      // single-translation fix, one of each script's two controls carried an
+      // astPath into a tree nobody saved and arrived permanently detached; the
+      // graph then carried it disabled, faithfully. With one translation there
+      // is nothing left to be faithful ABOUT — they all resolve.
+      for (const [pid, entry] of Object.entries(sent.compute.graph.parameters)) {
+        expect(entry.locators.length, `${pid} is placed`).toBeGreaterThan(0)
+      }
 
       // ⭐ AND IT READS BACK AS THE SAME INDICATOR.
       const back = hydrateGraphDocument(JSON.parse(JSON.stringify(sent)))
@@ -103,7 +122,9 @@ describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save d
       console.log(`  ${name}: ${documentBytes(doc)}B -> ${documentBytes(sent)}B `
         + `(x${(documentBytes(doc) / documentBytes(sent)).toFixed(1)}), `
         + `${after.length} parameters carried, `
-        + `${after.filter((k) => sent.compute.graph.parameters[k].locators.length).length} of them placed`)
+        + `${after.filter((k) => sent.compute.graph.parameters[k].locators.length).length} placed; `
+        + `V1 locators ${Object.values(doc.compute.paramManifest).reduce((n, e) => n + e.locators.length, 0)}`
+        + ` -> graph locators ${Object.values(sent.compute.graph.parameters).reduce((n, e) => n + e.locators.length, 0)}`)
     })
   }
 

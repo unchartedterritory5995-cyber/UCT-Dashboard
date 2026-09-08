@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "name": "long_tail__13-volatility-of-returns",
+      "id": "u_c2d900000001",
+      "band": "small",
+      "v1Bytes": 3714,
+      "sentBytes": 3714,
+      "isGraph": false,
+      "plots": 2
+    },
+    {
+      "name": "mid_engagement__13-spma-trend",
+      "id": "u_c2d900000002",
+      "band": "median",
+      "v1Bytes": 12255,
+      "sentBytes": 12255,
+      "isGraph": false,
+      "plots": 5
+    },
+    {
+      "name": "mid_engagement__14-master-line-lite",
+      "id": "u_c2d900000003",
+      "band": "p95",
+      "v1Bytes": 41388,
+      "sentBytes": 41388,
+      "isGraph": false,
+      "plots": 7
+    },
+    {
+      "name": "mid_engagement__22-rsi-levels-regime-map",
+      "id": "u_c2d900000004",
+      "band": "rsi-levels",
+      "v1Bytes": 240206,
+      "sentBytes": 10844,
+      "isGraph": true,
+      "plots": 12
+    },
+    {
+      "name": "high_engagement__03-supertrend-kivancozbilgic",
+      "id": "u_c2d900000005",
+      "band": "supertrend",
+      "v1Bytes": 438263,
+      "sentBytes": 7244,
+      "isGraph": true,
+      "plots": 10
+    }
+  ]
+}

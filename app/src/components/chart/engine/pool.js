@@ -429,7 +429,11 @@ export function plotAlpha(plot) {
  *  none. `withAlpha` MULTIPLIES through, so `rgba(…,0.4)` at `opacity: 'band'`
  *  dims rather than brightens — the same rule `designTokens` applies to a
  *  `token:role@step` reference. */
-function effectiveColor(plot, fallback) {
+/** ⭐ EXPORTED FOR C3A. A marker's colour is the PLOT'S colour, opacity and
+ *  all — the same answer the line would get — so the marker lane calls this
+ *  rather than re-deriving "what colour is this plot", which is the
+ *  second-authority defect this repo pays for most often. */
+export function effectiveColor(plot, fallback) {
   const raw = (typeof plot.color === 'string' && plot.color) ? plot.color : fallback
   if (raw === null || raw === undefined) return null
   const alpha = plotAlpha(plot)
@@ -624,6 +628,11 @@ function twoColoursOf(plot) {
  *
  * @returns {{key: string, up: string, down: string}|null}
  */
+/** The colour a marker falls back to when its plot declares none. Matches the
+ *  builder's own first swatch, so an imported `plotshape` with no `color=`
+ *  looks like every other freshly-imported plot rather than like an error. */
+export const DEFAULT_MARKER_COLOR = '#c9a84c'
+
 export function columnColorsForPlot(plot) {
   if (!plot || typeof plot.colorMode !== 'string') return null
   if (!plot.colorMode.startsWith('column:')) return null

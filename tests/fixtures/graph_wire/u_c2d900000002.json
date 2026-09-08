@@ -1,0 +1,1525 @@
+{
+  "schemaVersion": 1,
+  "id": "u_c2d900000002",
+  "version": 1,
+  "compute": {
+    "kind": "ast",
+    "fn": "sha256:9d825e7453525bd2c14359095f442187c0df6ef5d7522b0b721433b857fc3585",
+    "rev": 1,
+    "ast": {
+      "type": "call",
+      "name": "accum",
+      "args": [
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            {
+              "type": "num",
+              "value": 0
+            },
+            {
+              "type": "num",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            {
+              "type": "call",
+              "name": "na",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "self"
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 30
+                }
+              ]
+            },
+            {
+              "type": "op",
+              "name": "?:",
+              "args": [
+                {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "percentrank",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "-",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "offset",
+                              "value": 1,
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 30
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 50
+                    }
+                  ]
+                },
+                {
+                  "type": "call",
+                  "name": "ema",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 30
+                    }
+                  ]
+                },
+                {
+                  "type": "series",
+                  "name": "self"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "num",
+          "value": 250
+        }
+      ]
+    },
+    "source": "accum(0 / 0, na(self) ? ema(close, 30) : percentrank(close - close[1], 30) > 50 ? ema(close, 30) : self, 250)",
+    "paramManifest": {
+      "__uct_param_1": {
+        "sourceName": "Length",
+        "title": "Baseline Length",
+        "type": "int",
+        "default": 30,
+        "min": null,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              1,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_2": {
+        "sourceName": "Lookback",
+        "title": "Percentrank Lookback",
+        "type": "int",
+        "default": 30,
+        "min": 2,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_3": {
+        "sourceName": "GateInp",
+        "title": "% Gate",
+        "type": "int",
+        "default": 50,
+        "min": 0,
+        "max": 99,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "value",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              0,
+              "args",
+              1,
+              "args",
+              2,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_5": {
+        "sourceName": "VolLen",
+        "title": "Volatility Length",
+        "type": "int",
+        "default": 14,
+        "min": 2,
+        "max": null,
+        "step": null,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              0,
+              "args",
+              1
+            ]
+          }
+        ]
+      },
+      "__uct_param_6": {
+        "sourceName": "VolMul",
+        "title": "Volatility Multiple",
+        "type": "float",
+        "default": 0.75,
+        "min": 0,
+        "max": null,
+        "step": 0.1,
+        "options": null,
+        "locators": [
+          {
+            "treeIndex": "out2",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out3",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out4",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          },
+          {
+            "treeIndex": "out5",
+            "astPath": [
+              "args",
+              1,
+              "args",
+              1
+            ]
+          }
+        ]
+      }
+    },
+    "trees": {
+      "value": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "call",
+                "name": "na",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  }
+                ]
+              },
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 30
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "percentrank",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "-",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 1,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 50
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 30
+                      }
+                    ]
+                  },
+                  {
+                    "type": "series",
+                    "name": "self"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 250
+          }
+        ]
+      },
+      "out2": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "na",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 30
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "?:",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "percentrank",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "-",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 30
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 50
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "name": "ema",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "dev",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 14
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 14
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0.75
+              }
+            ]
+          }
+        ]
+      },
+      "out3": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "na",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 30
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "?:",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "percentrank",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "-",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 30
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 50
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "name": "ema",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "dev",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 14
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 14
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0.75
+              }
+            ]
+          }
+        ]
+      },
+      "out4": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "na",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 30
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "?:",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "percentrank",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "-",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 30
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 50
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "name": "ema",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "dev",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 14
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 14
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0.75
+              }
+            ]
+          }
+        ]
+      },
+      "out5": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "na",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "ema",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 30
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "?:",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "call",
+                            "name": "percentrank",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "-",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 30
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 50
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "name": "ema",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 30
+                          }
+                        ]
+                      },
+                      {
+                        "type": "series",
+                        "name": "self"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 250
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "dev",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 14
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 14
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0.75
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "treesHash": "sha256:d956b04e83e431fd2de18fde5c81f91837f43b70565cf96ec70abeedd1f76b09",
+    "scanPlot": "value",
+    "sources": {
+      "value": "accum(0 / 0, na(self) ? ema(close, 30) : percentrank(close - close[1], 30) > 50 ? ema(close, 30) : self, 250)",
+      "out2": "accum(0 / 0, na(self) ? ema(close, 30) : percentrank(close - close[1], 30) > 50 ? ema(close, 30) : self, 250) + ema(dev(close, 14), 14) * 0.75",
+      "out3": "accum(0 / 0, na(self) ? ema(close, 30) : percentrank(close - close[1], 30) > 50 ? ema(close, 30) : self, 250) - ema(dev(close, 14), 14) * 0.75",
+      "out4": "accum(0 / 0, na(self) ? ema(close, 30) : percentrank(close - close[1], 30) > 50 ? ema(close, 30) : self, 250) + ema(dev(close, 14), 14) * 0.75",
+      "out5": "accum(0 / 0, na(self) ? ema(close, 30) : percentrank(close - close[1], 30) > 50 ? ema(close, 30) : self, 250) - ema(dev(close, 14), 14) * 0.75"
+    }
+  },
+  "meta": {
+    "name": "mid_engagement__13-spma-trend",
+    "shortName": "mid_engageme",
+    "category": "Custom",
+    "description": "the running value that starts at (0 divided by 0) and becomes ((the 30-bar exponential average of close) when (the running value so far being unknown) is not zero, ((the 30-bar exponential average of close) when (1 when (the 30-bar percent rank of (close minus (close 1 bar ago))) is greater than 50 and 0 otherwise) is not zero, the running value so far when it is zero, and nothing while it is unknown) when it is zero, and nothing while it is unknown) on each of the last 250 bars",
+    "tags": [
+      "custom"
+    ],
+    "tier": "premium",
+    "repaint": "non-repainting",
+    "freshness": "unknown"
+  },
+  "placement": {
+    "target": "pane"
+  },
+  "inputs": [
+    {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out2Color",
+      "type": "color",
+      "label": "Upper Band colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out2Width",
+      "type": "int",
+      "label": "Upper Band width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Lower Band colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Lower Band width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out4Color",
+      "type": "color",
+      "label": "Upper Glow colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out4Width",
+      "type": "int",
+      "label": "Upper Glow width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out5Color",
+      "type": "color",
+      "label": "Lower Glow colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out5Width",
+      "type": "int",
+      "label": "Lower Glow width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    }
+  ],
+  "plots": [
+    {
+      "key": "value",
+      "label": "Shock Percentile Moving Average",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out2",
+      "label": "Upper Band",
+      "style": "line",
+      "color": "$out2Color",
+      "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out3",
+      "label": "Lower Band",
+      "style": "line",
+      "color": "$out3Color",
+      "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out4",
+      "label": "Upper Glow",
+      "style": "line",
+      "color": "$out4Color",
+      "width": "$out4Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out5",
+      "label": "Lower Glow",
+      "style": "line",
+      "color": "$out5Color",
+      "width": "$out5Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    }
+  ]
+}

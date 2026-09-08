@@ -32,6 +32,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { parseFormula } from '../engine/ast/parse'
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -131,15 +132,36 @@ describe("the paste box hands the sheet the author's knobs", () => {
     // comment) and now incomplete: Track F (DEC-006) reaches EXACTLY this
     // case through a separate, literal-preserving mechanism
     // (`pine.paramManifest.test.js`). `inputs` stays empty (declareInputs
-    // still declares nothing here) while `paramManifest` carries what
-    // Track F minted.
+    // still declares nothing here) while Track F's own mechanism carries what
+    // it minted.
+    //
+    // ⚰️ C2D.1 CHANGED THE SHAPE OF THIS HANDBACK, DELIBERATELY. The box used
+    // to hand over a finished `paramManifest` whose `treeIndex: null` locators
+    // it had measured against its OWN second translation — a tree the sheet
+    // never saves. It now hands the immutable metadata (`inputParams`) and each
+    // output's PLACEMENTS, and `BuilderSheet` supplies the address once it has
+    // decided what every plot is called. The member-visible claim is unchanged;
+    // the thing that changed is which tree the locator is true about.
     const handed = onPick.mock.calls[0][0]
     expect(typeof handed).toBe('object')
     expect(handed.source).toBe('sma(close, 14)')
     expect(handed.inputs).toEqual([])
-    expect(handed.paramManifest).toMatchObject({
-      __uct_param_1: expect.objectContaining({ sourceName: 'len', title: 'Length', type: 'int', default: 14 }),
-    })
+    expect(handed.inputParams).toEqual([
+      expect.objectContaining({
+        id: '__uct_param_1', sourceName: 'len', title: 'Length', type: 'int', default: 14,
+      }),
+    ])
+    // ⭐⭐ AND THE PLACEMENT IS TRUE ABOUT THE TREE THAT WILL BE SAVED — the
+    // whole point of C2D.1. `handed.source` is the text the sheet re-parses, so
+    // walking the locator's astPath through THAT tree must land on the literal.
+    const locs = handed.outputs[0].paramLocators
+    expect(locs).toHaveLength(1)
+    expect(locs[0].id).toBe('__uct_param_1')
+    const parsed = parseFormula(handed.source)
+    expect(parsed.ok).toBe(true)
+    let node = parsed.ast
+    for (const step of locs[0].astPath) node = node[step]
+    expect(node).toEqual({ type: 'num', value: 14 })
   })
 
   it('⭐⭐ …and typing in it re-folds the formula the member will save', async () => {
@@ -165,7 +187,7 @@ describe("the paste box hands the sheet the author's knobs", () => {
     // differ. The AUTHOR'S OWN number (14) is still what "was 14" shows
     // above — that sentence is unaffected by this.
     expect(handed.source).toBe('sma(close, 50)')
-    expect(handed.paramManifest.__uct_param_1).toMatchObject({ default: 50 })
+    expect(handed.inputParams[0]).toMatchObject({ id: '__uct_param_1', default: 50 })
   })
 
   it('⛔⛔ CLEARING the field returns to the author\'s length — blank is not zero', async () => {
@@ -182,12 +204,11 @@ describe("the paste box hands the sheet the author's knobs", () => {
     await waitFor(() => expect(screen.getByTestId('pine-formula-0')).toHaveTextContent('sma(close, 14)'))
     await clickUse()
     const handed = onPick.mock.calls[0][0]
-    // ⭐⭐ TRACK F (DEC-006) — the object form now carries `paramManifest`
-    // (see the two tests above); the CLAIM this test exists for (blank
-    // clears back to the author's 14, never a coerced 0) is unchanged and
-    // still checked, on `handed.source`.
+    // ⭐⭐ TRACK F — the object form carries `inputParams` (see the two tests
+    // above); the CLAIM this test exists for (blank clears back to the author's
+    // 14, never a coerced 0) is unchanged and still checked, on `handed.source`.
     expect(handed.source).toBe('sma(close, 14)')
-    expect(handed.paramManifest.__uct_param_1).toMatchObject({ default: 14 })
+    expect(handed.inputParams[0]).toMatchObject({ id: '__uct_param_1', default: 14 })
   })
 
   it('⛔⛔ a length OUTSIDE the author\'s bounds REFUSES, and the field stays', async () => {

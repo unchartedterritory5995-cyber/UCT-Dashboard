@@ -8153,7 +8153,7 @@ export function translatePine(source, opts = {}) {
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
-        presentation: outputPresentation(args, { env, resolver }),
+        presentation: outputPresentation(args, { env, resolver, kind: out.kind }),
         hidden: authorHid || flat,
         // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
         // merges "the author hid this plot" with "this reads no bar" — one flag,
@@ -8429,6 +8429,70 @@ const PINE_COLOURS_BARE = Object.freeze(Object.fromEntries(
  *  reserves `cross` and refuses it because LWC draws circle/square/arrow markers
  *  only, so silently sending `markers` would put dots where a member wrote
  *  crosses and call it fidelity. */
+/** ⭐⭐ C3A — PINE'S MARKER SHAPES, AND WHAT THIS RENDERER CAN ACTUALLY DRAW.
+ *
+ *  Lightweight-charts 5.2 draws FOUR marker shapes: circle, square, arrowUp,
+ *  arrowDown. Pine names twelve. So every entry here carries BOTH: the shape
+ *  the author asked for and the shape that will be drawn.
+ *
+ *  ⛔⛔ AN APPROXIMATION IS RECORDED AS ONE, NEVER PRESENTED AS THE THING. The
+ *  wave's own instruction is "do not flatten everything into one dot", and the
+ *  honest reading of that is not "refuse nine of twelve" — a triangle drawn as
+ *  an arrow at the right bar is the author's signal; a triangle DROPPED is not.
+ *  It is "say which ones you changed", which is what `approx` is for: the
+ *  import disclosure can then name them instead of the member discovering it on
+ *  the chart.
+ *
+ *  ⚠️ `flag`, `labelup`, `labeldown` ARE DIRECTIONAL IN PINE and are mapped to
+ *  the arrow that points the same way, not to a circle: a member reading a
+ *  "labeldown" as an up-arrow would be reading the opposite signal, which is
+ *  worse than reading a different glyph. */
+const PINE_MARKER_SHAPES = Object.freeze({
+  'shape.circle': { shape: 'circle', approx: false },
+  'shape.square': { shape: 'square', approx: false },
+  'shape.arrowup': { shape: 'arrowUp', approx: false },
+  'shape.arrowdown': { shape: 'arrowDown', approx: false },
+  'shape.triangleup': { shape: 'arrowUp', approx: true },
+  'shape.triangledown': { shape: 'arrowDown', approx: true },
+  'shape.labelup': { shape: 'arrowUp', approx: true },
+  'shape.labeldown': { shape: 'arrowDown', approx: true },
+  'shape.flag': { shape: 'arrowUp', approx: true },
+  'shape.diamond': { shape: 'square', approx: true },
+  'shape.cross': { shape: 'square', approx: true },
+  'shape.xcross': { shape: 'square', approx: true },
+})
+
+/** Pine's `location.*` against LWC's three marker positions.
+ *
+ *  ⚠️ `location.top` / `location.bottom` ARE PANE-RELATIVE and LWC has no such
+ *  position — a marker there is anchored to the PANE, not to a bar's price.
+ *  They are mapped to the nearest bar-anchored position and flagged `approx`,
+ *  because the BAR is the fact the member reads and the height is the styling.
+ *  `location.absolute` is `inBar`: the marker sits at the series' own value,
+ *  which is exactly what "absolute" means. */
+const PINE_MARKER_LOCATIONS = Object.freeze({
+  'location.abovebar': { position: 'aboveBar', approx: false },
+  'location.belowbar': { position: 'belowBar', approx: false },
+  'location.absolute': { position: 'inBar', approx: false },
+  'location.top': { position: 'aboveBar', approx: true },
+  'location.bottom': { position: 'belowBar', approx: true },
+})
+
+/** Pine's five named sizes as an LWC marker size multiplier (1 = default). */
+const PINE_MARKER_SIZES = Object.freeze({
+  'size.tiny': 0.5,
+  'size.small': 0.8,
+  'size.normal': 1,
+  'size.large': 1.5,
+  'size.huge': 2,
+  'size.auto': 1,
+})
+
+/** The calls whose `style=` argument names a MARKER SHAPE rather than a plot
+ *  style. Read as a set so `outputPresentation` asks one question instead of
+ *  carrying two parallel branches. */
+const MARKER_CALLS = Object.freeze(new Set(['plotshape', 'plotchar']))
+
 const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_line': 'line',
   'plot.style_linebr': 'line',
@@ -8702,8 +8766,71 @@ function outputPresentation(args, ctx) {
   const w = numberValue((arg('linewidth') || {}).value)
   if (w !== null) pres.width = w
 
+  // ⭐⭐ C3A — A MARKER CALL'S `style=` IS A SHAPE, NOT A PLOT STYLE.
+  //
+  // ⚰️ THIS FUNCTION USED TO ASK ONE QUESTION FOR BOTH. `plotshape(cond, style =
+  // shape.triangleup)` fell into the `plot.style_*` lookup, missed, and was
+  // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
+  // as an unsupported plot style. The translator's own header said as much
+  // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
+  const kind = ctx && ctx.kind
+  const isMarker = MARKER_CALLS.has(kind)
   const st = arg('style')
-  if (st && st.value && st.value.type === 'name') {
+  if (isMarker) {
+    const m = {}
+    if (st && st.value && st.value.type === 'name') {
+      const hit = PINE_MARKER_SHAPES[st.value.name]
+      if (hit) {
+        m.shape = hit.shape
+        m.pineShape = st.value.name
+        if (hit.approx) m.shapeApprox = true
+      } else {
+        // ⛔ AN UNKNOWN SHAPE IS RECORDED, NOT GUESSED. `styleUncarried` is the
+        // channel the import disclosure already reads for exactly this.
+        pres.styleUncarried = st.value.name
+      }
+    }
+    const loc = arg('location')
+    if (loc && loc.value && loc.value.type === 'name') {
+      const hit = PINE_MARKER_LOCATIONS[loc.value.name]
+      if (hit) {
+        m.position = hit.position
+        if (hit.approx) m.positionApprox = true
+      } else {
+        pres.locationUncarried = loc.value.name
+      }
+    }
+    const size = arg('size')
+    if (size && size.value && size.value.type === 'name'
+        && Object.hasOwn(PINE_MARKER_SIZES, size.value.name)) {
+      m.size = PINE_MARKER_SIZES[size.value.name]
+    }
+    // ⭐ `text=` ON `plotshape`, `char=` ON `plotchar` — the same field to a
+    // reader, two spellings in Pine, one name here.
+    const txt = arg('text') || (kind === 'plotchar' ? arg('char') : null)
+    if (txt && txt.value && txt.value.type === 'string' && txt.value.value) {
+      m.text = String(txt.value.value).slice(0, 24)
+    }
+    // ⚠️ A `plotchar` WITH NO `char=` STILL DRAWS SOMETHING IN PINE (its default
+    // is the star). Carrying that default here rather than leaving the marker
+    // textless keeps the member's chart recognisable.
+    if (kind === 'plotchar' && m.text === undefined) m.text = '★'
+    // ⭐ DEFAULTS ARE PINE'S OWN, stated rather than left to the renderer: both
+    // calls default to `location.abovebar`, and `plotshape`'s default shape is
+    // `shape.xcross`.
+    if (m.position === undefined) m.position = 'aboveBar'
+    if (m.shape === undefined && !pres.styleUncarried) {
+      m.shape = kind === 'plotchar' ? 'circle' : 'square'
+      m.pineShape = kind === 'plotchar' ? null : 'shape.xcross'
+      m.shapeApprox = true
+    }
+    if (m.shape !== undefined) {
+      pres.marker = m
+      // ⭐ AND THE ROW IS BORN A MARKER ROW. Without this the sheet would give
+      // it `style: 'line'` and draw a line through a 0/1 column.
+      pres.style = 'markers'
+    }
+  } else if (st && st.value && st.value.type === 'name') {
     if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
     else pres.styleUncarried = st.value.name
   }

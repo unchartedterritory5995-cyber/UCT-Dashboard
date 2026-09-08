@@ -288,3 +288,31 @@ ruled cannot promote a tier.
 **The object model is still the largest single item** (43/60 scripts, 1,204 call
 sites, 8 `pine:no-output` refusals). C2C removed a storage ceiling that stood in
 front of it; it did not reduce it.
+
+
+---
+
+# POST-C2D + C3A UPDATE (2026-09-07)
+
+Same frozen corpus (`5df718c2`). Baseline preserved.
+
+| # | Dimension | Before | After | Why |
+|---|---|---|---|---|
+| C | COMPLEX VISUAL FIDELITY | 🟡 | 🟡 | `plotshape` (18/60) and `plotchar` (2/60) now draw their GLYPH — shape, position, text, size, and two-colour rules — where before the column survived and the marker did not. Still 🟡, and deliberately: `bgcolor` (12/60), `barcolor` (10/60) and `plotcandle` (5/60) are measured and NOT built, and the object model (46/60) is untouched. |
+| D | PARAMETER FIDELITY | 🟡 | ✅ | The manifest and the saved computation now come from ONE translation. **37 of 37 declared parameters attached across 17 live saved definitions**, versus one of two detached on each complex script before. Edit/save/reopen proved on the real documents, including the V1→V2 migration path. |
+| E | SAVE / REOPEN | 🟡 | 🟡 | Unchanged as a capability; the wire is now compact too (×40.4 / ×15.3), which is a cost fix rather than a capability. |
+| H | PERFORMANCE | 🟡 | 🟡 | Read cost measured and cut an order of magnitude on graph documents (8.32 → 0.16 ms serialise, 10.81 → 0.13 ms parse). Marker rendering is bounded by a no-op-write guard. Chart-scale visual perf under many markers is NOT yet measured. |
+| I | FAILURE TRANSPARENCY | ✅ | ✅ | An approximated marker shape is RECORDED (`shapeApprox`), never presented as the thing; `plotarrow`'s zero demand is recorded as a decision rather than an omission. |
+
+**A and F remain 🔴. Tier 2 remains the earned ceiling and nothing here promotes
+it.** C3A is a partial wave by design and says so.
+
+## What the next wave should be, on the measured numbers
+
+**The object model.** 46/60 scripts, `table.cell` at 402 call sites,
+`label.new` at 30/60. C3A took the largest DECLARATIVE item (`plotshape`, 18/60)
+and left three smaller ones on the table with their costs stated; none of them
+changes the ordering. The three unbuilt C3A primitives (`bgcolor` 12/60,
+`barcolor` 10/60, `plotcandle` 5/60) are the natural C3A-continuation if the
+owner prefers to finish the declarative layer first — they are 27/60 between
+them, and each is a bounded renderer job rather than an architecture project.

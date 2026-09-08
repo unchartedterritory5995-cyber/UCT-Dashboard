@@ -69,6 +69,68 @@ function collectParamLocators(root, id, path, out) {
 }
 
 /**
+ * Every surviving occurrence of every declared parameter inside ONE tree.
+ *
+ * ⭐⭐ C2D.2 — THE PLACEMENT, SEPARATED FROM THE ADDRESS. A locator is
+ * `{parameter id, astPath}` here and gains its `treeIndex` only when a caller
+ * that KNOWS the plot keys assembles the manifest. That split exists because
+ * the two facts are decided in different places: `PineBox` has the translated
+ * ASTs and cannot know what a plot will be called, while `BuilderSheet` assigns
+ * every key (from the author's own plot title, deduplicated against `taken`)
+ * and has no ASTs. Having either one guess the other's half is the
+ * second-authority defect, and it is precisely how the pre-C2D manifest came to
+ * point into a tree nobody saved.
+ *
+ * @returns {Array<{id: string, astPath: Array}>}
+ */
+export function paramLocatorsIn(inputParams, ast) {
+  const out = []
+  if (!ast) return out
+  for (const p of (Array.isArray(inputParams) ? inputParams : [])) {
+    const found = []
+    collectParamLocators(ast, p.id, [], found)
+    for (const astPath of found) out.push({ id: p.id, astPath })
+  }
+  return out
+}
+
+/**
+ * `inputParams` + per-tree placements → the `compute.paramManifest` shape.
+ *
+ * THE ONE ASSEMBLER. `buildParamManifest` below is this function with the
+ * locator walk folded in, so there is a single place that decides what a
+ * manifest entry looks like.
+ *
+ * @param {Array} inputParams the immutable per-declaration metadata.
+ * @param {Array<{treeIndex: string|null, locators: Array<{id, astPath}>}>} placements
+ */
+export function manifestFromPlacements(inputParams, placements) {
+  const manifest = {}
+  const rows = Array.isArray(placements) ? placements : []
+  for (const p of (Array.isArray(inputParams) ? inputParams : [])) {
+    const locators = []
+    for (const row of rows) {
+      for (const loc of (row && Array.isArray(row.locators) ? row.locators : [])) {
+        if (loc && loc.id === p.id) locators.push({ treeIndex: row.treeIndex, astPath: loc.astPath })
+      }
+    }
+    if (!locators.length) continue
+    manifest[p.id] = {
+      sourceName: p.sourceName,
+      title: p.title,
+      type: p.type,
+      default: p.default,
+      min: p.min,
+      max: p.max,
+      step: p.step,
+      options: p.options,
+      locators,
+    }
+  }
+  return manifest
+}
+
+/**
  * `translatePine({ paramManifest: true }).inputParams` (per-declaration
  * IMMUTABLE metadata only, no locators — see that function's own comment on
  * why) + the trees a caller actually decided to KEEP as saved output →
@@ -85,30 +147,11 @@ function collectParamLocators(root, id, path, out) {
  *        survived into any kept tree.
  */
 export function buildParamManifest(inputParams, trees) {
-  const manifest = {}
-  const keep = Array.isArray(trees) ? trees : []
-  for (const p of (Array.isArray(inputParams) ? inputParams : [])) {
-    const locators = []
-    for (const t of keep) {
-      if (!t || !t.ast) continue
-      const found = []
-      collectParamLocators(t.ast, p.id, [], found)
-      for (const astPath of found) locators.push({ treeIndex: t.treeIndex, astPath })
-    }
-    if (locators.length === 0) continue
-    manifest[p.id] = {
-      sourceName: p.sourceName,
-      title: p.title,
-      type: p.type,
-      default: p.default,
-      min: p.min,
-      max: p.max,
-      step: p.step,
-      options: p.options,
-      locators,
-    }
-  }
-  return manifest
+  const keep = (Array.isArray(trees) ? trees : []).filter((t) => t && t.ast)
+  return manifestFromPlacements(inputParams, keep.map((t) => ({
+    treeIndex: t.treeIndex,
+    locators: paramLocatorsIn(inputParams, t.ast),
+  })))
 }
 
 /** Exported for `pine.paramManifest.test.js` only — asserting the exact

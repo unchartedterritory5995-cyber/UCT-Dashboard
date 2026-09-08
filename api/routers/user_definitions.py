@@ -250,9 +250,24 @@ def _stamped(row: dict) -> dict:
     return out
 
 
+#: ⭐ C2D.7 — THE CAPABILITY QUESTION, ASKED ONCE. A caller passes `graph=1` to
+#: say "I can rebuild the forest from `compute.graph` myself"; everything else
+#: gets the materialised document it has always got. Declared here rather than
+#: repeated per route so the four surfaces below cannot drift on what the flag
+#: is called or what it defaults to.
+_GRAPH_PARAM = Query(False, description="return shared-graph documents compactly")
+
+
+def _maybe_compact(rows, graph: bool):
+    """Every row, compacted iff the caller said it can hydrate."""
+    return [svc.compact_row(r) for r in rows] if graph else list(rows)
+
+
 @router.get("")
-def list_definitions(user: dict = Depends(require_paid)):
-    return {"definitions": [_stamped(r) for r in svc.list_for_user(user["id"])]}
+def list_definitions(user: dict = Depends(require_paid),
+                     graph: bool = _GRAPH_PARAM):
+    return {"definitions": _maybe_compact(
+        [_stamped(r) for r in svc.list_for_user(user["id"])], graph)}
 
 
 @router.post("")
@@ -370,14 +385,15 @@ def public_library(limit: int = 24, after: Optional[int] = None,
 @router.get("/{def_id}")
 def get_definition(def_id: str,
                    version: Optional[int] = Query(None, ge=1),
-                   user: dict = Depends(require_paid)):
+                   user: dict = Depends(require_paid),
+                   graph: bool = _GRAPH_PARAM):
     try:
         row = svc.get(user["id"], def_id, version)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return row
+    return svc.compact_row(row) if graph else row
 
 
 @router.put("/{def_id}")
@@ -482,7 +498,8 @@ def unshare_definition(def_id: str, user: dict = Depends(require_paid)):
 
 
 @router.get("/{def_id}/history")
-def definition_history(def_id: str, user: dict = Depends(require_paid)):
+def definition_history(def_id: str, user: dict = Depends(require_paid),
+                       graph: bool = _GRAPH_PARAM):
     """Every version of one of my definitions, oldest first, tombstones included.
 
     ⭐ THE STORE ALREADY KEPT THIS — every save appends a row rather than
@@ -495,7 +512,11 @@ def definition_history(def_id: str, user: dict = Depends(require_paid)):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not rows:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"def_id": def_id, "versions": rows}
+    # ⭐ C2D.8 — history is the surface where compaction pays most: EVERY
+    # version of a document that stores as a graph would otherwise arrive as a
+    # separate expanded forest, so a ten-version history of the corpus'
+    # heaviest script is ~3.6 MB of response for ~80 KB of stored program.
+    return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 
 
 #: share refusal → HTTP status. ⭐ A CLOSED MAP, so a reason this module does not

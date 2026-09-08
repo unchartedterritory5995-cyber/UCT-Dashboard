@@ -434,3 +434,59 @@ budget still must not be raised.
 | F3.2 | V2 is emitted only when V1 would not fit | A deliberate conditional, safe because the two forms have provably identical identities, so the threshold can only decide whether a save is REFUSED. Making V2 the default for every multi-tree document needs a corpus-wide re-baseline and is **not** smuggled into this wave. |
 | F3.4 | **The WIRE payload for a graph document is its MATERIALISED size** | `_row_to_dict` expands on read so every server-side reader keeps working, and the API therefore answers `GET /api/user-definitions` with the 362 KB forest for a 8 KB stored document. The bytes at REST are what the cap governs and what this wave was authorised to fix, so this is not a regression against the baseline (the document could not be stored at all before) — but it is a real cost, measured, and the fix is cheap: the client already reconstructs the whole document from the graph (`hydrateGraphDocument`), so the route could send the graph alone once every read surface hydrates. **Named, not fixed** — see F3.3 for the surfaces that would have to be wired first. |
 | F3.3 | Share-preview / version-history surfaces do not hydrate | A graph document read through `previewSharedDefinition` / `fetchDefinitionHistory` gets `trees` (the server materialises) but not the re-derived `compute.source`. Named rather than fixed; the list door and the save door are both wired. |
+
+
+---
+
+## PART G — WHAT C2D AND C3A MEASURED (2026-09-07)
+
+### G1 — C2C's two operational findings, CLOSED
+
+| # | item | status |
+|---|---|---|
+| F3.4 | the wire payload was the MATERIALISED size | ⭐ **CLOSED.** `?graph=1` opt-in compaction on list / get / history. `298,163 B → 7,382 B` (×40.4) and `167,738 B → 10,983 B` (×15.3) through the real routes; a forest document is untouched byte for byte. Read cost 8.32 ms → 0.16 ms serialise, 10.81 ms → 0.13 ms parse. |
+| — | Track F parameter placement | ⭐ **CLOSED, and it was worse than reported.** Root cause: two translations. `PineBox` built the manifest from its own `paramManifest: true` pass; the sheet saved `memberInputTranslation`'s trees. Measured: output-0 astHash DIFFERS on both complex scripts, and `…12-cm-ultimate-rsi` produces 7 outputs in one pass and 6 in the other — so `chosen` indexed two different arrays. **Live proof: 37 declared parameters across 17 saved definitions, 37 attached, 0 detached** (was 2 detached). |
+| F3.3 | share-preview / history do not hydrate | 🟡 **HALF-CLOSED.** History is wired (it is where compaction pays most — every version would otherwise arrive as its own forest). Share-preview and install still return the materialised document; correct, just not yet small. |
+
+### G2 — new, opened by C2D
+
+| # | item | note |
+|---|---|---|
+| G2.1 | **V1 → V2 migration would have detached every control** | Found by writing C2D.4's attack set, not by a failing run. `locators` is immutable-from-prior (what makes a forged locator unusable), so a V1 document re-saved as a graph kept `astPath` locators that mean nothing there. Fixed by RE-EXPRESSING the trusted position structurally (`compute_graph.locator_for_ast_path`), never by trusting the client's new one. **This shipped in C2C and was live for the length of one wave** — it only failed to bite because the corpus documents were fresh creations. |
+| G2.2 | a V1 manifest for a shared input is enormous | The CORRECT manifest for `…03-supertrend` is **666 astPath locators** for two controls (~100 KB); the graph form is **2**. Recorded because it is the strongest argument for the graph-native locator, and because the V1 document grew from 336 KB to 438 KB once the manifest became correct. |
+
+### G3 — C3A visual demand (frozen 60, source-text census)
+
+| primitive | scripts | sites | C3A status |
+|---|---|---|---|
+| `plotshape` | **18/60** | 65 | ⭐ **BUILT** — translator → schema → binder → `createSeriesMarkers` |
+| `plotchar` | 2/60 | 5 | ⭐ **BUILT**, same representation |
+| `bgcolor` | 12/60 | 19 | ❌ not built — needs a pane-background primitive |
+| `barcolor` | 10/60 | 10 | ❌ not built — reaches into the host's own candle series |
+| `plotcandle` | 5/60 | 5 | ❌ not built — needs a real secondary candle series |
+| `plotbar` | 1/60 | 1 | ❌ not built, same reason |
+| `plotarrow` | **0/60** | 0 | ⛔ **deliberately not built — zero demand**, decision recorded as a test |
+
+⛔⛔ **THE ORDERING FACT, STATED RATHER THAN AVERAGED:**
+
+```
+scripts wanting ANY C3A primitive:      32/60
+scripts wanting ANY object lifecycle:   46/60
+scripts wanting BOTH:                   23/60
+scripts wanting ONLY C3A primitives:     9/60
+```
+
+**C3A moves 32 scripts partway and 9 the whole way. The object model is 46/60
+and C3A does not reduce it** — `table.cell` alone is 402 call sites. Summing the
+two families would produce one number that justifies building the wrong thing
+first, which is why they are counted apart.
+
+### G4 — what C3A did NOT do, named
+
+- **No TradingView capture was taken.** The marker lane is proved against the
+  product's own renderer input, not against TradingView's rendering. Claiming
+  visual parity without that capture would be the assumed-verify failure this
+  program has already paid for once. **C3A.12 is NOT satisfied.**
+- The Complex Visual Parity Set was **not** re-run (C3A.11).
+- No object lifecycle exists, and no declarative label is offered as a stand-in
+  for one.

@@ -106,6 +106,7 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+import { manifestFromPlacements } from './pineParamManifest'
 import ParamControls from './ParamControls'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
@@ -467,6 +468,15 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       ...(r.colorMode && r.colorUp && r.colorDown
         ? { colorMode: r.colorMode, colorUp: r.colorUp, colorDown: r.colorDown }
         : {}),
+      // ⭐⭐ C3A — THE GLYPH THE AUTHOR ASKED FOR. `plotshape`/`plotchar` already
+      // reached this door as a 0/1 column with `style: 'markers'`; what was
+      // missing was WHICH glyph, WHERE, and WHAT IT SAYS.
+      //
+      // ⛔ ONLY ON A `markers` ROW, because that is the only combination
+      // `defSchema.validateMarker` accepts — a marker on a line plot would be
+      // two renderers over one column. A row whose style the member has since
+      // changed drops its marker rather than making the document unsaveable.
+      ...(r.marker && r.marker.shape && r.style === 'markers' ? { marker: r.marker } : {}),
       // ⭐⭐ C1-B — the band, as `defSchema.plots[].fill` already validates it.
       // ⛔ ONLY WHEN THE NAMED EDGE IS REALLY IN THIS DOCUMENT. `defSchema`
       // refuses a fill naming a plot nobody declares, so a stale `with` would
@@ -1953,9 +1963,23 @@ export default function BuilderSheet({
                 // bound length can only ever reach this door via the SECOND
                 // one. Reading it here does not depend on `inputs` existing
                 // or being non-empty.
-                const pickedParamManifest = (picked && !Array.isArray(picked) && typeof picked === 'object'
-                  && picked.paramManifest && typeof picked.paramManifest === 'object')
-                  ? picked.paramManifest : null
+                // ⭐⭐ C2D.1/C2D.2 — THE PARAMETER METADATA ARRIVES; THE MANIFEST
+                // IS ASSEMBLED BELOW, once every plot key exists.
+                //
+                // ⚰️ It used to arrive pre-assembled, with `treeIndex: null`
+                // locators built by `PineBox` against its OWN second
+                // translation — a tree this sheet never saves. Measured on the
+                // corpus: `…03-supertrend` and `…22-rsi-levels` disagree with
+                // the saved tree at output 0's astHash, so one of each script's
+                // two controls reached the member permanently detached, and the
+                // other located only the scan plot while the same Pine input
+                // fed nine more.
+                //
+                // The address half of a locator belongs HERE because this
+                // component is the only one that knows what a plot is called.
+                const pickedInputParams = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && Array.isArray(picked.inputParams)) ? picked.inputParams : []
+                let nextParamManifest = null
                 // ⛔ REPLACE RATHER THAN APPEND: `defSchema.validateInput`
                 // refuses a duplicate key outright, so pasting the same script
                 // twice would produce a document that cannot be saved.
@@ -1978,11 +2002,13 @@ export default function BuilderSheet({
                     ...declared.map((d) => ({ ...d })),
                   ])
                 }
-                // ⭐⭐ TRACK F (DEC-006) — a fresh Pine pick REPLACES the prior
-                // manifest outright (never merged) — a new paste is a new
-                // script, and its astPath locators have nothing to do with
-                // whatever the previous paste's manifest pointed at.
-                setParamManifest(pickedParamManifest)
+                // ⛔ THE ASSIGNMENT MOVED DOWN, NOT AWAY. A fresh Pine pick still
+                // REPLACES the prior manifest outright (never merged) — a new
+                // paste is a new script — but it can only be built after the
+                // plot keys are decided, so `setParamManifest` now fires once,
+                // near `setSource`, with whatever the branches below assembled.
+                //   (`nextParamManifest` is declared above and stays `null` for
+                //   every non-Pine door, which is the shipped behaviour.)
                 // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, APPLIED.
                 //
                 // A fourth independent field on the same object form, and like
@@ -2137,6 +2163,10 @@ export default function BuilderSheet({
                       ...(Number.isFinite(op.width)
                         ? { width: Math.max(1, Math.min(4, Math.round(op.width))) } : {}),
                       ...(typeof op.style === 'string' ? { style: op.style } : {}),
+                      // ⭐ C3A — carried verbatim; the translator has already
+                      // reduced Pine's twelve shapes to the four the renderer
+                      // draws and recorded which ones it approximated.
+                      ...(op.marker && op.marker.shape ? { marker: op.marker } : {}),
                       ...(colourPatch(op, key) || {}),
                     }
                   })
@@ -2176,6 +2206,33 @@ export default function BuilderSheet({
                     setPlot0((prev) => ({ ...prev, ...fillPatches.get('value') }))
                   }
                   setPlotRows([...withFills, ...condRows])
+                  // ⭐⭐ C2D.2 — THE MANIFEST, ADDRESSED. `keyAt` is the SAME
+                  // index→key map the fill wiring above already uses, so there
+                  // is one answer to "what is output n called" rather than two
+                  // that must agree. Only CARRIED rows are addressed: a row past
+                  // `CARRY_MAX` is not in the document, and locating a parameter
+                  // in a tree nobody saves is the defect this wave is fixing.
+                  //
+                  // ⛔ EVERY LOCATOR NAMES ITS PLOT EXPLICITLY, INCLUDING PLOT 1.
+                  // `treeIndex: null` resolves against `compute.ast`, which is an
+                  // ALIAS of whichever row is currently the scan plot — so a
+                  // member who later reassigns the scan plot would silently move
+                  // every `null` locator onto a different tree. That was a
+                  // disclosed v1 edge case; naming the key closes it.
+                  if (pickedInputParams.length) {
+                    const placements = [{
+                      treeIndex: 'value',
+                      locators: (picked2.outputs[0] || {}).paramLocators || [],
+                    }]
+                    carried.forEach((out, i) => {
+                      placements.push({
+                        treeIndex: keyAt(i + 1),
+                        locators: (out && out.paramLocators) || [],
+                      })
+                    })
+                    const built = manifestFromPlacements(pickedInputParams, placements)
+                    nextParamManifest = Object.keys(built).length ? built : null
+                  }
                   const dropped = extraOutputs.length - carried.length
                   if (dropped > 0) {
                     setPickerNote(`This script declares ${extraOutputs.length + 1} columns. `
@@ -2209,7 +2266,24 @@ export default function BuilderSheet({
                   } else {
                     setPlotRows([])
                   }
+                  // ⭐ A ONE-PLOT DOCUMENT HAS NO `compute.trees`, so `treeIndex:
+                  // null` — which resolves against `compute.ast` — is the only
+                  // address there is, and it is unambiguous because there is
+                  // exactly one tree for it to name.
+                  //
+                  // ⚠️ A colour-condition row makes this document multi-tree
+                  // (`value` + `value_c`), and `null` STILL resolves correctly:
+                  // `compute.ast` stays aliased to the scan plot, which is
+                  // `value`, and a hidden condition row is never the scan plot.
+                  if (pickedInputParams.length) {
+                    const built = manifestFromPlacements(pickedInputParams, [{
+                      treeIndex: null,
+                      locators: (picked2.outputs[0] || {}).paramLocators || [],
+                    }])
+                    nextParamManifest = Object.keys(built).length ? built : null
+                  }
                 }
+                setParamManifest(nextParamManifest)
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)

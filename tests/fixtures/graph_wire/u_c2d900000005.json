@@ -1,0 +1,907 @@
+{
+  "schemaVersion": 1,
+  "id": "u_c2d900000005",
+  "version": 1,
+  "compute": {
+    "kind": "ast",
+    "fn": "sha256:3711a943663c79ef3349d7812fc07ea76e621be06ae6e655758a464eb75748e3",
+    "rev": 1,
+    "treesHash": "sha256:23091408a6469708c11797d53e2fca4f2ccfc3d233cd6e3f15de2c69fb492439",
+    "scanPlot": "value",
+    "graph": {
+      "graphVersion": 2,
+      "nodes": [
+        {
+          "type": "series",
+          "name": "open"
+        },
+        {
+          "type": "num",
+          "value": 4
+        },
+        {
+          "type": "num",
+          "value": 250
+        },
+        {
+          "type": "num",
+          "value": 2
+        },
+        {
+          "type": "series",
+          "name": "showsignals"
+        },
+        {
+          "type": "num",
+          "value": 0
+        },
+        {
+          "type": "num",
+          "value": 3
+        },
+        {
+          "type": "series",
+          "name": "low"
+        },
+        {
+          "type": "series",
+          "name": "self"
+        },
+        {
+          "type": "series",
+          "name": "changeATR"
+        },
+        {
+          "type": "num",
+          "value": 1
+        },
+        {
+          "type": "series",
+          "name": "high"
+        },
+        {
+          "type": "num",
+          "value": 10
+        },
+        {
+          "type": "series",
+          "name": "close"
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            11,
+            7
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            13
+          ]
+        },
+        {
+          "type": "call",
+          "name": "nz",
+          "args": [
+            8,
+            10
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            0,
+            11
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            11,
+            7
+          ]
+        },
+        {
+          "type": "op",
+          "name": "u-",
+          "args": [
+            10
+          ]
+        },
+        {
+          "type": "call",
+          "name": "atr",
+          "args": [
+            11,
+            7,
+            13,
+            12
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            5,
+            5
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            16,
+            10
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            17,
+            7
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            14,
+            3
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            7,
+            15
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            16,
+            19
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            11,
+            15
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            23,
+            13
+          ]
+        },
+        {
+          "type": "call",
+          "name": "abs",
+          "args": [
+            25
+          ]
+        },
+        {
+          "type": "call",
+          "name": "abs",
+          "args": [
+            27
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            30,
+            29
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            28,
+            1
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            18,
+            31
+          ]
+        },
+        {
+          "type": "call",
+          "name": "sma",
+          "args": [
+            33,
+            12
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            9,
+            20,
+            34
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            6,
+            35
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            24,
+            36
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            24,
+            36
+          ]
+        },
+        {
+          "type": "call",
+          "name": "nz",
+          "args": [
+            8,
+            38
+          ]
+        },
+        {
+          "type": "call",
+          "name": "nz",
+          "args": [
+            8,
+            37
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            15,
+            39
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            38,
+            39
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            15,
+            40
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            37,
+            40
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            43,
+            44,
+            37
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            41,
+            42,
+            38
+          ]
+        },
+        {
+          "type": "call",
+          "name": "accum",
+          "args": [
+            37,
+            45,
+            2
+          ]
+        },
+        {
+          "type": "call",
+          "name": "accum",
+          "args": [
+            38,
+            46,
+            2
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            47
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            48
+          ]
+        },
+        {
+          "type": "call",
+          "name": "nz",
+          "args": [
+            50,
+            38
+          ]
+        },
+        {
+          "type": "call",
+          "name": "nz",
+          "args": [
+            49,
+            37
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            13,
+            52
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            13,
+            51
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            26,
+            53
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            22,
+            54
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            56,
+            19,
+            16
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            55,
+            10,
+            57
+          ]
+        },
+        {
+          "type": "call",
+          "name": "accum",
+          "args": [
+            10,
+            58,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            59,
+            19
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            59
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            59,
+            10
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            61,
+            10
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!=",
+          "args": [
+            59,
+            61
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            62,
+            21,
+            47
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            61,
+            19
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            62,
+            48,
+            21
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            62,
+            66
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            60,
+            63
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            69,
+            4
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            69,
+            47,
+            21
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            68,
+            48,
+            21
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            68,
+            4
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            73,
+            48,
+            21
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            70,
+            47,
+            21
+          ]
+        }
+      ],
+      "outputRoots": {
+        "out10": 64,
+        "out2": 72,
+        "out3": 74,
+        "out4": 65,
+        "out5": 71,
+        "out6": 75,
+        "out7": 32,
+        "out8": 68,
+        "out9": 69,
+        "value": 67
+      },
+      "parameters": {
+        "__uct_param_1": {
+          "sourceName": "Multiplier",
+          "title": "ATR Multiplier",
+          "type": "int",
+          "default": 3,
+          "min": null,
+          "max": null,
+          "step": 0.1,
+          "options": null,
+          "locators": [
+            {
+              "node": 6,
+              "path": [
+                "value"
+              ]
+            }
+          ]
+        },
+        "__uct_param_2": {
+          "sourceName": "Periods",
+          "title": "ATR Period",
+          "type": "int",
+          "default": 10,
+          "min": null,
+          "max": null,
+          "step": null,
+          "options": null,
+          "locators": [
+            {
+              "node": 12,
+              "path": [
+                "value"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "meta": {
+    "name": "high_engagement__03-supertrend-kivancozb",
+    "shortName": "high_engagem",
+    "category": "Custom",
+    "description": "",
+    "tags": [
+      "custom"
+    ],
+    "tier": "premium",
+    "repaint": "repaints",
+    "freshness": "unknown"
+  },
+  "placement": {
+    "target": "pane"
+  },
+  "inputs": [
+    {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out2Color",
+      "type": "color",
+      "label": "UpTrend Begins colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out2Width",
+      "type": "int",
+      "label": "UpTrend Begins width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out3Color",
+      "type": "color",
+      "label": "Buy colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out3Width",
+      "type": "int",
+      "label": "Buy width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out4Color",
+      "type": "color",
+      "label": "Down Trend colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out4Width",
+      "type": "int",
+      "label": "Down Trend width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out5Color",
+      "type": "color",
+      "label": "DownTrend Begins colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out5Width",
+      "type": "int",
+      "label": "DownTrend Begins width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out6Color",
+      "type": "color",
+      "label": "Sell colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out6Width",
+      "type": "int",
+      "label": "Sell width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out7Color",
+      "type": "color",
+      "label": "out7 colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out7Width",
+      "type": "int",
+      "label": "out7 width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out8Color",
+      "type": "color",
+      "label": "SuperTrend Buy colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out8Width",
+      "type": "int",
+      "label": "SuperTrend Buy width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out9Color",
+      "type": "color",
+      "label": "SuperTrend Sell colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out9Width",
+      "type": "int",
+      "label": "SuperTrend Sell width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "key": "out10Color",
+      "type": "color",
+      "label": "SuperTrend Direction Change colour",
+      "default": "#c9a84c"
+    },
+    {
+      "key": "out10Width",
+      "type": "int",
+      "label": "SuperTrend Direction Change width",
+      "default": 1,
+      "min": 1,
+      "max": 4,
+      "step": 1
+    }
+  ],
+  "plots": [
+    {
+      "key": "value",
+      "label": "Up Trend",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out2",
+      "label": "UpTrend Begins",
+      "style": "line",
+      "color": "$out2Color",
+      "width": "$out2Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out3",
+      "label": "Buy",
+      "style": "line",
+      "color": "$out3Color",
+      "width": "$out3Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out4",
+      "label": "Down Trend",
+      "style": "line",
+      "color": "$out4Color",
+      "width": "$out4Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out5",
+      "label": "DownTrend Begins",
+      "style": "line",
+      "color": "$out5Color",
+      "width": "$out5Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out6",
+      "label": "Sell",
+      "style": "line",
+      "color": "$out6Color",
+      "width": "$out6Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out7",
+      "label": "out7",
+      "style": "line",
+      "color": "$out7Color",
+      "width": "$out7Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out8",
+      "label": "SuperTrend Buy",
+      "style": "line",
+      "color": "$out8Color",
+      "width": "$out8Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out9",
+      "label": "SuperTrend Sell",
+      "style": "line",
+      "color": "$out9Color",
+      "width": "$out9Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    },
+    {
+      "key": "out10",
+      "label": "SuperTrend Direction Change",
+      "style": "line",
+      "color": "$out10Color",
+      "width": "$out10Width",
+      "role": "secondary",
+      "legend": {
+        "decimals": 2
+      }
+    }
+  ]
+}
