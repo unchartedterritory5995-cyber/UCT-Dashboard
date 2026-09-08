@@ -7,7 +7,7 @@
  * The chart (StockChart, autoSize) sits in .dockChartCol; opening the panel steals
  * width so the chart reflows automatically. State persists via opts.dock.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import DockProfile from './DockProfile'
 import DockNews from './DockNews'
@@ -17,6 +17,7 @@ import DockEarnings from './DockEarnings'
 import DockOwnership from './DockOwnership'
 import CompanySearch from './CompanySearch'
 import { COMPANY_TABS, MIN_RIGHT_W, DEFAULT_RIGHT_W } from './chartDock'
+import { dockColorVars } from './dockThemeColors'
 import styles from './ChartDetailDock.module.css'
 
 /* ── Toolbar toggle (replaces Share to Floor) ────────────────────────────────
@@ -69,8 +70,13 @@ function useDockResize(current, commit, rootRef, min) {
   return { size: live == null ? current : live, onDown }
 }
 
-export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, children }) {
+export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, chartSettings, children }) {
   const rootRef = useRef(null)
+  // The panel's directional numbers follow THIS chart widget's theme, not a
+  // global one — two charts side by side on different themes each colour their
+  // own panel. Null when the settings carry nothing parseable, which leaves the
+  // stylesheet defaults in place rather than half-theming the panel.
+  const themeVars = useMemo(() => dockColorVars(chartSettings), [chartSettings])
   const commitRightW = useCallback((w) => setDock(d => ({ ...d, rightW: Math.round(w) })), [setDock])
   const rightResize = useDockResize(dock.rightW, commitRightW, rootRef, MIN_RIGHT_W)
   const setTab = useCallback((key) => setDock(d => ({ ...d, tab: key })), [setDock])
@@ -92,7 +98,7 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, chil
   }, [rightOpen])
 
   return (
-    <div className={styles.dockRoot} ref={rootRef}>
+    <div className={styles.dockRoot} ref={rootRef} style={themeVars || undefined}>
       <div className={styles.dockUpper}>
         <div className={styles.dockChartCol}>{children}</div>
 

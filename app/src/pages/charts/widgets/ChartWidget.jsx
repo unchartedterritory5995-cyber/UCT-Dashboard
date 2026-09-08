@@ -471,7 +471,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   return (
     <>
-      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange}>
+      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
       <ChartPane
         ref={paneRef}
         sym={sym}
