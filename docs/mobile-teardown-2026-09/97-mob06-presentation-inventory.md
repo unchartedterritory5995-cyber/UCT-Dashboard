@@ -76,7 +76,22 @@ sheet already answers."* Verified: the settings sheet answers **neither** Percen
 dollar/average volume. It is a correct instinct with an incorrect justification, applied to a
 mixed bag.
 
-### 5 · In the phone DOM but unreachable — **0×0, not any policy**
+### 5 · In the phone DOM but unreachable — ⛔ **THIS SECTION IS WRONG. See `98`.**
+
+> 🔴 **CORRECTED 2026-09-08 — the mechanism below is a mis-read, and the correction is
+> `98-mobile-presentation-contract.md` §0.** Re-measured on the live phone shell, the
+> **whole `ChartToolbar` carries an inline `display:none`** (`MobileChartsApp.jsx` →
+> `mobileDrawBar: true` → `hiddenHost` → `ChartToolbar.jsx:1247`), and the intent is
+> stated in-file. The children below report `display:flex` at 0×0 only because `display`
+> is not inherited — a child of a hidden element still computes its own value and still
+> measures zero. So these are **one deliberate, documented decision, not eleven
+> accidents**, and Summary G's "undocumented, unintentional-looking" verdict does not
+> survive. What *was* right — that no alternative-path analysis had been done for them —
+> is carried out control by control in `98` §3.2, which also names two controls this list
+> omits (`Line style`, `Text size`) and resolves every ❌/⚠️ below.
+>
+> ⚠️ **Left standing rather than rewritten**, because how a DOM dump made a hidden
+> ancestor look like a layout accident is the lesson.
 
 Eleven controls render at **0×0 with `display:flex`** — collapsed to zero width by the
 `ChartToolbar` layout, not hidden by any media query or product decision:
@@ -140,7 +155,10 @@ drawings, Repeat drawing. Low individual value; worth one row, not five.
 - The **OHLCV legend mode** is 3 taps deep with no phone-visible indication that the legend has
   modes at all.
 
-**G · Inconsistencies that justify a shared mechanism.** ⭐ **This is the real finding.** The phone
+**G · Inconsistencies that justify a shared mechanism.** 🔴 **SUPERSEDED — see `98` §0 and §5.**
+Mechanism 2 below is a mis-read (the toolbar is deliberately `display:none` in full), so the
+"three levels of intent" premise is gone and a shared mechanism was **not** warranted; `98`
+records why, and is the register that closes the real gap. The phone
 hides controls by **three unrelated mechanisms** with three different levels of intent:
 1. `@media (pointer: coarse)` → 3 controls, deliberate, documented, rationale partly wrong;
 2. **zero-width layout collapse** → 11 controls, **undocumented, unintentional-looking, never

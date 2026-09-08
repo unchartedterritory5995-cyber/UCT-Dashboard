@@ -4298,8 +4298,21 @@ export default function StockChart({
       secs.push({ id: 'region', title: label, items })
     } else if (region.type === 'priceAxis') {
       secs.push(...priceActions)
+      // ⭐ THE PHONE'S ONLY PATH TO THE SCALE MODE. The always-visible A/L/% chips
+      // are `display:none` on the phone shell (StockChart.module.css), so before
+      // 2026-09-08 `percentScale` had NO mobile writer at all — the chips were the
+      // only control in the app that set it, and ChartSettingsModal has none.
+      //
+      // ⛔ ALL THREE ROWS GO THROUGH `setScale`, NEVER `setCs('logScale', …)`.
+      // `effectiveScale` resolves `pct` BEFORE `log`, so a bare logScale toggle is
+      // inert whenever Percent is on — it checks a box and moves nothing. One
+      // writer, one reader, and the checkmark is derived from the reader so the
+      // current mode is always the one shown.
       secs.push({ id: 'region', title: 'Price scale', items: [
-        { id: 'p-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+        { id: 'p-arith', label: 'Arithmetic scale', kind: 'toggle', checked: effectiveScale === 'arith', onSelect: () => setScale('arith') },
+        { id: 'p-log', label: 'Logarithmic scale', kind: 'toggle', checked: effectiveScale === 'log', onSelect: () => setScale('log') },
+        { id: 'p-pct', label: 'Percent scale', kind: 'toggle', checked: effectiveScale === 'pct', onSelect: () => setScale('pct') },
+        // Auto-scale is a FIT action, not a mode — it stays a plain row.
         { id: 'p-auto', label: 'Auto-scale', onSelect: autoScale },
       ] })
     } else if (region.type === 'timeAxis') {
@@ -4308,7 +4321,8 @@ export default function StockChart({
       // Open price area.
       secs.push(...priceActions)
       const items = [
-        { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+        // Same one-writer rule as the price-axis section above: never setCs('logScale').
+        { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: effectiveScale === 'log', onSelect: () => setScale(effectiveScale === 'log' ? 'arith' : 'log') },
         { id: 'pr-magnet', label: 'Magnet crosshair', kind: 'toggle', checked: !!cs.crosshair?.magnet, onSelect: () => setCs('crosshair.magnet', !cs.crosshair?.magnet) },
       ]
       if (['1', '5', '15', '30', '60'].includes(resolvedTf)) {
@@ -4359,7 +4373,7 @@ export default function StockChart({
     secs.push({ id: 'view', items: viewItems })
 
     return secs
-  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings])
+  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings, effectiveScale, setScale])
 
   // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
   // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
@@ -15161,6 +15175,24 @@ export default function StockChart({
           <span className={styles.legendLabel} style={legBase}>C <span className={styles.legendVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
           {crosshairData.volume != null && (
             <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
+          )}
+          {/* ⭐ MOB-06′ — dollar volume + average volume, for the PHONE only.
+              These already render on desktop in the volume-pane strip (.volLegend),
+              which is `display:none` on the phone shell — so on a phone the two
+              numbers existed in `crosshairData` and reached no surface at all.
+              They ride the crosshair legend (already contextual, already
+              device-verified) rather than restoring a second permanent strip.
+              ⛔ VISIBILITY IS CSS'S JOB, NOT JS'S: `.volXtra` is hidden by default
+              and unhidden only by the same phone-shell + coarse query that hides
+              `.volLegend`, so exactly one surface shows them on any given device.
+              No new state, no second subscription — the same crosshairData fields
+              the volume strip reads. Each guard is independent so an unavailable
+              metric renders NOTHING rather than a misleading zero. */}
+          {crosshairData.dollarVol != null && (
+            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>$ Vol <span className={styles.legendVal} style={legBase}>{formatDpNotional(crosshairData.dollarVol)}</span></span>
+          )}
+          {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
+            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>Avg {crosshairData.volMaPeriod}D <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volAvg)}</span></span>
           )}
           {/* Same Day-change colors as the header row (Chart Settings -> Header): one
               setting drives both readouts. Unset falls through to the CSS class. */}

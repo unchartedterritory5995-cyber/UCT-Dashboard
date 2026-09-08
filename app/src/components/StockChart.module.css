@@ -862,3 +862,23 @@
     letter-spacing: -0.01em;
   }
 }
+
+/* ── MOB-06′ — dollar/average volume on the PHONE, contextually ──────────────
+   `.volLegend` (the volume-pane strip carrying Vol / $ Vol / Avg ND) is
+   display:none on the phone shell, and nothing else rendered those two numbers,
+   so a phone user lost dollar-volume and average-volume entirely — relative
+   volume being core to how this desk reads a tape.
+
+   ⭐ THE PAIRING IS THE POINT: `.volXtra` is hidden by default (desktop keeps
+   showing them in `.volLegend`) and unhidden by EXACTLY the query that hides
+   `.volLegend`. One surface shows them on any given device, never two, and the
+   two rules must be edited together — if you ever unhide `.volLegend` on the
+   phone, hide `.volXtra` in the same commit. */
+.volXtra { display: none; }
+
+@media (pointer: coarse) and (max-width: 640px),
+       (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .volXtra {
+    display: inline;
+  }
+}
