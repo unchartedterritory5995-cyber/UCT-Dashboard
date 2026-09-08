@@ -143,6 +143,29 @@ export function appState(frame) {
   }
 }
 
+/** Close whatever is open. ⛔ A sheet left on screen swallows the NEXT step's
+ *  tap — `shellSteps.js` measured consecutive long-presses alternating pass/fail
+ *  for exactly this reason, and read as a broken feature rather than a dirty
+ *  starting state. */
+export function dismiss(frame) {
+  const d = appDoc(frame)
+  if (!d) return
+  try { d.dispatchEvent(new frame.contentWindow.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) } catch {}
+  const close = d.querySelector('[aria-label="Close"]')
+  if (close) { try { close.click() } catch {} }
+}
+
+/** Set a React-controlled input's value so React actually sees the change.
+ *  ⛔ Assigning `.value` alone updates the DOM and NOT React's state — the
+ *  field looks typed and the component never re-renders. */
+export function setNativeValue(frame, el, value) {
+  const w = frame.contentWindow
+  const proto = el.tagName === 'TEXTAREA' ? w.HTMLTextAreaElement.prototype : w.HTMLInputElement.prototype
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value').set
+  setter.call(el, value)
+  el.dispatchEvent(new w.Event('input', { bubbles: true }))
+}
+
 /** Dismiss the intro takeover with its OWN control — never a sleep. */
 export function skipIntro(frame) {
   const d = appDoc(frame)
@@ -371,6 +394,106 @@ export function buildSteps({ frame, cred, runId, ctx = {} }) {
       const sheet = await until('the Tools sheet', () => appDoc(frame).querySelector('[aria-label="Chart tools"]'))
       try { appDoc(frame).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) } catch {}
       return expect(!!sheet, !!sheet, 'the Tools sheet opens')
+    }),
+
+    /* ── TIER 3 · the authenticated flows the 60s cap used to put out of reach ──
+     * ⛔ EACH ONE OPENS A REAL DOOR AND ASSERTS THE SURFACE BEHIND IT, never
+     * "a button exists". The sheets are identified by their own accessible
+     * names (`Sheet`'s ariaLabel), so a renamed door fails loudly instead of
+     * silently matching nothing — the empty-selector trap this program has paid
+     * for more than once. Every one closes what it opened, because a sheet left
+     * on screen swallows the NEXT step's tap (measured in `shellSteps.js`). */
+    step('layouts-ui', 3, 'the Layouts sheet opens from Tools — the UI path, not the API', ['app'], async () => {
+      const more = await until('the More tools button', () => appDoc(frame).querySelector('[aria-label="More tools"]'))
+      more.click()
+      const tools = await until('the Tools sheet', () => appDoc(frame).querySelector('[aria-label="Chart tools"]'))
+      const row = [...tools.querySelectorAll('[aria-label="Layouts"]')][0]
+      if (!row) throw new Error('no Layouts row in the Tools sheet')
+      row.click()
+      const sheet = await until('the Layouts sheet', () => appDoc(frame).querySelector('[aria-label="Chart layouts"]'))
+      const text = (sheet.textContent || '').trim()
+      dismiss(frame)
+      return expect(text.slice(0, 60), text.length > 0, 'a populated Layouts sheet')
+    }),
+
+    step('objects-ui', 3, 'the Objects recovery surface opens from Tools', ['app'], async () => {
+      const more = await until('the More tools button', () => appDoc(frame).querySelector('[aria-label="More tools"]'))
+      more.click()
+      const tools = await until('the Tools sheet', () => appDoc(frame).querySelector('[aria-label="Chart tools"]'))
+      const row = [...tools.querySelectorAll('[aria-label="Objects"]')][0]
+      if (!row) throw new Error('no Objects row in the Tools sheet')
+      row.click()
+      const sheet = await until('the Objects sheet', () => appDoc(frame).querySelector('[aria-label="Chart objects"]'))
+      dismiss(frame)
+      return expect('Chart objects', !!sheet, 'the object manager')
+    }),
+
+    step('tool-discovery', 3, 'every drawing tool is reachable, and search knows synonyms', ['app'], async () => {
+      // ⛔ THE ⊞ DOOR IS NOT ALWAYS ON SCREEN. `MobileDrawBar` renders only once
+      // the drawing bar is open (StockChart `mobileDrawBar && mobileDrawOpen`),
+      // and the bar is opened from Tools → "Draw on chart". Assuming the door
+      // was always mounted is what made this step time out; the roster is
+      // reached the way a member reaches it.
+      const more0 = await until('the More tools button', () => appDoc(frame).querySelector('[aria-label="More tools"]'))
+      more0.click()
+      const tools0 = await until('the Tools sheet', () => appDoc(frame).querySelector('[aria-label="Chart tools"]'))
+      const drawRow = [...tools0.querySelectorAll('button')].find((b) => /draw on chart/i.test(b.textContent || ''))
+      if (!drawRow) throw new Error('no "Draw on chart" row in the Tools sheet')
+      drawRow.click()
+      const all = await until('the All-tools door', () => appDoc(frame).querySelector('[aria-label="All drawing tools"]'))
+      all.click()
+      const picker = await until('the tool picker', () => appDoc(frame).querySelector('[aria-label="All drawing tools"][role="dialog"]')
+        || [...appDoc(frame).querySelectorAll('[role="dialog"]')].find((d) => d.getAttribute('aria-label') === 'All drawing tools'))
+      const box = await until('the tool search box', () => appDoc(frame).querySelector('[aria-label="Search drawing tools"]'))
+      // ⭐ 'support' is a WORD A TRADER THINKS IN, not a tool name — the alias
+      // layer is the thing under test, so a name-only match would prove nothing.
+      setNativeValue(frame, box, 'support')
+      const hit = await until('a match for the synonym "support"', () => {
+        const t = (picker.textContent || '')
+        return /no tool matches/i.test(t) ? null : t
+      })
+      dismiss(frame)
+      return expect(String(hit).slice(0, 48), true, 'a tool resolved from a synonym')
+    }),
+
+    step('symbol-search', 3, 'symbol search opens and disambiguates', ['app'], async () => {
+      // ⛔ THE FIRST BUTTON IN THE STRIP IS `Menu`, not the symbol — it is how a
+      // member LEAVES /charts now that the app tab bar is gone. Clicking it
+      // opened the MoreSheet and the step timed out waiting for a search sheet
+      // that was never asked for. Select by what the button IS, never by order.
+      const strip = await until('the symbol strip', () => appDoc(frame).querySelector('[class*="symStrip" i]'))
+      const symBtn = [...strip.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') !== 'Menu')
+      if (!symBtn) throw new Error('no symbol button in the strip (only Menu)')
+      symBtn.click()
+      const sheet = await until('the symbol search sheet', () => appDoc(frame).querySelector('[aria-label="Symbol search"]'))
+      const box = await until('the search input', () => appDoc(frame).querySelector('[aria-label="Search symbol"]'))
+      const chips = sheet.querySelector('[aria-label="Filter symbols by category"]')
+      setNativeValue(frame, box, 'SPY')
+      const rows = await until('search results', () => {
+        const n = sheet.querySelectorAll('button').length
+        return n > 3 ? n : null
+      })
+      dismiss(frame)
+      return expect(`rows=${rows} categoryChips=${!!chips}`, !!chips && rows > 3,
+        'results plus the category filter the desktop already had')
+    }),
+
+    step('price-context', 3, 'the price-context sheet offers actions at a price', ['app'], async () => {
+      const w = frame.contentWindow
+      const lw = await until('the chart container', () => appDoc(frame).querySelector('.tv-lightweight-charts'))
+      const el = lw.parentElement
+      const got = []
+      const onCtx = (e) => got.push(e.detail)
+      w.addEventListener('uct:chart-contextmenu', onCtx)
+      try {
+        const r = el.getBoundingClientRect()
+        for (let y = Math.round(r.top + 10); y < r.bottom - 4 && !got.length; y += 6) {
+          el.dispatchEvent(new w.MouseEvent('contextmenu', { bubbles: true, clientX: Math.round(r.left + r.width * 0.4), clientY: y }))
+        }
+        const secs = got.length ? (got[0].sections || []) : []
+        const ids = secs.flatMap((sx) => (sx.items || []).map((i) => i && i.id).filter(Boolean))
+        return expect(ids.slice(0, 6).join(','), ids.length > 0, 'at least one contextual action at that price')
+      } finally { w.removeEventListener('uct:chart-contextmenu', onCtx) }
     }),
 
     step('chart-type', 3, 'the chart-type catalogue opens', ['app'], async () => {

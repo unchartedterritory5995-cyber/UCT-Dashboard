@@ -1,5 +1,9 @@
 # Post-certification reconciliation — the package caught up to the code
 
+> ➡️ **FINAL STATE: `99i-final-certification.md`** (2026-09-08) — the program is
+> **CERTIFIED WITH EXPLICIT VERIFICATION RESIDUALS**, with **zero surviving build
+> items**. Read `99i` for the current answer to anything in this file.
+
 Written 2026-09-08 against branch `fix/mobile-legend-legacy-state`, code tip
 **`f5a495c51`**. It supersedes the status half of `99b`, `99c` and `99d`.
 
