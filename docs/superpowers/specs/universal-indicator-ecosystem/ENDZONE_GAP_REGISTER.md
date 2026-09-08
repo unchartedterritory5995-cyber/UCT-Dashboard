@@ -1622,3 +1622,102 @@ The instrument states it is syntactic and pins no number.
 | **Q6.5** | MEASUREMENT | Every remaining matrix row still needs its TOTAL DEMAND column filled from the new census (§8). History, `else if` and windowed-over-state have it; the rest are listed in Q5 but not yet threaded into the per-family rows. |
 | **Q6.6** | RUNTIME / FRAMES | `runtime:history-function-local` (P7.2) unchanged — 1 first blocker, and now visibly part of the larger UDF-frame story Q6.3 exposes. |
 | **Q6.7** | PERSISTENCE | Carried (P7.7/N7.6). `history[]` is part of the program shape and must be in the artifact contract before anything is saved. |
+
+---
+
+# PART R — 2F-2B SCOPING: THE MEASUREMENT SAYS RE-SEQUENCE (2026-09-08)
+
+⛔⛔ **2F-2B WAS AUTHORIZED AND I HAVE NOT BUILT IT, BECAUSE MEASURING ITS TARGET
+FIRST SAYS ITS SCOPED TARGET IS THREE SCRIPTS.** This is an owner/ChatGPT
+sequencing decision (§55/§70), raised before writing code rather than after.
+
+### R1 — WHERE THE WINDOW DEMAND ACTUALLY LIVES
+
+Of the 24 scripts that call a windowed builtin over a runtime-produced value:
+
+| shape | scripts |
+|---|---|
+| the call is at TOP LEVEL, over a mutated global | **3** |
+| the call is INSIDE A UDF BODY, over that function's PARAMETERS | **21** |
+| both | 0 |
+
+⭐ **88% of the demand sits behind `runtime:history-function-local` (P7.2)** — a
+window over `src` inside `HMA(src, len) => wma(src, len)` needs the last *n*
+values of a FRAME-LOCAL series, and function-local history is exactly what 2F-2A
+refuses by name. Building finite windows top-level-first would clear three
+scripts and leave the actual wall untouched.
+
+### R2 — AND THE FUNCTION MIX IS THREE FAMILIES, NOT ONE
+
+Sites, counted over the same population and confirmed against `interpret.js`'s
+own implementations rather than by name:
+
+| family | how `interpret.js` builds it | sites |
+|---|---|---|
+| **FINITE WINDOW** — `rolling(series, n, reduce)` | `sma` 14 · `wma` 14 · `highest` 8 · `lowest` 8 · `stdev` 3 · `sum` 3 · `percentrank` 1 | **~51** |
+| **RECURRENT** — its own whole-series builder (`emaCol`, `rmaCol`) | `ema` 48 · `rma` 5 · `hma` 4 · `rsi` 2 | **~59** |
+| **SCAN-BACKWARDS** — neither of the above (`barsSince`, `valueWhen`) | `valuewhen` 32 · `barssince` 17 | **~49** |
+
+⛔ **`ema` ALONE IS 48 SITES — AND §50 EXPLICITLY EXCLUDES RECURRENT BUILTINS FROM
+2F-2B.** So the single most-demanded function in the family the wave is named
+after is out of the wave's scope by the directive's own rule, correctly: `emaCol`
+is a recurrence, not a window, and giving it a ring would be the wrong mechanism.
+
+🆕 **AND A FOURTH FAMILY HAS NO NAME YET.** `valuewhen` and `barssince` are
+neither pointwise, nor finite-window, nor recurrent — they scan backwards for a
+CONDITION. They are currently swept into `runtime:call-windowed-state`, which is
+the same "residual bucket is a hypothesis" defect 2E and 2F-1 each corrected one
+level up. 49 sites is not a rounding error.
+
+### R3 — ⭐⭐ THE GOOD NEWS: THE REUSE DESIGN IS REAL, AND MEASURED
+
+§37/§38/§40 require the runtime to consume the EXISTING window semantics rather
+than grow a second arithmetic authority. `interpret.js` already has the right
+shape:
+
+```js
+function rolling(series, n, reduce) {
+  const out = nan(series.length)
+  for (let i = n - 1; i < series.length; i++) out[i] = reduce(series, i - n + 1, i)
+  return out
+}
+function windowMean(series, lo, hi) { … }        // pure, per-window
+```
+
+⭐ **The reducers are ALREADY per-window and pure — only `rolling` is
+whole-series.** So the runtime does not need a reimplementation, a fake column, or
+a second formula: it hands the SAME reducer a window drawn from the history ring
+plus the live bar. `rolling` and the runtime become two DRIVERS of one semantic
+primitive, which is exactly the architecture the directive asks for.
+
+Two facts the implementation will have to carry, both already visible:
+
+- ⛔ **The window INCLUDES the current bar** (`reduce(series, i-n+1, i)`), and the
+  ring holds only COMMITTED bars — so a window of `n` needs ring depth `n-1`
+  plus the live value. Getting this wrong is a one-bar error of exactly the kind
+  2F-2A's vendor pin exists to prevent.
+- ⛔ **Warm-up is `i >= n-1`**, so the runtime must answer `na` until `committed >=
+  n-1`. ⭐ This is the observable presence/validity distinction §11 predicted
+  2F-2B would need — and unlike the `histPresent` flag deleted in 2F-2A, a test
+  can see this one fire.
+
+### R4 — RECOMMENDED SEQUENCE, ON THE EVIDENCE
+
+1. **P7.2 — UDF-LOCAL HISTORY.** Unblocks 21 of the 24 window scripts, and it is
+   the natural extension of a model the vendor has now confirmed: give each call
+   site a ring base exactly as it already has a `persistBase`. Needs one vendor
+   answer first (§25): what history means for a call site SKIPPED on a bar.
+   ⭐ The capture technique for that is now known and written down (PART Q2).
+2. **2F-2B — FINITE WINDOWS**, driving `interpret.js`'s reducers as above. Worth
+   far more once (1) lands, and the design is proven rather than hoped.
+3. **NAME THE SCAN-BACKWARDS FAMILY** (`valuewhen`/`barssince`, ~49 sites) and
+   split it out of `call-windowed-state`, the way 2E and 2F-1 each split a bucket
+   that turned out to be several capabilities.
+4. **2F-2C — RECURRENT** (`ema`/`rma`, ~59 sites) is a §55 STOP by construction:
+   `emaCol` is a whole-series recurrence and driving it per bar needs a
+   state-carrying form the runtime does not have. That is a materially new
+   mechanism and wants a review before implementation, not during.
+
+⚠️ **Nothing here is a refusal of the endzone.** All four families are required
+for complete transferability; this is ordering, and the ordering changed because
+the measurement did.
