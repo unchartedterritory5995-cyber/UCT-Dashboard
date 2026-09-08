@@ -493,6 +493,38 @@ class _MassiveRestClient:
         # → there is no developing daily bar to report.
         if o <= 0.0 or h <= 0.0 or l <= 0.0 or c <= 0.0:
             return None
+        # 🔴 REAL-TIME developing close. The provider's `day.c` aggregate lags the
+        # tape by seconds-to-minutes on thinner names, so the served developing
+        # bar first paints a STALE close ("loads to this morning's price") that
+        # the client's live-price poll then corrects ~0.5s later. `lastTrade.p`
+        # (→ `min.c` fallback) on this SAME snapshot object IS the live price, so
+        # during the REGULAR session use it as the developing close and extend
+        # today's H/L to include it — first paint is then already at the tape.
+        # Pre/post-market leave the settled regular bar alone (a post-market
+        # print must not move the closed daily candle). A 50% deviation bound
+        # mirrors the client's isSaneLivePrice chokepoint so a lone bad tick can
+        # never blow out the served bar.
+        try:
+            if _detect_session() == "regular":
+                lt = t.get("lastTrade", {}) or {}
+                mn = t.get("min", {}) or {}
+                live = 0.0
+                for _cand in (lt.get("p"), mn.get("c")):
+                    try:
+                        _cf = float(_cand or 0.0)
+                    except (TypeError, ValueError):
+                        _cf = 0.0
+                    if _cf > 0.0:
+                        live = _cf
+                        break
+                if live > 0.0 and abs(live - c) <= c * 0.5:
+                    c = live
+                    if live > h:
+                        h = live
+                    if live < l:
+                        l = live
+        except Exception:
+            pass  # any snapshot-shape surprise → keep the day.c developing bar
         return {"o": o, "h": h, "l": l, "c": c, "v": v}
 
 

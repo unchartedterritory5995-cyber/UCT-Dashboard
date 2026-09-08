@@ -1101,7 +1101,7 @@ if (typeof window !== 'undefined') {
 // tf-buckets between the loaded last bar and NOW, alignment-agnostic (floor((now-lastT)/tfSec)),
 // bounded (a very stale cache / overnight gap must not over-reserve). Dark: 0 off-gate/opt-out →
 // every anchor expression is byte-identical. Ramp = the constant; window.__uctIntradayLoadAnchor.
-export const INTRADAY_LOAD_ANCHOR_PCT = 0
+export const INTRADAY_LOAD_ANCHOR_PCT = 100
 export function _intradayLoadAnchorEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayLoadAnchor.enabled') : null
@@ -6852,7 +6852,14 @@ export default function StockChart({
   const onDrawnBarCountRef = useRef(onDrawnBarCount)
   onDrawnBarCountRef.current = onDrawnBarCount
   useEffect(() => {
-    try { onDrawnBarCountRef.current?.(ohlcData.length) } catch { /* a reporting callback must never break the chart */ }
+    // Count only REAL drawn candles. The load-anchor whitespace seed appends a
+    // trailing whitespace point (the developing-bar slot that makes today's bar a
+    // replacement, not a new bar → no left-shift) — it is an empty axis slot, not
+    // a drawn bar, so exclude any trailing whitespace from the reported count.
+    // (Left as a tail-only adjustment: the seed only ever appends one.)
+    let _drawn = ohlcData.length
+    while (_drawn > 0 && isWhitespacePoint(ohlcData[_drawn - 1])) _drawn--
+    try { onDrawnBarCountRef.current?.(_drawn) } catch { /* a reporting callback must never break the chart */ }
   }, [ohlcData])
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
