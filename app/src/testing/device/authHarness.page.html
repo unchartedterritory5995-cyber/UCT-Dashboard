@@ -14,7 +14,15 @@
      resolved to 150px tall on a 659px phone, and the app inside it spent every
      device run rendering into a 393x150 window. Measured, not guessed:
      computed height 150px while top/bottom both read 0px. */
-  #app{position:fixed;inset:0 0 46% 0;width:100%;height:54%;border:0;background:#000}
+  /* ⭐ FULL-SCREEN BY DEFAULT. The split screen was a workaround for the
+     one-minute session cap — the only channel a capped device had for reporting
+     was a screenshot. With real session length the phone POSTs its results to
+     `tools/device_result_sink.py` over the tunnel and shows ONLY the app, which
+     is what a device look was always supposed to be. `?panel=1` restores the
+     split, and a failed POST restores it automatically (see below). */
+  #app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#000}
+  body.split #app{inset:0 0 46% 0;height:54%}
+  body:not(.split) #panel{display:none}
   #panel{position:fixed;left:0;right:0;bottom:0;height:46%;overflow:auto;
     background:rgba(8,9,7,.98);border-top:1px solid #3a3a3a;padding:4px 6px;
     z-index:2147483647}
@@ -100,8 +108,6 @@ function render(results, done) {
       })
     } catch { /* the panel will say what happened */ }
     frame.src = view
-    // Full-screen in view mode — the height must be set too, for the reason in
-    // the stylesheet above; `inset:0` alone leaves the 150px default standing.
     frame.style.height = '100%'
     /* ⛔ SKIP THE INTRO IN VIEW MODE TOO. The cinematic intro plays on every page
        load and runs ~9 seconds — a sixth of a device session, spent on an
@@ -164,6 +170,7 @@ function render(results, done) {
      reads as a feed failure. */
   const ctx = {}
   const suite = _q.get('suite')
+  if (_q.get('panel') === '1') document.body.classList.add('split')
   const steps = suite === 'feed' ? buildFeedSteps({ frame, cred: CRED })
     : suite === 'slop' ? buildSlopSteps({ frame, cred: CRED })
     : buildSteps({ frame, cred: CRED, runId, ctx })
@@ -178,6 +185,27 @@ function render(results, done) {
   }
   render(results, true)
   panel.innerHTML += `<div class="dim">cleanup: ${esc(cleaned.join(' · ') || 'nothing to clean')}</div>`
+
+  /* ⛔⛔ A CLEAN SCREEN AND NO RESULTS IS THE ONE OUTCOME WORSE THAN A SPLIT ONE.
+     The panel is hidden on the assumption that the sink received this run; if
+     the POST fails — sink not started, port not forwarded, tunnel down — the
+     assumption is false and the split screen comes back, so a device session
+     can never end having shown a tidy app and reported nothing. */
+  const SINK = `${location.protocol}//${location.hostname}:8094/r`
+  try {
+    const res = await fetch(SINK, {
+      method: 'POST',
+      // text/plain keeps this a SIMPLE cross-origin request — no preflight,
+      // which a stdlib server would have to be taught to answer.
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ ...window.__r1, suite: suite || 'full' }),
+    })
+    if (!res.ok) throw new Error('sink HTTP ' + res.status)
+  } catch (e) {
+    document.body.classList.add('split')
+    panel.innerHTML += `<div class="FAIL">results not delivered (${esc(e.message)}) — `
+      + `showing the panel instead</div>`
+  }
 })()
 </script>
 </body>
