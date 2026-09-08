@@ -46,7 +46,7 @@ import styles from './ReviewNavControl.module.css'
  */
 
 /** Rendered order is fixed across variants: previous, position, next. */
-export const VARIANTS = ['rail', 'pill', 'edge']
+export const VARIANTS = ['rail', 'pill', 'pillRight', 'edge']
 
 export default function ReviewNavControl({
   variant = 'pill',

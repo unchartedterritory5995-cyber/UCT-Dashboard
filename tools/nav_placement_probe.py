@@ -27,7 +27,7 @@ from sandbox_account import SANDBOX_EMAIL, new_password, ensure_account  # noqa:
 PASSWORD = new_password()
 CRED = {"email": SANDBOX_EMAIL, "password": PASSWORD}
 
-VARIANTS = ["rail", "pill", "edge"]
+VARIANTS = ["pill", "pillRight"]
 ORIENTATIONS = [("portrait", 390, 844), ("landscape", 844, 390)]
 
 # The price scale lives on the right edge; treat the rightmost strip as the zone

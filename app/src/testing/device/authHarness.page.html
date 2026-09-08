@@ -54,6 +54,33 @@ function render(results, done) {
 }
 
 ;(async () => {
+  /* VIEW MODE — `?view=<path>` logs in and simply SHOWS that path, running no
+   * steps. It exists so a placement or layout question can be LOOKED at on real
+   * hardware inside the 60s cap, without a 22-step suite competing for the
+   * minute. It asserts nothing; the screenshot is the evidence. */
+  // ⛔ FLAT PARAMS, NOT A NESTED URL. `?view=/charts%3Fnavprobe%3Dx` has to be
+  // double-encoded to survive being a query value inside BrowserStack's own hash
+  // param, and one missed layer sends the device to a 404 — a wasted device
+  // minute for a typing error. `?view=charts&navprobe=x` cannot be mis-encoded.
+  const _q = new URLSearchParams(location.search)
+  const _v = _q.get('view')
+  const _np = _q.get('navprobe')
+  const view = _v ? ('/' + _v.replace(/^\/+/, '') + (_np ? ('?navprobe=' + encodeURIComponent(_np)) : '')) : null
+  if (view) {
+    try {
+      const me = await fetch('/api/auth/me', { credentials: 'include' })
+      if (!me.ok) await fetch('/api/auth/login', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(CRED),
+      })
+    } catch { /* the panel will say what happened */ }
+    frame.src = view
+    document.getElementById('app').style.inset = '0'
+    panel.style.height = 'auto'
+    panel.innerHTML = `<div class="hd">VIEW ${esc(view)} · ${innerWidth}×${innerHeight} · `
+      + `${innerWidth > innerHeight ? 'LANDSCAPE' : 'portrait'}</div>`
+    return
+  }
   const ctx = {}
   const steps = buildSteps({ frame, cred: CRED, runId, ctx })
   const results = await runSteps(steps, {}, (r) => render(r, false))
