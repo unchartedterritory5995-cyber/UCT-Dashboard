@@ -43,6 +43,21 @@ OFF = {
     "DESK_DAILY_SESSION_ENABLED": "0", "BROKER_SYNC_ENABLED": "0",
     "NOTE_SYNC_ENABLED": "0", "MASSIVE_WS_ENABLED": "0",
     "FUNDAMENTALS_MONITOR_ENABLED": "0", "RECONCILE_ENABLED": "0",
+    # ⛔⛔ THE EXPENSIVE ONE, AND IT WAS MISSING. `USE_REMOTE_BARS=1` arrives
+    # from `.env` (load_dotenv does not override, and this dict runs first, so
+    # setting it here WINS). With it on, boot pulls the R2 bars snapshot: a
+    # multi-GB tarball streamed into a `data_sync_*` TEMP directory and then
+    # extracted, ~25 GB per run. The "skip the boot pull, local SQLite already
+    # has bars" guard cannot help here — every sandbox boot starts with a FRESH
+    # EMPTY DATA_DIR, so the probe always says pull. And a sandbox that is
+    # force-killed (the normal way a verification run ends) never reaches the
+    # `finally: rmtree`, so the directory LEAKS.
+    #
+    # Measured 2026-09-08: 23 leaked `data_sync_*` directories, ~215 GB, all
+    # from one day of Wave N browser verification — the system drive went from
+    # 13.5 GB free to 160 MB across a handful of sandbox restarts. A browser
+    # check of the Notebook needs no real bars at all.
+    "USE_REMOTE_BARS": "0",
 }
 
 # ⛔ NOT A GUARD BEING DISABLED — it is the guard's OWN documented override,
