@@ -1269,6 +1269,115 @@ async def etf_replica_status():
     return JSONResponse(_rep.status())
 
 
+# ── Prepare the first paint BEFORE a member asks for it ────────────────────
+#
+# THE PROBLEM THIS SOLVES, measured rather than assumed. A cold parts build for
+# an uncached view costs ~3.5-7.4 s of intrinsic work (processFlowData 4,203 ms
+# + node CSV parse 1,270 ms + process start and 24.8 MB of stdout ~1,915 ms).
+# The client gives up at 3 s and falls back to the raw tape, so the FIRST member
+# to open Options Flow after any version roll pays ~3.7 MB and a multi-second
+# wait -- for a page every later member gets in ~200 ms.
+#
+# ⛔ THE BUILD IS NOT MADE CHEAPER, AND THE BRAIN IS NOT TOUCHED. This changes
+# WHO triggers the work and WHEN: the same `get_cached_or_build_part` call a
+# member request makes, with the same key, the same CSV provider and the same
+# single-flight lock, run from a background thread the moment the data changes.
+# Byte-for-byte the same product -- it is simply already there.
+#
+# ⛔ NO NEW MEMORY PEAK. This build already happens on the member path; the peak
+# is whatever one `build_parts` holds, unchanged. What is new is CPU on a quiet
+# pod, and that is bounded by the version cadence, not by a timer -- see below.
+#
+# ⛔ IT IS VERSION-TRIGGERED, WHICH MAKES IT SELF-GATING TO MARKET HOURS. The
+# version only moves when the underlying rows actually change, so on a closed
+# tape this thread does nothing at all (observed 2026-09-08: one version held
+# for 5 h 07 m). No market-hours clock is needed, and adding one would be a
+# second authority over "is the tape live".
+#
+# ⛔ IT YIELDS TO MEMBERS, ALWAYS. `get_cached_or_build_part` acquires the build
+# lock non-blockingly and declines when it is held, so a preparer tick during a
+# member's build simply does nothing and tries again next tick. The preparer can
+# never queue ahead of, or compete with, a real request.
+_PREPARE_POLL_S = int(os.environ.get("FLOW_PREPARE_POLL_S", "20") or 20)
+_PREPARE_STATE = {"enabled": False, "prepared": 0, "declined": 0, "failed": 0,
+                  "last_version": None, "last_ms": None, "last_error": None}
+
+
+def prepare_state() -> dict:
+    """Diagnostics for the preparer. `warm` in health() is the real verdict."""
+    return dict(_PREPARE_STATE)
+
+
+def _prepare_once(last_version):
+    """Warm the default view for the current version. Returns the version that
+    is now prepared (unchanged if this tick did not manage it).
+
+    ⛔ A DECLINED OR FAILED TICK MUST NOT RECORD PROGRESS. Returning `version`
+    on a decline would mark the roll as handled and this thread would never
+    retry it -- the preparer would go quietly idle while every member paid the
+    cold build, with its own counters reporting success.
+    """
+    version = _current_version()
+    if version == last_version:
+        return last_version
+
+    source, days, date_filter = flow_aggregate.DEFAULT_VIEW
+    key = (source, days, date_filter)
+    t0 = time.monotonic()
+    try:
+        got = flow_aggregate.get_cached_or_build_part(
+            key, version,
+            lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+            date_filter, "bootstrap")
+    except Exception as e:  # noqa: BLE001
+        _PREPARE_STATE["failed"] += 1
+        _PREPARE_STATE["last_error"] = repr(e)[:200]
+        log.warning("[flow-prepare] build raised: %s", e)
+        return last_version
+
+    ms = int((time.monotonic() - t0) * 1000)
+    # `get_cached_or_build_part` hands back a STALE entry when the lock was held,
+    # so "did we get bytes" is not the question -- "are they THIS version" is.
+    if got and got[0] == version:
+        _PREPARE_STATE["prepared"] += 1
+        _PREPARE_STATE["last_version"] = version
+        _PREPARE_STATE["last_ms"] = ms
+        _PREPARE_STATE["last_error"] = None
+        log.info("[flow-prepare] warmed %s v=%s in %dms", key, version, ms)
+        return version
+
+    _PREPARE_STATE["declined"] += 1
+    log.info("[flow-prepare] declined (build busy) v=%s after %dms", version, ms)
+    return last_version
+
+
+def _prepare_loop():
+    last = None
+    while True:
+        try:
+            last = _prepare_once(last)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[flow-prepare] tick failed: %s", e)
+        time.sleep(_PREPARE_POLL_S)
+
+
+def start_background_prepare() -> bool:
+    """Start the first-paint preparer. Returns whether it started.
+
+    Self-gated on FLOW_PREPARE_ENABLED so the caller cannot start it by accident,
+    and on parts being enabled at all -- warming a transport nobody serves would
+    burn CPU for nothing and report healthy while doing it.
+    """
+    if os.environ.get("FLOW_PREPARE_ENABLED", "0") != "1":
+        return False
+    if not flow_aggregate.parts_enabled():
+        log.info("[flow-prepare] not started: parts transport is off")
+        return False
+    _PREPARE_STATE["enabled"] = True
+    threading.Thread(target=_prepare_loop, name="flow-prepare", daemon=True).start()
+    return True
+
+
 @flow_router.get("/aggregate-health")
 async def aggregate_health():
     """Is Options Flow's server-computed first paint actually working?
@@ -1284,7 +1393,11 @@ async def aggregate_health():
     as colour, never as the verdict (a resetting counter is how the desk
     insights pass reported healthy through a total failure).
     """
-    return JSONResponse(flow_aggregate.health(current_version=_current_version()))
+    out = flow_aggregate.health(current_version=_current_version())
+    # Colour, not verdict: `warm` above already answers "is the first paint
+    # ready". These say whether the preparer is the reason it is.
+    out["prepare"] = prepare_state()
+    return JSONResponse(out)
 
 
 @flow_router.get("/aggregate")

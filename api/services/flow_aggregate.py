@@ -243,7 +243,15 @@ def stats() -> dict:
     return dict(_STATS)
 
 
-def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
+# The view the page OPENS ON: stocks, a 1-day fetch window, the Last1 date
+# selection. ⛔ ONE AUTHORITY. `health()` grades warmth against this view and the
+# background preparer warms this view; if those two ever named it separately, a
+# preparer could report success for a view nobody opens while health honestly
+# said cold, and each would look right on its own.
+DEFAULT_VIEW = ("stocks", 1, "Last1")
+
+
+def health(current_version=None, view=DEFAULT_VIEW) -> dict:
     """Is the fast path ACTUALLY available right now?
 
     ⛔ READS THE ARTIFACT, NOT A COUNTER. The verdict is "is there a usable

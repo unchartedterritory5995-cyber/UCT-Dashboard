@@ -389,6 +389,21 @@ def _start_flow_schedulers():
             log.warning("flat-files scheduling failed: %s", e)
 
         try:
+            # First-paint preparer: build the parts for the view the page opens
+            # on the moment the tape version rolls, so no member ever pays the
+            # ~3.5-7.4s cold build. Self-gated on FLOW_PREPARE_ENABLED and on
+            # the parts transport being on. Same build a member request runs.
+            from api import flow_router as _flow_router
+            if _flow_router.start_background_prepare():
+                log.info("[startup] flow first-paint preparer started "
+                         "(version-triggered; FLOW_PREPARE_ENABLED=0 to disable)")
+            else:
+                log.info("[startup] flow first-paint preparer NOT started "
+                         "(set FLOW_PREPARE_ENABLED=1 with parts enabled)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow preparer start failed: %s", e)
+
+        try:
             # Confluence flow-leg cache warmer — keeps (large|mid_small)×(30d|5d)
             # warm so the web join's internal call is instant (a cold 30d compute
             # is ~120s and was timing out the join -> 0-row board).
