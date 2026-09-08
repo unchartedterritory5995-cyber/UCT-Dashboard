@@ -106,15 +106,27 @@ export default function usePreferences() {
     // Optimistic update
     mutate(prev => ({ ...DEFAULTS, ...prev, [key]: serialized }), false)
     try {
-      await fetch(PREFS_URL, {
+      const res = await fetch(PREFS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value: serialized }),
       })
+      if (!res || !res.ok) {
+        // A 4xx/5xx used to read exactly like success: the optimistic value
+        // stayed in the cache and the caller was told nothing. Revert, and say so.
+        mutate()
+        return false
+      }
     } catch {
       // Revert on failure
       mutate()
+      return false
     }
+    // ⭐ RETURNS WHETHER THE WRITE WAS CONFIRMED. Every existing caller ignores
+    // the return value and is unaffected. `useTracingsSync` does not ignore it,
+    // because it keeps a highwatermark of "what the server has seen" and that
+    // claim must never rest on a request nobody checked (MOB-09).
+    return true
   }, [mutate])
 
   /**
