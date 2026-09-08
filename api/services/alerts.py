@@ -238,6 +238,19 @@ def get_alerts(limit: int = 50, user_id: str | None = None) -> list:
         if not (isinstance(d.get("data"), dict) and d["data"].get("accession") in seen_accessions)
     ]
 
+    # Legacy (non-S7) durable merge (Alert Durability V1, 2026-09-06). Unlike
+    # the S7 bridge above, this store shares the EXACT SAME id scheme as the
+    # ephemeral copy it backs up (both are written by this module's own
+    # `add_alert`), so dedup is a plain id-membership check -- no
+    # accession-style cross-store key needed.
+    mine_ids = {a["id"] for a in mine}
+    try:
+        from api.services import alert_durability as _durable
+        legacy_durable = _durable.list_durable_alerts(user_id, limit)
+    except Exception:  # noqa: BLE001
+        legacy_durable = []
+    merged += [d for d in legacy_durable if d["id"] not in mine_ids]
+
     merged.sort(key=lambda a: a.get("timestamp") or "", reverse=True)
     return merged[:limit]
 
@@ -300,6 +313,17 @@ def add_alert(
     if channels is not None:
         channels[CHANNEL_IN_APP] = CHANNEL_OK
 
+    # Seam: Alert Durability V1 (2026-09-06) -- a private, non-S7 alert also
+    # gets a durable copy so it survives the redeploy this ephemeral cache
+    # does not (see api/services/alert_durability.py's own module docstring
+    # for the exact scope and why S7 fires are excluded here).
+    try:
+        from api.services import alert_durability as _durable
+        if _durable.should_persist(alert):
+            _durable.record_alert(alert)
+    except Exception:  # noqa: BLE001
+        pass
+
     # Fire Discord webhook for warning/critical
     fires_discord = alert["severity"] in (SEVERITY_WARNING, SEVERITY_CRITICAL)
     if _DISCORD_WEBHOOK and fires_discord:
@@ -334,6 +358,15 @@ def mark_read(alert_id: str, user_id: str) -> bool:
                 a["read"] = True
                 cache.set(_user_key(user_id), mine, ttl=_TTL)
             _dual_write_s7_read_if_applicable(a, user_id)
+            # Alert Durability V1: the ephemeral copy is the ONLY copy a
+            # member sees/marks while both stores hold it (same reasoning as
+            # the S7 dual-write above) -- mirror the mark into the durable
+            # row so it does not reappear unread once the cache is gone.
+            try:
+                from api.services import alert_durability as _durable
+                _durable.mark_read(alert_id, user_id)
+            except Exception:  # noqa: BLE001
+                pass
             return True
 
     # A broadcast row is SHARED — record the read mark against the member, not
@@ -344,6 +377,16 @@ def mark_read(alert_id: str, user_id: str) -> bool:
             marks.append(alert_id)
             cache.set(_read_key(user_id), marks[-_MAX_READ_MARKS:], ttl=_TTL)
         return True
+
+    # The ephemeral copy is gone (redeploy/TTL/eviction) but a durable
+    # legacy row may still exist -- ownership-scoped inside alert_durability
+    # itself (a different member's id returns False, never touches the row).
+    try:
+        from api.services import alert_durability as _durable
+        if _durable.mark_read(alert_id, user_id):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
 
     return False
 
@@ -377,6 +420,17 @@ def mark_all_read(user_id: str) -> int:
     except Exception:
         pass
 
+    # Alert Durability V1: mirror `mine`'s mark into the durable legacy table
+    # (same reasoning as mark_read's dual-write) AND mark any durable row
+    # whose ephemeral copy is already gone (redeploy/TTL/eviction).
+    try:
+        from api.services import alert_durability as _durable
+        for a in mine:
+            _durable.mark_read(a["id"], user_id)
+        count += _durable.mark_all_read(user_id)
+    except Exception:  # noqa: BLE001
+        pass
+
     return count
 
 
@@ -387,6 +441,11 @@ def clear_alerts(user_id: str | None = None) -> int:
     cache.set(key, [], ttl=_TTL)
     if user_id is not None:
         cache.invalidate(_read_key(user_id))
+        try:
+            from api.services import alert_durability as _durable
+            _durable.clear_alerts(user_id)
+        except Exception:  # noqa: BLE001
+            pass
     return count
 
 

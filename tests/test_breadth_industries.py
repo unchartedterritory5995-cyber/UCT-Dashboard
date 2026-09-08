@@ -265,3 +265,80 @@ def test_status_endpoint(client):
     r = client.get("/api/breadth/industries/status")
     assert r.status_code == 200
     assert r.json()["rows"] == 1
+
+
+# ── Theme dimension ────────────────────────────────────────────────────────────
+# The drill's third grouping dimension. The theme comes from the SAME authority
+# that decides the theme shown everywhere else (groups.resolve_primary_theme), so
+# a stock's theme in the drill can never disagree with its theme on a chart.
+
+def test_endpoint_returns_a_primary_theme_per_ticker(client, monkeypatch):
+    from api.routers import breadth_monitor as bm
+    seen = {}
+
+    def fake_resolve(sym):
+        seen[sym] = seen.get(sym, 0) + 1
+        return {"theme_name": "AI Infrastructure"} if sym == "MSFT" else None
+
+    monkeypatch.setattr("api.services.groups.resolve_primary_theme", fake_resolve)
+    r = client.post("/api/breadth/industries", json={"tickers": ["MSFT", "NOPE"]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["themes"]["MSFT"] == "AI Infrastructure"
+    # A ticker in no theme is None, NOT missing — the client buckets it as
+    # "Unclassified"; dropping the key would silently shrink the drill list.
+    assert body["themes"]["NOPE"] is None
+    assert set(body["themes"]) == {"MSFT", "NOPE"}
+
+
+def test_one_unclassifiable_ticker_does_not_cost_the_whole_map(client, monkeypatch):
+    def boom(sym):
+        if sym == "BAD":
+            raise RuntimeError("theme lookup exploded")
+        return {"theme_name": "Crypto"}
+
+    monkeypatch.setattr("api.services.groups.resolve_primary_theme", boom)
+    r = client.post("/api/breadth/industries", json={"tickers": ["GOOD", "BAD"]})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["themes"]["GOOD"] == "Crypto"
+    assert body["themes"]["BAD"] is None
+
+
+def test_a_total_theme_failure_degrades_instead_of_failing_the_drill(client, monkeypatch):
+    # An ungrouped drill beats no drill: the industries/sectors maps must still
+    # arrive even if the theme subsystem is entirely unavailable.
+    from api.routers import breadth_monitor as bm
+    im._upsert_many([("MSFT", "Technology", "Software - Infrastructure", "finviz", 1)])
+
+    async def explode(_tickers):
+        raise RuntimeError("unreachable")
+
+    monkeypatch.setattr(bm, "_primary_themes", explode)
+    r = client.post("/api/breadth/industries", json={"tickers": ["MSFT"]})
+    # Strictly 200: the drill still opens, just ungrouped by theme. Allowing 500
+    # here would make this test pass on the broken behaviour it exists to forbid.
+    assert r.status_code == 200
+    body = r.json()
+    assert body["industries"]["MSFT"] == "Software - Infrastructure"
+    assert body["themes"] == {"MSFT": None}
+
+
+def test_theme_resolution_runs_OFF_the_event_loop(client, monkeypatch):
+    # resolve_primary_theme is ONE SQLite query per ticker. A 134-name drill
+    # would otherwise run 134 sequential queries on the single shared event loop
+    # this pod serves every user from (the 2026-07-01 524 outage class).
+    import asyncio
+    from api.routers import breadth_monitor as bm
+    calls = []
+    real_to_thread = asyncio.to_thread
+
+    async def spy(fn, *a, **k):
+        calls.append(fn.__name__)
+        return await real_to_thread(fn, *a, **k)
+
+    monkeypatch.setattr(asyncio, "to_thread", spy)
+    monkeypatch.setattr("api.services.groups.resolve_primary_theme", lambda s: None)
+    r = client.post("/api/breadth/industries", json={"tickers": ["A", "B"]})
+    assert r.status_code == 200
+    assert "_primary_themes_blocking" in calls, "theme lookup must be offloaded, not run inline"

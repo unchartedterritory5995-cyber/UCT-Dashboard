@@ -26,7 +26,7 @@ vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null
 // this page's own uppercasing, not SymbolSearch's.
 vi.mock('../../../../components/chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
-    <button onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
   ),
 }))
 vi.mock('../../../../hooks/useFundamentalSnapshot', () => ({
@@ -154,23 +154,29 @@ describe('PositionDetailPage — cross-link actions (Full Research / Ask AI / Co
     global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
   })
 
-  it('Full Research navigates to the canonical /research/:sym route', () => {
+  it('Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12)', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /full research/i }))
-    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL')
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?from=position%3AAAPL')
   })
 
-  it('Ask AI navigates to the same route with ?section=ai', () => {
+  it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /ask ai/i }))
-    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai&from=position%3AAAPL')
   })
 
-  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased)', () => {
+  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
     fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
-    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT?from=position%3AAAPL')
+  })
+
+  it('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
+    expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'AAPL')
   })
 })
 

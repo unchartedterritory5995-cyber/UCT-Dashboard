@@ -285,7 +285,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   <UIcon name="camera" size={14} />
                 </button>
                 <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
-                  <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+                  <SymbolSearch sym={activeSym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
                 </span>
                 <button
                   className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}

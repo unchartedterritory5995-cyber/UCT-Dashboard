@@ -154,18 +154,153 @@ describe('Options Flow correctness guard', () => {
       'the cap disclosure is gone — multi-day ranges will silently imply completeness' + FIX).toBe(true)
   })
 
-  it('keeps the mode tabs mounted while flow data loads', () => {
-    // A bare centered spinner strands the user for the whole load with no way to
-    // reach GEX/Dark Pool (which do not need this data) or step back to 1d.
-    // Scope STRICTLY to the loading return. A fixed-size window spills into the
-    // csvError state right below, which has always had its own tab bar — so a
-    // loose slice reads that one's tabs and passes against a file with a bare
-    // spinner. (Verified: it did exactly that against clobber 611ad11a.)
-    const start = CODE.indexOf('if (csvLoading && !D) return')
-    const end = CODE.indexOf('if (csvError', start)
-    expect(start !== -1 && end > start, 'could not locate the loading state').toBe(true)
-    expect(CODE.slice(start, end).includes('Indexes / ETF'),
-      'the loading state dropped its mode tabs — the page becomes a dead end while loading' + FIX).toBe(true)
+  it('NEVER replaces the whole section with a loading screen', () => {
+    // ⛔ THIS RAIL USED TO PROTECT THE LOADING SCREEN ITSELF. It asserted that
+    // `if (csvLoading && !D) return` kept a tab bar, because a bare spinner
+    // stranded the user with no way to reach GEX/Dark Pool or step back to 1d.
+    // The real fix was not a better spinner — it was not having one: both
+    // full-page returns are gone, so the mode toggle, view tabs and ticker
+    // search are mounted from the first commit and the section is usable while
+    // its data is still in flight. Measured on prod, those two returns owned
+    // ~490 ms of the visible wait.
+    for (const gate of ['if (csvLoading && !D) return', 'if ((!D || !FD)']) {
+      expect(CODE.includes(gate),
+        `a full-page loading return is back (${gate}) — the member sees a spinner `
+        + 'instead of the section' + FIX).toBe(false)
+    }
+  })
+
+  // The content gate, located rather than retyped. It has changed shape twice
+  // (`&& D && (<>` -> `(D || !tabNeedsD) && (<>`) and each time a literal here
+  // went stale and took a real invariant offline with it, so find it by the
+  // stable part — the JSX-fragment opener that starts the body — and let the
+  // condition vary.
+  const contentGateIndex = () => {
+    const ret = CODE.indexOf('<div className="of-mroot"')
+    const gate = CODE.indexOf('&& (D || !tabNeedsD) && (<>', ret)
+    return { ret, gate }
+  }
+
+  it('renders the mode toggle without waiting for data', () => {
+    // The toggle must sit OUTSIDE the content gate, or "no full-page return"
+    // would just mean "a blank page" instead.
+    const { ret, gate } = contentGateIndex()
+    expect(ret !== -1 && gate > ret, 'could not locate the render').toBe(true)
+    expect(CODE.slice(ret, gate).includes('Indexes / ETF'),
+      'the mode toggle moved behind the data gate — the page is blank until D' + FIX).toBe(true)
+  })
+
+  it('the pending state offers the REAL view tabs, not a placeholder of them', () => {
+    // One definition, two call sites. A copy would drift from the real tab bar.
+    expect((CODE.match(/\{viewTabsBar\}/g) || []).length,
+      'viewTabsBar is not rendered in both the pending and loaded states' + FIX)
+      .toBeGreaterThanOrEqual(2)
+    expect(CODE.includes('&& !D && !csvError && tabNeedsD && (<>'),
+      'the pending state is gone — the data region has no placeholder' + FIX).toBe(true)
+  })
+
+  it('the market strip is NOT behind the data gate — it has its own fetch', () => {
+    // `marketIndices` comes from fetchMarketData and references neither D nor
+    // FD. It sat inside the content gate, so live index prices that had already
+    // arrived were withheld until the flow parts landed. One definition, two
+    // call sites (pending + loaded) — a second copy would drift.
+    expect((CODE.match(/\{marketPulseStrip\}/g) || []).length,
+      'marketPulseStrip is not rendered in both the pending and loaded states' + FIX)
+      .toBeGreaterThanOrEqual(2)
+    const strip = CODE.indexOf('const marketPulseStrip')
+    const { gate } = contentGateIndex()
+    expect(strip !== -1 && strip < gate,
+      'the market strip moved back inside the data gate' + FIX).toBe(true)
+  })
+
+  it('tabs that never read the flow dataset do not wait for it', () => {
+    // Measured over each tab's own render region: Confluence, Tracker and
+    // Watchlist reference `D.` zero times and Watchlist's only FD uses are
+    // optional-chained. Sealing them behind `D &&` showed a flow-data
+    // placeholder for panels that never needed flow data.
+    expect(CODE.includes('const TABS_WITHOUT_D'),
+      'the D-independent tab list is gone — every tab waits on D again' + FIX).toBe(true)
+    for (const t of ['Confluence', 'Tracker', 'Watchlist']) {
+      expect(new RegExp(`TABS_WITHOUT_D = \\[[^\\]]*"${t}"`).test(CODE),
+        `${t} no longer renders without D` + FIX).toBe(true)
+    }
+  })
+
+  it('feature-tab data is demand-driven, not fetched on mount', () => {
+    // Every consumer of these three lives on Top Flow / Tracker / Watchlist, so
+    // on a default Market Read entry they were a request, a setState and a
+    // render for something nobody could see. They now fetch when a consuming
+    // tab first opens.
+    expect(CODE.includes('const FEATURE_DATA_TABS'),
+      'the demand-driven tab list is gone' + FIX).toBe(true)
+    for (const t of ['Top Flow', 'Tracker', 'Watchlist']) {
+      expect(new RegExp(`FEATURE_DATA_TABS = \\[[^\\]]*"${t}"`).test(CODE),
+        `${t} dropped out of FEATURE_DATA_TABS — its panel will render empty` + FIX).toBe(true)
+    }
+    // The endpoints must not sit in a mount effect (`}, []);`) any more. Find
+    // each fetch and read the dep array of the effect that encloses it.
+    // ⛔ State the invariant DIRECTLY — "no mount effect fetches these" — rather
+    // than "the effect enclosing the first occurrence has deps". Two earlier
+    // shapes of this check were wrong for the same reason: they assumed the
+    // first textual occurrence was the one that moved. `/api/watchlist/dates`
+    // has a SECOND, legitimate call site (a post-save refresh) that is not in
+    // an effect at all, and the bare path also appears in the comment above the
+    // effect. Enumerate the mount effects and look inside them.
+    const mountEffectBodies = []
+    for (let i = 0; ; ) {
+      const at = CODE.indexOf('useEffect(', i)
+      if (at === -1) break
+      let depth = 0
+      let j = at + 'useEffect'.length
+      for (; j < CODE.length; j++) {
+        const c = CODE[j]
+        if (c === '(') depth++
+        else if (c === ')') { depth--; if (depth === 0) break }
+      }
+      const body = CODE.slice(at, j + 1)
+      if (/\}\s*,\s*\[\s*\]\s*\)$/.test(body.trim())) mountEffectBodies.push(body)
+      i = j + 1
+    }
+    // CONTROL: the scanner can see mount effects at all. Without this the loop
+    // below passes trivially the day the bracket matcher breaks.
+    expect(mountEffectBodies.length,
+      'the mount-effect scanner found none — it is not reading this file').toBeGreaterThan(0)
+
+    for (const url of ['/api/live/massive/thresholds', '/api/watchlist/dates', '/api/top-flow/history']) {
+      expect(CODE.includes(`fetch("${url}")`), `${url} is gone entirely`).toBe(true)
+      const onMount = mountEffectBodies.filter(b => b.includes(url))
+      expect(onMount.length,
+        `${url} is fetched from a mount effect again — it loads for a tab nobody opened` + FIX).toBe(0)
+    }
+  })
+
+  it('market data is not held behind a timer — it is first paint now', () => {
+    // The 800 ms deferral was right while the strip lived inside `D &&`. It is
+    // rendered in the pending branch now, so the timer only delayed the first
+    // real data on the page. A stale deferral fails nothing; it is just late.
+    expect(/setTimeout\(\s*fetchMarketData/.test(CODE),
+      'fetchMarketData is behind a timer again — the strip is first-paint content' + FIX).toBe(false)
+  })
+
+  it('the render timeline instrument survives', () => {
+    // "renders before TOP 10" is a claim about a run. Without this the next
+    // person to ask has to re-instrument the page.
+    expect(CODE.includes('window.__flowRenderStats'),
+      'the render counter is gone — render-cascade claims become unfalsifiable' + FIX).toBe(true)
+  })
+
+  it('FD does not rebuild charts the server already sent', () => {
+    // processFlowData returns clean_confirmed AND buildCharts(clean_confirmed).
+    // When FD's filters drop nothing, rebuilding recomputes a value already in
+    // hand — on the main thread, over every confirmed trade. The length test is
+    // what skips it; flowChartsReuse.test.js proves the equivalence it relies on.
+    expect(CODE.includes('if (cc.length === D.clean_confirmed.length) return D;'),
+      'the redundant buildCharts rebuild is back on the entry path' + FIX).toBe(true)
+  })
+
+  it('CONTROL: the guard can still see this file', () => {
+    expect(CODE.length).toBeGreaterThan(100000)
+    expect(CODE.includes('TOP 10 FLOW PICKS')).toBe(true)
   })
 })
 
@@ -214,12 +349,21 @@ describe('prehydration wiring — the server-computed first paint', () => {
     // still resolve after the real result and overwrite it.
     const at = CODE.indexOf('fetchPrehydrate(')
     expect(at, 'fetchPrehydrate call not found' + FIX).toBeGreaterThan(-1)
-    const region = CODE.slice(Math.max(0, at - 400), at + 500)
-    const guards = region.match(/_processedViewKey\.current/g) || []
-    expect(guards.length,
-      'the per-view guard around fetchPrehydrate was weakened — a late '
-      + 'aggregate can now overwrite the authoritative client result' + FIX)
-      .toBeGreaterThanOrEqual(2)
+    // ⛔ NAME THE TWO GUARDS, do not count symbols in a character window.
+    // This counted >=2 occurrences of `_processedViewKey.current` within
+    // [at-400, at+500]. That is a PROXY for "guarded on both sides", and it
+    // broke the moment a comment was added above the call — the code was
+    // correct and the rail went red, which is the failure that teaches people
+    // to delete rails. Assert the two guards themselves instead: each is
+    // pinned where it must be, and neither can drift into the other's slot.
+    const before = CODE.slice(0, at)
+    expect(/_preFired\s*=\s*!silent\s*&&\s*_processedViewKey\.current !== _preViewKey/.test(before),
+      'the pre-await guard is gone — the page would ask the server for a view '
+      + 'its own aggregate has already published' + FIX).toBe(true)
+    const after = CODE.slice(at, at + 1600)
+    expect(/_processedViewKey\.current === _preViewKey/.test(after),
+      'the post-await guard is gone — a slow aggregate can now resolve AFTER '
+      + 'the authoritative client result and overwrite it' + FIX).toBe(true)
     // ...and the client aggregate must actually STAMP the view it published,
     // or the guard above compares against something nothing ever sets.
     // ⛔ `=(?!=)` — an ASSIGNMENT, not a comparison. Written as `\s*=` this

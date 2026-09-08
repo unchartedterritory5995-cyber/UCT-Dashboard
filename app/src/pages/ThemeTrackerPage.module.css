@@ -1077,47 +1077,155 @@
 }
 .setNewGo:disabled { opacity: 0.4; cursor: default; }
 
-/* Edit toolbar — contextual, only in edit mode */
-.editToolbar {
+/* ── Edit command bar — the taller BOTTOM bar shown only while editing ── */
+.editBar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.08));
+  gap: 7px;
+  padding: 6px 12px;
+  min-height: 40px;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
   border-bottom: 1px solid var(--tt-divider, var(--border));
-  flex-shrink: 0;
+  /* A GENTLE, controlled gold wash over the solid elevated header bg — layered as a fixed
+     overlay (not --tt-accent-bg, which a theme can crank up) so the tint stays light and the
+     input + Save button below it stay readable. Gold left-edge matches the normal header. */
+  background:
+    linear-gradient(rgba(220, 187, 94, 0.06), rgba(220, 187, 94, 0.06)),
+    var(--tt-elev, var(--bg-elevated));
+  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold, #c9a84c));
+  white-space: nowrap;
+  overflow: hidden;
 }
-.editTool {
+.editBarSpacer { flex: 1 1 auto; }
+.editBarAdd {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.editBarAdd:hover { background: var(--tt-accent-bg, rgba(220, 187, 94, 0.30)); filter: brightness(1.08); }
+.editBarReset {
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border: 1px solid var(--tt-divider, var(--border));
-  border-radius: 4px;
+  border-radius: 5px;
   background: transparent;
-  color: var(--text-bright, #e4e6ea);
+  color: var(--tt-text, var(--text-secondary, #aab2bd));
   cursor: pointer;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
-.editTool:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); }
-.editToolDanger {
-  font-family: var(--font-sans);
-  font-size: calc(10px * var(--tt-font-scale, 1));
-  font-weight: 600;
-  padding: 4px 10px;
-  border: 1px solid var(--tt-divider, var(--border));
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-danger, #f87171);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.editToolDanger:hover { background: rgba(248, 113, 113, 0.12); }
-.editHint {
-  margin-left: auto;
+.editBarReset:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); color: var(--tt-sym, var(--text-bright)); }
+.editBarHint {
   font-size: calc(9px * var(--tt-font-scale, 1));
-  color: var(--text-secondary, #aab2bd);   /* brighter than muted so it reads on dark */
+  color: var(--text-secondary, #aab2bd);
   font-style: italic;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editBarAdding { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.editBarAddingLabel {
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  color: var(--tt-sym, var(--text-bright));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editBarAddingLabel b { color: var(--tt-accent, var(--ut-gold)); }
+.editBarDone {
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 5px;
+  background: var(--tt-accent-bg, rgba(220, 187, 94, 0.18));
+  color: var(--tt-accent, var(--ut-gold));
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+/* Auto-save status cluster: the editable preset name + a "✓ Saved" reassurance. */
+.editBarStatus { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.editBarName {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));
+  cursor: pointer;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editBarName svg { color: var(--text-secondary, #aab2bd); flex: 0 0 auto; }
+.editBarName:hover { background: var(--tt-row-hover, rgba(255, 255, 255, 0.07)); border-color: var(--tt-divider, var(--border)); }
+.editBarNameInput {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 700;
+  padding: 5px 8px;
+  min-width: 0;
+  width: 150px;
+  max-width: 40vw;
+  border: 1px solid var(--tt-accent, var(--ut-gold));
+  border-radius: 5px;
+  background: var(--tt-bg, var(--bg));
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));
+  outline: none;
+}
+.editBarSaved {
+  font-size: calc(9px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  color: var(--tt-accent, var(--ut-gold));
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+/* Slim orientation line under the command bar while editing. */
+.editHintRow {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  font-family: var(--font-sans);
+  font-size: calc(9.5px * var(--tt-font-scale, 1));
+  color: var(--text-secondary, #aab2bd);
+  background: var(--tt-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Helper tip at the bottom of the preset dropdown. */
+.setMenuTip {
+  padding: 7px 10px 4px;
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  line-height: 1.35;
+  color: var(--text-secondary, #aab2bd);
+}
+.setMenuTip b { color: var(--tt-sym, var(--text-bright, #e4e6ea)); font-weight: 600; }
+
+/* Pulse-highlight a just-added theme so the eye lands on it after the jump-scroll. */
+.groupFlash { animation: ttGroupFlash 1.8s ease-out 1; }
+@keyframes ttGroupFlash {
+  0%   { background: var(--tt-accent-bg, rgba(220, 187, 94, 0.42)); }
+  100% { background: transparent; }
 }
 
 /* Add-theme search picker */

@@ -121,6 +121,9 @@ const COL_META = {
   grpcount: { def: 60, min: 44 },
   // View Holdings (ETF): the holding's weight in the fund (fed via metaOverride).
   weight: { def: 74, min: 50 },
+  // Volatility + trend-distance. Available to EVERY list; fed via metaOverride by
+  // callers that already compute them (the breadth drill), blank elsewhere.
+  atr: { def: 66, min: 46 }, a50: { def: 76, min: 54 },
   // Watchlist Intelligence V1: deterministic "why is this active" badge.
   attention: { def: 84, min: 60 },
 }
@@ -138,12 +141,14 @@ const COL_LABELS = {
   periodchg: ['% Change', '% Chg'],
   grpcount: ['Stocks', 'Stocks'],
   weight: ['Weight %', 'Wt %'],
+  atr: ['ATR %', 'ATR%'], a50: ['% from 50SMA', '50SMA'],
   attention: ['Attention', 'Attn'],
 }
 const COL_FULL_MINW = {
   sym: 62, name: 140, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40, weight: 56,
+  atr: 44, a50: 96,
   attention: 60,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
@@ -168,6 +173,8 @@ const EXTRA_COLS = [
   { key: 'perf60d', label: '60-Day Change' },
   { key: 'perf90d', label: '90-Day Change' },
   { key: 'attention', label: 'Attention' },
+  { key: 'atr', label: 'ATR %' },
+  { key: 'a50', label: '% from 50SMA' },
 ]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
@@ -346,7 +353,7 @@ const WatchRow = React.memo(function WatchRow({
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
-  weight = null,
+  weight = null, atr = null, a50 = null,
   notable = false, intelStatus = null, intelFacts = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx, onAttention,
@@ -460,6 +467,12 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : ''}</span>
     // ETF holding weight % (View Holdings panel; fed via metaOverride).
     if (key === 'weight') return <span key="weight" className={styles.metaCell}>{weight != null ? `${weight.toFixed(2)}%` : '—'}</span>
+    // ATR % — a magnitude, never signed, so it gets a plain cell (not pctCell,
+    // whose green/red tint would imply a direction volatility does not have).
+    if (key === 'atr') return <span key="atr" className={styles.metaCell}>{Number.isFinite(atr) ? `${Number(atr).toFixed(1)}%` : '—'}</span>
+    // Distance from the 50-day — signed, so it reads as a tinted % like the
+    // other directional columns.
+    if (key === 'a50') return pctCell('a50', a50)
     // Watchlist Intelligence V1: a bell badge when any deterministic fact fired
     // (earnings proximity, new filing, analyst action, notable price move) —
     // opens a popover listing each fact + its evidence date/source/freshness.
@@ -490,13 +503,26 @@ const WatchRow = React.memo(function WatchRow({
     }
     return null
   }
+  const activateRow = () => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))
   return (
     <div
       data-watch-sym={sym}
       className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
-      onClick={() => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))}
+      onClick={activateRow}
       onPointerEnter={() => (isGroup ? undefined : onIntent(sym))}
       onFocus={() => (isGroup ? undefined : onIntent(sym))}
+      // Seam: a bare `<div onClick>` was keyboard-inaccessible -- one of
+      // Watchlists' own primary per-symbol rows, on one of the most-
+      // trafficked surfaces in the app.
+      role="button"
+      tabIndex={0}
+      aria-label={sym}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          activateRow()
+        }
+      }}
     >
       {orderedKeys.map(cellFor)}
     </div>
@@ -593,13 +619,17 @@ function AttentionFacts({ facts }) {
 
 // Watchlist → Compare: reuses SymbolSearch (no new ticker-search component) to
 // pick the comparator, auto-opened so the popover is immediately usable.
-function CompareSearch({ onPick }) {
+// `baseSym` (Identity Normalization Hardening V1) is the security being
+// compared FROM -- without it, SymbolSearch's own clean !== sym
+// self-exclusion guard had nothing to compare against, so a member could
+// pick the same symbol as its own comparator.
+function CompareSearch({ onPick, baseSym }) {
   const searchRef = useRef(null)
   useEffect(() => { searchRef.current?.openWith('') }, [])
-  return <SymbolSearch ref={searchRef} sym="" onSymbolChange={onPick} />
+  return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
 }
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -619,11 +649,40 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // expand inline to its member stocks (like Theme Tracker). scanGroups maps name → members[].
   const groupMode = scanMode && scanGroups && typeof scanGroups === 'object'
   const [expandedGroups, setExpandedGroups] = useState(() => new Set())
-  // Accordion: only ONE group's stocks are open at a time — clicking a new group
-  // closes whichever was open (clicking the open group collapses it).
+  // Two group-expansion modes, because two surfaces want opposite things:
+  //   'accordion' (DEFAULT — Custom-Period Sort, Scanner): ONE group open at a
+  //     time. You are drilling into one theme; the others are noise.
+  //   'multi' (the breadth drill): ALL groups open, each independently
+  //     collapsible. Seeing which industries dominate the cohort IS the read —
+  //     an accordion hides exactly the comparison the surface exists to make.
+  // ⛔ The default must stay 'accordion' so every existing caller is unchanged.
+  const multiExpand = groupExpand === 'multi'
   const toggleGroupExpand = useCallback((name) => {
-    setExpandedGroups(prev => (prev.has(name) ? new Set() : new Set([name])))
-  }, [])
+    setExpandedGroups(prev => {
+      if (multiExpand) {
+        const next = new Set(prev)
+        if (next.has(name)) next.delete(name); else next.add(name)
+        return next
+      }
+      return prev.has(name) ? new Set() : new Set([name])
+    })
+  }, [multiExpand])
+  // In 'multi' the groups start OPEN. Seeded off the group names themselves (not
+  // a mount-once effect) so a list whose groups arrive async — or whose grouping
+  // dimension changes from Industry to Sector — opens the NEW set rather than
+  // staying collapsed. Keyed on the joined names so re-seeding happens exactly
+  // when the set of groups actually changes. The key is JSON rather than a
+  // joined string because an industry/sector/theme name can contain any
+  // punctuation ("Farm & Heavy Construction Machinery"), so no separator
+  // character is safe; the SEED reads the object directly.
+  const groupNamesKey = multiExpand && scanGroups ? JSON.stringify(Object.keys(scanGroups).sort()) : ''
+  const seededGroupsRef = useRef(null)
+  useEffect(() => {
+    if (!multiExpand) return
+    if (seededGroupsRef.current === groupNamesKey) return
+    seededGroupsRef.current = groupNamesKey
+    setExpandedGroups(new Set(scanGroups ? Object.keys(scanGroups) : []))
+  }, [multiExpand, groupNamesKey])
   const scanWl = useMemo(
     () => (scanMode
       ? { id: '__scan__', name: pickName || 'Scan',
@@ -1018,7 +1077,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const prices = useMemo(() => {
     void readoutTick   // recompute when a fresh readout arrives
     const idxKeys = idxQuotes ? Object.keys(idxQuotes) : []
-    if (!hasFreshReadouts() && idxKeys.length === 0) return feedPrices
+    // ⛔ THE OVERRIDE MUST BE PART OF THIS BAIL-OUT CONDITION. This fast path
+    // exists so an ordinary watchlist does no work when nothing augments the
+    // feed — but a pinned quote IS something augmenting the feed. Omitting it
+    // here made `quoteOverride` dead code on the ONLY path that normally runs
+    // (no chart readouts, no index rows), and the breadth drill shipped with
+    // Price, Vol and % Chg blank on every row. Caught in the browser, not by a
+    // test: every fixture that exercised the merge happened to have readouts.
+    const hasOverride = !!quoteOverride && Object.keys(quoteOverride).length > 0
+    if (!hasFreshReadouts() && idxKeys.length === 0 && !hasOverride) return feedPrices
     const merged = { ...feedPrices }
     if (hasFreshReadouts()) {
       for (const sym of Object.keys(merged)) {
@@ -1040,8 +1107,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const v = idxQuotes[k]
       merged[k.toUpperCase()] = { price: v?.price ?? null, change_pct: v?.change_pct ?? null, volume: null }
     }
+    // ⭐ HISTORICAL LISTS: a caller can PIN the quote for rows whose numbers are
+    // not "now". The breadth drill for 2026-09-04 is showing what those stocks did
+    // ON THAT DAY; streaming today's price into that table would silently relabel
+    // history as the present — the same class of defect as a mini-path from
+    // yesterday captioning today's number. Applied LAST so it beats both the live
+    // feed and the chart readout; a live drill passes nothing and streams normally.
+    if (quoteOverride) {
+      for (const s of Object.keys(quoteOverride)) {
+        merged[s] = { ...merged[s], ...quoteOverride[s] }
+      }
+    }
     return merged
-  }, [feedPrices, readoutTick, idxQuotes])
+  }, [feedPrices, readoutTick, idxQuotes, quoteOverride])
   // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
   // The widget has no chrome of its own (it IS this page), so the door lives
   // on each accordion header. Payload freeze (owner-approved): {sym, note,
@@ -1632,7 +1710,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return out
   }, [attentionVisible, allTickers, prices])
-  const { intelData } = useWatchlistIntelligence(attentionVisible ? allTickers : [], changesForIntel)
+  // Seam 8 (2026-09-07): the SAME live-price payload changesForIntel already
+  // reads also carries each symbol's vendor observation timestamp
+  // (prices[s].observed_at) -- riding along here gives price_move facts a
+  // real evidence date instead of the honest-but-empty as_of:null they had
+  // before. Not part of useWatchlistIntelligence's SWR key, same reasoning
+  // as changesForIntel itself (see the hook's own comment).
+  const observedAtForIntel = useMemo(() => {
+    if (!attentionVisible) return {}
+    const out = {}
+    for (const s of allTickers) {
+      const oa = prices[s]?.observed_at
+      if (Number.isFinite(oa)) out[s] = oa
+    }
+    return out
+  }, [attentionVisible, allTickers, prices])
+  const { intelData } = useWatchlistIntelligence(attentionVisible ? allTickers : [], changesForIntel, observedAtForIntel)
   // Scan-provided per-symbol fields (e.g. the IPO scan's ipo_date for EVERY result,
   // beyond the meta batch's 100-ticker cap) merge over the batch meta so the column
   // + its sort see every row.
@@ -1766,6 +1859,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       const m = metaData?.[s]
       if (key === 'rvol') {
+        // Prefer a directly-supplied ratio, exactly as the cell does — otherwise
+        // sorting a drill by RVOL would order every row as null while the column
+        // visibly shows values.
+        if (Number.isFinite(m?.rvol)) return m.rvol
         const av = m?.avg_vol_20d, v = q?.volume
         return (Number.isFinite(av) && av > 0 && Number.isFinite(v)) ? (v / av) * 100 : null
       }
@@ -1774,6 +1871,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
       if (key === 'weight') return Number.isFinite(m?.weight) ? m.weight : null
+      if (key === 'atr') return Number.isFinite(m?.atr) ? m.atr : null
+      if (key === 'a50') return Number.isFinite(m?.a50) ? m.a50 : null
       // Watchlist Intelligence: sort key is a plain (notable ? 1 : 0) — never a
       // weighted/opaque score. Symbols with no intel data yet (still loading)
       // sort as not-notable rather than sinking to the bottom via a null.
@@ -1883,6 +1982,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         key={key}
         className={`${key === 'sym' ? styles.hSym : styles.hCol}${active ? ' ' + styles.hSortActive : ''}`}
         onClick={() => handleColSort(key)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Sort by ${label}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleColSort(key) }
+        }}
         {...headerDragProps(key)}
       >{label}</span>
     )
@@ -1959,9 +2064,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // RVOL: today's LIVE volume vs the 20-session average (from the meta batch), as a %.
     // Live-updates because q.volume ticks; null until the average has loaded.
     const _avg20 = metaData[sym]?.avg_vol_20d
-    const rvolVal = (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
-      ? (q.volume / _avg20) * 100
-      : null
+    // A caller that ALREADY knows the ratio can supply `rvol` directly via
+    // metaOverride — the breadth drill's payload carries `vr` (relative volume)
+    // but no raw volume, so the derived form below can never resolve for it.
+    // Stored as a PERCENT to match the derived form (the cell divides by 100).
+    const _rvolDirect = metaData[sym]?.rvol
+    const rvolVal = Number.isFinite(_rvolDirect)
+      ? _rvolDirect
+      : (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
+        ? (q.volume / _avg20) * 100
+        : null
     return (
       <WatchRow
         key={sym}
@@ -1989,6 +2101,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         periodchg={perfLive('period')}
         grpcount={metaData[sym]?.group_count ?? null}
         weight={metaData[sym]?.weight ?? null}
+        atr={metaData[sym]?.atr ?? null}
+        a50={metaData[sym]?.a50 ?? null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
@@ -2023,7 +2137,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const items = wl.items || []
     return (
       <div key={wl.id} className={styles.wlGroup}>
-        <div className={styles.wlHeader} onClick={() => toggleList(wl.id)}>
+        <div
+          className={styles.wlHeader}
+          onClick={() => toggleList(wl.id)}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label={wl.name}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(wl.id) }
+          }}
+        >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === wl.id ? (
             <input
@@ -2184,7 +2308,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const open = expandedLists.has('flagged')
     return (
       <div className={styles.wlGroup}>
-        <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
+        <div
+          className={styles.wlHeader}
+          onClick={() => toggleList('flagged')}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label="Flagged"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList('flagged') }
+          }}
+        >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === 'flagged' ? (
             <input
@@ -2471,7 +2605,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 const open = expandedLists.has(`tag:${tc.key}`)
                 return (
                   <div key={tc.key} className={styles.wlGroup}>
-                    <div className={styles.wlHeader} onClick={() => toggleList(`tag:${tc.key}`)}>
+                    <div
+                      className={styles.wlHeader}
+                      onClick={() => toggleList(`tag:${tc.key}`)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      aria-label={tc.label}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(`tag:${tc.key}`) }
+                      }}
+                    >
                       <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
@@ -2541,7 +2685,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 if (!tc) return null
                 return (
                   <div key={tagKey} className={styles.wlGroup}>
-                    <div className={styles.wlHeader} onClick={() => toggleList(tagKey)}>
+                    <div
+                      className={styles.wlHeader}
+                      onClick={() => toggleList(tagKey)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      aria-label={tc.label}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(tagKey) }
+                      }}
+                    >
                       <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
@@ -2790,6 +2944,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <Sheet open onClose={() => setComparePopover(null)} variant="bottom-sheet" title={`Compare ${comparePopover.sym} with…`}>
             <div className={styles.ctxSheetBody}>
               <CompareSearch
+                baseSym={comparePopover.sym}
                 onPick={(comparator) => { navigate(`/research/${comparePopover.sym}/compare/${comparator}`); setComparePopover(null) }}
               />
             </div>
@@ -2799,6 +2954,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <div className={styles.attnPopover} style={{ top: comparePopover.y, left: comparePopover.x }} onClick={e => e.stopPropagation()}>
               <div className={styles.alertPopTitle}>Compare {comparePopover.sym} with…</div>
               <CompareSearch
+                baseSym={comparePopover.sym}
                 onPick={(comparator) => { navigate(`/research/${comparePopover.sym}/compare/${comparator}`); setComparePopover(null) }}
               />
             </div>

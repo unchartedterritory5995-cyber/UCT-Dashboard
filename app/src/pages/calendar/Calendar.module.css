@@ -1457,9 +1457,25 @@
 
 /* ── B3: EventCard (IPO / Dividend / Split) ──────────────────────────────── */
 
-/* Shared base — overlays on top of .card */
+/* Shared base — overlays on top of .card. Now a <button> (Event / News /
+   Calendar -> Research V1 click-through), so reset the browser button
+   chrome .card doesn't already cover (border/background/padding/cursor are
+   already set by .card and apply identically to a button element). */
 .evtCard {
   position: relative;
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.evtCard:disabled {
+  cursor: default;
+}
+
+.evtCard:disabled:hover {
+  transform: none;
 }
 
 /* IPO — subtle blue tint */
@@ -1894,6 +1910,15 @@
   flex-direction: column;
   gap: 6px;
 }
+/* Seam 21: the <a> below is the primary source and stays exactly as it
+   was -- this wrapper only adds a sibling Research companion beside it.
+   A <button> cannot nest inside an <a> (invalid HTML, breaks a11y), so the
+   companion needs a non-interactive parent to sit next to it in. */
+.hubNewsRowWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .hubNewsRow {
   display: grid;
   grid-template-columns: 80px 1fr 90px;
@@ -1907,8 +1932,22 @@
   color: var(--cal-txt);
   position: relative;
   transition: border-color 0.12s;
+  flex: 1;
+  min-width: 0;
 }
 .hubNewsRow:hover { border-color: var(--cal-line2); }
+.hubResearchLink {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--cal-gold);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+.hubResearchLink:hover { text-decoration: underline; }
 .hubNewsSource {
   font-size: 11px;
   color: var(--cal-muted);
@@ -1945,11 +1984,17 @@
   transition: border-color 0.12s;
 }
 .hubCallRow:hover { border-color: var(--cal-line2); }
+.hubCallSymRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
 .hubCallSym {
   font-size: 15px;
   font-weight: 800;
   color: var(--cal-gold);
-  margin-bottom: 10px;
 }
 .hubCallLoading {
   font-size: 12px;
@@ -1964,11 +2009,17 @@
   border-radius: 10px;
   padding: 12px;
 }
+.hubFilingSymRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .hubFilingSym {
   font-size: 13px;
   font-weight: 800;
   color: var(--cal-gold);
-  margin-bottom: 8px;
 }
 .hubFilingRow {
   display: grid;
@@ -2004,6 +2055,18 @@
   border: 1px solid var(--cal-line);
   border-radius: 10px;
   padding: 14px;
+}
+/* Seam 20 (Calendar TickerActions Reuse V2): the row is now a real
+   <button> -- same UA-chrome reset EventCard.jsx's own .evtCard uses,
+   composed alongside .hubInsightRow (which already declares its own
+   background/border, so those need no reset here). */
+.hubInsightRowBtn {
+  display: block;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .hubInsightSym {
   font-size: 14px;

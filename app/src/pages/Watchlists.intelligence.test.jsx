@@ -25,8 +25,8 @@ vi.mock('../lib/chartReadoutStore', () => ({
 // MSFT — enough to drive the Compare flow without a real predictive dropdown.
 // `openWith` on the ref is a no-op (CompareSearch calls it optionally via `?.`).
 vi.mock('../components/chart/SymbolSearch', () => ({
-  default: ({ onSymbolChange }) => (
-    <button type="button" onClick={() => onSymbolChange('MSFT')}>pick MSFT</button>
+  default: ({ sym, onSymbolChange }) => (
+    <button type="button" data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('MSFT')}>pick MSFT</button>
   ),
 }))
 
@@ -192,4 +192,19 @@ test('the row menu offers Compare, and picking a comparator routes to the canoni
   await user.click(await screen.findByText('pick MSFT'))
 
   expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
+})
+
+test('the Compare picker receives the base symbol being compared FROM (Identity Normalization Hardening V1)', async () => {
+  // Before this fix, CompareSearch had no way to thread the base symbol
+  // through to SymbolSearch at all (sym="" unconditionally) -- so its own
+  // clean !== sym self-exclusion guard had nothing to compare against and a
+  // member could pick AAPL as its own comparator.
+  const user = userEvent.setup()
+  renderWithAttentionColumn()
+  await screen.findByText('AAPL')
+
+  await user.pointer({ keys: '[MouseRight]', target: screen.getByText('AAPL') })
+  await user.click(screen.getByRole('button', { name: /compare aapl with/i }))
+
+  expect(await screen.findByText('pick MSFT')).toHaveAttribute('data-sym', 'AAPL')
 })

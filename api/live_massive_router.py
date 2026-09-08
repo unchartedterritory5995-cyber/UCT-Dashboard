@@ -3880,10 +3880,22 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # `lookback_days` trading days present in the data (default 1 = today).
     # Same-strike/same-exp repeats across days are the strongest accumulation
     # signal — someone building a position with conviction.
-    lookback_days = max(1, min(int(lookback_days or 1), 31))   # range picker: up to 31 (was 5)
-    if lookback_days <= 1:
+    # The market-wide rollup caps the window at 31 days (heavy: up to ~100k rows
+    # through _row_to_alert). A single-ticker scan (only_ticker) is only a few
+    # hundred rows even across all history, so it may look back much further — the
+    # /flow Discord command asks for "all".
+    _lb_cap = 400 if only_ticker else 31
+    lookback_days = max(1, min(int(lookback_days or 1), _lb_cap))   # range picker: up to 31 (was 5); up to 400 for a single ticker
+    if lookback_days <= 1 and not only_ticker:
+        # Market-wide live feed: the 1-day default stays literally today (its
+        # callers already handle an empty out-of-hours read).
         target_dates = [today]
     else:
+        # Resolve the window against the SESSIONS THAT ACTUALLY HAVE DATA, not the
+        # calendar. For a single-ticker /flow with the default window (1 day), this
+        # means the last TRADING day: on a weekend / holiday / long weekend / before
+        # today's tape starts, `/flow TICKER` with no window picked shows the last
+        # working day's flow instead of an empty card.
         _c = sqlite3.connect(DB_PATH, timeout=10)
         try:
             all_dates = [r[0] for r in _c.execute(
@@ -3992,6 +4004,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 "spot": a.get("spot"), "dte": a.get("dte"),
                 "moneynessPct": a.get("moneynessPct"), "moneynessLabel": a.get("moneynessLabel"),
                 "total_premium": 0.0, "total_volume": 0,
+                "agg_ask_prem": 0.0, "agg_ask_vol": 0,   # ask-accumulation aggregate (incl. dropped blank sweeps)
                 "bull_premium": 0.0, "bear_premium": 0.0,
                 "sides": {"A": 0, "AA": 0, "B": 0, "BB": 0, "none": 0},
                 "types": set(), "grades": [], "max_oi": 0,
@@ -4007,6 +4020,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         vol = a.get("tradeSize") or 0
         g["total_premium"] += prem
         g["total_volume"] += vol
+        # Ask-accumulation aggregate: the session ask premium/volume the ledger
+        # assigns to EVERY print of this contract (blank-side sweeps included, even
+        # ones _row_to_alert drops). A surviving print carries the whole contract's
+        # figure, so MAX recovers the full total (PPTA 35C: $485K block → $1.21M).
+        _aap = a.get("aggAskPremium") or 0.0
+        if _aap > g["agg_ask_prem"]:
+            g["agg_ask_prem"] = _aap
+        _aav = a.get("aggAskVolume") or 0
+        if _aav > g["agg_ask_vol"]:
+            g["agg_ask_vol"] = _aav
         _tk = a.get("_tierKey") or "algo"     # which tier chip this print belongs to
         g["tier_prem"][_tk] = g["tier_prem"].get(_tk, 0.0) + prem
         d = a.get("_direction")
@@ -4134,9 +4157,12 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             _shape_factor *= 1.15
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
                     * voi_factor * _shape_factor * (2.0 if dormant else 1.0))
+        _fv = sum((p.get("price") or 0) * (p.get("volume") or 0) for p in g["prints"])
+        _vv = sum((p.get("volume") or 0) for p in g["prints"])
         out.append({
             "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
             "source": g["source"], "dte": g["dte"],
+            "avg_fill": (round(_fv / _vv, 2) if _vv else None),  # VWAP entry (for P&L)
             "spot": g["spot"], "moneynessPct": g["moneynessPct"], "moneynessLabel": g["moneynessLabel"],
             "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
             "days_active": days_active, "first_seen": first_seen,
@@ -4147,6 +4173,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "is_intraday_burst": is_intraday_burst,
             "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
+            "agg_ask_premium": round(g["agg_ask_prem"]), "agg_ask_volume": g["agg_ask_vol"],
             "bull_premium": round(bull), "bear_premium": round(bear),
             "direction": direction, "consistency": consistency,
             "sided_pct": sided_pct, "sided_premium": round(sided),
@@ -4328,6 +4355,230 @@ def cream_image(target_date: str = Query(default=None),
                                 net=data.get("net"), show_dte=True,
                                 sec_labels=("Bulls", "Bears"))
     return Response(content=png, media_type="image/png")
+
+
+# ── Single-ticker flow summary (powers the Discord /flow command) ────────────
+_ticker_flow_cache: dict = {}
+_TICKER_FLOW_TTL = 60
+
+
+def _contract_has_sweep_map(sym: str, dates) -> dict:
+    """Per-contract has-a-sweep flag from RAW flow.db, keyed by (cp_letter,
+    float_strike, exp 'M/D/YYYY'), scoped to `dates`. ⚠️ Read from the raw Type
+    column, NOT the classified `types`: blank-side SWEEPs are frequently dropped by
+    _row_to_alert (verified 2026-09-06 — PPTA 35C 1/15/27 on 9/4: a $680K + $29K
+    sweep beside a $485K block all classified None), so a sweep-backed contract can
+    read as block-only in the aggregate. The raw query sees every sweep."""
+    dates = list(dates or [])
+    if not dates:
+        return {}
+    m: dict = {}
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        ph = ",".join("?" * len(dates))
+        for r in conn.execute(
+            "SELECT CallPut, Strike, ExpirationDate, "
+            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "         THEN 1 ELSE 0 END) "
+            "FROM flow WHERE Symbol=? AND CreatedDate IN (" + ph + ") "
+            "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates):
+            try:
+                sk = float(r[1])
+            except (TypeError, ValueError):
+                continue
+            cp = "C" if str(r[0]).upper().startswith("C") else "P"
+            m[(cp, sk, str(r[2]).strip())] = bool(r[3])
+    finally:
+        conn.close()
+    return m
+
+
+def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
+                         top_n: int = 15) -> dict:
+    """Single-ticker options-flow summary over the last N trading days (or 'all'):
+    the ticker's net bull/bear premium + direction, plus its top contracts by
+    premium. Reuses the By-Contract aggregation (only_ticker) so direction/premium
+    math is identical to the site's Search tab. Uncapped per ticker (small-caps'
+    low-premium prints are kept). Cached 60s. PLAIN function (no FastAPI Query
+    defaults) so in-process callers (the image preview, tests) work too — the
+    /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
+    top_n = int(top_n or 15)
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return {"ok": False, "error": "no symbol"}
+    today = _today_mdyyyy()
+    d = str(days or "1").strip().lower()
+    if d in ("all", "0", "max"):
+        lookback, days_label = 400, "all"
+    else:
+        try:
+            lookback = max(1, int(float(d)))
+        except ValueError:
+            lookback = 1
+        days_label = str(lookback)
+    se = "etfs" if source == "etfs" else "stocks"
+    key = (sym, lookback, se, int(top_n))
+    now = time.time()
+    cached = _ticker_flow_cache.get(key)
+    if cached and (now - cached[0]) < _TICKER_FLOW_TTL:
+        return cached[1]
+
+    payload = _build_by_contract(today, se, 1, True, lookback, only_ticker=sym)
+    contracts = payload.get("contracts", [])
+    # Drop BLOCK-ONLY contracts (a negotiated/hedge block with no sweep, no aggressor
+    # side) — they clutter the card with big-premium UNCLEAR rows. Require at least one
+    # SWEEP/ISO print (aggressive positioning), matching the Top Flow card's block-only
+    # filter. Kill switch FLOW_EXCLUDE_BLOCK_ONLY=0. Applied BEFORE net/top so the
+    # net-flow bar and the table reflect the same sweep-backed set.
+    if os.getenv("FLOW_EXCLUDE_BLOCK_ONLY", "1") == "1" and contracts:
+        _win_dates = sorted({dh["date"] for c in contracts
+                             for dh in (c.get("day_hits") or []) if dh.get("date")})
+        _sweep = _contract_has_sweep_map(sym, _win_dates)
+
+        def _has_sweep(c):
+            try:
+                k = ((c.get("cp") or "").upper()[:1], float(c.get("strike")),
+                     str(c.get("exp") or "").strip())
+            except (TypeError, ValueError):
+                k = None
+            if k is not None and k in _sweep:
+                return _sweep[k]
+            return any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
+                       for t in (c.get("types") or []))   # fallback if raw lookup missed
+        contracts = [c for c in contracts if _has_sweep(c)]
+    # Drop EXPIRED contracts — an option whose expiration is before today can't be
+    # traded, so a past-dated build is just noise on the card (owner, 2026-09-07).
+    # Filter on the EXPIRATION DATE vs today, NOT the `dte` field (that's the DTE as
+    # of when the flow printed, so an already-expired contract can still show a small
+    # positive dte). Fail-open on an unparseable exp so a live contract is never hidden.
+    _today_key = _parse_mdy(today)
+
+    def _not_expired(c):
+        e = str(c.get("exp") or "").strip()
+        if not e:
+            return True
+        ek = _parse_mdy(e)
+        if ek == (0, 0, 0):
+            return True                      # unparseable → keep (fail open)
+        return ek >= _today_key
+    contracts = [c for c in contracts if _not_expired(c)]
+    # Effective premium/volume = the ASK-ACCUMULATION aggregate when it exceeds the
+    # surviving-prints total (recovers blank-side sweeps the classifier drops) — the
+    # same figure LiveMassive's By-Contract view shows (PPTA 35C: $485K → $1.21M).
+    def _eff_prem(c):
+        return max((c.get("total_premium") or 0), (c.get("agg_ask_premium") or 0))
+
+    def _eff_vol(c):
+        return max((c.get("total_volume") or 0), (c.get("agg_ask_volume") or 0))
+
+    bull = bear = unclassified = 0.0
+    for c in contracts:
+        d, e = (c.get("direction") or ""), _eff_prem(c)
+        if d == "Bull":
+            bull += e
+        elif d == "Bear":
+            bear += e
+        elif d == "Mixed":
+            bull += (c.get("bull_premium") or 0)
+            bear += (c.get("bear_premium") or 0)
+        else:
+            # "Unclear" = real premium with NO clean aggressor side (negotiated
+            # blocks, blank-side prints). We do NOT fabricate a direction from the
+            # C/P — a call block can be a covered write or a spread leg, not a bull
+            # bet (owner call 2026-09-07). It's surfaced as unclassified premium so
+            # the net bar is honest instead of a misleading "$0 NEUTRAL".
+            unclassified += e
+    net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
+    top = sorted(contracts, key=lambda c: -_eff_prem(c))[:int(top_n)]
+    spot = next((c.get("spot") for c in contracts if c.get("spot")), None)
+    # Window span from the contracts' active dates.
+    _dates = set()
+    for c in contracts:
+        for dh in (c.get("day_hits") or []):
+            if dh.get("date"):
+                _dates.add(dh["date"])
+    ds = sorted(_dates, key=_parse_mdy)
+    # Live enrichment: ONE Massive chain snapshot → CURRENT mark + LATEST OI per
+    # strike, so the OI column is current (not flow-time) and PERF = entry→now.
+    # Best-effort + flow-worker-safe (stdlib urllib); on any failure the card falls
+    # back to flow-time OI and shows no perf. Only the top-N shown contracts are read.
+    _chain, _canon = {}, (lambda s: str(s or "").strip())
+    try:
+        from api import massive_oi_snapshots as _moi
+        _chain = _moi.fetch_chain_price_oi(sym)
+        _canon = _moi._canon_mdy
+    except Exception:
+        pass
+
+    def _enrich(c):
+        try:
+            k = ((c.get("cp") or "").upper()[:1], float(c.get("strike")),
+                 _canon(str(c.get("exp") or "")))
+        except (TypeError, ValueError):
+            return (None, None)
+        e = _chain.get(k) or {}
+        return (e.get("oi"), e.get("price"))
+
+    def _perf(entry, now):
+        try:
+            entry, now = float(entry), float(now)
+            if entry > 0 and now > 0:
+                return round((now - entry) / entry * 100.0, 1)
+        except (TypeError, ValueError):
+            pass
+        return None
+
+    # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
+    slim = []
+    for c in top:
+        _loi, _now = _enrich(c)
+        _entry = c.get("avg_fill")
+        slim.append({
+            "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
+            "exp": c.get("exp"), "dte": c.get("dte"),
+            "premium": _eff_prem(c), "volume": _eff_vol(c),
+            "oi": _loi if _loi is not None else c.get("max_oi"),  # LATEST OI (fallback flow-time)
+            "voi": c.get("cum_voi"),
+            "direction": c.get("direction"),
+            "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
+            "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
+            "days_active": c.get("days_active"),
+            "first_seen": c.get("first_seen"),   # WHEN the flow came in (first print date)
+            "entry": _entry, "now": _now, "perf": _perf(_entry, _now),
+        })
+    result = {
+        "ok": True, "symbol": sym, "source": se, "spot": spot,
+        "net": {"bull": round(bull), "bear": round(bear),
+                "unclassified": round(unclassified), "dir": net_dir},
+        "window": {"start": ds[0] if ds else None, "end": ds[-1] if ds else None,
+                   "active_days": len(ds), "days_requested": days_label},
+        "contract_count": len(contracts), "contracts": slim, "query_date": today,
+    }
+    _ticker_flow_cache[key] = (now, result)
+    return result
+
+
+@router.get("/ticker-flow")
+def ticker_flow(
+    symbol: str = Query(..., description="Underlying ticker, e.g. DPRO."),
+    days: str = Query(default="1", description="Trailing trading-day window ending today: an integer (e.g. 60) or 'all'."),
+    source: str = Query(default="stocks", description="'stocks' (single names) | 'etfs' (index/ETF options)."),
+    top_n: int = Query(default=15, ge=1, le=40, description="Max contracts in the table (net uses ALL qualifying contracts)."),
+):
+    """Single-ticker options-flow summary (see _compute_ticker_flow). Powers /flow."""
+    return _compute_ticker_flow(symbol, days, source, int(top_n))
+
+
+@router.get("/ticker-flow/image")
+def ticker_flow_image(symbol: str = Query(...), days: str = Query(default="1"),
+                      source: str = Query(default="stocks"),
+                      _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the single-ticker flow card as a PNG for eyeballing before the
+    Discord /flow command posts it. No post. Returns image/png."""
+    from fastapi.responses import Response
+    from api.flow_ticker_card import render_ticker_flow_card
+    data = _compute_ticker_flow(symbol, days, source)
+    return Response(content=render_ticker_flow_card(data), media_type="image/png")
 
 
 @router.get("/by-contract")

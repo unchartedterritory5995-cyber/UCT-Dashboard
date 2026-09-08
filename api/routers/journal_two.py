@@ -20,6 +20,7 @@ import csv
 import io
 import json
 import logging
+import hmac
 import os
 from datetime import datetime
 from typing import Any
@@ -165,7 +166,10 @@ def notebook_validation_report(request: Request) -> dict[str, Any]:
     # instruction is never to request credentials or weaken auth to get one).
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
-    if not (expected and auth == f"Bearer {expected}"):
+    # Constant-time: `==` short-circuits at the first differing byte and leaks
+    # a prefix by timing. The `expected` guard stays first and deliberately is
+    # not constant-time — whether a secret is configured is a deployment fact.
+    if not (expected and hmac.compare_digest(auth, f"Bearer {expected}")):
         from api.services.auth_service import validate_session
         user = validate_session(request.cookies.get("uct_session"))
         if not user or user.get("role") != "admin":
@@ -260,11 +264,14 @@ def positions_attention(
     `get_intelligence_for_symbols` returns, unmodified. Empty positions list
     (or an account with no open positions) returns {} (200), not an error.
 
-    Never 500s: if resolving the live-price `changes` dict fails for any
-    reason, degrades to calling `get_intelligence_for_symbols(symbols)` with
-    `changes=None` (every fact but price_move still resolves) rather than
-    failing the whole endpoint — mirrors the "never raises" precedent already
-    documented for `portfolio_heat.py`.
+    Never 500s: if resolving the live-price `changes`/`price_observed_at`
+    dicts fails for any reason, degrades to calling
+    `get_intelligence_for_symbols(symbols)` with both `None` (every fact but
+    price_move still resolves) rather than failing the whole endpoint —
+    mirrors the "never raises" precedent already documented for
+    `portfolio_heat.py`. `price_observed_at` (Seam 8, 2026-09-07) threads
+    each symbol's vendor observation timestamp through from the SAME `live`
+    payload already fetched for `changes` — zero additional request.
 
     Known, accepted limitation (not fixed here): a manually-entered dual-class
     ticker (e.g. "BRK.B") may not match facts keyed by the broker-normalized
@@ -281,6 +288,7 @@ def positions_attention(
         return {}
 
     changes: dict[str, float] | None = None
+    price_observed_at: dict[str, float] | None = None
     try:
         from api.routers.live_prices import get_live_prices
         live = get_live_prices(tickers=",".join(symbols))
@@ -290,11 +298,23 @@ def positions_attention(
                 for sym, v in live.items()
                 if isinstance(v, dict) and v.get("change_pct") is not None
             }
+            # Seam 8 (2026-09-07): the same live-price payload already
+            # carries each symbol's vendor observation timestamp (see
+            # live_prices.py's own `observed_at` field) -- threaded through
+            # so price_move facts get a real evidence date instead of None.
+            # Zero new request: this reuses the exact `live` dict fetched
+            # above for `changes`.
+            price_observed_at = {
+                sym: v["observed_at"]
+                for sym, v in live.items()
+                if isinstance(v, dict) and v.get("observed_at") is not None
+            }
     except Exception:
         changes = None  # degrade gracefully — facts resolve minus price_move
+        price_observed_at = None
 
     from api.services.watchlist_intelligence import get_intelligence_for_symbols
-    return get_intelligence_for_symbols(symbols, changes)
+    return get_intelligence_for_symbols(symbols, changes, price_observed_at)
 
 
 @router.get("/positions/{position_id}")

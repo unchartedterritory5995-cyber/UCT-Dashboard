@@ -270,6 +270,11 @@ def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
         "entries": [{"key": str(k), "version": v[0], "gz_bytes": len(v[1])}
                     for k, v in _CACHE.items()],
         "stats_process_local": stats(),
+        # ⛔ The split is only steerable if its cost is VISIBLE. parts_cache_state
+        # existed but no endpoint served it, so the per-part gzipped sizes — the
+        # whole basis for deciding what belongs on first paint — could not be read
+        # from production at all, only estimated from a one-off local fixture.
+        "parts": parts_cache_state(),
         "reason": None,
     }
     if not out["enabled"]:
@@ -333,3 +338,216 @@ def alert_if_unavailable(current_version=None, post=None,
         except Exception:  # noqa: BLE001
             log.exception("[flow-agg] health alert post failed")
     return h
+
+
+# ── Per-part builds (the bootstrap architecture) ────────────────────────────
+# `build()` above returns ONE blob containing everything `processFlowData`
+# produced, because that is what the endpoint has always served. A consumption
+# audit of OptionsFlow.jsx on 2026-09-07 found that ~69% of it is not read until
+# the member opens a specific tab, and ~16 MB of it exists on first paint only to
+# compute a single 10-row table. `flowBootstrap.js` owns which keys those are.
+#
+# These helpers build every part in ONE node run and cache them individually, so
+# a surface can be served exactly the parts it reads. Splitting into per-key
+# parts rather than one "deferred" blob is deliberate: a single second payload
+# would just move the cost from startup to the first tab click.
+
+_PARTS_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+_PARTS_CACHE_MAX = int(os.environ.get("FLOW_PARTS_CACHE_MAX", "24"))
+
+
+def parts_enabled() -> bool:
+    """Off by default. The old whole-D path stays authoritative until this is on."""
+    return os.environ.get("FLOW_BOOTSTRAP_ENABLED", "0") == "1"
+
+
+def _read_frames(raw: bytes) -> dict:
+    """Slice the CLI's length-prefixed frames into {name: raw_json_bytes}.
+
+    ⛔ Deliberately does NOT json.loads the part bodies. They are handed straight
+    to gzip as opaque bytes. Parsing them would materialise the very object graph
+    this format exists to avoid on a pod that has OOM'd before.
+
+    A malformed stream yields {} rather than a partial dict — a half-read set of
+    parts would cache a payload missing arrays the page needs, which is worse
+    than falling back to the whole-D path.
+    """
+    out: dict = {}
+    i, n = 0, len(raw)
+    try:
+        while i < n:
+            j = raw.index(b"\n", i)
+            head = raw[i:j].decode("ascii")
+            i = j + 1
+            tok = head.split(" ")
+            if tok[0] == "STATS" and len(tok) == 2:
+                ln = int(tok[1])
+                out["__stats__"] = raw[i:i + ln]
+            elif tok[0] == "PART" and len(tok) == 3:
+                ln = int(tok[2])
+                out[tok[1]] = raw[i:i + ln]
+            else:
+                return {}
+            i += ln + 1          # body + its trailing newline
+    except Exception:
+        return {}
+    return out
+
+
+def envelope_bootstrap(frames: dict, stats: dict) -> dict:
+    """Wrap the bootstrap frame as the SAME {ok, stats, D} envelope whole-D returns.
+
+    ⛔ WITHOUT THIS, `stats.availableDates` DISAPPEARS AND THE DATE PICKER WITH IT.
+    The page derives the date-range picker's calendar from `stats.availableDates`
+    because deriving it otherwise needs the raw tape (Phase A). The whole-D
+    endpoint returns `{ok, stats, D}` so the value rides along; the parts stream
+    emits stats as its OWN frame, so a bootstrap served as a bare D subset drops
+    it and the picker gates itself off — the precise regression Phase A fixed,
+    reintroduced by a change of transport rather than of logic.
+
+    ⛔ BYTE CONCATENATION, NEVER A PARSE. The whole point of length-prefixed
+    frames is that this process never materialises the arrays (the pod has OOM'd
+    on this path before). Only `stats` is parsed, and it is a few scalars plus the
+    date list. `boot` goes in as opaque bytes and comes out unchanged.
+
+    Returns the frames dict with `bootstrap` replaced; other frames untouched.
+    A missing bootstrap frame is returned as-is for the caller to reject.
+    """
+    boot = frames.get("bootstrap")
+    if boot is None:
+        return frames
+    out = dict(frames)
+    out["bootstrap"] = (
+        b'{"ok":true,"stats":'
+        + json.dumps(stats, separators=(",", ":")).encode("utf-8")
+        + b',"D":' + boot + b'}'
+    )
+    return out
+
+
+def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
+    """{part_name: gzipped_json_bytes} plus 'stats', from ONE node run."""
+    if not available():
+        return None
+    df = valid_date_filter(date_filter)
+    argv = [node_bin(), bundle_path(), "aggregate", "--split-frames"]
+    if df:
+        argv.append(f"--date-filter={df}")
+    t0 = time.monotonic()
+    try:
+        proc = subprocess.run(argv, input=csv_text.encode("utf-8"),
+                              capture_output=True, timeout=BUILD_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        log.warning("[flow-agg] parts build timed out after %.0fs", BUILD_TIMEOUT_S)
+        return None
+    except Exception:
+        log.exception("[flow-agg] parts build failed to start")
+        return None
+    if proc.returncode != 0:
+        log.warning("[flow-agg] parts build exited %s: %s", proc.returncode,
+                    (proc.stderr or b"")[:300].decode("utf-8", "replace"))
+        return None
+
+    frames = _read_frames(proc.stdout)
+    if not frames or "bootstrap" not in frames:
+        log.warning("[flow-agg] parts stream unusable (%d bytes, %d frames)",
+                    len(proc.stdout), len(frames))
+        return None
+
+    stats = {}
+    if "__stats__" in frames:
+        try:
+            stats = json.loads(frames.pop("__stats__"))
+        except Exception:
+            stats = {}
+    stats["buildMs"] = int((time.monotonic() - t0) * 1000)
+
+    # ⛔ THE BOOTSTRAP PART CARRIES ITS OWN STATS, OR availableDates DISAPPEARS.
+    # The page derives the date-range picker's calendar from `stats.availableDates`
+    # (Phase A) because deriving it needs the raw tape. The whole-D endpoint
+    # returns {ok, stats, D} so that value rides along; the parts stream emits
+    # stats as its own frame, so a bootstrap served as a bare D subset would drop
+    # it and the picker would gate itself off again — the exact regression Phase A
+    # was fixed for, reintroduced by the transport.
+    #
+    # Wrapping is BYTE CONCATENATION around the opaque bootstrap bytes: the point
+    # of frames is that this process never parses the arrays, and that holds here.
+    # Only `stats` is parsed, and it is a handful of scalars plus the date list.
+    #
+    # The result is the SAME {ok, stats, D} envelope the whole-D path returns, so
+    # the client has one shape to understand rather than two.
+    frames = envelope_bootstrap(frames, stats)
+
+    gz = {name: gzip.compress(body, compresslevel=6) for name, body in frames.items()}
+    _STATS["builds"] += 1
+    log.info("[flow-agg] parts built in %d ms: %s", stats["buildMs"],
+             ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
+    return {"parts": gz, "stats": stats}
+
+
+def get_cached_or_build_part(base_key: tuple, version, csv_provider,
+                             date_filter: str | None, part: str) -> tuple | None:
+    """(version, gzipped_json) for ONE part, building every part at most once.
+
+    Same single-flight + stale-serve contract as `get_cached_or_build` — and for
+    the same reason: without it every cache miss starts its own subprocess and
+    they pile into the shared threadpool.
+    """
+    ck = base_key + (part,)
+    cached = _PARTS_CACHE.get(ck)
+    if cached and cached[0] == version:
+        _PARTS_CACHE.move_to_end(ck)
+        _STATS["cache_hits"] += 1
+        return cached
+
+    if not _BUILD_LOCK.acquire(blocking=False):
+        _STATS["stale_served" if cached else "declined_busy"] += 1
+        return cached if cached else None
+    try:
+        again = _PARTS_CACHE.get(ck)
+        if again and again[0] == version:
+            return again
+        csv_text = csv_provider()
+        if not csv_text:
+            return None
+        built = build_parts(csv_text, date_filter)
+        if not built:
+            _STATS["build_failures"] += 1
+            return None
+        for name, blob in built["parts"].items():
+            k2 = base_key + (name,)
+            if k2 not in _PARTS_CACHE and len(_PARTS_CACHE) >= _PARTS_CACHE_MAX:
+                _PARTS_CACHE.popitem(last=False)
+            _PARTS_CACHE[k2] = (version, blob)
+            _PARTS_CACHE.move_to_end(k2)
+        return _PARTS_CACHE.get(ck)
+    finally:
+        _BUILD_LOCK.release()
+
+
+def parts_cache_state() -> dict:
+    return {
+        "enabled": parts_enabled(),
+        "entries": [{"key": list(k), "version": v[0], "gz_bytes": len(v[1])}
+                    for k, v in _PARTS_CACHE.items()],
+        "max": _PARTS_CACHE_MAX,
+    }
+
+# Mirrors PART_NAMES in app/src/pages/optionsFlow/flowBootstrap.js.
+# ⛔ An allowlist, not a passthrough: `part` reaches a cache key and a subprocess
+# argument path, and an unbounded value there is how a query param becomes an
+# injection surface. `tests/test_flow_bootstrap_parts.py` derives this list from
+# the JS module so the two cannot drift.
+PART_NAMES = (
+    "bootstrap",
+    "all_trades",
+    "all_directional",
+    "WATCH",
+    "ALL_SYMS",
+    "UOA_TRADES",
+    "darkPool",
+)
+
+
+def is_part_name(name: str) -> bool:
+    return name in PART_NAMES

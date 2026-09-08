@@ -48,11 +48,21 @@ def _entity(status="resolved", entity_id="ent_x"):
     return {"status": status, "entityId": entity_id}
 
 
+def _fake_snapshot(sym, **kw):
+    return {"AAPL": {"close": 230.5, "change_pct": 1.25},
+            "MSFT": {"close": 410.0, "change_pct": -0.5}}.get(sym, {})
+
+
 def _patch_all_ok(monkeypatch, fund_a=None, fund_b=None):
     monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
-    fund_by_sym = {"AAPL": fund_a or {"ticker": "AAPL", "pe_trailing": 30.0, "sector": "Technology"},
-                   "MSFT": fund_b or {"ticker": "MSFT", "pe_trailing": 32.0, "sector": "Technology"}}
+    fund_by_sym = {
+        "AAPL": fund_a or {"ticker": "AAPL", "pe_trailing": 30.0, "sector": "Technology",
+                           "fifty_two_week_high": 250.0, "fifty_two_week_low": 165.0},
+        "MSFT": fund_b or {"ticker": "MSFT", "pe_trailing": 32.0, "sector": "Technology",
+                           "fifty_two_week_high": 470.0, "fifty_two_week_low": 380.0},
+    }
     monkeypatch.setattr(comp, "get_fundamentals", lambda sym: fund_by_sym.get(sym, {"ticker": sym, "error": "no data"}))
+    monkeypatch.setattr(comp, "get_ticker_snapshot", _fake_snapshot)
     monkeypatch.setattr(comp, "get_estimates", lambda sym: {
         "sym": sym, "entity": _entity(),
         "forward": [
@@ -64,11 +74,15 @@ def _patch_all_ok(monkeypatch, fund_a=None, fund_b=None):
         "sym": sym, "composite": 88 if sym == "AAPL" else 75,
         "components": {"eps": 90, "rs": 80}, "price_as_of": "2026-09-04",
     })
-    monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {
-        "sym": sym,
-        "consensus": {"label": "Buy", "_meta": {"freshnessClass": "fresh"}},
-        "price_target": {"consensus": 250.0, "_meta": {"freshnessClass": "fresh"}},
-    })
+    def _fake_ratings(sym, *, outage_out=None):
+        if outage_out is not None:
+            outage_out["outage"] = False
+        return {
+            "sym": sym,
+            "consensus": {"label": "Buy", "_meta": {"freshnessClass": "fresh"}},
+            "price_target": {"consensus": 250.0, "_meta": {"freshnessClass": "fresh"}},
+        }
+    monkeypatch.setattr(comp, "get_analyst_ratings", _fake_ratings)
 
 
 class TestGetComparisonRequestValidation:
@@ -91,13 +105,17 @@ class TestGetComparisonShape(object):
         assert out["b"]["ratings"]["composite"] == 75
         assert out["a"]["analyst"]["consensus"]["label"] == "Buy"
         assert "fundamentals_period_note" in out and out["fundamentals_period_note"]
+        assert out["a"]["price"]["last"] == 230.5
+        assert out["a"]["price"]["change_pct"] == 1.25
+        assert out["a"]["price"]["week52_high"] == 250.0
+        assert out["a"]["price"]["week52_low"] == 165.0
 
     def test_nvda_vs_amd_symbol_case_is_normalized(self, monkeypatch):
         monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
         out = comp.get_comparison("nvda", "amd")
         assert out["a"]["sym"] == "NVDA"
         assert out["b"]["sym"] == "AMD"
@@ -107,11 +125,11 @@ class TestGetComparisonShape(object):
         as-is -- no dot-notation guessing in this module (Phase A finding: provider
         symbol conversion belongs in adapters, never here)."""
         seen = []
-        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (seen.append(sym) or _entity(), sym))
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (seen.append(sym) or _entity(entity_id=f"ent_{sym}"), sym))
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
         out = comp.get_comparison("BRK-B", "JPM")
         assert out["a"]["sym"] == "BRK-B"
         assert "BRK-B" in seen and "BRK.B" not in seen
@@ -136,7 +154,7 @@ class TestGetComparisonShape(object):
         ))
         monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
 
         out = comp.get_comparison("AAPL", "NOTATICKERXYZ")
         assert "error" not in out
@@ -144,12 +162,132 @@ class TestGetComparisonShape(object):
         assert "error" in out["b"]["fundamentals"]
 
 
+class TestAnalystOutageSignal:
+    """Seam 29 (2026-09-06): a genuine live analyst-data outage must be
+    distinguishable from "this ticker has no analyst coverage" -- both used
+    to collapse to the same empty `analyst` leg."""
+
+    def test_a_genuine_outage_sets_the_outage_flag(self, monkeypatch):
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+
+        def _outage_ratings(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = True
+            return {}
+        monkeypatch.setattr(comp, "get_analyst_ratings", _outage_ratings)
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["analyst"]["outage"] is True
+        assert out["b"]["analyst"]["outage"] is True
+
+    def test_genuine_no_coverage_does_not_set_the_outage_flag(self, monkeypatch):
+        _patch_all_ok(monkeypatch)  # sets outage=False via _fake_ratings
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["analyst"]["outage"] is False
+
+    def test_an_exception_from_the_call_does_not_set_the_outage_flag_either(self, monkeypatch):
+        # An unhandled exception is a DIFFERENT failure mode from a
+        # declared outage_out signal -- _side() already logs+degrades it
+        # to an empty `ana` dict; outage must default False, never True by
+        # accident, since a raised exception never populates outage_out.
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+
+        def _boom(sym, *, outage_out=None):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(comp, "get_analyst_ratings", _boom)
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["analyst"]["outage"] is False
+
+
+class TestPriceLeg:
+    """Compare Coverage V1 (2026-09-06): current price + day change % +
+    52-week range, sourced from get_ticker_snapshot (the same shared quote
+    every other live-price surface uses) + fundamentals (already fetched
+    for the fundamentals leg -- no second fetch for week52)."""
+
+    def test_a_ticker_with_no_snapshot_gets_an_empty_price_leg_not_a_crash(self, monkeypatch):
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_ticker_snapshot", lambda sym: {})
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["price"] == {}
+
+    def test_an_exception_from_the_snapshot_call_degrades_to_an_empty_leg(self, monkeypatch):
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
+
+        def _boom(sym):
+            raise RuntimeError("boom")
+        monkeypatch.setattr(comp, "get_ticker_snapshot", _boom)
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["price"] == {}
+        assert out["b"]["price"] == {}
+
+    def test_a_fundamentals_error_leg_still_yields_an_empty_week52_not_a_crash(self, monkeypatch):
+        # fundamentals is {"error": ...} on failure -- week52 lookup must
+        # degrade to None, not raise on a dict shape with no numeric fields.
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
+        monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"error": "no fundamentals available"})
+        monkeypatch.setattr(comp, "get_estimates", lambda sym: {"forward": []})
+        monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_ticker_snapshot", lambda sym: {"close": 100.0, "change_pct": 2.0})
+
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert out["a"]["price"]["last"] == 100.0
+        assert out["a"]["price"]["week52_high"] is None
+        assert out["a"]["price"]["week52_low"] is None
+
+
+class TestSameEntityDifferentSpelling:
+    """Identity Normalization Hardening V1: comparing two different spellings
+    of the same security must be caught as a self-comparison once Entity
+    Master resolves both spellings to the same entityId -- not just an
+    exact raw-string match. Partial coverage, by design: this only fires
+    when BOTH spellings are already-seeded S3 aliases of the same entity
+    (S3's alias-seeding itself is out of scope for this V1)."""
+
+    def test_two_spellings_resolving_to_the_same_entity_is_rejected(self, monkeypatch):
+        monkeypatch.setattr(
+            comp, "resolve_entity",
+            lambda sym: (_entity(entity_id="ent_brk_b"), sym),
+        )
+        out = comp.get_comparison("BRK.B", "BRK-B")
+        assert out == {"error": "choose two different securities to compare"}
+
+    def test_unresolved_symbols_are_not_treated_as_the_same_entity(self, monkeypatch):
+        """entityId=None on one or both sides must never satisfy the
+        equality guard (None == None would otherwise false-positive)."""
+        _patch_all_ok(monkeypatch)
+
+        def fake_resolve(sym):
+            return {"status": "not_found", "entityId": None}, sym
+        monkeypatch.setattr(comp, "resolve_entity", fake_resolve)
+        out = comp.get_comparison("AAPL", "MSFT")
+        assert "error" not in out
+
+
 class TestEstimatesAlignment:
     def test_estimates_align_by_period_label_not_position(self, monkeypatch):
-        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(), sym))
+        monkeypatch.setattr(comp, "resolve_entity", lambda sym: (_entity(entity_id=f"ent_{sym}"), sym))
         monkeypatch.setattr(comp, "get_fundamentals", lambda sym: {"ticker": sym})
         monkeypatch.setattr(comp, "get_ratings", lambda sym: {"composite": None, "components": {}})
-        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym: {"consensus": None, "price_target": None})
+        monkeypatch.setattr(comp, "get_analyst_ratings", lambda sym, **kw: {"consensus": None, "price_target": None})
 
         def fake_estimates(sym):
             if sym == "AAPL":

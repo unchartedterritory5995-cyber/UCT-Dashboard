@@ -143,9 +143,10 @@ describe('unsupported venue fails loudly, never guesses', () => {
 
 describe('uncovered year degrades honestly instead of guessing holidays', () => {
   it('calendarCoverage is false outside the covered years, but weekday/hours logic still holds', () => {
-    const s = sessionState(new Date('2027-01-15T15:00:00Z')) // a Friday, 10am ET, 2027
+    // 2028 (Seam 7 extended coverage through 2027, 2026-09-07) -- a Friday, 10am ET.
+    const s = sessionState(new Date('2028-01-14T15:00:00Z'))
     expect(s.calendarCoverage).toBe(false)
-    expect(s.session).toBe('regular') // no holiday table for 2027 -> falls back to weekday+hours only
+    expect(s.session).toBe('regular') // no holiday table for 2028 -> falls back to weekday+hours only
   })
 })
 

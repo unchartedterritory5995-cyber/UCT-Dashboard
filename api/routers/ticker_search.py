@@ -95,14 +95,23 @@ _CHIP_TYPES = {"stock": {"stock"}, "etf": {"etf"}, "index": {"index"}}
 
 def _fallback_symbol_scan(qq: str, limit: int):
     """Symbol-only scan over cap_universe — used only until the rich index has built
-    (best-effort startup window). Names come from the ticker_meta cache."""
+    (best-effort startup window). Names come from the ticker_meta cache.
+
+    Seam 16: cap_universe is already canonically hyphen-spelled end to end,
+    so the only gap here is the SAME query-side one `ticker_search_index.
+    search()` closes -- a member typing the literal dot spelling ('BRK.B')
+    during this narrow startup window should still find the hyphen-spelled
+    row. Reuses that module's own narrowly-scoped alias helper rather than
+    a second, possibly-drifting copy of the regex."""
+    from api.services.ticker_search_index import _share_class_alias
+    qa = _share_class_alias(qq)
     exact, prefix, substring = [], [], []
     for t in _UNIVERSE:
-        if t == qq:
+        if t == qq or (qa and t == qa):
             exact.append(t)
-        elif t.startswith(qq):
+        elif t.startswith(qq) or (qa and t.startswith(qa)):
             prefix.append(t)
-        elif qq in t:
+        elif qq in t or (qa and qa in t):
             substring.append(t)
     out = []
     for t in (exact + prefix + substring)[:limit]:

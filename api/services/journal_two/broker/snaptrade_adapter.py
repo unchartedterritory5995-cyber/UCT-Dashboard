@@ -33,6 +33,7 @@ import re
 from typing import Any
 
 from api.services.journal_two.fifo import Fill
+from api.services.journal_two.symbol_normalize import normalize_symbol
 
 
 # Activity-type buckets.
@@ -60,20 +61,6 @@ def _num(v: Any) -> float | None:
         return float(v)
     except (TypeError, ValueError):
         return None
-
-
-def normalize_symbol(raw: Any) -> str | None:
-    """Uppercase, trim, and map class-share dots to hyphens (BRK.B → BRK-B)
-    to match the app's canonical internal symbology (to_polygon_symbol maps
-    hyphen→dot only at the Massive boundary)."""
-    if raw is None:
-        return None
-    s = str(raw).strip().upper()
-    if not s:
-        return None
-    # Single class suffix like BRK.B / BF.B → BRK-B / BF-B.
-    s = re.sub(r"\.([A-Z])$", r"-\1", s)
-    return s
 
 
 def extract_symbol(act: dict) -> str | None:

@@ -71,11 +71,16 @@ from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB, parse_columns
 from api.services import flow_aggregate
 from collections import OrderedDict
+import json
 import os
 import gzip
 import io
 import time
 import threading
+
+# ~19.5k rows of [ticker, asset_type] is ~600 KB of JSON; 8 MB is generous
+# headroom without being an unbounded write into a single-process pod.
+_MAX_REPLICA_PUSH_BYTES = int(os.environ.get("OPTIONSFLOW_ETF_MAX_PUSH_BYTES", str(8 * 1024 * 1024)))
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 db = FlowDB(DB_PATH)
@@ -777,6 +782,68 @@ def build_aggregate(source: str, days: int, date_filter, version=None):
     )
 
 
+@flow_router.post("/etf-replica/install")
+async def etf_replica_install(request: Request, _auth: dict = Depends(require_flow_admin)):
+    """Receive one canonical ETF/INDEX snapshot from web. Internal, not member-facing.
+
+    ⛔ THIS IS NOT THE ROUTING TABLE. It installs the Options-Flow-only replica.
+    `ticker_types` — which drives massive_processor.is_index_source() and
+    therefore where every live OPRA trade is stored — is untouched.
+
+    AUTH FIRST, BEFORE THE BODY IS READ. require_flow_admin runs as a dependency,
+    so an unauthenticated caller is rejected before any parsing or installing
+    happens. The bearer comparison is constant-time (flow_admin_auth).
+
+    The caller's `generation` is NOT trusted: the receiver recomputes the digest
+    from the rows it actually got, so a truncated or altered body is detectable
+    without trusting the sender. Response is small and operational — never the
+    dataset echoed back.
+    """
+    from api.services import optionsflow_etf_replica as _rep
+    if not _rep.receive_enabled():
+        return JSONResponse({"status": "rejected", "reason": "receive disabled"},
+                            status_code=503)
+    # Bound the body BEFORE reading it into memory: this pod is a single process
+    # that has OOM'd before, and an unbounded POST is a trivial way to hurt it.
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared and declared > _MAX_REPLICA_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    raw = await request.body()
+    if len(raw) > _MAX_REPLICA_PUSH_BYTES:
+        return JSONResponse({"status": "rejected", "reason": "body too large"},
+                            status_code=413)
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        # Never log the body — it is large and this path is authenticated.
+        return JSONResponse({"status": "rejected", "reason": "invalid json"},
+                            status_code=400)
+    out = _rep.install_pushed_snapshot(payload)
+    code = 200 if out.get("status") in ("accepted", "already-current") else 400
+    return JSONResponse(out, status_code=code)
+
+
+@flow_router.get("/etf-replica-status")
+async def etf_replica_status():
+    """Is Options Flow's ETF classification replica current, and when did it last converge?
+
+    ⛔ THIS IS NOT THE ROUTING TABLE. `ticker_types` still drives
+    massive_processor.is_index_source() and is untouched by the replica; this
+    reports the SEPARATE Options-Flow-only copy.
+
+    Exists because the 55-day freeze found on 2026-09-07 (flow-worker stuck at
+    the 2026-07-14 generation while web synced daily) was invisible: nothing
+    reported replica age. A test can prove the stale-state logic; only telemetry
+    catches the next freeze.
+    """
+    from api.services import optionsflow_etf_replica as _rep
+    return JSONResponse(_rep.status())
+
+
 @flow_router.get("/aggregate-health")
 async def aggregate_health():
     """Is Options Flow's server-computed first paint actually working?
@@ -836,6 +903,50 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
         request.query_params.get("date_filter"))
     version = _current_version()
     key = (source, days, date_filter)
+
+    # ── Bootstrap parts (flag-gated, additive) ─────────────────────────────
+    # `?part=bootstrap` serves only what the first screen reads; `?part=WATCH`
+    # etc. serve one deferred array each. Same computation, same values — only
+    # the partition differs, and the parts recombine into the identical object
+    # this endpoint returns without the flag. See flowBootstrap.js for the
+    # consumption audit that decided the split.
+    #
+    # ⛔ An unknown/absent part falls through to the WHOLE-D path rather than
+    # erroring: the flag is a performance opt-in, and a member must never get a
+    # 4xx because a part name drifted.
+    part = request.query_params.get("part")
+    if part and flow_aggregate.parts_enabled() and flow_aggregate.is_part_name(part):
+        got = flow_aggregate.get_cached_or_build_part(
+            key, version,
+            lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+            date_filter, part)
+        if got:
+            pv, pgz = got
+            ph = {**_FLOW_CACHE_HEADERS, "X-Flow-Version": str(pv), "X-Flow-Part": part}
+            if "gzip" in (request.headers.get("accept-encoding") or "").lower():
+                return Response(content=pgz, media_type="application/json",
+                                headers={**ph, "Content-Encoding": "gzip"})
+            return Response(content=gzip.decompress(pgz),
+                            media_type="application/json", headers=ph)
+        # ⛔ A KNOWN PART THAT COULD NOT BE BUILT MUST NOT FALL THROUGH TO WHOLE-D.
+        # This used to drop into the whole-D path, which answers a ~200 KB request
+        # for one part with the ~2,900 KB (24 MB decoded) full aggregate. On a cold
+        # cache that is the WORST case, not a graceful one: the single-flight lock
+        # means the first part request builds while its two siblings are declined,
+        # so a three-part first paint would have pulled the full aggregate TWICE.
+        #
+        # 503 is this endpoint's own documented contract — "a 503 here means 'not
+        # built', never 'no flow'" — and it is what lets the caller choose: retry
+        # the sibling parts once the build that declined it has landed, or fall
+        # back to the tape. Answering with 24 MB takes that choice away.
+        #
+        # An UNKNOWN part name still falls through (see the guard above): that is a
+        # contract drift, not a build failure, and must never cost a member an error.
+        return JSONResponse(
+            {"error": "part not built", "part": part},
+            status_code=503,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
 
     flow_aggregate._STATS["endpoint_requests"] += 1   # member traffic only
     built = build_aggregate(source, days, date_filter, version)

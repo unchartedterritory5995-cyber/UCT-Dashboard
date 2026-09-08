@@ -3,6 +3,26 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AddTradeModal from './AddTradeModal'
 
+// Seam 17 remainder: this file tests the MODAL's own save/validation
+// behavior, not SecuritySymbolInput's own search/debounce/keyboard behavior
+// (covered by its own test file) -- reduced to a plain controlled input so
+// no real (unmocked) `/api/ticker-search` fetch fires mid-test and lands a
+// state update outside any of these tests' own act() boundary, and so it
+// never collides with this file's own per-test global.fetch stubs.
+vi.mock('./SecuritySymbolInput', () => ({
+  default: ({ value, onChange, placeholder, disabled, autoFocus, className }) => (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      autoFocus={autoFocus}
+      className={className}
+    />
+  ),
+}))
+
 const SETTINGS = {
   setups: ['VCP', 'Breakout'],
 }

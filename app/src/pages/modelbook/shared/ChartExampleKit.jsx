@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
 import StockChart from '../../../components/StockChart'
 import CompanyLogo from '../../../components/CompanyLogo'
 import UIcon from '../../../components/ui/UIcon'
 import useTickerMeta from '../../../hooks/useTickerMeta'
+import useTickerSuggest from '../../../hooks/useTickerSuggest'
 import { GRADES } from '../../../constants/setupGroups'
 import styles from './ChartExampleKit.module.css'
 
@@ -148,46 +149,87 @@ export function buildExampleChartProps(ex, { view = 'setup', annotating = false,
 
 // Predictive ticker input backed by /api/ticker-search (same source as the
 // Charts hub autocomplete). Picking a result also hands back the company name.
+//
+// Seam 14 (Ticker Search Surface Convergence, 2026-09-06): rebuilt on the
+// shared useTickerSuggest hook (previously an inline fetch/debounce copy,
+// byte-identical to SetupsView.jsx's own local TickerSearchInput -- see that
+// file for the sibling fix) instead of reinventing debounce/abort. Fixes two
+// real, confirmed gaps this shared, exported form field had: zero keyboard
+// navigation (mouse/touch only) and zero stale-response protection (a fast
+// retype could show an out-of-order result set). External prop contract
+// ({value, onChange, onPick}) is unchanged -- ExampleForm needs no edit.
 export function TickerSearchInput({ value, onChange, onPick }) {
   const [open, setOpen] = useState(false)
-  const [results, setResults] = useState([])
-  const timer = useRef(null)
-  function handleChange(e) {
-    const v = e.target.value.toUpperCase()
-    onChange(v)
-    clearTimeout(timer.current)
-    if (!v.trim()) { setResults([]); setOpen(false); return }
-    timer.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(v.trim())}&limit=8`, { credentials: 'include' })
-        const j = await r.json()
-        setResults(j?.results || [])
-        setOpen(true)
-      } catch { setResults([]) }
-    }, 150)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const listboxId = useId()
+  const { results } = useTickerSuggest(value, { enabled: open })
+
+  const pick = (r) => {
+    onPick(r)
+    setOpen(false)
+    setActiveIdx(-1)
   }
-  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const handleKeyDown = (e) => {
+    if (!open || !results.length) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx((i) => Math.min(i + 1, results.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      // Only a keyboard-highlighted suggestion is honored -- unhandled Enter
+      // still submits the surrounding ExampleForm as it always has (this
+      // field carries no dedicated free-form-confirm action; onChange
+      // already keeps the form's own symbol state in sync as you type).
+      if (activeIdx >= 0 && results[activeIdx]) {
+        e.preventDefault()
+        pick(results[activeIdx])
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      setOpen(false)
+      setActiveIdx(-1)
+    }
+  }
+
+  const showDrop = open && results.length > 0
   return (
     <div className={styles.tickerSearch}>
       <input
-        className={styles.exInput} value={value} placeholder="Ticker" required
-        onChange={handleChange}
-        onFocus={() => results.length > 0 && setOpen(true)}
+        className={styles.exInput}
+        value={value}
+        placeholder="Ticker"
+        required
+        role="combobox"
+        aria-expanded={showDrop}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={showDrop && activeIdx >= 0 ? `${listboxId}-opt-${activeIdx}` : undefined}
+        onChange={(e) => { onChange(e.target.value.toUpperCase()); setOpen(true); setActiveIdx(-1) }}
+        onFocus={() => { if (value?.trim()) setOpen(true) }}
+        onKeyDown={handleKeyDown}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
-      {open && results.length > 0 && (
-        <div className={styles.tickerDrop}>
-          {results.map(r => (
-            <button
-              key={r.ticker} type="button" className={styles.tickerRow}
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => { onPick(r); setOpen(false) }}
-            >
-              <span className={styles.tickerSym}>{r.ticker}</span>
-              {r.name && <span className={styles.tickerName}>{r.name}</span>}
-            </button>
+      {showDrop && (
+        <ul id={listboxId} role="listbox" className={styles.tickerDrop}>
+          {results.map((r, i) => (
+            <li key={r.ticker} id={`${listboxId}-opt-${i}`} role="option" aria-selected={i === activeIdx}>
+              <button
+                type="button"
+                className={`${styles.tickerRow} ${i === activeIdx ? styles.tickerRowActive : ''}`}
+                onMouseEnter={() => setActiveIdx(i)}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => pick(r)}
+              >
+                <span className={styles.tickerSym}>{r.ticker}</span>
+                {r.name && <span className={styles.tickerName}>{r.name}</span>}
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

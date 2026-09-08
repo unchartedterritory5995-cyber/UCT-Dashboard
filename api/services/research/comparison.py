@@ -6,6 +6,12 @@ securities inside canonical Research. Reuses every existing composer's
 path -- this module contains no new data-fetching logic, only composition:
 
   - api.services.fundamentals.get_fundamentals -- valuation/growth/margins
+    (also the source for `price.week52_high/low` below -- already fetched
+    for the fundamentals leg, just newly surfaced)
+  - api.services.massive.get_ticker_snapshot   -- current price + day change %
+    (Compare Coverage V1, 2026-09-06 -- the SAME shared, already-cached
+    single-symbol quote every other live-price surface in this app uses,
+    e.g. voice_tool_impls._get_quote; no new fetch infrastructure)
   - research/estimates.py::get_estimates       -- forward EPS/revenue, period-labeled
   - research/ratings.py::get_ratings           -- UCT Composite Rating
   - research/analyst_ratings.py::get_analyst_ratings -- third-party consensus
@@ -22,12 +28,18 @@ Deliberately excluded (Phase A findings, owner authorization):
     upstream of `get_fundamentals` carries a fiscal-period/currency label, so
     this module discloses that honestly (`fundamentals_period_note`) rather
     than implying two numbers are the same reporting period.
+  - Compare Coverage V1 is PRICE-ONLY (owner decision, 2026-09-06): no
+    technical-analysis leg (RS rank, Stage 2/4, moving-average stack) --
+    that data lives in the nightly screener snapshot, a second, differently-
+    refreshed data source, and adding it is explicitly deferred to its own
+    scoped follow-up rather than folded in here.
 """
 from __future__ import annotations
 
 import logging
 
 from api.services.fundamentals import get_fundamentals
+from api.services.massive import get_ticker_snapshot
 from api.services.research.entity_resolution import resolve_entity
 from api.services.research.estimates import get_estimates
 from api.services.research.ratings import get_ratings
@@ -68,9 +80,39 @@ def _side(sym: str) -> dict:
     except Exception as exc:  # noqa: BLE001
         _logger.warning("comparison: ratings failed for %s: %s", sym, exc)
 
-    ana: dict = {}
+    # Compare Coverage V1 (owner authorization, 2026-09-06): the canonical
+    # Compare page had ZERO price data -- the most natural comparison
+    # question ("which one's up more today, which is closer to its 52-week
+    # high") was unanswerable. `get_ticker_snapshot` is the SAME shared,
+    # already-cached single-symbol quote every other live-price surface in
+    # this app uses (`voice_tool_impls._get_quote` wraps the identical
+    # call) -- no new fetch infrastructure. week52 high/low needs no fetch
+    # at all: `get_fundamentals` (already called above for the
+    # fundamentals leg) already carries `fifty_two_week_high/low`, just
+    # never surfaced into this module's own output before now.
+    price: dict = {}
     try:
-        ana = get_analyst_ratings(sym) or {}
+        snap = get_ticker_snapshot(sym) or {}
+        if snap.get("close"):
+            price = {
+                "last": snap.get("close"),
+                "change_pct": snap.get("change_pct"),
+                "week52_high": fund.get("fifty_two_week_high"),
+                "week52_low": fund.get("fifty_two_week_low"),
+            }
+    except Exception as exc:  # noqa: BLE001
+        _logger.warning("comparison: price snapshot failed for %s: %s", sym, exc)
+
+    ana: dict = {}
+    # Seam 29 (2026-09-06): `outage_out` distinguishes "the analyst-data
+    # provider genuinely failed this round" from "this ticker has no
+    # analyst coverage" -- both used to collapse to the same empty `ana`
+    # dict, silently misrepresenting a real source outage as "nothing to
+    # report" for the AI Compare leg below (watchlist_intelligence.py's own
+    # S9 fix made this distinction for its surface; never threaded here).
+    ana_outage: dict = {}
+    try:
+        ana = get_analyst_ratings(sym, outage_out=ana_outage) or {}
     except Exception as exc:  # noqa: BLE001
         _logger.warning("comparison: analyst ratings failed for %s: %s", sym, exc)
 
@@ -78,6 +120,7 @@ def _side(sym: str) -> dict:
         "sym": sym,
         "entity": entity,
         "fundamentals": fund,
+        "price": price,
         "estimates": est.get("forward") or [],
         "ratings": {
             "composite": rat.get("composite"),
@@ -96,6 +139,9 @@ def _side(sym: str) -> dict:
             # than reading as equally current.
             "consensus_meta": (ana.get("consensus") or {}).get("_meta"),
             "price_target_meta": (ana.get("price_target") or {}).get("_meta"),
+            # Seam 29: True only on a genuine live source outage this call --
+            # never set for a ticker that simply has no analyst coverage.
+            "outage": bool(ana_outage.get("outage")),
         },
     }
 
@@ -111,6 +157,21 @@ def get_comparison(sym_a: str, sym_b: str) -> dict:
     if not sym_a or not sym_b:
         return {"error": "two symbols are required"}
     if sym_a == sym_b:
+        return {"error": "choose two different securities to compare"}
+
+    # Identity Normalization Hardening V1: the raw-string check above only
+    # catches an exact-spelling self-comparison. Two different SPELLINGS of
+    # the same security (e.g. BRK.B vs BRK-B) would otherwise pass this gate
+    # and render a full two-column comparison of one real security against
+    # itself. Resolved BEFORE the expensive per-side fetches below (each
+    # `_side()` call hits live fundamentals/estimates/ratings/analyst
+    # providers) so a same-entity request short-circuits cheaply instead of
+    # paying for both legs first.
+    entity_a, _ = resolve_entity(sym_a)
+    entity_b, _ = resolve_entity(sym_b)
+    entity_id_a = entity_a.get("entityId")
+    entity_id_b = entity_b.get("entityId")
+    if entity_id_a and entity_id_b and entity_id_a == entity_id_b:
         return {"error": "choose two different securities to compare"}
 
     a = _side(sym_a)

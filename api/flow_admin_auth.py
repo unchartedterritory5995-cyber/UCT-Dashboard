@@ -35,8 +35,18 @@ _PROXY_SIG_HEADER = "x-uct-proxy-sig"
 
 
 def _push_secret_ok(authorization: str) -> bool:
+    """Constant-time bearer check.
+
+    `==` on a secret short-circuits at the first differing byte, so its timing
+    leaks a prefix. hmac.compare_digest does not. The `bool(secret)` guard stays
+    FIRST and is deliberately not constant-time: whether a secret is configured
+    at all is a deployment fact, not a secret, and treating an unset PUSH_SECRET
+    as "compare anyway" would make every request match the empty string.
+    """
     secret = (os.environ.get("PUSH_SECRET") or "").strip()
-    return bool(secret) and authorization == f"Bearer {secret}"
+    if not secret:
+        return False
+    return hmac.compare_digest(authorization or "", f"Bearer {secret}")
 
 
 def proxy_sign_user(user_json: str) -> str:

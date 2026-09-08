@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
+import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -167,8 +168,12 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       abortRef.current = ac
       setLoading(true)
       setError(false)
-      fetch(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal: ac.signal })
-        .then(r => r.json())
+      // jsonFetcher (not a bare fetch().then(r => r.json())): a non-2xx
+      // answer is a real error state, not empty data -- see its own header
+      // comment for the 402-reads-as-truthy-object failure this exists to
+      // prevent. Confirmed pre-existing here by Search/Command Convergence
+      // V1's Phase A (2026-09-06) and picked up as its own bounded fix.
+      jsonFetcher(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal: ac.signal })
         .then(data => {
           if (reqIdRef.current !== myReqId) return
           setResults(Array.isArray(data?.results) ? data.results : [])
@@ -254,6 +259,23 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     close()
   }
 
+  // Secondary action (Ctrl/Cmd+Enter or Ctrl/Cmd+click) — the same canonical
+  // /research/:sym?section=ai route TickerActions.jsx's "Ask AI about {sym}"
+  // already uses (entry-point convergence), closing this palette's own
+  // documented gap ("navigation only" — 2026-09-03 narrow-slice
+  // authorization) for the single highest-value CONTINUE destination.
+  // Strictly additive: bare Enter/click is completely unchanged.
+  const goToAskAi = (row) => {
+    if (!row) return
+    // Ask AI is a ticker-only secondary action -- a Wave B notebook
+    // command/note row has no `.ticker`, so Ctrl/Cmd+Enter or Ctrl/Cmd+click
+    // on one falls back to its normal action instead of navigating to a
+    // broken `/research/undefined?section=ai`.
+    if (row.kind !== 'ticker') { selectRow(row); return }
+    navigate(`/research/${encodeURIComponent(row.ticker)}?section=ai`)
+    close()
+  }
+
   const onInputKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -279,10 +301,12 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       // so typing "new note" and pressing Enter 404'd to a literal
       // "/research/NEW NOTE" ticker page instead of opening the command
       // sitting right there, highlighted, at the top of the list.
-      if (displayRows[activeIdx]) {
-        selectRow(displayRows[activeIdx])
-      } else if (qUpper) {
-        selectRow({ ticker: qUpper })
+      const target = displayRows[activeIdx] || (qUpper ? { kind: 'ticker', ticker: qUpper } : null)
+      if (!target) return
+      if (e.metaKey || e.ctrlKey) {
+        goToAskAi(target)
+      } else {
+        selectRow(target)
       }
     }
   }
@@ -330,7 +354,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               <p>UCT&apos;s global search — type a ticker or company name to jump straight to its research page. Type <strong>note</strong>, <strong>trash</strong>, <strong>recent</strong>, or <strong>favorite</strong> to reach Notebook.</p>
               <ul>
                 <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
-                <li><kbd>↵</kbd> open the selected or typed symbol</li>
+                <li><kbd>↵</kbd> open the selected or typed symbol&apos;s research page</li>
+                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI about the selected or typed symbol</li>
                 <li><kbd>Esc</kbd> close</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
               </ul>
@@ -350,7 +375,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               aria-selected={i === activeIdx}
               className={`${styles.resultRow} ${i === activeIdx ? styles.resultActive : ''}`}
               onMouseEnter={() => setActiveIdx(i)}
-              onClick={() => selectRow(r)}
+              onClick={(e) => { (e.metaKey || e.ctrlKey) ? goToAskAi(r) : selectRow(r) }}
+              aria-label={r._typed ? undefined : `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`}
             >
               {r.kind === 'command' ? (
                 <>
@@ -389,6 +415,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         <div className={styles.dialogFoot}>
           <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
           <span><kbd>↵</kbd> open</span>
+          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI</span>
           <span><kbd>Esc</kbd> close</span>
         </div>
       </div>

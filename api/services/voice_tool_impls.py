@@ -2043,6 +2043,19 @@ def _format_levels(levels: dict) -> str:
     return ", ".join(parts) if parts else ""
 
 
+# Seam 28 (2026-09-06): both pattern tools below read the raw rule-engine
+# feed (`pattern_engine.memory`) -- the SAME feed whose universe-wide page
+# was retired 2026-08-26 after Pattern Vision's own Opus-vision judge
+# confirmed only ~16% of its candidates. These "confidence" numbers are the
+# rule engine's own self-reported match score, NOT a verified accuracy rate.
+# This disclosure is baked into the returned narration/dict (not left to a
+# prompt instruction) so it travels with the data to every current and
+# future caller -- Compass voice, Compass chat, and AI Search's agent lane
+# all read these same two functions.
+_UNCONFIRMED_NOTE = ("unconfirmed rule-engine detection, not Opus-vision-"
+                      "verified -- historically only ~16% of these hold up")
+
+
 def _find_patterns_on_ticker(
     *, symbol: str, tf: str = "D", min_conf: float = 50.0,
 ) -> dict:
@@ -2070,6 +2083,7 @@ def _find_patterns_on_ticker(
             "narration": f"No active patterns on {sym} ({tf_norm}) above "
                          f"{min_conf:.0f}% confidence right now.",
             "symbol": sym, "tf": tf_norm, "count": 0, "detections": [],
+            "confirmed": False,
         }
 
     # Top 5 by confidence
@@ -2089,12 +2103,12 @@ def _find_patterns_on_ticker(
             bit += f" — {levels_phrase}"
         snippets.append(bit)
     headline = f"{sym} on the {tf_norm} timeframe: {len(rows)} active pattern" \
-               f"{'s' if len(rows) != 1 else ''}. "
+               f"{'s' if len(rows) != 1 else ''} ({_UNCONFIRMED_NOTE}). "
     narration = headline + " · ".join(snippets[:3])
     return {
         "ok": True, "symbol": sym, "tf": tf_norm,
         "count": len(rows), "detections": top,
-        "narration": narration,
+        "narration": narration, "confirmed": False,
     }
 
 
@@ -2154,6 +2168,7 @@ def _scan_active_patterns(
             "narration": f"No active patterns{filter_phrase} on the "
                          f"{tf_norm} timeframe above {conf_min:.0f}% "
                          f"confidence in the last 7 days.",
+            "confirmed": False,
         }
 
     out: list[dict] = []
@@ -2185,12 +2200,12 @@ def _scan_active_patterns(
         )
     narration = (
         f"{len(out)} active pattern{'s' if len(out) != 1 else ''} on the "
-        f"{tf_norm} timeframe: " + " · ".join(bullets)
+        f"{tf_norm} timeframe ({_UNCONFIRMED_NOTE}): " + " · ".join(bullets)
         + (f". Plus {len(out) - 3} more." if len(out) > 3 else ".")
     )
     return {
         "ok": True, "count": len(out), "detections": out,
-        "narration": narration,
+        "narration": narration, "confirmed": False,
         "filters": {"types": pattern_ids, "tf": tf_norm,
                     "min_conf": conf_min, "category": cat, "limit": cap},
     }
@@ -3104,7 +3119,7 @@ def _register_all() -> None:
     # Compass × Pattern Engine bridge — read access to the 50-detector engine
     _vt.voice_tool(
         name="find_patterns_on_ticker",
-        description="Active chart patterns currently detected on a single ticker. Returns Bull Flag, VCP, High Tight Flag, Cup & Handle, Engulfing, Hammer, etc. with confidence, direction, status (forming/ready/triggered), and entry/stop/target levels. Call when the user asks 'is NVDA in a bull flag?', 'what patterns are on TSLA?', 'any setups on AAPL right now?'.",
+        description="Active chart patterns currently detected on a single ticker. Returns Bull Flag, VCP, High Tight Flag, Cup & Handle, Engulfing, Hammer, etc. with confidence, direction, status (forming/ready/triggered), and entry/stop/target levels. UNCONFIRMED rule-engine output, NOT independently verified -- always disclose this when citing a result, never present a detection as a confirmed setup. Call when the user asks 'is NVDA in a bull flag?', 'what patterns are on TSLA?', 'any setups on AAPL right now?'.",
         parameters={
             "symbol":   {"type": "string",  "description": "Ticker, e.g. NVDA."},
             "tf":       {"type": "string",  "description": "Timeframe — D (daily), W (weekly), 60 (1h), 30, 15, 5. Defaults to D."},
@@ -3115,7 +3130,7 @@ def _register_all() -> None:
 
     _vt.voice_tool(
         name="scan_active_patterns",
-        description="Universe scan — what chart patterns fired across the market in the last 7 days. Filter by pattern types (comma-separated, e.g. 'bull_flag,high_tight_flag,vcp'), timeframe, minimum confidence, or category (classical / candlestick / uct / structure). Call when the user asks 'what flags fired today?', 'show me high tight flags', 'any breakouts setting up?', 'scan for VCPs'.",
+        description="Universe scan — what chart patterns fired across the market in the last 7 days. Filter by pattern types (comma-separated, e.g. 'bull_flag,high_tight_flag,vcp'), timeframe, minimum confidence, or category (classical / candlestick / uct / structure). UNCONFIRMED rule-engine output, NOT independently verified -- always disclose this when citing a result, never present a detection as a confirmed setup. Call when the user asks 'what flags fired today?', 'show me high tight flags', 'any breakouts setting up?', 'scan for VCPs'.",
         parameters={
             "types":    {"type": "string",  "description": "Comma-separated pattern_ids (e.g. 'bull_flag,vcp'). Omit for all patterns."},
             "tf":       {"type": "string",  "description": "Timeframe — D, W, 60, 30, 15, 5. Defaults to D."},

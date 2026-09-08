@@ -94,4 +94,39 @@ describe('PositionsTable phone cards', () => {
     expect(onEdit).toHaveBeenCalled()
     expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
   })
+
+  it('the card is a real interactive control, and Enter opens the same TickerPopup a tap does (Seam)', () => {
+    render(
+      <PositionsTable positions={positions} prices={prices} accountSize={10000}
+                      visibleColumns={POSITIONS_COLUMNS} />,
+    )
+    const card = screen.getByTestId('position-card')
+    expect(card).toHaveAttribute('role', 'button')
+    expect(card).toHaveAttribute('tabIndex', '0')
+
+    expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
+    fireEvent.keyDown(card, { key: 'Enter' })
+    expect(screen.getByTestId('chart-modal-AAPL')).toBeInTheDocument()
+  })
+
+  it('Space also activates the card and is prevented-default', () => {
+    render(
+      <PositionsTable positions={positions} prices={prices} accountSize={10000}
+                      visibleColumns={POSITIONS_COLUMNS} />,
+    )
+    const card = screen.getByTestId('position-card')
+    const notPrevented = fireEvent.keyDown(card, { key: ' ' })
+    expect(notPrevented).toBe(false)
+    expect(screen.getByTestId('chart-modal-AAPL')).toBeInTheDocument()
+  })
+
+  it('Enter on the card while an action button has focus does not double-fire', () => {
+    render(
+      <PositionsTable positions={positions} prices={prices} accountSize={10000}
+                      visibleColumns={POSITIONS_COLUMNS} onEdit={vi.fn()} />,
+    )
+    const editBtn = screen.getByRole('button', { name: 'Edit AAPL' })
+    fireEvent.keyDown(editBtn, { key: 'Enter', bubbles: true })
+    expect(screen.queryByTestId('chart-modal-AAPL')).not.toBeInTheDocument()
+  })
 })

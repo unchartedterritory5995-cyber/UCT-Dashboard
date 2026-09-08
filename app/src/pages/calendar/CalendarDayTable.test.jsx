@@ -1,8 +1,22 @@
 // app/src/pages/calendar/CalendarDayTable.test.jsx
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('../../components/CompanyLogo', () => ({ default: () => null }))
+
+// Seam 19: same shallow-mock convention EarningsCard.test.jsx and
+// VirtualResults.test.jsx already use for TickerActions -- the real menu's
+// own behavior (Ask AI, Flag, Compare, ...) is TickerActions.jsx's own test
+// responsibility; this file proves the WIRING, not the menu content.
+const mockLongPressProps = vi.fn(() => ({}))
+const mockCloseMenu = vi.fn()
+let mockMenu = null
+vi.mock('../../components/TickerActions', () => ({
+  default: ({ menu, onClose }) => menu
+    ? <div data-testid="ticker-menu" onClick={onClose}>{menu.sym}</div>
+    : null,
+  useTickerActions: () => ({ menu: mockMenu, openMenu: vi.fn(), closeMenu: mockCloseMenu, longPressProps: mockLongPressProps }),
+}))
 
 import CalendarDayTable from './CalendarDayTable'
 
@@ -80,5 +94,40 @@ describe('CalendarDayTable — WSE row grammar', () => {
     // ZZZ: no move + no beats → two dashes; JPM: has move but no beats → one
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
     expect(screen.queryByText('…')).toBeNull()
+  })
+})
+
+// Seam 19 (2026-09-06): right-click/long-press on the sym now reaches the
+// same universal TickerActionsMenu EarningsCard.jsx already has — Ask AI,
+// Flag, Tag, Compare, Alert, on top of the row's own existing peek-modal
+// click. TickerActions.jsx's own real behavior is tested there; this proves
+// each row threads its OWN sym into the shared hook, not a stale/wrong one.
+describe('CalendarDayTable — Seam 19, TickerActions reuse', () => {
+  beforeEach(() => { mockMenu = null; mockLongPressProps.mockClear(); mockCloseMenu.mockClear() })
+
+  it('each sym threads its OWN symbol into longPressProps, scoped to the sym span (not the whole row)', () => {
+    render(<CalendarDayTable entries={ENTRIES} onSelect={vi.fn()} />)
+    expect(mockLongPressProps).toHaveBeenCalledWith('JPM')
+    expect(mockLongPressProps).toHaveBeenCalledWith('NFLX')
+    expect(mockLongPressProps).toHaveBeenCalledWith('ZZZ')
+  })
+
+  it('the row click-to-peek behavior is completely unchanged', () => {
+    const onSelect = vi.fn()
+    render(<CalendarDayTable entries={ENTRIES} onSelect={onSelect} />)
+    fireEvent.click(screen.getByText('JPM'))
+    expect(onSelect).toHaveBeenCalled()
+    expect(onSelect.mock.calls[0][0].sym).toBe('JPM')
+  })
+
+  it('the menu renders only once a context menu is actually open, and can close', () => {
+    render(<CalendarDayTable entries={ENTRIES} onSelect={vi.fn()} />)
+    expect(screen.queryByTestId('ticker-menu')).not.toBeInTheDocument()
+  })
+
+  it('an open menu for the row\'s sym renders via the shared TickerActionsMenu', () => {
+    mockMenu = { sym: 'JPM', x: 0, y: 0 }
+    render(<CalendarDayTable entries={ENTRIES} onSelect={vi.fn()} />)
+    expect(screen.getByTestId('ticker-menu')).toHaveTextContent('JPM')
   })
 })

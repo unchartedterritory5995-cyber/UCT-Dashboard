@@ -973,15 +973,18 @@ class TestBuildEvidence:
                                    "url": "https://x/1", "published_at": "2026-09-01 09:00:00",
                                    "image": None}],
                         "_meta": None})
+        def _fake_ratings(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = False
+            return {"sym": sym, "entity": {"status": "resolved", "entityId": "e1"},
+                    "consensus": {"label": "Buy", "total": 10},
+                    "price_target": {"consensus": 250.0, "low": 200.0, "high": 300.0},
+                    "recent_actions": {"items": [
+                        {"date": "2026-08-30", "company": "Goldman Sachs",
+                         "action": "upgrade", "from_grade": "Hold", "to_grade": "Buy"},
+                    ], "_meta": None}}
         monkeypatch.setattr(
-            "api.services.research.analyst_ratings.get_analyst_ratings",
-            lambda sym: {"sym": sym, "entity": {"status": "resolved", "entityId": "e1"},
-                        "consensus": {"label": "Buy", "total": 10},
-                        "price_target": {"consensus": 250.0, "low": 200.0, "high": 300.0},
-                        "recent_actions": {"items": [
-                            {"date": "2026-08-30", "company": "Goldman Sachs",
-                             "action": "upgrade", "from_grade": "Hold", "to_grade": "Buy"},
-                        ], "_meta": None}})
+            "api.services.research.analyst_ratings.get_analyst_ratings", _fake_ratings)
         entity, evidence, domains = te._build_evidence("AAPL")   # default question="" -> Slice-1 baseline
         ids = [e["id"] for e in evidence]
         assert ids == [f"E{i}" for i in range(1, len(evidence) + 1)]
@@ -993,13 +996,45 @@ class TestBuildEvidence:
         monkeypatch.setattr(
             "api.services.research.news.get_company_news",
             lambda sym: {"sym": sym, "entity": None, "items": [], "_meta": None})
+        def _fake_ratings_empty(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = False
+            return {"sym": sym, "entity": None, "consensus": None,
+                    "price_target": None, "recent_actions": {"items": [], "_meta": None}}
         monkeypatch.setattr(
-            "api.services.research.analyst_ratings.get_analyst_ratings",
-            lambda sym: {"sym": sym, "entity": None, "consensus": None,
-                        "price_target": None, "recent_actions": {"items": [], "_meta": None}})
+            "api.services.research.analyst_ratings.get_analyst_ratings", _fake_ratings_empty)
         entity, evidence, domains = te._build_evidence("QUIET")
         assert evidence == []
         assert domains == ["news", "analyst"]
+
+    def test_analyst_source_outage_yields_an_honest_data_gap_not_empty_evidence(self, monkeypatch):
+        # Seam 29 (2026-09-06): a genuine live outage must not read the same
+        # as "no analyst coverage" -- the model needs to know it's a gap in
+        # what we could fetch, not a fact about the security.
+        def _fake_outage(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = True
+            return {}
+        monkeypatch.setattr(
+            "api.services.research.analyst_ratings.get_analyst_ratings", _fake_outage)
+        out = te._fetch_analyst("AAPL")
+        assert len(out) == 1
+        assert out[0]["type"] == "data_gap"
+        assert "temporarily unavailable" in out[0]["text"]
+        assert "NOT a statement" in out[0]["text"]
+
+    def test_analyst_no_coverage_is_distinct_from_an_outage(self, monkeypatch):
+        # The control: a genuinely uncovered ticker must NOT produce a
+        # data_gap item -- only a real outage_out signal does.
+        def _fake_no_coverage(sym, *, outage_out=None):
+            if outage_out is not None:
+                outage_out["outage"] = False
+            return {"consensus": None, "price_target": None,
+                    "recent_actions": {"items": []}}
+        monkeypatch.setattr(
+            "api.services.research.analyst_ratings.get_analyst_ratings", _fake_no_coverage)
+        out = te._fetch_analyst("QUIET")
+        assert out == []
 
     def test_a_financials_question_routes_only_to_financials(self, monkeypatch):
         called = []

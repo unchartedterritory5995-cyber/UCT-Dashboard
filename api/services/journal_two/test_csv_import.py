@@ -199,6 +199,16 @@ NVDA,Long,100,500,04/01/2026,520,2026-04-02
         assert len(result.trades) == 0
         assert any("ISO date" in e.message for e in result.errors)
 
+    def test_class_share_dot_normalizes_to_hyphen(self):
+        """Identity Normalization Hardening V1: CSV import must canonicalize
+        a dot-spelled class share the same way manual entry and SnapTrade
+        broker sync already do."""
+        csv = b"""symbol,side,shares,entry_price,entry_date,exit_price,exit_date
+BRK.B,Long,10,400,2026-04-01,420,2026-04-02
+"""
+        result = parse_csv(csv)
+        assert result.trades[0]["symbol"] == "BRK-B"
+
     def test_exit_before_entry_rejected(self):
         csv = b"""symbol,side,shares,entry_price,entry_date,exit_price,exit_date
 NVDA,Long,100,500,2026-04-05,520,2026-04-01

@@ -938,7 +938,29 @@ def _fetch_news(sym: str) -> list[dict]:
 
 def _fetch_analyst(sym: str) -> list[dict]:
     from api.services.research.analyst_ratings import get_analyst_ratings
-    ratings = get_analyst_ratings(sym) or {}
+    # Seam 29 (2026-09-06): `outage_out` distinguishes "the analyst-data
+    # provider genuinely failed this round" from "this ticker has no
+    # analyst coverage" -- both used to collapse to the same empty evidence
+    # list here, silently misrepresenting a real source outage as "nothing
+    # to report" (watchlist_intelligence.py's own S9 fix already made this
+    # distinction for its surface; this is the same signal, never threaded
+    # into Ask AI's own evidence pipeline). On outage, emit one honest
+    # evidence item through the SAME pipeline every other domain uses --
+    # no new grounding-gap infrastructure -- so the model can disclose the
+    # gap (`answer_with_caveat`) instead of silently treating "no evidence"
+    # as "no coverage".
+    outage: dict = {}
+    ratings = get_analyst_ratings(sym, outage_out=outage) or {}
+    if outage.get("outage"):
+        return [{
+            "type": "data_gap",
+            "date": "now",
+            "source": "UCT Analyst Ratings",
+            "text": f"Analyst ratings data for {sym} is temporarily "
+                    f"unavailable (a live source outage) -- this is NOT a "
+                    f"statement that {sym} has no analyst coverage.",
+            "url": None,
+        }]
     return _ratings_evidence(ratings)
 
 
@@ -1255,7 +1277,11 @@ _SYSTEM_PROMPT = (
     "'this week'), or Financials' calendar-quarter labels may not match this "
     "company's own fiscal-quarter numbering, or an estimate's period label "
     "('Current Qtr') has no absolute anchoring date, or a 13F filing lags "
-    "roughly 45 days behind today. Name the limitation in `caveat` and still "
+    "roughly 45 days behind today, or a \"data_gap\" typed evidence item says "
+    "a source is TEMPORARILY unavailable -- that is a live outage, never "
+    "evidence that the security has no coverage; never restate a data_gap "
+    "item as \"no analyst coverage\" or similar. Name the limitation in "
+    "`caveat` and still "
     "answer using what you have -- do not refuse just because the evidence is "
     "imperfect. This also covers a QUALITATIVE/OPEN question (a general read, "
     "sentiment, or summary) where your evidence has nothing of the exact "

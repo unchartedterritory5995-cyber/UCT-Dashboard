@@ -265,6 +265,15 @@ export default function ChartRender() {
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
   const hidePriceLine = priceLineParam === '0' || priceLineParam === 'false'
+  // ?dpzones=<base64url JSON> — dark-pool zones computed SERVER-SIDE (render_house_chart
+  // → darkpool_db.get_ticker_zones) and embedded, so the overlay needs no client fetch
+  // and no auth (the /api/darkpool/zones endpoint is flow-user-gated and the headless
+  // page has no session). Same shape StockChart's darkPoolBars prop expects; present in
+  // the HTML at first paint, so no readiness race with the pixel-settle gate.
+  const dpZones = useMemo(() => {
+    const z = decodeB64UrlJson(sp.get('dpzones'))
+    return Array.isArray(z) ? z : []
+  }, [sp])
   //   ?stats=<base64url JSON>  a compact price-action / volume strip under the
   //            header (Discord /chart). The NUMBERS are computed server-side
   //            (api/services/discord_chart_render.compute_stats — one authority);
@@ -868,6 +877,7 @@ export default function ChartRender() {
             // the same treatment the footer's wall-clock stamp already gets, and
             // NOT a tolerance: that case must still be 0 on every run.
             hidePriceLine={hidePriceLine}
+            darkPoolBars={dpZones.length ? dpZones : null}
             volumeSeparatePane
             alwaysShowLegend
             liveUpdates={false}

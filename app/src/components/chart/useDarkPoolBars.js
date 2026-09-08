@@ -17,11 +17,16 @@ import { useState, useEffect, useMemo } from 'react';
 // priceLow/priceHigh, date, dateLong, pctAvgVol, isLatest, printCount). Returns a
 // stable array, or an empty array when disabled or on any non-array response
 // (the overlay is decoration — it must degrade to "no overlay", never crash).
-export function useDarkPoolBars(sym, enabled) {
+export function useDarkPoolBars(sym, enabled, onLoaded) {
   const [zones, setZones] = useState(null);
   useEffect(() => {
     if (!enabled || !sym) { setZones(null); return; }
     let cancelled = false;
+    // `onLoaded` (optional) fires once the fetch RESOLVES — success OR empty — so a
+    // headless capture (ChartRender) can hold "ready" until the overlay is in, since
+    // the pixel-settle gate can't see the HTML overlay divs. Intentionally NOT a
+    // dep (would refetch on every callback identity change).
+    const done = () => { if (!cancelled && typeof onLoaded === 'function') onLoaded(); };
     fetch(`/api/darkpool/zones?sym=${encodeURIComponent(sym)}&days=180&limit=25`)
       .then(r => (r.ok ? r.json() : null))
       // ⛔ COERCE TO AN ARRAY. A 200 whose body is an OBJECT without `zones` (an
@@ -31,9 +36,10 @@ export function useDarkPoolBars(sym, enabled) {
       .then((j) => {
         if (cancelled) return;
         setZones(Array.isArray(j?.zones) ? j.zones : Array.isArray(j) ? j : []);
+        done();
       })
-      .catch(() => { if (!cancelled) setZones([]); });
+      .catch(() => { if (!cancelled) { setZones([]); done(); } });
     return () => { cancelled = true; };
-  }, [sym, enabled]);
+  }, [sym, enabled]);   // eslint-disable-line react-hooks/exhaustive-deps
   return useMemo(() => (!enabled || !zones ? [] : zones), [zones, enabled]);
 }

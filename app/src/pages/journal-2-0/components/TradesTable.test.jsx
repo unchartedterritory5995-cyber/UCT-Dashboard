@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TradesTable, { buildTradesColumns } from './TradesTable'
 
@@ -207,5 +207,49 @@ describe('TradesTable — inline setup tagging', () => {
     )
     expect(screen.queryByLabelText('Setup for YSS')).not.toBeInTheDocument()
     expect(screen.getByText('VCP')).toBeInTheDocument()
+  })
+})
+
+describe('TradesTable — desktop symbol-cell keyboard accessibility (Seam)', () => {
+  it('the symbol cell is focusable and Enter opens the trade, same as a click', () => {
+    const onRowAction = vi.fn()
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols} onRowAction={onRowAction} />)
+    const cell = screen.getByText('YSS').closest('td')
+    expect(cell).toHaveAttribute('tabIndex', '0')
+
+    fireEvent.keyDown(cell, { key: 'Enter' })
+    expect(onRowAction).toHaveBeenCalledWith('open', BASE_TRADE)
+  })
+
+  it('Space also opens the trade and is prevented-default', () => {
+    const onRowAction = vi.fn()
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols} onRowAction={onRowAction} />)
+    const cell = screen.getByText('YSS').closest('td')
+    const notPrevented = fireEvent.keyDown(cell, { key: ' ' })
+    expect(notPrevented).toBe(false)
+    expect(onRowAction).toHaveBeenCalledWith('open', BASE_TRADE)
+  })
+
+  it('a non-symbol cell is not made keyboard-focusable', () => {
+    const onRowAction = vi.fn()
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols} onRowAction={onRowAction} />)
+    const winCell = screen.getByText('Win').closest('td')
+    expect(winCell).not.toHaveAttribute('tabIndex')
+  })
+
+  it('without onRowAction, the cell is not focusable and has no keyboard handler', () => {
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols} />)
+    const cell = screen.getByText('YSS').closest('td')
+    expect(cell).not.toHaveAttribute('tabIndex')
+  })
+
+  it('the row itself is still a real row (no role override) so table semantics survive', () => {
+    const cols = buildTradesColumns().filter((c) => !c.hiddenByDefault)
+    render(<TradesTable trades={[BASE_TRADE]} visibleColumns={cols} onRowAction={vi.fn()} />)
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(1)
   })
 })

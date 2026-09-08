@@ -27,7 +27,7 @@ function PaletteWithExternalTrigger() {
 
 function RouteSpy() {
   const location = useLocation()
-  return <div data-testid="route-spy">{location.pathname}</div>
+  return <div data-testid="route-spy">{location.pathname}{location.search}</div>
 }
 
 function renderPalette() {
@@ -142,6 +142,28 @@ describe('CommandPalette — search + selection', () => {
     await screen.findByText('Apple Inc.')
   })
 
+  // Search/Command Convergence V1's Phase A (2026-09-06) confirmed this was
+  // a real, pre-existing bug: a non-2xx JSON error body (e.g. a 402
+  // paywall shape, `{"detail": "..."}`) is a truthy object, so a bare
+  // `fetch(url).then(r => r.json())` treated it as valid search results.
+  // Now routed through the shared `jsonFetcher`, which throws on !r.ok so
+  // the existing AbortError-aware catch handler surfaces it as a real
+  // error state instead of a malformed/empty results list.
+  it('a non-2xx ticker-search response reads as an error, not empty/malformed results', async () => {
+    global.fetch = vi.fn((url) => {
+      if (String(url).startsWith('/api/ticker-search')) {
+        return Promise.resolve({ ok: false, status: 402, json: () => Promise.resolve({ detail: 'payment required' }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'AAPL' } })
+    await screen.findByText(/search is briefly unavailable/i)
+    expect(screen.queryByText('payment required')).not.toBeInTheDocument()
+  })
+
   it('a stale response never overwrites a newer query\'s results', async () => {
     const resolvers = {}
     global.fetch = vi.fn((url) => {
@@ -206,6 +228,70 @@ describe('CommandPalette — search + selection', () => {
     fireEvent.click(row)
     await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT'))
     expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+  })
+
+  // Search / Command Convergence V1 — the palette's own documented gap
+  // ("navigation only") for the single highest-value CONTINUE destination.
+  // Strictly additive: bare Enter/click above is completely unchanged.
+  describe('Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI', () => {
+    it('Ctrl+Enter on the typed value opens /research/:sym?section=ai, not Research', async () => {
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'nvda' } })
+      fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA?section=ai'))
+    })
+
+    it('Ctrl+Enter on an arrow-selected row opens that row\'s Ask AI, not the typed value\'s', async () => {
+      searchResults = [
+        { ticker: 'AAPL', name: 'Apple Inc.' },
+        { ticker: 'APPS', name: 'Digital Turbine' },
+      ]
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'APP' } })
+      await screen.findByText('Digital Turbine')
+      fireEvent.keyDown(input, { key: 'ArrowDown' }) // AAPL (idx 0) -> APPS (idx 1)
+      fireEvent.keyDown(input, { key: 'Enter', metaKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/APPS?section=ai'))
+    })
+
+    it('Ctrl+click a result opens Ask AI for that symbol, not Research', async () => {
+      searchResults = [{ ticker: 'MSFT', name: 'Microsoft Corp' }]
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'MSFT' } })
+      const row = await screen.findByText('Microsoft Corp')
+      fireEvent.click(row, { ctrlKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT?section=ai'))
+      expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+    })
+
+    it('bare Enter and bare click are unaffected — still Research, no ?section=ai', async () => {
+      searchResults = [{ ticker: 'MSFT', name: 'Microsoft Corp' }]
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'MSFT' } })
+      const row = await screen.findByText('Microsoft Corp')
+      fireEvent.click(row)
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/MSFT'))
+      expect(screen.getByTestId('route-spy')).not.toHaveTextContent('section=ai')
+    })
+
+    it('Ctrl+Enter on a highlighted Wave B notebook command falls back to its normal action, not a broken /research/undefined?section=ai', async () => {
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      fireEvent.change(input, { target: { value: 'trash' } })
+      await screen.findByText('Open Trash')
+      fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+      await waitFor(() => expect(screen.getByTestId('route-spy')).toHaveTextContent('/journal/notebook'))
+      expect(screen.getByTestId('route-spy')).not.toHaveTextContent('undefined')
+    })
   })
 
   it('shows an empty-state hint before typing, and a no-match note when nothing found', async () => {

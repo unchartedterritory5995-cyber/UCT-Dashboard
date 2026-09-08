@@ -31,7 +31,7 @@ vi.mock('../hooks/useBreakpoint', () => ({ useIsTouch: () => false }))
 // TickerActions' own uppercasing, not SymbolSearch's.
 vi.mock('./chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
-    <button onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('amd')}>{displayLabel || sym || 'search'}</button>
   ),
 }))
 
@@ -62,6 +62,12 @@ test('picking a comparator navigates to the exact canonical compare route (upper
   fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
   expect(navigateMock).toHaveBeenCalledWith('/research/NVDA/compare/AMD')
   expect(onClose).toHaveBeenCalledTimes(1)
+})
+
+test('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+  render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
+  fireEvent.click(screen.getByRole('button', { name: /compare nvda with/i }))
+  expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'NVDA')
 })
 
 test('unrelated actions (Full Research, Ask AI, Flag) still work alongside the new Compare toggle', () => {

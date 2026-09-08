@@ -23,7 +23,7 @@ vi.mock('../voice/CompassAssistButton', () => ({ default: ({ label }) => <button
 // the sheet's own uppercasing, not SymbolSearch's.
 vi.mock('../chart/SymbolSearch', () => ({
   default: ({ sym, onSymbolChange, displayLabel }) => (
-    <button onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
   ),
 }))
 
@@ -109,6 +109,13 @@ test('Compare action reveals the "+ Compare" symbol picker', () => {
   fireEvent.click(screen.getByText('open AAPL'))
   fireEvent.click(screen.getByText('Compare'))
   expect(screen.getByRole('button', { name: '+ Compare' })).toBeInTheDocument()
+})
+
+test('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Compare'))
+  expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'AAPL')
 })
 
 test('picking a comparator navigates to the exact canonical compare route (uppercased) and closes the sheet', () => {

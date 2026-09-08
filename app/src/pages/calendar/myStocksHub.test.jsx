@@ -6,11 +6,20 @@
 //   - Tab switching works (clicking a tab shows its panel)
 //   - Respects mySets (only mine symbols shown in Earnings tab)
 //   - useSeen integration (unseen dot visible; markSeen called on click)
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
+
+// Seam 20 (Calendar TickerActions Reuse V2): InsightForSym rows now navigate
+// via useNavigate on click. Spy on it while leaving Link/useLocation/MemoryRouter
+// real, mirroring the same mock shape used in WireView.test.jsx.
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 
 // Mock SWR-dependent hooks so no network calls happen
 vi.mock('../../hooks/usePreferences', () => ({
@@ -158,6 +167,9 @@ vi.mock('swr', async (importOriginal) => {
 // ── Component under test ──────────────────────────────────────────────────────
 
 import MyStocksHub from './MyStocksHub'
+import useFilings from '../../hooks/useFilings'
+import useCallRecap from '../../hooks/useCallRecap'
+import { useCalendar } from './useCalendarData'
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -289,5 +301,110 @@ describe('MyStocksHub', () => {
   it('panel role is present', () => {
     renderHub()
     expect(screen.getByRole('tabpanel')).toBeTruthy()
+  })
+})
+
+// Matches the default fixture baked into the `./useCalendarData` mock
+// factory above -- restored explicitly after each test in this block so a
+// persistent override (needed for the Calls test, since useCalendar() is
+// called both by the hub's own Earnings-tab mount AND by CallsTab, so a
+// single mockReturnValueOnce lands on the wrong call) can never leak into
+// a later describe block in this file.
+const DEFAULT_CAL_DATA = {
+  days: {
+    '2026-06-02': {
+      bmo: [
+        { sym: 'AAPL', date: '1999-01-01', eps_est: 1.5, eps_act: null },
+        { sym: 'TINY', date: '1999-01-01', eps_est: 0.1, eps_act: null },
+      ],
+      amc: [],
+    },
+  },
+}
+
+describe('MyStocksHub -- Seam 21, News/Filings/Calls Research companion link', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useFilings.mockReturnValue({ data: null })
+    useCallRecap.mockReturnValue({ data: null })
+    useCalendar.mockReturnValue({ data: DEFAULT_CAL_DATA })
+  })
+
+  afterEach(() => {
+    useCalendar.mockReturnValue({ data: DEFAULT_CAL_DATA })
+  })
+
+  it('News: a row whose ticker is in mySets gets a Research companion link', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'News' }))
+    // The mocked /api/news fixture: AAPL is in mySets, XYZ is not -- only
+    // the AAPL item survives the tab's own mySets filter.
+    const btn = screen.getByTitle('View AAPL in Research')
+    expect(btn.tagName).toBe('BUTTON')
+    fireEvent.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/research/AAPL')
+  })
+
+  it('News: the existing external link is untouched -- still a real <a> to the article', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'News' }))
+    const link = screen.getByText('Apple beats earnings').closest('a')
+    expect(link).toHaveAttribute('href', 'https://example.com/1')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('Filings: one Research companion per sym group, unambiguous', () => {
+    useFilings.mockReturnValue({
+      data: { filings: [{ form: '8-K', filed: '2026-09-01', url: 'https://sec.gov/1' }] },
+    })
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'Filings' }))
+    const btn = screen.getByTitle('View AAPL in Research')
+    fireEvent.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/research/AAPL')
+    // The existing EDGAR link is untouched.
+    expect(screen.getByText('View ↗').closest('a')).toHaveAttribute('href', 'https://sec.gov/1')
+  })
+
+  it('Calls: a reported mySets stock gets a Research companion link', () => {
+    useCalendar.mockReturnValue({
+      data: {
+        days: {
+          '2026-06-02': {
+            bmo: [{ sym: 'AAPL', date: '1999-01-01', eps_est: 1.5, eps_act: 1.6 }],
+            amc: [],
+          },
+        },
+      },
+    })
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'Calls' }))
+    const btn = screen.getByTitle('View AAPL in Research')
+    fireEvent.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/research/AAPL')
+  })
+})
+
+describe('MyStocksHub -- Seam 20, Insights row click-through to Research (Calendar TickerActions Reuse V2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('the Insights row is a real button and clicking it navigates to canonical Research', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }))
+    const btn = screen.getByText('AAPL').closest('button')
+    expect(btn).toBeTruthy()
+    fireEvent.click(btn)
+    expect(mockNavigate).toHaveBeenCalledWith('/research/AAPL')
+  })
+
+  it('the Insights row is keyboard-focusable by default (a real <button>, no extra ARIA needed)', () => {
+    renderHub()
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }))
+    const btn = screen.getByText('AAPL').closest('button')
+    expect(btn.tagName).toBe('BUTTON')
+    expect(btn).not.toHaveAttribute('disabled')
+    expect(btn).toHaveAttribute('title', 'View AAPL in Research')
   })
 })

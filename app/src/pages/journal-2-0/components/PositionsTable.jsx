@@ -275,7 +275,28 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   }
 
   return (
-    <tr className={styles.row} onClick={handleRowClick}>
+    <tr
+      className={styles.row}
+      onClick={handleRowClick}
+      // Seam: PositionsTable was a bare `<tr onClick>` -- a keyboard/switch-
+      // control member could not open ANY position on this paid core
+      // surface, a wider blast radius than AlertBell's own pre-fix gap
+      // (Seam 5). Reuses handleRowClick verbatim -- it already guards
+      // against the actions cell via `actionsCellRef`, so the same guard
+      // covers a bubbled Enter from a focused action button inside it.
+      // Deliberately NO role="button" here -- overriding a <tr>'s native
+      // row role breaks table enumeration for real assistive tech (and
+      // for this file's own `getAllByRole('row')` tests), the opposite of
+      // an accessibility fix. tabIndex + onKeyDown alone close the actual
+      // reported gap (no keyboard path to activate the row at all).
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleRowClick(e)
+        }
+      }}
+    >
       {visibleColumns.map((c) => (
         <td
           key={c.key}
@@ -315,7 +336,20 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
   const pnlCls = pnlD > 0 ? styles.pos : pnlD < 0 ? styles.neg : ''
 
   return (
-    <div className={styles.card} data-testid="position-card" onClick={handleCardClick}>
+    <div
+      className={styles.card}
+      data-testid="position-card"
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      aria-label={`${position.symbol} position — open chart, research, and actions`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick(e)
+        }
+      }}
+    >
       <div className={styles.cardHead}>
         <div className={styles.cardIdent}>
           <span className={styles.cardSym}>{position.symbol}</span>

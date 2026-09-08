@@ -1,0 +1,130 @@
+/* The drill overlay. Geometry is inherited from the surface it replaces so the
+   modal opens where members expect it; everything INSIDE is charts-workspace
+   chrome and is not styled here. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* The panel takes programmatic focus on open (tabIndex -1) so the dialog is
+   announced and Tab starts inside it; that focus is not a keyboard landing spot,
+   so it shows no ring. Controls inside keep their own focus styles. */
+.dialog:focus { outline: none; }
+
+.dialog {
+  background: var(--bg-elevated, #1d1f23);
+  border: 1px solid var(--border, #2a2c31);
+  border-radius: var(--radius-lg, 8px);
+  width: 100%;
+  max-width: 1600px;
+  height: 96vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Slim identity bar: which cell, how many names, which session, and the one
+   unambiguous close. The widgets below carry no ✕ of their own — the modal
+   closes as a unit. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border, #2a2c31);
+  flex-shrink: 0;
+}
+.title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright, #f8f7f3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted, #cfcac0);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.when {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted, #8f8b83);
+}
+.close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8f8b83);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.close:hover { color: var(--text, #f0efea); }
+
+/* Pop-up blocked: surfaced, never swallowed — the click looked like it did
+   nothing, and "nothing happened" is the worst possible feedback. */
+.notice {
+  flex-shrink: 0;
+  margin: 8px 14px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(220, 187, 94, 0.10);
+  border: 1px solid rgba(220, 187, 94, 0.35);
+  color: var(--ut-gold, #dcbb5e);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+/* Phone pane toggle. Rendered always, shown only on a phone — a CSS switch, so
+   first paint is right without a JS breakpoint read. */
+.paneToggle {
+  display: none;
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+.paneToggle button {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #8f8b83);
+  padding: 0 14px;
+  min-height: var(--tap-min, 44px);
+  cursor: pointer;
+}
+.paneToggle button + button { border-left: 1px solid rgba(220, 187, 94, 0.3); }
+.paneToggle .paneOn,
+.paneToggle button.paneOn { background: rgba(220, 187, 94, 0.16); color: var(--ut-gold, #dcbb5e); }
+
+/* Phone: the split board is unusable at 390px, so the overlay goes full-bleed and
+   the board's own panes stack. Matches the app's canonical touch boundary. */
+@media (max-width: 640px) {
+  .overlay { padding: 0; }
+  /* 100dvh, not 100vh: on iOS Safari 100vh is the UNCOLLAPSED viewport, so the
+     board's bottom row sits under the browser chrome and the chart's date axis
+     is cut off. Fallback first for anything without dvh. */
+  .dialog { height: 100vh; height: 100dvh; border-radius: 0; border: none; max-width: none; }
+  .close { min-width: 44px; min-height: 44px; justify-content: center; }
+  .paneToggle { display: inline-flex; }
+  /* The title bar is the only chrome above a full-bleed board — keep it tight
+     and let the identity truncate rather than push the toggle off-screen. */
+  .bar { padding: 6px 8px; gap: 8px; }
+  .title { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .when { display: none; }
+}

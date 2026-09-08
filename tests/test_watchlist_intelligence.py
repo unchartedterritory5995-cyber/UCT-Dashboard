@@ -7,8 +7,10 @@ data never renders as a fabricated zero/delta, and the module never reaches
 into S7 (alert_taxonomy) or pattern_vision, which this program does not touch.
 """
 import ast
+import datetime as _dt
 from pathlib import Path
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -17,6 +19,10 @@ from api.services import watchlist_intelligence as wi
 
 def _patch(target, **kw):
     return mock.patch(target, **kw)
+
+
+def _et_epoch(y, m, d, hh, mm):
+    return _dt.datetime(y, m, d, hh, mm, tzinfo=ZoneInfo("America/New_York")).timestamp()
 
 
 class TestPriceMoveFact:
@@ -33,6 +39,60 @@ class TestPriceMoveFact:
     def test_no_change_supplied_does_not_fire_and_does_not_crash(self):
         out = wi.get_intelligence_for_symbols(["NVDA"], {})
         assert out["NVDA"]["facts"] == [] or all(f["kind"] != "price_move" for f in out["NVDA"]["facts"])
+
+
+class TestPriceMoveEvidenceTimestamp:
+    """Seam 8 (2026-09-07): price_move.as_of is derived from a real,
+    caller-supplied vendor observation timestamp, never wall-clock -- see
+    _price_move_fact's own docstring for the full trace."""
+
+    def test_a_real_observed_at_becomes_the_facts_as_of_et_calendar_date(self):
+        observed_at = _et_epoch(2026, 9, 7, 10, 32)  # Mon 10:32 ET
+        out = wi.get_intelligence_for_symbols(
+            ["NVDA"], {"NVDA": 3.0}, {"NVDA": observed_at},
+        )
+        pm = next(f for f in out["NVDA"]["facts"] if f["kind"] == "price_move")
+        assert pm["as_of"] == "2026-09-07"
+
+    def test_no_observed_at_supplied_stays_as_of_none_not_a_regression(self):
+        # Every caller before Seam 8 (and the closed-market fallback path,
+        # which has no per-symbol observation to report) omits
+        # price_observed_at entirely -- must behave byte-identically.
+        out = wi.get_intelligence_for_symbols(["NVDA"], {"NVDA": 3.0})
+        pm = next(f for f in out["NVDA"]["facts"] if f["kind"] == "price_move")
+        assert pm["as_of"] is None
+
+    def test_observed_at_present_for_a_different_symbol_does_not_leak_across_symbols(self):
+        observed_at = _et_epoch(2026, 9, 7, 10, 32)
+        out = wi.get_intelligence_for_symbols(
+            ["NVDA", "MSFT"], {"NVDA": 3.0, "MSFT": 3.0}, {"NVDA": observed_at},
+        )
+        pm_nvda = next(f for f in out["NVDA"]["facts"] if f["kind"] == "price_move")
+        pm_msft = next(f for f in out["MSFT"]["facts"] if f["kind"] == "price_move")
+        assert pm_nvda["as_of"] == "2026-09-07"
+        assert pm_msft["as_of"] is None
+
+    def test_a_late_night_et_observation_converts_to_the_correct_calendar_date(self):
+        # 23:50 ET on the 6th -- must not off-by-one to the 7th via a naive
+        # UTC .date() read (2026-09-06T23:50 ET = 2026-09-07T03:50Z).
+        observed_at = _et_epoch(2026, 9, 6, 23, 50)
+        out = wi.get_intelligence_for_symbols(["NVDA"], {"NVDA": 3.0}, {"NVDA": observed_at})
+        pm = next(f for f in out["NVDA"]["facts"] if f["kind"] == "price_move")
+        assert pm["as_of"] == "2026-09-06"
+
+    @pytest.mark.parametrize("bad", [None, "not-a-number", 0, -1, float("nan"), float("inf")])
+    def test_a_malformed_or_absent_observed_at_degrades_to_none_never_crashes(self, bad):
+        out = wi.get_intelligence_for_symbols(["NVDA"], {"NVDA": 3.0}, {"NVDA": bad})
+        pm = next(f for f in out["NVDA"]["facts"] if f["kind"] == "price_move")
+        assert pm["as_of"] is None
+
+    def test_price_observed_at_never_fabricates_a_move_below_threshold(self):
+        # Supplying a real timestamp must not, by itself, make a sub-threshold
+        # move fire -- the 3% gate is unrelated to evidence-timestamp presence.
+        observed_at = _et_epoch(2026, 9, 7, 10, 32)
+        out = wi.get_intelligence_for_symbols(["NVDA"], {"NVDA": 1.0}, {"NVDA": observed_at})
+        kinds = [f["kind"] for f in out["NVDA"]["facts"]]
+        assert "price_move" not in kinds
 
 
 class TestAnalystFact:

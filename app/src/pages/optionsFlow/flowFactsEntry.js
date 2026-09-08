@@ -31,11 +31,18 @@
 // mistake a diagnostic for a payload.
 /* global process, Buffer, __FLOW_FACTS_CLI__ */
 import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom } from './flowCompute'
+import { partsFrom } from './flowBootstrap'
 
 export const USAGE = [
   'usage:',
-  '  flow-facts aggregate [--date-filter=Last1] < flow.csv   dataset as JSON',
+  '  flow-facts aggregate [--date-filter=Last1] [--split] < flow.csv   dataset as JSON',
   '  flow-facts stats     < flow.csv   sizing/telemetry only, no row payload',
+  '',
+  '  --split  emit {parts} instead of {D}: `bootstrap` plus ONE part per deferred',
+  '           key. Same computation, same values; only the PARTITION differs, and',
+  '           recombining every part yields the identical object. Per-key parts so',
+  '           a surface fetches what it reads — never most of the tape on the first',
+  '           tab click. See flowBootstrap.js for the consumption audit.',
 ].join('\n')
 
 /**
@@ -69,8 +76,11 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
   // the page renders, and the numbers would change under the reader a couple
   // of seconds after first paint. Filtering here with filterRowsByDate makes
   // the match structural instead of coincidental.
+  // The trading calendar of the FETCHED window, hoisted because it is now also
+  // EMITTED (see stats.availableDates below) rather than only used here.
+  const availableDates = availableDatesFrom(rows)
   const selected = dateFilter
-    ? filterRowsByDate(rows, { dateFilter, availableDates: availableDatesFrom(rows) })
+    ? filterRowsByDate(rows, { dateFilter, availableDates })
     : rows
   if (!selected.length) throw new Error('no rows match dateFilter=' + dateFilter)
 
@@ -91,6 +101,20 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
       // What the client would otherwise have had to build for itself.
       totalTrades: D ? D.totalTrades : 0,
       confirmedCount: D ? D.confirmedCount : 0,
+      // ⛔ NOT a statistic — a VALUE the page cannot otherwise obtain without
+      // the tape. `availableDates` drives the date-range picker, and the page
+      // derives it by parsing the raw CSV. Defer that download and the picker
+      // gates itself off (`availableDates.length > 0`) and DISAPPEARS — a
+      // control vanishing is exactly the "hide missing data" failure the
+      // deferral is not allowed to buy speed with.
+      //
+      // Emitted from the SAME function over the SAME unfiltered rows the page
+      // would have used, so it is identical by construction rather than by
+      // agreement — no second implementation to drift. It is deliberately the
+      // UNFILTERED calendar: `availableDates` follows the FETCHED window, not
+      // the current selection, which is why /api/flow/dates (every date in the
+      // DB) cannot stand in for it.
+      availableDates,
     },
   }
 }
@@ -138,7 +162,41 @@ export async function main(argv) {
     const dateFilter = flag ? flag.slice('--date-filter='.length) : null
     const csv = await readStdin()
     const { D, stats } = aggregateCsv(csv, { dateFilter })
-    const payload = cmd === 'stats' ? { ok: true, stats } : { ok: true, stats, D }
+    // --split changes only how the SAME result is partitioned for the wire. The
+    // default output stays byte-identical, so the existing endpoint and its
+    // fallback path are untouched by this flag existing.
+    let payload
+    if (cmd === 'stats') {
+      payload = { ok: true, stats }
+    } else if (argv.includes('--split-frames')) {
+      // ⛔ FRAMES, NOT JSON, AND THE REASON IS THE POD.
+      // The caller is a single uvicorn process that has OOM'd on this box before.
+      // Handing it {parts:{...}} would make it json.loads() a 20+ MB document and
+      // materialise a six-figure object graph — transiently, but once per data
+      // version, on the request path of whoever missed the cache. Length-prefixed
+      // frames let it slice each part out as opaque BYTES and gzip them without
+      // ever parsing the arrays. The partition itself is still partsFrom(), so
+      // this is a transport detail and not a second authority on what is deferred.
+      //
+      //   STATS <byteLen>\n<json>\n
+      //   PART <name> <byteLen>\n<json>\n   (repeated, one per part)
+      const parts = partsFrom(D)
+      const chunks = []
+      const frame = (header, body) => {
+        const b = Buffer.from(body, 'utf8')
+        chunks.push(Buffer.from(`${header} ${b.length}\n`, 'utf8'), b, Buffer.from('\n', 'utf8'))
+      }
+      frame('STATS', JSON.stringify(stats))
+      for (const name of Object.keys(parts)) frame(`PART ${name}`, JSON.stringify(parts[name]))
+      process.stdout.write(Buffer.concat(chunks))
+      return
+    } else if (argv.includes('--split')) {
+      // One part per deferred key, not one deferred blob — so a surface can be
+      // served exactly what it reads instead of most of the tape on first click.
+      payload = { ok: true, stats, parts: partsFrom(D) }
+    } else {
+      payload = { ok: true, stats, D }
+    }
     process.stdout.write(JSON.stringify(payload) + '\n')
   } catch (err) {
     process.stderr.write(String((err && err.message) || err) + '\n')

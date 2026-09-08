@@ -174,6 +174,7 @@ class ChartRequest:
     to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
     compare: tuple | None = None  # overlay symbols drawn as %-rebased lines (per call, never saved)
     expanded: bool = False       # controls opened out? (the gear; a display state, not a chart one)
+    darkpool: bool = False       # dark-pool zone overlay on the chart (per call; toggle on the card)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -316,6 +317,106 @@ MULTI_COMMAND = "charts"
 MULTI_MAX = 4
 
 BUZZ_COMMAND = "buzz"
+FLOW_COMMAND = "flow"
+
+
+def cmd_channel_id() -> str:
+    """The channel chart + flow requests are restricted to (owner: #chart-flow-
+    requests). CHART_FLOW_CHANNEL_ID wins; falls back to FLOW_CMD_CHANNEL_ID (the
+    /flow channel, already set). Blank = no restriction (dev/testing)."""
+    return (os.environ.get("CHART_FLOW_CHANNEL_ID")
+            or os.environ.get("FLOW_CMD_CHANNEL_ID") or "").strip()
+
+
+def cmd_channel_ok(interaction: dict) -> bool:
+    """True if a gated command (/chart, /c, /charts, /flow) may run in this channel.
+    Unset env = allowed anywhere."""
+    want = cmd_channel_id()
+    return (not want) or str(interaction.get("channel_id") or "") == want
+
+
+# Back-compat aliases — /flow's handler referenced these names first.
+flow_channel_id = cmd_channel_id
+flow_channel_ok = cmd_channel_ok
+
+
+def parse_flow_command(interaction: dict) -> tuple:
+    """(ticker, days) from /flow. ticker required (1-12 letters/digits); days a
+    positive integer (capped 400) or 'all' — default 'today' (1 session)."""
+    data = interaction.get("data") or {}
+    opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
+    ticker = str(opts.get("ticker") or "").strip().upper().lstrip("$")
+    if not _TICKER_RE.match(ticker):
+        raise CommandError("Give me a ticker, e.g. /flow DPRO.")
+    raw = str(opts.get("days") or "").strip().lower()
+    if raw in ("", "today", "1", "1d"):
+        return ticker, "1"
+    if raw in ("all", "max"):
+        return ticker, "all"
+    try:
+        d = int(float(raw))
+    except ValueError:
+        raise CommandError("days must be a whole number (e.g. 60) or 'all'.")
+    if d < 1:
+        raise CommandError("days must be at least 1, or 'all'.")
+    return ticker, str(min(d, 400))
+
+
+_FLOW_DAY_PRESETS = [
+    ("Today", "1"),
+    ("7 days", "7"),
+    ("30 days", "30"),
+    ("3 months", "63"),     # ~21 trading days/month
+    ("6 months", "126"),
+    ("All history", "all"),
+]
+
+
+def flow_days_choices(typed: str = "") -> list:
+    """Suggestions for /flow's `days` field: friendly presets, filtered by what the
+    user has typed. `days` still accepts a free number — autocomplete only suggests,
+    it does not restrict — so a typed value is offered back rather than an empty list."""
+    t = (typed or "").strip().lower()
+    out = [{"name": n, "value": v} for n, v in _FLOW_DAY_PRESETS
+           if not t or t in n.lower() or t in v]
+    if not out and t.isdigit():
+        out = [{"name": f"Last {int(t)} trading days", "value": str(int(t))}]
+    return out[:25]
+
+
+def focused_option(interaction: dict) -> tuple:
+    """(name, value) of the option the user is currently typing into, or (None, '')."""
+    for o in (interaction.get("data") or {}).get("options") or []:
+        if isinstance(o, dict) and o.get("focused"):
+            return (o.get("name"), str(o.get("value") or ""))
+    return (None, "")
+
+
+def build_flow_command() -> dict:
+    """/flow DPRO — options-flow read for a ticker: net bull/bear + top contracts.
+    Both fields autocomplete so a member is guided rather than guessing the format."""
+    return {
+        "name": FLOW_COMMAND, "type": 1,
+        "description": "Options flow for a ticker — net bull/bear + its top contracts",
+        "options": [
+            {"name": "ticker", "type": 3, "required": True, "autocomplete": True,
+             "description": "Start typing a ticker, e.g. DPRO — pick from the list"},
+            {"name": "days", "type": 3, "required": False, "autocomplete": True,
+             "description": "Window — blank = Today, or 7 days / 30 days / 3 months / 6 months / All"},
+        ],
+    }
+
+
+FLOW_CHART_PREFIX = "flowchart"
+
+
+def flow_components(ticker: str) -> list:
+    """One row under a /flow card: a button that opens the ticker's chart as an
+    EPHEMERAL popup (reuses the /chart house renderer). custom_id = flowchart|TICKER."""
+    t = (ticker or "").strip().upper()[:12]
+    return [{"type": 1, "components": [
+        {"type": 2, "style": 2, "label": "View chart", "emoji": {"name": "\U0001F4C8"},
+         "custom_id": f"{FLOW_CHART_PREFIX}|{t}"}]}]
 
 
 def _window_choices() -> dict[str, str]:
@@ -411,6 +512,7 @@ def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
         "to": req.to or "",
         "cmp": "+".join(req.compare) if req.compare else "",
         "exp": "1" if req.expanded else "0",
+        "dp": "1" if req.darkpool else "0",
     }
 
 
@@ -421,7 +523,8 @@ def _encode(st: dict, tag: str = "") -> str:
     # active timeframe button and a disabled "Later" both mean "this chart").
     # cmp = the compare overlay ("SPY+QQQ"), an 11th field since 8/25; ids
     # minted before it (one field shorter) still parse - see parse_component.
-    flags = (1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+    flags = ((1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+             | (4 if str(st.get("dp", "0")) == "1" else 0))   # bit 2 = dark-pool overlay
     return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], str(flags),
                      st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
 
@@ -458,7 +561,8 @@ def _request_from_state(parts: list) -> ChartRequest:
         parts = parts + [""]
     _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts[:11]
     ticker = ticker.strip().upper()
-    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1", "2", "3")
+    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES
+          and vol in ("0", "1", "2", "3", "4", "5", "6", "7")   # flags: vol|exp|darkpool bits
           and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
           and style in prefs_mod.STYLE_CHOICES and theme in prefs_mod.THEME_CHOICES
           and (to == "" or _DATE_RE.match(to)))
@@ -470,7 +574,7 @@ def _request_from_state(parts: list) -> ChartRequest:
         raise CommandError("Unknown button.")
     return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=bool(int(vol) & 1), zoom=zoom, indicators=ind,
                         style=style, theme=theme, to=to or None, compare=compare,
-                        expanded=bool(int(vol) & 2))
+                        expanded=bool(int(vol) & 2), darkpool=bool(int(vol) & 4))
 
 
 def component_kind(interaction: dict) -> str:
@@ -669,6 +773,10 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid("m", mas=ma_next)})
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
                  "custom_id": sid("v", vol=not st["vol"])})
+    _dp_on = str(st.get("dp", "0")) == "1"   # dark-pool overlay toggle (blurple when on)
+    row5.append({"type": 2, "style": (_STYLE_PRIMARY if _dp_on else _STYLE_SECONDARY),
+                 "emoji": {"name": "\U0001F30A"}, "label": "Dark Pools",
+                 "custom_id": sid("dp", dp=("0" if _dp_on else "1"))})
     if guild_id and str(guild_id) in activity_guilds():
         # The (parked) Activity: in an activity guild the last slot launches it instead.
         row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
@@ -682,7 +790,11 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     # toggle row is already full (an activity guild spends the fifth slot on
     # "Open in Discord") - dropping it silently would strand the member in the
     # expanded view with no way back to the one-row chart.
-    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u25b2"},
+    # \U0001F53C (\ud83d\udd3c) not \u25b2 (\u25b2): the bare geometric triangle is a text SYMBOL,
+    # not a unicode emoji, so Discord rejects it as COMPONENT_INVALID_EMOJI (code
+    # 50035) and refuses the WHOLE control tree \u2014 the member gets "controls
+    # unavailable" and every button vanishes. The up-triangle emoji is valid.
+    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\U0001F53C"},
                 "custom_id": sid("g", exp="0")}
     rows = [{"type": 1, "components": tfs}]
     if len(row5) < 5:
@@ -925,7 +1037,7 @@ def build_commands(activity: bool = False) -> list:
     # door. Its handler stays for a deploy cycle so a client holding the older
     # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(),
-            build_settings_command(), build_buzz_command()]
+            build_settings_command(), build_buzz_command(), build_flow_command()]
     if activity:
         cmds.append(build_launch_command())
     return [dict(c, **GUILD_ONLY) for c in cmds]
@@ -1611,9 +1723,10 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
     options = prefs_mod.render_options(prefs, req.tf)
     if req.to:
         options["to"] = req.to
+    options["darkpool"] = bool(req.darkpool)   # dark-pool overlay (per-request toggle)
     compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
     key = (f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}" + (f":{req.to}" if req.to else "")
-           + (":vs:" + "+".join(compare) if compare else ""))
+           + (":vs:" + "+".join(compare) if compare else "") + (":dp" if req.darkpool else ""))
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
     hotset.record(key, req, prefs, png_cache.ttl_for(req.tf))

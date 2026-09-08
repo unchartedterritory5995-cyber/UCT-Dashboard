@@ -82,7 +82,11 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
     only resolve over HTTP. Never raises - no choices is a valid answer."""
     try:
         from api.routers import ticker_search as ts
-        rows = (ts.ticker_search(q=q, limit=limit) or {}).get("results") or []
+        # `type` MUST be passed: ticker_search's signature is (q, limit, type) with a
+        # Query() default for `type`, which only resolves over HTTP. Called in-process
+        # without it, `type` stays a Query object → AttributeError inside the route →
+        # this whole function returned [] (no suggestions on /flow OR /chart).
+        rows = (ts.ticker_search(q=q, limit=limit, type="") or {}).get("results") or []
         out = []
         # Breadth reads as a chart (`/chart UCTA5`) and nothing ever told anyone
         # so — the autocomplete is where a member would find out.
@@ -158,6 +162,85 @@ def run_buzz_image_job(app_id: str, token: str, content: str, window: str, *, re
         edit(app_id, token, content=content)
 
 
+def _flow_fmt_m(v) -> str:
+    v = float(v or 0)
+    if v >= 1e9:
+        return f"${v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"${v / 1e6:.1f}M"
+    return f"${v / 1e3:.0f}K"
+
+
+def _flow_window_phrase(w: dict) -> str:
+    req = str((w or {}).get("days_requested") or "").lower()
+    if req == "all":
+        return "all history"
+    return f"last {req} trading days" if req and req != "1" else "today"
+
+
+def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -> tuple[bool, str]:
+    """POST a PNG to a Discord webhook (public, in the webhook's channel). No
+    username override → the message uses the webhook's own name + avatar. Returns
+    (ok, detail); never raises."""
+    try:
+        import httpx
+        payload = {"content": content[:1900], "allowed_mentions": {"parse": []}}
+        r = httpx.post(webhook, data={"payload_json": json.dumps(payload)},
+                       files={"files[0]": (filename, png, "image/png")}, timeout=20.0)
+        return (r.is_success, f"discord {r.status_code}")
+    except Exception as e:  # noqa: BLE001
+        return (False, f"post error: {e}")
+
+
+def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
+                      *, fetch_fn=None, render_fn=None, edit_fn=None) -> None:
+    """Background job for /flow. Fetch the ticker's flow summary from the FLOW-WORKER,
+    render the card, and post it PUBLICLY as the bot — the deferred interaction
+    @original is app-owned, so the 'View chart' button routes back to us. Never raises;
+    an empty or errored read resolves the reply with an honest note (no false zero)."""
+    from api.flow_ticker_card import render_ticker_flow_card
+    render = render_fn or render_ticker_flow_card
+    ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
+    data = None
+    try:
+        if fetch_fn is not None:
+            data = fetch_fn(ticker, days)
+        else:
+            base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
+            if base:
+                import httpx
+                r = httpx.get(f"{base}/api/live/massive/ticker-flow",
+                              params={"symbol": ticker, "days": days, "source": "stocks"},
+                              timeout=30.0)
+                data = r.json() if r.is_success else None
+            else:
+                from api import live_massive_router as lmr   # single-service fallback
+                data = lmr._compute_ticker_flow(ticker, days, "stocks", 15)
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[flow] fetch failed %s (%s): %s", ticker, days, e)
+        data = None
+
+    if not data or not data.get("ok"):
+        ack(app_id, token,
+            content=f"⚠️ The flow feed is reconnecting — couldn't read **{ticker}** right now. Try again in a moment.")
+        return
+    win = _flow_window_phrase(data.get("window") or {})
+    if not (data.get("contracts") or []):
+        ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
+        return
+    try:
+        png = render(data)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow] render failed %s: %s", ticker, e)
+        ack(app_id, token, content="Couldn't render the card — try again in a moment.")
+        return
+    # Post the card PUBLICLY as the bot — the deferred interaction @original is
+    # app-owned, so the 'View chart' button routes back to us. Image-only (the card
+    # already carries ticker/window/net).
+    ack(app_id, token, content="", png=png, filename=f"{ticker}_flow.png",
+        components=di.flow_components(ticker))
+
+
 def breadth_adjust(req, prefs: dict):
     """UCTA5 / UCTNH / … are the dashboard's breadth pseudo-tickers: a daily-basis
     series built from the breadth monitor (the bars authority collapses an
@@ -194,6 +277,13 @@ def _ephemeral(message: str) -> dict:
     return {"type": 4, "data": {"content": message, "flags": di.EPHEMERAL}}
 
 
+def _channel_nudge() -> dict:
+    """Private redirect when /chart or /flow is run outside the allowed channel."""
+    want = di.cmd_channel_id()
+    return _ephemeral(f"Please use <#{want}> for chart & flow requests." if want
+                      else "Not available in this channel.")
+
+
 @router.post("/api/discord/interactions")
 async def discord_interactions(request: Request, background: BackgroundTasks):
     key = _public_key()
@@ -226,6 +316,12 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             # Backed by what the room ACTUALLY said, so an empty query is still
             # useful: it offers the most-mentioned names.
             return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
+        if name == di.FLOW_COMMAND:
+            fname, fval = di.focused_option(interaction)
+            if fname == "days":                     # suggest day-window presets
+                return _autocomplete(di.flow_days_choices(fval))
+            q = (fval or "").strip().upper().lstrip("$")[:10]   # ticker field
+            return _autocomplete(fetch_ticker_choices(q) if q else [])
         if name not in di.CHART_COMMAND_NAMES:
             return _autocomplete([])
         q = di.parse_autocomplete(interaction)
@@ -235,6 +331,8 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         # channel's newest handoff itself; nothing to record here.
         return {"type": 12}
     if itype == 2 and name == di.MULTI_COMMAND:
+        if not di.cmd_channel_ok(interaction):     # /charts restricted to the channel
+            return _channel_nudge()
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         try:
@@ -310,7 +408,60 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
                 # whatever this response declared.
                 return {"type": 5, "data": {"flags": di.EPHEMERAL}}
         return {"type": 4, "data": {"content": text, "flags": di.EPHEMERAL}}
+    if itype == 2 and name == di.FLOW_COMMAND:
+        # /flow <ticker> <days> — a PUBLIC options-flow card, gated to one channel
+        # (owner decision). Refused elsewhere with a pointer to that channel.
+        if not di.cmd_channel_ok(interaction):
+            return _channel_nudge()
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)   # shares the /chart render budget (one valve)
+        if wait:
+            return _ephemeral(di.throttle_message(wait, noun="flow cards"))
+        try:
+            tkr, days = di.parse_flow_command(interaction)
+        except di.CommandError as e:
+            return _ephemeral(str(e))
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(run_flow_card_job, app_id, token, tkr, days)
+        # PUBLIC defer — the "thinking…" resolves into the card, posted as the bot so
+        # the 'View chart' button (app-owned message) routes back to us. The bot now
+        # has post + attach rights in the channel.
+        return {"type": 5}
+    if itype == 3 and str(((interaction.get("data") or {}).get("custom_id")) or "").startswith(di.FLOW_CHART_PREFIX + "|"):
+        # "View chart" button under a /flow card → open the ticker's chart as an
+        # EPHEMERAL popup (only the clicker sees it; Discord's Dismiss closes it).
+        # Reuses the /chart house renderer + its TF/control buttons, so the popup is
+        # the same interactive chart people already know.
+        cid = str((interaction.get("data") or {}).get("custom_id") or "")
+        ticker = cid.split("|", 1)[1].strip().upper()
+        if not di._TICKER_RE.match(ticker):
+            return _ephemeral("Couldn't read that ticker.")
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait))
+        prefs = _prefs_for(uid)
+        req = di.ChartRequest(ticker=ticker, tf=prefs.get("tf", "D"), darkpool=True)  # popup defaults dark-pools ON
+        req, prefs = breadth_adjust(req, prefs)
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(di.run_chart_job, app_id, token, req,
+                            bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                            house_fn=house.render_house_chart if house.house_enabled() else None,
+                            prefs=prefs, quote_fn=fetch_ext_quote,
+                            context_fn=chart_context.context_line if chart_context.enabled() else None,
+                            components_fn=functools.partial(di.chart_components, guild_id=str(interaction.get("guild_id") or "")))
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}   # ephemeral popup
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
+        # Gate the SLASH invocation to the channel (owner). NOT component clicks
+        # (itype 3) — buttons under an already-posted chart must keep working.
+        if itype == 2 and not di.cmd_channel_ok(interaction):
+            return _channel_nudge()
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")

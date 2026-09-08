@@ -160,7 +160,7 @@ function TickerHubBody({ sym, onClose }) {
             TickerPopup/TickerActions, toggled by the Compare action above. */}
         {showCompare && (
           <div className={styles.compareRow}>
-            <SymbolSearch sym={null} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
           </div>
         )}
 

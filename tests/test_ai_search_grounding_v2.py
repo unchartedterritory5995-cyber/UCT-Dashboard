@@ -35,7 +35,7 @@ def client(monkeypatch):
     monkeypatch.setattr(ai, "_UNI", {"NVDA", "AMD", "AVGO", "LLY", "XOM", "AAPL"})
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 100.0, "direction": "up", "abs_pct": 1.0})
-    for fn in ("_ctx_catalyst", "_ctx_tape", "_ctx_patterns", "_ctx_flow_ticker"):
+    for fn in ("_ctx_catalyst", "_ctx_tape", "_ctx_flow_ticker"):
         monkeypatch.setattr(ai, fn, lambda s: "")
     monkeypatch.setattr(ai, "_ctx_fundamentals", lambda s: f"[FUND:{s}]")
     monkeypatch.setattr(ai, "_ctx_analyst", lambda s: f"[ANALYST:{s}]")

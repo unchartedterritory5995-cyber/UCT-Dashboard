@@ -32,6 +32,7 @@ from api.services.journal_two import calculations as calc
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
+from api.services.journal_two.symbol_normalize import normalize_symbol
 from api.services.journal_two.timeutil import (
     ET,
     UTC,
@@ -423,7 +424,7 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         raise ManualTradeValidationError("fees must be a non-negative number")
 
     return {
-        "symbol": symbol.strip().upper(),
+        "symbol": normalize_symbol(symbol),
         "side": side,
         "shares": float(shares),
         "entryPrice": float(entry_price),

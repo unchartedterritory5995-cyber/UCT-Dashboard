@@ -13,7 +13,7 @@
  * against a component that can never make a sound proves nothing.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { mutate as swrMutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
@@ -202,5 +202,103 @@ describe('AlertBell -- S7 document-arrival deep-link (owner authorization, 2026-
 
     const readCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/read'))
     expect(readCalls.length).toBeGreaterThan(0)
+  })
+})
+
+describe('AlertBell -- Seam 5 keyboard accessibility (owner authorization, 2026-09-06)', () => {
+  it('exposes each notification row as a real interactive control', async () => {
+    feed = [alert('a_1', 'Regular alert')]
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    const item = (await screen.findByText('Regular alert')).closest('[role="button"]')
+
+    expect(item).toHaveAttribute('role', 'button')
+    expect(item).toHaveAttribute('tabIndex', '0')
+    expect(item).toHaveAttribute('aria-label', 'Regular alert. Regular alert body. Unread')
+  })
+
+  it('Enter on a focused row opens it, identically to a click', async () => {
+    feed = [{ ...alert('a_1', 'New 8-K — AAPL'), data: { sym: 'AAPL', research_url: '/research/AAPL' } }]
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthContext.Provider value={{ user: { id: 'u_a' }, loading: false }}>
+          <AlertBell />
+          <RouteSpy />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    const item = (await screen.findByText('New 8-K — AAPL')).closest('[class*="item"]')
+
+    await act(async () => {
+      fireEvent.keyDown(item, { key: 'Enter' })
+      await new Promise(r => setTimeout(r, 10))
+    })
+
+    const readCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/read'))
+    expect(readCalls.length).toBeGreaterThan(0)
+    expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/AAPL')
+  })
+
+  it('Space on a focused row opens it too, and does not also scroll the page', async () => {
+    feed = [alert('a_1', 'Regular alert')]
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    const item = (await screen.findByText('Regular alert')).closest('[class*="item"]')
+
+    let prevented = false
+    await act(async () => {
+      const evt = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+      item.dispatchEvent(evt)
+      prevented = evt.defaultPrevented
+      await new Promise(r => setTimeout(r, 10))
+    })
+
+    expect(prevented).toBe(true)
+    const readCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/read'))
+    expect(readCalls.length).toBeGreaterThan(0)
+  })
+
+  it('a key other than Enter/Space does nothing (no accidental activation)', async () => {
+    feed = [alert('a_1', 'Regular alert')]
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    const item = (await screen.findByText('Regular alert')).closest('[class*="item"]')
+
+    await act(async () => {
+      fireEvent.keyDown(item, { key: 'Tab' })
+      await new Promise(r => setTimeout(r, 10))
+    })
+
+    const readCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/read'))
+    expect(readCalls).toHaveLength(0)
+  })
+
+  it('the bell button and Mark all read remain plain buttons (already accessible, unchanged)', async () => {
+    feed = [alert('a_1', 'Regular alert')]
+    renderAs('u_a')
+    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+    expect(screen.getByLabelText('Notifications').tagName).toBe('BUTTON')
+
+    await act(async () => {
+      screen.getByLabelText('Notifications').click()
+    })
+    expect(screen.getByText('Mark all read').tagName).toBe('BUTTON')
   })
 })

@@ -51,6 +51,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { render, screen, within, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
@@ -259,7 +260,7 @@ describe('/charts — the criteria builder has a door', () => {
 
   it('DESKTOP: Indicators → New formula opens the builder', async () => {
     const user = userEvent.setup()
-    render(<ChartsWorkspace />)
+    render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     await openTheBuilderFromCharts(user)
 
     // 🔴 THE ASSERTION. `BuilderSheet`'s OWN mode row — the three doors onto one
@@ -275,7 +276,7 @@ describe('/charts — the criteria builder has a door', () => {
   it('PHONE (≤640px, the MobileChartsApp branch): the same door opens the same builder', async () => {
     phone = true
     const user = userEvent.setup()
-    render(<ChartsWorkspace />)
+    render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     // The phone branch really is the one under test: the mobile shell draws its
     // thumb-zone chart toolbar, the RGL grid does not exist.
     await screen.findByTestId('mobile-chart-toolbar')
@@ -287,7 +288,7 @@ describe('/charts — the criteria builder has a door', () => {
 
   it('the picker itself is reachable through that door — not merely the sheet', async () => {
     const user = userEvent.setup()
-    render(<ChartsWorkspace />)
+    render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     await openTheBuilderFromCharts(user)
     await screen.findByRole('tablist', { name: 'How to build this' }, { timeout: 8000 })
 
@@ -306,7 +307,7 @@ describe('/charts — the criteria builder has a door', () => {
 
   it('CONTROL — the legacy gear really is suppressed on /charts, so this door is the only one', async () => {
     const user = userEvent.setup()
-    render(<ChartsWorkspace />)
+    render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     await screen.findByTitle('Indicators — browse and add', {}, { timeout: 8000 })
 
     // ⭐ THE CONTROL THAT STOPS THIS FILE PASSING FOR THE WRONG REASON. If

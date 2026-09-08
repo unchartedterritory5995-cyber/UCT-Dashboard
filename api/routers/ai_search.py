@@ -805,16 +805,6 @@ def _ctx_tape(sym: str) -> str:
     return f"{sym} tape (UCT curated wires, last 8h): {lines}"
 
 
-def _ctx_patterns(sym: str) -> str:
-    """Active pattern-engine detections (entry/stop/target levels) — a local
-    patterns.db read via the same tool Compass uses."""
-    from api.services.voice_tool_impls import _find_patterns_on_ticker
-    res = _find_patterns_on_ticker(symbol=sym) or {}
-    if not (res.get("ok") and res.get("count")):
-        return ""
-    narr = (res.get("narration") or "").strip()
-    return f"{sym} active setups (UCT pattern engine): {narr[:400]}" if narr else ""
-
 
 # ── Options-flow grounding. flow.db lives on the FLOW-WORKER post-P5; the
 # per-ticker read is uncapped-but-tiny (indexed, tens of rows), fetched over
@@ -1178,6 +1168,32 @@ def _ctx_call_recap(sym: str) -> str:
     return f"{sym} earnings call{q} (UCT transcript-grounded recap): " + " | ".join(bits)
 
 
+def _posture_asof_label(row: dict) -> str:
+    """`snapshot_date`/`bars_asof` made human-legible for the model to see.
+
+    Seam 25 (2026-09-06): `_ctx_posture` labeled its whole block only "UCT
+    nightly snapshot" with no date, so a silently-failed nightly build job
+    was undetectable to the model and the member alike. The two dates are
+    surfaced DISTINCTLY on purpose — they answer different questions (when
+    did the build run vs. what day's closing bar these technicals are
+    computed from) and can diverge: `snapshot_builder.py`'s own header notes
+    ~21.7% of rows carry bars a session older than their snapshot_date.
+    `built_at` (the same moment as `snapshot_date`, just an epoch int) is
+    deliberately not rendered a second time — it would restate `snapshot_date`
+    in a less legible form, not add a new fact.
+    """
+    parts = []
+    sd = row.get("snapshot_date")
+    if sd:
+        parts.append(f"built {sd}")
+    ba = row.get("bars_asof")
+    if ba:
+        s = str(ba)
+        parts.append(f"bars asof {s[:4]}-{s[4:6]}-{s[6:]}" if len(s) == 8 and s.isdigit()
+                     else f"bars asof {s}")
+    return f", {', '.join(parts)}" if parts else ""
+
+
 def _ctx_posture(sym: str) -> str:
     """Technical posture off the nightly screener snapshot — one SQLite row.
     NULLs render as absent (rs_rank in particular is routinely NULL)."""
@@ -1222,7 +1238,8 @@ def _ctx_posture(sym: str) -> str:
         bits.append(f"short float {row['short_float_pct']:.1f}%")
     if row.get("theme"):
         bits.append(f"theme: {row['theme']}")
-    return f"{sym} technical posture (UCT nightly snapshot): " + ", ".join(bits) if bits else ""
+    label = f"UCT nightly snapshot{_posture_asof_label(row)}"
+    return f"{sym} technical posture ({label}): " + ", ".join(bits) if bits else ""
 
 
 def _ctx_verdict(sym: str) -> str:
@@ -1532,6 +1549,24 @@ _LEVELS_RE = re.compile(
     # dark-pool/gamma pack, because the gate only knew three fixed phrasings.
     r"\b(support|resistance|levels?|dark ?pool"
     r"|gamma\b|gex\b|call wall|put wall|zero[- ]gamma|max pain)\b", re.I)
+# AI Search Raw-Pattern Trust Adjudication V1 (2026-09-06): a member asking
+# about a chart SETUP/PATTERN gets an honest declared gap, never the raw
+# rule-engine feed. `_ctx_patterns` (removed) narrated pattern_engine's raw,
+# unconfirmed detections -- the SAME ~16%-Opus-confirmation-rate feed whose
+# universe-wide page was retired for exactly this trust reason -- into every
+# answer's "UCT DESK CONTEXT... authoritative" system-prompt block, with no
+# confirmation/freshness disclosure at all (fabricated-reading confidence %
+# + concrete entry/stop/target levels, presented as fact). Do NOT resurrect
+# it and do NOT point this at Pattern Vision confirmed verdicts either --
+# Pattern Vision is itself still under its own live acceptance trial (see
+# continuity checkpoint) and promoting it into a member-facing authority here
+# would be exactly the "quietly promote an unaccepted system" move the
+# adjudication authorization forbids. The real fix (a confirmed-only 9th
+# evidence domain in ticker_explain.py, Ask AI's SEPARATE and already-gated
+# grounding pipeline) is fully specified and waits on that same trial.
+_SETUP_RE = re.compile(
+    r"\b(setups?|chart pattern|technical pattern|vcp|cup and handle"
+    r"|flag pattern|breakout pattern|forming (?:a |an )?(?:base|flag|pattern))\b", re.I)
 
 # COT / futures positioning — a market-level ask resolved from the query's own
 # words (futures markets aren't in cap_universe, and 'COT' is stop-listed).
@@ -2038,11 +2073,6 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
             _add("tape", _ctx_tape(s))
         except Exception:
             pass
-    for s in syms[:2]:   # active setups — cheap local patterns.db read
-        try:
-            _add("patterns", _ctx_patterns(s))
-        except Exception:
-            pass
     if _FLOW_RE.search(query or ""):   # flow = HTTP hop to the flow-worker
         _flow_any = False
         for s in syms[:2]:
@@ -2139,6 +2169,14 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
     # question scored c0 g0 s0 on every single exam run.
     if _SHORT_INT_RE.search(query or "") and syms and _short_interest_missing(syms):
         meta["grounding_gaps"].append("short interest")
+    # AI Search Raw-Pattern Trust Adjudication V1: a member explicitly asking
+    # about a chart setup/pattern gets an honest declared gap, never the raw,
+    # unconfirmed pattern-engine feed (see _SETUP_RE's own comment above for
+    # the full why). "confirmed technical setup" is deliberately worded to
+    # name what's actually missing -- CONFIRMED data -- not to imply UCT has
+    # no pattern engine at all.
+    if _SETUP_RE.search(query or "") and syms:
+        meta["grounding_gaps"].append("confirmed technical setup")
     # Historical session — query-resolved like COT below, because the trigger is
     # a DATE in the question, which the per-ticker machinery has no notion of.
     # Answers the most-asked shape in the capture log ("what moved X on DATE?

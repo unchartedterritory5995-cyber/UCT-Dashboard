@@ -34,6 +34,7 @@ import InterventionBanner from './InterventionBanner'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
+import SecuritySymbolInput from './SecuritySymbolInput'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -483,15 +484,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           <div className={styles.grid2}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Symbol *</span>
-              <input
-                type="text"
+              <SecuritySymbolInput
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                className={styles.textInput}
+                onChange={setSymbol}
                 placeholder="e.g. NVDA"
                 autoFocus={!symbolLocked}
                 disabled={symbolLocked}
-                readOnly={symbolLocked}
               />
             </label>
             <label className={styles.field}>

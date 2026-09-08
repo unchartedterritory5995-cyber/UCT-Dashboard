@@ -407,6 +407,29 @@ def test_manual_add_trade_computes_yss_derived_values(db_conn):
     assert t["result"] == "Win"
 
 
+def test_manual_add_trade_normalizes_class_share_dot_to_hyphen(db_conn):
+    """Identity Normalization Hardening V1: manual Add Trade must canonicalize
+    a dot-spelled class share the same way SnapTrade broker sync already
+    does, so a manual entry and a broker-synced entry of the same security
+    can never diverge in spelling."""
+    from api.services.journal_two import trades as svc
+
+    payload = _valid_manual_payload(symbol="BRK.B")
+    t = svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
+    assert t["symbol"] == "BRK-B"
+
+
+def test_manual_add_trade_accepts_delisted_or_unknown_symbol_unchanged(db_conn):
+    """Regression guard: AddTrade must accept delisted/renamed historical
+    tickers and arbitrary strings unchanged (aside from case/whitespace) --
+    normalize_symbol is spelling-only, never an existence check."""
+    from api.services.journal_two import trades as svc
+
+    payload = _valid_manual_payload(symbol="notarealtickerxyz")
+    t = svc.create_trade_manual("u1", payload, SETTINGS_STD, conn=db_conn)
+    assert t["symbol"] == "NOTAREALTICKERXYZ"
+
+
 def test_manual_add_trade_positionId_uses_manual_sentinel(db_conn):
     """A1: positionId must start with 'manual-' for trades with no parent Position."""
     from api.services.journal_two import trades as svc

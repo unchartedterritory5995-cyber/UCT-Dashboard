@@ -1655,7 +1655,12 @@ def live_drill(metric_key: str) -> dict:
         if i is not None and prev is not None:
             p = float(prev[i])
             if p and not np.isnan(p):
-                item["pct"] = round((float(c) - p) / p * 100, 1)
+                # 2dp, matching the collector's stored lists (PCT_DP there).
+                # The drill table renders `.toFixed(2)`, so one decimal here
+                # would pad a fake trailing zero onto every live row — the
+                # defect the recorded lists carried until 2026-09-07. Live and
+                # recorded feed the SAME table and must not disagree on digits.
+                item["pct"] = round((float(c) - p) / p * 100, 2)
         v = vols.get(t)
         if i is not None and avg20 is not None and v:
             a = float(avg20[i])

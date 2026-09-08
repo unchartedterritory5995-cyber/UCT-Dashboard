@@ -242,3 +242,208 @@ def test_router_delisted_row_carries_null_entity_id(monkeypatch):
     row = next(r for r in resp["results"] if r["ticker"] == "BSC-OLD")
     assert row["entity_id"] is None
     assert row["delisted"] is True
+
+
+# ─── Seam 16 — dot/hyphen share-class identity ─────────────────────────────
+# Reproduces the exact real-world shape: Massive's own reference feed returns
+# the DOT spelling ('BRK.B'), cap_universe.json carries the HYPHEN spelling
+# ('BRK-B'), and Entity Master's alias table is seeded with the hyphen form
+# only (mirroring entity_master_seed.py's own already-fixed behavior).
+# `test_build_index_and_search_expose_entity_id` above never actually
+# exercised this — it fed 'BRK-B' to the Massive stub, which is not what the
+# real provider returns for a dual-class ticker.
+
+def test_share_class_alias_converts_dot_form():
+    assert tsi._share_class_alias("BRK.B") == "BRK-B"
+    assert tsi._share_class_alias("BF.A") == "BF-A"
+
+
+def test_share_class_alias_returns_none_for_a_plain_ticker():
+    assert tsi._share_class_alias("NVDA") is None
+    assert tsi._share_class_alias("SPY") is None
+
+
+def test_share_class_alias_distinguishes_different_share_classes():
+    """The A and B classes of the same root must never be conflated with
+    each other -- each is a genuinely distinct security."""
+    assert tsi._share_class_alias("BF.A") == "BF-A"
+    assert tsi._share_class_alias("BF.B") == "BF-B"
+    assert tsi._share_class_alias("BF.A") != tsi._share_class_alias("BF.B")
+
+
+def test_share_class_alias_does_not_misfire_on_an_unrelated_dotted_string():
+    """Dot/hyphen safety requirement: this must never become a blanket
+    'every dot == every hyphen' rule."""
+    assert tsi._share_class_alias("A.B.C") is None       # multiple dots
+    assert tsi._share_class_alias("TOOLONG.B") is None   # root > 5 chars
+    assert tsi._share_class_alias("BRK.TOO") is None     # suffix > 2 chars
+    assert tsi._share_class_alias("") is None
+
+
+def test_collect_rows_rekeys_a_dot_form_massive_ticker_to_hyphen(monkeypatch):
+    """The real provider shape: Massive returns 'BRK.B', never 'BRK-B'."""
+    _patch_massive_and_universe(
+        monkeypatch,
+        stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway Inc. Class B",
+                 "primary_exchange": "XNYS"}],
+    )
+    rows = tsi._collect_rows()
+    syms = {r["sym"] for r in rows}
+    assert "BRK-B" in syms
+    assert "BRK.B" not in syms  # never survives as a literal dot-keyed row
+
+
+def test_collect_rows_dot_and_hyphen_coalesce_into_one_row(monkeypatch):
+    """The exact reproduction of the recorded defect: Massive's dot-form row
+    and cap_universe's hyphen-form entry must coalesce onto ONE row, not two
+    -- the duplicate-alias-result bug Section XIII of the authorization
+    guards against."""
+    _patch_massive_and_universe(
+        monkeypatch,
+        stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway Inc. Class B"}],
+        universe=["BRK-B", "NVDA"],
+    )
+    rows = tsi._collect_rows()
+    brk_rows = [r for r in rows if r["sym"] in ("BRK-B", "BRK.B")]
+    assert len(brk_rows) == 1  # never two rows for one real instrument
+    assert brk_rows[0]["sym"] == "BRK-B"
+    assert brk_rows[0]["name"] == "Berkshire Hathaway Inc. Class B"  # rich data preserved
+
+
+def test_collect_rows_dot_form_row_resolves_the_real_seeded_entity_id(monkeypatch):
+    """The core fix proof: before this program, the dot-keyed row's entity_id
+    resolved to None (Entity Master's alias table only had the hyphen
+    spelling); after re-keying, `_em_api.resolve('BRK-B')` -- already a real,
+    previously-seeded alias -- succeeds for the SAME row."""
+    eid = _seed_one("BRK-B", "1996-05-09")
+    _patch_massive_and_universe(
+        monkeypatch,
+        stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"}],
+    )
+    rows = tsi._collect_rows()
+    row = next(r for r in rows if r["sym"] == "BRK-B")
+    assert row["entity_id"] == eid
+
+
+def test_search_dot_query_finds_the_canonical_hyphen_row(monkeypatch):
+    eid = _seed_one("BRK-B", "1996-05-09")
+    _patch_massive_and_universe(
+        monkeypatch, stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"}],
+    )
+    tsi.build_index()
+    results = tsi.search("BRK.B", limit=5)
+    assert len(results) == 1
+    hit = results[0]
+    assert hit["ticker"] == "BRK-B"  # canonical output, never the provider spelling
+    assert hit["entity_id"] == eid
+    assert hit["name"] == "Berkshire Hathaway"
+
+
+def test_search_lowercase_dot_query_also_finds_the_canonical_row(monkeypatch):
+    _patch_massive_and_universe(
+        monkeypatch, stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"}],
+    )
+    tsi.build_index()
+    results = tsi.search("brk.b", limit=5)
+    assert [r["ticker"] for r in results] == ["BRK-B"]
+
+
+def test_search_hyphen_query_is_unaffected_control(monkeypatch):
+    """Control: the ordinary, already-working hyphen query must behave
+    identically before and after this fix."""
+    _patch_massive_and_universe(
+        monkeypatch, stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"}],
+    )
+    tsi.build_index()
+    results = tsi.search("BRK-B", limit=5)
+    assert [r["ticker"] for r in results] == ["BRK-B"]
+
+
+def test_search_lowercase_hyphen_query_is_unaffected_control(monkeypatch):
+    _patch_massive_and_universe(
+        monkeypatch, stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"}],
+    )
+    tsi.build_index()
+    results = tsi.search("brk-b", limit=5)
+    assert [r["ticker"] for r in results] == ["BRK-B"]
+
+
+def test_search_ordinary_ticker_is_completely_unaffected(monkeypatch):
+    """An ordinary ticker with no dot in it must take exactly the pre-fix
+    code path -- `_share_class_alias` returns None and every new branch is
+    a no-op."""
+    _patch_massive_and_universe(monkeypatch, stocks=[{"ticker": "NVDA", "type": "CS", "name": "NVIDIA Corp"}])
+    tsi.build_index()
+    results = tsi.search("NVDA", limit=5)
+    assert [r["ticker"] for r in results] == ["NVDA"]
+
+
+def test_search_generic_prefix_query_returns_the_instrument_exactly_once(monkeypatch):
+    """A query that does NOT match the share-class dot shape (a bare prefix
+    like 'BRK') must still see the coalesced single row, not a duplicate --
+    this is the query shape that would have shown the bug most visibly
+    (both a blank cap_universe row and a well-named Massive row for one
+    real instrument)."""
+    _patch_massive_and_universe(
+        monkeypatch,
+        stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"},
+                {"ticker": "BRK.A", "type": "CS", "name": "Berkshire Hathaway Class A"}],
+        universe=["BRK-B", "BRK-A"],
+    )
+    tsi.build_index()
+    results = tsi.search("BRK", limit=10)
+    tickers = [r["ticker"] for r in results]
+    assert tickers.count("BRK-B") == 1
+    assert tickers.count("BRK-A") == 1
+    assert len(tickers) == 2  # exactly the two real instruments, no duplicates
+
+
+def test_search_invalid_ticker_still_returns_nothing(monkeypatch):
+    _patch_massive_and_universe(monkeypatch, stocks=[{"ticker": "NVDA", "type": "CS", "name": "NVIDIA Corp"}])
+    tsi.build_index()
+    assert tsi.search("ZZZZNOTREAL", limit=5) == []
+
+
+def test_search_different_share_classes_never_collapse_into_each_other(monkeypatch):
+    """BF-A and BF-B are genuinely distinct securities -- the alias logic
+    must never let a query for one match the other."""
+    _patch_massive_and_universe(
+        monkeypatch,
+        stocks=[{"ticker": "BF.A", "type": "CS", "name": "Brown-Forman Class A"},
+                {"ticker": "BF.B", "type": "CS", "name": "Brown-Forman Class B"}],
+    )
+    tsi.build_index()
+    results = tsi.search("BF.A", limit=10)
+    assert [r["ticker"] for r in results] == ["BF-A"]
+
+
+def test_fallback_symbol_scan_dot_query_finds_the_hyphen_ticker(monkeypatch):
+    """The narrow pre-index-build startup window (router-level fallback)
+    gets the same query-side fix, reusing the shared helper."""
+    from api.routers import ticker_search as router_mod
+
+    monkeypatch.setattr(router_mod, "_UNIVERSE", ["BRK-B", "NVDA"])
+    out = router_mod._fallback_symbol_scan("BRK.B", 5)
+    assert [r["ticker"] for r in out] == ["BRK-B"]
+
+
+def test_router_dot_query_routes_through_the_full_stack_to_canonical_result(monkeypatch):
+    """End-to-end through the actual router entry point -- what the frontend
+    (SymbolSearch/CommandPalette/SwitchTickerBox/MobileSymbolSheet all call
+    the SAME /api/ticker-search endpoint) actually receives for a member
+    who types the dot spelling."""
+    from api.routers import ticker_search as router_mod
+
+    eid = _seed_one("BRK-B", "1996-05-09")
+    _patch_massive_and_universe(
+        monkeypatch, stocks=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway"}],
+    )
+    tsi.build_index()
+    monkeypatch.setattr(router_mod, "_UNIVERSE", ["BRK-B"])
+
+    resp = router_mod.ticker_search(q="BRK.B", limit=20, type="")
+    assert len(resp["results"]) == 1
+    row = resp["results"][0]
+    assert row["ticker"] == "BRK-B"          # canonical downstream symbol
+    assert row["entity_id"] == eid           # real identity, not None
+    assert row["name"] == "Berkshire Hathaway"

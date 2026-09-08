@@ -38,14 +38,37 @@ def is_gate(name: str) -> bool:
     return any(m in name for m in _GATE_MARKERS) or name.endswith("_ON")
 
 
-def _env_name(node: ast.AST) -> str | None:
+def _os_aliases(tree: ast.AST) -> set[str]:
+    """Every local name this file's `import os [as X]` statements bind.
+
+    `os.getenv("X")` is matched by name (`f.value.id == "os"`), so a file that
+    imports the module under any other name — `import os as _os`, seen live in
+    api/services/journal_two/broker/fidelity_audit.py:227 gating
+    BROKER_BALANCE_HISTORY_ENABLED — was invisible to `_env_name` even though
+    the ledger test's own control (`test_an_undeclared_gate_is_actually_caught`)
+    only ever exercises the unaliased form. `os.environ.get`/`os.environ[...]`
+    are unaffected: those two forms already match on the ATTRIBUTE name
+    (`.environ`), not the base object, so they were never alias-blind.
+    """
+    names = {"os"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "os":
+                    names.add(alias.asname or alias.name)
+    return names
+
+
+def _env_name(node: ast.AST, os_names: set[str] | None = None) -> str | None:
     """The env var this expression reads, or None. Handles all three forms."""
+    if os_names is None:
+        os_names = {"os"}
     if isinstance(node, ast.Call):
         f = node.func
         ok = (
             isinstance(f, ast.Attribute)
             and (
-                (f.attr == "getenv" and isinstance(f.value, ast.Name) and f.value.id == "os")
+                (f.attr == "getenv" and isinstance(f.value, ast.Name) and f.value.id in os_names)
                 or (f.attr == "get" and isinstance(f.value, ast.Attribute)
                     and f.value.attr == "environ")
             )
@@ -78,11 +101,12 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
     found: dict[str, dict[str, Any]] = {}
 
     class V(ast.NodeVisitor):
-        def __init__(self, rel: str):
+        def __init__(self, rel: str, os_names: set[str]):
             self.rel = rel
+            self.os_names = os_names
 
         def _record(self, node):
-            name = _env_name(node)
+            name = _env_name(node, self.os_names)
             if not name:
                 return
             e = found.setdefault(name, {"default": None, "sites": set()})
@@ -105,7 +129,7 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
             # as off-by-default when it ships ON. Three broker gates were
             # mis-classified exactly this way before this branch existed.
             if isinstance(node.op, ast.Or) and len(node.values) == 2                     and isinstance(node.values[1], ast.Constant)                     and isinstance(node.values[1].value, str):
-                name = _env_name(node.values[0])
+                name = _env_name(node.values[0], self.os_names)
                 if name:
                     e = found.setdefault(name, {"default": None, "sites": set()})
                     e["default"] = node.values[1].value
@@ -128,7 +152,7 @@ def scan(roots: list[Path], base: Path | None = None) -> dict[str, dict[str, Any
                     rel = p.relative_to(base).as_posix()
                 except ValueError:
                     pass  # scanning outside the base (a test tree) — absolute is fine
-            V(rel).visit(tree)
+            V(rel, _os_aliases(tree)).visit(tree)
 
     return {k: {"default": v["default"], "sites": sorted(v["sites"])}
             for k, v in sorted(found.items())}

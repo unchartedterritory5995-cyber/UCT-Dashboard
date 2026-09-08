@@ -8,6 +8,8 @@
 // upgrade-in-place promise would break. Significance instead drives visual
 // WEIGHT — a big mover renders loud, a small one renders quiet, both stay put.
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
 import styles from './WireView.module.css'
 import { useWire } from './useWire'
 import { useWireCoverage } from './useWireCoverage'
@@ -83,6 +85,8 @@ function CoverageLine({ cov }) {
 }
 
 export default function WireView({ dateStr }) {
+  const navigate = useNavigate()
+  const ta = useTickerActions()
   const { data } = useWire(dateStr)
   const { data: cov } = useWireCoverage(dateStr)
   const rows = data?.rows ?? []
@@ -113,10 +117,27 @@ export default function WireView({ dateStr }) {
       <CoverageLine cov={cov} />
       {ordered.map(r => {
         const mv = r.move_pct
+        // Seam 20 (Calendar TickerActions Reuse V2, 2026-09-06): the Wire
+        // was a live, ticker-scoped, first-listed calendar view with zero
+        // click behavior on any row -- not even a chart popup. Same
+        // structurally-simple fix EventCard.jsx already got: the row
+        // itself becomes a real <button>, native-keyboard-safe by
+        // construction, navigating to the same canonical Research
+        // destination.
         return (
-          <div key={r.sym} className={`${styles.row} ${weightOf(r)}`}>
+          <button
+            key={r.sym}
+            type="button"
+            className={`${styles.row} ${styles.rowBtn} ${weightOf(r)}`}
+            onClick={() => navigate(`/research/${r.sym}`)}
+            title={`View ${r.sym} in Research`}
+          >
             <span className={styles.time}>{fmtTime(r.first_seen_at)}</span>
-            <span className={styles.sym} data-testid="wire-sym">{r.sym}</span>
+            {/* Seam 19: right-click/long-press scoped to the sym (not the
+                whole row) -- matches CalendarDayTable.jsx's identical
+                dense-row precedent. Tap still navigates via the button's
+                own onClick, unchanged. */}
+            <span className={styles.sym} data-testid="wire-sym" {...ta.longPressProps(r.sym)}>{r.sym}</span>
             <span className={mv != null && mv < 0 ? styles.down : styles.up}>
               {mv == null ? '—' : `${mv >= 0 ? '▲' : '▼'} ${Math.abs(mv).toFixed(1)}%`}
             </span>
@@ -132,9 +153,10 @@ export default function WireView({ dateStr }) {
                 {' · '}Rev {fmtNum(r.rev_act)} vs {fmtNum(r.rev_est)}
               </span>
             )}
-          </div>
+          </button>
         )
       })}
+      {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
 }
