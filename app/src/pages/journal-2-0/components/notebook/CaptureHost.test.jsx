@@ -78,11 +78,14 @@ describe('context supplies DEFAULTS, visibly (§3/§4)', () => {
     expect(screen.getByLabelText('Selected passage')).toHaveValue('A quoted line.')
   })
 
-  it('with no context it still opens, defaulting to Notebook', async () => {
+  it('with no context it ASKS where to save rather than guessing', async () => {
+    // ⛔ The measured defect was ["a destination"] with nothing to resolve it:
+    // a global command that could never complete. With no context the dialog
+    // now shows a picker -- one extra step, and only in the case that earns it.
     mount()
     fireEvent.keyDown(window, { key: 'Y', code: 'KeyY', ctrlKey: true, shiftKey: true })
     await screen.findByRole('dialog')
-    expect(screen.getByTestId('capture-destination')).toHaveTextContent('Notebook')
+    expect(screen.getByTestId('capture-destination-picker')).toBeInTheDocument()
   })
 })
 
@@ -90,12 +93,12 @@ describe('capture preserves the member context (§5/§20)', () => {
   it('saving does NOT navigate away', async () => {
     global.fetch.mockResolvedValue({
       ok: true, status: 200,
-      json: async () => ({ documentId: 'd1', noteId: 'n1', deduped: false }),
+      json: async () => ({ note: { id: 'n9', title: 'a thought' } }),
     })
     mount()
     openCapture({ destination: captureDestination({ noteId: 'n1', ticker: 'NVDA' }) })
     await screen.findByRole('dialog')
-    fireEvent.change(screen.getByLabelText('Source link'), { target: { value: 'https://x.com/a' } })
+    fireEvent.change(screen.getByLabelText('Quick thought'), { target: { value: 'a thought' } })
     fireEvent.click(screen.getByTestId('capture-save'))
     expect(await screen.findByRole('status')).toHaveTextContent('Saved to NVDA Research')
     // Still on the dialog, still on the same route — no churn.

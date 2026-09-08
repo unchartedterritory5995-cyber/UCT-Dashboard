@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import CaptureDialog from './CaptureDialog'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { captureDestination } from '../../lib/capture'
+import { useJ2Recents } from '../../hooks/useJ2Notes'
 
 /**
  * Mounts THE capture dialog once, app-wide, and owns the global shortcut.
@@ -26,6 +27,10 @@ export default function CaptureHost() {
   // Bumped per opening so the dialog REMOUNTS: every capture starts clean.
   const [seq, setSeq] = useState(0)
   const navigate = useNavigate()
+  // Recent notes are the destination picker's options when a door has no
+  // context. Fetched only while capture is open, and reusing the member's own
+  // canonical recents rather than a second destination store.
+  const { notes: recents } = useJ2Recents({ enabled: open })
 
   useEffect(() => {
     const onOpen = (e) => { setDetail(e.detail || {}); setSeq((n) => n + 1); setOpen(true) }
@@ -61,6 +66,7 @@ export default function CaptureHost() {
       destination={detail.destination || captureDestination({})}
       initial={detail.initial || {}}
       doorSource={detail.source || 'hotkey'}
+      recentDestinations={(recents || []).slice(0, 8)}
       onSaved={onSaved}
     />
   )

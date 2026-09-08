@@ -114,5 +114,12 @@ export async function submitCapture(intent, { fetchImpl = fetch } = {}) {
  *  capture from one the server resolved to an existing row. */
 export function captureConfirmation(result, destination) {
   const where = destination?.contextLabel || 'Notebook'
-  return result?.deduped ? `Already saved to ${where}` : `Saved to ${where}`
+  if (result?.deduped) return `Already saved to ${where}`
+  // ⛔ Say what was actually saved, from the SERVER's answer. An earlier version
+  // said "Saved passage" for every web capture, which lies to a member who saved
+  // only a link -- exactly the kind of small dishonesty this wave keeps
+  // designing out. captureType is the server's, never the client's guess.
+  if (result?.captureType === 'web_reference') return `Saved link to ${where}`
+  if (result?.captureType === 'web_passage') return `Saved passage to ${where}`
+  return `Saved to ${where}`
 }

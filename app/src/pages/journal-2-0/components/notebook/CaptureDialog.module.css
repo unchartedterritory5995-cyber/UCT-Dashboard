@@ -83,3 +83,28 @@
   .foot { position: sticky; bottom: 0; background: var(--color-surface, #14161a); padding-top: 10px; }
   .actions button { min-height: var(--tap-min, 44px); }
 }
+
+.destPicker {
+  flex: 1; min-height: var(--tap-min, 44px);
+  font-size: 16px; padding: 6px 8px; color: inherit;
+  background: var(--color-input-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border-radius: 6px;
+}
+.change {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.75; text-decoration: underline; font-size: 12px;
+  min-height: var(--tap-min, 44px); padding: 0 4px;
+}
+/* The switch between kinds is a visible, deliberate act -- never automatic. */
+.modeSwitch {
+  display: block; margin-top: 12px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.75; font-size: 12px; text-decoration: underline;
+}
+.offer {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; padding: 7px 10px; font-size: 12px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border-radius: 6px;
+}

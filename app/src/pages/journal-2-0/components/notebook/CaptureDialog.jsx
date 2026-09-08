@@ -4,6 +4,7 @@ import {
   buildCaptureIntent, captureBlockers, captureConfirmation, captureDestination,
   submitCapture, TIER_PASSAGE, TIER_REFERENCE,
 } from '../../lib/capture'
+import { looksLikeUrl, submitThought, thoughtBlockers } from '../../lib/thoughtCapture'
 import styles from './CaptureDialog.module.css'
 
 /**
@@ -25,18 +26,29 @@ import styles from './CaptureDialog.module.css'
  */
 export default function CaptureDialog({
   open, onClose, destination, initial = {}, onSaved, doorSource = 'unknown',
+  recentDestinations = [],
 }) {
   const titleId = useId()
   const passageId = useId()
   const annotationId = useId()
   const urlId = useId()
   const destId = useId()
+  const thoughtId = useId()
 
   // ⭐ State is INITIALIZED from the opening context, not synced to it by an
   // effect. CaptureHost gives this component a fresh `key` per opening, so a
   // new capture is a new mount — which removes the whole stale-state class
   // (a second capture inheriting the first one's half-typed passage) instead
   // of trying to reset it correctly on every prop change.
+  // ⛔ MODE IS A SEMANTIC CHOICE, NOT A STYLE. 'thought' writes member-authored
+  // content through the Notebook path; 'source' writes external material through
+  // the web-capture path. They are never silently swapped -- turning a member's
+  // own words into a source quotation (or the reverse) is the one thing the
+  // provenance line forbids. A door that supplies a URL opens in source mode;
+  // everything else opens on the highest-frequency action, a quick thought.
+  const [mode, setMode] = useState(initial.url || initial.passage ? 'source' : 'thought')
+  const [thought, setThought] = useState('')
+  const [pickedDest, setPickedDest] = useState(null)
   const [url, setUrl] = useState(initial.url || '')
   const [title, setTitle] = useState(initial.title || '')
   const [passage, setPassage] = useState(initial.passage || '')
@@ -86,20 +98,33 @@ export default function CaptureDialog({
 
   if (!open) return null
 
+  // The destination in force: the door's default unless the member picked one.
+  const dest = pickedDest || destination
+  const needsPicker = !dest?.noteId && !dest?.ticker
+
   const intent = buildCaptureIntent({
     tier: passage.trim() ? TIER_PASSAGE : TIER_REFERENCE,
-    url, title, passage, annotation, destination,
+    url, title, passage, annotation, destination: dest,
   })
-  const blockers = captureBlockers(intent)
+  const blockers = mode === 'thought'
+    ? thoughtBlockers({ text: thought, destination: dest?.noteId || dest?.ticker ? dest : null })
+    : captureBlockers(intent)
   const canSave = blockers.length === 0 && status !== 'saving'
 
   const save = async (override) => {
     setStatus('saving'); setMessage(''); setRefusal(null)
     try {
-      const res = await submitCapture(override ? { ...intent, ...override } : intent)
+      const res = mode === 'thought'
+        ? await submitThought({ text: thought, destination: dest })
+        : await submitCapture(override ? { ...intent, ...override } : intent)
       setResult(res)
       setStatus('saved')
-      setMessage(captureConfirmation(res, destination))
+      // Language differs by KIND so the confirmation never hides what happened.
+      // Kind-specific language, so a confirmation never hides what happened --
+      // and the web wording comes from the server's own captureType.
+      setMessage(mode === 'thought'
+        ? `Saved to ${dest?.contextLabel || 'Notebook'}`
+        : captureConfirmation(res, dest))
       onSaved?.(res)
     } catch (e) {
       // ⛔ NOTHING is cleared here. The member's passage, note, URL and
@@ -111,6 +136,16 @@ export default function CaptureDialog({
   }
 
   const saveLinkOnly = () => save({ tier: TIER_REFERENCE, passage: '' })
+
+  // ⛔ An EXPLICIT transition, never an automatic one (ruling §10). Pasting a
+  // link into the thought box offers the switch; it does not perform it, and
+  // the member's typed words are carried across as their own note rather than
+  // becoming a source quotation.
+  const switchToSource = () => {
+    if (looksLikeUrl(thought)) { setUrl(thought.trim()); setThought('') }
+    setMode('source')
+  }
+  const switchToThought = () => setMode('thought')
 
   return (
     <div className={styles.backdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}>
@@ -126,11 +161,59 @@ export default function CaptureDialog({
             wrong place is still a bad capture. */}
         <div className={styles.destRow}>
           <span className={styles.destLabel} id={destId}>Save to</span>
-          <span className={styles.destValue} aria-labelledby={destId} data-testid="capture-destination">
-            {destination?.contextLabel || 'Notebook'}
-          </span>
+          {needsPicker ? (
+            /* ⛔ A globally available capture command must actually work
+               globally. With no context there is genuinely nowhere obvious to
+               put it, so we ASK -- one extra step, and only in the case that
+               earns it. This reuses the member's own recent notes rather than
+               inventing a second destination store. */
+            <select className={styles.destPicker} data-testid="capture-destination-picker"
+                    aria-labelledby={destId}
+                    value={pickedDest?.noteId || ''}
+                    onChange={(e) => {
+                      const n = recentDestinations.find((r) => r.id === e.target.value)
+                      setPickedDest(n ? captureDestination({ noteId: n.id, noteTitle: n.title }) : null)
+                    }}>
+              <option value="">Choose a note…</option>
+              {recentDestinations.map((n) => (
+                <option key={n.id} value={n.id}>{n.title?.trim() || 'Untitled'}</option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <span className={styles.destValue} aria-labelledby={destId} data-testid="capture-destination">
+                {dest?.contextLabel || 'Notebook'}
+              </span>
+              {recentDestinations.length > 0 && (
+                <button type="button" className={styles.change}
+                        onClick={() => setPickedDest(captureDestination({}))}>Change</button>
+              )}
+            </>
+          )}
         </div>
 
+        {mode === 'thought' ? (
+          <>
+            <label className={styles.label} htmlFor={thoughtId}>Quick thought</label>
+            <textarea id={thoughtId} ref={firstFieldRef} className={styles.textarea} rows={5}
+                      value={thought} onChange={(e) => setThought(e.target.value)}
+                      placeholder="What are you thinking?" />
+            <p className={styles.hint}>Your own words — saved as a note.</p>
+            {looksLikeUrl(thought) && (
+              /* Offered, never done for them. */
+              <div className={styles.offer} role="status">
+                <span>That looks like a link.</span>
+                <button type="button" className={styles.link} onClick={switchToSource}>
+                  Save it as a source instead
+                </button>
+              </div>
+            )}
+            <button type="button" className={styles.modeSwitch} onClick={switchToSource}>
+              Saving something from the web? Capture a source
+            </button>
+          </>
+        ) : (
+        <>
         <label className={styles.label} htmlFor={urlId}>Source link</label>
         <input id={urlId} ref={firstFieldRef} className={styles.input} type="url"
                value={url} onChange={(e) => setUrl(e.target.value)}
@@ -155,6 +238,11 @@ export default function CaptureDialog({
                   value={annotation} onChange={(e) => setAnnotation(e.target.value)}
                   placeholder="What you make of it" />
         <p className={styles.hint}>Your own thinking — kept separate from the source.</p>
+        <button type="button" className={styles.modeSwitch} onClick={switchToThought}>
+          Just a thought? Write a note instead
+        </button>
+        </>
+        )}
 
         {refusal && (
           <div className={styles.refusal} role="alert">

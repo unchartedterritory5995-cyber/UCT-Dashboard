@@ -84,6 +84,37 @@ function endpointLiterals(file) {
 
 const FILES = sourceFiles(APP_SRC)
 
+// ⭐ ONE parse pass for every endpoint question. The first version re-walked all
+// ~600 files per test; each pass was fine alone and the suite timed out under
+// parallel load -- a rail that only fails when the machine is busy is worse than
+// no rail, because it teaches people to re-run until green.
+const ENDPOINTS = ['/api/j2/capture', '/api/j2/inbox', '/api/j2/notes']
+const INDEX = (() => {
+  const byEndpoint = new Map(ENDPOINTS.map((e) => [e, []]))
+  for (const file of FILES) {
+    const code = fs.readFileSync(file, 'utf8')
+    if (!ENDPOINTS.some((e) => code.includes(e))) continue   // cheap pre-filter
+    let ast
+    try {
+      ast = Parser.parse(code, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
+    } catch { continue }
+    walk(ast, (n) => {
+      const value = n.type === 'Literal' && typeof n.value === 'string'
+        ? n.value
+        : n.type === 'TemplateLiteral'
+          ? n.quasis.map((q) => q.value.cooked || '').join('')
+          : null
+      if (!value) return
+      for (const e of ENDPOINTS) {
+        if (value.includes(e)) byEndpoint.get(e).push({ file, line: n.loc.start.line })
+      }
+    })
+  }
+  return byEndpoint
+})()
+
+const callersOf = (endpoint) => [...new Set(INDEX.get(endpoint).map((h) => h.file))]
+
 describe('one capture path — no door may talk to the endpoint directly', () => {
   it('scans a real, non-trivial slice of the app', () => {
     expect(FILES.length).toBeGreaterThan(500)
@@ -202,8 +233,7 @@ describe('each capture KIND keeps its own write path', () => {
   const rel = (f) => path.relative(APP_SRC, f).split(path.sep).join('/')
 
   it('the WEB path is named only by capture.js', () => {
-    const owners = FILES.filter((f) => literalsMatching(f, '/api/j2/capture').length).map(rel)
-    expect(owners).toEqual(['pages/journal-2-0/lib/capture.js'])
+    expect(callersOf('/api/j2/capture').map(rel)).toEqual(['pages/journal-2-0/lib/capture.js'])
   })
 
   it('the INTERNAL path has exactly the callers we know about', () => {
@@ -224,8 +254,7 @@ describe('each capture KIND keeps its own write path', () => {
     // like-for-like swap (that module also has append-to-recent-note behaviour),
     // so changing it is a product decision, not a rider. Pinned here so a THIRD
     // caller fails loudly and the debt stays visible.
-    const owners = FILES.filter((f) => literalsMatching(f, INTERNAL_ENDPOINT).length).map(rel).sort()
-    expect(owners).toEqual([
+    expect(callersOf(INTERNAL_ENDPOINT).map(rel).sort()).toEqual([
       'pages/charts/widgets/ChartWidget.jsx',
       'pages/journal-2-0/components/notebook/NoteEditorPage.jsx',
       'pages/journal-2-0/lib/captureTargets.js',
