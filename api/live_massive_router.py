@@ -4551,17 +4551,23 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
     # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
     slim = []
     for c in top:
-        _loi, _now = _enrich(c)                                   # live chain: price (for PERF) + OI
-        _series = _oi_series(c)                                   # daily OI history (snapshot store)
+        _loi, _now = _enrich(c)                                   # live chain: fresh OCC OI + price
+        _hist = _oi_series(c) or []                               # daily snapshot history
         _entry = c.get("avg_fill")
-        # LATEST OI = the snapshot store's latest point FIRST: it's OCC-sourced (T+1,
-        # matches broker/ThinkorSwim), it's ALWAYS the sparkline's endpoint (so the
-        # number and the trend line can't disagree), and it never depends on a live
-        # chain fetch that can time out (that failure showed a stale flow-time max_oi
-        # — ORCL 175C read 6,116 vs the real 9,959). Then live chain, then flow-time.
-        _snap_latest = _series[-1] if _series else None
-        _oi_val = (_snap_latest if _snap_latest is not None
-                   else (_loi if _loi is not None else c.get("max_oi")))
+        # LATEST OI: FRESHEST first. The live chain reflects the current OCC print;
+        # the once-daily snapshot store lags until its 9:30 ET capture and can miss a
+        # build entirely (IREN 65C read 558 from the snapshot vs the real 13,816 live).
+        # Fall back to the snapshot's latest (still OCC-sourced — this is what kept the
+        # ORCL 175C fix from falling to a stale flow-time max_oi), then max_oi last.
+        _oi_val = (_loi if _loi is not None
+                   else (_hist[-1] if _hist else c.get("max_oi")))
+        # Sparkline = snapshot history + the live 'now' point appended, so the line's
+        # endpoint always equals the LATEST OI shown and a just-built OI the snapshot
+        # hasn't captured yet still appears as the final uptick.
+        _series = list(_hist)
+        if _loi is not None and (not _series or _series[-1] != _loi):
+            _series.append(_loi)
+        _series = _series or None
         _vol_val = _eff_vol(c)                                    # cumulative flow volume
         slim.append({
             "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
