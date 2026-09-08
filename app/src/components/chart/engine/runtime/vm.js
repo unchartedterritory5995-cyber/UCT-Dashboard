@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
 import { Budget } from './limits.js'
 
@@ -167,6 +167,32 @@ export function execute(program, ctx, limits) {
   // `rolling` calls — so there is no second SMA to keep in step.
   const winPlan = program.windows || []
   const winBuf = winPlan.map((w) => new Float64Array(w.span))
+  // ⭐⭐⭐ 2F-2C — THE CARRIED-STATE STORE. One flat Float64Array for every
+  // instance in the program, laid out as `cells` scalars per instance at a
+  // static offset. Allocated ONCE per execution, so a 5,000-symbol scan pays for
+  // it 5,000 times and never per bar.
+  //
+  // ⛔ A CARRIED INSTANCE IS NOT A `var`. It uses the same KIND of storage as
+  // 2E's persistent block and is a SEPARATE region on purpose: a member's `var x`
+  // and a builtin's private recurrence have different lifetimes to reason about,
+  // and sharing one array would make a slot-allocation bug in either look like a
+  // bug in the other.
+  const carPlan = program.carried || []
+  const carSpec = carPlan.map((c) => {
+    const spec = CARRIED[c.fn]
+    if (!spec) throw new VmError(`no carried-state implementation for \`${c.fn}\``)
+    return spec
+  })
+  const carAlpha = carPlan.map((c, i) => carSpec[i].alpha(c.n))
+  const carOffset = new Int32Array(carPlan.length)
+  let carCells = 0
+  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carSpec[i].cells }
+  const carState = new Float64Array(carCells)
+  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i])
+  if (carPlan.length) {
+    budget.peak('CARRIED_INSTANCES', carPlan.length)
+    budget.peak('CARRIED_CELLS', carCells)
+  }
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
@@ -199,6 +225,7 @@ export function execute(program, ctx, limits) {
   const frLocalsTop = new Int32Array(depthLimit + 1)
   const frPersistBase = new Int32Array(depthLimit + 1)
   const frHistoryBase = new Int32Array(depthLimit + 1)
+  const frCarriedBase = new Int32Array(depthLimit + 1)
   const frFn = new Int32Array(depthLimit + 1)
 
   for (let bar = 0; bar < ctx.bars; bar += 1) {
@@ -214,6 +241,7 @@ export function execute(program, ctx, limits) {
     let localsTop = program.locals
     let persistBase = 0
     let historyBase = 0
+    let carriedBase = 0
     for (;;) {
       const base = pc * 3
       const op = code[base]
@@ -324,6 +352,8 @@ export function execute(program, ctx, limits) {
           frFn[depth - 1] = a
           frHistoryBase[depth - 1] = historyBase
           historyBase = site.historyBase
+          frCarriedBase[depth - 1] = carriedBase
+          carriedBase = site.carriedBase
           pc = fn.entry
           break
         }
@@ -372,7 +402,25 @@ export function execute(program, ctx, limits) {
           stack[sp++] = winReduce[a](buf, 0, span - 1)
           break
         }
-        case OP.RET: {
+        case OP.CARRIED: {
+          // ⭐⭐ THE INSTANCE IS FRAME-RELATIVE. `a` addresses the compiled body;
+          // `carriedBase` says WHOSE state that body is stepping on this
+          // invocation. Two call sites of one function therefore keep two
+          // recurrences through one instruction — vendor-confirmed: `f(close)`
+          // and `f(close*2)` satisfy b == 2*a EXACTLY on every captured bar,
+          // which shared state cannot produce.
+          const ci = carriedBase + a
+          const v = stack[--sp]
+          // ⛔ STEPPING HAPPENS HERE, IN THE CALL. Not at end of bar. A skipped
+          // call site never reaches this instruction and therefore never advances
+          // — which is the measured TradingView rule, and the opposite of what
+          // the history commit phase does for a skipped site (it re-commits a
+          // HELD value). Two lifetimes, two rules, one wave apart.
+          budget.charge('CARRIED_STEPS', 1)
+          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
+          break
+        }
+                case OP.RET: {
           const value = stack[--sp]
           // ⭐⭐ P7.2 — THE HAND-OFF. The frame is about to disappear, so
           // whatever this invocation produced for its history-bearing locals is
@@ -394,6 +442,7 @@ export function execute(program, ctx, limits) {
           localsTop = frLocalsTop[depth]
           persistBase = frPersistBase[depth]
           historyBase = frHistoryBase[depth]
+          carriedBase = frCarriedBase[depth]
           stack[sp++] = value
           break
         }

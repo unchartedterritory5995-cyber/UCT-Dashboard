@@ -198,15 +198,26 @@ describe('⭐⭐ graph-vs-runtime differential for pointwise (§29)', () => {
 })
 
 describe('⛔ what 2F-1 does NOT do — the split stays honest', () => {
-  it('a RECURRENT builtin over state is still refused, never approximated (§31)', () => {
+  it('a NON-MEMBER stateful builtin is still refused, never approximated (§31)', () => {
     // ⚰️ `ta.sma(x, 5)` STOOD HERE AND 2F-2B EXECUTES IT. This case was written
     // when "windowed" was one wall; it is now two, and only the recurrent half
     // is still standing. `ema`/`rma` carry the previous OUTPUT, which no finite
     // window can reach — keeping the `sma` line would have been a green test
     // asserting a capability had NOT shipped on the day it did.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`).guard)
+    // ⚰️ AND AGAIN, ONE WAVE LATER. This case named `ta.ema`/`ta.rma` after
+    // 2F-2B moved it off `ta.sma`; 2F-2C now EXECUTES those too. What is still
+    // refused is no longer 'recurrence' as a family — it is TWO narrower things,
+    // and naming both is the point:
+    //   · `ta.hma`  — a WINDOW COMPOSITE: reducible to `FINITE_WINDOW` members
+    //     by composition, which the runtime cannot yet assemble.
+    //   · `ta.rsi`  — CARRIED IN SHAPE but NOT a `CARRIED` member: it binds a
+    //     shipped implementation (`computeRSI`) rather than a step function, so
+    //     admitting it would need that implementation factored first.
+    // A test that keeps asserting the wall a wave just removed is the failure
+    // this annotation exists to make visible, twice over.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rma(x, 5))\n`).guard)
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
   })
 

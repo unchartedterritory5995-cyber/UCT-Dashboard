@@ -88,7 +88,9 @@ told them apart.
 | builtin calls (closed table, 70) | ✅ | ✅ | ✅ | ✅ | ✅ | via `READ_COLUMN` — evaluated once by the columnar lane |
 | a **POINTWISE** builtin fed by state | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-1** — `EXPR.BUILTIN` → `OP.POINTWISE`, applied per bar. **14 → 0** across all five corpora |
 | a **FINITE-WINDOW** builtin fed by state | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-2B** — `OP.WINDOW` reads `span` cells from the committed ring and calls `interpret.js`'s OWN reducer. 12 members. First blocker **11 → 8**, and every one of the 8 survivors is blocked on `ta.ema` |
-| a **RECURRENT** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — `ema`/`rma` carry their previous OUTPUT, which no window of inputs can supply. **This is now the whole of that guard's population** — **2F-2C** |
+| a **CARRIED-STATE** builtin fed by state | ✅ | ✅ | ✅ | 🟡 | ⬜ | **2F-2C** — `OP.CARRIED` steps `interpret.js::CARRIED`'s OWN transition, per call site, inside the call. **2 of 16 members ship** (`ema`, `rma`); `call-windowed-state` 8 → 1. 🟡 because the `na` rule is vendor-confirmed AGAINST us and deliberately unchanged |
+| a **SHIPPED-IMPL** stateful builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `rsi`/`atr`/`adx`/`macd` bind `computeRSI`/`computeATR`/... rather than a step function — carried in SHAPE, not yet factored into `{init, step}` |
+| an **EVENT-HISTORY** builtin fed by state | ⬜ | ⬜ | ⬜ | ✅ | ⬜ | ⛔ blocked at the PINE DOOR, not the runtime: `pine.js` refuses `ta.barssince`/`ta.valuewhen` because Pine's are unbounded / occurrence-indexed and the closed table's are bounded / period-indexed. **A TABLE dependency** — vendor semantics captured 2026-09-08 |
 | an **UNDECLARED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-undeclared-builtin-state` — 2 scripts. Blocked on the BUILTIN existing in the closed table, not on the runtime |
 | a **TEXT** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-text-state` — 1 script. A value-model change; deferred by name (§22) |
 | a **CONVERSION** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-conversion-state` — 1 script. `int`/`float`/`bool`; `pine.js` rules on each separately |
@@ -629,3 +631,38 @@ carrying two scalars with a declared reset on `na` — structurally identical to
 execution; a runtime that took it literally would build ring machinery for a
 problem that needs one cell. Their `int` argument is a bounded-fetch honesty
 limit, not a scan depth. Full measurement: gap register **PART U**.
+
+## 2F-2C — CARRIED STATE OVER RUNTIME SERIES (2026-09-08)
+
+| row | state | evidence |
+|---|---|---|
+| CARRIED-STATE RUNTIME FOUNDATION | ✅ | shared `{cells, init, step}`; 14/14 mutations killed behind a clean-file control |
+| EMA OVER RUNTIME SERIES | ✅ | graph-vs-runtime, index for index, warm-up included |
+| RMA OVER RUNTIME SERIES | ✅ | same |
+| OTHER CARRIED MEMBERS | ⬜ | 14 of 16 pending in three groups, three different first dependencies |
+| RECURRENT TOP LEVEL | ✅ | incl. a source that is not a copy of any column |
+| RECURRENT UDF PARAMETER | ✅ | |
+| RECURRENT UDF LOCAL | ✅ | |
+| RECURRENT UDF PERSISTENT STATE | ✅ | 2E × P7.2 × 2F-2C in one expression |
+| RECURRENT DISTINCT CALL SITES | ✅ | **vendor-pinned**: `b == 2*a` exactly; mutation-proven |
+| RECURRENT NESTED UDF | ✅ | caller and callee instances disjoint |
+| RECURRENT SKIPPED UDF | ✅ | **VENDOR-PINNED**: does NOT step. Opposite of P7.2's history rule |
+| RECURRENT OVER AN EXPRESSION | ✅ | needs no committed series — the asymmetry with 2F-2B is deliberate |
+| RECURRENT INITIALIZATION | 🟡 | matches the columnar lane; the SEED itself is still prose-derived (V10.5) |
+| RECURRENT NA | ❌ | **VENDOR-CONFIRMED AGAINST US.** They HOLD, we RESET. Unchanged on purpose — owner ruling (V10.2) |
+| RECURRENT REALTIME | ⬜ | **explicitly unverified** — no rollback path exercised (V10.7) |
+| EVENT-HISTORY FOUNDATION | ⬜ | blocked on a CLOSED TABLE signature change, not on runtime state |
+| BARSSINCE / VALUEWHEN | ⬜ | vendor semantics CAPTURED; Pine door refuses the spellings |
+| TA.CHANGE | ⬜ | still open — `offsetOne` shape, reach 17 scripts, needs its full overload semantics first |
+| CUMULATIVE STATE | ⬜ | `accum`/`cumFrom`/`vwap`/`avwap`/`obvN`/`pvtN` — carried shape, unfactored |
+| RESOURCE ACCOUNTING | ✅ | `CARRIED_INSTANCES`/`CARRIED_CELLS`/`CARRIED_STEPS`, per execution |
+| GRAPH-vs-RUNTIME DIFFERENTIAL | ✅ | every member, every index, warm-up included |
+| PERSISTENCE | ⬜ | `carried[]`/`carriedBase`/`carriedCount` are new artifact shape; version contract still owed |
+| PROD INTEGRATED | ⬜ | the runtime lane remains deliberately unwired |
+
+⭐⭐ **FLAT IN LENGTH.** 100× the length costs 0.96× the time and the state stays
+at THREE cells — the opposite of a finite window, where cells scale with span.
+The cost driver is `sites × bars`, as it was in 2F-2B.
+
+⛔ **THE TRANSITION WAS AGAIN ZERO NEW EXECUTING SCRIPTS** (27 → 27) while
+`call-windowed-state` fell 8 → 1. Full detail: gap register **PART V**.

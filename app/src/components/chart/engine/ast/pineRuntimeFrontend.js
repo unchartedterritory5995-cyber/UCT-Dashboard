@@ -34,11 +34,11 @@ import {
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE,
 } from './pine.js'
 import { TABLE, isPointwise } from './parse.js'
-import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import {
   makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
-  windowCall,
+  windowCall, carriedCall, carriedCall,
 } from '../runtime/ir.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
@@ -217,6 +217,45 @@ class Scope {
  *  not a guard (`lesson_gate_that_cannot_fail`), so the rail passes a synthetic
  *  rewrite shape onto a pointwise target and watches this refuse it. */
 
+/** ⭐⭐ THE CARRIED-STATE CLASSIFIER (2F-2C) — `windowTarget`'s counterpart.
+ *
+ *  Same five-authority discipline, with `CARRIED` standing where
+ *  `FINITE_WINDOW` stands. Membership is `interpret.js`'s and never this
+ *  file's: a member is here because its shipped column walk IS a forward pass
+ *  over a fixed number of scalars.
+ *
+ *  ⛔ A NAMESPACED REWRITE IS ASKED FIRST AND REFUSES. No member of `CARRIED`
+ *  is rewritten by `PINE_NAMESPACED_TREE` today, but reaching the bare table
+ *  entry through a namespace strip is exactly how 2F-2B lost `ta.highestbars`'
+ *  sign — so the same door is checked here rather than assumed empty.
+ */
+export const carriedTarget = (pineName, tree = PINE_NAMESPACED_TREE, table = CARRIED) => {
+  const name = String(pineName || '')
+  // ⚠️ UNFALSIFIABLE AGAINST THE SHIPPED TABLES, AND EXERCISABLE ANYWAY.
+  // No `CARRIED` member is rewritten by `PINE_NAMESPACED_TREE` today, so
+  // deleting this line changes no answer and a mutation run would report it
+  // surviving. It is kept because `ta.highestbars` proved what a dropped
+  // namespaced transform costs (right magnitude, wrong sign), and it is made
+  // REACHABLE rather than merely argued for: the rail passes a synthetic
+  // tree/table pair the shipped ones cannot spell.
+  if (tree[name]) return null
+  let bare = name
+  const dot = name.indexOf('.')
+  if (dot >= 0) {
+    if (!VALUE_NAMESPACES.has(name.slice(0, dot))) return null
+    bare = name.slice(dot + 1)
+  }
+  const shape = PINE_CALL_SHAPES[bare]
+  if (shape) {
+    const identity = Array.isArray(shape.build)
+      && shape.build.every((b, i) => b && b.pine === i && Object.keys(b).length === 1)
+    if (!identity) return null
+  }
+  const tbl = shape && shape.table ? shape.table : bare
+  if (!TABLE.functions[tbl]) return null
+  if (!table[tbl]) return null
+  return { table: tbl }
+}
 /** What `pine.js` turns a NAMESPACED Pine spelling into, when this runtime can
  *  serve the result.
  *
@@ -356,6 +395,8 @@ export function buildRuntimeIr(source, opts = {}) {
   const historyByVarSlot = new Map()
   // ⭐ 2F-2B — one entry per finite-window CALL SITE in the source.
   const windows = []
+  const carriedMain = []
+  const carried = []
   const functions = []
   const fnByName = new Map()
   const callSites = []
@@ -892,7 +933,39 @@ export function buildRuntimeIr(source, opts = {}) {
           // reducer with a flipped comparison. One reducer, one negation node.
           return win.negate ? unary('u-', call) : call
         }
-        // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
+        const car = carriedTarget(node.name)
+        if (car) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 2) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes a source and a length, given ${given.length}`, at)
+          }
+          // ⭐⭐ THE SOURCE MAY BE ANY EXPRESSION, AND THAT IS THE POINT. A finite
+          // window needs a COMMITTED SERIES and so refuses `sma(x + 1, 5)`; a
+          // recurrence reads only the CURRENT value and remembers its own
+          // OUTPUT, so `ema(x + 1, 5)` needs no ring at all. Allocating one for
+          // symmetry would reserve memory the semantics never asked for.
+          const n = foldConstNode(given[1], at,
+            `the length of \`${node.name}\` is only known while the bar is running, `
+            + 'so the state it needs cannot be sized before bar 0')
+          if (n < 1) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
+          }
+          const entry = { fn: car.table, n, name: `${node.name}(…,${n})` }
+          let idx
+          if (owner !== null) {
+            const list = functions[owner].carriedLocals || (functions[owner].carriedLocals = [])
+            idx = list.length
+            list.push(entry)
+          } else {
+            idx = carriedMain.length
+            carriedMain.push(entry)
+          }
+          return carriedCall(idx, lowerExpr(given[0], scope))
+        }
+                // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
         const g = builtinStateFamily(node.name)
         note(g)
         throw new RuntimeRefusal(g, `\`${node.name}\``, locate(node.tok))
@@ -1253,6 +1326,27 @@ export function buildRuntimeIr(source, opts = {}) {
       delete fn.historyLocals
       delete fn.historyByVarSlot
     }
+    // ⭐⭐ 2F-2C — THE SAME MATERIALISATION, ONE LIFETIME OVER. Main-program
+    // instances occupy the bottom; each call site then takes a block sized to
+    // its function's carried instances. `carriedBase` is what makes two call
+    // sites of one body two recurrences, and it is the third time this exact
+    // addressing has been needed (`persistBase` 2E, `historyBase` P7.2).
+    {
+      let cbase = carriedMain.length
+      for (const c of carriedMain) carried.push({ ...c, site: null })
+      for (let i = 0; i < callSites.length; i += 1) {
+        const cs = callSites[i]
+        const locals = functions[cs.fn].carriedLocals || []
+        cs.carriedBase = cbase
+        for (const c of locals) carried.push({ ...c, site: i })
+        cbase += locals.length
+      }
+      for (const fn of functions) {
+        fn.carriedCount = (fn.carriedLocals || []).length
+        delete fn.carriedLocals
+      }
+    }
+
     if (history.length > MAX_HISTORY_SLOTS) {
       return fail(new RuntimeRefusal('runtime:statement',
         `this script keeps history for more than ${MAX_HISTORY_SLOTS} values across all call sites`, null), diagnostics)
@@ -1278,10 +1372,12 @@ export function buildRuntimeIr(source, opts = {}) {
         persistCount: f.persistCount, body: f.body, result: f.result,
         effects: f.effects, at: f.at,
         historyCount: f.historyCount || 0, historySlots: f.historySlots || [],
+        carriedCount: f.carriedCount || 0,
       })),
       callSites,
       history,
       windows,
+      carried,
     })
   } catch (e) { return fail(e, diagnostics) }
 

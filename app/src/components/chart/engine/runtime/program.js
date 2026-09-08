@@ -115,6 +115,19 @@ export const OP = Object.freeze({
   // the program never asked for. The window is built per bar, bounded by the
   // span the front end already proved, and handed to the SAME reducer.
   WINDOW: 73,
+  // ⭐⭐⭐ 2F-2C — a CARRIED-STATE builtin over a runtime-produced series.
+  // a: index into `program.carried` (frame-relative — an invocation adds its
+  // call site's `carriedBase`). The source's value for THIS bar is on the stack.
+  //
+  // ⛔⛔ IT STEPS INSIDE THE CALL, NEVER FROM THE COMMIT PHASE. The tempting
+  // implementation reuses 2F-2A's end-of-bar commit — it is right there, it
+  // already runs once per bar, and it is WRONG: TradingView advances a recurrent
+  // builtin only on the bars where its call actually executes, so a skipped call
+  // site must not step. Vendor-pinned 2026-09-08,
+  // `recurrent-na-and-skipped-callsite-spy-1d-2026-09-08`. History and recurrence
+  // index DIFFERENTLY: history is chart-bar indexed and HOLDS, recurrence is
+  // invocation-indexed and does not advance.
+  CARRIED: 74,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -130,7 +143,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW,
+  OP.CALL, OP.RET, OP.POINTWISE, OP.WINDOW, OP.CARRIED,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -155,7 +168,7 @@ export class ProgramError extends Error {
  */
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
-  functions = [], callSites = [], pointwise = [], history = [], windows = [],
+  functions = [], callSites = [], pointwise = [], history = [], windows = [], carried = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -183,6 +196,11 @@ export function makeProgram({
     // history ring supplies the committed bars (frame-relative), and HOW MANY
     // bars the window spans. Decided once by the front end.
     windows: Object.freeze((windows || []).map((w) => Object.freeze({ ...w }))),
+    // ⭐ Each entry is `{fn, n, name}`: WHICH member of `interpret.js::CARRIED`,
+    // and the length its alpha is derived from. The CELLS are not stored here —
+    // they are read from the table, so the artifact cannot disagree with the
+    // semantics about how much state a member needs.
+    carried: Object.freeze((carried || []).map((c) => Object.freeze({ ...c }))),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -228,7 +246,16 @@ export function validateProgram(p) {
     if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= maxPersist)) {
       throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${maxPersist} persist slots`)
     }
-    if (op === OP.WINDOW) {
+    if (op === OP.CARRIED) {
+      if (a < 0 || a >= p.carried.length) {
+        throw new ProgramError(`pc ${pc}: CARRIED ${a} outside ${p.carried.length} carried sites`)
+      }
+      const c = p.carried[a]
+      if (!(c.n >= 1)) {
+        throw new ProgramError(`pc ${pc}: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
+      }
+    }
+        if (op === OP.WINDOW) {
       if (a < 0 || a >= p.windows.length) {
         throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${p.windows.length} window sites`)
       }

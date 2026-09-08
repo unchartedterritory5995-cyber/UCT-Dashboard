@@ -850,28 +850,62 @@ function percentrankAt(series, i, length) {
  *  BY CONSTRUCTION rather than by two loops that agree today. See
  *  `closedTable.json::_functions_smoothing` for why the alpha is what is shared
  *  and the PERIOD is not. */
+/** ⭐⭐⭐ THE SMOOTHER AS A STATE TRANSITION — THE SHAPE THE RUNTIME NEEDS (2F-2C).
+ *
+ *  A column walk and a bar loop want the same arithmetic in two different
+ *  shapes: this file folds a whole series at once, the runtime has ONE bar and
+ *  must remember. `SMOOTH_CELLS` scalars ARE that memory, and `smoothStep` is
+ *  the whole of the rule — `smoothCol` below is now a driver over it, so there
+ *  is no second EMA to keep in step. Exactly what `FINITE_WINDOW` did for
+ *  windows in 2F-2B, one shape down: `{span, reduce}` there, `{cells, step}` here.
+ *
+ *  ⛔ THE CELLS ARE A FLAT ARRAY AT AN OFFSET, not an object. The runtime holds
+ *  every instance's state in one Float64Array so a screener can allocate it once
+ *  per symbol; handing this function an object per call would put the collector
+ *  in the bar loop, which is the cost Phase 1 measured and rejected.
+ */
+const SMOOTH_CELLS = 3            // [prev, count, sum]
+
+function smoothInit(st, o) { st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0 }
+
+/** One bar of a smoother. Returns the value to emit (NaN while warming). */
+function smoothStep(st, o, v, n, k) {
+  if (!Number.isFinite(v)) {
+    // ⚰️ VENDOR-MEASURED 2026-09-08 AND WE ARE ON THE WRONG SIDE OF IT.
+    // TradingView HOLDS this state across an `na` bar and takes one normal step
+    // on the next finite bar; we reset. See
+    // `divergences.json::nan-restarts-the-smoother`, now `confirmed` with an
+    // observation. It is NOT changed here on purpose: `smoothCol` feeds every
+    // shipped chart, so flipping it is an owner ruling and not a runtime wave's
+    // to make. ⭐ THE POINT OF THE FACTORING IS THAT THE FIX IS ONE LINE IN ONE
+    // PLACE — both lanes inherit whatever this rule becomes.
+    smoothInit(st, o)
+    return NaN
+  }
+  if (Number.isNaN(st[o])) {
+    st[o + 2] += v
+    st[o + 1] += 1
+    if (st[o + 1] === n) { st[o] = st[o + 2] / n; return st[o] }
+    return NaN
+  }
+  st[o] = st[o] * (1 - k) + v * k
+  return st[o]
+}
+
 function smoothCol(series, n, k) {
   const out = nan(series.length)
-  let prev = NaN
-  let count = 0
-  let sum = 0
-  for (let i = 0; i < series.length; i++) {
-    const v = series[i]
-    if (!Number.isFinite(v)) { prev = NaN; count = 0; sum = 0; continue }
-    if (Number.isNaN(prev)) {
-      sum += v
-      count += 1
-      if (count === n) { prev = sum / n; out[i] = prev }
-    } else {
-      prev = prev * (1 - k) + v * k
-      out[i] = prev
-    }
-  }
+  const st = new Float64Array(SMOOTH_CELLS)
+  smoothInit(st, 0)
+  for (let i = 0; i < series.length; i++) out[i] = smoothStep(st, 0, series[i], n, k)
   return out
 }
 
-const emaCol = (series, n) => smoothCol(series, n, 2 / (n + 1))
-const rmaCol = (series, n) => smoothCol(series, n, 1 / n)
+// ⚰️ `emaCol` AND `rmaCol` LIVED HERE AND ARE GONE. They were one-line alpha
+// wrappers over `smoothCol`, and 2F-2C moved the alpha into `CARRIED` so the
+// runtime and this lane read the SAME constant from the SAME place. Keeping them
+// would have left two names for one thing and a second place to change an alpha
+// — the shape of defect this engine has paid for repeatedly. Nothing referenced
+// them after the move (checked across all of `app/src`, not just this file).
 
 /** The linearly weighted mean of `[lo, hi]` — the most recent bar carries the
  *  most weight. ⚠️ NaN PROPAGATES through the sum, which is what makes the
@@ -942,7 +976,7 @@ function crossing(a, b, fired) {
  *  how a user reaches it in one keystroke.
  *
  *  ⭐ SO THE SHIPPED MATHS NEVER SEES ONE. The column starts after the LAST
- *  non-finite value in ANY argument, which is `emaCol`'s already-declared rule
+ *  non-finite value in ANY argument, which is `smoothStep`'s already-declared rule
  *  ("a NaN in the input RESTARTS the seed") applied to a whole bar. Two things
  *  fall out of it, and both are why this is the right rule rather than a
  *  convenient one:
@@ -1146,7 +1180,7 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  * drivers, one meaning.
  *
  * ⛔⛔ MEMBERSHIP IS AN IMPLEMENTATION FACT, NOT A NAME OR AN ARITY. `ema` and
- * `rma` take a series and a length and are NOT here: `emaCol`/`rmaCol` carry
+ * `rma` take a series and a length and are NOT here: `CARRIED`'s members carry
  * state from the previous OUTPUT, which a window cannot express. `barssince` and
  * `valuewhen` search backwards for a CONDITION. `cum` accumulates without bound.
  * Each is its own family and each is still required — see the gap register.
@@ -1186,9 +1220,48 @@ export const FINITE_WINDOW = Object.freeze({
 const windowFn = (name) => (series, n) =>
   rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce)
 
+/** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
+ *
+ *  A finite window answers from `span` recent INPUTS; a carried builtin answers
+ *  from a few scalars it has been keeping. Both tables exist for the same reason:
+ *  the columnar lane and the bar loop need the same arithmetic in two shapes, and
+ *  a table of `{cells, init, step}` lets ONE implementation serve both.
+ *
+ *    FINITE_WINDOW : { span,  reduce }   — 2F-2B
+ *    CARRIED       : { cells, init, step, alpha } — 2F-2C
+ *
+ *  ⛔⛔ MEMBERSHIP IS AN IMPLEMENTATION FACT, NOT A NAME. A member is here
+ *  because its shipped column walk IS a forward pass over a fixed number of
+ *  scalars. `sma` is not here (it re-reads `n` inputs); `cum` is not here (the
+ *  closed table does not declare it at all); `barssince`/`valuewhen` are the same
+ *  SHAPE and deliberately NOT members — see the note below.
+ *
+ *  ⚠️ `barssince` AND `valuewhen` ARE ABSENT ON PURPOSE, AND IT IS NOT AN
+ *  OVERSIGHT. `interpret.js::barsSince`/`valueWhen` are forward passes over two
+ *  scalars each, so they FIT this table mechanically. They are excluded because
+ *  `pine.js` refuses `ta.barssince` and `ta.valuewhen` BY NAME: Pine's are
+ *  unbounded / occurrence-indexed and this table's are bounded / period-indexed,
+ *  which are different functions. Admitting them here would build a runtime for
+ *  a spelling no member can reach, and the honest first dependency is the CLOSED
+ *  TABLE declaring Pine's actual signatures. Measured, not assumed — see the
+ *  execution-shape census and gap register PART V.
+ */
+export const CARRIED = Object.freeze({
+  ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
+  rma: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 1 / n },
+})
+
+/** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
+ *  cannot drift: both reach `CARRIED[name].step` and nothing else computes an
+ *  exponential average in this file. */
+const carriedFn = (name) => (series, n) => {
+  const spec = CARRIED[name]
+  return smoothCol(series, n, spec.alpha(n))
+}
+
 export const FN = Object.freeze({
   sma: windowFn('sma'),
-  ema: (series, n) => emaCol(series, n),
+  ema: carriedFn('ema'),
   highest: windowFn('highest'),
   lowest: windowFn('lowest'),
   // ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME SHAPE THE VALUE
@@ -1248,7 +1321,7 @@ export const FN = Object.freeze({
   // the rule kills it in both lanes instead of relying on one language's luck.
   min: (a, b) => elementwise2(a, b, POINTWISE.min),
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
-  rma: (series, n) => rmaCol(series, n),
+  rma: carriedFn('rma'),
   wma: windowFn('wma'),
   // ⭐ HULL — `wma` THREE TIMES, and the two derived windows are computed HERE so
   // the manifest carries one period and the member writes one number. Alan Hull's

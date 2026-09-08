@@ -58,6 +58,13 @@ export const LIMIT_NAMES = Object.freeze([
   // program whose windows are quietly enormous stops BY NAME rather than by
   // taking a very long time.
   'WINDOW_CELLS',
+  // ⭐ 2F-2C. A carried builtin's cost is the OPPOSITE SHAPE to a window's: a
+  // window reads `span` cells per bar and holds none between bars; a recurrence
+  // reads ONE value per bar and holds a few forever. So both axes are counted
+  // — the peak STATE a program allocates, and the total STEPS it takes.
+  'CARRIED_INSTANCES',
+  'CARRIED_CELLS',
+  'CARRIED_STEPS',
   'REQUEST_COUNT',
   'REQUEST_FANOUT',
   'MEMORY',
@@ -92,6 +99,13 @@ export const DEFAULT_LIMITS = Object.freeze({
   HISTORY_SLOTS: 512,
   HISTORY_VALUES: 262144,
   WINDOW_CELLS: 100000000,
+  // ⚠️ MEASURED, and deliberately small. Every member of `CARRIED` holds THREE
+  // scalars, so 4,096 instances is 12,288 doubles — 98 KB — which is already far
+  // past any honest indicator. The ceiling exists so a generated program cannot
+  // quietly allocate per-symbol state that a 5,000-symbol scan multiplies.
+  CARRIED_INSTANCES: 4096,
+  CARRIED_CELLS: 65536,
+  CARRIED_STEPS: 100000000,
   REQUEST_COUNT: 16,
   REQUEST_FANOUT: 64,
   MEMORY: 64 * 1024 * 1024,

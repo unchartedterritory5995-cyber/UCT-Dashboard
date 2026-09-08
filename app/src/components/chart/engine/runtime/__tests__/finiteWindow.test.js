@@ -288,11 +288,18 @@ describe('⭐ length semantics and resources', () => {
 })
 
 describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
-  it('RECURRENT builtins are still refused', () => {
+  it('RECURRENT builtins are still not FINITE-WINDOW members (2F-2C runs them elsewhere)', () => {
+    // ⚰️ These asserted a REFUSAL until 2F-2C. The family separation is what
+    // mattered and it still holds — `ema`/`rma` execute through `CARRIED`, never
+    // through a window — so the assertion moves from 'is refused' to 'is not a
+    // member', which is the property this file actually owns.
     for (const fn of ['ema', 'rma']) {
-      expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 5))\n`).guard, fn)
-        .toBe('runtime:call-windowed-state')
       expect(FINITE_WINDOW[fn], `${fn} must not be a finite-window member`).toBeUndefined()
+      const b = buildRuntimeIr(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 5))\n`,
+        { bars: BARS, inputs: {} })
+      expect(b.ok, `${fn} should execute via CARRIED`).toBe(true)
+      expect(b.ir.windows, `${fn} must not allocate a window`).toHaveLength(0)
+      expect(b.ir.carried.map((c) => c.fn)).toEqual([fn])
     }
   })
 

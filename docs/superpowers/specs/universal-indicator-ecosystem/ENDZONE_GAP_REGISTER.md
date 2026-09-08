@@ -2058,10 +2058,205 @@ a claim the numbers do not support.
 | id | family | statement |
 |---|---|---|
 | **U7.1** | ⭐ NAMED | SCAN-BACKWARDS / EVENT-HISTORY = exactly `barssince` + `valuewhen`. **It is a SUBSET of `carried`, not a separate mechanism**, and it needs no ring. Reach 11 and 9 scripts. Zero scripts are blocked on it alone. |
-| **U7.2** | RUNTIME / RECURRENCE | `carried`, 16 members, reach 112/169. The whole remaining `call-windowed-state` population. **2F-2C — HELD for owner/ChatGPT review.** |
+| **U7.2** | ✅ MECHANISM CLOSED | 2F-2C shipped the carried-state RUNTIME with `ema`/`rma`. `call-windowed-state` 8 → 1. The other 14 members are pending for three different reasons — see **PART V**, V8. |
 | **U7.3** | DESIGN QUESTION, unanswered | Can a recurrent member be factored `{init, step}` so ONE authority serves both lanes, as `{span, reduce}` does for windows? `smoothCol` is written as a whole-column loop; the runtime needs one bar of it. **No implementation has been attempted and none should be before review.** |
 | **U7.4** | VENDOR, UNPINNED | Recurrent warm-up is a REAL semantic and nothing pins it. `smoothCol` seeds EMA with an SMA of the first n bars; `barsSince` resets on `na` and emits its bound as a sentinel. TradingView's behaviour for both is NOT captured. ⛔ 2F-2C cannot be called verified without those pins — this is the wave's biggest vendor exposure and it is larger than 2F-2B's, which added no new semantic at all. |
 | **U7.5** | RUNTIME / CHEAP | `offsetOne` — `change`/`crossOver`/`crossUnder` need only `x[1]`, which ships. 17 scripts reach it; `ta.change(x)` refuses while `x - x[1]` executes. Not proposed, measured. |
 | **U7.6** | TABLE / COMPOSITION | `windowComposite`, 17 members, reach 20 scripts (`hma` 9, `percentrank` 6). Reducible to `FINITE_WINDOW` members by composition — including `hma`, `bbw` and `percentrank`, which 2F-2B excluded with stated reasons that have not been re-measured since. |
 | **U7.7** | RUNTIME / FORWARD | `pivothigh`/`pivotlow`/`ichimokuChikou` read a bar that has not happened. Reach 18 scripts. The columnar lane serves them via a declared `forward:`; a bar loop cannot, and what a runtime should do at the unresolved tail is an open product question, not a mechanism gap. |
 | **U7.8** | INSTRUMENT | REACH is a ceiling and is labelled as one everywhere. It is NOT comparable to `capabilityDemandCensus`'s "fed by runtime state" numbers, and the two must never be added together. |
+
+
+## PART V — 2F-2C: GENERALIZED CARRIED-STATE BUILTIN EXECUTION (2026-09-08)
+
+### V1 — ⭐⭐⭐ THE VENDOR AUDIT CAME FIRST, AND IT CHANGED THE WAVE
+
+§25 asked what the existing EMA/RMA vendor evidence actually pins. The answer is
+**less than its file names suggest, and one of the gaps is a shipped defect.**
+
+| §25 question | what the existing evidence proves |
+|---|---|
+| first output bar | **not from a screen.** `divergences.json::smoother-seeds-with-sma-of-first-window` is `refuted` — but `refutedBy` is `tools/vendor_spec_probes.py` against TradingView's **PROSE**. The row says so itself: *"The check is against their PROSE, not their screen."* |
+| initial seed | same — documentation-derived |
+| NA behaviour | **`nan-restarts-the-smoother` was `suspected`** — *"UNKNOWN, AND THIS IS THE HONEST ENTRY IN THIS FILE"*. Never measured. |
+| full warm-up | **excluded by construction.** `ema-close20` skips 100 bars, `rma-close14` skips 150 (`_vendor_parity_warmup_bars`). |
+
+⭐ **AND THE EXCLUSION IS CORRECT, WHICH I VERIFIED RATHER THAN ASSUMED.** Seeding
+an EMA from the SMA of the capture's own first 20 bars misses the vendor's bar-19
+value by 0.404, and the error decays at exactly `1 − 2/(n+1)` per bar — the
+signature of a filter carrying state from before the window. The chart model
+confirms the mechanism directly: the main series had **300** bars loaded while the
+study carried **400**, starting earlier. A standard capture *cannot* see a seed.
+
+### V2 — ⛔⛔ RULING 1: `na` INPUT — THE VENDOR HOLDS, WE RESET, WE ARE WRONG
+
+Probe: `srcna = bar_index % 97 == 0 ? na : close`, then `ta.ema(srcna,10)` and
+`ta.rma(srcna,10)` — a hole every 97 bars so the **re-seed would happen inside the
+captured window**, which is what defeats the cold-start artifact.
+
+| model | bars of `na` after the hole | vendor |
+|---|---|---|
+| RESET (ours) | 9, then a fresh window SMA | — |
+| HOLD | **0** — one normal step from the pre-hole state | ✅ |
+
+All four holes; the hold prediction reproduces the vendor to **0 or 1.1e-13** for
+both members. `divergences.json::nan-restarts-the-smoother` moves
+`suspected → confirmed`, and **we are on the wrong side of it.**
+
+⛔ **DELIBERATELY NOT FIXED IN THIS WAVE.** `smoothCol` feeds every shipped chart;
+flipping it changes output wherever a source has a mid-series hole, which is an
+owner ruling, not a runtime wave's call (§18). The runtime therefore **matches the
+columnar lane** — one authority, one divergence, recorded once — rather than
+matching the vendor while the chart does not. A rail asserts our *wrong* behaviour
+on purpose so it cannot be closed by accident.
+
+⚠️ Blast radius is narrower than it looks: before the first finite value there is
+no state to hold, so a LEFT-EDGE hole (`ema(sma(close,20),9)`'s inner warm-up)
+answers the same either way. The rules differ only for a hole **after** state
+exists. **Owner ruling required.**
+
+### V3 — ⛔⛔ RULING 2: A SKIPPED CALL SITE DOES NOT STEP
+
+Probe: `f(v) => ta.ema(v,5)` called only on even bars, beside `ta.ema(close,5)`
+called every bar.
+
+| model | prediction | result |
+|---|---|---|
+| (A) steps every chart bar with the held input | the conditional series equals the every-bar EMA | **excluded** — they differ on every executed bar |
+| (B) steps only when the call executes | an EMA of the even-bar subsequence | ✅ six consecutive transitions at **err = 0.000e+00** |
+
+⭐⭐⭐ **THIS IS THE OPPOSITE INDEXING FROM P7.2.** A function-local *series
+history* is chart-bar indexed and **HOLDS** across a skipped site. A function-local
+*recurrence* is **invocation-indexed** and does not advance. History holds; state
+does not step. Building recurrence on the end-of-bar commit phase — the obvious
+reuse of 2F-2A's machinery, sitting right there — would have silently implemented
+the excluded model. That is why `OP.CARRIED` steps **inside the call**.
+
+### V4 — ⭐ RULING 3: TWO CALL SITES, TWO RECURRENCES
+
+`f(close)` and `f(close*2)`. EMA is linear, so independent state implies
+`b == 2*a` exactly; shared state interleaves two inputs through one filter and
+admits no such identity. **|b − 2a| = 0.000e+00 on every captured bar.**
+
+### V5 — ⭐ RULING 4: `barssince` / `valuewhen`, AND WHY THEY ARE NOT IMPLEMENTED
+
+Measured: `barssince` is 0 **on** the true bar, then +1; an `na` condition at a
+would-be-FALSE bar behaves as false. `valuewhen`'s third argument is an
+**OCCURRENCE INDEX** — occurrence 0 is the most recent occurrence *including the
+current bar*.
+
+⛔ **NOT PINNED** (recorded in the fixture, not glossed): what an `na` condition
+does at a would-be-TRUE bar (no captured bar is divisible by both 7 and 97), and
+what `barssince` returns before the first true bar.
+
+⛔⛔ **AND THEY ARE NOT 2F-2C's TO IMPLEMENT.** They fit the carried mechanism
+perfectly — two scalars each — but `pine.js` refuses `ta.barssince` and
+`ta.valuewhen` **at the Pine door** (`pine:function`), because Pine's are
+unbounded / occurrence-indexed and the closed table's are bounded /
+period-indexed. **Building carried execution for them would serve a spelling no
+member can reach.** The first dependency is the CLOSED TABLE declaring Pine's
+actual signatures — a table/semantics change, outside the authorized runtime work.
+§54's contract question, answered: the `int` argument belongs to *our* bounded
+variant and is an internal fetch bound, never Pine semantics.
+
+### V6 — The architecture
+
+`interpret.js::CARRIED` is `FINITE_WINDOW`'s counterpart, one shape down:
+
+```
+FINITE_WINDOW : { span,  reduce }              — 2F-2B
+CARRIED       : { cells, init, step, alpha }   — 2F-2C
+```
+
+`smoothStep` is the whole rule. `smoothCol` is now a driver over it for the
+columnar lane and `OP.CARRIED` is a driver over it for the bar loop — **the same
+function object**, so there is no second EMA. `emaCol`/`rmaCol` were deleted: they
+became one-line alpha wrappers once the alpha moved into the table, and two names
+for one thing is the defect this engine keeps paying for.
+
+Instance identity is `carriedBase` per call site — **the third time this exact
+addressing has been needed** (`persistBase` 2E, `historyBase` P7.2), which is the
+strongest evidence it is the right shape.
+
+⭐⭐ **AND A RECURRENCE ALLOCATES NO RING.** It reads one value per bar and
+remembers its own output, so `ta.ema(x, 200)` needs **three scalars**, not 200
+committed inputs. That also makes the source unrestricted: `ta.ema(x + 1, 5)`
+executes where `ta.sma(x + 1, 5)` must refuse (`runtime:history-expression`),
+because only the window needs a committed series. Both facts are railed — "it
+works and it is wasteful" is otherwise invisible.
+
+### V7 — ⛔ THE TRANSITION: SEVEN SCRIPTS MOVED, ZERO NEW SCRIPTS EXECUTE
+
+A/B on one tree (169 scripts; "before" is the same tree with the carried router
+cut and byte-exactly restored).
+
+| first blocker | before | after | Δ |
+|---|---:|---:|---:|
+| `runtime:call-windowed-state` | 8 | **1** | **−7** |
+| `pine:undefined` | 1 | 5 | +4 |
+| `pine:colour-value` | 3 | 5 | +2 |
+| `runtime:presentation` | 20 | 21 | +1 |
+| **fully executing (OK)** | **27** | **27** | **0** |
+
+⛔ **THE SECOND WAVE RUNNING TO A FLAT ACCEPTANCE NUMBER, AND IT IS STILL THE
+RIGHT RESULT** (§78). Seven scripts moved past the last builtin wall and landed on
+walls in other families. The one script still on `call-windowed-state`,
+`community/06-qqe-mod`, reaches `ta.rsi` — carried in SHAPE but binding
+`computeRSI` rather than a step function.
+
+⭐ Note the new blockers are mostly *Pine door* refusals: those scripts now get
+deep enough to reach a pure subtree that the columnar door rejects. The refusal
+moved inward, which is what a removed wall looks like.
+
+### V8 — Scope, stated honestly
+
+**2 of 16 carried members ship.** The census cross-checks this against
+`interpret.js::CARRIED`, so the gap cannot be quietly misreported.
+
+| shipped | pending, and why |
+|---|---|
+| `ema`, `rma` | `barssince`, `valuewhen` — Pine door refuses the spelling (V5) |
+| | `rsi`, `atr`, `adx`, `plusDI`, `minusDI`, `macd` — bind a shipped implementation, not a step function |
+| | `accum`, `cumFrom`, `vwap`, `avwap`, `obvN`, `pvtN` — accumulators, not yet factored |
+
+### V9 — ⭐ What it costs
+
+| sites | bars | ms | steps | state cells |
+|---:|---:|---:|---:|---:|
+| 1 | 5,000 | 6.94 | 5,000 | 3 |
+| 10 | 5,000 | 43.67 | 50,000 | 30 |
+| 100 | 5,000 | 492.52 | 500,000 | 300 |
+
+⭐⭐ **FLAT IN LENGTH — the property a window does not have.** At 5,000 bars,
+length 5 → 500 is **100× the length for 0.96× the time**, and the state stays at
+**three cells**. Compare 2F-2B, where 40× the span reads 40× the cells. Anyone
+about to "optimise" `ta.ema(x, 200)` should read this row first: the cost driver is
+`sites × bars` (bar-loop dispatch), exactly as it was for windows.
+
+| 5,000-symbol scan | per symbol | whole scan |
+|---|---:|---:|
+| typical (4 recurrences, 300 bars) | 1.18 ms | **5.9 s** |
+| heavy (20 recurrences × len 200, 5,000 bars) | 97.3 ms | **487 s** |
+
+Per-symbol state: **3 cells × 8 bytes × instances** — 2,400 bytes for a
+100-recurrence script, **12 MB across 5,000 symbols**. UDF frame overhead measured
+separately at **1.87×**, so a future "recurrence is slow" finding cannot be a
+call-overhead finding in disguise.
+
+⚠️ `CARRIED_STEPS`/`CARRIED_CELLS`/`CARRIED_INSTANCES` are charged **per
+execution** — they bound a runaway SYMBOL, never the SCAN. **The scan-wide budget
+remains open** (§70), now with two waves of evidence.
+
+### V10 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **V10.1** | ✅ CLOSED | The carried-state runtime FOUNDATION: shared `{cells, init, step}`, per-call-site instance identity, bounded and accounted state, no ring, no second EMA. 14/14 mutations killed behind a clean-file control. |
+| **V10.2** | ⛔ **OWNER RULING REQUIRED** | `na` HOLD vs RESET. Vendor-confirmed, we are wrong, deliberately unchanged. Fixing it is ONE line in ONE place (that is what the factoring bought) but it changes shipped chart output. |
+| **V10.3** | RUNTIME / MEMBERS | 14 of 16 carried members pending, in three groups with three different first dependencies (V8). None is blocked on the mechanism. |
+| **V10.4** | ⛔ TABLE / GRAMMAR | `ta.barssince` / `ta.valuewhen` need the CLOSED TABLE to declare Pine's actual unbounded / occurrence-indexed signatures. **The event-history family is blocked on a table change, not on runtime state** — which is why 2F-2C did not implement it. |
+| **V10.5** | VENDOR, UNPINNED | The recurrent SEED is still prose-derived only. This wave could not pin it: TradingView's studies carry state from before any capture window, and the `na` probe cannot re-seed because the vendor HOLDS. A short-history symbol/timeframe (total bars < window) is the design that would work. |
+| **V10.6** | VENDOR, UNPINNED | `barssince` with an `na` condition at a would-be-TRUE bar; `barssince` before the first true bar. |
+| **V10.7** | REALTIME | ⛔ **UNVERIFIED AND EXPLICITLY OPEN.** Carried state commits inside the call with no rollback path. Historical output matches; forming-bar re-execution, bar confirmation and rollback are untested and the architecture has not been exercised against them (§73/§74). |
+| **V10.8** | RESOURCE | Scan-wide CPU/memory/concurrency policy. Carried state is trivially bounded per symbol (12 MB / 5,000 symbols); the 487 s heavy scan is bar-loop dispatch, shared with 2F-2B's 214 s. |
+| **V10.9** | PERSISTENCE | `carried[]`, `carriedBase` and `carriedCount` join the artifact shape. Live recurrence state is NOT persisted and must not be — the program plus parameters reconstruct it from source bars (§72). |

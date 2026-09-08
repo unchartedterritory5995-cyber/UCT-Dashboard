@@ -33,7 +33,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { TABLE, isPointwise } from './parse.js'
-import { FINITE_WINDOW } from './interpret.js'
+import { FINITE_WINDOW, CARRIED } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 
 const CORPORA = [
@@ -64,7 +64,7 @@ const BARS = Array.from({ length: N }, (_, i) => ({
  *  `prev`/`count`/`sum`. The name "scan backwards" describes the SEMANTICS, not
  *  the execution, and a runtime that took the name literally would build ring
  *  machinery for a problem that needs one carried cell. */
-const CARRIED = {
+const CARRIED_SHAPE = {
   ema: 'smoothCol — prev/count/sum',
   rma: 'smoothCol — prev/count/sum',
   barssince: 'barsSince — since/run, reset on na',
@@ -74,7 +74,7 @@ const CARRIED = {
   adx: 'computeADX — RMA underneath',
   plusDI: 'computeADX — RMA underneath',
   minusDI: 'computeADX — RMA underneath',
-  macd: 'emaCol(fast) - emaCol(slow)',
+  macd: 'computeMACD (shipped) — EMA-based, NOT composed here',
   accum: 'running sum from an anchor',
   cumFrom: 'barCumFrom — running sum from an anchor',
   vwap: 'computeVWAP — running Σpv / Σv',
@@ -126,7 +126,7 @@ const FORWARD = {
 const SHAPES = {
   pointwise: {},
   finiteWindow: {},
-  carried: CARRIED,
+  carried: CARRIED_SHAPE,
   windowComposite: WINDOW_COMPOSITE,
   offsetOne: OFFSET_ONE,
   forward: FORWARD,
@@ -171,6 +171,24 @@ describe('⛔⛔ the partition — every table entry, exactly one shape', () => 
     const declared = Object.keys(TABLE.functions)
       .filter((n) => TABLE.functions[n].forward).sort()
     expect(declared).toEqual(Object.keys(FORWARD).sort())
+  })
+
+  it('⭐⭐ CARRIED is a SUBSET of the carried shape, and the gap is the work left', () => {
+    // ⭐ 2F-2C shipped `interpret.js::CARRIED`. Every member of it must be in
+    // this file's `carried` shape — a member the runtime executes but the census
+    // files elsewhere would mean the two disagree about what a bar loop needs.
+    // The REVERSE does not hold, and the difference is the honest backlog: the
+    // rest are carried in SHAPE but bind a shipped implementation (`computeRSI`,
+    // `computeATR`) or a Pine spelling the closed table refuses.
+    for (const fn of Object.keys(CARRIED)) {
+      expect(SHAPES.carried[fn], `${fn} executes but is not filed as carried`).toBeTruthy()
+    }
+    const shipped = Object.keys(SHAPES.carried).filter((n) => CARRIED[n])
+    const pending = Object.keys(SHAPES.carried).filter((n) => !CARRIED[n])
+    expect(shipped.length, 'at least one member must ship, or 2F-2C did nothing').toBeGreaterThan(0)
+    expect(pending.length, 'and the backlog must be real, not empty').toBeGreaterThan(0)
+    report.carriedShipped = shipped
+    report.carriedPending = pending
   })
 
   it('⭐ the shapes are non-trivial — none is empty, none is everything', () => {

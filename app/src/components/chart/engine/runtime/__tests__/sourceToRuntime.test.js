@@ -211,7 +211,12 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // that a refusal names the NEXT dependency, and a row asserting a shipped
     // capability is still blocked points the reader at work that is already
     // done. The recurrent row below is the wall that is genuinely still there.
-    ['a RECURRENT builtin fed by state (declared)', `${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`, 'runtime:call-windowed-state'],
+    // ⚰️ `ta.ema` WAS THIS ROW UNTIL 2F-2C EXECUTED IT — the second time this
+    // table has had to move a row off a shipped capability. What remains is a
+    // WINDOW COMPOSITE (`hma`, assembled from FINITE_WINDOW members) and a
+    // carried-SHAPED builtin that binds a shipped implementation (`rsi`).
+    ['a WINDOW-COMPOSITE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`, 'runtime:call-windowed-state'],
+    ['a SHIPPED-IMPL stateful builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`, 'runtime:call-windowed-state'],
     // ⚰️⚰️ `math.max` OVER STATE REFUSED HERE UNTIL 2F-1, WHICH EXECUTES IT, and
     // the replacement case is worth reading because the first attempt was WRONG.
     // It moved to `ta.cum` and asserted `call-windowed-state` — "cumulative needs

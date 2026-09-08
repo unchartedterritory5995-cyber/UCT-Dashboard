@@ -204,7 +204,10 @@ describe('⛔ diagnostics survive the chain (§30)', () => {
     // stopped refusing and this test went green-on-nothing. What it measures is
     // LINE ATTRIBUTION, not which builtin is blocked — so it takes the nearest
     // still-refused call at the same position rather than being deleted.
-    const src = `${head}var x = 0.0\nif close > 118\n    x := 1\nelse if close > 114\n    x := ta.ema(x, 5)\nelse\n    x := 3\nplot(x)\n`
+    // ⚰️ Re-pointed a SECOND time (sma → ema → hma) as each wave shipped the
+    // previous one. What this measures is LINE ATTRIBUTION, not which builtin
+    // is blocked, so it takes the nearest still-refused call at the same spot.
+    const src = `${head}var x = 0.0\nif close > 118\n    x := 1\nelse if close > 114\n    x := ta.hma(x, 5)\nelse\n    x := 3\nplot(x)\n`
     const r = refusalOf(src)
     expect(r.guard).toBe('runtime:call-windowed-state')
     // line 7 of the whole source: 2 header lines + 5 body lines

@@ -111,13 +111,14 @@
     }
   },
   "blocked": {
-    "runtime:call-windowed-state": 8,
-    "runtime:presentation": 20,
+    "pine:undefined": 5,
+    "runtime:presentation": 21,
     "runtime:function-global-state": 2,
     "pine:character": 4,
     "runtime:directive": 3,
     "pine:block": 12,
     "pine:collection": 9,
+    "pine:colour-value": 5,
     "pine:function": 10,
     "pine:request": 3,
     "pine:statement": 5,
@@ -127,14 +128,13 @@
     "runtime:call-conversion-state": 1,
     "pine:builtin": 14,
     "runtime:request-with-state": 2,
-    "pine:colour-value": 3,
     "runtime:tuple": 15,
     "pine:window": 1,
     "OK": 27,
     "runtime:loop": 4,
     "pine:role-order": 1,
-    "pine:undefined": 1,
     "runtime:call-undeclared-builtin-state": 2,
+    "runtime:call-windowed-state": 1,
     "runtime:history-expression": 1,
     "pine:drawing": 1,
     "runtime:declaration": 2,
@@ -143,18 +143,27 @@
   },
   "members": {
     "carried": [
-      "oos1/high_engagement__02-waddah-attar-explosion-lazybear.pine",
-      "oos1/high_engagement__11-vumanchu-cipher-a-vumanchu.pine",
-      "community/06-qqe-mod.pine",
-      "community/13-relative-strength-vs-benchmark-spy.pine"
-    ],
-    "carried+offsetOne": [
-      "oos1/high_engagement__16-klinger-volume-oscillator-everget.pine",
-      "parity/high_engagement__16-klinger-volume-oscillator-everget.pine"
-    ],
-    "carried+windowComposite": [
-      "oos1/long_tail__05-master-line-plus.pine",
-      "parity/long_tail__05-master-line-plus.pine"
+      "community/06-qqe-mod.pine"
     ]
-  }
+  },
+  "carriedShipped": [
+    "ema",
+    "rma"
+  ],
+  "carriedPending": [
+    "barssince",
+    "valuewhen",
+    "rsi",
+    "atr",
+    "adx",
+    "plusDI",
+    "minusDI",
+    "macd",
+    "accum",
+    "cumFrom",
+    "vwap",
+    "avwap",
+    "obvN",
+    "pvtN"
+  ]
 }

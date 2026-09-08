@@ -50,6 +50,7 @@ export const EXPR = Object.freeze({
   CALL: 'call',           // a user-defined function invocation at a CALL SITE
   BUILTIN: 'builtin',     // a POINTWISE table builtin applied to current-bar values
   WINDOW: 'window',       // a FINITE-WINDOW table builtin over a runtime series
+  CARRIED: 'carried',     // a CARRIED-STATE table builtin over a runtime series
   // ── declared, not yet lowerable ──
   TUPLE: 'tuple',
   ARRAY_OP: 'arrayOp',
@@ -86,7 +87,7 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  */
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
-  functions = [], callSites = [], history = [], windows = [],
+  functions = [], callSites = [], history = [], windows = [], carried = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -111,6 +112,7 @@ export function makeIrProgram({
   const p = {
     version, statements, slots: normalised, columns, outputs, functions: fns, callSites,
     windows: windows || [],
+    carried: carried || [],
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -243,6 +245,13 @@ export function validateIr(p) {
           throw new IrError(`${where}: \`${fn.name}\` takes ${fn.params} arguments, got ${e.args ? e.args.length : 0}`)
         }
         e.args.forEach((a, k) => walkExpr(a, `${where}.args[${k}]`))
+        return
+      }
+      case EXPR.CARRIED: {
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried || []).length) {
+          throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${(p.carried || []).length}`)
+        }
+        walkExpr(e.source, `${where}.source`)
         return
       }
       case EXPR.WINDOW: {
@@ -457,6 +466,12 @@ export const builtin = (fn, args) => ({ kind: EXPR.BUILTIN, fn, args })
  *  window table; `source` is the expression producing the CURRENT bar's value, and
  *  the committed bars come from that series' own history ring. */
 export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source })
+
+/** ⭐ A carried-state builtin over a runtime series. `site` is FRAME-RELATIVE:
+ *  the VM adds the invocation's `carriedBase`, so one compiled body serves every
+ *  call site while each site keeps its own recurrence — the same addressing
+ *  `persistBase` (2E) and `historyBase` (P7.2) already use. */
+export const carriedCall = (site, source) => ({ kind: EXPR.CARRIED, site, source })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

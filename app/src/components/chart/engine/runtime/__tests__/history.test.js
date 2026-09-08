@@ -343,7 +343,7 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
     expect(() => runPine(`${head}var c = 0.0\nc := c + 1\nplot(c[1])\n`)).not.toThrow()
   })
 
-  it('a RECURRENT builtin over runtime state is still refused — no fake column', () => {
+  it('a NON-MEMBER stateful builtin over runtime state is still refused', () => {
     // ⛔ THE RING IS NOT A SERIES BRIDGE, AND THAT SURVIVED 2F-2B INTACT.
     //
     // ⚰️ This case named `ta.sma(x, 5)` and 2F-2B now EXECUTES it — by reading
@@ -354,7 +354,18 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
     // `ema` is the case that still stands, and for a DIFFERENT reason: it is not
     // blocked on reaching the ring, it is blocked on carrying its own previous
     // OUTPUT, which no window of inputs can supply. Two walls, told apart.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`).guard)
+    // ⚰️ AND AGAIN, ONE WAVE LATER. This case named `ta.ema`/`ta.rma` after
+    // 2F-2B moved it off `ta.sma`; 2F-2C now EXECUTES those too. What is still
+    // refused is no longer 'recurrence' as a family — it is TWO narrower things,
+    // and naming both is the point:
+    //   · `ta.hma`  — a WINDOW COMPOSITE: reducible to `FINITE_WINDOW` members
+    //     by composition, which the runtime cannot yet assemble.
+    //   · `ta.rsi`  — CARRIED IN SHAPE but NOT a `CARRIED` member: it binds a
+    //     shipped implementation (`computeRSI`) rather than a step function, so
+    //     admitting it would need that implementation factored first.
+    // A test that keeps asserting the wall a wave just removed is the failure
+    // this annotation exists to make visible, twice over.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.hma(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
   })
 })

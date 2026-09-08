@@ -130,6 +130,16 @@ export function lowerIrProgram(ir) {
         emit(OP.WINDOW, e.site)
         return
       }
+      case EXPR.CARRIED: {
+        // ⭐ THE SOURCE'S VALUE FOR THIS BAR IS PUSHED FIRST; CARRIED consumes it,
+        // steps the instance's cells and leaves the emitted value. There is no
+        // history read at all — a recurrent builtin remembers its own OUTPUT, so
+        // asking for a ring of its INPUTS would allocate memory the semantics
+        // never needed (the 2F-2C performance win).
+        expr(e.source)
+        emit(OP.CARRIED, e.site)
+        return
+      }
       case EXPR.CALL: {
         // ⭐ ARGUMENTS PUSH LEFT TO RIGHT; the frame pops them in reverse. The
         // order is fixed HERE rather than left to the host, because once an
@@ -223,6 +233,9 @@ export function lowerIrProgram(ir) {
       historyCount: fn.historyCount || 0,
       historySlots: (fn.historySlots || []).slice(),
       historyPersist: (fn.historyPersist || []).slice(),
+      // ⭐ 2F-2C — how many carried instances ONE invocation of this function
+      // owns. Per FUNCTION; the SITE supplies the base, exactly as for history.
+      carriedCount: fn.carriedCount || 0,
       effects: fn.effects || null,
       at: fn.at || null,
     }
@@ -238,8 +251,10 @@ export function lowerIrProgram(ir) {
     functions,
     pointwise,
     windows: (ir.windows || []).map((w) => ({ ...w })),
+    carried: (ir.carried || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({
-      fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0, at: c.at || null,
+      fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0,
+      carriedBase: c.carriedBase || 0, at: c.at || null,
     })),
     // ⭐ CARRIED THROUGH, NOT RE-DERIVED. The front end's static demand analysis
     // decided which values bear history and how deep; this only copies it, so the
