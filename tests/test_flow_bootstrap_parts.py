@@ -46,6 +46,36 @@ def test_python_allowlist_matches_the_js_contract_exactly():
     assert sorted(fa.PART_NAMES) == sorted(_js_part_names())
 
 
+def _js_derived_part_names():
+    """Parse DERIVED_PART_NAMES out of flowBootstrap.js."""
+    src = JS_MODULE.read_text(encoding="utf-8")
+    m = re.search(r"export const DERIVED_PART_NAMES = Object\.freeze\(\[(.*?)\]\)", src, re.S)
+    assert m, "DERIVED_PART_NAMES not found in flowBootstrap.js"
+    keys = re.findall(r"'([^']+)'", m.group(1))
+    assert keys, "DERIVED_PART_NAMES parsed empty"
+    return keys
+
+
+def test_derived_parts_match_the_js_contract_exactly():
+    """TOP_PICKS travels over the parts transport but is NOT in the partition.
+
+    Two lists, one authority each. If the server allowlists a derived part the
+    client does not know about (or the reverse), a request 400s or a computed
+    product is silently unreachable and the page falls back to shipping the raw
+    arrays -- which is the whole cost 3b exists to remove.
+    """
+    assert sorted(fa.DERIVED_PART_NAMES) == sorted(_js_derived_part_names())
+
+
+def test_derived_parts_are_requestable_but_not_part_of_the_partition():
+    for name in fa.DERIVED_PART_NAMES:
+        assert fa.is_part_name(name), f"{name} must be requestable"
+        assert name not in fa.PART_NAMES, (
+            f"{name} is DERIVED -- putting it in the partition makes "
+            "'the parts recombine into D' false while every test still passes"
+        )
+
+
 def test_the_control_can_actually_fail():
     """A parser that finds nothing would make the test above vacuously true."""
     names = _js_part_names()
