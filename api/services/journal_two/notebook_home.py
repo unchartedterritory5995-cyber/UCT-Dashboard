@@ -68,12 +68,26 @@ def _needs_review(user_id: str, limit: int, conn: sqlite3.Connection) -> list[di
     # ⛔ CAUSES, NEVER A PRIORITY. There is deliberately no score to sort by —
     # an opaque HIGH badge is exactly what turns a review queue into somebody
     # else's homework.
+    today = _today_iso()
     for n in picked:
+        # ⛔ THE ROW'S OWN REASON FOR BEING HERE, FIRST. The selection predicate
+        # is `review_date <= today`, and that date is something the MEMBER set —
+        # so it is the most explainable reason of all, and the queue must say it
+        # rather than leaving a row with an empty explanation and an implied
+        # judgement. Composed here because this is where the date is known;
+        # `review_attention` is about what changed, not about scheduling.
+        due_on = (n.get("propertiesJson") or {}).get("builtin:review_date")
+        reasons = []
+        if due_on:
+            reasons.append({
+                "code": "review_due", "count": 0,
+                "text": ("review due today" if due_on == today
+                         else f"review was due {due_on}")})
         try:
-            att = review_attention(user_id, n["id"], conn=conn)
-            n["reviewReasons"] = att["reasons"]
+            reasons.extend(review_attention(user_id, n["id"], conn=conn)["reasons"])
         except Exception:  # noqa: BLE001
-            n["reviewReasons"] = []
+            pass
+        n["reviewReasons"] = reasons
     return picked
 
 

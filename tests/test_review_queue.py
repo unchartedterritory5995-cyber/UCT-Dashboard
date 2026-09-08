@@ -115,8 +115,24 @@ class TestTheRowExplainsItself:
     def test_a_never_reviewed_due_thesis_says_exactly_that(self):
         _thesis(A, "never reviewed", review_date=_day(-1))
         row = [n for n in _home()["needsReview"] if n["title"] == "never reviewed"][0]
-        assert [r["code"] for r in row["reviewReasons"]] == ["never_reviewed"]
-        assert row["reviewReasons"][0]["text"] == "no completed review yet"
+        codes = [r["code"] for r in row["reviewReasons"]]
+        assert codes == ["review_due", "never_reviewed"]
+        texts = [r["text"] for r in row["reviewReasons"]]
+        assert f"review was due {_day(-1)}" in texts
+        assert "no completed review yet" in texts
+
+    def test_EVERY_row_states_why_it_is_here_even_with_nothing_changed(self):
+        # ⛔ §16. After a clean review with no subsequent changes there is
+        # nothing to report about the research — but the row is still in the
+        # queue, and a row with an empty explanation is an implied judgement.
+        # The member's own scheduled date is the most explainable reason there
+        # is, so it always leads.
+        n = _thesis(A, "quiet but due", review_date=_day(0))
+        r = tr.open_review(A, n["id"])
+        tr.complete(A, r["id"], outcome=tr.OUTCOME_NO_CHANGE)
+        row = [x for x in _home()["needsReview"] if x["title"] == "quiet but due"][0]
+        assert row["reviewReasons"], "a queue row explains nothing at all"
+        assert row["reviewReasons"][0]["text"] == "review due today"
 
     def test_new_opposing_evidence_is_stated_as_a_fact(self):
         n = _thesis(A, "with new opposing", review_date=_day(-1))
@@ -177,7 +193,12 @@ class TestTheRowExplainsItself:
         healthy = [n for n in rows if n["title"] == "healthy"][0]
         exploded = [n for n in rows if n["title"] == "explosive"][0]
         assert healthy["reviewReasons"], "the healthy row lost its explanation too"
-        assert exploded["reviewReasons"] == []
+        # ⭐ AND THE FAILED ROW DEGRADES RATHER THAN GOING SILENT: it keeps the
+        # scheduling reason (which needs no extra read) and loses only the
+        # research-change reasons it could not compute. A row that explains
+        # nothing at all would be an implied judgement.
+        codes = [r["code"] for r in exploded["reviewReasons"]]
+        assert codes == ["review_due"]
 
 
 class TestSchedulingIsOneAuthority:
