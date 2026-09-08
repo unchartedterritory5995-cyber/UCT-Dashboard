@@ -8,6 +8,7 @@ import { labelMap } from '../../../widgets/registry'
 import MobileSymbolStrip from './MobileSymbolStrip'
 import ReviewNavControl, { VARIANTS as NAV_VARIANTS } from '../review/ReviewNavControl'
 import useReviewSession from '../review/useReviewSession'
+import ReviewFeed from '../review/ReviewFeed'
 import MobileChartToolbar from './MobileChartToolbar'
 import MobileSymbolSheet from './MobileSymbolSheet'
 import MobileTfSheet from './MobileTfSheet'
@@ -159,6 +160,7 @@ export default function MobileChartsApp({
    * or a deep link has no ordered set behind it, and a "1 / 1" chip there would
    * be furniture pretending to be context. */
   const review = useReviewSession(groupSyms?.[color] || null, { tf })
+  const [feedOpen, setFeedOpen] = useState(false)
   // Placement probe: `?navprobe=rail|pill|edge` forces a variant with a synthetic
   // position so the three candidates can be MEASURED on hardware against the real
   // chart. Never reachable without the param.
@@ -256,16 +258,31 @@ export default function MobileChartsApp({
     onAddWidget('watchlist')
   }, [watchlistWidget, onAddWidget, openWidgetScreen])
 
-  /* RETURN — back to the list the review came from, at the position it was left.
+  /* THE LIST — the review's OWN set, as charts.
    *
-   * ⛔ THE CHART NEVER UNMOUNTS when a widget opens as a full-screen page over it
-   * ("returning is free"), so this is not a rebuild — it is re-showing a surface
-   * that is still mounted. The only thing that was missing was the INTENT to go
-   * back to *the list you were reviewing*, rather than to a menu. */
-  const openReviewList = useCallback(() => {
-    if (watchlistWidget) { openWidgetScreen(watchlistWidget.id); return }
-    setSheet('more')
-  }, [watchlistWidget, openWidgetScreen])
+   * ⚰️ THIS USED TO OPEN THE WATCHLIST WIDGET, and that was only ever right for
+   * one of the five sources a review can have. A review entered from a scan or
+   * a screener has no list surface on the phone at all, so the gesture showed an
+   * UNRELATED watchlist when one happened to be in the layout and fell through
+   * to the More sheet when one did not — a control labelled with the review's
+   * position, opening something that is not the review.
+   *
+   * ⛔ ONE GESTURE, ONE ANSWER, WHATEVER THE SOURCE: `ReviewFeed` shows the
+   * ordered set the review is actually walking. The watchlist page is unchanged
+   * and still one tap away through its own widget — going BACK to it is a
+   * different intent (leaving the review) from looking ACROSS the set. */
+  const openReviewList = useCallback(() => { setFeedOpen(true) }, [])
+
+  /* ⛔ THROUGH THE SESSION, never straight to the symbol. Tapping a card MOVES
+   * THE REVIEW to that index, so the transport control's "12 / 47" and the chart
+   * are the same fact; setting the symbol alone would leave the position chip
+   * describing where the member used to be. */
+  const goToReview = review.goTo
+  const pickFromFeed = useCallback((index) => {
+    const t = goToReview(index)
+    if (t) setGroupSym(color, t)
+    setFeedOpen(false)
+  }, [goToReview, color, setGroupSym])
   // Render-time state adjustment (the you-might-not-need-an-effect pattern):
   // the moment the added watchlist hydrates into `widgets`, consume the pending
   // flag and open it — React re-renders before committing, no effect pass.
@@ -446,6 +463,18 @@ export default function MobileChartsApp({
             Open a chart
           </button>
         </div>
+      )}
+
+      {/* ⛔ MOUNTED ONLY WHILE OPEN, and only with a session behind it. Each card
+          can hold a live chart; a feed rendered closed would be N charts nobody
+          asked for, which is the exact budget this surface exists to respect. */}
+      {feedOpen && review.session && (
+        <ReviewFeed
+          session={review.session}
+          tf={tf}
+          onOpen={pickFromFeed}
+          onClose={() => setFeedOpen(false)}
+        />
       )}
 
       <MobileSymbolSheet open={sheet === 'symbol'} onClose={closeSheet} onPick={handleSymbolPick} className={sheetTheme} />

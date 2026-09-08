@@ -1,0 +1,153 @@
+/* THE REVIEW FEED — a scroll of charts, bounded to three live ones.
+ *
+ * ⛔ EVERY CARD HAS A FIXED HEIGHT, and that is structural rather than cosmetic.
+ * A card whose height depended on whether its chart had mounted would change
+ * size the instant a chart went live or dark, moving every card below it — so
+ * scrolling would fight the reader, and the IntersectionObserver would re-decide
+ * the centre off geometry its own decision had just changed. Live chart,
+ * snapshot and skeleton therefore occupy exactly the same box.
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--border, #2a3340);
+}
+
+.densityBtn {
+  min-height: var(--tap-min, 44px);
+  padding: 0 14px;
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text, #e8e4d8);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.densityBtn[aria-pressed='true'] {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  list-style: none;
+  overflow-y: auto;
+  /* One card per flick in tall mode: the reviewer's gesture and the unit of
+     content are the same thing, which is what makes a feed feel decisive. */
+  scroll-snap-type: y proximity;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  /* ⛔ THE HEIGHT IS THE BUDGET MADE VISIBLE. Tall = roughly one card per
+     screen, so the three live charts are the one you see and its neighbours. */
+  height: 62vh;
+  border-bottom: 1px solid var(--border, #2a3340);
+  background: var(--bg-surface, #0f1216);
+}
+
+.cardDense { height: 38vh; }
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap-min, 44px);
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text, #e8e4d8);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cardHead:active { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }
+
+.cardPos {
+  min-width: 22px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #6b7280);
+}
+
+.cardSym {
+  font-size: 15px;
+  letter-spacing: 0.6px;
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* Quiet on purpose: "seen" is a memory aid, not a verdict on the symbol. */
+.cardSeen {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.cardBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* The stored frame fills the same box the live chart had, so a card does not
+   twitch as it changes state. */
+.cardShot {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  /* It is a PAST frame. Slightly dimmed so it never reads as live data — the
+     one visual distinction this surface owes the member. */
+  opacity: 0.72;
+}
+
+.cardSkeleton {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    var(--bg-surface, #0f1216) 30%,
+    color-mix(in srgb, var(--border, #2a3340) 45%, transparent) 50%,
+    var(--bg-surface, #0f1216) 70%
+  );
+  background-size: 200% 100%;
+  animation: feedShimmer 1.4s linear infinite;
+}
+
+@keyframes feedShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardSkeleton { animation: none; }
+  .scroll { scroll-snap-type: none; }
+}

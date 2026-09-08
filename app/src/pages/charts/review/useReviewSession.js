@@ -90,10 +90,32 @@ export default function useReviewSession(symbol, { tf = 'D' } = {}) {
     return currentSymbol(next)
   }, [])
 
+  /* JUMP — the feed's door into the same model the transport uses.
+   *
+   * ⛔ NOT A NEW PRIMITIVE. Moving to index N is moving to the symbol AT index
+   * N, which is exactly `syncToSymbol` — the function that already records the
+   * visit and already refuses a symbol outside the set. An `at(index)` beside
+   * it would be a second way to be "at" a symbol, and the two would disagree
+   * the first time one of them learned something the other did not.
+   *
+   * Returns the symbol so the caller can point the chart at it; null when the
+   * index names nothing. */
+  const goTo = useCallback((index) => {
+    const cur = read()
+    if (!cur || !Array.isArray(cur.symbols)) return null
+    const sym = cur.symbols[index]
+    if (!sym) return null
+    const next = syncToSymbol(cur, sym)
+    if (!next) return null
+    if (next !== cur) publish(next)
+    return sym
+  }, [])
+
   return {
     session,
     position: position(session),
     next: () => go(1),
     prev: () => go(-1),
+    goTo,
   }
 }
