@@ -2725,7 +2725,55 @@ def search_note_documents_endpoint(
 
 
 # ── Wave J: excerpts / highlights / annotations ──────────────────────────────
-from api.services.journal_two import note_excerpts, excerpt_search
+from api.services.journal_two import note_excerpts
+from api.services.journal_two import web_capture, web_capture_store, excerpt_search
+
+
+# ⛔ THE ONE CAPTURE DOOR (Wave L Slice 2 §1). Every entry point — palette,
+# hotkey, note, research workspace, the four in-app surfaces, and later the
+# browser extension and the mobile share target — arrives HERE. Doors choose
+# DEFAULTS; they do not own capture semantics.
+#
+# Nothing a client sends can move the boundaries: the rights tier is validated
+# server-side (`web_capture.assert_permitted_tier`), the canonical identity and
+# domain are DERIVED from the URL rather than accepted from the caller, coverage
+# is computed from what was actually stored, and tenant isolation runs before any
+# lookup or reuse. A door that wanted looser rules would have to change this
+# function, which is exactly the property Slice 2 exists to create.
+@router.post("/capture")
+def capture_endpoint(
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Capture one web source into a note. ONE canonical path for every door."""
+    note_id = payload.get("noteId")
+    if not note_id or not isinstance(note_id, str):
+        raise HTTPException(status_code=400, detail="noteId is required")
+    try:
+        result = web_capture_store.capture_web_source(user["id"], note_id, payload)
+    except web_capture.CaptureRightsError as e:
+        # 422, not 400: the request was well-formed and was REFUSED on rights.
+        # A door must be able to tell "you sent nonsense" from "we are not
+        # permitted to store that", because only the second is a product answer.
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except web_capture.CaptureValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except web_capture_store.CaptureStoreError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    doc = result["document"]
+    return {
+        "documentId": doc["id"],
+        "noteId": doc["note_id"],
+        "captureType": doc["capture_type"],
+        "coverage": doc["coverage"],
+        "sourceUrl": doc["source_url"],
+        "title": doc["name"],
+        "passageIndex": result["page_number"],
+        "excerptId": (result["excerpt"] or {}).get("id"),
+        # ⭐ The door needs this to say "Already saved" rather than "Saved" — see
+        # Slice 2 §11. The UI must never compute duplicate-ness itself.
+        "deduped": result["deduped"],
+    }
 
 
 @router.post("/notes/{note_id}/excerpts")
