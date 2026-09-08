@@ -9,9 +9,15 @@ import { useAuth } from "../context/AuthContext";
 // against 0-6 KB for UCT20/Breadth/Screener measured identically.
 // ⛔ OFF => byte-identical to previous behaviour. That is the rollback path.
 const DEFER_TAPE = import.meta.env.VITE_FLOW_DEFER_TAPE === "1";
+// Phase B: assemble first paint from the parts it reads instead of the whole
+// 23.83 MB aggregate. Measured worth on prod: 2,964.0 -> 2,496.8 KB gzipped,
+// because TOP 10 needs all_trades (1,312.2) + all_directional (601.2) and only
+// server-side TOP 10 (3b) removes those. Independent of DEFER_TAPE.
+const USE_PARTS = import.meta.env.VITE_FLOW_PARTS === "1";
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
+import { fetchPartsBundle } from "./optionsFlow/flowParts";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
   P,
@@ -1400,7 +1406,15 @@ export default function OptionsFlowDashboard() {
         ? setTimeout(() => _demandTape(`did not answer in ${PREHYDRATE_FALLBACK_MS}ms`),
                      PREHYDRATE_FALLBACK_MS)
         : null;
-      fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
+      // ⛔ ONE CONTRACT, TWO TRANSPORTS. Both resolve {D, stats, version} or null,
+      // so the fallback below, the availableDates seed and the view guard are
+      // identical either way — the flag changes how first paint is FETCHED, never
+      // what the page does with it, and rolling it back cannot strand a code path.
+      (USE_PARTS
+        ? fetchPartsBundle(csvFile, dateFilter, dataVersionRef.current,
+                           { deadlineMs: PREHYDRATE_FALLBACK_MS })
+        : fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current)
+      ).then(pre => {
         if (cancelled) return;
         if (!pre) { clearTimeout(_preFallbackTimer); _demandTape('declined'); return; }
         _preLanded = true;
