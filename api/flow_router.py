@@ -70,6 +70,7 @@ from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB, parse_columns
 from api.services import flow_aggregate
+import collections
 from collections import OrderedDict
 import json
 import os
@@ -1711,6 +1712,7 @@ def _prepare_once(last_version):
             if _current_version() != version:
                 log.info("[flow-prepare] version moved during pass 1 — skipping "
                          "the remainder for v=%s", version)
+                _record_roll(version, ms, pass2_skipped=True)
                 return version
             t1 = time.monotonic()
             rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
@@ -1722,6 +1724,7 @@ def _prepare_once(last_version):
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] remainder pass failed (first paint is "
                         "already live): %s", e)
+        _record_roll(version, ms, pass2_skipped=False)
         return version
 
     _PREPARE_STATE["declined"] += 1
@@ -1730,6 +1733,71 @@ def _prepare_once(last_version):
 
 
 # At most one preparation at a time; the DETECTION loop never waits for it.
+# ── Roll ledger: measure the race without the bucket ambiguity ─────────────
+#
+# ⛔⛔ `version * 60` IS NOT THE GENERATION'S BIRTH INSTANT. `_SIG_VERSION` is
+# assigned `int(time.time() // 60)` AT PROBE TIME, so the number encodes the
+# MINUTE in which the probe noticed the signature change — the true instant lies
+# anywhere in [version*60, version*60+60). Deriving "detection latency" from the
+# bucket therefore yields an UPPER BOUND inflated by an unknown 0-60 s, and an
+# earlier report of mine quoted those bounds as if they were point estimates.
+#
+# So record what can actually be observed: the DETECTOR'S OWN first sighting of
+# a new version. `first_seen -> prepared` is exact and is the number this gate
+# should be judged on; the bucket figure is kept beside it, explicitly labelled
+# as a bound, so the two can never be confused again.
+#
+# ⛔ AND A GENERATION THAT PREDATES THIS PROCESS IS NOT A ROLL. On boot the
+# preparer legitimately catches up a version that may be minutes old; counting
+# that as detection latency is what produced a nonsense 130 s sample. Those are
+# classified `startup_catchup` and MUST be excluded from steady-state stats.
+_PROCESS_START_WALL = time.time()
+_VERSION_FIRST_SEEN = {}
+_PREPARE_ROLLS = collections.deque(maxlen=80)
+
+
+def _note_version_seen(version) -> None:
+    """Called by the detector the moment it observes a version it has not seen."""
+    if version in _VERSION_FIRST_SEEN:
+        return
+    if len(_VERSION_FIRST_SEEN) > 200:
+        _VERSION_FIRST_SEEN.clear()
+    _VERSION_FIRST_SEEN[version] = time.time()
+
+
+def _record_roll(version, prepare_ms, pass2_skipped) -> None:
+    now = time.time()
+    first_seen = _VERSION_FIRST_SEEN.get(version)
+    born_bucket = version * _VERSION_BUCKET_SEC if _FORCE_BUMP_OFFSET == 0 else None
+    kind = "steady_state_roll"
+    if born_bucket is None or born_bucket < _PROCESS_START_WALL:
+        # Predates this process (or the bucket arithmetic is invalidated by a
+        # forced bump) — a catch-up, never a measurement of the detector.
+        kind = "startup_catchup"
+    _PREPARE_ROLLS.append({
+        "version": version,
+        "kind": kind,
+        # EXACT: detector sighting -> first paint published.
+        "observed_s": round(now - first_seen, 2) if first_seen else None,
+        "handoff_ms": (round((first_seen and (now - first_seen) * 1000 - prepare_ms) or 0)
+                       if first_seen else None),
+        "prepare_ms": prepare_ms,
+        # UPPER BOUND ONLY -- see the note above. Never quote as detection.
+        # ⛔ None rather than a negative: a bucket that starts in the future
+        # means the arithmetic does not describe this generation (a forced bump,
+        # a clock step, or a synthetic version), and reporting a negative
+        # "latency" invites someone to average it into a distribution.
+        "bucket_bound_s": (round(now - born_bucket, 2)
+                           if born_bucket and now >= born_bucket else None),
+        "pass2_skipped": bool(pass2_skipped),
+    })
+
+
+def prepare_rolls(kind: str | None = None) -> list:
+    rows = list(_PREPARE_ROLLS)
+    return [r for r in rows if kind is None or r["kind"] == kind]
+
+
 _PREPARE_INFLIGHT = threading.Lock()
 _PREPARE_LAST = None
 # Lets the loop be stopped deterministically (tests, and a clean shutdown).
@@ -1760,7 +1828,9 @@ def _prepare_loop():
     global _PREPARE_LAST
     while not _PREPARE_STOP.is_set():
         try:
-            if _current_version() != _PREPARE_LAST and _PREPARE_INFLIGHT.acquire(blocking=False):
+            _seen_now = _current_version()
+            _note_version_seen(_seen_now)
+            if _seen_now != _PREPARE_LAST and _PREPARE_INFLIGHT.acquire(blocking=False):
                 def _run():
                     global _PREPARE_LAST
                     try:
@@ -1812,6 +1882,10 @@ async def aggregate_health():
     # Colour, not verdict: `warm` above already answers "is the first paint
     # ready". These say whether the preparer is the reason it is.
     out["prepare"] = prepare_state()
+    # ⛔ SPLIT BY CLASSIFICATION. A generation that predates this process is a
+    # catch-up, not a roll; mixing them produced a nonsense 130 s "detection".
+    out["rolls_steady"] = prepare_rolls("steady_state_roll")[-25:]
+    out["rolls_startup"] = prepare_rolls("startup_catchup")[-5:]
     out["search_warm"] = search_warm_state()
     return JSONResponse(out)
 

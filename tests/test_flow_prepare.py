@@ -379,3 +379,86 @@ def test_CONTROL_pass_2_DOES_run_when_the_version_is_stable(monkeypatch):
     fr._prepare_once(None)
 
     assert len(rec.calls) == 2, "the remainder pass is gone"
+
+
+# ── The roll ledger: startup must never pollute steady state ─────────────────
+#
+# ⛔⛔ TWO SEPARATE MEASUREMENT DEFECTS THIS PINS.
+# (1) A generation that predates the process is a CATCH-UP, not a roll. Counting
+#     one produced a nonsense 130 s "detection latency" in a real report.
+# (2) `version * 60` is NOT the birth instant. `_SIG_VERSION` is assigned
+#     `int(time.time() // 60)` AT PROBE TIME, so the number encodes the MINUTE
+#     the change was noticed and the true instant lies anywhere inside it. Any
+#     latency derived from the bucket is an UPPER BOUND inflated by 0-60 s — and
+#     an earlier report of mine quoted those bounds as point estimates.
+
+@pytest.fixture(autouse=True)
+def _clean_ledger():
+    fr._PREPARE_ROLLS.clear()
+    fr._VERSION_FIRST_SEEN.clear()
+    yield
+    fr._PREPARE_ROLLS.clear()
+    fr._VERSION_FIRST_SEEN.clear()
+
+
+def test_a_generation_predating_this_process_is_startup_catchup(monkeypatch):
+    old_version = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(old_version, prepare_ms=8000, pass2_skipped=False)
+
+    assert fr.prepare_rolls("steady_state_roll") == [], (
+        "a generation older than the process leaked into the steady-state "
+        "distribution — this is exactly the 130 s confusion")
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+
+
+def test_a_generation_born_after_startup_is_a_steady_state_roll():
+    new_version = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(new_version, prepare_ms=7000, pass2_skipped=False)
+
+    rows = fr.prepare_rolls("steady_state_roll")
+    assert len(rows) == 1 and rows[0]["version"] == new_version
+    assert fr.prepare_rolls("startup_catchup") == []
+
+
+def test_observed_s_uses_the_DETECTOR_sighting_not_the_bucket():
+    """⛔ The exact number. `observed_s` is detector-sighting -> published, which
+    carries none of the bucket's 0-60 s ambiguity."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._note_version_seen(v)
+    time.sleep(0.05)
+    fr._record_roll(v, prepare_ms=40, pass2_skipped=False)
+
+    row = fr.prepare_rolls("steady_state_roll")[0]
+    assert row["observed_s"] is not None and row["observed_s"] >= 0.04
+    # And it must be far smaller than the bucket figure, which starts counting
+    # from the beginning of the minute.
+    assert row["bucket_bound_s"] is None or row["bucket_bound_s"] >= row["observed_s"]
+
+
+def test_the_bucket_figure_is_reported_but_never_as_detection():
+    """It is kept for continuity with earlier reports and MUST stay labelled a
+    bound — the field name is the label."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(v, prepare_ms=7000, pass2_skipped=False)
+    row = fr.prepare_rolls()[0]
+    assert "bucket_bound_s" in row
+    assert "detection_s" not in row, (
+        "a field called detection_s would invite quoting the bucket bound as a "
+        "measured detection latency, which is the error this exists to prevent")
+
+
+def test_pass2_skipped_is_recorded(monkeypatch):
+    """So the gate can count how often a newer version overtook the remainder."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(v, prepare_ms=7000, pass2_skipped=True)
+    assert fr.prepare_rolls()[0]["pass2_skipped"] is True
+
+
+def test_CONTROL_the_two_classes_are_actually_distinguishable():
+    """Without this the split could pass by putting everything in one bucket."""
+    old_v = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    new_v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(old_v, 8000, False)
+    fr._record_roll(new_v, 7000, False)
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1
