@@ -31,6 +31,7 @@ app/public/dev-login.html
 
 # Mobile audit screenshots (local only)
 tools/mobile_audit_out/
+tools/review_feed_probe_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/
