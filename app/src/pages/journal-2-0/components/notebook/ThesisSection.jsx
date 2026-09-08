@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
@@ -189,6 +189,12 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   const [caption, setCaption] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // ⛔ WAVE N §14 — ATTACHING MUST BE ANNOUNCED, AND FOCUS MUST LAND SOMEWHERE.
+  // On success the picker closes and a row appears further up the page: a
+  // sighted member sees it, and a screen-reader user was told nothing and left
+  // with focus on <body> because the button they had pressed was unmounted.
+  const [announcement, setAnnouncement] = useState('')
+  const addTriggerRef = useRef(null)
 
   useEffect(() => {
     if (targetType !== 'note' || selected || !query.trim()) { setResults([]); return undefined }
@@ -218,6 +224,9 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
     setSelected(null)
     setCaption('')
     setError(null)
+    // Focus returns to the control that opened the picker — never the void.
+    // rAF because the trigger only re-mounts once `pickerOpen` is false.
+    requestAnimationFrame(() => addTriggerRef.current?.focus())
   }
 
   const submit = async () => {
@@ -242,6 +251,7 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
       // after a write — otherwise the member can pick the same passage twice
       // and only learn it was a duplicate by being refused.
       await refreshCandidates()
+      setAnnouncement(`Evidence added as ${stance === 'supports' ? 'supporting' : 'opposing'}.`)
       resetPicker()
     } catch (e) {
       setError(e.message)
@@ -259,6 +269,8 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
 
   return (
     <div className={styles.wrap} data-export-exclude>
+      {/* Polite, and outside the picker so it survives the picker unmounting. */}
+      <div className={styles.srOnly} role="status" aria-live="polite">{announcement}</div>
       <div className={styles.evidenceBlock}>
         {evidence.length > 0 && (
           <ul className={styles.evidenceList}>
@@ -295,7 +307,8 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
           </ul>
         )}
         {!pickerOpen ? (
-          <button type="button" className={styles.addLink} onClick={() => setPickerOpen(true)}>
+          <button type="button" ref={addTriggerRef} className={styles.addLink}
+                  onClick={() => { setAnnouncement(''); setPickerOpen(true) }}>
             <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
             Add evidence
           </button>
@@ -487,7 +500,9 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
               onChange={(e) => setCaption(e.target.value)}
             />
 
-            {error && <div className={styles.error}>{error}</div>}
+            {/* ⛔ role=alert: a refusal the member cannot see is a refusal they
+                will repeat. The duplicate guard's 400 arrives here. */}
+            {error && <div className={styles.error} role="alert">{error}</div>}
 
             <div className={styles.pickerActions}>
               <button type="button" className={styles.cancelBtn} onClick={resetPicker}>Cancel</button>

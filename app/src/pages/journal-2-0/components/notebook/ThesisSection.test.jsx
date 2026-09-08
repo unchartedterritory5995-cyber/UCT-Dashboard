@@ -499,4 +499,45 @@ describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in t
       expect(screen.getByText(/Capture a passage from the web/i)).toBeTruthy()
     })
   })
+
+  describe('§14 — attaching, announced', () => {
+    // ⛔ On success the picker closes and a row appears further up the page.
+    // A sighted member sees it; a screen-reader user was told nothing and was
+    // left with focus on <body>, because the button they pressed unmounted.
+    it('announces the attach politely, with the stance in words', async () => {
+      candidatesResult = {
+        candidates: [{ id: 'c1', sourceKind: 'web', sourceTitle: 'Reuters',
+                       sourceUrl: 'https://www.reuters.com/x', pageNumber: null,
+                       text: 'passage', annotation: null, alreadyAttached: false }],
+        isLoading: false, refresh: vi.fn(),
+      }
+      global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
+      renderIt(THESIS_NOTE_BY_TAG)
+      fireEvent.click(screen.getByText('Add evidence'))
+      fireEvent.click(screen.getByText('Document excerpt'))
+      fireEvent.click(screen.getByText('Opposes'))
+      fireEvent.click(screen.getByText(/Captured passage/))
+      fireEvent.click(screen.getByRole('button', { name: /^Add evidence$/ }))
+      await waitFor(() => {
+        expect(screen.getByRole('status').textContent).toMatch(/opposing/i)
+      })
+    })
+
+    it('⛔ a refusal is an alert, not a silent line of text', () => {
+      // The duplicate guard's 400 arrives here. A refusal the member cannot
+      // perceive is a refusal they will repeat.
+      candidatesResult = {
+        candidates: [{ id: 'c1', sourceKind: 'web', sourceTitle: 'Reuters',
+                       sourceUrl: 'https://www.reuters.com/x', pageNumber: null,
+                       text: 'passage', annotation: null, alreadyAttached: false }],
+        isLoading: false, refresh: vi.fn(),
+      }
+      renderIt(THESIS_NOTE_BY_TAG)
+      fireEvent.click(screen.getByText('Add evidence'))
+      fireEvent.click(screen.getByText('Document excerpt'))
+      const live = screen.getByRole('status')
+      expect(live).toBeTruthy()
+      expect(live.getAttribute('aria-live')).toBe('polite')
+    })
+  })
 })
