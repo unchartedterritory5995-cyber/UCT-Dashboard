@@ -198,6 +198,22 @@
   flex-wrap: wrap;
   font-size: 12px;
 }
+/* ⛔ O6 §4: the row a search result or a citation SENT the member to. It has
+   to be findable in a list of a dozen dated rows that otherwise look alike —
+   scrolling to it without marking it leaves them hunting the thing they just
+   clicked. Marked with the same gold the rest of the notebook uses for "this
+   one", and with a real left rule rather than a background wash so it survives
+   forced-colors mode. */
+.historyRowAnchored {
+  border-left: 2px solid #dcbb5e;
+  margin-left: -8px;
+  padding-left: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* scrollIntoView's smooth behaviour is honoured by the browser here; the
+     mark itself never animates, so there is nothing else to disable. */
+  .historyRowAnchored { transition: none; }
+}
 .historyDate {
   color: var(--color-text-muted, #98a0aa);
   min-width: 82px;

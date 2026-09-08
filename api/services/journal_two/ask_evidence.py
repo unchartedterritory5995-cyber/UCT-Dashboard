@@ -49,6 +49,16 @@ DOCUMENT_PAGE = "document_page"
 DOCUMENT_EXCERPT = "document_excerpt"
 FINANCIAL_FACT = "financial_fact"
 THESIS_STATE = "thesis_state"
+# ⛔⛔ WAVE O6. A completed review is the MEMBER'S OWN HISTORICAL DECISION, and
+# none of the five types above can carry it truthfully:
+#   NOTE          — it is not a note; it has no body, no location, no id there.
+#   THESIS_STATE  — that is the thesis's CURRENT authoritative state. A review
+#                   is what the member decided at a point in the PAST, and §16
+#                   exists precisely so today's state cannot overwrite it.
+#   the document types — it is not a source at all.
+# So it gets its own type rather than being flattened into a semantically false
+# one (§13: inspect first, then extend).
+THESIS_REVIEW = "thesis_review"
 
 # ── Coverage: the CORPUS BOUNDARY of one evidence item (Wave L §1) ───────────
 # ⛔ What the synthesis layer is entitled to claim it has. A captured web
@@ -128,7 +138,7 @@ def passage_label(row, page_number) -> str:
 
 
 SOURCE_TYPES = frozenset({NOTE, DOCUMENT_PAGE, DOCUMENT_EXCERPT,
-                          FINANCIAL_FACT, THESIS_STATE})
+                          FINANCIAL_FACT, THESIS_STATE, THESIS_REVIEW})
 
 # ── Citation validity ────────────────────────────────────────────────────────
 # What a citation may CLAIM. Distinct from "is this evidence any good" --
@@ -175,6 +185,7 @@ def make_evidence(
     coverage: str = COVERAGE_COMPLETE,
     curation: int = 0,
     score: float = 0.0,
+    corroborates: bool = True,
 ) -> dict[str, Any]:
     """One retrieval result, in the single shape every source type produces.
 
@@ -211,6 +222,15 @@ def make_evidence(
         # ignores it can over-claim; a consumer that never receives it cannot
         # even try to be truthful.
         "coverage": coverage,
+        # ⛔⛔ WAVE O6 §15 — MAY THIS ITEM RAISE THE NUMBER OF SOURCES AN ANSWER
+        # CLAIMS? For everything retrieved before this wave: yes, unchanged.
+        # For a member's own review of their thesis: NO. A review discussing the
+        # Reuters passage is evidence of the MEMBER'S CONCERN, never a second
+        # publisher agreeing with the first — and "Reuters + the thesis
+        # relationship + the review that mentions it" must not read as three
+        # corroborating sources. CURATION AND MEMBER DISCUSSION ARE NOT
+        # CORROBORATION (the Wave K/N doctrine, one object class later).
+        "corroborates": corroborates,
         "curation": curation,
         "score": score,
     }
@@ -339,6 +359,82 @@ def from_thesis_state(note_row, *, properties: dict[str, Any],
     )
 
 
+def _review_ordinal_phrase(ordinal: int | None) -> str:
+    """The member-facing name for a review's place in its own history.
+
+    ⛔ ONLY THE TWO POSITIONS A MEMBER ACTUALLY ASKS FOR ARE NAMED. "Last"
+    and "previous" are words people use; "3rd most recent" is not, and
+    inventing an ordinal phrase for it would read as product voice rather than
+    fact. Everything past the second keeps the neutral label and carries its
+    position in `payload.chronology` for any consumer that needs it.
+    """
+    if ordinal == 1:
+        return "Your most recent thesis review"
+    if ordinal == 2:
+        return "Your previous thesis review"
+    return "Your thesis review"
+
+
+def from_thesis_review(row, *, thesis_title: str | None = None,
+                       ticker: str | None = None,
+                       ordinal: int | None = None, total: int | None = None,
+                       score: float = 0.0) -> dict[str, Any]:
+    """One COMPLETED review -- what the member decided, and when.
+
+    ⛔ MEMBER-AUTHORED, AND LABELLED AS SUCH (§14). "Your thesis review ·
+    Sep 8, 2026" is the whole point: a member reading an answer must never
+    wonder whether these were their words or a publisher's.
+
+    ⛔ `corroborates=False` (§15). This is evidence of the member's own
+    judgement, never evidence that a financial claim is true.
+
+    ⛔ ITS OWN LINEAGE, so it never collapses into the source it discusses --
+    and, because it does not corroborate, never inflates the source count
+    either. Those are two different protections and it needs both: collapsing
+    would HIDE the review, counting it would INFLATE the claim.
+    """
+    when = (row.get("completed_at") or "")[:10]
+    label = f"{_review_ordinal_phrase(ordinal)} · {when}" if when else _review_ordinal_phrase(ordinal)
+    return make_evidence(
+        source_type=THESIS_REVIEW, source_id=row["id"], user_id=row["user_id"],
+        label=label,
+        text=row.get("member_note") or "",
+        payload={
+            "outcome": row.get("outcome"),
+            "completed_at": row.get("completed_at"),
+            "review_reason": row.get("review_reason"),
+            "next_review_at": row.get("next_review_at"),
+            "thesis_title": thesis_title,
+            # ⛔ CHRONOLOGY IS CARRIED, NEVER INFERRED (§9). Handing a
+            # synthesizer several undated-looking review notes and hoping it
+            # works out which is "last" is the failure these fields exist to
+            # prevent. `review_ordinal` is 1 for the most recent review OF THAT
+            # THESIS, and `review_total` says how many there are, so "my
+            # previous review" resolves to a row rather than to a guess.
+            # ⛔ SCALARS, NOT A NESTED DICT: the prompt allowlist names payload
+            # keys one by one and renders each as `key: value`, so a nested
+            # object would reach the model as a Python repr.
+            "review_ordinal": ordinal,
+            "review_total": total,
+            # Version references, so a consumer can tell whether the thesis
+            # itself moved -- without this module reading any thesis text.
+            "thesis_version_before": row.get("prior_version_id"),
+            "thesis_version_after": row.get("resulting_version_id"),
+        },
+        location={"note_id": row["note_id"], "review_id": row["id"]},
+        # The deepest truthful destination: this exact review in its history.
+        navigation={"kind": "review", "note_id": row["note_id"],
+                    "review_id": row["id"]},
+        citation_validity=CITE_EXACT,
+        lineage_key=f"review:{row['id']}",
+        entity={"ticker": ticker} if ticker else {},
+        temporal={"as_of": row.get("completed_at")},
+        coverage=COVERAGE_COMPLETE,
+        corroborates=False,
+        curation=2, score=score,
+    )
+
+
 def with_stance(evidence: dict[str, Any], stance: str, caption: str | None,
                 thesis_note_id: str) -> dict[str, Any]:
     """Mark an evidence object as attached to a thesis as supporting/opposing.
@@ -415,5 +511,15 @@ def dedupe(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def independent_source_count(items: list[dict[str, Any]]) -> int:
     """How many genuinely independent sources back a claim. Distinct lineage
-    keys, NOT len(items) -- the number an answer is allowed to imply."""
-    return len({it["lineage_key"] for it in items})
+    keys, NOT len(items) -- the number an answer is allowed to imply.
+
+    ⛔⛔ AND NOT EVERY ITEM IS A SOURCE. An item marked `corroborates=False` is
+    the member's own commentary about the research (Wave O6: a completed thesis
+    review). Counting it would let "Reuters said X, and I later wrote that X
+    worries me" become TWO sources for X — the member agreeing with themselves,
+    rendered as external corroboration. Existing types are unaffected: they
+    default to `corroborates=True`, so this changes no number that was already
+    being reported.
+    """
+    return len({it["lineage_key"] for it in items
+                if it.get("corroborates", True)})

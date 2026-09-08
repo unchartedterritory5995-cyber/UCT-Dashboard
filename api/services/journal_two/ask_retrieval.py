@@ -37,12 +37,22 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import ask_evidence as ev
 from api.services.journal_two import ask_ranking as rk
 from api.services.journal_two import note_citation_text as nct
+from api.services.journal_two import review_search
 from api.services.journal_two.notes_search import fts_match_expr
 
 # Ask Current Note showed up to this many characters of the note before Wave K
 # (note_ask._NOTE_BODY_CAP). Kept, so migrating the scope onto typed evidence
 # cannot quietly shrink what the model can see -- only reorder what survives.
 NOTE_SCOPE_MAX_CHARS = 20000
+
+# ⛔⛔ HOW MUCH REVIEW HISTORY A SCOPE MAY RETRIEVE BY CHRONOLOGY (O6 §9).
+# Inside ONE thesis the member's review history IS the subject, so the whole
+# of it (bounded) is fair game -- "how has my thinking changed" is a question
+# about the sequence. Across many theses it is not: the last two reviews of
+# every thesis a member owns is a floor, and a floor is how an unrelated
+# question ends up answered with the member's research.
+NOTE_SCOPE_REVIEW_HISTORY = 12
+SCOPED_REVIEW_HISTORY = 2
 
 # ── Query intents (§19). Small and inspectable; NOT an agent planner. ────────
 INTENT_STRUCTURED = "structured_research_query"
@@ -539,6 +549,14 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
                 items += _notes(conn, user_id, expr, limit, member_note_ids)
                 items += _document_pages(conn, user_id, query, limit)
                 items += _excerpts(conn, user_id, query, limit)
+                # ⭐ O6: the member's completed reviews are part of the
+                # corpus they are asking. Chronology joins ONLY once the
+                # question has narrowed to a security -- see the constants
+                # above for why "the latest review of everything" is a floor,
+                # not an answer.
+                items += _reviews_for_notes(
+                    conn, user_id, member_note_ids, query, limit,
+                    per_thesis=SCOPED_REVIEW_HISTORY if entity else 0)
             # ⛔ Thesis state and facts are CONTEXT, not a floor. Adding them
             # unconditionally made "zebra husbandry techniques" return the
             # member's thesis as evidence -- the exact §20 failure of forcing
@@ -700,6 +718,116 @@ def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
 def _capture_cols(conn) -> str:
     from api.services.journal_two.web_capture import capture_columns
     return capture_columns(conn)
+
+
+# ── Wave O6: completed thesis reviews as retrievable member history ─────────
+
+def _review_history(conn, user_id: str, note_ids: list[str] | None,
+                    *, per_thesis: int | None, q: str | None,
+                    limit: int) -> list[dict[str, Any]]:
+    """Completed reviews, each carrying its place in ITS OWN thesis's history.
+
+    ⛔ COMPLETED ONLY. A draft is work in progress, not something the member
+    decided -- answering from one would put words in their mouth.
+
+    ⛔⛔ THE WINDOW IS COMPUTED BEFORE THE TEXT FILTER, ON PURPOSE. If the
+    LIKE clauses ran inside the subquery, `ordinal` would be the row's position
+    among the reviews that happen to share vocabulary with the question -- so a
+    two-year-old review would be labelled "your most recent" the moment it was
+    the only one matching. The ordinal has to mean what a member means by it,
+    which is a position in the whole history, so the filter is applied outside.
+
+    `note_ids=None` means "any thesis this member owns" -- the corpus-wide
+    scope. Tenancy is asserted on BOTH the review and its note: a review row is
+    only ever reachable through a note the same member owns.
+    """
+    sub = ("SELECT r.id AS id, r.user_id AS user_id, r.note_id AS note_id,"
+           " r.outcome AS outcome, r.member_note AS member_note,"
+           " r.review_reason AS review_reason, r.completed_at AS completed_at,"
+           " r.next_review_at AS next_review_at,"
+           " r.prior_version_id AS prior_version_id,"
+           " r.resulting_version_id AS resulting_version_id,"
+           " n.title AS thesis_title, n.ticker AS ticker,"
+           " ROW_NUMBER() OVER (PARTITION BY r.note_id"
+           "   ORDER BY r.completed_at DESC, r.id DESC) AS ordinal,"
+           " COUNT(*) OVER (PARTITION BY r.note_id) AS total"
+           " FROM j2_thesis_reviews r"
+           " JOIN j2_notes n ON n.id = r.note_id"
+           " WHERE r.user_id = ? AND n.user_id = ?"
+           " AND r.status = 'completed' AND n.deleted_at IS NULL")
+    params: list[Any] = [user_id, user_id]
+    if note_ids is not None:
+        if not note_ids:
+            return []
+        sub += f" AND r.note_id IN ({','.join('?' * len(note_ids))})"
+        params += list(note_ids)
+
+    sql = f"SELECT * FROM ({sub}) WHERE 1 = 1"
+    if per_thesis is not None:
+        sql += " AND ordinal <= ?"
+        params.append(per_thesis)
+    if q and q.strip():
+        # ⛔ ONE DEFINITION OF MATCHING, TWO TERM SETS -- deliberately.
+        # `review_search.member_note_clause` owns what "this review matches"
+        # MEANS so Search and Ask cannot drift apart on it. What differs is the
+        # input: a typed search query is all content words, a QUESTION is
+        # mostly stopwords, and feeding "what did I decide about margins" to
+        # the search box's tokeniser would demand a review containing "what".
+        clause, clause_params = review_search.member_note_clause(
+            _content_terms(q))
+        sql += clause
+        params += clause_params
+    # ⛔ `id` BREAKS THE TIE, not chance. Two reviews completed in the same
+    # second must order the same way on every run, or "last" is a coin flip.
+    sql += " ORDER BY completed_at DESC, id DESC LIMIT ?"
+    params.append(limit)
+    try:
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+    except sqlite3.OperationalError as e:
+        if not review_search.is_missing_review_table(e):
+            raise
+        return []
+
+
+def _reviews_for_notes(conn, user_id: str, note_ids: list[str] | None, q: str,
+                       limit: int, *, per_thesis: int) -> list[dict[str, Any]]:
+    """⛔⛔ TWO RETRIEVALS, DELIBERATELY (§9).
+
+    A question like "what did I decide in my last review?" is a STRUCTURED
+    TEMPORAL REQUEST, not a text match. Hoping lexical top-k happens to surface
+    the newest row is exactly the "let the model infer which is latest from
+    unordered chunks" failure the directive forbids -- and it fails silently the
+    moment an older review shares more vocabulary with the question.
+
+    So the newest `per_thesis` completed reviews are retrieved by CHRONOLOGY,
+    unconditionally, and text matches are added alongside them. Chronology is
+    scored above text so ranking cannot bury the answer to "last".
+
+    ⛔ `per_thesis` IS THE SCOPE'S ANSWER, NOT A CONSTANT. Inside one thesis,
+    the member's whole review history is the subject and all of it is fair to
+    retrieve. Across a notebook of theses it is not: "the last two reviews of
+    every thesis you own" is a floor, and a floor is what makes an unrelated
+    question return the member's research as though it were an answer.
+    """
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(rows: list[dict[str, Any]], score: float) -> None:
+        for r in rows:
+            if r["id"] in seen:
+                continue
+            seen.add(r["id"])
+            out.append(ev.from_thesis_review(
+                r, thesis_title=r.get("thesis_title"), ticker=r.get("ticker"),
+                ordinal=r.get("ordinal"), total=r.get("total"), score=score))
+
+    if per_thesis > 0:
+        n = len(note_ids) if note_ids is not None else 1
+        add(_review_history(conn, user_id, note_ids, per_thesis=per_thesis,
+                            q=None, limit=max(limit, per_thesis * n)), 0.95)
+    add(_review_history(conn, user_id, note_ids, per_thesis=None,
+                        q=q, limit=limit), 0.75)
+    return out
 
 
 def _no_capture_tables(exc: sqlite3.OperationalError) -> bool:
@@ -1026,6 +1154,19 @@ def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
                               else ENTITY_CONTEXT)
         items.extend(captured)
 
+        # ⭐ O6: this thesis's own completed reviews -- what the member
+        # decided, in their words, in order. Retrieved by chronology as well
+        # as by text because "what did I conclude last time" is a temporal
+        # question, and judged by the SAME relevance test as everything else
+        # so a review can never become an answer to a question it does not
+        # address.
+        reviews = _reviews_for_notes(conn, user_id, [note_id], query, limit,
+                                     per_thesis=NOTE_SCOPE_REVIEW_HISTORY)
+        for i in reviews:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+        items.extend(reviews)
+
         cov = {"exists": True, "blocks": len(blocks), "matched_blocks": matched,
                # ⛔ `has_text` drives the member-facing "this note doesn't have
                # any text yet" notice. A note holding only captured passages
@@ -1102,6 +1243,13 @@ def retrieve_entity_research(user_id: str, symbol: str, query: str, *,
         # ⛔ THE SCOPE IS ALREADY THE SECURITY. A note matching only because
         # it says "NVDA" tells the member nothing they did not know by being
         # here -- it is context about this security, not an answer.
+        # ⭐ O6: this security's review history, scoped by the SAME note
+        # membership as every other item here. A question about NVDA cannot
+        # reach an AAPL review because an AAPL review's note is not in
+        # `note_ids` -- the constraint is structural, not a filter applied
+        # afterwards (§10).
+        items += _reviews_for_notes(conn, user_id, note_ids, query, limit,
+                                    per_thesis=SCOPED_REVIEW_HISTORY)
         substantive = _substantive_terms(query, entity)
         for i in items:
             i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)

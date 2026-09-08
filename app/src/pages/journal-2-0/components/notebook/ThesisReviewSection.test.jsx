@@ -184,3 +184,84 @@ describe('history', () => {
     expect(screen.queryByText(/Review history/i)).toBeNull()
   })
 })
+
+// ── Wave O6 §4: a review reached from Search or from a citation ─────────────
+//
+// ⚰️ THE FAILURE THIS BLOCKS is Wave M's, one section later. The review
+// history lives inside a CollapsibleSection whose children are UNMOUNTED while
+// it is closed — so a deep link that only set `?note=` would open the thesis,
+// leave the panel shut, and be indistinguishable from "search still just opens
+// the note", which is the entire defect O6 exists to close.
+describe('landing on a specific review', () => {
+  const HISTORY = [
+    { id: 'rv2', status: 'completed', outcome: 'revised',
+      completedAt: '2026-03-20T00:00:00Z', memberNote: 'trimmed the growth case' },
+    { id: 'rv1', status: 'completed', outcome: 'no_change',
+      completedAt: '2026-01-10T00:00:00Z', memberNote: 'the datacenter call still holds' },
+  ]
+
+  beforeEach(() => {
+    // ⛔ CollapsibleSection persists its open/closed state in localStorage,
+    // and jsdom keeps that store for the whole FILE. Without this, "the
+    // history stays collapsed" below passes or fails depending on which test
+    // ran before it — the section's own state leaking between cases.
+    try { window.localStorage.clear() } catch { /* private mode */ }
+    // jsdom lays nothing out and implements no scrolling.
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
+  it('OPENS the collapsed history so the anchored review is actually on screen', () => {
+    reviewsResult = base({ completed: HISTORY })
+    renderIt({ anchorReviewId: 'rv1' })
+    expect(screen.getByText(/the datacenter call still holds/)).toBeTruthy()
+  })
+
+  it('scrolls to it and marks it, so it is findable among rows that look alike', () => {
+    reviewsResult = base({ completed: HISTORY })
+    renderIt({ anchorReviewId: 'rv1' })
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+    const row = screen.getByText(/the datacenter call still holds/).closest('li')
+    expect(row.className).toMatch(/historyRowAnchored/)
+  })
+
+  it('announces the landing, because a silent scroll is invisible to a screen reader', () => {
+    reviewsResult = base({ completed: HISTORY })
+    renderIt({ anchorReviewId: 'rv1' })
+    expect(screen.getByLabelText('Review status').textContent)
+      .toMatch(/Showing your review from/)
+  })
+
+  it('⛔ does NOT consume the anchor while the history is still loading', () => {
+    // Acting early would clear the deep link against an empty list and land
+    // the member at the top of the note with the param already gone — a
+    // failure that looks exactly like the feature never having been built.
+    const onAnchorConsumed = vi.fn()
+    reviewsResult = base({ completed: [], isLoading: true })
+    renderIt({ anchorReviewId: 'rv1', onAnchorConsumed })
+    expect(onAnchorConsumed).not.toHaveBeenCalled()
+  })
+
+  it('consumes the anchor once, so a refresh or a Back does not re-fire it', () => {
+    const onAnchorConsumed = vi.fn()
+    reviewsResult = base({ completed: HISTORY })
+    const { rerender } = renderIt({ anchorReviewId: 'rv1', onAnchorConsumed })
+    rerender(<ThesisReviewSection noteId="n1" evidence={EVIDENCE}
+                                  anchorReviewId="rv1"
+                                  onAnchorConsumed={onAnchorConsumed} />)
+    expect(onAnchorConsumed).toHaveBeenCalledTimes(1)
+  })
+
+  it('a review that is no longer here still releases the anchor, and claims nothing', () => {
+    const onAnchorConsumed = vi.fn()
+    reviewsResult = base({ completed: HISTORY })
+    renderIt({ anchorReviewId: 'gone', onAnchorConsumed })
+    expect(onAnchorConsumed).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('Review status').textContent).toBe('')
+  })
+
+  it('with no anchor the history stays collapsed, as the member left it', () => {
+    reviewsResult = base({ completed: HISTORY })
+    renderIt()
+    expect(screen.queryByText(/the datacenter call still holds/)).toBeNull()
+  })
+})

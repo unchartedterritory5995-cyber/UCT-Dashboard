@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
 import useThesisReviews from '../../hooks/useThesisReviews'
+import { REVIEW_OUTCOMES } from '../../lib/reviewOutcomes'
 import styles from './ThesisReviewSection.module.css'
 
 /**
@@ -27,17 +28,12 @@ import styles from './ThesisReviewSection.module.css'
 
 /** ⛔ The vocabulary is the server's (§7). No conviction slider, no 1-10 —
  *  evidence quality and independence differ, and a number derived from counting
- *  rows reads as a measurement while being nobody's opinion. */
-const OUTCOMES = [
-  { id: 'no_change', label: 'No change',
-    hint: 'I reconsidered it and I still hold this view.' },
-  { id: 'revised', label: 'Revised',
-    hint: 'I changed the thesis itself — edit it above, then complete.' },
-  { id: 'invalidated', label: 'Invalidated',
-    hint: 'This thesis no longer holds.' },
-  { id: 'deferred', label: 'Need more work',
-    hint: "I couldn't settle it yet." },
-]
+ *  rows reads as a measurement while being nobody's opinion.
+ *
+ *  ⛔ MOVED TO `lib/reviewOutcomes` in O6, not copied: a review's outcome is
+ *  now also rendered by Search, and two spellings of "Need more work" would
+ *  read as two different decisions. */
+const OUTCOMES = REVIEW_OUTCOMES
 
 function fmtDate(iso) {
   if (!iso) return null
@@ -90,8 +86,14 @@ function SinceLastReview({ attention }) {
   )
 }
 
-export default function ThesisReviewSection({ noteId, evidence = [] }) {
-  const { draft, completed, attention, refresh } = useThesisReviews(noteId)
+export default function ThesisReviewSection({
+  noteId, evidence = [],
+  /** ⭐ O6 §4 — a review reached from Search or from an Ask citation. The
+   *  deepest truthful destination for a review is THIS row in THIS history,
+   *  so the section opens itself, scrolls to it and marks it. */
+  anchorReviewId = null, onAnchorConsumed = null,
+}) {
+  const { draft, completed, attention, isLoading, refresh } = useThesisReviews(noteId)
   const [open, setOpen] = useState(false)
   const [memberNote, setMemberNote] = useState('')
   const [outcome, setOutcome] = useState(null)
@@ -101,6 +103,22 @@ export default function ThesisReviewSection({ noteId, evidence = [] }) {
   const [announcement, setAnnouncement] = useState('')
   const triggerRef = useRef(null)
   const reviewIdRef = useRef(null)
+  const anchorDoneRef = useRef(null)
+  const anchorScrolledRef = useRef(null)
+
+  /** ⛔⛔ A CALLBACK REF, NOT A FRAME GUESS. The anchored row does not exist
+   *  until the history section has been told to open and React has committed
+   *  that render, so scrolling on a `requestAnimationFrame` from the effect
+   *  below was a bet on ordering — and it lost: the ref was still null. This
+   *  fires the instant the element is actually attached, which is the only
+   *  moment the scroll can mean anything. Guarded so a re-render of the same
+   *  anchor does not yank the member's scroll position back. */
+  const anchorRowRef = useCallback((el) => {
+    if (!el || !anchorReviewId) return
+    if (anchorScrolledRef.current === anchorReviewId) return
+    anchorScrolledRef.current = anchorReviewId
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [anchorReviewId])
 
   const counts = useMemo(() => ({
     supports: evidence.filter((e) => e.stance === 'supports').length,
@@ -197,6 +215,24 @@ export default function ThesisReviewSection({ noteId, evidence = [] }) {
   }
 
   const last = completed[0] || null
+
+  // ⛔⛔ CONSUMED ONCE THE ANSWER IS KNOWN, NOT ONCE THE COMPONENT MOUNTS.
+  // Acting while the request is still in flight would clear the deep link
+  // against an empty list and land the member at the top of the note with the
+  // param already gone — a failure that looks identical to the feature never
+  // having been built. `isLoading` is the gate; after that, a review that is
+  // genuinely no longer here consumes the anchor too, because retrying it on
+  // every render would loop.
+  useEffect(() => {
+    if (!anchorReviewId || isLoading) return
+    if (anchorDoneRef.current === anchorReviewId) return
+    anchorDoneRef.current = anchorReviewId
+    const found = completed.find((r) => r.id === anchorReviewId)
+    if (found) {
+      setAnnouncement(`Showing your review from ${fmtDate(found.completedAt) || 'this thesis'}.`)
+    }
+    onAnchorConsumed?.()
+  }, [anchorReviewId, isLoading, completed, onAnchorConsumed])
 
   return (
     <div className={styles.wrap} data-export-exclude>
@@ -302,10 +338,13 @@ export default function ThesisReviewSection({ noteId, evidence = [] }) {
 
       {completed.length > 0 && (
         <CollapsibleSection id={`thesis-reviews-${noteId}`} title="Review history"
-                            defaultOpen={false}>
+                            defaultOpen={false} openSignal={anchorReviewId}>
           <ul className={styles.historyList}>
             {completed.map((r) => (
-              <li key={r.id} className={styles.historyRow}>
+              <li key={r.id}
+                  ref={r.id === anchorReviewId ? anchorRowRef : null}
+                  className={`${styles.historyRow}`
+                    + (r.id === anchorReviewId ? ` ${styles.historyRowAnchored}` : '')}>
                 <span className={styles.historyDate}>{fmtDate(r.completedAt)}</span>
                 <span className={styles.historyOutcome}>
                   {OUTCOMES.find((o) => o.id === r.outcome)?.label || r.outcome}

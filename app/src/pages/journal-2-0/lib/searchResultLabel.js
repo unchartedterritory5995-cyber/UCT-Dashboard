@@ -17,6 +17,8 @@
 // Two formatters over one truth is how they drift — and here the drift would be
 // silent, because both spellings look plausible.
 
+import { outcomeLabel } from './reviewOutcomes'
+
 /** A captured web source: `page_number` is a capture ordinal, not a page. */
 export const SOURCE_WEB = 'web'
 /** A real paginated document (PDF): `page_number` is a page. */
@@ -39,7 +41,7 @@ export function sourceDomain(url) {
  *
  * @param {{sourceKind?: string, name?: string, documentName?: string,
  *          pageNumber?: number, sourceUrl?: string}} row
- * @param {{kind?: 'page'|'excerpt'}} opts  Which section is rendering it.
+ * @param {{kind?: 'page'|'excerpt'|'review'}} opts  Which section renders it.
  * @returns {string}
  *
  * ⛔ A web hit carries NO page number in any form. Not "capture 2", not "p.2" —
@@ -47,6 +49,17 @@ export function sourceDomain(url) {
  * nothing to the member. What they need is which source it came from.
  */
 export function searchResultTitle(row = {}, { kind = 'page' } = {}) {
+  // ⛔⛔ O6 §8/§14: A REVIEW SAYS IT IS A REVIEW, FIRST WORD. This row is
+  // the MEMBER's own conclusion about their thesis, and the one thing it must
+  // never be mistaken for is something a source said. Labelling it "Document"
+  // or letting it fall through to the untitled-document branch below would let
+  // an answer read as though Reuters had written it. It also carries no page
+  // and no domain, because it has neither.
+  if (kind === 'review') {
+    const thesis = (row.noteTitle || '').trim()
+    return thesis ? `Thesis review · ${thesis}` : 'Thesis review'
+  }
+
   const name = (row.name || row.documentName || '').trim()
   const isWeb = row.sourceKind === SOURCE_WEB
 
@@ -67,6 +80,25 @@ export function searchResultTitle(row = {}, { kind = 'page' } = {}) {
 
 /** The hover/title attribute — same truth, a little longer. */
 export function searchResultHint(row = {}, { kind = 'page' } = {}) {
+  if (kind === 'review') {
+    // The outcome and the date, in the member's own vocabulary. ⛔ An outcome
+    // with no date must not render "on " with nothing after it — an unfinished
+    // sentence reads as a bug in the record it is describing.
+    const outcome = outcomeLabel(row.outcome)
+    const when = reviewDateText(row.completedAt)
+    const parts = [searchResultTitle(row, { kind })]
+    if (outcome) parts.push(when ? `${outcome} on ${when}` : outcome)
+    else if (when) parts.push(when)
+    return parts.join(' — ')
+  }
   const inNote = row.noteTitle ? ` — in "${row.noteTitle}"` : ''
   return `${searchResultTitle(row, { kind })}${inNote}`
+}
+
+/** A completed-at timestamp as the member's own locale date, or '' when it is
+ *  absent or unparseable. ⛔ NEVER a fabricated fallback like "today". */
+export function reviewDateText(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString()
 }

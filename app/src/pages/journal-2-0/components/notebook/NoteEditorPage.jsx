@@ -9,7 +9,8 @@ import {
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
-import { targetFromParams, applyTargetToParams, excerptRevisitTarget } from '../../lib/searchNavigation'
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
+         reviewTargetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
@@ -771,6 +772,20 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       return next
     }, { replace: true })
   }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams])
+
+  // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
+  // document, so it deliberately does not go through `targetFromParams` /
+  // `previewDoc` above — that path opens a viewer, and a viewer handed a
+  // review would have nothing to render. The anchor is passed down to the
+  // review panel, which owns the only place a review can truthfully be shown.
+  const reviewAnchor = reviewTargetFromParams(searchParams)
+  const clearReviewParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('review')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
@@ -882,6 +897,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * looks exactly like landing on the right one.
    */
   const jumpToCitation = useCallback((source, resolved) => {
+    // ⭐ O6 §4: a cited REVIEW is not a passage in the note body — it lives
+    // in the review panel's history, and it may belong to a different note
+    // entirely (Ask My Notebook and Ask Security Research both span theses).
+    // So it routes through the SAME `?note=` contract Search uses rather than
+    // through the editor, and lands on the review itself.
+    // ⛔ A citation that cannot name both the note and the review navigates
+    // NOWHERE, rather than opening a note and leaving the member to hunt.
+    if (source?.navigation?.kind === 'review') {
+      const nid = source.navigation.note_id
+      const rid = source.navigation.review_id
+      if (!nid || !rid) return
+      setSearchParams(
+        (prev) => applyTargetToParams(prev, { noteId: nid, reviewId: rid, depth: 'review' }),
+        { replace: false },
+      )
+      return
+    }
     const ed = editorRef.current
     if (!ed || source?.navigation?.kind !== 'note') return
     if (!resolved || !PRECISE_STATES.has(resolved.state)) return
@@ -889,7 +921,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       .setTextSelection({ from: resolved.from, to: resolved.to })
       .scrollIntoView()
       .run()
-  }, [])
+  }, [setSearchParams])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
@@ -1729,7 +1761,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't
             being used as a thesis. */}
-        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource} />
+        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
+                       anchorReviewId={reviewAnchor?.reviewId || null}
+                       onReviewAnchorConsumed={clearReviewParam} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

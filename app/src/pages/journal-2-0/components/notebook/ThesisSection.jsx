@@ -148,7 +148,9 @@ function eventLabel(e) {
  * that's the one place this section deliberately shows itself with nothing
  * in it, because "no changes yet" is itself informative for a thesis.
  */
-export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
+export default function ThesisSection({ noteId, note, onOpenExcerptSource,
+                                        anchorReviewId = null,
+                                        onReviewAnchorConsumed = null }) {
   const { evidence, changelog, isLoading, refresh } = useThesisSummary(noteId)
   const { facts } = useNoteFacts(noteId)
   const { excerpts } = useNoteExcerpts(noteId)
@@ -526,7 +528,9 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
           review opens in place already knowing what it is about. It is passed
           the SAME evidence array this section renders, so the counts it shows
           and the rows above it can never disagree. */}
-      <ThesisReviewSection noteId={noteId} evidence={evidence} />
+      <ThesisReviewSection noteId={noteId} evidence={evidence}
+                           anchorReviewId={anchorReviewId}
+                           onAnchorConsumed={onReviewAnchorConsumed} />
 
       <CollapsibleSection id={`thesis-changelog-${noteId}`} title="Changelog" defaultOpen={false}>
         {changelog.length === 0 ? (

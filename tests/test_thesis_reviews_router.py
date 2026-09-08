@@ -136,3 +136,58 @@ class TestTheRequestBodyCannotChangeTheThesis:
         note = client.get(f"/api/j2/notes/{nid}").json()
         props = (note.get("note") or note).get("propertiesJson") or {}
         assert props.get("builtin:thesis_status") != "invalidated"
+
+
+# ── Wave O6: the search door ────────────────────────────────────────────────
+
+class TestTheReviewSearchDoor:
+    """A SERVICE RAIL IS NOT A ROUTE RAIL — and this route has a second way to
+    be wrong that a service test cannot see: `GET /reviews/search` sits beside
+    `/reviews/{review_id}`, and declared in the wrong order it would be matched
+    as an id and 404 with every service test still green."""
+
+    def test_the_route_is_reachable_and_finds_the_members_own_words(self, app, client):
+        _login(app, f"u-{uuid.uuid4().hex[:8]}")
+        nid = _thesis(client)
+        rid = client.post(f"/api/j2/notes/{nid}/reviews", json={}).json()["review"]["id"]
+        client.post(f"/api/j2/reviews/{rid}/complete", json={
+            "outcome": "invalidated",
+            "memberNote": "The kimberlite grades were the thing I got wrong."})
+        r = client.get("/api/j2/reviews/search", params={"q": "kimberlite"})
+        assert r.status_code == 200, r.text
+        [hit] = r.json()["results"]
+        assert hit["reviewId"] == rid
+        assert hit["noteId"] == nid
+        # ⛔ The DECISION travels with the prose. A result showing only what the
+        # member wrote makes "I was wrong about this" and "no change" look like
+        # the same kind of finding.
+        assert hit["outcome"] == "invalidated"
+        assert hit["completedAt"]
+        assert "<mark>kimberlite</mark>" in hit["snippet"]
+
+    def test_it_is_not_shadowed_by_the_parameterised_review_routes(self, app):
+        # Declared BEFORE `/reviews/{review_id}`. Asserting the ORDER rather
+        # than just the 200 above, because a future insertion is what breaks it.
+        paths = [getattr(r, "path", "") for r in app.routes]
+        assert paths.index("/api/j2/reviews/search") < paths.index(
+            "/api/j2/reviews/{review_id}")
+
+    def test_another_members_review_is_not_searchable(self, app, client):
+        owner = _login(app, f"u-{uuid.uuid4().hex[:8]}")
+        nid = _thesis(client)
+        rid = client.post(f"/api/j2/notes/{nid}/reviews", json={}).json()["review"]["id"]
+        client.post(f"/api/j2/reviews/{rid}/complete", json={
+            "outcome": "no_change", "memberNote": "kimberlite grades held up"})
+        _login(app, f"u-{uuid.uuid4().hex[:8]}")
+        assert owner  # the first tenant is gone from the dependency override
+        r = client.get("/api/j2/reviews/search", params={"q": "kimberlite"})
+        assert r.status_code == 200
+        assert r.json()["results"] == []
+
+    def test_an_empty_query_is_an_empty_result_not_the_whole_history(self, app, client):
+        _login(app, f"u-{uuid.uuid4().hex[:8]}")
+        nid = _thesis(client)
+        rid = client.post(f"/api/j2/notes/{nid}/reviews", json={}).json()["review"]["id"]
+        client.post(f"/api/j2/reviews/{rid}/complete", json={
+            "outcome": "no_change", "memberNote": "anything at all"})
+        assert client.get("/api/j2/reviews/search").json()["results"] == []

@@ -2181,7 +2181,8 @@ def get_thesis_summary_endpoint(note_id: str, user: dict = Depends(get_current_u
 
 
 # ── Wave O: thesis reviews ──────────────────────────────────────────────────
-from api.services.journal_two import thesis_review_changes, thesis_reviews
+from api.services.journal_two import (review_search, thesis_review_changes,
+                                     thesis_reviews)
 
 
 @router.post("/notes/{note_id}/reviews")
@@ -2202,6 +2203,37 @@ def open_thesis_review_endpoint(
     except thesis_reviews.ThesisReviewError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"review": review}
+
+
+@router.get("/reviews/search")
+def search_reviews_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave O6 -- find a completed review by what the member wrote in it.
+
+    ⛔ DECLARED BEFORE THE `/reviews/{review_id}` ROUTES ON PURPOSE. There is
+    no `GET /reviews/{id}` today, so nothing shadows this yet -- and the day
+    somebody adds one, a literal path declared after a parameterised sibling
+    is matched as an id and this endpoint 404s with every test still green
+    (the exact shape of the breadth `/live/drill` incident).
+
+    ⛔ A FOURTH SECTION, NEVER A FOURTH SCORE -- see review_search.py. The
+    caller renders these beside Notes / Documents / Evidence; nothing blends
+    them into another list's ranking.
+    """
+    rows = review_search.search_reviews(user["id"], q, limit=limit)
+    return {"results": [{
+        "reviewId": r["review_id"], "noteId": r["note_id"],
+        "noteTitle": r["note_title"], "ticker": r["ticker"],
+        "snippet": r["snippet"],
+        # The outcome the member chose and when they chose it. A review result
+        # that showed only prose would make "I was wrong about this" and "no
+        # change" look like the same kind of finding.
+        "outcome": r["outcome"], "completedAt": r["completed_at"],
+        "reviewReason": r["review_reason"],
+    } for r in rows]}
 
 
 @router.patch("/reviews/{review_id}")
