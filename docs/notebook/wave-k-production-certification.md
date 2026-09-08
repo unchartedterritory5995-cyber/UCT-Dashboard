@@ -240,3 +240,37 @@ named rather than implied.
 
 Next: the post-Wave-K integrity mini-pass (G-063 · raw-error rail · gap-ledger
 reconciliation). **Not started — stopping here per instruction.**
+
+---
+
+## Addendum — integrity mini-pass production verification (2026-09-07)
+
+Merged `a5d5ff04d` (isolated worktree, 0 conflicts, `broker_sync` 10 ≥ 7 checked
+twice, fast-forward `c96ebfa7b..a5d5ff04d`, no force). Blast radius proven
+minimal: outside `journal-2-0/`, `widgets/registry.js` and `docs/` the merge
+changes **nothing**.
+
+⛔ **The mini-pass was NOT production-verified at the moment it was declared
+closed.** Production was still serving the pre-deploy control bundle
+(`index-0raZzhvL.js`); the merge was on master but master had moved on and that
+deploy was still BUILDING. Recorded because it is the same
+configuration-vs-runtime distinction G-080 turned on, one layer up.
+
+**Verified after the deploy landed:**
+
+| Check | Evidence |
+|---|---|
+| Fresh process | uptime 55s, RSS 1137.7 MB |
+| New bundle serving | `index-0raZzhvL` → `index-CDo0LTY9` |
+| **G-063 gate shipped** | `captured-before-outcome`, `asOfDay` in `widgetEmbedCore-C8eZTLG3.js` |
+| Raw-error copy shipped | "Nothing was saved" present |
+| Raw-error old pattern gone | `Could not create note: ` → **0 occurrences** |
+| G-080 still dark | flag `0`, serving process started after the change |
+| No Notebook regression | `/api/j2/ask/stream` 401, `/api/j2/notes` 401 |
+
+⭐ **The G-063 marker was absent from the first two chunks checked and present
+once all 249 were swept** — it has its own chunk (`widgetEmbedCore-*`). Second
+time this wave that a partial bundle sweep would have produced a false negative.
+**Sweep the whole bundle, or say the sweep was partial.**
+
+**INTEGRITY MINI-PASS: PRODUCTION-CLOSED.**
