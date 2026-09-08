@@ -161,6 +161,35 @@ def test_a_malformed_date_is_rejected_before_any_lookup(client):
     assert r.status_code == 400
 
 
+def test_the_scalars_ride_along_with_the_lists(client):
+    """A job that edits a list must be able to check the count rendered beside
+    it. `count_period_return` and `list_period_return` mask identically, so
+    `count == len(list)` holds by construction — but a caller that cannot READ
+    the count has to rewrite it on faith instead of verifying the premise."""
+    _seed()
+    body = client.get(f"/api/breadth-monitor/{DATE}/lists", headers=AUTH).json()
+    assert body["counts"]["down_4pct_today"] == 2
+    assert body["counts"]["universe_count"] == 3
+    # Scalars ONLY — the lists must not be duplicated into the counts blob.
+    assert not any(k.endswith("_list") for k in body["counts"])
+
+
+def test_counts_come_back_even_when_keys_narrows_the_lists(client):
+    # `keys` narrows the expensive half; the scalars are ~1KB and always useful.
+    _seed()
+    body = client.get(f"/api/breadth-monitor/{DATE}/lists",
+                      params={"keys": "universe_list"}, headers=AUTH).json()
+    assert set(body["lists"]) == {"universe_list"}
+    assert body["counts"]["down_4pct_today"] == 2
+
+
+def test_a_snapshot_with_no_scalars_returns_an_empty_counts_object(client):
+    _seed(metrics={"down_4pct_today_list": [{"t": "X", "pct": -5.0}]})
+    body = client.get(f"/api/breadth-monitor/{DATE}/lists", headers=AUTH).json()
+    assert body["counts"] == {}
+    assert body["lists"]["down_4pct_today_list"][0]["t"] == "X"
+
+
 # ── the loop the collector actually runs ─────────────────────────────────────
 
 def test_read_modify_write_round_trips_through_the_patch_route(client):
