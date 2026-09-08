@@ -38,10 +38,13 @@ const SERVER_TOPPICKS = import.meta.env.VITE_FLOW_SERVER_TOPPICKS === "1";
 // ⛔ BUILD-time, like the flags above: rollback means unsetting the var AND
 // rebuilding — `railway redeploy` reuses the image and would change nothing.
 const SERVER_SEARCH = import.meta.env.VITE_FLOW_SERVER_SEARCH === "1";
+// Shared + frozen: a per-call `[]` would let one consumer mutate a fallback
+// and make "not loaded yet" look like a real, empty answer somewhere else.
+const EMPTY_ROWS = Object.freeze([]);
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
-import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS } from "./optionsFlow/flowParts";
+import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS, INTERACTION_PARTS } from "./optionsFlow/flowParts";
 import { topPicksUsable, topPickVariant, reviveTopPickVariant } from "./optionsFlow/flowTopPicksProduct";
 import { fetchSearchProduct } from "./optionsFlow/flowSearchFetch";
 import { traceDataset, markFirstContent } from "./optionsFlow/flowKeyTrace";
@@ -797,7 +800,7 @@ export default function OptionsFlowDashboard() {
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
   const autoPopulateLeaders = () => {
     if (!FD || !FD.TICKER_DB) return;
-    const scored = FD.TICKER_DB.filter(tk => {
+    const scored = tickerDb.filter(tk => {
       if (tk.b + tk.r <= 0 || tk.s.length > 5) return false;
       if (capFilter !== "All" && capBand(tk.mktcap) !== capFilter) return false;
       return true;
@@ -1305,6 +1308,60 @@ export default function OptionsFlowDashboard() {
   // reads into "needed for first paint" and "needed after it". The PAGE says
   // when, not a timer — a fixed cutoff would classify keys by network luck.
   useEffect(() => { if (D) markFirstContent(); }, [D]);
+
+  // ── Pull the interaction-only keys the moment first paint is done ─────────
+  //
+  // TICKER_DB + CONV are ~77% of what the bootstrap used to carry and NOTHING on
+  // the render path reads either (every consumer is a button handler, a
+  // selection-gated branch, or a non-default tab). They are fetched here so the
+  // page paints without them and they are almost always present by the time a
+  // member can click.
+  //
+  // ⛔ `useEffect` IS THE EARLIEST POINT THAT DOES NOT BLOCK PAINT — no timer,
+  // no idle callback, no arbitrary delay. React runs it after the commit that
+  // rendered the data.
+  //
+  // ⛔ KEYED ON THE VERSION, NOT A ONE-SHOT BOOLEAN. A one-shot ref would never
+  // refetch after a version roll replaced `D` with a fresh bootstrap, and the
+  // page would sit permanently without its interaction data. Asking again for
+  // the SAME version is what must not happen, and this is what prevents it.
+  const _interactionAskedFor = useRef(null);
+  const _interactionTries = useRef(0);
+  const [interactionFetchFailed, setInteractionFetchFailed] = useState(false);
+  useEffect(() => {
+    if (!USE_PARTS || !D) return;
+    if (D.TICKER_DB !== undefined && D.CONV !== undefined) return;  // already here
+    const ver = dataVersionRef.current;
+    if (_interactionAskedFor.current === ver) return;
+    if (_interactionTries.current >= 3) return;      // bounded, never a retry loop
+    _interactionAskedFor.current = ver;
+    _interactionTries.current += 1;
+    let cancelled = false;
+    const t0 = performance.now();
+    fetchPartsBundle(csvFile, dateFilter, ver,
+                     { deadlineMs: 20000, parts: INTERACTION_PARTS })
+      .then(res => {
+        if (cancelled) return;
+        if (!res || !res.D) {
+          // ⛔ A FAILURE MUST BE RETRYABLE. Clearing the version lets the next
+          // render try again (bounded above); leaving it set would strand the
+          // page without interaction data for the life of the mount.
+          _interactionAskedFor.current = null;
+          setInteractionFetchFailed(true);
+          return;
+        }
+        console.log(`[perf] interaction parts ready in ${Math.round(performance.now() - t0)}ms`);
+        setInteractionFetchFailed(false);
+        // Merge, never replace — `D` already holds bootstrap and possibly more.
+        setD(prev => (prev ? traceDataset({ ...(prev.__raw || prev), ...res.D }) : prev));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        _interactionAskedFor.current = null;
+        setInteractionFetchFailed(true);
+      });
+    return () => { cancelled = true; };
+  }, [D, csvFile, dateFilter]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -1884,6 +1941,26 @@ export default function OptionsFlowDashboard() {
     // off, so production behaviour is byte-identical.
     return traceDataset({ ...(D.__raw || D), ...charts }, 'FD');
   }, [D, capFilter, dataMode, isETF]);
+
+  // ── TICKER_DB / CONV are INTERACTION-ONLY and arrive just after first paint ──
+  //
+  // ⛔ ONE GUARDED ACCESSOR, NOT A GUARD PER CALL SITE. Sixteen places called
+  // `tickerDb.find(...)` / `tickerDb.find(...)`, and only two checked the
+  // array was there. Adding fifteen guards by hand is fifteen chances to miss
+  // one; a single accessor cannot be forgotten at a new call site.
+  //
+  // ⛔ `FD.TICKER_DB` AND `D.TICKER_DB` ARE THE SAME ARRAY BY CONSTRUCTION. The
+  // FD memo only ever replaces `clean_confirmed` and the chart bundles
+  // (`{...D, ...charts}`), so collapsing both onto one accessor is exact, not an
+  // approximation.
+  //
+  // ⛔ EMPTY MEANS "NOT LOADED", NEVER "NO ROWS" — and it is a FROZEN shared
+  // constant so nothing can mutate a fallback into looking like real data.
+  // Consumers that already say `if (!tk) return null` therefore render their
+  // existing empty state instead of crashing, and re-render correctly the
+  // moment the real rows land.
+  const tickerDb = (FD && FD.TICKER_DB) || (D && D.TICKER_DB) || EMPTY_ROWS;
+  const tickerDbReady = !!((FD && FD.TICKER_DB) || (D && D.TICKER_DB));
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
@@ -3268,7 +3345,7 @@ export default function OptionsFlowDashboard() {
             return (b.time||"").localeCompare(a.time||"");
           }) : [];
           if (strikeTrades.length===0) return null;
-          const tk = D ? FD.TICKER_DB.find(t=>t.s===sym) : null;
+          const tk = tickerDb.find(t=>t.s===sym);   // guarded accessor: no `D ?` needed
           const clusterInfo = tk ? tk.c.find(c => c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp) : null;
           return (
             <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
@@ -3313,7 +3390,7 @@ export default function OptionsFlowDashboard() {
         })()}
         {/* ── Ticker Top Flow ────────────────────────────────── */}
         {(()=>{
-          const tk = D ? FD.TICKER_DB.find(t=>t.s===sym) : null;
+          const tk = tickerDb.find(t=>t.s===sym);   // guarded accessor: no `D ?` needed
           if (!tk) return null;
           // Other clusters for this ticker (exclude current contract)
           const otherClusters = (tk.c||[]).filter(c => !(c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp));
@@ -5524,7 +5601,7 @@ export default function OptionsFlowDashboard() {
                         </div>
                         {/* Ticker mode dropdown */}
                         {FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && (()=>{
-                          const tk = D.TICKER_DB.find(t=>t.s===s.name);
+                          const tk = tickerDb.find(t=>t.s===s.name);
                           if (!tk) return null;
                           const topTrades = (tk.t||[]).slice(0,6);
                           const clusters = (tk.c||[]).slice(0,4);
@@ -5622,7 +5699,7 @@ export default function OptionsFlowDashboard() {
                             ) : (
                               // Inline ticker drilldown — clusters + top trades for the clicked ticker
                               (()=>{
-                                const tk = D.TICKER_DB.find(t=>t.s===selectedItem._drilldownTicker);
+                                const tk = tickerDb.find(t=>t.s===selectedItem._drilldownTicker);
                                 if (!tk) return (
                                   <div style={{ padding:"6px 4px" }}>
                                     <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
@@ -5779,7 +5856,7 @@ export default function OptionsFlowDashboard() {
                             ) : (
                               // Inline ticker drilldown
                               (()=>{
-                                const tk = D.TICKER_DB.find(t=>t.s===selectedItem._drilldownTicker);
+                                const tk = tickerDb.find(t=>t.s===selectedItem._drilldownTicker);
                                 if (!tk) return (
                                   <div style={{ padding:"6px 4px" }}>
                                     <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
@@ -6542,7 +6619,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:10, textAlign:"center", cursor:"pointer" }}
                           title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
-                          onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
+                          onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(tickerDb.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
                           <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
                           {cSide==="bid" && <span style={{ fontSize:10, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
                           <span style={{ color:P.wh, fontWeight:700, marginLeft:4 }}>${c.K}</span>
@@ -7163,7 +7240,7 @@ export default function OptionsFlowDashboard() {
           const leaderData = leaders.map(sym => {
             const agg = ccByTicker[sym];
             if (!agg || (agg.bull + agg.bear) <= 0) {
-              const tk = FD.TICKER_DB.find(t=>t.s===sym);
+              const tk = tickerDb.find(t=>t.s===sym);
               const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
               return { sym, found:!!tk, bull:0, bear:0, net:0, trades:0, cap:tk?capBand(tk.mktcap):"", er:agg?.er||tk?.er||false,
                 topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
@@ -7176,7 +7253,7 @@ export default function OptionsFlowDashboard() {
             const r5Total = agg.r5Bull + agg.r5Bear;
             const r5BullPct = r5Total > 0 ? agg.r5Bull / r5Total : 0.5;
             const trend = Math.round((r5BullPct - overallBullPct) * 100);
-            const tk = FD.TICKER_DB.find(t=>t.s===sym);
+            const tk = tickerDb.find(t=>t.s===sym);
             const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
             return { sym, found:true, bull, bear, net, wNet, trades:agg.n, cap:tk?capBand(tk.mktcap):"", er:agg.er, trend,
               topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
@@ -7272,7 +7349,7 @@ export default function OptionsFlowDashboard() {
                     const cap = d.cap && d.cap !== "Unknown" ? d.cap : "";
                     return (
                       <tr key={d.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
-                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
+                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(tickerDb.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
                         <td style={{ padding:"8px 14px", fontWeight:900, color:P.wh, fontSize:13 }}>
                           {d.sym}
                           
@@ -7332,7 +7409,7 @@ export default function OptionsFlowDashboard() {
             <Card>
               <div style={{ position:"relative" }}>
               <input type="text" value={search}
-                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); setOiConfirmError(null); }}
+                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(tickerDb.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); setOiConfirmError(null); }}
                 placeholder="Search ticker, theme, or sector..."
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
@@ -7371,7 +7448,7 @@ export default function OptionsFlowDashboard() {
                 const qUpper = search.toUpperCase();
                 const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(qUpper)).slice(0,8);
                 const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
-                const allSectors = [...new Set(D.TICKER_DB.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
+                const allSectors = [...new Set(tickerDb.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
                 const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
                 const hasResults = tickerMatches.length > 0 || themeMatches.length > 0 || sectorMatches.length > 0;
                 if (!hasResults) return null;
@@ -7381,8 +7458,8 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Tickers</div>
                       <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
                         {tickerMatches.map(s=>(
-                          <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===s)||null); setSearchGroup(null); }}
-                            style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:D.TICKER_DB.find(t=>t.s===s)?P.wh:P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                          <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(tickerDb.find(t=>t.s===s)||null); setSearchGroup(null); }}
+                            style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:tickerDb.find(t=>t.s===s)?P.wh:P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                             {s}
                           </button>
                         ))}
@@ -7403,7 +7480,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Sectors</div>
                       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
                         {sectorMatches.map(s=>{
-                          const sectorTickers = D.TICKER_DB.filter(t=>t.sector===s).map(t=>t.s);
+                          const sectorTickers = tickerDb.filter(t=>t.sector===s).map(t=>t.s);
                           return (
                             <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(null); setSearchGroup({type:"sector",name:s,tickers:sectorTickers}); }}
                               style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:"#6ba3be", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
@@ -7519,7 +7596,7 @@ export default function OptionsFlowDashboard() {
                       if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                       return (
                         <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"44", cursor:"pointer" }}
-                          onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
+                          onClick={()=>{ setSearch(r.sym); setSelectedTicker(tickerDb.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
                           <td style={{ padding:"6px 5px", textAlign:"center" }}>
                             <span style={{ fontWeight:900, color:P.wh, fontSize:12 }}>{r.sym}</span>
                             {r.er && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
@@ -7918,7 +7995,7 @@ export default function OptionsFlowDashboard() {
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
                               {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI &amp; Prices</>}
                             </button>
-                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
+                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(tickerDb.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
                               style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer",
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt }}>
                               Open in Search →
