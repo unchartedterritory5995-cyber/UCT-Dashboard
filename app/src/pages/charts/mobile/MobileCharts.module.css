@@ -661,7 +661,52 @@
     padding-right: env(safe-area-inset-right, 0px);
   }
   :global(html[data-mobile-chart-shell]) .symStrip { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
-  :global(html[data-mobile-chart-shell]) .toolbar { min-height: var(--tap-min); padding-top: 2px; padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); }
+
+  /* ── The toolbar becomes a LEFT-EDGE RAIL. ────────────────────────────────
+   * ⛔ THIS IS THE PART THAT MAKES LANDSCAPE A MODE RATHER THAN A ROTATION.
+   * Everything above only made portrait chrome thinner; the controls still sat
+   * in a bottom row, which is PORTRAIT grammar. Rotated, a phone is held in two
+   * hands with the thumbs at the LEFT and RIGHT EDGES — a bottom-centre row is
+   * the one place neither thumb reaches without regripping, and it spends the
+   * scarce axis to do it.
+   *
+   * ⭐ THE TRADE IS THE WHOLE ARGUMENT: landscape has width to spare (844px) and
+   * height to spare NONE (390px). Taking the row out of flow returns ~56px —
+   * about 15% of the visible chart — and a 52px rail costs 6% of a width nobody
+   * was using.
+   *
+   * ⛔ AND IT IS THE LEFT EDGE ON PURPOSE. The right edge carries the price
+   * scale and the newest bars — the most valuable pixels on the chart, and where
+   * a floating control would cover the current price. The left edge is the
+   * OLDEST bars. A rail there covers the least information on screen.
+   *
+   * No control is lost, none is renamed, and the order is unchanged: the same
+   * five doors, in the same sequence, with the same accessible names. */
+  :global(html[data-mobile-chart-shell]) .shell { position: relative; }
+  :global(html[data-mobile-chart-shell]) .toolbar {
+    position: absolute;
+    left: max(6px, env(safe-area-inset-left, 0px));
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 4;                    /* over the chart, under the drawing bar (40) */
+    flex-direction: column;
+    align-items: stretch;
+    width: calc(var(--tap-min) + 8px);
+    min-height: 0;
+    gap: 4px;
+    padding: 5px 4px;
+    border: 1px solid var(--border);
+    border-radius: 26px;
+  }
+  :global(html[data-mobile-chart-shell]) .toolbar .tbBtn { min-height: var(--tap-min); }
+  /* The gold timeframe pill is a TEXT control sized for a horizontal row; in the
+     rail it takes the rail's width instead of forcing it 64px wide. */
+  :global(html[data-mobile-chart-shell]) .toolbar .tbTf {
+    min-width: 0;
+    padding: 0 2px;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
 }
 
 /* ── Empty board state ─────────────────────────────────────────────────── */

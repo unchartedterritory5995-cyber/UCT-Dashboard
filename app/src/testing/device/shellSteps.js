@@ -281,9 +281,69 @@ function render(results) {
     + results.map((r) => `<div>${MARK[r.state] || '·'} ${r.name}${r.note ? `: <span style="color:#8a8578">${r.note}</span>` : ''}</div>`).join('')
 }
 
+
+/* ─── the LIVE landscape panel ────────────────────────────────────────────────
+ *
+ * ⛔ ORIENTATION CANNOT BE A STEP. A step runs once, at load, in whatever
+ * orientation the device happened to start in — and a device session starts
+ * portrait. Worse, a panel that stops updating reports the last thing it saw as
+ * though it were now, which is exactly how a previous sprint recorded
+ * `max-width:640px: true` on an 844px phone.
+ *
+ * ⛔ AND IT CANNOT BE MEASURED IN A DESKTOP IFRAME AT ALL. The landscape mode is
+ * gated on `(pointer: coarse)`, which a desktop browser reports FALSE even at
+ * 844×390 — measured tonight: the media query matched without the pointer clause
+ * and failed with it, so the rule was inert while everything else about the
+ * viewport looked right. A real finger is the only instrument.
+ *
+ * So this block re-measures forever and says what it currently sees. Rotate the
+ * device and read it. */
+function liveLandscape() {
+  // ⛔ FIXED TO THE BOTTOM, AND NOT A CHILD OF `#verdicts`. The verdict panel is
+  // `position: fixed` at the top and `render()` rewrites its innerHTML, so an
+  // in-flow sibling renders UNDERNEATH it (measured: the live text ghosted
+  // through the results on the first device run) and a child would be destroyed
+  // on every re-render. Its own fixed, opaque strip is independent of both.
+  const el = document.getElementById('live') || (() => {
+    const d = document.createElement('div')
+    d.id = 'live'
+    d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;'
+      + 'background:rgba(8,9,7,0.96);border-top:1px solid #3a3a3a;padding:5px 7px'
+    document.body.appendChild(d)
+    return d
+  })()
+
+  const mq = matchMedia('(pointer: coarse) and (orientation: landscape) and (max-height: 500px)').matches
+  const tb = byLabel(doc(), 'Chart controls')
+  const cs = tb ? getComputedStyle(tb) : null
+  const r = tb ? tb.getBoundingClientRect() : null
+  const names = tb ? [...tb.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') || '?') : []
+  const canvas = q('.tv-lightweight-charts')
+  const chartH = canvas ? Math.round(canvas.getBoundingClientRect().height) : 0
+
+  // The rail must be a RAIL: out of flow, vertical, on the LEFT half.
+  const railed = !!cs && cs.position === 'absolute' && cs.flexDirection === 'column'
+  const onLeft = !!r && r.left < innerWidth / 2
+  const ok = (v) => (v ? '<b style="color:#4ade80">yes</b>' : '<b style="color:#ef4444">no</b>')
+
+  el.innerHTML =
+    `<div><b>LANDSCAPE MODE</b> · ${innerWidth}×${innerHeight} · `
+    + `${innerWidth > innerHeight ? 'LANDSCAPE' : 'portrait'} · `
+    + `<span style="color:#8a8578">${new Date().toISOString().slice(11, 19)}</span></div>`
+    + `<div>· mode engaged (coarse+landscape+≤500h): ${ok(mq)}</div>`
+    + `<div>· toolbar is an out-of-flow vertical rail: ${ok(railed)} <span style="color:#8a8578">(${cs ? cs.position + '/' + cs.flexDirection : 'no toolbar'})</span></div>`
+    + `<div>· rail hugs the LEFT edge (never the price scale): ${ok(onLeft)} <span style="color:#8a8578">${r ? 'x=' + Math.round(r.left) + ' w=' + Math.round(r.width) : ''}</span></div>`
+    + `<div>· all five doors kept: ${ok(names.length === 5)} <span style="color:#8a8578">${names.join(' · ')}</span></div>`
+    + `<div>· chart height: <b>${chartH}px</b> of ${innerHeight}px</div>`
+}
+
 export async function start() {
   // Let the shell mount and the chart draw before driving anything.
   await sleep(1500)
+  // ⛔ STARTED BEFORE THE STEPS AND NEVER STOPPED — rotation happens whenever the
+  // tester rotates, which is never during a step.
+  setInterval(liveLandscape, 500)
+  liveLandscape()
   const results = await run(STEPS, render)
   window.__deviceResults = results
   return results
