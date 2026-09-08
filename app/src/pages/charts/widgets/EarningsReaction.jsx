@@ -58,7 +58,7 @@ export default function EarningsReaction({ reaction }) {
           {/* "Average move" is ambiguous on its own — this is the mean of the
               MAGNITUDES, so a +8% and a −8% quarter average to 8%, not 0%. */}
           Average move {stats.avgAbs.toFixed(1)}%, regardless of direction.
-          Measured on the session that first traded the result.
+          Close to close on the session that first traded the result.
         </p>
       )}
     </>

@@ -4,16 +4,25 @@ The panel's `EarningsReaction` strip has been rendering nothing since it shipped
 it reads `intel.reaction`, and `/api/earnings-intel/{sym}` never carried that
 key. The component was fine; nothing fed it.
 
-⛔ THE DEFINITION IS NOT OURS TO INVENT. It is the one
-`earnings_enrichment.get_historical_earnings_moves` already documents:
+THE DEFINITION (owner decision, 8 Sep 2026): the CLOSE-TO-CLOSE move of the
+session that first traded the result.
 
-    pre-market report   -> (report-day open  - prior close)     / prior close
-    post-market report  -> (next-day open    - report-day close)/ report-day close
-    timing unknown      -> whichever of those two is larger in magnitude
+    reaction = (close[S] - close[S-1]) / close[S-1]
 
-`earnings_intel`'s quarters carry `report_date` but no report TIME, so every
-quarter here takes the documented unknown-timing branch. That is the existing
-rule for this case, not a shortcut invented for this module.
+where S is the reacting session. `earnings_intel`'s quarters carry a report
+date but no report TIME, so S is identified by the OPENING GAP: a result
+released while the market was shut is repriced at the open, so the reacting
+session is whichever of (report day, next session) opens furthest from its
+prior close. The gap only SELECTS the session; the number reported is that
+session's full move.
+
+This deliberately DIFFERS from `earnings_enrichment.get_historical_earnings_
+moves`, which measures the opening gap itself. Both are defensible -- the gap
+isolates what the news repriced overnight, close-to-close is what a holder
+actually experienced -- and the owner asked for the second. The gap measure
+also understated the answer: MU's 25 Jun 2026 session gapped +17.6% and closed
++15.7%. Close-to-close is additionally what this strip's own footer has always
+claimed ("measured on the session that first traded the result").
 
 ⚠️ A quarter that cannot be computed keeps its slot as an explicit None rather
 than being dropped. Dropping would COMPACT the list and re-pair every older
@@ -79,21 +88,53 @@ def _pct(a, b):
     return (a - b) / abs(b) * 100.0
 
 
-def _move_for(idx: int, bars: list[dict]):
-    """The documented unknown-timing reaction at bar index `idx`.
-
-    `idx` is the report day. Returns the larger-magnitude of the pre-market and
-    post-market readings, or None when neither can be formed.
-    """
-    pre = post = None
-    if idx > 0:
-        pre = _pct(bars[idx].get("o"), bars[idx - 1].get("c"))
-    if idx + 1 < len(bars):
-        post = _pct(bars[idx + 1].get("o"), bars[idx].get("c"))
-    candidates = [m for m in (pre, post) if m is not None]
-    if not candidates:
+def _gap(i: int, bars: list[dict]):
+    """Session i's OPENING gap: how far it opened from the prior close."""
+    if i <= 0 or i >= len(bars):
         return None
-    return max(candidates, key=abs)
+    return _pct(bars[i].get("o"), bars[i - 1].get("c"))
+
+
+def _session_move(i: int, bars: list[dict]):
+    """Session i's CLOSE-TO-CLOSE move — what a holder actually experienced."""
+    if i <= 0 or i >= len(bars):
+        return None
+    return _pct(bars[i].get("c"), bars[i - 1].get("c"))
+
+
+def _move_for(idx: int, bars: list[dict]):
+    """The reaction: the CLOSE-TO-CLOSE move of the session that traded the news.
+
+    `idx` is the report day. Two sessions can be the one that first traded the
+    result and we are not told which, because the quarters carry a report date
+    but no report TIME:
+      • a pre-market print is answered by the report day itself
+      • a post-close print is answered by the NEXT session
+
+    The opening GAP identifies which one. A result released while the market was
+    shut is repriced at the open, so the reacting session is the one that opens
+    furthest from its prior close. The gap only SELECTS the session; the number
+    reported is that session's full close-to-close move.
+
+    Measuring the gap itself was the earlier behaviour and it understated the
+    answer: MU's 25 Jun 2026 session gapped +17.6% and closed +15.7%, and
+    "+15.7%" is what a holder of the stock actually made that day. Close-to-close
+    is also what the strip's own footer has always claimed to show.
+    """
+    cands = [i for i in (idx, idx + 1) if 0 < i < len(bars)]
+    if not cands:
+        return None
+    scored = [(abs(_gap(i, bars) or 0.0), i) for i in cands]
+    _, best = max(scored, key=lambda t: t[0])
+    move = _session_move(best, bars)
+    if move is not None:
+        return move
+    # The chosen session could not be measured; fall back to the other one
+    # rather than reporting nothing.
+    for i in cands:
+        if i != best:
+            return _session_move(i, bars)
+    return None
 
 
 def _index_for(day: str, by_date: dict[str, int], bars: list[dict]):

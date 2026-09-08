@@ -77,16 +77,15 @@ _log = logging.getLogger(__name__)
 #   v7: summary.next_report_date is resolved DIRECTLY when no forward estimate
 #       carried one. Persisted payloads hold the old null, so without this bump
 #       every cached ticker would keep saying "Date TBD" after the fix shipped.
-# v8: added `reaction` (earnings-day price move per quarter).
+# v9: `reaction` is now the CLOSE-TO-CLOSE move of the reacting session (was
+# the opening gap), and the report date is the announcement rather than the
+# later of two disagreeing providers. Both change stored VALUES, so a cached v8
+# payload would keep serving MU's FY2026 Q3 as -6.3% instead of +15.7%.
 #
-# ⚠️ A bump here is not a cache refresh — it is a cold rebuild for every symbol.
-# The first attempt at v8 was reverted within minutes: a rebuild came back with
-# empty quarters but populated `annual`, the old `_has_content` accepted that as
-# a complete payload, persisted it, and the tab read "No earnings history is
-# available" for the whole universe. That was never a bump problem; the bump
-# only exposed it. `_has_quarterly` now refuses to persist a partial build, so
-# the worst a failed rebuild costs is an hour instead of 45 days of stale gap.
-_KIND = "earnings_intel_v8"
+# Safe to bump now in a way it was not this morning: `_has_quarterly` refuses to
+# persist a build that lost its quarters, so a failed cold rebuild costs an hour
+# rather than weeks of "No earnings history is available".
+_KIND = "earnings_intel_v9"
 _STALE_MAX = 45 * 86400
 # A build that came back without its quarterly series is held only this
 # long, and never written to disk, so a transient provider failure costs

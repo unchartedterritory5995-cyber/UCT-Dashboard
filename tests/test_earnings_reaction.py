@@ -28,29 +28,53 @@ def _q(label, day, **kw):
 
 
 class TestDefinition:
-    def test_takes_the_larger_magnitude_move_when_timing_is_unknown(self, patched):
-        # prior close 100 -> report open 105  = +5%   (pre-market reading)
-        # report close 100 -> next open 90    = -10%  (post-market reading)
+    def test_a_post_close_print_is_answered_by_the_NEXT_session(self, patched):
+        # prior close 100 -> report day opens 105, closes 100  (gap +5%)
+        # report close 100 -> next session opens 90, closes 90 (gap -10%)
+        # The next session gapped furthest, so it is the one that traded the
+        # news; its CLOSE-TO-CLOSE move is (90-100)/100 = -10%.
         patched([("2026-01-01", 100, 100),
                  ("2026-01-02", 105, 100),
                  ("2026-01-03", 90, 90)])
         out = er.reaction_for("X", [_q("Q1", "2026-01-02")], min_computed=1)
         assert out["events"][0]["reaction_pct"] == pytest.approx(-10.0, abs=0.01)
 
-    def test_uses_the_pre_market_reading_when_it_is_the_larger(self, patched):
+    def test_a_pre_market_print_is_answered_by_the_report_day(self, patched):
+        # The report day gaps +20% and holds it into the close: +20% session.
         patched([("2026-01-01", 100, 100),
-                 ("2026-01-02", 120, 100),
-                 ("2026-01-03", 101, 101)])
+                 ("2026-01-02", 120, 120),
+                 ("2026-01-03", 121, 121)])
         out = er.reaction_for("X", [_q("Q1", "2026-01-02")], min_computed=1)
         assert out["events"][0]["reaction_pct"] == pytest.approx(20.0, abs=0.01)
+
+    def test_a_gap_that_round_trips_reports_the_CLOSE_not_the_gap(self, patched):
+        """The whole point of close-to-close: a +20% open that gives it all back
+        by the bell was not a +20% day for anyone holding it."""
+        patched([("2026-01-01", 100, 100),
+                 ("2026-01-02", 120, 100),     # gap +20%, closes flat
+                 ("2026-01-03", 101, 101)])
+        out = er.reaction_for("X", [_q("Q1", "2026-01-02")], min_computed=1)
+        assert out["events"][0]["reaction_pct"] == pytest.approx(0.0, abs=0.01)
+
+    def test_micron_june_2026(self, patched):
+        """The report that started this. MU announced after the close on 24 Jun
+        2026; 25 Jun gapped +17.60% and CLOSED +15.74%. The strip must say
+        +15.7%, which is what a holder actually made."""
+        patched([("2026-06-23", 1080.00, 1051.77),
+                 ("2026-06-24", 1082.22, 1048.51),
+                 ("2026-06-25", 1233.00, 1213.56),
+                 ("2026-06-26", 1139.08, 1132.33)])
+        out = er.reaction_for("X", [_q("FY2026 Q3", "2026-06-24")], min_computed=1)
+        assert out["events"][0]["reaction_pct"] == pytest.approx(15.74, abs=0.05)
 
     def test_a_report_on_a_weekend_uses_the_NEXT_session(self, patched):
         """Providers report the filing date, not a session. The reaction belongs
         to the first session that could price the news, never the one before."""
-        patched([("2026-01-02", 100, 100),      # Fri
-                 ("2026-01-05", 110, 110)])     # Mon
-        out = er.reaction_for("X", [_q("Q1", "2026-01-03")], min_computed=1)   # Sat
-        assert out["events"][0]["reaction_pct"] == pytest.approx(10.0, abs=0.01)
+        patched([("2026-01-01", 100, 100),
+                 ("2026-01-02", 100, 100),      # Fri
+                 ("2026-01-05", 110, 112)])     # Mon
+        out = er.reaction_for("X", [_q("Q1", "2026-01-03")], min_computed=1)
+        assert out["events"][0]["reaction_pct"] == pytest.approx(12.0, abs=0.01)
 
 
 class TestGapsAndAlignment:
@@ -74,9 +98,11 @@ class TestGapsAndAlignment:
         assert [e["quarter"] for e in out["events"]] == ["Q1", "Q2"]
 
     def test_average_ignores_gaps_rather_than_counting_them_as_zero(self, patched):
+        # One measurable quarter (a +10% session) and one that predates the
+        # frame. Averaging the gap in as a zero would halve the answer.
         patched([("2026-01-01", 100, 100),
-                 ("2026-01-02", 110, 100),
-                 ("2026-01-03", 100, 100)])
+                 ("2026-01-02", 110, 110),
+                 ("2026-01-03", 111, 111)])
         out = er.reaction_for("X", [_q("Q2", "2026-01-02"), _q("Q1", "2019-01-01")], min_computed=1)
         assert out["n_quarters"] == 1
         assert out["avg_abs_move_pct"] == pytest.approx(10.0, abs=0.01)
@@ -175,7 +201,12 @@ class TestCacheVersion:
         failed rebuild now costs an hour rather than weeks, and the bump is safe.
         See tests/test_earnings_intel_partial_cache.py."""
         from api.services import earnings_intel
-        assert earnings_intel._KIND == "earnings_intel_v8"
+        import re
+        m = re.fullmatch(r"earnings_intel_v(\d+)", earnings_intel._KIND)
+        assert m, f"unexpected cache kind: {earnings_intel._KIND!r}"
+        # A FLOOR, not an exact match: pinning the string made this fail on the
+        # next legitimate bump while the guarantee it protects was intact.
+        assert int(m.group(1)) >= 8
 
     def test_a_partial_build_cannot_be_persisted(self):
         """The guard that makes the bump above safe to make at all."""
