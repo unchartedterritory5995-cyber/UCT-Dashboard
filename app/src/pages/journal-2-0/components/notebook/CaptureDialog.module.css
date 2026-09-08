@@ -108,3 +108,22 @@
   border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
   border-radius: 6px;
 }
+
+/* ⛔ Phone-width audit findings, 2026-09-08 (tools/capture_phone_audit.py):
+   the single-line inputs measured 352x41 and the mode-switch links 270x14 and
+   192x14 — all under the 44px touch floor. Found by driving the real dialog at
+   390px, which is the only way to see a control that only exists once a
+   shortcut has opened it.
+   Applied on the canonical TOUCH tier (<=1024), not just phones: a tablet has
+   the same finger. */
+@media (max-width: 1024px) {
+  .input { min-height: var(--tap-min, 44px); }
+  .modeSwitch {
+    min-height: var(--tap-min, 44px);
+    display: flex; align-items: center;
+    width: 100%;
+    text-align: left;
+  }
+  .offer { min-height: var(--tap-min, 44px); }
+  .link { min-height: var(--tap-min, 44px); display: inline-flex; align-items: center; }
+}

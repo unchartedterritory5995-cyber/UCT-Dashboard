@@ -92,3 +92,4 @@ _probe_out/
 app/newsqa.html
 app/src/newsqa.jsx
 app/vite.qa.config.js
+tools/capture_phone_out/

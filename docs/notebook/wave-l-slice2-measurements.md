@@ -42,7 +42,44 @@ Unchanged by Wave L, and deliberately so. Its existing doors keep their existing
 flow. G-040's remaining surfaces were **descoped** (owner ruling 2026-09-08) —
 see `future-internal-capture-expansion.md`.
 
-## Phone-width certification — DEFERRED, with the precondition recorded
+## Phone-width certification — RUN AND PASSED (2026-09-08)
+
+**Resource precondition met:** 5.1 GB free of 31.8 GB when the run started. The
+other workstream still held ~14 GB, so the build was capped at a 3 GB heap and
+the regression at 2 workers rather than competing for the machine.
+
+⛔ **`tools/mobile_audit.py` could not have certified this surface.** That harness
+visits ROUTES; the capture dialog is not a route — it is opened by a shortcut
+over whatever page the member is on. A route sweep would have loaded
+`/journal/notebook`, found no dialog, measured the page BEHIND it and reported a
+clean phone pass for a surface it never rendered. So
+`tools/capture_phone_audit.py` drives the real dialog by hotkey and measures
+both states, with its own anti-vacuity gate: **fewer than 2 states actually
+measured is itself a finding.** Run against the fail-closed sandbox, never a live
+backend.
+
+### It found real defects on the first run
+
+| State | Finding |
+|---|---|
+| thought | mode-switch link **270×14** — under the 44px touch floor |
+| source | two inputs **352×41**, mode-switch link **192×14** |
+
+Fixed on the canonical TOUCH tier (≤1024), not just phones — a tablet has the
+same finger. Re-run after the fix:
+
+```
+thought: found=True overflow=False saveVisible=True small=0 font=16
+source:  found=True overflow=False saveVisible=True small=0 font=16
+phone-width capture certification: PASS (2 states measured)   [exit 0]
+```
+
+Dialog occupies exactly `[0, 390]` of a 390px viewport in both states; Save is
+inside the viewport, not below the fold behind a software keyboard; inputs are
+16px so iOS does not zoom on focus. Screenshots in `tools/capture_phone_out/` —
+a number without a picture has been wrong on this project before.
+
+## The original deferral, kept for the record
 
 **Not run, and deliberately not run.** At the time Slice 2's implementation
 completed, the machine had **~2.2 GB free of 31.8 GB**, with another workstream
