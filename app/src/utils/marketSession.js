@@ -31,6 +31,14 @@ function _isNonTradingDayET(d) {
   return hasCoverage(d.getFullYear()) && !!holidayOn(iso)
 }
 
+// True iff TODAY (ET) is a trading session — a weekday that is not an NYSE full holiday.
+// Holiday-aware (via the shared NYSE calendar), so a developing-bar reservation/seed is never
+// placed on a day when no new bar will actually arrive (weekend/holiday → a phantom right slot).
+export function isTradingSessionTodayET() {
+  try { return !_isNonTradingDayET(new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))) }
+  catch { return false }
+}
+
 // The effective regular-session close, in minutes-since-midnight ET, for the
 // ET calendar date `d` — 13:00 (780) on a real NYSE early-close day, else the
 // ordinary 16:00 (960) close. Falls back to 960 outside calendar coverage.
