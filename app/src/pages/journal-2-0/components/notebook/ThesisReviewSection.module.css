@@ -1,0 +1,243 @@
+/* Wave O — the review loop, sitting where the research already is.
+   Tokens only, and the touch tier is here from the start rather than measured
+   in afterwards (Wave N shipped this whole family at desktop density). */
+.wrap {
+  margin-top: 10px;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.summaryText {
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.reviewBtn {
+  background: none;
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  color: var(--color-text-secondary, #c3c9d1);
+  font-size: 12px;
+  padding: 5px 10px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.reviewBtn:hover {
+  border-color: var(--color-accent, #c9a84c);
+  color: var(--color-text-primary, #e8eaed);
+}
+
+.panel {
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contextRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* ⛔ NEVER COLOUR ALONE (§45). Each pill carries its own word. */
+.countPill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, #232932);
+}
+.supports { color: #6ee7a8; border-color: rgba(110, 231, 168, 0.35); }
+.opposes { color: #f8a5a5; border-color: rgba(248, 165, 165, 0.35); }
+
+/* ⛔ UCT's OBSERVATION, visually distinct from both the sources above it and
+   the member's own writing below it — the three must never blur together. */
+.sinceBlock {
+  border-left: 2px solid var(--color-border, #232932);
+  padding: 6px 0 6px 10px;
+}
+.sinceTitle {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #98a0aa);
+}
+.sinceList {
+  margin: 5px 0 0;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-primary, #e8eaed);
+}
+.sinceEmpty,
+.sinceFooter {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #98a0aa);
+  margin-top: 4px;
+}
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  color: var(--color-text-primary, #e8eaed);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 8px;
+  resize: vertical;
+}
+.hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted, #98a0aa);
+}
+
+.outcomes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.outcomeBtn {
+  background: none;
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  color: var(--color-text-secondary, #c3c9d1);
+  font-size: 12px;
+  padding: 6px 10px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.outcomeBtnActive {
+  border-color: var(--color-accent, #c9a84c);
+  color: #dcbb5e;
+  background: rgba(201, 168, 76, 0.12);
+}
+
+.dateInput {
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  color: var(--color-text-primary, #e8eaed);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  min-height: 32px;
+  align-self: flex-start;
+}
+
+.sideEffects {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-muted, #98a0aa);
+}
+.error {
+  font-size: 12px;
+  color: var(--color-danger, #f87171);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+.cancelBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  padding: 6px 10px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.completeBtn {
+  background: var(--color-accent, #c9a84c);
+  border: none;
+  border-radius: 6px;
+  color: #14181f;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.completeBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.historyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.historyRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.historyDate {
+  color: var(--color-text-muted, #98a0aa);
+  min-width: 82px;
+}
+.historyOutcome {
+  color: var(--color-text-primary, #e8eaed);
+  font-weight: 600;
+}
+/* The member's own words, quoted as theirs — never styled like a source. */
+.historyNote {
+  color: var(--color-text-secondary, #c3c9d1);
+  font-style: italic;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ⛔ THE TOUCH TIER, WRITTEN NOW — not measured in later. `@media (max-width:
+   1024px)` is the canonical TOUCH string from styles/breakpoints.css; a tablet
+   has the same thumb as a phone. Wave N had to retrofit this across the whole
+   evidence flow after a real-device audit found every control at 28-38px. */
+@media (max-width: 1024px) {
+  .reviewBtn,
+  .outcomeBtn,
+  .cancelBtn,
+  .completeBtn,
+  .dateInput {
+    min-height: var(--tap-min, 44px);
+  }
+  .outcomeBtn,
+  .completeBtn {
+    padding: 8px 12px;
+  }
+}

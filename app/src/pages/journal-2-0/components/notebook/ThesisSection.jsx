@@ -6,6 +6,7 @@ import useThesisSummary from '../../hooks/useThesisSummary'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useEvidenceCandidates from '../../hooks/useEvidenceCandidates'
+import ThesisReviewSection from './ThesisReviewSection'
 // ⛔ Wave M's canonical source-kind labeller. The picker used to format
 // `${documentName} · p.${pageNumber}` itself — a THIRD formatter over one
 // truth, and the one place the '· p.2' defect would have survived Wave M.
@@ -270,7 +271,12 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
   return (
     <div className={styles.wrap} data-export-exclude>
       {/* Polite, and outside the picker so it survives the picker unmounting. */}
-      <div className={styles.srOnly} role="status" aria-live="polite">{announcement}</div>
+      {/* ⛔ NAMED. ThesisReviewSection renders its own status region in this
+          same subtree, and two anonymous ones leave assistive tech (and any
+          probe) unable to say which just spoke — the Wave N harness lost a day
+          to exactly that ambiguity. */}
+      <div className={styles.srOnly} role="status" aria-live="polite"
+           aria-label="Evidence status">{announcement}</div>
       <div className={styles.evidenceBlock}>
         {evidence.length > 0 && (
           <ul className={styles.evidenceList}>
@@ -513,6 +519,14 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource }) {
           </div>
         )}
       </div>
+
+      {/* ⛔ WAVE O — THE REVIEW LOOP LIVES WHERE THE RESEARCH IS (§32). The
+          member does not open a task app, create a task and link a ticker;
+          they are already looking at the thesis and its evidence, so the
+          review opens in place already knowing what it is about. It is passed
+          the SAME evidence array this section renders, so the counts it shows
+          and the rows above it can never disagree. */}
+      <ThesisReviewSection noteId={noteId} evidence={evidence} />
 
       <CollapsibleSection id={`thesis-changelog-${noteId}`} title="Changelog" defaultOpen={false}>
         {changelog.length === 0 ? (

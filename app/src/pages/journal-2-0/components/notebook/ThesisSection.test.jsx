@@ -519,7 +519,8 @@ describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in t
       fireEvent.click(screen.getByText(/Captured passage/))
       fireEvent.click(screen.getByRole('button', { name: /^Add evidence$/ }))
       await waitFor(() => {
-        expect(screen.getByRole('status').textContent).toMatch(/opposing/i)
+        expect(screen.getByRole('status', { name: 'Evidence status' })
+          .textContent).toMatch(/opposing/i)
       })
     })
 
@@ -535,7 +536,7 @@ describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in t
       renderIt(THESIS_NOTE_BY_TAG)
       fireEvent.click(screen.getByText('Add evidence'))
       fireEvent.click(screen.getByText('Document excerpt'))
-      const live = screen.getByRole('status')
+      const live = screen.getByRole('status', { name: 'Evidence status' })
       expect(live).toBeTruthy()
       expect(live.getAttribute('aria-live')).toBe('polite')
     })
