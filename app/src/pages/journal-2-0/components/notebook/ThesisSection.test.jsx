@@ -372,4 +372,66 @@ describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in t
     renderIt(PLAIN_NOTE)
     expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeTruthy()
   })
+
+  describe('§10 — a source that no longer exists', () => {
+    // ⛔⛔ GHOST EVIDENCE. Purging the note a passage lived in hard-deletes
+    // the excerpt; the edge survives deliberately (db.py's cascade comment
+    // says it must "degrade via the same 'no longer available' pattern
+    // FinancialFactView already established"). It never did: the row showed
+    // its caption as if nothing had happened, and clicking it hit a 404 and
+    // silently did nothing.
+    const gone = {
+      id: 'e-gone', targetType: 'document_excerpt', targetId: 'ex-purged',
+      stance: 'opposes', caption: 'cuts against the long case',
+      targetAvailable: false,
+    }
+
+    it('says the source is gone, in words', () => {
+      summaryResult = { evidence: [gone], changelog: [], isLoading: false, refresh: vi.fn() }
+      renderIt(PLAIN_NOTE)
+      expect(screen.getByText(/no longer available/i)).toBeTruthy()
+    })
+
+    it("⛔ keeps the member's own reasoning — it is still their judgement", () => {
+      summaryResult = { evidence: [gone], changelog: [], isLoading: false, refresh: vi.fn() }
+      renderIt(PLAIN_NOTE)
+      expect(screen.getByText(/cuts against the long case/)).toBeTruthy()
+    })
+
+    it('⛔ is NOT a button, so a dead click is impossible', () => {
+      summaryResult = { evidence: [gone], changelog: [], isLoading: false, refresh: vi.fn() }
+      const onOpenExcerptSource = vi.fn()
+      renderIt(PLAIN_NOTE, { onOpenExcerptSource })
+      const buttons = screen.queryAllByRole('button')
+        .filter((b) => /cuts against the long case/.test(b.textContent))
+      expect(buttons).toHaveLength(0)
+      expect(onOpenExcerptSource).not.toHaveBeenCalled()
+    })
+
+    it('⭐ and an excerpt in ANOTHER note is still live and clickable', () => {
+      // THE CONTROL. From this note, an excerpt captured elsewhere is equally
+      // unresolvable locally — the difference is the server's answer, not the
+      // client's ability to find a label.
+      const elsewhere = {
+        id: 'e-else', targetType: 'document_excerpt', targetId: 'ex-elsewhere',
+        stance: 'supports', caption: 'from my other research',
+        targetAvailable: true,
+      }
+      summaryResult = { evidence: [elsewhere], changelog: [], isLoading: false, refresh: vi.fn() }
+      const onOpenExcerptSource = vi.fn()
+      renderIt(PLAIN_NOTE, { onOpenExcerptSource })
+      fireEvent.click(screen.getByText(/from my other research/))
+      expect(onOpenExcerptSource).toHaveBeenCalledWith('ex-elsewhere')
+      expect(screen.queryByText(/no longer available/i)).toBeNull()
+    })
+
+    it('⛔ an OLD payload without the field is treated as available', () => {
+      // Back-compat: a cached bundle predating the field must not paint every
+      // healthy row as a tombstone. Only an explicit `false` degrades.
+      const legacy = { ...gone, targetAvailable: undefined }
+      summaryResult = { evidence: [legacy], changelog: [], isLoading: false, refresh: vi.fn() }
+      renderIt(PLAIN_NOTE)
+      expect(screen.queryByText(/no longer available/i)).toBeNull()
+    })
+  })
 })

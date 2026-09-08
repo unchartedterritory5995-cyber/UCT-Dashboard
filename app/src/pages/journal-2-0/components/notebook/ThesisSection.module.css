@@ -64,6 +64,17 @@
 .evidenceCitation {
   color: var(--color-text-muted, #98a0aa);
 }
+/* Wave N §10 — a purged source. Muted and NOT interactive: it is a record of
+   a judgement the member made, not a door to something that still exists.
+   Deliberately not colour-only — the row says "source no longer available" in
+   words and carries a warning glyph. */
+.evidenceGone {
+  color: var(--color-text-muted, #98a0aa);
+  cursor: default;
+}
+.evidenceGone:hover {
+  color: var(--color-text-muted, #98a0aa);
+}
 .evidenceLabel {
   font-size: 13px;
   color: var(--color-text-primary, #e8eaed);

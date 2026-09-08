@@ -65,6 +65,29 @@ function ExcerptEvidenceRow({ evidence, localExcerpt, candidate, onOpen }) {
     : localExcerpt
       ? `${localExcerpt.documentName || 'Document'} · p.${localExcerpt.pageNumber}`
       : null
+  // ⛔⛔ WAVE N §10 — GHOST EVIDENCE. When the owning note is PURGED the
+  // excerpt is hard-deleted and this edge survives ON PURPOSE (`db.py` says
+  // so where the cascade is written: it must "degrade via the same 'no longer
+  // available' pattern FinancialFactView already established"). That degrade
+  // was never implemented here: the row rendered its caption as if nothing had
+  // happened, and clicking it hit a 404 and silently did nothing.
+  // ⛔ THE CLIENT CANNOT WORK THIS OUT ALONE — an excerpt captured into
+  // ANOTHER note is equally unresolvable from here, and that one IS still
+  // real and must stay clickable. `targetAvailable` is the server's answer,
+  // computed by the same `_target_exists` that guards attachment.
+  if (evidence.targetAvailable === false) {
+    return (
+      <span className={`${styles.evidenceLink} ${styles.evidenceGone}`}
+            title="This evidence's source is no longer available">
+        <UIcon name="warning" size={11} gold={false}
+               style={{ verticalAlign: '-1px', marginRight: 4 }} />
+        {evidence.caption
+          ? <>{evidence.caption}<span className={styles.evidenceCitation}>
+              {' '}— source no longer available</span></>
+          : "This evidence's source is no longer available"}
+      </span>
+    )
+  }
   return (
     <button type="button" className={styles.evidenceLink} onClick={onOpen}>
       <UIcon name="link" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
