@@ -103,5 +103,18 @@ export function dockColorVars(settings) {
     '--dock-down': c.down,
     '--dock-up-text': c.upText,
     '--dock-down-text': c.downText,
+    // The research-kit draws from --gain/--loss, not the dock's own pair, so
+    // the earnings-reaction bars stayed app-green while every number beside
+    // them followed the chart. Overriding here scopes it to the panel: six kit
+    // components (ReactionBars, ConsensusBar, VerdictChip, CheckupRow,
+    // RangeSlider, ImpliedVsRealized) inherit it and the rest of the app keeps
+    // its own tokens.
+    //
+    // Deliberately the TEXT tier, not the fill: those six use the pair for
+    // LABELS as well as shapes, and the raw candle color is too dim at label
+    // size. ReactionBars fills are translucent, so the lifted hue reads the
+    // same there while staying legible where it is type.
+    '--gain': c.upText,
+    '--loss': c.downText,
   }
 }

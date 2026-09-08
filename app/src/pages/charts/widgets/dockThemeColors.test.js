@@ -96,7 +96,16 @@ describe('dockColorVars', () => {
   it('emits exactly the four properties the stylesheet consumes', () => {
     const v = dockColorVars({ candles: { upColor: '#26a869', downColor: '#e5484d' } })
     expect(Object.keys(v).sort()).toEqual(
-      ['--dock-down', '--dock-down-text', '--dock-up', '--dock-up-text'])
+      ['--dock-down', '--dock-down-text', '--dock-up', '--dock-up-text',
+       '--gain', '--loss'])
+  })
+
+  it('themes the research-kit pair too, so the reaction bars follow', () => {
+    // ReactionBars and five sibling kit components read --gain/--loss, not the
+    // dock pair, so without this the bars stayed app-green under every theme.
+    const v = dockColorVars({ candles: { upColor: "#26a869", downColor: "#e5484d" } })
+    expect(v['--gain']).toBe(v['--dock-up-text'])
+    expect(v['--loss']).toBe(v['--dock-down-text'])
   })
 
   it('is null when there is nothing to theme', () => {
