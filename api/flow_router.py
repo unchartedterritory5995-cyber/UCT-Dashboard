@@ -1640,7 +1640,9 @@ async def etf_replica_status():
 # lock non-blockingly and declines when it is held, so a preparer tick during a
 # member's build simply does nothing and tries again next tick. The preparer can
 # never queue ahead of, or compete with, a real request.
-_PREPARE_POLL_S = int(os.environ.get("FLOW_PREPARE_POLL_S", "20") or 20)
+# Detection only — `_current_version()` is probe-cached, so a fast poll adds
+# no database work. Preparation runs off this loop.
+_PREPARE_POLL_S = int(os.environ.get("FLOW_PREPARE_POLL_S", "2") or 2)
 _PREPARE_STATE = {"enabled": False, "prepared": 0, "declined": 0, "failed": 0,
                   "last_version": None, "last_ms": None, "last_error": None}
 
@@ -1701,6 +1703,15 @@ def _prepare_once(last_version):
         # Failure here is NOT a failure of the roll: first paint is already
         # published, which is the member-visible property.
         try:
+            # ⛔ FIRST PAINT BEATS THE REMAINDER. If the tape rolled while pass 1
+            # ran, spending another ~7-11 s warming the OLD version's deferred
+            # parts delays the new version's first paint -- the only part a
+            # member is waiting on. Drop it and let the loop pick up the newer
+            # version immediately; the remainder for that version follows there.
+            if _current_version() != version:
+                log.info("[flow-prepare] version moved during pass 1 — skipping "
+                         "the remainder for v=%s", version)
+                return version
             t1 = time.monotonic()
             rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
                          if p not in flow_aggregate.FIRST_PAINT_PARTS)
@@ -1718,14 +1729,51 @@ def _prepare_once(last_version):
     return last_version
 
 
+# At most one preparation at a time; the DETECTION loop never waits for it.
+_PREPARE_INFLIGHT = threading.Lock()
+_PREPARE_LAST = None
+# Lets the loop be stopped deterministically (tests, and a clean shutdown).
+_PREPARE_STOP = threading.Event()
+
+
 def _prepare_loop():
-    last = None
-    while True:
+    """Detect version changes FAST; prepare OFF this loop.
+
+    ⛔ PREPARATION USED TO RUN INLINE HERE, AND THAT WAS THE DOMINANT COST.
+    Measured across 12 real rolls: preparation itself is stable at 6.1-9.1 s,
+    but the observed version-change -> prepared time ranged 9-51 s (mean 23.4 s)
+    because the two passes (~15-19 s together) blocked this loop, so the poll
+    interval was never the real cadence -- the loop's own work was. Detection
+    lag alone averaged 15.9 s and peaked at 44.9 s, roughly 68% of the cold
+    window, which is why members still met the raw-tape fallback.
+
+    Now this loop only READS the version and hands off. `_current_version()` is
+    itself probe-cached (_SIG_PROBE_SEC), so polling faster costs no extra
+    database work.
+
+    ⛔ STILL A POLL, DELIBERATELY. There is no event subscription here and no
+    correctness dependence on a signal that could be lost: if a handoff is
+    missed for any reason, the very next tick sees the version differs and
+    prepares it. The producer is in-process but partner-owned; this needs no
+    hook in it.
+    """
+    global _PREPARE_LAST
+    while not _PREPARE_STOP.is_set():
         try:
-            last = _prepare_once(last)
+            if _current_version() != _PREPARE_LAST and _PREPARE_INFLIGHT.acquire(blocking=False):
+                def _run():
+                    global _PREPARE_LAST
+                    try:
+                        _PREPARE_LAST = _prepare_once(_PREPARE_LAST)
+                    except Exception as e:  # noqa: BLE001
+                        log.warning("[flow-prepare] build failed: %s", e)
+                    finally:
+                        _PREPARE_INFLIGHT.release()
+                threading.Thread(target=_run, name="flow-prepare-build",
+                                 daemon=True).start()
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] tick failed: %s", e)
-        time.sleep(_PREPARE_POLL_S)
+        _PREPARE_STOP.wait(_PREPARE_POLL_S)
 
 
 def start_background_prepare() -> bool:

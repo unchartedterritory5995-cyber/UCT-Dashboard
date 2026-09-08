@@ -20,6 +20,7 @@ it is looking for.
 """
 import ast
 import pathlib
+import time
 
 import pytest
 
@@ -270,3 +271,111 @@ def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_c
     h = fa.health(current_version=7)
     assert h["warm"] is False
     assert "stale" in (h["reason"] or "")
+
+
+# ── Detection must not wait behind preparation ───────────────────────────────
+#
+# ⛔⛔ THE MEASUREMENT THAT FORCED THIS, 12 real production rolls:
+# preparation is stable at 6.1-9.1 s, but version-change -> prepared ranged
+# 9-51 s (mean 23.4 s). Detection lag alone averaged 15.9 s and peaked at
+# 44.9 s -- ~68% of the cold window -- because the two passes (~15-19 s) ran
+# INLINE in the poll loop, so the loop's own work, not FLOW_PREPARE_POLL_S, set
+# the cadence. A 60 s roll cannot be tracked by a loop that is busy for 20 s.
+
+def test_the_detection_loop_KEEPS_POLLING_while_a_build_runs(monkeypatch):
+    """⛔ BEHAVIOURAL, because the defect is about BLOCKING and a structural
+    check cannot prove absence of it — my first version asserted `Thread(`
+    appears in the loop, which a mutation that ALSO calls inline satisfies
+    trivially. So run the real loop against a slow build and watch whether
+    detection keeps ticking.
+
+    This is the 44.9 s lag reproduced in miniature: preparation takes far longer
+    than the poll interval, and detection must not wait for it."""
+    import threading as _t
+    polls = []
+    building = _t.Event()
+    release = _t.Event()
+
+    def slow_once(last):
+        building.set()
+        release.wait(5)
+        return 1001
+
+    def version():
+        polls.append(1)
+        return 1001 if len(polls) < 3 else 1002
+
+    monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.02)
+    monkeypatch.setattr(fr, "_prepare_once", slow_once)
+    monkeypatch.setattr(fr, "_current_version", version)
+    monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+
+    fr._PREPARE_STOP.clear()
+    t = _t.Thread(target=fr._prepare_loop, daemon=True)
+    t.start()
+    try:
+        assert building.wait(3), "preparation never started"
+        before = len(polls)
+        time.sleep(0.4)                 # build still held open
+        after = len(polls)
+    finally:
+        # ⛔ Stop the loop and free the lane, or this test leaks a thread that
+        # polls the REAL version for the rest of the session and breaks its
+        # neighbours — which is exactly what it did on the first run.
+        release.set()
+        fr._PREPARE_STOP.set()
+        t.join(timeout=3)
+        if fr._PREPARE_INFLIGHT.locked():
+            try: fr._PREPARE_INFLIGHT.release()
+            except RuntimeError: pass
+
+    assert after > before + 2, (
+        f"detection stalled while a build ran ({before} -> {after} polls). The "
+        "loop is blocking on preparation again, which is exactly what made "
+        "version-change -> prepared reach 44.9 s in production.")
+
+
+def test_only_one_preparation_runs_at_a_time():
+    """The lock is what stops a fast detection loop starting a build per tick."""
+    assert fr._PREPARE_INFLIGHT.acquire(blocking=False)
+    try:
+        assert fr._PREPARE_INFLIGHT.acquire(blocking=False) is False
+    finally:
+        fr._PREPARE_INFLIGHT.release()
+
+
+def test_pass_2_is_SKIPPED_when_the_version_moved_during_pass_1(monkeypatch):
+    """⛔ FIRST PAINT BEATS THE REMAINDER. Spending another ~7-11 s warming the
+    OLD version's deferred parts delays the NEW version's first paint, which is
+    the only thing a member is waiting on."""
+    seen = []
+
+    def versions():
+        # first call = the version being prepared; second = after pass 1
+        seen.append(1)
+        return 1001 if len(seen) == 1 else 1002
+
+    rec = _Recorder(lambda v: (v, b"gz"))
+    monkeypatch.setattr(fr, "_current_version", versions)
+    monkeypatch.setattr(fa, "get_cached_or_build_part", rec)
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (1001, __import__("gzip").compress(b"csv")))
+
+    out = fr._prepare_once(None)
+
+    assert out == 1001, "the prepared version should still be recorded"
+    assert len(rec.calls) == 1, (
+        "the remainder pass ran even though the version had already moved — the "
+        "newer version's first paint is delayed behind stale work")
+    assert rec.calls[0][4] == fa.FIRST_PAINT_PARTS
+
+
+def test_CONTROL_pass_2_DOES_run_when_the_version_is_stable(monkeypatch):
+    """Without this, the test above would pass on a preparer that had simply
+    lost its remainder pass — and the deferred/fallback parts would go cold."""
+    rec = _Recorder(lambda v: (v, b"gz"))
+    _patch(monkeypatch, version=1001, builder=rec)
+
+    fr._prepare_once(None)
+
+    assert len(rec.calls) == 2, "the remainder pass is gone"
