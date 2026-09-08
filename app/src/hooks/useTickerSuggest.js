@@ -42,6 +42,11 @@ export default function useTickerSuggest(query, { enabled = true, limit = 12 } =
   const [fetched, setFetched] = useState([])
   const [loading, setLoading] = useState(false)
   const abortRef = useRef(null)
+  // Belt-and-suspenders alongside AbortController (mirrors CommandPalette.jsx/
+  // SecuritySymbolInput.jsx's own reqIdRef): a real fetch() honors the abort
+  // signal, but this guard means correctness never depends on that -- a stale
+  // response can never land even if something in the chain ignores the signal.
+  const reqIdRef = useRef(0)
   const q = (query || '').trim().toUpperCase()
 
   useEffect(() => {
@@ -50,12 +55,14 @@ export default function useTickerSuggest(query, { enabled = true, limit = 12 } =
     if (abortRef.current) abortRef.current.abort()
     const ctl = new AbortController()
     abortRef.current = ctl
+    const myReqId = ++reqIdRef.current
 
     const t = setTimeout(() => {
       setLoading(true)
       fetch(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=${limit}`, { signal: ctl.signal })
         .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
         .then(j => {
+          if (reqIdRef.current !== myReqId) return
           const arr = Array.isArray(j?.results) ? j.results : []
           // Always keep a literal "add {q}" escape hatch so a ticker outside the
           // $300M cap universe (or a brand-new listing) can still be added.
@@ -64,6 +71,7 @@ export default function useTickerSuggest(query, { enabled = true, limit = 12 } =
           setLoading(false)
         })
         .catch(err => {
+          if (reqIdRef.current !== myReqId) return
           if (err?.name === 'AbortError') return
           // Network/4xx — degrade to the typed value so Enter still works.
           setFetched([{ ticker: q, name: null, _typed: true }])

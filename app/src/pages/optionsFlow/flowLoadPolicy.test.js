@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import {
   planDelta,
   adoptVersion,
@@ -14,7 +17,7 @@ import {
   firstPassWaitMs,
   DELTA_WAIT_MS,
   ER_BADGE_WAIT_MS,
-} from './flowLoadPolicy'
+  shouldFetchTape, PREHYDRATE_FALLBACK_MS } from './flowLoadPolicy'
 
 // Baseline: a mounted page that has finished its base fetch for the default
 // (days=1) view, with a version that has not been merged yet.
@@ -404,5 +407,231 @@ describe('firstPassWaitMs — run the first aggregate ONCE, not twice', () => {
     // — and it must comfortably exceed the measured cold call (5,442ms) or a
     // cold load fires early and pays the second pass anyway.
     expect(ER_BADGE_WAIT_MS).toBeGreaterThan(5442)
+  })
+})
+
+// ── shouldFetchTape ─────────────────────────────────────────────────────────
+// Cold entry measured on prod 2026-09-07 fired BOTH /api/flow/aggregate
+// (24,403 KB decoded) and /api/flow/data (16,450 KB decoded) in parallel —
+// 7.6 MB wire before meaningful content, against 0-6 KB for UCT20/Breadth/
+// Screener measured identically. The aggregate paints; the tape only feeds the
+// worker for later work.
+describe('shouldFetchTape — WHEN the tape loads, never WHAT it contains', () => {
+  const base = { deferEnabled: true, prehydrateAvailable: true }
+
+  it('⛔ flag OFF is byte-identical to today: always fetch', () => {
+    // The rollback path. Checked before every other rule on purpose.
+    for (const extra of [{}, { hasRows: true }, { prehydrateAvailable: false }, { demanded: true }]) {
+      expect(shouldFetchTape({ ...extra, deferEnabled: false }).fetch).toBe(true)
+    }
+  })
+
+  it('defers the default view when the server can paint it', () => {
+    const r = shouldFetchTape(base)
+    expect(r.fetch).toBe(false)
+    expect(r.reason).toBe('deferred')
+  })
+
+  it('⛔ NEVER defers into a blank screen — no prehydrate means the tape is the only renderer', () => {
+    expect(shouldFetchTape({ deferEnabled: true, prehydrateAvailable: false }).fetch).toBe(true)
+  })
+
+  it('a real demand always wins over deferral', () => {
+    // A deferred fetch that refuses a genuine demand is a broken feature, not a
+    // fast one.
+    expect(shouldFetchTape({ ...base, demanded: true }).fetch).toBe(true)
+    expect(shouldFetchTape({ ...base, demanded: true }).reason).toBe('demanded')
+  })
+
+  it('a range change fetches — a different range is a different dataset', () => {
+    // The server aggregate is built per (source, days, date_filter); another
+    // range is not a re-slice of the one already painted.
+    expect(shouldFetchTape({ ...base, isRangeChange: true }).fetch).toBe(true)
+  })
+
+  it('does not refetch what the worker already holds', () => {
+    expect(shouldFetchTape({ ...base, hasRows: true }).fetch).toBe(false)
+    expect(shouldFetchTape({ ...base, hasRows: true }).reason).toBe('already-held')
+  })
+
+  it('a silent background refresh still fetches', () => {
+    expect(shouldFetchTape({ ...base, silent: true }).fetch).toBe(true)
+  })
+
+  it('demand outranks every non-flag rule', () => {
+    expect(shouldFetchTape({ ...base, demanded: true, hasRows: true }).fetch).toBe(true)
+  })
+
+  it('CONTROL: the function actually discriminates', () => {
+    // Guards against a version that returns {fetch:true} for everything, which
+    // would pass every assertion above except the deferral ones.
+    const outcomes = new Set([
+      shouldFetchTape(base).fetch,
+      shouldFetchTape({ ...base, demanded: true }).fetch,
+    ])
+    expect(outcomes.size).toBe(2)
+  })
+
+  it('called with no arguments it defaults to fetching', () => {
+    expect(shouldFetchTape().fetch).toBe(true)
+  })
+})
+
+// ── the wiring rail ─────────────────────────────────────────────────────────
+// This repo's most-repeated defect is a feature that is built, tested, green and
+// connected to nothing. These derive the wiring from OptionsFlow.jsx itself.
+describe('the tape deferral is actually WIRED into the page', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+
+  it('the base effect consults shouldFetchTape BEFORE fetching the tape', () => {
+    const i = src.indexOf('shouldFetchTape({')
+    const f = src.indexOf('fetch(baseFetchUrl(')
+    expect(i).toBeGreaterThan(-1)
+    expect(f).toBeGreaterThan(-1)
+    expect(i).toBeLessThan(f)          // decided first, fetched second
+  })
+
+  it('a declined plan returns WITHOUT fetching and clears the spinner', () => {
+    const seg = src.slice(src.indexOf('shouldFetchTape({'), src.indexOf('fetch(baseFetchUrl('))
+    expect(seg).toContain('!_tapePlan.fetch')
+    expect(seg).toContain('setCsvLoading(false)')   // never strand the spinner
+    expect(seg).toContain('return')
+  })
+
+  it('the effect re-runs when a feature demands the tape', () => {
+    // Without tapeDemanded in the deps, requiring the tape would set state that
+    // never re-triggers the fetch — a feature that waits forever.
+    expect(src).toMatch(/\}, \[csvFile, baseNonce, tapeDemanded\]\)/)
+  })
+
+  it('⛔ the flag defaults OFF — deferral must be opt-in', () => {
+    expect(src).toContain('VITE_FLOW_DEFER_TAPE === "1"')
+  })
+
+  it('CONTROL: the source really was read', () => {
+    expect(src.length).toBeGreaterThan(100000)
+    expect(src).toContain('TOP 10 FLOW PICKS')
+  })
+})
+
+// ── the deferral must not cost the member a CONTROL ─────────────────────────
+// Deferring the tape leaves `availableDates` empty, and the date-range picker
+// renders only when `availableDates.length > 0` — so the naive deferral made
+// the control DISAPPEAR. That is the "hide missing data" failure, not a win.
+// The server emits the same calendar (flowFactsEntry stats.availableDates);
+// these pin that the page actually adopts it.
+describe('the deferred tape does not take the date picker with it', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+
+  it('the prehydrate seeds availableDates from the server stats', () => {
+    const then = src.slice(src.indexOf('fetchPrehydrate('),
+                           src.indexOf('const versionedRefresh'))
+    expect(then).toContain('pre.stats?.availableDates')
+    expect(then).toContain('setAvailableDates(')
+  })
+
+  it('⛔ it FILLS an empty calendar and never REPLACES a tape-derived one', () => {
+    // A late prehydrate must not narrow a wider calendar the parsed rows have
+    // already published — the tape stays the authority.
+    const then = src.slice(src.indexOf('fetchPrehydrate('),
+                           src.indexOf('const versionedRefresh'))
+    const seed = then.slice(then.indexOf('pre.stats?.availableDates'))
+    expect(seed).toMatch(/prev\s*&&\s*prev\.length\s*\?\s*prev\s*:/)
+  })
+
+  it('the picker still gates on availableDates — so the seed is load-bearing', () => {
+    // If this gate ever goes away the seed stops being required; this rail
+    // should then be revisited rather than silently passing for a new reason.
+    expect(src).toContain('availableDates.length > 0 && (')
+  })
+
+  it('CONTROL: the source really was read', () => {
+    expect(src.length).toBeGreaterThan(100000)
+    expect(src).toContain('TOP 10 FLOW PICKS')
+  })
+})
+
+// ── the deferral must not turn an ACCELERATOR into a DEPENDENCY ─────────────
+// flowPrehydrate returns null on 503/offline/declined shapes, and the page has
+// always coped because the tape was in flight beside it. Deferring the tape
+// deleted that path: without a fallback, a null answer — or one that simply
+// never arrives (prod: a 16.5 s cold rebuild after a version bump) — leaves a
+// permanently empty page.
+describe('a prehydrate that never answers still yields a page', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+  const block = src.slice(src.indexOf('if (_preFired) {'),
+                          src.indexOf('const versionedRefresh'))
+
+  it('a DECLINED prehydrate demands the tape', () => {
+    // The null branch must act, not just return.
+    expect(block).toMatch(/if \(!pre\)[^\n]*_demandTape\('declined'\)/)
+  })
+
+  it('a SILENT prehydrate is rescued by a clock', () => {
+    // A decline resolves; a cold rebuild does not. Only a timer sees the second.
+    expect(block).toContain('PREHYDRATE_FALLBACK_MS')
+    expect(block).toContain('setTimeout(')
+    expect(block).toContain('setTapeDemanded(true)')
+  })
+
+  it('the fallback timer is armed ONLY when deferral is on', () => {
+    // With the flag off the tape is already in flight; a timer there would be a
+    // second authority over the same fetch.
+    expect(block).toMatch(/_preFallbackTimer\s*=\s*DEFER_TAPE\s*\n?\s*\?/)
+  })
+
+  it('a landed prehydrate disarms the timer, so it cannot fetch 16 MB late', () => {
+    expect(block).toContain('_preLanded = true')
+    expect(block).toContain('clearTimeout(_preFallbackTimer)')
+  })
+
+  it('EVERY cleanup path clears the timer — including the deferred early return', () => {
+    // The deferral returns early, BEFORE the normal cleanup. A timer left armed
+    // on an unmounted effect fires setState on a dead view.
+    const eff = src.slice(src.indexOf('if (_preFired) {'),
+                          src.indexOf('}, [csvFile, baseNonce, tapeDemanded])'))
+    const cleanups = eff.match(/return \(\) => \{ cancelled = true;[^}]*\}/g) || []
+    expect(cleanups.length).toBeGreaterThanOrEqual(2)
+    for (const c of cleanups) expect(c).toContain('clearTimeout(_preFallbackTimer)')
+  })
+
+  it('the budget clears a warm answer and sits inside a cold one', () => {
+    // Warm is ~300 ms on prod; a cold rebuild is seconds. A budget below the
+    // warm answer would fetch the tape on every healthy load and delete the win.
+    expect(PREHYDRATE_FALLBACK_MS).toBeGreaterThan(1000)
+    expect(PREHYDRATE_FALLBACK_MS).toBeLessThan(8000)
+  })
+
+  it('CONTROL: the block really was located', () => {
+    expect(block.length).toBeGreaterThan(500)
+    expect(block).toContain('fetchPrehydrate(')
+  })
+})
+
+// ── "already held" must mean THIS view, not any view ────────────────────────
+describe('a range change is never served from another range rows', () => {
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+
+  it('the hasRows argument is KEYED to the view being loaded', () => {
+    // `_hasRows` never flips back, and in the policy `hasRows` is checked
+    // BEFORE `isRangeChange` — so an unkeyed value silently converts every
+    // later range switch into "already held" and the worker keeps the old
+    // range's rows. Measured on prod: 1d -> 5d -> 1d never fetched 1d.
+    const call = src.slice(src.indexOf('const _tapePlan = shouldFetchTape({'),
+                           src.indexOf('if (!_tapePlan.fetch)'))
+    expect(call).toMatch(/hasRows:\s*_hasRows\.current\s*&&\s*getLoadedKey\(\) === snapshotKey\(csvFile\)/)
+  })
+
+  it('CONTROL: the policy really does rank hasRows above a range change', () => {
+    // If this ever stops being true the rail above is guarding nothing and
+    // should be revisited rather than left passing for a stale reason.
+    expect(shouldFetchTape({ deferEnabled: true, hasRows: true, isRangeChange: true }))
+      .toEqual({ fetch: false, reason: 'already-held' })
+    expect(shouldFetchTape({ deferEnabled: true, hasRows: false, isRangeChange: true }))
+      .toEqual({ fetch: true, reason: 'range-change' })
   })
 })

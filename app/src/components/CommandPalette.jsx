@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
+import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -19,8 +20,12 @@ const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
 const NOTEBOOK_COMMANDS = [
   { id: 'nb-new', kind: 'command', label: 'New Note', icon: 'document',
     to: '/journal/notebook?new=blank', keywords: ['note', 'notebook', 'new', 'create'] },
+  // Wave H checkpoint decision 28: bare `/journal/notebook` now renders
+  // Research Home (checkpoint decision 33) -- this command already IS
+  // "Open Research Home" by construction, so it gets Home's own keywords
+  // rather than a second, redundant command pointing at the identical route.
   { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
-    to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open'] },
+    to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open', 'home'] },
   { id: 'nb-search', kind: 'command', label: 'Search Notebook', icon: 'search',
     to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
   { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',
@@ -163,8 +168,12 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       abortRef.current = ac
       setLoading(true)
       setError(false)
-      fetch(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal: ac.signal })
-        .then(r => r.json())
+      // jsonFetcher (not a bare fetch().then(r => r.json())): a non-2xx
+      // answer is a real error state, not empty data -- see its own header
+      // comment for the 402-reads-as-truthy-object failure this exists to
+      // prevent. Confirmed pre-existing here by Search/Command Convergence
+      // V1's Phase A (2026-09-06) and picked up as its own bounded fix.
+      jsonFetcher(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal: ac.signal })
         .then(data => {
           if (reqIdRef.current !== myReqId) return
           setResults(Array.isArray(data?.results) ? data.results : [])

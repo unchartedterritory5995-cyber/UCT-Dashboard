@@ -796,3 +796,69 @@
     display: none;
   }
 }
+
+/* ── Phone crosshair legend — hierarchy pass ────────────────────────────────
+   The phone legend carries MORE than TradingView's (date, O/H/L/C, volume,
+   day change AND every active MA), which is a genuine strength — but it was
+   rendering as one flat run of 10px chips at equal weight, so the date, the
+   prices, the change and four moving averages all competed, and the wrap
+   landed wherever it fell (EMA 9 stranded on the C/V row).
+
+   This groups it without removing anything: the date gets its own quiet
+   caption line, labels recede, values lead, and the block reads as a panel
+   rather than text scattered on the candles.
+
+   ⛔ Scoped to the phone shell + coarse pointer, exactly like the .volLegend
+   and .scaleToggle rules above. Desktop, iPad and grid cells are untouched.
+   ⛔ Colour is deliberately NOT set on .legendTime/.legendLabel/.legendVal —
+   those carry an inline `legBase` colour whenever the user has configured a
+   custom legend colour in Chart Settings, and an inline style wins. Driving
+   the hierarchy with size/weight/layout keeps that setting authoritative. */
+@media (pointer: coarse) and (max-width: 640px),
+       (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .legend {
+    gap: 1px 9px;
+    padding: 6px 9px 5px;
+    border-radius: 8px;
+    background: var(--chart-panel-bg, rgba(16, 18, 14, 0.93));
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.38);
+    line-height: 1.5;
+    max-width: calc(100% - 16px);
+    align-items: baseline;
+  }
+
+  /* The date is context, not a number — its own line, smallest, spaced. */
+  :global(html[data-mobile-chart-shell]) .legend .legendTime {
+    flex: 0 0 100%;
+    font-size: 9px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-weight: 600;
+    opacity: 0.62;
+    margin-bottom: 2px;
+  }
+
+  /* O/H/L/C/V: the ticker letter recedes so the price is what you read. */
+  :global(html[data-mobile-chart-shell]) .legend .legendLabel {
+    font-size: 9px;
+    font-weight: 500;
+    opacity: 0.55;
+    letter-spacing: 0.03em;
+  }
+  :global(html[data-mobile-chart-shell]) .legend .legendVal {
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 1;
+    letter-spacing: -0.01em;
+    margin-left: 2px;
+  }
+
+  /* Day change is the one figure a glance is usually looking for. */
+  :global(html[data-mobile-chart-shell]) .legend .legendUp,
+  :global(html[data-mobile-chart-shell]) .legend .legendDown {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+}

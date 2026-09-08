@@ -2,7 +2,14 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
+import {
+  buildExtensions, uploadInlineImage, uploadNoteAttachment,
+  ALLOWED_IMAGE_MIMES, ALLOWED_ATTACHMENT_MIMES,
+} from '../../lib/tiptap'
+import Toast from '../Toast'
+import DocumentPreviewSheet from './DocumentPreviewSheet'
+import useNoteDocuments from '../../hooks/useNoteDocuments'
+import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import ConfirmModal from '../ConfirmModal'
@@ -24,6 +31,8 @@ import NoteAskPanel from './NoteAskPanel'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
+import PropertiesSection from './PropertiesSection'
+import ThesisSection from './ThesisSection'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
@@ -520,6 +529,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
+  const attachFileInputRef = useRef(null)
   const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null, updatedAt: null })
   // One reconcile-and-retry per conflict burst (A15 compare-and-set): a 409
   // means a server-side write (Send-to-Journal append, second tab) landed
@@ -700,6 +710,20 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // `editor` const is still null — so closing over it directly made paste throw
   // "Cannot read properties of null (reading 'chain')". The ref is always fresh.
   const editorRef = useRef(null)
+  // Wave I: a single toast for both image and file-attachment upload
+  // failures — an alert() blocks the whole tab for the multi-second span a
+  // PDF upload can take, which is a worse experience than the image case
+  // this was copied from.
+  const [uploadToast, setUploadToast] = useState(null)
+  // Wave I: { href, name } of the PDF currently open in the preview Sheet, or
+  // null. Wave J extends it with `documentId` (needed to save an excerpt
+  // against) and `page`/`emphasizeExcerptId` (click-to-source targeting --
+  // the preview may open at an arbitrary document NOT attached to the
+  // currently-open note, e.g. from a thesis-evidence row referencing an
+  // excerpt captured in a different note).
+  const [previewDoc, setPreviewDoc] = useState(null)
+  const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
+  const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
@@ -707,9 +731,184 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const { url } = await uploadInlineImage(noteId, file)
       ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
-      alert(`Upload failed: ${e.message || e}`)
+      setUploadToast({ message: `Couldn't upload ${file.name || 'image'}. Your note is unchanged.`, tone: 'error' })
     }
   }
+  // Wave I: the non-image counterpart — the backend endpoint
+  // (POST /notes/{id}/attachments) has existed since before this wave; this
+  // is its first live-editor caller. Inserts a real AttachmentChip node
+  // (already used by every import adapter), never a bare markdown link.
+  const handleAttachmentInsert = async (file) => {
+    const ed = editorRef.current
+    if (!ed || !file) return
+    try {
+      const { url, name, size } = await uploadNoteAttachment(noteId, file)
+      ed.chain().focus().insertContent({
+        type: 'attachmentChip', attrs: { href: url, name, size },
+      }).run()
+      // Wave J, found live in the browser: a PDF uploaded HERE creates its
+      // j2_note_documents row server-side, but `useNoteDocuments` was fetched
+      // at note-open and never revalidates on its own -- so the brand-new
+      // document's id was unresolvable, previewDoc.documentId came back null,
+      // and "Save excerpt" on the PDF a member had JUST attached silently did
+      // nothing until a full page reload. Refresh the list so the id exists
+      // the moment the chip does.
+      refreshDocuments()
+    } catch (e) {
+      setUploadToast({ message: `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`, tone: 'error' })
+    }
+  }
+
+  // Wave I: a PDF AttachmentChip opens the in-context preview Sheet instead
+  // of downloading. A CAPTURE-phase React handler on the editor's own
+  // wrapper, not TipTap's `handleClickOn` — AttachmentChip.renderHTML()
+  // emits a real `download="..."` attribute on the <a> (pre-existing,
+  // relied on by every import adapter for the "just download it" case), and
+  // a native `<a download>` click is handled by the browser ahead of
+  // ProseMirror's own synthetic click routing, so `handleClickOn` never
+  // fired. Capture phase + preventDefault() here runs before that native
+  // download activates.
+  const handleEditorClickCapture = (event) => {
+    // Wave J: a documentExcerpt card's citation button (see ExcerptView.jsx)
+    // -- click-to-source, the directive's own highest-value exit gate.
+    // Reuses this same capture-phase bridge Wave I established for the
+    // attachmentChip case, rather than a second click-handling mechanism.
+    const citation = event.target.closest?.('button[data-type="documentExcerptCitation"]')
+    if (citation) {
+      const documentId = citation.getAttribute('data-document-id')
+      const page = Number(citation.getAttribute('data-page'))
+      const excerptId = citation.getAttribute('data-excerpt-id')
+      const doc = noteDocuments.find((d) => d.id === documentId)
+      const localExcerpt = noteExcerpts.find((e) => e.id === excerptId)
+      if (doc) {
+        setPreviewDoc({
+          href: doc.attachmentUrl, name: doc.name, documentId, page,
+          emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt || null,
+        })
+      } else if (localExcerpt?.attachmentUrl) {
+        // The excerpt's own document isn't one of THIS note's attachments
+        // (an excerpt saved from elsewhere but inserted here) -- the
+        // excerpt row itself already carries everything needed.
+        setPreviewDoc({
+          href: localExcerpt.attachmentUrl, name: localExcerpt.documentName,
+          documentId, page, emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt,
+        })
+      }
+      return
+    }
+
+    // Wave I: a PDF AttachmentChip opens the in-context preview Sheet instead
+    // of downloading. AttachmentChip.renderHTML() emits a real
+    // `download="..."` attribute on the <a> (pre-existing, relied on by
+    // every import adapter for the "just download it" case), and a native
+    // `<a download>` click is handled by the browser ahead of ProseMirror's
+    // own synthetic click routing, so `handleClickOn` never fired. Capture
+    // phase + preventDefault() here runs before that native download
+    // activates.
+    const chip = event.target.closest?.('a[data-type="attachmentChip"]')
+    if (!chip) return
+    const href = chip.getAttribute('href')
+    const name = chip.getAttribute('data-name')
+    if (!/\.pdf$/i.test(name || '') && !/\.pdf$/i.test(href || '')) return
+    event.preventDefault()
+    // Wave J: resolve this attachment's documentId (needed to save an
+    // excerpt against it) from the note's own already-fetched document
+    // list -- the chip's own attrs never carried an id (attachments have
+    // none of their own, per Wave I's filesystem-path identity model).
+    const doc = noteDocuments.find((d) => d.attachmentUrl === href)
+    setPreviewDoc({ href, name, documentId: doc?.id || null })
+  }
+
+  // Wave J: create the excerpt AND insert its node, in that order -- the
+  // combined backend endpoint already does both atomically, so this is
+  // just the client-side mirror (insert the returned excerptId) plus the
+  // upload-failure toast idiom every other capture path in this file uses.
+  const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
+    const ed = editorRef.current
+    if (!ed) return
+    try {
+      // Wave J, found live: previewDoc.documentId is resolved from a list
+      // fetched at note-open, so ANY document created after that (the common
+      // case: attach a PDF, then immediately excerpt it) resolved to null and
+      // this handler returned silently. Re-resolve from the server at save
+      // time rather than trusting the snapshot -- this closes the whole race
+      // class, not just the upload one. A failure past this point surfaces
+      // the toast below; it must never be silent again.
+      let documentId = previewDoc?.documentId
+      if (!documentId && previewDoc?.href) {
+        const fresh = await fetch(`/api/j2/notes/${noteId}/documents`, { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : { documents: [] }))
+        documentId = fresh.documents?.find((d) => d.attachmentUrl === previewDoc.href)?.id || null
+        // Carry the resolution back onto the open preview, or the highlight
+        // overlay (previewExcerpts, keyed on previewDoc.documentId) stays
+        // empty and the excerpt a member just saved renders no mark on the
+        // page it came from until they reopen the document.
+        if (documentId) setPreviewDoc((p) => (p && p.href === previewDoc.href ? { ...p, documentId } : p))
+      }
+      if (!documentId) throw new Error('document not resolvable')
+      const res = await fetch(`/api/j2/notes/${noteId}/excerpts`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentId, pageNumber, capturedText,
+          quotePrefix, quoteSuffix, charStart, charEnd,
+        }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      const { excerpt } = await res.json()
+      // ⛔ insertContentAt(selection.to), NOT insertContent -- found live in
+      // the browser, and it DESTROYED the member's attachment. Clicking a PDF
+      // chip to open the preview leaves ProseMirror holding a NodeSelection
+      // on that chip (it renders with .ProseMirror-selectednode), and
+      // insertContent REPLACES the selection: saving the first excerpt from
+      // a document silently deleted the chip that document was attached by.
+      // Verified against the persisted body afterwards -- the attachmentChip
+      // node was simply gone, leaving [documentExcerpt, paragraph].
+      // Inserting AT the selection's end preserves a selected node and is
+      // identical to the old behaviour for an ordinary caret.
+      //
+      // Same hazard CaptureInboxTray.place() guards above (see its comment).
+      // It resolves differently — falling back to 'end' — because a banked
+      // capture has no anchor in the note; an excerpt does: the chip the
+      // member just clicked. Landing it right after that chip is the point,
+      // and 'end' would be the "dumped off-screen" failure that comment's
+      // own second guard exists to prevent.
+      ed.chain().focus().insertContentAt(ed.state.selection.to, {
+        type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
+      }).run()
+      await refreshExcerpts()
+    } catch (e) {
+      setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
+    }
+  }
+
+  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
+  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
+  // one open here, so it's resolved via GET /excerpts/{id} (carries the
+  // source document's attachmentUrl directly, no second lookup) rather
+  // than assuming it's among this note's own documents/excerpts.
+  const handleOpenExcerptSource = async (excerptId) => {
+    try {
+      const res = await fetch(`/api/j2/excerpts/${excerptId}`, { credentials: 'include' })
+      if (!res.ok) return
+      const { excerpt } = await res.json()
+      if (!excerpt?.attachmentUrl) return
+      setPreviewDoc({
+        href: excerpt.attachmentUrl, name: excerpt.documentName,
+        documentId: excerpt.documentId, page: excerpt.pageNumber,
+        emphasizeExcerptId: excerpt.id, emphasizeExcerpt: excerpt,
+      })
+    } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
+  }
+
+  const previewExcerpts = useMemo(() => {
+    if (!previewDoc?.documentId) return []
+    const fromNote = noteExcerpts.filter((e) => e.documentId === previewDoc.documentId)
+    if (previewDoc.emphasizeExcerpt && !fromNote.some((e) => e.id === previewDoc.emphasizeExcerpt.id)) {
+      return [...fromNote, previewDoc.emphasizeExcerpt]
+    }
+    return fromNote
+  }, [noteExcerpts, previewDoc])
 
   const ytId = parseYouTubeId(note?.heroImageUrl)
   // Video notes whose video is a Desk library session get the Desk theater's
@@ -753,10 +952,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         const items = event.clipboardData?.items
         if (!items) return false
         for (const item of items) {
-          if (item.kind === 'file' && item.type.startsWith('image/')) {
+          if (item.kind !== 'file') continue
+          if (ALLOWED_IMAGE_MIMES.has(item.type)) {
             event.preventDefault()
             const file = item.getAsFile()
             if (file) handleImageInsert(file)
+            return true
+          }
+          if (ALLOWED_ATTACHMENT_MIMES.has(item.type)) {
+            event.preventDefault()
+            const file = item.getAsFile()
+            if (file) handleAttachmentInsert(file)
             return true
           }
         }
@@ -764,9 +970,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       },
       handleDrop(view, event) {
         const file = event.dataTransfer?.files?.[0]
-        if (file && file.type.startsWith('image/')) {
+        if (!file) return false
+        if (ALLOWED_IMAGE_MIMES.has(file.type)) {
           event.preventDefault()
           handleImageInsert(file)
+          return true
+        }
+        if (ALLOWED_ATTACHMENT_MIMES.has(file.type)) {
+          event.preventDefault()
+          handleAttachmentInsert(file)
           return true
         }
         return false
@@ -1001,11 +1213,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }
   }
 
-  const ToolButton = ({ active, onClick, label }) => (
+  const ToolButton = ({ active, onClick, label, title }) => (
     <button
       type="button"
       className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      title={title}
+      aria-label={title}
     >{label}</button>
   )
 
@@ -1061,6 +1275,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      <Toast
+        message={uploadToast?.message}
+        tone={uploadToast?.tone}
+        onDismiss={() => setUploadToast(null)}
+      />
+      <DocumentPreviewSheet
+        open={!!previewDoc}
+        href={previewDoc?.href}
+        name={previewDoc?.name}
+        page={previewDoc?.page}
+        onClose={() => setPreviewDoc(null)}
+        excerpts={previewExcerpts}
+        onSaveExcerpt={handleSaveExcerpt}
+        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+      />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
         {showBack && (
@@ -1268,6 +1497,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
               label={<UIcon name="document" size={14} />}
+              title="Insert image"
+            />
+            <ToolButton
+              onClick={() => attachFileInputRef.current?.click()}
+              label={<UIcon name="paperclip" size={14} />}
+              title="Attach a file"
             />
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
@@ -1374,13 +1609,25 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           placeholder="Subtitle (optional)"
         />
 
+        {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
+            a note with nothing set renders only a small "+ Add property"
+            link, never a permanent header (progressive disclosure). */}
+        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+
+        {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
+            body (checkpoint §39); renders nothing for a note that isn't
+            being used as a thesis. */}
+        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource} />
+
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 
         {findOpen && (
           <NoteFindBar editor={editor} onClose={() => { setFindOpen(false); editor?.commands.noteFindClear() }} />
         )}
 
-        <EditorContent editor={editor} />
+        <div onClickCapture={handleEditorClickCapture}>
+          <EditorContent editor={editor} />
+        </div>
 
         {/* Wave D: "Linked from" backlinks -- renders nothing until this
             note has at least one real backlink (directive §70/§16). */}
@@ -1390,10 +1637,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/gif,image/webp"
+          aria-label="Upload image"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) handleImageInsert(f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={attachFileInputRef}
+          type="file"
+          accept=".pdf,.txt,.csv,.md,.zip,.mp3,.m4a,.docx,.xlsx"
+          aria-label="Upload file attachment"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleAttachmentInsert(f)
             e.target.value = ''
           }}
         />

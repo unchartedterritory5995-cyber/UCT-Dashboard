@@ -20,12 +20,24 @@
 // continue") — the data below reflects NYSE's real published calendar, not
 // the matrix row's paraphrase of it.
 //
-// Coverage is deliberately ONE year (2026) — "small, well-bounded" per the
-// matrix's own sizing. A date outside `COVERED_YEARS` degrades gracefully
-// (see marketClock.js's `calendarCoverage` flag) rather than guessing a
-// future year's holiday dates.
+// Coverage started at ONE year (2026) — "small, well-bounded" per the
+// matrix's own sizing — and is extended by hand, one year at a time, well
+// ahead of the prior year's Dec 31 cliff (Seam 7 architecture adjudication,
+// 2026-09-07: `extSession.test.js`/`marketSession.dailypaint.test.js` pin
+// the out-of-coverage degrade as intentional -- "no throw, no guess" -- but
+// that degrade silently reintroduces Seam 6's exact defect class once a
+// year's coverage lapses, so this table must stay at least one year ahead
+// of `today`, not just "the current year"). A date outside `COVERED_YEARS`
+// still degrades gracefully (see marketClock.js's `calendarCoverage` flag)
+// rather than guessing a future year's holiday dates -- this is the safety
+// net for a year nobody has added yet, not a substitute for adding it.
+//
+// `tests/test_nyse_calendar_parity.py` cross-checks every year here against
+// `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` (the backend's own independently
+// hand-maintained table) -- add a year to BOTH together, or the parity test
+// fails on the year this table stops matching.
 
-export const COVERED_YEARS = Object.freeze([2026])
+export const COVERED_YEARS = Object.freeze([2026, 2027])
 
 /** Full-day NYSE closures, 2026. ISO date strings (NYSE's own local/ET
  *  calendar date — these are whole-day closures, never partial). */
@@ -48,10 +60,39 @@ export const NYSE_EARLY_CLOSES_2026 = Object.freeze([
   { date: '2026-12-24', name: 'Christmas Eve', closeHour: 13, closeMinute: 0 },
 ])
 
+/** Full-day NYSE closures, 2027. Matches `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD`'s
+ *  already-existing 2027 dates (verified via the Seam 7 parity adjudication,
+ *  2026-09-07) -- June 19 2027 falls on a Saturday (observed Fri Jun 18), July 4
+ *  2027 falls on a Sunday (observed Mon Jul 5), Dec 25 2027 falls on a Saturday
+ *  (observed Fri Dec 24 -- a FULL closure, NOT an early close, unlike Dec 24 2026). */
+export const NYSE_HOLIDAYS_2027 = Object.freeze([
+  { date: '2027-01-01', name: "New Year's Day" },
+  { date: '2027-01-18', name: 'Martin Luther King, Jr. Day' },
+  { date: '2027-02-15', name: "Washington's Birthday" },
+  { date: '2027-03-26', name: 'Good Friday' },
+  { date: '2027-05-31', name: 'Memorial Day' },
+  { date: '2027-06-18', name: 'Juneteenth National Independence Day (observed)' },
+  { date: '2027-07-05', name: 'Independence Day (observed)' },
+  { date: '2027-09-06', name: 'Labor Day' },
+  { date: '2027-11-25', name: 'Thanksgiving Day' },
+  { date: '2027-12-24', name: 'Christmas Day (observed)' },
+])
+
+/** Early-close (1:00 PM ET regular-session close) trading days, 2027. Only
+ *  the day after Thanksgiving -- Dec 24 2027 is a FULL closure this year
+ *  (see NYSE_HOLIDAYS_2027 above), not an early close. */
+export const NYSE_EARLY_CLOSES_2027 = Object.freeze([
+  { date: '2027-11-26', name: 'Day after Thanksgiving', closeHour: 13, closeMinute: 0 },
+])
+
 const _BY_YEAR = Object.freeze({
   2026: Object.freeze({
     holidays: NYSE_HOLIDAYS_2026,
     earlyCloses: NYSE_EARLY_CLOSES_2026,
+  }),
+  2027: Object.freeze({
+    holidays: NYSE_HOLIDAYS_2027,
+    earlyCloses: NYSE_EARLY_CLOSES_2027,
   }),
 })
 

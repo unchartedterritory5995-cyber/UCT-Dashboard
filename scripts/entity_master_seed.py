@@ -109,6 +109,103 @@ def _entity_type_for(sym: str, ref: dict | None) -> str:
     return {"STOCK": "equity", "ETF": "etf", "INDEX": "index"}.get(norm, "equity")
 
 
+def seed_dot_form_aliases(db_path: str | None = None, dry_run: bool = False) -> dict:
+    """Seam 1 read-side fix (2026-09-06). Every class-share ticker was seeded
+    with ONLY its hyphen alias (BRK-B), so `resolve("BRK.B")` returns
+    `not_found` -- silently degrading Watchlist/Portfolio Intelligence and
+    Research estimates/financials for any member using the dot spelling.
+    Price lookup itself was never affected (`to_polygon_symbol()` already
+    converts hyphen->dot at the Massive REST boundary); this closes the
+    IDENTITY-RESOLUTION gap the write-time hardening (Identity Normalization
+    Hardening V1) and the search-index re-keying (Ticker Search Identity
+    Convergence V1 / Seam 16) both deliberately left open.
+
+    NOT a data migration -- adds one alias row per already-existing entity,
+    touches no existing row, no schema change.
+
+    Deliberately does NOT reuse `_massive_reference_rows()`'s bulk pagination
+    scan (60 pages, the whole reference universe) -- a per-symbol
+    `massive.get_ticker_details()` call against cap_universe's ~14 hyphenated
+    candidates is the smallest coherent check, and it EMPIRICALLY CONFIRMS
+    (never assumes from the suffix pattern alone, and never assumes from a
+    genuine-looking share-class SUFFIX either) which of them Massive's own
+    reference API actually resolves under a dot spelling -- measured
+    2026-09-06 against live production data: 13 of 14 confirmed (including
+    NWAX-U, a SPAC UNIT ticker whose dot form Massive's reference API DOES
+    carry -- disproving the assumption that only share classes get one).
+    The one exclusion, CWEN-A, is a genuine Massive 404 on `CWEN.A`
+    (verified directly against the raw REST call, not a swallowed
+    exception), not a suffix-pattern artifact -- exactly the class of wrong
+    guess this empirical check exists to prevent.
+    """
+    from api.services import cap_universe, massive
+    from api.services.entity_master import api as em_api
+
+    stats: Counter = Counter({
+        "candidates_checked": 0, "dot_aliases_added": 0,
+        "dot_aliases_already_present": 0, "no_dot_form_confirmed": 0,
+        "hyphen_entity_not_found": 0, "rejected_records": 0,
+        "ambiguities_encountered": 0,
+    })
+    anomalies: list = []
+    would_add: list = []
+
+    hyphenated = sorted(s for s in cap_universe.symbols() if "-" in s)
+    for sym in hyphenated:
+        stats["candidates_checked"] += 1
+        details = massive.get_ticker_details(sym)
+        dot_form = (details or {}).get("ticker")
+        # A confirmed dot form must genuinely be the dot spelling of THIS
+        # symbol -- reject an empty/best-effort-failure result and reject a
+        # non-dot echo of the same string (both read as "not confirmed",
+        # never as "no dot form exists" -- get_ticker_details is
+        # best-effort and a transient failure must not look like absence).
+        if not dot_form or dot_form == sym or "." not in dot_form:
+            stats["no_dot_form_confirmed"] += 1
+            continue
+
+        resolved = em_api.resolve(sym, db_path=db_path)
+        if resolved.status != "resolved":
+            anomalies.append({"kind": "hyphen_entity_not_found", "alias": sym})
+            stats["hyphen_entity_not_found"] += 1
+            continue
+        eid = resolved.entity.entity_id
+
+        dot_resolved = em_api.resolve(dot_form, db_path=db_path)
+        if dot_resolved.status == "resolved":
+            stats["dot_aliases_already_present"] += 1
+            continue
+        if dot_resolved.status == "ambiguous":
+            anomalies.append({"kind": "ambiguous_on_seed", "alias": dot_form,
+                               "candidates": list(dot_resolved.candidates)})
+            stats["ambiguities_encountered"] += 1
+            continue
+
+        if dry_run:
+            would_add.append({"entity_id": eid, "hyphen": sym, "dot": dot_form})
+            continue
+
+        # Backfill valid_from to the hyphen alias's OWN earliest date -- the
+        # dot spelling has always been a valid name for this instrument, not
+        # "valid starting today"; a historical as_of query on the dot form
+        # must resolve correctly too.
+        hyphen_aliases = em_api.aliases(eid, db_path=db_path)
+        valid_from = hyphen_aliases[0].valid_from if hyphen_aliases else "1990-01-01"
+        result = em_api.apply_event(
+            "alias_added", {"entity_id": eid, "alias": dot_form, "valid_from": valid_from},
+            dedup_key=f"seed:dot_alias:{dot_form}", source="admin_manual", db_path=db_path,
+        )
+        if not result.accepted:
+            anomalies.append({"kind": "rejected", "alias": dot_form, "reason": result.reason})
+            stats["rejected_records"] += 1
+        else:
+            stats["dot_aliases_added"] += 1
+
+    if dry_run:
+        return {"stats": dict(stats), "anomalies": anomalies, "would_add": would_add, "dry_run": True}
+    return {"stats": dict(stats), "anomalies": anomalies, "dry_run": False}
+
+
 def run_seed(db_path: str | None = None, dry_run: bool = False, max_pages: int = 60) -> dict:
     from api.services import cap_universe, delisted_registry
     from api.services.entity_master import api as em_api
@@ -290,9 +387,15 @@ def main():
     parser.add_argument("--db-path", default=None, help="Override entity_master.db path (default: DATA_DIR env)")
     parser.add_argument("--dry-run", action="store_true", help="Read-only: report what WOULD be written, write nothing")
     parser.add_argument("--max-pages", type=int, default=60, help="Cap on Massive reference-ticker pagination")
+    parser.add_argument("--dot-aliases-only", action="store_true",
+                         help="Seam 1 read-side fix: seed dot-form aliases for cap_universe's "
+                              "class-share tickers only (BRK.B, ...) -- skips the full universe pass")
     args = parser.parse_args()
 
-    result = run_seed(db_path=args.db_path, dry_run=args.dry_run, max_pages=args.max_pages)
+    if args.dot_aliases_only:
+        result = seed_dot_form_aliases(db_path=args.db_path, dry_run=args.dry_run)
+    else:
+        result = run_seed(db_path=args.db_path, dry_run=args.dry_run, max_pages=args.max_pages)
     print(json.dumps(result, indent=2, default=str))
 
 

@@ -5,6 +5,7 @@ bearer auth (curlable without a browser session), no writes, no LLM calls.
 Consumed by uct-clips, a separate local repo with no session cookie of its own."""
 from __future__ import annotations
 
+import hmac
 import os
 
 from fastapi import APIRouter, Query, Request, Response
@@ -17,7 +18,13 @@ router = APIRouter(prefix="/api/internal/media-evidence", tags=["media-evidence-
 def _push_secret_ok(request: Request) -> bool:
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
-    return bool(expected) and auth == f"Bearer {expected}"
+    # Constant-time: `==` short-circuits at the first differing byte and leaks a
+    # prefix by timing. The bool(expected) guard stays first and is deliberately
+    # not constant-time — whether a secret is configured is a deployment fact,
+    # and comparing against "" would make every request match.
+    if not expected:
+        return False
+    return hmac.compare_digest(auth, f"Bearer {expected}")
 
 
 @router.get("/session-time/{video_id}")

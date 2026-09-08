@@ -11,6 +11,7 @@
 }
 
 .pageCot { padding: 0; --page-pad-top: 0px; --page-pad-x: 0px; }
+
 .cotTabHeader { padding: 20px 24px 0; margin-bottom: 0; }
 
 /* Segmented tab group — matches the Calendar view-switch look: an outlined pill
@@ -21,6 +22,7 @@
   border-radius: 9px;
   overflow: hidden;
 }
+
 .tab {
   font-family: var(--font-sans);
   font-size: 11px;
@@ -33,13 +35,17 @@
   transition: background 0.12s, color 0.12s;
   white-space: nowrap;
 }
+
 .tab:hover { color: var(--ut-gold); }
+
 .tabActive {
   background: var(--ut-gold);
   color: var(--bg);
   font-weight: 800;
 }
+
 .tabActive:hover { color: var(--bg); }
+
 .heading {
   font-family: var(--font-display);
   font-size: 19px;
@@ -48,6 +54,7 @@
   letter-spacing: 0.2px;
   text-transform: none;
 }
+
 .meta {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -60,6 +67,7 @@
   color: var(--text); font-weight: 500;
   padding: 24px 0;
 }
+
 .empty code {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -175,13 +183,17 @@
 }
 
 .rowEven .dateCell { background: var(--bg); }
+
 .rowOdd  .dateCell { background: var(--bg-surface); }
+
 .rowEven           { background: transparent; }
+
 .rowOdd            { background: rgba(255,255,255,0.018); }
 
 .table tbody tr:hover td {
   background: rgba(255,255,255,0.025);
 }
+
 .table tbody tr:hover .dateCell {
   background: var(--bg-hover);
 }
@@ -193,13 +205,20 @@
 /* Classic trading red/green, toned for graphite: balanced green #2faf68
    (47,175,104) + true red #df4646 (223,70,70), caution = brand gold. Clean
    universal ticker colours, mild = subtle wash, extreme = saturated. */
-.bgG3 { background: rgba( 47, 175, 104, 0.62); }  /* extreme bullish */
-.bgG2 { background: rgba( 47, 175, 104, 0.36); }  /* bullish */
-.bgG1 { background: rgba( 47, 175, 104, 0.13); }  /* mild bullish */
-.bgA  { background: rgba(220, 187,  94, 0.22); }  /* caution — brand gold */
-.bgR1 { background: rgba(223,  70,  70, 0.13); }  /* mild bearish */
-.bgR2 { background: rgba(223,  70,  70, 0.36); }  /* bearish */
-.bgR3 { background: rgba(223,  70,  70, 0.62); }  /* extreme bearish */
+.bgG3 { background: rgba( 47, 175, 104, 0.62); }
+  /* extreme bullish */
+.bgG2 { background: rgba( 47, 175, 104, 0.36); }
+  /* bullish */
+.bgG1 { background: rgba( 47, 175, 104, 0.13); }
+  /* mild bullish */
+.bgA  { background: rgba(220, 187,  94, 0.22); }
+  /* caution — brand gold */
+.bgR1 { background: rgba(223,  70,  70, 0.13); }
+  /* mild bearish */
+.bgR2 { background: rgba(223,  70,  70, 0.36); }
+  /* bearish */
+.bgR3 { background: rgba(223,  70,  70, 0.62); }
+  /* extreme bearish */
 
 /* ── Individual column collapse ──────────────────────────────────────────────── */
 .colSubLabel {
@@ -215,15 +234,18 @@
   user-select: none;
   transition: color 0.15s;
 }
+
 .colLabelClickable:hover {
   color: var(--ut-gold, #dcbb5e);
 }
+
 .colLabelCollapsed {
   width: 18px;
   min-width: 18px;
   max-width: 18px;
   padding: 4px 2px;
 }
+
 .colCollapsedLabel {
   display: block;
   writing-mode: vertical-lr;
@@ -233,6 +255,7 @@
   letter-spacing: 0.5px;
   line-height: 1;
 }
+
 .colCollapsedCell {
   width: 18px;
   min-width: 18px;
@@ -246,35 +269,41 @@
   padding: 2px 6px;
   text-align: center;
 }
+
 .maStack {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
 }
+
 .maItem {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
 }
+
 .maLabel {
   font-size: 8px;
   color: var(--text-muted);
   line-height: 1;
 }
+
 .maCheck {
   font-size: 11px;
   font-weight: 700;
   color: var(--ut-green-bright, #4ade80);
   line-height: 1;
 }
+
 .maCross {
   font-size: 11px;
   font-weight: 700;
   color: var(--loss, #f87171);
   line-height: 1;
 }
+
 .maDash {
   font-size: 11px;
   color: var(--text-muted);
@@ -286,6 +315,7 @@
   gap: 4px;
   margin-left: auto;
 }
+
 .daysPill {
   font-family: var(--font-sans);
   font-size: 11px;
@@ -297,7 +327,9 @@
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
+
 .daysPill:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
 .daysPillActive {
   background: var(--ut-gold);
   border-color: var(--ut-gold);
@@ -319,6 +351,7 @@
   transition: all 0.15s;
   margin-left: 8px;
 }
+
 .exportBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
 /* Small pill buttons in the Monitor header (Today jump + manual refresh) —
@@ -337,21 +370,30 @@
   cursor: pointer;
   transition: all 0.15s;
 }
+
 .hdrBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
 .refreshBtn { padding: 3px 7px; }
+
 .refreshBtn svg { display: block; }
 
-@keyframes hdrSpin { to { transform: rotate(360deg); } }
+@keyframes hdrSpin { to { transform: rotate(360deg); }
+ }
+
 .spinning svg { animation: hdrSpin 0.7s linear; transform-origin: center; }
-@media (prefers-reduced-motion: reduce) { .spinning svg { animation: none; } }
+
+@media (prefers-reduced-motion: reduce) { .spinning svg { animation: none; }
+ }
 
 .sparkline { display: block; }
+
 .sparklineCell { padding: 2px 6px; text-align: center; min-width: 62px; }
 
 .aaiiStale {
   opacity: 0.45;
   font-style: italic;
 }
+
 .scoreSummary {
   display: flex;
   align-items: center;
@@ -363,11 +405,13 @@
   margin-bottom: 10px;
   flex-shrink: 0;
 }
+
 .scoreGauge {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .scoreLabel {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -375,6 +419,7 @@
   color: var(--text-muted);
   text-transform: uppercase;
 }
+
 .scoreValue {
   font-family: var(--font-mono);
   font-size: 28px;
@@ -382,9 +427,13 @@
   line-height: 1;
   min-width: 44px;
 }
+
 .scoreGreen { color: var(--ut-green-bright, #4ade80); }
+
 .scoreRed   { color: var(--loss, #f87171); }
+
 .scoreAmber { color: var(--ut-gold, #dcbb5e); }
+
 .scoreBar {
   width: 100px;
   height: 6px;
@@ -392,22 +441,26 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+
 .scoreBarFill {
   height: 100%;
   border-radius: var(--radius-sm);
   transition: width 0.4s ease;
 }
+
 .scoreMeta {
   display: flex;
   gap: 20px;
   border-left: 1px solid var(--border);
   padding-left: 20px;
 }
+
 .scoreMetaItem {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
 }
+
 .scoreMetaItem strong {
   color: var(--text);
   font-weight: 600;
@@ -415,7 +468,9 @@
 
 /* Row phase — left border color indicates market regime for that day */
 .phaseGreen  { border-left: 3px solid rgba(74, 222, 128, 0.5); }
+
 .phaseRed    { border-left: 3px solid rgba(248, 113, 113, 0.5); }
+
 .phaseAmber  { border-left: 3px solid rgba(220, 187, 94, 0.3); }
 
 /* ── Drillable cells ─────────────────────────────────────────────────────── */
@@ -426,424 +481,22 @@
   text-decoration-color: rgba(255,255,255,0.25);
   text-underline-offset: 2px;
 }
+
+/* The cell is a real control now (role=button, one tab stop per row, arrows
+   along the row), so keyboard focus has to be VISIBLE. `:focus-visible` keeps
+   the ring off mouse clicks. An inset outline, because a table cell's outline
+   is otherwise clipped by the sticky header and the scroll container. */
+.drillable:focus-visible {
+  outline: 2px solid var(--ut-gold, #dcbb5e);
+  outline-offset: -2px;
+  color: var(--ut-gold, #dcbb5e);
+}
+
 .drillable:hover {
   text-decoration-color: var(--ut-gold, #dcbb5e);
   color: var(--ut-gold, #dcbb5e);
 }
-
-/* ── Drill modal ─────────────────────────────────────────────────────────── */
-.drillOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.drillDialog {
-  background: var(--bg-elevated, #141414);
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 1600px;
-  height: 96vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.drillHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
-  flex-shrink: 0;
-}
-.drillTitle {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-bright);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.drillSub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted, #666);
-  margin-top: 3px;
-}
-.drillClose {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted, #666);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s;
-  flex-shrink: 0;
-}
-.drillClose:hover { color: var(--text, #e0e0e0); }
-.drillSubRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 3px;
-}
-.drillHeaderActions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-.copyBtn {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  background: transparent;
-  border: 1px solid rgba(220, 187, 94,0.4);
-  color: var(--ut-gold, #dcbb5e);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-.copyBtn:hover { background: rgba(220, 187, 94,0.12); }
-.copyBtn:active { background: rgba(220, 187, 94,0.2); }
-
-/* ── Drill view toggle (List | Grouped) ── */
-.drillViewToggle {
-  display: inline-flex;
-  border: 1px solid rgba(220, 187, 94,0.4);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.drillViewBtn {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted, #888);
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-.drillViewBtn + .drillViewBtn { border-left: 1px solid rgba(220, 187, 94,0.3); }
-.drillViewBtn:hover { color: var(--text, #e0e0e0); }
-.drillViewBtnActive {
-  background: rgba(220, 187, 94,0.16);
-  color: var(--ut-gold, #dcbb5e);
-}
-
-/* ── Industry group header rows (Grouped view) ── */
-.drillGroupRow { cursor: pointer; }
-.drillGroupRow:hover .drillGroupCell { background: rgba(220, 187, 94,0.10); }
-.drillGroupCell {
-  background: rgba(220, 187, 94,0.06);
-  border-top: 1px solid rgba(220, 187, 94,0.22);
-  border-bottom: 1px solid rgba(220, 187, 94,0.22);
-  padding: 5px 10px;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-.drillGroupCaret {
-  display: inline-block;
-  width: 12px;
-  color: var(--ut-gold, #dcbb5e);
-  font-size: 10px;
-}
-.drillGroupName {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text, #e0e0e0);
-  letter-spacing: 0.3px;
-}
-.drillGroupCount {
-  display: inline-block;
-  margin-left: 8px;
-  min-width: 18px;
-  padding: 0 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--ut-gold, #dcbb5e);
-  background: rgba(220, 187, 94,0.14);
-  border-radius: var(--radius-lg);
-  text-align: center;
-}
-.drillGroupAvgUp, .drillGroupAvgDn {
-  margin-left: 10px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-.drillGroupAvgUp { color: var(--gain); }
-.drillGroupAvgDn { color: var(--loss); }
-.drillBody {
-  overflow-y: auto;
-  padding: 12px 20px 20px;
-  flex: 1;
-  min-height: 0;
-}
-/* ── Split layout (table + chart) ── */
-.drillSplit {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-.drillTablePanel {
-  width: 540px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border-right: 1px solid var(--border, rgba(255,255,255,0.1));
-  padding: 10px 0 16px;
-}
-.drillChartPanel {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: #0e0e0e;
-}
-.drillChartBar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
-  flex-shrink: 0;
-  position: relative;
-}
-.drillChartSym {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ut-gold, #dcbb5e);
-  letter-spacing: 1px;
-}
-.drillChartName {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--text-muted, #777);
-}
-.drillChartHint {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted, #444);
-  margin-left: auto;
-}
-.drillChartTabs {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 4px;
-}
-.drillChartTab {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: color 0.1s, background 0.1s;
-}
-.drillChartTab:hover {
-  color: var(--text-bright);
-  background: rgba(255,255,255,0.06);
-}
-.drillChartTabActive {
-  color: var(--accent);
-  background: rgba(220, 187, 94,0.12);
-  border-color: var(--accent);
-}
-.drillChartFrame {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.drillChartImgWrap {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  background: #0a0a0a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.drillChartImg {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-/* Selected row — gold ring, overrides heat map */
-.drillRowSelected {
-  background: rgba(220, 187, 94, 0.15) !important;
-  outline: 1px solid rgba(220, 187, 94, 0.4);
-  outline-offset: -1px;
-  cursor: pointer;
-}
 tbody tr { cursor: pointer; }
-.drillLoading,
-.drillEmpty {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-muted, #666);
-  padding: 20px 0;
-  text-align: center;
-}
-.drillCount {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-muted, #888);
-  margin-left: 4px;
-}
-.drillTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.drillTh {
-  text-align: left;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--text-muted, #666);
-  padding: 0 10px 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.drillThNum {
-  width: 42px;
-  padding-left: 0;
-  text-align: right;
-  padding-right: 14px;
-}
-.drillThRight {
-  text-align: right;
-  padding-right: 0;
-}
-.drillRowEven {
-  background: transparent;
-}
-.drillRowOdd {
-  background: rgba(255,255,255,0.025);
-}
-.drillTdNum {
-  padding: 4px 14px 4px 0;
-  text-align: right;
-  color: var(--text-muted, #555);
-  font-size: 11px;
-  width: 42px;
-  user-select: none;
-}
-.drillTdTicker {
-  padding: 4px 8px;
-  white-space: nowrap;
-}
-.drillTdName {
-  padding: 4px 8px;
-  color: var(--text-muted, #999);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  max-width: 130px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.drillTdPrice {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--text-muted, #999);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.drillTdVol {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--text-muted, #666);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.drillTdVolMid {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--text, #ccc);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.drillTdVolHigh {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--ut-gold, #dcbb5e);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.drillTdAtr {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--text-muted, #777);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.drillTdA50Up {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--ut-green-bright, #4ade80);
-  font-size: 11px;
-  white-space: nowrap;
-  opacity: 0.75;
-}
-.drillTdA50Dn {
-  padding: 4px 0 4px 10px;
-  text-align: right;
-  color: var(--loss, #f87171);
-  font-size: 11px;
-  white-space: nowrap;
-  opacity: 0.75;
-}
-.drillTdUp {
-  padding: 4px 14px 4px 10px;
-  text-align: right;
-  color: var(--ut-green-bright, #4ade80);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.drillTdDn {
-  padding: 4px 14px 4px 10px;
-  text-align: right;
-  color: var(--loss, #f87171);
-  font-size: 11px;
-  white-space: nowrap;
-}
-/* Row heat-map — subtle background tint by magnitude */
-.drillHeatG1 { background: rgba(74,222,128,0.04) !important; }
-.drillHeatG2 { background: rgba(74,222,128,0.10) !important; }
-.drillHeatG3 { background: rgba(22,100,48,0.22) !important; }
-.drillHeatR1 { background: rgba(248,113,113,0.04) !important; }
-.drillHeatR2 { background: rgba(248,113,113,0.10) !important; }
-.drillHeatR3 { background: rgba(160,25,25,0.22) !important; }
 
 .errorBanner {
   font-family: var(--font-sans);
@@ -897,6 +550,7 @@ tbody tr { cursor: pointer; }
   cursor: default;
   transition: filter 0.1s, z-index 0s;
 }
+
 .tmTile:hover {
   filter: brightness(1.25);
   z-index: 4;
@@ -951,12 +605,15 @@ tbody tr { cursor: pointer; }
   font-weight: 600;
   text-align: center;
 }
+
 .tmMaCheck {
   color: var(--gain);
 }
+
 .tmMaCross {
   color: var(--loss);
 }
+
 .tmMaDash {
   color: var(--text-muted);
 }
@@ -977,6 +634,7 @@ tbody tr { cursor: pointer; }
   z-index: 10;
   border-top: 1px solid rgba(255,255,255,0.06);
 }
+
 .tmNavBtn {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -989,14 +647,17 @@ tbody tr { cursor: pointer; }
   line-height: 1;
   transition: background 0.15s, color 0.15s;
 }
+
 .tmNavBtn:hover:not(:disabled) {
   background: rgba(255,255,255,0.12);
   color: var(--text-bright);
 }
+
 .tmNavBtn:disabled {
   opacity: 0.25;
   cursor: default;
 }
+
 .tmNavDate {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -1007,6 +668,7 @@ tbody tr { cursor: pointer; }
   min-width: 110px;
   justify-content: center;
 }
+
 .tmNavLatest {
   font-size: 9px;
   font-weight: 700;
@@ -1030,11 +692,13 @@ tbody tr { cursor: pointer; }
   margin-bottom: 8px;
   flex-shrink: 0;
 }
+
 .hmScorePair {
   display: flex;
   align-items: baseline;
   gap: 7px;
 }
+
 .hmScoreLbl {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -1042,12 +706,14 @@ tbody tr { cursor: pointer; }
   color: var(--text-muted);
   text-transform: uppercase;
 }
+
 .hmScoreVal {
   font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
   line-height: 1;
 }
+
 .hmScoreTier {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1055,18 +721,21 @@ tbody tr { cursor: pointer; }
   text-transform: uppercase;
   opacity: 0.85;
 }
+
 .hmScoreDivider {
   width: 1px;
   height: 26px;
   background: var(--border);
   flex-shrink: 0;
 }
+
 .hmScoreDate {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   margin-left: auto;
 }
+
 .hmScorePhase {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1094,17 +763,20 @@ tbody tr { cursor: pointer; }
   gap: 3px;
   transform: translateY(-100%);
 }
+
 .hmTipDate {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted, #888);
 }
+
 .hmTipLabel {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   color: var(--ut-gold, #dcbb5e);
 }
+
 .hmTipValue {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -1124,6 +796,7 @@ tbody tr { cursor: pointer; }
   .page { padding: 14px 10px; overflow: visible; height: auto; --page-pad-top: 14px; --page-pad-x: 10px; }
   .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
 @media (max-width: 640px) {
   /* Same defect, phone tier: PageHeader falls back to ITS OWN `-m`-suffixed
      vars (default 16px) below 640px, so it has to be told this page's actual
@@ -1361,6 +1034,7 @@ tbody tr { cursor: pointer; }
   gap: 12px;
   transition: border-color 0.15s;
 }
+
 .analogueCard:hover {
   border-color: var(--accent);
 }
@@ -1446,6 +1120,7 @@ tbody tr { cursor: pointer; }
   padding: 4px 8px;
   background: var(--bg-elevated, #141414);
 }
+
 .analogueMetricRow:nth-child(even) {
   background: rgba(255,255,255,0.02);
 }
@@ -1500,50 +1175,6 @@ tbody tr { cursor: pointer; }
   }
 }
 
-/* ── DrillModal flag button ── */
-.drillFlagBtn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  background: none;
-  border: 1px solid var(--border, rgba(255,255,255,0.08));
-  border-radius: var(--radius-sm);
-  color: var(--text-muted, #777);
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: all 0.15s;
-  opacity: 0.55;
-}
-.drillFlagBtn:hover { opacity: 1; background: var(--bg-hover, rgba(255,255,255,0.05)); }
-.drillFlagBtnActive {
-  color: var(--ut-gold, #dcbb5e);
-  border-color: rgba(212, 170, 80, 0.4);
-  background: rgba(212, 170, 80, 0.1);
-  opacity: 1;
-}
-.flagToast {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
-  animation: flagFade 1.5s ease-in-out forwards;
-}
-.flagToastAdded { color: var(--ut-gold, #dcbb5e); background: rgba(212,170,80,0.15); border: 1px solid rgba(212,170,80,0.35); }
-.flagToastRemoved { color: var(--text-muted, #777); background: var(--bg-elevated, #1a1a1a); border: 1px solid var(--border, rgba(255,255,255,0.08)); }
-@keyframes flagFade {
-  0%   { opacity: 0; transform: translateY(-3px); }
-  15%  { opacity: 1; transform: translateY(0); }
-  70%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
 /* ── Provisional intraday row ─────────────────────────────────────────────────
    The live row sits ABOVE today's history and must never be mistaken for a
    settled one. It reads as "in progress": a live stamp instead of a date, a
@@ -1560,11 +1191,13 @@ tbody tr { cursor: pointer; }
   border-top: 1px solid rgba(220, 187, 94, 0.30);
   border-bottom-color: var(--accent);
 }
+
 .liveRow .dateCell {
   background: rgba(220, 187, 94, 0.09);
   box-shadow: inset 2px 0 0 var(--ut-gold, #dcbb5e);
   color: var(--ut-gold, #dcbb5e);
 }
+
 .table tbody tr.liveRow:hover .dateCell {
   background: rgba(220, 187, 94, 0.14);
 }
@@ -1602,6 +1235,7 @@ tbody tr { cursor: pointer; }
    timeline index, the values fill in when its block lands. A faint centered dot
    keeps the grid from flickering as blocks load during a scroll. */
 .skeletonRow .dateCell { opacity: 0.6; }
+
 .skelDot {
   color: var(--text-muted, #6b7280);
   opacity: 0.35;

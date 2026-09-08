@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
+import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
 import EarningsTile from './EarningsTile'
 import { applyFilters, sortEntries, hiddenByQuickFilters } from './filterLogic'
 import { rankEntries } from './importance'
@@ -44,7 +45,7 @@ function WeekRow({ e, isFeatured, onSelect }) {
   )
 }
 
-function WeekSessionGroup({ label, icon, hdClass, rows, onSelect, onMore, moreCount }) {
+function WeekSessionGroup({ label, icon, hdClass, rows, onSelect, onMore, moreCount, longPressProps }) {
   // An empty session renders NOTHING — no header, no dash.
   if (!rows.length) return null
   return (
@@ -56,7 +57,8 @@ function WeekSessionGroup({ label, icon, hdClass, rows, onSelect, onMore, moreCo
       {/* Big logo tiles in a grid — the EarningsHub look, not a tiny-icon list. */}
       <div className={styles.wtileGrid}>
         {rows.map(e => (
-          <EarningsTile key={`${e.sym}-${e._timing}`} e={e} onSelect={onSelect} size={54} />
+          <EarningsTile key={`${e.sym}-${e._timing}`} e={e} onSelect={onSelect} size={54}
+                        longPressProps={longPressProps} />
         ))}
       </div>
       {moreCount > 0 && (
@@ -89,6 +91,7 @@ function WeekMacroChips({ econ = [], fed = [] }) {
 }
 
 export default function WeekView({ weekDates, days, filters, eventTypes, onSelect, weekTiers, onOpenDay, onClearQuick }) {
+  const ta = useTickerActions()
   // Macro chips in the column headers respect the same opt-in as the Feed.
   const showMacro = (eventTypes || DEFAULT_EVENT_TYPES).has('macro')
   // Equal-width day columns (a proper week calendar, like the competitors). The
@@ -152,18 +155,22 @@ export default function WeekView({ weekDates, days, filters, eventTypes, onSelec
               <>
                 <WeekSessionGroup label="BMO" icon="sun" hdClass={styles.bmoHd}
                   rows={bmo.slice(0, MAX_ROWS_PER_SESSION)} tiers={tiers} onSelect={onSelect}
-                  onMore={openDrawer} moreCount={Math.max(bmo.length - MAX_ROWS_PER_SESSION, 0)} />
+                  onMore={openDrawer} moreCount={Math.max(bmo.length - MAX_ROWS_PER_SESSION, 0)}
+                  longPressProps={ta.longPressProps} />
                 <WeekSessionGroup label="AMC" icon="moon" hdClass={styles.amcHd}
                   rows={amc.slice(0, MAX_ROWS_PER_SESSION)} tiers={tiers} onSelect={onSelect}
-                  onMore={openDrawer} moreCount={Math.max(amc.length - MAX_ROWS_PER_SESSION, 0)} />
+                  onMore={openDrawer} moreCount={Math.max(amc.length - MAX_ROWS_PER_SESSION, 0)}
+                  longPressProps={ta.longPressProps} />
                 <WeekSessionGroup label="TIME TBD" icon="clock" hdClass={styles.tbdHd}
                   rows={tbd.slice(0, MAX_ROWS_PER_SESSION)} tiers={tiers} onSelect={onSelect}
-                  onMore={openDrawer} moreCount={Math.max(tbd.length - MAX_ROWS_PER_SESSION, 0)} />
+                  onMore={openDrawer} moreCount={Math.max(tbd.length - MAX_ROWS_PER_SESSION, 0)}
+                  longPressProps={ta.longPressProps} />
               </>
             )}
           </div>
         )
       })}
+      {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
@@ -104,7 +104,24 @@ export default function Layout({ children }) {
               own Menu trigger in the symbol strip via MoreSheetContext. */}
           <MobileNav onMenu={openMore} onOpenPalette={openPalette} />
           <main className={styles.main}>
-            {children ?? <Outlet />}
+            {/* ⭐ The app's route-level <Suspense> in App.jsx wraps the WHOLE
+                <Routes>, so a section whose chunk is not resolved yet unmounts
+                the ENTIRE shell — this nav, the header, everything — behind the
+                full-screen "Loading page" splash. That is what members feel as
+                the app "reloading" when they switch sections, and it was never
+                specific to one page: measured on prod 2026-09-07, entering
+                /uct-20 held it 878 ms and /options-flow 1,235 ms.
+
+                This boundary sits NEARER the suspending route, so React uses it
+                first and the chrome stays on screen — only the content area
+                swaps, which is what every already-visited section already felt
+                like. Keep it INSIDE <main> for that reason; hoisting it above
+                the nav would restore the old behaviour.
+
+                Rail: components/Layout.routeSuspense.test.jsx. */}
+            <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
+              {children ?? <Outlet />}
+            </Suspense>
           </main>
           {/* Backdrop dim behind the desktop nav while it is hovered-open, so the
               expanded rail reads as a DRAWER over the page (content clearly behind

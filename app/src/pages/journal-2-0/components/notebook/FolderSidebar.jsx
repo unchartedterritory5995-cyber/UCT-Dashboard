@@ -4,6 +4,8 @@ import useJ2Notes, {
   useJ2NoteFolderCounts, useJ2NotesByFolders, useJ2Favorites, useJ2Recents,
 } from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
+import useDocumentSearch from '../../hooks/useDocumentSearch'
+import useExcerptSearch from '../../hooks/useExcerptSearch'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -171,6 +173,76 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
           >
             <NoteIcon />
             <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Wave E — Saved Views section. Same populated-conditional/collapsible
+// shape as RecencySection above (checkpoint §20: zero nav clutter at zero
+// saved views), adapted for a view (name + id) instead of a note (title).
+//
+// Wave G checkpoint §48: `onAddStarterViews` (present only once the member
+// has zero saved views of their own) offers the four canonical thesis
+// starter views as ONE click -- ordinary saved-view rows afterward, fully
+// renameable/deletable, never a permanent fixture. It disappears the
+// moment the member has any saved view (their own or the starter set), so
+// nothing here becomes nav clutter for someone who doesn't use thesis
+// properties at all.
+function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterViews }) {
+  const [expanded, setExpanded] = useState(true)
+  const [addingStarters, setAddingStarters] = useState(false)
+  if (!views.length) {
+    if (!onAddStarterViews) return null
+    return (
+      <div className={styles.section}>
+        <div className={styles.rowWrap}>
+          <button
+            type="button"
+            className={styles.starterViewsBtn}
+            disabled={addingStarters}
+            onClick={async () => {
+              setAddingStarters(true)
+              try { await onAddStarterViews() } finally { setAddingStarters(false) }
+            }}
+          >
+            <UIcon name="sliders" size={12} gold={false} />
+            {addingStarters ? 'Adding…' : 'Add thesis starter views'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className={styles.section}>
+      <div className={styles.rowWrap}>
+        <button
+          type="button"
+          className={styles.disclosureBtn}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} Saved Views`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <Chevron expanded={expanded} />
+        </button>
+        <span className={styles.sectionHeaderLabel}>
+          <UIcon name="sliders" size={12} gold={false} />
+          Saved Views
+        </span>
+      </div>
+      {expanded && views.map((view) => (
+        <div key={view.id} className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
+            onClick={() => onSelectView(view)}
+            title={view.name}
+          >
+            <UIcon name={view.viewType === 'table' ? 'columns' : 'rows'} size={13} gold={false} />
+            <span className={styles.noteTitle}>{view.name}</span>
           </button>
         </div>
       ))}
@@ -390,6 +462,22 @@ export default function FolderSidebar({
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
+  // Wave E: populated-conditional, same convention as Favorites/Recents
+  // above -- renders nothing at zero saved views (checkpoint §20).
+  savedViews = [],
+  activeViewId = null,
+  onSelectView = () => {},
+  onAddStarterViews = null,
+  // Wave H: Research Home is now the bare-root state (checkpoint decision
+  // 32/33) -- both null, same as "All notes" with no filter, so an explicit
+  // flag is needed to keep the "All notes" row's active-highlight honest
+  // rather than lighting up while Home (not the grid) is actually showing.
+  // `onSelectAllNotes`, if supplied, replaces the row's default
+  // onSelectFolder(null)+onSelectTag(null) click (adds the `?view=all` flag
+  // that disambiguates the two states) -- falls back to the pre-Wave-H
+  // behavior when omitted, so an existing caller/test is unaffected.
+  isHome = false,
+  onSelectAllNotes = null,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -529,6 +617,22 @@ export default function FolderSidebar({
   // one layer down: an empty moment mistaken for an empty result.
   const searching = Boolean(trimmedQuery) &&
     (trimmedQuery !== debouncedQuery || (searchEnabled && (searchLoading || searchValidating)))
+
+  // Wave I: page-aware PDF search, sectioned SEPARATELY from note results
+  // above (never blended into one list/score — checkpoint decision,
+  // directive §39-42). Query-only (no date/sector/theme filter support —
+  // those are note-property concepts a PDF page doesn't have).
+  const { results: documentResults, isLoading: documentsSearching } =
+    useDocumentSearch(debouncedQuery, { enabled: mode === 'search' })
+
+  // Wave J: the member's own saved evidence — captured passages and the
+  // annotations written on them. A THIRD section, for the same reason
+  // Documents is a second one: a passage a member deliberately kept is not
+  // the same kind of hit as a page the text happens to appear on, and
+  // ranking them against each other would bury the curated one under the
+  // raw. Query-only, matching Documents above.
+  const { results: excerptResults, isLoading: excerptsSearching } =
+    useExcerptSearch(debouncedQuery, { enabled: mode === 'search' })
 
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
@@ -845,6 +949,68 @@ export default function FolderSidebar({
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
             </div>
           )}
+
+          {/* Wave I: Documents section — a SEPARATE result list from Notes
+              above, never merged into one score. Only renders while there is
+              something to say (a real query in flight, or real results) so
+              an empty/filters-only search doesn't grow an extra empty block. */}
+          {trimmedQuery && (documentsSearching || documentResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {documentsSearching
+                  ? 'Searching documents…'
+                  : `${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!documentsSearching && documentResults.map((d) => (
+                <button
+                  key={`${d.documentId}-${d.pageNumber}`}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: d.noteId })}
+                  title={`${d.name || 'Document'} — p. ${d.pageNumber}, in "${d.noteTitle}"`}
+                >
+                  <UIcon name="document" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {d.name || 'Document'} · p.{d.pageNumber}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Wave J: Evidence section — the passages this member chose to
+              keep, plus their annotations. Third and last, after Notes and
+              Documents, each still its own list. Same render-only-when-it-
+              has-something-to-say rule as Documents above. */}
+          {trimmedQuery && (excerptsSearching || excerptResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {excerptsSearching
+                  ? 'Searching evidence…'
+                  : `${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!excerptsSearching && excerptResults.map((e) => (
+                <button
+                  key={e.excerptId}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: e.noteId })}
+                  title={`${e.documentName || 'Document'} — p. ${e.pageNumber}, in "${e.noteTitle}"`}
+                >
+                  <UIcon name="quote" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {e.documentName || 'Document'} · p.{e.pageNumber}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(e.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -862,13 +1028,19 @@ export default function FolderSidebar({
             activeNoteId={activeNoteId}
             onOpenNote={onOpenNote}
           />
+          <SavedViewsSection
+            views={savedViews}
+            activeViewId={activeViewId}
+            onSelectView={onSelectView}
+            onAddStarterViews={onAddStarterViews}
+          />
           <div className={styles.section}>
             <div className={styles.rowWrap}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
-                className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
-                onClick={() => { onSelectFolder(null); onSelectTag(null) }}
+                className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
+                onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page

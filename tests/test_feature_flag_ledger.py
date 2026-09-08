@@ -122,6 +122,31 @@ def test_the_derivation_reads_every_form_the_codebase_actually_uses(tmp_path):
     assert ffi.needs_declaration("DELTA_ENABLED", "1") is False
 
 
+def test_an_aliased_os_import_is_still_caught(tmp_path):
+    """Control: `import os as X` must not hide a gate from the scan.
+
+    Feature-Flag Governance Sweep, 2026-09-06: `_env_name` matched `os.getenv`
+    by checking the base name literally equalled `"os"`, so
+    `api/services/journal_two/broker/fidelity_audit.py:227`'s local
+    `import os as _os; _os.getenv("BROKER_BALANCE_HISTORY_ENABLED")` was
+    invisible to the scan even though it is armed in production with no
+    ledger entry — exactly the ambiguous, undecided-looking state this rail
+    exists to surface. `os.environ.get`/`os.environ[...]` were never affected
+    (they match on the `.environ` ATTRIBUTE name, not the base object), so
+    this control is scoped to the one form that was actually blind.
+    """
+    (tmp_path / "m.py").write_text(
+        "import os as _os\n"
+        "X = _os.getenv('ALIASED_THING_ENABLED', '0')\n"
+        "Y = (_os.getenv('ALIASED_FALLBACK_ENABLED') or '1') == '1'\n",
+        encoding="utf-8",
+    )
+    found = ffi.gates([tmp_path], tmp_path)
+    assert found["ALIASED_THING_ENABLED"]["default"] == "0"
+    assert found["ALIASED_FALLBACK_ENABLED"]["default"] == "1"
+    assert ffi.needs_declaration("ALIASED_THING_ENABLED", "0") is True
+
+
 def test_an_undeclared_gate_is_actually_caught(tmp_path, monkeypatch):
     """Control: the rail FAILS when a dark gate has no entry.
 

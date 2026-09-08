@@ -1,0 +1,115 @@
+.scroll {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  background: #525659;
+  padding: 16px 0;
+}
+.page {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 12px;
+  box-sizing: border-box;
+}
+.pageInner {
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  background: #fff;
+}
+.canvas {
+  display: block;
+}
+.errorState {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-text-muted, #98a0aa);
+}
+
+/* pdfjs-dist's own text-layer recipe (web/pdf_viewer.css), reduced to the
+   rules this viewer actually needs -- a real, transparent, selectable text
+   DOM sitting exactly over the canvas glyphs it visually matches. */
+.textLayerRoot {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 1;
+}
+.textLayerRoot :global(span),
+.textLayerRoot :global(br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.textLayerRoot :global(> :not(.markedContent)),
+.textLayerRoot :global(.markedContent span:not(.markedContent)) {
+  --font-height: 0;
+  font-size: calc(var(--total-scale-factor, 1) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x));
+}
+.textLayerRoot :global(.markedContent) {
+  display: contents;
+}
+.textLayerRoot::selection,
+.textLayerRoot :global(span)::selection {
+  background: rgba(102, 178, 255, 0.4);
+}
+
+.highlightLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.highlightRect {
+  position: absolute;
+  background: rgba(255, 210, 60, 0.38);
+  border-radius: 2px;
+  transition: background 0.25s ease;
+}
+.highlightRectEmphasized {
+  background: rgba(255, 170, 20, 0.72);
+  box-shadow: 0 0 0 2px rgba(255, 170, 20, 0.9);
+}
+
+.selectionPopover {
+  position: absolute;
+  transform: translate(-50%, 8px);
+  background: var(--color-bg-elevated, #1a1d24);
+  color: var(--color-text-primary, #e8eaed);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  z-index: 5;
+}
+.selectionPopover:hover {
+  border-color: #dcbb5e;
+  color: #dcbb5e;
+}
+
+@media (max-width: 1024px) {
+  .selectionPopover {
+    min-height: var(--tap-min, 44px);
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+  }
+}

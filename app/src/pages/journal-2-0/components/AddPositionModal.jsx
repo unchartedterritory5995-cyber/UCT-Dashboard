@@ -34,6 +34,7 @@ import InterventionBanner from './InterventionBanner'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
+import SecuritySymbolInput from './SecuritySymbolInput'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -331,6 +332,23 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           if (!noteRes.ok) throw new Error(`Could not create the thesis note (${noteRes.status})`)
           const noteBody = await noteRes.json()
           thesisNoteId = noteBody?.note?.id || null
+          // Wave G checkpoint §4: also set Research Type so a thesis note
+          // created via this pre-trade flow is indistinguishable from one
+          // created any other way -- best-effort, a failure here still
+          // leaves a perfectly usable thesis note (just without the
+          // Thesis Evidence/Changelog section until a property is set by
+          // hand). 'Short' maps to short_thesis; every other side (today
+          // only 'Long') maps to long_thesis.
+          if (thesisNoteId) {
+            fetch(`/api/j2/notes/${thesisNoteId}`, {
+              method: 'PUT',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                properties: { 'builtin:research_type': side === 'Short' ? 'short_thesis' : 'long_thesis' },
+              }),
+            }).catch(() => {})
+          }
         }
       }
 
@@ -466,15 +484,12 @@ export default function AddPositionModal({ settings, onSave, onClose, prefill, a
           <div className={styles.grid2}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Symbol *</span>
-              <input
-                type="text"
+              <SecuritySymbolInput
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                className={styles.textInput}
+                onChange={setSymbol}
                 placeholder="e.g. NVDA"
                 autoFocus={!symbolLocked}
                 disabled={symbolLocked}
-                readOnly={symbolLocked}
               />
             </label>
             <label className={styles.field}>

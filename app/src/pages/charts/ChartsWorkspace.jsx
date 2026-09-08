@@ -15,7 +15,7 @@ import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme 
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
 import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
-import { widgetOwnChrome } from './widgetChrome'
+import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
@@ -857,10 +857,6 @@ export default function ChartsWorkspace() {
   const [floatSpawns, setFloatSpawns] = useState({})
 
   const widgetCanvasByType = useMemo(() => {
-    const cs = mergeChartSettings(prefs.chart_settings)
-    const chart = chartsTheme === 'sunrise'
-      ? '#eaf1fa'
-      : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
     // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
     // (--widget-canvas) follows the current app theme instead of a stale-themed pref —
     // otherwise a widget whose body follows graphite gets a white header/border.
@@ -886,7 +882,9 @@ export default function ChartsWorkspace() {
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
     })
     return {
-      chart: entry(chart),
+      // Shared with the breadth drill board via widgetChrome.chartTypeCanvasEntry
+      // so the two hosts cannot disagree about a default chart's frame.
+      chart: chartTypeCanvasEntry(prefs.chart_settings, chartsTheme),
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),

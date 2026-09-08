@@ -125,6 +125,17 @@
   cursor: pointer;
   font-size: 12px;
 }
+/* Wave H: the "?ticker=" filter's own visible indicator (checkpoint
+   decision 23) -- a member landing here via a workspace's "View all Notes"
+   should see AT A GLANCE why the grid is scoped, not just an unlabeled
+   Clear-filter button. */
+.tickerFilterChip {
+  font-size: 12px;
+  color: #dcbb5e;
+  background: rgba(220, 187, 94, 0.12);
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+}
 .trashLabel {
   font-size: 13px;
   font-weight: 600;
@@ -192,6 +203,44 @@
 }
 .exportBtn:hover { background: var(--color-surface, #14171c); border-color: #dcbb5e; }
 .newBtn:disabled, .templatesBtn:disabled { opacity: 0.6; cursor: default; }
+
+/* Wave E: List/Table toggle + Save view */
+.viewModeWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-border, #232932);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+.viewModeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
+}
+.viewModeBtn:hover { color: var(--color-text-primary, #e8eaed); }
+.viewModeBtn:disabled { opacity: 0.4; cursor: default; }
+.viewModeActive { background: rgba(220, 187, 94, 0.16); color: #dcbb5e; }
+.saveViewBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  padding: 0 8px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.saveViewBtn:hover { color: #dcbb5e; }
 .emptyImportPitch {
   display: flex;
   flex-direction: column;

@@ -1,10 +1,22 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Fragment, lazy, Suspense } from "react";
-import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
 import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
-import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey } from "./optionsFlow/flowLoadPolicy";
+// Defer the 16 MB raw tape off the cold first-paint path. Measured on prod
+// 2026-09-07: cold entry fired /api/flow/aggregate (24,403 KB decoded) AND
+// /api/flow/data (16,450 KB decoded) in parallel — 7.6 MB wire before content,
+// against 0-6 KB for UCT20/Breadth/Screener measured identically.
+// ⛔ OFF => byte-identical to previous behaviour. That is the rollback path.
+const DEFER_TAPE = import.meta.env.VITE_FLOW_DEFER_TAPE === "1";
+// Phase B: assemble first paint from the parts it reads instead of the whole
+// 23.83 MB aggregate. Measured worth on prod: 2,964.0 -> 2,496.8 KB gzipped,
+// because TOP 10 needs all_trades (1,312.2) + all_directional (601.2) and only
+// server-side TOP 10 (3b) removes those. Independent of DEFER_TAPE.
+const USE_PARTS = import.meta.env.VITE_FLOW_PARTS === "1";
+
+import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
+import { fetchPartsBundle } from "./optionsFlow/flowParts";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
   P,
@@ -21,6 +33,7 @@ import {
   STOCK_OVERRIDE_TICKERS,
   isETFSymbol,
   filterByCap,
+  buildTopPickCandidates,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
 import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, computeCsv } from "./optionsFlow/flowWorkerClient";
 // View-layer decisions live in a module because THIS file is edited through the
@@ -478,22 +491,38 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
   );
 }
 
-function NC({ data, fill, dir, onBarClick }) {
-  const neg = dir === "bear";
-  const cd = data.map(d => ({ ...d, v: neg ? -Math.abs(d.n) : d.n }));
+// ⛔ recharts IS NO LONGER ON THE CRITICAL PATH. It was a STATIC import at the
+// top of this file, so its ~371 KB chunk had to be fetched AND EVALUATED before
+// this module finished evaluating and before React could render anything — for
+// charts that are not even on the default tab. Measured on prod 2026-09-07, with
+// the route chunks already cached, the member saw a BLANK content area from
+// 10 ms to 992 ms and the section's own UI only at 1,002 ms; the flow requests
+// had not started either. UCT20, same instrument, is blank for 480 ms.
+//
+// Same shim idiom as ChartPane above: the NAMES stay bound, so every call site
+// is unchanged and each chart pulls its library when it is actually rendered.
+const NCLazy = lazy(() => import("./optionsFlow/FlowCharts").then(m => ({ default: m.NC })));
+function NC(props) {
   return (
-    <div style={{ height:220 }}>
-      <ResponsiveContainer>
-        <BarChart data={cd} layout="vertical" margin={{ top:0, right:8, left:5, bottom:0 }}
-          onClick={onBarClick ? (e) => { if (e && e.activePayload && e.activePayload[0]) { onBarClick(e.activePayload[0].payload); } } : undefined}>
-          <CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false} />
-          <XAxis type="number" tick={{ fill:P.mt, fontSize:10 }} tickFormatter={v => fmt(Math.abs(v))} />
-          <YAxis dataKey="s" type="category" tick={{ fill:P.tx, fontSize:11, fontWeight:700 }} width={60} interval={0} tickLine={false} axisLine={false} />
-
-          <Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14} cursor={onBarClick?"pointer":"default"} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <Suspense fallback={<div style={{ height:220 }} />}>
+      <NCLazy {...props} fmt={fmt} />
+    </Suspense>
+  );
+}
+const ContractHistoryChartLazy = lazy(() => import("./optionsFlow/FlowCharts").then(m => ({ default: m.ContractHistoryChart })));
+function ContractHistoryChart(props) {
+  return (
+    <Suspense fallback={<div style={{ width:"100%", height:"100%" }} />}>
+      <ContractHistoryChartLazy {...props} fK={fK} />
+    </Suspense>
+  );
+}
+const GexStrikesChartLazy = lazy(() => import("./optionsFlow/FlowCharts").then(m => ({ default: m.GexStrikesChart })));
+function GexStrikesChart(props) {
+  return (
+    <Suspense fallback={<div style={{ width:"100%", height:"100%" }} />}>
+      <GexStrikesChartLazy {...props} fmtGex={fmtGex} />
+    </Suspense>
   );
 }
 
@@ -901,6 +930,22 @@ export default function OptionsFlowDashboard() {
   const calRef = useRef(null);
   const [D, setD] = useState(null);
 
+  // ── Deferred tape ────────────────────────────────────────────────────────
+  // Measured on prod 2026-09-07, cold entry: /api/flow/aggregate (24,403 KB
+  // decoded) and /api/flow/data (16,450 KB decoded) fired in PARALLEL — 7.6 MB
+  // on the wire before meaningful content, against 0-6 KB for UCT20 / Breadth /
+  // Screener measured the same way. The aggregate PAINTS; the tape only feeds
+  // the worker for later work, and nothing read before first content needs raw
+  // rows (cap filter and the Stocks/Indexes tab recompute from D.clean_confirmed
+  // in FD; Both/Calls/Puts/Unusual/Standout filter the already-built candidate
+  // list; the re-aggregation effect is gated `if (!rowCount) return`).
+  //
+  // ⛔ ONE shared demand flag, never per-feature fetching. Several features can
+  // want the tape at once, and each deciding for itself is how a 16 MB download
+  // gets issued twice. Setting this re-runs the base effect, which already
+  // dedupes by csvFile and cancels in-flight work, so N demands collapse to one
+  // fetch. A version or range change replaces csvFile and re-arms the path.
+  const [tapeDemanded, setTapeDemanded] = useState(false);
   const [dataVersion, setDataVersion] = useState(null);
   // Mirror of dataVersion for the base fetch effect. It is read, never depended
   // on: /api/flow/version is a 60-SECOND time bucket server-side, so listing
@@ -1346,16 +1391,74 @@ export default function OptionsFlowDashboard() {
     // replacing it under them buys nothing.
     const _preViewKey = snapshotKey(csvFile) + "|"
       + processedKey(dateFilter, dateFrom, dateTo);
-    if (!silent && _processedViewKey.current !== _preViewKey) {
-      fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
+    // Hoisted so the tape plan below can ask 'is a server answer coming?'
+    // synchronously. _prehydrated.current only flips in the .then, which has
+    // not run yet on this pass.
+    const _preFired = !silent && _processedViewKey.current !== _preViewKey;
+    let _preFallbackTimer = null;
+    if (_preFired) {
+      // ⛔ THE DEFERRAL TURNED AN ACCELERATOR INTO A DEPENDENCY — this puts the
+      // fallback back. flowPrehydrate returns null for a 503, offline, or a
+      // shape it declines, and the page has always coped by using the tape it
+      // fetched in parallel. Deferring the tape removed that path: a null
+      // answer, or one that never arrives, would leave an empty page with
+      // nothing left to re-arm it. Demanding the tape re-runs this effect
+      // (tapeDemanded is a dep) and the plan then answers `demanded`.
+      //
+      // Both failure shapes are covered because they are NOT the same event: a
+      // decline RESOLVES null and is known immediately, while a cold rebuild
+      // simply does not answer (prod: 16.5 s after a version bump) and only a
+      // clock can notice it.
+      let _preLanded = false;
+      const _demandTape = (why) => {
+        if (cancelled || _preLanded || _hasRows.current) return;
+        console.log(`[perf] prehydrate ${why} — demanding the tape`);
+        setTapeDemanded(true);   // idempotent: React bails on an identical value
+      };
+      // Only armed when deferral is ON. With the flag off the tape is already
+      // in flight and a timer here would be a second, pointless authority.
+      _preFallbackTimer = DEFER_TAPE
+        ? setTimeout(() => _demandTape(`did not answer in ${PREHYDRATE_FALLBACK_MS}ms`),
+                     PREHYDRATE_FALLBACK_MS)
+        : null;
+      // ⛔ ONE CONTRACT, TWO TRANSPORTS. Both resolve {D, stats, version} or null,
+      // so the fallback below, the availableDates seed and the view guard are
+      // identical either way — the flag changes how first paint is FETCHED, never
+      // what the page does with it, and rolling it back cannot strand a code path.
+      (USE_PARTS
+        ? fetchPartsBundle(csvFile, dateFilter, dataVersionRef.current,
+                           { deadlineMs: PREHYDRATE_FALLBACK_MS })
+        : fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current)
+      ).then(pre => {
+        if (cancelled) return;
+        if (!pre) { clearTimeout(_preFallbackTimer); _demandTape('declined'); return; }
+        _preLanded = true;
+        clearTimeout(_preFallbackTimer);
         // Keyed by VIEW, not by "have we ever processed". The client's own
         // aggregate stays the authority for the view it has published; this may
         // only fill one it has not.
-        if (cancelled || !pre || _processedViewKey.current === _preViewKey) return;
+        if (_processedViewKey.current === _preViewKey) return;
         console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
           + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
         _prehydrated.current = true;   // the budget firstPassWaitMs spends
         setD(pre.D);
+        // ── the date-range picker's calendar ────────────────────────────────
+        // `availableDates` is normally derived by PARSING THE TAPE. Defer that
+        // download and it stays empty — and the picker gates itself off on
+        // `availableDates.length > 0`, so the whole control DISAPPEARS. A
+        // vanishing control is not a faster page, it is a smaller one; speed is
+        // not allowed to be bought by hiding what the member can no longer do.
+        //
+        // The server built this from the same helper over the same unfiltered
+        // rows (flowFactsEntry: stats.availableDates), so adopting it is the
+        // identical value arriving earlier, not an approximation of it.
+        //
+        // ⛔ FILLS AN EMPTY CALENDAR, NEVER REPLACES ONE. The parsed rows stay
+        // the authority: a late prehydrate landing after the tape must not
+        // narrow a wider calendar the tape has already published.
+        if (Array.isArray(pre.stats?.availableDates) && pre.stats.availableDates.length) {
+          setAvailableDates(prev => (prev && prev.length ? prev : pre.stats.availableDates));
+        }
       });
     }
 
@@ -1374,6 +1477,43 @@ export default function OptionsFlowDashboard() {
     // Captured here because it is only readable off the Response; it is what
     // makes a cache-replayed body detectable. See adoptVersion() for the bug.
     let servedVer = null;
+
+    // ── Is the raw tape actually needed on this pass? ────────────────────────
+    // The prehydrate above already paints. This decides only WHEN the 16 MB tape
+    // arrives, never WHAT any consumer receives — every demand path below forces
+    // the fetch rather than degrading a feature. Flag off => byte-identical to
+    // the previous behaviour, which is the rollback path.
+    const _tapePlan = shouldFetchTape({
+      deferEnabled: DEFER_TAPE,
+      // `_prehydrated` is set by the prehydrate .then above; on the very first
+      // pass it is still false, so the plan asks whether one is even possible
+      // for this view rather than whether it has landed yet.
+      prehydrateAvailable: _prehydrated.current || _preFired,
+      // ⛔ VIEW-SCOPED, not "have we ever loaded rows". `_hasRows` is a
+      // mount-lifetime flag: it flips true on the first successful load and
+      // never flips back. Passed raw it OUTRANKS `isRangeChange`, so after any
+      // tape load a range switch stopped fetching that range's tape and the
+      // worker sat on the previous range's rows while the prehydrate painted
+      // the new view. Measured on prod: 1d -> 5d -> 1d logged `already-held`
+      // and never fetched the 1d tape, leaving the worker on the 5d rowset.
+      //
+      // The `held` branch above already returns early when the worker holds
+      // THIS view, so the only honest answer here is a keyed one.
+      hasRows: _hasRows.current && getLoadedKey() === snapshotKey(csvFile),
+      isRangeChange: _rangeOnlyChange || fetchDaysAtStart !== 1,
+      demanded: tapeDemanded,
+      silent,
+    });
+    if (!_tapePlan.fetch) {
+      // Nothing is in flight and nothing is loading — the painted prehydrate IS
+      // the view. Clear the spinner so the page is not left waiting on a fetch
+      // that will never happen.
+      console.log(`[perf] tape deferred (${_tapePlan.reason}) — not fetching ${csvFile}`);
+      setCsvLoading(false);
+      setLoadedFetchDays(fetchDaysAtStart);
+      return () => { cancelled = true; clearTimeout(_preFallbackTimer); };
+    }
+
     fetch(baseFetchUrl(csvFile, versionedRefresh ? baseNonce : 0, dataVersionRef.current),
           versionedRefresh ? { cache: "no-store" } : undefined)
         .then(res => {
@@ -1449,8 +1589,8 @@ export default function OptionsFlowDashboard() {
         // A background refresh that fails must leave the data the user is
         // already reading on screen — never swap it for the error state.
         .catch(err => { if (!cancelled) { if (!silent) setCsvError(err.message); setCsvLoading(false); setLoadedFetchDays(fetchDaysAtStart); } });
-    return () => { cancelled = true; };
-  }, [csvFile, baseNonce]);
+    return () => { cancelled = true; clearTimeout(_preFallbackTimer); };
+  }, [csvFile, baseNonce, tapeDemanded]);
 
   // ─── Incremental live update (today-delta merge) ─────────────────────────
   // When the DB version bumps during the session, refetch ONLY today's trades
@@ -2852,26 +2992,7 @@ export default function OptionsFlowDashboard() {
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#dcbb5e", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
             </div>
             <div style={{ width:"100%", flex:1, minHeight:0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
-                  <XAxis dataKey="day" tick={{ fontSize:10, fill:"#7b8fa3" }}
-                    interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
-                    angle={-45} textAnchor="end" height={32}
-                    tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:10, fill:"#dcbb5e" }}
-                    tickFormatter={v=>"$"+v.toFixed(1)} width={36} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
-                  <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:10, fill:"#7b8fa3" }}
-                    tickFormatter={v=>fK(v)} width={42} />
-                  <Tooltip contentStyle={{ background:P.cd, border:"1px solid "+P.bl+"", borderRadius:6, fontSize:10, padding:"6px 10px" }}
-                    formatter={(val,name)=>{ if(name==="price") return ["$"+val.toFixed(2),"Price"]; if(name==="vol") return [fK(val),"Volume"]; return [val.toLocaleString(),"OI"]; }}
-                    labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
-                  <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Bar yAxisId="voloi" dataKey="oi" fill="#6ba3be" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#dcbb5e" strokeWidth={2} strokeOpacity={0.5}
-                    dot={{ r:4, fill:"#dcbb5e", stroke:"#17181b", strokeWidth:1.5 }} connectNulls />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <ContractHistoryChart trimmed={trimmed} />
             </div>
           </div>
         </div>
@@ -3025,32 +3146,31 @@ export default function OptionsFlowDashboard() {
   // with no way to switch to GEX/Dark Pool (which don't even need this data) or
   // step back to 1d. The error state below always kept its tabs; this one should
   // too. Same tab bar, same handler, so the page never becomes a dead end.
-  if (csvLoading && !D) return (
-    <div style={{background:"#06090f",minHeight:"100vh",fontFamily:"'JetBrains Mono',monospace",paddingTop:24}}>
-      <div className="of-tabs" style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:60 }}>
-        {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
-          <button key={m} onClick={()=>{
-            if (m === "liveflow") { window.open("/live-massive", "_blank", "noopener,noreferrer"); return; }
-            if(dataMode!==m) {
-              const wasFlow = dataMode === "stocks" || dataMode === "index";
-              const toFlow = m === "stocks" || m === "index";
-              if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setRowCount(0); setAvailableDates([]); setLoadedFetchDays(null); }
-              setDataMode(m);
-            }
-          }} style={{
-            padding:"8px 28px", borderRadius:4, border:"none", cursor:"pointer",
-            fontSize:14, fontWeight:800, fontFamily:"inherit",
-            background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
-          }}>{label}</button>
-        ))}
-      </div>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
-        <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      </div>
-    </div>
-  );
+  // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
+  //
+  // ⛔⛔ THERE IS NO LONGER A FULL-PAGE LOADING RETURN, AND THAT IS THE POINT.
+  // Two of them used to live here and they were what the member actually saw
+  // when opening this section. Measured on prod 2026-09-07, visible transition
+  // dashboard -> /options-flow, recorded off DOM mutations:
+  //
+  //     5 ms    blank content area (the route's Suspense fallback)
+  //   749 ms    'Loading flow data...'    full page, mode tabs only
+  //   756 ms    'Processing flow data...' full page, NO tabs at all
+  //  1239 ms    the real page
+  //
+  // So ~490 ms of the wait was this file replacing its own interface with a
+  // spinner. UCT20, measured the same way, has NO spinner phase: it renders its
+  // frame and lets data arrive into it. That is the difference the member feels
+  // as 'a separate heavy application' rather than another UCT section.
+  //
+  // ⛔ Deleting them is SAFE BY CONSTRUCTION, not by inspection: the whole flow
+  // body below is already wrapped in `dataMode !== gex/darkpool && D && (...)`,
+  // so every `D.`/`FD.` access inside it was ALREADY unreachable while D is
+  // null. The gates were not protecting those reads — they were hiding the
+  // chrome that renders fine without them.
+  //
+  // The error state below keeps its full-page treatment: an error is terminal
+  // and needs to be read, not a stage the page passes through.
   if (csvError && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
@@ -3079,16 +3199,6 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
-        <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      </div>
-    </div>
-  );
-
   const shortDir = FD ? (FD.shortBullTotal >= FD.shortBearTotal ? "BULL" : "BEAR") : "BULL";
   const longDir = FD ? (FD.longBullTotal >= FD.longBearTotal ? "BULL" : "BEAR") : "BULL";
   const shortC = shortDir==="BULL" ? P.bu : P.be;
@@ -3503,6 +3613,121 @@ export default function OptionsFlowDashboard() {
   }
 
 
+  // ⛔ ONE DEFINITION, TWO CALL SITES. The view tabs need no data, so they are
+  // rendered BEFORE the dataset arrives as well as after it. Copying the markup
+  // into the pending state would put a second authority on the tab bar, which is
+  // how the two drift and the pending page grows a tab the real page lost.
+  // ⛔⛔ THE PENDING STATE RENDERS THE SECTION, NOT A LOADING SCREEN.
+  // Two full-page spinner returns used to live below, and they were what the
+  // member actually saw. Measured on prod 2026-09-07, visible transition
+  // dashboard -> /options-flow, recorded off DOM mutations:
+  //
+  //       5 ms  blank content area (the route's Suspense fallback)
+  //     749 ms  'Loading flow data...'    full page, mode tabs only
+  //     756 ms  'Processing flow data...' full page, NO tabs at all
+  //    1239 ms  the real page
+  //
+  // ~490 ms of that wait was this file replacing its own interface with a
+  // spinner. UCT20 measured the same way has NO spinner phase at all: it renders
+  // its frame and lets data arrive into it. That is the difference the owner
+  // described as 'launching a separate heavy application'.
+  //
+  // ⛔ IT CLAIMS NOTHING. No numbers, no zeros, no stale values dressed as
+  // current — an empty panel that names what it is waiting for. Speed here comes
+  // from rendering the frame sooner, never from showing figures the page cannot
+  // yet stand behind.
+  const viewTabsBar = (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:14, flexWrap:"wrap" }}>
+          <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
+          {TABS.map(t => (
+            <button key={t} onClick={()=>setTab(t)} style={{
+              padding:"6px 14px", borderRadius:4, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
+            }}>{t}</button>
+          ))}
+          </div>
+          <input type="text" value={hdrSearch}
+            onChange={e => setHdrSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+            onKeyDown={e => {
+              if (e.key === "Enter" && hdrSearch.trim()) {
+                setChartModal({ sym: hdrSearch.trim() });
+                setChartInterval("D");
+                setHdrSearch("");
+              } else if (e.key === "Escape") { setHdrSearch(""); }
+            }}
+            placeholder="Search ticker"
+            autoComplete="off" spellCheck={false}
+            style={{ width:220, maxWidth:"100%", boxSizing:"border-box", background:P.bg,
+              border:"1px solid "+P.bd, color:P.wh, padding:"7px 12px", borderRadius:6,
+              fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:1, outline:"none" }} />
+        </div>
+  );
+
+  // ── Section header: ONE definition, two call sites (pending + loaded) ─────
+  // The badge is the only part that needs D, so it is the only part gated on
+  // D. Holding the whole header behind `D &&` is what made the pending state
+  // look like a different page than the loaded one.
+  const sectionHeader = (
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+      <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
+      <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
+      {D && (
+        <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
+          {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
+        </span>
+      )}
+    </div>
+  );
+
+  // ── The pending skeleton ─────────────────────────────────────────────────
+  // ⛔ This is the shape of the page, NOT a spinner in a box. UCT20 — the
+  // section the owner measures this one against — never shows a loading state
+  // that replaces its interface: its frame renders immediately and each
+  // TileCard fills in independently (`{!rows ? <SkeletonTable/> : …}`).
+  // Options Flow held its ENTIRE body behind one `D &&`, so a single pending
+  // dataset blanked cap filters, the ticker strip, TOP 10 and every table at
+  // once, and the member saw a centred spinner captioned 'Loading flow data…'.
+  // That box WAS the "loading screen" the owner kept reporting after the two
+  // full-page returns were deleted — smaller, but the same all-or-nothing gate.
+  //
+  // ⛔ IT CLAIMS NOTHING. No numbers, no zeros, no stale values dressed as
+  // current — bars that occupy the space the real rows will take, so the page
+  // does not reflow when data lands. Speed here comes from rendering the frame
+  // sooner, never from showing figures the page cannot yet stand behind.
+  const skelBar = (w, h = 10) => (
+    <div style={{ width:w, height:h, borderRadius:3, background:P.al, opacity:0.55 }} />
+  );
+  const pendingSkeleton = (
+    <div aria-busy="true" aria-label="Flow data loading">
+      <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+        {["All","Mega","Large","Mid-Small"].map(c => (
+          <div key={c} style={{ padding:"6px 16px", borderRadius:4, border:"1px solid "+P.bd,
+                                background:P.al, opacity:0.5, fontSize:11, fontWeight:700, color:P.mt }}>{c}</div>
+        ))}
+      </div>
+      <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"14px 16px", marginBottom:12 }}>
+        <div style={{ marginBottom:12 }}>{skelBar(150, 11)}</div>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:14, padding:"9px 0",
+                                borderTop:i===0?"none":("1px solid "+P.bd) }}>
+            {skelBar(46)}{skelBar(70)}{skelBar(54)}{skelBar(88)}
+            <div style={{ marginLeft:"auto" }}>{skelBar(60)}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+        {[0,1].map(i => (
+          <div key={i} style={{ flex:"1 1 320px", background:P.cd, border:"1px solid "+P.bd,
+                                borderRadius:8, padding:"14px 16px", minHeight:150 }}>
+            {skelBar(120, 11)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="of-mroot" style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
@@ -3867,22 +4092,7 @@ export default function OptionsFlowDashboard() {
                 {/* GEX Bar Chart */}
                 <Card title={"GEX by Strike — "+gexData.ticker} sub={visibleStrikes.length+" strikes · ±12% of spot"}>
                   <div style={{ height:Math.max(400, visibleStrikes.length*18) }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={visibleStrikes} layout="vertical" margin={{ top:4, right:20, left:20, bottom:4 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
-                        <XAxis type="number" tick={{ fontSize:10, fill:"#7b8fa3" }}
-                          tickFormatter={v=>fmtGex(v)} />
-                        <YAxis type="category" dataKey="label" tick={{ fontSize:10, fill:"#7b8fa3" }}
-                          width={60} reversed />
-                        <Tooltip contentStyle={{ background:P.cd, border:"1px solid "+P.bl+"", borderRadius:6, fontSize:11 }}
-                          formatter={(val, name) => [fmtGex(val), name === "callGex" ? "Call GEX" : name === "putGex" ? "Put GEX" : "Net GEX"]} />
-                        <ReferenceLine x={0} stroke="#7b8fa3" strokeWidth={1} />
-                        {gexData.zeroGamma && <ReferenceLine y={"$"+Math.round(gexData.zeroGamma)} stroke={P.ac} strokeDasharray="3 3" label={{ value:"0γ", position:"right", fill:P.ac, fontSize:10 }} />}
-                        {gexData.spot && <ReferenceLine y={"$"+Math.round(gexData.spot)} stroke={P.wh} strokeWidth={2} label={{ value:"Spot", position:"right", fill:P.wh, fontSize:10, fontWeight:700 }} />}
-                        <Bar dataKey="callGex" fill={P.bu} opacity={0.85} />
-                        <Bar dataKey="putGex" fill={P.be} opacity={0.85} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <GexStrikesChart visibleStrikes={visibleStrikes} gexData={gexData} />
                   </div>
                 </Card>
 
@@ -4576,15 +4786,17 @@ export default function OptionsFlowDashboard() {
 
         {dataMode === "darkpool" && <DarkPool embedded />}
 
+        {/* Data pending: the real interface, not a loading screen. See the
+            note above the return -- this replaced two full-page spinners. */}
+        {dataMode !== "gex" && dataMode !== "darkpool" && !D && !csvError && (<>
+        {sectionHeader}
+        {viewTabsBar}
+        {pendingSkeleton}
+        </>)}
+
         {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-          <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
-          <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
-            {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
-          </span>
-        </div>
+        {/* Header — same definition the pending branch renders (see sectionHeader). */}
+        {sectionHeader}
 
         {/* ── Market Pulse — compact ticker strip ────────────────────────── */}
         {tab==="Market Read" && (
@@ -4630,33 +4842,7 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
-        {/* Tabs + header ticker search (search opens the chart modal from any tab) */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:14, flexWrap:"wrap" }}>
-          <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
-          {TABS.map(t => (
-            <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:4, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
-              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
-            }}>{t}</button>
-          ))}
-          </div>
-          <input type="text" value={hdrSearch}
-            onChange={e => setHdrSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
-            onKeyDown={e => {
-              if (e.key === "Enter" && hdrSearch.trim()) {
-                setChartModal({ sym: hdrSearch.trim() });
-                setChartInterval("D");
-                setHdrSearch("");
-              } else if (e.key === "Escape") { setHdrSearch(""); }
-            }}
-            placeholder="Search ticker"
-            autoComplete="off" spellCheck={false}
-            style={{ width:220, maxWidth:"100%", boxSizing:"border-box", background:P.bg,
-              border:"1px solid "+P.bd, color:P.wh, padding:"7px 12px", borderRadius:6,
-              fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:1, outline:"none" }} />
-        </div>
+        {viewTabsBar}
 
         {/* Global Cap Filter */}
         {FD && (()=>{
@@ -5421,194 +5607,16 @@ export default function OptionsFlowDashboard() {
 
             {/* TOP 10 FLOW PICKS */}
             {D && D.all_directional && (()=>{
-              // 2026-07-04: honor the Stocks tab by excluding ETFs/indexes
-              // (and vice versa on the Indexes tab). Matches Watchlist behavior.
-              const _tabOk = (t) => {
-                const isEtf = isETF(t.S, t.stocketf);
-                return dataMode === "stocks" ? !isEtf : isEtf;
-              };
-              const baseAd = (D.all_directional||[]).filter(_tabOk);
-              const ad = capFilter==="All" ? baseAd : baseAd.filter(t=>capBand(t.mktcap)===capFilter);
+              // TOP 10 FLOW PICKS candidates now come from flowCompute — the same
+              // computation, lifted VERBATIM (see buildTopPickCandidates) so it can
+              // eventually run once on the server instead of once per member. This
+              // block is the only first-paint reader of D.all_directional and
+              // D.all_trades, which together are ~16.4 MB of the aggregate payload.
+              const { candidates, standoutCandidates, ad } = buildTopPickCandidates(
+                D.all_directional, D.all_trades,
+                { dataMode, capFilter, isEtfFn: isETF, includeStandout: top5Filter === "Standout" },
+              );
               if (!ad.length) return null;
-              // Pre-build TOTAL premium per (ticker,contract) from broader trade list
-              // (includes B-side MAGENTA call buys etc. that don't get a direction
-              // assigned per the strict A/AA-only rule, but are real flow on the strike).
-              // Used for DISPLAY ONLY — scoring/exit detection still use the directional
-              // subset to avoid misclassifying ambiguous flow as conviction.
-              const baseAllTrades = (D.all_trades||[]).filter(_tabOk);
-              const allTrades = capFilter==="All" ? baseAllTrades : baseAllTrades.filter(t=>capBand(t.mktcap)===capFilter);
-              const contractTotals = {};
-              for (const t of allTrades) {
-                const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-                if (!contractTotals[k]) contractTotals[k] = {hits:0, prem:0};
-                contractTotals[k].hits++;
-                contractTotals[k].prem += (t.P||0);
-              }
-              const _now = new Date();
-              const _parseDt = (dt) => { if(!dt) return null; const p=dt.split("/").map(Number); return p.length>=2?new Date(_now.getFullYear(),p[0]-1,p[1]):null; };
-              const tkMap = {};
-              ad.forEach(t => {
-                if (!tkMap[t.S]) tkMap[t.S]={sym:t.S,bull:0,bear:0,n:0,swp:0,blk:0,swpAsk:0,swpBid:0,confirmed:0,band:capBand(t.mktcap),
-                  contracts:{},hasER:!!t.er,minDTE:999,mktcap:t.mktcap||0,sector:t.sector||"",lastDate:null,hasUOA:false};
-                // 7/9: Upgrade mktcap + band when a real value shows up. Prevents
-                // gap-fill rows (mktcap=0 → Unknown) from locking a ticker's cap
-                // band. See matching fix at line 6410 for full explanation.
-                else if (!tkMap[t.S].mktcap && t.mktcap) {
-                  tkMap[t.S].mktcap = t.mktcap;
-                  tkMap[t.S].band = capBand(t.mktcap);
-                }
-                const tk=tkMap[t.S];
-                if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
-                tk.n++;
-                if(t.Ty==="SWP") {
-                  tk.swp++;
-                  if(t.Si==="A"||t.Si==="AA") tk.swpAsk++;
-                  else if(t.Si==="B"||t.Si==="BB") tk.swpBid++;
-                } else if(t.Ty==="BLK") tk.blk++;
-                if(t.confirmed) tk.confirmed++;
-                if(t.uoa) tk.hasUOA=true;
-                if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
-                const tDate=_parseDt(t.Dt);
-                if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
-                const ck=t.CP+"|"+t.K+"|"+t.E;
-                if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null,spot:0};
-                const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
-                if(t.OI>c.oi) c.oi=t.OI;
-                if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
-                if(t.price>0) c.prices.push(t.price);
-                if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; if(t.Spot>0) c.spot=t.Spot; }
-              });
-              const candidates = [];
-              Object.values(tkMap).forEach(tk => {
-                const total=tk.bull+tk.bear;
-                if(total===0) return;
-                const net=Math.abs(tk.bull-tk.bear);
-                const purity=Math.max(tk.bull,tk.bear)/total*100;
-                const dir=tk.bull>=tk.bear?"BULL":"BEAR";
-                const hasBoth=tk.swp>0&&tk.blk>0;
-                const swpRatio=tk.swp/(tk.swp+tk.blk);
-                if(purity<70) return;
-                // Trade-count hard gate removed — premium > count.
-                // Cap-band premium gates below ($250K Mid-Small / $1M Large / $10M Mega)
-                // already filter out noise. A single $1M ASK sweep shouldn't fail just
-                // because it's not a 3-hit cluster. The +20% confirmed≥3 modifier below
-                // still rewards multi-hit consistency without making it a hard cutoff.
-                if(tk.swp<1) return;
-                if(tk.hasER&&tk.minDTE<=14) return;
-                let score=0;
-                if(tk.band==="Mega"){ if(net<10e6) return; score=net/10e6; }
-                else if(tk.band==="Large"){ if(net<1e6) return; score=net/1e6*1.5; }
-                else { if(net<250e3) return; score=net/250e3*2.0; }
-                if(hasBoth) score*=1.3;
-                if(purity>=90) score*=1.2;
-                if(tk.confirmed>=3) score*=1.2;
-                if(swpRatio<0.3) score*=0.3;
-                else if(swpRatio<0.5) score*=0.6;
-                const topC=Object.values(tk.contracts).sort((a,b)=>b.prem-a.prem)[0];
-                const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
-                if(volOI>2) score*=1.15;
-                const topDTE = topC ? (topC.exp ? Math.round((new Date(topC.exp)-new Date())/(86400000)) : 999) : 0;
-                if((tk.band==="Large"||tk.band==="Mega") && topDTE>180) score*=0.2;
-                else if(tk.band==="Mid-Small" && topDTE>180) score*=0.8;
-                // Exit detection — penalize closing flow, not age
-                const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
-                const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
-                const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
-                // Bid-side exit ratio on top contract: high bid% = closing trades
-                const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
-                // OI retention: lastOI vs maxOI — declining OI = positions closed
-                const oiRetention = topC&&topC.oi>0&&topC.lastOI>0 ? topC.lastOI/topC.oi : 1;
-                let posStatus = "ACTIVE";
-                if(exitRatio>0.5 || oiRetention<0.5) { score*=0.3; posStatus="CLOSED"; }
-                else if(exitRatio>0.3 || oiRetention<0.7) { score*=0.6; posStatus="FADING"; }
-                else if(exitRatio<0.1 && oiRetention>=0.9) { score*=1.1; posStatus="ACTIVE"; }
-                // Stale with no exit data still gets slight discount
-                if(daysSince>=14 && posStatus==="ACTIVE") posStatus="HOLDING";
-                const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
-                // Look up TOTAL premium/hits for the top contract from the broader
-                // trade list. Falls back to directional-only if no entry (shouldn't happen).
-                let topCDisplayPrem = topC ? topC.prem : 0;
-                let topCDisplayHits = topC ? topC.hits : 0;
-                if (topC) {
-                  const k = tk.sym+"|"+topC.cp+"|"+topC.K+"|"+topC.exp;
-                  const totals = contractTotals[k];
-                  if (totals) {
-                    topCDisplayPrem = totals.prem;
-                    topCDisplayHits = totals.hits;
-                  }
-                }
-                candidates.push({...tk,net,purity,dir,score,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention,topCDisplayPrem,topCDisplayHits});
-              });
-              // Default ranking = raw net premium (biggest flow wins). score is still
-              // computed above (its band-premium gates filter noise) but no longer ranks.
-              candidates.sort((a,b)=>(b.net-a.net) || (b.score-a.score));
-              // Standout mode: rebuild candidates at the CONTRACT level (each pick = one
-              // strike) in the SAME shape as the ticker picks, so the identical row renderer
-              // (NET+%, TOP CONTRACT, GRADE, OPEN INTEREST, status, notes) is reused verbatim.
-              // Gate is a flat $1M net + sweep + one-sided (clean) — NO ticker-purity/band gate,
-              // so a killer strike shows even when its ticker nets to a coin-flip (e.g. GLW 110C).
-              const standoutCandidates = top5Filter==="Standout" ? (()=>{
-                const soMap = {};
-                ad.forEach(t => {
-                  const ck = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;
-                  if (!soMap[ck]) soMap[ck] = { sym:t.S, bull:0, bear:0, n:0, swp:0, blk:0, swpAsk:0, swpBid:0,
-                    confirmed:0, band:capBand(t.mktcap), contracts:{}, hasER:!!t.er, minDTE:999, mktcap:t.mktcap||0,
-                    sector:t.sector||"", lastDate:null, hasUOA:false };
-                  const tk = soMap[ck];
-                  if(t.D==="BULL") tk.bull+=t.P; if(t.D==="BEAR") tk.bear+=t.P;
-                  tk.n++;
-                  if(t.Ty==="SWP"){ tk.swp++; if(t.Si==="A"||t.Si==="AA") tk.swpAsk++; else if(t.Si==="B"||t.Si==="BB") tk.swpBid++; }
-                  else if(t.Ty==="BLK") tk.blk++;
-                  if(t.confirmed) tk.confirmed++;
-                  if(t.uoa) tk.hasUOA=true;
-                  if(t.DTE!=null && t.DTE<tk.minDTE) tk.minDTE=t.DTE;
-                  const tDate=_parseDt(t.Dt);
-                  if(tDate&&(!tk.lastDate||tDate>tk.lastDate)) tk.lastDate=tDate;
-                  if(!tk.contracts[ck]) tk.contracts[ck]={cp:t.CP,K:t.K,exp:t.E,hits:0,prem:0,vol:0,oi:0,lastOI:0,askPrem:0,bidPrem:0,prices:[],lastDate:null,spot:0};
-                  const c=tk.contracts[ck]; c.hits++; c.prem+=t.P; c.vol+=(t.V||0);
-                  if(t.OI>c.oi) c.oi=t.OI;
-                  if(t.Si==="A"||t.Si==="AA") c.askPrem+=t.P; if(t.Si==="B"||t.Si==="BB") c.bidPrem+=t.P;
-                  if(t.price>0) c.prices.push(t.price);
-                  if(tDate&&(!c.lastDate||tDate>=c.lastDate)){ c.lastDate=tDate; c.lastOI=t.OI||c.lastOI; if(t.Spot>0) c.spot=t.Spot; }
-                });
-                const _perContract = Object.values(soMap).map(tk => {
-                  const total=tk.bull+tk.bear; if(total===0) return null;
-                  const net=Math.abs(tk.bull-tk.bear);
-                  const purity=Math.max(tk.bull,tk.bear)/total*100;
-                  const dir=tk.bull>=tk.bear?"BULL":"BEAR";
-                  const hasBoth=tk.swp>0&&tk.blk>0;
-                  const topC=Object.values(tk.contracts)[0];
-                  const bidRatio=topC&&topC.prem>0?topC.bidPrem/topC.prem:0;
-                  // Standout = clean, positional conviction. Exclude sub-$1M, no-sweep, two-sided
-                  // (purity<80 directional OR >25% bid-side = buying AND selling on the strike =
-                  // day-trade churn), and ultra-short expirations (<5 DTE = gamma scalp / day-trade).
-                  if(net<1e6 || tk.swp<1 || purity<80 || bidRatio>0.25 || tk.minDTE<5) return null;
-                  const volOI=topC&&topC.oi>0?topC.vol/topC.oi:0;
-                  const daysSince = tk.lastDate ? Math.max(0,Math.round((_now-tk.lastDate)/86400000)) : 30;
-                  const lastDateStr = tk.lastDate ? `${tk.lastDate.getMonth()+1}/${tk.lastDate.getDate()}` : "—";
-                  const freshLabel = daysSince<=1?"Today":daysSince<=2?"Yesterday":lastDateStr;
-                  const exitRatio = topC&&topC.prem>0 ? topC.bidPrem/topC.prem : 0;
-                  const oiRetention = topC&&topC.oi>0&&topC.lastOI>0 ? topC.lastOI/topC.oi : 1;
-                  let posStatus = "ACTIVE";
-                  if(exitRatio>0.5 || oiRetention<0.5) posStatus="CLOSED";
-                  else if(exitRatio>0.3 || oiRetention<0.7) posStatus="FADING";
-                  if(daysSince>=14 && posStatus==="ACTIVE") posStatus="HOLDING";
-                  const entry = topC&&topC.prices.length>0 ? topC.prices.reduce((a,b)=>a+b,0)/topC.prices.length : 0;
-                  let topCDisplayPrem = topC ? topC.prem : 0;
-                  let topCDisplayHits = topC ? topC.hits : 0;
-                  if (topC) { const k=tk.sym+"|"+topC.cp+"|"+topC.K+"|"+topC.exp; const totals=contractTotals[k]; if(totals){ topCDisplayPrem=totals.prem; topCDisplayHits=totals.hits; } }
-                  return {...tk,net,purity,dir,score:net,hasBoth,topC,volOI,entry,daysSince,freshLabel,posStatus,exitRatio,oiRetention,topCDisplayPrem,topCDisplayHits};
-                }).filter(Boolean).sort((a,b)=>b.net-a.net);
-                // One row per ticker: each ticker's biggest strike is the headline row; its
-                // other standout strikes roll into `_moreStrikes` (shown as a "+N more" note
-                // and expanded on row click).
-                const _headMap={}, _deduped=[];
-                for (const c of _perContract) {
-                  if (_headMap[c.sym]) _headMap[c.sym]._moreStrikes.push(c);
-                  else { c._moreStrikes=[]; _headMap[c.sym]=c; _deduped.push(c); }
-                }
-                return _deduped;
-              })() : null;
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Standout" ? standoutCandidates
                 : top5Filter==="Both" ? candidates

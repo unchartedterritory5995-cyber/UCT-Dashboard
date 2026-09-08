@@ -1282,9 +1282,281 @@ one named cache gap was closed.
 
 ---
 
-Design-before-build for Wave E onward happens at the start of that wave, not
-speculatively now — per the governing directive, this document reports and
-stops before beginning any wave past the currently-authorized one.
+## Wave E — Structured Research Properties / Saved Views / Dynamic Financial Research — entry checkpoint (2026-09-06)
+
+**Process note:** an incident occurred immediately before this checkpoint — a
+fork dispatched for a narrow, explicitly read-only web-research task instead
+implemented a large unauthorized slice of Wave E directly in this worktree and
+committed it. It was investigated, contained (nothing reached any git remote),
+quarantined on branch `quarantine-rogue-fork-wave-e-attempt-2026-09-06` (never
+to be merged, zero product authority), and the worktree was hard-reset to the
+last legitimate commit. Per explicit owner instruction, this checkpoint and all
+of Wave E's implementation are performed directly, with no fork/subagent
+dispatch of any kind, and are independently derived from current source —
+not from the quarantined branch, which was not consulted.
+
+### Fresh competitor research (current official sources, 2026-09-06)
+
+**Notion** (`notion.com/help/database-properties`, `/views-filters-and-sorts`,
+`developers.notion.com/reference/property-object`): ~22-25 property types
+(Text/Number/Select/Status/Multi-select/Date/Formula/Relation/Rollup/Person/
+File/Checkbox/URL/Email/Phone/Created·Last-edited time+by/Button/ID/Place),
+up to 500 properties/database. Views (Table/Board/Calendar/Timeline/List/
+Gallery) each carry their OWN filter+sort+column-visibility — creating a named
+view IS saving a view. Filters compose via AND/OR **groups nestable 3 levels
+deep**; sorts are multi-key with drag-to-reorder priority. **Confirmed via the
+official property-object reference: properties and select/multi-select options
+each have a stable internal `id` distinct from `name`, and internal references
+(formulas, by extension views) key off the ID — "renaming the property later
+doesn't break the formula."** Views can be renamed/duplicated/deleted, with a
+per-view "apply for everyone vs. just yourself" scope.
+
+**Obsidian** (`obsidian.md/help/bases`, `/help/properties`): Bases is a **core,
+free** plugin (not paid) — 5 view types (Table/List/Cards/Kanban/Map), supports
+filters and formula columns. Properties: 6 base types (Text/List/Number/
+Checkbox/Date/Date&time) + the reserved Tags type, edited via a vault-wide "All
+properties" panel. **Obsidian's property type registry is NAME-keyed, not
+ID-keyed** ("once a property type is assigned to a property name, all
+properties with that name across your vault will use the same type") —
+architecturally the opposite of Notion's stable-id model; a rename is a
+mass-rewrite-by-name operation, not an identity-preserving one.
+
+**Evernote** (`help.evernote.com` saved-searches/tags articles, corroborated
+via search-snippet after a direct fetch was blocked): saved searches are
+**literally saved query-text strings** (e.g. `tag:travel created:20240101`),
+re-executed verbatim — the exact "query-text identity" anti-pattern this
+program's own Wave D lesson and this directive explicitly warn against.
+**No structured/custom-field property system exists in the standard UI** —
+confirmed via multiple long-standing, still-unimplemented user feature
+requests. Tags support nesting + shortcuts only.
+
+**Net read:** Notion's ID-based property/option/view model is the right one to
+mirror (it already matches this codebase's own established Wave D stable-id
+discipline); Obsidian's name-keyed simplicity is a real, cited architectural
+alternative but a worse fit given this codebase's own precedent; Evernote sets
+the floor, not a bar worth clearing carefully.
+
+### Current UCT reality (independently re-verified against source, not assumed)
+
+- `j2_notes` (`db.py:378`) has **no typed-property storage today** beyond the
+  single `ticker` TEXT column — confirmed by reading the full CREATE TABLE and
+  every subsequent `ALTER TABLE j2_notes ADD COLUMN` in the migration list.
+  Wave E's property store is new, not an extension of an existing field.
+- Three existing "rebuildable sidecar" tables already derive real relationship
+  data from a note's own content: `j2_note_mentions` (cashtags), `j2_note_embeds`
+  (trade/position refs + chart widgets), `j2_note_links` (Wave D internal
+  links) — all delete+insert rebuilt from `body_json`/`body_plain` on save.
+- `resolve_sector_theme_symbols` (`notes.py:1466`) already resolves a sector/
+  theme filter against the member's own mentioned-symbol vocabulary via the
+  same 24h `ticker_meta` cache every chart uses — zero new provider dependency.
+  Its own docstring records that a denormalized per-mention sector/theme column
+  was considered and rejected in favor of this — the same "derive, don't
+  restate" lesson this checkpoint's property model follows for Ticker/Sector/
+  Industry/Theme/Trade-Relationship.
+- `_notes_filter_sql` (`notes.py:777`) is the SINGLE predicate builder both
+  `list_notes` and `count_notes` build from — "two independently-written WHERE
+  clauses for the same membership question" is a named, previously-real defect
+  class in this codebase. Wave E's property filter extends this one function,
+  never a second one.
+- `screener_saved_screens` (`api/services/screener/saved_screens.py:15`) is the
+  one existing "saved view" precedent in the whole codebase: an
+  autoincrement-id, opaque `spec_json` blob per saved screen, simple
+  update-in-place CRUD. The closest-adjacent alternative, `user_definitions.py`
+  (immutable version-pinned formulas for alert bindings), is a worse fit —
+  saved views don't need immutable version pins the way alert-bound formulas
+  do. Wave E's saved views mirror `saved_screens.py`'s shape, adapted to a TEXT
+  uuid id (matching every other `j2_*` table's id convention) and living in
+  `journal_two`'s own DB (Notebook-scoped, not account-wide).
+- `_maybe_capture_version` (`notes.py:1667`) gates Wave C's version capture on
+  whether title/subtitle/body_plain changed — "a save that only changes
+  ticker/tags/folder must never create a version," by its own docstring.
+  Properties are unversioned today; §26 below makes that decision explicit
+  rather than leaving it a silent gap.
+- Notebook's sidebar (`NotebookTab.jsx`) and note-editor header
+  (`NoteEditorPage.jsx`) were directly observed, live, during the Wave D
+  closure pass, to already be dense — Favorites/Recents/All notes/Unfiled/
+  Trash/folder-tree in the sidebar; star/Ask/History/Share/folder-select/
+  Ticker/Tags/Delete plus a full formatting toolbar and PNG/Print/Markdown
+  export in the header. This is the concrete basis for §20/§22 below.
+
+### The 36 checkpoint decisions
+
+1. **Property data model** — hybrid: a normalized `j2_note_properties`
+   definitions table (id, user_id, name, type, options_json, sort_order,
+   created_at, updated_at, deleted_at) + ONE new nullable `properties_json`
+   TEXT column directly on `j2_notes` (no join on the hot `list_notes` path),
+   holding only user-set values keyed by property_id. Chosen over wide columns
+   (can't support arbitrary user-defined properties without a migration per
+   property) and a fully normalized per-value table (an extra join on every
+   note-list read, the hottest path in the feature).
+2. **Built-in vs. user-defined** — built-in financial properties are
+   CODE-DEFINED (a fixed Python list, `builtin:<key>` string ids — e.g.
+   `builtin:thesis_status`), not per-user DB rows; user-created custom
+   properties get real `j2_note_properties` rows with generated uuids. Both
+   resolve through the same lookup/filter abstraction so callers never
+   special-case which kind they're looking at.
+3. **User-set vs. system-derived vs. financial-derived** — user-set values
+   live in `properties_json`. Financial-derived properties (Ticker, Sector,
+   Industry, Theme, Trade/Position Relationship) are NEVER stored — computed
+   at read time from the existing `ticker` column, `ticker_meta`, and
+   `j2_note_embeds`. No system-derived category is needed for Wave E's shipped
+   slice (nothing like a "last-edited-by" field is in scope).
+4. **Ticker property vs. existing entity system** — a VIEW over the existing
+   `ticker` column, never a second field. The Properties panel's "Ticker" row
+   reads `note.ticker`; editing it writes through the existing field/endpoint.
+5. **Sector/Industry/Theme vs. existing metadata layer** — reuse
+   `resolve_sector_theme_symbols` + `ticker_meta` exactly as `list_notes`
+   already does; the Properties panel's per-note display is a smaller,
+   single-ticker call into the same cache, not a new resolver.
+6. **Trade/position derivation** — reuse `j2_note_embeds.trade_ref` +
+   `resolve_trade_ref` (Wave 3's existing mechanism) verbatim; the Properties
+   panel's "Linked Trade" row is a read of the existing sidecar, zero new
+   storage.
+7. **Property identity / rename safety** — stable TEXT id (uuid for
+   user-defined, `builtin:*` constant for built-in). Renaming a
+   user-created property edits only its `name` column; zero note rows
+   touched. Filters/saved views reference property_id, never name — mirrors
+   the Wave D note-link lesson and Notion's own confirmed ID-based mechanism,
+   not Obsidian's name-keyed one.
+8. **Select-option identity / rename safety** — each option in a select/
+   multi-select's `options_json` carries its own uuid + label + optional
+   color. Stored values reference the option id, never the label. Renaming an
+   option edits one JSON field in one definition row; zero note values
+   touched.
+9. **Property deletion / recovery** — soft delete (`deleted_at` on
+   `j2_note_properties`), hidden from pickers/filters but not purged for 30
+   days (mirrors the note-trash pattern), then a purge sweep. A note's own
+   `properties_json` values for a deleted property become orphaned/hidden,
+   never deleted along with the note itself — deleting a property never
+   deletes a note (directive §105's own adversarial test).
+10. **Filter representation** — extends `_notes_filter_sql` with one new
+    `property_filter: list[{property_id, op, value}]` parameter, AND-only
+    composed with every existing filter (folder/tag/ticker/q/date/sector/
+    theme) in the SAME predicate builder — never a second one. OR/groups
+    explicitly deferred (directive §39-41) unless proven needed later.
+11. **Sort representation** — single-key `propertySort: {property_id,
+    direction}`, extending the existing `sort` param with a `property:<id>`
+    form. Multi-key sort deferred as OPTIONAL/FUTURE — proportionate to what
+    Wave E's shipped slice needs.
+12. **Saved-view representation** — new `j2_note_saved_views` table (id TEXT
+    uuid, user_id, name, view_type, spec_json, sort_order, created_at,
+    updated_at, deleted_at), mirroring `screener_saved_screens.spec_json`'s
+    shape. `spec_json` stores property_id/option_id references only, never
+    names/labels.
+13. **Saved-view identity** — stable uuid, never derived from query text
+    (directly rejecting Evernote's saved-search-string anti-pattern found in
+    this session's own research) — survives property rename and option rename
+    by construction, mirroring the Wave D note-link lesson exactly (directive's
+    own explicit instruction).
+14. **Query safety** — a request carrying `savedViewId` resolves its filter/
+    sort from the saved view's OWN stored `spec_json` server-side, ignoring any
+    client-supplied `propertyFilter`/`propertySort` in the same request
+    (directive §87). All predicates are built server-side from typed,
+    validated fields; no raw client SQL fragments ever reach the query.
+    Property filter values are validated against the property's declared type
+    before use (directive §89) — an unparseable value is rejected with a
+    clear error, never silently cast.
+15. **List view contract** — the existing Notebook card grid, unchanged,
+    with an added compact property-chip row under a card ONLY when that note
+    has ≥1 property set (progressive disclosure — no chip row on the vast
+    majority of notes with none yet).
+16. **Table view** — SHIPPED. One row per note (title/folder/updated/+chosen
+    property columns), sortable column headers reusing the existing
+    TradesTable/PositionsTable sortable-header pattern, responsive via the
+    existing `ResponsiveTable.jsx` primitive (card-mode ≤640px) rather than a
+    new mobile-table implementation.
+17. **Board view** — DEFERRED (directive §53 explicitly permits sequencing).
+    Recorded as a future item once a real status-grouping workflow is
+    validated as wanted, not assumed from Notion's shape alone.
+18. **Calendar view** — DEFERRED. The app already has a dedicated Calendar
+    surface; a future date-propertied-notes overlay on THAT surface is the
+    right move, not a second, Notebook-internal calendar concept (directive
+    §52's explicit warning).
+19. **Search + structured filter composition** — property filters are an
+    additional AND clause in the same `_notes_filter_sql`; free-text search
+    stays live and composable while a saved view is active (directive §54).
+20. **Sidebar / saved-view IA** — a new "SAVED VIEWS" sidebar section,
+    populated-conditional exactly like Favorites/Recents/Tags today (hidden
+    entirely at zero saved views — no nav clutter for members who never touch
+    this). Selecting a saved view is mutually exclusive with folder/tag
+    browsing, matching the existing "one selection channel" discipline.
+21. **Note property UI** — a new, collapsible Properties section directly
+    below the title/subtitle and above the body. A note with zero properties
+    shows only a single small "+ Add property" affordance, not even a
+    collapsed header — calmer than Wave D's own already-conditional Backlinks
+    section.
+22. **Header-density impact** — zero new permanent header buttons (directive's
+    explicit caution, reinforced by this session's own direct observation of
+    an already-dense header). All property editing happens inline in the new
+    Properties section.
+23. **Mobile experience** — Table view's card-mode via `ResponsiveTable` at
+    ≤640px; Properties section rows meet the existing 44px tap-target token;
+    verified via the same same-origin-iframe viewport technique used in Waves
+    C/D (`resize_window` remains non-functional in this environment).
+24. **Keyboard experience** — restrained: native `<select>`/`<input
+    type=date>`/`<input type=checkbox>` wherever possible get full keyboard
+    support for free; no new dedicated global shortcut for this slice
+    (directive §82 calls for restrained, not novel).
+25. **Accessibility** — native form controls are used specifically to AVOID
+    repeating Wave D's ARIA-combobox debt class (a custom listbox is only
+    justified when a native control genuinely can't do the job — not the case
+    for select/date/checkbox properties). No full-WCAG certification claimed.
+26. **Version-history interaction** — DECIDED: user-set property VALUES ARE
+    versioned, extending Wave C's existing gate — `_maybe_capture_version`'s
+    change-detection and the captured/restored field set both extend to
+    include `properties_json`. Rationale: these are user-authored research
+    judgments (Thesis Status, Confidence) a member would want to recover,
+    closer to content than to metadata. Financial/system-derived properties
+    are never stored, so they're never part of any snapshot by construction —
+    an explicit, deliberate choice per directive §59-60, not a silent default.
+27. **Export / portability** — properties render as human-readable YAML
+    front-matter lines in both single-note and full export, resolving
+    property_id→name and option_id→label at export time — mirroring the
+    existing `linked_trades`/`related_tickers` front-matter pattern exactly.
+    Saved views are account-level UI configuration, not note content, and are
+    not part of the notebook markdown export.
+28. **Trash / purge** — trashing a note already covers its `properties_json`
+    for free (one column on the note row). Property-definition deletion and
+    saved-view deletion both use `deleted_at` + a 30-day purge sweep, mirroring
+    the existing note-trash pattern.
+29. **Account deletion** — `j2_note_properties` and `j2_note_saved_views`
+    added to `account_purge.py`'s `_DIRECT_USER_TABLES`, the same one-line
+    pattern Wave D used for `j2_note_links`.
+30. **Tenant isolation** — every new table scoped by `user_id` on every read/
+    write, mirroring the existing sidecar convention; a foreign-tenant id is
+    treated identically to a nonexistent one everywhere (Wave D's own lesson).
+31. **Rights boundary** — no new vendor data is persisted anywhere in this
+    wave; every financial-derived property reads from already-cached,
+    already-approved sources. Nothing in Wave E touches Fact/Snapshot Ledger
+    territory (Wave F).
+32. **Performance / index strategy** — `json_extract` predicates against
+    `properties_json` for filtering, no premature indexing; a targeted SQLite
+    expression index is a documented follow-up trigger if a real profiling
+    pass at scale shows a specific built-in property filter is slow, not
+    something built speculatively now.
+33. **Migration** — purely additive: new tables via `CREATE TABLE IF NOT
+    EXISTS`, one new nullable column on `j2_notes` via the existing
+    ALTER-if-not-exists idiom. No existing note gets a fabricated property
+    value — `properties_json` stays NULL until a member explicitly sets
+    something (directive §91-92).
+34. **Rollback** — no feature flag (Waves C/D shipped without one too);
+    rollback is a code revert. Purely additive/new-table schema means a code
+    rollback strands no data in a broken state.
+35. **Vertical slices** — (1) property schema/definitions/values, (2) property
+    editing UX, (3) filter/sort query layer, (4) saved views + sidebar nav,
+    (5) table view, (6) financial-derived property integration, (7) history/
+    export/lifecycle integration, (8) responsive/accessibility/performance/
+    competitor E2E verification.
+36. **Test matrix** — backend: schema/CRUD, filter-composition (property+
+    folder+tag+sector+search all AND together), rename/option-rename/
+    delete-never-touches-notes adversarial cases, tenant isolation, account-
+    purge coverage, Wave C version-integration. Frontend: PropertiesSection,
+    NotesTableView, saved-view hooks, filter-URL building. E2E: create
+    property → set value → filter by it → save view → reload → view survives
+    → rename property → view survives → export shows a human-readable value.
+
+**No material contradiction found. Proceeding directly through Wave E's
+implementation — no fork/subagent dispatch, per the standing rule.**
 
 ---
 
@@ -1477,3 +1749,2948 @@ unrelated) → `e36ca0eb5` (Search/Command Convergence merge, unrelated to Noteb
 No uncommitted changes on `notebook-primary-platform` beyond this document itself at
 time of writing. No concurrent Notebook-touching work detected on master beyond what
 this session already merged.
+
+---
+
+### Wave E — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the PERMANENT CURRENT SESSION RULE established after the rogue-fork
+incident: no fork/subagent dispatch for any part of Wave E's research, implementation,
+testing, browser verification, git reconciliation, or deployment.
+
+**Delivered:** the full backend (schema, built-in + user-defined property CRUD,
+financial-derived live resolution, filter/sort query layer, Wave C version
+integration, export front-matter, saved-view CRUD, 9 new routes, `savedViewId`
+query-safety override) and frontend (`PropertiesSection` progressive-disclosure
+editor UI, `NotesTableView` table view with quick-filter chips, `SavedViewEditor`,
+sidebar saved-views IA) specified in the entry checkpoint above — 36/36 checkpoint
+decisions implemented as decided, no scope drift.
+
+**Real-browser E2E workflows run, in the fail-closed sandbox (`tools/e2e_sandbox_launcher.py`):**
+property create/edit/remove, one note carrying a mixed set of user-set + financial-derived
++ select values simultaneously, saved-view creation and round-trip, live view auto-update
+on note edits, Table-view quick-filter, property rename-safety, **option** rename-safety,
+property deletion never deleting note content, a saved view surviving the deletion of a
+property it filtered on, mobile shell audit, and an accessibility spot-check.
+
+**Real, reproducible defects found via this testing (not caught by the unit suite) and fixed:**
+1. `set_note_properties` returned the Python string `"null"` instead of `None` for an
+   empty properties dict — broke the "propertiesJson is always a dict" contract on the
+   next read. Fixed in the implementation pass itself, before browser testing began.
+2. `PropertiesSection` didn't re-fetch derived properties when the note's own ticker
+   field changed via a different save path — Sector/Industry/Theme stayed stale until a
+   full reload. Fixed with a `ticker` prop + change-triggered `refresh()`; verified live
+   (AMD→ new ticker updated Sector/Industry/Theme immediately).
+3. **`NotesTableView`'s `onRowClick={(n) => onOpenNote(n.id)}` passed a bare id string,**
+   but `NotebookTab.jsx`'s `openNote(note)` reads `note.id` itself (the same contract
+   `NoteCard`'s `onOpen` already uses) — clicking a table row produced `?note=undefined`
+   and "Couldn't load this note." A real, reproducible bug a unit test had NOT caught
+   (its own assertion had been written against the buggy contract). Fixed to
+   `onRowClick={(n) => onOpenNote(n)}`; the test assertion fixed to match; re-verified
+   live (row click now opens the right note with its full property set rendered).
+4. **Creating a new property via "+ New property…" left it invisible until a full page
+   reload.** `createDef` only invalidates the property-defs list SWR cache
+   (`useJ2PropertyDefs`), never the note's OWN resolved-properties cache
+   (`useNoteProperties`, a separate SWR key) — the new property was server-created
+   correctly but had no way to appear in the editor without a reload. Fixed by calling
+   `refresh()` after `createDef` in `PropertiesSection.createAndAdd`; verified live.
+5. **A user-created select/multi_select property shipped with ZERO options and no way
+   to add any** — `createDef` always sent an empty options array, and no frontend
+   surface existed to populate them afterward, so the "Select" type was completely
+   unusable as shipped (a dropdown with nothing to pick). Fixed by adding a
+   comma-separated "Options" input to the create-property form, collected at creation
+   time; verified live (created a real "Risk Level" select property with Low/Medium/High
+   and set a value on a note, immediately usable with no reload).
+6. **A saved view filtering/sorting on a since-deleted property 400'd permanently,**
+   with no way to fix it short of deleting and recreating the view — `property_filter_sql`/
+   `property_sort_sql` unconditionally raised `PropertyValidationError` on an unknown
+   `propertyId`, correct for a live client-supplied filter (an actionable mistake in the
+   request being made right now) but wrong for a saved view's own STORED spec (valid when
+   saved, degraded by a later, unrelated deletion). Added a `strict` parameter (default
+   `True`); the `savedViewId` router path now resolves non-strict, dropping the dangling
+   clause instead of raising. Found via a direct API repro while testing checkpoint §9
+   (property deletion/recovery) against a saved view; fixed; covered by 2 new backend
+   tests; re-verified live (the view still opens and shows its still-resolvable notes).
+7. **A property's control had no programmatic association with its own label** — the
+   name and its `<select>`/`<input>`/checkbox were only visually adjacent (`<span>` +
+   sibling), so a screen reader announced each control unlabeled. Fixed with
+   `id`/`aria-labelledby` pairing (`role="group"` for multi_select's checkbox cluster);
+   verified live via a DOM read confirming `select.getAttribute('aria-labelledby')`
+   resolves to the correct label text ("Thesis Status").
+
+**Rename-safety end-to-end (checkpoint §7/§8, the core stable-id guarantee) — proven
+live, not just unit-tested:** created a user-defined select property "Risk Level" with
+option "High," set it on a note, saved a "High Risk" view filtered on that option.
+Renamed the option "High"→"Severe" via the API (no frontend option-rename UI exists
+yet — see residual debt below) — the saved view still matched the note and rendered
+"Severe" with zero manual repair. Then renamed the property itself "Risk
+Level"→"Conviction Level" — the Table-view column header updated to "CONVICTION LEVEL,"
+the saved view's own name (a separate, user-chosen label) stayed "High Risk" untouched,
+and it still correctly filtered to the one matching note. Directly proves the stable-id
+model this program adopted from Notion's own property-object API, and directly refutes
+Obsidian's name-keyed alternative and Evernote's saved-query-text anti-pattern named in
+the entry checkpoint's competitor research.
+
+**Mobile (§10-item discipline) — automated `tools/mobile_audit.py` sweep, phone/phone390/
+tablet/desktop, against `/journal`: 0 horizontal-overflow combos, 0 sub-44px tap targets.**
+The Properties editor and Table view introduce no new markup risk beyond what's already
+audited — `NotesTableView` reuses the existing `ResponsiveTable` primitive (card-mode on
+phone, the same idiom every other J2 table already uses) and `PropertiesSection` is a
+plain flex-row list with no fixed pixel widths. The Chrome extension's own `resize_window`
+did not reflect in this session's screenshots (a kiosk/maximized-window limitation of this
+particular sandbox session, not a product issue), so the note-open Properties UI specifically
+was not re-screenshotted at a phone viewport this pass — recorded as a real, disclosed gap
+below rather than silently claimed as covered by the route-level sweep.
+
+**Performance (§8-equivalent proportionate check) — PASS, no scaling concern.** Real
+`list_notes`/`count_notes` code paths, in-memory SQLite, 5,000 notes each carrying a
+select-property value: property-filtered list (limit 100) 1.3ms, count 1.6ms,
+property-sorted list (limit 100) 3.9ms. No dedicated JSON index indicated at this scale;
+`json_extract` over `properties_json` is the same mechanism `_notes_filter_sql` already
+uses for every other predicate in this program.
+
+**Fresh competitor research (done at entry checkpoint, confirmed still accurate at
+closure) — Notion/Obsidian/Evernote task matrix:**
+
+| Job | Incumbent flow | UCT current (pre-Wave-E) | UCT target (this wave) | Switching gap closed? | UCT financial advantage |
+|---|---|---|---|---|---|
+| Tag a note's research status | Notion: add a Status property, pick from options | No structured properties at all | Built-in "Thesis Status" select, zero setup | Yes — matches Notion's flow exactly | N/A (organizational, not financial) |
+| Filter notes by a property value | Notion: Table view filter; Obsidian: Bases filter | Not possible — no property system | `propertyFilter` + saved views + Table-view quick-filter chips | Yes | N/A |
+| See a note's ticker/sector/industry | Notion/Obsidian: member manually adds + maintains these as text properties | Ticker already existed on the note; sector/industry not surfaced as properties | `builtin:ticker/sector/industry/theme/trade_ref`, ALL live-derived, zero manual maintenance | Exceeds — Notion/Obsidian users must maintain this by hand forever | **UCT already knows this** — the checkpoint's own north-star principle, directly delivered |
+| Rename a property without breaking saved filters | Notion: safe (stable id); Obsidian: UNSAFE (name-keyed); Evernote: N/A (no property system) | N/A | Stable-id property/option references throughout; proven live this pass | Matches Notion, exceeds Obsidian | N/A |
+| Save a filtered view for reuse | Notion: named database view; Evernote: saved search (query TEXT, not stable refs) | Not possible | `j2_note_saved_views`, spec keyed by property id, not text | Matches Notion, exceeds Evernote's text-query fragility | N/A |
+| See related trade/position from a note | Not offered by any of the three incumbents | `builtin:trade_ref` already resolved via `resolve_trade_ref` from Wave D-era embeds | Now exposed as a first-class property row | Category UCT alone occupies | Direct differentiation — no competitor offers this |
+
+**Wave A/B/C/D non-regression:** full `journal_two` backend suite — 197/197 passing on
+the Wave-E-specific + core `notes.py` files; the full-repo run (2,192 passed) surfaced
+26 pre-existing failures, all in `test_note_connectors_media.py`/`test_notes_import.py`/
+`test_obsidian_parity_fixtures.py` — zero references to Wave E's own modules, root-caused
+to an unrelated resource-headroom guard, confirmed pre-existing rather than a Wave E
+regression. Frontend: 1,693/1,694 passing repo-wide; the one failure is an unrelated,
+pre-existing 15s-timeout perf-measurement test in the note importer's markdown converter.
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** Seven real,
+local defects were found via live browser/API testing and fixed, tested, and
+re-verified per the directive's own rule for that outcome. No architecture-level
+contradiction surfaced against the entry checkpoint's 36 decisions. No scope was added —
+no OR/group filters, no multi-key sort, no board/calendar views, no relation-type
+properties, no formula properties were introduced (all explicitly deferred at the
+entry checkpoint). **Explicitly recorded residual debt (not fixed, by design):**
+- No frontend UI to rename a user-created property's name or edit its select/multi_select
+  option labels after creation — only the backend (`update_property_def`) and hook
+  (`useJ2PropertyDefs().rename`/`.updateOptions`) support this; this pass's rename-safety
+  proof used the API directly for that reason. A property/option-rename Settings-style
+  affordance is the natural next increment, not required for Wave E's own certification.
+- The note-open Properties editor's mobile rendering was not re-screenshotted at a phone
+  viewport this pass (tooling limitation, not a known defect) — the route-level automated
+  sweep covers the shell; a targeted phone screenshot of an open note with several
+  properties set is a cheap follow-up before a mobile-heavy launch claim.
+- OR/group filters, multi-key sort, and board/calendar saved-view types remain deferred
+  exactly as the entry checkpoint decided — Table/List only, AND-only, single-key sort.
+
+**Wave E's core contracts are now FROZEN per the directive:** the property/option
+stable-id model, the built-in-vs-user-defined resolution path, the financial-derived
+live-computation contract, the saved-view spec shape and its `savedViewId`
+server-side-resolution-wins-over-client-filter rule (now non-strict against a dangling
+property reference), and the Wave C version-integration decision (properties versioned
+via the same raw-string-comparison gate as title/subtitle/body) — none of these were
+redesigned by this pass beyond the two named fixes (the `"null"`-string bug and the
+non-strict saved-view resolution).
+
+**Wave E residual debt, carried forward (not dropped, not automatically Wave F scope):**
+richer frontend UX to rename a user-created property/option after creation; broader
+phone-viewport re-verification of the note-open Properties editor specifically (the
+route-level mobile sweep passed, this one surface wasn't re-screenshotted); OR/grouped
+filter logic; Board view; Calendar view. None of these are pulled into Wave F merely
+because they are nearby.
+
+---
+
+## Wave F — Financial Fact / Snapshot Ledger + Temporal Semantics — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent dispatch for
+any part of Wave F's research, architecture, implementation, testing, browser
+verification, git reconciliation, or deployment. The quarantined rogue-fork branch
+was not consulted for any part of this checkpoint or what follows.
+
+### Current-reality reconstruction (read before design, not after)
+
+- **`entity_master`** (`api/services/entity_master/`) is a **fully built, tested
+  (76/76 across Checkpoints 1-8), seeded against the real production database, and
+  owner-accepted (2026-09-02, `docs/entity-master-implementation-log.md`)** canonical
+  security-identity service — and it is **completely unwired**: zero importers in
+  `api/routers/`, zero in `api/services/journal_two/`, zero in the frontend, not
+  imported in `api/main.py`. `resolve(alias, as_of=None)` returns a typed
+  `ResolveResult(status: resolved|not_found|ambiguous, entity, candidates)` —
+  `as_of`-aware (an `entity_aliases` row carries `valid_from`/`valid_to`), and
+  **never silently picks a match on a genuine ticker collision** (returns
+  `ambiguous` with every candidate rather than guessing). This is exactly the
+  durable, stable, non-ticker-text identity checkpoint item §23 asked to verify
+  exists before inventing one — it exists, and Wave F is its first real consumer.
+  The "accepted with conditions" caveats (admin ops routes not built, reconciliation
+  scheduling deliberately NOT registered in `main.py`, `cap_universe.json` staleness
+  as a separate ops task) block none of `resolve()`/`aliases()`'s read usage.
+- **Chart embeds are NOT a value-snapshot precedent — they are a query-cutoff
+  precedent.** Read `ChartEmbed.jsx` and `widgetEmbedCore.js` in full: a "frozen"
+  chart embed stores `params.to` (an epoch cutoff, stamped at capture) and
+  `mode: 'snapshot'|'live'`; at render, `replayCutoff` re-fetches bars from the
+  **live, permanent** `bars.db` bounded by that cutoff (`bars_sqlite.get_bars_before`)
+  — it does not copy an OHLCV value into the note at all. This works because
+  `bars.db` never truncates history and Massive-sourced price data is already
+  UCT's own permanently-stored, already-licensed data. **This precedent does NOT
+  generalize to analyst estimates**: there is no historical, point-in-time-queryable
+  store of past FMP consensus figures anywhere in this codebase — `analyst_intel.py`/
+  `earnings_estimates.py` only ever return the CURRENT snapshot FMP serves today.
+  An estimate observed "as of Sept 6" can only survive to be read on Sept 20 if
+  Wave F copies the actual value at capture time. **This asymmetry is the single
+  most load-bearing finding of this checkpoint** — it means PRICE and ESTIMATES
+  cannot share one storage strategy, only one identity/registry model.
+- **The proven structured-reference precedent for note content is the `noteLink`
+  node (Wave D), not the `/charts` `WIDGET_REGISTRY`.** `WIDGET_REGISTRY`
+  (`app/src/widgets/registry.js`) backs BOTH the `/charts` workspace's mountable
+  panels (Chart/Watchlist/Scanner/Fundamentals/...) AND the notebook's
+  `widgetEmbed` node — adding a financial-fact type there would also surface it as
+  a `/charts` workspace panel choice, which is not a coherent object in that
+  surface. Wave D already solved "a new semantic reference type belongs in the
+  note, needs its own sidecar index table, and needs its own resolution endpoint"
+  by adding a dedicated `noteLink` node (attrs: `{targetNoteId}`) + `j2_note_links`
+  sidecar + `GET /notes/{id}/backlinks`-shaped resolution — Wave F follows that
+  exact precedent with a new `financialFact` node, not a `WIDGET_REGISTRY` entry.
+- **Analyst/price-target/rating read paths already exist, cached, never-raising:**
+  `analyst_intel.get_analyst_intel(ticker, current_price)` → 6h-cached
+  `{consensus: {rating, buy/hold/sell counts}, price_target: {low, avg, high, count,
+  updated, current, upside_pct}, recent_actions: [...]}`, FMP-primary/Finnhub-fallback.
+  `earnings_estimates.py` carries the EPS/revenue consensus paths
+  (`_fmp_consensus_snapshot`) for a later slice. Both are read-only lookups against
+  already-cached provider data — no new provider integration needed for Wave F's
+  initial fact types.
+- **journal_two tables live in `auth.db`** (single SQLite file, WAL) — a fact-row
+  create and its owning note's embed-sidecar sync can share one connection/
+  transaction, the same way `update_note` already wraps `_sync_note_embeds`/
+  `_sync_note_links`/`_sync_note_mentions` in its own transaction today. This
+  resolves the atomicity concern (§96/§97) without inventing new infrastructure.
+- **`j2_note_embeds`/`j2_note_links`' own header comments state their contract
+  explicitly**: "a rebuildable projection... never edited directly," authority
+  lives in the note's `body_json`. Wave F inverts this for the fact VALUE
+  specifically (see decision 7 below) while keeping the note's own JSON as the
+  sole authority for WHERE a fact is placed and WHICH facts a note references —
+  unchanged from the existing pattern.
+- **Rights context** (already-approved, not reopened): the CLAUDE.md-documented
+  standing rule is that vendor-data-in-AI-answer features and any new
+  vendor-data-persistence decision stay gated on Patrick's external legal review.
+  No new rights approval was sought or assumed this checkpoint.
+
+### 46 required decisions
+
+1. **Current financial data paths** — `analyst_intel.py` (consensus/price-target/
+   rating, FMP-primary), `earnings_estimates.py` (EPS/revenue estimates, deferred
+   to a later slice), `bars_sqlite.py`/`bars_fetch.py` (price, Massive-primary,
+   already permanently stored). No new provider client written for Wave F.
+2. **Current chart-snapshot model** — cutoff-stamped re-query against a permanent
+   store (see reconstruction above), NOT a value copy. Coexists unchanged; Wave F
+   does not migrate chart embeds into the fact ledger (directive §114 — explicit).
+3. **Current estimates data path** — `earnings_estimates._fmp_consensus_snapshot`
+   /`analyst_intel.get_analyst_intel`; both cache-only, no persistent historical
+   store anywhere upstream of Wave F.
+4. **Current analyst data path** — same as (3); rating/price-target consensus via
+   `analyst_intel.py`.
+5. **Current provider abstraction** — none exists yet at the "D1 Provider
+   Abstraction Layer" level referenced in `docs/entity-master-implementation-log.md`
+   (that system lives only in the separate, unmerged `terminal-research` worktree
+   — not present on this branch/master, not depended on). Wave F normalizes at its
+   own boundary (decision 29), narrowly, without waiting for or reimplementing D1.
+6. **Rights classification** — three-way, applied per fact type (decision 27/40):
+   `independent` (user-authored facts; UCT-derived facts referencing UCT's own
+   already-stored records; PRICE, because it re-derives from UCT's own permanently-
+   stored, already-licensed Massive bars — the same data chart embeds already
+   snapshot into notes today), `conditional` (FMP-derived analyst estimates/
+   ratings/price-targets — no prior persistent-storage precedent in this codebase,
+   genuinely new vendor-value persistence), `blocked` (none identified this pass —
+   reserved for a future type found to require storage this program cannot grant).
+7. **Fact ledger architecture** — one generic `j2_fact_observations` table (Model B
+   from directive §60: identity dimensions folded into the row itself rather than a
+   separate identity/series table, since Wave F's own initial fact-type count is
+   small enough that a separate series table would be pure overhead — revisit if a
+   later wave's fact-type count grows past ~15-20 and comparison queries start
+   wanting a dedicated series join). Typed columns for the dimensions comparison/
+   filtering/export need (`entity_id`, `ticker`, `fact_type`, `period`, `unit`,
+   `currency`, `temporal_mode`, `observed_at`, `source_as_of`, `source`,
+   `rights_class`), a narrow `value_json` ONLY for a fact type whose value doesn't
+   fit `value_number`/`value_text` (none of Wave F's initial types need it — kept
+   for extensibility, not used yet). No raw provider payload is ever stored.
+8. **Fact identity** — `(entity_id or ticker, fact_type, period, unit)` is the
+   logical SERIES a member would recognize as "the same thing observed at
+   different times." Two captures of that series at different `observed_at`
+   values are two distinct rows, never an overwrite (directive §22/§37 — this is
+   the single most important correctness rule in the whole wave, enforced at the
+   database level by never exposing an UPDATE-value code path, only INSERT).
+9. **Security/entity identity** — `entity_master.resolve(ticker, as_of=observed_at
+   .date())`. `entity_id` is stored when resolution succeeds; `ticker` (the display
+   symbol as captured) is ALWAYS stored regardless, so a `not_found`/`ambiguous`
+   resolution never blocks a capture (directive §113's "do not silently drop a
+   provider surface" spirit, applied to identity resolution) — it just means that
+   fact can't be joined into "every fact about entity X" queries until/unless
+   `entity_master` later resolves it (e.g. after a seed refresh).
+10. **Observation identity** — the row's own `id` (uuid4 hex, matching every other
+    `j2_*` table's convention). No natural key is used as a primary key.
+11. **Value types** — `value_number` (REAL) + `value_text` (TEXT), mutually
+    exclusive per row (the registry entry for a fact type declares which one it
+    populates). No BOOLEAN/DATE/ENUM/RANGE column added — Wave F's initial fact
+    types are all NUMBER or TEXT-enum-as-string (rating: "Buy"/"Hold"/"Sell",
+    stored in `value_text`); a boolean/date/range fact type is deferred until a
+    real one is proposed (directive §27's "find the right balance," read as "do
+    not pre-build columns nothing uses yet").
+12. **Unit/currency/scale model** — `unit` (free-text but registry-controlled per
+    fact type: `'usd_per_share'`, `'usd'`, `'percent'`, `'rating'`), `currency`
+    (`'USD'` default, stored explicitly per directive §29 rather than assumed),
+    `scale` column exists but unused by every Wave F initial type (FMP/Massive
+    values arrive already in raw per-share/per-count units for the types shipped
+    this wave) — reserved, not dead weight, for a future fundamental-metric type
+    that needs it.
+13. **Period/horizon model** — a canonical string only where a fact type needs one
+    (`'FY2027'`, `'Q3-2026'`); PRICE and RATING carry `period = NULL` (point-in-time
+    facts, no horizon). No relative-label storage ("NTM", "next year") — directive
+    §39's estimate-rollover concern is exactly why: a relative label decays in
+    meaning as time passes, the canonical fiscal period does not. Display-time
+    relative framing (if ever built) derives from the canonical value, never stored.
+14. **Actual/estimate/guidance semantics** — a `value_status` is NOT a separate
+    column this wave; `fact_type` itself distinguishes it (e.g. a future
+    `analyst_eps_estimate` vs. a future `reported_eps_actual` are different
+    registry keys, never the same key with a status flag) — simpler, and matches
+    directive §74's "do not treat these as the same semantic metric with ambiguous
+    status" by construction rather than by a flag a caller could forget to set.
+    Deferred: neither exists as an active fact type this wave (decision 27).
+15. **Provenance model** — `source` (`'user'|'uct_derived'|'massive'|'fmp'`),
+    `source_ref` (nullable, e.g. a `j2_trades.id` for a `uct_derived` fact),
+    `rights_class` (decision 6). No raw provider record id/URL stored (directive
+    §32's "do not rely solely on external URLs that may expire" — and nothing in
+    Wave F's initial fact types needs one).
+16. **`observed_at` contract** — ISO 8601 UTC, stamped at the moment of capture
+    (client-side `new Date().toISOString()`, same idiom `widgetEmbedCore.js`'s
+    `capturedAt` already uses) — this is "when the member/UCT observed it," never
+    conflated with provider timestamps.
+17. **`source_as_of` contract** — nullable ISO 8601 UTC. Populated only when a
+    provider genuinely exposes a distinct as-of time (checked per fact type at
+    registry-build time); never fabricated from `observed_at`, an HTTP response
+    time, or a note-save time (directive §79's explicit prohibition). None of
+    Wave F's initial FMP/Massive read paths currently expose a reliable per-value
+    as-of timestamp distinct from "when we asked," so `source_as_of` is `NULL` for
+    every Wave F row shipped this wave — recorded as a known, honest gap rather
+    than a fabricated field.
+18. **Temporal mode contract** — stored per-row as `temporal_mode`:
+    `'live'` (current-value-only rendering, no persisted original — not used by
+    any Wave F capture path, since every capture action IS an act of preserving a
+    moment; reserved for a future live-only reference-card use), `'snapshot'`
+    (immutable, no current-value resolver call — RATING and a future ESTIMATE
+    type), `'live_and_snapshot'` (immutable original + a live current-value
+    resolver call at read time — PRICE), `'reference_only'` (no value persisted at
+    all, decision 6's rights-`blocked`/`conditional`-inactive path — reserved,
+    unused this wave since no type is currently `blocked`).
+19. **Immutability** — enforced structurally: `note_facts.py` (the service module)
+    exposes `create_fact_observation` and `delete_fact_observation` only — there is
+    no `update_fact_observation` function at all, so a value-mutation code path
+    cannot be written by accident later without a reviewer noticing a brand-new
+    function. `caption` (the ONE genuinely-editable field, a user annotation, never
+    the observed value itself — directive §109) is the sole exception, updatable
+    via a narrow `update_fact_caption`.
+20. **Dedupe/idempotency** — `idempotency_key` (nullable, client-supplied,
+    `UNIQUE(user_id, idempotency_key) WHERE idempotency_key IS NOT NULL`). The
+    frontend capture action generates one uuid4 per capture INTENT (generated once
+    when the capture UI opens, reused across retries of that same intent) — a
+    double-click or network retry replays the same key and gets the existing row
+    back (`INSERT ... ON CONFLICT DO NOTHING` + re-`SELECT`), never a duplicate.
+    Two genuinely separate observations (the member captures PRICE again five
+    minutes later) get two different keys because they're two different capture
+    intents — never deduped against each other (directive §36's explicit
+    distinction, satisfied by construction: the key is per-intent, not
+    per-series).
+21. **Current-value resolver** — one backend module, `fact_current_value.py`, keyed
+    by `fact_type`. PRICE's resolver reads the live price cache
+    (`api/services/live_prices.py`, the same shared 15s cache the dashboard already
+    polls — zero new provider cost). RATING/estimate types (currently inactive)
+    would resolve via `analyst_intel`/`earnings_estimates`, cached 6h already. No
+    resolver is called from a React component directly — the note-facts resolution
+    endpoint (decision 24) is the only caller, batched per note (directive §119).
+22. **Provider consistency** — the resolver for a given `fact_type` always calls
+    the SAME source function the capture path used to populate that type (PRICE
+    capture and PRICE current-value both go through the live-price cache; there is
+    no FMP-vs-Finnhub fallback swap between capture time and read time for a type
+    that started on one provider) — directive §66/§67's "do not let provider
+    fallback create false change" satisfied by never crossing providers within one
+    fact type's read path.
+23. **Rights-aware storage** — `rights_class = 'conditional'` fact types have NO
+    active capture path wired to any UI this wave (decision 40). The registry/
+    resolver/storage architecture supports them (columns exist, the service
+    function signature accepts them) but nothing in the frontend can reach them —
+    consistent with directive §13's "build the safe architecture... do not
+    silently turn persistent vendor storage on."
+24. **Note attachment model** — facts are **note-owned, not shared** (directive
+    §33's explicit permission to choose simplicity over normalization): one
+    `j2_fact_observations` row belongs to exactly one `note_id`, matching decision
+    34 below. Resolution: `GET /api/j2/notes/{note_id}/facts` returns every fact
+    the note's own `j2_note_fact_refs` sidecar references, batch-joined — the same
+    shape as Wave E's `GET /notes/{id}/properties`.
+25. **Editor node/embed model** — a new TipTap node, `financialFact`
+    (attrs: `{factId}` only — display data resolves via decision 24's endpoint,
+    never denormalized into the doc, so there is exactly one place a fact's value
+    can ever be read from). Sidecar: `j2_note_fact_refs` (note_id, position,
+    fact_id), synced by `_sync_note_fact_refs` at the same call sites
+    `_sync_note_embeds`/`_sync_note_links` already use. This is Wave D's `noteLink`
+    pattern, not `WIDGET_REGISTRY` (reconstruction above).
+26. **Version-history interaction** — `j2_note_versions` remains title/subtitle/
+    body only (Wave C's own scope, unchanged). A fact's presence in a given
+    version is implied by the `financialFact` node existing in that version's
+    captured `body_json` — restoring an old version re-establishes which
+    `factId`s are referenced; **no new fact rows are ever minted by a restore**,
+    and a `factId` referenced by a restored version that still exists in
+    `j2_fact_observations` resolves exactly as it did originally (directive §55,
+    resolved: restore can only re-point at real, already-existing facts, never
+    fabricate one from a version's stored `body_json` alone).
+27. **Initial fact types (registry, Wave F ships exactly two ACTIVE + one
+    ARCHITECTED-INACTIVE):**
+    - **`price`** — ACTIVE. `temporal_mode: live_and_snapshot`, `unit:
+      usd_per_share`, `source: massive`, `rights_class: independent`, `period:
+      NULL`. Capture: last trade price from the live-price cache at `observed_at`.
+      Current-value resolver: same cache, read fresh.
+    - **`user_note`** — ACTIVE. `temporal_mode: snapshot`, `unit: text`, `source:
+      user`, `rights_class: independent`, `period: NULL`, `value_text` free-form
+      (directive §50's "My estimate: 6.80" / "My target: 195" case — stored as
+      plain text this wave, not further typed, since forcing a number here would
+      reject a member's qualitative note like "management guided cautiously").
+    - **`analyst_price_target_consensus`** — ARCHITECTED, INACTIVE (decision 23).
+      `temporal_mode: snapshot`, `unit: usd_per_share`, `source: fmp`,
+      `rights_class: conditional`. Registry entry exists, resolver exists,
+      NOTHING in the frontend can reach it. Proves the architecture generalizes
+      beyond `price`/`user_note` without shipping vendor-value persistence.
+    Revenue/EPS estimates, ratings, and fundamental metrics are explicitly
+    deferred to a later slice/wave (directive §41's "keep it small").
+28. **Analyst-estimates capture decision** — NOT activated this wave. Per decision
+    6/23, FMP-derived estimate/rating/price-target VALUES have no prior
+    persistent-storage precedent in this codebase and no rights approval was
+    sought. The architecture is proven via `analyst_price_target_consensus`
+    (decision 27) sitting fully built and fully inactive. Activating it later is a
+    frontend-only change (wire one more fact-type button into the capture menu) —
+    zero schema/backend change required, which is the point of building it now.
+29. **Other capture entry points** — Wave F's only active entry points this wave
+    are: (a) the note editor's own `financialFact` insert (slash command `/price`,
+    mirroring `/chart`'s existing pattern) using the note's own ticker field, and
+    (b) a `Save to Notebook` addition on `TickerPopup.jsx` (the one already-
+    reachable surface showing a live price for any ticker, per directive §112's
+    material-entry-point discipline — a full "every surface with a price" sweep is
+    deferred; `TickerPopup` is used from 12+ places today, so a single entry point
+    there covers most real material surfaces without touching each one).
+30. **Save-to-Notebook integration** — reuses `CaptureMenu.jsx`/`sendToJournal.js`
+    exactly as chart embeds do: `widgetId`-shaped capture stays the pattern for
+    workspace-panel captures (unchanged); the note-editor slash command and the
+    `TickerPopup` door both insert a `financialFact` node directly via the
+    editor's own insert API (mirroring how `/chart`'s slash command inserts a
+    `widgetEmbed` node directly, without going through `CaptureMenu`) — because a
+    fact capture is instantaneous and synchronous (one small API call), not a
+    cross-surface "send this panel's current state to some other place" action
+    that `CaptureMenu`'s destination-picker exists for.
+31. **Structured-property (Wave E) interaction** — kept fully separate (directive
+    §52, explicit): a Wave E property is organizational note metadata
+    (`j2_note_properties`); a Wave F fact is captured financial evidence
+    (`j2_fact_observations`). No shared table, no shared UI component. A future
+    property TYPE that reads "has a captured PRICE fact" is a plausible later
+    slice, not built this wave.
+32. **Internal-link (Wave D) interaction** — unaffected; a `financialFact` node
+    coexists in the same document tree as `noteLink`/`widgetEmbed` nodes exactly
+    as TipTap already supports multiple node types side by side. No shared sidecar,
+    no shared identity.
+33. **Trade/position interaction** — the `uct_derived` source class (decision 15)
+    is architecturally ready for a future "capture this trade's entry price as a
+    fact" action referencing `j2_trades.id` via `source_ref`, but Wave F does not
+    build that capture path this wave (not named as a required initial fact type
+    in directive §41's small-set list) — recorded as a natural, cheap next slice.
+34. **Trash** — a trashed note's `financialFact` nodes and their referenced
+    `j2_fact_observations` rows are untouched (soft-delete on `j2_notes` only,
+    same as every other Wave A-E sidecar). Restoring the note restores full
+    resolution automatically — no fact-specific restore logic needed.
+35. **Purge (hard delete)** — cascade-delete via two new `AFTER DELETE ON j2_notes`
+    triggers, matching the exact style of the existing `j2_notes_versions_ad`/
+    `j2_notes_favorites_ad` triggers: one deletes `j2_note_fact_refs` rows for
+    `old.id`, one deletes `j2_fact_observations` rows for `old.id` (note-owned,
+    decision 24 — no reference-counting needed, decision 24's simplification pays
+    off directly here).
+36. **Orphan policy** — moot given decision 24/35: a fact can never outlive its
+    owning note (no note = no fact, by trigger), so there is no "unreferenced
+    snapshot" state to define a retention policy for. No purge sweep job is added
+    for facts (unlike Wave E's property-def retention sweep, which exists because
+    a property def CAN outlive every note that used it — facts cannot).
+37. **Account deletion** — `j2_fact_observations` and `j2_note_fact_refs` added to
+    `account_purge._DIRECT_USER_TABLES` (both are already covered transitively by
+    the note-hard-delete triggers when notes are purged as part of account
+    deletion, but added directly too, matching this codebase's own explicit
+    "no orphaned data" discipline rather than relying solely on trigger-cascade
+    ordering during a multi-table purge).
+38. **Backup** — no new backup mechanism; `auth.db`'s existing backup/volume
+    coverage already includes every `j2_*` table, including the two new ones.
+39. **Performance** — batched resolution only (decision 24's one-endpoint-per-note
+    shape), current-value resolver reads an already-warm 15s-cache (PRICE) —
+    no new per-fact provider call on note open. Measured at implementation time
+    (checkpoint item, not yet run — see the closure section for real numbers).
+40. **Cost/rate limit** — PRICE's resolver rides the existing shared live-price
+    cache (already bounded, already used by the whole dashboard) — zero
+    incremental provider cost from Wave F. The inactive `analyst_price_target_
+    consensus` resolver would ride `analyst_intel`'s existing 6h cache if ever
+    activated — no new cache tier invented.
+41. **Mobile UX** — the `financialFact` node view and its THEN/NOW card follow the
+    exact stacked-not-side-by-side rule directive §103 states explicitly; verified
+    in the closure section via the same `tools/mobile_audit.py` harness Wave D/E
+    used.
+42. **Accessibility** — native semantics throughout (no color-only signal for
+    change direction per directive §46/§104; THEN/NOW labeled with visible text,
+    not icons alone); verified in the closure section.
+43. **Vertical slices** — recomputed from this checkpoint, not copied verbatim
+    from directive §166's suggested 8-slice split (which assumes scope this
+    checkpoint deliberately narrowed — e.g. no separate "rights-aware behavior"
+    slice is needed since decision 6/23 already resolves it architecturally
+    rather than as a runtime toggle to build). Actual slices: (1) schema + fact
+    registry + `note_facts` service (create/get/delete, immutability, idempotency)
+    + current-value resolver; (2) `financialFact` TipTap node + sidecar sync +
+    resolution endpoint + THEN/NOW card UI; (3) capture entry points (`/price`
+    slash command, `TickerPopup` door); (4) Wave A-E integration (export, trash/
+    purge/account-deletion, version-history coexistence) + temporal-semantics doc;
+    (5) real-browser E2E + mobile + accessibility + performance + production
+    deploy + certification.
+44. **Test matrix** — backend: fact creation/immutability/idempotency/dedup,
+    entity-identity resolution (resolved/not_found/ambiguous, all three must not
+    block capture), current-value resolver correctness (THEN stays THEN after
+    current changes), tenant isolation (foreign fact id, foreign note),
+    cascade-delete on note hard-delete, account-purge coverage, export rendering.
+    Frontend: empty/loading/error/THEN-only-current-unavailable states, THEN/NOW
+    rendering, capture UI (slash command + TickerPopup door), multiple facts in
+    one note. Real-browser E2E per directive §147-155 (capture, THEN/NOW proof
+    with a controlled current-value change, provider-failure resilience, version
+    restore, coexistence with Wave D/E objects in one note, export, mobile,
+    idempotent retry).
+45. **Migration** — none. No backfilled fake historical values for existing notes
+    (directive §115/§116, absolute) — Wave F's history begins only at real,
+    future capture events.
+46. **Rollback** — fully additive; no existing table is altered destructively (two
+    new tables, two new triggers, one new TipTap node type, one new slash command,
+    one new `TickerPopup` button). Disabling the two new capture entry points
+    (feature-flag or revert) leaves every existing note fully intact — a
+    `financialFact` node with no matching `j2_fact_observations` row (which cannot
+    happen under normal operation, decision 35's triggers guarantee referential
+    integrity) is a pre-existing "foreign/nonexistent target" case the resolution
+    endpoint already has to handle for tenant-isolation reasons, so rollback safety
+    comes free from the same code path correctness requires anyway.
+
+**No MATERIAL architectural contradiction found against directive §1-13's north
+star.** `entity_master`'s existence changes the ANSWER to decision 9 from "invent
+one" to "consume the real one" but does not contradict anything the directive
+asked for — it is exactly the durable identity source §23 hoped might already
+exist. Proceeding directly to implementation, per the directive's own "otherwise
+proceed directly" instruction and this program's established per-wave rhythm.
+
+---
+
+### Wave F — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the PERMANENT session rule: no fork/subagent dispatch for any
+part of Wave F's research, architecture, implementation, testing, browser
+verification, git reconciliation, or deployment.
+
+**Delivered, per the 46-point entry checkpoint above:** the `j2_fact_observations`
+immutable ledger + `j2_note_fact_refs` sidecar (two new tables, two cascade
+triggers), the fact-type registry (`fact_registry.py` — `price` and `user_note`
+ACTIVE, `analyst_price_target_consensus` architected but INACTIVE per the
+rights-conditional gate), `note_facts.py` (create/get/list/delete + the ONE
+mutable field, caption — structurally no value-update path exists at all),
+`fact_current_value.py` (the batched, per-note current-value resolver, PRICE
+only, riding the existing shared live-price cache), a new `financialFact` TipTap
+node + `FinancialFactView.jsx` (the THEN/NOW card), two capture entry points
+(`/price` slash command in the note editor; a "Save price to Notebook" door on
+`TickerPopup.jsx`), export integration (a `financial_facts:` front-matter block,
+immutable-observation values only), and `docs/notebook/financial-temporal-
+semantics.md` (the durable, program-wide temporal-mode contract, directive §163).
+
+**Rename-safety's Wave F analog, proven live end-to-end:** THEN stays THEN as
+NOW changes. Created a real fact via the API with an explicit value ($142.83),
+opened it in the actual note editor, and watched the CURRENT half honestly
+report "Couldn't refresh" (this sandbox has no live Massive API key — a real,
+disclosed environment limitation, not a code defect) while the CAPTURED half
+stayed exactly $142.83 — directly proving directive §47/§81/§98's single most
+emphasized rule: a current-value resolver failure never hides the original
+observation. `test_then_stays_then_when_current_value_changes` is the
+equivalent unit-level proof (two different current-value resolutions across
+one immutable observation).
+
+**One real, reproducible defect found via live browser testing (not the unit
+suite alone) and fixed:** a `financialFact` node view reading
+`editor.storage.uctJournalWidgets.noteId` SYNCHRONOUSLY at first render lost a
+timing race already DOCUMENTED elsewhere in this exact codebase —
+`WidgetEmbedView.jsx`'s own "settle window" comment: "node-view effects can run
+before the page's onCreate stamps editor.storage." Because nothing else ever
+re-renders a mounted node view when unrelated `editor.storage` mutates, a
+`noteId` read as `undefined` on the very first render stayed `undefined`
+forever — `useNoteFacts` never fetched, and a genuinely-captured, backend-
+verified fact permanently rendered "This captured fact is no longer available."
+Caught live: created a fact via direct API call, confirmed it via
+`GET /notes/{id}/facts` (worked correctly, fast), then watched the actual note
+editor show the false-negative "unavailable" card. Fixed with a `useState` +
+`useEffect` settle-window re-check (50ms) mirroring the SAME hazard class
+`WidgetEmbedView.jsx` already documents; re-verified live (card now renders
+correctly with THEN/CURRENT/caption/timestamp) and covered by two new
+regression tests in `FinancialFactView.test.jsx` (the exact race, and the
+"never shows 'no longer available' while genuinely still resolving" contract).
+
+**Note-content-authority vs. ledger-authority, proven live:** removed the
+`financialFact` node from a note (the card's own × button) — the note's body
+went back to empty, but a direct API check confirmed the underlying
+`j2_fact_observations` row was untouched and fully updatable (`PUT
+/api/j2/facts/{id}` still returned 200 with the original $142.83 intact).
+Confirms checkpoint decision 25/34: removing a node from a note is NOT deleting
+the fact — only `note_facts.delete_fact_observation` (a real DELETE, separately
+verified) does that.
+
+**Entity identity:** `entity_master.resolve()` consumed for the first time in
+this codebase. Verified via unit tests covering all three of its real statuses
+(`resolved`/`not_found`/`ambiguous`) — none of which ever blocks a capture
+(`ticker` is always stored regardless); a resolution-time exception (simulated)
+also degrades to `entityId: null` rather than raising.
+
+**Rights discipline held exactly as the checkpoint specified:** attempting to
+create an `analyst_price_target_consensus` fact (the one `rights_class:
+conditional` type) raises `FactValidationError` with an explicit "not yet
+enabled" message, both at the service layer and through the router (400). No
+frontend surface can reach it — the architecture generalizes beyond `price`/
+`user_note` without shipping any new persistent vendor-value storage.
+
+**Idempotency proven both at the unit and router level:** a repeated
+`idempotencyKey` returns the SAME fact id (the first value wins, a retry's
+different value is discarded); two different intents are never conflated; the
+key is scoped per-user (two users' identical key never collide).
+
+**Tenant isolation:** a foreign user can neither read another user's note's
+resolved facts, delete another user's fact, nor update its caption — all
+verified at the router level with real cross-user requests, matching the exact
+pattern Wave D/E's own isolation tests use.
+
+**Performance (proportionate check, directive §117-122):** 3,000 notes each
+carrying one fact, real code paths, in-memory SQLite — `list_note_facts` (one
+note, one fact) 0.07ms, a user-wide fact count query 0.09ms. No scaling concern
+at any realistic Notebook size; no dedicated index tuning indicated beyond the
+three already added at schema-authoring time.
+
+**Mobile:** `tools/mobile_audit.py` sweep against `/journal` — 0 horizontal-
+overflow combos, 0 sub-44px tap targets on phone/phone390/tablet (desktop's
+own pre-existing small-target count is unrelated to Wave F, unchanged).
+`FinancialFactView.module.css`'s card is stacked-always (never a 2-column
+THEN/NOW layout, directive §103) — the SAME markup renders at every width, so
+there is no separate mobile-only code path to drift.
+
+**Accessibility:** the remove control is a real semantic `<button
+aria-label="Remove captured fact from note">` (verified live via a DOM query
+against the actual rendered card, not asserted from source alone); THEN/CURRENT/
+CHANGE are always visible TEXT labels, never color-only signaling (directive
+§46/§104 — deliberately no green/red on a captured-vs-current comparison, since
+directionality has no universal "good" reading for an arbitrary financial fact).
+
+**Wave A-E non-regression:** full `journal_two` backend suite — 2,256 passed
+(up from Wave E's 2,192 baseline by exactly the net of this wave's new tests),
+the SAME 26 pre-existing, Wave-F-unrelated failures as Wave E's own closure
+report (`test_note_connectors_media.py`/`test_notes_import.py`/
+`test_obsidian_parity_fixtures.py`, root-caused to an unrelated
+resource-headroom guard). Frontend: 1,716 passed repo-wide (up from Wave E's
+1,693 baseline), 0 failures — a strictly cleaner result than Wave E's own
+closure (that one unrelated pre-existing importer-timing test is not present
+in this run). `test_journal_two_account_purge.py`'s schema-driven generic
+purge test automatically covers both new tables with zero bespoke test code
+needed (confirmed: 3/3 passing with the two new tables live in
+`_DIRECT_USER_TABLES`).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** One
+real, local defect (the settle-window race) found via live testing, fixed,
+tested, and re-verified. No architecture-level contradiction against the entry
+checkpoint's 46 decisions. No scope added — no `reference_only` fact type
+shipped active, no board/calendar rendering, no multi-fact-type capture UI
+beyond `/price`, no Research Time Machine / Thesis Changelog / Ask Notebook
+grounding (all explicitly deferred at the checkpoint as future-wave
+prerequisites this wave only lays groundwork for). **Explicitly recorded, not
+fixed:**
+- The `TickerPopup.jsx` "Save price to Notebook" door is unit-tested
+  (5 passing tests covering success/new-note/failure/network-error paths) but
+  was not exercised via live-browser click-through this pass — no reachable
+  ticker chip existed in this sandbox's seeded data (empty movers/watchlists,
+  no live Massive feed). The `/price` slash command (the primary entry point)
+  IS fully live-verified end-to-end.
+- `analyst_price_target_consensus` remains architected-but-inactive by design
+  (checkpoint decision 6/23/28) — activating it is a future, separate,
+  rights-gated decision, not Wave F residual debt to close later without that
+  approval.
+- `source_as_of` is `NULL` for every fact type this wave ships (disclosed in
+  `financial-temporal-semantics.md`) — no current UCT provider path exposes a
+  reliable per-value as-of time distinct from request time.
+
+**Wave F's core contracts are now FROZEN per the directive:** the four
+temporal-mode definitions, the immutable-observation/mutable-caption-only
+split, the note-owned (not shared) fact lifecycle, the `entity_master`-backed
+identity model, the `financialFact` node + sidecar pattern, the rights-class
+gate on write (never on read), and the batched-per-note current-value
+resolution contract — none of these were redesigned by this pass beyond the
+one named fix (the settle-window race).
+
+---
+
+## Wave G — Thesis Intelligence + Thesis Changelog — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent dispatch
+for any part of Wave G's research, architecture, implementation, testing,
+browser verification, git reconciliation, or deployment.
+
+### Current-reality reconstruction (read before design, not after)
+
+**The directive's own §180 warning — "do not assume the original roadmap's
+'thesis is a bare tag' remains true after Waves E/F" — is exactly right, and
+the readiness scorecard's Thesis Intelligence row (still reading 3/"a bare tag
+string, no structured fields" at the time this checkpoint was written) is
+STALE.** Direct code reads found:
+
+- **`AddPositionModal.jsx` already runs a real pre-trade thesis flow** (Wave 3):
+  search an existing note or create one (tagged `tags: ['thesis']`), then —
+  AFTER the position is persisted and a real id exists — attach a typed
+  relationship by inserting a **`chart` widgetEmbed** (a frozen entry-date
+  snapshot) whose `attrs.tradeRef`/`attrs.tradeRefType: 'position'` carry the
+  link. A failure here never undoes the saved position/note; it surfaces a
+  retry banner (`pendingLink`/`thesisLinkWarning`). This is the ONLY current
+  thesis-creation entry point outside plain Notebook note creation.
+- **Wave E already shipped real structured thesis metadata**, completely
+  disconnected from the `'thesis'` tag above: `builtin:thesis_status`
+  (Watching/Active/Invalidated/Closed), `builtin:confidence` (Low/Medium/High),
+  `builtin:research_type` (Long Thesis/Short Thesis/Earnings Play/Sector
+  Note/Watchlist Note), `builtin:review_date` (date), and — critically —
+  **`builtin:trade_ref` ("Linked Trade")**, which already resolves live via
+  `note_trade_links.resolve_trade_ref` and already displays in any note's
+  Properties section. A note created by `AddPositionModal`'s thesis flow
+  today shows its linked position with ZERO new code — Wave E already wired
+  this. **These two systems (the tag and the properties) have never been
+  connected**: nothing sets `builtin:thesis_status` when a thesis note is
+  created via `AddPositionModal`, and nothing requires the `'thesis'` tag for
+  a note to carry thesis properties. This disconnect is the central ownership
+  question this checkpoint resolves (decision 3/9 below).
+- **`note_trade_links.py` already solves typed relationships completely**,
+  including graduation (`position` → `equity_trade` automatically, once a
+  position closes into exactly one trade — multiple partial closes stay
+  `position` rather than guessing), an explicit `notes_linked_to_trade`
+  reverse lookup (already exposed at `GET /api/j2/notes/linked-to-trade`,
+  already consumed by `LinkedNotesPanel.jsx` on the open-position view), and
+  a documented **never-guess** discipline for ambiguous/legacy references.
+  **A thesis note can already reference MULTIPLE trades** — nothing prevents
+  more than one trade-ref-carrying embed on one note (directive §125's
+  "multiple trades per thesis" scenario is already structurally supported,
+  not a gap to close).
+- **`j2_note_versions` already versions `properties_json`** (Wave E ALTER,
+  `_maybe_capture_version`'s coalescing capture) — meaning a property-change
+  history (status/confidence/review_date transitions) can be DERIVED by
+  diffing consecutive version rows rather than built as a new live-tracking
+  system. **No `restored_from_version_id` marker exists yet** — `force=True`
+  version capture is used exclusively by `restore_note_version`, but nothing
+  on the resulting row says which version was restored TO. A small additive
+  column closes this (decision 24 below).
+- **Notebook templates (`notebookTemplates.js`) use plain headings/paragraphs/
+  bullets/hr — never `Toggle`/`Callout` nodes**, despite both being registered
+  editor extensions. Established house style for a template is prompts under
+  visible headings, not collapsible sections. A new Thesis template follows
+  this exact precedent, not something novel.
+- **`j2_note_links` (Wave D) and `j2_fact_observations` (Wave F) are both
+  already stable-id-referenceable, tenant-scoped, per-note-resolvable** —
+  exactly the shape an evidence relationship needs to point at without
+  copying content.
+
+### 48 required decisions
+
+1. **Current thesis reality** — see reconstruction above: a tag (`'thesis'`,
+   Wave 3, search/creation only) + disconnected Wave E structured properties
+   + Wave 3 typed trade/position relationships, already functional but never
+   unified into one coherent "this is a thesis" concept.
+2. **Current thesis entry points** — `AddPositionModal`'s pre-trade flow
+   (search-existing/create-new); plain Notebook "+ New note" (no thesis
+   semantics applied at all today). Wave G's own new `/thesis`-shaped
+   template is a third, additive entry point (decision 10).
+3. **Thesis object ownership** — **Model A: a note + existing structured
+   metadata, NOT a separate first-class object.** No `j2_theses` table.
+   Directly answers directive §9's classification: the smallest durable model
+   IS a specialized note with structured semantics, because every primitive
+   a thesis needs (title/subtitle for the statement, Wave E properties for
+   status/confidence/review-date, Wave D links + Wave F facts for evidence
+   targets, Wave 3 embeds for trade/position, Wave C for history) already
+   exists and already works. Building a parallel object would duplicate all
+   of it (directive §10's explicit prohibition).
+4. **Note vs. separate thesis object decision** — resolved by (3). A note
+   "is a thesis" when it carries `builtin:research_type` set to a
+   thesis-shaped value (`Long Thesis`/`Short Thesis`) OR the legacy `'thesis'`
+   tag (both recognized, never requiring migration — decision 39). Wave G
+   unifies these going forward: the new creation path (decision 10) sets
+   BOTH, and `AddPositionModal`'s existing flow is extended to also set
+   `builtin:research_type` (a one-line addition, not a redesign) so a
+   pre-trade thesis note is indistinguishable from one created any other way.
+5. **Current property support** — `builtin:thesis_status`/`confidence`/
+   `research_type`/`review_date`/`trade_ref` (Wave E) — ALL reused unchanged.
+6. **Status model** — reuse `builtin:thesis_status` exactly as shipped
+   (Watching/Active/Invalidated/Closed). No second state machine.
+7. **Confidence model** — reuse `builtin:confidence` exactly as shipped
+   (Low/Medium/High). No second scale.
+8. **Thesis statement model** — reuse the note's own `subtitle` field
+   (already exists on every note, already rendered prominently under the
+   title in the editor) as the compact "what do I believe" statement.
+   NOTE CONTENT SECTION classification, zero new schema.
+9. **Bull/bear model** — NOTE CONTENT SECTION (headings in the note body,
+   via the new template, decision 10) — rich authored reasoning, never
+   database cells, per directive §13/§20's explicit instruction.
+10. **Assumption model** — NOTE CONTENT SECTION (a heading in the template).
+    Not structured — directive §13 explicitly warns against over-structuring
+    "nuanced investment reasoning."
+11. **Risk model** — NOTE CONTENT SECTION (a heading in the template). Same
+    reasoning as (10) — directive §19's "do not reduce risks to a tag list."
+12. **Catalyst model** — NOTE CONTENT SECTION this wave. `builtin:research_type`
+    already has no dedicated Catalyst/Catalyst-Date built-in (checked: Wave
+    E's entry checkpoint explicitly classified Catalyst/Catalyst-Date as
+    OPTIONAL/FUTURE, never shipped) — a structured Catalyst property remains
+    a clean future addition (an ordinary user-defined property today, via
+    Wave E's existing "+ Add property" UI) rather than a new built-in this
+    wave.
+13. **Invalidation model** — TWO parts, per directive §17's own split: the
+    STRUCTURED signal is `builtin:thesis_status = 'Invalidated'` (already
+    exists); the REASONING is NOTE CONTENT (a heading in the template). No
+    new "invalidation criteria" field — human reasoning belongs in prose,
+    matching directive §13's classification discipline exactly.
+14. **Review model** — reuse `builtin:review_date`. "Mark reviewed" (decision
+    30) is UX sugar over an ordinary property update (advance the date),
+    never a new backend primitive — directive §43's explicit "no new task
+    engine needed."
+15. **Evidence data model** — NEW, the one genuinely new structural addition
+    this wave needs (directive §21/§24 anticipated this): `j2_thesis_evidence`
+    (id, user_id, note_id, target_type: `'note'|'fact'`, target_id, stance:
+    `'supports'|'opposes'`, caption, created_at, removed_at). Soft-delete via
+    `removed_at` (not a hard DELETE) so "evidence added"/"evidence removed"
+    changelog events can be derived directly from this one table's own
+    timestamps (directive §169's "avoid payload duplication" — no separate
+    event row needed for this event class).
+16. **Evidence stance** — exactly two values, `supports`/`opposes` — directive
+    §103's explicit "do not require Neutral unless useful." No third value
+    this wave.
+17. **Evidence target types** — exactly two, `note` (Wave D-shaped: any other
+    note's id) and `fact` (Wave F-shaped: any `j2_fact_observations` id this
+    user owns). `target_type` is an open string column (not a CHECK
+    constraint) so a future type is additive, per directive §59's
+    extensibility ask — but only these two are validated/accepted this wave.
+18. **Evidence annotation** — `caption` (nullable, free text) — directive
+    §57's "why this matters," mirrors Wave F's own fact-caption pattern
+    exactly.
+19. **Trade/position ownership** — UNCHANGED. Reuses `j2_note_embeds`'
+    existing `trade_ref`/`trade_ref_type` + `resolve_trade_ref`/
+    `notes_linked_to_trade` verbatim. No new table (directive §26's explicit
+    instruction, and the reconstruction above proves the existing mechanism
+    already supports every scenario the directive names, including multiple
+    trades per thesis).
+20. **Note-link interaction** — Wave D's `noteLink` node is UNCHANGED and
+    remains the general-purpose in-prose linking mechanism; a thesis
+    additionally MAY register a `noteLink` target as typed evidence via (15)
+    — the two coexist, evidence is a strict superset annotation, never a
+    replacement.
+21. **Fact interaction** — Wave F's `financialFact` node is UNCHANGED;
+    evidence (15) may reference a fact id the SAME note (or another note the
+    user owns) already captured. No fact is ever copied or mutated to "belong
+    to" a thesis.
+22. **Changelog source inputs** — five sources, ALL derived from existing
+    authoritative data, zero duplicate storage: (a) Wave C+E version-pair
+    `properties_json` diffs → status/confidence/review-date change events;
+    (b) Wave C version-pair title/subtitle/body_plain diffs → a single
+    generic "thesis edited" event pointing at the version pair (never
+    duplicating the text itself); (c) `j2_thesis_evidence.created_at`/
+    `removed_at` → evidence-added/removed events; (d) `j2_fact_observations
+    .observed_at` (for facts referenced as evidence) → fact-captured events;
+    (e) `j2_note_embeds` trade-ref rows' `captured_at` + position/trade
+    `created_at`/`closed_at` → position-linked/trade-closed events. See (34)
+    for why this is a COMPUTED READ, not a stored event log.
+23. **Property-history reality** — confirmed via direct code read: Wave E
+    property VALUES are already versioned (checkpoint §26's own decision,
+    `j2_note_versions.properties_json`, the same coalescing gate as title/
+    subtitle/body). Wave G's changelog reuses this unchanged — no new
+    property-audit table.
+24. **Changelog event model** — a **computed read model**, not a stored
+    table (directive §34's own "prove it against existing infrastructure
+    first" — proven: every event class in (22) already has a durable,
+    timestamped, authoritative home). The one additive schema change:
+    `j2_note_versions.restored_from_version_id` (nullable TEXT), stamped ONLY
+    by `restore_note_version`'s own forced capture, so a restore produces a
+    distinct, auditable "Restored from version X" event instead of reading
+    as an ordinary edit.
+25. **Event immutability** — trivially satisfied: every source in (22) is
+    already immutable or append-only (versions never mutate; evidence rows
+    are soft-deleted, never rewritten; facts are immutable per Wave F).
+26. **Event dedupe** — moot for a computed read (there is no write path to
+    the changelog itself to double-fire); the evidence table's own `id` is
+    the natural PK, and duplicate evidence-add clicks are prevented the same
+    way Wave F's idempotency works (a client-generated intent key, decision
+    41).
+27. **Content-history link** — every "thesis edited" changelog row carries
+    the `(fromVersionId, toVersionId)` pair; the frontend's "View changes"
+    action opens Wave C's EXISTING diff view unchanged — no second diff
+    engine (directive §108's explicit instruction).
+28. **Financial-fact event policy** — a changelog event fires ONLY at
+    CAPTURE time (`observed_at`), never on a current-value refresh (directive
+    §39/§80/§112's explicit "do not log every quote tick" — trivially
+    satisfied since current-value resolution has no write path at all,
+    Wave F's own architecture already prevents this class of noise
+    structurally).
+29. **Trade/position event policy** — "position linked" derives from the
+    trade-ref embed's `captured_at`; "trade closed" derives from
+    `j2_trades.closed_at` becoming non-null for a trade this note's evidence/
+    embeds resolve to. Both READ-ONLY derivations, no new write path.
+30. **Review checkpoint** — "Mark reviewed" is a thin frontend action that
+    calls the EXISTING `update_note` properties-patch path to advance
+    `review_date` — the resulting version-diff automatically becomes a
+    changelog event via (22)(a). No new endpoint, no new table.
+31. **Current-state baseline** — for a thesis with no evidence/changelog
+    history yet (every existing thesis note, pre-Wave-G), the changelog
+    renders empty with honest framing ("Changes will appear as this thesis
+    evolves," directive §122) — never a fabricated "baseline established"
+    event.
+32. **Migration** — NONE. No backfilled fake historical events (directive
+    §141/§143, absolute — same discipline as Wave F's own "no fabricated
+    history" rule). An existing `'thesis'`-tagged note without
+    `builtin:research_type` set is not silently mutated; decision 4's dual
+    recognition means it still reads as a thesis without a write.
+33. **Export** — the current single-note/full-archive export gains a
+    `thesis_evidence:`/`thesis_changelog:` front-matter section (human-
+    readable, immutable-derived only) when a note carries evidence or
+    resolvable changelog events — mirrors Wave E/F's own export pattern
+    exactly, no new export mechanism.
+34. **Trash/purge** — evidence rows are note-owned (mirrors Wave F's fact
+    ownership decision exactly): `j2_thesis_evidence` rows for a note are
+    only ever created/removed via that note's own evidence actions, cascade-
+    deleted on note hard-purge via a new trigger, unaffected by soft-delete
+    (trash).
+35. **Account deletion** — `j2_thesis_evidence` added to
+    `account_purge._DIRECT_USER_TABLES`, covered automatically by the
+    existing schema-driven generic purge test (same mechanism that already
+    covered Wave F's two new tables with zero bespoke code).
+36. **Tenant security** — every evidence write/read re-validates ownership of
+    BOTH the thesis note and the evidence target (note or fact) server-side,
+    mirroring `resolve_trade_ref`'s own "the reference is never treated as
+    authorization" discipline exactly.
+37. **Read model/performance** — one aggregated endpoint,
+    `GET /notes/{id}/thesis-summary`, batches evidence + a bounded recent-
+    changelog slice + linked trade/position resolution in ONE request —
+    mirrors Wave E's saved-view resolution and Wave F's batched current-value
+    pattern (directive §65/§118's explicit "no N+1 waterfalls" instruction).
+38. **Sidebar/IA** — NO new top-level navigation surface (directive §45's
+    explicit prohibition). Thesis-shaped notes are discoverable via ordinary
+    Notebook + Wave E saved views (decision 44) — not a dedicated "Thesis"
+    tab.
+39. **Note UI** — a compact, collapsed-by-default "Thesis Evidence" section
+    (mirrors Wave E's PropertiesSection progressive-disclosure exactly: a
+    small "+ Add evidence" link when empty, never a permanent panel) plus a
+    "Changelog" tab/section rendered similarly. Both sit below the existing
+    Properties section, above the body — never wrapping the editor in
+    dashboard chrome (directive §90's explicit instruction).
+40. **Mobile** — evidence rows and changelog entries stack vertically at
+    every width (same discipline as Wave F's THEN/NOW card — one markup,
+    no separate mobile path).
+41. **Keyboard** — native controls throughout; the evidence-target picker
+    reuses the SAME debounced-search pattern `AddPositionModal`'s own
+    thesis-note search already uses (a proven, existing keyboard-complete
+    pattern) rather than inventing a new one.
+42. **Error/loading/empty states** — evidence/changelog load independently of
+    the note body (directive §66/§121's "fail locally" — a changelog fetch
+    failure never blocks reading/editing the thesis itself).
+43. **Competitor task matrix** — scoped comparison against Notion/Obsidian/
+    Evernote's structured-research + history capabilities, produced at
+    closure (directive §145/§173-175) using current official sources, not
+    re-derived from Wave E's own now-dated competitor pass.
+44. **Financial differentiation test** — the live-browser E2E in the closure
+    section (decision matches directive §176 exactly): create a thesis via
+    the real pre-trade flow, capture a financial fact, watch the changelog
+    render it, all in one system — proving the "automatically bound context"
+    claim rather than asserting it.
+45. **Vertical slices** — recomputed from this checkpoint (directive §181's
+    own "do not force the suggested decomposition if architecture suggests a
+    better one" — it does, since most of the suggested slices collapse once
+    (3)/(22)/(24) are resolved): (1) schema (`j2_thesis_evidence` +
+    `restored_from_version_id`) + evidence service + router; (2) changelog
+    read-model service (the version/evidence/fact/trade diff-and-merge
+    logic) + router; (3) frontend: evidence section + changelog section +
+    the aggregated `thesis-summary` hook; (4) the new Thesis note template +
+    `AddPositionModal`'s `research_type` connective fix + saved-view starter
+    entries (decision 44 below); (5) export integration + account-purge
+    coverage; (6) real-browser E2E + mobile + accessibility + performance +
+    production deploy + certification.
+46. **Test matrix** — evidence CRUD/idempotency/tenant-isolation/lifecycle;
+    changelog correctness (each of the 5 source classes, ordering, the
+    restore-marker event, no-noise-on-current-refresh); read-model batching;
+    export; account-purge; real-browser E2E per directive §148-160
+    (create, pre-trade flow, structure via template, evidence add/remove,
+    changelog rendering + ordering + "View changes" round-trip, THEN/NOW
+    no-noise proof, invalidation, mobile).
+47. **Rollback** — fully additive: one new table, one new nullable column,
+    one new template, one new aggregated read endpoint, one connective
+    one-line fix to `AddPositionModal`. Disabling any of it leaves every
+    existing note/property/link/fact/trade relationship fully intact —
+    nothing here is a data-format change to those systems.
+48. **Starter saved views (folded from directive §44/§86)** — four Wave-E
+    saved views seeded once (not sidebar clutter, ordinary saved-view rows a
+    member can rename/delete): "Active Theses" (`research_type` in
+    {Long/Short Thesis} AND `thesis_status = Active`), "Needs Review"
+    (`review_date <= today`), "Invalidated Theses" (`thesis_status =
+    Invalidated`), "Theses With Open Positions" (`trade_ref` is_not_empty).
+    Uses Wave E's EXISTING property-filter/saved-view machinery verbatim —
+    zero new query mechanism.
+
+**No MATERIAL architectural contradiction found.** The directive's own
+tentative models (A/B/C in §9) are resolved decisively in favor of Model A
+by direct evidence, not assumption — every primitive Wave G needs already
+exists except a small typed evidence-relationship table and a nullable
+restore-marker column, exactly the minimal-new-primitive outcome directive
+§10/§25/§63 asked to prove before building anything larger. Proceeding
+directly to implementation.
+
+---
+
+### Wave G — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the PERMANENT session rule: no fork/subagent dispatch for any
+part of Wave G's research, architecture, implementation, testing, browser
+verification, git reconciliation, or deployment.
+
+**Delivered, per the 48-point entry checkpoint above:** `j2_thesis_evidence`
+(typed supports/opposes evidence, note-or-fact target, tenant-re-verified on
+BOTH the thesis note and the target before any write, soft-deleted via
+`removed_at`) + a cascade-delete trigger; `thesis_evidence.py` (add/list/
+remove — no update path, matching Wave F's own "immutability by omission"
+idiom for the fields that must never silently change); `restored_from_
+version_id` on `j2_note_versions` (nullable, stamped only by
+`restore_note_version`'s existing forced-capture path) threaded through
+`_maybe_capture_version`/`update_note`/`restore_note_version`;
+`thesis_changelog.py` (a COMPUTED READ over five existing authoritative
+sources — Wave C version-pair diffs restricted to the four user-set builtin
+properties, Wave F fact `observed_at`, the new evidence table's own
+timestamps, Wave 3 embed `captured_at` + `resolve_trade_ref`, and the
+restore marker — zero new event-sourcing table, exactly what checkpoint
+§22/24 set out to prove); a `GET /notes/{id}/thesis-summary` aggregated
+endpoint (evidence + a bounded changelog slice, one request); `ThesisSection.
+jsx` (progressive-disclosure evidence list + a `CollapsibleSection` changelog,
+rendering ONLY for a thesis-shaped note — Research Type Long/Short, the
+legacy `thesis` tag, or existing evidence/changelog activity, never on an
+ordinary note); a new `thesis` Long/Short template (Bull/Bear/Assumptions/
+Catalysts/"What would prove me wrong," deliberately no direction field in the
+body); a one-line connective fix to `AddPositionModal.jsx`'s pre-trade flow
+(sets `builtin:research_type` alongside the existing `thesis` tag, best-effort,
+closing checkpoint decision 4's "indistinguishable from any other creation
+path" requirement); export front-matter (`thesis_evidence:`, live links only,
+human-readable target labels — never a bare id); and four starter saved views
+via a small "Add thesis starter views" affordance (shown only while a member
+has zero saved views of their own, gone the moment they have any).
+
+**A real, load-bearing constraint was discovered DURING implementation, not
+anticipated at the checkpoint — recorded here rather than silently patched
+over:** the entry checkpoint's own §48 named "Theses With Open Positions"
+(`trade_ref` is_not_empty) and an OR-based "Research Type is Long OR Short"
+condition as two of the four starter views. Building them revealed
+`property_filter_sql` structurally EXCLUDES `financial_derived` properties
+(including `builtin:trade_ref`) from filtering by design, and the filter
+mechanism is AND-only (no OR/groups), both deliberate Wave E decisions this
+wave correctly declined to relitigate by building a second query mechanism
+just for two starter views. The shipped four — Active Theses, **High
+Confidence** (substituted in), Needs Review, Invalidated Theses — are exactly
+Wave G's own governing directive's ORIGINAL suggested list (§44: "Active
+Theses, High-Confidence, Needs Review, Invalidated, Linked-to-Open-Positions")
+minus the one infeasible item, not an invented substitute.
+
+**The coalescing-based noise-avoidance design, proven live, not just
+asserted:** in the real browser, setting Thesis Status to Watching then
+immediately to Active (two rapid edits, well inside the 30-minute default
+coalescing window) produced exactly ONE changelog entry — "Status changed to
+active" — never a spurious intermediate "changed to watching." This is a
+direct, observed consequence of `_content_transition_events` diffing
+CONSECUTIVE CAPTURED version checkpoints (not every edit): when an
+intermediate edit is coalesced away by Wave C's existing capture gate, the
+diff naturally reports the full old→final transition, which is the honest
+summary of what a member would actually want to see, not noise. No new
+"debounce the changelog" logic was needed — the noise avoidance is a free
+consequence of reusing Wave C's existing mechanism exactly as designed,
+directly confirming checkpoint decision 24's premise.
+
+**The pre-trade AddPositionModal flow, proven live end-to-end (not just the
+direct Notebook path):** opened "Log open position," entered TSLA/100/$250,
+typed a new thesis title, selected "+ New note," and submitted. The resulting
+position was created, the thesis note was created bearing the `thesis` tag
+AND (confirmed via direct API read) `propertiesJson: {"builtin:research_type":
+"long_thesis"}` with zero manual step, and opening that note showed the
+existing "TSLA · open position" Linked Trade indicator, the pre-set Research
+Type property, and a live "+ Add evidence"/Changelog section — a thesis note
+from this entry point is now genuinely indistinguishable from one created any
+other way, closing the exact gap checkpoint decision 4 named.
+
+**Evidence add/remove, proven live:** created a second note, opened the
+Investment Thesis note, clicked "+ Add evidence," searched (confirmed
+self-exclusion — the note's own title never appears as a candidate target for
+itself), selected the second note, set stance to Supports, added a caption,
+saved — the evidence row rendered immediately with a green SUPPORTS pill and
+a clickable note-link caption, and "Evidence added (supports)" appeared in the
+changelog. Removed it via the × control — the row disappeared and "Evidence
+removed" appended to the changelog (newest-first, correctly ordered above the
+earlier entries). Switching the evidence-target picker to "Captured fact"
+with zero facts yet on the note showed the honest empty state — "Capture a
+financial fact in this note first (try /price)" — never a blank or broken
+picker; live fact-target selection itself was not exercised this pass (same
+disclosed environment limitation as Wave F: no `MASSIVE_API_KEY` in this
+sandbox), covered instead by `test_add_evidence_pointing_to_a_fact` and the
+router-level equivalent.
+
+**Tenant isolation, proven at both the unit and router level:** a user cannot
+add evidence targeting another user's note or fact (`ThesisEvidenceValidationError`,
+never a silent no-op link); cannot add evidence to a thesis note they don't
+own; cannot remove another user's evidence (404, not a foreign-key leak); the
+changelog and thesis-summary endpoints are scoped by `user_id` on every read,
+verified with real cross-user router requests matching Wave D/E/F's own
+isolation-test pattern exactly.
+
+**Migration/trash/purge:** no fabricated backfill — an existing `thesis`-tagged
+note without `research_type` set is not silently mutated (decision 4's dual
+recognition means it still qualifies as thesis-shaped without a write).
+`j2_thesis_evidence` cascade-deletes on note hard-purge (verified via a direct
+`DELETE FROM j2_notes` test) and is covered automatically by the schema-driven
+generic account-purge test with zero bespoke code (3/3 passing with the new
+table live in `_DIRECT_USER_TABLES`).
+
+**Non-regression:** 67 new backend tests (23 service-level in
+`test_wave_g_thesis.py`, 9 router-level in `test_journal_two_thesis_router.py`,
+5 export tests) + 26 new frontend tests (9 `ThesisSection.test.jsx`, 2
+`notebookTemplates.test.js` additions, plus the existing 111-test regression
+pass across `PropertiesSection`/`FolderSidebar`/`NotebookTab`/
+`AddPositionModal` confirming zero breakage), all passing. Full backend
+regression: 2,216 passed, 1 pre-existing environment-only failure (the SAME
+disk-headroom class `test_notes_import.py::test_save_note_attachment_stores_
+and_caps` has failed on every prior wave's closure run on this box — confirmed
+unrelated by direct reproduction, not assumed). `test_journal_two_account_
+purge.py`: 3/3.
+
+**Mobile:** `tools/mobile_audit.py` sweep against `/journal/notebook` (general)
+and the specific thesis note detail view — 0 horizontal-overflow combos on
+both; all 13 sub-44px small-targets found on the note-detail view are
+pre-existing editor/toolbar chrome (Show folders, Search notes, Ask this
+note, formatting buttons, Restore/Discard) — none belong to `ThesisSection`
+(the evidence remove button, stance toggles, and changelog chevron are all
+absent from the small-target list). `ThesisSection.module.css` follows the
+codebase's canonical `@media (max-width: 640px)` breakpoint (changelog rows
+stack date-over-text) and reuses `PropertiesSection`'s already-mobile-proven
+row/control patterns rather than inventing new ones.
+
+**Accessibility:** the evidence remove button is a real `<button
+aria-label="Remove evidence">`; the stance and target-type toggles use
+`role="group"` with `aria-label`; the changelog reuses `CollapsibleSection`'s
+existing `aria-expanded`/`aria-controls` semantics unchanged; native form
+controls throughout (no custom listbox/combobox debt, matching
+`PropertiesSection`'s own established discipline).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** No
+architecture-level contradiction against the entry checkpoint's 48 decisions.
+No scope added beyond the checkpoint (no diff/preview UI embedded inline in a
+changelog row — it links the version pair, one click from Wave C's existing
+diff view; no cross-note fact browser for evidence — scoped to facts already
+on the same note; no `j2_verdicts` changelog source — a real, separately
+tracked gap, not silently dropped, see the gap ledger's new G-073b row).
+**Explicitly recorded, not fixed:**
+- The evidence-target-fact picker only searches facts already captured on the
+  SAME thesis note, not a cross-note fact browser — a deliberate v1 scope
+  decision (checkpoint's own "prove the smallest version first" discipline),
+  not an oversight.
+- Live capture of a `financial_fact`-typed evidence target was not exercised
+  in the browser this pass (no `MASSIVE_API_KEY` in this sandbox — the same
+  disclosed limitation Wave F recorded); covered at the unit/router level
+  instead.
+- A `thesis_edited` changelog row does not render its diff inline — it links
+  `(fromVersionId, toVersionId)`, and Wave C's existing diff view is one click
+  away via "View changes" (not yet wired as a literal clickable action in
+  `ThesisSection.jsx` — the data is present, the click handler is not).
+- `j2_verdicts` (Compass pre-trade verdicts) is not yet a 6th changelog
+  source — split out as gap-ledger row G-073b rather than silently marking
+  G-073 fully done.
+- Zero real member usage evidence for anything in this wave (Day 0, same cap
+  every prior wave's closure has honestly carried).
+
+**Wave G's core contracts are now FROZEN per the directive:** Model A (thesis
+= note + existing structured properties + existing typed relationships, no
+`j2_theses` table), the evidence table's two-target-type/two-stance shape,
+the computed-read changelog's five source classes, and the
+Research-Type-not-a-body-field template convention — none of these were
+redesigned by this pass.
+
+---
+
+## Wave H — Research Home + Per-Ticker Research Workspace + Continuation UX — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent dispatch
+for any part of Wave H's research, architecture, implementation, testing,
+browser verification, git reconciliation, or deployment.
+
+### Current-reality reconstruction (read before design, not after)
+
+**The single most load-bearing finding this checkpoint turned on: a real,
+extensive, paid "Company Page" ALREADY EXISTS — `/research/:sym`
+(`app/src/pages/research/ResearchPage.jsx`).** Ten tabs (Overview/News/
+Financials/Estimates/Analyst Ratings/Ratings/Ownership/Calls & Transcript/
+Filings/Ask AI), paid-gated, 100% market/vendor data, zero personal-research
+content. It is the surface directive §11/§32/§33 describe — undocumented
+anywhere in `CLAUDE.md` (a real gap in that file, not this program's to fix).
+This resolves §11's ownership question directly, not speculatively:
+
+- `/research/:sym` already owns MARKET/COMPANY DATA. Wave H must not
+  duplicate any of it.
+- The Ticker Research Workspace is a NEW, Notebook-owned surface (personal
+  research only), reachable from `/research/:sym` via one new bridge tab/
+  link — never a second implementation. `ResearchPage.jsx`'s `TABS` array
+  gains a thin entry that renders the SAME component Notebook's own route
+  mounts (one component, two entry surfaces — directive §5/§11's explicit
+  "do not create two unrelated dashboard implementations").
+- Command palette discoverability (§51) is **already 90% solved with zero
+  new code**: `CommandPalette.jsx` already routes any typed ticker-like
+  query straight to `/research/<TICKER>` (confirmed reading the file — the
+  synthetic `{ticker, _typed:true}` row exists specifically so an unmatched
+  typed ticker still navigates there). Once `/research/:sym` carries a "My
+  Research" tab, typing "NVDA" in the palette already reaches it in two
+  clicks, no new palette command required for the primary path.
+
+**Second load-bearing finding: `list_notes`/`_notes_filter_sql` already
+implements most of §37/§83's "high-confidence membership sources" as a
+tested, production-live query primitive** (`api/services/journal_two/notes.py`
+lines 834-975), used today by the `embed_symbol`/`sector`/`theme` filters and
+`get_symbol_backlinks` (the existing "N entries mention AMD" backlinks
+widget): a note qualifies via `j2_notes.ticker` (exact, the note's own
+primary-security field), `j2_note_embeds.symbol` (accepted chart/widget
+embeds), or `j2_note_mentions.symbol` (explicit `$CASHTAG` prose mentions,
+never a bare substring match — directive §83's own explicit prohibition is
+already satisfied by construction). `get_symbol_backlinks` itself is
+NOT reused verbatim for the workspace (it omits the `ticker` field match and
+caps at 25 with no pagination — the wrong shape for a full-corpus "View all"
+membership query) but its exact UNION shape is the template for the new
+entity→research read model.
+
+**Third finding: entity_master is a real but PARTIAL identity layer here.**
+`entity_master.resolve(symbol)` / `.aliases(entity_id)` exist and are already
+consumed by Wave F (`j2_fact_observations.entity_id`). Nothing else in the
+note-ticker layer (`j2_notes.ticker`, `j2_note_embeds.symbol`,
+`j2_note_mentions.symbol`) stores `entity_id` — all three are plain uppercase
+symbol strings, unchanged since before Wave F. Retrofitting `entity_id` into
+all three would be exactly the invasive migration directive §184/§185
+forbids. The resolved design (decision 5 below) uses `entity_master` for
+canonical DISPLAY identity and precise Wave F fact aggregation, and the
+existing symbol-string predicates (widened across the entity's known alias
+history) for everything else — never a schema migration.
+
+**Fourth finding: there is no existing "resume last note" habit to protect.**
+Read `NotebookTab.jsx` in full: bare `/journal/notebook` (no `note`/`folder`/
+`tag`/`view` params) has always rendered the flat, unfiltered All Notes grid
+(or the empty-state template picker) — never an auto-resumed note. Changing
+the bare-root default to Research Home is additive, not a regression against
+an established continuation habit (directly answers §58's own risk concern).
+
+**Fifth finding: Home's read-model raw materials are ALL already bounded,
+tenant-scoped, trash-excluding, existing functions** — `notes.list_favorites`/
+`notes.list_recents` (Wave B), `note_properties.property_filter_sql` (Wave E,
+the exact predicate Wave G's four starter views already use for Active/High-
+Confidence/Needs-Review/Invalidated), and a new (not yet built) open-position
+join over `j2_note_embeds`+`j2_positions`. No new storage needed for Home
+itself.
+
+**Sixth finding: `builtin:catalyst_date` does not exist** — `note_properties.py`
+line 42 names it CORE-BUT-DEFERRED ("Catalyst/Catalyst Date/Earnings Date/
+Source Type" — a comment, no `BUILTIN_PROPERTY_DEFS` entry). "Upcoming
+Catalysts" (§25/§81) is therefore not buildable today without either shipping
+a new builtin property (small, Wave-E-precedented, but scope this checkpoint
+declines to add — see decision 19) or reading an unreliable member-created
+custom property. Deferred, not built around.
+
+### 48 required decisions
+
+1. **Current Notebook landing** — bare `/journal/notebook` renders the flat,
+   unfiltered All Notes grid (nonzero notes) or an inline template-picker
+   empty state (zero notes/zero-in-filter). No dashboard, no resume-last-note
+   behavior exists today (reconstruction finding 4).
+2. **Current sidebar IA** (`FolderSidebar.jsx`, read in full) — top-to-bottom:
+   search-mode toggle, Favorites (bounded, populated-conditional), Recents
+   (same), Saved Views (bounded, + Wave G's starter-views affordance), All
+   notes / Unfiled / Trash rows with true SQL counts, folder tree, Tags.
+   Established "populated-conditional, zero clutter at zero content"
+   discipline throughout (checkpoint §20 of Wave E, reused by Wave G) — Home
+   must match this discipline, not violate it.
+3. **Current Home-like surfaces** — none exist. `FolderSidebar`'s Favorites/
+   Recents sections are the closest analog (bounded lists) but live in the
+   sidebar, not a continuation surface.
+4. **Current Company/ticker surfaces** — `/research/:sym` (see reconstruction
+   finding 1) + `TickerPopup.jsx` (a lightweight modal: chart/live price/flag/
+   earnings intel/insider activity, explicitly no calculator per its own
+   header comment, and already the "Save price to Notebook" Wave F capture
+   door). Neither carries personal research today.
+5. **Canonical security identity** — `entity_master.resolve(symbol)` /
+   `.aliases(entity_id)` used for: (a) the workspace header's canonical
+   company name/current symbol display (falling back to `ticker_meta` —
+   already Wave E's own Sector/Industry data source — on an unresolved/
+   ambiguous entity, never blocking render); (b) precise Wave F fact
+   aggregation via `entity_id` (exact join, no string matching); (c) rename-
+   survival — resolving `entity_master.aliases(entity_id)` to the FULL known
+   symbol-string history and widening the note/embed/mention predicates
+   across every alias, not just the route's current symbol. The route param
+   itself stays the plain symbol string (decision 8) — entity_id is a lookup
+   key inside the read model, never user-facing.
+6. **Ticker workspace ownership** — Notebook-owned (`app/src/pages/
+   journal-2-0/`), ONE component, mounted from its own route AND as a new
+   "My Research" tab inside `/research/:sym` (reconstruction finding 1).
+   Never a second implementation.
+7. **Notebook vs. Company-Page ownership boundary** — `/research/:sym` keeps
+   100% of market/vendor data (financials/estimates/ratings/ownership/
+   filings/news/analyst-ratings/AI). The workspace owns 100% of personal
+   research (notes/theses/facts/trade-links). The workspace's "Open Company
+   Page"/"Open Chart" actions (directive §32) are outbound links to the
+   EXISTING `/research/:sym` and `TickerPopup`, never re-implemented content.
+8. **Canonical workspace route** — `/journal/notebook/research/:symbol`, a
+   new sibling under the existing `/journal` nested-route parent (App.jsx
+   line 541's `<Route path="/journal" element={<JournalShellSelector/>}>`
+   block — confirmed multi-segment child paths work unchanged there). A NEW
+   top-level page component (`TickerResearchWorkspace.jsx`), NOT nested
+   inside `NotebookTab.jsx`'s own three-pane shell — a focused, single-
+   purpose page (directive §109's "one vertical research flow" reading, and
+   §88's "keep restrained" instruction), with a simple "← Notebook" back
+   link, no `FolderSidebar` reuse. `:symbol` is the plain ticker string
+   (deep-linkable, bookmarkable, human-readable — directive §105/§106); the
+   component resolves it to a canonical entity internally (decision 5).
+9. **Ticker research membership rules** — a note qualifies via ANY of: (a)
+   `j2_notes.ticker` exact match against any of the entity's known alias
+   symbols; (b) `j2_note_embeds.symbol` / `j2_note_mentions.symbol` match
+   (same alias-widened set) — reusing `_notes_filter_sql`'s existing
+   predicate SHAPE, not a new matching mechanism; (c) a Wave F fact whose
+   `entity_id` matches (or, for facts with `entity_id IS NULL`, whose
+   `ticker` matches the alias set); (d) — evaluated, NOT built this wave — a
+   thesis "primary entity" field does not exist as a distinct concept from
+   (a)/(b), since a thesis IS a note and already qualifies via its own
+   ticker/embed/mention. No plain-substring matching anywhere (directive
+   §83's explicit prohibition already satisfied by every source above).
+10. **Multi-entity notes** — a note with two qualifying tickers (e.g. an
+    "NVDA vs AMD" comparison, tagged/mentioning both) appears in BOTH
+    workspaces by the SAME membership rule evaluated twice, same note id,
+    zero duplication (directive §14/§38 — already a natural consequence of
+    decision 9's per-entity query, not a special case to build).
+11. **Home section set (shipped this wave)** — four: **Continue Working**
+    (Recents), **Favorites**, **Active Theses & Open-Position Research**
+    (merged into one section — see decision 16), **Needs Review**. Matches
+    directive §19's own named top-priority list exactly.
+12. **Home sections explicitly deferred, not built** — Upcoming Catalysts
+    (`builtin:catalyst_date` doesn't exist — reconstruction finding 6; adding
+    a new builtin property is small but out of THIS wave's declared scope
+    per directive §18's "do not ship all sections just because they are
+    listed") and Recent Captures (directive §26/§99 itself asks to evaluate
+    for redundancy against Recents; Recents already answers "what did I
+    recently touch," and a genuinely distinct "what did I recently SAVE FROM
+    ELSEWHERE" job needs its own query design this checkpoint declines to
+    add on top of an already-large wave). Both are honest, recorded scope
+    cuts, not silent gaps.
+13. **Home empty state** — one first-run message ("Start your first research
+    note" / "Create a thesis" / "Save research from UCT" — three actions, not
+    a tutorial carousel) when the member has zero notes at all. Below that
+    threshold, EACH section independently collapses/hides when it has
+    nothing to show (directive §68) rather than rendering four dead cards.
+14. **Home read model** — ONE new aggregated endpoint,
+    `GET /api/j2/notebook/home`, batching all four sections' bounded queries
+    server-side (directive §69's explicit "avoid five sequential API
+    waterfalls"). No new storage; every section is a read over Wave B/E/G's
+    existing tables.
+15. **Ticker workspace read model** — ONE new aggregated endpoint,
+    `GET /api/j2/notes/research/{symbol}/summary`, returning bounded summary
+    rows (never full note bodies) for: entity identity, notes, theses
+    (active + past, separated), captured-fact summary, linked trade/position
+    summary. A separate paginated endpoint for each section's "View all"
+    (decision 32) — the summary endpoint never grows past its fixed caps.
+16. **Active-thesis query** — reuses `property_filter_sql` with the EXACT
+    same predicate Wave G's "Active Theses" starter view already uses
+    (`builtin:thesis_status = 'active'`), scoped additionally to the
+    workspace's entity (decision 9's membership set) or, for Home, unscoped
+    and bounded to 5. No second thesis-status query mechanism.
+17. **Open-position-research query** — a direct SQL join, NOT a loop calling
+    `resolve_trade_ref` per open position (would be N+1 — directive §127's
+    own "no N+1" instruction): `j2_positions` (`closed_at IS NULL`) JOIN
+    `j2_note_embeds` (`trade_ref = position.id AND trade_ref_type =
+    'position'`) JOIN `j2_notes`. An `equity_trade`-typed embed is
+    STRUCTURALLY never an open position (a trade row only exists after a
+    position closes — Wave 3's own graduation model), so this join is exact,
+    not an approximation.
+18. **Needs-review query** — reuses Wave G's exact starter-view predicate
+    (`builtin:review_date <= today AND builtin:thesis_status != 'closed'` —
+    matching the already-shipped "Needs Review" starter view's semantics,
+    never a second definition of "needs review").
+19. **Upcoming-catalyst decision** — DEFERRED (decision 12). No external
+    ingestion attempted, no new builtin property added this wave.
+20. **Recent-capture decision** — DEFERRED (decision 12), evaluated and
+    explicitly rejected as redundant-or-out-of-scope rather than silently
+    dropped.
+21. **Fact-summary model** — Ticker workspace shows a bounded (≤5) recent/
+    relevant subset of the entity's Wave F facts (`fact_type`/`ticker`/
+    `value`/`observedAt`, the SAME shape `note_facts._row_to_fact` already
+    produces), resolved via `entity_id` (decision 5c). Current-value (THEN/
+    NOW) resolution is lazy/batched on the SAME fact ids only when the
+    member expands that section — never resolved for the Home surface at
+    all (directive §43/§74's "provider cost and calm UX" instruction).
+22. **Trade/position-summary model** — a concise counts-only line ("Open
+    Position" / "N Closed Trades"), never an execution ledger — click-through
+    to the authoritative Journal/Compass detail (directive §39/§40/§135,
+    matching Wave G's own "never duplicate Journal" discipline for its
+    trade-link chips).
+23. **Saved-view integration** — the workspace's "View all Notes"/"View all
+    Theses" actions navigate to `/journal/notebook?ticker=<symbol>` (the
+    EXISTING `list_notes(ticker=...)` filter, already wired end-to-end in
+    `NotebookTab.jsx`/`FolderSidebar.jsx`) rather than a bespoke workspace-
+    scoped list UI — directive §47/§112's explicit "reuse the shared query
+    architecture, no custom one-off filtering code."
+24. **Search integration** — `/journal/notebook?ticker=<symbol>&q=<query>`
+    composes the EXISTING `ticker=`+`q=` predicates in `_notes_filter_sql`
+    (both already AND-composable today, confirmed by direct code read) —
+    "search within this workspace" is not a new search backend, it is the
+    existing one with one more filter applied.
+25. **Favorites/Recents integration** — unchanged; a favorited/recently-
+    opened note that also qualifies for a ticker workspace shows normally in
+    both places (no ticker-specific favorites/recents system — directive
+    §21/§94/§95's explicit prohibition).
+26. **Company-page entry point** — `/research/:sym`'s new "My Research" tab
+    (decision 6/7), CORE NOW (directive §52 calls this "likely a major
+    discoverability route").
+27. **Note entry point** — deferred to LATER (directive §55's own
+    CORE-NOW/LATER classification instruction) — evaluating the existing
+    ticker-chip affordance inside a note for a "View NVDA Research" action is
+    real but not required for Wave H's exit gates; the command-palette/
+    company-page paths already satisfy discoverability (directive §148).
+28. **Command-palette entry** — the EXISTING typed-ticker-to-`/research/:sym`
+    routing (reconstruction finding 1) is the primary path, zero new code.
+    ONE new static `NOTEBOOK_COMMANDS` entry, "Open Research Home," added in
+    the exact existing array shape (`CommandPalette.jsx` lines 19-27) — no
+    dynamic per-ticker palette command this wave (directive §51's own
+    "potentially future, not required unless clearly high value").
+29. **New Note from workspace** — calls the EXISTING `createNote()` path
+    (`NotebookTab.jsx`, already accepts a `ticker` param — confirmed reading
+    the function signature) with the workspace's symbol pre-filled, then
+    navigates into the SAME `NoteEditorPage` every other creation path uses.
+    No new editor, no new creation flow.
+30. **New Thesis from workspace** — calls the EXISTING `createFromTemplate()`
+    path with the `thesis` template + the workspace's symbol pre-filled as
+    `ticker` (which the template flow already threads through per Wave G's
+    own `createFromTemplate(tpl, {ticker})` signature). No second thesis
+    creation flow.
+31. **Sidebar changes** — none required structurally; Home becomes reachable
+    as the bare-root state (decision 33) rather than a new sidebar row,
+    keeping the sidebar itself unchanged (directive §104's "do not let Home +
+    Views + Folders turn the sidebar into 3 screens").
+32. **Navigation/back-state** — `?view=all` becomes the EXPLICIT query flag
+    for "show the All Notes grid" (clicking the sidebar's "All notes" row
+    sets it), disambiguating it from the bare-root Home state — both are
+    "folderId=null, tag=null" today, which is why an explicit flag is needed
+    rather than inferring Home from the absence of other params. Standard
+    browser back/forward already works for query-param state changes in this
+    codebase (confirmed: `NotebookTab.jsx` already uses `useSearchParams`
+    for every other piece of state) — no new history-management code.
+33. **Mobile design** — the workspace is ALREADY one vertical flow by
+    construction (decision 8), so no separate mobile layout is needed beyond
+    the codebase's canonical `@media (max-width: 640px)` breakpoint; Home's
+    four sections stack vertically at every width (same discipline as every
+    other Wave E/F/G surface this program has shipped).
+34. **Accessibility** — section headings as real headings, "View all" as a
+    real link with a descriptive `aria-label` (never bare "View all" ×4
+    competing for a screen reader's link-list), reuses `CollapsibleSection`/
+    `NoteCard`/native-control patterns already accessibility-reviewed in
+    Wave E/F/G rather than inventing new interactive primitives.
+35. **Keyboard** — Cmd/Ctrl+K → typed ticker → Enter → `/research/:sym` →
+    "My Research" tab (existing palette mechanics, decision 28); no new
+    letter shortcuts (directive §120's explicit prohibition).
+36. **Empty/loading/error states** — Home's skeleton preserves the four-
+    section hierarchy (never a single spinner); a workspace with zero
+    research shows the honest empty state (directive §67) with New
+    Note/New Thesis actions, never an empty dashboard grid; a single
+    section's query failure degrades that section locally (directive §124),
+    never the whole surface.
+37. **Cache/invalidation** — both new endpoints are SWR-fetched with the
+    EXISTING per-user cache-key + `mutate()`-on-action idiom already used
+    throughout this codebase (Wave G's `useThesisSummary`/`useNoteFacts` are
+    the direct precedent) — favoriting/creating/thesis-status-changing
+    triggers the SAME local `refresh()`/`mutate()` calls those actions
+    already make, no new invalidation plumbing required beyond wiring Home's
+    own hook into the existing action call sites.
+38. **Performance** — both new endpoints are bounded-result reads over
+    already-indexed columns (`user_id`, `ticker`, `deleted_at` all indexed
+    today); a proportionate synthetic check at 1k/10k/50k notes is part of
+    the test matrix (decision 46), not assumed.
+39. **Security/tenant** — every new query is `user_id`-scoped identically to
+    every existing Notebook query; the workspace's entity resolution
+    (decision 5) is READ-ONLY metadata lookup, never treated as
+    authorization for the research queries beneath it (directive §137/§138's
+    explicit "entity id is not authorization" instruction).
+40. **Rights** — Home/workspace aggregate ONLY UCT-owned Notebook data
+    (notes/theses/facts/trade-links); no new persistent vendor-value storage,
+    no new rights-conditional fact type. THEN-side facts render regardless of
+    live-provider availability (directive §75/§76, the same Wave F trust
+    contract, unchanged).
+41. **Migration** — none. No workspace-membership backfill table, no
+    fabricated "this note was always about NVDA" retroactive tagging —
+    existing `ticker`/embed/mention/fact relationships make historical
+    research appear immediately, by construction (directive §185's own
+    stated advantage of this architecture).
+42. **Export decision** — DEFERRED. Full-notebook and single-note export
+    already exist (Wave C); a security-scoped "Export NVDA Research" bundle
+    is real but not required for Wave H's exit gates (directive §140's own
+    "likely defer unless implementation is small and user job strong" —
+    scoped out to keep this wave's surface area bounded).
+43. **Competitor task matrix** — scoped, current-sourced comparison against
+    Notion/Obsidian/Evernote's resume-work/favorite/hub-organization
+    patterns, produced at closure (directive §60-64/§155), not re-derived
+    from any prior wave's now-dated competitor pass.
+44. **Financial differentiation test** — the live-browser E2E in the closure
+    section (directive §156 exactly): create an NVDA thesis, link a trade,
+    capture a financial fact, add another NVDA note — then open NVDA
+    Research and prove UCT assembled all of it automatically, zero manual
+    workspace administration.
+45. **Vertical slices** — recomputed from this checkpoint, following
+    directive §189's own suggested order (it holds up against the
+    architecture found): (1) shared read-model services (`notebook_home.py`,
+    entity→research aggregation) + routers; (2) Research Home UI; (3) Ticker
+    Research Workspace UI + its two creation actions; (4) entry-point wiring
+    (`/research/:sym` bridge tab, command palette, `?view=all` sidebar
+    disambiguation); (5) cache invalidation + navigation/back-state
+    continuity; (6) responsive/accessibility/performance/security pass; (7)
+    integrated real-browser financial-research E2E + competitor comparison +
+    closure.
+46. **Test matrix** — backend: membership-source union/dedupe, alias-widened
+    rename survival, tenant isolation (Home + workspace, cross-user), bounded
+    result counts, open-position join correctness (never includes a closed
+    position or an `equity_trade`-typed embed), performance at 1k/10k/50k
+    synthetic notes. Frontend: Home empty/lightly-populated/fully-populated,
+    section auto-hide, workspace empty/populated/multi-thesis/multi-trade,
+    new-note/new-thesis pre-fill, `?view=all` vs. bare-root disambiguation,
+    responsive. Real-browser E2E per directive §159-173: Home empty, Home
+    populated, full workspace assembly (the financial-differentiation test),
+    new note/thesis from workspace, entity-relationship removal (dynamic
+    membership), multi-ticker note, open-position research, needs-review
+    lifecycle, search-within-workspace, provider-failure resilience,
+    navigation/back-state, company-page entry point, mobile.
+47. **Rollback** — fully additive: two new read-only aggregation endpoints, a
+    new page component, one new sidebar-disambiguation query flag, one new
+    tab on an existing page, one new command-palette entry. Disabling any of
+    it leaves every existing note/thesis/fact/trade relationship, and every
+    existing Notebook workflow, fully intact — nothing here changes a data
+    format any other wave depends on.
+48. **Production plan** — same isolated-temporary-worktree merge process
+    every prior wave has used; full certification (directive §191's 78-point
+    format) before merge; production verification via fresh-process health,
+    new-route auth-gating, and production-bundle string checks, matching
+    every prior wave's own evidence bar exactly.
+
+**No MATERIAL architectural contradiction found.** The directive's own major
+open question (§11, Notebook vs. Company Page ownership) is resolved
+decisively by direct evidence — a real Company Page already exists and
+already has an obvious, minimally-invasive bridge point (one new tab) — not
+by assumption. Every other major primitive Wave H needs (bounded favorites/
+recents, the property-filter query layer, the ticker/embed/mention membership
+predicate, entity_master, Wave 3's typed trade/position relationships) already
+exists and is reused, not duplicated. The only genuinely new primitives are
+two read-only aggregation endpoints and one new page component — exactly the
+minimal-new-primitive outcome this program's checkpoints have consistently
+required before building anything larger. Proceeding directly to
+implementation.
+
+---
+
+### Wave H — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave H's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment.
+
+**Delivered, per the 48-point entry checkpoint above:** two new read-only
+aggregation services — `notebook_home.py` (`get_notebook_home()`: Continue
+Working, Active Theses, Connected to Open Positions, Needs Review, Favorites —
+each section independently failure-isolated via a `_safe()` wrapper so one
+broken section degrades to empty rather than blanking the whole surface) and
+`ticker_research.py` (`get_ticker_research_summary()`: identity resolution via
+`entity_master` with a plain-symbol fallback, notes/theses via a
+ticker-OR-embed-OR-mention union query, entity-aggregated facts, and a direct
+join for open-position research) — reached by two endpoints, `GET
+/notebook/home` and `GET /notes/research/{symbol}/summary`; `ResearchHome.jsx`
+(Notebook's new bare-root landing surface, composed entirely from Wave B
+favorites/recents, Wave E saved-view predicates, and Wave 3 typed
+relationships — no divergent query anywhere in it); `TickerResearchWorkspace.jsx`
+(the canonical per-security research surface, mounted at BOTH
+`/journal/notebook/research/:symbol` and, via one new "My Research" tab, at
+the existing paid Company Page `/research/:sym` — the SAME component, not a
+second implementation, `showBackLink` the only prop distinguishing the two
+mounts); a shared `noteCreation.js` module so New Note/New Thesis from the
+workspace and from `NotebookTab` call the exact same creation path; a
+`?view=all` / `?ticker=` disambiguation pair on the existing Notebook route so
+bare-root becomes Home without orphaning "All Notes" or the ticker-filtered
+round-trip; and a `'home'` keyword added to the existing `nb-open`
+command-palette entry rather than a second, redundant command pointing at the
+identical route.
+
+**The central architecture question (checkpoint §11: where does the canonical
+per-ticker workspace belong) was resolved by direct evidence, not
+assumption:** a real, mature, paid "Company Page" (`ResearchPage.jsx`, 10
+market-data tabs) already existed and was previously undocumented in
+`CLAUDE.md`. This settled the ownership split cleanly — Notebook owns "my
+research about this security" (private), Company Page owns "live financial
+information" (market data), bridged by one new tab mounting the identical
+workspace component — and is now the answer of record.
+
+**Two real, load-bearing defects were found live in the browser DURING this
+wave's own E2E verification pass, not anticipated at the checkpoint, and both
+are fixed with regression coverage — recorded here rather than silently
+patched over:**
+1. **Ticker-filter parity bug.** The Notebook list's `?ticker=` filter chip —
+   the exact query the ticker workspace's own "View all Notes" link navigates
+   to — used strict `j2_notes.ticker` column equality
+   (`_notes_filter_sql`'s pre-existing `ticker` parameter), while the
+   workspace's own `_notes_for_symbols` answers the richer "ticker column OR
+   embed OR cashtag mention" union. A note related to NVDA only through a
+   `$NVDA` prose mention (no `Ticker` property, no embed) correctly appeared
+   in the NVDA workspace but silently vanished from the same list reached by
+   clicking "View all Notes" from that exact workspace — two implementations
+   of one membership question, the precise defect shape `_notes_filter_sql`'s
+   own docstring warns against for `embed_symbol`. Reproduced live via a
+   direct API comparison, root-caused to `notes.py`'s `ticker` branch, fixed
+   by widening it to the same ticker-OR-embed-OR-mention OR-of-EXISTS pattern
+   already established for `embed_symbol`/`symbol_in` two branches below it.
+   Regression test `test_list_notes_filter_by_ticker_also_matches_prose_
+   mentions_and_embeds` added; re-verified live in the actual UI (a
+   cashtag-only "NVDA vs AMD comparison" note now correctly appears under both
+   the `$NVDA` and `$AMD` ticker-filter chips, with no duplication).
+2. **Touch-target defect on the workspace's own new chrome.** `tools/
+   mobile_audit.py` against the two new Wave H routes found the workspace's
+   "Notebook" back-link (71×22px) and "View all" link (42×19px) both under the
+   codebase's `--tap-min: 44px` convention on phone/tablet. Fixed with padding
+   + an equal-and-opposite negative margin (hit area grows to 44px, visible
+   text size and surrounding layout unchanged) inside the existing
+   `@media (max-width: 1024px)` touch tier; re-audited clean (`small-targets=0`)
+   on phone, phone390, and tablet against both new routes.
+
+**Full real-browser E2E, proven live, not just asserted (directive §159-173):**
+the financial-differentiation claim end-to-end — creating a thesis with
+Ticker + Thesis Status set, watching the NVDA workspace assemble
+automatically with zero manual linking, New Note/New Thesis from the
+workspace pre-filling the symbol, a captured financial fact and an
+open-position trade link both surfacing in the same view; dynamic
+membership — clearing a note's only qualifying `Ticker` property live and
+confirming it disappears from the NVDA workspace in the same session
+(re-proven after the sandbox restart this session required); multi-entity,
+zero-duplication — a single note carrying `$NVDA` and `$AMD` cashtags in body
+text (no ticker property, no embeds) correctly appearing in BOTH the NVDA and
+AMD workspaces from the SAME underlying row; the "View all Notes" round-trip
+(now correctly parity-matched, see defect 1 above) and the "All notes" sidebar
+click correctly clearing the ticker filter; bare `/journal/notebook`
+rendering Research Home's populated state (Continue Working / Active Theses /
+Connected to Open Positions, with Favorites/Needs Review correctly
+auto-hidden when empty) and, separately, its honest empty state on a
+low-data account ("Nothing needs your attention right now. Favorite a note or
+set a thesis to Active to see it here." — never a blank grid); the Company
+Page's "My Research" tab rendering the identical workspace with no back-link;
+command-palette entry (`Ctrl+K` → typing "home" surfaces "Open Notebook" as
+the top match, confirming the `'home'` keyword addition, not a duplicate
+command); and full Home → Workspace → Note → Back → Workspace → Back → Home
+browser-history correctness.
+
+**Provider-failure resilience, proven by construction, not a synthetic
+fault-injection:** this entire session ran with no live-price/market-data
+provider key configured in the sandbox, and Research Home, the ticker
+workspace, and every new endpoint rendered fully and instantly regardless —
+the same Wave F trust contract ("private research never blocks on a live
+provider") held automatically because neither new surface has a live-provider
+dependency in its data path at all.
+
+**Search-within-workspace is N/A by design, not a gap:** the workspace
+deliberately has no second search implementation. Its bounded 5-item Notes
+list escapes to "View all Notes," which lands in the EXISTING, already-proven
+Notebook search/filter surface with the ticker constraint applied — exactly
+the checkpoint's own "reuse the same mechanism, composed with an entity
+constraint" requirement, not a missing feature.
+
+**Tenant isolation, non-regression:** `notebook_home.py`/`ticker_research.py`
+scope every query by `user_id`; the open-position-research join excludes
+`equity_trade`-typed embeds and closed positions by construction (covered by
+`test_wave_h_home_and_research.py`'s tenant-scoping and join-correctness
+cases). Backend: 31 Wave-H-specific tests (22 in
+`test_wave_h_home_and_research.py`, 8 router-level in
+`test_journal_two_home_and_research_router.py`, 1 new ticker-filter-parity
+regression) all passing; full `journal_two` + router regression re-run this
+session: 2,278–2,297 passed depending on run, with EVERY non-passing test
+individually root-caused to one of two pre-existing, Wave-H-unrelated causes
+— a disk-headroom safety guard requiring ~50GB free (this box's environment
+sat at 13GB free this session, consumed by ~110 unrelated parallel git
+worktrees, confirmed by direct reproduction of the exact guard message, not
+assumed) and one pre-existing Obsidian-parity fixture-staleness issue in an
+entirely different import subsystem, last touched before this wave began.
+Frontend: `ResearchHome.test.jsx` (9), `TickerResearchWorkspace.test.jsx` (8),
+`ResearchPage.test.jsx` (+2), `NotebookTab.test.jsx` (33, incl. 5 new Home-vs-
+All-Notes cases) all passing; full repo-wide vitest re-run this session: 1,029
+passed / 7 failed, all 7 individually confirmed pre-existing and unrelated
+(a `/api/ticker-search` unchecked-fetch violation from a 2026-09-03 commit
+this wave never touched, an unrelated "floor2" reachability debt item, and
+five other files with zero relationship to Notebook/Journal/Research code).
+
+**A genuine Wave-G-era wiring bug was found and fixed while touching adjacent
+code:** `onAddStarterViews={addStarterThesisViews}` was defined in Wave G but
+never actually passed to `<FolderSidebar>` — the "Add thesis starter views"
+affordance was dead code in production despite passing component-level tests
+(which supplied the prop directly, bypassing the missing wiring). Fixed in
+the same `NotebookTab.jsx` edit that added `isHome`/`onSelectAllNotes`;
+confirmed live (the link now renders and works in the sandbox).
+
+**Mobile:** `tools/mobile_audit.py` against both new routes
+(`/journal/notebook`, `/journal/notebook/research/NVDA`) across phone,
+phone390, tablet, and desktop — 0 horizontal-overflow combos on all eight
+combinations, 0 sub-44px touch targets on phone/tablet/phone390 after the
+touch-target fix above (desktop's reported "small targets" are the
+pre-existing top NavBar icons, unrelated to Wave H).
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.** No
+architecture-level contradiction against the entry checkpoint's 48 decisions.
+No scope added beyond the checkpoint (no graph UI for Related Research; no
+external web capture; no offline mode; no templates/tasks beyond what already
+existed). **Explicitly recorded, not fixed:**
+- Zero real member usage evidence for anything in this wave (Day 0, same cap
+  every prior wave's closure has honestly carried).
+- The disk-headroom-guarded backend tests (media/attachment byte-save paths,
+  ~19 tests) could not be driven fully green in this session's environment —
+  root-caused to an unrelated, pre-existing infrastructure constraint (~110
+  parallel git worktrees consuming the box's free space), explicitly outside
+  this wave's authorized scope to remediate, and outside Wave H's own code
+  entirely (none of the 19 touch Notebook/Research code).
+- The Obsidian-parity fixture-staleness failure (1 test, unrelated import
+  subsystem) is unfixed and unowned by this wave; noted for whoever next
+  touches `note_connectors/convert/`.
+- §192's candidate future areas (Templates/Tasks, Attachments, PDF/Documents,
+  OCR, Ask Notebook, Hybrid Search, External Web Capture, Mobile Deepening,
+  Offline, Ask Notebook+UCT, Sharing/Collaboration) remain undecided, per the
+  directive's own instruction not to decide them now.
+
+**Wave H's core contracts are now FROZEN per the directive:** Notebook owns
+per-security private research, Company Page owns live market data (bridged,
+never duplicated); both Home and the ticker workspace are dynamic read
+models with zero persistent lifecycle of their own; entity/ticker membership
+is high-confidence-source-only (ticker/embed/mention/entity, never prose
+substring inference); every creation/search/filter/favorite/saved-view path
+Wave H touches reuses the existing mechanism composed with an entity
+constraint, never a second implementation.
+
+---
+
+## Wave I — Attachments + PDF / Financial Document Research Foundation — entry checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave I's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment.
+
+### Current-reality reconstruction — the single most load-bearing finding this checkpoint turned on
+
+**Attachments are NOT absent. A production-grade, security-reviewed backend
+for note attachments — including PDF — already exists, and one specific,
+narrow gap (zero live authoring UI for non-image files) is the actual
+highest-leverage target, not a from-scratch build.** Read before assuming
+otherwise, per the directive's own §11/§222-1 instruction:
+
+- **Storage backend**: `attachment_root.py` — ONE authority, `$DATA_DIR/
+  j2_attachments` on the Railway persistent volume (a real 2026-08-13
+  incident is recorded in-file: attachments used to live on the *container*
+  filesystem and were wiped every redeploy; fixed before this session).
+  Binary storage is filesystem, not R2/S3 and not SQLite — R2 is used
+  elsewhere in this codebase (bars snapshots, catalyst backups) but the
+  established convention for note media specifically is `DATA_DIR`, matching
+  `auth.db`/`bars.db`'s own house convention. **Wave I keeps this
+  convention** — introducing R2 as primary storage for PDFs alone would
+  fracture one attachment tree into two backends for no member-visible
+  benefit.
+- **PDF is already an allowed, size-limited, MIME-validated attachment
+  type.** `notes.py`'s `_ALLOWED_FILE_MIMES` includes `application/pdf`
+  (also txt/csv/md/zip/mp3/m4a/docx/xlsx) at a 25MB ceiling
+  (`_MAX_FILE_BYTES`); images (png/jpg/gif/webp) are capped at 5MB
+  (`_MAX_IMAGE_BYTES`). `save_note_attachment_bytes`/`save_note_image_bytes`
+  validate MIME *before* reading the body, enforce size, and run
+  `assert_import_headroom()` (below) before ever writing a byte.
+- **File identity is the filesystem path itself — no metadata table.**
+  Images are content-hash-named (`sha256[:32]`, so a byte-identical
+  re-upload is a free no-op); files are `uuid4().hex`-named. There is no
+  `j2_note_attachments` row anywhere — an attachment's only representation
+  is (a) the file on disk under `{user}/notes/{note_id}/{inline|hero|file}/`
+  and (b) a reference to its filename inside the owning note's `body_json`.
+  **This answers checkpoint items 6/7/12 (ownership/identity/data model) by
+  precedent**: the existing model IS note-owned, filename-keyed, and
+  reference-counted by full-corpus regex scan (see GC below) rather than a
+  relational table — Wave I extends this model rather than replacing it with
+  a new attachment-id table, because introducing one now would create the
+  exact "two implementations of one membership question" defect class this
+  program has repeatedly found and fixed (Wave H's own ticker-filter parity
+  bug is the most recent instance).
+- **Path-traversal / tenant-isolation security is already solved,
+  correctly.** `serve_note_image_path` does root-anchored containment
+  checking (never anchored on the caller-constructed `base` path — the
+  file's own docstring names exactly why that distinction matters) plus
+  single-path-segment validation on every caller-supplied component. The
+  serve router checks `user["id"] != user_id_param` before ever calling it.
+  Nothing here needs to be rebuilt for PDF specifically.
+- **A real, structured TipTap attachment node already exists —
+  `AttachmentChip`** (`lib/attachmentChip.js`): a block atom node with
+  `href`/`name`/`size` attrs, parsed/rendered as a real downloadable chip,
+  never a bare markdown link. It is registered in the editor's extension
+  set and is actively used by the Notion/Obsidian/Evernote/generic
+  IMPORTERS (`lib/importer/*`) — an imported file attachment is a REAL file
+  in `_ATTACHMENT_ROOT`, uploaded through the exact same `/images`/
+  `/attachments` endpoints a live author would use. There is no legacy/
+  incompatible imported-attachment representation to reconcile (closes
+  checkpoint items 11/141/142 by direct evidence).
+- **THE GAP: `AttachmentChip` has zero live-authoring entry point.**
+  `NoteEditorPage.jsx`'s `handlePaste`/`handleDrop` are hard-gated to
+  `type.startsWith('image/')` — a dropped or pasted PDF is silently
+  ignored today. There is no slash command, toolbar button, or file picker
+  for a non-image file anywhere in the live editor. `lib/tiptap.js` exports
+  `uploadInlineImage`; there is no `uploadNoteAttachment` counterpart at
+  all. **The backend has supported PDF attachments since before this wave;
+  a member has never been able to reach it.** This is Wave I's single
+  highest-leverage, most member-visible target — not a new subsystem, a
+  missing wire, the same defect shape Wave H found in `CommandPalette.jsx`'s
+  ticker-search and `FolderSidebar`'s starter views.
+- **Export/portability is already fully solved for the existing attachment
+  model.** `notes_export.py` bundles `attachmentChip`/image/hero URLs that
+  match the app's own attachment-route shape into the export ZIP under
+  `attachments/{user}/{note}/{sub}/{filename}`, root-anchored containment
+  re-checked (same pattern as the serve route), with an explicit
+  total-bytes cap per export and honest per-file failure reasons ("file
+  missing on the attachment volume", "left out: export attachment size cap
+  reached") rather than silent omission. **No export changes are needed for
+  PDF** — it already flows through this exact generic pipeline the moment a
+  chip exists in the body.
+- **Orphan cleanup and account/GDPR deletion already exist and are already
+  correct for the current model**, with one real gap found this checkpoint
+  (see below). `attachment_gc.py` (age-gated 48h, dry-run-capable,
+  reference-counted by regex-scanning EVERY note's raw `body_json` text for
+  this user for the 32-hex-filename pattern) removes files no note
+  references any more. `account_purge.py` synchronously `shutil.rmtree()`s
+  the entire per-user attachment directory (both primary and legacy roots,
+  covering notebook AND trade attachments in one removal) — full,
+  synchronous, immediate deletion on account deletion, not eventual-GC.
+  `j2_attachments_backup.py` tars the current tree to R2 nightly as an
+  off-site DR archive (never restores on boot — archival only, unchanged by
+  this wave).
+- **REAL GAP FOUND THIS CHECKPOINT: the GC's reference scan does not cover
+  Wave C version history.** `attachment_gc._referenced_names()` scans only
+  the CURRENT `j2_notes.body_json` (+ `j2_capture_inbox`), never
+  `j2_note_versions.body_json`. A member who attaches a PDF, saves (Wave C
+  captures a version), then removes the attachment from the current body
+  will — 48+ hours later — have the underlying file GC'd, silently breaking
+  any OLDER Wave C version's ability to ever be restored with that
+  attachment intact, even though Wave C's own contract is "restore never
+  erases history." **In scope for Wave I**: widen `_referenced_names()` to
+  also scan `j2_note_versions.body_json` for the user, the same pattern
+  already used for the current-notes and capture-inbox scans — a small,
+  surgical fix, not a new subsystem.
+- **`assert_import_headroom()`/`notes_quota.py` is a live-derived, not
+  hardcoded, disk guard** — the required reserve is `(1 - disk_watchdog.
+  CRIT_PCT/100) * <volume's real total bytes>`, read live off
+  `disk_watchdog.py` (default `CRIT_PCT=90`), against the volume the
+  attachment root's nearest EXISTING ancestor actually sits on. **Correction
+  to this session's own Wave H closure language**: "requires ~50GB free" was
+  this LOCAL dev box's number (10% of its own 465GB drive), not a fixed
+  constant — on the real 78.42GB production volume the same formula yields
+  a ~7.84GB reserve. Wave I reuses this exact guard unchanged for every new
+  write path (it already covers `save_note_attachment_bytes` for every MIME
+  type, PDF included) and, per directive §180/§217, will check local disk
+  headroom explicitly before generating any test PDF fixtures, having just
+  lived through the consequence of not doing so.
+- **A maintained PDF-text-extraction library is already a working, tested
+  dependency in this exact codebase** — `pypdf` (confirmed installed,
+  6.15.0, importable) — used today by `api/services/voice_document_service.py`
+  for a *separate, unrelated* Compass "Document Q&A" feature (chunk + embed
+  a PDF/text for semantic search, zero note/ticker/thesis association,
+  its own `voice_documents` table). Its `_extract_text_from_pdf` already
+  demonstrates the exact safe pattern Wave I needs (per-page `try/except`,
+  a maintained library, best-effort-empty-string on failure) but joins all
+  pages into one blob with no page boundary — **not directly reusable
+  as-is** (violates the page-identity requirement) but its per-page loop is
+  the right shape to adapt. **Real gap found**: `pypdf` is NOT pinned in
+  `requirements.txt` despite being a real runtime dependency of shipped
+  code — Wave I pins it explicitly (in scope, one line, closes a genuine
+  latent "works on my machine" risk for a feature that already ships).
+- **Zero OCR packages present anywhere** in `requirements.txt` or the
+  `journal_two` tree — confirms OCR is genuinely greenfield, exactly the
+  directive's own Wave J boundary, not something Wave I is quietly
+  expected to half-build.
+- **No frontend PDF-viewer library exists anywhere in `app/src`** (no
+  pdfjs/react-pdf/PDFViewer). Every modern browser (Chrome/Firefox/Edge/
+  Safari) renders a PDF natively via `<iframe>`/`<embed src=".../file.pdf">`
+  with built-in page navigation, zoom, and find-in-document — **Wave I's
+  PDF preview uses the native browser viewer inside a Sheet/modal, zero new
+  frontend dependency**, per the directive's own explicit "do not build an
+  Adobe Acrobat clone" instruction.
+- **No DELETE endpoint exists for a generic attachment** (only `DELETE
+  /notes/{note_id}/hero`). Removing an inline image or file attachment
+  today can only happen by deleting the node from the TipTap doc client-
+  side (ordinary editor node deletion) — the underlying file's physical
+  removal is entirely deferred to the age-gated GC. **This is an existing,
+  reasonable, already-consistent answer to checkpoint items 60/153**
+  (detach-from-note vs. delete-the-file, kept as two different timescales
+  on purpose) — Wave I keeps this model rather than inventing an immediate-
+  delete affordance and its own confirmation UX for a reversible action.
+- **FTS5**: `j2_notes_fts` is a standalone (non-external-content) mirror
+  scoped to notes. Per the directive's own §39-42 instruction ("do not join
+  extracted documents into j2_notes FTS in a way that destroys source
+  identity"), document-page text gets its OWN FTS5 virtual table, unioned/
+  sectioned at the search-result layer, never merged into the notes index.
+
+### Ownership / architecture decisions (checkpoint items 1-63, grouped)
+
+**1-12 (ownership/identity/data model).** Attachment = note-owned by
+construction (directory path), file identity = filename (content-hash for
+images, uuid4 for files) — **kept, not replaced.** No new
+`j2_note_attachments` metadata table. The one new piece of state Wave I
+introduces is **document processing metadata**: a small table,
+`j2_note_documents` (user_id, note_id, attachment_url — the exact
+`/api/j2/notes/attachments/...` path already embedded in the chip, acting
+as the natural key since no attachment id exists — status, page_count,
+extraction_version, created_at, processed_at), plus `j2_note_document_pages`
+(document_id, page_number, text, PRIMARY KEY(document_id, page_number)) for
+page-aware text. This is the SMALLEST possible addition that gives text
+extraction stable page identity without inventing a parallel attachment-
+identity system alongside the one that already works. `attachment_url` is
+the join key back to the chip — not a new id the chip needs to carry.
+
+**13-17 (file identity, storage key security, file type policy, size
+limit, MIME validation).** All already solved, unchanged (see reconstruction
+above). PDF, PNG/JPG/GIF/WebP, TXT/CSV/MD/ZIP/MP3/M4A/DOCX/XLSX remain the
+supported set; DOCX/XLSX get upload+download only (no preview/extraction —
+matches the directive's own "do not claim preview unless architecture
+exists" instruction). MIME validation is Content-Type-header-based, not
+byte-signature magic — a real, pre-existing, narrow gap (a renamed `.exe`
+sent with a spoofed `Content-Type: application/pdf` header would currently
+pass) that predates this wave; closing it (a `pypdf`-based "does this
+actually parse as a PDF" structural check, run before persisting) is
+IN SCOPE for the PDF path specifically, since Wave I is already touching
+PDF processing and the fix is nearly free there — general magic-byte
+validation for every other MIME type is OUT of scope (pre-existing,
+unrelated to documents).
+
+**18-29 (PDF first-class, no-OCR-for-native-text, OCR boundary, upload UX,
+drag/drop, file picker, progress, success/failure).** PDF is first-class:
+preview + native text extraction with page identity, no OCR. Upload UX:
+extend the EXISTING `handleDrop`/`handlePaste` to accept the same
+`_ALLOWED_FILE_MIMES` set (not just images) and add ONE discoverable entry
+point — a toolbar "Attach file" button (mirrors the existing image-insert
+affordance's visual language) — rather than a slash command AND a button
+AND a menu item. Reuses the existing upload endpoint and error-surfacing
+pattern (`alert()` on failure today — Wave I upgrades this one path to the
+non-blocking toast pattern already used elsewhere in Notebook, since a
+raw `alert()` for a multi-second PDF upload is a worse experience than the
+image case it was copied from).
+
+**30-38 (PDF parser safety, preview, preview context, document route, page
+identity, text extraction, extraction storage, extraction version, original
+authoritative).** Parser safety: reuse `pypdf` (already vetted in
+production via `voice_document_service.py`), wrap every page extraction in
+try/except (matching its established pattern), bound total pages processed
+and enforce a processing timeout. Preview: a `Sheet` (existing mobile-
+proven primitive) hosting a native `<iframe>` at the attachment's own
+authenticated serve URL — no new route required for the modal case. A
+dedicated full route (`/journal/notebook/documents/:noteId/:filename?page=N`)
+is ALSO added, since deep-linkable page citations are explicitly named as a
+near-term Wave (future AI citation, §91/§162/§190) dependency and the
+marginal cost is one route, not a new subsystem. Text extraction is async
+(processing happens in a background thread off the upload request path,
+matching the existing pattern other Journal 2.0 processing jobs use —
+never blocking the upload response); pages/status live in the two new
+tables above; original file remains the sole authoritative artifact,
+extracted text is explicitly rebuildable (re-run extraction against the
+unchanged original) and never the other way around.
+
+**39-43 (document search, semantics, scope, page result, find-within-PDF).**
+Document search SHIPS this wave (lexical only, no vectors) — a new,
+separate `j2_note_document_pages_fts` FTS5 table, tenant-scoped, joined
+back to `(note_id, attachment_url, page_number)`. Search UI: a `Type`
+section split (Notes / Documents), not a blended single score — matching
+the directive's own explicit ranking-clarity instruction and this
+program's own house lesson (never merge two differently-scaled result
+types into one arbitrary score). A document result opens the PDF viewer at
+the matched page via the route above. Find-within-PDF: the native browser
+PDF viewer already provides Ctrl+F; no second search engine is built for
+it.
+
+**44-59 (attachment node, portability, images, screenshots, caption,
+source URL, filename, duplicates, cross-note reuse, Ticker Workspace
+integration, Home integration, thesis evidence, whole-document evidence,
+fact boundary).** `AttachmentChip` stays the node — no schema change to it;
+Wave I keys new document metadata off its existing `href`. Portability:
+already solved (see reconstruction). Images: existing inline/hero system
+untouched, not migrated into the new document tables (only PDFs get
+extraction/pages — a JPG has no "pages"). Screenshots: already first-class
+via the existing image path — no change needed. Caption: OUT of scope this
+wave (no existing capture-comment pattern to reuse cheaply here; a
+plain-text caption on the chip itself is a 1-line future addition, not
+blocking anything else). Source URL/provenance: not fabricated — manual
+uploads carry only `uploaded_at` (real) and never a fabricated
+`document_date`. Duplicates/cross-note reuse: kept exactly as today
+(per-note upload, content-hash dedup for images already free, files get a
+fresh uuid4 — NOT changed to content-hash this wave, since the file GC's
+`_UPLOAD_NAME_RE` and reference-scan already assume uuid4 shape for files
+and changing it is an unrelated, unforced refactor). **Ticker Workspace
+integration**: a bounded "Documents" section (mirroring Notes/Facts —
+5-item cap, "View all" escape hatch to the owning notes) IS added, deriving
+membership through the owning note's EXISTING ticker/embed/mention
+relationship — a document never carries its own ticker metadata, exactly
+per checkpoint item 54's own instruction. **Research Home**: NOT touched —
+per checkpoint item 55's own "Home should remain calm" instruction, no
+"Recent Documents" section ships this wave; no evidence yet that documents
+specifically need continuation-surface treatment beyond what Recents
+already gives their owning notes. **Thesis evidence**: NOT extended this
+wave — Wave G's evidence target types (note, fact) are frozen per Wave G's
+own closure; adding a `document` target type is a real, clean extension
+point this wave's new stable `(note_id, attachment_url)` identity makes
+possible, but is explicitly deferred to avoid re-opening a wave the
+directive told us to freeze, and because whole-document evidence is
+explicitly named as less precise than the page-level version this wave's
+own page tables make possible next. **Wave F fact boundary**: unchanged —
+no auto-fact extraction from document text, ever, matching Wave F's own
+frozen "deliberate observation, never auto-explosion" contract.
+
+**60-68 (version-history interaction, removal vs. deletion, history
+retention, restore, trash, note-restore, hard purge, object-storage
+deletion failure, tombstone/cleanup, account deletion).** The Wave-C-
+history GC gap above is the one real fix. Removal/detach vs. physical
+deletion: kept as today (see reconstruction). Trash/restore: already
+correct by construction (soft-delete doesn't touch `body_json`, so the GC's
+reference scan already protects a trashed note's attachments; this wave's
+new document/page rows key off `note_id` and get the identical protection
+for free — no new trash-awareness code needed). Hard purge: the trash-purge
+→ attachment-GC nightly ordering already exists; this wave's new document/
+page rows are deleted synchronously in the SAME `DELETE FROM j2_notes`
+statement's neighborhood in `purge_expired_deleted_notes` (a few more
+`DELETE ... WHERE note_id = ?` lines, not a new mechanism). Account
+deletion: `account_purge.py`'s `purge_user_data` gets the two new tables
+added to its `_DIRECT_USER_TABLES`-style list (schema-driven, zero bespoke
+code, the exact pattern Wave G's own evidence table already proved out).
+Object-storage deletion failure / tombstone: the existing GC's `dry_run`
+mode + age gate + per-file try/except already IS this contract — reused,
+not reinvented.
+
+**69-76 (tenant isolation, signed URLs, cache headers, download
+disposition, PDF active content, SVG, office docs, CSV).** Tenant isolation
+already enforced end-to-end for serving; the new page-text-search endpoint
+and document routes get the SAME `user["id"] != user_id_param`-style check
+before any read. No signed URLs are introduced (the existing model is a
+cookie-authenticated same-origin route, not pre-signed object-storage
+URLs — consistent with "primary storage is DATA_DIR filesystem," not R2).
+Download disposition: existing `FileResponse` already serves attachments;
+inline preview uses the SAME serve route (no `Content-Disposition:
+attachment` forced) so the browser's native PDF viewer renders it, download
+still available via the existing chip. PDF active content: rely on the
+browser's own PDF-sandbox behavior (Chrome/Firefox/Edge do not execute
+embedded PDF JavaScript by default in their built-in viewers) — no custom
+sandboxing layer built. SVG: NOT added to the allowed image MIME set this
+wave (it isn't today either) — no change, no new risk introduced. Office
+docs/CSV: download-only, as decided above.
+
+**77-90, 105-109 (extraction quality/normalization/table extraction,
+document metadata, filing/transcript future, document domain model).**
+Extraction quality: tested against real multi-page/multi-column financial
+PDFs during implementation (representative fixtures, not one synthetic
+page); table STRUCTURE is explicitly not claimed — reading-order text only,
+stated precisely in any status/UI copy. Normalization: preserve `$ % - ( )`
+and decimal punctuation; strip only null bytes and collapse excess
+whitespace. Metadata: page count only (reliably extractable); PDF-embedded
+title/author/dates are NOT surfaced as trustworthy provenance — only
+`uploaded_at` (real, UCT-observed) is ever shown as a date. Filing/
+transcript future integration and system-derived document type: explicitly
+OUT of scope — Wave I's `j2_note_documents` schema doesn't preclude a
+future `source_type`/`provenance` column, but nothing populates one this
+wave; a manually uploaded PDF never claims to be a verified "10-K."
+
+**91-99, 123-126 (page citation foundation, excerpt capture, highlights,
+internal links to document, rename, checksum, integrity, preview
+derivatives, thumbnails, future AI/hybrid retrieval, future external
+capture, future mobile share).** Page identity is preserved from the start
+(the whole point of the page table) — this alone is the foundation future
+citation/AI work needs; nothing further is built now. Excerpt capture,
+highlights/annotations, and a document-link picker are explicitly deferred
+to Wave J per the directive's own §92-94/§189-190 boundary — building any
+of them now risks exactly the "imprecise feature shipped right before the
+precise one" trap the directive itself warns against. Checksum: NOT added
+this wave (no current duplicate-detection or integrity-verification job
+that would consume it — the existing content-hash-for-images/uuid4-for-
+files identity scheme already serves the immediate need). Thumbnails:
+OUT of scope (directive's own "do not spend a wave building thumbnail
+generation" instruction) — a PDF icon + filename in the compact attachment
+card is sufficient. Future external capture/mobile share: the new
+`save_note_attachment_bytes`/`save_note_image_bytes` functions ALREADY
+accept raw bytes independent of the FastAPI `UploadFile` wrapper (the
+`_bytes` variants exist specifically so router-level callers can adapt any
+transport) — already reusable by a future non-multipart entry point, no
+change needed.
+
+**100-104, 143-160 (note UI, multiple attachments, section vs. inline,
+Ticker Workspace/search discoverability, document type, financial document
+type, entry points, drag/drop, file picker, progress, upload
+success/failure, size limit, mime/magic, malicious file, PDF parser
+safety, preview surfaces, empty/loading/error states, visual design).**
+Compact attachment card (icon + filename + size + "Open"), inline at point
+of use — NOT a separate consolidated attachment section, since the
+existing chip is already inline-first and a second list would be a second
+implementation of "where do my files live in this note." Financial
+document TYPE labeling (Filing/Presentation/Report/Other): OUT of scope —
+optional metadata the directive itself says must never add upload
+friction, and there is no current consumer that would use it. Empty/
+loading/error states follow the SAME honest-copy discipline this whole
+program has enforced since Wave 0 — "Uploading…", "Processing…", "Text
+couldn't be processed" (document still usable), "Couldn't upload
+[file]. Your note is unchanged." (never a raw exception).
+
+**110-122, 127-133 (attachment vs. document distinction, data model,
+source of truth hierarchy, note-version source of truth, replace/edit
+file, password-protected/corrupt/huge/zero-text PDFs, OCR future contract/
+confidence, storage quotas, rate limiting, idempotency, upload
+transaction, storage consistency audit).** ATTACHMENT (existing, unchanged)
+vs. DOCUMENT (new: an attachment whose type — currently just PDF — supports
+extraction) is exactly the distinction this checkpoint's new two-table
+addition encodes; a `document` row only exists for a PDF attachment, never
+for an image/CSV/DOCX. Source-of-truth hierarchy is explicit: original
+file authoritative > `j2_note_document_pages` text derived/rebuildable >
+the new FTS5 index derived/rebuildable — nothing here is nested more than
+one level deep. No in-place PDF editing, ever. Password-protected/corrupt/
+huge/zero-text PDFs: each produces an honest `processing_failed`/`no_text`
+status, never a crash, never a fabricated result (test matrix below).
+`text_origin` on the page table is `'native'` for this wave, with the
+column already shaped to accept `'ocr'` later — Wave J's stated contract
+(item 121) without Wave J's own work. Storage quotas/rate limiting:
+`assert_import_headroom()` already the quota gate; no new per-account byte
+quota UI ships (out of scope, no current plan-tier hook to attach it to).
+Upload transaction: write-then-DB-finalize, matching the existing image/
+file save functions' own sequence (disk write happens, THEN the router
+returns success) — a failure between disk write and function return
+already can't half-succeed today (single synchronous call), and the new
+document-processing row is created only AFTER the attachment upload itself
+already returned 200, so a stuck/failed extraction can never corrupt or
+block the underlying attachment.
+
+**134-142, 218-219 (portability recap, ZIP/path safety, duplicate
+filenames, Unicode, single/full export, import/roundtrip, imported
+attachments, legacy files, migration, rollback).** Already solved (see
+reconstruction) — no changes required for PDF specifically; verified, not
+rebuilt. Migration: fully additive (two new tables, zero changes to
+`j2_notes`/`j2_note_versions` schemas). Rollback: disabling the new upload
+UI leaves every existing attachment fully functional (nothing here changes
+how an existing chip is stored or served); the two new tables can be
+dropped with zero impact on notes/attachments themselves if ever needed.
+
+**161-178, 179-180, 210-217 (navigation/URL state, deep links, preview
+auth, document-page API, search security/trash/ticker-trash, caption
+search, filename search, snippets, ranking benchmark, performance —
+upload/extraction/search/storage/note-open/workspace, extraction
+batching, temp files, disk headroom guard, test matrices).** Full
+Home→Workspace→Note→Document→Back chain preserves context, matching
+Wave H's own just-proven navigation pattern. Every new read (document
+metadata, page text, search) re-authorizes by `user_id` — no exceptions.
+**Temp files (§179, directly informed by this session's own disk-full
+incident)**: PDF processing uses `tempfile.TemporaryDirectory()` (auto-
+cleaned on both normal completion AND exception, by Python's own context-
+manager contract) — never a bare `%TEMP%` path with manual cleanup that can
+leak on a crash. Extraction batching: bounded concurrency (a small
+semaphore, matching the existing `ThreadPoolExecutor`-based patterns
+elsewhere in this codebase — e.g. theme_performance's `_MAX_WORKERS`) —
+never one unbounded thread per upload. Disk headroom: checked explicitly
+before generating any test PDF fixtures (this session's own incident is
+the reason this line exists at all) — fixtures are small, representative,
+synthetic-but-real multi-page PDFs, not bulk-generated.
+
+**181-193, 220-227 (logging/privacy, rights, SEC filings, research
+reports, collaboration/offline/document-AI/citation future, OCR handoff,
+competitor matrix, financial advantage test, production plan, exit
+gates, certification, presumptive Wave J).** No document text or filenames
+in logs beyond attachment id/size/status. No external AI processing of
+document content this wave. Rights: manual user uploads proceed under
+existing platform terms (no vendor-content conflation); SEC/filing/
+report-source integration explicitly NOT built this wave (no current UCT
+filings-capture door to bridge from — a real, separate future integration,
+not a checkpoint blocker). Collaboration/offline/document-AI/citation:
+architecture leaves room (stable page identity, a real `text_origin`
+column) without building any of it now. Competitor matrix and the
+financial-advantage live-browser proof are executed as part of closure,
+matching every prior wave's own evidence bar.
+
+### No MATERIAL architecture/security/ownership contradiction found.
+
+The directive's own repeated caution — do not assume attachments are
+absent — was exactly right: they are not. Every storage, security, export,
+backup, and cleanup primitive Wave I needs already exists and is reused,
+not duplicated. The only genuinely new primitives are two small metadata
+tables (`j2_note_documents`, `j2_note_document_pages`), one new FTS5
+table, the live-authoring upload wiring for non-image files, a PDF preview
+Sheet + document route, and the async extraction job — plus two small,
+real, surgical fixes to pre-existing gaps found this session (the Wave-C-
+history GC scan, the unpinned `pypdf` dependency). Proceeding directly to
+implementation.
+
+### Recommended vertical slices (directive §223, adapted to this checkpoint's actual findings)
+
+1. **Live attachment authoring** — extend drop/paste to non-image
+   `_ALLOWED_FILE_MIMES`, add the "Attach file" toolbar entry point, a
+   `uploadNoteAttachment` frontend helper, toast-based (not `alert()`)
+   error surfacing. Highest member-visible value, zero new backend.
+2. **PDF preview** — the Sheet-hosted native `<iframe>` viewer + the
+   dedicated document route, wired from an `AttachmentChip` click when its
+   extension is `.pdf`.
+3. **Native text extraction + page model** — `j2_note_documents` +
+   `j2_note_document_pages`, async extraction via `pypdf` (pinned),
+   honest status states, the Wave-C-history GC fix, `pypdf` requirements.txt
+   pin.
+4. **Document search** — `j2_note_document_pages_fts`, sectioned search
+   UI, page-targeted deep links.
+5. **Ticker Workspace integration + lifecycle** — the bounded Documents
+   section, trash/purge/account-deletion wiring for the two new tables.
+6. **Mobile/tablet/accessibility + resource-safety** — phone/tablet PDF
+   viewer pass, keyboard/ARIA on every new control, temp-file lifecycle
+   adversarial tests.
+7. **Full test matrix + real-browser E2E** — backend/frontend/search/
+   security/performance matrices per directive §211-217, live proof of the
+   financial-advantage workflow (§193/§227).
+8. **Closure + production merge/deploy + certification report.**
+
+If a MATERIAL architecture/security/ownership contradiction remains: STOP
+and report it. None found. Proceeding directly.
+
+---
+
+### Wave I — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave I's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment. The
+permanent disk/resource-safety rule (only clean `uct_e2e_sandbox_*`, never
+anything else) was honored throughout; no disk emergency occurred this wave.
+
+**Delivered, per the 8 recommended vertical slices above:**
+
+1. **Live attachment authoring** — `ALLOWED_ATTACHMENT_MIMES`/
+   `ALLOWED_IMAGE_MIMES` widened the editor's paste/drop handlers beyond
+   images (PDF/txt/csv/md/zip/mp3/m4a/docx/xlsx), a new toolbar "Attach a
+   file" button + hidden file input, `uploadNoteAttachment()` (mirrors the
+   existing `uploadInlineImage()`), and a single shared `Toast`-based
+   (never `alert()`) failure surface for both image and file uploads.
+2. **PDF preview** — `DocumentPreviewSheet.jsx`: a plain `<iframe>` inside
+   the existing `Sheet` `fullscreen` variant, Open-in-new-tab/Download
+   actions, `#page=N` fragment support for future deep-linking. Deliberately
+   not an Acrobat clone, per the directive's own instruction.
+3. **Native text extraction + page model** — `j2_note_documents` +
+   `j2_note_document_pages` (three-level cascade-delete trigger chain to a
+   dedicated FTS5 mirror), `document_extraction.py` (`pypdf`-based,
+   per-page fault-isolated, 500-page cap, encrypted-empty-password attempt,
+   bounded async via a process-wide `Semaphore(2)`), `pypdf>=5.0.0` pinned
+   in `requirements.txt`, and a real Wave-C-era GC gap fixed
+   (`attachment_gc.py`'s reference scan now also covers
+   `j2_note_versions.body_json`, not just the live note body).
+4. **Document search** — `document_search.py` + `j2_note_document_pages_fts`
+   (deliberately never merged with `j2_notes_fts` — sectioned results only,
+   per the directive's own explicit instruction), sectioned "N document
+   page(s)" results in the Notebook sidebar search panel, page-anchored
+   highlighted snippets via the existing `notes_search.fts_match_expr`
+   (no second copy of the injection-safe MATCH-expression logic).
+5. **Ticker Workspace integration** — `_documents_for_symbols()` reuses the
+   exact ticker/embed/mention membership union Wave H already proved for
+   Notes, an independent 5-item cap, wired into
+   `get_ticker_research_summary()`'s existing response shape as a new
+   `documents` key; `TickerResearchWorkspace.jsx` gained a Documents section
+   (icon/name/page-count-or-status chip/date) that opens the preview Sheet
+   for a ready document or the owning note for a pending/failed one.
+6. **Lifecycle** — `account_purge.py`'s `_DIRECT_USER_TABLES` gained both
+   new tables; cascade-delete verified via a dedicated trigger-chain test
+   matrix (delete a note → document row gone → page rows gone → FTS + map
+   rows gone, one transaction, zero orphans).
+7. **Full test matrix** — 38 new backend tests
+   (`test_wave_i_documents.py` + `test_journal_two_documents_router.py`,
+   spanning extraction, document/page CRUD, search, the GC fix, cascade
+   delete, account-purge coverage, and Ticker Workspace integration) + 102
+   frontend tests across 5 touched/new files, all passing.
+8. **Real-browser E2E** — see below.
+
+**Two real, live-browser-discovered defects this wave, neither caught by
+any unit/integration test** (jsdom cannot simulate native browser
+anchor-download behavior or real CSS layout — the exact limitation this
+program's own prior waves have repeatedly found at this same boundary),
+both fixed with regression coverage:
+
+1. **`AttachmentChip`'s native `download=` attribute defeated TipTap's own
+   click routing.** `AttachmentChip.renderHTML()` emits a native
+   `download="..."` attribute on the rendered `<a>` tag (a pre-existing,
+   correct behavior for the import-adapter path this node was originally
+   built for), and the browser's native anchor-download handling wins the
+   race against ProseMirror's synthetic `handleClickOn` — so the FIRST
+   click on a freshly-inserted PDF chip silently downloaded the file
+   instead of opening the preview Sheet. Confirmed live via `outerHTML`
+   inspection showing `download="nvda-investor-deck.pdf"`. Fixed by
+   removing `handleClickOn` entirely and adding a React `onClickCapture`
+   handler on a wrapper `<div>` around `<EditorContent>` — capture phase
+   runs BEFORE the native anchor default action, so
+   `event.preventDefault()` reaches the click in time. Verified live,
+   twice, after the fix: clicking the chip now shows the selected gold
+   border AND opens the preview.
+2. **A PRE-EXISTING `Sheet.jsx` bug, not introduced by this wave but first
+   exposed by it.** `panelStyle`'s ternary only special-cased
+   `bottom-sheet`, so ANY other variant — including the new
+   `DocumentPreviewSheet`'s `fullscreen` — fell into the `{maxWidth: ...}`
+   branch and inherited the desktop-modal 520px cap, overriding
+   `.panel_fullscreen`'s own `width:100%` CSS. Invisible before this wave
+   because the only other `variant="fullscreen"` caller
+   (`MobileSymbolSheet.jsx`) only ever mounts on touch viewports already
+   narrower than 520px, so the cap was a silent no-op there — this wave's
+   `DocumentPreviewSheet` is the first DESKTOP-triggered fullscreen caller
+   in the codebase. Confirmed live via `getComputedStyle`/
+   `getBoundingClientRect` showing exactly 520px on a 1920px viewport.
+   Fixed by excluding `fullscreen` from the `maxWidth` branch. Three new
+   regression tests added to `Sheet.test.jsx` (fullscreen carries no cap;
+   modal still gets its default 520px; modal still honors an explicit
+   override). Re-verified live after the fix: `panel.style.maxWidth === ''`
+   and `getBoundingClientRect().width === window.innerWidth` (1920px),
+   confirmed via direct JS inspection in the real browser, matching the
+   unit tests' DOM-attribute-level assertion exactly.
+
+**Full real-browser E2E, proven live, not just asserted:** created a real
+note, set its Ticker to NVDA, uploaded a real hand-built 3-page PDF fixture
+via the toolbar file picker — the AttachmentChip rendered correctly;
+clicked it and confirmed the preview Sheet opened FULLSCREEN (1920px
+width, no `maxWidth` cap, matching the Sheet.jsx fix); polled
+`GET /notes/{id}/documents` and confirmed extraction reached
+`status: "ready"`/`pageCount: 3` with a real `processedAt` timestamp;
+navigated to `/journal/notebook/research/NVDA` and confirmed the Ticker
+Workspace's Documents section showed the file with its page count and
+ready status, clicking it opened the same preview Sheet; opened the
+Notebook sidebar search panel, typed a real word from the extracted PDF
+text ("revenue"), and confirmed a sectioned "1 document page" result
+appeared below "No notes match" with a highlighted snippet
+("Full year **revenue** guidance raised to $185 billion…") and the
+correct page number — clicking it opened the owning note; separately
+confirmed via `GET /notes/documents/search?q=revenue` that the same
+result carries the correct `documentId`/`pageNumber`/`noteId`/
+`attachmentUrl` fields; uploaded a disallowed file type (`.svg`) and
+confirmed the server correctly rejected it (`400`) and the toast
+("Couldn't upload bad-upload.svg. Your note is unchanged.") rendered
+exactly as designed (the toast's own 4s auto-dismiss window was the first
+thing this verification pass tripped over — re-confirmed by uploading
+again and screenshotting with zero delay).
+
+**Tenant isolation, live-verified, not just asserted from the test
+suite:** signed up a second, unrelated account in the SAME browser tab and
+attempted, as that foreign user, to reach the first account's note and
+document: `GET /notes/{noteId}/documents` → `404`; `GET
+/notes/documents/search?q=revenue` → `200` with `results: []` (no leak,
+not an error); a direct fetch of the raw attachment file URL (which
+embeds the owning user's id in its path) → `403`; `GET /notes/{noteId}`
+itself → `404`. All four match the directive's own "someone else cannot
+see my research report" north-star line exactly.
+
+**Mobile:** `tools/mobile_audit.py --auth --viewport phone --routes
+/journal/notebook` against the sandbox — 0 horizontal-overflow, 4
+sub-44px touch targets found, all four confirmed PRE-EXISTING Wave-H-era
+Notebook chrome (folder-panel tab buttons, the "Add thesis starter views"
+link, the "View all" link) unrelated to and untouched by Wave I — no new
+regression. The one genuinely new Wave-I-introduced touch-target defect
+(`DocumentPreviewSheet.module.css`'s `.actionLink` floor declared at the
+phone-only `@media (max-width: 640px)` tier instead of the canonical
+`@media (max-width: 1024px)` TOUCH tier — CLAUDE.md's own explicit "THE
+TOUCH TIER IS ≤1024, NOT ≤640" warning) was found via the full frontend
+suite rerun (a `tapFloor.test.js` regression) DURING implementation, not
+left for closure — fixed by moving the rule into its own ≤1024px block,
+re-verified via a full-suite rerun showing the same pre-existing 7
+unrelated failures and zero new ones.
+
+**Closure classification: FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT.**
+No architecture-level contradiction against the entry checkpoint's 63-point
+decision set. No scope added beyond the checkpoint (no OCR, no PDF
+annotation/highlighting, no page-excerpt capture, no SEC-filing-source
+integration, no document-type field — all correctly deferred to Wave J or
+explicitly out of scope per the checkpoint). **Explicitly recorded, not
+fixed:**
+- Zero real member usage evidence for anything in this wave (Day 0, same
+  cap every prior wave's closure has honestly carried).
+- OCR is genuinely unbuilt (deliberately, per the directive's own §226
+  presumptive Wave J scope) — `text_origin` already shaped to accept
+  `'ocr'` later, but no image/scanned-PDF path exists yet.
+- The `.toolBtn` touch-target floor across the ENTIRE editor toolbar
+  (every button, not just "Attach a file") is declared at the phone-only
+  `@media (max-width: 640px)` tier rather than the canonical `≤1024px`
+  TOUCH tier — a repo-wide, pre-existing pattern this wave's new toolbar
+  button inherited identically to every other toolbar button, not a
+  Wave-I-introduced regression; left unfixed as explicitly out of this
+  wave's scope (fixing it would be a toolbar-wide change, not an
+  attachments/PDF change).
+- The zero-text/scanned-PDF honest-failure path (`no_text` status) is
+  covered by backend tests but was not separately re-proven live in the
+  browser this session (time-scoped judgment call — the `ready`/`3-page`
+  path and the upload-failure/tenant-isolation paths were prioritized as
+  higher-signal live checks; the honest-empty-state COPY itself is the
+  same pattern already live-verified elsewhere in this program, e.g.
+  Research Home's empty state).
+- No document TYPE labeling (Filing/Presentation/Report/Other) — correctly
+  out of scope per the entry checkpoint (§110-122 decision), not a gap.
+
+---
+
+## WAVE J — DOCUMENT INTELLIGENCE II: PAGE-AWARE EVIDENCE + EXCERPTS + HIGHLIGHTS + ANNOTATIONS + OCR FALLBACK — Entry Checkpoint (2026-09-07)
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of this checkpoint's research, reconstruction, or the
+implementation that follows it. Disk checked before starting (~139GB free —
+healthy; no cleanup needed this wave).
+
+**Product framing, taken as given, not re-litigated:** the job is not "add
+OCR" — it is "turn financial source documents into durable, citable research
+evidence." OCR is a fallback ingestion path for documents that lack native
+text, not the organizing idea. Every decision below is judged against the
+directive's own north star: find the passage → preserve it → know where it
+came from → explain why it matters → connect it to a thesis → classify
+supports/opposes → return to the exact source later.
+
+### Current-reality reconstruction (directive §8)
+
+- **`j2_note_documents`/`j2_note_document_pages`/FTS** (Wave I): a document
+  row keyed `(note_id, attachment_url)` since attachments carry no id of
+  their own; pages keyed `(document_id, page_number)`; a standalone FTS5
+  mirror with its own rowid-map table (the SAME pattern `j2_notes_fts` uses
+  for its own TEXT-primary-key table, confirmed by direct comparison this
+  session). `text_origin` already accepts `'native'`/`'ocr'` — built for
+  this wave, unused until now.
+- **`DocumentPreviewSheet.jsx`** (Wave I): a plain `<iframe src={pdfUrl}>`
+  inside the existing `Sheet` `fullscreen` variant. **Live-verified this
+  session, not assumed:** clicked into a real preview, then ran
+  `frame.contentDocument.body.innerText.length` — same-origin access
+  succeeds, but the body reports **zero characters** of text. Chrome's
+  built-in PDF viewer renders pages as an opaque internal surface, not a
+  real DOM text layer — `window.getSelection()` inside that iframe returns
+  nothing usable. This is not a theoretical constraint; it is the measured,
+  reproduced reason a native-viewer excerpt-capture feature cannot be built
+  without changing the viewer.
+- **Wave G thesis evidence** (`j2_thesis_evidence` + `thesis_evidence.py`):
+  `target_type` is an **open string**, already `'note' | 'fact'`, validated
+  against a `TARGET_TYPES` tuple in one file. Adding `'document_excerpt'` is
+  a one-line tuple change plus one new branch in `_target_exists` — the
+  exact extension point the Wave G checkpoint's own comment (`'note' |
+  'fact' (open string — checkpoint 17)`) was written to invite. `caption` on
+  the evidence edge already exists and is DISTINCT in scope from anything an
+  excerpt itself would carry (resolves checkpoint item 75 by precedent: Wave
+  F's own `fact_observations.caption` — "why I captured this" — already
+  coexists with `thesis_evidence.caption` — "why this supports/opposes THIS
+  thesis" — as two different fields on two different tables; excerpts follow
+  the identical shape).
+- **`ThesisSection.jsx`**: evidence rows render a `note` target as a
+  navigable link (via `notePath`) and a `fact` target as a plain label — no
+  existence-resolution step for either (a `fact` whose row was deleted still
+  renders its stale caption with no "no longer available" state — a latent,
+  pre-existing gap this wave does not need to fix for facts, but must not
+  repeat for excerpts, per the directive's own §57 instruction).
+- **Wave D links / Wave F facts node convention**
+  (`noteLinkNode.jsx`/`financialFactNode.jsx`): both are atom nodes storing
+  **only an id**, resolved live via a batched-per-note SWR hook
+  (`useNoteFacts`) and rendered by a `NodeViewWrapper` card component
+  (`FinancialFactView.jsx`) with an explicit "no longer available" fallback
+  state. This is the exact shape to reuse for a `documentExcerpt` node — the
+  captured text lives in its own durable row (immutability, checkpoint
+  §14), the node just references it by id (checkpoint §11 resolved:
+  smallest robust model = id-only node + a durable table holding the actual
+  capture).
+- **`notes.py::extract_plain_text`**: `financialFact`/`noteLink` nodes are
+  silent in note-body search (their durable text lives in a separate table,
+  searchable through its own mechanism) — `attachmentChip` contributes a
+  short bracketed marker (`[file: name]`). `documentExcerpt` follows the
+  `attachmentChip` shape for a short inline marker, with its real search
+  surface built the same way Wave I built document-page search (its own
+  FTS index), not by inflating note-body search.
+- **`account_purge.py::_DIRECT_USER_TABLES`**: flat list of every `j2_*`
+  table with a direct `user_id` column, one DELETE per table, no ordering
+  dependency — `j2_note_excerpts` (+ its FTS/map tables, handled the same
+  way `j2_note_document_pages_fts`'s own map table already is) slots in
+  exactly the same way.
+- **`notes_export.py::_resolve_thesis_evidence_by_note`**: already resolves
+  `note`/`fact` targets to human-readable labels at export time via two
+  small batch queries — the exact function `document_excerpt` extends with
+  a third batch query (document name + page number).
+- **Existing text/highlight primitives elsewhere in UCT**: Wave B's
+  find-in-note uses ephemeral ProseMirror decorations for match highlighting
+  (never persisted into saved content) — a real precedent for
+  "highlight = a rendering decoration over stable text," but it operates on
+  the NOTE's own ProseMirror doc, not a PDF's rendered pages, so it is not
+  directly reusable machinery — only a validated pattern (decorations, not
+  DOM mutation, for temporary/derived visual emphasis).
+- **Screenshot/image attachment handling**: images already upload via
+  `uploadInlineImage`/`ALLOWED_IMAGE_MIMES` (Wave I widened this further).
+  No OCR runs on them today.
+- **Existing OCR/vision infrastructure**: **none dedicated to OCR**, but a
+  real, production precedent for sending an image to an external vision-
+  capable model exists (`api/services/voice_chart_vision.py`, GPT-4o,
+  chart-pattern reading, already shipped and running). This is relevant to
+  checkpoint items 21/22/35/36 below — extending an ALREADY-approved
+  image-to-external-vision-model data flow to text extraction is not a
+  novel privacy decision in kind, though a member's uploaded financial
+  document is plausibly more sensitive than a chart screenshot, and that
+  distinction is not waved away below.
+- **`@tanstack/react-virtual`**: already an `app/package.json` dependency,
+  currently unused anywhere in the codebase (per CLAUDE.md's own "Known
+  remaining" note) — directly reusable for page virtualization (checkpoint
+  item 64) with zero new dependency.
+- **No `pdfjs-dist`/`react-pdf`/any PDF-rendering library currently
+  installed.**
+
+### PDF viewer architecture decision (checkpoint items 1-2, directive §9-10) — the load-bearing decision this whole wave rests on
+
+**Resolved with live evidence, not assumption: the native iframe viewer
+cannot support text selection at all** (measured above — zero characters of
+text in the accessible DOM). Excerpt/highlight/annotation capture is
+therefore structurally impossible without a real text-layer renderer.
+**`pdfjs-dist` (Mozilla's own PDF.js) is required** — not for elegance, but
+because it is the only path to a genuine, selectable text layer this
+codebase can reasonably ship. Decision: add `pdfjs-dist` as a normal npm
+dependency; render each page as a canvas (visual layer) with an absolutely-
+positioned, invisible, real-text `<span>`-per-glyph text layer on top
+(PDF.js's own standard `TextLayerBuilder` recipe) so native `Selection`/
+`Range` APIs work exactly as they do over any other web text. **Migration
+safety (directive §10):** the EXISTING `DocumentPreviewSheet` (iframe) is
+preserved as the fallback/simple path and is NOT deleted — a new
+`PdfDocumentViewer.jsx` component (canvas + text layer + selection popover)
+replaces the `<iframe>` INSIDE the same `Sheet` `fullscreen` wrapper, same
+`Open in new tab`/`Download` actions, same `#page=N` deep-link contract
+(now handled by PDF.js's own page-scroll API instead of the browser's PDF
+fragment convention — functionally equivalent, verified live). Fullscreen
+Sheet behavior, mobile/tablet usability, and authorization are all
+UNCHANGED (the viewer still fetches the exact same authenticated
+attachment URL — no new auth surface).
+
+### Excerpt / highlight / annotation data model (checkpoint items 3-16, directive §11-16, §71-74)
+
+**One underlying object serves both excerpt and highlight** (checkpoint
+item 15 resolved: a highlight IS an excerpt — "durable selected source
+text" and "visual marker inside the document" are two facets of the same
+row, not two storage systems). New table:
+
+```
+j2_note_excerpts (
+  id             TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL,
+  note_id        TEXT NOT NULL,       -- destination note (mirrors j2_fact_observations' own note-owned shape)
+  document_id    TEXT NOT NULL,       -- FK -> j2_note_documents.id
+  page_number    INTEGER NOT NULL,
+  captured_text  TEXT NOT NULL,       -- immutable, exactly what was selected (checkpoint §14)
+  quote_prefix   TEXT,                -- short surrounding context, robust re-anchoring (checkpoint §13/§71)
+  quote_suffix   TEXT,
+  char_start     INTEGER,             -- supplementary best-effort offsets (checkpoint §13, never load-bearing alone)
+  char_end       INTEGER,
+  annotation     TEXT,                -- user's SOURCE annotation ("why this matters") -- distinct from evidence.caption
+  created_at     TEXT NOT NULL,
+  modified_at    TEXT                 -- stamped only when annotation is edited (checkpoint §74)
+)
+```
+
+- **Excerpt identity (checkpoint §11):** the smallest robust model is
+  id + user_id + document_id + page_number + captured_text + quote context —
+  NOT text alone (checkpoint's own explicit warning), and not pixel
+  rectangles alone. `char_start`/`char_end` ride along as a fast-path
+  re-anchor hint; `quote_prefix`/`quote_suffix` are the ROBUST fallback
+  (checkpoint §71: a text-quote-with-context selector survives whitespace/
+  hyphenation drift that raw offsets do not) — this is deliberately the
+  well-known "Text Quote Selector" shape (W3C Web Annotation Data Model's
+  own approach to the identical problem), not invented from scratch.
+- **Page is the citation unit (checkpoint §12):** every member-facing
+  surface renders `{Document Title} · p.{N}` — never an internal id/offset.
+  Internal anchors stay internal.
+- **Source-text immutability (checkpoint §14):** `captured_text` is written
+  once at creation and never rewritten by a future re-extraction pass —
+  Wave I's own `extraction_version` bump mechanism can regenerate
+  `j2_note_document_pages`, but an existing excerpt's `captured_text` is
+  independent of that table from the moment it's captured. Trust over
+  reconstruction, exactly as the directive instructs.
+- **Two-caption precedent confirmed (checkpoint §16/§75):** `annotation`
+  (on the excerpt) = "why THIS passage matters," portable across every
+  thesis that later cites it; `j2_thesis_evidence.caption` (unchanged,
+  already exists) = "why THIS excerpt supports/opposes THIS particular
+  thesis" — can differ per thesis for the SAME excerpt (checkpoint §73,
+  directly enabled by keeping them on separate rows/tables).
+- **Excerpt ownership/ note_id (checkpoint §56):** mirrors
+  `j2_fact_observations` exactly — `note_id` is the destination chosen at
+  save time (defaults to the note the document was opened from, per
+  checkpoint §21's fast path), not necessarily the document's own owning
+  note. An excerpt is referenceable by any of the user's theses via
+  `j2_thesis_evidence`, regardless of which note captured it — same
+  cross-note-reference shape Wave G's own fact-evidence already has today
+  (verified: `_target_exists('fact', ...)` checks only user ownership, not
+  note co-location).
+- **Lifecycle (checkpoint §57):** cascade-delete `j2_note_excerpts` when the
+  owning `j2_note_documents` row is deleted — a 4th level added to Wave I's
+  existing note→document→pages→FTS trigger chain. This is a deliberate
+  choice, not a default: if the source document is genuinely gone, a
+  citation claiming it still exists would be dishonest (directive's own
+  §57 instruction). Any note/thesis-evidence row still referencing a
+  deleted excerpt id degrades via the SAME "no longer available" pattern
+  `FinancialFactView` already established for a deleted fact — not a new
+  UX idiom.
+- **Excerpt-node insertion (checkpoint §10/§24):** a new `documentExcerpt`
+  TipTap atom node, id-only (`excerptId`), resolved live via a new batched
+  `useNoteExcerpts(noteId)` hook (mirrors `useNoteFacts` exactly) and
+  rendered by `ExcerptView.jsx` (mirrors `FinancialFactView.jsx`'s card
+  shape: quote text, source citation line, annotation, remove button, and
+  an explicit "This excerpt's source is no longer available" fallback).
+
+### Note insertion UX / fast paths (checkpoint items 20-22, directive §20-26)
+
+**Low-friction flow, no 6-field form:** select text in the PDF viewer →
+a small selection popover appears (`Save excerpt`) → a lightweight inline
+form asks only for: destination (defaults to **current note** if the
+document was opened from one — checkpoint §21 — or the current
+ticker-context research note if opened from the Ticker Workspace —
+checkpoint §22, reusing Wave H's EXISTING dynamic membership, no new hidden
+system) + optional stance (Supports/Opposes/none, only shown when a thesis
+destination is selected) + optional annotation. Vocabulary stays
+"Save excerpt" / "Add as evidence" — never invented jargon (checkpoint
+§23). Visual design: quieter than authored thesis prose, distinct from
+`financialFact`/`noteLink` chips via typography/citation-line hierarchy,
+not a bright color badge (checkpoint §25). Quote-length: no hard cap, but a
+soft warning past ~2 paragraphs discourages whole-page copying (checkpoint
+§26/§63 — the document remains authoritative source, not a copy-paste
+target).
+
+### Thesis evidence integration (checkpoint items 17-19, directive §17-19)
+
+`document_excerpt` becomes a first-class `target_type` in
+`j2_thesis_evidence` (one tuple entry + one `_target_exists` branch, per
+the reconstruction above). `ThesisSection.jsx`'s existing 2-way picker
+(Note / Captured fact) gains a third option (Document Excerpt), sourced
+from `useNoteExcerpts` the same way the fact picker already sources
+`useNoteFacts` — no new "universal asset manager" (checkpoint §19
+explicitly warns against one). Evidence rows for an excerpt target render
+the citation line (`{Document} · p.{N}`) + a truncated quote, clicking
+opens `DocumentPreviewSheet` at the exact page with the passage scrolled
+into view and briefly emphasized (checkpoint §28/§29 — the single highest-
+value exit gate named in the directive). Whole-document evidence
+(`target_type='document'` pointing at a `j2_note_documents.id`) is
+deliberately NOT added this wave — checkpoint §18 prefers precise excerpt
+evidence, and nothing in this wave's real E2E workflow needs the coarser
+form; it can be added later with zero migration cost if real demand
+appears.
+
+### OCR (checkpoint items 21-28, 33-44, directive §33-44) — SCOPED, EXPLICITLY DEFERRED
+
+This is the one deliberate, recorded scope decision this checkpoint makes
+against the directive's own title. Reasoning: OCR requires its own genuine
+engine/cost/privacy decision (checkpoint items 21-23) that deserves the
+SAME deliberate treatment every other irreversible-feeling decision in this
+program has received — not a rushed add-on at the tail of an already-large
+PDF.js viewer migration. Concretely:
+- **Engine candidates identified, not yet chosen**: the existing
+  `voice_chart_vision.py` precedent (GPT-4o vision, already production-
+  approved for chart screenshots) is the lowest-new-surface-area option;
+  local OCR (e.g. Tesseract) avoids any external transmission but adds a
+  new system dependency and materially weaker accuracy on financial
+  tables/dense text; a dedicated cloud OCR API is a third option not yet
+  evaluated. None is selected this session.
+- **Privacy (checkpoint §36) is NOT resolved**: a scanned 10-K or investor
+  deck is plausibly more sensitive than a chart screenshot, and "we already
+  send images to GPT-4o for charts" is not, by itself, sufficient
+  authorization to send a member's private financial document to the same
+  or a different external provider without an explicit decision to that
+  effect. This checkpoint declines to make that call as a side-effect of
+  building excerpts.
+- **What this wave DOES ship in OCR's favor, at zero extra cost**: the
+  entire excerpt/highlight/annotation/citation/thesis-evidence architecture
+  above is built so that an OCR-sourced page (`text_origin='ocr'`) would
+  slot into `j2_note_document_pages` identically to a native one — the SAME
+  page model, the SAME FTS index, the SAME excerpt/citation system
+  (checkpoint §33's own explicit requirement: no parallel OCR silo). A
+  future OCR pass needs zero schema change and zero excerpt-model rework —
+  only a new extraction path writing into existing tables. This is
+  precisely the same "prepare, don't build" discipline Wave I applied to
+  `text_origin` itself.
+- **Zero-text/scanned-PDF UX (checkpoint §27/§38)**: Wave I's existing
+  honest `no_text` status is UNCHANGED and remains the correct, honest
+  answer for a scanned PDF this wave — no OCR runs automatically, no
+  document is silently left half-searchable while pretending otherwise.
+- Recorded as explicit residual debt in the final certification, not
+  hidden.
+
+### Search integration (checkpoint items 29-32, 45-49, directive §45-49)
+
+- **Ticker-constrained document search (checkpoint §30/§46)**: reuses Wave
+  H's `_documents_for_symbols` membership predicate directly — inside the
+  NVDA Research workspace, document/excerpt search scopes to NVDA-linked
+  documents only. No second search engine.
+- **Excerpt search (checkpoint §31/§47)**: a small new FTS index
+  (`j2_note_excerpts_fts` + a rowid-map table, the SAME pattern
+  `j2_notes_fts_map`/`j2_note_document_pages_fts_map` already establish for
+  a TEXT-primary-keyed source table) over `captured_text` + `annotation`.
+  Sidebar search gains a THIRD section ("Evidence") alongside the existing
+  "Notes" and "Documents" sections (checkpoint §48 — no ambiguous result
+  rows; every row states its type + page).
+- **Wave I's existing document search is UNCHANGED** — filename search,
+  page-aware snippets, sectioned results, owning-note navigation all
+  continue exactly as shipped (checkpoint §78 non-regression requirement).
+- **Document type / SEC filing workflow (checkpoint §41/§42/§49-50)**: both
+  remain explicitly out of scope this wave, unchanged from Wave I's own
+  decision — no current stable rights-cleared filing-source integration to
+  bridge from, and document-type labeling has no consumer yet that would
+  use it.
+
+### Lifecycle, security, rights (checkpoint items 56-63, directive §56-63, §104-108)
+
+- **Trash/restore/purge**: `j2_note_excerpts` added to
+  `account_purge.py::_DIRECT_USER_TABLES`; cascade-delete via the note→
+  document→pages chain already covers the excerpt's ultimate dependency;
+  trashing/restoring the OWNING NOTE behaves exactly like every other
+  note-scoped sidecar table already does (excluded while trashed, usable
+  again on restore — no new mechanism needed, verified against the
+  existing pattern rather than re-derived).
+- **Security (checkpoint §37/§104-107)**: every new endpoint re-verifies
+  `user_id` ownership of BOTH the excerpt and any referenced document/note,
+  mirroring `thesis_evidence.py`'s existing two-sided re-verification
+  discipline exactly (never trust a client-supplied id as authorization).
+  `text_origin` is server-computed only — never accepted from a client
+  payload (checkpoint §105).
+- **Rights (checkpoint §62-63)**: manually-uploaded documents remain
+  private user content under existing platform terms (Wave I's own
+  unchanged rights classification) — excerpt capture doesn't change that
+  boundary. No encouragement of wholesale document copying (the soft
+  quote-length warning above).
+- **Export (checkpoint §60-61)**: `notes_export.py` extended — single-note
+  and full-library export both render excerpts with their citation line and
+  annotation in the existing portable markdown convention (mirroring the
+  existing evidence-export block's own plain-text shape, not a new format
+  invented for this).
+
+### Mobile / tablet / accessibility (checkpoint items 33-36, directive §83-86)
+
+Text selection over a REAL DOM text layer (PDF.js) works via the browser's
+native long-press-to-select on touch devices — genuinely better than the
+native iframe's zero-selection baseline, not merely "acceptable." This will
+be live-verified at phone and tablet widths as part of this wave's own E2E
+pass, not assumed from the desktop result.
+
+### If a MATERIAL contradiction remains
+
+None found. The viewer-selection constraint (the one item explicitly
+flagged as potentially blocking) is real, measured, and resolved by the
+PDF.js decision above — not a contradiction, a confirmed requirement.
+Proceeding directly to implementation.
+
+### Recommended vertical slices (directive §117, resequenced from current architecture)
+
+1. **PDF.js viewer + real text selection** — the technical foundation
+   everything else depends on; ships first.
+2. **Excerpt/highlight/annotation data model** — `j2_note_excerpts` +
+   lifecycle + the `documentExcerpt` node + `ExcerptView`.
+3. **Note insertion + source navigation** — save-excerpt flow, click-to-
+   source with page + passage emphasis.
+4. **Thesis evidence integration** — `document_excerpt` target type,
+   evidence picker's third option, changelog event, export.
+5. **Search integration** — excerpt FTS + sectioned sidebar results,
+   ticker-constrained document/excerpt search.
+6. **Lifecycle + security + export** — account-purge, tenant
+   re-verification, portable citation export.
+7. **Mobile/tablet + full test matrix + real-browser E2E.**
+8. **Closure + production merge/deploy + certification report.**
+
+**OCR fallback is explicitly OUT of this wave's delivered scope** (see
+above) — recorded as residual debt, not silently dropped.
+
+### Wave J — CLOSED 2026-09-07 — FULLY CERTIFIED WITH EXPLICIT RESIDUAL DEBT
+
+Built directly per the standing PERMANENT session rule: no fork/subagent
+dispatch for any part of Wave J's research, architecture, implementation,
+testing, browser verification, git reconciliation, or deployment. The
+permanent disk/resource-safety rule (only clean `uct_e2e_sandbox_*`, never
+anything else) was honored throughout; no disk emergency occurred this wave,
+and nothing outside that prefix was deleted.
+
+**Delivered, per the 8 recommended vertical slices above:**
+
+1. **PDF.js viewer + real text selection** — `lib/pdfjs.js` (worker setup,
+   credentialed document load) and `PdfDocumentViewer.jsx`: a virtualized
+   canvas + `TextLayer` renderer over the existing, previously-unused
+   `@tanstack/react-virtual` dependency. `DocumentPreviewSheet.jsx` mounts it
+   in place of the Wave I `<iframe>`, keeping its bar and actions unchanged.
+2. **Excerpt data model** — `j2_note_excerpts` + `j2_note_excerpt_refs`
+   (sidecar) + `j2_note_excerpts_fts` and its rowid map, with cascade
+   triggers on BOTH note-delete and document-delete. `note_excerpts.py`
+   (two-sided tenant re-verification on create), the `documentExcerpt` TipTap
+   node, and `ExcerptView.jsx`.
+3. **Note insertion + source navigation** — save-excerpt inserts a real node
+   and refreshes the excerpt list; a citation click opens the source at the
+   right page with the passage highlighted and briefly emphasized, including
+   for an excerpt captured in a different note.
+4. **Thesis evidence integration** — `document_excerpt` joined the
+   `TARGET_TYPES` tuple (one line, per Wave G's deliberate open-string
+   extension point), the evidence picker gained its third option, the
+   changelog records `evidence_added`, and export renders the citation.
+5. **Search integration** — `excerpt_search.py` + `GET
+   /notes/excerpts/search` + `useExcerptSearch` + an Evidence section in the
+   sidebar, sectioned apart from Notes and Documents.
+6. **Lifecycle + security + export** — account-purge extended to both new
+   tables; trash/restore verified dynamic in both directions; markdown export
+   renders each excerpt as a blockquote with an em-dash citation line and
+   carries thesis evidence in front matter.
+7. **Mobile/tablet + test matrix + real-browser E2E** — below.
+8. **Closure + production merge/deploy + certification** — this section and
+   what follows it.
+
+**Ticker-constrained document/excerpt search (slice 5's second half) was NOT
+built** — recorded as debt, not silently dropped. The three-section sidebar
+search is the delivered half.
+
+#### The live-browser E2E sequence, in order, as actually run
+
+Sandbox on port 8092 (`tools/e2e_sandbox_launcher.py`), test account
+`e2e-sandbox@local.dev`, against a purpose-built 4-page financial PDF with
+real wrapped paragraphs (the earlier fixture put one 24pt line per page,
+which cannot exercise multi-line selection, quote context, or highlight rects
+that span line boxes — it was replaced for exactly that reason).
+
+1. Attached the PDF through the editor toolbar; the chip appeared; extraction
+   reached `status: "ready"`, `pageCount: 4`.
+2. Opened the preview from the chip. Verified the page renders real content,
+   the text layer's box matches the canvas box exactly (960×1242 vs.
+   960×1242.34), and `--total-scale-factor` resolves to 1.5686 — i.e. pdfjs's
+   own `round(down, ...)` width expression now evaluates instead of being
+   dropped.
+3. Selected a two-line passage with a real mouse drag. The browser's own
+   selection highlight appeared; the "Save excerpt" popover rendered at the
+   selection's end.
+4. Saved. Verified against the API: one excerpt row, page 2, `charStart` 261,
+   `charEnd` 416, a real 200-character `quotePrefix` and `quoteSuffix`, and
+   `capturedText` exactly the selected passage.
+5. Verified the note body afterwards:
+   `[attachmentChip, documentExcerpt, documentExcerpt, paragraph]` — the
+   attachment chip SURVIVED (see defect 2), and the new excerpt landed
+   immediately after it.
+6. Verified the gold highlight renders over the passage without a reload, and
+   again after a full page reload.
+7. Clicked the excerpt card's `deck.pdf · p.1` citation: the viewer opened at
+   page 1 with the passage highlighted across both of its line boxes.
+8. Added the p.2 excerpt as thesis evidence with stance SUPPORTS and a
+   caption. Verified the persisted row carries
+   `targetType: "document_excerpt"`, and that the changelog gained "Evidence
+   added (supports)".
+9. Built the markdown export server-side and read it: front matter carries
+   `thesis_evidence: - stance: supports / target: nvda-q3-fy26-deck.pdf, p.2
+   / note: <the caption>`; each excerpt renders as a blockquote followed by
+   `> — <document>, p.<n>`. Confirmed the citation character is U+2014 in the
+   bytes (a console rendering artifact made it look like mojibake; it is not).
+10. Searched `margins` in the sidebar: 4 document pages and 1 saved excerpt,
+    in separate sections with separate counts and separate icons.
+11. Trashed the note. Both excerpt search and document search dropped to zero
+    hits. Restored it from Trash; both came back (1 excerpt, 4 pages) with no
+    reindex step.
+12. Tenant isolation, from a second real account created for the purpose:
+    excerpt search returns `{"results": []}`; `GET /excerpts/{id}` on the
+    first account's excerpt returns **404** (not 403 — it does not confirm
+    existence); `POST /notes/{id}/excerpts` against the first account's note
+    and document is refused with **400 "Note not found"**; the note's excerpt
+    list returns `200 {"excerpts": []}`.
+
+#### The five live defects, with their exact reproduction
+
+Full narrative in the decision log's Wave J entry; the reproductions are here
+because this is where verification detail lives.
+
+1. **Null text-quote anchor.** Select any passage spanning two rendered lines
+   → save → read the stored row: `quotePrefix`, `quoteSuffix`, `charStart`,
+   `charEnd` all null, and no highlight ever draws. Root cause measured in
+   the live DOM: the page's own text read `"...the meaning ofthe Private..."`
+   (item-join, no separators) while `Selection.toString()` read
+   `"...the meaning of\nthe Private..."`, so `indexOf` returned -1.
+2. **Attachment destroyed by saving an excerpt.** Click a PDF chip (this
+   leaves `A.ProseMirror-selectednode` as `document.activeElement`), save any
+   excerpt, then read the persisted note body: the `attachmentChip` node is
+   gone.
+3. **Silent save failure on a fresh attachment.** Attach a PDF, immediately
+   open it, select, click Save excerpt: nothing happens, no toast, no row —
+   until a full page reload.
+4. **3.02× over-scaling.** Open any letter-size PDF with the browser
+   maximized on a wide display: 72px body text, right edge clipped.
+5. **Text-layer dimensions dropped.** Inspect the text layer: `style.width`
+   is the literal string `round(down, var(--total-scale-factor) * 612px,
+   var(--scale-round-x))` and the computed width falls back to the `inset: 0`
+   box, because `--scale-round-x` was never defined.
+
+Plus: stale highlight rects painted at the previous scale after a viewport
+resize (gold bars a paragraph above their passage), and a zero-width rect at
+each `<br>` boundary.
+
+**One thing that looked like a sixth defect and was not.** Synthetic
+triple-clicks and drags whose endpoint fell outside a text node produced no
+selection while ProseMirror held focus, which reads exactly like a focus
+hijack in the preview Sheet. It is a CDP limitation: with both drag endpoints
+inside text, selection works with the editor focused. Recorded rather than
+reported.
+
+#### Mobile / tablet
+
+`tools/mobile_audit.py --base http://localhost:8092 --auth --routes /journal
+/journal/notebook`, all four viewports (phone, phone390, tablet, desktop):
+
+- **Horizontal overflow: 0 px on every route × viewport combination.**
+- Sub-44px tap targets on the Notebook route, NAMED not counted:
+  `Show folders` 28×28, `Search notes` 28×28, `Hide folders panel` 28×28
+  (tablet), `Add thesis starter views` 24px tall, `View all` 42×19.
+  - The three 28×28 panel-switch buttons were **fixed this wave**:
+    `FolderSidebar.module.css`'s `@media (max-width: 1024px)` block already
+    raised every other interactive element in the file to `--tap-min` and had
+    simply missed `.sbHeaderBtn`, whose fixed 28px won by default. That file
+    was already in this wave's blast radius and these are the Notebook's
+    most-tapped phone controls.
+  - `Add thesis starter views` and `View all` are **Wave H chrome, named and
+    left** — recorded as that wave's debt rather than silently absorbed here.
+  - **Re-audited after the fix, not assumed:** phone 4→2, phone390 4→2,
+    tablet 5→2, overflow still 0. The 2 that remain are exactly the two Wave H
+    elements named above.
+- ⚠️ **The first two audit runs were VACUOUS and are recorded as such.** Run
+  one passed `--routes /journal` through Git Bash, whose MSYS path
+  translation rewrote it to `C:/Program Files/Git/journal` — the harness
+  audited a 404 page and reported a clean `overflowX=0, small=0`. Run two
+  used a comma-separated list, which `--routes` (an `nargs="*"`) took as one
+  literal route string, auditing a second 404. Only the third run, with
+  space-separated routes through PowerShell, audited the real pages. This is
+  the third distinct way this harness can pass vacuously; the tell in both
+  bad runs was `screens=1` with zero findings on a route that really returns
+  `screens=0.7` and five findings.
+- The PDF viewer itself is not reachable by the harness (it needs a note open
+  and a chip click), so it was verified separately with same-origin iframes
+  at 390px and 820px: **no horizontal overflow** (`body.scrollWidth === body.clientWidth
+  === 390`; the scroll container and panel likewise), the page fits and stays
+  centred, and the gold highlight renders correctly at both widths.
+
+#### Test evidence
+
+- Frontend, `src/pages/journal-2-0/`: **1798 passing across 190 files.** One
+  intermittent failure (`ImportWizard` "audit B1", a 4.1s timeout) appeared
+  in one full-suite run; it passes in isolation and passed on the full-suite
+  re-run — a load-dependent flake in an import-wizard test with no
+  relationship to any file this wave touched, recorded rather than
+  hand-waved.
+- Backend Wave J suites (`test_wave_j_excerpts.py`,
+  `test_journal_two_excerpts_router.py`, `test_notes_export.py`):
+  **105 passing.**
+- **Two mutation checks**, because a rail nobody has seen fail is not a rail:
+  deleting the `<br>` branch from `_buildPageText` turns 4 tests red;
+  reverting `insertContentAt` to `insertContent` turns the chip-survival rail
+  red.
+- New rails this wave: 12 on the page-text builder / offset mapping /
+  re-location (including the newline case that was the defect), the
+  chip-survival assertion, 5 on the Evidence search section, and the
+  thesis-row test rewritten to state the new caption+citation rule.
+
+#### Residual debt, explicit
+
+1. **OCR** — not built, and blocked on an owner decision (may private member
+   documents be processed by an external service, and at what cost), not on
+   engineering. Gap ledger G-121 stays OPEN. This is the one row where
+   Evernote is unambiguously ahead.
+2. **No zoom control / pinch-zoom** in the PDF viewer. Fit-to-width is honest
+   at 390px but a letter page renders at ~0.52×.
+3. **No cross-page selection** — an excerpt is page-scoped by design.
+4. **Ticker-constrained document/excerpt search** — slice 5's second half,
+   not built.
+5. **Two Wave H tap targets** named above, left for Wave H.
+6. **Zero real member usage evidence** — Day 0, the same honest cap every
+   prior wave's closure carries.

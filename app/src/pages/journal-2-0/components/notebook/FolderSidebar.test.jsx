@@ -51,11 +51,30 @@ vi.mock('../../hooks/useJ2NoteTags', () => ({
   default: (...args) => useJ2NoteTagsMock(...args),
 }))
 
+// Wave I: document (PDF page) search — a separate hook/section from note
+// search above. Default (no results) so existing search tests, which never
+// exercise this new section, stay unaffected.
+const useDocumentSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useDocumentSearch', () => ({
+  default: (...args) => useDocumentSearchMock(...args),
+}))
+
+// Wave J: saved-excerpt (evidence) search — a THIRD hook/section, separate
+// again from both of the above. Same default-empty convention.
+const useExcerptSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useExcerptSearch', () => ({
+  default: (...args) => useExcerptSearchMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
   useJ2NoteTagsMock.mockReset()
   useJ2NoteTagsMock.mockImplementation(() => ({ tagCounts: [], isLoading: false, error: null }))
+  useDocumentSearchMock.mockReset()
+  useDocumentSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useExcerptSearchMock.mockReset()
+  useExcerptSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useJ2NoteFolderCountsMock.mockReset()
   useJ2NoteFolderCountsMock.mockImplementation(() => ({
     counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
@@ -834,6 +853,177 @@ describe('search panel — Wave 4 date/sector/theme filters', () => {
   })
 })
 
+describe('search panel — Wave I document (PDF page) search, sectioned separately from notes', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('renders zero document results with no query typed', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText(/document page/)).not.toBeInTheDocument()
+  })
+
+  it('a matching document page renders its own snippet, page number, and owning note title — separately from note results', () => {
+    useDocumentSearchMock.mockImplementation((q) => {
+      if (q === 'margin') {
+        return {
+          results: [{
+            documentId: 'd1', pageNumber: 17, noteId: 'n1', noteTitle: 'NVDA 10-K notes',
+            name: 'investor-deck.pdf', attachmentUrl: '/x.pdf',
+            snippet: 'gross <mark>margin</mark> expanded',
+          }],
+          isLoading: false, error: null,
+        }
+      }
+      return { results: [], isLoading: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margin' } })
+    settle()
+    expect(screen.getByText('1 document page')).toBeInTheDocument()
+    expect(screen.getByText('investor-deck.pdf · p.17')).toBeInTheDocument()
+    expect(screen.getByText('margin').tagName).toBe('MARK')
+  })
+
+  it('clicking a document result opens its OWNING NOTE (v1 scope — the member reaches the PDF preview from there)', () => {
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
+        name: 'deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    fireEvent.click(screen.getByText('deck.pdf · p.3'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
+  })
+
+  it('shows an honest "Searching documents…" state while a document query is in flight', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching documents…')).toBeInTheDocument()
+  })
+})
+
+// ── Wave J: saved-excerpt (Evidence) search — the third result section.
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('FolderSidebar — Wave J saved-excerpt search', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('renders no evidence section with no query typed', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText(/saved excerpt/)).not.toBeInTheDocument()
+  })
+
+  it('a matching excerpt renders its own snippet, source document and page', () => {
+    useExcerptSearchMock.mockImplementation((q) => {
+      if (q !== 'margins') return { results: [], isLoading: false, error: null }
+      return {
+        results: [{
+          excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis',
+          documentId: 'd1', documentName: 'q3-deck.pdf', pageNumber: 2,
+          annotation: 'the guidance walk-down',
+          snippet: 'gross <mark>margins</mark> to normalize lower',
+        }],
+        isLoading: false, error: null,
+      }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margins' } })
+    settle()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+    expect(screen.getByText('margins').tagName).toBe('MARK')
+  })
+
+  it('keeps excerpts in their OWN section rather than merging them into the document results', () => {
+    // The whole point of three sections: a curated passage and a raw page
+    // hit must not be ranked against each other (excerpt_search.py says the
+    // same thing on the backend). Both lists present, both counted apart.
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 9, noteId: 'n1', noteTitle: 'NVDA thesis',
+        name: 'q3-deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a page <mark>hit</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis', documentId: 'd1',
+        documentName: 'q3-deck.pdf', pageNumber: 2, annotation: null,
+        snippet: 'a kept <mark>hit</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'hit' } })
+    settle()
+    expect(screen.getByText('1 document page')).toBeInTheDocument()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.9')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+  })
+
+  it('clicking an excerpt result opens its owning note', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n7', noteTitle: 'NVDA thesis', documentId: 'd1',
+        documentName: 'deck.pdf', pageNumber: 4, annotation: null,
+        snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    fireEvent.click(screen.getByText('deck.pdf · p.4'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' })
+  })
+
+  it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
+    useExcerptSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
+  })
+})
+
 // ── Wave B (High-Frequency Notebook UX) — Favorites + Recents sidebar
 // sections. Both populated-conditional: absent from the DOM entirely with
 // zero items. ────────────────────────────────────────────────────────────
@@ -901,5 +1091,47 @@ describe('Favorites + Recents sidebar sections (Wave B)', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     expect(screen.getByText('Untitled')).toBeInTheDocument()
+  })
+})
+
+// ── Wave E — Saved Views sidebar section. A plain prop (not its own hook,
+// unlike Favorites/Recents above) since NotebookTab owns the useJ2SavedViews
+// call and needs the same data for the toolbar/table-view wiring. Same
+// populated-conditional shape. ──────────────────────────────────────────────
+
+describe('Saved Views sidebar section (Wave E)', () => {
+  it('renders nothing at zero saved views (populated-conditional)', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
+    expect(screen.queryByText('Saved Views')).not.toBeInTheDocument()
+  })
+
+  it('renders a Saved Views section and activating one calls onSelectView', () => {
+    const onSelectView = vi.fn()
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'table' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          savedViews={[view]} onSelectView={onSelectView} />)
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Active Theses'))
+    expect(onSelectView).toHaveBeenCalledWith(view)
+  })
+
+  it('highlights the active saved view', () => {
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          savedViews={[view]} activeViewId="v1" />)
+    const row = screen.getByText('Active Theses').closest('button')
+    expect(row.className).toMatch(/rowActive/)
+  })
+
+  it('collapsing Saved Views hides its rows without removing the header', () => {
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
+    expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
   })
 })

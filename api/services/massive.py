@@ -364,12 +364,24 @@ class _MassiveRestClient:
         # defers that exact decision, so this does not attempt to invent it
         # here. A genuinely per-ticker freshness feature is future work,
         # not silently done via a lossy aggregate.
+        #
+        # Seam 8 (Price-Move Evidence Timestamp Convergence, 2026-09-07):
+        # `value` (`out`, above) IS already per-ticker granular, unlike
+        # `ProviderResult` itself -- so stamping the SAME per-ticker
+        # observed_at this loop already computes onto each ticker's own
+        # dict (as `_observed_at`, underscore to mark it UCT-injected, not
+        # part of Massive's raw schema) adds zero new provider calls and
+        # doesn't touch the aggregate-freshness architecture question this
+        # comment defers. `live_prices.py::_fetch_snapshots` reads it
+        # straight off the same dict. No early exit anymore -- every
+        # ticker needs its OWN stamp now, not just "was any of them stale."
         oldest_age_freshness = "real_time"
         for t in out.values():
             observed_at = self._ticker_observed_at(t)
-            if _pe.freshness_from_observed_age(observed_at, normal="real_time") == "stale":
+            t["_observed_at"] = observed_at
+            if oldest_age_freshness == "real_time" \
+                    and _pe.freshness_from_observed_age(observed_at, normal="real_time") == "stale":
                 oldest_age_freshness = "stale"
-                break
         return _pe.ProviderResult(
             value=out,
             provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="massive.get_batch_quotes"),

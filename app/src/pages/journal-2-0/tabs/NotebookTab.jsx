@@ -2,9 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
+import useJ2SavedViews from '../hooks/useJ2SavedViews'
+import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
+import NotesTableView from '../components/notebook/NotesTableView'
+import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
+import ResearchHome from '../components/notebook/ResearchHome'
 import TemplatePicker from '../components/notebook/TemplatePicker'
 import ImportWizard from '../components/notebook/import/ImportWizard'
 import ExportDialog from '../components/notebook/export/ExportDialog'
@@ -13,6 +18,7 @@ import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
+import { createNoteViaApi } from '../lib/noteCreation'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import styles from './NotebookTab.module.css'
@@ -78,7 +84,35 @@ export default function NotebookTab() {
     }, { replace: true })
   }, [searchParams, setSearchParams])
   const [tag, setTag] = useState(null)
+  // Wave H checkpoint decision 23: the Ticker Research Workspace's "View
+  // all Notes" action lands here via `?ticker=`, reusing this exact
+  // one-time-per-arrival-strip pattern (never a second filtering mechanism
+  // -- this composes with `?view=all` and, per decision 24, with `?q=`).
+  const [tickerFilter, setTickerFilter] = useState(null)
+  useEffect(() => {
+    const t = searchParams.get('ticker')
+    if (!t || searchParams.get('new')) return  // '?new=...&ticker=' is the UNRELATED note-seed deep link, not a filter
+    setTickerFilter(t.toUpperCase())
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('ticker')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
   const [sort, setSort] = useState('updated')
+  // Wave E: an active saved view is mutually exclusive with folder/tag
+  // browsing (same "one selection channel" discipline as folder vs. Trash
+  // above) -- holds the WHOLE view object (not just its id) so viewType/
+  // spec are available without a second lookup. `propertyFilter`/
+  // `propertySort` are the AD-HOC equivalents, used only while no saved
+  // view is active (a table-column-header click or a quick-filter chip).
+  const [activeView, setActiveView] = useState(null)
+  const [viewMode, setViewMode] = useState('list')
+  const [propertyFilter, setPropertyFilter] = useState(null)
+  const [propertySort, setPropertySort] = useState(null)
+  const [saveViewOpen, setSaveViewOpen] = useState(false)
+  const { savedViews, create: createSavedView } = useJ2SavedViews()
+  const { propertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
   const { symbol: focusSymbol } = useAppFocus()
@@ -189,8 +223,15 @@ export default function NotebookTab() {
   } = useJ2Notes({
     folderId: isTrashView ? undefined : folderId,
     tag: isTrashView ? undefined : tag,
+    ticker: isTrashView ? undefined : tickerFilter,
     sort: isTrashView ? 'deleted' : sort,
     deleted: isTrashView,
+    // Wave E: savedViewId wins exclusively (server resolves ITS OWN stored
+    // spec -- directive §87); the ad-hoc propertyFilter/propertySort below
+    // are only ever sent when no saved view is active.
+    savedViewId: !isTrashView ? activeView?.id : undefined,
+    propertyFilter: !isTrashView && !activeView ? propertyFilter : undefined,
+    propertySort: !isTrashView && !activeView ? propertySort : undefined,
   })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs a note set covering every folder — not the
@@ -222,7 +263,14 @@ export default function NotebookTab() {
       { revalidate: false },
     )
   }, [mutateAllNotes])
-  const hasActiveFilters = Boolean(folderId || tag)
+  const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter || tickerFilter)
+  // Wave H checkpoint decision 32/57: bare-root (no note, no filter, no
+  // explicit ?view=all) renders Research Home instead of the flat All Notes
+  // grid. "All notes" itself stays one click away (the sidebar row), now
+  // via the explicit `view=all` flag rather than being indistinguishable
+  // from Home.
+  const viewAll = searchParams.get('view') === 'all'
+  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
 
   // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
   // per-folder counts, per-expanded-folder note lists) with no handle exposed
@@ -249,6 +297,9 @@ export default function NotebookTab() {
       // drop them here so the final URL is always clean.
       next.delete('new')
       next.delete('ticker')
+      // Wave H: opening a note leaves the explicit "All notes" grid state —
+      // same "leaving X clears Y" discipline as every other selection below.
+      next.delete('view')
       return next
     }, { replace: false })
   }
@@ -270,8 +321,101 @@ export default function NotebookTab() {
     next.delete('note')
     return next
   }, { replace: false })
-  const handleSelectFolder = (id) => { setFolderId(id); if (noteId) clearNoteParam() }
-  const handleSelectTag = (t) => { setTag(t); if (noteId) clearNoteParam() }
+  // Wave H: `?view=all` is the explicit flag distinguishing "the All Notes
+  // grid, no filter" from bare-root Research Home -- both otherwise look
+  // identical (folderId=null, tag=null, no activeView). Selecting any real
+  // folder/tag/saved-view leaves that explicit-all-notes state.
+  const clearViewAllParam = () => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev)
+    next.delete('view')
+    return next
+  }, { replace: false })
+  const selectAllNotes = () => {
+    setFolderId(null)
+    setTag(null)
+    setActiveView(null)
+    setTickerFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', 'all')
+      next.delete('note')
+      return next
+    }, { replace: false })
+  }
+  const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
+  const handleSelectTag = (t) => { setTag(t); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
+  const handleSelectView = (view) => {
+    // Wave E: mutually exclusive with folder/tag browsing -- same "one
+    // selection channel" discipline as folder vs. Trash above.
+    setFolderId(null)
+    setTag(null)
+    setTickerFilter(null)
+    setPropertyFilter(null)
+    setPropertySort(null)
+    setActiveView(view)
+    setViewMode(view.viewType === 'table' ? 'table' : 'list')
+    clearViewAllParam()
+    if (noteId) clearNoteParam()
+  }
+  const handleQuickFilter = (propertyId, value) => {
+    if (activeView) return // a saved view's spec is server-resolved; ad-hoc filters don't apply on top of it
+    setPropertyFilter([{ propertyId, op: 'eq', value }])
+  }
+  const handlePropertySort = (propertyId) => {
+    if (activeView) return
+    setPropertySort((prev) => ({
+      propertyId,
+      direction: prev?.propertyId === propertyId && prev.direction === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+  const handleSaveCurrentView = async (name) => {
+    // Deliberately property-filter/sort ONLY -- not folder/tag. A saved
+    // view is mutually exclusive with folder/tag browsing (activating one
+    // clears the other, same as Trash vs. folder above), and the server's
+    // savedViewId resolution only ever reads propertyFilter/propertySort
+    // out of a view's spec (directive §87 -- the server resolves its OWN
+    // stored spec, never a client-reconstructed one), so a folder/tag
+    // captured here would silently do nothing on activation. Keep the
+    // spec's actual capability matched to what it actually restores.
+    const spec = { propertyFilter, propertySort }
+    const view = await createSavedView(name, viewMode, spec)
+    setActiveView(view)
+    setSaveViewOpen(false)
+  }
+
+  // Wave G checkpoint §48 — four canonical thesis-relevant starter views,
+  // built entirely from Wave E's existing property-filter mechanism (AND-
+  // only, eq/lte/is_not_empty over USER_SET builtin properties). Two of the
+  // directive's five originally-suggested views turned out infeasible
+  // against that mechanism as designed (builtin:trade_ref is
+  // financial_derived and not filterable at all; "research_type is Long OR
+  // Short" needs an OR the filter deliberately doesn't support) -- rather
+  // than build a second query mechanism just for this, the starter set uses
+  // the four that ARE naturally expressible: Active, High Confidence, Needs
+  // Review, Invalidated. Ordinary saved-view rows once created -- fully
+  // renameable/deletable like any other.
+  const addStarterThesisViews = async () => {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const starters = [
+      { name: 'Active Theses', filter: [{ propertyId: 'builtin:thesis_status', op: 'eq', value: 'active' }] },
+      {
+        name: 'High Confidence',
+        filter: [
+          { propertyId: 'builtin:confidence', op: 'eq', value: 'high' },
+          { propertyId: 'builtin:thesis_status', op: 'eq', value: 'active' },
+        ],
+      },
+      { name: 'Needs Review', filter: [{ propertyId: 'builtin:review_date', op: 'lte', value: todayIso }] },
+      { name: 'Invalidated Theses', filter: [{ propertyId: 'builtin:thesis_status', op: 'eq', value: 'invalidated' }] },
+    ]
+    let last = null
+    for (const s of starters) {
+      try {
+        last = await createSavedView(s.name, 'list', { propertyFilter: s.filter, propertySort: null })
+      } catch { /* one starter failing (e.g. a name collision) shouldn't block the rest */ }
+    }
+    if (last) setActiveView(last)
+  }
 
   // Wave 0 trash: undo a soft delete. Refreshes both the trash list (the
   // note leaves it) and the sidebar's unfiltered tree (the note rejoins it).
@@ -297,8 +441,13 @@ export default function NotebookTab() {
   }
 
   // Create a note. Blank note passes no title/body; a template seeds both
-  // (plus its preset tags and, when known, the ticker).
-  const createNote = async ({ title = '', bodyJson, tags, ticker } = {}) => {
+  // (plus its preset tags and, when known, the ticker). The actual network
+  // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
+  // Workspace's own New Note/New Thesis actions call the SAME path rather
+  // than a second creation flow -- this wrapper only adds NotebookTab's OWN
+  // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
+  // refresh bookkeeping) on top of it.
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -306,24 +455,12 @@ export default function NotebookTab() {
       // should not make you retype AMD. An explicit ticker always wins; focus
       // only fills the blank.
       const seededTicker = ticker || focusSymbol || null
-      const res = await fetch('/api/j2/notes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          ...(bodyJson ? { bodyJson } : {}),
-          ...(tags && tags.length ? { tags } : {}),
-          ...(seededTicker ? { ticker: seededTicker } : {}),
-          ...(folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? { folderId } : {}),
-        }),
-      })
-      if (!res.ok) throw new Error(`${res.status}`)
-      const body = await res.json()
+      const safeFolderId = folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? folderId : undefined
+      const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
       // Instant: put it in the tree now, then reconcile from the server.
-      addNoteToTree(body.note)
+      addNoteToTree(created)
       refreshAll()
-      openNote(body.note)
+      openNote(created)
     } catch (e) {
       alert(`Could not create note: ${e.message || e}`)
     } finally {
@@ -348,6 +485,7 @@ export default function NotebookTab() {
       bodyJson: tpl.build(ctx),
       tags: tpl.tags,
       ticker: ctx.ticker,
+      properties: tpl.properties,
     })
   }
 
@@ -427,6 +565,12 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            savedViews={savedViews}
+            activeViewId={activeView?.id ?? null}
+            onSelectView={handleSelectView}
+            onAddStarterViews={addStarterThesisViews}
+            isHome={isHome}
+            onSelectAllNotes={selectAllNotes}
           />
         </div>
       </div>
@@ -444,6 +588,16 @@ export default function NotebookTab() {
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
           <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
+        ) : isHome ? (
+          // Wave H: bare-root Research Home (checkpoint decision 33/57) --
+          // "All notes" itself is unchanged, one click away via the sidebar.
+          <ResearchHome
+            onOpenNote={openNote}
+            onCreateNote={() => createNote()}
+            onCreateThesis={() => handlePick(getTemplate('thesis'))}
+            onImport={() => setImportOpen(true)}
+            hasAnyNotes={allNotesTotal > 0}
+          />
         ) : (
           <>
         <div className={styles.toolbar}>
@@ -463,14 +617,54 @@ export default function NotebookTab() {
               <option value="title">Title</option>
             </select>
           )}
-          {(folderId || tag) && (
+          {tickerFilter && (
+            <span className={styles.tickerFilterChip}>${tickerFilter}</span>
+          )}
+          {(folderId || tag || activeView || propertyFilter || tickerFilter) && (
             <button
               type="button"
               className={styles.clear}
-              onClick={() => { setFolderId(null); setTag(null) }}
+              onClick={() => {
+                setFolderId(null); setTag(null)
+                setActiveView(null); setPropertyFilter(null); setPropertySort(null)
+                setTickerFilter(null)
+              }}
             >
               Clear filter
             </button>
+          )}
+          {!isTrashView && (
+            <div className={styles.viewModeWrap}>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'list' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('list')}
+                disabled={Boolean(activeView)}
+                title="List view"
+              >
+                <UIcon name="rows" size={14} gold={false} />
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('table')}
+                disabled={Boolean(activeView)}
+                title="Table view"
+              >
+                <UIcon name="columns" size={14} gold={false} />
+              </button>
+              {!activeView && (
+                <button
+                  type="button"
+                  className={styles.saveViewBtn}
+                  onClick={() => setSaveViewOpen(true)}
+                  title="Save this view"
+                >
+                  <UIcon name="plus" size={12} gold={false} />
+                  Save view
+                </button>
+              )}
+            </div>
           )}
           <div className={styles.newWrap}>
             <button
@@ -534,6 +728,12 @@ export default function NotebookTab() {
           onClose={() => setExportOpen(false)}
         />
 
+        <SavedViewEditor
+          open={saveViewOpen}
+          onClose={() => setSaveViewOpen(false)}
+          onSave={handleSaveCurrentView}
+        />
+
         {error && (
           <div className={styles.error} role="alert">
             Couldn't load your notes — this looks like a connection problem, not lost work.{' '}
@@ -578,16 +778,29 @@ export default function NotebookTab() {
           </div>
         ) : (
           <>
-            <div className={styles.grid}>
-              {notes.map((n) => (
-                <NoteCard
-                  key={n.id}
-                  note={n}
-                  onOpen={openNote}
-                  onRestore={isTrashView ? restoreNote : undefined}
-                />
-              ))}
-            </div>
+            {viewMode === 'table' && !isTrashView ? (
+              <NotesTableView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                sort={sort}
+                onSortChange={setSort}
+                propertySort={activeView ? activeView.spec?.propertySort : propertySort}
+                onPropertySortChange={handlePropertySort}
+                onQuickFilter={handleQuickFilter}
+                onOpenNote={openNote}
+              />
+            ) : (
+              <div className={styles.grid}>
+                {notes.map((n) => (
+                  <NoteCard
+                    key={n.id}
+                    note={n}
+                    onOpen={openNote}
+                    onRestore={isTrashView ? restoreNote : undefined}
+                  />
+                ))}
+              </div>
+            )}
             {/* Incremental loading over infinite scroll: simpler, testable,
                 and it never fights the page's own scroll container (`.main`
                 above scrolls internally — a scroll-triggered fetch bound to

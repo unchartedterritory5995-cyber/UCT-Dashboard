@@ -78,10 +78,15 @@ def _seed_position(user_id, account_id, symbol, **overrides):
 
 def _stub_intel(monkeypatch, recorder=None, status="ok"):
     """Replaces get_intelligence_for_symbols with a deterministic stub and
-    (optionally) records every call's (symbols, changes) for assertion."""
-    def fake(symbols, changes=None):
+    (optionally) records every call's (symbols, changes, price_observed_at)
+    for assertion. `price_observed_at` (Seam 8, 2026-09-07) is accepted as an
+    optional 3rd positional param -- the real endpoint always passes it."""
+    def fake(symbols, changes=None, price_observed_at=None):
         if recorder is not None:
-            recorder.append({"symbols": list(symbols), "changes": changes})
+            recorder.append({
+                "symbols": list(symbols), "changes": changes,
+                "price_observed_at": price_observed_at,
+            })
         return {
             s: {"status": status, "notable": False, "facts": [],
                 "context": {"composite_rating": None, "rs_rank": None}}
@@ -101,6 +106,10 @@ def _stub_live_prices_raises(monkeypatch):
     def boom(tickers):
         raise RuntimeError("boom")
     monkeypatch.setattr("api.routers.live_prices.get_live_prices", boom)
+
+
+def _stub_live_prices_with(monkeypatch, data):
+    monkeypatch.setattr("api.routers.live_prices.get_live_prices", lambda tickers: data)
 
 
 # 1. Requires auth ────────────────────────────────────────────────────────────
@@ -175,9 +184,10 @@ def test_degrades_gracefully_when_live_price_lookup_fails(app, client, monkeypat
     r = client.get("/api/j2/positions/attention")
     assert r.status_code == 200
     assert "NVDA" in r.json()
-    # get_intelligence_for_symbols must still be called, with changes=None --
-    # never crashes the whole endpoint over one failed price lookup.
-    assert recorder == [{"symbols": ["NVDA"], "changes": None}]
+    # get_intelligence_for_symbols must still be called, with changes=None
+    # AND price_observed_at=None -- never crashes the whole endpoint over
+    # one failed price lookup.
+    assert recorder == [{"symbols": ["NVDA"], "changes": None, "price_observed_at": None}]
 
 
 def test_degrades_gracefully_when_live_prices_returns_a_non_dict_response(app, client, monkeypatch):
@@ -197,7 +207,51 @@ def test_degrades_gracefully_when_live_prices_returns_a_non_dict_response(app, c
 
     r = client.get("/api/j2/positions/attention")
     assert r.status_code == 200
-    assert recorder == [{"symbols": ["NVDA"], "changes": None}]
+    assert recorder == [{"symbols": ["NVDA"], "changes": None, "price_observed_at": None}]
+
+
+# 5b. price_observed_at threads through from the SAME live payload ───────────
+
+def test_price_observed_at_threads_through_from_the_same_live_payload(app, client, monkeypatch):
+    _login_as(app, "u_obs")
+    acc = _seed_account("u_obs")
+    _seed_position("u_obs", acc["id"], "NVDA")
+    _stub_live_prices_with(monkeypatch, {
+        "NVDA": {"change_pct": 4.2, "observed_at": 1_800_000_000.5},
+    })
+    recorder = []
+    _stub_intel(monkeypatch, recorder)
+
+    r = client.get("/api/j2/positions/attention")
+    assert r.status_code == 200
+    assert recorder == [{
+        "symbols": ["NVDA"],
+        "changes": {"NVDA": 4.2},
+        "price_observed_at": {"NVDA": 1_800_000_000.5},
+    }]
+
+
+def test_price_observed_at_omits_symbols_whose_observed_at_is_missing(app, client, monkeypatch):
+    # A symbol can have a real change_pct with no observed_at (e.g. the
+    # closed-market fallback row) -- must not appear in price_observed_at
+    # at all rather than as a fabricated None/0 entry.
+    _login_as(app, "u_obs2")
+    acc = _seed_account("u_obs2")
+    _seed_position("u_obs2", acc["id"], "NVDA")
+    _seed_position("u_obs2", acc["id"], "MSFT")
+    _stub_live_prices_with(monkeypatch, {
+        "NVDA": {"change_pct": 4.2, "observed_at": 1_800_000_000.5},
+        "MSFT": {"change_pct": -1.1, "observed_at": None},
+    })
+    recorder = []
+    _stub_intel(monkeypatch, recorder)
+
+    r = client.get("/api/j2/positions/attention")
+    assert r.status_code == 200
+    assert len(recorder) == 1
+    assert sorted(recorder[0]["symbols"]) == ["MSFT", "NVDA"]
+    assert recorder[0]["changes"] == {"NVDA": 4.2, "MSFT": -1.1}
+    assert recorder[0]["price_observed_at"] == {"NVDA": 1_800_000_000.5}
 
 
 # 6. Never leaks another user's positions ─────────────────────────────────────
@@ -236,7 +290,7 @@ def test_passes_through_the_real_shape_unmodified(app, client, monkeypatch):
     }
     monkeypatch.setattr(
         "api.services.watchlist_intelligence.get_intelligence_for_symbols",
-        lambda symbols, changes=None: sentinel,
+        lambda symbols, changes=None, price_observed_at=None: sentinel,
     )
 
     r = client.get("/api/j2/positions/attention")

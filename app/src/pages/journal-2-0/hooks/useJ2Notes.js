@@ -13,7 +13,10 @@ const fetcher = (url) =>
 // default `limit=100`) — the size of one page, and of a "Load more" click.
 const DEFAULT_PAGE_SIZE = 100
 
-function buildNotesUrl({ folderId, tag, ticker, q, sort, limit, offset, deleted, dateFrom, dateTo, sector, theme }) {
+function buildNotesUrl({
+  folderId, tag, ticker, q, sort, limit, offset, deleted, dateFrom, dateTo, sector, theme,
+  savedViewId, propertyFilter, propertySort,
+}) {
   const params = new URLSearchParams()
   if (folderId) params.set('folder_id', folderId)
   if (tag) params.set('tag', tag)
@@ -30,15 +33,26 @@ function buildNotesUrl({ folderId, tag, ticker, q, sort, limit, offset, deleted,
   if (dateTo) params.set('dateTo', dateTo)
   if (sector) params.set('sector', sector)
   if (theme) params.set('theme', theme)
+  // Wave E: a saved view ALWAYS wins server-side over any propertyFilter/
+  // propertySort sent alongside it (directive §87) -- sending both here is
+  // harmless (the server ignores the latter), but callers should still
+  // prefer omitting them once a view is active, matching NotebookTab's own
+  // "one selection channel" discipline.
+  if (savedViewId) params.set('savedViewId', savedViewId)
+  if (propertyFilter) params.set('propertyFilter', JSON.stringify(propertyFilter))
+  if (propertySort) params.set('propertySort', JSON.stringify(propertySort))
   const qs = params.toString()
   return `/api/j2/notes${qs ? `?${qs}` : ''}`
 }
 
 export default function useJ2Notes({
   folderId, tag, ticker, q, sort = 'updated', limit, enabled = true, deleted = false,
-  dateFrom, dateTo, sector, theme,
+  dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort,
 } = {}) {
-  const url = enabled ? buildNotesUrl({ folderId, tag, ticker, q, sort, limit, deleted, dateFrom, dateTo, sector, theme }) : null
+  const url = enabled ? buildNotesUrl({
+    folderId, tag, ticker, q, sort, limit, deleted, dateFrom, dateTo, sector, theme,
+    savedViewId, propertyFilter, propertySort,
+  }) : null
   // `enabled=false` passes SWR a null key, which skips the fetch entirely —
   // callers that only sometimes need this data (e.g. a search panel that
   // shouldn't hit the default list on every render) pass this instead of
@@ -88,6 +102,7 @@ export default function useJ2Notes({
     try {
       const nextUrl = buildNotesUrl({
         folderId, tag, ticker, q, sort, deleted, dateFrom, dateTo, sector, theme,
+        savedViewId, propertyFilter, propertySort,
         limit: limit || DEFAULT_PAGE_SIZE,
         offset: notes.length,
       })

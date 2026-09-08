@@ -1,6 +1,18 @@
 /**
- * RH-style History section — the user's trades on this symbol: open
- * position entries first, then closed trades newest-first.
+ * RH-style History section — every trade for THIS SYMBOL IN THIS ACCOUNT
+ * (open position entries first, then closed trades newest-first), NOT
+ * "the trades that opened/closed this exact position." Seam 11 Phase A
+ * (2026-09-06) found there is no deterministic exact-position-lineage link
+ * for broker-synced or CSV-imported trades — j2_trades.position_id is a
+ * structurally random, inert sentinel for both (see trades.py::
+ * bulk_insert_trades) — and confirmed SnapTrade itself supplies no
+ * position/lot-level identifier to recover one from. Account+security
+ * history IS fully deterministic today (symbol + the caller's already
+ * account-scoped trades/positions lists, never position_id), which is why
+ * this section already worked correctly for every source; the caption
+ * below exists so what it shows is never misread as more than that —
+ * e.g. after a broker position fully closes and later reopens, this list
+ * shows BOTH lifecycles' trades together, not just the current one's.
  */
 import { money, moneySigned, dateShort } from '../../../../lib/journal-2-0'
 import styles from './PositionDetailPage.module.css'
@@ -14,6 +26,9 @@ export default function HistorySection({ trades, positions, onRowAction }) {
   return (
     <section className={styles.section} aria-label="History">
       <h2 className={styles.sectionTitle}>History</h2>
+      <p className={styles.sectionCaption}>
+        Trade history for this security in this account — not limited to this specific position.
+      </p>
       <ul className={styles.histList}>
         {open.map((p) => (
           <li key={`open-${p.side}-${p.id}`} className={styles.histItem}>

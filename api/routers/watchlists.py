@@ -121,13 +121,17 @@ def watchlist_performance(body: PerfRequest, user: dict = Depends(get_current_us
 class IntelRequest(BaseModel):
     tickers: list[str]
     changes: Optional[dict[str, float]] = None
+    # Seam 8 (2026-09-07): optional, additive per-symbol vendor observation
+    # epoch (seconds) alongside `changes` -- a caller that omits it (every
+    # caller before Seam 8) gets byte-identical behavior to before.
+    price_observed_at: Optional[dict[str, float]] = None
 
 
 @router.post("/api/watchlists/intelligence")
 def watchlist_intelligence(body: IntelRequest, user: dict = Depends(get_current_user)):
     from api.services.watchlist_intelligence import get_intelligence_for_symbols
     tickers = list(set(t.upper() for t in body.tickers[:100]))  # cap at 100, mirrors watchlist-performance
-    return get_intelligence_for_symbols(tickers, body.changes)
+    return get_intelligence_for_symbols(tickers, body.changes, body.price_observed_at)
 
 
 # ── Digest settings ──
@@ -163,15 +167,27 @@ def set_digest_settings(body: DigestSettings, user: dict = Depends(get_current_u
 # ── Regular watchlist endpoints ──
 
 @router.get("/api/watchlists")
-def list_watchlists(include_items: bool = True, user: dict = Depends(get_current_user)):
-    """The user's lists. `?include_items=0` omits `items` (metadata + item_count only).
+def list_watchlists(
+    include_items: bool = True,
+    include_prebuilt: bool = True,
+    user: dict = Depends(get_current_user),
+):
+    """The user's lists. `?include_items=0` omits `items` (metadata + item_count only);
+    `?include_prebuilt=0` drops the admin-curated index lists.
 
-    Default True keeps every existing caller byte-identical. The app-shell surfaces
-    that only draw list NAMES pass 0 — see the note in
-    `watchlist_service.list_user_watchlists` for the 553 KB / 4,406-row page-load
-    cost that motivated it.
+    Both default True so every existing caller stays byte-identical. The app-shell
+    surfaces that only draw list NAMES pass `include_items=0`; the ones asking what
+    the member is actually watching pass `include_prebuilt=0` — see the note in
+    `watchlist_service.list_user_watchlists` for the 592 KB / 4,726-row / 28 s
+    page-load cost that motivated each.
+
+    ⛔ Both flags must be FORWARDED, not merely accepted. A slim mode the endpoint
+    never passes on is built, green and unreachable — that is exactly how the first
+    `include_items` pass shipped, surviving all nine service tests.
     """
-    return watchlist_service.list_user_watchlists(user["id"], include_items=include_items)
+    return watchlist_service.list_user_watchlists(
+        user["id"], include_items=include_items, include_prebuilt=include_prebuilt
+    )
 
 
 @router.get("/api/watchlists/public")

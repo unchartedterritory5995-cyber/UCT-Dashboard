@@ -365,13 +365,20 @@ export default function WidgetHeader({
           )}
         </>
       )}
-      <button
-        type="button"
-        className={styles.closeBtn}
-        onClick={onRemove}
-        aria-label="Close widget"
-        title="Remove this widget"
-      ><UIcon name="x" size={13} /></button>
+      {/* Close only when there IS somewhere to close TO — same idiom as the float /
+          pop-out / dock controls above, and as Watchlists' back button. A host that
+          owns exactly two widgets (the breadth drill modal, which closes as a unit)
+          passes no onRemove and gets no dead ✕. Every /charts + mobile call site
+          passes one, so nothing on the board loses its close button. */}
+      {onRemove && (
+        <button
+          type="button"
+          className={styles.closeBtn}
+          onClick={onRemove}
+          aria-label="Close widget"
+          title="Remove this widget"
+        ><UIcon name="x" size={13} /></button>
+      )}
     </div>
   )
 }

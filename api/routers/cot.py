@@ -29,6 +29,7 @@ fresh by three independent refresh layers we pay for. Its only consumer is
 Owner ruling 2026-08-06: *"everything is paid, almost nothing is accessible for
 free."*
 """
+import hmac
 import os
 import re
 import threading
@@ -107,7 +108,13 @@ def _push_secret_ok(request: Request) -> bool:
     curl, no browser session. A blank PUSH_SECRET refuses everyone."""
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
-    return bool(expected) and auth == f"Bearer {expected}"
+    # Constant-time: `==` short-circuits at the first differing byte and leaks a
+    # prefix by timing. The bool(expected) guard stays first and is deliberately
+    # not constant-time — whether a secret is configured is a deployment fact,
+    # and comparing against "" would make every request match.
+    if not expected:
+        return False
+    return hmac.compare_digest(auth, f"Bearer {expected}")
 
 
 @router.post("/narratives/prewarm")

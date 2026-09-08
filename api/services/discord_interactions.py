@@ -174,6 +174,7 @@ class ChartRequest:
     to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
     compare: tuple | None = None  # overlay symbols drawn as %-rebased lines (per call, never saved)
     expanded: bool = False       # controls opened out? (the gear; a display state, not a chart one)
+    darkpool: bool = False       # dark-pool zone overlay on the chart (per call; toggle on the card)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -406,6 +407,18 @@ def build_flow_command() -> dict:
     }
 
 
+FLOW_CHART_PREFIX = "flowchart"
+
+
+def flow_components(ticker: str) -> list:
+    """One row under a /flow card: a button that opens the ticker's chart as an
+    EPHEMERAL popup (reuses the /chart house renderer). custom_id = flowchart|TICKER."""
+    t = (ticker or "").strip().upper()[:12]
+    return [{"type": 1, "components": [
+        {"type": 2, "style": 2, "label": "View chart", "emoji": {"name": "\U0001F4C8"},
+         "custom_id": f"{FLOW_CHART_PREFIX}|{t}"}]}]
+
+
 def _window_choices() -> dict[str, str]:
     """The picker's options, DERIVED from buzz_boards.WINDOW_LABEL — the one
     authority on which windows exist. A window added there appears here the
@@ -499,6 +512,7 @@ def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
         "to": req.to or "",
         "cmp": "+".join(req.compare) if req.compare else "",
         "exp": "1" if req.expanded else "0",
+        "dp": "1" if req.darkpool else "0",
     }
 
 
@@ -509,7 +523,8 @@ def _encode(st: dict, tag: str = "") -> str:
     # active timeframe button and a disabled "Later" both mean "this chart").
     # cmp = the compare overlay ("SPY+QQQ"), an 11th field since 8/25; ids
     # minted before it (one field shorter) still parse - see parse_component.
-    flags = (1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+    flags = ((1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+             | (4 if str(st.get("dp", "0")) == "1" else 0))   # bit 2 = dark-pool overlay
     return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], str(flags),
                      st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
 
@@ -546,7 +561,8 @@ def _request_from_state(parts: list) -> ChartRequest:
         parts = parts + [""]
     _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts[:11]
     ticker = ticker.strip().upper()
-    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1", "2", "3")
+    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES
+          and vol in ("0", "1", "2", "3", "4", "5", "6", "7")   # flags: vol|exp|darkpool bits
           and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
           and style in prefs_mod.STYLE_CHOICES and theme in prefs_mod.THEME_CHOICES
           and (to == "" or _DATE_RE.match(to)))
@@ -558,7 +574,7 @@ def _request_from_state(parts: list) -> ChartRequest:
         raise CommandError("Unknown button.")
     return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=bool(int(vol) & 1), zoom=zoom, indicators=ind,
                         style=style, theme=theme, to=to or None, compare=compare,
-                        expanded=bool(int(vol) & 2))
+                        expanded=bool(int(vol) & 2), darkpool=bool(int(vol) & 4))
 
 
 def component_kind(interaction: dict) -> str:
@@ -757,6 +773,10 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid("m", mas=ma_next)})
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
                  "custom_id": sid("v", vol=not st["vol"])})
+    _dp_on = str(st.get("dp", "0")) == "1"   # dark-pool overlay toggle (blurple when on)
+    row5.append({"type": 2, "style": (_STYLE_PRIMARY if _dp_on else _STYLE_SECONDARY),
+                 "emoji": {"name": "\U0001F30A"}, "label": "Dark Pools",
+                 "custom_id": sid("dp", dp=("0" if _dp_on else "1"))})
     if guild_id and str(guild_id) in activity_guilds():
         # The (parked) Activity: in an activity guild the last slot launches it instead.
         row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
@@ -770,7 +790,11 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     # toggle row is already full (an activity guild spends the fifth slot on
     # "Open in Discord") - dropping it silently would strand the member in the
     # expanded view with no way back to the one-row chart.
-    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u25b2"},
+    # \U0001F53C (\ud83d\udd3c) not \u25b2 (\u25b2): the bare geometric triangle is a text SYMBOL,
+    # not a unicode emoji, so Discord rejects it as COMPONENT_INVALID_EMOJI (code
+    # 50035) and refuses the WHOLE control tree \u2014 the member gets "controls
+    # unavailable" and every button vanishes. The up-triangle emoji is valid.
+    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\U0001F53C"},
                 "custom_id": sid("g", exp="0")}
     rows = [{"type": 1, "components": tfs}]
     if len(row5) < 5:
@@ -1699,9 +1723,10 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
     options = prefs_mod.render_options(prefs, req.tf)
     if req.to:
         options["to"] = req.to
+    options["darkpool"] = bool(req.darkpool)   # dark-pool overlay (per-request toggle)
     compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
     key = (f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}" + (f":{req.to}" if req.to else "")
-           + (":vs:" + "+".join(compare) if compare else ""))
+           + (":vs:" + "+".join(compare) if compare else "") + (":dp" if req.darkpool else ""))
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
     hotset.record(key, req, prefs, png_cache.ttl_for(req.tf))

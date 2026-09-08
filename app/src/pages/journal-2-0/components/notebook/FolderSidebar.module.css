@@ -318,6 +318,24 @@
   text-align: left;
 }
 .noteRow:hover { background: var(--color-surface-hover, #1c2028); color: var(--color-text-primary, #e8eaed); }
+/* Wave G checkpoint §48 — one-click starter thesis views, shown only while
+   the member has zero saved views of their own. */
+.starterViewsBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  text-align: left;
+}
+.starterViewsBtn:hover { background: var(--color-surface-hover, #1c2028); color: var(--accent); }
+.starterViewsBtn:disabled { opacity: 0.6; cursor: default; }
 /* Wave B: search-results loading skeleton, replacing the plain "Searching…"
    text on the one high-frequency structural load in this panel. */
 .searchResultsSkeleton { display: flex; flex-direction: column; gap: 12px; padding: 8px 10px; }
@@ -381,6 +399,16 @@
    LAYOUT (padding, font-size, flex, overflow) deliberately does not
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
+  /* Named by tools/mobile_audit.py at phone/phone390/tablet: "Hide folders
+     panel", "Show folders" and "Search notes" all measured 28x28. This block
+     already raised every other interactive element in the sidebar to
+     --tap-min; .sbHeaderBtn was simply missed, and its fixed 28px
+     width/height wins over nothing. These three are the Notebook's own
+     panel switch on a phone -- the most-tapped controls in the file. */
+  .sbHeaderBtn {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
   .searchInput {
     min-height: var(--tap-min, 44px);
   }

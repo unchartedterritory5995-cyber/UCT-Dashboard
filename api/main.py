@@ -5036,8 +5036,32 @@ async def lifespan(app: FastAPI):
                     ticker_types.refresh_class_sets()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ticker_types] daily sync failed: %s", _e)
+                # Event-driven replication: a completed canonical sync is exactly
+                # when flow-worker's Options Flow replica becomes stale.
+                # ⛔ Deliberately AFTER the except: a replication failure must
+                # never make the canonical sync look failed. Replication is
+                # subordinate to serving members.
+                try:
+                    from api.services import optionsflow_etf_push
+                    optionsflow_etf_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[of-etf-push] post-sync reconcile failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
+
+            # Self-healing cadence. Without it, a flow-worker outage at 05:30
+            # would leave the replica stale until the NEXT day's sync — which is
+            # the shape of the 55-day freeze this whole workstream exists to end.
+            # A matching generation costs a status probe and transfers nothing.
+            def _of_etf_reconcile():
+                try:
+                    from api.services import optionsflow_etf_push
+                    optionsflow_etf_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[of-etf-push] reconcile raised: %s", _e)
+            _scheduler.add_job(_of_etf_reconcile, "interval", minutes=30,
+                               id="optionsflow_etf_replica_reconcile",
+                               max_instances=1, coalesce=True, replace_existing=True)
 
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
@@ -8558,6 +8582,38 @@ async def _ticker_types_stats():
 # last_synced -- clients can key off that if they need to force-refresh.
 _ETF_INDEX_SYMBOLS_CACHE = {"payload": None, "cached_at": None}
 
+@app.get("/api/ticker-types/replica-push-status")
+async def _ticker_types_replica_push_status():
+    """Sender-side replication telemetry (web). The receiver reports separately at
+    /api/flow/etf-replica-status.
+
+    ⛔ This concerns the Options-Flow-only replica, NOT live OPRA routing.
+    """
+    from fastapi.responses import JSONResponse
+    from api.services import optionsflow_etf_push
+    return JSONResponse(optionsflow_etf_push.status())
+
+
+@app.get("/api/ticker-types/generation")
+async def _ticker_types_generation():
+    """The classification snapshot's CONTENT identity — a few dozen bytes.
+
+    Exists so a consumer (flow-worker's replica, or the browser deciding whether
+    to trust server-computed picks) can compare generations WITHOUT pulling
+    ~19,483 symbols. Putting that download in front of first paint just to answer
+    "are we on the same snapshot?" would trade one latency problem for another.
+    """
+    from fastapi.responses import JSONResponse
+    from api.ticker_types import classification_generation
+    try:
+        g = classification_generation()
+        resp = JSONResponse({"ok": True, **g})
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
+    except Exception as e:
+        return {"ok": False, "error": str(e), "generation": None}
+
+
 @app.get("/api/ticker-types/etf-index-symbols")
 async def _ticker_types_etf_index_symbols():
     """Return every ticker classified as ETF or INDEX (bulk).
@@ -8577,31 +8633,26 @@ async def _ticker_types_etf_index_symbols():
             resp.headers["Cache-Control"] = "public, max-age=300"
             return resp
 
-        from api.ticker_types import DB_PATH, ensure_schema
-        conn = sqlite3.connect(DB_PATH, timeout=10)
-        try:
-            ensure_schema(conn)
-            cur = conn.execute("""
-                SELECT ticker FROM ticker_types
-                WHERE asset_type IN ('ETF', 'INDEX')
-                ORDER BY ticker
-            """)
-            symbols = [r[0] for r in cur.fetchall()]
-            cur = conn.execute("SELECT MAX(last_synced) FROM ticker_types")
-            last_synced = cur.fetchone()[0]
-            payload = {
-                "ok": True,
-                "symbols": symbols,
-                "count": len(symbols),
-                "last_synced": last_synced,
-            }
-            _ETF_INDEX_SYMBOLS_CACHE["payload"] = payload
-            _ETF_INDEX_SYMBOLS_CACHE["cached_at"] = now
-            resp = JSONResponse(payload)
-            resp.headers["Cache-Control"] = "public, max-age=300"
-            return resp
-        finally:
-            conn.close()
+        # ⛔ ONE READ for the rows AND their identity. Fetching them separately
+        # allows: generation G observed -> sync runs -> rows of G+1 downloaded ->
+        # replica stamped G. A replica that believes it holds G while holding G+1
+        # is worse than one that knows it is stale, because the mismatch rail can
+        # no longer see it. `etf_index_snapshot` derives the digest from the very
+        # rows it returns.
+        from api.ticker_types import etf_index_snapshot
+        snap = etf_index_snapshot()
+        payload = {
+            "ok": True,
+            "symbols": snap["symbols"],
+            "count": snap["count"],
+            "last_synced": snap["last_synced"],
+            "generation": snap["generation"],
+        }
+        _ETF_INDEX_SYMBOLS_CACHE["payload"] = payload
+        _ETF_INDEX_SYMBOLS_CACHE["cached_at"] = now
+        resp = JSONResponse(payload)
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
     except Exception as e:
         import traceback
         traceback.print_exc()

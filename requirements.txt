@@ -59,6 +59,12 @@ mdit-py-plugins>=0.6.0,<1  # GFM tables + tasklists plugin, used alongside markd
 numpy>=1.26.0
 scipy>=1.13.0
 Pillow>=10.0.0
+# PDF text extraction. Was ALREADY a real runtime dependency of
+# api/services/voice_document_service.py (Compass Document Q&A) without ever
+# being pinned here — found unpinned during the Wave I notebook-attachments
+# checkpoint (docs/notebook/prelaunch-primary-notebook-build-plan.md). Now
+# also used by api/services/journal_two/document_extraction.py.
+pypdf>=5.0.0
 praw>=7.7.0  # Reddit API for r/wsb / r/stocks sentiment voice tool
 # Brokerage aggregator (read-only); see api/services/journal_two/broker/
 # UPPER BOUND IS LOAD-BEARING — every call site is verified against 11.0.x.

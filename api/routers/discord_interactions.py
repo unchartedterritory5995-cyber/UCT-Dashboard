@@ -193,17 +193,14 @@ def _post_image_webhook(webhook: str, png: bytes, content: str, filename: str) -
 
 
 def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
-                      *, fetch_fn=None, render_fn=None, edit_fn=None, post_fn=None) -> None:
-    """Background job for /flow. Fetch the ticker's flow summary from the
-    FLOW-WORKER (which owns flow.db), render the card, and POST it PUBLICLY to the
-    channel via FLOW_CMD_WEBHOOK_URL (the bot has no post rights in that channel —
-    the webhook does). The interaction reply is the requester's PRIVATE ack, edited
-    to a confirmation / honest error. Never raises (a background job must not); an
-    empty or errored read stays private (no false zero in the public channel)."""
+                      *, fetch_fn=None, render_fn=None, edit_fn=None) -> None:
+    """Background job for /flow. Fetch the ticker's flow summary from the FLOW-WORKER,
+    render the card, and post it PUBLICLY as the bot — the deferred interaction
+    @original is app-owned, so the 'View chart' button routes back to us. Never raises;
+    an empty or errored read resolves the reply with an honest note (no false zero)."""
     from api.flow_ticker_card import render_ticker_flow_card
     render = render_fn or render_ticker_flow_card
-    ack = edit_fn or di.edit_original            # edits the EPHEMERAL ack (requester-only)
-    post = post_fn or _post_image_webhook        # posts the PUBLIC card to the channel
+    ack = edit_fn or di.edit_original            # edits/posts the deferred interaction reply
     data = None
     try:
         if fetch_fn is not None:
@@ -231,28 +228,17 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     if not (data.get("contracts") or []):
         ack(app_id, token, content=f"**{ticker}** — no significant options flow {win}.")
         return
-    net = data.get("net") or {}
-    _nd = (net.get("bull") or 0) - (net.get("bear") or 0)
     try:
         png = render(data)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow] render failed %s: %s", ticker, e)
         ack(app_id, token, content="Couldn't render the card — try again in a moment.")
         return
-    # IMAGE-ONLY post — the card already carries the ticker, window and net read, so a
-    # message-text line above it is redundant (owner 2026-09-06; same call as the EOD
-    # Top Flow card). The requester still gets a private net summary in the ack below.
-    webhook = (os.environ.get("FLOW_CMD_WEBHOOK_URL") or "").strip()
-    if not webhook:
-        di.edit_original(app_id, token, content="", png=png, filename=f"{ticker}_flow.png")   # dev fallback
-        return
-    ok, detail = post(webhook, png, "", f"{ticker}_flow.png")
-    if ok:
-        ack(app_id, token, content=(f"✓ Posted **{ticker}** flow — net **{net.get('dir', '')}** "
-                                    f"{'+' if _nd >= 0 else '−'}{_flow_fmt_m(abs(_nd))} · {win}"))
-    else:
-        log.warning("[flow] webhook post failed %s: %s", ticker, detail)
-        ack(app_id, token, content=f"Couldn't post the card right now ({detail}). Try again in a moment.")
+    # Post the card PUBLICLY as the bot — the deferred interaction @original is
+    # app-owned, so the 'View chart' button routes back to us. Image-only (the card
+    # already carries ticker/window/net).
+    ack(app_id, token, content="", png=png, filename=f"{ticker}_flow.png",
+        components=di.flow_components(ticker))
 
 
 def breadth_adjust(req, prefs: dict):
@@ -440,11 +426,37 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(run_flow_card_job, app_id, token, tkr, days)
-        # EPHEMERAL defer: the requester gets a private "thinking…" that resolves to a
-        # confirmation; the PUBLIC card is posted to the channel via FLOW_CMD_WEBHOOK_URL
-        # (the bot has no post rights in that channel). Flags go on the DEFER, not the
-        # follow-up (Discord fixes visibility at defer time).
-        return {"type": 5, "data": {"flags": di.EPHEMERAL}}
+        # PUBLIC defer — the "thinking…" resolves into the card, posted as the bot so
+        # the 'View chart' button (app-owned message) routes back to us. The bot now
+        # has post + attach rights in the channel.
+        return {"type": 5}
+    if itype == 3 and str(((interaction.get("data") or {}).get("custom_id")) or "").startswith(di.FLOW_CHART_PREFIX + "|"):
+        # "View chart" button under a /flow card → open the ticker's chart as an
+        # EPHEMERAL popup (only the clicker sees it; Discord's Dismiss closes it).
+        # Reuses the /chart house renderer + its TF/control buttons, so the popup is
+        # the same interactive chart people already know.
+        cid = str((interaction.get("data") or {}).get("custom_id") or "")
+        ticker = cid.split("|", 1)[1].strip().upper()
+        if not di._TICKER_RE.match(ticker):
+            return _ephemeral("Couldn't read that ticker.")
+        uid = di.interaction_user_id(interaction)
+        wait = di.user_rate_check(uid)
+        if wait:
+            return _ephemeral(di.throttle_message(wait))
+        prefs = _prefs_for(uid)
+        req = di.ChartRequest(ticker=ticker, tf=prefs.get("tf", "D"), darkpool=True)  # popup defaults dark-pools ON
+        req, prefs = breadth_adjust(req, prefs)
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(di.run_chart_job, app_id, token, req,
+                            bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                            house_fn=house.render_house_chart if house.house_enabled() else None,
+                            prefs=prefs, quote_fn=fetch_ext_quote,
+                            context_fn=chart_context.context_line if chart_context.enabled() else None,
+                            components_fn=functools.partial(di.chart_components, guild_id=str(interaction.get("guild_id") or "")))
+        return {"type": 5, "data": {"flags": di.EPHEMERAL}}   # ephemeral popup
     if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
         # Gate the SLASH invocation to the channel (owner). NOT component clicks
         # (itype 3) — buttons under an already-posted chart must keep working.

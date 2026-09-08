@@ -805,6 +805,55 @@ CREATE TRIGGER IF NOT EXISTS j2_notes_links_ad AFTER DELETE ON j2_notes BEGIN
     DELETE FROM j2_note_links WHERE note_id = old.id OR target_note_id = old.id;
 END;
 
+-- ── Wave E (Structured Research Properties / Saved Views) ──────────────────
+-- Property DEFINITIONS only -- a small, per-user table (a handful to a few
+-- dozen rows, never one row per note). A note's actual property VALUES live
+-- in j2_notes.properties_json (see the ALTER below), keyed by THIS table's
+-- id, never by name -- renaming a property or one of its select options
+-- touches exactly one row here, zero note rows, mirroring the Wave D
+-- note-link stable-id lesson and Notion's own confirmed ID-based property/
+-- option model (see the Wave E entry checkpoint's competitor research).
+-- Built-in financial properties (Ticker, Sector, Trade-Relationship, etc.)
+-- are NOT rows in this table at all -- they're code-defined constants
+-- resolved from data this app already has (see note_properties.py) and never
+-- persisted twice.
+CREATE TABLE IF NOT EXISTS j2_note_properties (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url
+    options_json TEXT,                    -- select/multi_select only: [{id,label,color}]
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    deleted_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_properties_user
+    ON j2_note_properties(user_id, deleted_at, sort_order);
+
+-- Saved views over the Notebook list -- mirrors screener_saved_screens.py's
+-- shape (the one existing "saved view" precedent in this codebase): a
+-- stable id + an opaque spec_json blob, simple update-in-place CRUD. Unlike
+-- screener's account-wide auth.db table, this is Notebook-scoped and lives
+-- in journal_two's own DB with a TEXT uuid id, matching every other j2_*
+-- table's id convention. spec_json stores property_id/option_id references
+-- only, never names/labels -- the same rename-survival guarantee as the
+-- properties themselves, never a saved QUERY STRING (the Evernote
+-- saved-search anti-pattern this session's competitor research flagged).
+CREATE TABLE IF NOT EXISTS j2_note_saved_views (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    view_type   TEXT NOT NULL DEFAULT 'list',   -- 'list'|'table'
+    spec_json   TEXT NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    deleted_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_saved_views_user
+    ON j2_note_saved_views(user_id, deleted_at, sort_order);
+
 -- Capture inbox: hotkey captures during the session land here and get placed
 -- into notes while writing after the close. A row is one staged widgetEmbed
 -- (params + search line + optional archived image); placing it into a note
@@ -826,6 +875,311 @@ CREATE TABLE IF NOT EXISTS j2_capture_inbox (
 );
 CREATE INDEX IF NOT EXISTS idx_j2_capture_inbox_user
     ON j2_capture_inbox(user_id, created_at DESC);
+
+-- ── Wave F (Financial Fact / Snapshot Ledger + Temporal Semantics) ─────────
+-- The authoritative, IMMUTABLE store of a captured financial observation.
+-- NOTE-OWNED (not shared across notes -- entry checkpoint decision 24): one
+-- row belongs to exactly one note_id, which is what lets purge cascade
+-- cleanly (two AFTER DELETE triggers below) with zero reference-counting.
+-- There is deliberately NO update path for value_number/value_text/unit/
+-- observed_at anywhere in note_facts.py -- a fact is INSERTed once; a second
+-- observation of the same logical series is a SECOND row, never an
+-- overwrite (checkpoint decision 8/19 -- this is the entire point of the
+-- ledger). `caption` is the one genuinely-editable field (a user annotation,
+-- never the observed value itself).
+CREATE TABLE IF NOT EXISTS j2_fact_observations (
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL,
+    note_id         TEXT NOT NULL,
+    entity_id       TEXT,                  -- entity_master canonical id; NULL when resolve() was
+                                            -- not_found/ambiguous -- never blocks capture (checkpoint 9)
+    ticker          TEXT NOT NULL,          -- display symbol as captured, always present
+    fact_type       TEXT NOT NULL,          -- registry key (fact_registry.py) -- 'price'|'user_note'|...
+    period          TEXT,                   -- canonical fiscal period string, NULL for point-in-time facts
+    value_number    REAL,
+    value_text      TEXT,
+    unit            TEXT NOT NULL,          -- 'usd_per_share'|'text'|... (registry-controlled per fact_type)
+    currency        TEXT NOT NULL DEFAULT 'USD',
+    scale           TEXT,                   -- reserved, unused by every Wave F initial fact type
+    temporal_mode   TEXT NOT NULL,          -- 'live'|'snapshot'|'live_and_snapshot'|'reference_only'
+    observed_at     TEXT NOT NULL,          -- ISO 8601 UTC -- when UCT/the member captured this
+    source_as_of    TEXT,                   -- ISO 8601 UTC, provider's own as-of time; NULL unless the
+                                            -- provider genuinely exposes one (never fabricated)
+    source          TEXT NOT NULL,          -- 'user'|'uct_derived'|'massive'|'fmp'
+    source_ref      TEXT,                   -- e.g. a j2_trades.id for a uct_derived fact
+    rights_class    TEXT NOT NULL,          -- 'independent'|'conditional'|'blocked'
+    idempotency_key TEXT,                   -- nullable; one capture INTENT, reused across its own retries
+    caption         TEXT,                   -- user free-text annotation; the one editable field
+    created_at      TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_fact_observations_idem
+    ON j2_fact_observations(user_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_j2_fact_observations_note
+    ON j2_fact_observations(note_id);
+CREATE INDEX IF NOT EXISTS idx_j2_fact_observations_user_entity_type
+    ON j2_fact_observations(user_id, entity_id, fact_type, observed_at);
+
+-- Note-content sidecar for financialFact nodes -- same "rebuildable
+-- projection, never edited directly" contract as j2_note_embeds/
+-- j2_note_links, kept in sync by notes._sync_note_fact_refs at the same
+-- call sites those two already use.
+CREATE TABLE IF NOT EXISTS j2_note_fact_refs (
+    note_id   TEXT NOT NULL,
+    user_id   TEXT NOT NULL,
+    position  INTEGER NOT NULL,
+    fact_id   TEXT NOT NULL,
+    PRIMARY KEY (note_id, position)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_fact_refs_fact
+    ON j2_note_fact_refs(fact_id);
+
+-- Cascade on note hard-delete -- matches j2_notes_versions_ad/
+-- j2_notes_favorites_ad's exact style. Facts are note-owned (no reference
+-- counting needed): when the owning note is purged, its facts go with it.
+CREATE TRIGGER IF NOT EXISTS j2_notes_fact_refs_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_fact_refs WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_notes_fact_observations_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_fact_observations WHERE note_id = old.id;
+END;
+
+-- ── Wave G (Thesis Intelligence + Thesis Changelog) ────────────────────────
+-- The ONE new structural primitive Wave G's entry checkpoint (decision 15)
+-- found necessary: a typed evidence relationship pointing FROM a thesis note
+-- TO either another note (Wave D-shaped) or a captured financial fact
+-- (Wave F-shaped), annotated with a stance. Everything else Wave G needs --
+-- status/confidence/review-date, trade/position linkage, property-change
+-- history -- already exists (Wave E properties, Wave 3 typed relationships,
+-- Wave C version diffs). Soft-deleted via `removed_at` (never a hard DELETE
+-- on user action) so the changelog's evidence-added/evidence-removed events
+-- can be derived directly from this table's own timestamps -- no separate
+-- event-log table (checkpoint decision 22/24).
+CREATE TABLE IF NOT EXISTS j2_thesis_evidence (
+    id          TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    note_id     TEXT NOT NULL,          -- the thesis note this evidence belongs to
+    target_type TEXT NOT NULL,          -- 'note' | 'fact' (open string -- checkpoint 17)
+    target_id   TEXT NOT NULL,
+    stance      TEXT NOT NULL,          -- 'supports' | 'opposes' (checkpoint 16)
+    caption     TEXT,                   -- why this matters -- mirrors j2_fact_observations.caption
+    created_at  TEXT NOT NULL,
+    removed_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_note
+    ON j2_thesis_evidence(note_id, removed_at);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_user
+    ON j2_thesis_evidence(user_id, note_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_evidence_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_thesis_evidence WHERE note_id = old.id;
+END;
+
+-- Wave I: PDF text extraction, page-aware. `attachment_url` is the note's
+-- own EXISTING /api/j2/notes/attachments/... URL (already embedded in the
+-- AttachmentChip node) -- the natural key, since attachments carry no id of
+-- their own (attachment_root.py / save_note_attachment_bytes' filesystem-
+-- path-is-identity model, kept unchanged by this wave). One row per PDF
+-- attachment a note carries; `status` tracks the async extraction job
+-- (pending|ready|processing_failed|no_text -- the last for an image-only/
+-- scanned PDF, never conflated with a genuine processing error).
+-- `extraction_version` is a bare integer, bumped only if a future parser
+-- change needs a reprocess sweep -- no migration framework attached to it.
+CREATE TABLE IF NOT EXISTS j2_note_documents (
+    id                  TEXT PRIMARY KEY,
+    user_id             TEXT NOT NULL,
+    note_id             TEXT NOT NULL,
+    attachment_url      TEXT NOT NULL,
+    name                TEXT,
+    status              TEXT NOT NULL DEFAULT 'pending',
+    page_count          INTEGER,
+    extraction_version  INTEGER NOT NULL DEFAULT 1,
+    created_at          TEXT NOT NULL,
+    processed_at        TEXT,
+    UNIQUE(note_id, attachment_url)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_documents_note
+    ON j2_note_documents(note_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_documents_user
+    ON j2_note_documents(user_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_notes_documents_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_documents WHERE note_id = old.id;
+END;
+
+-- Page text is written ONCE, after extraction completes (never a partial
+-- row updated in place), so plain AFTER INSERT/DELETE triggers -- the SAME
+-- shape j2_notes_fts already uses -- keep the FTS mirror correct with no
+-- application-code indexing call to forget. `text_origin` is 'native' for
+-- every row this wave writes; the column already accepts 'ocr' so Wave J
+-- can extend this same table rather than building a parallel one.
+CREATE TABLE IF NOT EXISTS j2_note_document_pages (
+    document_id  TEXT NOT NULL,
+    user_id      TEXT NOT NULL,
+    page_number  INTEGER NOT NULL,
+    text         TEXT NOT NULL DEFAULT '',
+    text_origin  TEXT NOT NULL DEFAULT 'native',
+    PRIMARY KEY (document_id, page_number)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_document_pages_user
+    ON j2_note_document_pages(user_id);
+
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_pages_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_document_pages WHERE document_id = old.id;
+END;
+
+-- Standalone (NOT external-content) FTS5 mirror, same reasoning as
+-- j2_notes_fts: the pages table has a composite (document_id, page_number)
+-- key, not a stable single-column rowid, so an external-content table would
+-- risk the identical VACUUM-drift class that pattern was rejected for
+-- above. Same O(1)-delete rowid-mapping fix too (idx_j2_notes_fts_map's own
+-- measured 7.9x-32x tax at scale is the reason this is built in from day
+-- one rather than added after the fact once a member's document corpus is
+-- large enough to notice).
+CREATE VIRTUAL TABLE IF NOT EXISTS j2_note_document_pages_fts USING fts5(
+    document_id UNINDEXED,
+    user_id UNINDEXED,
+    page_number UNINDEXED,
+    text,
+    tokenize = 'porter unicode61'
+);
+CREATE TABLE IF NOT EXISTS j2_note_document_pages_fts_map (
+    document_id  TEXT NOT NULL,
+    page_number  INTEGER NOT NULL,
+    fts_rowid    INTEGER NOT NULL,
+    PRIMARY KEY (document_id, page_number)
+);
+
+CREATE TRIGGER IF NOT EXISTS j2_note_document_pages_fts_ai AFTER INSERT ON j2_note_document_pages BEGIN
+    INSERT INTO j2_note_document_pages_fts(document_id, user_id, page_number, text)
+    VALUES (new.document_id, new.user_id, new.page_number, new.text);
+    INSERT INTO j2_note_document_pages_fts_map(document_id, page_number, fts_rowid)
+    VALUES (new.document_id, new.page_number, last_insert_rowid());
+END;
+
+CREATE TRIGGER IF NOT EXISTS j2_note_document_pages_fts_ad AFTER DELETE ON j2_note_document_pages BEGIN
+    DELETE FROM j2_note_document_pages_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_note_document_pages_fts_map
+                    WHERE document_id = old.document_id AND page_number = old.page_number);
+    DELETE FROM j2_note_document_pages_fts_map
+    WHERE document_id = old.document_id AND page_number = old.page_number;
+END;
+
+-- Wave J: an excerpt is BOTH the durable "saved passage" object and the
+-- in-document highlight -- one row serves both facets (checkpoint decision
+-- 15), never two storage systems. `note_id` mirrors j2_fact_observations'
+-- own note-owned shape (the destination chosen at save time, not
+-- necessarily the document's own owning note) so the SAME excerpt can be
+-- referenced by any of the user's theses via j2_thesis_evidence
+-- (target_type='document_excerpt'), exactly like a captured fact already
+-- can be today. `captured_text` is written once and never rewritten by a
+-- future re-extraction pass (checkpoint decision 14 -- source-text
+-- immutability; trust over reconstruction). `quote_prefix`/`quote_suffix`
+-- are the ROBUST re-anchor path (a text-quote-with-context selector, the
+-- same shape the W3C Web Annotation Data Model uses for the identical
+-- problem); `char_start`/`char_end` are a supplementary fast-path hint,
+-- never load-bearing alone (checkpoint decision 13/71). `annotation` is
+-- the excerpt's own SOURCE annotation ("why this passage matters",
+-- portable across every thesis that later cites it) -- deliberately
+-- distinct from j2_thesis_evidence.caption ("why THIS excerpt supports/
+-- opposes THIS particular thesis"), the same two-caption shape Wave F's
+-- fact.caption + Wave G's evidence.caption already coexist as today
+-- (checkpoint decision 16/75).
+CREATE TABLE IF NOT EXISTS j2_note_excerpts (
+    id             TEXT PRIMARY KEY,
+    user_id        TEXT NOT NULL,
+    note_id        TEXT NOT NULL,
+    document_id    TEXT NOT NULL,
+    page_number    INTEGER NOT NULL,
+    captured_text  TEXT NOT NULL,
+    quote_prefix   TEXT,
+    quote_suffix   TEXT,
+    char_start     INTEGER,
+    char_end       INTEGER,
+    annotation     TEXT,
+    created_at     TEXT NOT NULL,
+    modified_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_note
+    ON j2_note_excerpts(note_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_document
+    ON j2_note_excerpts(document_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpts_user
+    ON j2_note_excerpts(user_id);
+
+-- Note-content sidecar for documentExcerpt nodes -- SAME "rebuildable
+-- projection, never edited directly" contract as j2_note_fact_refs, kept
+-- in sync by notes._sync_note_excerpt_refs at the same call sites
+-- _sync_note_fact_refs already uses. `list_note_excerpts` reads THROUGH
+-- this sidecar (joined to j2_note_excerpts), not by j2_note_excerpts.note_id
+-- directly -- an excerpt row's own note_id is where it was ORIGINALLY
+-- saved (ownership, for cascade-delete purposes); this sidecar is what's
+-- CURRENTLY placed in a given note's body right now, and can include an
+-- excerpt originally saved elsewhere (mirrors j2_note_fact_refs exactly).
+CREATE TABLE IF NOT EXISTS j2_note_excerpt_refs (
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    position    INTEGER NOT NULL,
+    excerpt_id  TEXT NOT NULL,
+    PRIMARY KEY (note_id, position)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_excerpt_refs_excerpt
+    ON j2_note_excerpt_refs(excerpt_id);
+CREATE TRIGGER IF NOT EXISTS j2_notes_excerpt_refs_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_excerpt_refs WHERE note_id = old.id;
+END;
+
+-- Cascade from the NOTE the excerpt was saved into (mirrors every other
+-- note-owned sidecar table).
+CREATE TRIGGER IF NOT EXISTS j2_notes_excerpts_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_excerpts WHERE note_id = old.id;
+END;
+-- Cascade from the SOURCE DOCUMENT: if the document is genuinely gone, a
+-- citation still claiming it exists would be dishonest (checkpoint
+-- decision 57) -- any note/thesis-evidence row still referencing a deleted
+-- excerpt id degrades via the same "no longer available" pattern
+-- FinancialFactView already established for a deleted fact, not a new UX
+-- idiom invented for this.
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_excerpts_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_excerpts WHERE document_id = old.id;
+END;
+
+-- Standalone FTS5 mirror over captured_text + annotation, same rowid-map
+-- pattern j2_notes_fts_map/j2_note_document_pages_fts_map already establish
+-- for a TEXT-primary-keyed source table (an excerpt id has no stable
+-- implicit rowid either).
+CREATE VIRTUAL TABLE IF NOT EXISTS j2_note_excerpts_fts USING fts5(
+    excerpt_id UNINDEXED,
+    user_id UNINDEXED,
+    text,
+    tokenize = 'porter unicode61'
+);
+CREATE TABLE IF NOT EXISTS j2_note_excerpts_fts_map (
+    excerpt_id  TEXT PRIMARY KEY,
+    fts_rowid   INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS j2_note_excerpts_fts_ai AFTER INSERT ON j2_note_excerpts BEGIN
+    INSERT INTO j2_note_excerpts_fts(excerpt_id, user_id, text)
+    VALUES (new.id, new.user_id, new.captured_text || ' ' || COALESCE(new.annotation, ''));
+    INSERT INTO j2_note_excerpts_fts_map(excerpt_id, fts_rowid)
+    VALUES (new.id, last_insert_rowid());
+END;
+-- Annotation edits update the FTS row in place (delete + reinsert at the
+-- SAME map entry) rather than leaving a stale annotation searchable
+-- forever -- captured_text itself never changes after insert (immutability,
+-- checkpoint decision 14), so only the annotation half of this trigger's
+-- own concatenation can ever actually differ between INSERT and UPDATE.
+CREATE TRIGGER IF NOT EXISTS j2_note_excerpts_fts_au AFTER UPDATE OF annotation ON j2_note_excerpts BEGIN
+    DELETE FROM j2_note_excerpts_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_note_excerpts_fts_map WHERE excerpt_id = old.id);
+    INSERT INTO j2_note_excerpts_fts(excerpt_id, user_id, text)
+    VALUES (new.id, new.user_id, new.captured_text || ' ' || COALESCE(new.annotation, ''));
+    UPDATE j2_note_excerpts_fts_map SET fts_rowid = last_insert_rowid() WHERE excerpt_id = new.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_excerpts_fts_ad AFTER DELETE ON j2_note_excerpts BEGIN
+    DELETE FROM j2_note_excerpts_fts
+    WHERE rowid = (SELECT fts_rowid FROM j2_note_excerpts_fts_map WHERE excerpt_id = old.id);
+    DELETE FROM j2_note_excerpts_fts_map WHERE excerpt_id = old.id;
+END;
 
 -- Public share links for notebook notes (post-v1; screener-share idiom: the
 -- token IS the credential). One active token per note; revocation keeps the
@@ -1324,6 +1678,23 @@ _PHASE_2_ALTERS = [
     # 4 destinations.
     "ALTER TABLE j2_capture_inbox ADD COLUMN caption TEXT",
     "ALTER TABLE j2_capture_inbox ADD COLUMN trade_ref TEXT",
+    # Wave E (Structured Research Properties) — one JSON object per note,
+    # keyed by j2_note_properties.id (or a builtin:<key> constant), never by
+    # name. NULL for every existing note (additive, no fabricated values) --
+    # only ever written by a member explicitly setting a property.
+    "ALTER TABLE j2_notes ADD COLUMN properties_json TEXT",
+    # Wave E checkpoint §26: user-set property values ARE versioned, on the
+    # same coalescing gate as title/subtitle/body_plain (see
+    # _versioned_content_of/_maybe_capture_version) -- a deliberate choice,
+    # not a silent gap. NULL for every version captured before this column
+    # existed (those notes simply had no properties yet in Wave E's absence).
+    "ALTER TABLE j2_note_versions ADD COLUMN properties_json TEXT",
+    # Wave G checkpoint §24: marks a version row as the RESULT of a restore
+    # (the id of the version that was restored TO), so the changelog can
+    # render "Restored from version X" as a distinct, auditable event
+    # instead of an ordinary edit. Stamped ONLY by restore_note_version's
+    # existing force=True capture path -- NULL for every other version.
+    "ALTER TABLE j2_note_versions ADD COLUMN restored_from_version_id TEXT",
 ]
 
 

@@ -1,7 +1,9 @@
 // Generalized grouping for any breadth stock-list surface.
-// Pure + standalone (no React / CSS) so it's cheap to unit-test and shared by
-// the drill modal AND the CustomScan scanner — that's what keeps grouping
-// uniform across surfaces.
+// Pure + standalone (no React / CSS) so it's cheap to unit-test.
+//
+// ⚠️ This said "shared by the drill modal AND the CustomScan scanner". STALE —
+// there is no CustomScan consumer anywhere in app/src. Reached today through
+// useBreadthGrouping from breadth/drill/BreadthDrillList.
 //
 //   items         — array of row objects
 //   labelByTicker — { TICKER: groupLabel|null } (industry OR sector map)

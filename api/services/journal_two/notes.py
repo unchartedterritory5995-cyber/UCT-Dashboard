@@ -155,6 +155,13 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
             out.append(f"[{_fmt_secs(attrs.get('seconds'))}]")
         elif ntype == "attachmentChip":
             out.append(f"[file: {attrs.get('name') or 'file'}]")
+        elif ntype == "documentExcerpt":
+            # Wave J: mirrors financialFact/noteLink's own silence -- the
+            # excerpt's real, durable text lives in j2_note_excerpts and is
+            # searchable through its own FTS index (excerpt_search.py), not
+            # duplicated into note-body search. A short bracketed marker
+            # (matching attachmentChip's own idiom) keeps SOME inline trace.
+            out.append("[excerpt]")
         elif ntype == "widgetEmbed":
             # attrs may be any JSON shape (the body validator is deliberately
             # permissive and the importer round-trips arbitrary HTML) — a
@@ -304,6 +311,84 @@ def _sync_note_links(
             "INSERT INTO j2_note_links (note_id, user_id, position, target_note_id)"
             " VALUES (?,?,?,?)",
             [(note_id, user_id, i, tid) for i, tid in enumerate(target_ids)])
+
+
+def _extract_note_fact_refs(doc: dict[str, Any] | None) -> list[str]:
+    """Every `financialFact` node's fact id, in document order (Wave F)."""
+    ids: list[str] = []
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "financialFact":
+            attrs = node.get("attrs")
+            fid = attrs.get("factId") if isinstance(attrs, dict) else None
+            if isinstance(fid, str) and fid:
+                ids.append(fid)
+        for child in node.get("content", []) or []:
+            walk(child)
+    if isinstance(doc, dict):
+        walk(doc)
+    return ids
+
+
+def _sync_note_fact_refs(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None,
+) -> None:
+    """Rebuild the note's j2_note_fact_refs projection inside the caller's
+    transaction (no commit here) -- same delete+insert idiom as
+    _sync_note_links. Facts are note-owned (Wave F checkpoint decision 24):
+    a factId this note no longer references simply drops out of the sidecar;
+    the owning j2_fact_observations row is untouched here (removal-as-deletion
+    is note_facts.delete_fact_observation's job, called explicitly by the
+    editor when a member removes a financialFact node, never inferred from a
+    save diff -- inferring it here would delete a fact the member only
+    temporarily cut mid-edit)."""
+    conn.execute("DELETE FROM j2_note_fact_refs WHERE note_id = ?", (note_id,))
+    fact_ids = _extract_note_fact_refs(body_json)
+    if fact_ids:
+        conn.executemany(
+            "INSERT INTO j2_note_fact_refs (note_id, user_id, position, fact_id)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, i, fid) for i, fid in enumerate(fact_ids)])
+
+
+def _extract_note_excerpt_refs(doc: dict[str, Any] | None) -> list[str]:
+    """Every `documentExcerpt` node's excerpt id, in document order
+    (Wave J). Mirrors `_extract_note_fact_refs` exactly."""
+    ids: list[str] = []
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "documentExcerpt":
+            attrs = node.get("attrs")
+            eid = attrs.get("excerptId") if isinstance(attrs, dict) else None
+            if isinstance(eid, str) and eid:
+                ids.append(eid)
+        for child in node.get("content", []) or []:
+            walk(child)
+    if isinstance(doc, dict):
+        walk(doc)
+    return ids
+
+
+def _sync_note_excerpt_refs(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None,
+) -> None:
+    """Rebuild the note's j2_note_excerpt_refs projection inside the
+    caller's transaction (no commit here) -- mirrors `_sync_note_fact_refs`
+    exactly. An excerptId this note no longer references simply drops out
+    of the sidecar; the owning j2_note_excerpts row is untouched here
+    (removal-as-deletion is note_excerpts.delete_excerpt's job, an explicit
+    action never inferred from a save diff)."""
+    conn.execute("DELETE FROM j2_note_excerpt_refs WHERE note_id = ?", (note_id,))
+    excerpt_ids = _extract_note_excerpt_refs(body_json)
+    if excerpt_ids:
+        conn.executemany(
+            "INSERT INTO j2_note_excerpt_refs (note_id, user_id, position, excerpt_id)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, i, eid) for i, eid in enumerate(excerpt_ids)])
 
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -640,6 +725,8 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_embeds(conn, user_id, row["id"], body_json)
                         _sync_note_mentions(conn, user_id, row["id"], body_plain)
                         _sync_note_links(conn, user_id, row["id"], body_json)
+                        _sync_note_fact_refs(conn, user_id, row["id"], body_json)
+                        _sync_note_excerpt_refs(conn, user_id, row["id"], body_json)
                         conn.execute("RELEASE j2_import_note")
                         updated.append(item)
                     else:
@@ -655,6 +742,8 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                         _sync_note_embeds(conn, user_id, new_id, body_json)
                         _sync_note_mentions(conn, user_id, new_id, body_plain)
                         _sync_note_links(conn, user_id, new_id, body_json)
+                        _sync_note_fact_refs(conn, user_id, new_id, body_json)
+                        _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
                         conn.execute("RELEASE j2_import_note")
                         item["id"] = new_id
                         created.append(item)
@@ -702,6 +791,14 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         # normal `get_note` never returns a deleted row at all, so this key
         # is `None` on every other read.
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
+        # Wave E: user-set property VALUES only, keyed by property_id --
+        # parsed (matching bodyJson/tags' own convention) but NOT resolved
+        # into display form (names/labels/derived values) here; that
+        # resolution is note_properties.resolve_note_properties's job, kept
+        # out of this pure row-mapper.
+        "propertiesJson": (
+            json.loads(row["properties_json"]) if row["properties_json"] and "properties_json" in row.keys() else {}
+        ),
     }
 
 
@@ -715,7 +812,8 @@ _LIST_PLAIN_CHARS = 400
 _NOTE_SUMMARY_COLS = (
     "id, user_id, account_id, folder_id, title, subtitle, "
     f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
-    "hero_image_url, first_image_url, ticker, tags, created_at, updated_at, deleted_at"
+    "hero_image_url, first_image_url, ticker, tags, created_at, updated_at, deleted_at, "
+    "properties_json"
 )
 
 
@@ -743,6 +841,12 @@ def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
         # Wave 0 trash: present only in a trash-view list (`deleted=True`);
         # `None` on every normal (active-notes) list row.
         "deletedAt": row["deleted_at"] if "deleted_at" in row.keys() else None,
+        # Wave E: user-set values only (parsed) -- the list card's compact
+        # property-chip row reads directly off this; NOT the full resolved
+        # (name/label/derived) form, which is a per-note-editor concern.
+        "propertiesJson": (
+            json.loads(row["properties_json"]) if row["properties_json"] and "properties_json" in row.keys() else {}
+        ),
     }
 
 
@@ -825,8 +929,26 @@ def _notes_filter_sql(
         sql += " AND folder_id = ?"
         params.append(folder_id)
     if ticker:
-        sql += " AND ticker = ?"
-        params.append(ticker.strip().upper())
+        # Wave H: this must answer the SAME "which notes relate to this
+        # ticker" question ticker_research._notes_for_symbols answers for the
+        # research workspace (ticker column OR embed OR cashtag mention) —
+        # not just the note's own `ticker` property. A strict-equality-only
+        # version of this clause let the Notebook list's `?ticker=` chip (the
+        # workspace's own "View all Notes" link) disagree with the workspace
+        # it was linked from: a note whose only NVDA relationship was a
+        # `$NVDA` mention in its body showed up in the NVDA workspace but not
+        # in this same-ticker filtered list — two implementations of one
+        # membership question, the exact defect shape this file's own
+        # docstring above warns about.
+        t = ticker.strip().upper()
+        sql += (" AND (ticker = ?"
+                " OR EXISTS (SELECT 1 FROM j2_note_embeds e"
+                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                " AND e.symbol = ?)"
+                " OR EXISTS (SELECT 1 FROM j2_note_mentions m"
+                " WHERE m.note_id = j2_notes.id AND m.user_id = j2_notes.user_id"
+                " AND m.symbol = ?))")
+        params.extend([t, t, t])
     # "Every entry where I traded/mentioned AMD" — the name `embed_symbol`
     # predates P0-3 (Wave 1 Slice 2) and is kept for every existing caller's
     # sake, but it now answers from BOTH sidecars: accepted chart embeds
@@ -976,6 +1098,9 @@ def list_notes(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_filter: list[dict[str, Any]] | None = None,
+    property_sort: dict[str, Any] | None = None,
+    property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     owned = conn is None
@@ -986,6 +1111,13 @@ def list_notes(
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
         )
+        if property_filter:
+            from api.services.journal_two.note_properties import property_filter_sql
+            prop_where, prop_params = property_filter_sql(
+                user_id, property_filter, conn, strict=property_filter_strict,
+            )
+            where_sql += prop_where
+            params += prop_params
         sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
         # Wave 4 Slice 2: relevance ranking is opt-in (`sort="relevance"`),
         # never silently applied under the existing "updated" default --
@@ -1011,15 +1143,26 @@ def list_notes(
             )
             params.append(relevance_expr)
         else:
-            order_col = {
-                "updated": "updated_at DESC",
-                "created": "created_at DESC",
-                "title": "title COLLATE NOCASE ASC",
-                # Trash view default: most recently deleted first — a member
-                # scanning for "the thing I just deleted" shouldn't have to sort.
-                "deleted": "deleted_at DESC",
-            }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
-            sql += f" ORDER BY {order_col}"
+            prop_sort_result = None
+            if property_sort:
+                from api.services.journal_two.note_properties import property_sort_sql
+                prop_sort_result = property_sort_sql(
+                    user_id, property_sort, conn, strict=property_filter_strict,
+                )
+            if prop_sort_result:
+                prop_order_fragment, prop_order_params = prop_sort_result
+                sql += f" ORDER BY {prop_order_fragment}"
+                params += prop_order_params
+            else:
+                order_col = {
+                    "updated": "updated_at DESC",
+                    "created": "created_at DESC",
+                    "title": "title COLLATE NOCASE ASC",
+                    # Trash view default: most recently deleted first — a member
+                    # scanning for "the thing I just deleted" shouldn't have to sort.
+                    "deleted": "deleted_at DESC",
+                }.get(sort, "deleted_at DESC" if deleted else "updated_at DESC")
+                sql += f" ORDER BY {order_col}"
         sql += " LIMIT ? OFFSET ?"
         params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
@@ -1064,6 +1207,8 @@ def count_notes(
     date_from: str | None = None,
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
+    property_filter: list[dict[str, Any]] | None = None,
+    property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """The TRUE total behind `list_notes`'s same filter set — a real
@@ -1081,6 +1226,13 @@ def count_notes(
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
         )
+        if property_filter:
+            from api.services.journal_two.note_properties import property_filter_sql
+            prop_where, prop_params = property_filter_sql(
+                user_id, property_filter, conn, strict=property_filter_strict,
+            )
+            where_sql += prop_where
+            params += prop_params
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
         return int(row["c"] or 0) if row else 0
@@ -1633,6 +1785,8 @@ def create_note(
         _sync_note_embeds(conn, user_id, new_id, body_json)
         _sync_note_mentions(conn, user_id, new_id, body_plain)
         _sync_note_links(conn, user_id, new_id, body_json)
+        _sync_note_fact_refs(conn, user_id, new_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, new_id, body_json)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -1657,11 +1811,31 @@ def create_note(
 J2_VERSION_COALESCE_MINUTES = int(os.environ.get("J2_VERSION_COALESCE_MINUTES", "30"))
 
 
-def _versioned_content_of(row_like: Any) -> tuple[str, str | None, str]:
-    """The exact three fields Wave C versions -- a sqlite3.Row (from j2_notes,
-    keyed by column name) or a dict (from a j2_note_versions row) both work
-    via [] access."""
-    return (row_like["title"] or "", row_like["subtitle"], row_like["body_plain"] or "")
+def _versioned_content_of(row_like: Any) -> tuple[str, str | None, str, str | None]:
+    """The exact fields Wave C (+ Wave E's property extension) versions -- a
+    sqlite3.Row (from j2_notes, keyed by column name) or a dict (from a
+    j2_note_versions row) both work via [] access. `properties_json` compares
+    as the RAW stored string (never re-serialized/normalized here) -- same
+    raw-string-equality treatment as body_plain; a byte-identical resave
+    never spuriously versions, and key-order drift across two logically-equal
+    property sets costs at most one extra (harmless) checkpoint, never a
+    missed one."""
+    return (
+        row_like["title"] or "", row_like["subtitle"], row_like["body_plain"] or "",
+        row_like["properties_json"] if "properties_json" in _row_keys(row_like) else None,
+    )
+
+
+def _row_keys(row_like: Any) -> Any:
+    """`.keys()` works on both sqlite3.Row and dict; a plain dict without the
+    key must never KeyError here (only sqlite3.Row raises on a missing
+    column, and even that shouldn't happen post-migration -- this is belt
+    and suspenders for a version row fetched with an explicit column list
+    that omitted properties_json)."""
+    try:
+        return row_like.keys()
+    except AttributeError:
+        return []
 
 
 def _maybe_capture_version(
@@ -1670,6 +1844,7 @@ def _maybe_capture_version(
     user_id: str,
     existing: sqlite3.Row,
     force: bool = False,
+    restored_from_version_id: str | None = None,
 ) -> None:
     """Coalescing version-capture hook -- called from update_note BEFORE the
     UPDATE is applied, so `existing` is the pre-edit row (the content about
@@ -1715,10 +1890,17 @@ def _maybe_capture_version(
     UPDATE — a bug here must never be able to block the authoritative note
     save (directive §19); any failure here costs a version-history entry,
     never note data.
+
+    `restored_from_version_id` (Wave G checkpoint §24, passed only by
+    restore_note_version via update_note) is stamped onto the row THIS call
+    captures -- i.e. the pre-restore state being preserved -- recording which
+    version the note was restored TO. It marks this checkpoint as the direct
+    result of a restore so the Wave G changelog can render "Restored from
+    version X" as a distinct, auditable event instead of an ordinary edit.
     """
     try:
         latest = conn.execute(
-            "SELECT title, subtitle, body_plain, created_at FROM j2_note_versions"
+            "SELECT title, subtitle, body_plain, properties_json, created_at FROM j2_note_versions"
             " WHERE note_id = ? ORDER BY created_at DESC LIMIT 1",
             (note_id,),
         ).fetchone()
@@ -1732,12 +1914,13 @@ def _maybe_capture_version(
                     return  # still inside the same coalescing window -- no new checkpoint
         conn.execute(
             "INSERT INTO j2_note_versions (id, user_id, note_id, title, subtitle,"
-            " body_json, body_plain, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            " body_json, body_plain, properties_json, created_at, restored_from_version_id)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 uuid.uuid4().hex, user_id, note_id,
                 old_content[0], old_content[1],
-                existing["body_json"], old_content[2],
-                existing["updated_at"],
+                existing["body_json"], old_content[2], old_content[3],
+                existing["updated_at"], restored_from_version_id,
             ),
         )
     except Exception:  # noqa: BLE001 — see docstring: never break the real save
@@ -1800,6 +1983,12 @@ def get_note_version(
             "bodyJson": json.loads(row["body_json"]),
             "bodyPlain": row["body_plain"],
             "createdAt": row["created_at"],
+            # Wave E: parsed (matching every other JSON field's convention);
+            # None for both "no properties at that checkpoint" and "captured
+            # before this column existed" -- both read identically as
+            # "nothing to restore," which is correct for either case.
+            "propertiesJson": json.loads(row["properties_json"]) if row["properties_json"] else None,
+            "restoredFromVersionId": row["restored_from_version_id"] if "restored_from_version_id" in _row_keys(row) else None,
         }
     finally:
         if owned:
@@ -1841,8 +2030,18 @@ def restore_note_version(
             return None
         return update_note(
             user_id, note_id,
-            {"title": version["title"], "subtitle": version["subtitle"], "bodyJson": version["bodyJson"]},
+            {
+                "title": version["title"], "subtitle": version["subtitle"], "bodyJson": version["bodyJson"],
+                # Wave E checkpoint §26: properties are versioned too, restored
+                # via the REPLACE form (never merge -- see set_note_properties'
+                # own docstring for why restore must fully replace, not stack).
+                # A version captured before this column existed has
+                # propertiesJson=None, which correctly restores to "no
+                # properties" (that note genuinely had none at that point).
+                "propertiesReplace": version["propertiesJson"] or {},
+            },
             conn=conn, expected_updated_at=expected_updated_at, force_version=True,
+            restored_from_version_id=version_id,
         )
     finally:
         if owned:
@@ -1856,6 +2055,7 @@ def update_note(
     conn: sqlite3.Connection | None = None,
     expected_updated_at: str | None = None,
     force_version: bool = False,
+    restored_from_version_id: str | None = None,
 ) -> dict[str, Any] | None:
     """`expected_updated_at` (optional) makes the write a compare-and-set:
     when it no longer matches the row's updated_at, another writer (the
@@ -1933,6 +2133,26 @@ def update_note(
             # False clears it. Absent (every non-import PUT) touches nothing.
             sets.append("import_media_pending = ?")
             params.append(1 if patch["importMediaPending"] else 0)
+        if "properties" in patch or "propertiesReplace" in patch:
+            # Wave E: "properties" is {property_id: value | null}, MERGED
+            # into the note's current values (the normal editor-save path --
+            # setting one property never clobbers another this client didn't
+            # know about). "propertiesReplace" (Wave C restore ONLY) is the
+            # same shape but starts from empty, so restoring to an old
+            # snapshot clears anything set after that snapshot rather than
+            # stacking on top of it. A patch may use only one of the two.
+            from api.services.journal_two.note_properties import (
+                set_note_properties, PropertyValidationError,
+            )
+            replace = "propertiesReplace" in patch
+            raw = patch["propertiesReplace"] if replace else patch["properties"]
+            if not isinstance(raw, dict):
+                raise NoteValidationError("properties must be an object")
+            try:
+                new_properties_json = set_note_properties(user_id, note_id, raw, conn, replace=replace)
+            except PropertyValidationError as e:
+                raise NoteValidationError(str(e)) from e
+            sets.append("properties_json = ?"); params.append(new_properties_json)
 
         if not sets:
             return _row_to_note(existing)
@@ -1942,12 +2162,20 @@ def update_note(
         # "did the patch mention a versioned key"), so a save that re-sends
         # an unchanged title/subtitle/body (e.g. a client re-PUTting the same
         # content) never creates a spurious version. `_maybe_capture_version`
-        # itself further gates on the coalescing window.
+        # itself further gates on the coalescing window. Wave E extends this
+        # to properties_json (checkpoint §26) on the identical principle.
         new_title = t if "title" in patch else (existing["title"] or "")
         new_subtitle = s if "subtitle" in patch else existing["subtitle"]
         new_body_plain = bp if "bodyJson" in patch else (existing["body_plain"] or "")
-        if (new_title, new_subtitle, new_body_plain) != _versioned_content_of(existing):
-            _maybe_capture_version(conn, note_id, user_id, existing, force=force_version)
+        new_properties_for_compare = (
+            new_properties_json if ("properties" in patch or "propertiesReplace" in patch)
+            else (existing["properties_json"] if "properties_json" in _row_keys(existing) else None)
+        )
+        if (new_title, new_subtitle, new_body_plain, new_properties_for_compare) != _versioned_content_of(existing):
+            _maybe_capture_version(
+                conn, note_id, user_id, existing, force=force_version,
+                restored_from_version_id=restored_from_version_id,
+            )
 
         sets.append("updated_at = ?"); params.append(_now_iso())
         params.extend([note_id, user_id])
@@ -1959,6 +2187,8 @@ def update_note(
             _sync_note_embeds(conn, user_id, note_id, bj)
             _sync_note_mentions(conn, user_id, note_id, bp)
             _sync_note_links(conn, user_id, note_id, bj)
+            _sync_note_fact_refs(conn, user_id, note_id, bj)
+            _sync_note_excerpt_refs(conn, user_id, note_id, bj)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2015,6 +2245,131 @@ def append_widget_embed(
         _sync_note_embeds(conn, user_id, note_id, body_json)
         _sync_note_mentions(conn, user_id, note_id, body_plain)
         _sync_note_links(conn, user_id, note_id, body_json)
+        _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
+        conn.commit()
+        out = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        return _row_to_note(out)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def append_financial_fact(
+    user_id: str,
+    note_id: str,
+    fact_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave F — the server half of a "Save price to Notebook" capture from a
+    surface OUTSIDE the note editor (e.g. TickerPopup): append one
+    financialFact node referencing an already-created fact observation to a
+    note's body. Mirrors append_widget_embed exactly (atomic load/append/save
+    in one transaction, same sidecar syncs, same trash guard). The fact row
+    itself must already exist (created via note_facts.create_fact_observation
+    against this SAME note_id) -- this function only places the NODE; it
+    never creates or validates the fact's value."""
+    if not fact_id:
+        raise NoteValidationError("factId required")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (TypeError, ValueError):
+            doc = {}
+        if not isinstance(doc, dict) or doc.get("type") != "doc":
+            doc = {"type": "doc", "content": []}
+        content = doc.get("content")
+        if not isinstance(content, list):
+            content = []
+        content.append({"type": "financialFact", "attrs": {"factId": fact_id}})
+        doc["content"] = content
+        body_json = _validate_body_json(doc)
+        body_plain = extract_plain_text(body_json)
+        conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, updated_at = ?"
+            " WHERE id = ? AND user_id = ?",
+            (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
+        )
+        _sync_note_embeds(conn, user_id, note_id, body_json)
+        _sync_note_mentions(conn, user_id, note_id, body_plain)
+        _sync_note_links(conn, user_id, note_id, body_json)
+        _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
+        conn.commit()
+        out = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        return _row_to_note(out)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+def append_document_excerpt(
+    user_id: str,
+    note_id: str,
+    excerpt_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Wave J — the server half of "Save excerpt" when the destination note
+    is NOT the one currently open in an editor (the PDF viewer is reached
+    from the Ticker Research Workspace's Documents section just as often as
+    from an open note, per the entry checkpoint's own fast-path decisions —
+    that surface has no live editor instance to insert a node into client-
+    side). Mirrors `append_financial_fact` exactly (atomic load/append/save,
+    same sidecar syncs, same trash guard). The excerpt row itself must
+    already exist (created via note_excerpts.create_excerpt against this
+    SAME note_id) -- this function only places the NODE."""
+    if not excerpt_id:
+        raise NoteValidationError("excerptId required")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (TypeError, ValueError):
+            doc = {}
+        if not isinstance(doc, dict) or doc.get("type") != "doc":
+            doc = {"type": "doc", "content": []}
+        content = doc.get("content")
+        if not isinstance(content, list):
+            content = []
+        content.append({"type": "documentExcerpt", "attrs": {"excerptId": excerpt_id}})
+        doc["content"] = content
+        body_json = _validate_body_json(doc)
+        body_plain = extract_plain_text(body_json)
+        conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, updated_at = ?"
+            " WHERE id = ? AND user_id = ?",
+            (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
+        )
+        _sync_note_embeds(conn, user_id, note_id, body_json)
+        _sync_note_mentions(conn, user_id, note_id, body_plain)
+        _sync_note_links(conn, user_id, note_id, body_json)
+        _sync_note_fact_refs(conn, user_id, note_id, body_json)
+        _sync_note_excerpt_refs(conn, user_id, note_id, body_json)
         conn.commit()
         out = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -2274,6 +2629,16 @@ def register_trash_purge_job(scheduler) -> bool:
             print(f"[j2-trash-purge] purged={n} retention_days={TRASH_RETENTION_DAYS}")
         except Exception as e:  # noqa: BLE001 — a failed sweep must never break the scheduler
             print(f"[j2-trash-purge] sweep failed: {e}")
+        try:
+            # Wave E: rides the SAME nightly sweep -- two small tables, no
+            # reason for a second scheduler registration. Independent
+            # try/except so a failure here can never suppress the note-trash
+            # sweep above (or vice versa).
+            from api.services.journal_two.note_properties import purge_expired_property_defs_and_saved_views
+            defs_n, views_n = purge_expired_property_defs_and_saved_views()
+            print(f"[j2-trash-purge] property_defs_purged={defs_n} saved_views_purged={views_n}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[j2-trash-purge] property/saved-view sweep failed: {e}")
 
     scheduler.add_job(
         _job,

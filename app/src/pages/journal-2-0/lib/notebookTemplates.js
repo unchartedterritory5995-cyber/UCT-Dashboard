@@ -26,6 +26,7 @@ import { h, p, labeled, linkP, bullets, hr, doc } from '../../../lib/tiptapDocBu
 
 export const FAMILIES = [
   { key: 'rituals', label: 'Daily & weekly rituals' },
+  { key: 'research', label: 'Thesis & research' },
   { key: 'trades', label: 'Around a trade' },
   { key: 'mind', label: 'Mindset' },
 ]
@@ -167,6 +168,39 @@ export const TEMPLATES = [
         hr(),
         h(2, 'ONE commitment'),
         p('The single rule next week will be judged against. One. Write it like a rule, not a wish.'),
+      ]),
+  },
+  {
+    key: 'thesis',
+    label: 'Long/Short Thesis',
+    family: 'research',
+    when: 'Starting a new investment thesis',
+    description: 'Bull case, bear case, catalysts, risks, and what would prove you wrong.',
+    tags: ['thesis'],
+    needs: {},
+    // Direction (Long/Short) is NOT a body field here -- checkpoint §47:
+    // set it once via the Research Type property (below the title, added
+    // automatically by the editor's Properties section) rather than
+    // duplicating it in prose. Evidence for/against is deliberately NOT a
+    // heading in this template either -- it's a structured relationship
+    // (supports/opposes another note or a captured fact), tracked in the
+    // Thesis Evidence section, not written prose that would compete with it.
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `${ctx.ticker} Thesis` : 'Investment Thesis'),
+    build: () =>
+      doc([
+        h(2, 'Bull case'),
+        p('The strongest case for this thesis being right.'),
+        h(2, 'Bear case'),
+        p('The strongest case AGAINST it — steelman the other side, don’t strawman it.'),
+        h(2, 'Key assumptions'),
+        bullets(['—', '—', '—']),
+        hr(),
+        h(2, 'Catalysts'),
+        p('What would move this thesis forward, and roughly when.'),
+        h(2, 'Risks'),
+        p('What could go wrong, independent of price action.'),
+        h(2, 'What would prove me wrong'),
+        p('The specific price, data point, or event that invalidates this thesis.'),
       ]),
   },
   {

@@ -5,24 +5,178 @@
 > historical encyclopedia — keep it concise, overwrite stale sections rather
 > than appending to them.
 
-**Last verified:** 2026-09-06, against live git + Railway state, post
-Calendar TickerActions Reuse V2 (Seam 20 half) merge/deploy -- the seventh
-item down the priority stack from the same-day owner-authorized
-WHOLE-PRODUCT STRATEGIC RE-ANCHOR (13-lens multi-agent current-state
-review + synthesis, ~3.9M subagent tokens, 699 tool calls, zero lens
-failures). Full re-anchor report delivered to the owner in-conversation;
-this doc keeps only the load-bearing conclusions, not the full 30-section
-report. Both re-anchor MUST-FIX trust defects (Seam 28, Seam 29) plus
-Alert Durability V1 (Seam 30) plus the keyboard accessibility program plus
-Compare Coverage V1 (scoped via an explicit owner check-in, price-only)
-plus Seam 20 (Wire + MyStocksHub Insights row navigation) are now closed.
-**Seam 19 (the broader TickerActions/useTickerActions context-menu reuse
-into `EarningsTile.jsx`/`CalendarDayTable.jsx`/`FeedView.jsx`) was
-DELIBERATELY NOT bundled into this pass — larger blast radius, its own
-separate V2 scope, still open.** Feature-Flag Governance Sweep is next;
-Awareness Reachability Restoration V1 remains deliberately SKIPPED pending
-a genuine owner monetization/entitlement decision (see the top-of-file
-section) -- do not resolve it unilaterally.
+**Last verified:** 2026-09-07, against live git + Railway state, post
+**Seam 7** merge/deploy (Dual NYSE Calendar Architecture Adjudication +
+V1). Prior programs this session, most recent first: Chart Comparison
+Picker Convergence V1, Seam 8 (Price-Move Evidence Timestamp
+Convergence V1), Seam 6 (Chart Session / Extended-Hours Temporal
+Convergence V1), Seam 14 (Ticker Search Surface Convergence V1), Seam
+11 (Position ↔ Related Trades, honest labeling), Seam 17 Remainder
+(Journal Symbol Input Assist V1), Seam 1 read-side half (a real WRITE
+to production identity data), Seam 19 (TickerActions Dedicated Scope +
+Convergence V1) — full detail for all of these lives in "CURRENT
+ACCEPTED" below and the debt ledger, not re-summarized here again.
+This section covers **Seam 7** in full since it's the newest; Chart
+Comparison Picker / Seam 8 / Seam 6 are condensed (full detail in
+"CURRENT ACCEPTED" below and their own debt-ledger entries).
+
+**Seam 7 — DUAL NYSE CALENDAR ARCHITECTURE ADJUDICATION, RESOLVED,
+merge `4c4e19ede`/`141dd978f` — a READ-ONLY adjudication that found a
+real, previously-unrecorded gap, then implemented a small, owner-
+authorized V1.** The ledger's "two tables, byte-for-byte identical,
+zero live defect" premise was BOTH correct AND incomplete. Phase A
+found a **THIRD, previously-unrecorded independent NYSE holiday
+table** in `api/services/voice_temporal_awareness.py` — feeding EVERY
+Compass voice/chat session's temporal narration (`build_temporal_prompt_line`
+injected into every session's system prompt + `get_market_context` as
+a callable tool). All three tables agree on every overlapping date
+today (verified programmatically, zero mismatches) — the real risks
+were elsewhere, and TWO were confirmed as genuinely live by direct
+execution, not inference:
+1. **`nyseCalendar.js`'s `COVERED_YEARS=[2026]`** gave it ~4 months of
+   runway vs. ~16 months for the other two tables, with a test-pinned-
+   as-intentional-but-completely-unalarmed degrade to "every weekday is
+   a full trading day" once it lapses — Seam 6's exact defect class,
+   scheduled to recur 2027-01-01 by construction, with zero renewal
+   reminder (unlike the backend's own `market_calendar.py`, which has a
+   sophisticated milestone-gated Discord alert for ITS table's runway —
+   but that alarm doesn't cover the frontend table's much sooner cliff).
+   **Fixed**: added 2027 data (matching `bars_fetch.py`'s already-
+   agreeing 2027 dates exactly), with a note that the table must stay a
+   full year ahead of `today`, not just cover "the current year."
+2. **No cross-stack parity test existed anywhere** — a future hand-
+   edit to any one table could drift silently. **Fixed**:
+   `tests/test_nyse_calendar_parity.py`, a deterministic cross-language
+   date-set comparison (with its own non-vacuity guard against the
+   regex parser silently extracting nothing).
+3. **`voice_temporal_awareness.py`'s `_session_state()` had ZERO
+   early-close awareness** — confirmed LIVE by directly executing the
+   code against real, already-scheduled 2026 dates: at Nov 27 2026
+   13:30 ET (30 min after the real 1:00 PM close) it returned
+   `{"state":"rth","detail":"close in 150 min"}`; same at Dec 24 2026
+   14:00 ET. **Fixed** by reusing `liveflow_monitor.py`'s existing
+   early-close set (no fourth copy of the data) — regular (16:00) close
+   days verified byte-identical across the full 9:30-16:00 window, 0
+   mismatches.
+4. **`voice_temporal_awareness.py`'s `_et_now()` used naive DST
+   arithmetic** (`-4 if 3<=month<=10 else -5`) instead of `zoneinfo` —
+   confirmed LIVE to be off by exactly 1 hour for the ~1 week each
+   March between the 1st and the real 2nd-Sunday DST transition (e.g.
+   2026-03-03 12:00 UTC read as 08:00 ET instead of the real 07:00
+   EST). **Fixed** with `ZoneInfo("America/New_York")`, matching the
+   rest of the codebase's established convention — every downstream
+   consumer already used tz-safe datetime methods, so nothing else
+   needed to change.
+
+**Architecture decision (Option D): both `nyseCalendar.js` (frontend,
+bundled) and `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` (backend) STAY as
+separate runtime-local datasets** — `nyseCalendar.js`'s zero-latency
+bundled design is deliberate S11 architecture (a tight chart render
+loop can't tolerate a network round trip); `useMarketCalendar.js`
+already proves this codebase knows how to do Option C (backend-as-
+sole-authority) where a round trip IS acceptable — the Dashboard
+session pill already does exactly that. The fix was the missing
+GOVERNANCE (parity test + coverage-window discipline), not a
+redesign — items 1-2 above are that V1. Items 3-4 (the
+`voice_temporal_awareness.py` fixes) were a separate, owner-authorized
+addition to the same program after Phase A surfaced them as genuinely
+live defects (Section XV of the directive: "STOP and report the exact
+defect... a tiny deterministic correction may be proposed").
+**Owner explicitly authorized implementing all four items in this same
+program** (asked via AskUserQuestion after the Phase A report).
+Non-vacuity-checked via safe-stash: 9 of 33 new/changed assertions
+genuinely fail without the implementation. 191 backend + 199 frontend
+tests green; clean build; production-verified via commit-SHA match AND
+a read-only execution of the deployed fix against an explicit test
+instant (a pure function call, never touching the real system clock)
+AND a compiled-bundle content grep (`"2027-01-01"`/`"Martin Luther
+King, Jr. Day"` both present in the deployed entry bundle).
+
+**A fresh re-scan of the debt ledger after Seam 7 found the remaining
+pool thinned to genuinely external/gated items only — HOLDING, and
+this time legitimately so per the directive's own completion
+standard.** Seam 13 still risks colliding with the concurrent Notebook
+session (Wave I, still actively landing commits on `origin/master`);
+Seam 18/22/24 still need a product decision or are gated;
+`SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence remains a real,
+recorded, not-yet-bounded future candidate; Seam 3/4/27 remain
+explicitly LOW-PRIORITY. Awareness Reachability Restoration V1 remains
+deliberately SKIPPED pending a genuine owner monetization/entitlement
+decision. **Pattern Vision's evidence window is mid-flight, NOT
+completed**: today (2026-09-07, Mon, the holiday-safety-observation
+day) is explicitly NOT a real acceptance session per the directive's
+own caveat — `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET
+ACCEPTED; Tue 9/8 and Wed 9/9 haven't happened yet. Re-check this gate
+at the start of whatever comes next — it is the closest live external
+event to actually firing this week. S7 NVDA interrupt condition
+re-checked live and still does not apply (`alert_fires` table: 0
+rows). **HOLDING** — continuing under the Continuous Execution
+Directive means reporting this honestly rather than manufacturing
+activity against a genuinely gated pool. No independent, bounded,
+unblocked work remains identified as of this checkpoint.
+
+## ⛔⛔ FORMAL HOLD CHECKPOINT (owner-issued, 2026-09-07, post-Seam-7) —
+## READ THIS FIRST, ABOVE EVEN THE RE-ANCHOR BELOW
+
+**CURRENT ACTIVE PROGRAM: NONE — LEGITIMATE EXTERNAL-GATE HOLD.** The
+owner explicitly accepted the post-Seam-7 remaining-work scan and issued
+a formal hold: no clearly material, bounded, unblocked Terminal product
+gap remains. Every item in the debt ledger is EXTERNAL GATE, OWNER/
+PRODUCT DECISION, CONCURRENT PROGRAM COLLISION, EXPLICIT LOW-PRIORITY
+DEBT, or OPTIONAL HARDENING. **A future session must NOT**: start
+another architecture review, launch another multi-agent re-anchor, pick
+up a low-priority seam merely to stay busy, touch gated technical work
+prematurely, or reopen a resolved seam without concrete regression
+evidence. Do not manufacture activity to fill this hold period.
+
+- **PRIMARY NEXT HINGE:** Pattern Vision real-session evidence.
+  `PATTERN_VISION_ENABLED=1`, LIVE, NOT YET ACCEPTED. Monday 2026-09-07
+  (today, at hold time) is HOLIDAY-SAFETY OBSERVATION ONLY and does
+  **NOT** count as one of the two required real sessions.
+- **NEXT OBSERVATION: Tuesday 2026-09-08 — real session #1.** Observe
+  naturally — do not manufacture detections, manually invoke activity,
+  relax criteria, or accept Pattern Vision after only this one session.
+  Record the evidence faithfully.
+- **FINAL REQUIRED OBSERVATION: Wednesday 2026-09-09 — real session #2.**
+  Only after this genuine second session is complete does the
+  already-planned final Pattern Vision acceptance classification run,
+  against actual evidence, classified honestly as either LIVE + ACCEPTED
+  or LIVE + NOT ACCEPTED / REMEDIATION REQUIRED — as earned, not assumed.
+- **PRIORITY INTERRUPT ON ACCEPTANCE (LIVE + ACCEPTED):** move immediately
+  to **Technical Research Release Review** (currently IMPLEMENTED +
+  TESTED, PARKED — do NOT auto-merge solely because Pattern Vision
+  passed: fetch fresh master, inspect drift, reconcile only if clean,
+  re-run bounded tests, verify its confirmed-pattern contract still
+  matches the now-accepted Pattern Vision system, then classify release
+  readiness). If it passes: merge, deploy, production-verify, update
+  continuity. **Then resume Technical Ask AI** — Phase A is ALREADY
+  COMPLETE, do NOT repeat it; resume directly from the recorded
+  specification (9th technical domain, confirmed Pattern Vision verdicts
+  only, existing grounding gate, freshness/staleness handling, no raw
+  pattern feed, no on-demand Vision, no scanner invocation) and
+  implement/test/release under the existing acceptance protocol.
+- **IF PATTERN VISION DOES NOT PASS:** do not force Technical Research or
+  Technical Ask AI into production. Record the exact failure evidence.
+  Determine the smallest evidence-based remediation program. Do not
+  reopen unrelated Terminal convergence work.
+- **SECONDARY EXTERNAL INTERRUPT: a natural S7 filing event.** S7 remains
+  WAITING ON NATURAL EXTERNAL EVENT — no genuine newer NVDA filing has
+  fired the required Stage 2 path yet. Do NOT replay, fabricate, mutate
+  the baseline, mint a fake session, or force the evaluator. If a genuine
+  filing occurs during the hold, preserve the natural evidence and
+  prioritize: REAL SEC DOCUMENT → S7 EVALUATOR → DURABLE FIRE → DELIVERY
+  → MEMBER ALERT → RESEARCH RETURN → REPEAT EVALUATION → ZERO DUPLICATE
+  → report. Do NOT automatically merge the parked Stage 4/5 UI.
+- **Other programs during the hold:** protect concurrent Notebook work;
+  do not pick up Seam 13 while a real semantic collision remains; do not
+  independently decide unresolved product-policy items; do not spend the
+  hold on Seam 3/4/27 or other explicitly low-priority debt.
+
+**No additional engineering action is authorized merely to fill the hold
+period.** A resuming session's first move is to re-check Pattern
+Vision's live flag/evidence state and S7's `alert_fires` row count —
+both live-checkable in under a minute — before assuming anything above
+is still current.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -93,10 +247,58 @@ converted to real `<button>`s navigating to `/research/{sym}`, reusing
 `EventCard.jsx`'s already-shipped convergence pattern; **Seam 19 (Board/
 Table/Feed calendar views' `TickerActions`/`useTickerActions` context-menu
 reuse) deliberately NOT bundled — larger blast radius, own separate V2
-scope, still open** → **now: Feature-Flag Governance Sweep** (the
-flag-ledger test is RED on master; 3 undeclared live-armed flags found,
-one money-adjacent — `BROKER_BALANCE_HISTORY_ENABLED=1`, flagged for owner
-confirm-or-rollback).
+scope, still open** → **Feature-Flag Governance Sweep** ✅ resolved same
+day, merge `b68b71e18`/`4c8693b32` -- the flag-ledger test's own count of
+"3 undeclared" had gone stale; a fresh measurement found **7** (not 3):
+`ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED`, `BARS_A_CLOSE_GUARD_ENABLED`,
+`CREAM_EOD_ENABLED`, `PATTERN_CANONICAL_ADAPT_ENABLED`,
+`PATTERN_CANONICAL_SCANNER_PILOT_ENABLED`,
+`PATTERN_CANONICAL_SHADOW_LOG_ENABLED`, `THEME_SETS_ENABLED` — all 7
+declared (4 armed, 3 dark) against a live Railway read + direct code
+investigation, plus a drift fix (`ALPHA_GOLD_EOD_ENABLED` had gone stale
+"armed"; confirmed OFF, superseded by the new `CREAM_EOD_ENABLED` on the
+same cron slot). Also found and fixed a genuine scanner blind spot in
+`api/services/feature_flag_index.py`: `import os as _os; _os.getenv(...)`
+was invisible to the AST scan (only the literal base name `os` matched),
+which is exactly how `BROKER_BALANCE_HISTORY_ENABLED` — live, money-
+adjacent, zero rationale — evaded detection entirely; fixed by resolving
+per-file `os` import aliases, proven non-vacuous by a new control test
+that was confirmed to fail without the fix before being restored.
+`BROKER_BALANCE_HISTORY_ENABLED` itself was surfaced to the owner via an
+explicit check-in (adds one read-only, best-effort SnapTrade
+balance-history cross-check to the existing broker fidelity audit, never
+writes to any balance/position) — **owner chose to keep it armed**, now
+documented in the ledger with that rationale. Pure docs/test-tooling
+change, zero runtime behavior touched → **Seam 25** ✅ resolved same day,
+merge `7c83f19b7`/`441064d23`: `ai_search.py::_ctx_posture()`'s technical
+posture pack was labeled only "UCT nightly snapshot," no date — threaded
+the already-populated `snapshot_date`/`bars_asof` columns from
+`snapshot_db.get_row()` into the rendered label, kept distinct on purpose
+(they answer different questions and diverge on ~21.7% of rows per
+`snapshot_builder.py`'s own header). Production-verified live (AAPL:
+"built 2026-09-06, bars asof 2026-09-04" — a real 2-day divergence example
+on the very first check). 3 new tests + full 1011-test ai_search surface
+green → Seam 21 ✅ → `CommandPalette.jsx` jsonFetcher fix ✅ → **Seam 19**
+✅ resolved same day, merge `7a0dd2a78`/`66f6e34f2` (owner-directed
+dedicated program, see "CURRENT ACTIVE PROGRAM" below for full detail) →
+**Seam 1 (read-side half)** ✅ resolved same day, merge
+`039d885bb`+`ac76a93cf`/`75f2a0c14` — a real WRITE to production identity
+data, not a code-only change: `seed_dot_form_aliases()` added a
+dot-form alias per cap_universe class-share entity, empirically verified
+per-symbol against Massive's live reference API rather than assumed from
+the hyphen-suffix pattern. Dry-run against real production data caught a
+genuine flaw in the fix's OWN docstring before the real write ran:
+`NWAX-U` (assumed to be a non-class-share SPAC unit with no dot form)
+turned out to have a confirmed Massive dot-form row (`NWAX.U`, `type:
+"UNIT"`) and was correctly included; `CWEN-A` (assumed to be a genuine
+class share) turned out to be a real, verified 404 at Massive and was
+correctly excluded — the empirical-check design caught both
+surprises the suffix-pattern assumption would have gotten backwards.
+13 of 14 cap_universe hyphenated symbols got a confirmed dot alias
+added; production-verified via direct SQLite query (aliases count
+32651→32664, exactly +13) and a full 13-pair resolve() cross-check (both
+spellings resolve to the identical entity_id for every pair). 6 new
+tests, full entity_master + search-integration suite green (99 tests).
 
 **Seam ledger reclassifications worth remembering** (full table in the
 30-section report): Seam 5 confirmed RESOLVED (the ledger's own prose was
@@ -418,8 +620,9 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   evidence timestamp exists anywhere in the current pipeline — confirmed by
   tracing `live_prices.py`/`journal_two.py`/the frontend `changes` hooks end
   to end; all three consumers already null-guard `as_of`). Full per-ticker
-  timestamp threading (2 endpoint contracts + 1 frontend hook) remains
-  DEFERRED. Zero public API contract changes across all 8 other confirmed
+  timestamp threading (2 endpoint contracts + 1 frontend hook) remained
+  DEFERRED at the time (now RESOLVED — see Seam 8, merge
+  `22452cff7`/`dbd08ece6`, 2026-09-07). Zero public API contract changes across all 8 other confirmed
   production callers of the two touched modules; zero frontend files
   touched. 7 backend files changed (4 source + 3 test), 328 focused +
   adjacent tests passing (2 pre-existing exact-equality miss-dict assertions
@@ -641,10 +844,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
     check per the authorization's explicit instruction — a delisted, renamed,
     or entirely fictional ticker still saves unchanged (regression-tested).
     **Seam 17's ORIGINAL framing (AddPositionModal.jsx/AddTradeModal.jsx are
-    bare text inputs with no autocomplete/search UI) is NOT closed and was
-    never attempted** — that is a real, separate, larger UI initiative;
-    do not conflate "the spelling-divergence risk is closed" with "Seam 17 is
-    closed."
+    bare text inputs with no autocomplete/search UI) was NOT closed by THIS
+    program** — that was a real, separate, larger UI initiative at the time.
+    **It IS now closed, by Seam 17 Remainder (Journal Symbol Input Assist V1,
+    2026-09-06) — see the Seam 17 debt-ledger entry below (RESOLVED) and the
+    top-of-file summary.**
   - **Priority 2 (Seam 1 — PARTIALLY resolved, honestly bounded).** The
     write-time half of Seam 1 (manual `.strip().upper()` vs broker-sync's
     additional dot-to-hyphen step producing two spellings of one security) is
@@ -1625,15 +1829,147 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 
 - **Seam 28 (closes Seam 26) + Seam 29 + Alert Durability V1 (Seam 30) +
   Watchlists/PositionsTable/TradesTable Keyboard Accessibility V1 +
-  Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) —
-  ALL DONE, ACCEPTED + LIVE. Feature-Flag Governance Sweep — STARTING
-  NOW**, continuing directly down the re-anchor's own priority stack per
-  the standing directive (no new ledger-scan needed — the re-anchor
-  already did that scan; see below). **Seam 19 (Board/Table/Feed
-  TickerActions context-menu reuse) remains its own open, separately-
-  scoped V2 — deliberately not bundled into the Seam 20 pass** (larger
-  blast radius across 3+ live files with existing click handlers to
-  preserve; see the Seam 19 debt-ledger entry below, unchanged).
+  Compare Coverage V1 + Calendar TickerActions Reuse V2 (Seam 20 half) +
+  Feature-Flag Governance Sweep + Seam 25 + Seam 21 +
+  `CommandPalette.jsx` jsonFetcher fix + **Seam 19** + **Seam 1
+  (read-side half)** — ALL DONE, ACCEPTED + LIVE. HOLDING — a full
+  re-scan after Seam 1 found no further clearly-bounded, fully-unblocked
+  item.**
+  The re-anchor's own named priority stack is EXHAUSTED (Feature-Flag
+  Governance Sweep was its last item); Seam 25/21/CommandPalette were
+  each selected from the debt ledger. After Seam 21, a full re-scan found
+  every remaining item carrying a real reason not to pick it up
+  autonomously and this doc recorded a HOLDING state — **the owner then
+  explicitly authorized and directed Seam 19 as its own dedicated,
+  larger-scope program** (Section III-VII of the directive: a full Phase A
+  proportional to Seam 19's own deferred-scope history, pre-authorized
+  implementation once Phase A confirms READY, explicit "do not
+  automatically hold after completion" instruction for what comes next).
+  **Seam 19 — ACCEPTED + LIVE, merge `7a0dd2a78`/`66f6e34f2`**: see the
+  Seam 19 debt-ledger entry below (now RESOLVED) for full Phase A
+  findings and implementation detail.
+  **Selecting the next program per the owner's own explicit priority
+  order (Section XI):** live-checked both interrupt conditions before
+  falling through to "highest-value remaining unblocked gap" —
+  (1) Pattern Vision: `PATTERN_VISION_ENABLED=1` on web (live-read via
+  `railway variables`), still LIVE/NOT YET ACCEPTED; the Tue 9/8/Wed 9/9
+  evidence window has not even started (today is 2026-09-06) — condition
+  does not apply. (2) S7 NVDA: `/data/alert_taxonomy.db` on web queried
+  directly — `alert_fires` table has **0 rows**, and the live predicate
+  `pred_dd253fcc78ab498a`'s `last_seen_state` accession is still the
+  original baseline (`0001197647-26-000009`) — no genuine filing has
+  landed; condition does not apply. (3) Highest-value unblocked gap: of
+  the pool re-scanned after Seam 21 (Seam 1/6/7/8/11/14/17-remainder,
+  Seam 13, Seam 18/22/24, Seam 3/4/27), **Seam 1's read-side half** is the
+  only one that is simultaneously a real member-facing defect (BRK.B —
+  a commonly-held real security — silently degrades Watchlist/Portfolio
+  Intelligence and Research estimates/financials), explicitly bounded
+  ("a second seeded S3 alias for the dot spelling, NOT a data
+  migration"), and confirmed STILL fully open by TWO independent later
+  programs re-checking it (Identity Normalization Hardening V1's own
+  write-time fix, then Ticker Search Identity Convergence V1/Seam 16) —
+  every other remaining item is either explicitly not-bounded, gated on a
+  product/owner decision, a parallel-program collision risk, or
+  explicitly deprioritized.
+  **Seam 1 (read-side half) — ACCEPTED + LIVE, merge
+  `039d885bb`+`ac76a93cf`/`75f2a0c14`**: see the Seam 1 debt-ledger entry
+  below (now RESOLVED) for full implementation detail, including the
+  dry-run finding that disproved the fix's own initial suffix-pattern
+  assumption before the real write ran (NWAX-U correctly included,
+  CWEN-A correctly excluded, neither matching the naive guess).
+  **A full re-scan of the debt ledger after Seam 1 found no further
+  clearly-bounded item — HOLDING.** Seam 6/7/8/11/14 each need their own
+  Phase A or a real architecture/product decision before any V1 is even
+  definable; Seam 13 risks colliding with the concurrent Notebook
+  session; Seam 18/22/24 need a product decision or are gated; Seam
+  3/4/27 are explicitly LOW-PRIORITY. Seam 17's remainder (symbol
+  autocomplete in `AddPositionModal.jsx`/`AddTradeModal.jsx`) is the
+  closest candidate but carries genuine implementation-approach breadth
+  (adapt `SymbolSearch.jsx`'s click-to-open shape vs. build a new
+  autocomplete-while-typing component, while staying non-blocking on
+  unknown/delisted tickers) — the same kind of design-space question
+  Compare Coverage V1 got an explicit owner check-in for, not a
+  unilateral call. This is the standing directive's own completion
+  standard being met: important workflows are coherent, known material
+  trust defects are closed, and what remains is genuinely external
+  dependencies, owner decisions, or work needing its own dedicated Phase
+  A before it can even be scoped.
+  **The owner then explicitly resolved Seam 17-remainder's own
+  design-space question** (the directive: build one small shared
+  ALWAYS-VISIBLE symbol autocomplete input, reusing the canonical search
+  contract but never requiring resolution to save — NOT an adaptation of
+  `SymbolSearch.jsx`'s click-to-open shape) → **Seam 17 Remainder
+  (Journal Symbol Input Assist V1) — ACCEPTED + LIVE, merge
+  `3421567c6`/`473e6f42f`**: new component `SecuritySymbolInput.jsx`
+  (`app/src/pages/journal-2-0/components/`) — a controlled text input with
+  a 200ms-debounced `/api/ticker-search` suggestion dropdown, stale-response
+  protection via BOTH an `AbortController` AND a `reqIdRef` sequence guard
+  (mirrors `CommandPalette.jsx`'s own belt-and-suspenders pattern — a
+  fetch mock that ignores `AbortSignal` still can't land a stale result),
+  full keyboard nav (Arrow/Enter/Escape, combobox/listbox ARIA), and three
+  never-collapsed, never-blocking search states (found/no-match/failed —
+  a failed search degrades silently to bare-input capability, matching
+  `SymbolSearch.jsx`'s own catch-branch degradation). No frontend
+  dot/hyphen canonicalization of any kind — whatever the backend search
+  contract returns (or doesn't) is exactly what's shown/used, preserving
+  Identity Normalization V1's deliberate choice not to make active-
+  universe existence a write requirement. Wired into both
+  `AddPositionModal.jsx` and `AddTradeModal.jsx`'s "Symbol *" field
+  (autoFocus/disabled semantics preserved from the bare inputs they
+  replaced). Existing `AddPositionModal.test.jsx`/`AddTradeModal.test.jsx`
+  mock the new component at the boundary (matches the established
+  `TickerActions.jsx` shallow-mock convention) so those files keep testing
+  the modals' own save/validation logic in isolation, unaffected by the
+  new component's real debounced fetch; two new dedicated integration
+  test files (`AddPositionModal.symbolAssist.test.jsx`/
+  `AddTradeModal.symbolAssist.test.jsx`) render the REAL component end to
+  end (typed suggestion → canonical-symbol-on-select → save; free-form
+  unresolved symbol → save unblocked; failed search → save unblocked; a
+  single debounced request per settled query, filtered against the
+  modal's OTHER unrelated mount-time fetches which share the same
+  `global.fetch` mock in these tests). `SecuritySymbolInput.test.jsx`
+  covers the component standalone: debounce coalescing, the stale-response
+  guard (hand-rolled fetch mock that does NOT honor `AbortSignal`, proving
+  correctness doesn't depend on that), all three search states, keyboard
+  nav, click/touch selection, and identity-safety representative inputs
+  (BRK.B/BRK-B/lowercase/ordinary/unknown-delisted-like — confirming
+  selection writes exactly what the search contract returned, free-typed
+  text flows through completely unchanged, and no dot/hyphen rewriting
+  happens anywhere in the component). 18+7+22 tests across the 3 new/2
+  extended files; full `journal-2-0/` regression (182 files/1,714 tests)
+  green; clean production build. **A genuine gotcha found and fixed
+  along the way, not just informational:** `vi.useFakeTimers()` breaks
+  Testing Library's own `asyncUtilTimeout` (itself `setTimeout`-based per
+  `test-setup.js`'s own header comment), hanging every `findBy`/`waitFor`
+  until vitest's outer `testTimeout` instead of resolving — switched to
+  real timers throughout (mirrors `CommandPalette.test.jsx`'s own
+  established convention) rather than fighting fake-timer/async-utility
+  interaction. **Production-verified**: deployed commit SHA matches
+  (`473e6f42fd07ff588d3a2cbf079a8b64b3cf6548`); the compiled
+  `AddPositionModal-*.js` lazy chunk carries the component's distinctive
+  disclosure string ("Not found in current search") and the
+  `/api/ticker-search?q=` fetch call; live `GET /api/ticker-search?q=NVDA`
+  confirmed the backend contract healthy. Per the release sequence's own
+  explicit instruction, no real position/trade was created to "prove"
+  verification — read-only checks only.
+  **A fresh re-scan of the debt ledger after Seam 17 Remainder found the
+  remaining pool UNCHANGED from the post-Seam-1 scan — HOLDING again.**
+  Seam 6/7/8/11/14 still each need their own Phase A or a real
+  architecture/product decision; Seam 13 still risks colliding with the
+  concurrent Notebook session (still actively landing commits this same
+  session — Wave F, Financial Fact/Snapshot Ledger, on `origin/master`
+  during this very program); Seam 18/22/24 still need a product decision
+  or are gated; Seam 3/4/27 remain explicitly LOW-PRIORITY. Pattern
+  Vision interrupt condition re-checked and still does not apply
+  (`PATTERN_VISION_ENABLED=1` live-read, evidence window Mon 9/7/Tue
+  9/8/Wed 9/9 has not started — today is still 2026-09-06). S7 NVDA
+  interrupt condition re-checked and still does not apply (`alert_fires`
+  table: 0 rows). This satisfies the standing directive's own completion
+  standard for a second consecutive re-scan: important workflows are
+  coherent, known material trust defects are closed, and what remains is
+  genuinely external dependencies, owner decisions, or work needing its
+  own dedicated Phase A before it can even be scoped. Do not manufacture
+  activity against a genuinely exhausted ledger.
   **Awareness Reachability Restoration V1 remains DELIBERATELY SKIPPED,
   not forgotten** — the re-anchor's own §30 flags its core question
   (should the free-tier Awareness engine become paid-gated to match its
@@ -1679,14 +2015,139 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `FeedView.jsx`) was assessed in this program's own Phase A and confirmed
   as its own larger, separately-scoped V2 (3+ live files with existing
   click handlers to preserve) — **deliberately left open, not bundled**;
-  see the Seam 19 debt-ledger entry below, unchanged → now Feature-Flag
-  Governance Sweep (Awareness Reachability Restoration V1 still skipped,
-  see above).
-  **Next in the priority stack after this program** (all independent of
-  Pattern Vision's gate, Awareness Reachability Restoration still excluded
-  pending owner input): Feature-Flag Governance Sweep (incl. an owner
-  confirm-or-rollback on live `BROKER_BALANCE_HISTORY_ENABLED=1`) — this
-  is now the CURRENT ACTIVE PROGRAM (see above).
+  see the Seam 19 debt-ledger entry below, unchanged → **Feature-Flag
+  Governance Sweep** — ACCEPTED + LIVE, merge `b68b71e18`/`4c8693b32`:
+  declared 7 undeclared gates (the ledger test's own "3" had gone stale;
+  measured fresh), fixed a real drift (`ALPHA_GOLD_EOD_ENABLED` stale
+  "armed", now correctly `dark`/superseded), fixed a genuine AST-scanner
+  blind spot (`import os as _os` aliasing was invisible to the gate scan —
+  exactly how `BROKER_BALANCE_HISTORY_ENABLED` evaded detection), and
+  surfaced that flag to the owner via an explicit check-in rather than
+  deciding unilaterally — **owner chose to keep it armed**, now documented
+  with that rationale. Pure docs/test-tooling, zero runtime behavior
+  change. See the Feature-Flag Governance Sweep debt-ledger entry above
+  (top-of-file priority-stack paragraph) for full detail → **Seam 25** —
+  ACCEPTED + LIVE, merge `7c83f19b7`/`441064d23`: `ai_search.py::
+  _ctx_posture()`'s technical posture pack was labeled only "UCT nightly
+  snapshot," no date — threaded the already-populated `snapshot_date`/
+  `bars_asof` columns from `snapshot_db.get_row()` into the rendered
+  label (`built_at` deliberately not re-rendered — same moment as
+  `snapshot_date`, just an epoch int, would restate rather than add a
+  fact). Kept the two dates distinct on purpose: they answer different
+  questions and diverge on ~21.7% of rows per `snapshot_builder.py`'s own
+  header. Production-verified live (AAPL: "built 2026-09-06, bars asof
+  2026-09-04" — a real 2-day divergence example on the very first live
+  check). 3 new tests in `test_ai_search_wave2_packs.py` + full
+  1011-test `ai_search` surface green; clean `api.main` boot →
+  **Seam 21** — ACCEPTED + LIVE, merge `8cba76ced`/`7b3d5b34c`:
+  MyStocksHub's News/Filings/Calls tabs preserved only the external
+  source (a real `<a href target=_blank>` article/EDGAR filing, or
+  inline `CallRecapSection`/`TranscriptPanel`) with no Research companion
+  action anywhere. Fix: additive-only per-tab companion actions —
+  News gets a `{ticker} in Research →` button per row (wrapped in a new
+  non-interactive flex container beside the untouched `<a>`, since a
+  `<button>` cannot nest inside an `<a>`; uses the first ticker actually
+  in the member's mySets when an item names several), Filings gets one
+  companion per sym GROUP header (unambiguous — every row under it shares
+  that sym), Calls gets one companion beside each card's sym header.
+  Existing external-source access completely untouched. Production-
+  verified live (deployed `MyStocksHub` chunk: 7 "in Research" strings,
+  up from 1 pre-Seam-21, matching Insights+News+Filings+Calls). 7 new
+  tests, full calendar surface (367 tests/27 files) green; clean build →
+  **CommandPalette.jsx jsonFetcher fix** — ACCEPTED + LIVE, merge
+  `dba97b6f7`/`2f0107dc0`: a bare `fetch(url).then(r => r.json())`
+  treated ANY response as valid data, including a 402 paywall body
+  (`{"detail": "..."}`, a truthy object) — recorded as pre-existing debt
+  during Search/Command Convergence V1's Phase A, never picked up since.
+  Fixed by routing through the already-shared, already-tested
+  `utils/jsonFetcher` (four other surfaces already converged on it for
+  this exact shape) instead of reinventing the check inline. New
+  regression test confirmed non-vacuous (verified it fails without the
+  fix, then restored the fix) before merge. Full CommandPalette suite (37
+  tests) + `jsonFetcher`'s own roster rail green; clean build.
+  **The re-anchor's own named priority stack was exhausted and the
+  debt-ledger re-scan found no further clearly-bounded item — this doc
+  recorded a HOLDING state here. The owner then explicitly directed Seam
+  19 as its own dedicated, larger-scope program, overriding the hold**
+  → **Seam 19 (TickerActions Dedicated Scope + Convergence V1)** —
+  ACCEPTED + LIVE, merge `7a0dd2a78`/`66f6e34f2`: a dedicated Phase A
+  (per the owner's own 16-point checklist) found the real live surface
+  was 3 components, not the 4 files the ledger named — `FeedView.jsx`
+  delegates entirely to `CalendarDayTable.jsx` for earnings rows (one
+  wiring point covers Table+Feed); `WeekView.jsx`'s only live
+  row-renderer is `EarningsTile.jsx` (Board). Two dead-code discoveries,
+  left untouched (zero JSX call-sites, confirmed by direct read):
+  `FeedView.jsx`'s `PrintTape`/`CompactCluster`, `WeekView.jsx`'s
+  `WeekRow`. Wired all 3 live surfaces to `useTickerActions`/
+  `TickerActionsMenu`, matching each row's existing shape to an
+  already-established precedent elsewhere in the app: `EarningsTile.jsx`
+  gets whole-tile long-press (compact-card precedent, matches
+  `EarningsCard.jsx`); `CalendarDayTable.jsx` Row and `WireView.jsx`'s row
+  get sym-span-scoped long-press (dense multi-column precedent, matches
+  `VirtualResults.jsx`/`ResultCards.jsx`). Existing primary click (peek
+  modal / navigate) completely unchanged on all 3. Hook instantiated once
+  per list (not once per row), threaded via a `longPressProps` prop; menu
+  renders conditionally (`{ta.menu && <TickerActionsMenu/>}`) so it never
+  needs a Router until a context menu genuinely opens. 14 new tests
+  across 2 new files + 2 extended, following the established
+  shallow-mock-TickerActions convention (`EarningsCard.test.jsx`/
+  `VirtualResults.test.jsx`); confirmed non-vacuous (all 7 wiring
+  assertions verified to fail without the fix, then restored). Full
+  calendar suite (381 tests/29 files) green; clean build. Production-
+  verified live (deployed bundle: `longPressProps` — an identifier unique
+  to this wiring — appears 13× in the exact chunk that also carries
+  WireView's own row markup).
+  **Next program selected per the owner's own explicit priority order**
+  (Pattern Vision LIVE+ACCEPTED / genuine S7 event / else highest-value
+  unblocked gap) — both interrupt conditions live-checked and ruled out
+  (Pattern Vision still `PATTERN_VISION_ENABLED=1`/not yet accepted,
+  evidence window not started; S7 `alert_fires` table has 0 rows, the
+  live NVDA predicate's `last_seen_state` still shows the original
+  baseline accession) → **Seam 1 (read-side half)** — ACCEPTED + LIVE,
+  merge `039d885bb`+`ac76a93cf`/`75f2a0c14`: `seed_dot_form_aliases()`
+  added a dot-form alias per cap_universe class-share entity (BRK-B →
+  also BRK.B, etc.), NOT a data migration — one alias row per
+  already-existing entity, zero existing rows touched. Empirically
+  verified per-symbol against Massive's live reference API rather than
+  assumed from the hyphen-suffix pattern — a design choice the dry-run
+  itself proved necessary: `NWAX-U` (assumed a non-class-share SPAC unit
+  with no dot form) turned out to have a confirmed Massive row
+  (`NWAX.U`, `type: "UNIT"`) and was correctly included; `CWEN-A`
+  (assumed a genuine class share) turned out to be a real, verified 404
+  at Massive and was correctly excluded. Corrected the fix's own
+  docstring once this was found, before the real write ran. 13 of 14
+  candidates got a confirmed dot alias; production-verified via direct
+  SQLite query (aliases 32651→32664, exactly +13) and a full 13-pair
+  `resolve()` cross-check (every hyphen/dot pair now resolves to the
+  identical entity_id). 6 new tests, full entity_master +
+  search-integration suite green (99 tests).
+  **A full re-scan of the debt ledger after Seam 1 found no further
+  clearly-bounded, fully-unblocked item — HOLDING here.** Every remaining
+  entry carries a real, substantive reason not to pick it up
+  autonomously: Seam 6/7/8/11/14 each explicitly need their own Phase A
+  or a real architecture/product decision before any V1 is even
+  definable; Seam 13 risks colliding with the concurrent Notebook
+  session's active work on `PositionDetailPage.jsx`; Seam 18/22/24 need
+  a product decision or are gated; Seam 3/4/27 are explicitly
+  LOW-PRIORITY. **Seam 17's remainder (wiring symbol autocomplete into
+  `AddPositionModal.jsx`/`AddTradeModal.jsx`'s bare text inputs) is the
+  closest candidate but was NOT picked up** — a quick re-check found
+  `SymbolSearch.jsx` is architecturally a click-to-open dropdown
+  component (per its own CLAUDE.md description), not a drop-in
+  autocomplete-while-typing replacement for an always-visible input, and
+  the field must stay non-blocking on unknown/delisted/historical
+  tickers (AddTrade's own explicit requirement) — real implementation-
+  approach breadth (adapt `SymbolSearch` vs. build a new
+  autocomplete-below-input shape), the same kind of genuine design-space
+  question Compare Coverage V1 got an explicit owner check-in for
+  earlier this session, not a unilateral call. This satisfies the
+  standing directive's own completion standard: important workflows are
+  now coherent, known material trust defects are closed, and what
+  remains is genuinely external dependencies (Pattern Vision's evidence
+  window, a genuine S7 event), owner decisions (Awareness Reachability
+  Restoration V1's monetization question, Seam 18's product decision,
+  Seam 17-remainder's design-space choice), or work needing its own
+  dedicated Phase A before it can even be scoped (Seam 6/7/8/11/14).
   **Technical Ask AI and Technical Research remain UNCHANGED** — still both
   BLOCKED_ON_PATTERN_VISION_ACCEPTANCE / PARKED, waiting on the identical
   Tue 9/8 / Wed 9/9 evidence window; if that classification lands mid-
@@ -1700,6 +2161,219 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   — that table is now the single authority on what remains open vs. closed
   vs. deliberately out of scope; do not re-derive it from scratch again
   soon.
+  **A full re-scan after Seam 1 found nothing further bounded — HOLDING —
+  until the owner explicitly directed Seam 17 Remainder** (build one
+  small shared always-visible autocomplete input, resolving the
+  design-space question flagged above) — **ACCEPTED + LIVE, merge
+  `3421567c6`/`473e6f42f`**: new component `SecuritySymbolInput.jsx`,
+  reuses the canonical `/api/ticker-search` contract, never requires
+  resolution to save. See the Seam 17 debt-ledger entry (RESOLVED) for
+  full detail. **A fresh re-scan after Seam 17 Remainder again found the
+  pool unchanged — HOLDING again — until the owner explicitly authorized
+  a dedicated Phase A for Seam 11** (POSITION ↔ RELATED TRADES
+  architecture + convergence review, read-only investigation first,
+  implementation gated on Phase A proving a deterministic,
+  non-migrating, non-heuristic solution) — **RESOLVED, merge
+  `ab69e2cee`/`228d8caeb`**. The dedicated Phase A (codebase trace +
+  read-only production aggregate audit, `mode=ro` SQLite connection,
+  zero member-identifying values ever read) found the premise needed
+  reframing: `PositionDetailPage.jsx` already ships `HistorySection.jsx`,
+  which already correctly implements ACCOUNT + SECURITY TRADE HISTORY
+  (never touching the broken `position_id` sentinel) for every trade
+  source; exact position lineage was definitively ruled out as
+  unrecoverable for broker data by reading SnapTrade's raw activity
+  payload directly (no position/lot/order-grouping field exists at the
+  provider). The one real gap — a bare "History" label that could be
+  misread as claiming exact lineage — was closed with an honest caption,
+  per the directive's own suggested wording. Full detail in the
+  top-of-file "Last verified" section and the Seam 11 debt-ledger entry
+  (RESOLVED) above/below. **A fresh re-scan of the debt ledger after
+  Seam 11 found the remaining pool thinned further (Seam 11 and Seam 17
+  both now closed since the post-Seam-1 scan) but still not
+  exhausted of every remaining Phase-A/product-decision-gated item —
+  HOLDING.** Seam 6/7/8/14 each still need their own Phase A or a real
+  architecture decision; Seam 13 still risks colliding with the
+  concurrent Notebook session (Wave G, Thesis Intelligence, still
+  actively landing); Seam 18/22/24 still need a product decision or are
+  gated; Seam 3/4/27 remain explicitly LOW-PRIORITY. Pattern Vision and
+  S7 interrupt conditions re-checked live and still do not apply. Do not
+  manufacture activity against a genuinely thinned-but-still-gated
+  ledger — the next eligible unblocked item, if any, needs its own fresh
+  read of this section, not an assumption from this snapshot.
+  **The owner then explicitly directed a dedicated Phase A for Seam 14**
+  (Ticker Search Surface Convergence V1, "verify the '7+' count rather
+  than trust it," implementation authorized automatically if Phase A
+  proves a READY/READY WITH CONDITIONS case, stop only for a real
+  material UX choice) — **RESOLVED, merge `7837b782a`/`e96fe1107`**. The
+  dedicated Phase A found the ledger's own "7+ duplicated
+  implementations" count needed correction, not just re-verification:
+  most named surfaces are legitimately distinct by the directive's own
+  test. Fixed two genuine, confirmed bugs (zero keyboard nav + zero
+  stale-response protection) by converging `ChartExampleKit.jsx`'s
+  exported `TickerSearchInput` and `SetupsView.jsx`'s byte-identical
+  local duplicate onto the already-shipped `useTickerSuggest.js` hook;
+  writing the hook's own first-ever direct test coverage caught and
+  fixed a real stale-response robustness gap in the hook itself
+  (benefiting `TickerCombobox.jsx` too). `SwitchTickerBox`/
+  `MobileSymbolSheet.jsx` explicitly left unconverged (real semantic
+  differences on a much higher-traffic surface). Also corrected a
+  genuine ledger inaccuracy (`ComparisonPicker.jsx` is live, not dead)
+  and flagged its underlying live-search-or-retire gap as a fresh,
+  genuine OWNER DECISION REQUIRED item rather than fixing it
+  unilaterally. Full detail in the top-of-file "Last verified" section
+  and the Seam 14 debt-ledger entry (RESOLVED) above/below.
+  **A fresh re-scan of the debt ledger after Seam 14 found the
+  remaining pool thinned further (Seam 14 now also closed) but still
+  not exhausted — HOLDING.** Seam 6/7/8 each still need their own
+  Phase A or a real architecture decision; Seam 13 still risks
+  colliding with the concurrent Notebook session; Seam 18/22/24 still
+  need a product decision or are gated, joined now by the new
+  `ComparisonPicker.jsx` live-search-or-retire question;
+  `SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence is a real,
+  recorded, not-yet-bounded future candidate; Seam 3/4/27 remain
+  explicitly LOW-PRIORITY. **Pattern Vision's evidence window has now
+  STARTED (today is Mon 2026-09-07, the holiday-safety day) but NOT
+  completed** — Tue 9/8 and Wed 9/9 haven't happened yet;
+  `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET ACCEPTED.
+  Re-check this specific gate at the start of whatever comes next — it
+  is the closest live external event to actually firing this week. S7
+  interrupt condition re-checked live and still does not apply. Do not
+  manufacture activity against a genuinely thinned-but-still-gated
+  ledger.
+  **The owner then explicitly directed a dedicated Phase A for Seam 6**
+  (Chart Session / Extended-Hours Temporal Convergence V1, mirroring the
+  already-accepted `marketSession.js` convergence as the explicit template,
+  explicit "do not assume a fix is required merely because duplicate time
+  logic exists") — **RESOLVED, merge `c27abb45c`/`73f56ba37`**. Found THREE
+  confirmed, member-visible defects (wrong session selection on a full
+  holiday, wrong extended-hours data-request anchor date, wrong early-close
+  toggle threshold) — the same class Seam 6's own template fix already
+  addressed once. Today (2026-09-07, Labor Day) was a live, real instance of
+  defect #1, confirmed via the same fixed-clock diagnostic run against the
+  actual date. Full detail in the top-of-file "Last verified" section and
+  the Seam 6 debt-ledger entry (RESOLVED) above/below.
+  **A fresh re-scan after Seam 6 found the pool thinned further — HOLDING —
+  until the owner explicitly directed a dedicated Phase A for Seam 8**
+  (Price-Move Evidence Timestamp Convergence V1, re-ranked ahead of Seam 7
+  per the directive's own Section XXIX, explicit **Absolute Trust Rule**:
+  never manufacture an `as_of`, explicit **ZERO new external market-data
+  requests** requirement, implementation authorized automatically if Phase A
+  proves READY/READY WITH CONDITIONS) — **RESOLVED, merge
+  `22452cff7`/`dbd08ece6`**. Phase A found the fix already half-built:
+  `massive.py::get_batch_quotes` already computes each ticker's own vendor
+  observation timestamp, previously discarded after folding into an
+  aggregate freshness classification — stamping it per-ticker and threading
+  it through to `_price_move_fact` needed zero new provider calls, exactly
+  satisfying the directive's strictest constraint. Full detail in the
+  top-of-file "Last verified" section and the Seam 8 debt-ledger entry
+  (RESOLVED) above.
+  **Per the directive's own Section XXIX, Seam 7 is next to re-rank with
+  fresh evidence — re-ranked here, NOT re-implemented.** Seam 7 (dual NYSE
+  calendar tables — `nyseCalendar.js` COVERED_YEARS=[2026] only vs.
+  `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` 2025-2027) still has **zero
+  demonstrated live defect** (verified byte-for-byte identical on all of
+  2026's real dates, coincidence not construction) — the directive itself
+  warns not to assume it needs implementation and that "no material fix
+  needed" may be the correct Phase A finding. Seam 6's resolution (which
+  DID touch calendar-adjacent code, `extSession.js`) surfaced no new
+  evidence bearing on Seam 7's own cross-stack ownership question. **This
+  checkpoint reports Seam 7 HOLDING, not started** — its own dedicated
+  Phase A (which requires a real architecture decision: which authority
+  wins, whether the frontend should fetch the calendar instead of bundling
+  it) needs its own explicit scope, matching how every other architecture-
+  decision-gated item in this ledger (Seam 18/22/24, `ComparisonPicker.jsx`)
+  has been handled — reported for owner decision, not unilaterally resolved.
+  **A fresh re-scan of the debt ledger after Seam 8 found the remaining pool
+  thinned further still (Seam 6 and Seam 8 both now closed) but not fully
+  exhausted.** Seam 7 needs a real architecture decision (above); Seam 13
+  still risks colliding with the concurrent Notebook session; Seam 18/22/24
+  still need a product decision or are gated, joined by the
+  `ComparisonPicker.jsx` live-search-or-retire question (Seam 14);
+  `SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence remains a real,
+  recorded, not-yet-bounded future candidate; Seam 3/4/27 remain explicitly
+  LOW-PRIORITY. Pattern Vision's evidence window is mid-flight (today is
+  still Mon 2026-09-07, the holiday-safety-observation day per the
+  directive's own explicit caveat — NOT a real acceptance session; Tue 9/8
+  and Wed 9/9 haven't happened yet); `PATTERN_VISION_ENABLED=1` live-read,
+  still LIVE/NOT YET ACCEPTED. S7 (NVDA alert) interrupt condition
+  re-checked live and still does not apply
+  (`alert_fires` table still 0 rows). **HOLDING** per the standing
+  directive's own completion standard — continuing under the Continuous
+  Execution Directive means reporting status honestly when the remaining
+  pool is genuinely gated on owner decisions or external events, not
+  manufacturing activity against it.
+  **The owner then made the `ComparisonPicker.jsx` live-search-or-retire
+  product decision explicitly** (KEEP + ADD canonical live search +
+  PRESERVE the 7 quick picks) **and directed a dedicated bounded Phase A
+  for Chart Comparison Picker Convergence V1** — Phase A found the
+  ledger's own "seven hardcoded tickers, no arbitrary search" framing
+  needed correction: there was never a seven-symbol ceiling (the
+  free-text add already accepted any typed string; the comparison-data
+  layer already fetches via the fully general, no-allowlist
+  `/api/bars`/`/api/ticker-meta`); the real gap was identity resolution.
+  **RESOLVED, merge `ac93afc68`/`1fa935e80`**. Full detail in the
+  top-of-file "Last verified" section and the `ComparisonPicker.jsx`
+  debt-ledger entry (RESOLVED) above.
+  **A fresh re-scan of the debt ledger after Chart Comparison Picker
+  Convergence V1 found the remaining pool thinned further still but not
+  fully exhausted.** Per Section XXIII of that program's own directive
+  (matching Seam 8's own Section XXIX instruction), **Seam 7 is still
+  next to re-rank — reported HOLDING, not started merely because it is
+  numerically next**: it still has zero demonstrated live defect, and
+  both directives explicitly warn against assuming it needs
+  implementation; its own dedicated Phase A needs a real architecture
+  decision, not a unilateral start. Nothing this program touched
+  (search/identity UI, not calendar logic) surfaced any new evidence
+  bearing on Seam 7. Seam 13 still risks colliding with the concurrent
+  Notebook session (Wave I, still actively landing); Seam 18/22/24 still
+  need a product decision or are gated; `SwitchTickerBox`/
+  `MobileSymbolSheet.jsx` convergence remains a real, recorded,
+  not-yet-bounded future candidate; Seam 3/4/27 remain explicitly
+  LOW-PRIORITY. Pattern Vision's evidence window remains mid-flight
+  (today is still Mon 2026-09-07, the holiday-safety-observation day —
+  NOT a real acceptance session; Tue 9/8 and Wed 9/9 haven't happened
+  yet); `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET
+  ACCEPTED. S7 (NVDA alert) interrupt condition re-checked live and
+  still does not apply (`alert_fires` table: 0 rows). **HOLDING** —
+  reporting status honestly rather than manufacturing activity against a
+  genuinely gated pool.
+  **The owner then explicitly directed the Seam 7 architecture adjudication**
+  (explicitly READ-ONLY Phase A, "do not change code during Phase A," a
+  20-item required report + explicit classification, implementation
+  authorized only per the decision rule in the directive's own Section XV) —
+  Phase A found the ledger's "two tables, zero live defect" premise
+  incomplete: a THIRD, previously-unrecorded independent calendar table in
+  `voice_temporal_awareness.py` (feeds every Compass voice/chat session's
+  temporal narration), plus two genuinely live defects confirmed by DIRECT
+  EXECUTION (not inference) — `nyseCalendar.js`'s single-year coverage window
+  with no renewal alarm (scheduled to recur Seam 6's exact defect class on
+  2027-01-01), and `voice_temporal_awareness.py`'s own zero early-close
+  awareness + naive DST arithmetic (both empirically confirmed to misfire on
+  real, already-scheduled 2026 dates / the March DST-transition week).
+  Reported the Phase A findings and asked the owner how to proceed (three
+  options: implement everything now / architecture-guard only / read-only
+  report only) — **owner chose implement everything now** — **RESOLVED,
+  merge `4c4e19ede`/`141dd978f`**. See the top-of-file "Last verified"
+  section and the Seam 7 debt-ledger entry (RESOLVED) above for full detail.
+  **A fresh re-scan of the debt ledger after Seam 7 found the remaining pool
+  thinned to genuinely external/gated items only.** Seam 13 still risks
+  colliding with the concurrent Notebook session (Wave I, still actively
+  landing); Seam 18/22/24 still need a product decision or are gated;
+  `SwitchTickerBox`/`MobileSymbolSheet.jsx` convergence remains a real,
+  recorded, not-yet-bounded future candidate; Seam 3/4/27 remain explicitly
+  LOW-PRIORITY. Awareness Reachability Restoration V1 remains deliberately
+  SKIPPED pending a genuine owner monetization/entitlement decision. Pattern
+  Vision's evidence window remains mid-flight (today is still Mon
+  2026-09-07, the holiday-safety-observation day — NOT a real acceptance
+  session; Tue 9/8 and Wed 9/9 haven't happened yet); `PATTERN_VISION_ENABLED=1`
+  live-read, still LIVE/NOT YET ACCEPTED. S7 (NVDA alert) interrupt condition
+  re-checked live and still does not apply (`alert_fires` table: 0 rows).
+  **HOLDING — legitimately, per the directive's own completion standard: no
+  remaining item is a bounded, unblocked MATERIAL PRODUCT GAP.** Every
+  remaining item is an OWNER DECISION, an EXTERNAL GATE, a CONCURRENT
+  COLLISION risk, or explicit LOW-PRIORITY debt. Continuing under the
+  Continuous Execution Directive means reporting this honestly rather than
+  manufacturing activity to stay busy.
 
 ## NEWLY IDENTIFIED DEBT (fast-follow bugfix candidates, not programs — surfaced by the Whole-Product Convergence Review, 2026-09-05/06, unless noted)
 
@@ -1733,31 +2407,24 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   regression is found.
 
 - **Seam 1 — symbol normalization mismatch (CROSS-SYSTEM IDENTITY DEBT) —
-  WRITE-TIME HALF CLOSED by Identity Normalization Hardening V1, merge
-  `9c1bff81f`, 2026-09-06; READ-SIDE HALF still OPEN, deliberately.** Manual
-  J2 entry (`positions.py`/`trades.py`/`csv_import.py`) now routes through
-  the same shared `symbol_normalize.py::normalize_symbol()` SnapTrade sync
-  already used — a manually-logged and a broker-synced write of the same
-  real security can no longer land under two different strings going
-  forward. `options.py` was NOT touched (out of this V1's traced scope —
-  re-audit before assuming it's covered). What remains genuinely open: Entity
-  Master's alias table is still seeded ONLY in hyphen form
-  (`scripts/entity_master_seed.py`), so `resolve("BRK.B")` still returns
-  `not_found` — this still silently degrades Watchlist/Portfolio
-  Intelligence and Research estimates/financials for the dot spelling, and
-  still affects any EXISTING historical row already stored under the dot
-  spelling (this V1 changed no historical data — a pure write-time
-  hardening fix, not a migration). Price lookup itself remains robust
-  (`to_polygon_symbol()` accepts both). Fix shape for the remainder: a second
-  seeded S3 alias for the dot spelling, NOT a data migration.
-  **Confirmed still fully open as of Ticker Search Identity Convergence V1
-  (Seam 16, 2026-09-06) — that program did NOT narrow this.** Seam 16's fix
-  re-keys the dot spelling to hyphen BEFORE `ticker_search_index.py` ever
-  calls `_em_api.resolve()`, so the search index's own internal resolve
-  call no longer needs a dot-form alias to succeed -- but `resolve("BRK.B")`
-  itself is untouched and still returns `not_found` for any OTHER caller
-  that hands it a literal dot spelling. Zero Entity Master schema/alias
-  changes were made by Seam 16; this remaining scope is unchanged.
+  FULLY RESOLVED 2026-09-06.** Write-time half closed by Identity
+  Normalization Hardening V1, merge `9c1bff81f`. Read-side half
+  (`resolve("BRK.B")` returning `not_found`) closed by Seam 1 proper,
+  merge `039d885bb`+`ac76a93cf`/`75f2a0c14`: `scripts/entity_master_seed.
+  py::seed_dot_form_aliases()` adds a dot-form alias per already-existing
+  class-share entity — not a data migration, zero existing rows touched.
+  Empirically verified per-symbol against Massive's live reference API
+  (`massive.get_ticker_details()`) rather than assumed from the hyphen
+  suffix, which the dry-run proved necessary: `NWAX-U` (assumed a
+  non-class-share SPAC unit) turned out to have a confirmed Massive
+  dot-form row and was correctly included; `CWEN-A` (assumed a genuine
+  class share) turned out to be a real, verified 404 at Massive and was
+  correctly excluded. 13 of 14 cap_universe hyphenated candidates got a
+  confirmed alias; production-verified (aliases 32651→32664, exactly
+  +13; every hyphen/dot pair resolves to the identical entity_id). 6 new
+  tests, full entity_master + search-integration suite green (99 tests).
+  `options.py` remains out of traced scope (unchanged from the write-time
+  half — re-audit before assuming it's covered, if ever revisited).
 - **Seam 2 — holiday-blind session helper — RESOLVED by Temporal / Freshness
   Truth Convergence V1, merge `94dd2bb5e`, 2026-09-05/06.**
   `app/src/utils/marketSession.js::expectedLatestDailySessionET()` and
@@ -1766,48 +2433,81 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   weekend-only/hardcoded-16:00 date math — the fix described here (a
   one-function reuse, no new calendar framework) is exactly what shipped. Kept
   as a record; do not re-open unless a concrete regression is found.
-- **Seam 6 — duplicated weekend-only walk-back date loops beyond
-  `marketSession.js` (surfaced by Temporal / Freshness Truth Convergence V1's
-  Phase A, 2026-09-05/06).** The same structural defect class Seam 2 had
-  (skip weekends only, never NYSE holidays) also exists independently in
-  `app/src/utils/extSession.js::_prevTradingDay()` — which drives the
-  pre/post-market toggle on EVERY chart in the app, a materially larger blast
-  radius than `marketSession.js` itself — and in
-  `app/src/pages/LiveFlow.jsx`/`LiveFlow_admin.jsx::mostRecentMarketDay()`
-  (the latter is Ravi's partner-owned surface — no edit without ack). Neither
-  received the exhaustive per-scenario proof this program ran on
-  `marketSession.js`, so neither is a responsible V1 candidate yet — needs its
-  own Phase A-style trace first. Not urgent (no demonstrated live defect
-  found for either in this program's bounded check).
-- **Seam 7 — two independently hand-maintained NYSE holiday tables (surfaced
-  by Temporal / Freshness Truth Convergence V1's Phase A, 2026-09-05/06).**
-  `app/src/lib/marketClock/nyseCalendar.js` (`COVERED_YEARS=[2026]` only) and
-  `api/services/bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` (2025-2027) are two
-  separate, differently-shaped authorities (a bundled frontend JS table vs. a
-  backend table reached over `GET /api/market-calendar` →
-  `useMarketCalendar.js` → `useSessionState.js`, the Dashboard session pill) —
-  verified byte-for-byte identical on all 10 of 2026's real dates today, but
-  that agreement is coincidence, not construction: nothing enforces the two
-  stay in sync if either is ever tuned. Zero observed live defect. Fix shape
-  is a real cross-stack architecture decision (which authority wins; whether
-  the frontend should fetch the calendar instead of bundling it) — explicitly
-  out of scope for a bounded V1, not urgent.
+- **Seam 6 — RESOLVED 2026-09-07, merge `c27abb45c`/`73f56ba37` (Chart
+  Session / Extended-Hours Temporal Convergence V1).** Was: the same
+  structural defect class Seam 2 had (skip weekends only, never NYSE
+  holidays) also existed independently in
+  `app/src/utils/extSession.js::_prevTradingDay()`. **The dedicated
+  Phase A found this WAS a real, member-visible defect, not just
+  duplication** — an executed fixed-clock diagnostic proved three
+  concrete cases: a holiday during would-be regular hours read as
+  `'rth'`; the extended-hours anchor date on a holiday evening (and,
+  most severely, in the pre-4am window the day after a holiday) pointed
+  at the closed holiday instead of the last real trading day — feeding a
+  real bars fetch in `StockChart.jsx`, not cosmetic; and a real
+  early-close day misreported `'rth'` for ~3 extra hours. Fixed by
+  mirroring `marketSession.js`'s own already-accepted convergence onto
+  `nyseCalendar.js`'s primitives exactly. All 3 real consumers
+  (`ChartPane.jsx`/`GridChartCell.jsx`/`StockChart.jsx`) inherited the
+  fix by reference, zero direct edits. **The "LiveFlow.jsx/
+  LiveFlow_admin.jsx, Ravi's partner-owned surface, no edit without
+  ack" note above was STALE** — a live import-graph check confirmed
+  both are now fully dead (LiveFlow.jsx redirects to `/live-massive`;
+  LiveFlow_admin.jsx has zero importers). 17 new tests (extSession.js
+  had zero prior coverage), 116-test adjacent regression green, clean
+  build, production-verified via commit SHA match. Full detail in the
+  top-of-file "Last verified" section above.
+- **Seam 7 — dual (in fact TRIPLE) independently hand-maintained NYSE
+  calendar tables — RESOLVED, merge `4c4e19ede`/`141dd978f`, 2026-09-07
+  (Dual NYSE Calendar Architecture Adjudication + V1).** The original framing
+  (`nyseCalendar.js` vs `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD`, byte-for-byte
+  identical on 2026, zero live defect) was correct but incomplete — Phase A
+  found a THIRD, previously-unrecorded table in `voice_temporal_awareness.py`
+  (feeds every Compass voice/chat session's temporal narration), still zero
+  date mismatches across all three, but TWO genuinely live, empirically-
+  confirmed defects: `nyseCalendar.js`'s single-year coverage window (fixed:
+  added 2027, matching `bars_fetch.py`'s already-agreeing dates) with no
+  cross-stack parity guard (fixed: `tests/test_nyse_calendar_parity.py`), and
+  `voice_temporal_awareness.py`'s own zero early-close awareness + naive DST
+  arithmetic (both fixed, confirmed live before/after via direct execution).
+  Architecture decision: BOTH `nyseCalendar.js` and `bars_fetch.py` stay as
+  separate runtime-local datasets (Option D — the frontend's zero-latency
+  bundled design is deliberate S11 architecture, not an oversight;
+  `useMarketCalendar.js` already proves this codebase does Option C
+  correctly where a network round-trip is acceptable). Full detail in the
+  top-of-file "Last verified" section.
 - **Seam 8 — `_price_move_fact()`'s evidence date is wall-clock, not source-
-  derived — PARTIALLY RESOLVED by Attention Source-Integrity Hardening V1,
-  merge `dc2cdc906`, 2026-09-06.** The narrow, zero-migration half shipped:
-  `as_of=datetime.date.today().isoformat()` → `as_of=None` (an honest
-  "no reliable evidence date" rather than a fabricated wall-clock stamp; all
-  three consumers already null-guard `as_of`). The full fix — deriving a
-  real per-symbol evidence timestamp from a live-price snapshot — remains
-  DEFERRED: Phase A traced the entire pipeline (`live_prices.py`,
-  `journal_two.py`'s `positions_attention` endpoint, `watchlists.py`'s
-  `IntelRequest.changes`, the frontend `changesForIntel` hook) and confirmed
-  no trustworthy per-symbol timestamp exists anywhere in it today —
-  `changes` is a bare `{SYM: pct}` dict end-to-end. Closing it requires
-  widening 2 backend endpoint contracts + 1 frontend hook, which fails the
-  "small, additive, no broad caller migration" gate. Fix shape: add a real
-  observed-at field to `live_prices.py`'s response and thread it through
-  both endpoints into `_price_move_fact`.
+  derived — FULLY RESOLVED, merge `22452cff7`/`dbd08ece6`, 2026-09-07 (Price-
+  Move Evidence Timestamp Convergence V1).** Attention Source-Integrity
+  Hardening V1 (merge `dc2cdc906`) had already shipped the narrow honest-
+  `None` half; this closed the remainder Phase A had deferred. **The premise
+  needed correction, not just re-verification**: Phase A found
+  `massive.py::_MassiveRestClient.get_batch_quotes` ALREADY computes each
+  ticker's own vendor observation timestamp (`_ticker_observed_at`, live-
+  validated to agree with `lastTrade.t` within ~1s) — it was just folded into
+  an aggregate result-level freshness classification and discarded per-
+  ticker. Fix: stamp it onto each ticker's own dict (`_observed_at`) and
+  thread it through `live_prices.py` (`observed_at` field, live path +
+  `None` on the closed-market fallback) → both Attention consumer paths
+  (`journal_two.py`'s `positions_attention`, `watchlists.py`'s `IntelRequest`
+  → `Watchlists.jsx`'s `changesForIntel`-mirroring `observedAtForIntel`) →
+  `_price_move_fact`, which converts the epoch to an ET calendar date
+  matching every other fact kind's `as_of` convention. **ZERO new provider
+  calls** — the timestamp was already in hand inside the exact batch call
+  both consumer paths already make. Every new parameter optional/additive;
+  a caller omitting it (every caller before Seam 8, and the closed-market
+  fallback, which has no per-symbol observation to report) gets byte-
+  identical behavior. `useWatchlistIntelligence.js`'s new `priceObservedAt`
+  param deliberately stays OUT of the SWR key (an inline closure-based
+  fetcher, mirroring `changes`'s own existing off-key design) — an earlier
+  draft that put it in the key would have refetched the whole batch every
+  ~15s live-price tick; caught and fixed before committing. Non-vacuity-
+  checked via safe-stash: 19 of 21 new assertions genuinely fail without the
+  implementation. 76 backend + 6 frontend tests green; clean build;
+  production-verified via commit-SHA match AND a read-only
+  `GET /api/live-prices` check confirming `observed_at` is genuinely present
+  in the live schema (honest `null` today, 2026-09-07 Labor Day — the
+  closed-market fallback path, exactly as designed).
 - **Seam 9 — analyst-action and earnings-proximity total-source-outage paths
   left `status="ok"` — RESOLVED by Attention Source-Integrity Hardening V1,
   merge `dc2cdc906`, 2026-09-06.** Both MATERIAL TRUST BUGs fixed via the
@@ -1831,33 +2531,29 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   aborts stop-watch/earnings-proximity too) is exactly what shipped — see
   "CURRENT ACCEPTED" above. Kept as a record; do not re-open unless a
   concrete regression is found.
-- **Seam 11 — broker-synced closed trades carry an inert `position_id`
-  sentinel, so "Position → Related (closing) Trades" cannot be built safely
-  (surfaced by Journal / Trade Lifecycle Convergence V1's Phase A,
-  2026-09-06, classified ABSENT_NO_SAFE_INFERENCE, NOT fixed — deliberately
-  out of scope for that program's narrow V1).** `j2_trades.position_id` is a
-  genuine FK to `j2_positions.id` for the MANUAL close path
-  (`trades.py::close_position`) but a structurally random
-  `f"manual-{uuid.uuid4()}"` sentinel for every broker-synced trade
-  (`trades.py::bulk_insert_trades`, called from `broker/reconstruct.py`) —
-  confirmed by direct code read, matching the exact literal the router's own
-  comment (`journal_two.py:961`) documents. Compounding: the corresponding
-  OPEN `j2_positions` row is typically DELETED once the broker no longer
-  holds it (`balances.py::reconcile_positions`), not closed_at-stamped, so
-  by the time the trade exists there is often no position row left to link
-  to at all. Since broker sync is the dominant, live production path, this
-  makes a real "click into a position, see what it closed into" feature
-  impossible without either (a) a schema/behavior change at broker-sync
-  time — stop deleting `j2_positions` rows on close, stamp a real
-  `position_id` in `bulk_insert_trades` instead of a UUID sentinel — or (b)
-  an explicit product decision that broker positions simply never show a
-  "resulting trade." Both are real architecture/product decisions, not a
-  bounded V1 — needs its own dedicated audit + authorization before any fix.
-  **Scope CONFIRMED WIDER by the 2026-09-06 Whole-Product Strategic
-  Re-Anchor: `bulk_insert_trades(..., source="csv")` is not gated by
-  source, so CSV-imported trades carry the identical inert sentinel — this
-  is not broker-sync-specific.** Reclassified ARCHITECTURE DECISION (was
-  ABSENT_NO_SAFE_INFERENCE); still not a bounded V1.
+- **Seam 11 — RESOLVED 2026-09-06, merge `ab69e2cee`/`228d8caeb`
+  (dedicated Phase A + Convergence Review, owner-authorized).** Was:
+  broker-synced (and CSV-imported) closed trades carry an inert
+  `position_id` sentinel, classified ARCHITECTURE DECISION, not a
+  bounded V1. **The dedicated Phase A found the premise needed
+  reframing, not new plumbing**: `PositionDetailPage.jsx` ALREADY ships
+  `HistorySection.jsx`, already correctly implementing ACCOUNT + SECURITY
+  TRADE HISTORY for every trade source (symbol-filtered over an
+  already account-scoped list, never touching `position_id`) — it was
+  never actually broken. Exact position lineage was DEFINITIVELY ruled
+  out as unrecoverable for broker data (not merely unbuilt) by reading
+  SnapTrade's raw activity payload directly from production: its
+  top-level keys carry no position/lot/order-grouping field at all — the
+  provider itself has no such concept to propagate. The genuine gap was
+  labeling honesty (a bare "History" header could be misread as "trades
+  that built this exact position," untrue post close-then-reopen). Fixed
+  by adding an explicit caption, per the directive's own suggested exact
+  wording — title, data, and all existing behavior unchanged. Manual
+  close_position()'s real FK-based lineage (already correct, Option A for
+  that one path) is untouched. Zero schema change, zero migration, zero
+  `position_id` touched. 7 new tests, full `journal-2-0/` regression
+  green (183/1,721), clean build. Full detail in the top-of-file
+  "Last verified" section above.
 - **Seam 12 — RESOLVED by Journal ↔ Research Return-Context + Notes
   Draft-Loss Fix, merge `d6a99c708`/`119908685`, 2026-09-06.** The fix
   described here (a `from=trade:{id}`/`from=position:{sym}` query marker on
@@ -1883,29 +2579,49 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   panel links via explicit trade/position references, not the ticker
   column). Fix shape: reuse the same read-only chip pattern, keyed on
   `j2_notes.ticker`, no new schema. Reclassified FOLLOW-UP ENHANCEMENT.
-- **Seam 14 — duplicated ticker-search implementations across the app
-  (surfaced by Search / Command Convergence V1's Phase A, 2026-09-06,
-  scored HIGH, deliberately NOT consolidated this round).** At least 7
-  independent `/api/ticker-search`-adjacent implementations exist beyond
-  the canonical `SymbolSearch.jsx`: `TickerPopup.jsx`'s `SwitchTickerBox`
-  (own fetch+debounce+dropdown), `MobileSymbolSheet.jsx` (full from-scratch
-  reimplementation for the phone chart symbol picker — imports only
-  SymbolSearch's `POPULAR_RESULTS` constant, so a SymbolSearch fix silently
-  does NOT reach mobile chart symbol selection), `TickerCombobox.jsx` +
-  `useTickerSuggest.js` (Watchlists add-symbol — an always-open multi-add
-  ARIA combobox with explicitly documented rationale for NOT using
-  SymbolSearch, a defensible duplicate not an oversight),
-  `tickerMention.js` ($TICKER community-post autocomplete — architecturally
-  FORCED duplication, a TipTap/ProseMirror Suggestion plugin cannot mount a
-  React component), `ChartExampleKit.jsx`'s `TickerSearchInput` (admin-only
-  Model Book form field, low traffic/risk), and `ComparisonPicker.jsx` (the
-  ChartToolbar "⇄" popover — LEGACY_DEAD: a third, independently hardcoded
-  "popular tickers" list with ZERO live search, a retirement candidate not
-  a convergence one). Only `TickerPopup.jsx`'s `SwitchTickerBox` and
-  `MobileSymbolSheet.jsx` are genuine convergence candidates (same use case
-  as SymbolSearch, no lost feature-specific semantics); consolidating
-  `MobileSymbolSheet.jsx` specifically requires building a touch/Sheet mode
-  for SymbolSearch first (real, MEDIUM/HIGH-cost work, not this V1's bar).
+- **Seam 14 — RESOLVED 2026-09-07, merge `7837b782a`/`e96fe1107`
+  (Ticker Search Surface Convergence V1).** Was: recorded as "7+
+  duplicated implementations, deliberately NOT consolidated" from Search
+  / Command Convergence V1's Phase A. **A dedicated Phase A found the
+  count/framing itself needed correction**: most named surfaces are
+  legitimately distinct (canonical global/picker unchanged; `tickerMention.js`
+  is architecturally forced duplication; `CalendarHeader.jsx`'s search has
+  feature-specific selection semantics, not a symbol picker). Fixed:
+  `ChartExampleKit.jsx`'s exported `TickerSearchInput` (My Playbook) and
+  `SetupsView.jsx`'s byte-identical copy-pasted local duplicate (Setup
+  Library) — both had ZERO keyboard nav and ZERO stale-response
+  protection — now both consume the already-shipped `useTickerSuggest.js`
+  hook (previously adopted by exactly one consumer, `TickerCombobox.jsx`),
+  keeping their own CSS/visual wrapper. New direct test coverage for
+  `useTickerSuggest.js` itself (previously zero) caught a real gap in the
+  hook — no independent stale-response sequence guard, `AbortController`
+  only — fixed with the same `reqIdRef` pattern `CommandPalette.jsx`/
+  `SecuritySymbolInput.jsx` use, benefiting all 3 consumers. 26 new
+  tests, clean build, production-verified. **`SwitchTickerBox`
+  (`TickerPopup.jsx`) and `MobileSymbolSheet.jsx` remain real, confirmed
+  duplication, explicitly NOT converged** — meaningfully different
+  Enter-key/empty-state semantics from `useTickerSuggest`'s established
+  pattern, on a much higher-traffic surface; real future candidate, not
+  urgent. `TickerCombobox.jsx` + `useTickerSuggest.js` reclassified from
+  "defensible duplicate" to "the correct shared primitive, now with 3
+  consumers." **A genuine ledger correction**: `ComparisonPicker.jsx` is
+  NOT `LEGACY_DEAD` — confirmed live on every chart
+  (`StockChart.jsx`→`ChartToolbar.jsx`→`ComparisonPicker.jsx`); its
+  real gap (identity resolution on the free-text add, not a "7 hardcoded
+  tickers" ceiling — see the debt-ledger entry below) is now RESOLVED
+  by Chart Comparison Picker Convergence V1.
+- **ComparisonPicker.jsx — live-search-or-retire — RESOLVED, merge
+  `ac93afc68`/`1fa935e80`, 2026-09-07 (Chart Comparison Picker
+  Convergence V1).** Owner decision: KEEP `ComparisonPicker.jsx` + ADD
+  canonical live symbol search + PRESERVE the 7 quick picks (the
+  originally-recorded "give it live search via `/api/ticker-search`"
+  option, effectively) — the OTHER "+Compare" flow's `SymbolSearch.jsx`
+  component was deliberately NOT adopted wholesale; instead
+  `useTickerSuggest.js` (the shared hook Seam 14 established) was reused
+  directly, since `TickerCombobox`/`SymbolSearch`'s own empty-query
+  behavior would have visually doubled this picker's distinct 7-item
+  quick-pick row. Full detail in the top-of-file "Last verified" section
+  above.
 - **Seam 15 — SymbolSearch.jsx self-exclusion — CLOSED by Identity
   Normalization Hardening V1, merge `9c1bff81f`, 2026-09-06, via a smaller
   mechanism than originally proposed here.** The originally-proposed fix
@@ -1924,31 +2640,39 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   narrowly-scoped query-side alias match so a literal dot-form query still
   finds the now-single canonical row. See "CURRENT ACCEPTED" above. Kept as
   a record; do not re-open unless a concrete regression is found.
-- **Seam 17 — AddPositionModal.jsx/AddTradeModal.jsx symbol fields are bare,
-  unvalidated text inputs — PARTIALLY addressed by Identity Normalization
-  Hardening V1, merge `9c1bff81f`, 2026-09-06; the ORIGINAL framing below is
-  STILL OPEN and was never attempted.** What closed: the concrete
-  data-integrity failure mode (a manually-entered spelling silently diverging
-  from a broker-synced spelling for the same real security) — see "CURRENT
-  ACCEPTED" above. What did NOT close and remains a real gap: the frontend
-  fields themselves are still bare text inputs with no autocomplete and no
-  existence check against the ticker universe (a mistyped, entirely
-  non-existent symbol is still silently accepted — this was a DELIBERATE
-  non-fix per the authorization, which explicitly forbade a hard
-  existence-check on these fields; AddTrade specifically must keep accepting
-  delisted/renamed historical tickers). Fix shape for the remainder: wire
-  SymbolSearch (or a validated variant, non-blocking on unknown tickers) into
-  these two fields as a genuinely separate UI initiative — do not conflate
-  with the spelling-safety fix that already shipped.
-- **Also confirmed genuinely pre-existing (not introduced by this program,
-  not fixed, out of scope):** `CommandPalette.jsx`'s own `fetch('/api/
-  ticker-search?...').then(r => r.json())` never checks `r.ok` before
-  parsing — a real bug (a non-2xx JSON error body would be treated as a
-  valid results payload) confirmed present on the base master SHA via
-  direct `git show`, i.e. it predates this program entirely and was never
-  touched by it. `jsonFetcher.test.js`'s own rail newly flagged it during
-  this program's regression run — recorded here so it isn't lost, not
-  claimed as this program's fix.
+- **Seam 17 — RESOLVED 2026-09-06, merge `3421567c6`/`473e6f42f`
+  (Seam 17 Remainder, Journal Symbol Input Assist V1).** Was:
+  AddPositionModal.jsx/AddTradeModal.jsx symbol fields were bare,
+  unvalidated text inputs — PARTIALLY addressed earlier by Identity
+  Normalization Hardening V1 (merge `9c1bff81f`), which closed the
+  concrete data-integrity failure mode (a manually-entered spelling
+  silently diverging from a broker-synced spelling for the same real
+  security — see "CURRENT ACCEPTED" above) but explicitly left the
+  frontend fields themselves as bare text inputs with no autocomplete,
+  by design (that program's authorization forbade touching the UI shape).
+  **Now closed**: a new shared component `SecuritySymbolInput.jsx`
+  (`app/src/pages/journal-2-0/components/`) wired into both fields —
+  live `/api/ticker-search` suggestions while typing, canonical symbol
+  written on selection, but resolution is NEVER required to save.
+  **Deliberately still no hard existence check** — this is ASSISTIVE
+  identity UX, not validation, per the owner's own explicit directive:
+  a delisted, renamed, or entirely non-existent symbol is still silently
+  accepted on save (AddTrade specifically must keep accepting
+  delisted/renamed historical tickers; Identity Normalization V1's own
+  deliberate choice not to make active-universe existence a write
+  requirement is preserved, not revisited). Full implementation detail
+  (component design, stale-response guard, test coverage, production
+  verification) is in the "CURRENT ACTIVE PROGRAM" section above — do not
+  re-open unless a concrete regression is found.
+- **`CommandPalette.jsx`'s missing `r.ok` check — RESOLVED 2026-09-06,
+  merge `dba97b6f7`/`2f0107dc0`.** Was: `fetch('/api/ticker-search?...').
+  then(r => r.json())` never checked `r.ok`, so a non-2xx error body
+  (e.g. a 402 paywall shape) was treated as valid results — recorded here
+  as pre-existing, out-of-scope debt during Search/Command Convergence
+  V1's Phase A, picked up as its own bounded fix once the debt ledger was
+  re-scanned after Seam 21. Fix: routed through the existing shared
+  `utils/jsonFetcher` instead of reinventing the check inline. New
+  regression test confirmed non-vacuous before merge.
 - **Seam 18 — News surfaces are code-correct but unreachable (surfaced by
   Event / News / Calendar → Research Convergence V1's Phase A, 2026-09-06,
   NOT fixed — a product decision, not a bounded V1).** `NewsFeed.jsx` already
@@ -1959,20 +2683,21 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   (`reachable.test.js:301-303`). Fixing either is moot until a product
   decision names the canonical live news tile (NewsFeed vs. TapeFeed vs. its
   live duplicate `MoversSidebar.jsx`); wiring dead code serves no member.
-- **Seam 19 — TickerActions long-press/right-click reuse is bounded to one
-  earnings surface (surfaced by Event / News / Calendar → Research
-  Convergence V1's Phase A, 2026-09-06, NOT fixed — real gap, larger blast
-  radius than a bounded V1).** Only `EarningsCard.jsx` (reachable via
-  `DayDetailDrawer`/MyStocksHub Earnings tab) wires `useTickerActions`/
-  `TickerActionsMenu`, giving it BOTH `/research/{sym}` and
-  `?section=ai` plus touch-parity (`longPressProps` mirroring
-  `onContextMenu`). The dominant, first-landed calendar surfaces — Board
-  (`EarningsTile.jsx`), Table/Feed (`CalendarDayTable.jsx`,
-  `FeedView.jsx`), and Wire (`WireView.jsx`) — have none of this, so
-  `?section=ai` is unreachable from any of them without first opening the
-  modal → drawer path. Expanding reuse into 3+ additional live files with
-  existing click handlers to preserve is real work, deliberately left for a
-  dedicated V2, not bundled into this narrow V1.
+- **Seam 19 — RESOLVED 2026-09-06, merge `7a0dd2a78`/`66f6e34f2`
+  (owner-directed dedicated program, TickerActions Dedicated Scope +
+  Convergence V1).** Was: only `EarningsCard.jsx` wired `useTickerActions`/
+  `TickerActionsMenu`; Board/Table/Feed/Wire had none of it, so Ask AI/
+  Flag/Tag/Compare/Alert were unreachable without first opening the
+  modal → drawer path. Dedicated Phase A found the real live surface was
+  3 components, not 4 files (`FeedView.jsx` delegates entirely to
+  `CalendarDayTable.jsx`; `WeekView.jsx`'s only live renderer is
+  `EarningsTile.jsx`) — plus 3 dead-code functions left untouched
+  (`FeedView.jsx`'s `PrintTape`/`CompactCluster`, `WeekView.jsx`'s
+  `WeekRow`, zero JSX call-sites). Wired all 3, matching long-press
+  scoping to each row's existing shape (whole-tile for the compact
+  `EarningsTile`, sym-span-scoped for the two dense multi-column rows).
+  14 new tests, confirmed non-vacuous; full calendar suite (381/29)
+  green; production-verified via a unique-identifier bundle check.
 - **Seam 20 — RESOLVED 2026-09-06, merge `25531af60`/`9b4384d9e`
   (Calendar TickerActions Reuse V2).** Was: Wire view rows and
   MyStocksHub's Insights tab were confirmed dead ends (surfaced by Event /
@@ -1988,19 +2713,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `WireView.test.jsx` (+3), `WireView.coverage.test.jsx` (regression-fixed
   for the new `useNavigate()` Router dependency), `myStocksHub.test.jsx`
   (+2). Full regression on both files' existing suites green pre-merge.
-- **Seam 21 — MyStocksHub's News/Filings/Calls tabs preserve only the
-  external source, no in-app Research path (surfaced by Event / News /
-  Calendar → Research Convergence V1's Phase A, 2026-09-06, NOT fixed —
-  PARTIAL by design per the authorization's "preserve primary-source access"
-  principle, not a confirmed defect).** News/Filings render a real external
-  `<a href target=_blank>` (article / EDGAR filing) with no Research
-  companion action; Calls renders `CallRecapSection`/`TranscriptPanel` inline
-  with no `navigate()`/`/research/` reference anywhere in either component.
-  Unlike EventCard's dead ends, these DO preserve primary evidence — the gap
-  is the absent SECOND door (Research), not a broken first one. Worth a
-  bounded follow-up (`goToResearch` sibling action beside each existing
-  external link) but not selected this round given the smaller V1 already
-  found higher-leverage.
+- **Seam 21 — RESOLVED 2026-09-06, merge `8cba76ced`/`7b3d5b34c`.** Was:
+  MyStocksHub's News/Filings/Calls tabs preserved only the external
+  source, no in-app Research path (surfaced by Event / News / Calendar →
+  Research Convergence V1's Phase A). Fix: additive-only companion links
+  beside every existing external link/panel — News per-row (first mySets
+  ticker when an item names several), Filings per sym group, Calls per
+  card. Existing external access completely untouched. Production-
+  verified live; 7 new tests, full calendar suite (367 tests) green.
 - **Seam 22 — Event context preservation remains fully absent (surfaced by
   Event / News / Calendar → Research Convergence V1's Phase A, 2026-09-06,
   confirmed NOT NEEDED for V1, real gap for a future "Back to Calendar"
@@ -2123,19 +2843,19 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   `get_verdict`/`get_recent_verdicts` is added. Fix shape: a new read-only,
   paid-gated endpoint exposing rejection + rationale by symbol; real V2 work
   for Technical Ask AI, not V1.
-- **Seam 25 — the nightly technical snapshot AI Search already grounds on
-  carries no freshness disclosure to the model (surfaced by Technical Ask
-  AI's Phase A, 2026-09-06, NOT fixed).** `screener_rows` (via
-  `snapshot_db.get_row`) has real freshness columns (`snapshot_date`,
-  `bars_asof`, `built_at`), but `ai_search.py::_ctx_posture()` -- the
-  function that actually surfaces SMA%/RSI/RS-rank/Stage/etc. into an AI
-  Search answer -- renders none of them, labeling the whole block only "UCT
-  nightly snapshot." If the nightly build job ever fails silently, the model
-  (and the member) has no way to know the data is stale. Fix shape: thread
-  `built_at`/`bars_asof` into `_ctx_posture`'s rendered string, mirroring how
-  Pattern Vision's `asof_date`/`judged_at` are at least present (even though
-  currently unfiltered -- see the Technical Ask AI Phase A spec under
-  "CURRENT PARKED" above) on confirmed verdicts.
+- **Seam 25 — RESOLVED 2026-09-06, merge `7c83f19b7`/`441064d23`.** Was:
+  the nightly technical snapshot AI Search already grounds on carried no
+  freshness disclosure to the model (surfaced by Technical Ask AI's Phase
+  A, 2026-09-06). `screener_rows` (via `snapshot_db.get_row`) has real
+  freshness columns (`snapshot_date`, `bars_asof`, `built_at`), but
+  `ai_search.py::_ctx_posture()` rendered none of them, labeling the whole
+  block only "UCT nightly snapshot." Fix: `snapshot_date`/`bars_asof`
+  threaded into the rendered label via a new `_posture_asof_label(row)`
+  helper, kept distinct on purpose (they answer different questions and
+  diverge on ~21.7% of rows). `built_at` deliberately NOT rendered a
+  second time — same moment as `snapshot_date`, just an epoch int.
+  Production-verified live (AAPL: "built 2026-09-06, bars asof
+  2026-09-04"). 3 new tests, full 1011-test `ai_search` surface green.
 
 - **Seam 27 — `get_breadth_history`'s `anchor` param is a live FastAPI
   `Query` sentinel when called directly as a Python function (newly
@@ -2190,14 +2910,14 @@ D2 broad canonical model and D5 corporate actions remain deferred.
 - Position-context-in-security-AI (member owns-this-security facts inside `?section=ai` — cheapest of the AI gaps to ground, still needs a new evidence domain, not started)
 - New S7 trigger types / new S7 UI merge
 - Watchlist filing-watch creation action
-- S8 Freshness Presentation Consistency — price-move and earnings-proximity source-side freshness derivation (Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped it into Seam 8 (price-move `as_of`, PARTIALLY RESOLVED — see Seam 8 above) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity, RESOLVED — see Seam 9 above); only Seam 8's full per-ticker timestamp threading remains open, needing a real backend-contract change across 2 endpoints + 1 frontend hook)
+- S8 Freshness Presentation Consistency — RESOLVED. Temporal / Freshness Truth Convergence V1 Phase A originally ranked this #4; S8 / Attention Freshness Propagation V1 Phase A re-scoped it into Seam 8 (price-move `as_of`, now FULLY RESOLVED — merge `22452cff7`/`dbd08ece6`, see Seam 8 above) and Seam 9 (analyst_action/earnings_proximity total-outage status integrity, RESOLVED — see Seam 9 above); both halves now closed.
 - `research_url` for `ai_deep_report`/`ai_briefing` (Alert Return-to-Research Consistency V1 Phase A) — both hardcode/fall back to the literal placeholder symbol `"AI"`, which collides with the real NYSE ticker for C3.ai, Inc.; wiring a route here would silently misroute to a wrong real company. `ai_briefing` additionally has split identity (`r['sym'] or 'AI'`) with no field to distinguish a real per-ticker briefing from the placeholder after the fact.
 - `research_url` for `exposure_gate` (Alert Return-to-Research Consistency V1 Phase A) — `exposure_gate_watch.py` bypasses `deliver_alert_payload` entirely via a direct `add_alert` call; feature-flag OFF by default (`EXPOSURE_GATE_WATCH_ENABLED='0'`); syntactically a real tradable ETF ticker but semantically a macro gate-level alert, not a personal-security signal — a product-scope decision, not a technical blocker.
 - Reactivating `stop_hit`/`scanner_match` or implementing `ep_resolved` (Alert Return-to-Research Consistency V1 Phase A) — all three are dead/nonexistent code (zero live callers, or no implementation at all); out of scope regardless of research-routing.
 - Attention on TradeDetailPage/TradeDrawer (temporal-risk deferral, Attention Signal Propagation V1 Phase A — needs a closed-trade recency-gating mechanism first; TradeDrawer additionally has a settled "navigate away via TradeResearchTrigger" design that inlining would undermine)
 - Attention on TickerPopup/TickerHubSheet (NOT V1, Attention Signal Propagation V1 Phase A — needs a new entitlement/plan-check contract on the shared attention endpoints first, since ~31 call sites are mostly free-reachable; the two components must move together)
 - Attention on Research (assessed NOT-NEEDED-REDUNDANT, Attention Signal Propagation V1 Phase A — every fact the contract computes is already shown there at greater depth via the identical underlying service calls)
-- Watchlist Attention freshness hardening — see Seam 8/Seam 9 above (S8 / Attention Freshness Propagation V1 Phase A superseded and precisely re-scoped this item from Temporal / Freshness Truth Convergence V1 Phase A's original framing)
+- Watchlist Attention freshness hardening — RESOLVED, see Seam 8/Seam 9 above (S8 / Attention Freshness Propagation V1 Phase A superseded and precisely re-scoped this item from Temporal / Freshness Truth Convergence V1 Phase A's original framing; both now closed)
 - Portfolio/Position Attention freshness parity — RESOLVED by S8 / Attention
   Freshness Propagation V1, merge `0d1c1d5bf`, 2026-09-05/06.
   `PortfolioAttentionBanner.jsx`/`PositionDetailPage.jsx` now render each
@@ -2215,7 +2935,7 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   DISCLOSURE GAP, not a trust bug — not fixed, out of scope for S8's selected
   V1 candidate.
 - `extSession.js`/`LiveFlow.jsx` duplicated walk-back loops (Temporal / Freshness Truth Convergence V1 Phase A — see Seam 6 above; needs its own Phase A trace first)
-- Dual NYSE holiday-table consolidation (Temporal / Freshness Truth Convergence V1 Phase A — see Seam 7 above; a real cross-stack architecture decision, zero live defect today)
+- Dual NYSE holiday-table consolidation — RESOLVED, see Seam 7 above (Dual NYSE Calendar Architecture Adjudication + V1, merge `4c4e19ede`/`141dd978f`) — kept as two runtime-local tables by architecture decision (Option D), governed now by a real parity test
 - D2 broad canonical data model
 - D5 corporate actions
 - Generalized workflow/integration-bus architecture
@@ -2254,9 +2974,16 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    `897e53cc5`), Shared Multi-Security Grounding Architecture V1 (merge
    `271f79664`/`4c8b24c74`), Journal ↔ Research Return-Context + Notes
    Draft-Loss Fix / Seam 12 (merge `d6a99c708`/`119908685`), Awareness
-   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`), and
+   Scan-Abort Hardening V1 / Seam 10 (merge `b48200739`/`7e2dec405`),
    Ticker Search Identity Convergence V1 / Seam 16 (merge
-   `8ebb6f076`/`910eca619`) are all ACCEPTED + LIVE as of this checkpoint —
+   `8ebb6f076`/`910eca619`), Seam 19 (merge `7a0dd2a78`/`66f6e34f2`),
+   Seam 1 read-side half (merge `039d885bb`+`ac76a93cf`/`75f2a0c14`),
+   Seam 17 Remainder (merge `3421567c6`/`473e6f42f`), Seam 11 (merge
+   `ab69e2cee`/`228d8caeb`), Seam 14 (merge `7837b782a`/`e96fe1107`), and
+   Seam 6 (merge `c27abb45c`/`73f56ba37`), Seam 8 (merge
+   `22452cff7`/`dbd08ece6`), Chart Comparison Picker Convergence V1
+   (merge `ac93afc68`/`1fa935e80`), and Seam 7 (merge
+   `4c4e19ede`/`141dd978f`) are all ACCEPTED + LIVE as of this checkpoint —
    do not re-implement any of them or treat them as pending; confirm via
    `git log` only if something here looks stale. **Ticker Search Identity
    Convergence V1 required an extra manual step beyond the deploy itself
@@ -2275,9 +3002,15 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    AI Search Raw-Pattern Trust Adjudication, Shared Multi-Security Grounding
    Architecture (Comparison leg), Journal ↔ Research Return-Context + Notes
    Draft-Loss Fix (Seam 12), Awareness Scan-Abort Hardening (Seam 10),
-   Ticker Search Identity Convergence (Seam 16), or the Whole-Product
-   Convergence Review from scratch — their findings above are current as of
-   this checkpoint
+   Ticker Search Identity Convergence (Seam 16), Chart Session /
+   Extended-Hours Temporal Convergence (Seam 6), Price-Move Evidence
+   Timestamp Convergence (Seam 8), Chart Comparison Picker Convergence
+   V1, Dual NYSE Calendar Architecture Adjudication (Seam 7), or the
+   Whole-Product Convergence Review from scratch — their findings above
+   are current as of this checkpoint. **No remaining ledger item is a
+   bounded, unblocked MATERIAL PRODUCT GAP as of this checkpoint** — see
+   the top-of-file "Last verified" section's own HOLDING paragraph
+   before assuming otherwise or starting new work unilaterally.
    (Technical Ask AI's full Phase A spec is under "CURRENT PARKED" — resume
    from it once unblocked, do not re-audit); verify against live code only
    where something here looks stale.
@@ -2294,4 +3027,8 @@ D2 broad canonical model and D5 corporate actions remain deferred.
    specced) remain BLOCKED_ON_PATTERN_VISION_ACCEPTANCE regardless of this
    directive — that gate is external, not something continuous execution can
    route around; resume either only from its recorded spec once Pattern
-   Vision resolves.
+   Vision resolves. **As of the post-Seam-7 scan (2026-09-07), the owner
+   formally invoked exactly this directive's own "no independent work left"
+   stop condition — see the "⛔⛔ FORMAL HOLD CHECKPOINT" section near the
+   top of this file for the exact current hold state, next hinge date, and
+   what is/is not authorized during it.**

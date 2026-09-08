@@ -83,3 +83,11 @@
     padding-top: calc(36px + env(safe-area-inset-top));
   }
 }
+
+/* Placeholder for a route whose chunk is still resolving. Deliberately quiet: it
+   holds the content area open so the page does not jump, without reading as a
+   second loading screen. The nav and header are still on screen beside it. */
+.routeFallback {
+  min-height: 100%;
+  background: var(--bg);
+}

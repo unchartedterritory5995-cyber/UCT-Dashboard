@@ -1,0 +1,83 @@
+/* The drill's list widget: a control bar over the real watchlist table.
+   Deliberately thin — every pixel below .ctrlBar belongs to Watchlists, and
+   restyling it here would rebuild the divergence this work removes. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Matches the watchlist's own pickHeader density so the two bars read as one
+   piece of chrome rather than a strip bolted on top. */
+.ctrlBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  flex-shrink: 0;
+}
+
+.tableWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scan-mode footer, mirroring ScannerResults' so the count reads identically
+   wherever an ad-hoc list is shown. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted, #8f8b83);
+}
+.count { color: var(--text, #e0e0e0); }
+
+/* Failed load — deliberately NOT the empty state. A member must be able to tell
+   "we couldn't fetch this" from "the market was quiet", because they are
+   opposite signals and only one of them is actionable. */
+.errorPane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+.errorTitle {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--loss, #df4646);
+}
+.errorBody {
+  margin: 0;
+  max-width: 30ch;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted, #8f8b83);
+}
+.retryBtn {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: transparent;
+  border: 1px solid rgba(220, 187, 94, 0.4);
+  color: var(--ut-gold, #dcbb5e);
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 16px;
+  min-height: var(--tap-min, 44px);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.retryBtn:hover { background: rgba(220, 187, 94, 0.12); }
+.when { color: var(--text-muted, #8f8b83); }

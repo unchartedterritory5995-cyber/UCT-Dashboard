@@ -865,7 +865,8 @@ async def breadth_industries(request: Request,
     returns the persisted map instantly; rare stragglers come back null and are
     warmed in the background. Read-only, same posture as the drill GET.
 
-    Body: {"tickers": ["NVDA", ...]}  →  {"industries": {"NVDA": "Semiconductors", ...}}
+    Body: {"tickers": ["NVDA", ...]}
+      →  {"industries": {...}, "sectors": {...}, "themes": {...}}
     """
     try:
         body = await request.json()
@@ -886,9 +887,56 @@ async def breadth_industries(request: Request,
         logging.getLogger(__name__).warning("[breadth] industries lookup failed: %s", e)
         industries = {t: None for t in tickers}
         sectors = {t: None for t in tickers}
-    # `industries` kept as the back-compat key; `sectors` added for the
-    # Sector ⇄ Industry dimension toggle.
-    return {"industries": industries, "sectors": sectors}
+    # Same posture as the industries lookup above: never break the drill over
+    # enrichment. _primary_themes catches internally, and this catches the case
+    # where it cannot even be called — an ungrouped drill beats no drill.
+    try:
+        themes = await _primary_themes(tickers)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("[breadth] theme enrichment unavailable: %s", e)
+        themes = {t: None for t in tickers}
+    # `industries` kept as the back-compat key; `sectors` and `themes` added for
+    # the Sector ⇄ Industry ⇄ Theme dimension toggle.
+    return {"industries": industries, "sectors": sectors, "themes": themes}
+
+
+def _primary_themes_blocking(tickers: list) -> dict:
+    """{TICKER: theme_name|None} using the EXISTING authority.
+
+    ⛔ Does NOT re-implement the ranking. `groups.resolve_primary_theme` already
+    owns "which of a ticker's themes is THE one" — owner memberships outrank
+    engine ones, then tier, then smallest theme, with factor buckets excluded —
+    and `ticker_meta` displays the same answer. A second ranking here would drift
+    from the theme shown everywhere else in the app.
+    """
+    from api.services.groups import resolve_primary_theme
+    out = {}
+    for t in tickers:
+        try:
+            row = resolve_primary_theme(t)
+            out[t] = (row or {}).get("theme_name") or None
+        except Exception:
+            # One unclassifiable ticker must not cost the whole map.
+            out[t] = None
+    return out
+
+
+async def _primary_themes(tickers: list) -> dict:
+    """Off the event loop: resolve_primary_theme is ONE SQLite query per ticker,
+    and a 134-name drill would otherwise run 134 sequential queries on the single
+    shared loop this pod serves every user from. Degrades to an all-null map
+    rather than failing the request — an ungrouped drill beats no drill.
+    """
+    if not tickers:
+        return {}
+    try:
+        import asyncio
+        return await asyncio.to_thread(_primary_themes_blocking, tickers)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("[breadth] theme lookup failed: %s", e)
+        return {t: None for t in tickers}
 
 
 @router.get("/api/breadth/industries/status")
