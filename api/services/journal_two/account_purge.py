@@ -63,6 +63,8 @@ _DIRECT_USER_TABLES = (
     "j2_fact_observations",
     "j2_note_fact_refs",
     "j2_thesis_evidence",
+    # Wave O — the member's own record of when they reconsidered a thesis.
+    "j2_thesis_reviews",
     "j2_note_documents",
     "j2_note_document_pages",
     "j2_note_excerpts",

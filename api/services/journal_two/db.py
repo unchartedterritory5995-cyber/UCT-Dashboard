@@ -970,6 +970,57 @@ CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_note
 CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_user
     ON j2_thesis_evidence(user_id, note_id);
 
+-- ── Wave O: THESIS REVIEWS ─────────────────────────────────────────────────
+-- ⛔⛔ WHY THIS NEEDS STORAGE WHEN THE CHANGELOG DOES NOT. Wave G's thesis
+-- changelog is a COMPUTED READ with no write path: every event it shows traces
+-- back to a row some other system already had to write (a version, an evidence
+-- edge, a fact, a trade link). A REVIEW is the one thing in this domain that
+-- leaves no other trace — "the member deliberately reconsidered this thesis and
+-- decided it still holds" is not derivable from anything, because deciding NOT
+-- to change something writes nothing anywhere. That is the whole reason this
+-- table exists, and it is also why §22's "do not merge the two histories" is
+-- satisfied structurally rather than by discipline: the changelog CANNOT absorb
+-- a review, because it only surfaces what it can derive.
+--
+-- ⛔ KEYED ON THE THESIS NOTE, NEVER THE TICKER. A thesis IS a note here, and
+-- `ticker_research` already returns activeTheses AND pastTheses for one symbol —
+-- so a security legitimately owns several theses and a ticker cannot identify
+-- which one was reviewed (directive §37).
+--
+-- ⛔ VERSION REFERENCES, NOT COPIES. `j2_note_versions` rows are immutable and
+-- carry ids, so a completed review can point at exactly what the thesis said
+-- then without freezing a copy of it here (§24's "smallest truthful historical
+-- record"). Nothing external is duplicated: no article text, no source body.
+CREATE TABLE IF NOT EXISTS j2_thesis_reviews (
+    id                   TEXT PRIMARY KEY,
+    user_id              TEXT NOT NULL,
+    note_id              TEXT NOT NULL,   -- the THESIS note under review
+    status               TEXT NOT NULL,   -- 'draft' | 'completed'
+    review_reason        TEXT,            -- why this review happened
+    outcome              TEXT,            -- no_change|revised|invalidated|deferred
+    member_note          TEXT,            -- the member's OWN writing (§26)
+    prior_version_id     TEXT,            -- j2_note_versions.id when review opened
+    resulting_version_id TEXT,            -- j2_note_versions.id if the thesis changed
+    next_review_at       TEXT,            -- ISO date the member chose, if any
+    created_at           TEXT NOT NULL,
+    completed_at         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_reviews_note
+    ON j2_thesis_reviews(note_id, status, completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_reviews_user
+    ON j2_thesis_reviews(user_id, note_id);
+-- ⛔ ONE OPEN DRAFT PER THESIS (§38: no duplicate review obligations minted on
+-- every render). Enforced by the DATABASE, not by a service that remembers to
+-- check — SQLite treats NULLs as distinct, so this constrains drafts only and
+-- leaves completed history free to accumulate.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_j2_thesis_reviews_one_draft
+    ON j2_thesis_reviews(user_id, note_id) WHERE status = 'draft';
+
+-- A review dies with the thesis it belongs to, exactly like its evidence.
+CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_reviews_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_thesis_reviews WHERE note_id = old.id;
+END;
+
 CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_evidence_ad AFTER DELETE ON j2_notes BEGIN
     DELETE FROM j2_thesis_evidence WHERE note_id = old.id;
 END;
