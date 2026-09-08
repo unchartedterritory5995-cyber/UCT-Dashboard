@@ -52,6 +52,14 @@ stats_process_local) are the honest restart signal — they RESET — but only o
 new container is up. WAIT for them rather than concluding from one early read; a
 manual deploy of this service is not free, and "the trigger is broken" is a much more
 expensive belief than "the trigger is slow".
+(2026-09-08, same trigger:) TOP_PICKS now DROPS the per-candidate `contracts` map
+before serving. Measured on prod: that map was 67% of the part (4,370 entries across
+the eight variants); gzip 90 -> 38 KB. The TOP 10 renderer reads `topC` and the
+`topCDisplay*` scalars and never `candidate.contracts`. The strip is RECURSIVE
+(standout `_moreStrikes` holds other candidate objects whose `topC` the renderer does
+read) and applies to the SERVED product only, so a generation decline still falls back
+to a byte-identical local computation. Bundle change => this header edit is the
+flow-worker deploy trigger.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

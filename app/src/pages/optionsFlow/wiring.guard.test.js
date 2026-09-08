@@ -327,6 +327,21 @@ describe('Options Flow correctness guard', () => {
       'a failed ETF fetch no longer resolves the generation' + FIX).toBe(true)
   })
 
+  it('3b: nothing in the TOP 10 block reads `.contracts` off a pick', () => {
+    // The served product drops that map (67% of the payload). If a renderer
+    // ever starts reading it, the SERVED path would silently differ from the
+    // LOCAL fallback path — same table, two populations, no error.
+    const start = CODE.indexOf('TOP 10 FLOW PICKS')
+    expect(start, 'could not locate the TOP 10 block').toBeGreaterThan(-1)
+    const block = CODE.slice(start, start + 24000)
+    // CONTROL: the slice really is the TOP 10 renderer.
+    expect(block.includes('topCDisplayPrem'), 'the slice is not the TOP 10 block').toBe(true)
+    const reads = block.match(/(?:p|c|m|pick)\.contracts/g) || []
+    expect(reads,
+      'the TOP 10 renderer now reads `.contracts`, which the served product does not carry' + FIX)
+      .toEqual([])
+  })
+
   it('FD does not rebuild charts the server already sent', () => {
     // processFlowData returns clean_confirmed AND buildCharts(clean_confirmed).
     // When FD's filters drop nothing, rebuilding recomputes a value already in

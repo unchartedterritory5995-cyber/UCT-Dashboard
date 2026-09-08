@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { parseCSV, processFlowData, buildTopPickCandidates, capBand, freshnessFrom } from './flowCompute'
 import {
-  buildTopPickProduct, topPicksUsable, topPickVariant, reviveTopPickVariant,
+  buildTopPickProduct, topPicksUsable, topPickVariant, reviveTopPickVariant, stripUnreadContracts,
   topPickVariantKeys, TOP_PICK_DATA_MODES, TOP_PICK_CAP_FILTERS,
 } from './flowTopPicksProduct'
 
@@ -107,9 +107,14 @@ describe('server product === client computation, all eight variants', () => {
           { dataMode, capFilter, isEtfFn, includeStandout: true })
         const served = topPickVariant(product, dataMode, capFilter)
         expect(served).not.toBeNull()
-        // Full deep equality on the ranked list — ordering, fields, ties, nulls.
-        expect(served.candidates).toEqual(local.candidates)
-        expect(served.standoutCandidates).toEqual(local.standoutCandidates)
+        // Full deep equality on the ranked list — ordering, fields, ties, nulls
+        // — MODULO the one declared transport projection. The local side gets
+        // the same strip applied, so this still fails on any other difference;
+        // the CONTROL below proves the local side really does carry `contracts`,
+        // so this is not equality-by-erasure.
+        expect(served.candidates).toEqual(local.candidates.map(stripUnreadContracts))
+        expect(served.standoutCandidates).toEqual(
+          local.standoutCandidates ? local.standoutCandidates.map(stripUnreadContracts) : null)
         expect(served.adCount).toBe(local.ad.length)
       })
     }
@@ -277,5 +282,84 @@ describe('not-computable is distinguishable from computed-and-empty', () => {
     // universe. Mutation-checked: removing this throws nothing and ships a
     // wrong TOP 10.
     expect(() => buildTopPickProduct(D, {})).toThrow(/isEtfFn/)
+  })
+})
+
+// ── The unread `contracts` projection ──────────────────────────────────────
+describe('served candidates carry no unread contracts map', () => {
+  it('CONTROL: the LOCAL computation still has contracts — the strip is real', () => {
+    // Without this, "served has no contracts" could be true because the
+    // computation stopped producing them at all, which would be a semantic
+    // change rather than a transport one.
+    const local = buildTopPickCandidates(D.all_directional, D.all_trades,
+      { dataMode: 'stocks', capFilter: 'All', isEtfFn, includeStandout: true })
+    const withMap = local.candidates.filter(c => c.contracts && Object.keys(c.contracts).length > 0)
+    expect(withMap.length).toBeGreaterThan(0)
+  })
+
+  it('no candidate, standout, or _moreStrikes entry carries `contracts`', () => {
+    let checked = 0
+    const assertClean = (c) => {
+      checked++
+      expect(c).not.toHaveProperty('contracts')
+      for (const m of (c._moreStrikes || [])) assertClean(m)
+    }
+    for (const k of topPickVariantKeys()) {
+      const v = product.variants[k]
+      v.candidates.forEach(assertClean)
+      ;(v.standoutCandidates || []).forEach(assertClean)
+    }
+    // CONTROL: the sweep actually visited candidates.
+    expect(checked).toBeGreaterThan(50)
+  })
+
+  it('⛔ everything the renderer READS survives, including inside _moreStrikes', () => {
+    const v = product.variants['stocks|All']
+    const c = v.candidates[0]
+    for (const f of ['sym', 'dir', 'net', 'score', 'mktcap', 'volOI', 'topC',
+                     'topCDisplayPrem', 'topCDisplayHits', 'daysSince', 'freshLabel']) {
+      expect(c, `renderer reads "${f}"`).toHaveProperty(f)
+    }
+    // topC is a reference INTO the removed map; it must still be a full object.
+    for (const f of ['cp', 'K', 'exp', 'oi', 'prem']) expect(c.topC).toHaveProperty(f)
+    // _moreStrikes entries: the renderer reads m.topC.cp/K/exp and m.net.
+    const withMore = (v.standoutCandidates || []).find(x => (x._moreStrikes || []).length > 0)
+    if (withMore) {
+      for (const m of withMore._moreStrikes) {
+        expect(m).toHaveProperty('net')
+        for (const f of ['cp', 'K', 'exp']) expect(m.topC).toHaveProperty(f)
+        expect(m).not.toHaveProperty('contracts')
+      }
+    }
+  })
+
+  it('ranking, identity and standout membership are untouched', () => {
+    for (const dataMode of TOP_PICK_DATA_MODES) {
+      for (const capFilter of TOP_PICK_CAP_FILTERS) {
+        const local = buildTopPickCandidates(D.all_directional, D.all_trades,
+          { dataMode, capFilter, isEtfFn, includeStandout: true })
+        const served = topPickVariant(product, dataMode, capFilter)
+        expect(served.candidates.map(c => c.sym)).toEqual(local.candidates.map(c => c.sym))
+        expect(served.candidates.map(c => c.net)).toEqual(local.candidates.map(c => c.net))
+        expect(served.candidates.map(c => c.score)).toEqual(local.candidates.map(c => c.score))
+        expect((served.standoutCandidates || []).map(c => c.sym))
+          .toEqual((local.standoutCandidates || []).map(c => c.sym))
+      }
+    }
+  })
+
+  it('measures what the projection actually saves', () => {
+    const withMap = { generation: product.generation, variants: {} }
+    for (const k of topPickVariantKeys()) {
+      const [dataMode, capFilter] = k.split('|')
+      const l = buildTopPickCandidates(D.all_directional, D.all_trades,
+        { dataMode, capFilter, isEtfFn, includeStandout: true })
+      withMap.variants[k] = { candidates: l.candidates, standoutCandidates: l.standoutCandidates, adCount: l.ad.length }
+    }
+    const before = gzipSync(Buffer.from(JSON.stringify(withMap))).length
+    const after = gzipSync(Buffer.from(JSON.stringify(product))).length
+    console.log('[3b contracts] gzip %d KB -> %d KB (-%d%%)',
+      Math.round(before / 1024), Math.round(after / 1024), Math.round((1 - after / before) * 100))
+    expect(after).toBeLessThan(before)
   })
 })
