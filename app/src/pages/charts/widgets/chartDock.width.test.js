@@ -27,8 +27,17 @@ describe('company panel width', () => {
     expect(COMPANY_TABS).toHaveLength(5)
   })
 
-  it('migrates the stale 360 default off the clipped width', () => {
-    expect(normalizeDock({ rightW: 360 }).rightW).toBe(DEFAULT_RIGHT_W)
+  it('migrates every previously shipped default forward', () => {
+    // 360 clipped the News tab; 400 left dead space after the search control.
+    // Neither was chosen by the user, so neither should outlive the default.
+    for (const shipped of [360, 400]) {
+      expect(normalizeDock({ rightW: shipped }).rightW).toBe(DEFAULT_RIGHT_W)
+    }
+  })
+
+  it('leaves no dead space after the search control', () => {
+    // The strip hugs its content now, so any slack piles up at the right edge.
+    expect(DEFAULT_RIGHT_W - TABSTRIP_FIT_W).toBeLessThanOrEqual(12)
   })
 
   it('does not touch a width the user actually chose', () => {
