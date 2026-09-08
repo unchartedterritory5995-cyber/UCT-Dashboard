@@ -100,6 +100,33 @@ def add_evidence(
         if not _target_exists(user_id, target_type, target_id, conn=conn):
             raise ThesisEvidenceValidationError("Evidence target not found")
 
+        # ⛔⛔ WAVE N §4 — ONE LIVE EDGE PER (THESIS, TARGET).
+        #
+        # ⚰️ There was no guard here at all. The picker disables an
+        # already-attached candidate, so the MEMBER could not create a
+        # duplicate — and anything that was not the picker could: a second POST
+        # simply inserted a second live row. A thesis holding one passage twice
+        # then reports TWO supporting/opposing counts for ONE source, which is
+        # §6's "curation cannot manufacture corroboration" arriving through a
+        # different door. A guard that lives only in a disabled button is not a
+        # guard.
+        #
+        # ⛔ DELIBERATELY NARROW. It is scoped to ONE note, so the same passage
+        # still bears on as many theses as the member likes (that is the point
+        # of a shared research corpus), and it ignores removed edges, so a
+        # changed judgement — remove, re-add with the other stance — still
+        # works. It runs AFTER the ownership check, so a member who cannot see
+        # the target is refused for that reason and never learns from this
+        # message that somebody else attached it.
+        if conn.execute(
+            "SELECT 1 FROM j2_thesis_evidence"
+            " WHERE user_id = ? AND note_id = ? AND target_type = ? AND target_id = ?"
+            " AND removed_at IS NULL LIMIT 1",
+            (user_id, note_id, target_type, target_id),
+        ).fetchone() is not None:
+            raise ThesisEvidenceValidationError(
+                "This evidence is already attached to this thesis")
+
         evidence_id = uuid.uuid4().hex
         now = _now_iso()
         conn.execute(

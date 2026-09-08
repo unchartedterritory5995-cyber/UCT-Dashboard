@@ -45,6 +45,16 @@ OFF = {
     "FUNDAMENTALS_MONITOR_ENABLED": "0", "RECONCILE_ENABLED": "0",
 }
 
+# ⛔ NOT A GUARD BEING DISABLED — it is the guard's OWN documented override,
+# pointed at a sandbox. `notes_quota` refuses an upload that would leave the
+# ATTACHMENT VOLUME under `(1 - disk_watchdog.CRIT_PCT/100) x total`, derived
+# for Railway's 78 GB volume. This sandbox's DATA_DIR is a temp directory on
+# the developer's system drive, so the derivation asks for ~10% of a 499 GB
+# disk — ~50 GB — and every attachment upload 400s on a machine with less than
+# that free, which reads as a product defect and is not one (it cost this wave
+# an hour). Production resolves byte-identically with nothing set.
+SANDBOX_ONLY = {"NOTE_IMPORT_RESERVE_BYTES": str(64 * 1024**2)}
+
 
 def _load_env() -> None:
     """Credentials, the same way scripts/ does it -- and ONLY credentials: the
@@ -95,6 +105,7 @@ def main() -> int:
     args = ap.parse_args()
 
     os.environ.update(OFF)
+    os.environ.update(SANDBOX_ONLY)
     os.environ["ADMIN_EMAILS"] = args.email
     _load_env()
     # ⛔ VERIFY AFTER loading the .env, not before: the point of the check is

@@ -72,6 +72,15 @@ def api(ctx, method: str, path: str, base: str, **kw):
     return getattr(ctx.request, method.lower())(f"{base}{path}", **kw)
 
 
+def _pdf_bytes(pages: list[str]) -> bytes:
+    """A REAL pypdf-extractable PDF — the same builder Wave I's own suite uses,
+    so §8's control is a genuine document and not a renamed text file."""
+    import sys as _sys
+    _sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+    from api.services.journal_two.pdf_fixtures import make_pdf
+    return make_pdf(pages)
+
+
 def jbody(resp):
     try:
         return resp.json()
@@ -213,6 +222,13 @@ def main() -> int:  # noqa: C901 - a journey is a sequence, not a graph
         page.locator("button", has_text="Add evidence").last.click()
         page.wait_for_timeout(1200)
         page.screenshot(path=str(OUT_DIR / "05_attached.png"))
+        # ⛔ THE PICKER'S OWN ERROR LINE, read rather than inferred. A failed
+        # attach otherwise surfaces three steps later as "the thesis does not
+        # show the stance", which sends the reader looking in the wrong place.
+        err = page.locator("text=Could not add evidence")
+        if err.count():
+            F.fail("9", "the attach was refused in the UI: "
+                        f"{page.locator('[class*=picker]').first.inner_text()[:200]!r}")
 
         # ── 10 · THE THESIS SHOWS THE RELATIONSHIP ───────────────────────────
         # ⛔ CASE-INSENSITIVE ON PURPOSE: the stance pill is uppercased by CSS,
@@ -266,6 +282,123 @@ def main() -> int:  # noqa: C901 - a journey is a sequence, not a graph
                 # Close it again so a later step is not typing into a modal.
                 page.keyboard.press("Escape")
                 page.wait_for_timeout(300)
+
+        # ── §8 · THE DOCUMENT CONTROL ────────────────────────────────────────
+        # ⛔ THE WHOLE POINT OF A CONTROL: prove the web-capture extension did
+        # not FLATTEN the established Wave J path. A real PDF must still be
+        # discoverable, still say p.47, still attach, and still open its page
+        # in the viewer — while the capture beside it does none of those things.
+        pdf_note = jbody(api(ctx, "post", "/api/j2/notes", base, data={
+            "title": f"NVDA filing {TOKEN}", "ticker": "NVDA", "tags": ["thesis"],
+            "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]}}))
+        pdf_note_id = (pdf_note.get("note") or pdf_note).get("id")
+        pages = ["filler"] * 46 + [f"PDF47 {TOKEN} management expects margins to normalise"]
+        up = api(ctx, "post", f"/api/j2/notes/{pdf_note_id}/attachments", base,
+                 multipart={"file": {"name": "nvda-10q.pdf",
+                                     "mimeType": "application/pdf",
+                                     "buffer": _pdf_bytes(pages)}})
+        F.note("8", upload_status=up.status)
+        if F.check("8", up.ok, f"a real PDF upload failed (HTTP {up.status}): "
+                               f"{up.text()[:200]}"):
+            doc_id = None
+            for _ in range(40):
+                docs = jbody(api(ctx, "get", f"/api/j2/notes/{pdf_note_id}/documents", base))
+                ready = [d for d in docs.get("documents", []) if d.get("status") == "ready"]
+                if ready:
+                    doc_id = ready[0]["id"]
+                    break
+                page.wait_for_timeout(500)
+            if F.check("8", doc_id is not None,
+                       "the uploaded PDF never finished extraction"):
+                made_ex = jbody(api(ctx, "post", f"/api/j2/notes/{pdf_note_id}/excerpts",
+                                    base, data={
+                                        "documentId": doc_id, "pageNumber": 47,
+                                        "capturedText": f"PDF47 {TOKEN} management "
+                                                        "expects margins to normalise"}))
+                pdf_ex = (made_ex.get("excerpt") or made_ex).get("id")
+                pc = jbody(api(ctx, "get",
+                               f"/api/j2/notes/{pdf_note_id}/evidence-candidates", base))
+                prow = [c for c in pc.get("candidates", []) if c["id"] == pdf_ex]
+                F.check("8", len(prow) == 1,
+                        "a real document excerpt is not an evidence candidate")
+                if prow:
+                    F.note("8", candidate=prow[0])
+                    F.check("8", prow[0]["pageNumber"] == 47,
+                            f"the real page was lost: {prow[0]['pageNumber']!r}")
+                    F.check("8", prow[0]["sourceKind"] == "attachment",
+                            "a PDF is reported as a web capture")
+                # It must ATTACH, and the thesis must show its real page.
+                att = api(ctx, "post", f"/api/j2/notes/{pdf_note_id}/evidence", base,
+                          data={"targetType": "document_excerpt", "targetId": pdf_ex,
+                                "stance": "supports"})
+                F.check("8", att.ok, f"a real document excerpt no longer attaches: {att.status}")
+                page.goto(f"{base}/journal/notebook?note={pdf_note_id}",
+                          wait_until="networkidle")
+                page.wait_for_timeout(700)
+                ptext = page.locator("body").inner_text()
+                F.check("8", "p.47" in ptext,
+                        "the thesis lost the real page number for a PDF excerpt")
+                page.screenshot(path=str(OUT_DIR / "09_pdf_thesis.png"))
+                # And REVISITING it must still open the viewer at that page —
+                # the half of §8 that a label check cannot see.
+                prow_btn = page.locator("li button", has_text="p.47")
+                if F.check("8", prow_btn.count() > 0,
+                           "the PDF evidence row is not clickable"):
+                    prow_btn.first.click()
+                    page.wait_for_timeout(1500)
+                    page.screenshot(path=str(OUT_DIR / "10_pdf_viewer.png"))
+                    viewer = page.locator('[role="dialog"]')
+                    F.check("8", viewer.count() > 0,
+                            "clicking a real document excerpt opened nothing")
+                    if viewer.count():
+                        vt = viewer.first.inner_text()
+                        F.note("8", viewer_surface=vt[:300])
+                        F.check("8", "Download" in vt,
+                                "the real document viewer lost its document actions")
+                    page.keyboard.press("Escape")
+                    page.wait_for_timeout(300)
+                # Ask, over the DOCUMENT, must still cite a page.
+                page.goto(f"{base}/journal/notebook?note={pdf_note_id}",
+                          wait_until="networkidle")
+
+        # ── §4 · THE DUPLICATE CASE, BOTH WAYS ───────────────────────────────
+        # ⛔ The member must learn a passage is already attached BEFORE acting,
+        # not by being refused afterwards — and the server must agree, because
+        # a guard that lives only in a disabled button is not a guard.
+        # ⛔ NAVIGATE EXPLICITLY, never `reload()`. §8 above leaves the browser
+        # on the PDF note, and a reload then reopened THAT note's picker while
+        # this block asserted about the capture — a probe pointed at the wrong
+        # screen reports a defect that is not there.
+        page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="networkidle")
+        page.get_by_role("button", name="Add evidence").first.click()
+        page.get_by_role("button", name="Document excerpt").first.click()
+        page.wait_for_timeout(400)
+        # ⛔ Scoped to a PICKER row, not "any li button naming the source" —
+        # the attached evidence row names it too, and the loose locator matched
+        # that instead and reported a defect against the wrong element.
+        dup = page.locator('li button:has-text("Your note:")')
+        page.screenshot(path=str(OUT_DIR / "08_duplicate_picker.png"))
+        if F.check("4", dup.count() > 0,
+                   "an attached candidate vanished from the picker — the member "
+                   "cannot see what they already used"):
+            dtext = dup.first.inner_text()
+            F.note("4", picker_row=dtext, disabled=dup.first.is_disabled())
+            F.check("4", "already attached" in dtext.lower(),
+                    f"the picker does not say it is already attached: {dtext!r}")
+            F.check("4", dup.first.is_disabled(),
+                    "the already-attached candidate is still clickable")
+        # The adversarial control: the same mutation, straight at the API.
+        again = api(ctx, "post", f"/api/j2/notes/{note_id}/evidence", base, data={
+            "targetType": "document_excerpt", "targetId": excerpt_id,
+            "stance": "supports"})
+        F.note("4", api_status=again.status, api_body=jbody(again))
+        F.check("4", again.status >= 400,
+                f"the API accepted a duplicate the UI forbids (HTTP {again.status})")
+        after = jbody(api(ctx, "get", f"/api/j2/notes/{note_id}/evidence", base))
+        live = [e for e in after.get("evidence", []) if e.get("targetId") == excerpt_id]
+        F.check("4", len(live) == 1,
+                f"one passage holds {len(live)} live edges on one thesis")
+        page.keyboard.press("Escape")
 
         # ── 13-14 · ASK, AND COUNT THE SOURCE ONCE ──────────────────────────
         # ⛔ THE LOAD-BEARING ONE (§6). Once attached, the passage is reachable
