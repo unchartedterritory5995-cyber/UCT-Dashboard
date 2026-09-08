@@ -3665,6 +3665,69 @@ export default function OptionsFlowDashboard() {
         </div>
   );
 
+  // ── Section header: ONE definition, two call sites (pending + loaded) ─────
+  // The badge is the only part that needs D, so it is the only part gated on
+  // D. Holding the whole header behind `D &&` is what made the pending state
+  // look like a different page than the loaded one.
+  const sectionHeader = (
+    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+      <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
+      <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
+      {D && (
+        <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
+          {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
+        </span>
+      )}
+    </div>
+  );
+
+  // ── The pending skeleton ─────────────────────────────────────────────────
+  // ⛔ This is the shape of the page, NOT a spinner in a box. UCT20 — the
+  // section the owner measures this one against — never shows a loading state
+  // that replaces its interface: its frame renders immediately and each
+  // TileCard fills in independently (`{!rows ? <SkeletonTable/> : …}`).
+  // Options Flow held its ENTIRE body behind one `D &&`, so a single pending
+  // dataset blanked cap filters, the ticker strip, TOP 10 and every table at
+  // once, and the member saw a centred spinner captioned 'Loading flow data…'.
+  // That box WAS the "loading screen" the owner kept reporting after the two
+  // full-page returns were deleted — smaller, but the same all-or-nothing gate.
+  //
+  // ⛔ IT CLAIMS NOTHING. No numbers, no zeros, no stale values dressed as
+  // current — bars that occupy the space the real rows will take, so the page
+  // does not reflow when data lands. Speed here comes from rendering the frame
+  // sooner, never from showing figures the page cannot yet stand behind.
+  const skelBar = (w, h = 10) => (
+    <div style={{ width:w, height:h, borderRadius:3, background:P.al, opacity:0.55 }} />
+  );
+  const pendingSkeleton = (
+    <div aria-busy="true" aria-label="Flow data loading">
+      <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+        {["All","Mega","Large","Mid-Small"].map(c => (
+          <div key={c} style={{ padding:"6px 16px", borderRadius:4, border:"1px solid "+P.bd,
+                                background:P.al, opacity:0.5, fontSize:11, fontWeight:700, color:P.mt }}>{c}</div>
+        ))}
+      </div>
+      <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"14px 16px", marginBottom:12 }}>
+        <div style={{ marginBottom:12 }}>{skelBar(150, 11)}</div>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} style={{ display:"flex", alignItems:"center", gap:14, padding:"9px 0",
+                                borderTop:i===0?"none":("1px solid "+P.bd) }}>
+            {skelBar(46)}{skelBar(70)}{skelBar(54)}{skelBar(88)}
+            <div style={{ marginLeft:"auto" }}>{skelBar(60)}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+        {[0,1].map(i => (
+          <div key={i} style={{ flex:"1 1 320px", background:P.cd, border:"1px solid "+P.bd,
+                                borderRadius:8, padding:"14px 16px", minHeight:150 }}>
+            {skelBar(120, 11)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="of-mroot" style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
       <div style={{ maxWidth:1280, margin:"0 auto" }}>
@@ -4726,29 +4789,14 @@ export default function OptionsFlowDashboard() {
         {/* Data pending: the real interface, not a loading screen. See the
             note above the return -- this replaced two full-page spinners. */}
         {dataMode !== "gex" && dataMode !== "darkpool" && !D && !csvError && (<>
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-          <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
-        </div>
+        {sectionHeader}
         {viewTabsBar}
-        <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"28px 20px",
-                      display:"flex", alignItems:"center", justifyContent:"center", gap:10, minHeight:180 }}>
-          <div style={{ width:16, height:16, border:"2px solid "+P.bd, borderTop:"2px solid "+P.ac,
-                        borderRadius:"50%", animation:"ofspin 0.9s linear infinite" }} />
-          <span style={{ fontSize:12, color:P.mt, letterSpacing:0.3 }}>Loading flow data…</span>
-          <style>{"@keyframes ofspin{to{transform:rotate(360deg)}}"}</style>
-        </div>
+        {pendingSkeleton}
         </>)}
 
         {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-          <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
-          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
-          <span style={{ marginLeft:"auto", fontSize:10, color:P.mt, background:P.al, padding:"3px 10px", borderRadius:4 }}>
-            {D.dateRange} · {D.confirmedCount} confirmed of {D.totalTrades} trades
-          </span>
-        </div>
+        {/* Header — same definition the pending branch renders (see sectionHeader). */}
+        {sectionHeader}
 
         {/* ── Market Pulse — compact ticker strip ────────────────────────── */}
         {tab==="Market Read" && (
