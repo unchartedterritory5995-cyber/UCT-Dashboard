@@ -298,15 +298,46 @@ def health(current_version=None, view=DEFAULT_VIEW) -> dict:
         return out
     out["available"] = True
 
-    cached = _CACHE.get(tuple(view))
-    if cached is None:
-        out["reason"] = "cold"
-    elif current_version is not None and cached[0] != current_version:
-        # A warm entry for a SUPERSEDED version is not warm: the next caller
-        # rebuilds. Reporting it as warm is how a stalled warmer would hide.
-        out["reason"] = f"stale (cached v{cached[0]} vs current v{current_version})"
+    def _grade(entry, label=""):
+        """(warm?, reason) for one cache entry against the current version.
+
+        `label` is a PREFIX, empty for the whole-D path so its long-standing
+        reason strings ("cold", "stale (...)") are unchanged — they are a
+        diagnostic contract, and renaming them to suit a new caller would be a
+        gratuitous break.
+        """
+        if entry is None:
+            return False, f"{label}cold"
+        if current_version is not None and entry[0] != current_version:
+            # A warm entry for a SUPERSEDED version is not warm: the next caller
+            # rebuilds. Reporting it as warm is how a stalled warmer would hide.
+            return False, (f"{label}stale (cached v{entry[0]} vs current "
+                           f"v{current_version})")
+        return True, None
+
+    warm_whole, reason_whole = _grade(_CACHE.get(tuple(view)))
+    out["warm_whole"] = warm_whole
+
+    # ⛔ GRADE THE TRANSPORT MEMBERS ACTUALLY TAKE. This graded ONLY the whole-D
+    # cache, and with the parts transport enabled in production that is not the
+    # path a member's first paint uses. Observed on prod 2026-09-08:
+    #     "warm": true, "parts": {"enabled": true, "entries": []}
+    # — the verdict said the fast path was ready while the path members take was
+    # completely cold, which is exactly the class of defect this function's own
+    # docstring warns about (a health check reading a proxy, not the artifact).
+    #
+    # ⛔ `bootstrap` IS A SUFFICIENT PROBE, by construction rather than by luck:
+    # `get_cached_or_build_part` writes EVERY part from one build in a single
+    # pass, so if bootstrap is present at this version its siblings are too.
+    if parts_enabled():
+        warm_parts, reason_parts = _grade(
+            _PARTS_CACHE.get(tuple(view) + ("bootstrap",)), "parts ")
+        out["warm_parts"] = warm_parts
+        out["warm"] = warm_parts
+        out["reason"] = reason_parts
     else:
-        out["warm"] = True
+        out["warm"] = warm_whole
+        out["reason"] = reason_whole
     return out
 
 

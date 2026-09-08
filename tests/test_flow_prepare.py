@@ -191,3 +191,71 @@ def test_it_refuses_to_start_when_the_transport_it_warms_is_off(monkeypatch):
 def test_prepare_state_is_a_copy_so_a_caller_cannot_corrupt_the_counters():
     fr.prepare_state()["prepared"] = 9999
     assert fr._PREPARE_STATE["prepared"] != 9999
+
+
+# ── health must grade the transport members actually take ────────────────────
+#
+# ⛔ THE PROD DEFECT THIS PINS, observed 2026-09-08 on uctintelligence.com:
+#     {"warm": true, "parts": {"enabled": true, "entries": []}}
+# `warm` graded ONLY the whole-D cache, but production serves first paint over
+# the PARTS transport. So the health check said the fast path was ready while
+# the path every member takes was completely cold -- a health check reading a
+# proxy instead of the artifact, which is the exact failure its own docstring
+# warns about. It is also what would have made the preparer unverifiable: my
+# first draft named `warm` as the way to confirm the preparer worked.
+
+@pytest.fixture
+def _clean_caches():
+    fa._CACHE.clear()
+    fa._PARTS_CACHE.clear()
+    yield
+    fa._CACHE.clear()
+    fa._PARTS_CACHE.clear()
+
+
+def test_warm_is_FALSE_when_the_parts_transport_is_on_but_cold(monkeypatch, _clean_caches):
+    monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")      # whole-D warm...
+    # ...and no parts at all, which is precisely the prod reading.
+
+    h = fa.health(current_version=7)
+
+    assert h["warm"] is False, (
+        "health reported the fast path warm while the transport members take "
+        "was empty -- the proxy-not-artifact defect")
+    assert h["warm_whole"] is True, "the whole-D path really was warm"
+    assert "cold" in (h["reason"] or "")
+
+
+def test_CONTROL_with_parts_off_the_whole_D_verdict_is_unchanged(monkeypatch, _clean_caches):
+    """Without this the test above would pass on a health() that always says
+    cold, and the long-standing behaviour would be silently broken."""
+    monkeypatch.setattr(fa, "parts_enabled", lambda: False)
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+
+    h = fa.health(current_version=7)
+    assert h["warm"] is True and h["reason"] is None
+
+
+def test_warm_is_TRUE_once_the_parts_for_the_default_view_are_built(monkeypatch, _clean_caches):
+    monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa._CACHE[fa.DEFAULT_VIEW] = (7, b"whole")
+    fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (7, b"gz")
+
+    h = fa.health(current_version=7)
+    assert h["warm"] is True and h["warm_parts"] is True
+
+
+def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_caches):
+    """The next caller rebuilds, so reporting warm is how a stalled preparer
+    would hide -- the same rule the whole-D path already had."""
+    monkeypatch.setattr(fa, "parts_enabled", lambda: True)
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa._PARTS_CACHE[fa.DEFAULT_VIEW + ("bootstrap",)] = (6, b"gz")
+
+    h = fa.health(current_version=7)
+    assert h["warm"] is False
+    assert "stale" in (h["reason"] or "")
