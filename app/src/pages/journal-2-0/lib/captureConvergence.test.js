@@ -1,7 +1,18 @@
-// ⛔ THE SLICE 2 INVARIANT, MADE STRUCTURAL.
+// ⛔ THE SLICE 2 INVARIANT, MADE STRUCTURAL — corrected 2026-09-08.
 //
-//     CAPTURE DOORS MAY CHOOSE DEFAULTS.
-//     CAPTURE DOORS MAY NOT OWN CAPTURE SEMANTICS.
+//     ONE COHERENT MEMBER CAPTURE EXPERIENCE
+//     + ONE CANONICAL WRITE PATH PER SEMANTIC CAPTURE KIND.
+//
+// There are THREE kinds, and they are not interchangeable:
+//   EXTERNAL SOURCE  capture.js        -> POST /api/j2/capture
+//   INTERNAL UCT     captureTargets.js -> POST /api/j2/inbox
+//   MEMBER THOUGHT   thoughtCapture.js -> POST /api/j2/notes (createNoteViaApi)
+//
+// The earlier reading of "one canonical flow" would have routed a Screener row
+// through the web path — asking a member for a "Source link" for UCT's own scan
+// result, and filing UCT data as an external source. That is wrong about
+// provenance AND wrong about rights, so the shell is shared and the write paths
+// are not.
 //
 // A convention that every door "should" go through capture.js is worth nothing:
 // the second caller is always added in a hurry, by someone who did not read
@@ -164,5 +175,83 @@ describe('the confirmation answers both questions (§9)', () => {
   it('distinguishes a resolved duplicate from a new capture', () => {
     // ⛔ The UI does not compute duplicate-ness; it reports the server's answer.
     expect(captureConfirmation({ deduped: true }, dest)).toBe('Already saved to NVDA Research')
+  })
+})
+
+// ── Cross-kind routing (the corrected invariant) ─────────────────────────────
+
+const INTERNAL_ENDPOINT = '/api/j2/inbox'
+const THOUGHT_ENDPOINT = '/api/j2/notes'
+
+function literalsMatching(file, needle) {
+  const code = fs.readFileSync(file, 'utf8')
+  let ast
+  try {
+    ast = Parser.parse(code, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
+  } catch { return [] }
+  const hits = []
+  walk(ast, (n) => {
+    if (n.type === 'Literal' && typeof n.value === 'string' && n.value.includes(needle)) {
+      hits.push({ file, line: n.loc.start.line })
+    }
+  })
+  return hits
+}
+
+describe('each capture KIND keeps its own write path', () => {
+  const rel = (f) => path.relative(APP_SRC, f).split(path.sep).join('/')
+
+  it('the WEB path is named only by capture.js', () => {
+    const owners = FILES.filter((f) => literalsMatching(f, '/api/j2/capture').length).map(rel)
+    expect(owners).toEqual(['pages/journal-2-0/lib/capture.js'])
+  })
+
+  it('the INTERNAL path has exactly the callers we know about', () => {
+    // ⛔ NOT a clean "one module" story, and the rail says so rather than being
+    // scoped until it looks clean. Three files name this endpoint:
+    //   captureTargets.js   the canonical WRITE path
+    //   NoteEditorPage.jsx  READS the tray (SWR) and DELETEs consumed rows -- legitimate
+    //   ChartWidget.jsx:443 a DIRECT POST that bypasses captureTargets entirely
+    //
+    // ⚠️ KNOWN PRE-EXISTING DIVERGENCE, found by this rail and NOT introduced by
+    // Wave L: ChartWidget's own capture hotkey posts a REDUCED payload --
+    // widgetId/params/searchText/capturedAt -- omitting fallbackUrl, annotations,
+    // caption and tradeRef, which captureTargets.js sends. So a chart captured
+    // by the widget hotkey loses its frozen drawings compared with the same
+    // chart captured through CaptureMenu.
+    //
+    // It is left alone on purpose: routing it through captureTargets is not a
+    // like-for-like swap (that module also has append-to-recent-note behaviour),
+    // so changing it is a product decision, not a rider. Pinned here so a THIRD
+    // caller fails loudly and the debt stays visible.
+    const owners = FILES.filter((f) => literalsMatching(f, INTERNAL_ENDPOINT).length).map(rel).sort()
+    expect(owners).toEqual([
+      'pages/charts/widgets/ChartWidget.jsx',
+      'pages/journal-2-0/components/notebook/NoteEditorPage.jsx',
+      'pages/journal-2-0/lib/captureTargets.js',
+    ])
+  })
+
+  it('the THOUGHT path does not manufacture external provenance', () => {
+    // ⛔ A thought must never acquire a URL, a domain, or a rights tier. If
+    // thoughtCapture ever imports the web module or names the web endpoint, a
+    // member's own words are one refactor away from being stored as somebody
+    // else's quotation.
+    // ⭐ AST, not a raw string search -- my first version of this check used
+    // `toContain` and failed on thoughtCapture's own docstring, which says in
+    // prose that a thought must NOT go through /api/j2/capture. That is the
+    // exact grep false-positive this file's header warns about, committed in
+    // the rail that warns about it.
+    const mod = path.join(APP_SRC, 'pages/journal-2-0/lib/thoughtCapture.js')
+    expect(literalsMatching(mod, '/api/j2/capture')).toEqual([])
+    expect(literalsMatching(mod, '/api/j2/inbox')).toEqual([])
+    expect(fs.readFileSync(mod, 'utf8')).toContain('createNoteViaApi')
+  })
+
+  it('the probe can SEE each endpoint (non-vacuity)', () => {
+    // Without this, all three assertions above could pass by finding nothing.
+    expect(literalsMatching(path.join(APP_SRC, 'pages/journal-2-0/lib/capture.js'), '/api/j2/capture').length).toBeGreaterThan(0)
+    expect(literalsMatching(path.join(APP_SRC, 'pages/journal-2-0/lib/captureTargets.js'), INTERNAL_ENDPOINT).length).toBeGreaterThan(0)
+    expect(literalsMatching(path.join(APP_SRC, 'pages/journal-2-0/lib/noteCreation.js'), THOUGHT_ENDPOINT).length).toBeGreaterThan(0)
   })
 })
