@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
+import { openCapture } from '../pages/journal-2-0/lib/captureBus'
 import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
 
@@ -30,6 +31,13 @@ const NOTEBOOK_COMMANDS = [
     to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
   { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',
     to: '/journal/notebook?folder=__trash__', keywords: ['trash', 'deleted', 'notebook', 'note'] },
+  // ⛔ ONE capture command (Wave L §12), not a forest by subtype -- no
+  // "Capture Link" / "Capture Passage" / "Capture to NVDA". The single door
+  // adapts from context, and `action` (rather than `to`) is what keeps it from
+  // navigating away from the research the member is standing in (§5).
+  { id: 'nb-capture', kind: 'command', label: 'Quick Capture', icon: 'plus',
+    action: 'capture',
+    keywords: ['capture', 'save', 'clip', 'link', 'article', 'passage', 'quote', 'notebook'] },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact
@@ -250,6 +258,13 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const selectRow = (row) => {
     if (!row) return
     if (row.kind === 'command') {
+      if (row.action === 'capture') {
+        // Opens the ONE shared capture dialog in place. No route change, so the
+        // member keeps the page -- and the research context -- they were in.
+        openCapture({ source: 'palette' })
+        close()
+        return
+      }
       navigate(row.to)
     } else if (row.kind === 'note') {
       navigate(`/journal/notebook?note=${encodeURIComponent(row.id)}`)

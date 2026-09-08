@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
 import CommandPalette from './CommandPalette'
+import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
 import MoreSheet from './mobile/MoreSheet'
 import { MoreSheetContext } from './mobile/MoreSheetContext'
@@ -132,6 +133,9 @@ export default function Layout({ children }) {
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
           <CommandPalette ref={paletteRef} />
+          {/* The ONE capture dialog, mounted once app-wide so every door -- palette,
+              hotkey, note, research workspace, surfaces -- opens the same product. */}
+          <CaptureHost />
         </div>
       </MoreSheetContext.Provider>
     </TickerHubProvider>
