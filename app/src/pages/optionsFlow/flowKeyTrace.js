@@ -32,11 +32,19 @@ const DEEP_KEYS = new Set(['TICKER_DB', 'CONV', 'clean_confirmed'])
  * touched and the union of field names — enough to size a derived product,
  * without retaining the rows themselves or turning a render into a log.
  */
+const ARRAY_PROXIES = new WeakMap()
+
 function traceRows(arr, key, store) {
   const seen = (store.deep[key] = store.deep[key] || {
     fields: {}, rowsTouched: new Set(), rowCount: arr.length, arrayOps: {},
   })
-  return new Proxy(arr, {
+  const cached = ARRAY_PROXIES.get(arr)
+  // ⛔ MEMOISE THE PROXY, NOT THE ACCUMULATOR. Caching a proxy that closed over
+  // the `seen` it was built with meant a second trace recorded into a dead
+  // store — reads happened and the report showed none. Caught by the
+  // rows-visited test.
+  if (cached && cached.store === store) return cached.proxy
+  const wrapped = new Proxy(arr, {
     get(t, p, r) {
       if (typeof p === 'string' && /^\d+$/.test(p)) {
         seen.rowsTouched.add(p)
@@ -71,17 +79,30 @@ function traceRows(arr, key, store) {
       return v
     },
   })
+  ARRAY_PROXIES.set(arr, { proxy: wrapped, store })
+  return wrapped
 }
 
 const ITER_OPS = new Set(['map', 'filter', 'find', 'findIndex', 'forEach', 'some', 'every', 'flatMap', 'reduce', 'sort'])
 
+// ⛔ ONE PROXY PER ROW, EVER. The first version allocated a fresh Proxy on every
+// row access. With FD traced (the hot object) and ~900-row arrays re-read across
+// renders, that ran into millions of allocations and FROZE the page — the
+// instrument stopped the thing it was measuring from happening at all. A
+// WeakMap makes wrapping idempotent and keeps the traced page usable.
+const ROW_PROXIES = new WeakMap()
+
 function traceRow(row, seen) {
-  return new Proxy(row, {
+  const hit = ROW_PROXIES.get(row)
+  if (hit && hit.seen === seen) return hit.proxy
+  const proxied = new Proxy(row, {
     get(t, p, r) {
       if (typeof p === 'string') seen.fields[p] = (seen.fields[p] || 0) + 1
       return Reflect.get(t, p, r)
     },
   })
+  ROW_PROXIES.set(row, { proxy: proxied, seen })
+  return proxied
 }
 
 /** Armed by `?tracekeys=1` (sticky) or localStorage. Never on by default. */
