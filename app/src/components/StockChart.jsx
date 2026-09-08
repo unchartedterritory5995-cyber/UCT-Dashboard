@@ -1159,7 +1159,7 @@ if (typeof window !== 'undefined') {
 // discards an aborted stale-key response (no error UI, no retry; barsSwrOnErrorRetry
 // skips `canceled`). Dark: at PCT=0/opt-out `instFetcher` calls `fetcher` with no
 // signal → byte-identical. Ramp = the constant; window.__uctSwitchAbort forces on.
-export const SWITCH_ABORT_PCT = 0
+export const SWITCH_ABORT_PCT = 100
 export function _switchAbortEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.switchAbort.enabled') : null
@@ -1176,6 +1176,70 @@ if (typeof window !== 'undefined') {
     try {
       if (on) localStorage.setItem('uct.switchAbort.enabled', '1')
       else localStorage.removeItem('uct.switchAbort.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Live-priced developing-bar seed (dark canary) ───────────────────────────
+// The load-anchor above reserves TODAY's slot so the frame doesn't shift, but it paints
+// it as an EMPTY whitespace point → on a cold daily open today's candle is "visibly not
+// there" until the real bar lands, and shows no live price. When this is on, the seed is
+// upgraded to a REAL developing candle built from the LIVE-price store (the same global
+// snapshot + isSaneLivePrice gate Writer D uses), so today's candle is VISIBLE at the tape
+// on first paint whenever the price is already known (watchlist/movers/revisit). Read
+// imperatively (no memo dep on livePrices → no per-tick churn); self-cancels the instant
+// the real today bar lands. Falls back to the whitespace slot when no sane live price is
+// known yet (a freshly-typed cold ticker → reserve-only until data arrives, no wrong price).
+// Dark: at PCT=0/opt-out the seed is the whitespace point exactly as today → byte-identical.
+export const SEED_LIVE_PCT = 0
+export function _seedLiveEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.seedLive.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.seedLive.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.seedLive.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < SEED_LIVE_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctSeedLive = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.seedLive.enabled', '1')
+      else localStorage.removeItem('uct.seedLive.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Switch-anchor developing-slot reserve (dark canary) ─────────────────────
+// THE cold-daily "chart shifts back one bar on load" root cause (traced live, 2026-09-08):
+// the primary ChartWidget runs keepPresentOnSymbolChange=false, so a symbol switch frames
+// through updateChart's `rangeDescribesOldExtent`/else branches — which pin to present but
+// do NOT add the developing-bar reserve — while the settling-guard re-assert DOES reserve.
+// The initial frame lands 1 bar short and the guard then slides it +1 the instant today's
+// bar commits. Fix: apply the SAME `_intradayLoadReserve` in those switch branches so the
+// initial frame already matches the final one → no +1, ever. Rides `_intradayLoadReserve`
+// (which is itself 0 unless the load-anchor is on AND today is a not-yet-present session),
+// so it self-cancels the moment today is present. Dark: at PCT=0/opt-out the added term is
+// 0 → byte-identical. Ramp = the constant; window.__uctSwitchReserve(true) forces on.
+export const SWITCH_RESERVE_PCT = 0
+export function _switchReserveEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.switchReserve.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.switchReserve.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.switchReserve.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < SWITCH_RESERVE_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctSwitchReserve = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.switchReserve.enabled', '1')
+      else localStorage.removeItem('uct.switchReserve.enabled')
     } catch { /* ignore */ }
   }
 }
@@ -6928,11 +6992,32 @@ export default function StockChart({
       if (_intradayLoadAnchorEnabled() && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
         const _dev = _developingBarISO(resolvedTf)
         const _lastRaw = displayBars[displayBars.length - 1]?.t
-        if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) arr.push({ time: adjustTime(_dev) })
+        if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
+          // Default: an empty whitespace slot (reserve only). When _seedLiveEnabled(), upgrade
+          // to a REAL candle at the live price so today is VISIBLE at the tape on first paint.
+          // Same store + sane-price source as Writer D; whitespace fallback when no sane price.
+          let _pt = null
+          if (_seedLiveEnabled()) {
+            try {
+              const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+              const _px = _snap ? _effLivePrice(_snap) : null
+              if (_px && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
+                const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
+                const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
+                const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
+                _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
+              }
+            } catch { /* fall back to whitespace */ }
+          }
+          arr.push(_pt || { time: adjustTime(_dev) })
+        }
       }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
+    // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
+    // imperatively (fresh at eval), and the live writers own prices that arrive later; a
+    // livePrices dep would re-run this O(n) memo every tick (churn) even when dark.
+    [displayBars, adjustTime, sym, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
@@ -10575,14 +10660,22 @@ export default function StockChart({
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
-          to = newBarCount - barsFromRight
+          // Reserve the developing bar's slot so THIS initial switch frame matches the
+          // settling-guard re-assert (which reserves too). Without it the frame lands 1
+          // bar short and the guard slides it +1 when today's bar commits — the cold-daily
+          // "shifts back one on load" bug (keepPresent=false path). Self-cancels to 0 once
+          // today is present; 0 off-gate → byte-identical.
+          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(filteredBars, resolvedTf) : 0
+          to = newBarCount - barsFromRight + _swRsv
           from = to - width
         } else {
           // Captured range already re-mapped to the NEW series (see
           // rangeDescribesOldExtent) — bars-from-right vs the stale old count
-          // would throw the view off the data. Keep the remapped range.
-          to = oldRange.to
-          from = oldRange.from
+          // would throw the view off the data. Keep the remapped range, shifted to
+          // reserve the developing bar's slot (same reason + self-cancel as above).
+          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(filteredBars, resolvedTf) : 0
+          to = oldRange.to + _swRsv
+          from = oldRange.from + _swRsv
         }
         if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {
