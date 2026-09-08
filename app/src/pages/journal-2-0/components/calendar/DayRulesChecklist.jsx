@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react'
+import { uid } from '../../../../utils/uid'
 import styles from './DayRulesChecklist.module.css'
 
 const MAX_RULES = 25
@@ -32,7 +33,7 @@ export default function DayRulesChecklist({
     setError(null)
     const next = [
       ...rules,
-      { id: crypto.randomUUID(), label, checked: false },
+      { id: uid(), label, checked: false },
     ]
     const ok = await onSave({ ...narrativeBundle, attachments, rules: next })
     if (ok) setNewLabel('')

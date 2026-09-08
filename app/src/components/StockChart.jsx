@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
+import { uid } from '../utils/uid'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
 // to freeze an error card or a loading skeleton as the snapshot. Inert on every
@@ -4698,7 +4699,7 @@ export default function StockChart({
   // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
   // bubble the new array to the parent via onAnnotationsChange (no localStorage).
   const annAdd = useCallback((d) => {
-    const id = crypto.randomUUID()
+    const id = uid()
     onAnnotationsChange?.([...(annotations || []), { ...d, id }])
     return id
   }, [annotations, onAnnotationsChange])
@@ -4740,7 +4741,7 @@ export default function StockChart({
   const [indexActiveTool, setIndexActiveTool] = useState('advance')
   const [indexSelectedId, setIndexSelectedId] = useState(null)
   const idxAnnAdd = useCallback((d) => {
-    const id = crypto.randomUUID()
+    const id = uid()
     onIndexAnnotationsChange?.([...(indexAnnotations || []), { ...d, id }])
     return id
   }, [indexAnnotations, onIndexAnnotationsChange])
