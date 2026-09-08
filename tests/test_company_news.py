@@ -9,6 +9,7 @@ collisions, dedupe, search, pagination and idempotent ingestion.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -1060,7 +1061,8 @@ class TestMalformedInputDoesNotAbortIngestion:
 
 
 class TestRecheckRejects:
-    """A filter fix has to be RETROACTIVE.
+    """A filter fix has to be RETROACTIVE -- and must re-apply the WHOLE
+    decision, not just the stage that changed.
 
     Rejected items are stored with a reason rather than dropped, so correcting a
     bad rule does nothing for the stories it already hid unless those rows are
@@ -1071,16 +1073,16 @@ class TestRecheckRejects:
     def test_recheck_unhides_rows_a_fixed_rule_no_longer_rejects(self, db):
         _mk("MU", "Why Micron Stock Is Popping", when=_dt(hours=1),
             klass="journalism", src="Barron's", reject="editorial-commentary")
-        assert store.feed("MU")["items"] == []           # hidden before
-        res = store.recheck_rejects(lambda h, c: "")     # rule now clears it
+        assert store.feed("MU")["items"] == []            # hidden before
+        res = store.recheck_rejects(lambda h, c, rel: "")  # rule now clears it
         assert res["scanned"] >= 1
         assert res["updated"] == 1
-        assert len(store.feed("MU")["items"]) == 1       # visible after
+        assert len(store.feed("MU")["items"]) == 1        # visible after
 
     def test_recheck_is_idempotent(self, db):
         _mk("MU", "Micron Announces Dividend", when=_dt(hours=1), klass="wire",
             src="Business Wire")
-        rule = (lambda h, c: "")
+        rule = (lambda h, c, rel: "")
         assert store.recheck_rejects(rule)["updated"] == 0
         assert store.recheck_rejects(rule)["updated"] == 0
 
@@ -1088,14 +1090,47 @@ class TestRecheckRejects:
         _mk("MU", "3 No-Brainer Stocks to Buy", when=_dt(hours=1),
             klass="journalism", src="Barron's")
         assert len(store.feed("MU")["items"]) == 1
-        store.recheck_rejects(lambda h, c: "editorial-commentary")
+        store.recheck_rejects(lambda h, c, rel: "editorial-commentary")
         assert store.feed("MU")["items"] == []
 
-    def test_recheck_reports_the_transitions_it_made(self, db):
-        _mk("MU", "Why Micron Stock Is Popping", when=_dt(hours=1),
-            klass="journalism", src="Barron's", reject="editorial-commentary")
-        res = store.recheck_rejects(lambda h, c: "")
-        assert res["transitions"] == {"editorial-commentary -> shown": 1}
+    def test_the_rule_receives_the_subject_stage_verdict(self, db):
+        """REGRESSION. The first cut passed only headline + source class, so it
+        cleared every `mention-only` / `no-ticker` verdict it could not
+        recompute -- 93 rows in production.
+
+        Asserted on the STORED verdict, not on the feed: feed() separately
+        requires a `direct` ticker link, so it masks this bug entirely. That
+        second guard is exactly why this went unnoticed, and why the test has
+        to check the value the recheck is responsible for.
+        """
+        nid = _mk("MU", "Intel Announces New Fab", when=_dt(hours=1),
+                  klass="wire", src="Business Wire", relevance="mention",
+                  reject="mention-only")
+        seen: list[list[str]] = []
+
+        def rule(h, c, rel):
+            seen.append(list(rel))
+            return "mention-only" if "direct" not in rel else ""
+
+        store.recheck_rejects(rule)
+        assert seen and seen[0] == ["mention"], seen
+        with contextlib.closing(store._connect()) as c:
+            row = c.execute("SELECT reject_reason FROM news_items WHERE id=?",
+                            (nid,)).fetchone()
+        assert row["reject_reason"] == "mention-only", "verdict was erased"
+
+    def test_the_real_rule_preserves_a_mention_verdict(self, db):
+        """The trust invariant, on the stored value the recheck owns."""
+        from api.services.news import ingest
+        nid = _mk("MU", "Intel Announces New Arizona Fab", when=_dt(hours=1),
+                  klass="journalism", src="Reuters", relevance="mention",
+                  reject="mention-only")
+        ingest.recheck_rejects()
+        with contextlib.closing(store._connect()) as c:
+            row = c.execute("SELECT reject_reason FROM news_items WHERE id=?",
+                            (nid,)).fetchone()
+        assert row["reject_reason"] == "mention-only"
+        assert store.feed("MU")["items"] == []
 
     def test_the_real_rule_recovers_the_barrons_row(self, db):
         """End to end with the ACTUAL production rule, not a stub."""
@@ -1115,16 +1150,16 @@ class TestRecheckRejects:
         ingest.recheck_rejects()
         assert store.feed("MU")["items"] == []
 
-    def test_ingest_recheck_matches_fresh_ingestion_exactly(self):
-        """The recheck must make the same two-step decision process() makes,
-        including the displayable-source check -- otherwise a recheck would
-        silently disagree with the next ingest cycle."""
+    def test_ingest_recheck_reproduces_every_stage_of_process(self):
+        """The recheck must make the same decision process() makes -- headline
+        rules, displayable-source check AND subject stage. Any stage it omits
+        is a stage it silently overrides across the whole database."""
         import inspect
         from api.services.news import ingest
         src = inspect.getsource(ingest.recheck_rejects)
-        assert "filters.reject_reason" in src
-        assert "is_displayable" in src
-        assert "REJECT_SOURCE" in src
+        for stage in ("filters.reject_reason", "is_displayable",
+                      "REJECT_SOURCE", "REJECT_NO_TICKER", "REJECT_MENTION"):
+            assert stage in src, f"recheck omits {stage}"
 
 
 class TestUniverseRotation:

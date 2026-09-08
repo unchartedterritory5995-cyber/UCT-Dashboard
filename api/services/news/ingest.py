@@ -468,14 +468,24 @@ def run_all(symbols: Iterable[str] | None = None) -> dict[str, Any]:
 def recheck_rejects() -> dict[str, Any]:
     """Re-apply today's reject rules to everything already stored.
 
-    Run after changing a filter rule. Reuses the EXACT two-step decision
-    process() makes -- the headline rules first, then the displayable-source
-    check -- so a recheck can never disagree with fresh ingestion.
+    Run after changing a filter rule. Reproduces the FULL decision process()
+    makes -- headline rules, then the displayable-source check, then the
+    subject stage -- so a recheck can never disagree with fresh ingestion.
+
+    ⛔ The subject stage is not optional here. Skipping it erased the subject
+    verdict on 93 stored rows. `feed()`'s separate `direct`-link requirement
+    meant nothing wrong actually reached a feed, but relying on the second
+    guard is not the same as keeping the first one correct.
     """
-    def rule(headline: str, source_class: str) -> str:
+    def rule(headline: str, source_class: str, relevances: list[str]) -> str:
         reason = filters.reject_reason(headline, source_class=source_class)
         if not reason and not news_sources.is_displayable(source_class):
             reason = filters.REJECT_SOURCE
+        if not relevances:
+            reason = reason or filters.REJECT_NO_TICKER
+        elif not reason and not any(
+                r in ("direct", "related") for r in relevances):
+            reason = filters.REJECT_MENTION
         return reason or ""
 
     return store.recheck_rejects(rule)
