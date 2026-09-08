@@ -1,10 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
 import { openCapture } from '../pages/journal-2-0/lib/captureBus'
+import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
 import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
 
@@ -71,6 +72,7 @@ function notebookNoteRowsMatch(q) {
  */
 const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -261,7 +263,13 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       if (row.action === 'capture') {
         // Opens the ONE shared capture dialog in place. No route change, so the
         // member keeps the page -- and the research context -- they were in.
-        openCapture({ source: 'palette' })
+        // ⛔ AND THE DIALOG IS TOLD WHERE THAT IS. Keeping the member's page was
+        // never the same as keeping their DESTINATION: this passed `{}` until
+        // the Slice 5 E2E, so capture opened from inside a note still asked
+        // which note. Same derivation as the hotkey, from one module.
+        const destination = destinationFromLocation(location, { recents: recentNotes })
+        openCapture(destination ? { source: 'palette', destination }
+                                : { source: 'palette' })
         close()
         return
       }

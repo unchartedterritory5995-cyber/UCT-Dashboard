@@ -105,7 +105,15 @@ export default function CaptureDialog({
 
   // The destination in force: the door's default unless the member picked one.
   const dest = pickedDest || destination
-  const needsPicker = !dest?.noteId && !dest?.ticker
+  // ⛔ MODE-AWARE, and it has to be. A ticker-only destination ("NVDA
+  // Research") is a complete answer for a THOUGHT — the note is created
+  // carrying that ticker — but a SOURCE capture writes into an existing note
+  // and needs a noteId. Asking `!noteId && !ticker` for both hid the picker on
+  // a research page and then blocked Save with "a destination", leaving the
+  // member no control that could fix it.
+  const needsPicker = mode === 'thought'
+    ? (!dest?.noteId && !dest?.ticker)
+    : !dest?.noteId
 
   const intent = buildCaptureIntent({
     tier: passage.trim() ? TIER_PASSAGE : TIER_REFERENCE,
