@@ -77,11 +77,21 @@ _log = logging.getLogger(__name__)
 #   v7: summary.next_report_date is resolved DIRECTLY when no forward estimate
 #       carried one. Persisted payloads hold the old null, so without this bump
 #       every cached ticker would keep saying "Date TBD" after the fix shipped.
-# v8: added `reaction` (earnings-day price move per quarter). A shape change
-# MUST bump this or every persisted v7 snapshot keeps serving a payload with
-# no reaction key and the strip stays blank for its whole TTL.
+# v8: added `reaction` (earnings-day price move per quarter).
+#
+# ⚠️ A bump here is not a cache refresh — it is a cold rebuild for every symbol.
+# The first attempt at v8 was reverted within minutes: a rebuild came back with
+# empty quarters but populated `annual`, the old `_has_content` accepted that as
+# a complete payload, persisted it, and the tab read "No earnings history is
+# available" for the whole universe. That was never a bump problem; the bump
+# only exposed it. `_has_quarterly` now refuses to persist a partial build, so
+# the worst a failed rebuild costs is an hour instead of 45 days of stale gap.
 _KIND = "earnings_intel_v8"
 _STALE_MAX = 45 * 86400
+# A build that came back without its quarterly series is held only this
+# long, and never written to disk, so a transient provider failure costs
+# an hour rather than weeks of "No earnings history is available".
+_PARTIAL_TTL = 3600
 # Proximity-weighted freshness: estimates and a pending print move, settled
 # history does not.
 _TTL_FAR = 24 * 3600        # > 10 days from the next report
@@ -632,8 +642,25 @@ def _ttl_for(payload: dict) -> float:
 
 
 def _has_content(payload: dict) -> bool:
+    """Anything worth returning to a caller at all."""
     return bool(payload.get("quarters") or payload.get("estimates")
                 or (payload.get("annual") or {}).get("reported"))
+
+
+def _has_quarterly(payload: dict) -> bool:
+    """The QUARTERLY series — what this payload actually exists to carry.
+
+    ⛔ Not the same question as `_has_content`, and conflating them cost the
+    Earnings tab its history. A build can lose both quarterly tiers and still
+    return populated `annual`, because annual is derived from the statements
+    document while the quarters need the fiscal calendar and the estimates
+    provider. `_has_content` said True on the annual alone, so that half-built
+    payload was cached at full TTL AND persisted to disk — and the tab read "No
+    earnings history is available for MU" while serving it stale for up to 45
+    days. A payload with no quarters is a PARTIAL build: worth returning once,
+    never worth remembering.
+    """
+    return bool(payload.get("quarters") or payload.get("estimates"))
 
 
 def _schedule_refresh(sym: str) -> None:
@@ -671,7 +698,10 @@ def get_earnings(ticker: str) -> dict:
     stored = snap_store.get(_KIND, sym)
     if stored is not None:
         payload, age, ttl = stored
-        if isinstance(payload, dict) and _has_content(payload):
+        # A persisted payload with no quarterly series is a partial build that
+        # an earlier, more permissive check let through. Treat it as a miss so
+        # it rebuilds now, rather than serving the gap for the rest of its TTL.
+        if isinstance(payload, dict) and _has_quarterly(payload):
             payload.setdefault("meta", {})["age_seconds"] = int(age)
             if age <= ttl:
                 cache.set(ck, payload, max(60, int(ttl - age)))
@@ -683,7 +713,12 @@ def get_earnings(ticker: str) -> dict:
                 return payload
     out = _build(sym)
     ttl = _ttl_for(out)
-    cache.set(ck, out, ttl if _has_content(out) else 600)
-    if _has_content(out):
+    if _has_quarterly(out):
+        cache.set(ck, out, ttl)
         snap_store.put(_KIND, sym, out, ttl)
+    else:
+        # Partial or empty: hold it briefly so a burst of requests doesn't
+        # re-hammer the providers, but NEVER persist it and never let it reach
+        # the 45-day stale window. It retries on its own within the hour.
+        cache.set(ck, out, _PARTIAL_TTL if _has_content(out) else 600)
     return out

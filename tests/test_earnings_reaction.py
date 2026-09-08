@@ -162,11 +162,26 @@ class TestSampleSizeFloor:
 
 
 class TestCacheVersion:
-    def test_kind_was_bumped_for_the_new_field(self):
+    def test_kind_was_bumped_so_the_reaction_reaches_cached_tickers(self):
         """A shape change must invalidate persisted snapshots, or every cached
-        v7 payload keeps serving without `reaction` for its whole TTL."""
+        payload keeps serving without `reaction` for its whole TTL.
+
+        This bump was made, reverted, and made again. The revert was a wrong
+        diagnosis on my part: the empty Earnings tab was NOT caused by bumping
+        the version, it was caused by `_has_content` accepting a build that had
+        lost its quarters but kept its `annual`, persisting that partial payload
+        and serving it stale. The bump only made every ticker rebuild at once,
+        which is what exposed it. With `_has_quarterly` gating persistence, a
+        failed rebuild now costs an hour rather than weeks, and the bump is safe.
+        See tests/test_earnings_intel_partial_cache.py."""
         from api.services import earnings_intel
         assert earnings_intel._KIND == "earnings_intel_v8"
+
+    def test_a_partial_build_cannot_be_persisted(self):
+        """The guard that makes the bump above safe to make at all."""
+        from api.services import earnings_intel as ei
+        assert ei._has_quarterly({"quarters": [], "estimates": [],
+                                  "annual": {"reported": [{"fiscal_year": 2025}]}}) is False
 
     def test_payload_carries_the_reaction_key(self):
         import inspect
