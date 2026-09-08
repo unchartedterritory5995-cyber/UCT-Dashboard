@@ -92,7 +92,21 @@ export function execute(program, ctx, limits) {
   const columns = ctx.columns
   const n = program.instructions
 
+  // ⭐ THE TWO LIFETIMES, AND THEY ARE THE WHOLE POINT OF A BAR LOOP.
+  // `locals` is the bar frame: reset to `na` at the top of every bar, because a
+  // Pine local read before assignment is `na` and NOT last bar's value — carrying
+  // it over would turn every ordinary binding into an accidental `var`.
+  // `persist` survives, which is what `var` means.
+  const locals = new Float64Array(program.locals).fill(NaN)
+  const persist = new Float64Array(program.persists).fill(NaN)
+  // ⛔ INITIALISATION IS TRACKED SEPARATELY FROM VALUE. `na` is a legitimate
+  // value for an initialised slot (`var float x = na` is real Pine), so "is it
+  // still NaN" cannot answer "has it been initialised" — that conflation would
+  // re-run an initialiser every bar for any slot legitimately holding `na`.
+  const initialised = new Uint8Array(program.persists)
+
   for (let bar = 0; bar < ctx.bars; bar += 1) {
+    locals.fill(NaN)
     let sp = 0
     let pc = 0
     let perBar = 0
@@ -145,6 +159,21 @@ export function execute(program, ctx, limits) {
           stack[sp - 1] = TERNARY(stack[sp - 1], aa, bb)
           break
         }
+        case OP.LOAD_LOCAL: stack[sp++] = locals[a]; break
+        case OP.STORE_LOCAL: locals[a] = stack[--sp]; break
+        case OP.LOAD_PERSIST: stack[sp++] = persist[a]; break
+        case OP.STORE_PERSIST: persist[a] = stack[--sp]; initialised[a] = 1; break
+        case OP.JUMP: pc = a; break
+        case OP.JUMP_IF_FALSE: {
+          // ⛔ `na` IS FALSE HERE, and that is a decision rather than an accident.
+          // Pine will not branch on `na`; treating it as true would run a body
+          // whose condition is unknown. It matches `TERNARY`'s refusal to pick a
+          // branch on a NaN test — the same question, answered the same way.
+          const t = stack[--sp]
+          if (t !== t || t === 0) pc = a
+          break
+        }
+        case OP.JUMP_IF_INIT: if (initialised[a]) pc = b; break
         case OP.EMIT: {
           // ⚰️ A NON-FINITE RESULT IS `na`, AND THE DIFFERENTIAL RAIL IS WHY
           // THIS LINE EXISTS. `close / (close - close)` is Infinity in raw IEEE

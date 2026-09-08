@@ -55,10 +55,23 @@ export const OP = Object.freeze({
   // ── output ──
   EMIT: 40,          // a: output index
   HALT: 41,
+  // ── state (2D) ──
+  LOAD_LOCAL: 50,
+  STORE_LOCAL: 51,
+  LOAD_PERSIST: 52,
+  STORE_PERSIST: 53,     // also MARKS the slot initialised
+  // ── control flow (2D) ──
+  JUMP: 60,
+  JUMP_IF_FALSE: 61,
+  // ⭐⭐ `var` INITIALISES ONCE, AND THE GUARD IS AN OPCODE RATHER THAN A FLAG.
+  // C3B already paid for the other design: the object translator emitted
+  // `var table t = table.new(…)` unguarded, minted a NEW table every bar, blew
+  // an 8-table envelope by bar 8, and EVERY runtime unit test passed — only a
+  // 300-bar ladder run could see it. A flag checked inside STORE would still
+  // EVALUATE the initialiser every bar, which is wrong the moment an initialiser
+  // can have an effect. Jumping over it is once-only by construction.
+  JUMP_IF_INIT: 62,      // a: persist slot, b: target — skip an initialiser already run
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
-  LOAD_LOCAL: 50, STORE_LOCAL: 51,
-  LOAD_PERSIST: 52, STORE_PERSIST: 53,
-  JUMP: 60, JUMP_IF_FALSE: 61,
   CALL: 70, RET: 71,
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -71,6 +84,8 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
   OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE,
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
+  OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
+  OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -136,6 +151,23 @@ export function validateProgram(p) {
     }
     if (op === OP.EMIT && (a < 0 || a >= p.outputs.length)) {
       throw new ProgramError(`pc ${pc}: EMIT ${a} outside ${p.outputs.length} outputs`)
+    }
+    if ((op === OP.LOAD_LOCAL || op === OP.STORE_LOCAL) && (a < 0 || a >= p.locals)) {
+      throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${p.locals} locals`)
+    }
+    if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= p.persists)) {
+      throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${p.persists} persists`)
+    }
+    // ⛔ A JUMP TARGET IS VALIDATED HERE, not discovered by running off the end.
+    // An out-of-range target is a compiler bug and reads as one; reaching the
+    // dispatch loop it would read as a runtime failure on the member's script.
+    if (op === OP.JUMP || op === OP.JUMP_IF_FALSE) {
+      if (a < 0 || a > n) throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} target ${a} outside 0..${n}`)
+    }
+    if (op === OP.JUMP_IF_INIT) {
+      if (a < 0 || a >= p.persists) throw new ProgramError(`pc ${pc}: JUMP_IF_INIT slot ${a} outside ${p.persists} persists`)
+      const t = p.code[pc * 3 + 2]
+      if (t < 0 || t > n) throw new ProgramError(`pc ${pc}: JUMP_IF_INIT target ${t} outside 0..${n}`)
     }
   }
   if (n === 0 || p.code[(n - 1) * 3] !== OP.HALT) {

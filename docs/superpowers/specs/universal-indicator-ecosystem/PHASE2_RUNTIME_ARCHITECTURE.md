@@ -305,3 +305,43 @@ matches source order rather than a mathematically equivalent reduction.
   "skipped"; a screener cannot, so this needs a real answer in 2B.
 - **Bars transport** — 4.0 s at 5,000 symbols with JSON is acceptable; a binary
   frame would cut it further and is an optimization, not a prerequisite.
+
+---
+
+## 9. STATUS — 2D-1 (state and control flow execute)
+
+`runtime/ir.js` is the artifact Phase 1 proved did not exist: **statements and
+expressions as different kinds**, with slot-resolved variables (never names), and
+loops / functions / tuples / arrays / object ops declared but not yet lowerable so
+the shape cannot need re-cutting when they land. `runtime/lowerIr.js` lowers it;
+`runtime/vm.js` executes it.
+
+**Implemented and conformance-tested (43 cases across two files):**
+
+| | |
+|---|---|
+| `var` — a value that survives the bar | ✅ |
+| `:=` reassignment | ✅ |
+| bar-local frame, reset each bar | ✅ |
+| `if` / `else` as **statements that mutate** | ✅ (nested too) |
+| `na` does not take a branch | ✅ |
+| state accumulating a columnar-lane column | ✅ |
+| resource stop by name | ✅ |
+
+⭐⭐ **`var` initialises once STRUCTURALLY.** `JUMP_IF_INIT` jumps *over* the
+initialiser, so it is not merely stored once — it is not **evaluated** again. C3B
+paid for the other design: `var table t = table.new(…)` emitted unguarded minted a
+new table every bar and blew an 8-table envelope by bar 8, with every runtime unit
+test green. Initialisation is also tracked **separately from value**, because
+`var float x = na` is real Pine and "is it still NaN" cannot answer "has it been
+initialised".
+
+⛔ **Named gaps, refused rather than approximated:** history over a *variable*
+(`x[1]` needs a per-slot ring buffer written at end of bar — 2E), expression
+statements (nothing has an effect yet), and every reserved opcode.
+
+⚠️ **The front end is still 2D-2.** `lower.js` consumes the canonical expression
+tree and `lowerIr.js` consumes hand-built IR; the path from `pine.js`'s statement
+tree — `{header, body}` at every level, which it already builds — into the IR is
+the next piece. Until it lands, no Pine *source* reaches the runtime, and corpus
+acceptance is unchanged by design (§48).
