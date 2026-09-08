@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
+import { isCoarsePointer, hitThreshold, handleRadius, useCoarsePointer } from './coarsePointer'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -80,14 +81,22 @@ function fmtLevel(v) {
   return String(+(+v).toFixed(4))
 }
 // Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
-const _COARSE_POINTER = typeof window !== 'undefined'
-  && !!window.matchMedia?.('(pointer: coarse)')?.matches
-const HIT_THRESHOLD = _COARSE_POINTER ? 15 : 8 // pixels
-// Selection-handle PAINT radius. The grab zone was already coarse-aware
-// (HIT_THRESHOLD above) but the dot itself stayed 4px — finger users couldn't
-// SEE what was grabbable. On touch the dot grows and renderSelectionHandles
-// adds a soft halo sized to the real hit zone, so the affordance matches it.
-const HANDLE_R = _COARSE_POINTER ? 7 : 4
+//
+// ⛔ THESE ARE FUNCTIONS, NOT CONSTANTS, AND THAT IS THE POINT. They were
+// `const HIT_THRESHOLD = _COARSE_POINTER ? 15 : 8` — evaluated ONCE at module
+// import, so a chart could never change pointer type for the life of the
+// bundle. An iPad that gains or loses a Magic Keyboard flips `(pointer: coarse)`
+// mid-session, and an emulated coarse pointer could never reach this branch at
+// all, which is why four coarse-pointer drawing behaviours were unverifiable in
+// the 2026-09 mobile teardown. `coarsePointer.js` owns the live answer; call it
+// at USE time and never hoist the result into a module-scope constant again.
+//
+// Selection-handle PAINT radius: the grab zone was already coarse-aware but the
+// dot itself stayed 4px — finger users couldn't SEE what was grabbable. On touch
+// the dot grows and renderSelectionHandles adds a halo sized to the real hit
+// zone, so the affordance matches it.
+const HIT_THRESHOLD = () => hitThreshold()
+const HANDLE_R = () => handleRadius()
 // One-time "tap two points" coach chip for multi-point tools on touch —
 // single flag across all tools (the voice.dictation.hintSeen idiom).
 const TAP_HINT_LS = 'uct.drawings.tapHintSeen'
@@ -699,17 +708,21 @@ function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
 }
 
 function renderSelectionHandles(ctx, pts) {
+  // Pure canvas painter — no hook available here, so it asks the store directly.
+  // That is precisely why coarsePointer.js exposes a synchronous read as well as
+  // a hook: one fact, two doors, and they cannot disagree.
+  const coarse = isCoarsePointer()
   for (const p of pts) {
-    if (_COARSE_POINTER) {
+    if (coarse) {
       // Halo = the actual grab zone (HIT_THRESHOLD + the handle slack), so a
       // finger sees exactly how close is close enough.
       ctx.beginPath()
-      ctx.arc(p.x, p.y, HIT_THRESHOLD + 2, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, HIT_THRESHOLD() + 2, 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(201, 168, 76, 0.16)'
       ctx.fill()
     }
     ctx.beginPath()
-    ctx.arc(p.x, p.y, HANDLE_R, 0, Math.PI * 2)
+    ctx.arc(p.x, p.y, HANDLE_R(), 0, Math.PI * 2)
     ctx.fillStyle = '#c9a84c'
     ctx.fill()
     ctx.strokeStyle = '#1a1c17'
@@ -740,33 +753,33 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
   if (!pts.length) return false
   switch (d.type) {
     case 'trendline':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'ray': {
       if (pts.length < 2) return false
       const [a, b] = extendRay(pts[0], pts[1], w, h)
-      return distToSegment(mx, my, a.x, a.y, b.x, b.y) < HIT_THRESHOLD
+      return distToSegment(mx, my, a.x, a.y, b.x, b.y) < HIT_THRESHOLD()
     }
     case 'extended': {
       if (pts.length < 2) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     }
     case 'horizontal':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD
+      return Math.abs(my - pts[0].y) < HIT_THRESHOLD()
     case 'hray':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD && mx >= (pts[0].x || 0) - HIT_THRESHOLD
+      return Math.abs(my - pts[0].y) < HIT_THRESHOLD() && mx >= (pts[0].x || 0) - HIT_THRESHOLD()
     case 'vertical':
-      return Math.abs(mx - pts[0].x) < HIT_THRESHOLD
+      return Math.abs(mx - pts[0].x) < HIT_THRESHOLD()
     case 'rect':
     case 'circle': {
       if (pts.length < 2) return false
-      const x1 = Math.min(pts[0].x, pts[1].x) - HIT_THRESHOLD
-      const y1 = Math.min(pts[0].y, pts[1].y) - HIT_THRESHOLD
-      const x2 = Math.max(pts[0].x, pts[1].x) + HIT_THRESHOLD
-      const y2 = Math.max(pts[0].y, pts[1].y) + HIT_THRESHOLD
+      const x1 = Math.min(pts[0].x, pts[1].x) - HIT_THRESHOLD()
+      const y1 = Math.min(pts[0].y, pts[1].y) - HIT_THRESHOLD()
+      const x2 = Math.max(pts[0].x, pts[1].x) + HIT_THRESHOLD()
+      const y2 = Math.max(pts[0].y, pts[1].y) + HIT_THRESHOLD()
       return mx >= x1 && mx <= x2 && my >= y1 && my <= y2
     }
     case 'arrow':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'text': {
       // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
       // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
@@ -793,15 +806,15 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'fib':
     case 'fibext':
       if (pts.length < 2) return false
-      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD * 2)
+      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
     case 'pitchfork':
       if (pts.length < 3) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD * 2
+      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD() * 2
     case 'channel':
       if (pts.length < 2) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD * 2
+      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD() * 2
     case 'cup': {
-      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
       const L = pts[0], R = pts[2]
       const c = cupControlPoint(L, pts[1], R)
       // Sample the quadratic and test each chord against the cursor.
@@ -810,7 +823,7 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
         const t = i / 20, u = 1 - t
         const qx = u * u * L.x + 2 * u * t * c.x + t * t * R.x
         const qy = u * u * L.y + 2 * u * t * c.y + t * t * R.y
-        if (distToSegment(mx, my, px, py, qx, qy) < HIT_THRESHOLD) return true
+        if (distToSegment(mx, my, px, py, qx, qy) < HIT_THRESHOLD()) return true
         px = qx; py = qy
       }
       return false
@@ -829,7 +842,7 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
       return mx >= Math.min(...xs) && mx <= Math.max(...xs) && my >= Math.min(...ys) && my <= Math.max(...ys)
     }
     case 'avwap':
-      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD * 2
+      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD() * 2
     default: return false
   }
 }
@@ -1077,6 +1090,11 @@ export default function ChartDrawingOverlay({
   quickBarInset = 10,        // px above the chart's bottom edge for the touch quick-action
                              //   bar — the phone shell raises it above its docked draw bar.
 }) {
+  // ⭐ LIVE, not frozen. Every touch affordance below (auto-select after placing,
+  // the touch pointer-routing effect, the coach chip, the quick bar, sheet-vs-
+  // popover) reads THIS, so attaching or detaching an iPad keyboard re-renders
+  // them instead of stranding the chart in the pointer type it booted with.
+  const coarsePointer = useCoarsePointer()
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
   // First-use coach chip for touch: a multi-point tool places by TAP-TAP, and
@@ -1913,7 +1931,7 @@ export default function ChartDrawingOverlay({
     if (!d) return null
     const pts = resolvePixels(d.points || [])
     for (let i = 0; i < pts.length; i++) {
-      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD + 2) {
+      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD() + 2) {
         return { drawingId: d.id, handleIdx: i }
       }
     }
@@ -2155,7 +2173,7 @@ export default function ChartDrawingOverlay({
           // SELECTED, so the quick-action bar appears at the exact moment you
           // most want to restyle or delete what you just placed. Mouse users
           // keep the unselected finish (they have hover + right-click).
-          if (_COARSE_POINTER && newId) setSelectedId(newId)
+          if (coarsePointer && newId) setSelectedId(newId)
         }
       } else {
         setPendingPoints(newPending)
@@ -2307,7 +2325,7 @@ export default function ChartDrawingOverlay({
   useEffect(() => {
     const canvas = canvasRef.current
     const wrapper = canvas?.parentElement
-    if (!wrapper || !_COARSE_POINTER) return   // touch / coarse-pointer devices only
+    if (!wrapper || !coarsePointer) return     // touch / coarse-pointer devices only
     let dragging = false
     const onDown = (e) => {
       if (e.pointerType === 'mouse') return
@@ -2362,7 +2380,7 @@ export default function ChartDrawingOverlay({
       wrapper.removeEventListener('pointercancel', onUp, capT)
       wrapper.removeEventListener('touchmove', onTouchMove, { capture: true })
     }
-  }, [])
+  }, [coarsePointer])
 
   // Deselect when clicking away. In no-tool mode the overlay canvas is
   // pointer-transparent over empty space, so an empty-space click lands on the
@@ -2639,7 +2657,7 @@ export default function ChartDrawingOverlay({
           on coarse-pointer devices until the first completed placement (or ✕).
           Inline-styled like the overlay's other DOM chrome; palette matches the
           drawing context menu. */}
-      {_COARSE_POINTER && !tapHintSeen && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput && (
+      {coarsePointer && !tapHintSeen && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput && (
         <div
           data-testid="tap-tap-hint"
           style={{
@@ -2683,7 +2701,7 @@ export default function ChartDrawingOverlay({
           (or finish a drawing) → a visible door to editing; long-press alone
           buried it. Style opens the SAME DrawingContextMenu sheet the long-press
           opens (one editing authority); the rest reuse its exact handlers. */}
-      {_COARSE_POINTER && !readOnly && selectedId && !activeTool && !isDragging && !ctxMenu && !textInput && (() => {
+      {coarsePointer && !readOnly && selectedId && !activeTool && !isDragging && !ctxMenu && !textInput && (() => {
         const d = drawings.find(dd => dd.id === selectedId)
         if (!d) return null
         return (
@@ -2732,7 +2750,7 @@ export default function ChartDrawingOverlay({
           <DrawingContextMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
-            sheet={_COARSE_POINTER}
+            sheet={coarsePointer}
             drawing={d}
             levelSupported={LEVEL_LINE_TYPES.has(d.type)}
             horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
