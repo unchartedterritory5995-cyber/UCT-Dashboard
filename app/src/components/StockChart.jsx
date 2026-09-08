@@ -3922,6 +3922,12 @@ export default function StockChart({
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
+  // MOB-06′ orphan · CLEAR ALL. Same idiom and same reason as addDrawingRef:
+  // `buildRegionSections` is defined above `useChartDrawings`, and a direct
+  // capture would put `clearAll` and `drawings.length` in the menu's dep array,
+  // rebuilding it on every drawing edit for a row most users never open.
+  const clearAllRef = useRef(null)
+  const drawingCountRef = useRef(0)
 
   // ⭐ chart-UX-walls TASK 4 — "Add alert on <label>…", from the chip AND from the
   // right-click region menu, through the SAME popover the 🔔 button opens.
@@ -4368,6 +4374,23 @@ export default function StockChart({
     })
     if (showDrawingTools) {
       viewItems.push({ id: 'hide-draw', label: 'Hide drawings', kind: 'toggle', checked: !!cs.hideDrawings, onSelect: () => setCs('hideDrawings', !cs.hideDrawings) })
+      // MOB-06′ orphan · CLEAR ALL. `clearAll` reached only the desktop toolbar,
+      // which is display:none on the phone shell, so erasing a board meant tapping
+      // the eraser once per drawing. It sits beside "Hide drawings" because both
+      // act on the whole set — the grammar's rule that related actions live in one
+      // place.
+      // ⭐ THE COUNT IS THE CLARITY. A destructive row on a phone needs to say what
+      // it will destroy, and the row is absent entirely at zero rather than being a
+      // live control that does nothing. Undo covers a mis-tap (the phone draw bar
+      // carries it), which is why this asks no second question.
+      const _drawCount = drawingCountRef.current || 0
+      if (_drawCount > 0) {
+        viewItems.push({
+          id: 'clear-draw',
+          label: `Clear all drawings (${_drawCount})`,
+          onSelect: () => { try { clearAllRef.current?.() } catch { /* noop */ } },
+        })
+      }
     }
     viewItems.push(...settingsLink('chart-set', 'Chart settings…'))
     secs.push({ id: 'view', items: viewItems })
@@ -4598,6 +4621,8 @@ export default function StockChart({
   }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
+  clearAllRef.current = clearAll
+  drawingCountRef.current = drawings.length
 
   // "Set alert" from a line/trendline's right-click menu → create a server-side
   // watchlist alert (fires the bell/email/Discord like any price alert; appears in
@@ -15603,6 +15628,8 @@ export default function StockChart({
               canRedo={canRedo}
               magnet={magnet}
               setMagnet={setMagnet}
+              repeatMode={repeatMode}
+              setRepeatMode={handleSetRepeatMode}
             />
           )}
           <ChartToolbar

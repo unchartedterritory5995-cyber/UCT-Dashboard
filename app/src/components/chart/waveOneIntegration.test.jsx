@@ -133,10 +133,14 @@ HTMLCanvasElement.prototype.getContext = function getContext() {
 beforeEach(() => {
   cleanup()
   H.reset()
+  // Module-level store: without this the drawing counts leak between cases and
+  // the Clear-all label asserts a number an earlier case created.
+  try { drawingsStore._reset() } catch { /* first run, before the import resolves */ }
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
 })
 
 const { default: StockChart } = await import('../StockChart')
+const drawingsStore = await import('./drawingsStore')
 const { mergeChartSettings } = await import('./chartDefaults')
 
 const BARS = bars200.bars
@@ -398,6 +402,41 @@ describe('drawing surfaces and their phone doors', () => {
     expect(row.kind).toBe('toggle')
     act(() => { row.onSelect() })
     expect(v.last().hideDrawings, 'Hide drawings wrote nothing').toBe(true)
+  })
+
+  it('MOB-06′ orphan · CLEAR ALL has a phone door, and it names what it will destroy', () => {
+    // `clearAll` reached only the desktop toolbar, which is display:none on this
+    // shell — erasing a board meant tapping the eraser once per drawing.
+    //
+    // ⛔ THE DRAWINGS ARE SEEDED FOR REAL. The first version of this case had an
+    // early return when the row was absent, which made it unfailable: a build
+    // that never offers the row would have passed it.
+    drawingsStore.subscribe('AAPL', () => {})
+    drawingsStore.addDrawing('AAPL', { type: 'horizontal', points: [{ price: 10 }] })
+    drawingsStore.addDrawing('AAPL', { type: 'horizontal', points: [{ price: 20 }] })
+    mountChart()
+    const row = sectionOf(menuAt('price'), 'view').items.find((i) => i && i.id === 'clear-draw')
+    expect(row, 'no Clear-all row with two drawings on the chart').toBeTruthy()
+    expect(row.label, 'the destructive row does not say what it will destroy').toBe('Clear all drawings (2)')
+  })
+
+  it('…and clearing actually empties the board', () => {
+    drawingsStore.subscribe('AAPL', () => {})
+    drawingsStore.addDrawing('AAPL', { type: 'horizontal', points: [{ price: 10 }] })
+    mountChart()
+    const row = sectionOf(menuAt('price'), 'view').items.find((i) => i && i.id === 'clear-draw')
+    act(() => { row.onSelect() })
+    expect(drawingsStore.peekDrawings('AAPL')).toHaveLength(0)
+  })
+
+  it('…and the row is ABSENT with nothing to clear, not present-and-inert', () => {
+    mountChart()
+    const ids = sectionOf(menuAt('price'), 'view').items.filter(Boolean).map((i) => i.id)
+    // This chart has no drawings, so the destructive row must not be offered.
+    expect(ids).not.toContain('clear-draw')
+    // …while the non-destructive sibling IS always offered, which proves the
+    // section rendered at all and this is not a vacuous absence assertion.
+    expect(ids).toContain('hide-draw')
   })
 
   it('the magnet reaches MobileDrawBar on the phone shell', () => {
