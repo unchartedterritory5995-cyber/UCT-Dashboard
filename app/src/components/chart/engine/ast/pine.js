@@ -4613,6 +4613,32 @@ class Resolver {
             }
           }
         }
+        // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
+        //
+        // C3B-CLOSE measured `bar_index % 50 == 0` refusing and filed it as a
+        // VALUE-lane grammar gap (H7/J5.1). The obvious repair — add `%` to
+        // `closedTable.operators`, give it a precedence in `parse.js`, implement
+        // it in `interpret.js` and again in `ast_interpret.py` — would have minted
+        // a SECOND AUTHORITY OVER ONE ARITHMETIC in a repo whose most-repeated
+        // defect is exactly that. The table ALREADY owns this arithmetic, as the
+        // function `mod`: truncated, sign following the dividend, NaN on a zero
+        // divisor and NaN on a non-finite quotient. Both kernels implement it, and
+        // `_guarded_mod`'s docstring names the trap the second implementation
+        // would have walked into — `-7 % 2` is `-1` in JS and `1` in Python, so a
+        // borrowed `%` would have made the chart and the screener disagree about a
+        // negative dividend with every test green in both lanes.
+        //
+        // So the SURFACE SYNTAX lowers onto the settled semantics and nothing new
+        // is declared: no node type, no precedence entry, no second numeric
+        // authority, no new refusal. The screener understands `%` the same day the
+        // chart does, because it is reading a call it has always known.
+        //
+        // ⛔ ASKED BEFORE `PINE_OP_TO_TABLE`, which has no `%` and must not gain
+        // one — an entry there would route `%` to an operator the table does not
+        // declare and land back on the refusal below.
+        if (node.op === '%') {
+          return cCall('mod', [this.resolve(node.left), this.resolve(node.right)])
+        }
         const mapped = PINE_OP_TO_TABLE[node.op]
         if (!mapped || !own(this.table.operators, mapped)) {
           throw new PineRefusal('pine:operator',

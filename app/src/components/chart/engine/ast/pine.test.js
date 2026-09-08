@@ -587,9 +587,12 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a name the script never bound',
       '//@version=5\nindicator("t")\nplot(mystery)\n',
       'pine:undefined', 3, 6, 'mystery'],
-    ['the modulo operator, which this table has no counterpart for',
-      '//@version=5\nindicator("t")\nplot(close % 2)\n',
-      'pine:operator', 3, 12, '%'],
+    // ⚰️ THIS WAS `plot(close % 2)` → `pine:operator`, AND `%` NO LONGER REFUSES.
+    // C4 Phase 1 (H7/J5.1) lowers it onto `mod`, the call this table has always
+    // owned — so the operator the case was written about now has a counterpart
+    // and the refusal it pinned is gone on purpose. `pine.modulo.test.js` owns
+    // the new ruling, including the negative dividend that distinguishes a
+    // truncated remainder from a floored one.
     ['a JavaScript negation, which is not Pine at all',
       '//@version=5\nindicator("t")\nplot(!(close > open) ? 1 : 0)\n',
       'pine:operator', 3, 6, '!'],
@@ -736,8 +739,11 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
   }
 
   it('a refusal that names a line shows that line with a caret under the token', () => {
-    const r = refusalOf('//@version=5\nindicator("t")\nplot(close % 2)\n')
-    expect(r.excerpt).toBe('plot(close % 2)\n           ^')
+    // ⚰️ THIS USED `plot(close % 2)` UNTIL C4 PHASE 1, when `%` stopped refusing.
+    // The case is about the EXCERPT, not about which construct is unsupported, so
+    // it moved onto a sibling operator refusal rather than being weakened.
+    const r = refusalOf('//@version=5\nindicator("t")\nplot(!(close > open) ? 1 : 0)\n')
+    expect(r.excerpt).toBe('plot(!(close > open) ? 1 : 0)\n     ^')
   })
 
   it('...and the caret is under the token, on a long line, at a two-digit column', () => {

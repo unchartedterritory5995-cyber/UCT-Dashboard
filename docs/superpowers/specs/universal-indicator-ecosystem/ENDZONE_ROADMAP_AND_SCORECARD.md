@@ -422,3 +422,52 @@ checking an instrument's premise:** the first run measured the instance
 validator refusing an undeclared input and reported it as "the object did not
 survive a parameter change" — a clean-looking `false` from a probe that could
 never have produced a `true`.
+
+---
+
+# POST-C4-PHASE-1 UPDATE (2026-09-08)
+
+Evidence: `C4_PHASE1_ARCHITECTURE_AND_MATRIX.md`. Gaps: `ENDZONE_GAP_REGISTER.md`
+PART K.
+
+| # | Dimension | Before | After | Why |
+|---|---|---|---|---|
+| A | SEMANTIC COMPATIBILITY | 🔴 | 🔴 | **Re-measured at HEAD and it has not moved in eight commits** — 18/60, 27+9/48, 18/30, 5/10, 14/21, identical to post-Wave-A. The reason is now proved rather than suspected: 65% of 159 real scripts demand semantics the canonical IR has no node for. |
+| — | ARCHITECTURE CLARITY | 🔴 | ✅ | **The A-vs-B question is answered with evidence, not preference.** The ceiling is the ARTIFACT (8 expression node types, 1 of 70 builtins declaring a recurrence), not the walker; and the performance objection to a runtime was measured and is 2.78× on the arithmetic the columnar lane can express, with a 5,000-symbol scan at 0.4 s. Hybrid B is the conclusion. |
+| I | FAILURE TRANSPARENCY | 🟡 | 🟡 | Unchanged and deliberately so — §58 says disclosure is a development rail, not the product. Deferred behind capability. |
+| C | COMPLEX VISUAL FIDELITY | 🟡 | 🟡 | Unmoved and now quantified from the supply side: `object+state` 56 scripts, `object+loop` 37, `array+object` 38. The object lane's ceiling is its supply, exactly as C3B-CLOSE argued. |
+| — | HONEST ACCOUNTING | 🟡 | ✅ | **57% of accepted scripts carry a probe flag; 21 of them lose 78 of 246 declared visual calls.** "Accepted" and "transferred" are now separated in the reporting, with Layer-C axes marked UNMEASURED rather than estimated. |
+
+⛔ **A and F remain 🔴 and Tier 2 remains the earned ceiling.** Nothing in this
+wave changed what a member can do.
+
+## What Phase 1 shipped, and the number it did not move
+
+One generalized fix (H7/J5.1): `%` lowers to the `mod` call both kernels already
+own — no new node type, no precedence entry, **no second arithmetic authority**
+(the alternative would have made the chart and screener disagree on every negative
+dividend, green in both lanes). Rail `pine.modulo.test.js`, 10 cases.
+
+**Corpus effect: 91 → 91 accepted. 761 → 761 outputs. 224 → 224 usable.**
+
+⭐⭐ That zero is the wave's most useful result. It is §64 in one measurement: a
+correct, generalized, well-railed value-lane grammar fix bought nothing on 159
+real scripts, because every `%` in the corpus sits behind a bigger blocker. Phase
+1 stopped there rather than spend the wave re-proving it on `last_bar_index` and
+`create:box`.
+
+## The next wave, on the measured numbers
+
+**C4 PHASE 2 — the bounded Pine runtime. NOT AUTHORIZED; owner review required.**
+
+Ordering, with measured demand of 159 scripts: Task 0 the two-kernel decision
+(largest open risk) → Task 1 the graph-vs-VM differential rail → Task 2 runtime
+foundation + resource model → **state (80) → statements/control flow (72) →
+UDFs+tuples (64+42) → loops (45) → arrays (42)** → objects driven by them →
+context/MTF (28) → residual visuals → numeric screener projection → realtime →
+cross-feature conformance and re-measure.
+
+⚠️ **Tasks 3–7 are one unit in the corpus**: 30 scripts (19%) need
+array+loop+UDF+object simultaneously, so per-task acceptance will read flat until
+the block completes. Judge them on conformance coverage until then — a
+mid-block measurement looks exactly like the `%` result above.

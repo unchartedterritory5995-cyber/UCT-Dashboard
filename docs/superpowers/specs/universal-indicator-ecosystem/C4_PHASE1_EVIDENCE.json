@@ -1,0 +1,532 @@
+{
+  "generatedAt": "2026-09-08",
+  "head": "f578eb81b",
+  "note": "C4 Phase 1. Layer A only; Layer C axes UNMEASURED, never estimated.",
+  "corpora": {
+    "oos60": {
+      "n": 60,
+      "outcomes_at_head": {
+        "RAW_ACCEPTED": 18,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 42,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "outcomes_after_modulo_fix": {
+        "RAW_ACCEPTED": 18,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 42,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "probeFlagged": 17,
+      "outputsTotal": 397,
+      "outputsUsable": 91
+    },
+    "blind48": {
+      "n": 48,
+      "outcomes_at_head": {
+        "RAW_ACCEPTED": 27,
+        "ASSISTED_ACCEPTED": 9,
+        "CORRECTLY_REFUSED": 12,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "outcomes_after_modulo_fix": {
+        "RAW_ACCEPTED": 27,
+        "ASSISTED_ACCEPTED": 9,
+        "CORRECTLY_REFUSED": 12,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "probeFlagged": 5,
+      "outputsTotal": 48,
+      "outputsUsable": 27
+    },
+    "community30": {
+      "n": 30,
+      "outcomes_at_head": {
+        "RAW_ACCEPTED": 18,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 12,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "outcomes_after_modulo_fix": {
+        "RAW_ACCEPTED": 18,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 12,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "probeFlagged": 15,
+      "outputsTotal": 156,
+      "outputsUsable": 52
+    },
+    "parity10": {
+      "n": 10,
+      "outcomes_at_head": {
+        "RAW_ACCEPTED": 5,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 5,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "outcomes_after_modulo_fix": {
+        "RAW_ACCEPTED": 5,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 5,
+        "INVALID_SOURCE": 0,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "probeFlagged": 5,
+      "outputsTotal": 135,
+      "outputsUsable": 28
+    },
+    "curated21": {
+      "n": 21,
+      "outcomes_at_head": {
+        "RAW_ACCEPTED": 14,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 6,
+        "INVALID_SOURCE": 1,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "outcomes_after_modulo_fix": {
+        "RAW_ACCEPTED": 14,
+        "ASSISTED_ACCEPTED": 0,
+        "CORRECTLY_REFUSED": 6,
+        "INVALID_SOURCE": 1,
+        "UNKNOWN_NEEDS_ADJUDICATION": 0
+      },
+      "probeFlagged": 10,
+      "outputsTotal": 160,
+      "outputsUsable": 54
+    }
+  },
+  "blockers": {
+    "primary_unique_scripts": {
+      "ACCEPTED": 77,
+      "pine:function": 17,
+      "pine:builtin": 14,
+      "pine:reassign": 10,
+      "pine:no-output": 9,
+      "pine:request": 6,
+      "pine:tuple": 5,
+      "pine:state": 5,
+      "pine:character": 4,
+      "pine:function-def": 3,
+      "pine:constant-only": 1,
+      "pine:role-order": 1,
+      "pine:undefined": 1,
+      "pine:window": 1,
+      "pine:collection": 1,
+      "pine:block": 1,
+      "pine:module": 1,
+      "pine:plot-offset": 1,
+      "pine:declaration-strategy": 1
+    }
+  },
+  "surfaceDemand": {
+    "uniqueScripts": 159,
+    "table": [
+      {
+        "family": "op:ternary",
+        "scripts": 152,
+        "uses": 3042
+      },
+      {
+        "family": "history:subscript",
+        "scripts": 119,
+        "uses": 712
+      },
+      {
+        "family": "vis:plot",
+        "scripts": 119,
+        "uses": 402
+      },
+      {
+        "family": "ns:ta",
+        "scripts": 106,
+        "uses": 706
+      },
+      {
+        "family": "input:int",
+        "scripts": 105,
+        "uses": 373
+      },
+      {
+        "family": "na:handling",
+        "scripts": 99,
+        "uses": 1627
+      },
+      {
+        "family": "ns:color",
+        "scripts": 78,
+        "uses": 1771
+      },
+      {
+        "family": "ns:math",
+        "scripts": 75,
+        "uses": 420
+      },
+      {
+        "family": "state:reassign",
+        "scripts": 72,
+        "uses": 1110
+      },
+      {
+        "family": "udt:new",
+        "scripts": 70,
+        "uses": 962
+      },
+      {
+        "family": "ctrl:if",
+        "scripts": 69,
+        "uses": 938
+      },
+      {
+        "family": "state:var",
+        "scripts": 64,
+        "uses": 714
+      },
+      {
+        "family": "udf:def",
+        "scripts": 63,
+        "uses": 255
+      },
+      {
+        "family": "input:float",
+        "scripts": 61,
+        "uses": 153
+      },
+      {
+        "family": "input:bool",
+        "scripts": 55,
+        "uses": 305
+      },
+      {
+        "family": "vis:alert",
+        "scripts": 52,
+        "uses": 187
+      },
+      {
+        "family": "ctx:barstate",
+        "scripts": 51,
+        "uses": 141
+      },
+      {
+        "family": "ctx:syminfo",
+        "scripts": 51,
+        "uses": 149
+      },
+      {
+        "family": "ctx:bar_index",
+        "scripts": 48,
+        "uses": 502
+      },
+      {
+        "family": "ctrl:else",
+        "scripts": 46,
+        "uses": 170
+      },
+      {
+        "family": "input:string",
+        "scripts": 45,
+        "uses": 158
+      },
+      {
+        "family": "vis:dynamic_color",
+        "scripts": 45,
+        "uses": 149
+      },
+      {
+        "family": "ns:str",
+        "scripts": 44,
+        "uses": 500
+      },
+      {
+        "family": "tuple:destructure",
+        "scripts": 42,
+        "uses": 131
+      },
+      {
+        "family": "array:use",
+        "scripts": 42,
+        "uses": 1468
+      },
+      {
+        "family": "loop:for",
+        "scripts": 41,
+        "uses": 219
+      },
+      {
+        "family": "input:bare",
+        "scripts": 41,
+        "uses": 303
+      },
+      {
+        "family": "array:new",
+        "scripts": 40,
+        "uses": 249
+      },
+      {
+        "family": "sb:cross",
+        "scripts": 39,
+        "uses": 83
+      },
+      {
+        "family": "input:color",
+        "scripts": 38,
+        "uses": 196
+      },
+      {
+        "family": "obj:label",
+        "scripts": 35,
+        "uses": 396
+      },
+      {
+        "family": "vis:plotshape",
+        "scripts": 35,
+        "uses": 138
+      },
+      {
+        "family": "vis:fill",
+        "scripts": 34,
+        "uses": 72
+      },
+      {
+        "family": "obj:table",
+        "scripts": 33,
+        "uses": 473
+      },
+      {
+        "family": "ctx:timeframe",
+        "scripts": 32,
+        "uses": 127
+      },
+      {
+        "family": "obj:line",
+        "scripts": 31,
+        "uses": 385
+      },
+      {
+        "family": "mtf:security",
+        "scripts": 28,
+        "uses": 102
+      },
+      {
+        "family": "ctrl:switch",
+        "scripts": 22,
+        "uses": 44
+      },
+      {
+        "family": "obj:box",
+        "scripts": 21,
+        "uses": 96
+      },
+      {
+        "family": "vis:hline",
+        "scripts": 20,
+        "uses": 49
+      },
+      {
+        "family": "vis:bgcolor",
+        "scripts": 17,
+        "uses": 26
+      },
+      {
+        "family": "vis:barcolor",
+        "scripts": 17,
+        "uses": 24
+      },
+      {
+        "family": "sb:pivot",
+        "scripts": 16,
+        "uses": 31
+      },
+      {
+        "family": "input:source",
+        "scripts": 15,
+        "uses": 19
+      },
+      {
+        "family": "loop:breakcont",
+        "scripts": 14,
+        "uses": 28
+      },
+      {
+        "family": "input:timeframe",
+        "scripts": 14,
+        "uses": 22
+      },
+      {
+        "family": "ns:chart",
+        "scripts": 14,
+        "uses": 74
+      },
+      {
+        "family": "loop:while",
+        "scripts": 13,
+        "uses": 40
+      },
+      {
+        "family": "sb:barssince",
+        "scripts": 12,
+        "uses": 21
+      },
+      {
+        "family": "op:modulo",
+        "scripts": 11,
+        "uses": 34
+      },
+      {
+        "family": "udt:type",
+        "scripts": 11,
+        "uses": 20
+      },
+      {
+        "family": "input:session",
+        "scripts": 8,
+        "uses": 14
+      },
+      {
+        "family": "input:symbol",
+        "scripts": 7,
+        "uses": 87
+      },
+      {
+        "family": "sb:valuewhen",
+        "scripts": 7,
+        "uses": 35
+      },
+      {
+        "family": "vis:plotcandle",
+        "scripts": 6,
+        "uses": 6
+      },
+      {
+        "family": "loop:forin",
+        "scripts": 5,
+        "uses": 10
+      },
+      {
+        "family": "ctx:calendar",
+        "scripts": 5,
+        "uses": 22
+      },
+      {
+        "family": "matrix:use",
+        "scripts": 4,
+        "uses": 39
+      },
+      {
+        "family": "ns:ticker",
+        "scripts": 4,
+        "uses": 5
+      },
+      {
+        "family": "tuple:return",
+        "scripts": 3,
+        "uses": 13
+      },
+      {
+        "family": "obj:polyline",
+        "scripts": 3,
+        "uses": 10
+      },
+      {
+        "family": "ns:runtime",
+        "scripts": 3,
+        "uses": 3
+      },
+      {
+        "family": "udf:method",
+        "scripts": 2,
+        "uses": 9
+      },
+      {
+        "family": "obj:linefill",
+        "scripts": 2,
+        "uses": 6
+      },
+      {
+        "family": "ctx:last_bar_index",
+        "scripts": 2,
+        "uses": 30
+      },
+      {
+        "family": "mtf:lower_tf",
+        "scripts": 2,
+        "uses": 2
+      },
+      {
+        "family": "input:time",
+        "scripts": 2,
+        "uses": 3
+      },
+      {
+        "family": "vis:plotchar",
+        "scripts": 2,
+        "uses": 5
+      },
+      {
+        "family": "map:use",
+        "scripts": 1,
+        "uses": 2
+      },
+      {
+        "family": "ctx:session",
+        "scripts": 1,
+        "uses": 2
+      },
+      {
+        "family": "mtf:other_request",
+        "scripts": 1,
+        "uses": 2
+      },
+      {
+        "family": "input:price",
+        "scripts": 1,
+        "uses": 1
+      },
+      {
+        "family": "input:enum",
+        "scripts": 1,
+        "uses": 3
+      },
+      {
+        "family": "vis:plotarrow",
+        "scripts": 1,
+        "uses": 1
+      },
+      {
+        "family": "vis:plotbar",
+        "scripts": 1,
+        "uses": 1
+      },
+      {
+        "family": "sb:cum",
+        "scripts": 1,
+        "uses": 4
+      },
+      {
+        "family": "state:varip",
+        "scripts": 0,
+        "uses": 0
+      }
+    ]
+  },
+  "perf": {
+    "bars": 5000,
+    "opsPerBar": 120,
+    "columnar_allocating_ms": 2.08,
+    "columnar_reused_ms": 0.49,
+    "bar_by_bar_tree_ms": 2.44,
+    "bar_by_bar_bytecode_ms": 1.37,
+    "bytecode_vs_columnar_reused": 2.78,
+    "ns_per_bar": 274,
+    "scan_5000x300_seconds_single_threaded": 0.4,
+    "caveat": "floor: no na-handling, bounds checks, arrays or object emission"
+  }
+}

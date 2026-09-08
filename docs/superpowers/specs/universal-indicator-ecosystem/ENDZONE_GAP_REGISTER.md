@@ -887,3 +887,90 @@ exactly one missing VALUE-lane builtin.
 **⭐ The next wave that moves the governing objective is a COMPATIBILITY wave —
 the expression and statement grammar (tuples, user functions, `%`,
 `last_bar_index`, the `pine:state` family) plus J5.4 — not another object wave.**
+
+---
+
+# PART K — C4 PHASE 1: the measurement that reorders the program (2026-09-08)
+
+Evidence: `C4_PHASE1_ARCHITECTURE_AND_MATRIX.md`. Instruments:
+`tools/c4_pine_surface_census.mjs`, `tools/c4_vm_feasibility_probe.mjs`.
+
+### K1 — ⛔⛔ ACCEPTANCE HAS NOT MOVED IN EIGHT COMMITS
+
+Re-measured at HEAD on all five in-repo corpora: OOS 18/60 · blind 27+9/48 ·
+community 18/30 · parity 5/10 · curated 14/21 — **identical to post-Wave-A**.
+Wave B, C0R, C1, C2B/C/D, C3A and C3B moved ZERO scripts across the line. Each
+wave did what it set out to do; the number says where the wall is, and it is not
+where any of them were digging.
+
+### K2 — ⛔⛔ ACCEPTANCE IS NOT TRANSFER
+
+52 of 91 accepted scripts (57%) carry a silent-false-success probe flag:
+`P4_visuals_dropped` 37 · `P1_P2_state_present_but_accepted` 33 ·
+`P5_output_shortfall` 21 · `P3_request_present_but_accepted` 14 ·
+`P7_constant_column` 11. The shortfall is arithmetic, not judgement:
+**21 accepted scripts declare 246 visual calls and carry 168 — 78 lost.**
+⚠️ Flags are DETECTIONS. Nothing here is reclassified SILENT_WRONG without
+adjudication.
+
+### K3 — ⭐⭐ THE CEILING IS IN THE ARTIFACT, NOT THE WALKER
+
+`NODE_TYPES` is eight entries and **all eight are expressions** (`parse.js:171`,
+pinned identically at `ast_interpret.py:112`, validated again by `graph.js`).
+There is no statement, assignment, block, scope, loop, array or UDT node — so
+imperative Pine has nowhere to be **written down**, in the tree, the V2 graph or
+a saved definition. Bar-to-bar state exists only as a `recurrence` declared in
+`closedTable.json`, and **1 of 70 functions declares one** (`accum`).
+**65% of 159 real scripts (104) demand semantics that model cannot hold.**
+Only 35% (55) are pure expressions — and the engine already accepts 42 of them,
+so Option A's entire remaining prize is ~13 scripts.
+
+### K4 — ⚰️ A CORRECT, GENERALIZED GRAMMAR FIX BOUGHT EXACTLY ZERO
+
+H7/J5.1 closed: `%` now lowers to `cCall('mod', …)` — three lines, no new node
+type, no second arithmetic authority (`closedTable.operators` still has no `%`,
+and the test asserts that absence). Re-measured across all five corpora:
+**91 → 91 accepted, 761 → 761 outputs, 224 → 224 usable.** Eleven scripts demand
+`%`; five were already accepted, six are blocked by `pine:tuple`,
+`pine:character`, `pine:no-output` ×2, `pine:function-def`, `pine:builtin`.
+⭐⭐ This is §64 demonstrated instead of argued, and it is why Phase 1 stopped
+rather than prove it five more times on `last_bar_index` and `create:box`.
+
+### K5 — ⚰️ THE `%` RAIL FOUND AN ADJACENT HONESTY DEFECT BY BEING WRONG
+
+The non-vacuity control asserted `close ^ 3` refuses with `pine:operator`. It does
+not — the **lexer** rejects `^` first with *"Pine has no character like this one"*,
+about a character Pine has. Same guard, same wrong message as the 4/60 OOS-2
+scripts using `f(...).field`. Recorded in `pine.modulo.test.js`, which goes red
+when the lexer guard is corrected. **Still open.**
+
+### K6 — ⭐ THE VM PERFORMANCE OBJECTION DOES NOT SURVIVE A NUMBER
+
+`tools/c4_vm_feasibility_probe.mjs`, four shapes running the same program with an
+agreement control that must pass to 1e-9 before any timing prints (it fired on the
+first draft). 5,000 bars × 120 ops: columnar-reused 0.49 ms · **bytecode 1.37 ms
+(2.78×)** · tree walk 2.44 ms (4.96×) · columnar-allocating 2.08 ms.
+⚰️ Against the ALLOCATING shape the VM reads as *faster* (0.66×) — an artefact of
+allocation, which is why the reused-buffer control exists.
+**274 ns/bar ⇒ a 5,000-symbol × 300-bar scan is 0.4 s single-threaded** (1.4 s at
+500 ops/bar). A floor, not a budget — no na-handling, bounds checks, arrays or
+object emission.
+
+### K7 — NEW GAPS, NAMED AND NOT FIXED
+
+| id | lane | statement |
+|---|---|---|
+| **K7.1** | LEXER / HONESTY | `^` (and `f(...).field`) refuse as `pine:character` — "Pine has no character like this one" about characters Pine has. Mischaracterised refusal, 4/60 OOS scripts + every unsupported operator. |
+| **K7.2** | INPUTS | **`input.string` is the largest unserved input type — 45 scripts (28%)**, and it is usually a MODE SELECTOR, so it is entangled with `switch`/`if` rather than independent. |
+| **K7.3** | VERSIONING | The corpus is v6 110 · v3 13 · v5 12 · v4 9 · v2 2 · none 13. **"Target v5/v6" understates the tail: 22% declare `study()`.** No version-specific semantics are represented anywhere today. |
+| **K7.4** | CROSS-FEATURE | **30 scripts (19%) need array+loop+UDF+object SIMULTANEOUSLY.** A roadmap shipping those families one at a time delivers nothing measurable until the last lands — so Phase 2 Tasks 3–7 must be judged by conformance coverage, not corpus acceptance. |
+| **K7.5** | ARCHITECTURE | **The two-kernel decision (§47) is the largest open risk in Phase 2** and is UNMADE. Implementing scopes/frames/loops/arrays twice would diverge exactly where it is invisible. |
+
+### K8 — the ordering this settles
+
+Option A cannot terminate at the objective; extended far enough it BECOMES
+Option B, arriving as accreted special cases instead of a design. The decision is
+**B in its hybrid form**: one version-aware front end lowering into the existing
+columnar graph (kept — 2.7× faster on what it can express, cross-kernel verified)
+for pure expressions, and a bounded bar-by-bar runtime for everything imperative,
+emitting into C3B's object program. **Phase 2 requires owner authorization.**
