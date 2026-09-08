@@ -3150,32 +3150,31 @@ export default function OptionsFlowDashboard() {
   // with no way to switch to GEX/Dark Pool (which don't even need this data) or
   // step back to 1d. The error state below always kept its tabs; this one should
   // too. Same tab bar, same handler, so the page never becomes a dead end.
-  if (csvLoading && !D) return (
-    <div style={{background:"#06090f",minHeight:"100vh",fontFamily:"'JetBrains Mono',monospace",paddingTop:24}}>
-      <div className="of-tabs" style={{ display:"flex", justifyContent:"center", gap:4, marginBottom:60 }}>
-        {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>(
-          <button key={m} onClick={()=>{
-            if (m === "liveflow") { window.open("/live-massive", "_blank", "noopener,noreferrer"); return; }
-            if(dataMode!==m) {
-              const wasFlow = dataMode === "stocks" || dataMode === "index";
-              const toFlow = m === "stocks" || m === "index";
-              if (wasFlow && toFlow) { setFetchDays(1); setDateFilter('Last1'); setDateFrom(''); setDateTo(''); setD(null); setRowCount(0); setAvailableDates([]); setLoadedFetchDays(null); }
-              setDataMode(m);
-            }
-          }} style={{
-            padding:"8px 28px", borderRadius:4, border:"none", cursor:"pointer",
-            fontSize:14, fontWeight:800, fontFamily:"inherit",
-            background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
-          }}>{label}</button>
-        ))}
-      </div>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
-        <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      </div>
-    </div>
-  );
+  // ─── Loading / Error / Empty States (AFTER all hooks) ──────────────────
+  //
+  // ⛔⛔ THERE IS NO LONGER A FULL-PAGE LOADING RETURN, AND THAT IS THE POINT.
+  // Two of them used to live here and they were what the member actually saw
+  // when opening this section. Measured on prod 2026-09-07, visible transition
+  // dashboard -> /options-flow, recorded off DOM mutations:
+  //
+  //     5 ms    blank content area (the route's Suspense fallback)
+  //   749 ms    'Loading flow data...'    full page, mode tabs only
+  //   756 ms    'Processing flow data...' full page, NO tabs at all
+  //  1239 ms    the real page
+  //
+  // So ~490 ms of the wait was this file replacing its own interface with a
+  // spinner. UCT20, measured the same way, has NO spinner phase: it renders its
+  // frame and lets data arrive into it. That is the difference the member feels
+  // as 'a separate heavy application' rather than another UCT section.
+  //
+  // ⛔ Deleting them is SAFE BY CONSTRUCTION, not by inspection: the whole flow
+  // body below is already wrapped in `dataMode !== gex/darkpool && D && (...)`,
+  // so every `D.`/`FD.` access inside it was ALREADY unreachable while D is
+  // null. The gates were not protecting those reads — they were hiding the
+  // chrome that renders fine without them.
+  //
+  // The error state below keeps its full-page treatment: an error is terminal
+  // and needs to be read, not a stage the page passes through.
   if (csvError && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center",maxWidth:400}}>
@@ -3204,16 +3203,6 @@ export default function OptionsFlowDashboard() {
       </div>
     </div>
   );
-  if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
-    <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
-        <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
-        <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      </div>
-    </div>
-  );
-
   const shortDir = FD ? (FD.shortBullTotal >= FD.shortBearTotal ? "BULL" : "BEAR") : "BULL";
   const longDir = FD ? (FD.longBullTotal >= FD.longBearTotal ? "BULL" : "BEAR") : "BULL";
   const shortC = shortDir==="BULL" ? P.bu : P.be;
@@ -3627,6 +3616,58 @@ export default function OptionsFlowDashboard() {
     setNarrativeLoading(false);
   }
 
+
+  // ⛔ ONE DEFINITION, TWO CALL SITES. The view tabs need no data, so they are
+  // rendered BEFORE the dataset arrives as well as after it. Copying the markup
+  // into the pending state would put a second authority on the tab bar, which is
+  // how the two drift and the pending page grows a tab the real page lost.
+  // ⛔⛔ THE PENDING STATE RENDERS THE SECTION, NOT A LOADING SCREEN.
+  // Two full-page spinner returns used to live below, and they were what the
+  // member actually saw. Measured on prod 2026-09-07, visible transition
+  // dashboard -> /options-flow, recorded off DOM mutations:
+  //
+  //       5 ms  blank content area (the route's Suspense fallback)
+  //     749 ms  'Loading flow data...'    full page, mode tabs only
+  //     756 ms  'Processing flow data...' full page, NO tabs at all
+  //    1239 ms  the real page
+  //
+  // ~490 ms of that wait was this file replacing its own interface with a
+  // spinner. UCT20 measured the same way has NO spinner phase at all: it renders
+  // its frame and lets data arrive into it. That is the difference the owner
+  // described as 'launching a separate heavy application'.
+  //
+  // ⛔ IT CLAIMS NOTHING. No numbers, no zeros, no stale values dressed as
+  // current — an empty panel that names what it is waiting for. Speed here comes
+  // from rendering the frame sooner, never from showing figures the page cannot
+  // yet stand behind.
+  const viewTabsBar = (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:14, flexWrap:"wrap" }}>
+          <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
+          {TABS.map(t => (
+            <button key={t} onClick={()=>setTab(t)} style={{
+              padding:"6px 14px", borderRadius:4, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
+            }}>{t}</button>
+          ))}
+          </div>
+          <input type="text" value={hdrSearch}
+            onChange={e => setHdrSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
+            onKeyDown={e => {
+              if (e.key === "Enter" && hdrSearch.trim()) {
+                setChartModal({ sym: hdrSearch.trim() });
+                setChartInterval("D");
+                setHdrSearch("");
+              } else if (e.key === "Escape") { setHdrSearch(""); }
+            }}
+            placeholder="Search ticker"
+            autoComplete="off" spellCheck={false}
+            style={{ width:220, maxWidth:"100%", boxSizing:"border-box", background:P.bg,
+              border:"1px solid "+P.bd, color:P.wh, padding:"7px 12px", borderRadius:6,
+              fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:1, outline:"none" }} />
+        </div>
+  );
 
   return (
     <div className="of-mroot" style={{ background:P.bg, color:P.tx, fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minHeight:"100vh", padding:"16px 20px", zoom:1.18 }}>
@@ -4701,6 +4742,23 @@ export default function OptionsFlowDashboard() {
 
         {dataMode === "darkpool" && <DarkPool embedded />}
 
+        {/* Data pending: the real interface, not a loading screen. See the
+            note above the return -- this replaced two full-page spinners. */}
+        {dataMode !== "gex" && dataMode !== "darkpool" && !D && !csvError && (<>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:P.ac, boxShadow:"0 0 10px "+P.ac }} />
+          <h1 style={{ fontSize:18, fontWeight:800, margin:0, color:P.wh }}>{dataMode==="index"?"INDEX FLOW":"OPTIONS FLOW"} — MARKET READ</h1>
+        </div>
+        {viewTabsBar}
+        <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:"28px 20px",
+                      display:"flex", alignItems:"center", justifyContent:"center", gap:10, minHeight:180 }}>
+          <div style={{ width:16, height:16, border:"2px solid "+P.bd, borderTop:"2px solid "+P.ac,
+                        borderRadius:"50%", animation:"ofspin 0.9s linear infinite" }} />
+          <span style={{ fontSize:12, color:P.mt, letterSpacing:0.3 }}>Loading flow data…</span>
+          <style>{"@keyframes ofspin{to{transform:rotate(360deg)}}"}</style>
+        </div>
+        </>)}
+
         {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
@@ -4755,33 +4813,7 @@ export default function OptionsFlowDashboard() {
           </div>
         )}
 
-        {/* Tabs + header ticker search (search opens the chart modal from any tab) */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:14, flexWrap:"wrap" }}>
-          <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
-          {TABS.map(t => (
-            <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:4, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
-              fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
-            }}>{t}</button>
-          ))}
-          </div>
-          <input type="text" value={hdrSearch}
-            onChange={e => setHdrSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
-            onKeyDown={e => {
-              if (e.key === "Enter" && hdrSearch.trim()) {
-                setChartModal({ sym: hdrSearch.trim() });
-                setChartInterval("D");
-                setHdrSearch("");
-              } else if (e.key === "Escape") { setHdrSearch(""); }
-            }}
-            placeholder="Search ticker"
-            autoComplete="off" spellCheck={false}
-            style={{ width:220, maxWidth:"100%", boxSizing:"border-box", background:P.bg,
-              border:"1px solid "+P.bd, color:P.wh, padding:"7px 12px", borderRadius:6,
-              fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:1, outline:"none" }} />
-        </div>
+        {viewTabsBar}
 
         {/* Global Cap Filter */}
         {FD && (()=>{

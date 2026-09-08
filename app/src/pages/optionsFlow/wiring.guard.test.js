@@ -154,18 +154,44 @@ describe('Options Flow correctness guard', () => {
       'the cap disclosure is gone — multi-day ranges will silently imply completeness' + FIX).toBe(true)
   })
 
-  it('keeps the mode tabs mounted while flow data loads', () => {
-    // A bare centered spinner strands the user for the whole load with no way to
-    // reach GEX/Dark Pool (which do not need this data) or step back to 1d.
-    // Scope STRICTLY to the loading return. A fixed-size window spills into the
-    // csvError state right below, which has always had its own tab bar — so a
-    // loose slice reads that one's tabs and passes against a file with a bare
-    // spinner. (Verified: it did exactly that against clobber 611ad11a.)
-    const start = CODE.indexOf('if (csvLoading && !D) return')
-    const end = CODE.indexOf('if (csvError', start)
-    expect(start !== -1 && end > start, 'could not locate the loading state').toBe(true)
-    expect(CODE.slice(start, end).includes('Indexes / ETF'),
-      'the loading state dropped its mode tabs — the page becomes a dead end while loading' + FIX).toBe(true)
+  it('NEVER replaces the whole section with a loading screen', () => {
+    // ⛔ THIS RAIL USED TO PROTECT THE LOADING SCREEN ITSELF. It asserted that
+    // `if (csvLoading && !D) return` kept a tab bar, because a bare spinner
+    // stranded the user with no way to reach GEX/Dark Pool or step back to 1d.
+    // The real fix was not a better spinner — it was not having one: both
+    // full-page returns are gone, so the mode toggle, view tabs and ticker
+    // search are mounted from the first commit and the section is usable while
+    // its data is still in flight. Measured on prod, those two returns owned
+    // ~490 ms of the visible wait.
+    for (const gate of ['if (csvLoading && !D) return', 'if ((!D || !FD)']) {
+      expect(CODE.includes(gate),
+        `a full-page loading return is back (${gate}) — the member sees a spinner `
+        + 'instead of the section' + FIX).toBe(false)
+    }
+  })
+
+  it('renders the mode toggle without waiting for data', () => {
+    // The toggle must sit OUTSIDE the `&& D &&` content gate, or "no full-page
+    // return" would just mean "a blank page" instead.
+    const ret = CODE.indexOf('<div className="of-mroot"')
+    const gate = CODE.indexOf('&& D && (<>', ret)
+    expect(ret !== -1 && gate > ret, 'could not locate the render').toBe(true)
+    expect(CODE.slice(ret, gate).includes('Indexes / ETF'),
+      'the mode toggle moved behind the data gate — the page is blank until D' + FIX).toBe(true)
+  })
+
+  it('the pending state offers the REAL view tabs, not a placeholder of them', () => {
+    // One definition, two call sites. A copy would drift from the real tab bar.
+    expect((CODE.match(/\{viewTabsBar\}/g) || []).length,
+      'viewTabsBar is not rendered in both the pending and loaded states' + FIX)
+      .toBeGreaterThanOrEqual(2)
+    expect(CODE.includes('&& !D && !csvError && (<>'),
+      'the pending state is gone — the data region has no placeholder' + FIX).toBe(true)
+  })
+
+  it('CONTROL: the guard can still see this file', () => {
+    expect(CODE.length).toBeGreaterThan(100000)
+    expect(CODE.includes('TOP 10 FLOW PICKS')).toBe(true)
   })
 })
 
