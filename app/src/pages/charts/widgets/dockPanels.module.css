@@ -243,24 +243,6 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ── Ownership snapshot ───────────────────────────────────────────────────── */
-.ownLine { font-size: 11.5px; color: var(--t-label); }
-/* a level, not a change — stays neutral (never green) */
-.ownStat { color: var(--t-value); font-weight: 700; font-variant-numeric: tabular-nums; }
-.ownSep { margin-left: 12px; }
-.ownNames { margin-top: 6px; font-size: 11px; color: var(--t-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ownDeep { margin-top: 10px; }
-.ownHolder { display: flex; align-items: baseline; gap: 8px; padding: 3.5px 0; border-bottom: 1px solid rgba(255,255,255,0.035); }
-.ownHolderName { flex: 1; min-width: 0; font-size: 11px; color: var(--t-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ownHolderMeta { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--t-value); font-weight: 600; }
-.ownChip { flex: 0 0 auto; font-size: 7.5px; font-weight: 700; letter-spacing: 0.3px; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.07); }
-.ownFlow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-.ownFlowCol { min-width: 0; }
-.ownFlowLabel { font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; color: var(--t-meta); margin-bottom: 3px; }
-.ownFlowRow { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; font-variant-numeric: tabular-nums; padding: 1px 0; }
-.ownFlowName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--t-body); }
-.ownAsOf { margin-top: 8px; font-size: 9px; color: var(--t-meta); }
-
 /* ─────────────────────────────────────────────────────────────────────────
    NEWS — a financial wire, not a table.
    Financials / Earnings / Ownership are grids of numbers; news is

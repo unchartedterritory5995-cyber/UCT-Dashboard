@@ -5,7 +5,10 @@
  *   THE STORY             why the stock is moving (signature block, gold rail)
  *   FUNDAMENTALS          one system: Valuation · Growth · Price & Performance ·
  *                         Profitability · Financial Health
- *   OWNERSHIP             snapshot → explore
+ *
+ * Ownership is NOT here. It had a snapshot-plus-explore block at the bottom of
+ * this tab until the Ownership tab shipped (8 Sep 2026); keeping both meant the
+ * same 13F data in two places, and the tab is the fuller of the two.
  *
  * The first viewport is DESIGNED, not inherited. Orientation (who/what/why) is
  * paid for in as little vertical space as it can be — company facts ride inline
@@ -24,7 +27,6 @@ import { useEffect, useMemo, useState } from 'react'
 import useStockBrief from '../../../hooks/useStockBrief'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useEarningsTable from '../../../hooks/useEarningsTable'
-import useOwnership from '../../../hooks/useOwnership'
 import CompanyLogo from '../../../components/CompanyLogo'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
 import BusinessTrend from './BusinessTrend'
@@ -35,7 +37,6 @@ const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number
 const pctVal = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${Number(v).toFixed(d)}%`)
 const signPct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(d)}%`)
 const str = (v) => (v == null || v === '' ? '—' : v)
-const shortShares = (v) => (v == null ? '—' : Math.abs(v) >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${v}`)
 const compactInt = (v) => (v == null ? '—' : v >= 1000 ? `${Math.round(v / 1000)}K` : String(v))
 // yfinance ships officer names with an honorific ("Mr. Sanjay Mehrotra"). In a
 // compact inline fact that prefix is pure width for zero information.
@@ -132,63 +133,6 @@ function IdFact({ label, value }) {
       <span className={styles.idFactK}>{label}</span>
       <span className={styles.idFactV}>{value}</span>
     </>
-  )
-}
-
-// ── Ownership snapshot (deep list behind one interaction) ───────────────────
-function OwnershipSnapshot({ sym, instPct, insiderPct }) {
-  const { data } = useOwnership(sym)
-  const [open, setOpen] = useState(false)
-  const holders = data?.top_holders || []
-  const inst = data?.inst_pct ?? instPct
-  const buyers = (data?.biggest_buyers || []).slice(0, 3)
-  const sellers = (data?.biggest_sellers || []).slice(0, 3)
-  const CHIP = { new: 'NEW', added: 'ADD', reduced: 'CUT', sold_out: 'SOLD' }
-  if (data?.locked) return null
-  if (inst == null && !holders.length) return null
-
-  return (
-    <section className={styles.section}>
-      <div className={styles.secHead}>Ownership</div>
-      <div className={styles.ownLine}>
-        {inst != null && <span><b className={styles.ownStat}>{inst > 100 ? '>100' : inst}%</b> institutional</span>}
-        {insiderPct != null && <span className={styles.ownSep}><b className={styles.ownStat}>{insiderPct}%</b> insider</span>}
-      </div>
-      {holders.length > 0 && <div className={styles.ownNames}>{holders.slice(0, 3).map(h => h.holder).join(' · ')}</div>}
-      {holders.length > 0 && (
-        <button type="button" className={styles.moreLink} onClick={() => setOpen(v => !v)}>
-          {open ? 'Hide ownership' : 'Explore ownership →'}
-        </button>
-      )}
-      {open && (
-        <div className={styles.ownDeep}>
-          {holders.slice(0, 12).map((h, i) => (
-            <div key={i} className={styles.ownHolder}>
-              <span className={styles.ownHolderName}>{h.holder}</span>
-              <span className={styles.ownHolderMeta}>{h.pct_out != null ? `${h.pct_out}%` : shortShares(h.shares)}</span>
-              {h.change && h.change !== 'flat' && <span className={`${styles.ownChip} ${(h.change === 'new' || h.change === 'added') ? styles.pos : styles.neg}`}>{CHIP[h.change]}</span>}
-            </div>
-          ))}
-          {(buyers.length > 0 || sellers.length > 0) && (
-            <div className={styles.ownFlow}>
-              {buyers.length > 0 && (
-                <div className={styles.ownFlowCol}>
-                  <div className={styles.ownFlowLabel}>Buying</div>
-                  {buyers.map((b, i) => <div key={i} className={styles.ownFlowRow}><span className={styles.ownFlowName}>{b.holder}</span><span className={styles.pos}>+{shortShares(b.change_shares)}</span></div>)}
-                </div>
-              )}
-              {sellers.length > 0 && (
-                <div className={styles.ownFlowCol}>
-                  <div className={styles.ownFlowLabel}>Selling</div>
-                  {sellers.map((s, i) => <div key={i} className={styles.ownFlowRow}><span className={styles.ownFlowName}>{s.holder}</span><span className={styles.neg}>−{shortShares(Math.abs(s.change_shares))}</span></div>)}
-                </div>
-              )}
-            </div>
-          )}
-          {data?.as_of && <div className={styles.ownAsOf}>13F filings · {String(data.as_of).slice(0, 10)}</div>}
-        </div>
-      )}
-    </section>
   )
 }
 
@@ -402,8 +346,6 @@ export default function DockProfile({ sym }) {
       {/* PROTOTYPE: one visual, after the numbers it summarises. */}
       <BusinessTrend annual={intel?.annual} />
 
-      {/* ── Ownership snapshot ── */}
-      <OwnershipSnapshot sym={sym} instPct={f.held_pct_institutions ?? fund?.inst_own_pct} insiderPct={f.held_pct_insiders} />
     </div>
   )
 }
