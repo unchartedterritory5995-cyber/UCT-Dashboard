@@ -220,6 +220,10 @@ class FlowDB:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_source ON flow(source)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_date ON flow(CreatedDate)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_symbol ON flow(Symbol)")
+            # Durable key/value for facts ABOUT the tape rather than rows of it.
+            # Today it holds exactly one: the prune generation (below).
+            conn.execute("CREATE TABLE IF NOT EXISTS flow_meta ("
+                         "key TEXT PRIMARY KEY, value TEXT NOT NULL)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_exp ON flow(ExpirationDate)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_flow_source_date ON flow(source, CreatedDate)")
             # Covering index for the live-tape hot path (T1-1): /recent's
@@ -515,6 +519,58 @@ class FlowDB:
         finally:
             conn.close()
 
+    def prune_generation(self) -> int:
+        """How many times a prune has removed rows. 0 before the first one."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT value FROM flow_meta WHERE key='prune_generation'").fetchone()
+        return int(row[0]) if row else 0
+
+    def symbol_max_id(self, symbol: str, source: str = "stocks") -> int:
+        """The newest row id for one symbol. 0 when it has no rows.
+
+        ⭐ CONSTANT TIME, MEASURED ON PROD (7 reps per bucket, 2026-09-08):
+
+            bucket  sym    rows       MAX(id)          MAX(rowid),COUNT(*)
+            p50     ALIT      39   0.31 / 1.32 ms      0.56 /    1.22 ms
+            p90     WPM    1,058   0.31 / 0.38 ms      5.44 /   10.18 ms
+            p99     CRWD  23,193   0.45 / 0.60 ms     77.01 /   84.45 ms
+            max     MU   465,956   0.64 / 1.23 ms   1136.15 / 1212.99 ms
+
+        ⛔ IT IS `COUNT(*)` THAT COSTS, NOT THE AGGREGATE. COUNT forces an
+        O(rows-for-that-symbol) walk and drags the planner onto
+        idx_flow_symbol_created; MAX(id) is a single seek to the end of the
+        symbol's range in idx_flow_symbol. MU goes 1,136 ms -> 0.64 ms, and
+        FLAT rather than merely faster -- which is what makes it usable on the
+        request path at all. Do not "improve" this by adding a row count.
+
+        No new index is needed: idx_flow_symbol already serves it.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT MAX(id) FROM flow WHERE Symbol = ? AND source = ?",
+                (symbol, source)).fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+
+    def symbol_freshness(self, symbol: str, source: str = "stocks") -> str:
+        """An EXACT identity for one symbol's rows, cheap enough to check per request.
+
+        `"<max_id>.<prune_generation>"`. Inserts move max_id (ids are monotonic
+        and never reused); prunes move the generation. Together they cannot miss
+        a mutation, and neither half is sufficient alone -- see the prune above
+        for why MAX(id) by itself would declare a pruned product current.
+
+        ⛔ THIS REPLACES THE GLOBAL TAPE VERSION FOR PER-SYMBOL PRODUCTS, and
+        the reason is measured: during RTH the global version rolls EVERY 60
+        SECONDS (observed 2026-09-08 -- consecutive buckets, one per minute),
+        because it moves whenever ANY symbol ticks. Keyed on that, a per-ticker
+        product is invalidated once a minute however quiet the ticker is. Keyed
+        on this, a ticker that has not traded keeps its product indefinitely and
+        one that HAS invalidates immediately instead of up to 60 s late. It is
+        both a bigger cache-hit win and a strictly FRESHER answer.
+        """
+        return "%d.%d" % (self.symbol_max_id(symbol, source), self.prune_generation())
+
     def stream_csv_symbol(self, symbol: str, source: str = "stocks", columns=None):
         """Stream ALL flow rows for a single SYMBOL, uncapped, across every date.
 
@@ -711,6 +767,21 @@ class FlowDB:
                 doomed,
             )
             result["pruned"] = cursor.rowcount
+            # ⛔ THIS IS WHAT MAKES PER-SYMBOL MAX(id) FRESHNESS EXACT. Inserts
+            # are caught exactly by MAX(id) -- `flow.id` is INTEGER PRIMARY KEY
+            # AUTOINCREMENT, so ids are strictly monotonic and never reused. A
+            # PRUNE is not: it deletes by CreatedDate, so it can remove a
+            # MID-RANGE id and move neither MIN nor MAX, and any cached product
+            # keyed on MAX(id) alone would go on declaring itself current while
+            # describing rows that no longer exist. Bumping a global counter is
+            # conservative (it invalidates every symbol) and exact, and prunes
+            # are a rare scheduled job, so the bluntness costs nothing.
+            if cursor.rowcount:
+                conn.execute(
+                    "INSERT INTO flow_meta(key, value) VALUES('prune_generation','1') "
+                    "ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)")
+                result["prune_generation"] = int(conn.execute(
+                    "SELECT value FROM flow_meta WHERE key='prune_generation'").fetchone()[0])
 
         return result
 

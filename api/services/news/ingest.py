@@ -231,28 +231,66 @@ def _parse(s: str) -> datetime | None:
 # ---------------------------------------------------------------------------
 # cycles
 # ---------------------------------------------------------------------------
-def _active_universe(limit: int) -> list[str]:
-    """Symbols worth polling in the fallback path. Bounded by construction."""
-    try:
-        from api.services import universe            # type: ignore
-        for fn in ("active_symbols", "get_active_universe", "symbols"):
-            f = getattr(universe, fn, None)
-            if callable(f):
-                syms = [str(s).upper() for s in (f() or [])]
-                if syms:
-                    return syms[:limit]
-    except Exception:
-        pass
-    # Fall back to what our own store already tracks, newest links first.
+def _universe_all() -> list[str]:
+    """The full symbol list the sweep should eventually cover, ordered stably.
+
+    ⛔ `api.services.universe` DOES NOT EXIST. This function used to try three
+    attribute names on that phantom module, fail the import every time, and fall
+    through to "symbols we already have news for" -- which made coverage
+    self-reinforcing: a ticker with no rows was never polled, so it never got
+    rows. LITE held zero items for exactly this reason.
+    """
+    for mod, attr in (("api.services.cap_universe", "symbols"),
+                      ("api.services.bars_universe_crawler", "load_universe")):
+        try:
+            m = __import__(mod, fromlist=["*"])
+            f = getattr(m, attr, None)
+            syms = sorted({str(s).upper() for s in (f() or [])}) if callable(f) else []
+            if syms:
+                return syms
+        except Exception:                             # noqa: BLE001
+            continue
+    # Last resort: what our own store already tracks. Note this CANNOT discover
+    # a new ticker -- it is a degraded mode, not the intended path.
     try:
         import contextlib as _c
         with _c.closing(store._connect()) as c:      # noqa: SLF001
             rows = c.execute(
-                "SELECT ticker, COUNT(*) n FROM news_tickers GROUP BY ticker "
-                "ORDER BY n DESC LIMIT ?", (limit,)).fetchall()
+                "SELECT ticker FROM news_tickers GROUP BY ticker "
+                "ORDER BY COUNT(*) DESC").fetchall()
             return [r["ticker"] for r in rows]
-    except Exception:
+    except Exception:                                 # noqa: BLE001
         return []
+
+
+def _active_universe(limit: int, *, rotate: str = "") -> list[str]:
+    """Symbols to poll this cycle. Bounded by construction.
+
+    With `rotate`, returns a MOVING window over the whole universe, persisting
+    the offset under that job name so the sweep continues across restarts and
+    every symbol comes up in turn. Without it, the head of the list -- which is
+    what the metered FMP fallback wants, since it is a cost ceiling rather than
+    a coverage sweep.
+    """
+    full = _universe_all()
+    if not full:
+        return []
+    limit = max(1, min(int(limit or 1), len(full)))
+    if not rotate:
+        return full[:limit]
+
+    try:
+        state = store.get_backfill(rotate) or {}
+        off = int(str(state.get("cursor") or "0") or 0) % len(full)
+    except Exception:                                 # noqa: BLE001
+        off = 0
+    window = [full[(off + i) % len(full)] for i in range(limit)]
+    try:
+        store.set_backfill(rotate, str((off + limit) % len(full)),
+                           note=f"{len(full)} symbols")
+    except Exception:                                 # noqa: BLE001
+        pass
+    return window
 
 
 def run_fmp_cycle(*, budget: int | None = None) -> dict[str, Any]:
@@ -360,6 +398,76 @@ def ensure_symbol(symbol: str, *, max_age_minutes: int = 180) -> dict[str, Any]:
     return out
 
 
+def run_press_sweep(symbols: Iterable[str] | None = None, *,
+                    budget: int | None = None, lane: str = "press",
+                    limit: int = 25, job: str = "fmp-press-sweep",
+                    restart: bool = False) -> dict[str, Any]:
+    """One pass over the universe pulling each issuer's RECENT releases.
+
+    The market-wide `-latest` lane only sees the last few hours, so anything an
+    issuer published before ingestion was switched on is simply absent -- NBIS
+    had 19 displayable Business Wire releases (Q2 results, a $4.5B offering, a
+    data-centre partnership) and we held none of them.
+
+    This is ONE request per symbol and it returns ~20 recent releases, which is
+    why it is preferred over the windowed historical backfill: `run_backfill`
+    spent ~15 requests per symbol-year to pull 1,735 raw items and keep 270,
+    while this spends 1 to pull ~20 and keep nearly all of them. The press lane
+    is issuer-published wire copy -- the highest-trust tier we display -- so the
+    yield is almost pure signal.
+
+    Resumable by integer offset over the sorted universe (same mechanism as the
+    rotating sweep), bounded by a hard RequestBudget, and idempotent because
+    upsert keys on (provider, provider_id). One symbol failing never aborts the
+    pass.
+    """
+    syms = sorted({str(s).upper() for s in symbols}) if symbols else _universe_all()
+    if not syms:
+        return {"job": job, "symbols": 0, "items": 0, "requests": 0}
+
+    b = fmp_news.RequestBudget(budget if budget is not None else len(syms) + 50,
+                               "fmp-press-sweep")
+    state = {} if restart else (store.get_backfill(job) or {})
+    try:
+        start = int(str(state.get("cursor") or "0") or 0)
+    except Exception:                                     # noqa: BLE001
+        start = 0
+    if start >= len(syms):
+        start = 0
+
+    stats: Counter = Counter()
+    processed = 0
+    failures = 0
+    i = start
+    while i < len(syms) and b.remaining > 0:
+        sym = syms[i]
+        try:
+            for raw in fmp_news.fetch_symbol(sym, lane, budget=b, limit=limit):
+                process(raw, stats=stats)
+                processed += 1
+        except fmp_news.FmpUnavailable as e:
+            store.set_backfill(job, str(i), requests=b.used, note=str(e)[:150])
+            return {"job": job, "stopped": str(e), "cursor": i,
+                    "symbols": i - start, "items": processed,
+                    "requests": b.used, "stats": dict(stats)}
+        except Exception as e:                            # noqa: BLE001
+            # One bad symbol must never abort a 3,700-symbol pass.
+            failures += 1
+            _log.warning("press sweep %s: %s", sym, e)
+        i += 1
+        if (i - start) % 25 == 0:
+            store.set_backfill(job, str(i), requests=b.used)
+
+    complete = i >= len(syms)
+    store.set_backfill(job, str(0 if complete else i), done=complete,
+                       requests=b.used,
+                       note="complete" if complete else f"paused at {i}")
+    return {"job": job, "symbols": i - start, "universe": len(syms),
+            "items": processed, "failures": failures, "requests": b.used,
+            "complete": complete, "cursor": (0 if complete else i),
+            "stats": dict(stats)}
+
+
 def run_backfill(symbols: Iterable[str], *, years: int = 2,
                  budget: int | None = None, job: str = "fmp-2y") -> dict[str, Any]:
     """Bounded, resumable, idempotent historical backfill (§17).
@@ -425,3 +533,29 @@ def run_all(symbols: Iterable[str] | None = None) -> dict[str, Any]:
         return out
     finally:
         _RUN_LOCK.release()
+
+
+def recheck_rejects() -> dict[str, Any]:
+    """Re-apply today's reject rules to everything already stored.
+
+    Run after changing a filter rule. Reproduces the FULL decision process()
+    makes -- headline rules, then the displayable-source check, then the
+    subject stage -- so a recheck can never disagree with fresh ingestion.
+
+    ⛔ The subject stage is not optional here. Skipping it erased the subject
+    verdict on 93 stored rows. `feed()`'s separate `direct`-link requirement
+    meant nothing wrong actually reached a feed, but relying on the second
+    guard is not the same as keeping the first one correct.
+    """
+    def rule(headline: str, source_class: str, relevances: list[str]) -> str:
+        reason = filters.reject_reason(headline, source_class=source_class)
+        if not reason and not news_sources.is_displayable(source_class):
+            reason = filters.REJECT_SOURCE
+        if not relevances:
+            reason = reason or filters.REJECT_NO_TICKER
+        elif not reason and not any(
+                r in ("direct", "related") for r in relevances):
+            reason = filters.REJECT_MENTION
+        return reason or ""
+
+    return store.recheck_rejects(rule)

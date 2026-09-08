@@ -9,6 +9,7 @@ collisions, dedupe, search, pagination and idempotent ingestion.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -145,6 +146,67 @@ class TestCanonical:
 # ===========================================================================
 # junk filters
 # ===========================================================================
+class TestCommentaryIsSourceAware:
+    """The commentary detector judges STANCE at whitelisted newsrooms and both
+    stance and STYLE everywhere else.
+
+    Found in production 8 Sep 2026: MU's News tab showed nothing newer than a
+    two-week-old SEC filing while the database held that morning's Barron's
+    report. The `^why` rule -- "explainer voice" -- had deleted it. Every
+    headline below is a REAL row from the production store.
+    """
+
+    def test_barrons_explainer_is_news_not_commentary(self):
+        from api.services.news import filters
+        h = "Why Micron Stock Is Popping on Fresh Memory-Chip Price Data"
+        assert filters.reject_reason(h, source_class="journalism") is None
+        # ...but the same shape from a commentary shop is still commentary.
+        assert filters.reject_reason(h, source_class="commentary") == \
+            filters.REJECT_COMMENTARY
+
+    def test_prediction_markets_is_a_product_not_a_forecast(self):
+        """A bare \bprediction\b deleted an entire news category. Prediction
+        markets are a real product line (HOOD, DKNG) and this bug silently
+        dropped the story across journalism, wire AND social at once."""
+        from api.services.news import filters
+        for cls, h in [
+            ("journalism", "Robinhood Strikes Deal With Crypto.com in Latest "
+                           "Prediction-Markets Push"),
+            ("wire", "Robinhood Selects OG.com as Infrastructure Partner for "
+                     "Prediction Markets Platform"),
+            ("social", "$HOOD EXPANDS PREDICTION MARKETS WITH CRYPTO .COM DEAL"),
+        ]:
+            assert filters.reject_reason(h, source_class=cls) is None, h
+        # The forecast sense is still commentary.
+        assert filters.reject_reason(
+            "Prediction: This Stock Will Double", source_class="commentary") == \
+            filters.REJECT_COMMENTARY
+
+    def test_journalism_is_still_held_to_stance(self):
+        """Exempting style must not exempt opinion. A whitelisted outlet running
+        an actual recommendation column is still commentary."""
+        from api.services.news import filters
+        for h in ("3 No-Brainer Stocks to Buy Right Now",
+                  "Why I Sold My Entire Micron Position",
+                  "Is Micron a Buy Right Now?",
+                  "Should You Buy Micron Before Earnings?"):
+            assert filters.reject_reason(h, source_class="journalism") == \
+                filters.REJECT_COMMENTARY, h
+
+    def test_style_rules_still_apply_off_the_whitelist(self):
+        from api.services.news import filters
+        for h in ("Why Micron Technology Stock Surged 16.5% Last Month",
+                  "Here's Why Micron Is Moving"):
+            assert filters.reject_reason(h, source_class="commentary") == \
+                filters.REJECT_COMMENTARY, h
+
+    def test_primary_and_wire_reporting_unaffected(self):
+        from api.services.news import filters
+        assert filters.reject_reason("Results of operations",
+                                     source_class="primary") is None
+        assert filters.reject_reason("Micron Announces Quarterly Dividend",
+                                     source_class="wire") is None
+
 class TestFilters:
     def test_legal_solicitation_rejected(self):
         for t in [
@@ -891,17 +953,40 @@ class TestRouteAccessControl:
             assert deps, f"{route.path} is PUBLIC"
             assert "require_member" in deps, f"{route.path} deps={deps}"
 
-    def test_free_account_is_refused_with_402(self):
+    def test_free_account_is_refused_with_402(self, monkeypatch):
         from fastapi import HTTPException
         from api.routers import company_news as cn
+        monkeypatch.setattr(cn, "is_paid_user", lambda u: False)
         with pytest.raises(HTTPException) as e:
-            cn.require_member({"plan": "free", "is_paid": False})
+            cn.require_member({"plan": "free"})
         assert e.value.status_code == 402
 
-    def test_paid_account_passes(self):
+    def test_paid_account_passes(self, monkeypatch):
         from api.routers import company_news as cn
-        for user in ({"plan": "pro"}, {"is_paid": True},
-                     {"plan_status": "active"}):
+        monkeypatch.setattr(cn, "is_paid_user", lambda u: True)
+        user = {"plan": "pro"}
+        assert cn.require_member(user) is user
+
+    def test_the_decision_is_delegated_not_re_derived(self):
+        """REGRESSION: this gate first hand-rolled its own plan check and
+        refused real signed-in members, because it did not know about admin,
+        'comped' or trial accounts. The entitlement decision must be
+        `is_paid_user` — one predicate, not two that drift."""
+        import inspect
+        from api.routers import company_news as cn
+        src = inspect.getsource(cn.require_member)
+        assert "is_paid_user(user)" in src, "gate must delegate to is_paid_user"
+        for invented in ('user.get("is_paid")', 'plan_status', '"free"'):
+            assert invented not in src, (
+                f"gate re-derives entitlement ({invented}); call is_paid_user")
+
+    def test_admin_comped_and_trial_all_pass(self, monkeypatch):
+        """The three account shapes the hand-rolled check locked out."""
+        from api.routers import company_news as cn
+        from api.middleware import auth_middleware as am
+        for user in ({"role": "admin"}, {"plan": "comped"}, {"plan": "pro"}):
+            monkeypatch.setattr(cn, "is_paid_user", am.is_paid_user)
+            monkeypatch.setattr(am, "is_paid_or_trial", lambda u: True)
             assert cn.require_member(user) is user
 
 
@@ -973,3 +1058,293 @@ class TestMalformedInputDoesNotAbortIngestion:
         assert len(items) == 3, "a malformed row stopped the batch"
         unsafe = [i for i in items if i["url"].lower().startswith("javascript:")]
         assert not unsafe, "an unsafe scheme reached the UI"
+
+
+class TestRecheckRejects:
+    """A filter fix has to be RETROACTIVE -- and must re-apply the WHOLE
+    decision, not just the stage that changed.
+
+    Rejected items are stored with a reason rather than dropped, so correcting a
+    bad rule does nothing for the stories it already hid unless those rows are
+    re-judged. The Barron's report that started this was already in the database
+    by the time the rule was fixed.
+    """
+
+    def test_recheck_unhides_rows_a_fixed_rule_no_longer_rejects(self, db):
+        _mk("MU", "Why Micron Stock Is Popping", when=_dt(hours=1),
+            klass="journalism", src="Barron's", reject="editorial-commentary")
+        assert store.feed("MU")["items"] == []            # hidden before
+        res = store.recheck_rejects(lambda h, c, rel: "")  # rule now clears it
+        assert res["scanned"] >= 1
+        assert res["updated"] == 1
+        assert len(store.feed("MU")["items"]) == 1        # visible after
+
+    def test_recheck_is_idempotent(self, db):
+        _mk("MU", "Micron Announces Dividend", when=_dt(hours=1), klass="wire",
+            src="Business Wire")
+        rule = (lambda h, c, rel: "")
+        assert store.recheck_rejects(rule)["updated"] == 0
+        assert store.recheck_rejects(rule)["updated"] == 0
+
+    def test_recheck_re_judges_rather_than_only_un_rejecting(self, db):
+        _mk("MU", "3 No-Brainer Stocks to Buy", when=_dt(hours=1),
+            klass="journalism", src="Barron's")
+        assert len(store.feed("MU")["items"]) == 1
+        store.recheck_rejects(lambda h, c, rel: "editorial-commentary")
+        assert store.feed("MU")["items"] == []
+
+    def test_the_rule_receives_the_subject_stage_verdict(self, db):
+        """REGRESSION. The first cut passed only headline + source class, so it
+        cleared every `mention-only` / `no-ticker` verdict it could not
+        recompute -- 93 rows in production.
+
+        Asserted on the STORED verdict, not on the feed: feed() separately
+        requires a `direct` ticker link, so it masks this bug entirely. That
+        second guard is exactly why this went unnoticed, and why the test has
+        to check the value the recheck is responsible for.
+        """
+        nid = _mk("MU", "Intel Announces New Fab", when=_dt(hours=1),
+                  klass="wire", src="Business Wire", relevance="mention",
+                  reject="mention-only")
+        seen: list[list[str]] = []
+
+        def rule(h, c, rel):
+            seen.append(list(rel))
+            return "mention-only" if "direct" not in rel else ""
+
+        store.recheck_rejects(rule)
+        assert seen and seen[0] == ["mention"], seen
+        with contextlib.closing(store._connect()) as c:
+            row = c.execute("SELECT reject_reason FROM news_items WHERE id=?",
+                            (nid,)).fetchone()
+        assert row["reject_reason"] == "mention-only", "verdict was erased"
+
+    def test_the_real_rule_preserves_a_mention_verdict(self, db):
+        """The trust invariant, on the stored value the recheck owns."""
+        from api.services.news import ingest
+        nid = _mk("MU", "Intel Announces New Arizona Fab", when=_dt(hours=1),
+                  klass="journalism", src="Reuters", relevance="mention",
+                  reject="mention-only")
+        ingest.recheck_rejects()
+        with contextlib.closing(store._connect()) as c:
+            row = c.execute("SELECT reject_reason FROM news_items WHERE id=?",
+                            (nid,)).fetchone()
+        assert row["reject_reason"] == "mention-only"
+        assert store.feed("MU")["items"] == []
+
+    def test_the_real_rule_recovers_the_barrons_row(self, db):
+        """End to end with the ACTUAL production rule, not a stub."""
+        from api.services.news import ingest
+        _mk("MU", "Why Micron Stock Is Popping on Fresh Memory-Chip Price Data",
+            when=_dt(hours=1), klass="journalism", src="Barron's",
+            reject="editorial-commentary")
+        assert store.feed("MU")["items"] == []
+        ingest.recheck_rejects()
+        assert len(store.feed("MU")["items"]) == 1
+
+    def test_the_real_rule_keeps_commentary_publishers_hidden(self, db):
+        """Un-hiding must not leak the classes that are stored-but-never-shown."""
+        from api.services.news import ingest
+        _mk("MU", "Micron Had A Fine Quarter", when=_dt(hours=1),
+            klass="commentary", src="The Motley Fool", reject="")
+        ingest.recheck_rejects()
+        assert store.feed("MU")["items"] == []
+
+    def test_ingest_recheck_reproduces_every_stage_of_process(self):
+        """The recheck must make the same decision process() makes -- headline
+        rules, displayable-source check AND subject stage. Any stage it omits
+        is a stage it silently overrides across the whole database."""
+        import inspect
+        from api.services.news import ingest
+        src = inspect.getsource(ingest.recheck_rejects)
+        for stage in ("filters.reject_reason", "is_displayable",
+                      "REJECT_SOURCE", "REJECT_NO_TICKER", "REJECT_MENTION"):
+            assert stage in src, f"recheck omits {stage}"
+
+
+class TestUniverseRotation:
+    """Coverage must not be self-reinforcing.
+
+    The sweep used to import a module that does not exist (`api.services.
+    universe`), silently fall back to "tickers we already have news for", and
+    poll the same head of that list every cycle. A ticker with no rows was
+    therefore never polled and could never get rows. LITE sat at zero items.
+    """
+
+    def test_universe_does_not_come_from_our_own_news_counts(self, db):
+        from api.services.news import ingest
+        full = ingest._universe_all()
+        assert len(full) > 500, "expected a real market universe, not our store"
+        assert full == sorted(full), "order must be stable for a resumable sweep"
+
+    def test_rotation_advances_and_eventually_covers_everything(self, db,
+                                                                monkeypatch):
+        from api.services.news import ingest
+        alphabet = [f"S{i:03d}" for i in range(25)]
+        monkeypatch.setattr(ingest, "_universe_all", lambda: alphabet)
+
+        seen: set[str] = set()
+        for _ in range(5):                       # 5 cycles x 5 = the whole list
+            seen.update(ingest._active_universe(5, rotate="t_sweep"))
+        assert seen == set(alphabet)
+
+    def test_consecutive_cycles_do_not_repeat(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all",
+                            lambda: [f"S{i:03d}" for i in range(25)])
+        a = ingest._active_universe(5, rotate="t_sweep2")
+        b = ingest._active_universe(5, rotate="t_sweep2")
+        assert a != b and not (set(a) & set(b))
+
+    def test_rotation_wraps_around(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all", lambda: ["A", "B", "C"])
+        first = ingest._active_universe(2, rotate="t_wrap")   # A B
+        second = ingest._active_universe(2, rotate="t_wrap")  # C A
+        assert first == ["A", "B"]
+        assert second == ["C", "A"]
+
+    def test_offset_persists_so_a_restart_resumes(self, db, monkeypatch):
+        from api.services.news import ingest, store
+        monkeypatch.setattr(ingest, "_universe_all",
+                            lambda: [f"S{i:03d}" for i in range(25)])
+        ingest._active_universe(5, rotate="t_resume")
+        assert (store.get_backfill("t_resume") or {}).get("cursor") == "5"
+
+    def test_without_rotate_it_is_a_stable_bounded_head(self, db, monkeypatch):
+        """The METERED FMP fallback wants a cost ceiling, not a sweep."""
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all",
+                            lambda: [f"S{i:03d}" for i in range(25)])
+        assert ingest._active_universe(3) == ingest._active_universe(3)
+
+    def test_limit_never_exceeds_the_universe(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all", lambda: ["A", "B"])
+        assert len(ingest._active_universe(50, rotate="t_small")) == 2
+
+    def test_empty_universe_is_survivable(self, db, monkeypatch):
+        from api.services.news import ingest
+        monkeypatch.setattr(ingest, "_universe_all", lambda: [])
+        assert ingest._active_universe(10, rotate="t_empty") == []
+
+
+class TestIngestionActuallyRuns:
+    """Scheduling a job is not the same as it ever running.
+
+    An APScheduler IntervalTrigger fires its FIRST run one full interval AFTER
+    the scheduler starts, and every deploy restarts the scheduler. On a day with
+    frequent deploys the 20-minute per-company sweep never fired once: its
+    rotation cursor sat at None in production while the 5-minute FMP job -- which
+    survives only by being shorter than the gap between deploys -- made
+    ingestion look healthy. Found 8 Sep 2026 by reading the live cursor.
+    """
+
+    def _jobs(self, monkeypatch):
+        monkeypatch.setenv("COMPANY_NEWS_INGEST_ENABLED", "1")
+        from apscheduler.schedulers.background import BackgroundScheduler
+        import api.main as m
+        sched = BackgroundScheduler()
+        assert m.register_company_news_jobs(sched) is True
+        return {j.id: j for j in sched.get_jobs()}
+
+    def test_every_interval_job_runs_soon_after_boot(self, monkeypatch):
+        from datetime import datetime, timedelta, timezone
+        jobs = self._jobs(monkeypatch)
+        now = datetime.now(timezone.utc)
+        for jid in ("company_news_fmp", "company_news_percompany"):
+            nrt = getattr(jobs[jid], "next_run_time", None)
+            assert nrt is not None, f"{jid} has no first run scheduled"
+            delay = nrt - now
+            assert delay < timedelta(minutes=10), (
+                f"{jid} waits {delay} before its first run; a deploy cadence "
+                f"faster than that starves it forever")
+
+    def test_the_two_sweeps_are_staggered(self, monkeypatch):
+        """Both firing on the same boot tick would collide a 150-symbol SEC
+        sweep with an FMP pull for no reason."""
+        jobs = self._jobs(monkeypatch)
+        a = jobs["company_news_fmp"].next_run_time
+        b = jobs["company_news_percompany"].next_run_time
+        assert a != b
+
+    def test_disabled_by_default(self, monkeypatch):
+        monkeypatch.delenv("COMPANY_NEWS_INGEST_ENABLED", raising=False)
+        from apscheduler.schedulers.background import BackgroundScheduler
+        import api.main as m
+        assert m.register_company_news_jobs(BackgroundScheduler()) is False
+
+
+class TestPressSweep:
+    """One request per symbol, resumable, and one bad symbol never aborts it.
+
+    Built after NBIS showed an empty feed while FMP held 19 displayable Business
+    Wire releases for it. The market-wide lane only sees the last few hours, so
+    anything published before ingestion started is absent until this pass runs.
+    """
+
+    def _fake_fmp(self, monkeypatch, calls, *, fail_on=()):
+        from api.services.news import ingest
+
+        def fetch_symbol(sym, lane, *, budget=None, limit=25, **kw):
+            calls.append(sym)
+            if budget is not None:
+                budget.spend(1) if hasattr(budget, "spend") else None
+            if sym in fail_on:
+                raise RuntimeError("boom")
+            return [{
+                "provider": "fmp", "provider_id": f"{sym}-1",
+                "publisher": "Business Wire", "title": f"{sym} reports results",
+                "url": f"https://example.com/{sym}", "body": "",
+                "published_at": _dt(hours=2), "tags": [sym],
+            }]
+
+        monkeypatch.setattr(ingest.fmp_news, "fetch_symbol", fetch_symbol)
+        return ingest
+
+    def test_visits_every_symbol_once(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        res = ingest.run_press_sweep(["MU", "NBIS", "LITE"], job="t_press")
+        assert sorted(calls) == ["LITE", "MU", "NBIS"]
+        assert res["complete"] is True
+        assert res["items"] == 3
+
+    def test_one_bad_symbol_does_not_abort_the_pass(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls, fail_on={"NBIS"})
+        res = ingest.run_press_sweep(["MU", "NBIS", "LITE"], job="t_press_fail")
+        assert sorted(calls) == ["LITE", "MU", "NBIS"]
+        assert res["failures"] == 1
+        assert res["complete"] is True
+        assert res["items"] == 2          # the other two still stored
+
+    def test_budget_pauses_and_the_next_run_resumes(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        syms = [f"S{i:02d}" for i in range(6)]
+        first = ingest.run_press_sweep(syms, budget=3, job="t_press_resume")
+        assert first["complete"] is False
+        done = len(calls)
+        assert 0 < done < len(syms)
+        second = ingest.run_press_sweep(syms, job="t_press_resume")
+        assert second["complete"] is True
+        assert sorted(calls) == sorted(syms), "resumed where it paused"
+
+    def test_restart_ignores_a_stored_cursor(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        from api.services.news import store
+        store.set_backfill("t_press_restart", "2")
+        ingest.run_press_sweep(["A", "B", "C"], job="t_press_restart",
+                               restart=True)
+        assert sorted(calls) == ["A", "B", "C"]
+
+    def test_it_actually_stores_displayable_wire_copy(self, db, monkeypatch):
+        """The point of the pass: issuer releases must land SHOWN, not rejected."""
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        ingest.run_press_sweep(["NBIS"], job="t_press_store")
+        items = store.feed("NBIS")["items"]
+        assert len(items) == 1
+        assert items[0]["source_class"] == "wire"

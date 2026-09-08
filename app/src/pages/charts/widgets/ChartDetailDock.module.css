@@ -112,7 +112,11 @@
 }
 .rdTabs {
   display: flex;
-  flex: 1;
+  /* `0 1 auto`, NOT `1`. Growing made the strip swallow every spare pixel in the
+     header and pin the search control to the far right edge, so the gap after
+     "News" widened with the panel instead of matching the gap between tabs.
+     Hug the content; still shrink + scroll when the panel is dragged narrow. */
+  flex: 0 1 auto;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -145,8 +149,8 @@
   border-radius: 2px 2px 0 0;
 }
 
-/* Search — a small, clean square control to the right of the tabs (no ⌘K text,
-   no close X). Breathing room from News on its left. */
+/* Search — a small, clean square control that sits directly after the tabs (no
+   ⌘K text, no close X), spaced exactly like one more tab. */
 .rdSearch {
   flex: 0 0 auto;
   align-self: center;
@@ -155,7 +159,9 @@
   justify-content: center;
   width: 26px;
   height: 24px;
-  margin: 0 4px 0 12px;
+  /* 9px + .rdTab's own 9px right padding = the same 18px that separates every
+     other pair of tab labels (.rdTab padding: 0 9px). Keep these two in step. */
+  margin: 0 4px 0 9px;
   border: 1px solid var(--divider, rgba(255, 255, 255, 0.12));
   border-radius: 6px;
   background: transparent;

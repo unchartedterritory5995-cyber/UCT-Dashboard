@@ -77,12 +77,15 @@ import gzip
 import io
 import time
 import threading
+import subprocess
+import logging
 
 # ~19.5k rows of [ticker, asset_type] is ~600 KB of JSON; 8 MB is generous
 # headroom without being an unbounded write into a single-process pod.
 _MAX_REPLICA_PUSH_BYTES = int(os.environ.get("OPTIONSFLOW_ETF_MAX_PUSH_BYTES", str(8 * 1024 * 1024)))
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+log = logging.getLogger(__name__)
 db = FlowDB(DB_PATH)
 
 flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
@@ -601,6 +604,770 @@ def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = "",
     )
 
 
+# ── Search deep-dive: the DERIVED product, not the raw ticker tape ──────────
+# Measured on prod for AMD: /api/flow/ticker ships 3,651 KB gz / 20,252 KB
+# decoded / 4,232 ms, and the browser then runs the FULL processFlowData over it
+# in the worker to render ~17 rows. Same defect class as TOP 10 before 3b.
+#
+# ⛔ THE BRAIN IS NOT REIMPLEMENTED. This runs the SAME flowCompute bundle the
+# browser runs (`flow-facts search`), over the SAME uncapped feed, and returns
+# only the two keys Search consumes.
+#
+# ⛔ CACHE IDENTITY = (ticker, source, version), proven from code, not assumed:
+#   ticker/source  select the rows        -> in the key
+#   version        new tape, new rows     -> in the key
+#   range/days     NOT a parameter here — get_flow_ticker returns COMPLETE
+#                  history and the page scopes it at render time
+#                  (_scopeAllDirectional)  -> deliberately NOT in the key
+#   erSoon         changes ONLY the `er` flag, which the client re-applies as a
+#                  copy-on-overlay        -> deliberately NOT in the key, which
+#                  is what makes this product user-independent and cacheable.
+# `tests/test_flow_ticker_cache_dimensions.py` fails if a range dimension ever
+# enters get_flow_ticker without this key changing: a fast wrong-range Search is
+# a failure, not a win.
+_SEARCH_PRODUCT_CACHE = OrderedDict()
+_SEARCH_PRODUCT_CACHE_MAX = 48
+_SEARCH_PRODUCT_LOCK = threading.Lock()
+_SEARCH_PRODUCT_SCHEMA = 1
+
+
+def _search_product_cache_get(key):
+    with _SEARCH_PRODUCT_LOCK:
+        hit = _SEARCH_PRODUCT_CACHE.get(key)
+        if hit is not None:
+            _SEARCH_PRODUCT_CACHE.move_to_end(key)
+        return hit
+
+
+def _search_product_cache_put(key, gz):
+    with _SEARCH_PRODUCT_LOCK:
+        _SEARCH_PRODUCT_CACHE[key] = gz
+        _SEARCH_PRODUCT_CACHE.move_to_end(key)
+        while len(_SEARCH_PRODUCT_CACHE) > _SEARCH_PRODUCT_CACHE_MAX:
+            _SEARCH_PRODUCT_CACHE.popitem(last=False)
+
+
+def search_product_cache_state() -> dict:
+    """Diagnostics. Sizes are what a member actually downloads."""
+    with _SEARCH_PRODUCT_LOCK:
+        return {
+            "entries": [{"key": list(k), "gz_bytes": len(v)} for k, v in _SEARCH_PRODUCT_CACHE.items()],
+            "max": _SEARCH_PRODUCT_CACHE_MAX,
+            "schema": _SEARCH_PRODUCT_SCHEMA,
+        }
+
+
+def _search_response(gz: bytes, version: str, cache_state: str) -> Response:
+    """One place that decides the Search product response headers."""
+    return Response(
+        content=gz, media_type="application/json",
+        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
+                 "X-Flow-Version": version, "X-Flow-Product": "search",
+                 "X-Flow-Cache": cache_state},
+    )
+
+
+# STAGE EVIDENCE MUST SURVIVE A TIMEOUT. The first cold-miss attempt died at the
+# proxy's 120 s read timeout and left NO log line at all, because the only
+# logging was on the success path -- so "which stage consumed it" was
+# unanswerable. Stages are recorded as they BEGIN and flushed on every exit
+# path, so a killed request still says where it got to.
+class _Stages:
+    def __init__(self, label):
+        self.label = label
+        self.t0 = time.monotonic()
+        self.marks = []
+
+    def mark(self, name, **extra):
+        self.marks.append((name, int((time.monotonic() - self.t0) * 1000), extra))
+
+    def render(self):
+        out = []
+        prev = 0
+        for name, at, extra in self.marks:
+            bits = "".join(" %s=%s" % (k, v) for k, v in extra.items())
+            out.append("%s@%dms(+%d)%s" % (name, at, at - prev, bits))
+            prev = at
+        return " | ".join(out)
+
+    def flush(self, outcome):
+        log.info("[flow-search] %s %s total=%dms :: %s", self.label, outcome,
+                 int((time.monotonic() - self.t0) * 1000), self.render())
+
+
+# SINGLE-FLIGHT, GLOBAL, NON-BLOCKING -- the same contract flow_aggregate uses.
+# Deriving one ticker's product spawns a node process over that ticker's COMPLETE
+# uncapped history; two concurrent misses would run two of them on one shared
+# pod, and a retrying caller could stack a third. A busy build DECLINES (503) so
+# the caller falls back to the legacy path instead of queueing behind an
+# expensive computation.
+#
+# A DISAPPEARING CALLER DOES NOT CANCEL THE BUILD. If the proxy or the browser
+# gives up, the derivation still finishes and installs its cache entry: the work
+# is useful warming, and request lifetime must not decide product lifecycle.
+class _Lane:
+    """A bounded set of build slots, with the mutex's exact call shape.
+
+    ⛔ WHY A SEMAPHORE AND NOT A BIGGER LOCK. The single slot existed to stop
+    concurrent derivations saturating a shared pod. The pod probe says memory is
+    not the constraint (limit 30,517 MB, idle ~3.4 GB, worker 346 MB, zero node
+    children), and every job is now bounded at 48 MB / 20 s -- so a slot can
+    only ever hold a bounded amount of work. Two slots therefore cost at most
+    two bounded jobs, which the measured headroom absorbs comfortably.
+
+    ⛔ THIS DOES NOT WEAKEN "SAME TICKER -> ONE BUILD". That invariant never came
+    from this lane: it is `_SEARCH_WARMING` (one warm per symbol) plus the
+    cache re-check inside the slot. The lane only ever bounded how many
+    DIFFERENT tickers derive at once, which is precisely what starved cheap
+    tickers behind a heavy one.
+
+    Keeps `.acquire(blocking=False)` / `.release()` / `.locked()` so all three
+    existing call sites and the pod probe are unchanged.
+    """
+
+    def __init__(self, slots: int):
+        self.slots = max(1, slots)
+        self._sem = threading.BoundedSemaphore(self.slots)
+        self._active = 0
+        self._guard = threading.Lock()
+
+    def acquire(self, blocking=False):
+        got = self._sem.acquire(blocking=blocking)
+        if got:
+            with self._guard:
+                self._active += 1
+        return got
+
+    def release(self):
+        with self._guard:
+            self._active -= 1
+        self._sem.release()
+
+    def locked(self) -> bool:
+        """True when every slot is taken -- what the old `.locked()` meant."""
+        with self._guard:
+            return self._active >= self.slots
+
+    @property
+    def active(self) -> int:
+        with self._guard:
+            return self._active
+
+
+# 2 by default: measured on prod 2026-09-08, one bounded job at a time left a
+# cheap ticker waiting ~30 s behind a heavy ticker's budget. Env-overridable so
+# it can be returned to 1 without a code change.
+_SEARCH_LANES = int(os.environ.get("FLOW_SEARCH_LANES", "2") or 2)
+_SEARCH_BUILD_LOCK = _Lane(_SEARCH_LANES)
+
+# The materialisation budget for ONE ticker's Search product. Derived from the
+# measured cost curve, not chosen: p50 ALIT 5 KB / 242 ms, p90 WPM 125 KB /
+# 596 ms, p99 CRWD 3.1 MB / 863 ms. 48 MB / 20 s admits everything through p99
+# with orders of magnitude to spare and excludes only the head, which cannot be
+# derived inside a member's patience anyway.
+_SEARCH_CSV_MAX_BYTES = int(os.environ.get("FLOW_SEARCH_CSV_MAX_MB", "48") or 48) * 1024 * 1024
+_NEWLINE = bytes([10])   # written this way so no escape survives three layers of quoting
+_SEARCH_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_CSV_DEADLINE_S", "20") or 20)
+
+
+def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
+    """Derive, serialise, gzip and CACHE one ticker's Search product.
+
+    Returns `(gz_bytes, None)` on success or `(None, error_response)` on any
+    failure, so the request path can return the error and the background warmer
+    can simply drop it.
+
+    ⛔ ONE IMPLEMENTATION, TWO CALLERS. This was inline in the endpoint; the
+    background warmer needs exactly the same derivation, and a second copy would
+    be free to drift into producing a different product for the same key -- the
+    quietest possible cache-poisoning bug. The CALLER owns the build lock.
+    """
+    st.mark("csv_query_begin")
+    try:
+        # FULL COLUMN SET. processFlowData resolves columns by name, so a
+        # narrowed projection could change the derivation.
+        # ⛔ THIS PHASE IS BOUNDED, AND IT WAS NOT. `BUILD_TIMEOUT_S` bounds the
+        # node subprocess below; NOTHING bounded the materialisation above it.
+        # Measured on prod 2026-09-08 during RTH: one NVDA build held the single
+        # search lane for 7.5+ MINUTES and never reached node at all, while pod
+        # RSS climbed 3.4 GB -> 11.2 GB. A member searching a head ticker can
+        # trigger that, and while it runs no other ticker can warm.
+        #
+        # ⛔ EXCEEDING THE BUDGET IS A DECLINE, NOT AN ERROR IN THE PRODUCT. The
+        # member is already on the legacy tape and sees no difference; the
+        # ticker enters the warm cooldown instead of holding the lane. Nothing
+        # about what Options Flow computes changes -- only whether we attempt it.
+        parts = []
+        rows_seen = 0
+        csv_len = 0
+        t_csv = time.monotonic()
+        overrun = None
+        for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+            b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
+            parts.append(b)
+            csv_len += len(b)
+            rows_seen += b.count(_NEWLINE)
+            if csv_len > _SEARCH_CSV_MAX_BYTES:
+                overrun = "bytes>%d" % _SEARCH_CSV_MAX_BYTES
+                break
+            if (time.monotonic() - t_csv) > _SEARCH_CSV_DEADLINE_S:
+                overrun = "seconds>%g" % _SEARCH_CSV_DEADLINE_S
+                break
+        if overrun:
+            parts = None
+            st.mark("csv_overrun", why=overrun, kb=csv_len // 1024, rows=rows_seen)
+            st.flush("TOO_BIG")
+            log.info("[flow-search] %s/%s exceeds the warm budget (%s) - declining "
+                     "so the lane stays available", sym, src, overrun)
+            return None, JSONResponse(
+                {"ok": False, "error": "too big to derive within budget"},
+                status_code=503)
+        csv_bytes = b"".join(parts)
+    except Exception as e:
+        st.mark("csv_failed")
+        st.flush("CSV_ERROR")
+        log.exception("[flow-search] csv build failed for %s/%s", sym, src)
+        return None, JSONResponse({"ok": False, "error": "csv: " + str(e)}, status_code=500)
+    st.mark("csv_query_end", rows=rows_seen, kb=len(csv_bytes) // 1024)
+
+    st.mark("spawn_begin")
+    try:
+        proc = subprocess.run(
+            [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
+            input=csv_bytes, capture_output=True,
+            timeout=flow_aggregate.BUILD_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        st.mark("derive_timeout", limit_s=flow_aggregate.BUILD_TIMEOUT_S)
+        st.flush("TIMEOUT")
+        return None, JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
+    except Exception as e:
+        st.mark("spawn_failed")
+        st.flush("SPAWN_ERROR")
+        log.exception("[flow-search] subprocess failed for %s/%s", sym, src)
+        return None, JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    st.mark("derive_end", rc=proc.returncode, out_kb=len(proc.stdout or b"") // 1024)
+
+    if proc.returncode != 0:
+        st.flush("DERIVE_FAILED")
+        log.warning("[flow-search] %s/%s exited %s: %s", sym, src, proc.returncode,
+                    (proc.stderr or b"")[:300].decode("utf-8", "replace"))
+        return None, JSONResponse({"ok": False, "error": "derive failed"}, status_code=502)
+    try:
+        derived = json.loads(proc.stdout)
+    except Exception:
+        st.mark("parse_failed")
+        st.flush("BAD_PRODUCT")
+        log.warning("[flow-search] %s/%s produced unparseable stdout", sym, src)
+        return None, JSONResponse({"ok": False, "error": "bad product"}, status_code=502)
+    st.mark("parsed")
+
+    body = {
+        "ok": True, "sym": sym, "source": src, "version": version,
+        "schema": _SEARCH_PRODUCT_SCHEMA,
+        "product": derived.get("product"),
+        "rows": derived.get("rows", 0),
+    }
+    st.mark("serialize_begin")
+    raw = json.dumps(body, separators=(",", ":")).encode("utf-8")
+    st.mark("serialize_end", kb=len(raw) // 1024)
+    gz = gzip.compress(raw, compresslevel=6)
+    st.mark("gzip_end", kb=len(gz) // 1024)
+    _search_product_cache_put(key, gz)
+    st.mark("cache_installed")
+    st.flush("BUILT")
+
+    return gz, None
+
+
+def _search_freshness(sym: str, src: str) -> str:
+    """The cache identity for ONE ticker's Search product.
+
+    ⛔ PER-SYMBOL, NOT THE GLOBAL TAPE VERSION, and that is a measured decision.
+    During RTH `_current_version()` rolls EVERY 60 SECONDS (observed 2026-09-08:
+    consecutive buckets, one per minute) because it moves whenever ANY symbol
+    ticks. Keyed on it, a per-ticker product is thrown away once a minute no
+    matter how quiet that ticker is -- which makes warming per-ticker products
+    close to pointless during the exact hours members use Search.
+
+    `symbol_freshness` is "<max_id>.<prune_generation>": exact for inserts (ids
+    are monotonic and never reused) and exact for prunes (any prune bumps the
+    generation). So a ticker that has not traded keeps its product indefinitely,
+    and one that HAS invalidates immediately rather than up to 60 s late --
+    faster AND fresher, not a trade of one for the other.
+
+    ⛔ FAILS BACK, NEVER FAILS. If the probe cannot run we fall back to the
+    global version: that is the previous behaviour, so the worst case is the
+    cache we already had, never an error on the member path.
+    """
+    try:
+        return db.symbol_freshness(sym, src)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow-search] freshness probe failed for %s (%s) — "
+                    "falling back to the global version", sym, e)
+        return "v" + str(_current_version())
+
+
+def _truthy(v) -> bool:
+    return str(v or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+# Symbols with a warm-build already in flight. Without this a member typing into
+# the search box would spawn a thread per keystroke-completed symbol; each would
+# decline on the lock, but the churn is pointless and the set makes the intent
+# explicit rather than relying on the lock to absorb it.
+_SEARCH_WARMING = set()
+_SEARCH_WARMING_LOCK = threading.Lock()
+
+# How long a ticker whose warm FAILED sits out before anything tries it again.
+# It exists to stop one un-buildable symbol monopolising the single build lane;
+# it is not a circuit breaker for the endpoint, which stays available throughout.
+_WARM_COOLDOWN_S = float(os.environ.get("FLOW_SEARCH_WARM_COOLDOWN_S", "600") or 600)
+_WARM_FAILED_UNTIL = {}
+_WARM_STATS = {"built": 0, "failed": 0, "declined": 0, "already": 0, "last_ms": None}
+
+
+def _note_warm_failure(sym: str) -> None:
+    with _SEARCH_WARMING_LOCK:
+        _WARM_FAILED_UNTIL[sym] = time.monotonic() + _WARM_COOLDOWN_S
+
+
+def search_warm_state() -> dict:
+    """Diagnostics for the background warmer. Counters are process-local."""
+    with _SEARCH_WARMING_LOCK:
+        return {**_WARM_STATS, "in_flight": sorted(_SEARCH_WARMING),
+                "cooling_off": sorted(_WARM_FAILED_UNTIL)}
+
+
+def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
+    """Build one ticker's Search product in the background. Never raises.
+
+    ⛔ FIRE AND FORGET, DELIBERATELY. The caller has already been answered with a
+    503 and is on the legacy path; this exists only so the NEXT search for this
+    ticker is a hit. It must therefore never block, never retry aggressively, and
+    never let an exception escape into a thread that nothing is watching.
+    """
+    now = time.monotonic()
+    with _SEARCH_WARMING_LOCK:
+        if sym in _SEARCH_WARMING:
+            return False
+        # ⛔ A TICKER THAT CANNOT BE BUILT MUST NOT OWN THE LANE FOREVER.
+        # Observed live: MU (465,956 rows) exceeds the 60 s derive timeout, and
+        # because every search for it re-spawned a warm, one symbol held the
+        # single build lane almost continuously and starved every other ticker's
+        # warm — silently. A failed warm now sits out `_WARM_COOLDOWN_S`.
+        until = _WARM_FAILED_UNTIL.get(sym)
+        if until is not None and now < until:
+            return False
+        _SEARCH_WARMING.add(sym)
+
+    def _run():
+        try:
+            if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+                # ⛔ SAY SO. This declined SILENTLY and cost an hour of live
+                # debugging: warm builds simply never happened and the logs held
+                # no record of them being skipped, so "the warmer is broken" and
+                # "the warmer never got the lane" were indistinguishable.
+                _WARM_STATS["declined"] += 1
+                log.info("[flow-search] warm %s declined — build lane busy", sym)
+                return
+            t0 = time.monotonic()
+            try:
+                if _search_product_cache_get(key) is not None:
+                    _WARM_STATS["already"] += 1
+                    return
+                gz, err = _build_search_product(
+                    sym, src, key, version, _Stages(sym + "/" + src + " warm"))
+                if err is not None:
+                    _note_warm_failure(sym)
+                    _WARM_STATS["failed"] += 1
+                else:
+                    _WARM_STATS["built"] += 1
+            finally:
+                _SEARCH_BUILD_LOCK.release()
+                _WARM_STATS["last_ms"] = int((time.monotonic() - t0) * 1000)
+        except Exception as e:  # noqa: BLE001
+            _note_warm_failure(sym)
+            _WARM_STATS["failed"] += 1
+            log.warning("[flow-search] warm build failed for %s: %s", sym, e)
+        finally:
+            with _SEARCH_WARMING_LOCK:
+                _SEARCH_WARMING.discard(sym)
+
+    threading.Thread(target=_run, name=f"flow-search-warm-{sym}", daemon=True).start()
+    return True
+
+
+@flow_router.get("/ticker-product/{symbol}")
+def get_flow_ticker_product(symbol: str, source: str = "stocks",
+                            warm_only: str = "",
+                            _auth: dict = Depends(require_flow_user)):
+    """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
+
+    Stamped with the identity the client validates before trusting it. A client
+    whose ticker/source/version disagrees declines and falls back to the legacy
+    raw-tape path, which stays semantically identical.
+    """
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return JSONResponse({"ok": False, "error": "no symbol"}, status_code=400)
+    src = "indexes" if source == "indexes" else "stocks"
+    st = _Stages(sym + "/" + src)
+    st.mark("accepted")
+    version = _search_freshness(sym, src)
+    key = (sym, src, version)
+
+    cached = _search_product_cache_get(key)
+    st.mark("cache_lookup", hit=bool(cached))
+    if cached is not None:
+        st.flush("HIT")
+        return _search_response(cached, version, "hit")
+
+    if not flow_aggregate.available():
+        st.flush("NO_BUNDLE")
+        return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+
+    # ⛔ A MISS MUST NOT COST THE MEMBER ANYTHING. Measured on prod: a warm hit
+    # is 178-337 ms flat, a cold AMD build is 10,787 ms, and the legacy tape the
+    # client falls back to is 4,232 ms. If the client has to WAIT OUT a deadline
+    # before starting that fallback, a cold search costs deadline + 4,232 ms --
+    # strictly worse than never having asked. So on `warm_only` the answer to a
+    # miss is an immediate 503: the client starts the tape now, and the build it
+    # would have waited for runs in the background and warms the entry for every
+    # later search of that ticker.
+    #
+    # ⛔ The background build takes the SAME non-blocking single-flight lock, so
+    # it cannot stack: a thread that finds the lock held exits immediately rather
+    # than queueing. Many distinct symbols searched at once therefore cost at
+    # most one running derivation, not one per symbol.
+    if _truthy(warm_only):
+        _spawn_search_warm(sym, src, key, version)
+        st.flush("MISS_WARM_ONLY")
+        return JSONResponse({"ok": False, "error": "not warm"}, status_code=503)
+
+    if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        st.flush("DECLINED_BUSY")
+        return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
+
+    try:
+        again = _search_product_cache_get(key)
+        if again is not None:
+            st.mark("cache_recheck", hit=True)
+            st.flush("HIT_AFTER_WAIT")
+            return _search_response(again, version, "hit")
+
+        gz, err = _build_search_product(sym, src, key, version, st)
+        if err is not None:
+            return err
+        return _search_response(gz, version, "miss")
+    finally:
+        _SEARCH_BUILD_LOCK.release()
+
+
+# ---------------------------------------------------------------------------
+# TEMPORARY INVESTIGATION SURFACE. Admin-gated, read-only, bounded, removable.
+#
+# It exists to answer a specific set of questions about Options Flow product
+# preparation lifecycle -- cardinality, per-ticker history sizes, the cost of an
+# exact per-ticker freshness probe, and how derivation cost scales with rows.
+# It changes NO Options Flow semantics and writes nothing.
+#
+# DELETE IT once the lifecycle design is settled unless it earns lasting
+# operational value. It is deliberately NOT a general benchmarking framework.
+#
+# SAFETY: this runs on the shared flow-worker pod.
+#   - builds are OPT-IN (`builds=0` by default) and hard-capped;
+#   - builds run SERIALLY and take the same single-flight lock member requests
+#     use, so a diagnostic can never run a derivation alongside a member's;
+#   - every scan is bounded and the whole call is time-budgeted.
+_DIAG_MAX_BUILDS = 6
+_DIAG_TIME_BUDGET_S = 90.0
+
+
+def _diag_percentile(sorted_vals, q):
+    if not sorted_vals:
+        return None
+    i = int(round((len(sorted_vals) - 1) * q))
+    return sorted_vals[max(0, min(i, len(sorted_vals) - 1))]
+
+
+# ── Pod cost probe: what does ONE build actually consume? ───────────────────
+# TEMPORARY, admin-gated, read-only, no dependencies. It exists to answer a
+# specific question -- "how many Search derivations can this pod safely run at
+# once" -- which cannot be answered from the lane counters alone.
+#
+# ⛔ CHOOSING A CONCURRENCY WITHOUT THIS WOULD BE A GUESS. The single-slot lane
+# exists to stop concurrent node processes from saturating a shared pod with OOM
+# history, so raising it is only defensible against measured headroom: peak RSS
+# of one build, the node children it spawns, and what the container has spare.
+# Reads /proc, which is the container's own accounting, not an estimate.
+def _read_meminfo() -> dict:
+    out = {}
+    try:
+        with open("/proc/meminfo", "r") as fh:
+            for line in fh:
+                k, _, v = line.partition(":")
+                out[k.strip()] = int(v.strip().split()[0]) // 1024   # MB
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _cgroup_limit_mb() -> dict:
+    """The limit that actually kills the pod, v2 first then v1."""
+    for path, key in (("/sys/fs/cgroup/memory.max", "v2"),
+                      ("/sys/fs/cgroup/memory/memory.limit_in_bytes", "v1")):
+        try:
+            raw = open(path).read().strip()
+            if raw == "max":
+                return {"cgroup": key, "limit_mb": None}
+            return {"cgroup": key, "limit_mb": int(raw) // (1024 * 1024)}
+        except Exception:  # noqa: BLE001
+            continue
+    return {"cgroup": None, "limit_mb": None}
+
+
+def _cgroup_current_mb():
+    for path in ("/sys/fs/cgroup/memory.current",
+                 "/sys/fs/cgroup/memory/memory.usage_in_bytes"):
+        try:
+            return int(open(path).read().strip()) // (1024 * 1024)
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
+def _proc_table() -> list:
+    """Every process in the container, with RSS and command."""
+    procs = []
+    try:
+        for pid in os.listdir("/proc"):
+            if not pid.isdigit():
+                continue
+            try:
+                with open(f"/proc/{pid}/statm") as fh:
+                    rss_pages = int(fh.read().split()[1])
+                with open(f"/proc/{pid}/cmdline", "rb") as fh:
+                    cmd = fh.read().decode("utf-8", "replace").replace(chr(0), " ").strip()
+            except Exception:  # noqa: BLE001
+                continue
+            procs.append({"pid": int(pid), "rss_mb": rss_pages * 4 // 1024,
+                          "cmd": cmd[:120]})
+    except Exception:  # noqa: BLE001
+        pass
+    return sorted(procs, key=lambda p: -p["rss_mb"])
+
+
+@flow_router.get("/_diag/pod")
+def diag_pod(_auth: dict = Depends(require_flow_admin)):
+    """What one build costs, and what the pod has spare. Read-only."""
+    procs = _proc_table()
+    node = [p for p in procs if "/node" in p["cmd"] or p["cmd"].startswith("node")]
+    mem = _read_meminfo()
+    lim = _cgroup_limit_mb()
+    try:
+        load = os.getloadavg()
+    except Exception:  # noqa: BLE001
+        load = None
+    return JSONResponse({
+        "cgroup": {**lim, "current_mb": _cgroup_current_mb()},
+        "meminfo_mb": {k: mem.get(k) for k in ("MemTotal", "MemAvailable", "MemFree")},
+        "loadavg": load,
+        "cpu_count": os.cpu_count(),
+        "node_children": node,
+        "node_child_count": len(node),
+        "top_procs": procs[:8],
+        "search_lane": {**search_warm_state(),
+                        "lock_held": _SEARCH_BUILD_LOCK.locked(),
+                        "lanes": _SEARCH_BUILD_LOCK.slots,
+                        "active": _SEARCH_BUILD_LOCK.active},
+        "prepare": prepare_state(),
+    })
+
+
+@flow_router.get("/_diag/search-capacity")
+def diag_search_capacity(source: str = "stocks", builds: int = 0, top: int = 12,
+                         _auth: dict = Depends(require_flow_admin)):
+    """Cardinality, history-size distribution, freshness-probe cost and the
+    rows->derivation curve. Read-only. `builds` is opt-in and capped."""
+    src = "indexes" if source == "indexes" else "stocks"
+    n_builds = max(0, min(int(builds or 0), _DIAG_MAX_BUILDS))
+    t_start = time.monotonic()
+    out = {"source": src, "budget_s": _DIAG_TIME_BUDGET_S, "builds_requested": n_builds}
+
+    def elapsed():
+        return time.monotonic() - t_start
+
+    # --- 1/2: cardinality + per-ticker row-count distribution ----------------
+    t0 = time.monotonic()
+    try:
+        with db._conn() as conn:
+            rows = conn.execute(
+                "SELECT Symbol, COUNT(*) AS c FROM flow WHERE source=? GROUP BY Symbol",
+                (src,),
+            ).fetchall()
+    except Exception as e:
+        return JSONResponse({"ok": False, "stage": "distribution", "error": str(e)},
+                            status_code=500)
+    counts = sorted(int(r[1]) for r in rows)
+    by_sym = sorted(((str(r[0]), int(r[1])) for r in rows), key=lambda x: -x[1])
+    out["distribution_ms"] = int((time.monotonic() - t0) * 1000)
+    out["cardinality"] = {"distinct_symbols": len(rows), "total_rows": sum(counts)}
+    out["row_counts"] = {
+        "min": counts[0] if counts else None,
+        "p50": _diag_percentile(counts, 0.50),
+        "p90": _diag_percentile(counts, 0.90),
+        "p95": _diag_percentile(counts, 0.95),
+        "p99": _diag_percentile(counts, 0.99),
+        "max": counts[-1] if counts else None,
+    }
+    out["heaviest"] = [{"sym": s_, "rows": c} for s_, c in by_sym[: max(1, min(top, 40))]]
+
+    # --- 3: exact per-ticker freshness probe cost, across buckets ------------
+    # The candidate identity is the SAME construction the global signature uses
+    # (MAX(rowid) catches inserts, COUNT(*) catches prunes) -- neither alone is
+    # sound. Measured here rather than assumed cheap because MAX(rowid) filtered
+    # by Symbol is NOT SQLite's rightmost-leaf special case.
+    def pick(q):
+        v = _diag_percentile(counts, q)
+        if v is None:
+            return None
+        for s_, c in by_sym:
+            if c <= v:
+                return (s_, c)
+        return by_sym[-1] if by_sym else None
+
+    probe_targets = []
+    for label, cand in (("p50", pick(0.50)), ("p90", pick(0.90)), ("p99", pick(0.99)),
+                        ("max", by_sym[0] if by_sym else None)):
+        if cand:
+            probe_targets.append((label, cand[0], cand[1]))
+
+    # TWO probes per bucket, measured side by side on the SAME symbol in the
+    # SAME call, because the question is not "is a probe fast" but "is the
+    # COUNT(*) the thing that costs" -- and only a paired measurement answers
+    # that. The MAX(id) form is the candidate; MAX(rowid),COUNT(*) is the
+    # incumbent that measured 1,006-1,493 ms on MU and was rejected.
+    #
+    # `id` is INTEGER PRIMARY KEY AUTOINCREMENT => monotonic, never reused, so
+    # MAX(id) is EXACT for inserts. It is NOT exact for prunes (a delete by
+    # CreatedDate can remove a mid-range id and move neither MIN nor MAX);
+    # pairing it with a global prune generation counter is what would close
+    # that, and that is a DESIGN question this measurement only informs.
+    _PROBE_REPS = 7
+
+    def _time_probe(sql, sym):
+        timings, val, err = [], None, None
+        for _ in range(_PROBE_REPS):
+            t1 = time.monotonic()
+            try:
+                with db._conn() as conn:
+                    row = conn.execute(sql, (sym, src)).fetchone()
+                val = list(row) if row else None
+            except Exception as e:
+                err = str(e)
+            timings.append(round((time.monotonic() - t1) * 1000, 2))
+        srt = sorted(timings)
+        return {
+            "ms": timings,
+            "cold_ms": timings[0],
+            "p50_ms": _diag_percentile(srt, 0.50),
+            "p90_ms": _diag_percentile(srt, 0.90),
+            "p95_ms": _diag_percentile(srt, 0.95),
+            "p99_ms": _diag_percentile(srt, 0.99),
+            "max_ms": srt[-1],
+            "spread_ms": round(srt[-1] - srt[0], 2),
+            "value": val,
+            "error": err,
+        }
+
+    SQL_MAXID = "SELECT MAX(id) FROM flow WHERE Symbol=? AND source=?"
+    SQL_INCUMBENT = "SELECT MAX(rowid), COUNT(*) FROM flow WHERE Symbol=? AND source=?"
+
+    probes = []
+    for label, sym, nrows in probe_targets:
+        probes.append({
+            "bucket": label, "sym": sym, "rows": nrows,
+            "max_id": _time_probe(SQL_MAXID, sym),
+            "max_rowid_count": _time_probe(SQL_INCUMBENT, sym),
+        })
+    out["freshness_probe"] = probes
+    out["probe_reps"] = _PROBE_REPS
+
+    # --- 4: the query plan SQLite actually chooses ---------------------------
+    try:
+        with db._conn() as conn:
+            plans = {}
+            for nm, sql in (("max_id", SQL_MAXID), ("max_rowid_count", SQL_INCUMBENT)):
+                rowsp = conn.execute("EXPLAIN QUERY PLAN " + sql, ("AAPL", src)).fetchall()
+                plans[nm] = [" ".join(str(x) for x in r) for r in rowsp]
+        out["probe_query_plan"] = plans
+    except Exception as e:
+        out["probe_query_plan"] = ["error: %s" % e]
+
+    # --- 5: rows -> derivation curve (OPT-IN, serial, single-flight) ---------
+    out["builds"] = []
+    if n_builds and flow_aggregate.available():
+        picks, seen = [], set()
+        for q in (0.50, 0.90, 0.99):
+            c = pick(q)
+            if c and c[0] not in seen:
+                seen.add(c[0]); picks.append(c)
+        if by_sym and by_sym[0][0] not in seen:
+            picks.append(by_sym[0])
+        picks = picks[:n_builds]
+        for sym, nrows in picks:
+            if elapsed() > _DIAG_TIME_BUDGET_S:
+                out["builds"].append({"sym": sym, "skipped": "time budget"})
+                continue
+            if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+                out["builds"].append({"sym": sym, "skipped": "build lock busy"})
+                continue
+            try:
+                b = {"sym": sym, "rows_in_db": nrows}
+                t1 = time.monotonic()
+                parts, nl_count = [], 0
+                for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+                    x = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
+                    parts.append(x); nl_count += x.count(b"\n")
+                csv_bytes = b"".join(parts)
+                b["csv_ms"] = int((time.monotonic() - t1) * 1000)
+                b["csv_kb"] = len(csv_bytes) // 1024
+                b["csv_rows"] = nl_count
+                t2 = time.monotonic()
+                try:
+                    proc = subprocess.run(
+                        [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
+                        input=csv_bytes, capture_output=True,
+                        timeout=flow_aggregate.BUILD_TIMEOUT_S)
+                    b["derive_ms"] = int((time.monotonic() - t2) * 1000)
+                    b["rc"] = proc.returncode
+                    if proc.returncode == 0:
+                        try:
+                            d = json.loads(proc.stdout)
+                            prod = d.get("product") or {}
+                            b["out_kb"] = len(proc.stdout) // 1024
+                            b["all_directional"] = len(prod.get("all_directional") or [])
+                            b["ticker_db"] = len(prod.get("TICKER_DB") or [])
+                            gz = gzip.compress(json.dumps(prod, separators=(",", ":")).encode("utf-8"), 6)
+                            b["product_gz_kb"] = len(gz) // 1024
+                        except Exception as e:
+                            b["parse_error"] = str(e)
+                    else:
+                        b["stderr"] = (proc.stderr or b"")[:200].decode("utf-8", "replace")
+                except subprocess.TimeoutExpired:
+                    b["derive_ms"] = int((time.monotonic() - t2) * 1000)
+                    b["timeout"] = True
+                b["total_ms"] = b.get("csv_ms", 0) + b.get("derive_ms", 0)
+                out["builds"].append(b)
+            finally:
+                _SEARCH_BUILD_LOCK.release()
+
+    out["ok"] = True
+    out["elapsed_ms"] = int(elapsed() * 1000)
+    return JSONResponse(out)
+
+
 @flow_router.get("/data")
 # sync def (not async): the gzip+stream build is CPU/sync work; a `def`
 # handler runs in the threadpool instead of blocking the single event loop.
@@ -844,6 +1611,115 @@ async def etf_replica_status():
     return JSONResponse(_rep.status())
 
 
+# ── Prepare the first paint BEFORE a member asks for it ────────────────────
+#
+# THE PROBLEM THIS SOLVES, measured rather than assumed. A cold parts build for
+# an uncached view costs ~3.5-7.4 s of intrinsic work (processFlowData 4,203 ms
+# + node CSV parse 1,270 ms + process start and 24.8 MB of stdout ~1,915 ms).
+# The client gives up at 3 s and falls back to the raw tape, so the FIRST member
+# to open Options Flow after any version roll pays ~3.7 MB and a multi-second
+# wait -- for a page every later member gets in ~200 ms.
+#
+# ⛔ THE BUILD IS NOT MADE CHEAPER, AND THE BRAIN IS NOT TOUCHED. This changes
+# WHO triggers the work and WHEN: the same `get_cached_or_build_part` call a
+# member request makes, with the same key, the same CSV provider and the same
+# single-flight lock, run from a background thread the moment the data changes.
+# Byte-for-byte the same product -- it is simply already there.
+#
+# ⛔ NO NEW MEMORY PEAK. This build already happens on the member path; the peak
+# is whatever one `build_parts` holds, unchanged. What is new is CPU on a quiet
+# pod, and that is bounded by the version cadence, not by a timer -- see below.
+#
+# ⛔ IT IS VERSION-TRIGGERED, WHICH MAKES IT SELF-GATING TO MARKET HOURS. The
+# version only moves when the underlying rows actually change, so on a closed
+# tape this thread does nothing at all (observed 2026-09-08: one version held
+# for 5 h 07 m). No market-hours clock is needed, and adding one would be a
+# second authority over "is the tape live".
+#
+# ⛔ IT YIELDS TO MEMBERS, ALWAYS. `get_cached_or_build_part` acquires the build
+# lock non-blockingly and declines when it is held, so a preparer tick during a
+# member's build simply does nothing and tries again next tick. The preparer can
+# never queue ahead of, or compete with, a real request.
+_PREPARE_POLL_S = int(os.environ.get("FLOW_PREPARE_POLL_S", "20") or 20)
+_PREPARE_STATE = {"enabled": False, "prepared": 0, "declined": 0, "failed": 0,
+                  "last_version": None, "last_ms": None, "last_error": None}
+
+
+def prepare_state() -> dict:
+    """Diagnostics for the preparer. `warm` in health() is the real verdict."""
+    return dict(_PREPARE_STATE)
+
+
+def _prepare_once(last_version):
+    """Warm the default view for the current version. Returns the version that
+    is now prepared (unchanged if this tick did not manage it).
+
+    ⛔ A DECLINED OR FAILED TICK MUST NOT RECORD PROGRESS. Returning `version`
+    on a decline would mark the roll as handled and this thread would never
+    retry it -- the preparer would go quietly idle while every member paid the
+    cold build, with its own counters reporting success.
+    """
+    version = _current_version()
+    if version == last_version:
+        return last_version
+
+    source, days, date_filter = flow_aggregate.DEFAULT_VIEW
+    key = (source, days, date_filter)
+    t0 = time.monotonic()
+    try:
+        got = flow_aggregate.get_cached_or_build_part(
+            key, version,
+            lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+            date_filter, "bootstrap")
+    except Exception as e:  # noqa: BLE001
+        _PREPARE_STATE["failed"] += 1
+        _PREPARE_STATE["last_error"] = repr(e)[:200]
+        log.warning("[flow-prepare] build raised: %s", e)
+        return last_version
+
+    ms = int((time.monotonic() - t0) * 1000)
+    # `get_cached_or_build_part` hands back a STALE entry when the lock was held,
+    # so "did we get bytes" is not the question -- "are they THIS version" is.
+    if got and got[0] == version:
+        _PREPARE_STATE["prepared"] += 1
+        _PREPARE_STATE["last_version"] = version
+        _PREPARE_STATE["last_ms"] = ms
+        _PREPARE_STATE["last_error"] = None
+        log.info("[flow-prepare] warmed %s v=%s in %dms", key, version, ms)
+        return version
+
+    _PREPARE_STATE["declined"] += 1
+    log.info("[flow-prepare] declined (build busy) v=%s after %dms", version, ms)
+    return last_version
+
+
+def _prepare_loop():
+    last = None
+    while True:
+        try:
+            last = _prepare_once(last)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[flow-prepare] tick failed: %s", e)
+        time.sleep(_PREPARE_POLL_S)
+
+
+def start_background_prepare() -> bool:
+    """Start the first-paint preparer. Returns whether it started.
+
+    Self-gated on FLOW_PREPARE_ENABLED so the caller cannot start it by accident,
+    and on parts being enabled at all -- warming a transport nobody serves would
+    burn CPU for nothing and report healthy while doing it.
+    """
+    if os.environ.get("FLOW_PREPARE_ENABLED", "0") != "1":
+        return False
+    if not flow_aggregate.parts_enabled():
+        log.info("[flow-prepare] not started: parts transport is off")
+        return False
+    _PREPARE_STATE["enabled"] = True
+    threading.Thread(target=_prepare_loop, name="flow-prepare", daemon=True).start()
+    return True
+
+
 @flow_router.get("/aggregate-health")
 async def aggregate_health():
     """Is Options Flow's server-computed first paint actually working?
@@ -859,7 +1735,12 @@ async def aggregate_health():
     as colour, never as the verdict (a resetting counter is how the desk
     insights pass reported healthy through a total failure).
     """
-    return JSONResponse(flow_aggregate.health(current_version=_current_version()))
+    out = flow_aggregate.health(current_version=_current_version())
+    # Colour, not verdict: `warm` above already answers "is the first paint
+    # ready". These say whether the preparer is the reason it is.
+    out["prepare"] = prepare_state()
+    out["search_warm"] = search_warm_state()
+    return JSONResponse(out)
 
 
 @flow_router.get("/aggregate")

@@ -28,7 +28,6 @@ import useOwnership from '../../../hooks/useOwnership'
 import CompanyLogo from '../../../components/CompanyLogo'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
 import BusinessTrend from './BusinessTrend'
-import { PROTOTYPES } from './prototypes'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -206,7 +205,7 @@ export default function DockProfile({ sym }) {
   // Earnings tab uses). The request is skipped entirely when the prototype is
   // off, so the study costs a normal viewer nothing.
   const { data: intel } = useMobileSWR(
-    PROTOTYPES && sym ? `/api/earnings-intel/${encodeURIComponent(sym)}` : null,
+    sym ? `/api/earnings-intel/${encodeURIComponent(sym)}` : null,
     jsonFetcher, { refreshInterval: 0, dedupingInterval: 300000, revalidateOnFocus: false })
   const g = useGrowth(earn?.quarterly)
 
@@ -401,7 +400,7 @@ export default function DockProfile({ sym }) {
       </section>
 
       {/* PROTOTYPE: one visual, after the numbers it summarises. */}
-      {PROTOTYPES && <BusinessTrend annual={intel?.annual} />}
+      <BusinessTrend annual={intel?.annual} />
 
       {/* ── Ownership snapshot ── */}
       <OwnershipSnapshot sym={sym} instPct={f.held_pct_institutions ?? fund?.inst_own_pct} insiderPct={f.held_pct_insiders} />

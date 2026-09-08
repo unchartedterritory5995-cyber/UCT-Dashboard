@@ -31,6 +31,26 @@ function _isNonTradingDayET(d) {
   return hasCoverage(d.getFullYear()) && !!holidayOn(iso)
 }
 
+// True iff TODAY (ET) is a trading session — a weekday that is not an NYSE full holiday.
+// Holiday-aware (via the shared NYSE calendar), so a developing-bar reservation/seed is never
+// placed on a day when no new bar will actually arrive (weekend/holiday → a phantom right slot).
+export function isTradingSessionTodayET() {
+  try { return !_isNonTradingDayET(new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))) }
+  catch { return false }
+}
+
+// True iff the ISO date 'YYYY-MM-DD' is an NYSE FULL-holiday closure (weekday market closure).
+// Weekend-agnostic on purpose: callers that already skip Sat/Sun (e.g. the daily future-axis
+// whitespace) use this ONLY to also skip holidays, so a closed weekday (Labor Day, etc.) never
+// gets a phantom axis slot between the surrounding trading days.
+export function isHolidayISO(iso) {
+  try {
+    const s = String(iso).slice(0, 10)
+    const y = Number(s.slice(0, 4))
+    return hasCoverage(y) && !!holidayOn(s)
+  } catch { return false }
+}
+
 // The effective regular-session close, in minutes-since-midnight ET, for the
 // ET calendar date `d` — 13:00 (780) on a real NYSE early-close day, else the
 // ordinary 16:00 (960) close. Falls back to 960 outside calendar coverage.

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+from collections import Counter
 import json
 import logging
 import os
@@ -575,3 +576,49 @@ def prune() -> dict[str, int]:
                   "(SELECT id FROM news_items)")
         c.commit()
     return out
+
+
+def recheck_rejects(rule) -> dict[str, Any]:
+    """Re-apply the CURRENT reject rules to rows already stored.
+
+    Rejected items are kept, not dropped (see ingest.process), which is what
+    makes a filter fix retroactive instead of "fixed for items we happen to
+    fetch next". Without this, correcting a bad rule leaves every story it
+    already deleted invisible forever -- exactly what happened when `^why` ate a
+    Barron's report and a bare `prediction` ate the prediction-markets story.
+
+    `rule(headline, source_class, relevances) -> str` keeps the filter and
+    subject imports out of the storage layer.
+
+    ⛔ `relevances` is NOT optional context -- it is the SUBJECT stage's verdict,
+    and the rule MUST reapply it. A first cut of this passed only the headline
+    and source class, so it silently cleared every `mention-only` and
+    `no-ticker` verdict it did not know how to recompute: 93 rows in
+    production. Those rows did not reach anyone -- `feed()` also requires a
+    `direct` ticker link, so the second guard held -- but the stored verdict is
+    the one that is supposed to hold, and a recheck that erases a stage it does
+    not evaluate is a recheck that overrides it across the whole database.
+    """
+    _ensure_init()
+    changed: Counter = Counter()
+    with contextlib.closing(_connect()) as c:
+        links: dict[int, list[str]] = {}
+        for r in c.execute("SELECT news_id, relevance FROM news_tickers"):
+            links.setdefault(int(r["news_id"]), []).append(r["relevance"] or "")
+        rows = c.execute(
+            "SELECT id, headline, source_class, reject_reason FROM news_items"
+        ).fetchall()
+        updates: list[tuple[str, int]] = []
+        for r in rows:
+            new = rule(r["headline"] or "", r["source_class"] or "",
+                       links.get(int(r["id"]), [])) or ""
+            old = r["reject_reason"] or ""
+            if new != old:
+                updates.append((new, int(r["id"])))
+                changed[f"{old or 'shown'} -> {new or 'shown'}"] += 1
+        if updates:
+            c.executemany(
+                "UPDATE news_items SET reject_reason = ? WHERE id = ?", updates)
+            c.commit()
+    return {"scanned": len(rows), "updated": len(updates),
+            "transitions": dict(changed)}

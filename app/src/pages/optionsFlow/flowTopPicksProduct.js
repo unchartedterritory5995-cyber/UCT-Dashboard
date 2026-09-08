@@ -69,6 +69,36 @@ export function topPickVariantKeys() {
 }
 
 /**
+ * Drop the per-candidate `contracts` map from a served candidate.
+ *
+ * ⛔ MEASURED DEAD, NOT ASSUMED DEAD. On production this map is 67% of the
+ * whole TOP_PICKS payload — 4,370 contract entries across the eight variants,
+ * 1,305 KB decoded falling to 432 KB without it. The TOP 10 renderer reads
+ * `topC` and the `topCDisplay*` scalars and NEVER `candidate.contracts`; the
+ * other `.contracts` reads in OptionsFlow.jsx belong to unrelated local
+ * structures (wlPopulate's `flowBy`, the Leaderboard's own tkMap).
+ *
+ * ⛔ RECURSIVE, because `_moreStrikes` (standout only) holds OTHER CANDIDATE
+ * OBJECTS and the renderer reads `m.topC.cp/K/exp` and `m.net` on them. Strip
+ * the top level alone and the nested maps — the bulk of the standout payload —
+ * would ride along untouched.
+ *
+ * ⛔ `topC` SURVIVES. In the computation it is a REFERENCE to one entry of the
+ * map being removed; JSON serialises it independently, so the contract the
+ * table actually shows is unaffected.
+ *
+ * This projection applies to the SERVED product only. The local fallback keeps
+ * computing exactly what it computes today, so a decline is byte-identical to
+ * the pre-3b page.
+ */
+export function stripUnreadContracts(c) {
+  if (!c || typeof c !== 'object') return c
+  const { contracts: _drop, _moreStrikes, ...rest } = c
+  if (Array.isArray(_moreStrikes)) rest._moreStrikes = _moreStrikes.map(stripUnreadContracts)
+  return rest
+}
+
+/**
  * Build the full TOP 10 product for one processed dataset.
  *
  * `generation` is the content digest of the ETF/index classification the
@@ -93,8 +123,9 @@ export function buildTopPickProduct(D, { isEtfFn, generation = null } = {}) {
         { dataMode, capFilter, isEtfFn, includeStandout: true },
       )
       variants[topPickVariantKey(dataMode, capFilter)] = {
-        candidates,
-        standoutCandidates,
+        // ⛔ The `contracts` map is 67% of this payload and nothing reads it.
+        candidates: candidates.map(stripUnreadContracts),
+        standoutCandidates: standoutCandidates ? standoutCandidates.map(stripUnreadContracts) : null,
         // ⛔ COUNT, not the array. See the header note on `ad`.
         adCount: ad ? ad.length : 0,
       }

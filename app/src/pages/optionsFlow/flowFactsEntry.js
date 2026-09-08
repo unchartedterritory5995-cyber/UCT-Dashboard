@@ -33,6 +33,7 @@
 import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom, makeIsETF } from './flowCompute'
 import { partsFrom } from './flowBootstrap'
 import { buildTopPickProduct } from './flowTopPicksProduct'
+import { buildSearchProduct } from './flowSearchProduct'
 import { readFileSync } from 'node:fs'
 
 export const USAGE = [
@@ -182,7 +183,7 @@ function routeConsoleToStderr() {
 
 export async function main(argv) {
   const cmd = argv[0]
-  if (cmd !== 'aggregate' && cmd !== 'stats') {
+  if (cmd !== 'aggregate' && cmd !== 'stats' && cmd !== 'search') {
     process.stderr.write(USAGE + '\n')
     process.exitCode = 2
     return
@@ -194,6 +195,28 @@ export async function main(argv) {
     const etfFlag = argv.find(a => a.startsWith('--etf-file='))
     const replica = etfFlag ? loadEtfReplica(etfFlag.slice('--etf-file='.length)) : null
     const csv = await readStdin()
+    if (cmd === 'search') {
+      // The Search deep dive for ONE ticker.
+      //
+      // ⛔ `erSoon` IS NULL, DELIBERATELY. `processFlowData` treats a Set as the
+      // authority and sets `er = set.has(symbol)`; null lets the tape's own
+      // column speak. Computing with null is what makes this product
+      // USER-INDEPENDENT and therefore cacheable — the client re-applies its own
+      // earnings set on arrival (flowSearchProduct.applyErOverlay), which is
+      // deep-equal to having computed it with that set. Proven in
+      // searchErIndependence.test.js, with the wrong-set control.
+      //
+      // ⛔ NO --date-filter HERE. `/api/flow/ticker` has no range parameter: it
+      // returns the ticker's COMPLETE history and the page scopes it at render
+      // time (_scopeAllDirectional). Filtering here would make the product
+      // range-specific, which would both change the answer and silently break
+      // a cache key that legitimately omits range.
+      const rows = parseCSV(csv)
+      const D = rows.length ? processFlowData(rows, null) : null
+      const product = buildSearchProduct(D)
+      process.stdout.write(JSON.stringify({ ok: true, product, rows: rows.length }) + String.fromCharCode(10))
+      return
+    }
     const { D, stats } = aggregateCsv(csv, { dateFilter })
     // 3b: the TOP 10 product. Built ONLY when a replica was supplied and read
     // cleanly — see loadEtfReplica. It is emitted as its own part and is

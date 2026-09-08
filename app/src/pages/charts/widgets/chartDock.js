@@ -26,7 +26,29 @@ export const DOCK_PANELS = [
   { key: 'fundamentals', label: 'Fundamentals Strip', icon: 'scale', side: 'bottom' },
 ]
 
-export const DEFAULT_RIGHT_W = 360
+// 400, not 360. The header is `[Overview Financials Earnings Ownership News]
+// [search]`, and .rdTabs is `overflow-x: auto` -- so when the five labels plus
+// the 26px search button do not fit, the strip does NOT push back, it silently
+// SCROLLS and the last tab ("News") slides under the search control. At 360 the
+// strip needs ~375px, so News was clipped mid-word in the default position.
+// MEASURED, not estimated -- canvas measureText at 600 11px "Instrument Sans"
+// (the app's real stack) on 2026-09-08: labels 235.3px + 90px tab padding
+// (5 x 18) + 44px search chrome (26 box + 2 border + 12 gap + 4 margin) + 4px
+// header padding = 374px. Re-measure if a label, the font or .rdTab padding
+// changes; the chartDock.width test fails if the default drops under it.
+// 380 = the measured 374 the header needs + 6px, which lands the search
+// control ~12px off the right edge: the same optical margin as the tab strip's
+// left inset. 400 fit fine but left a visible dead gap after the search button
+// once the strip stopped growing.
+export const DEFAULT_RIGHT_W = 380
+// The width the header chrome above needs before the tab strip starts scrolling.
+// Not a hard floor -- MIN_RIGHT_W stays at 300 so a user who deliberately drags
+// the panel narrow still can (the feed is designed down to 300); it exists so
+// the stale-default migration below knows what "too narrow" means.
+export const TABSTRIP_FIT_W = 374
+// Every width we have ever SHIPPED as the default. None was user-chosen, so
+// none should outlive the default moving -- see normalizeDock.
+const LEGACY_DEFAULT_RIGHT_W = new Set([360, 400])
 export const DEFAULT_BOTTOM_H = 116
 export const TALL_BOTTOM_H = 300
 export const MIN_RIGHT_W = 300
@@ -51,7 +73,13 @@ export function normalizeDock(raw) {
     open,                                    // right (company) panel open?
     tab,                                     // active company tab
     bottom: !!d.bottom,                      // fundamentals strip open?
-    rightW: Number.isFinite(d.rightW) ? d.rightW : DEFAULT_RIGHT_W,
+    // A user who never dragged the panel is still carrying a SHIPPED default in
+    // their persisted opts, and would keep that layout forever even though the
+    // default moved. Treat any previously shipped default as unset. A width the
+    // user actually chose (any other number) is left alone.
+    rightW: (Number.isFinite(d.rightW) && !LEGACY_DEFAULT_RIGHT_W.has(d.rightW))
+      ? d.rightW
+      : DEFAULT_RIGHT_W,
     bottomH: Number.isFinite(d.bottomH) ? d.bottomH : DEFAULT_BOTTOM_H,
     fundView,
     newsFilter,

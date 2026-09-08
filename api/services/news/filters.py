@@ -68,14 +68,20 @@ PR_SPAM_RE = re.compile(
 # 3. Editorial commentary. Validated at 11/11 caught, 0/8 real news misflagged,
 #    then re-validated across the full 15k-article corpus.
 # ---------------------------------------------------------------------------
-COMMENTARY_RE = re.compile(
+# Unambiguous opinion/promotion. These mark a piece as commentary NO MATTER who
+# published it -- Reuters does not run "3 no-brainer stocks to buy".
+# Unambiguous opinion/promotion. These mark a piece as commentary NO MATTER who
+# published it -- Reuters does not run "3 no-brainer stocks to buy".
+COMMENTARY_STRONG_RE = re.compile(
     "|".join([
         r"\bbuy,?\s*sell,?\s*or\s+hold\b",
         r"\bis\s+.{0,40}\ba\s+(?:buy|sell|screaming\s+buy|no-brainer)\b",
-        r"\bhere(?:['’]?s|\s+is)\s+(?:why|what|which|how)\b",
         r"\b(?:i['’]?d|i['’]?ve|i['’]?m|i['’]?ll|why\s+i)\b",
         r"\bmy\s+top\b", r"\bbetter\s+buy\b",
-        r"\bprediction\b",
+        # ⚠️ NOT a bare \bprediction\b. "prediction market" is a real financial
+        # product, and that bare word threw away a WSJ report -- "Robinhood
+        # Strikes Deal With Crypto.com in Latest Prediction-Markets Push".
+        r"\bpredictions?\b(?![-\s]*markets?\b)",
         r"\b(?:could|will)\s+(?:double|triple|soar|skyrocket|crash|plunge)\b",
         r"\b\d+\s+reasons?\b", r"\bno-brainer\b", r"\bmillionaire[-\s]maker\b",
         r"\bwhere\s+will\s+.{0,40}\bbe\s+in\s+\d+\s+years?\b",
@@ -86,17 +92,33 @@ COMMENTARY_RE = re.compile(
         r"\b\d+\s+(?:best|top|great|cheap)\b.{0,30}\bstocks?\b",
         r"\bshould\s+investors\b",
         r"\bwhat\s+investors\s+(?:need|should)\s+(?:to\s+)?know\b",
+        r"^\s*\d{1,2}\s+\S",          # numeric listicle
+    ]),
+    re.I,
+)
+
+# STYLE, not stance. In a retail-commentary shop these reliably mark an opinion
+# column; at a whitelisted newsroom the very same shapes are ordinary reporting
+# -- "Why Micron Stock Is Popping on Fresh Memory-Chip Price Data" (Barron's) is
+# a news explainer about real price data, and this rule threw it away. So these
+# apply to every class EXCEPT journalism (see reject_reason).
+COMMENTARY_WEAK_RE = re.compile(
+    "|".join([
+        r"\bhere(?:['’]?s|\s+is)\s+(?:why|what|which|how)\b",
         # Interrogative headline: a question ABOUT a stock, not a report of an
         # event. Straight news almost never ends in '?'. Allowed to open the
         # headline or follow a colon/dash.
         r"(?:^|[:\-–—]\s*)"
         r"(?:can|will|is|are|should|why|what|how|where|which|do|does|has|have)\b"
         r"[^?]{0,170}\?\s*$",
-        r"^\s*\d{1,2}\s+\S",          # numeric listicle
         r"^\s*why\b",                  # explainer voice
     ]),
     re.I,
 )
+
+# Back-compat: the union is still the "is this commentary anywhere" question.
+COMMENTARY_RE = re.compile(
+    f"(?:{COMMENTARY_STRONG_RE.pattern})|(?:{COMMENTARY_WEAK_RE.pattern})", re.I)
 
 REJECT_LEGAL = "legal-solicitation"
 REJECT_PR_SPAM = "market-research-pr"
@@ -127,15 +149,21 @@ def reject_reason(title: str, *, source_class: str = "") -> str | None:
     if PR_SPAM_RE.search(t):
         return REJECT_PR_SPAM
 
-    # Primary sources are not editorialising. An SEC form title like
-    # "Why ..." cannot occur, but a company release occasionally uses a
-    # question; do not reject the issuer's own words as commentary.
-    if source_class in ("primary", "wire") and not COMMENTARY_RE.search(t):
-        return None
-    if source_class in ("primary",):
+    # Primary sources are not editorialising: an issuer's own release is its own
+    # words, never our opinion call.
+    if source_class == "primary":
         return None
 
-    if COMMENTARY_RE.search(t):
+    # ⛔ Source-aware by design. `journalism` is a SMALL hand-curated whitelist
+    # (Reuters, Barron's, WSJ, Bloomberg, AP, FT...) -- nothing joins it
+    # automatically. Those newsrooms use explainer and question headlines for
+    # straight reporting, so judging them on style discarded real news: a
+    # Barron's report on fresh memory-chip pricing was the ONLY genuine Micron
+    # story that day and `^why` deleted it. Hold them to stance, not style.
+    if source_class == "journalism":
+        return REJECT_COMMENTARY if COMMENTARY_STRONG_RE.search(t) else None
+
+    if COMMENTARY_STRONG_RE.search(t) or COMMENTARY_WEAK_RE.search(t):
         return REJECT_COMMENTARY
     return None
 

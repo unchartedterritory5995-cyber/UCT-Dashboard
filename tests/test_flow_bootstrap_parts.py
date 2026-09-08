@@ -202,12 +202,28 @@ def test_a_KNOWN_part_that_cannot_be_built_does_NOT_serve_the_whole_aggregate():
     assert "return JSONResponse" in block
 
 
-def test_the_part_path_uses_the_same_csv_source_as_the_whole_D_path():
+def test_every_builder_shares_one_csv_provider():
     """Two different providers for one dataset is how a part comes from a
-    different CSV than the bootstrap it is merged into."""
+    different CSV than the bootstrap it is merged into.
+
+    ⛔ THE EXPECTED COUNT IS DERIVED, NOT TYPED. This asserted `== 2` and went
+    red the day a third legitimate caller appeared (the first-paint preparer)
+    using the very same provider -- the invariant held and the number had
+    drifted. A hand-typed count beside the thing it describes is the defect this
+    repo keeps re-committing; so count the call sites that need a provider and
+    require the provider expression to appear exactly that many times. A new
+    caller with a DIFFERENT provider now fails this, which is the real rule.
+    """
     src = (REPO / "api" / "flow_router.py").read_text(encoding="utf-8")
     provider = 'gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")'
-    assert src.count(provider) == 2, "part path and build_aggregate must share the provider"
+    sites = (src.count("flow_aggregate.get_cached_or_build_part(")
+             + src.count("flow_aggregate.get_cached_or_build("))
+    assert sites >= 2, (
+        "found fewer than two builder call sites -- this probe has stopped "
+        "seeing the thing it grades, so its verdict is vacuous")
+    assert src.count(provider) == sites, (
+        f"{sites} builder call sites but {src.count(provider)} uses of the shared "
+        "provider -- one of them is feeding a build from a different CSV")
 
 # ── the bootstrap part must carry stats, or the date picker vanishes again ────
 def test_the_bootstrap_part_carries_stats_so_availableDates_survives():

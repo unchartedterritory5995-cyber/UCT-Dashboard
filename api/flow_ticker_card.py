@@ -24,7 +24,7 @@ _MIXED = (201, 168, 76)   # gold for two-sided / unclear leans
 # (header, x, align) — one row per CONTRACT (no ticker column; it's one ticker)
 _COLS = [
     ("STRIKE", 120, "r"), ("C/P", 138, "l"), ("EXP · DTE", 200, "l"),
-    ("ITM/OTM", 360, "l"), ("PREMIUM", 560, "r"), ("VOL", 735, "r"),
+    ("ITM/OTM", 360, "l"), ("PREMIUM", 560, "r"), ("VOL (WHEN)", 735, "r"),
     ("LATEST OI", 835, "r"), ("OI TREND", 858, "l"), ("PERF", 1012, "r"), ("DIR", 1032, "l"),
 ]
 

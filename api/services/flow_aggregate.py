@@ -243,7 +243,15 @@ def stats() -> dict:
     return dict(_STATS)
 
 
-def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
+# The view the page OPENS ON: stocks, a 1-day fetch window, the Last1 date
+# selection. ⛔ ONE AUTHORITY. `health()` grades warmth against this view and the
+# background preparer warms this view; if those two ever named it separately, a
+# preparer could report success for a view nobody opens while health honestly
+# said cold, and each would look right on its own.
+DEFAULT_VIEW = ("stocks", 1, "Last1")
+
+
+def health(current_version=None, view=DEFAULT_VIEW) -> dict:
     """Is the fast path ACTUALLY available right now?
 
     ⛔ READS THE ARTIFACT, NOT A COUNTER. The verdict is "is there a usable
@@ -290,15 +298,46 @@ def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
         return out
     out["available"] = True
 
-    cached = _CACHE.get(tuple(view))
-    if cached is None:
-        out["reason"] = "cold"
-    elif current_version is not None and cached[0] != current_version:
-        # A warm entry for a SUPERSEDED version is not warm: the next caller
-        # rebuilds. Reporting it as warm is how a stalled warmer would hide.
-        out["reason"] = f"stale (cached v{cached[0]} vs current v{current_version})"
+    def _grade(entry, label=""):
+        """(warm?, reason) for one cache entry against the current version.
+
+        `label` is a PREFIX, empty for the whole-D path so its long-standing
+        reason strings ("cold", "stale (...)") are unchanged — they are a
+        diagnostic contract, and renaming them to suit a new caller would be a
+        gratuitous break.
+        """
+        if entry is None:
+            return False, f"{label}cold"
+        if current_version is not None and entry[0] != current_version:
+            # A warm entry for a SUPERSEDED version is not warm: the next caller
+            # rebuilds. Reporting it as warm is how a stalled warmer would hide.
+            return False, (f"{label}stale (cached v{entry[0]} vs current "
+                           f"v{current_version})")
+        return True, None
+
+    warm_whole, reason_whole = _grade(_CACHE.get(tuple(view)))
+    out["warm_whole"] = warm_whole
+
+    # ⛔ GRADE THE TRANSPORT MEMBERS ACTUALLY TAKE. This graded ONLY the whole-D
+    # cache, and with the parts transport enabled in production that is not the
+    # path a member's first paint uses. Observed on prod 2026-09-08:
+    #     "warm": true, "parts": {"enabled": true, "entries": []}
+    # — the verdict said the fast path was ready while the path members take was
+    # completely cold, which is exactly the class of defect this function's own
+    # docstring warns about (a health check reading a proxy, not the artifact).
+    #
+    # ⛔ `bootstrap` IS A SUFFICIENT PROBE, by construction rather than by luck:
+    # `get_cached_or_build_part` writes EVERY part from one build in a single
+    # pass, so if bootstrap is present at this version its siblings are too.
+    if parts_enabled():
+        warm_parts, reason_parts = _grade(
+            _PARTS_CACHE.get(tuple(view) + ("bootstrap",)), "parts ")
+        out["warm_parts"] = warm_parts
+        out["warm"] = warm_parts
+        out["reason"] = reason_parts
     else:
-        out["warm"] = True
+        out["warm"] = warm_whole
+        out["reason"] = reason_whole
     return out
 
 
@@ -488,6 +527,7 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     if etf_path:
         argv.append(f"--etf-file={etf_path}")
     t0 = time.monotonic()
+    _st = {"csv_kb": len(csv_text) // 1024}
     # ⛔ try/FINALLY, not a call after the except arms: the timeout and
     # failed-to-start branches both `return None`, so a cleanup placed after
     # them leaks the staged replica on exactly the paths that repeat.
@@ -508,7 +548,11 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
                     (proc.stderr or b"")[:300].decode("utf-8", "replace"))
         return None
 
+    _st["spawn_ms"] = int((time.monotonic() - t0) * 1000)
+    _t_frames = time.monotonic()
     frames = _read_frames(proc.stdout)
+    _st["frames_ms"] = int((time.monotonic() - _t_frames) * 1000)
+    _st["stdout_kb"] = len(proc.stdout or b"") // 1024
     if not frames or "bootstrap" not in frames:
         log.warning("[flow-agg] parts stream unusable (%d bytes, %d frames)",
                     len(proc.stdout), len(frames))
@@ -538,10 +582,24 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     # the client has one shape to understand rather than two.
     frames = envelope_bootstrap(frames, stats)
 
+    _t_gz = time.monotonic()
     gz = {name: gzip.compress(body, compresslevel=6) for name, body in frames.items()}
+    _st["gzip_ms"] = int((time.monotonic() - _t_gz) * 1000)
     _STATS["builds"] += 1
-    log.info("[flow-agg] parts built in %d ms: %s", stats["buildMs"],
-             ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
+    # ⛔ STAGE DECOMPOSITION, not just a total. "the build takes ~6 s" is not an
+    # actionable fact: the question is how much is CSV acquisition, how much is
+    # node startup, how much is the parse, how much is processFlowData itself,
+    # and how much is transport work this process does afterwards. `parseMs` and
+    # `processMs` come from inside the node run; the rest are measured here.
+    # Without this, optimisation is guesswork and "precompute it" becomes an
+    # excuse not to delete redundant work first.
+    log.info(
+        "[flow-agg] parts built in %d ms :: csv=%dKB spawn+run=%dms "
+        "(node parse=%sms process=%sms) frames=%dms stdout=%dKB gzip=%dms :: %s",
+        stats["buildMs"], _st.get("csv_kb", 0), _st.get("spawn_ms", 0),
+        stats.get("parseMs", "?"), stats.get("processMs", "?"),
+        _st.get("frames_ms", 0), _st.get("stdout_kb", 0), _st.get("gzip_ms", 0),
+        ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
     return {"parts": gz, "stats": stats}
 
 

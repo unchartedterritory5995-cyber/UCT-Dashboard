@@ -898,10 +898,14 @@ def get_breadth_lists(date_str: str,
     and it admits no human account at all.
     """
     wanted = [k.strip() for k in keys.split(",") if k.strip()] or None
-    out = svc.get_snapshot_lists(_require_iso_date(date_str), wanted)
+    iso = _require_iso_date(date_str)
+    out = svc.get_snapshot_lists(iso, wanted)
     if out is None:
         raise HTTPException(status_code=404, detail=f"No snapshot for {date_str}")
-    return {"date": date_str, "lists": out}
+    # The scalars ride along: a job that edits a list must be able to check the
+    # count rendered beside it before rewriting it. Scalars only, so this adds
+    # ~1KB next to lists that run to hundreds.
+    return {"date": date_str, "lists": out, "counts": svc.get_snapshot_counts(iso) or {}}
 
 
 @router.post("/api/breadth/industries")

@@ -272,7 +272,12 @@
 .nw {
   height: 100%; min-height: 0; display: flex; flex-direction: column;
   color: var(--text, #d8d2c2);
-  container-type: inline-size; container-name: dock;
+  /* ⛔ Do NOT declare a container here. `.dockBody` already establishes
+     `container-name: dock`, and every other tab (.profile/.fin/.et/.ow)
+     relies on it. Re-declaring one made .nw a NESTED container, and
+     `container-type: inline-size` implies `contain: layout`, which opens a
+     new formatting context — that broke `height: 100%` against the dock's
+     flex column and clipped the feed under the header. */
 }
 
 /* ── search ───────────────────────────────────────────────────────────── */
