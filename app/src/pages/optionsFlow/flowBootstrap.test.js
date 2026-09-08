@@ -11,6 +11,7 @@ import {
   partsFrom,
   PART_NAMES,
   isPartName,
+  INTERACTION_KEYS,
 } from './flowBootstrap'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -91,8 +92,13 @@ describe('what may be deferred', () => {
     // filter or tab changes. Deferring it would break the cap filter outright,
     // not merely delay it.
     expect(DEFERRED_KEYS).not.toContain('clean_confirmed')
-    expect(DEFERRED_KEYS).not.toContain('TICKER_DB')
-    expect(DEFERRED_KEYS).not.toContain('CONV')
+    // ⛔ TICKER_DB AND CONV WERE PINNED HERE TOO, and were moved deliberately on
+    // 2026-09-08. Their audit rows said only "yes" / "pre-tab hooks" while every
+    // other row carried a reason, and a call-site derivation found NO
+    // useMemo/useEffect reads either one — every consumer is a button handler, a
+    // selection-gated branch, or a non-default tab. `clean_confirmed` is the
+    // opposite and its claim got STRONGER: the FD memo and `capLookup` both read
+    // it during render, so deferring it would break the cap filter, not delay it.
   })
 
   it('needsDeferred spots a bootstrap payload a surface cannot render from', () => {
@@ -130,6 +136,13 @@ describe('the deferral claim is re-derived from OptionsFlow.jsx', () => {
     return out
   }
 
+  /** Remove block and line comments so prose can never count as a read. */
+  function stripComments(text) {
+    return text
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1')
+  }
+
   // The span from the default tab's first guard to the next DIFFERENT tab guard.
   function firstPaintRange() {
     const guards = tabGuardLines()
@@ -140,9 +153,20 @@ describe('the deferral claim is re-derived from OptionsFlow.jsx', () => {
   }
 
   function keysReadIn([from, to]) {
-    const body = lines.slice(from - 1, to).join('\n')
+    // ⛔ STRIP COMMENTS FIRST. Without this the extractor matched PROSE — the
+    // only `FD.CONV` it found on the first-paint tab was the TEXT OF A COMMENT
+    // explaining that CONV is optional-chained elsewhere. That single false
+    // positive would have kept a 0.26 MB interaction-only key on first paint
+    // forever, and it is the defect this repo has already paid for once: a rail
+    // anchored on a bare API path matching the comment above the effect.
+    const body = stripComments(lines.slice(from - 1, to).join('\n'))
     const found = new Set()
     for (const m of body.matchAll(/\b(?:D|FD)\??\.([A-Za-z_][A-Za-z0-9_]*)/g)) found.add(m[1])
+    // ⛔ THE GUARDED ACCESSOR IS A READ. Every TICKER_DB consumer now goes
+    // through the `tickerDb` accessor — one guarded read instead of sixteen raw
+    // member calls — so an extractor that only looks for `D.TICKER_DB` would
+    // conclude the key is never read and happily defer a real dependency.
+    if (/\btickerDb\b/.test(body)) found.add('TICKER_DB')
     return found
   }
 
@@ -224,5 +248,50 @@ describe('parts — one per deferred key, never one deferred blob', () => {
     expect(isPartName('clean_confirmed')).toBe(false)  // bootstrap-only key
     expect(isPartName('__proto__')).toBe(false)
     expect(isPartName('')).toBe(false)
+  })
+})
+
+// ⛔⛔ THE REGRESSION THAT WOULD SILENTLY UNDO THIS SLICE.
+// TICKER_DB + CONV are ~77% of what the bootstrap used to weigh and are
+// interaction-only. If either drifts back into the first-paint half, entry bytes
+// roughly quadruple and NOTHING ELSE FAILS — the page still works, just slowly,
+// which is exactly how the original mis-classification survived for a week.
+describe('the interaction-only keys stay OFF first paint', () => {
+  const D = {
+    clean_confirmed: [{ S: 'A' }],
+    TICKER_DB: [{ s: 'A' }, { s: 'B' }],
+    CONV: [{ sym: 'A' }],
+    SECTORS: [1],
+    totalTrades: 7,
+  }
+
+  it('CONTROL: the fixture carries both keys, so none of this is vacuous', () => {
+    expect(D.TICKER_DB.length).toBeGreaterThan(0)
+    expect(D.CONV.length).toBeGreaterThan(0)
+  })
+
+  it('splitAggregate puts them in DEFERRED, never in bootstrap', () => {
+    const { bootstrap, deferred } = splitAggregate(D)
+    expect(bootstrap.TICKER_DB, 'TICKER_DB is back on first paint').toBeUndefined()
+    expect(bootstrap.CONV, 'CONV is back on first paint').toBeUndefined()
+    expect(deferred.TICKER_DB).toEqual(D.TICKER_DB)
+    expect(deferred.CONV).toEqual(D.CONV)
+  })
+
+  it('clean_confirmed STAYS on first paint — it has real mount-time readers', () => {
+    // The other half of the classification: the FD memo and capLookup both read
+    // it during render, so deferring it would break the cap filter, not delay it.
+    const { bootstrap } = splitAggregate(D)
+    expect(bootstrap.clean_confirmed).toEqual(D.clean_confirmed)
+  })
+
+  it('the split is still LOSSLESS — nothing dropped, only moved', () => {
+    const { bootstrap, deferred } = splitAggregate(D)
+    expect({ ...bootstrap, ...deferred }).toEqual(D)
+  })
+
+  it('both are declared as the post-paint INTERACTION set', () => {
+    expect([...INTERACTION_KEYS].sort()).toEqual(['CONV', 'TICKER_DB'])
+    for (const k of INTERACTION_KEYS) expect(DEFERRED_KEYS).toContain(k)
   })
 })

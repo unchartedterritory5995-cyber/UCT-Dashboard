@@ -664,6 +664,12 @@ PART_NAMES = (
     "ALL_SYMS",
     "UOA_TRADES",
     "darkPool",
+    # 2026-09-08: interaction-only, ~77% of what bootstrap used to weigh. The
+    # audit rows that kept them on first paint said only "yes" / "pre-tab hooks"
+    # while every other row carried a reason; a call-site derivation found NO
+    # useMemo/useEffect reads either one. See flowBootstrap.js.
+    "TICKER_DB",
+    "CONV",
 )
 
 
