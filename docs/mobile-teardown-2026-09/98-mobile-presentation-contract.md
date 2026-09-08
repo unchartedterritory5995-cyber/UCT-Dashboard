@@ -1,5 +1,16 @@
 # MOB-06′ — the mobile presentation contract
 
+> ➡️ **STILL CURRENT, with two forward references** to
+> `99e-post-certification-reconciliation.md` (2026-09-08): (a) §1's mechanism M1
+> — hidden by `(pointer: coarse)` on the phone shell — now has a **narrower
+> sibling gate**, `(pointer: coarse) and (orientation: landscape) and
+> (max-height: 500px)`, which re-lays the chart toolbar as a left-edge rail
+> (`2f9d68b9f`); it is a refinement of M1, not a fifth mechanism, and §5's
+> "no shared abstraction" ruling is unaffected. (b) §6's rules gain one, recorded
+> in `99e` §4: **a fixed sleep is not behavioural synchronisation** — where UI
+> state is intentionally frame-delayed, wait for the semantic state on a
+> predicate only that state can satisfy.
+
 **A REGISTER, NOT A RUNTIME REGISTRY.** Nothing here executes. It is the document an
 engineer reads before hiding, moving or restoring a chart control on the phone, and the
 place a hide is recorded so the next person can tell a decision from an accident.

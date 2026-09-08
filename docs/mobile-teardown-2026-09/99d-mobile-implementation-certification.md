@@ -1,5 +1,16 @@
 # Mobile implementation — final certification
 
+> ⛔ **THE VERDICT STANDS; THE RESIDUALS DO NOT.** Superseded in part by
+> `99e-post-certification-reconciliation.md` (2026-09-08, tip `f5a495c51`).
+> This certification is preserved exactly as written and remains the record of
+> what was true at tip `f8d625c27`. Since then: **R2 (MOB-05) and R3 (MOB-10)
+> have SHIPPED**, and **R5 (landscape as a designed MODE) has SHIPPED**. **R1
+> remains BLOCKED, unchanged, and is an owner action.** **R4 (MOB-08) remains
+> NOT_STARTED and is now formally blocked behind R1.** §3 "Where is TradingView
+> still better?" is out of date on all three of its numbered items and on one of
+> its two smaller ones. §5's ordered list is largely executed — items 2, 3 and 5
+> are done. See `99e` §3 for the residual-by-residual answer.
+
 Branch `fix/mobile-legend-legacy-state`, code tip `f8d625c27`.
 Certified 2026-09-08 against the twelve conditions set for this sprint.
 

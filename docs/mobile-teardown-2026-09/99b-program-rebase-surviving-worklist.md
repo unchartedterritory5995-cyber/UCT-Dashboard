@@ -1,5 +1,14 @@
 # Program rebase — the surviving worklist, from implementation truth
 
+> ⛔ **SUPERSEDED IN PART by `99e-post-certification-reconciliation.md`
+> (2026-09-08, tip `f5a495c51`).** Everything below is preserved exactly as
+> written and is correct **as of the certification tip `f8d625c27`**. Eleven
+> commits have landed since. In particular the SURVIVING_BUILD_ITEM table's
+> deferrals are out of date: **row 6 (MOB-05) and row 7 (MOB-10) have SHIPPED**,
+> and **MOB-15 in DEFERRED_LOW_VALUE has shipped too**, as MOB-10's prerequisite.
+> Row 8 (MOB-08) is the only genuinely unbuilt item and is now formally BLOCKED
+> behind the authenticated-device gate. Read `99e` §2 and §7 for current state.
+
 Generated 2026-09-08 from **current code**, not from the original backlog's counts.
 Every row was re-measured; nothing here is inherited on trust.
 

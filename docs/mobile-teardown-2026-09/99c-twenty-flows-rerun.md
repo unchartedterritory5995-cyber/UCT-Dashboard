@@ -1,5 +1,14 @@
 # The 20 critical mobile workflows, rerun against the finished implementation
 
+> ⛔ **SUPERSEDED by `99e-post-certification-reconciliation.md` §6 (2026-09-08,
+> tip `f5a495c51`).** The verdicts below are preserved exactly and are correct
+> **as of the certification tip `f8d625c27`**. Two have since moved on new
+> evidence: **F12 drawing properties** TRADINGVIEW_AHEAD → PARITY (Hide shipped
+> *with* its recovery surface, `d216ba57b`) and **F14 alert from an object**
+> TRADINGVIEW_AHEAD → PARITY (MOB-05 shipped, `2d3b2d555`). The distribution is
+> now UCT_AHEAD 11 · PARITY 7 · TRADINGVIEW_AHEAD 0 · DIFFERENT_MODEL 1 ·
+> PARTIAL 1. The TradingView baseline in `70` was **not** re-opened.
+
 Baseline: `70-task-flow-comparisons.md` (the certified research verdicts).
 Rerun: 2026-09-08, against this branch's tip.
 
