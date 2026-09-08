@@ -237,3 +237,75 @@ class TestTheSchemaIsAsked:
             assert "docs.capture_type" in wc.capture_columns(c, alias="docs")
         finally:
             c.close()
+
+
+class TestTheExcerptApiSaysWhatItIs:
+    """⛔⛔ API SERIALIZATION IS A CONSUMER (§1's own list names it).
+
+    ⚰️ `GET /api/j2/excerpts/{id}` returned `attachmentUrl` and nothing about
+    the kind. For a captured web source that value is `web:<sha256>` — an
+    IDENTITY string, not a file — and the thesis "revisit this evidence" path
+    treated its mere presence as "there is a document to open", so a captured
+    Reuters paragraph opened a FULLSCREEN PDF VIEWER over a non-URL with
+    "Open in new tab" and "Download" controls. The client could not have done
+    better: the field it needed was never sent.
+    """
+
+    def test_a_web_capture_reports_its_kind_and_canonical_url(self, captured):
+        from api.services.journal_two import note_excerpts
+        rows = [r for r in _all_excerpts(captured["note"]["id"])]
+        assert rows, "the capture produced no excerpt"
+        got = note_excerpts.get_excerpt(U, rows[0])
+        assert got["sourceKind"] == wc.SOURCE_KIND_WEB
+        assert "reuters.com" in (got["sourceUrl"] or "")
+        assert got["captureType"] == "web_passage"
+
+    def test_the_identity_string_is_still_NOT_a_navigable_document(self, captured):
+        # Kept as a fact about the data, so nobody "fixes" the viewer by
+        # making this look like a URL.
+        from api.services.journal_two import note_excerpts
+        rows = _all_excerpts(captured["note"]["id"])
+        got = note_excerpts.get_excerpt(U, rows[0])
+        assert (got["attachmentUrl"] or "").startswith("web:")
+
+    def test_a_real_attachment_says_attachment(self):
+        auth_db.init_db()
+        n = notes_svc.create_note(U, {
+            "title": "NVDA filing 2", "ticker": "NVDA",
+            "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]},
+        })
+        conn = get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            doc_id = uuid.uuid4().hex
+            conn.execute(
+                "INSERT INTO j2_note_documents"
+                " (id, user_id, note_id, attachment_url, name, status, page_count,"
+                "  created_at, source_kind, capture_type)"
+                " VALUES (?,?,?,?,?,?,?,datetime('now'),?,?)",
+                (doc_id, U, n["id"], "/files/nvda-10q.pdf", "NVDA 10-Q", "ready", 80,
+                 wc.SOURCE_KIND_ATTACHMENT, "pdf_full_text"))
+            ex_id = uuid.uuid4().hex
+            conn.execute(
+                "INSERT INTO j2_note_excerpts"
+                " (id, user_id, note_id, document_id, page_number, captured_text,"
+                "  char_start, char_end, created_at)"
+                " VALUES (?,?,?,?,?,?,?,?,datetime('now'))",
+                (ex_id, U, n["id"], doc_id, 47, "Management expects margins", 0, 26))
+            conn.commit()
+        finally:
+            conn.close()
+        from api.services.journal_two import note_excerpts
+        got = note_excerpts.get_excerpt(U, ex_id)
+        assert got["sourceKind"] == wc.SOURCE_KIND_ATTACHMENT
+        assert got["pageNumber"] == 47
+
+
+def _all_excerpts(note_id: str) -> list[str]:
+    conn = get_connection()
+    try:
+        return [r[0] for r in conn.execute(
+            "SELECT id FROM j2_note_excerpts WHERE note_id = ? AND user_id = ?",
+            (note_id, U))]
+    finally:
+        conn.close()

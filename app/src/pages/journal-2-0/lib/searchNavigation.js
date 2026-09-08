@@ -90,3 +90,43 @@ export function targetFromParams(params) {
     excerptId: get(PARAM_EXCERPT) || null,
   }
 }
+
+/**
+ * ⛔⛔ WAVE N §9 — WHERE "REVISIT THIS EVIDENCE" MAY TRUTHFULLY LAND.
+ *
+ * ⚰️ The thesis evidence click path gated on `attachmentUrl` alone and handed
+ * whatever it found to the PDF viewer. A captured web source HAS one —
+ * `web:<sha256>`, an identity string, not a file — so a captured Reuters
+ * paragraph opened a fullscreen document viewer over a non-URL, offering
+ * "Open in new tab" and "Download" of a thing that is not a document.
+ *
+ * ⭐ The depth rule above already had the answer and Search already obeyed it.
+ * This is the same decision expressed for one excerpt, so the two surfaces
+ * cannot disagree about one object — and it is a PURE function so the rule can
+ * be railed without mounting the editor.
+ *
+ * @returns {{kind:'captured_source', noteId:string}
+ *          |{kind:'document', href:string, name:?string, documentId:string,
+ *            page:?number, emphasizeExcerptId:string}
+ *          |null}
+ */
+export function excerptRevisitTarget(excerpt) {
+  if (!excerpt || !excerpt.attachmentUrl) return null
+  const depth = navigationDepth({
+    noteId: excerpt.noteId,
+    documentId: excerpt.documentId,
+    pageNumber: excerpt.pageNumber,
+    excerptId: excerpt.id,
+    sourceKind: excerpt.sourceKind,
+  }, { kind: 'excerpt' })
+  if (!depth) return null
+  if (depth === 'note') return { kind: 'captured_source', noteId: excerpt.noteId }
+  return {
+    kind: 'document',
+    href: excerpt.attachmentUrl,
+    name: excerpt.documentName || null,
+    documentId: excerpt.documentId,
+    page: excerpt.pageNumber,
+    emphasizeExcerptId: excerpt.id,
+  }
+}

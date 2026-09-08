@@ -8,7 +8,8 @@ import {
 } from '../../lib/tiptap'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
-import { targetFromParams } from '../../lib/searchNavigation'
+import CapturedSourceSheet from './CapturedSourceSheet'
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
@@ -724,6 +725,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // currently-open note, e.g. from a thesis-evidence row referencing an
   // excerpt captured in a different note).
   const [previewDoc, setPreviewDoc] = useState(null)
+  // Wave N §9 — a captured web passage is revisited AS a captured passage,
+  // never as a document. See CapturedSourceSheet for what that means.
+  const [capturedSource, setCapturedSource] = useState(null)
   const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
   const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
 
@@ -957,11 +961,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (!res.ok) return
       const { excerpt } = await res.json()
       if (!excerpt?.attachmentUrl) return
-      setPreviewDoc({
-        href: excerpt.attachmentUrl, name: excerpt.documentName,
-        documentId: excerpt.documentId, page: excerpt.pageNumber,
-        emphasizeExcerptId: excerpt.id, emphasizeExcerpt: excerpt,
-      })
+      // ⛔⛔ WAVE N §9. `attachmentUrl` alone does NOT mean "there is a document
+      // to open": a captured web source carries `web:<sha256>`, an IDENTITY
+      // string, not a file. This used to hand that straight to
+      // DocumentPreviewSheet, so revisiting a captured Reuters paragraph opened
+      // a FULLSCREEN PDF VIEWER over a non-URL, with "Open in new tab" and
+      // "Download" controls that could not work — a fake document viewer, which
+      // §9 forbids by name.
+      // ⭐ THE DECISION ALREADY EXISTS AND SEARCH ALREADY OBEYS IT. Wave M's
+      // depth rule answers 'note' for a web capture ("there is no viewer to
+      // scroll"); `excerptRevisitTarget` is that same rule for one excerpt, so
+      // these two surfaces cannot disagree about one object.
+      const target = excerptRevisitTarget(excerpt)
+      if (!target) return
+      if (target.kind === 'captured_source') {
+        // The deepest TRUTHFUL destination: the passage itself and where it
+        // came from. We hold one paragraph; only the publisher has the rest.
+        setCapturedSource(excerpt)
+        return
+      }
+      setPreviewDoc({ ...target, emphasizeExcerpt: excerpt })
     } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
   }
 
@@ -1354,6 +1373,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         onSaveExcerpt={handleSaveExcerpt}
         emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
         documentId={previewDoc?.documentId}
+      />
+      <CapturedSourceSheet
+        open={!!capturedSource}
+        excerpt={capturedSource}
+        onClose={() => setCapturedSource(null)}
+        onOpenOwningNote={
+          capturedSource && capturedSource.noteId !== noteId
+            ? () => {
+                // ⛔ The app's ONE routing idiom for a note — the same `?note=`
+                // param NotebookTab owns and Search writes through
+                // `applyTargetToParams`. Never a second route shape.
+                const nid = capturedSource.noteId
+                setCapturedSource(null)
+                setSearchParams((prev) => {
+                  const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
+                  return next
+                })
+              }
+            : null
+        }
       />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
