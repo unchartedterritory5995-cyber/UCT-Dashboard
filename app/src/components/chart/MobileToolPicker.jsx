@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import Sheet from '../mobile/Sheet'
 import haptics from '../mobile/haptics'
 import { TOOL_ICONS } from './ChartToolbar'
+import { rankTools } from './toolSearch'
 import styles from './MobileToolPicker.module.css'
 
 /* MOB-04 — the all-tools door.
@@ -49,13 +50,13 @@ export function rememberRecent(id) {
   try { localStorage.setItem(RECENT_KEY, JSON.stringify(pushRecent(readRecents(), id))) } catch { /* quota */ }
 }
 
-/** Match on the label a user can actually see, and on the id they cannot.
- *  Case- and space-insensitive so "hray", "H Ray" and "h ray" all find it. */
+/** Match on the label a user can see, the id they cannot, AND the words they
+ *  actually think in — "support", "box", "ruler", "risk", "parallel". Ranked, so
+ *  an exact name always beats somebody else's synonym.
+ *  ⛔ ONE authority: `toolSearch.rankTools`. This wrapper exists only because
+ *  the picker's own tests and its render path both call it by this name. */
 export function filterTools(tools, query) {
-  const q = String(query || '').trim().toLowerCase().replace(/\s+/g, '')
-  if (!q) return tools
-  return tools.filter((t) =>
-    t.label.toLowerCase().replace(/\s+/g, '').includes(q) || t.id.toLowerCase().includes(q))
+  return rankTools(tools, query)
 }
 
 export default function MobileToolPicker({
@@ -117,7 +118,25 @@ export default function MobileToolPicker({
           </>
         )}
 
-        {/* ⛔ REPEAT LIVES HERE, NOT ON THE RAIL, AND THE MEASUREMENT IS WHY.
+
+        {/* ⛔ NEVER A DEAD END. A search that returns an empty screen makes the
+            user clear the box before they can do anything — a punishment for
+            asking. On no match the sheet says so and then just shows everything,
+            so the worst case costs a scroll rather than a retype. */}
+        <div className={styles.sectionLabel}>
+          {!q ? 'All tools' : shown.length ? 'Matching' : `No tool matches “${q}” — all tools`}
+        </div>
+        <div className={styles.grid} data-testid="tool-grid">
+          {(shown.length ? shown : tools).map((t) => <Tile key={t.id} t={t} />)}
+        </div>
+
+        {/* ⛔ AND IT SITS AFTER THE TILES, for the same reason it is in this
+            sheet at all. It shipped between Recent and All tools — low-frequency
+            configuration wedged into the middle of the surface you scan, pushing
+            the roster down the screen at exactly the moment you are reading it.
+            "Low-frequency configuration does not get to compete with the tiles"
+            was the rule; sitting above them was competing. */}
+        {/* ⛔ WHY IT IS IN THIS SHEET AND NOT ON THE RAIL — THE MEASUREMENT.
             It shipped on the bar first. At 390px the bar is 386px wide: Done 54 +
             the pinned All 44 + a five-button side cluster 223 left the tool rail
             **51px — 0.98 of one 52px tile**, down from the ~3 the research
@@ -139,15 +158,6 @@ export default function MobileToolPicker({
               <span className={styles.settingHint}>Off: the tool disarms so you can move what you drew</span>
             </span>
           </label>
-        )}
-
-        <div className={styles.sectionLabel}>{q ? 'Matching' : 'All tools'}</div>
-        {shown.length === 0 ? (
-          <div className={styles.empty}>No tool matches “{q}”.</div>
-        ) : (
-          <div className={styles.grid} data-testid="tool-grid">
-            {shown.map((t) => <Tile key={t.id} t={t} />)}
-          </div>
         )}
       </div>
     </Sheet>

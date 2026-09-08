@@ -68,11 +68,18 @@ describe('search — for the tools a swipe buries', () => {
     expect(filterTools(DRAW_TOOLS, 'H RAY').map((t) => t.id)).toContain('hray')
   })
 
-  it('a query matching nothing says so, rather than showing an empty grid', () => {
+  it('a query matching nothing says so — and is NOT a dead end', () => {
+    /* ⛔ THIS EXPECTATION CHANGED DELIBERATELY. It used to assert the grid was
+       ABSENT on no-match: the user was told "No tool matches", handed an empty
+       screen, and had to clear the box before they could do anything — a
+       punishment for asking. The message is still there (silence would be
+       worse), but the roster now stays underneath it, so the worst case costs a
+       scroll instead of a retype. */
     open()
     fireEvent.change(screen.getByLabelText('Search drawing tools'), { target: { value: 'zzzz' } })
-    expect(screen.queryByTestId('tool-grid')).toBeNull()
     expect(screen.getByText(/No tool matches/)).toBeTruthy()
+    const grid = screen.getByTestId('tool-grid')
+    expect(grid.children.length).toBe(DRAW_TOOLS.length)
   })
 
   it('an empty query shows everything back', () => {
