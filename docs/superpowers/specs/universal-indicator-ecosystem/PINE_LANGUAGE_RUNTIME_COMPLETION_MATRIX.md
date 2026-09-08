@@ -34,7 +34,7 @@ the RUNTIME lane, not the product overall.
 | comparison | ✅ | ✅ | ✅ | ✅ | ⬜ | `cmp` answers 0 on `na`, shared with the columnar lane |
 | boolean `and`/`or` | ✅ | ✅ | ✅ | ✅ | ⬜ | `logical` propagates `na`, shared |
 | ternary `?:` | ✅ | ✅ | ✅ | ✅ | ⬜ | both arms evaluate — an EFFECTFUL branch is a statement instead |
-| `%` modulo | ✅ | ✅ | 🟡 | 🟡 | ✅ | pure lane only (lowers to `mod`); beside a mutable value it refuses `runtime:operator` |
+| `%` modulo | ✅ | ✅ | 🟡 | 🟡 | ✅ | pure lane only (lowers to `mod`); beside a mutable value it refuses `runtime:operator`. **VENDOR-PINNED 2026-09-08**: truncated, sign follows the dividend (`-7 % 2 = -1`) — Phase 1's documentation-only assumption confirmed |
 | `na` | ✅ | ✅ | 🟡 | 🟡 | ✅ | NaN for floats today; the TAG model (`na(someLine)`) is designed, not built |
 | history `x[n]` over a column | ✅ | ✅ | ✅ | ✅ | ⬜ | out of range is `na`, never a clamp |
 | **history `x[n]` over a MUTABLE variable** | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:history-variable` — needs per-slot history committed at end of bar (2E) |
@@ -155,7 +155,7 @@ prevent.** Rows, not a word.
 | HISTORY IN UDF (over a variable) | ⬜ | `runtime:history-variable`, unchanged |
 | GLOBAL MUTABLE READ IN UDF | ⬜ | `runtime:function-global-state` — a frame has no address for a caller slot |
 | DEFAULT PARAMETER VALUES | ⬜ | `runtime:function`, named |
-| **VENDOR VERIFIED** | ⬜ | ⛔ **NOT CAPTURED.** §53 asks for a TradingView oracle on per-call-site persistence; this wave took none. The behaviour is implemented from Pine's documented semantics and is **unpinned**. |
+| **VENDOR VERIFIED (per-call-site state)** | ✅ | **2E-CLOSE, 2026-09-08.** TradingView's own chart model, SPY 1D NYSE Arca, 300 bars, compiled-study identity proven before any value was read. A steps by 1, B by 10, **B = 10×A on every row, 0 deviations** — per call site, not per definition. **v5 and v6 agree.** Fixture `tests/fixtures/vendor/runtime/callsite-state-spy-1d-2026-09-08.json`, rail `runtime/__tests__/vendorCallSiteState.test.js`. |
 | PROD INTEGRATED | ⬜ | chart and screener still deliberately unwired |
 
 **Therefore the honest headline is `STATEFUL UDF CALL FRAMES COMPLETE` (§66) —

@@ -1112,3 +1112,48 @@ number and nothing here would catch it.
 | **M5.4** | RUNTIME / FUNCTIONS | Default parameter values refuse `runtime:function`. |
 | **M5.5** | RUNTIME / FUNCTIONS | Tuple return, array/object arguments: the ABI is a general Pine value rather than a numeric register, so they are **ready but not built**. |
 | **M5.6** | PERSISTENCE | Still no persisted runtime artifact and no version (carried from L7.4). Call-site identity is a deterministic ordinal over a deterministic traversal — stable for unchanged source, and it MUST become part of the artifact contract before anything is saved. |
+
+---
+
+# PART M-CLOSE — the vendor pin (2026-09-08)
+
+### M4 IS CLOSED — ⭐⭐ TRADINGVIEW CONFIRMS PER-CALL-SITE FUNCTION STATE
+
+Fixture `tests/fixtures/vendor/runtime/callsite-state-spy-1d-2026-09-08.json`;
+rail `runtime/__tests__/vendorCallSiteState.test.js`.
+
+SPY · 1D · NYSE Arca · 300 bars · 2025-06-30 → 2026-09-08. One stateful helper
+called from two source call sites:
+
+```
+A step {1} · B step {10} · B/A exactly {10} · 0 rows deviate    (v5 AND v6)
+```
+
+Shared-per-definition state would have produced A stepping by 11 with B−A a
+constant 10. It did not. **UCT's implemented model is vendor-confirmed and 2E
+exit-gate item 21 is met. 2E IS FULLY CLOSED.**
+
+⚠️ The absolute counters read ~8,160 rather than 1 because TradingView
+accumulates over its full loaded history, not the visible window. **The steps and
+the ratio are the evidence; the absolutes are an artefact of history depth**, and
+the rail asserts only the former.
+
+### ⭐ AND `%` IS VENDOR-PINNED AS TRUNCATED
+
+`-7 % 2 = -1` · `7 % -2 = 1` · `-7.5 % 2 = -1.5` · `-7 % -2 = -1`. The sign
+follows the DIVIDEND. Phase 1 lowered `%` onto the table's `mod` from
+documentation alone and said so; the oracle now agrees, and a borrowed Python `%`
+(which answers +1 for `-7 % 2`) is positively excluded.
+
+### ⚰️⚰️ THE PROCESS LESSON — WHY THE FIRST ATTEMPT WAS STOPPED
+
+The first capture ran in a BACKGROUNDED tab and every editor-write path failed
+while *reporting success*: `execCommand('insertText')` returned `true` and landed
+nothing visible, the DOM showed a stale script, and **`Add to chart` compiled a
+leftover probe from a previous session**. Values read then would have been
+recorded as TradingView's answer about a script nobody wrote.
+
+⛔ **THE RULE THIS ESTABLISHES: prove the COMPILED STUDY IDENTITY from the model —
+`shortDescription`, plot count, plot titles, and the absence of stale studies —
+before accepting a single value.** The editor DOM is rAF-rendered and is not
+evidence of what compiled. Both captures here carry that proof in the fixture.

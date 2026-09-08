@@ -1,0 +1,80 @@
+{
+  "_": "VENDOR TRUTH — read out of TradingView's own chart model on 2026-09-08. This is the 2E-CLOSE pin: does Pine keep a function-local `var` per CALL SITE or per FUNCTION DEFINITION? It is the most consequential semantic in the UCT runtime's frame model, because if it were per definition every multi-call helper would compute the wrong number and no internal test could see it.",
+  "captured_at": "2026-09-08",
+  "method": "study model read — mm.dataSources() -> study.data().each(), never a screenshot and never the Data Window",
+  "compiled_study_identity_proof": {
+    "why": "The previous attempt compiled a STALE leftover script while the editor DOM showed something else. Identity is therefore proven from the model before any value is accepted.",
+    "shortDescription": "UCT callsite probe",
+    "plot_count": 2,
+    "plot_titles": { "plot_0": "A", "plot_1": "B" },
+    "other_studies_on_chart": ["Volume"]
+  },
+  "context": {
+    "symbol": "SPY",
+    "exchange": "NYSE Arca",
+    "timeframe": "1D",
+    "timezone": "America/New_York",
+    "visible_bars": 300,
+    "date_from": "2025-06-30",
+    "date_to": "2026-09-08"
+  },
+  "probe_source": "//@version=5\nindicator(\"UCT callsite probe\")\nf(x) =>\n    var c = 0.0\n    c := c + x\n    c\na = f(1)\nb = f(10)\nplot(a, \"A\")\nplot(b, \"B\")\n",
+  "hypotheses": {
+    "per_call_site": "A steps by 1, B steps by 10, and B == 10*A on every bar",
+    "per_function_definition": "the two sites interfere: A steps by 11 and B-A is a constant 10"
+  },
+  "observations": {
+    "v5": {
+      "study_id": "Qbn5Kg",
+      "rows_measured": 300,
+      "A_first5": [8160, 8161, 8162, 8163, 8164],
+      "B_first5": [81600, 81610, 81620, 81630, 81640],
+      "A_last3": [8457, 8458, 8459],
+      "B_last3": [84570, 84580, 84590],
+      "distinct_A_step": [1],
+      "distinct_B_step": [10],
+      "distinct_B_over_A": [10],
+      "rows_where_ratio_not_10": 0
+    },
+    "v6": {
+      "study_id": "Y07OY8",
+      "rows_measured": 300,
+      "A_first5": [8160, 8161, 8162, 8163, 8164],
+      "B_first5": [81600, 81610, 81620, 81630, 81640],
+      "distinct_A_step": [1],
+      "distinct_B_step": [10],
+      "distinct_B_over_A": [10],
+      "rows_where_ratio_not_10": 0
+    }
+  },
+  "_absolute_values": "The counters read ~8160 rather than 1 because TradingView accumulates over its FULL loaded history (~8,459 bars), not the 300 visible ones. The absolute value is therefore an artefact of history depth and is NOT the evidence. The STEPS and the exact 10x RATIO are, and they are invariant to how far back the vendor loaded.",
+  "conclusion": {
+    "rule": "A function-local `var` is INDEPENDENT PER CALL SITE.",
+    "verified_versions": ["v5", "v6"],
+    "versions_agree": true,
+    "uct_model": "matches — engine/runtime CALL carries both the function and the call site, and persistBase comes from the site",
+    "rejects": "per-function-definition shared state"
+  },
+  "modulo": {
+    "_": "Optional pin taken in the same session (Phase 1 left `%` lowering to `mod` on documentation alone). Confirms TRUNCATED semantics: the sign follows the DIVIDEND.",
+    "compiled_study_identity_proof": {
+      "shortDescription": "UCT modulo probe",
+      "plot_titles": { "plot_0": "M1", "plot_1": "M2", "plot_2": "M3", "plot_3": "M4" }
+    },
+    "version": "v6",
+    "observations": {
+      "-7 % 2": -1,
+      "7 % -2": 1,
+      "-7.5 % 2": -1.5,
+      "-7 % -2": -1
+    },
+    "conclusion": "truncated toward zero, sign follows the dividend — NOT Python's floored `%` (which would answer +1 for -7 % 2). Confirms `pine.js` lowering `%` onto the table's `mod` rather than borrowing a host operator.",
+    "rejects": "floored / Python-style modulo"
+  },
+  "hygiene": {
+    "scripts_added": ["UCT callsite probe (v5)", "UCT callsite probe (v6)", "UCT modulo probe"],
+    "all_removed_after": true,
+    "layout_saved": false,
+    "brokerage_state_touched": false
+  }
+}
