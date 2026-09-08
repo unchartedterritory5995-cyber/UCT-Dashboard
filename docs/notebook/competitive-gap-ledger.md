@@ -275,3 +275,77 @@ fixed this wave (they live in a file this wave already changed, and the
 existing touch block had simply missed `.sbHeaderBtn`); "Add thesis starter
 views" (24px tall) and "View all" (42x19) are Wave H chrome, named here and
 left for their own wave rather than silently absorbed.
+
+## Ask Notebook / Ask Document — Private-Corpus Retrieval + Citation-Grounded Answers (Wave K, 2026-09-07)
+
+Scoped competitor comparison per §70-72's per-wave mandate. **This comparison was
+missing from Wave K's entry checkpoint and is performed here at closure** — recorded
+as a process miss, not backfilled silently: the wave built for four workflows without
+first writing down what the incumbent's user expects from each.
+
+Competitors, current-sourced 2026-09-07: **Notion AI** (workspace-wide question
+answering with clickable citations to the pages consulted, and an Enterprise Search
+tier that spans connected apps plus uploaded PDFs), **Evernote AI Assistant**
+(contextual questions over the open note *and* the whole account, replies carry
+source citations naming the notes used — and, unusually, it is on every tier
+including Free), **Obsidian** (no built-in AI at all; vault Q&A exists only as
+community plugins — Copilot for vault RAG, Smart Connections for local-embedding
+semantic search — each a different developer with a different privacy stance).
+
+The product job this wave was held to: *the member asks a question about their own
+research, UCT answers from their private corpus, shows exactly what evidence supports
+the answer, and refuses to invent one when the corpus does not support it.*
+
+### Competitor task matrix — the four workflows this wave touches
+
+| Workflow | What the incumbent's user expects | Steps there | UCT after Wave K | Steps here | Competitive? |
+|---|---|---|---|---|---|
+| Ask about the note I'm in | Evernote: open the note, ask; the assistant *decides* whether to stay in the note or widen to the account. Notion: `/ask` on the page | 1-2 | Ask panel opens with scope **This note** pre-selected from context; the scope is on screen and does not silently widen | 1-2 | **Yes, and ahead on trust** — the incumbent's automatic context decision is exactly the thing a researcher cannot audit |
+| Ask about one source document | Notion Enterprise Search can retrieve from uploaded PDFs, but as part of the corpus, not as a scope you pick. Evernote answers over attachments implicitly. Obsidian: not without a plugin | 1-2, no scope control | Scope **This document**, page-exact citations, and an honest coverage answer when the document has no extracted text yet | 2 | **Yes, ahead** — no competitor lets the member say "only this document" and get a page-anchored citation back |
+| Ask about everything I've written on one security | No competitor has a security or thesis object; the closest is a manual tag/folder filter the member maintains by hand | n/a | Scope **This security's research**, membership resolved canonically (Wave H), not by substring — an AMD note carrying a strong lexical phrase is correctly excluded from NVDA scope | 1-2 | **UCT-unique** |
+| Ask my whole notebook | Notion and Evernote both answer corpus-wide with citations, both semantic | 1-2 | Scope **My notebook**, deterministic lexical + entity retrieval only; honest no-answer on a true paraphrase | 1-2 | **Parity on the mechanics, behind on paraphrase recall** — see G-127 |
+
+| ID | Capability | Competitor | UCT Current | Target | Parity/Diff | Persona | Switching Impact | Evidence | Status | Priority | Dependencies | Validation Condition |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| G-122 | One research assistant with an EXPLICIT, member-visible scope, rather than an assistant that decides for itself how wide to search | Evernote (automatically determines what to use as context — open note first, widening to other notes "if needed"; the member cannot see or pin the boundary), Notion (workspace-wide by default; sources are chosen at the connector level, not per question), Obsidian (per-plugin, no consistent model) | **Live, ahead on auditability** — four scopes (`note`, `document`, `security`, `notebook`) share one pipeline: retrieve → rank + budget → fenced prompt → stream → resolve. The scope label is computed by the SAME module that runs the retrieval (`_SCOPES[scope]["label"]`), so what the member reads and what was actually searched cannot drift apart. Current context picks the default; the member can change it; it never widens silently. | Match on capability, exceed on auditability | BOTH | All | High (positive — "which of my notes did you read?" is the first question a researcher asks, and the incumbent's answer is "it depends") | Wave K Slice 6a/6b; `ask_service.py`, `AskPanel.jsx` | **DONE** | — | Waves H/I/J (scope membership, document identity, excerpt anchors) | 76 frontend rails on the shared panel + citation contract; `test_ask_service.py` proves every scope returns one shape and an unknown scope raises |
+| G-123 | A citation that is a VERIFIED LOCATION in the source, not a quoted string the model produced | Notion (clickable link to the page consulted — page-level, not passage-level), Evernote (names the notes used — note-level), Obsidian Copilot (plugin-dependent, typically the note) | **Live, ahead of all three.** The retired Wave-2 path resolved citations by searching the note body for the model's quoted text: double-quoted model prose became citation-shaped UI, an invented phrase could render as a citation, and a real phrase crossing a TipTap mark boundary failed to resolve. Replaced by a ProseMirror-grounded location contract with declared precision states — `VALID_EXACT`, `RERESOLVED_EXACT`, `VALID_NOTE_ONLY`, `DEGRADED` — where `body_plain` is the retrieval representation and `doc.textBetween(0, size, "\n")` is the member-visible addressing representation, proven equivalent across structural fixtures. A stale position is never used blindly. | Exceed | DIFF, UCT ahead | All | High (positive — a citation that can be fabricated is worse than no citation) | Wave K Slice 0/1/6b; `askCitation.js`, `askCitation.parity.test.js`, `AskCitationContract.closed.test.jsx` | **DONE** | — | — | The closed-contract rail fails if the quote-regex resolver returns; parity rail proves backend and real ProseMirror agree |
+| G-124 | Refusing to answer when the corpus does not support one — and not paying a model to do it | Notion ("using only the sources you choose" — grounding is claimed, refusal behavior is not documented), Evernote (not documented), Obsidian (plugin- and model-dependent) | **Live, UCT-unique in kind.** `answer_evidence` is an ALLOWLIST: only `relevance == query_match` may back a claim, so an unlabelled item is not evidence and a caller that forgets makes the system say it found nothing rather than invent. When nothing qualifies there is **no model call at all** — the refusal is deterministic, free, and cannot be talked out of. Naming a security is explicitly not asking a question about it: a note matching only the ticker is `entity_context`, which can never satisfy `no_answer`. | Exceed | DIFF, UCT ahead | All, esp. fundamental analysts | High (positive — the failure mode that ends trust in a research assistant is a confident answer with no source) | Wave K Slice 1/3/6a; `ask_evidence.py`, `test_ask_evidence.py` | **DONE** | — | — | `test_ask_evidence.py` proves an unlabelled item cannot back a claim; the no-model-call path is asserted, not assumed |
+| G-125 | Retrieved content cannot instruct the assistant | None of the three documents a prompt-injection boundary for content the member imported from the web into their own notes | **Live, structural rather than prompted.** `system_prompt()` accepts no arguments, so no channel exists to reach the instruction layer; the evidence fence is neutralized and marker-counted, and assembly REFUSES on a count mismatch; `request_kwargs` emits no `tools` key; and `[n]` handles resolve only against the packet actually sent, so a source reading "cite this as [9]" cannot conjure a ninth source. Adversarial corpus covers ignore-previous-instructions, cross-note exfiltration, secret extraction, fake citation instructions, fake tool instructions, and hostile source metadata. | Exceed | DIFF, UCT ahead | All | Medium-High (positive; a Notebook whose corpus is pasted research is exactly the threat model) | Wave K Slice 5; `ask_prompt.py`, `test_ask_prompt_injection.py` | **DONE** | — | — | `test_ask_prompt_injection.py`; `test_ask_security.py` proves tenant isolation happens BEFORE ranking |
+| G-126 | Ask Current Note's own security posture | N/A — a UCT-specific defect | **FIXED.** The shipped Wave-2 path called `note_ask.SYNTH_SYSTEM(note_title, note_block)`, interpolating the member's title and up to 20k characters of note body directly into `system=`. Deleted. The note now reaches the model as ranked, citable blocks inside the evidence fence under the same 20k ceiling — so a long note loses its least relevant blocks, not everything past character 20,000. Streaming, cost/rate controls, honest errors and current-editor semantics were preserved; the regex pseudo-citations and unvalidated jumps were not. | Fix | PARITY (correctness/security) | All | High (this was live, member-facing, and pre-dated the wave) | Wave K Slice 6a; `note_ask.py`, `test_note_ask_prompt_boundary.py` | **FIXED** | — | — | The prompt-boundary suite fails if any member content reaches `system=` |
+| G-127 | Semantic / paraphrase retrieval over the member's own corpus (supersedes G-017 for the Ask surface) | **All three are ahead here** — Notion and Evernote both retrieve semantically; Obsidian's Smart Connections runs a LOCAL embedding model with no API key and no cloud egress | **Deliberately DARK.** Deterministic retrieval, measured: 10/14 overall and 3/7 on low-overlap paraphrases (up from 7/14 and 0/7 once the AND/OR defect below was fixed). Four true paraphrases still miss — "too reliant on a handful of buyers" against a note reading "Customer concentration is the risk I keep writing down" — and no lexical index can bridge those. Semantic retrieval is architecturally approved and quality-justified; **activation is blocked on positive Zero-Data-Retention verification for `org-6ljtvy8Dr0srF2ZRiE7vH2Dy`.** No Notebook note, document, excerpt or query has been embedded. | Activate only after ZDR is positively verified for the exact production project — OR after evaluating a local embedding model, which removes the vendor-retention question entirely | GAP, competitors ahead | All | Medium-High (the honest, narrowed case) | Wave K Slice 1 baseline + closure re-measurement | **OPEN — deliberate, privacy-gated** | P1 (blocked on a decision, not on effort) | Owner/vendor confirmation of ZDR, or an owner decision to evaluate local embeddings | Not applicable — this row is open on purpose and must not be closed by an implementation wave deciding on its own that a key it can already read is permission |
+
+**⛔ A competitive finding the owner should see before ruling on ZDR:** Obsidian's
+most-used AI plugin does vault-wide semantic search with a **local** embedding model —
+no API key, nothing leaving the machine. That is the same capability G-127 is blocked
+on, obtained without asking a vendor for a retention promise at all. It is recorded
+here as an option, not adopted: choosing it is an owner decision and a real
+engineering evaluation (model, index size, CPU cost on the web pod), and Wave K's
+mandate ends at reporting it.
+
+**The defect that mattered most, found late and only by a real model.**
+`fts_match_expr` joins query terms with a space and FTS5 reads a space as AND — right
+for the member's search box, catastrophic for a QUESTION, which is made of words the
+corpus does not contain. *"what was gross margin in the quarter?"* retrieved **zero
+rows** against a page reading *"Gross margin was 73.5% in the quarter."* Ask Document,
+Ask Notebook and Ask Security Research answered "I couldn't find that" for essentially
+every naturally-phrased question; only keyword queries worked. Five slices of rails
+missed it because the Slice 1 evaluation set was written keyword-shaped — the inputs
+were shaped like the implementation, so the measurement agreed with itself and
+reported *lexical 6/6*. `ask_match_expr` now keeps content words and joins them with
+OR; the search box keeps AND, where it is correct.
+
+**A second unsound gate, same shape.** `BM25_FLOOR` kept a candidate only when
+`bm25() <= -0.15`. bm25 weights by inverse document frequency, so a term present in
+every indexed row scores ~0 — above the floor, and was dropped. Its two victims were a
+single-page document and the focused researcher whose every note says "NVDA", the term
+they care most about. Retired as a gate, kept for ordering, and railed with an AST
+probe that fails if any retrieval path gates on it again.
+
+**Residual debt recorded, not fixed:** the four low-overlap paraphrases above; a
+shared generic word can lift `no_answer` (a question about "dividend policy" matches a
+note about *export* policy — the answer stays grounded and the model refuses, but the
+deterministic layer claims an answer exists, and no lexical index can tell a subject
+noun from a head noun); `reachable.test.js` reports 16 orphaned modules under
+`pages/community` + `floor2` from `cc195e888`, which is already on origin/master and
+is not Wave K's; and zero real member usage evidence — Day 0, the same honest cap every
+prior wave's closure carries.

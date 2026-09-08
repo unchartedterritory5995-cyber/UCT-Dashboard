@@ -4929,3 +4929,101 @@ reaches the embedding vendor) is deferred behind a measurement, per §31/§33,
 and will be reported before it ships.
 
 Proceeding to Slice 0.
+
+### WAVE K CLOSURE (2026-09-07)
+
+Written after an unplanned session loss between the last slice commit and this
+record. The recovery found the worktree byte-clean and every slice committed —
+nothing was lost — but the reconstruction is worth one line of process record:
+**git and the filesystem were authoritative, and they were six commits ahead of
+the last conversational checkpoint.** The branch was then pushed to its own
+remote before any further work, because 23 commits existing only on one machine
+is a risk no wave should carry through a second session.
+
+#### What shipped
+
+One research assistant, four scopes — `note`, `document`, `security`, `notebook` —
+over a single pipeline: retrieve (per scope) → rank + budget → fenced prompt →
+stream → resolve citations. Everything scope-specific lives in one `_SCOPES`
+table; everything else is shared, so there are not four chat applications and
+cannot become four. `NoteAskPanel` was deleted rather than left beside the new
+panel, and a closed-contract rail fails if it returns.
+
+#### Test evidence
+
+- Frontend, `src/pages/journal-2-0/`: **1863 passing across 193 files**, zero
+  failures — including the flake Wave J recorded (`ImportWizard` "audit B1"),
+  which did not reappear.
+- Backend Notebook family (25 suites — the six Ask modules plus every
+  `journal_two` router, citation text, excerpt-anchor audit, sandbox guard, and
+  the shared SSE-gzip rail): **519 passing.**
+- Of those, the Wave-K-specific suites alone: **317 passing across 10 files.**
+- Ask frontend specifically: **76 passing across 4 files** (`AskPanel`,
+  `AskCitationContract.closed`, `AskSurface.markup`, `askCitation.parity`).
+- **17 mutation checks, every one a byte-identical restore** via
+  `tools/mutation_check.py` — 16 recorded in the slice commits (six on retrieval
+  and the note-block budget, four on the concurrency/refund lifecycle, six on
+  the OR-matching fix, the retired bm25 gate and the entity-context boundary)
+  and one added at closure against the frontend citation contract, which had
+  none: making an unknown `[n]` handle render as a citation anyway turns the
+  invented-citation case RED. That rail is the wave's most member-visible claim
+  and it had never been watched to fail.
+
+⛔ **A wrapper's exit code is not a suite's exit code.** The first two closure
+regression runs reported success while pytest had errored on a mistyped path and
+then died against an empty `$TMPDIR`; the `0` came from the `tail` at the end of
+the pipeline. Both were re-run capturing pytest's own status. This is the same
+lesson the program has already paid for once
+(`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`) and it cost two
+runs here purely because the shape is so easy to re-create.
+
+#### Process miss, recorded rather than quietly fixed
+
+**Wave K's entry checkpoint carried no competitor comparison.** §70-72 makes a
+small, task-specific competitor-experience matrix mandatory for every major
+pre-launch wave, from Wave B forward; Wave J did one, Wave K did not, and no
+gate caught it — the wave built for four workflows without first writing down
+what the incumbent's user expects from each. The matrix has now been written
+at closure (see the gap ledger's Wave K section: four workflows, Notion AI /
+Evernote AI Assistant / Obsidian's plugin ecosystem, current-sourced
+2026-09-07). It happens to *support* the wave's design decisions rather than
+challenge them — the explicit member-visible scope reads as an advantage
+precisely where Evernote decides context for the member — but that is luck, not
+process. Doing it at entry is the point. **A future wave's entry checkpoint
+should treat the competitor matrix as a gate item, not a section.**
+
+One finding from it belongs in front of the owner: **Obsidian's most-used AI
+plugin does vault-wide semantic search with a LOCAL embedding model** — no API
+key, no cloud egress. That is the capability the semantic leg is blocked on,
+obtained without needing a retention promise from any vendor. Recorded as an
+option to evaluate, not adopted; the choice is the owner's and the evaluation is
+real work (model, index size, CPU cost on the web pod).
+
+#### Residual debt, explicit
+
+1. **Four low-overlap paraphrases still miss** (3/7 low-overlap after the
+   AND→OR fix, up from 0/7). No lexical index can bridge them. The semantic leg
+   stays DARK: **no Notebook note, document, excerpt or query has been
+   embedded**, activation blocked on positive ZDR verification for
+   `org-6ljtvy8Dr0srF2ZRiE7vH2Dy`, railed by an AST probe with a control.
+2. **A shared generic word can lift `no_answer`** — "dividend policy" matches a
+   note about *export* policy. The answer stays grounded and the model refuses;
+   the deterministic layer is the part that overclaims.
+3. **`reachable.test.js` reports 16 orphaned modules** under `pages/community` +
+   `floor2` from `cc195e888`, already on origin/master. Not Wave K's, recorded
+   so nobody re-diagnoses it.
+4. **Voice retention risk is untouched and still open** — `voice_embeddings`
+   already sends member-derived Voice content to the same OpenAI project whose
+   ZDR posture blocks Wave K. That belongs to the Voice workstream; Wave K
+   preserved the record and mutated nothing.
+5. **Wave J residual debt remains open and unchanged** (OCR / G-121 above all).
+6. **Zero real member usage evidence** — Day 0, the same honest cap every prior
+   wave's closure carries.
+
+#### Remaining to certify
+
+Isolated-worktree merge, production deploy, production verification by artifact,
+and the certification report. The readiness scorecard's AI row is deliberately
+held at **5**, not 6, until that production verification exists — the ladder's 6
+means production-verified, and writing it before the deploy would be exactly the
+kind of rounding-up that artifact exists to resist.
