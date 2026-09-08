@@ -85,7 +85,10 @@ _log = logging.getLogger(__name__)
 # Safe to bump now in a way it was not this morning: `_has_quarterly` refuses to
 # persist a build that lost its quarters, so a failed cold rebuild costs an hour
 # rather than weeks of "No earnings history is available".
-_KIND = "earnings_intel_v9"
+# v10: the announcement-date fix only actually took effect here — v9 shipped it
+# with the min() comparing the incoming date against itself, so MU kept
+# 2026-06-30 and the reaction measured the wrong session.
+_KIND = "earnings_intel_v10"
 _STALE_MAX = 45 * 86400
 # A build that came back without its quarterly series is held only this
 # long, and never written to disk, so a transient provider failure costs
@@ -258,6 +261,10 @@ def _quarters_from_estimates(sym: str, cal: FiscalCalendar | None) -> dict:
             # a merge opportunity — combining them would fuse distinct periods.
             # Keep the one bearing a real consensus, else the later report.
             collisions += 1
+            # Captured BEFORE the tiebreak below can replace the stored row.
+            # Reading it afterwards compared the incoming date against itself,
+            # so the min() was a no-op and MU kept 2026-06-30.
+            prior_date = prior.get("report_date")
             prior_has = prior.get("eps_estimate") is not None
             new_has = row.get("eps_estimate") is not None
             if new_has and not prior_has:
@@ -278,7 +285,7 @@ def _quarters_from_estimates(sym: str, cal: FiscalCalendar | None) -> dict:
             # A price reaction is measured from the ANNOUNCEMENT, so the
             # earliest date any provider reports for the quarter is the one that
             # can be right; a later one is always a filing artifact.
-            dates = [d for d in (rd, rows[(fy, fq)].get("report_date")) if d]
+            dates = [d for d in (rd, prior_date) if d]
             if dates:
                 rows[(fy, fq)]["report_date"] = min(str(d)[:10] for d in dates)
     if collisions:
