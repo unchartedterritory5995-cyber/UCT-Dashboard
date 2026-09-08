@@ -767,6 +767,26 @@ def _front_matter(
                 lines.append(f"    passage: {_yaml_scalar(item['passage'])}")
             if item.get("passage_note"):
                 lines.append(f"    passage_note: {_yaml_scalar(item['passage_note'])}")
+    # ⛔ WAVE O §46 — the decision history travels. Each entry is what the
+    # member decided and when; the thesis versions are referenced by id, never
+    # inlined, so the export stays the smallest truthful record.
+    reviews = extra.get("thesis_reviews") or []
+    if reviews:
+        lines.append("thesis_reviews:")
+        for rv in reviews:
+            lines.append(f"  - completed: {rv['completedAt']}")
+            if rv.get("outcome"):
+                lines.append(f"    outcome: {rv['outcome']}")
+            if rv.get("reviewReason"):
+                lines.append(f"    reason: {rv['reviewReason']}")
+            if rv.get("memberNote"):
+                lines.append(f"    member_note: {_yaml_scalar(rv['memberNote'])}")
+            if rv.get("nextReviewAt"):
+                lines.append(f"    next_review: {rv['nextReviewAt']}")
+            if rv.get("thesisVersionBefore"):
+                lines.append(f"    thesis_version_before: {rv['thesisVersionBefore']}")
+            if rv.get("thesisVersionAfter"):
+                lines.append(f"    thesis_version_after: {rv['thesisVersionAfter']}")
     import_source = row["import_source"] if "import_source" in row.keys() else None
     if import_source:
         lines.append(f"import_source: {_yaml_scalar(import_source)}")
@@ -959,6 +979,58 @@ def _export_domain(url: str | None) -> str:
         return (urlparse(raw).hostname or "").removeprefix("www.")
     except Exception:  # noqa: BLE001 - a malformed url costs the domain, nothing else
         return ""
+
+
+def _resolve_reviews_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, Any]]]:
+    """Wave O §46 — COMPLETED review history, keyed by thesis note.
+
+    ⛔⛔ A MEMBER MUST NOT LOSE YEARS OF DECISION HISTORY BY LEAVING UCT. This
+    is the record of when they reconsidered a position and what they concluded
+    — the most irreplaceable thing the Notebook holds, because unlike a note or
+    a capture it exists nowhere else and cannot be reconstructed.
+
+    ⛔ COMPLETED ONLY. A draft is work in progress, not a decision the member
+    made; exporting one would put words in their mouth in the artefact they
+    keep forever.
+
+    ⛔ AND NOTHING EXTERNAL IS DUPLICATED (§46/§24). Evidence is referenced by
+    the counts and stances the review was taken against — never by copying
+    source text, which would smuggle third-party article content into an export
+    the member may republish.
+    """
+    if not note_ids:
+        return {}
+    ph = ",".join("?" for _ in note_ids)
+    try:
+        rows = conn.execute(
+            f"SELECT note_id, completed_at, review_reason, outcome, member_note,"
+            f" next_review_at, prior_version_id, resulting_version_id"
+            f" FROM j2_thesis_reviews"
+            f" WHERE user_id = ? AND note_id IN ({ph}) AND status = 'completed'"
+            f" ORDER BY note_id, completed_at ASC",
+            (user_id, *note_ids),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # A database that predates the table has no reviews, not an error —
+        # the same narrow tolerance the capture columns get.
+        return {}
+    out: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        out.setdefault(r["note_id"], []).append({
+            "completedAt": r["completed_at"],
+            "reviewReason": r["review_reason"],
+            "outcome": r["outcome"],
+            # ⛔ NAMED AS THE MEMBER'S OWN WRITING (§26). In an export that may
+            # be read by anything, "note" would be indistinguishable from a
+            # source's words.
+            "memberNote": r["member_note"],
+            "nextReviewAt": r["next_review_at"],
+            "thesisVersionBefore": r["prior_version_id"],
+            "thesisVersionAfter": r["resulting_version_id"],
+        })
+    return out
 
 
 def _resolve_thesis_evidence_by_note(
@@ -1166,6 +1238,7 @@ def _write_notes_archive(
     )
     facts_by_note = _resolve_facts_by_note(conn, user_id, [r["id"] for r in rows])
     evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [r["id"] for r in rows])
+    reviews_by_note = _resolve_reviews_by_note(conn, user_id, [r["id"] for r in rows])
     note_paths = _compute_note_export_paths(rows, folders)
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
@@ -1246,6 +1319,7 @@ def _write_notes_archive(
             "properties": properties_by_note.get(row["id"], []),
             "financial_facts": facts_by_note.get(row["id"], []),
             "thesis_evidence": evidence_by_note.get(row["id"], []),
+            "thesis_reviews": reviews_by_note.get(row["id"], []),
         }
         zf.writestr(
             f"{path}.md",
@@ -1395,6 +1469,7 @@ def build_single_note_export(
         )
         facts_by_note = _resolve_facts_by_note(conn, user_id, [note_id])
         evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [note_id])
+        reviews_by_note = _resolve_reviews_by_note(conn, user_id, [note_id])
 
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -1443,6 +1518,7 @@ def build_single_note_export(
             "properties": properties_by_note.get(note_id, []),
             "financial_facts": facts_by_note.get(note_id, []),
             "thesis_evidence": evidence_by_note.get(note_id, []),
+            "thesis_reviews": reviews_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
 
