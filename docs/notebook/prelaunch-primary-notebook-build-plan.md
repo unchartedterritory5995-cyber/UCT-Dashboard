@@ -5027,3 +5027,88 @@ and the certification report. The readiness scorecard's AI row is deliberately
 held at **5**, not 6, until that production verification exists — the ladder's 6
 means production-verified, and writing it before the deploy would be exactly the
 kind of rounding-up that artifact exists to resist.
+
+#### WAVE K RELEASE CHECKPOINT — PARKED (owner ruling, 2026-09-07)
+
+**Owner ruling: DO NOT DEPLOY WHILE THE 8G-B SHARED-PRODUCTION HOLD REMAINS
+ACTIVE.** Stopping before merge/deploy was confirmed correct. State classified in
+the owner's own evidence language, which is not to be weakened:
+
+    IMPLEMENTATION COMPLETE
+    TARGETED + BROAD REGRESSION COMPLETE
+    CLOSURE DOCUMENTATION COMPLETE
+    FEATURE BRANCH PUSHED
+    PRE-DEPLOY RELEASE READINESS PROVEN
+    PRODUCTION RELEASE INTENTIONALLY BLOCKED BY 8G-B SHARED-SERVICE HOLD
+
+    NOT YET:
+    PRODUCTION MERGED
+    PRODUCTION DEPLOYED
+    PRODUCTION VERIFIED
+    FULLY PRODUCTION-CERTIFIED
+
+Checkpoint: branch `notebook-primary-platform` at `58a1828fe`, tree clean, pushed
+to its own remote, 21 commits ahead of `origin/master` (`9e72492d2` at the time of
+parking).
+
+⛔ **The merge-tree proof is pre-deploy evidence, NOT permission to merge later.**
+It was taken against one specific master and expires the moment master moves. It
+must be re-run against CURRENT master before any merge.
+
+**While parked, do NOT:** merge, deploy, restart the shared web service, poll
+8G-B, repeatedly re-run regressions, perform speculative cleanup, begin Wave L, or
+make unrelated improvements. The tree is clean and the work is preserved; that is
+the whole job until the hold is explicitly cleared.
+
+**When — and only when — the 8G-B hold is EXPLICITLY cleared**, resume from this
+checkpoint and run these nineteen steps in order:
+
+1. `git fetch origin`
+2. inspect current `origin/master` drift since this checkpoint
+3. verify branch/tree remain clean
+4. confirm no new Notebook-affecting concurrent commit changes the assumptions
+5. re-run merge-tree/reconciliation against CURRENT master
+6. resolve only genuine current conflicts
+7. use the established isolated temporary-worktree merge procedure
+8. no force push
+9. merge Wave K
+10. deploy through the normal production path
+11. verify fresh-process health
+12. verify Wave K backend routes are auth-gated application routes, not SPA
+    fallthrough
+13. verify the actual shipped frontend chunks contain the Wave K Ask / citation /
+    scope UI
+14. verify Ask Current Note remains on the new safe prompt/citation contract
+15. verify Wave I/J document routes remain healthy
+16. re-check the locked `broker_sync` invariant
+17. perform the appropriate bounded production smoke verification without
+    disturbing other workstreams
+18. update any final deployment evidence required by the closure record
+19. deliver the complete 99-point Wave K certification report
+
+Do not re-run the entire development program unless current master drift or
+production verification exposes a real contradiction.
+
+**At final certification, this wording is preserved exactly:**
+
+> SEMANTIC RETRIEVAL
+> = architecturally approved
+> = quality-justified by measured deterministic recall failure
+> = NOT ACTIVATED
+> = blocked on exact-project Zero Data Retention verification.
+>
+> No Notebook content has been sent to the embedding endpoint.
+
+No deployment or certification wording may imply otherwise.
+
+**Inherited / discovered debt, preserved explicitly:** exact-project ZDR remains
+unverified; the semantic leg remains dark; the local-embedding architecture is a
+legitimate future option discovered from competitor research and was NOT adopted
+in Wave K; Voice embedding retention posture is a separate cross-workstream risk
+outside Notebook ownership; the competitor-task-matrix omission was a process
+defect discovered and corrected at closure; all other already-recorded residual
+debt stands unchanged.
+
+**Stop condition:** after final Wave K production certification, STOP. Wave L does
+not begin — the remaining Notebook roadmap is re-baselined by the owner after
+reviewing the fully deployed Wave K product.
