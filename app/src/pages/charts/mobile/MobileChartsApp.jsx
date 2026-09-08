@@ -158,7 +158,7 @@ export default function MobileChartsApp({
    * ⛔ It renders ONLY when a review session exists. A chart opened from search
    * or a deep link has no ordered set behind it, and a "1 / 1" chip there would
    * be furniture pretending to be context. */
-  const review = useReviewSession(groupSyms?.[color] || null)
+  const review = useReviewSession(groupSyms?.[color] || null, { tf })
   // Placement probe: `?navprobe=rail|pill|edge` forces a variant with a synthetic
   // position so the three candidates can be MEASURED on hardware against the real
   // chart. Never reachable without the param.

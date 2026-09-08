@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   read, publish, position, step, syncToSymbol, withScrollTop, currentSymbol, REVIEW_EVENT,
+  neighbours,
 } from './reviewSession'
+import { prefetchBars } from '../../../utils/prefetchBars'
 
 /* React binding for the review session.
  *
@@ -17,7 +19,7 @@ import {
  * to something outside, the session EXITS. Making this hook a second writer of
  * the symbol would give the app two opinions about what it is showing.
  */
-export default function useReviewSession(symbol) {
+export default function useReviewSession(symbol, { tf = 'D' } = {}) {
   const [session, setSession] = useState(() => read())
 
   // Cross-surface sync: any publisher updates every consumer.
@@ -36,6 +38,27 @@ export default function useReviewSession(symbol) {
     const next = syncToSymbol(session, symbol)
     if (next !== session) publish(next)          // null clears it
   }, [symbol, session])
+
+  /* PREFETCH the neighbours the user is about to reach.
+   *
+   * ⛔ NEXT 2 AND PREVIOUS 1 — not the list. The shared `_idbQueue` is capped at
+   * three concurrent fetches, so warming a fifty-symbol watchlist would occupy
+   * that cap for minutes and STARVE THE CHART THE USER IS LOOKING AT. The whole
+   * point is that the next tap feels instant; a prefetch that delays the current
+   * symbol has made the product slower while appearing busy.
+   *
+   * ⛔ AND IT IS NEVER `priority`. The visible chart's own fetch must win every
+   * time; these ride behind it. Reviewers move forward far more than back, which
+   * is why the window is asymmetric rather than a tidy ±2.
+   */
+  useEffect(() => {
+    if (!session || !session.symbols) return
+    const want = neighbours(session)
+    if (!want.length) return
+    // The queue supersedes naturally: a later call enqueues the new neighbours,
+    // and anything already in flight is a bounded, cheap request either way.
+    try { prefetchBars(want, tf) } catch { /* warming is never load-bearing */ }
+  }, [session, tf])
 
   const go = useCallback((delta) => {
     const cur = read()

@@ -147,6 +147,24 @@ export function reconcile(s, nextSymbols) {
   return { ...s, symbols: list, index: i }
 }
 
+/**
+ * The symbols worth warming from here: NEXT 2, then PREVIOUS 1.
+ *
+ * ⛔ NOT THE LIST. The shared prefetch queue is capped at three concurrent
+ * fetches, so warming a fifty-symbol watchlist would hold that cap for minutes
+ * and STARVE THE CHART THE USER IS LOOKING AT — a prefetch that delays the
+ * current symbol has made the product slower while looking busy.
+ *
+ * ⭐ ASYMMETRIC ON PURPOSE. Reviewers move forward far more than back, so the
+ * window is 2 ahead and 1 behind rather than a tidy plus-or-minus two. Order
+ * matters: the queue drains in order, so the very next symbol is warmed first.
+ */
+export function neighbours(s) {
+  if (!s || !Array.isArray(s.symbols)) return []
+  const i = s.index
+  return [s.symbols[i + 1], s.symbols[i + 2], s.symbols[i - 1]].filter(Boolean)
+}
+
 /** RETURN — remember where the list was scrolled to, so re-entry is not a hunt. */
 export function withScrollTop(s, scrollTop) {
   if (!s) return null

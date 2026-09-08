@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   enter, step, position, syncToSymbol, reconcile, withScrollTop,
-  currentSymbol, nextSymbol, prevSymbol, normaliseSymbols,
+  currentSymbol, nextSymbol, prevSymbol, normaliseSymbols, neighbours,
   read, write, clear, STORAGE_KEY,
 } from './reviewSession'
 
@@ -172,5 +172,29 @@ describe('persistence is defensive', () => {
     const store = memStore()
     store.setItem(STORAGE_KEY, JSON.stringify(mk('MU')))
     expect(read(store)).not.toBeNull()
+  })
+})
+
+
+describe('the prefetch window', () => {
+  it('⭐ is ASYMMETRIC — 2 ahead, 1 behind, in drain order', () => {
+    // Reviewers move forward far more than back, and the queue drains in order,
+    // so the very next symbol must be warmed FIRST.
+    expect(neighbours(mk('AMD'))).toEqual(['AVGO', 'MU', 'NVDA'])
+  })
+
+  it('⛔ never returns the whole list — the shared queue caps at three', () => {
+    const big = enter({ symbols: Array.from({ length: 50 }, (_, i) => `S${i}`), symbol: 'S10' })
+    expect(neighbours(big)).toHaveLength(3)
+  })
+
+  it('shrinks at the ends rather than padding with nulls', () => {
+    expect(neighbours(mk('NVDA'))).toEqual(['AMD', 'AVGO'])   // nothing behind
+    expect(neighbours(mk('MU'))).toEqual(['AVGO'])            // nothing ahead
+  })
+
+  it('an absent session warms nothing', () => {
+    expect(neighbours(null)).toEqual([])
+    expect(neighbours({})).toEqual([])
   })
 })
