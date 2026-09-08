@@ -63,7 +63,7 @@ accept a bearer). Re-driving them would duplicate authority, not add it.
 
 | # | Residual | Owner | Why it is not a Wave L defect |
 |---|---|---|---|
-| **R1** | **Note search does not index document page text.** A captured passage is not findable by its own words in Search. | product | `notes.py` documents the boundary; a **PDF behaves identically**. Pre-existing shape, not a Wave L regression. **Ask does reach it** via `j2_note_document_pages_fts`. Strong competitive gap — see §6. |
+| **R1** | ⚠️ **SUPERSEDED 2026-09-08 — SEE THE CORRECTION BELOW.** Stated as: "Note search does not index document page text; a captured passage is not findable by its own words in Search." | corrected | `notes.py` documents the boundary; a **PDF behaves identically**. Pre-existing shape, not a Wave L regression. **Ask does reach it** via `j2_note_document_pages_fts`. Strong competitive gap — see §6. |
 | **R2** | **A captured passage is not listed as an excerpt of its note**, so its id is not discoverable and there is no member path from "I captured this" to "attach as thesis evidence". | next wave | `list_note_excerpts` joins the refs sidecar that `notes.py` derives from `documentExcerpt` nodes in the **body**; a capture never embeds one. The evidence API accepts a captured excerpt perfectly. **Surfacing gap, not a broken capability** — and building the surface is a feature, which Slice 5 is not. |
 | **R3** | **GET share payload reaches Railway's edge** before our code runs. | unenforceable | See §5. |
 | **R4** | **No physical handset.** Certified in Chromium at phone width. | next wave | Install eligibility on a given Android build is not proven by a viewport. |
@@ -329,3 +329,26 @@ round-trip on production data.
 
 ⭐ This is the same honest limit Wave K recorded for Ask, and it is stated rather
 than rounded up.
+
+---
+
+## 13. ⚠️ CORRECTION TO RESIDUAL R1 (2026-09-08, during Wave M)
+
+**This closure overstated R1, and the correction is recorded rather than the
+original erased.**
+
+| | |
+|---|---|
+| **EARLIER CONCLUSION** | "Notebook Search does not reach captured/document text." |
+| **CORRECTION** | **The corpus was already reachable.** The claim was measured on `GET /api/j2/notes?q=` — whose FTS index is title + body_plain *by design* — and generalised to "Search". The member's Search has rendered three sections since Waves I and J: Notes, **Documents**, **Evidence**. |
+| **EVIDENCE** | A passage captured from Reuters, on the running product: `notes=0 · documents=1 · excerpts=1`. `FolderSidebar` calls `useDocumentSearch` and `useExcerptSearch` in search mode and renders both. |
+| **ACTUAL DEFECT** | Search could not **distinguish** an external web-passage row from a real paginated document row, because `source_kind` was never selected into the result surface — producing false `· p.N` labels. Fixed in Wave M (`6cac94274`). |
+
+⭐ **Why this matters beyond the fact:** the false residual was inherited by the
+post-Wave-L re-baseline and by the Wave M directive, where it became the wave's
+stated primary blocker. **A wrong measurement propagates into plans.** The
+generalisation — from one endpoint to "Search" — is the whole error.
+
+The genuine competitive gap in this area is narrower and still stands:
+**low-overlap paraphrase retrieval**, which is a semantic capability and remains
+**DARK** (see `wave-m-closure.md` §3).
