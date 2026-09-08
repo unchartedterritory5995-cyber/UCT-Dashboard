@@ -77,12 +77,15 @@ import gzip
 import io
 import time
 import threading
+import subprocess
+import logging
 
 # ~19.5k rows of [ticker, asset_type] is ~600 KB of JSON; 8 MB is generous
 # headroom without being an unbounded write into a single-process pod.
 _MAX_REPLICA_PUSH_BYTES = int(os.environ.get("OPTIONSFLOW_ETF_MAX_PUSH_BYTES", str(8 * 1024 * 1024)))
 
 DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+log = logging.getLogger(__name__)
 db = FlowDB(DB_PATH)
 
 flow_router = APIRouter(prefix="/api/flow", tags=["flow"])
@@ -598,6 +601,144 @@ def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = "",
     return Response(
         content=gzipped, media_type="text/csv",
         headers={"Content-Encoding": "gzip", "Cache-Control": "no-store"},
+    )
+
+
+# ── Search deep-dive: the DERIVED product, not the raw ticker tape ──────────
+# Measured on prod for AMD: /api/flow/ticker ships 3,651 KB gz / 20,252 KB
+# decoded / 4,232 ms, and the browser then runs the FULL processFlowData over it
+# in the worker to render ~17 rows. Same defect class as TOP 10 before 3b.
+#
+# ⛔ THE BRAIN IS NOT REIMPLEMENTED. This runs the SAME flowCompute bundle the
+# browser runs (`flow-facts search`), over the SAME uncapped feed, and returns
+# only the two keys Search consumes.
+#
+# ⛔ CACHE IDENTITY = (ticker, source, version), proven from code, not assumed:
+#   ticker/source  select the rows        -> in the key
+#   version        new tape, new rows     -> in the key
+#   range/days     NOT a parameter here — get_flow_ticker returns COMPLETE
+#                  history and the page scopes it at render time
+#                  (_scopeAllDirectional)  -> deliberately NOT in the key
+#   erSoon         changes ONLY the `er` flag, which the client re-applies as a
+#                  copy-on-overlay        -> deliberately NOT in the key, which
+#                  is what makes this product user-independent and cacheable.
+# `tests/test_flow_ticker_cache_dimensions.py` fails if a range dimension ever
+# enters get_flow_ticker without this key changing: a fast wrong-range Search is
+# a failure, not a win.
+_SEARCH_PRODUCT_CACHE = OrderedDict()
+_SEARCH_PRODUCT_CACHE_MAX = 48
+_SEARCH_PRODUCT_LOCK = threading.Lock()
+_SEARCH_PRODUCT_SCHEMA = 1
+
+
+def _search_product_cache_get(key):
+    with _SEARCH_PRODUCT_LOCK:
+        hit = _SEARCH_PRODUCT_CACHE.get(key)
+        if hit is not None:
+            _SEARCH_PRODUCT_CACHE.move_to_end(key)
+        return hit
+
+
+def _search_product_cache_put(key, gz):
+    with _SEARCH_PRODUCT_LOCK:
+        _SEARCH_PRODUCT_CACHE[key] = gz
+        _SEARCH_PRODUCT_CACHE.move_to_end(key)
+        while len(_SEARCH_PRODUCT_CACHE) > _SEARCH_PRODUCT_CACHE_MAX:
+            _SEARCH_PRODUCT_CACHE.popitem(last=False)
+
+
+def search_product_cache_state() -> dict:
+    """Diagnostics. Sizes are what a member actually downloads."""
+    with _SEARCH_PRODUCT_LOCK:
+        return {
+            "entries": [{"key": list(k), "gz_bytes": len(v)} for k, v in _SEARCH_PRODUCT_CACHE.items()],
+            "max": _SEARCH_PRODUCT_CACHE_MAX,
+            "schema": _SEARCH_PRODUCT_SCHEMA,
+        }
+
+
+@flow_router.get("/ticker-product/{symbol}")
+def get_flow_ticker_product(symbol: str, source: str = "stocks",
+                            _auth: dict = Depends(require_flow_user)):
+    """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
+
+    Stamped with the identity the client validates before trusting it. A client
+    whose ticker/source/version disagrees declines and falls back to the legacy
+    raw-tape path, which stays semantically identical.
+    """
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return JSONResponse({"ok": False, "error": "no symbol"}, status_code=400)
+    src = "indexes" if source == "indexes" else "stocks"
+    version = str(_current_version())
+    key = (sym, src, version)
+
+    cached = _search_product_cache_get(key)
+    if cached is not None:
+        return Response(
+            content=cached, media_type="application/json",
+            headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
+                     "X-Flow-Version": version, "X-Flow-Product": "search",
+                     "X-Flow-Cache": "hit"},
+        )
+
+    if not flow_aggregate.available():
+        return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+
+    t0 = time.monotonic()
+    try:
+        # ⛔ FULL COLUMN SET. `processFlowData` resolves columns by name, so a
+        # narrowed projection could change the derivation. `cols` is a transport
+        # narrowing for the raw endpoint and must never reach this one.
+        parts = []
+        for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+            parts.append(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
+        csv_bytes = b"".join(parts)
+    except Exception as e:
+        log.exception("[flow-search] csv build failed for %s/%s", sym, src)
+        return JSONResponse({"ok": False, "error": f"csv: {e}"}, status_code=500)
+    csv_ms = int((time.monotonic() - t0) * 1000)
+
+    t1 = time.monotonic()
+    try:
+        proc = subprocess.run(
+            [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
+            input=csv_bytes, capture_output=True,
+            timeout=flow_aggregate.BUILD_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        log.warning("[flow-search] %s/%s timed out", sym, src)
+        return JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
+    except Exception as e:
+        log.exception("[flow-search] subprocess failed for %s/%s", sym, src)
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    if proc.returncode != 0:
+        log.warning("[flow-search] %s/%s exited %s: %s", sym, src, proc.returncode,
+                    (proc.stderr or b"")[:300].decode("utf-8", "replace"))
+        return JSONResponse({"ok": False, "error": "derive failed"}, status_code=502)
+    try:
+        derived = json.loads(proc.stdout)
+    except Exception:
+        log.warning("[flow-search] %s/%s produced unparseable stdout", sym, src)
+        return JSONResponse({"ok": False, "error": "bad product"}, status_code=502)
+    node_ms = int((time.monotonic() - t1) * 1000)
+
+    body = {
+        "ok": True, "sym": sym, "source": src, "version": version,
+        "schema": _SEARCH_PRODUCT_SCHEMA,
+        "product": derived.get("product"),
+        "rows": derived.get("rows", 0),
+        "build": {"csv_ms": csv_ms, "node_ms": node_ms, "csv_bytes": len(csv_bytes)},
+    }
+    gz = gzip.compress(json.dumps(body, separators=(",", ":")).encode("utf-8"), compresslevel=6)
+    _search_product_cache_put(key, gz)
+    log.info("[flow-search] built %s/%s v%s: csv %d KB in %d ms, derive %d ms, out %d KB gz",
+             sym, src, version, len(csv_bytes) // 1024, csv_ms, node_ms, len(gz) // 1024)
+    return Response(
+        content=gz, media_type="application/json",
+        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
+                 "X-Flow-Version": version, "X-Flow-Product": "search",
+                 "X-Flow-Cache": "miss"},
     )
 
 

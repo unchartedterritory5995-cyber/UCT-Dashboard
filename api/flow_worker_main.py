@@ -60,6 +60,16 @@ the eight variants); gzip 90 -> 38 KB. The TOP 10 renderer reads `topC` and the
 read) and applies to the SERVED product only, so a generation decline still falls back
 to a byte-identical local computation. Bundle change => this header edit is the
 flow-worker deploy trigger.
+(2026-09-08, Search:) new `GET /api/flow/ticker-product/{sym}` — the Search
+deep-dive as a DERIVED product ({all_directional, TICKER_DB}) instead of the raw
+uncapped ticker tape. Measured on prod for AMD, the raw path is 3,651 KB gz /
+20,252 KB decoded / 4,232 ms, and the browser then runs the FULL processFlowData
+over it in the worker to render ~17 rows. This runs the SAME bundle
+(`flow-facts search`) over the SAME uncapped feed with erSoon=null, and caches by
+(ticker, source, version). ⛔ erSoon is NOT in the key — it changes only the `er`
+flag, which the client re-applies as a copy-on-overlay; that is what makes the
+product user-independent and cacheable at all. Nothing calls it yet. Bundle
+change => this header edit is the deploy trigger.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is
