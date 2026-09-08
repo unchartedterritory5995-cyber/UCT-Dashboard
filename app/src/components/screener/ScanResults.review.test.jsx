@@ -109,6 +109,25 @@ describe('a scan hands its ORDER to the review', () => {
     expect(read().symbols).toEqual(['AAA', 'BBB', 'ZZZ', 'YYY'])
   })
 
+  it('⛔⛔ SORTED **AND** TAILED — the hard case, because the two rules could fight', () => {
+    // The nontrivial one: a member's value sort re-orders the nightly block
+    // while the live-only tail keeps its own order and stays BELOW it. Either
+    // rule alone is easy; a surface that applied the sort across both blocks, or
+    // dropped the tail when a sort was active, would still look correct on any
+    // single-rule fixture.
+    render(<ScanResults definition={DEF} asOf={20260829}
+      payload={payload([nightly('AAA', 10), nightly('BBB', 90), nightly('CCC', 50),
+        liveOnly('ZZZ'), liveOnly('YYY')])} />)
+    fireEvent.click(screen.getByTestId('scan-sort-value'))
+
+    // The page reads: sorted nightly, then the tail in the route's order.
+    expect(onScreen()).toEqual(['BBB', 'CCC', 'AAA', 'ZZZ', 'YYY'])
+    fireEvent.click(screen.getByTestId('review-charts'))
+    expect(read().symbols).toEqual(onScreen())
+    expect(read().symbols).toEqual(['BBB', 'CCC', 'AAA', 'ZZZ', 'YYY'])
+    expect(navigated).toEqual(['/charts?sym=BBB&tf=D'])
+  })
+
   it('⛔ a screen that MATCHED NOTHING offers a disabled door, not a missing one', () => {
     // An empty result is a RESULT. Hiding the control would read as "this
     // surface does not do reviews", and a member would go looking for it.
