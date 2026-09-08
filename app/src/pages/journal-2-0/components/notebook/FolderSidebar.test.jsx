@@ -1154,3 +1154,58 @@ describe('Saved Views sidebar section (Wave E)', () => {
     expect(screen.getByText('Saved Views')).toBeInTheDocument()
   })
 })
+
+describe('⛔⛔ a search hit says what it IS (Wave M §8)', () => {
+  // ⚰️ THE DEFECT, measured on the running product 2026-09-08. A captured web
+  // source is stored as a document whose passages are page rows, so the SECOND
+  // passage clipped from one Reuters article has page_number 2 — and both
+  // sections rendered "· p.2". There is no page 2. There is no page 1. It is a
+  // web article the member quoted twice, and a page number asserts a paginated
+  // document exists behind it.
+  const webPage = {
+    documentId: 'd1', pageNumber: 2, snippet: 'customer <mark>concentration</mark> rose',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+  const pdfPage = {
+    documentId: 'd2', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+
+  const openSearch = () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'),
+                     { target: { value: 'concentration' } })
+  }
+
+  it('a captured web passage is NOT rendered as a page', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [webPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Captured passage/i)).toBeInTheDocument()
+    expect(screen.getByText(/reuters\.com/i)).toBeInTheDocument()
+  })
+
+  it('⭐ CONTROL: a real document still shows its page', () => {
+    // Without this, the assertion above would pass on a sidebar that stopped
+    // rendering page numbers for everything.
+    useDocumentSearchMock.mockReturnValue({ results: [pdfPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeInTheDocument()
+  })
+
+  it('a saved excerpt from a web capture reads as a saved passage, not p.N', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{ excerptId: 'e1', snippet: 'x', noteId: 'n1', noteTitle: 'NVDA research',
+                  documentId: 'd1', documentName: 'Reuters: NVDA margins', pageNumber: 2,
+                  sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda' }],
+      isLoading: false, error: null,
+    })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Saved passage/i)).toBeInTheDocument()
+  })
+})
