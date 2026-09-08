@@ -5,6 +5,7 @@ import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
 import { isCoarsePointer, hitThreshold, handleRadius, useCoarsePointer } from './coarsePointer'
+import { fmtLevel, visibleOnly } from './drawingObjects'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -76,11 +77,6 @@ function autoLabelInk(chart) {
 const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
 const ALERT_BIND_KEY = 'uct.chart.alertBind'   // 'bound' (default) | 'fixed'
 const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
-// Trim a price to a tidy prefill string (max 4 decimals, no trailing zeros).
-function fmtLevel(v) {
-  if (v == null || !Number.isFinite(+v)) return ''
-  return String(+(+v).toFixed(4))
-}
 // Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
 //
 // ⛔ THESE ARE FUNCTIONS, NOT CONSTANTS, AND THAT IS THE POINT. They were
@@ -1156,6 +1152,14 @@ export default function ChartDrawingOverlay({
   // re-subscribing the listener on every drawings change, incl. mid-drag).
   const drawingsRef = useRef(drawings)
   drawingsRef.current = drawings
+  /* ⛔ EXPLICIT, NOT FILTERED AT THE PROP. Hiding must remove an object from the
+     CANVAS and from HIT-TESTING, and from nothing else. Filtering `drawings`
+     itself would have been one line and a silent data loss: the paneRelY
+     migration below builds a WHOLE REPLACEMENT list from `drawings` and hands it
+     to `onMigrate`, so a filtered prop would delete every hidden object the first
+     time a chart migrated — with every test still green. Undo, the object
+     manager and every mutation keep seeing the full list. */
+  const visibleDrawings = useMemo(() => visibleOnly(drawings), [drawings])
 
   // ── Time → bar index lookup ──
   const timeToIndex = useMemo(() => {
@@ -1642,7 +1646,7 @@ export default function ChartDrawingOverlay({
     }
 
     // Draw completed drawings
-    for (const d of drawings) {
+    for (const d of visibleDrawings) {
       // A text note being edited is HIDDEN on the canvas while its editor box is
       // open — otherwise the note renders BEHIND the (slightly offset) textarea and
       // reads as a duplicate "ghost" box (the reported double-click glitch).
@@ -1853,7 +1857,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
+  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1914,8 +1918,10 @@ export default function ChartDrawingOverlay({
 
   const hitTestAll = useCallback((mx, my) => {
     const { w, h } = sizeRef.current
-    for (let i = drawings.length - 1; i >= 0; i--) {
-      const d = drawings[i]
+    // You cannot select what you cannot see — a hidden object must not steal a
+    // tap from the visible one underneath it.
+    for (let i = visibleDrawings.length - 1; i >= 0; i--) {
+      const d = visibleDrawings[i]
       const pts = resolvePixels(d.points || [])
       const hit = d.type === 'advance'
         ? hitTestAdvance(d, pts, mx, my)
@@ -1923,7 +1929,7 @@ export default function ChartDrawingOverlay({
       if (hit) return d.id
     }
     return null
-  }, [drawings, resolvePixels, hitTestAdvance])
+  }, [visibleDrawings, resolvePixels, hitTestAdvance])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
@@ -2763,6 +2769,7 @@ export default function ChartDrawingOverlay({
               if (nid) setSelectedId(nid)
             }}
             onToggleLock={() => updateDrawing(d.id, { locked: !d.locked })}
+            onToggleHide={() => { updateDrawing(d.id, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null) }}
             onDelete={() => { removeDrawing(d.id); setSelectedId(null) }}
           />
         )
@@ -2817,6 +2824,7 @@ export default function ChartDrawingOverlay({
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
+            onToggleHide={() => { updateDrawing(ctxMenu.drawingId, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null); setCtxMenu(null) }}
             canReorder={!!reorderDrawing && drawings.length > 1}
             onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
             onSendBack={() => { reorderDrawing?.(ctxMenu.drawingId, 'back'); setCtxMenu(null) }}
@@ -3015,7 +3023,8 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
 // Exported for its own rail: the alert-mode choice is a decision the overlay
 // only PASSES ON, so testing it through canvas hit-testing in jsdom (which does
 // no layout) would measure the harness, not the menu.
-export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
+  canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
@@ -3308,6 +3317,22 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
           ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
           : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
       />
+      {/* ⛔ HIDE SHIPS ONLY BECAUSE RECOVERY DOES. On its own this control makes
+          an object vanish with no surface that can name it again — the user's
+          own instruction was not to ship it that way, and it is right: an
+          invisible, unselectable object you cannot list is indistinguishable
+          from one you deleted by accident. The Objects sheet lists every hidden
+          object, says how many there are, and restores them all in one tap. */}
+      {onToggleHide && (
+        <MenuAction
+          label={drawing?.hidden ? 'Show' : 'Hide'}
+          onClick={onToggleHide}
+          big={sheet}
+          icon={drawing?.hidden
+            ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
+            : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>}
+        />
+      )}
       {onSaveDefaults && (
         <MenuAction
           label={savedFlash ? 'Saved as default ✓' : 'Save as default'}
