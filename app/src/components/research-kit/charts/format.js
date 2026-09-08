@@ -66,3 +66,49 @@ export function labelStep(slot, { min = MIN_LABEL_SLOT_PX } = {}) {
   if (!Number.isFinite(n) || n <= 0) return 1
   return n < min ? 2 : 1
 }
+
+/** Roughly the width of the FULL "FY2026 Q3" fiscal form at the axis size.
+ *  Below this a slot cannot hold it and the labels run into each other. */
+export const FULL_LABEL_MIN_PX = 62
+
+/**
+ * "FY2026 Q3" -> "Q3 '26". The axis form, for slots that cannot hold the full one.
+ *
+ * `labelStep` above assumes a label about the width of "Q3 24" (~32px) and
+ * thins the axis below a 38px slot. The Company Panel feeds this chart the
+ * FISCAL form instead -- "FY2026 Q3" is ~56px -- so in a ~380px dock the slots
+ * are ~50px: too wide to trip the thinning, too narrow to hold the label. Every
+ * label overlapped its neighbours and the axis was unreadable.
+ *
+ * Thinning is the wrong answer here (it hides half the quarters when there is
+ * room for all seven); the label just needs its axis form. Year is kept, as
+ * '26, because a reaction strip spans a fiscal-year boundary and bare quarter
+ * numbers would repeat.
+ *
+ * Anything that is not a recognisable fiscal quarter is returned untouched --
+ * the reaction rows fall back to a raw report DATE when a quarter label is
+ * missing, and mangling that would be worse than a wide label.
+ */
+export function compactQuarter(label) {
+  const s = String(label ?? '').trim()
+  if (!s) return ''
+  const fy = s.match(/^FY\s*(\d{4})\s*Q([1-4])$/i)
+  if (fy) return `Q${fy[2]} '${fy[1].slice(2)}`
+  const q = s.match(/\bQ([1-4])\b/i)
+  const y = s.match(/\b(\d{4})\b/)
+  if (q && y) return `Q${q[1]} '${y[1].slice(2)}`
+  return s
+}
+/** A move, sized for a ~48px slot: one decimal only where it carries meaning.
+ *  "+18%" reads at a glance; "+18.1%" costs a character for nothing, while
+ *  "+2.6%" would lose its whole magnitude rounded to "+3%". */
+export function fmtMove(v) {
+  // ⚠️ Reject the empties BEFORE Number(): Number(null) and Number('') are both
+  // 0, so a quarter we could not compute would have printed "0.0%" — claiming
+  // the stock did not move on a result we never measured.
+  if (v == null || v === '') return ''
+  const n = Number(v)
+  if (!Number.isFinite(n)) return ''
+  const digits = Math.abs(n) < 10 ? 1 : 0
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(digits)}%`
+}

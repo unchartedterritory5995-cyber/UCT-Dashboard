@@ -30,6 +30,7 @@ import useEarningsTable from '../../../hooks/useEarningsTable'
 import CompanyLogo from '../../../components/CompanyLogo'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
 import BusinessTrend from './BusinessTrend'
+import { growthCell } from './earningsRows'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -56,10 +57,33 @@ function useGrowth(quarterly) {
       epsQoQ: pctChange(latest.eps_actual, prev?.eps_actual),
       epsYoY: pctChange(latest.eps_actual, yearAgo?.eps_actual),
       salesYoY: pctChange(latest.rev_actual, yearAgo?.rev_actual),
+      // The BASE of each EPS comparison. A swing off a loss produces a huge
+      // positive percentage that is not growth, and gold here means "this
+      // tripled" — so the renderer needs to know which side it came from.
+      epsQoQBase: prev?.eps_actual ?? null,
+      epsYoYBase: yearAgo?.eps_actual ?? null,
     }
   }, [quarterly])
 }
 const sgn = (v) => (v == null ? '' : v >= 0 ? styles.pos : styles.neg)
+
+/**
+ * Growth cell tone, from the SAME rule the Earnings table uses: >= +100% is
+ * gold, because "the business tripled" is the one thing worth pulling out of a
+ * grid of percentages. Reusing `growthCell` rather than re-testing >= 100 here
+ * keeps one definition of the threshold and one definition of what disqualifies
+ * it.
+ *
+ * `base` is the value the percentage was measured FROM, where we know it. A
+ * swing off a loss (-$0.10 -> +$0.40) computes as +500% and is not growth, so
+ * it never earns gold — the same guard the Earnings table applies through the
+ * backend's loss notes.
+ */
+const TONE = { gold: styles.etGold, up: styles.pos, down: styles.neg, none: styles.muted }
+const growthTone = (v, base) => {
+  const cell = growthCell(v, (base != null && base < 0) ? 'loss_narrowing' : undefined)
+  return cell ? (TONE[cell.tone] || '') : ''
+}
 
 // lead sentences, cut only on a sentence boundary (never mid-word)
 function leadSentences(about, n = 3) {
@@ -290,12 +314,12 @@ export default function DockProfile({ sym }) {
             the transition out of the Story, and the gold group titles ARE the
             section headings now. */}
         <Group title="Growth" first>
-          <Row k="Revenue YoY" v={signPct(f.revenue_growth_pct)} cls={sgn(f.revenue_growth_pct)} p />
-          <Row k="Earnings YoY" v={signPct(f.earnings_growth_pct)} cls={sgn(f.earnings_growth_pct)} p />
-          <Row k="Q Sales YoY" v={signPct(g.salesYoY)} cls={sgn(g.salesYoY)} />
+          <Row k="Revenue YoY" v={signPct(f.revenue_growth_pct)} cls={growthTone(f.revenue_growth_pct)} p />
+          <Row k="Earnings YoY" v={signPct(f.earnings_growth_pct)} cls={growthTone(f.earnings_growth_pct)} p />
+          <Row k="Q Sales YoY" v={signPct(g.salesYoY)} cls={growthTone(g.salesYoY)} />
           <Row k="EPS Last Q" v={g.epsLastQ != null ? fmtEps(g.epsLastQ) : '—'} />
-          <Row k="EPS QoQ" v={signPct(g.epsQoQ)} cls={sgn(g.epsQoQ)} />
-          <Row k="EPS YoY" v={signPct(g.epsYoY)} cls={sgn(g.epsYoY)} />
+          <Row k="EPS QoQ" v={signPct(g.epsQoQ)} cls={growthTone(g.epsQoQ, g.epsQoQBase)} />
+          <Row k="EPS YoY" v={signPct(g.epsYoY)} cls={growthTone(g.epsYoY, g.epsYoYBase)} />
         </Group>
 
         <Group title="Valuation">

@@ -46,7 +46,12 @@ export default function EarningsReaction({ reaction }) {
             gold head it put two gold labels in a row and spent the tab's whole
             accent budget on saying the same thing twice. The definition lives
             in the note below instead, where it reads as prose. */}
-        <ReactionBars quarters={rows} label="" />
+        {/* showValues prints each quarter's move where the outcome dot sits.
+            The dot carried a second channel (solid = EPS beat, hollow = miss);
+            in this narrow panel the move is the number a reader actually wants,
+            and beat/miss is already on the rows above and in "EPS beat rate".
+            The wider earnings modal keeps the dot. */}
+        <ReactionBars quarters={rows} label="" showValues />
       </div>
       {stats.avgAbs != null && (
         <p className={styles.erNote}>

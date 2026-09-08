@@ -1,6 +1,6 @@
 // app/src/components/research-kit/charts/ReactionBars.jsx
 import useMeasuredWidth from './useMeasuredWidth'
-import { labelStep } from './format'
+import { labelStep, compactQuarter, fmtMove, FULL_LABEL_MIN_PX } from './format'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import styles from './ReactionBars.module.css'
@@ -144,6 +144,11 @@ export function reactionStats(rows) {
  */
 export default function ReactionBars({
   quarters,
+  // Print each quarter's move where the outcome dot would sit. Opt-in: the
+  // dot carries a SECOND channel (solid = EPS beat, hollow = miss) and the
+  // wider earnings modal has room for both, so only the narrow Company Panel
+  // trades the dot away for the number a reader actually asks for.
+  showValues = false,
   impliedPct = null,
   impliedLabel,
   label = 'Next-day move',
@@ -175,7 +180,13 @@ export default function ReactionBars({
   const geo = reactionGeometry(rows, { impliedPct, width: vbWidth, height: VIEWBOX.height })
   // Thin the axis on a narrow chart rather than shrinking the type below the
   // smallest token — see labelStep's docblock.
-  const step = labelStep(geo.width / Math.max(geo.bars.length, 1))
+  const slotPx = geo.width / Math.max(geo.bars.length, 1)
+  const step = labelStep(slotPx)
+  // The Company Panel passes the FISCAL form ("FY2026 Q3", ~56px). In a
+  // ~380px dock that is wider than the slot but not narrow enough to trip
+  // the thinning above, so every label overlapped. Give the axis its short
+  // form instead of hiding half the quarters.
+  const compact = slotPx < FULL_LABEL_MIN_PX
   const impliedText = geo.bracket ? ` Implied ±${geo.bracket.pct.toFixed(1)}%${impliedLabel ? ` ${impliedLabel}` : ''}.` : ''
   const built = ariaLabel
     || `Next-day move after each report: closed up ${stats.upCount} of ${stats.total}, average move ${stats.avgAbs.toFixed(1)}%.${impliedText}`
@@ -222,7 +233,22 @@ export default function ReactionBars({
                 x={b.x} y={b.y} width={b.w} height={b.h} rx="1"
               />
             )}
-            {b.outcome && b.value != null && (
+            {showValues && b.value != null && (
+              <text
+                className={b.dir > 0 ? styles.qvalUp : styles.qvalDown}
+                data-testid="rk-reaction-value"
+                x={b.cx}
+                /* dotY already sits ABOVE an up bar and BELOW a down bar, so the
+                   number lands outside the bar either way. The nudge is the text
+                   baseline: above needs lifting off the bar, below needs dropping
+                   clear of it. */
+                y={b.dir > 0 ? b.dotY - 1 : b.dotY + 7}
+                textAnchor="middle"
+              >
+                {fmtMove(b.value)}
+              </text>
+            )}
+            {!showValues && b.outcome && b.value != null && (
               <circle
                 className={b.outcome === 'beat' ? styles.dotBeat : styles.dotMiss}
                 data-testid="rk-reaction-dot"
@@ -243,7 +269,7 @@ export default function ReactionBars({
             )}
             {i % step === 0 && (
               <text className={styles.qlabel} x={b.cx} y={geo.labelY} textAnchor="middle">
-                {b.label}
+                {compact ? compactQuarter(b.label) : b.label}
               </text>
             )}
           </g>
