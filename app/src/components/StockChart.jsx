@@ -494,7 +494,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET } from '../utils/marketSession'
+import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -1304,6 +1304,8 @@ function buildFutureWhitespace(lastLwcTime, tf, minCount, targetSlot = null) {
       cur += 86400000
       const dow = new Date(cur).getUTCDay()
       if (dow === 0 || dow === 6) continue                 // daily: business days only, to match the bars
+      if (isHolidayISO(fmt(cur))) continue                 // ...and skip NYSE full holidays (no bar exists on a
+                                                           // closed weekday like Labor Day → no phantom axis slot)
     }
     const slot = fmt(cur)
     if (slot <= base) continue
