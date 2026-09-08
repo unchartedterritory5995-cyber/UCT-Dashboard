@@ -31,11 +31,15 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from api.middleware.auth_middleware import (
     get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
 )
+# Slice 3: the ONE route below that an external door may reach opts into this by
+# name. `get_current_user` above is untouched -- see api/middleware/capture_scope.
+from api.middleware.capture_scope import require_capture_scope
 
 logger = logging.getLogger(__name__)
 from api.services.journal_two import (
     accounts as accounts_service,
     analytics as analytics_service,
+    capture_auth,
     calendar as calendar_service,
     coach as coach_service,
     coach_chat as coach_chat_service,
@@ -2743,14 +2747,22 @@ from api.services.journal_two import web_capture, web_capture_store, excerpt_sea
 @router.post("/capture")
 def capture_endpoint(
     payload: dict[str, Any],
-    user: dict = Depends(get_current_user),
+    principal: dict = Depends(require_capture_scope(capture_auth.SCOPE_CAPTURE_WRITE)),
 ) -> dict[str, Any]:
-    """Capture one web source into a note. ONE canonical path for every door."""
+    """Capture one web source into a note. ONE canonical path for every door.
+
+    ⭐ Slice 3 widened WHO may knock, never WHAT happens next. The principal is
+    either a normal web session or a scoped Browser Capture credential, and in
+    both cases it resolves to exactly one `id` that the caller did not supply.
+    Everything below this line — rights tier, provenance, coverage, duplicate
+    detection, tenant isolation — is byte-identical for every door, which is
+    what makes the extension a door rather than a second backend.
+    """
     note_id = payload.get("noteId")
     if not note_id or not isinstance(note_id, str):
         raise HTTPException(status_code=400, detail="noteId is required")
     try:
-        result = web_capture_store.capture_web_source(user["id"], note_id, payload)
+        result = web_capture_store.capture_web_source(principal["id"], note_id, payload)
     except web_capture.CaptureRightsError as e:
         # 422, not 400: the request was well-formed and was REFUSED on rights.
         # A door must be able to tell "you sent nonsense" from "we are not

@@ -112,13 +112,26 @@ export async function submitCapture(intent, { fetchImpl = fetch } = {}) {
 /** The one sentence a member reads after a capture (§9). It answers both
  *  questions — did it save, and where did it go — and distinguishes a new
  *  capture from one the server resolved to an existing row. */
-export function captureConfirmation(result, destination) {
+export function captureConfirmation(result, destination, requestedTier) {
   const where = destination?.contextLabel || 'Notebook'
+  // Duplicate-ness is the SERVER's answer and is never computed here.
   if (result?.deduped) return `Already saved to ${where}`
-  // ⛔ Say what was actually saved, from the SERVER's answer. An earlier version
-  // said "Saved passage" for every web capture, which lies to a member who saved
-  // only a link -- exactly the kind of small dishonesty this wave keeps
-  // designing out. captureType is the server's, never the client's guess.
+
+  // ⛔ `captureType` DESCRIBES THE DOCUMENT, NOT THIS CAPTURE, and reading it
+  // as "what I just did" is a category error that shipped once already. Found
+  // 2026-09-08 by the Slice 3 real-browser audit: save a passage from an
+  // article, then save the LINK from the same article into the same note, and
+  // the document is (correctly) still `web_passage` -- so the second, link-only
+  // capture was confirmed as "Saved passage to ...". The member saved a link and
+  // was told a passage was saved. Same class as the bug this function's previous
+  // comment describes fixing; that fix swapped one wrong authority for another.
+  //
+  // The tier the door SENT is not a guess -- it is a fact about the request, and
+  // it is the only thing that answers "what did I just do". The server's
+  // captureType answers "what does this document now hold", which is a different
+  // question and stays the fallback for a caller that has no tier to offer.
+  if (requestedTier === TIER_REFERENCE) return `Saved link to ${where}`
+  if (requestedTier === TIER_PASSAGE) return `Saved passage to ${where}`
   if (result?.captureType === 'web_reference') return `Saved link to ${where}`
   if (result?.captureType === 'web_passage') return `Saved passage to ${where}`
   return `Saved to ${where}`

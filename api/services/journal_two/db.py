@@ -1726,6 +1726,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     Never modifies the existing Journal tables."""
     conn.executescript(_J2_SCHEMA)
 
+    # Slice 3 Browser Capture credential tables. The DDL lives WITH the module
+    # that owns the credential rather than being copied into _J2_SCHEMA -- a
+    # security-relevant table definition sitting a thousand lines from the code
+    # that reads it is how a column quietly stops meaning what it says.
+    from api.services.journal_two.capture_auth import ensure_capture_auth_schema
+    ensure_capture_auth_schema(conn)
+
     # Phase 2 ALTER additions: idempotent via try/except since SQLite
     # doesn't have IF NOT EXISTS for ADD COLUMN.
     for stmt in _PHASE_2_ALTERS:

@@ -59,6 +59,31 @@ function walk(node, fn) {
   }
 }
 
+/** Does this string name the capture WRITE endpoint itself, rather than some
+ *  deeper route that merely shares its prefix?
+ *
+ * ⛔ ADDED 2026-09-08, AND THE RAIL WAS RIGHT TO FIRE. Slice 3 added the
+ * Browser Capture handshake at `/api/j2/capture/authorize` and
+ * `/api/j2/capture/token`, and a substring match flagged the first-party
+ * authorization page as "a door bypassing capture.js". It is not one: those are
+ * the AUTH surface, they perform no capture, and the connect page is the only
+ * place they could be named. The invariant this file enforces is about the ONE
+ * WRITE PATH per semantic kind, so the matcher now respects path segments — a
+ * literal followed by `/` is a different endpoint and always was.
+ *
+ * A query string or fragment still counts: `/api/j2/capture?x=1` IS the write
+ * endpoint wearing a suffix, and that bypass must stay caught.
+ */
+function namesWriteEndpoint(value, endpoint = '/api/j2/capture') {
+  let i = value.indexOf(endpoint)
+  while (i !== -1) {
+    const next = value[i + endpoint.length]
+    if (next === undefined || next === '?' || next === '#') return true
+    i = value.indexOf(endpoint, i + 1)
+  }
+  return false
+}
+
 /** Every string LITERAL in the file that names the capture endpoint. A literal
  *  is a node; a comment is not, which is the whole reason this parses. */
 function endpointLiterals(file) {
@@ -71,12 +96,12 @@ function endpointLiterals(file) {
   }
   const hits = []
   walk(ast, (n) => {
-    if (n.type === 'Literal' && typeof n.value === 'string' && n.value.includes('/api/j2/capture')) {
+    if (n.type === 'Literal' && typeof n.value === 'string' && namesWriteEndpoint(n.value)) {
       hits.push({ file, line: n.loc.start.line, value: n.value })
     }
     if (n.type === 'TemplateLiteral') {
       const raw = n.quasis.map((q) => q.value.cooked || '').join('')
-      if (raw.includes('/api/j2/capture')) hits.push({ file, line: n.loc.start.line, value: raw })
+      if (namesWriteEndpoint(raw)) hits.push({ file, line: n.loc.start.line, value: raw })
     }
   })
   return hits
@@ -106,7 +131,11 @@ const INDEX = (() => {
           : null
       if (!value) return
       for (const e of ENDPOINTS) {
-        if (value.includes(e)) byEndpoint.get(e).push({ file, line: n.loc.start.line })
+        // The capture WRITE path is segment-exact (see namesWriteEndpoint); the
+        // other two are prefix families on purpose -- `/api/j2/notes/{id}/...`
+        // really is the thought path, and `/api/j2/inbox/...` the internal one.
+        const matched = e === '/api/j2/capture' ? namesWriteEndpoint(value, e) : value.includes(e)
+        if (matched) byEndpoint.get(e).push({ file, line: n.loc.start.line, value })
       }
     })
   }
@@ -207,6 +236,32 @@ describe('the confirmation answers both questions (§9)', () => {
     // ⛔ The UI does not compute duplicate-ness; it reports the server's answer.
     expect(captureConfirmation({ deduped: true }, dest)).toBe('Already saved to NVDA Research')
   })
+
+  it('names the kind from what was SENT, not from what the document holds', () => {
+    // ⛔ THE DEFECT THIS PINS, found 2026-09-08 by the Slice 3 real-browser
+    // audit. Save a passage from an article, then save the LINK from the same
+    // article into the same note: the document is correctly still 'web_passage',
+    // and reading that as "what I just did" told a member who saved a link that
+    // a passage had been saved. `captureType` is a fact about the DOCUMENT; the
+    // tier is a fact about the REQUEST, and only one of them answers this.
+    const afterAPassage = { deduped: false, captureType: 'web_passage' }
+    expect(captureConfirmation(afterAPassage, dest, TIER_REFERENCE))
+      .toBe('Saved link to NVDA Research')
+    expect(captureConfirmation(afterAPassage, dest, TIER_PASSAGE))
+      .toBe('Saved passage to NVDA Research')
+  })
+
+  it('a duplicate still wins over the requested tier', () => {
+    // "Already saved" is the more useful of two true sentences, and it is the
+    // server's to say.
+    expect(captureConfirmation({ deduped: true, captureType: 'web_passage' }, dest, TIER_REFERENCE))
+      .toBe('Already saved to NVDA Research')
+  })
+
+  it('falls back to the server answer for a caller with no tier', () => {
+    expect(captureConfirmation({ deduped: false, captureType: 'web_reference' }, dest))
+      .toBe('Saved link to NVDA Research')
+  })
 })
 
 // ── Cross-kind routing (the corrected invariant) ─────────────────────────────
@@ -275,6 +330,20 @@ describe('each capture KIND keeps its own write path', () => {
     expect(literalsMatching(mod, '/api/j2/capture')).toEqual([])
     expect(literalsMatching(mod, '/api/j2/inbox')).toEqual([])
     expect(fs.readFileSync(mod, 'utf8')).toContain('createNoteViaApi')
+  })
+
+  it('the auth handshake is NOT mistaken for the write path', () => {
+    // Non-vacuity for namesWriteEndpoint, both directions. Without this the
+    // segment fix could be over-broad and silently stop catching real bypasses.
+    expect(namesWriteEndpoint('/api/j2/capture')).toBe(true)
+    expect(namesWriteEndpoint('/api/j2/capture?door=x')).toBe(true)
+    expect(namesWriteEndpoint('/api/j2/capture/authorize')).toBe(false)
+    expect(namesWriteEndpoint('/api/j2/capture/token')).toBe(false)
+    expect(namesWriteEndpoint('/api/j2/capture/destinations')).toBe(false)
+    // And the connect page really does name an auth route, so the case above is
+    // a live one rather than a hypothetical.
+    const connect = path.join(APP_SRC, 'pages/journal-2-0/components/notebook/CaptureConnectPage.jsx')
+    expect(literalsMatching(connect, '/api/j2/capture/authorize').length).toBeGreaterThan(0)
   })
 
   it('the probe can SEE each endpoint (non-vacuity)', () => {

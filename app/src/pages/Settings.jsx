@@ -13,6 +13,7 @@ import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
+import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import AppThemePicker from '../components/AppThemePicker'
@@ -2306,6 +2307,7 @@ export default function Settings() {
     connections: [
       card('broker', <BrokerConnectionsCard />),
       card('noteConnectors', <ConnectedAppsCard />),
+      card('browserCapture', <BrowserCaptureCard />),
     ],
     legal: [
       card('privacy', privacyCard),

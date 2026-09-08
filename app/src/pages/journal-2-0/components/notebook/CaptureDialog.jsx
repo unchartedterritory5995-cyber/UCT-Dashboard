@@ -120,11 +120,13 @@ export default function CaptureDialog({
       setResult(res)
       setStatus('saved')
       // Language differs by KIND so the confirmation never hides what happened.
-      // Kind-specific language, so a confirmation never hides what happened --
-      // and the web wording comes from the server's own captureType.
+      // The tier passed here is the one actually SENT (an override included), so
+      // a link-only save into a note that already holds a passage from the same
+      // article is confirmed as a link -- see captureConfirmation.
+      const sentTier = (override ? { ...intent, ...override } : intent).tier
       setMessage(mode === 'thought'
         ? `Saved to ${dest?.contextLabel || 'Notebook'}`
-        : captureConfirmation(res, dest))
+        : captureConfirmation(res, dest, sentTier))
       onSaved?.(res)
     } catch (e) {
       // ⛔ NOTHING is cleared here. The member's passage, note, URL and

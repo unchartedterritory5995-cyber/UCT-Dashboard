@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Save to UCT Notebook</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- No inline script and no inline handlers anywhere: the extension CSP is
+       script-src 'self', so a stray onclick would silently not fire. -->
+  <main id="root">
+    <section id="connect" hidden>
+      <h1>UCT Browser Capture</h1>
+      <p class="body" id="connectMessage">
+        Connect this extension to your UCT account to save research from any page.
+      </p>
+      <button id="connectBtn" class="primary" type="button">Connect UCT</button>
+      <p class="fine">
+        The extension is given permission to capture only. It never receives your
+        UCT sign-in.
+      </p>
+      <p class="error" id="connectError" role="alert" hidden></p>
+    </section>
+
+    <section id="capture" hidden>
+      <header class="head">
+        <h1>Save to Notebook</h1>
+        <span class="kind" id="kind"></span>
+      </header>
+
+      <div class="source">
+        <div class="sourceTitle" id="sourceTitle"></div>
+        <div class="sourceUrl" id="sourceDomain"></div>
+      </div>
+
+      <label class="label" for="destination">Save to</label>
+      <select id="destination" class="input"></select>
+
+      <div id="passageWrap" hidden>
+        <label class="label" for="passage">Selected passage</label>
+        <textarea id="passage" class="input" rows="4" readonly></textarea>
+        <p class="fine" id="passageNote"></p>
+      </div>
+
+      <label class="label" for="annotation">Why this matters <span class="opt">optional</span></label>
+      <textarea id="annotation" class="input" rows="2"
+                placeholder="Your own note about this"></textarea>
+
+      <p class="error" id="error" role="alert" hidden></p>
+      <p class="ok" id="ok" role="status" hidden></p>
+
+      <div class="actions">
+        <button id="saveBtn" class="primary" type="button">Save</button>
+        <button id="linkOnlyBtn" class="secondary" type="button" hidden>Save the link only</button>
+      </div>
+      <p class="fine"><a href="#" id="disconnect">Forget this connection</a></p>
+    </section>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

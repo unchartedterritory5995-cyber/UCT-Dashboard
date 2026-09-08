@@ -120,6 +120,10 @@ const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/Accounts
 // To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
 const Community = lazyPage('/community', () => import('./pages/community/CommunityRedesign'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
+// Wave L Slice 3: the first-party Browser Capture authorization page. A real
+// route, because chrome.identity.launchWebAuthFlow navigates to it top-level
+// -- which is exactly why the SameSite=Lax session cookie is present.
+const CaptureConnectPage = lazy(() => import('./pages/journal-2-0/components/notebook/CaptureConnectPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
@@ -339,6 +343,16 @@ export default function App() {
                 in-app logo even while logged in (unlike "/", which redirects
                 authenticated users to their home). */}
             <Route path="/landing" element={<PreLaunchGate><Landing /></PreLaunchGate>} />
+            {/* ⛔ OUTSIDE <AuthGuard/> DELIBERATELY, and it is not a hole.
+                AuthGuard redirects an unauthenticated visitor to /login with no
+                way back, which for the Browser Capture handshake means the
+                authorization window becomes a dead end for exactly the member
+                most likely to hit it: one who just installed the extension. So
+                the PAGE owns the signed-out case and sends them to /login?next=,
+                and the authority stays where it belongs — the POST it makes is
+                session-authenticated server-side and 401s without one, so this
+                route can mint nothing on its own. */}
+            <Route path="/journal/capture-connect" element={<CaptureConnectPage />} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<PreLaunchGate><Signup /></PreLaunchGate>} />
             <Route path="/subscribe" element={<PreLaunchGate><Subscribe /></PreLaunchGate>} />
