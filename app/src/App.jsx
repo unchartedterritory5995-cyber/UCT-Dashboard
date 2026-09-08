@@ -120,6 +120,11 @@ const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/Accounts
 // To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
 const Community = lazyPage('/community', () => import('./pages/community/CommunityRedesign'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
+// Wave L Slice 3: the first-party Browser Capture authorization page. A real
+// route, because chrome.identity.launchWebAuthFlow navigates to it top-level
+// -- which is exactly why the SameSite=Lax session cookie is present.
+const CaptureConnectPage = lazy(() => import('./pages/journal-2-0/components/notebook/CaptureConnectPage'))
+const ShareTargetPage = lazy(() => import('./pages/journal-2-0/components/notebook/ShareTargetPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
@@ -306,6 +311,23 @@ export default function App() {
           // Pre-launch, "/" is the COMING SOON holding page — same reasoning as
           // the marketing routes above: social traffic must not wait 9 seconds.
           ...(COMING_SOON ? ['/'] : []),
+          // ⛔ THE TWO FIRST-PARTY INTERSTITIALS, for the same reason and more
+          // sharply. Both are reached from OUTSIDE the app shell to do exactly
+          // one thing, and both are full page loads, so the intro plays over
+          // them every time:
+          //   /journal/share          a phone share sheet, mid-capture. The
+          //                           whole objective is "into the right
+          //                           research context IN SECONDS"; a 9.3s
+          //                           brand film in front of it is the feature
+          //                           failing, not branding.
+          //   /journal/capture-connect the extension handshake, which opens in
+          //                           a small `launchWebAuthFlow` OS window.
+          // ⚰️ FOUND BY LOOKING AT THE SCREENSHOT (2026-09-08). The Slice 4
+          // phone audit reported ZERO findings against this page while the
+          // intro covered all 390px of it — every DOM measurement was correct
+          // and the door was unusable. A probe that reads the DOM cannot see
+          // occlusion; `share_target_phone_audit.py` now checks it explicitly.
+          '/journal/share', '/journal/capture-connect',
         ].includes(window.location.pathname) && (
           <IntroAnimation />
         )}
@@ -339,6 +361,27 @@ export default function App() {
                 in-app logo even while logged in (unlike "/", which redirects
                 authenticated users to their home). */}
             <Route path="/landing" element={<PreLaunchGate><Landing /></PreLaunchGate>} />
+            {/* ⛔ OUTSIDE <AuthGuard/> DELIBERATELY, and it is not a hole.
+                AuthGuard redirects an unauthenticated visitor to /login with no
+                way back, which for the Browser Capture handshake means the
+                authorization window becomes a dead end for exactly the member
+                most likely to hit it: one who just installed the extension. So
+                the PAGE owns the signed-out case and sends them to /login?next=,
+                and the authority stays where it belongs — the POST it makes is
+                session-authenticated server-side and 401s without one, so this
+                route can mint nothing on its own. */}
+            <Route path="/journal/capture-connect" element={<CaptureConnectPage />} />
+            {/* ⛔ OUTSIDE <AuthGuard/> for the SAME reason as the line above, and
+                it is not a hole either. This is where the phone share sheet
+                lands (manifest.json `share_target`, method GET). AuthGuard's
+                bounce to /login keeps no record of the destination, so a member
+                whose session lapsed — the likeliest case on a phone — would
+                share an article, sign in, and arrive with the article gone.
+                The page owns its signed-out case and carries the payload across
+                sign-in; it mints nothing, and the capture write that follows is
+                the same session-authenticated POST that 401s without a cookie.
+                Rails: `journal-2-0/shareTarget.contract.test.js`. */}
+            <Route path="/journal/share" element={<ShareTargetPage />} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<PreLaunchGate><Signup /></PreLaunchGate>} />
             <Route path="/subscribe" element={<PreLaunchGate><Subscribe /></PreLaunchGate>} />

@@ -68,6 +68,11 @@ _DIRECT_USER_TABLES = (
     "j2_note_excerpts",
     "j2_note_excerpt_refs",
     "j2_capture_inbox",
+    # Browser Capture credentials (Slice 3). Deleting an account must destroy
+    # every credential minted for it -- a live token whose member no longer
+    # exists is the worst kind of orphan.
+    "j2_capture_tokens",
+    "j2_capture_auth_codes",
     "j2_public_profiles",
     "j2_note_shares",
     # Note connectors / Obsidian sync

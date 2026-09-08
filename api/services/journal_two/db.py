@@ -1695,6 +1695,29 @@ _PHASE_2_ALTERS = [
     # instead of an ordinary edit. Stamped ONLY by restore_note_version's
     # existing force=True capture path -- NULL for every other version.
     "ALTER TABLE j2_note_versions ADD COLUMN restored_from_version_id TEXT",
+    # Wave L (Capture Everywhere): a captured web source is a DOCUMENT, so it
+    # reuses pages/excerpts/thesis-evidence/Ask rather than opening a parallel
+    # store (entry checkpoint §2). Two columns, no table rebuild:
+    #   source_kind — 'attachment' (every pre-Wave-L row) | 'web'
+    #   source_url  — the human-meaningful page URL, for 'web' rows only
+    # ⛔ `attachment_url` STAYS the note-scoped IDENTITY column and NEVER holds
+    # a page URL. `document_extraction._resolve_pdf_bytes` regex-parses it to
+    # read bytes off disk, and note_shares rewrites attachment URLs for share
+    # links — a real URL in that column would reach both. A web row's identity
+    # is the opaque `web:<sha256>` token from web_capture.web_document_identity,
+    # which the anchored ^/api/j2/notes/attachments/… regex cannot match, so the
+    # PDF path declines it instead of touching the filesystem.
+    "ALTER TABLE j2_note_documents ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'attachment'",
+    "ALTER TABLE j2_note_documents ADD COLUMN source_url TEXT",
+    # ⛔ COVERAGE MUST STAY TRUTHFUL (Wave L §1). `source_kind` answers "is this
+    # a filesystem attachment?" — a WRITE-PATH question. `capture_type` answers
+    # "what do I actually hold?" — a RETRIEVAL question, and the two have
+    # different consumers. A web_passage row holds ONE passage the member chose;
+    # it must never let a reader infer the article was read or searched.
+    #   pdf_full_text — every pre-Wave-L row: extracted text of the whole PDF
+    #   web_reference — title + URL + domain only. No body text at all.
+    #   web_passage   — the passages the member selected, and nothing else.
+    "ALTER TABLE j2_note_documents ADD COLUMN capture_type TEXT NOT NULL DEFAULT 'pdf_full_text'",
 ]
 
 
@@ -1702,6 +1725,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create Journal 2.0 tables if missing. Safe to call repeatedly.
     Never modifies the existing Journal tables."""
     conn.executescript(_J2_SCHEMA)
+
+    # Slice 3 Browser Capture credential tables. The DDL lives WITH the module
+    # that owns the credential rather than being copied into _J2_SCHEMA -- a
+    # security-relevant table definition sitting a thousand lines from the code
+    # that reads it is how a column quietly stops meaning what it says.
+    from api.services.journal_two.capture_auth import ensure_capture_auth_schema
+    ensure_capture_auth_schema(conn)
 
     # Phase 2 ALTER additions: idempotent via try/except since SQLite
     # doesn't have IF NOT EXISTS for ADD COLUMN.

@@ -86,6 +86,11 @@ def _verify_sandbox() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--port", type=int, default=8077)
+    ap.add_argument("--log-level", default="warning",
+                    choices=["critical", "error", "warning", "info", "debug"],
+                    help="uvicorn log level. Use 'info' to get the ACCESS LOG, "
+                         "which is what production runs and the only way to "
+                         "verify anything about what we log per request.")
     ap.add_argument("--email", default="mobtest@local.dev")
     args = ap.parse_args()
 
@@ -104,7 +109,15 @@ def main() -> int:
     print(f"listening on     : http://127.0.0.1:{args.port}")
 
     import uvicorn
-    uvicorn.run("api.main:app", host="127.0.0.1", port=args.port, log_level="warning")
+    # ⛔ `warning` is the default here so a long-running dev backend does not
+    # bury its own errors under a request-per-line access log. But PRODUCTION
+    # runs uvicorn at its default level (railway.json passes no --log-level), so
+    # the access log IS on there — and a sandbox at `warning` emits no request
+    # lines at all, which silently makes any access-log assertion vacuous. That
+    # is how "0 occurrences of the shared text" first read as a clean pass with
+    # nothing to be clean about. `--log-level info` reproduces production.
+    uvicorn.run("api.main:app", host="127.0.0.1", port=args.port,
+                log_level=args.log_level)
     return 0
 
 

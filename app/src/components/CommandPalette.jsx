@@ -1,9 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
+import { openCapture } from '../pages/journal-2-0/lib/captureBus'
+import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
 import jsonFetcher from '../utils/jsonFetcher'
 import styles from './CommandPalette.module.css'
 
@@ -30,6 +32,13 @@ const NOTEBOOK_COMMANDS = [
     to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
   { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',
     to: '/journal/notebook?folder=__trash__', keywords: ['trash', 'deleted', 'notebook', 'note'] },
+  // ⛔ ONE capture command (Wave L §12), not a forest by subtype -- no
+  // "Capture Link" / "Capture Passage" / "Capture to NVDA". The single door
+  // adapts from context, and `action` (rather than `to`) is what keeps it from
+  // navigating away from the research the member is standing in (§5).
+  { id: 'nb-capture', kind: 'command', label: 'Quick Capture', icon: 'plus',
+    action: 'capture',
+    keywords: ['capture', 'save', 'clip', 'link', 'article', 'passage', 'quote', 'notebook'] },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact
@@ -63,6 +72,7 @@ function notebookNoteRowsMatch(q) {
  */
 const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -250,6 +260,19 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const selectRow = (row) => {
     if (!row) return
     if (row.kind === 'command') {
+      if (row.action === 'capture') {
+        // Opens the ONE shared capture dialog in place. No route change, so the
+        // member keeps the page -- and the research context -- they were in.
+        // ⛔ AND THE DIALOG IS TOLD WHERE THAT IS. Keeping the member's page was
+        // never the same as keeping their DESTINATION: this passed `{}` until
+        // the Slice 5 E2E, so capture opened from inside a note still asked
+        // which note. Same derivation as the hotkey, from one module.
+        const destination = destinationFromLocation(location, { recents: recentNotes })
+        openCapture(destination ? { source: 'palette', destination }
+                                : { source: 'palette' })
+        close()
+        return
+      }
       navigate(row.to)
     } else if (row.kind === 'note') {
       navigate(`/journal/notebook?note=${encodeURIComponent(row.id)}`)

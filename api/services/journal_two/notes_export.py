@@ -290,14 +290,29 @@ def _make_note_link_aware_resolver(
             if not excerpt_id:
                 return None
             row = conn.execute(
-                "SELECT e.captured_text, e.page_number, e.annotation, d.name"
+                "SELECT e.captured_text, e.page_number, e.annotation, d.name,"
+                " d.capture_type, d.source_url"
                 " FROM j2_note_excerpts e JOIN j2_note_documents d ON d.id = e.document_id"
                 " WHERE e.id = ? AND e.user_id = ?",
                 (excerpt_id, user_id),
             ).fetchone()
             if row is None:
                 return None  # source document/excerpt no longer resolves -- omit, never fabricate
-            citation = f"{row['name'] or 'Document'}, p.{row['page_number']}"
+            name = row["name"] or "Document"
+            keys = row.keys()
+            ctype = row["capture_type"] if "capture_type" in keys else None
+            if ctype in ("web_passage", "web_reference"):
+                # ⛔ A WEB capture is NOT an attached file and has no article
+                # pagination. Exporting it as "Name, p.2" would claim both. The
+                # export carries what is actually true: the source, the fact
+                # that this is one captured passage, and the URL the member can
+                # open to read the rest themselves.
+                url = (row["source_url"] if "source_url" in keys else None) or ""
+                citation = f"{name} — captured passage {row['page_number']}"
+                if url:
+                    citation = f"{citation} — {url}"
+            else:
+                citation = f"{name}, p.{row['page_number']}"
             return row["captured_text"], citation, row["annotation"]
         if not url or not url.startswith(_NOTE_LINK_MARKER):
             return base_resolver(url) if base_resolver else None
