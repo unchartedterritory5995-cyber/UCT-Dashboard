@@ -4,74 +4,13 @@ import { createPortal } from 'react-dom'
 import CompanyLogo from '../CompanyLogo'
 import uctMark from '../intro/assets/compass-mark.png'
 import styles from './SymbolSearch.module.css'
+import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity } from './symbolSearchModel'
+// Re-exported: `POPULAR_RESULTS` has existing importers that reach for it here.
+export { POPULAR_RESULTS }
 
 // Default suggestions shown when the input is empty. Hardcoded names so the
 // empty-state list always shows them even before the ticker_meta cache fills.
-// Exported: the phone symbol sheet (pages/charts/mobile) shows the same list,
-// so the two surfaces can never drift on what "popular" means.
-export const POPULAR_RESULTS = [
-  { ticker: 'SPY',   name: 'SPDR S&P 500 ETF Trust', type: 'etf' },
-  { ticker: 'QQQ',   name: 'Invesco QQQ Trust', type: 'etf' },
-  { ticker: 'AAPL',  name: 'Apple Inc.', type: 'stock' },
-  { ticker: 'MSFT',  name: 'Microsoft Corp.', type: 'stock' },
-  { ticker: 'NVDA',  name: 'NVIDIA Corp.', type: 'stock' },
-  { ticker: 'AMZN',  name: 'Amazon.com Inc.', type: 'stock' },
-  { ticker: 'GOOGL', name: 'Alphabet Inc. Class A', type: 'stock' },
-  { ticker: 'META',  name: 'Meta Platforms Inc.', type: 'stock' },
-  { ticker: 'TSLA',  name: 'Tesla Inc.', type: 'stock' },
-  { ticker: 'AMD',   name: 'Advanced Micro Devices', type: 'stock' },
-  { ticker: 'AVGO',  name: 'Broadcom Inc.', type: 'stock' },
-  { ticker: 'NFLX',  name: 'Netflix Inc.', type: 'stock' },
-  { ticker: 'CRM',   name: 'Salesforce Inc.', type: 'stock' },
-  { ticker: 'COST',  name: 'Costco Wholesale Corp.', type: 'stock' },
-  { ticker: 'LLY',   name: 'Eli Lilly & Co.', type: 'stock' },
-  { ticker: 'PLTR',  name: 'Palantir Technologies', type: 'stock' },
-  { ticker: 'SMCI',  name: 'Super Micro Computer', type: 'stock' },
-  { ticker: 'MSTR',  name: 'MicroStrategy Inc.', type: 'stock' },
-  { ticker: 'COIN',  name: 'Coinbase Global', type: 'stock' },
-  { ticker: 'SNOW',  name: 'Snowflake Inc.', type: 'stock' },
-  { ticker: 'IWM',   name: 'iShares Russell 2000 ETF', type: 'etf' },
-  { ticker: 'DIA',   name: 'SPDR Dow Jones Industrial', type: 'etf' },
-  { ticker: 'XLF',   name: 'Financial Select Sector SPDR', type: 'etf' },
-  { ticker: 'XLE',   name: 'Energy Select Sector SPDR', type: 'etf' },
-  { ticker: 'XLK',   name: 'Technology Select Sector SPDR', type: 'etf' },
-  { ticker: 'XLV',   name: 'Health Care Select Sector SPDR', type: 'etf' },
-  { ticker: 'GLD',   name: 'SPDR Gold Trust', type: 'etf' },
-  { ticker: 'TLT',   name: 'iShares 20+ Year Treasury', type: 'etf' },
-  { ticker: 'ARKK',  name: 'ARK Innovation ETF', type: 'etf' },
-  { ticker: 'SOXX',  name: 'iShares Semiconductor ETF', type: 'etf' },
-]
 
-// Category chips → the `type` query param the backend filters on. 'all' = no filter.
-const CHIPS = [
-  { key: 'all', label: 'All', type: '' },
-  { key: 'stock', label: 'Stocks', type: 'stock' },
-  { key: 'etf', label: 'ETFs', type: 'etf' },
-  { key: 'index', label: 'Indices', type: 'index' },
-  { key: 'breadth', label: 'Breadth', type: 'breadth' },
-]
-
-// The exact indices our charts render (api/index_bars.py INDEX_MAP). This IS the
-// full "Indices" universe, so the chip is served client-side from this list — both
-// the empty-state preload and searches filter it (no backend round-trip needed).
-const INDICES_PRESET = [
-  { ticker: 'SPX', name: 'S&P 500 Index', type: 'index' },
-  { ticker: 'NDX', name: 'Nasdaq 100 Index', type: 'index' },
-  { ticker: 'DJX', name: 'Dow Jones Industrial Average', type: 'index' },
-  { ticker: 'RUT', name: 'Russell 2000 Index', type: 'index' },
-  { ticker: 'VIX', name: 'CBOE Volatility Index', type: 'index' },
-  { ticker: 'XSP', name: 'Mini S&P 500 Index', type: 'index' },
-  { ticker: 'XND', name: 'Micro Nasdaq 100 Index', type: 'index' },
-]
-
-// q matches a preset/breadth row by ticker OR name (case-insensitive substring).
-const matchQ = (r, q) => {
-  if (!q) return true
-  const qu = q.toUpperCase()
-  return String(r.ticker || '').includes(qu) || String(r.name || '').toUpperCase().includes(qu)
-}
-
-const TYPE_LABEL = { stock: 'stock', etf: 'ETF', index: 'index', breadth: 'breadth', delisted: 'delisted' }
 
 // Render `text` with every case-insensitive occurrence of the typed query wrapped in
 // a gold `.hit` span (TradingView highlights the matched term; ours is gold).
@@ -390,17 +329,26 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                         <span className={styles.resultSym}>{highlighted(r.ticker, query, styles)}</span>
                         {r.name && <span className={styles.resultName}>{highlighted(r.name, query, styles)}</span>}
                       </span>
+                      {/* ⭐ ONE AUTHORITY with the phone sheet — `rowIdentity`
+                          decides what identifies a row, so the two surfaces can
+                          never again disagree about what a symbol IS. The desktop
+                          badges plain stocks too (it has the width); that is the
+                          single parameterised difference, not a second copy. */}
                       <span className={styles.resultRight}>
-                        {r.exchange && !r.breadth && !r.delisted && <span className={styles.resultExch}>{r.exchange}</span>}
-                        {r.delisted ? (
-                          <span className={`${styles.typeBadge} ${styles.badgeDelisted}`}>
-                            Delisted{r.delisted_date ? ` ${String(r.delisted_date).slice(0, 4)}` : ''}
-                          </span>
-                        ) : r.breadth ? (
-                          <span className={`${styles.typeBadge} ${styles.badgeBreadth}`} title={r.group_label ? `UCT Breadth · ${r.group_label}` : 'UCT Breadth indicator'}>BREADTH</span>
-                        ) : r.type ? (
-                          <span className={`${styles.typeBadge} ${styles['badge_' + r.type] || ''}`}>{TYPE_LABEL[r.type] || r.type}</span>
-                        ) : null}
+                        {(() => {
+                          const { exchange, badge } = rowIdentity(r, { badgeStock: true })
+                          return (
+                            <>
+                              {exchange && <span className={styles.resultExch}>{exchange}</span>}
+                              {badge && (
+                                <span
+                                  className={`${styles.typeBadge} ${badge.kind === 'delisted' ? styles.badgeDelisted : badge.kind === 'breadth' ? styles.badgeBreadth : styles['badge_' + badge.kind] || ''}`}
+                                  title={badge.kind === 'breadth' ? (r.group_label ? `UCT Breadth · ${r.group_label}` : 'UCT Breadth indicator') : undefined}
+                                >{badge.text}</span>
+                              )}
+                            </>
+                          )
+                        })()}
                       </span>
                     </>
                   )}

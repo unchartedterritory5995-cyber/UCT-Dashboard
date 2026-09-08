@@ -1074,3 +1074,42 @@
 
 .layoutErr { color: var(--loss, #ef4444); font-size: 12.5px; }
 .layoutNote { color: var(--text-dim); font-size: 12px; line-height: 1.5; padding: 4px 12px 10px; }
+
+/* ─── symbol search: disambiguation (item 5) ───────────────────────────────
+   The phone consumed the same rich rows the desktop dropdown does and rendered
+   only a ticker and a name. These are the classes that let a row say WHAT it is. */
+.symChipRow {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  padding: 8px 12px 6px; flex: none;
+}
+.symChipRow::-webkit-scrollbar { display: none; }
+.symChip {
+  flex: none; min-height: 34px; padding: 0 14px;
+  background: transparent; border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-dim); font-family: inherit; font-size: 13px; font-weight: 600;
+  white-space: nowrap; cursor: pointer;
+}
+.symChipActive {
+  color: var(--ut-gold);
+  border-color: color-mix(in srgb, var(--ut-gold) 50%, transparent);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+}
+
+.resultTags { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
+.resultExch {
+  font-size: 10.5px; letter-spacing: 0.3px; color: var(--text-dim);
+  text-transform: uppercase; font-variant-numeric: tabular-nums;
+}
+.resultMark { display: block; object-fit: contain; border-radius: 50%; }
+
+.symBadge {
+  padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.4px; text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.08); color: var(--text-dim);
+}
+.symBadge_etf   { background: rgba(88, 166, 255, 0.16); color: #7ab7ff; }
+.symBadge_index { background: rgba(190, 140, 255, 0.16); color: #c39bff; }
+.symBadge_breadth { background: color-mix(in srgb, var(--ut-gold) 18%, transparent); color: var(--ut-gold); }
+/* ⛔ THE ONE BADGE THAT CHANGES WHETHER YOU SHOULD TAP THE ROW AT ALL. */
+.symBadge_delisted { background: rgba(255, 91, 91, 0.16); color: #ff8b8b; }
+.resultRowDelisted .resultTicker, .resultRowDelisted .resultName { opacity: 0.62; }
