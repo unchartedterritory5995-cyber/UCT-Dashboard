@@ -36,6 +36,7 @@ tools/wave_n_e2e_out/
 tools/wave_n_perf_out/
 tools/wave_n_mobile_out/
 tools/wave_o_mobile_out/
+tools/wave_o_perf_out/
 tools/wave_o_e2e_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
