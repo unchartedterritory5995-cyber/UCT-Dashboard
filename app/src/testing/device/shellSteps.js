@@ -163,6 +163,26 @@ const STEPS = [
   } },
 
   // ── the crosshair readout ────────────────────────────────────────────────
+  // ── the store, on THIS origin ────────────────────────────────────────────
+  // ⛔ THE ROW THAT EXPLAINS THE NEXT ONE. `crypto.randomUUID` is
+  // secure-context-only, and a phone reaches this dev server over plain HTTP.
+  // A run that records the transport cannot mistake a transport failure for a
+  // product failure a second time.
+  { name: 'secure context', note: true, run: () =>
+    `${window.isSecureContext ? 'secure' : 'INSECURE'} · randomUUID ${typeof crypto.randomUUID === 'function' ? 'present' : 'ABSENT'}` },
+
+  { name: 'a drawing can be CREATED on this device', run: async () => {
+    // This is the exact call every placed trendline makes, and it threw silently
+    // here until `utils/uid.js` — the gesture did nothing and printed nothing.
+    const sym = 'SPY'
+    const before = drawingsStore.getSnapshot(sym).drawings.length
+    const id = drawingsStore.addDrawing(sym, { type: 'horizontal', points: [{ price: 114.26 }] })
+    const after = drawingsStore.getSnapshot(sym).drawings.length
+    if (!id || after !== before + 1) throw new Error(`id=${id} · ${before} → ${after}`)
+    drawingsStore.removeDrawing(sym, id)   // leave the device as we found it
+    return `${String(id).slice(0, 8)}… · ${before} → ${after}`
+  } },
+
   // ── Tools sheet: Layouts + Drawing boards ────────────────────────────────
   { name: 'Tools sheet opens', run: async () => { await openTools(); return 'open' } },
 
