@@ -37,7 +37,7 @@ import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY } from './interpret.js'
 import {
   makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
-  declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin,
+  declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
 } from '../runtime/ir.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
@@ -50,7 +50,23 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:tuple': 'a tuple — the runtime has no multiple-value form yet',
   'runtime:array': 'an array or collection operation — the runtime has no collections yet',
   'runtime:object-op': 'a graphical-object operation — these belong to the object program, not the value runtime',
+  // ⭐⭐ 2F-2 IMPLEMENTED THIS. It stays in the vocabulary because the family is
+  // wider than the capability: `x[1]` over a top-level mutable value now runs,
+  // and the three shapes below are the parts that do not, each refused BY ITS OWN
+  // NAME so the next dependency is a row rather than a rumour.
   'runtime:history-variable': 'history over a mutable variable — that needs per-slot history committed at end of bar',
+  'runtime:history-expression':
+    'history over an EXPRESSION containing a mutable value — `(a + b)[1]` needs its own '
+    + 'committed series, and distributing the offset over the operands is only right when '
+    + 'nothing inside carries state',
+  'runtime:history-dynamic-offset':
+    'a history offset that is only known while the bar is running — the ring depth it may '
+    + 'reach cannot be bounded before execution, and an offset past the ring would answer '
+    + '`na` where Pine answers a number',
+  'runtime:history-function-local':
+    'history over a FUNCTION-LOCAL value — the ring needs a per-call-site base the way '
+    + 'persistent state already has one, and Pine\'s semantics for a call site that is '
+    + 'skipped on a bar are not yet vendor-pinned',
   'runtime:expression-statement': 'an expression evaluated for effect — nothing in this runtime has an effect yet',
   // ⭐⭐ SPLIT IN 2E, BECAUSE THE MEASUREMENT SAID IT WAS THREE THINGS (§29).
   // `runtime:call-with-state` was the top blocker at 15 and named `na`, `nz`,
@@ -128,6 +144,14 @@ const ARRAY_NS = /^(array|matrix|map)\./
  *  floors. Naming them here keeps a cast from being filed as a windowed series
  *  function; it can never make one execute. */
 const CONVERSION_NAMES = Object.freeze(new Set(['int', 'float', 'bool']))
+
+/** ⛔ A CEILING ON HOW MANY VALUES ONE SCRIPT MAY KEEP HISTORY FOR, checked at
+ *  COMPILE time so a hopeless program is refused before bar 0 rather than
+ *  discovered at bar 4,000. It mirrors the runtime's `HISTORY_SLOTS`, which
+ *  charges the same quantity while running — `limits.js`'s own header argues why
+ *  both halves are required: a static estimate cannot see a data-dependent bound,
+ *  and a running counter alone lets a hopeless program start. */
+const MAX_HISTORY_SLOTS = 512
 
 // ── mutability pre-scan ─────────────────────────────────────────────────────
 
@@ -265,6 +289,11 @@ export function buildRuntimeIr(source, opts = {}) {
   const columns = []
   const columnByKey = new Map()
   const outputs = []
+  // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:
+  // one entry per variable that any `[n]` reads, carrying the deepest offset seen.
+  // Nothing allocates a ring for a variable nobody looks back at (§16).
+  const history = []
+  const historyByVarSlot = new Map()
   const functions = []
   const fnByName = new Map()
   const callSites = []
@@ -358,6 +387,96 @@ export function buildRuntimeIr(source, opts = {}) {
   }
   const readsSlot = needsRuntime
 
+  /** ⭐⭐ THE THREE TIERS OF PINE HISTORY OFFSET, MEASURED RATHER THAN ASSUMED.
+   *
+   *  The 2F-2 census read every `mutable[…]` site in all five corpora and the
+   *  offsets fall into exactly three kinds:
+   *
+   *    LITERAL          `x[1]`, `x[2]` — 30 of the 35 scripts, none deeper than 2.
+   *    INPUT-DERIVED    `currentState[fwdBars]` — a knob, so it is a constant the
+   *                     moment inputs are bound, which is BEFORE this runs. Folded
+   *                     here by the same resolve-and-evaluate the column seam
+   *                     uses, so the two lanes cannot disagree about what the
+   *                     member's setting is.
+   *    RUNTIME-DERIVED  `cg[i + 1]` inside a loop — genuinely unknown until the
+   *                     bar runs.
+   *
+   *  ⛔ THE THIRD REFUSES, AND THAT IS NOT TIMIDITY. The ring is bounded before
+   *  the first bar, so an offset that reaches past it would answer `na` where
+   *  Pine answers a number — a wrong value wearing a warm-up's clothes. Every one
+   *  of those sites is inside a `for` body, so the family is gated behind loops
+   *  anyway; refusing it by name keeps that visible instead of shipping a silent
+   *  hole under the loop wave.
+   *
+   *  ⚠️ FOLDING AN INPUT FREEZES ITS DEFAULT into the offset, exactly as
+   *  `pine.js`'s own `parseOffsetIndex` already does for the pure lane (owner
+   *  decision, 2026-08-11). Doing the same here makes the two lanes agree; doing
+   *  something else would make a knob mean one thing in a column and another in
+   *  the runtime. */
+  const foldOffset = (n, at) => {
+    if (Number.isInteger(n) && n >= 0) return n
+    // `pine.js` hands a non-literal index over as `{expr, tok}` rather than
+    // refusing at the parser, precisely so a consumer can decide.
+    const e = n && typeof n === 'object' ? n.expr : null
+    if (!e) {
+      throw new RuntimeRefusal('runtime:statement',
+        'a bar offset counts backwards in whole bars', at)
+    }
+    // ⭐⭐ THE CONSTANT IS READ OFF THE CANONICAL TREE, NOT OFF AN EVALUATION.
+    //
+    // ⚰️ The first draft interpreted the expression and asked whether the result
+    // was a scalar. Two things were wrong with that, and the second is the
+    // dangerous one. `interpret` broadcasts a constant to a Float64Array, so the
+    // check never fired and every input-derived offset refused — visibly wrong,
+    // caught by a test. But had it been "written" to accept a flat array, it
+    // would have folded any series that HAPPENS to be constant over the bars in
+    // front of it — and on a synthetic fixture almost everything is
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). A canonical
+    // `num` node is a compile-time constant BY CONSTRUCTION; no data can fake it.
+    let canonical
+    try {
+      canonical = makeResolver().resolve(e)
+    } catch (err) {
+      // ⛔ A REFUSAL FROM THE VALUE LANE KEEPS ITS OWN NAME — `columnOf`'s rule,
+      // and for the same reason: re-dressing a `pine:undefined` as a dynamic
+      // offset would send an engineer to build ring machinery for a typo.
+      throw err
+    }
+    if (!canonical || canonical.type !== 'num'
+      || !Number.isInteger(canonical.value) || canonical.value < 0) {
+      note('runtime:history-dynamic-offset')
+      throw new RuntimeRefusal('runtime:history-dynamic-offset', null, at)
+    }
+    return canonical.value
+  }
+
+  /** Allocate — or deepen — the ring for one variable.
+   *
+   *  ⭐ DEPTH IS THE MAXIMUM OFFSET ANY SITE ASKS FOR, not a fixed reserve (§16).
+   *  A script reading `x[1]` gets one cell. Reserving 5,000 bars per mutable slot
+   *  "because history" is what makes a whole-market scan infeasible, and the
+   *  census says the real answer is almost always 1. */
+  const historySlotFor = (varSlot, back, at) => {
+    let h = historyByVarSlot.get(varSlot)
+    if (h === undefined) {
+      h = history.length
+      // ⛔ IT NAMES THE SLOT AND NOTHING ELSE ABOUT IT. Where that slot LIVES —
+      // its frame-relative index and its lifetime — is `normaliseSlots`'s answer
+      // to give, and `makeIrProgram` derives it there. Copying it here would put
+      // a second authority on the one fact the commit phase reads every bar
+      // (`lesson_a_second_authority_over_one_value`: derive, never restate).
+      history.push({ name: slots[varSlot].name, varSlot, depth: back })
+      historyByVarSlot.set(varSlot, h)
+    } else if (back > history[h].depth) {
+      history[h].depth = back
+    }
+    if (history.length > MAX_HISTORY_SLOTS) {
+      throw new RuntimeRefusal('runtime:statement',
+        `this script keeps history for more than ${MAX_HISTORY_SLOTS} values`, at)
+    }
+    return h
+  }
+
 
   /** ⭐ WHICH builtin-with-state family a call belongs to.
    *
@@ -371,6 +490,18 @@ export function buildRuntimeIr(source, opts = {}) {
   const builtinStateFamily = (rawName) => {
     const name = String(rawName || '')
     if (/^request\./.test(name)) return 'runtime:request-with-state'
+    // ⚰️⚰️ A PRESENTATION CALL BOUND TO A NAME IS PRESENTATION, NOT AN UNKNOWN
+    // BUILTIN — and 2F-2's census is what caught this. `upPlot = plot(trend == 1 ? up : na, …)`
+    // is the standard SuperTrend/Chandelier idiom: Pine's `plot()` RETURNS a plot
+    // id so a later `fill(upPlot, dnPlot, …)` can name it. The statement path
+    // recognises `plot(…)` as a statement; bound to a name it arrives here as an
+    // expression instead, and the fresh `undeclared-builtin` bucket swallowed it —
+    // filing TWO scripts under "this builtin does not exist in the closed table"
+    // and pointing the next engineer at the table when the real work is the
+    // presentation program. The sets below are the same ones the statement path
+    // uses, read rather than restated.
+    if (OUTPUT_CALLS.has(name) || PRESENTATION_CALLS.has(name)) return 'runtime:presentation'
+    if (DIRECTIVE_CALLS.has(name)) return 'runtime:directive'
     // ⭐ A NAMESPACE THAT ANSWERS THE QUESTION BY ITSELF. `str.` is text whatever
     // the bare name turns out to be, so it is read BEFORE the strip rather than
     // after — stripping first is what let `str.upper` be filed as windowed.
@@ -436,14 +567,45 @@ export function buildRuntimeIr(source, opts = {}) {
         // — routing one through this arm would run both mutations every bar.
         return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
       case 'offset': {
-        // ⛔⛔ HISTORY OVER A MUTABLE VARIABLE IS REFUSED, NOT APPROXIMATED.
-        // Reading the slot's CURRENT value is the plausible shortcut and it is
-        // silently one bar wrong on every bar. Per-slot history committed at end
-        // of bar is 2E; the integration point is the slot table, which already
-        // has stable identity, so adding it will not move any slot.
+        // ⭐⭐⭐ 2F-2 — HISTORY OVER A VALUE THE RUNTIME PRODUCED.
+        //
+        // ⛔ IT IS STILL NEVER APPROXIMATED. Reading the slot's CURRENT value is
+        // the plausible shortcut and it is silently one bar wrong on every bar;
+        // what changed is that the ring now exists, not that the shortcut became
+        // acceptable. Everything this cannot yet commit still refuses by name.
         if (readsSlot(node.arg, scope)) {
-          note('runtime:history-variable')
-          throw new RuntimeRefusal('runtime:history-variable', null, locate(node.tok))
+          const at = locate(node.tok)
+          // ⛔ ONLY A BARE NAME HAS A COMMITTED SERIES HERE. `(a + b)[1]` is a
+          // real Pine form and needs its OWN committed series; distributing the
+          // offset over the operands is right for `+` and wrong the moment
+          // anything inside carries state.
+          if (node.arg.type !== 'name') {
+            note('runtime:history-expression')
+            throw new RuntimeRefusal('runtime:history-expression', null, at)
+          }
+          const varSlot = scope.lookup(node.arg.name)
+          if (varSlot === null) {
+            note('runtime:function-global-state')
+            throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
+          }
+          // ⛔⛔ FUNCTION-LOCAL HISTORY IS REFUSED, AND NOT MERELY BECAUSE IT IS
+          // UNBUILT. A ring keyed by frame index alone would have the commit
+          // phase read the MAIN frame's slot of the same number — a different
+          // variable, committed under this one's name. It needs the per-call-site
+          // base persistent state already has (§23), and Pine's answer for a call
+          // site SKIPPED on a bar is not vendor-pinned (§25). Two open questions,
+          // one refusal, both named.
+          if (owner !== null) {
+            note('runtime:history-function-local')
+            throw new RuntimeRefusal('runtime:history-function-local',
+              `\`${node.arg.name}\` in \`${functions[owner].name}\``, at)
+          }
+          const back = foldOffset(node.n, at)
+          // ⭐ `x[0]` IS `x`. Pine says so, and routing it through the ring would
+          // answer with the PREVIOUS bar — one bar wrong in the one case nobody
+          // would think to check.
+          if (back === 0) return read(varSlot)
+          return histSlot(varSlot, historySlotFor(varSlot, back, at), back)
         }
         const back = Number(node.n)
         if (!Number.isInteger(back) || back < 0) {
@@ -828,6 +990,7 @@ export function buildRuntimeIr(source, opts = {}) {
         effects: f.effects, at: f.at,
       })),
       callSites,
+      history,
     })
   } catch (e) { return fail(e, diagnostics) }
 

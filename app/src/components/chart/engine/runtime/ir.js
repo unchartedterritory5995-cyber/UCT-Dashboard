@@ -85,12 +85,23 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  */
 export function makeIrProgram({
   version = null, statements, slots, columns = [], outputs = [],
-  functions = [], callSites = [],
+  functions = [], callSites = [], history = [],
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
+  const normalised = normaliseSlots(slots)
   const p = {
-    version, statements, slots: normaliseSlots(slots), columns, outputs, functions, callSites,
+    version, statements, slots: normalised, columns, outputs, functions, callSites,
+    // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
+    // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
+    // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
+    // answer, and reading them off it is what stops the commit phase and the slot
+    // allocator from ever disagreeing about which array holds `x`.
+    history: (history || []).map((h) => {
+      const s = normalised[h.varSlot]
+      if (!s) throw new IrError(`history for slot ${h.varSlot}, which is outside ${normalised.length}`)
+      return { ...h, slot: s.index, persist: s.kind === SLOT.PERSIST }
+    }),
   }
   validateIr(p)
   return p
@@ -161,6 +172,26 @@ export function validateIr(p) {
       case EXPR.HIST:
         if (!Number.isInteger(e.back) || e.back < 0) {
           throw new IrError(`${where}: a history offset counts backwards in whole bars, got ${JSON.stringify(e.back)}`)
+        }
+        // ⭐⭐ TWO KINDS OF HISTORY, ONE NODE. `[n]` over a COLUMN is the pure
+        // lane's — the whole series already exists and the runtime indexes it.
+        // `[n]` over a READ is 2F-2's: a value the runtime produced, whose past
+        // bars exist only because the runtime committed them. They share this
+        // node because they are the same Pine construct, and they are told apart
+        // at lowering by what `of` is.
+        if (e.of && e.of.kind === EXPR.READ) {
+          if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+            throw new IrError(
+              `${where}: history over a variable must name the HISTORY slot the front end `
+              + `allocated for it; got ${JSON.stringify(e.slot)} against ${(p.history || []).length} `
+              + 'history slots. Without it the lowering would have to re-derive which values '
+              + 'are history-bearing, and a second answer to that question is a ring nobody fills.')
+          }
+          if (e.back > p.history[e.slot].depth) {
+            throw new IrError(
+              `${where}: reads \`${p.history[e.slot].name}\`[${e.back}] but its ring was planned `
+              + `for depth ${p.history[e.slot].depth}`)
+          }
         }
         walkExpr(e.of, `${where}.of`)
         return
@@ -295,6 +326,48 @@ export function validateIr(p) {
       seenBase.set(cs.persistBase, i)
     }
   })
+
+  // ⭐⭐ THE HISTORY PLAN IS VALIDATED AGAINST THE SLOT TABLE IT REFERS TO.
+  // Each entry says: this variable slot bears history, its ring is this deep, and
+  // it lives in this lifetime. A plan naming a slot that does not exist, or
+  // claiming a lifetime the slot table disagrees with, would have the commit
+  // phase reading the wrong array every bar — a wrong number with no exception.
+  const seenHistFor = new Map()
+  ;(p.history || []).forEach((h, i) => {
+    const at = `history[${i}]`
+    if (!Number.isInteger(h.varSlot) || h.varSlot < 0 || h.varSlot >= nSlots) {
+      throw new IrError(`${at}: varSlot ${h.varSlot} outside ${nSlots}`)
+    }
+    if (!Number.isInteger(h.depth) || h.depth < 1) {
+      throw new IrError(`${at}: depth must be at least 1 bar, got ${JSON.stringify(h.depth)}`)
+    }
+    const s = p.slots[h.varSlot]
+    // ⚠️ NOTE WHAT IS *NOT* CHECKED HERE. An earlier draft asserted that
+    // `h.persist` matched the slot's kind and `h.slot` matched its index — which
+    // reads like diligence and is a tautology, because `makeIrProgram` derives
+    // both FROM that slot a few lines above. A check that cannot fail is worse
+    // than no check: it costs a reader's attention and buys a false sense that
+    // the two are independently corroborated (`lesson_gate_that_cannot_fail`).
+    // What follows are the properties the front end really can get wrong.
+    // ⛔ ONE RING PER VARIABLE. Two plan entries for one slot would each commit,
+    // and `x[1]` would answer from whichever the lowering happened to name.
+    const prior = seenHistFor.get(h.varSlot)
+    if (prior !== undefined) {
+      throw new IrError(`${at}: slot ${h.varSlot} (\`${s.name}\`) already has history[${prior}]`)
+    }
+    seenHistFor.set(h.varSlot, i)
+    // ⚠️ MAIN-FRAME ONLY, TODAY, AND SAID OUT LOUD. Function-local history is
+    // refused by name in the front end; if one ever reached here the commit phase
+    // would read `locals[index]` in the MAIN frame — a different variable
+    // entirely. Refusing it here is the guard that makes that impossible rather
+    // than unlikely.
+    if (s.owner !== null) {
+      throw new IrError(
+        `${at}: \`${s.name}\` belongs to function ${s.owner}. Function-local history needs a `
+        + 'per-call-site ring base, the way persistent state already has one — it is refused '
+        + 'in the front end and must never be lowered by accident.')
+    }
+  })
   return true
 }
 
@@ -304,6 +377,12 @@ export const series = (name) => ({ kind: EXPR.SERIES, name })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })
 export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })
+/** `x[n]` over a value the RUNTIME produces. `slot` is the history-slot index —
+ *  a different address space from the variable slot, because only some variables
+ *  bear history and allocating a ring for every one of them is the `HISTORY_VALUES`
+ *  bill nobody wants to pay (§16). */
+export const histSlot = (varSlot, historySlot, back) => (
+  { kind: EXPR.HIST, of: read(varSlot), slot: historySlot, back })
 export const binary = (op, left, right) => ({ kind: EXPR.BINARY, op, left, right })
 export const unary = (op, of) => ({ kind: EXPR.UNARY, op, of })
 export const ternary = (test, a, b) => ({ kind: EXPR.TERNARY, test, then: a, else: b })

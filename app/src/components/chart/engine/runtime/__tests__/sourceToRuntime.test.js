@@ -188,7 +188,14 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // by the same name, so the guard is still reachable.
     ['a function with a default parameter', `${head}f(x = 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
     ['a tuple', `${head}[a, b] = ta.macd(close, 12, 26, 9)\nplot(a)\n`, 'runtime:tuple'],
-    ['history over a mutable variable', `${head}var x = 0.0\nx := close\nplot(x[1])\n`, 'runtime:history-variable'],
+    // ⚰️ `history over a mutable variable → runtime:history-variable` LIVED HERE
+    // UNTIL 2F-2, which executes it. The three cases that replace it are the
+    // parts of the family that genuinely do not run yet — and they are three
+    // different walls, named separately for the same reason 2E split
+    // `call-with-state` and 2F-1 split the residue after it.
+    ['history over an EXPRESSION with state', `${head}var x = 0.0\nx := close\nplot((x + 1)[1])\n`, 'runtime:history-expression'],
+    ['a history offset only known while the bar runs', `${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`, 'runtime:history-dynamic-offset'],
+    ['history over a FUNCTION-LOCAL value', `${head}f(v) =>\n    var c = 0.0\n    c := c + v\n    c[1]\nplot(f(1))\n`, 'runtime:history-function-local'],
     // ⚰️ THIS ASSERTED `runtime:call-with-state` UNTIL 2E SPLIT IT. The measured
     // population under that one label was three capabilities — a POINTWISE
     // builtin applied to a value, a WINDOWED one that needs a growing series, and

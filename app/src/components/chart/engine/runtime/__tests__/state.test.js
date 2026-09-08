@@ -242,17 +242,55 @@ describe('state meets the column seam', () => {
 })
 
 describe('⛔ the boundaries this runtime states rather than approximates', () => {
-  it('history over a VARIABLE is a named gap, not a silent one-bar-wrong answer', () => {
+  it('⛔⛔ history over a variable must name the RING the front end planned for it', () => {
+    // ⚰️ THIS ASSERTED THAT HISTORY OVER A VARIABLE WAS A LOWERING GAP, until
+    // 2F-2 built it. What replaces it is the guard that keeps the capability
+    // honest: an IR that says "history over `x`" WITHOUT naming a planned ring is
+    // refused at the boundary, because the alternative is a lowering that decides
+    // for itself which values bear history — a second answer to that question,
+    // and the ring nobody filled would read `na` forever.
+    const noPlan = () => makeIrProgram({
+      slots: [{ name: 'x', kind: SLOT.PERSIST }],
+      outputs: ['x'],
+      statements: [declare(0, num(0)), emit(0, { kind: 'hist', of: read(0), back: 1 })],
+    })
+    expect(noPlan).toThrow(/HISTORY slot/)
+
+    // ⛔ …and a plan that does not reach far enough is refused too, rather than
+    // wrapping the ring and answering with a bar from the deep past.
+    const tooShallow = () => makeIrProgram({
+      slots: [{ name: 'x', kind: SLOT.PERSIST }],
+      outputs: ['x'],
+      history: [{ name: 'x', varSlot: 0, depth: 1 }],
+      statements: [declare(0, num(0)), emit(0, { kind: 'hist', of: read(0), slot: 0, back: 4 })],
+    })
+    expect(tooShallow).toThrow(/depth 1/)
+
+    // ⭐ THE CONTROL: the same IR WITH a matching plan lowers and runs, so the two
+    // refusals above are the guards and not a construction mistake.
+    const ok = makeIrProgram({
+      slots: [{ name: 'x', kind: SLOT.PERSIST }],
+      outputs: ['x'],
+      history: [{ name: 'x', varSlot: 0, depth: 1 }],
+      statements: [declare(0, num(0)), emit(0, { kind: 'hist', of: read(0), slot: 0, back: 1 })],
+    })
+    expect(() => lowerIrProgram(ok)).not.toThrow()
+  })
+
+  it('⛔ history over an ARBITRARY EXPRESSION is still a named lowering gap', () => {
+    // `(x + 1)[1]` needs its own committed series. Distributing the offset over
+    // the operands is right for `+` and wrong the moment anything inside carries
+    // state, so the lowering refuses rather than choosing.
     const ir = makeIrProgram({
       slots: [{ name: 'x', kind: SLOT.PERSIST }],
       outputs: ['x'],
       statements: [
         declare(0, num(0)),
-        emit(0, { kind: 'hist', of: read(0), back: 1 }),
+        emit(0, { kind: 'hist', of: binary('+', read(0), num(1)), back: 1 }),
       ],
     })
     expect(() => lowerIrProgram(ir)).toThrow(LoweringGap)
-    try { lowerIrProgram(ir) } catch (e) { expect(e.kind).toBe('history over a variable') }
+    try { lowerIrProgram(ir) } catch (e) { expect(e.kind).toBe('history over an expression') }
   })
 
   it('a declared-but-unimplemented statement kind refuses BY NAME', () => {

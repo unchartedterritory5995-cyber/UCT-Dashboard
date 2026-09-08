@@ -40,6 +40,18 @@ export const LIMIT_NAMES = Object.freeze([
   'LIVE_OBJECTS',
   'OBJECT_OPERATIONS',
   'HISTORY',
+  // ⭐⭐ 2F-2. `HISTORY` above measures the BAR COUNT — how far back the chart
+  // itself reaches. These two measure what the RUNTIME allocates to answer `x[n]`
+  // over a mutable value, which is a different resource entirely and would have
+  // been invisible inside the old name.
+  //
+  // ⛔ THEY ARE BOUNDED BEFORE THE FIRST BAR RUNS. The front end knows every
+  // history-bearing slot and every slot's depth statically, so a program that
+  // cannot fit is refused at compile time rather than discovered at bar 4,000 —
+  // and `HISTORY_VALUES` is the product that actually predicts memory, because
+  // ten slots at depth two and two slots at depth ten are not the same object.
+  'HISTORY_SLOTS',
+  'HISTORY_VALUES',
   'REQUEST_COUNT',
   'REQUEST_FANOUT',
   'MEMORY',
@@ -65,6 +77,14 @@ export const DEFAULT_LIMITS = Object.freeze({
   LIVE_OBJECTS: 500,
   OBJECT_OPERATIONS: 200000,
   HISTORY: 20000,
+  // ⚠️ MEASURED, NOT GUESSED — and the measurement is why they are this small.
+  // The 2F-2 census over all five corpora (169 scripts) found 35 that read
+  // history over a value they mutate, and their DEPTH demand is: 29 scripts at
+  // `[1]`, one at `[2]`, and none deeper. So the honest default reserves room for
+  // an order of magnitude more than any real script asks for, and still refuses a
+  // runaway long before it can matter.
+  HISTORY_SLOTS: 512,
+  HISTORY_VALUES: 262144,
   REQUEST_COUNT: 16,
   REQUEST_FANOUT: 64,
   MEMORY: 64 * 1024 * 1024,

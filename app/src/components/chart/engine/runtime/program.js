@@ -60,6 +60,24 @@ export const OP = Object.freeze({
   STORE_LOCAL: 51,
   LOAD_PERSIST: 52,
   STORE_PERSIST: 53,     // also MARKS the slot initialised
+  // ⭐⭐ 2F-2 — `x[n]` OVER A MUTABLE VALUE. a: history slot (frame-relative,
+  // offset by the call site's `historyBase`), b: how many bars back.
+  //
+  // ⛔⛔ THIS IS NOT `LOAD_LOCAL` WITH AN OFFSET, AND THE DISTINCTION IS THE
+  // WHOLE CAPABILITY. The slot arrays hold the CURRENT bar's value at the
+  // current point in the program; the history ring holds the value each PAST bar
+  // COMMITTED. Reading the slot and calling it `x[1]` is the plausible shortcut
+  // and it is silently one bar wrong on every bar — which on a state machine
+  // like SuperTrend's `trend := trend[1]` is not an approximation, it is a
+  // different indicator that still draws a line.
+  READ_HIST_SLOT: 54,
+  // ── RESERVED (2F-2, declared with its reason) ──
+  // A history offset that is only known while the bar is running — `x[i + 1]`
+  // inside a loop. It cannot be admitted until the ring depth it may reach is
+  // statically bounded, because an offset past the ring would answer `na` where
+  // Pine answers a number: a silent wrong value, which is the one outcome this
+  // runtime refuses to trade for coverage. The front end refuses it BY NAME.
+  READ_HIST_SLOT_DYN: 55,
   // ── control flow (2D) ──
   JUMP: 60,
   JUMP_IF_FALSE: 61,
@@ -100,6 +118,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE,
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
+  OP.READ_HIST_SLOT,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
   OP.CALL, OP.RET, OP.POINTWISE,
   OP.EMIT, OP.HALT,
@@ -126,7 +145,7 @@ export class ProgramError extends Error {
  */
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
-  functions = [], callSites = [], pointwise = [],
+  functions = [], callSites = [], pointwise = [], history = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -144,6 +163,12 @@ export function makeProgram({
     functions: Object.freeze((functions || []).map((f) => Object.freeze({ ...f }))),
     callSites: Object.freeze((callSites || []).map((c) => Object.freeze({ ...c }))),
     pointwise: Object.freeze((pointwise || []).slice()),
+    // ⭐ THE HISTORY PLAN IS PART OF THE ARTIFACT, not something the VM discovers.
+    // Each entry is `{name, kind, depth, owner}` — how deep this slot's ring must
+    // be, decided ONCE by the front end's static demand analysis. The runtime
+    // allocates from it and never grows it, so the memory a program needs is a
+    // property of the program rather than of the data it meets (§60).
+    history: Object.freeze((history || []).map((h) => Object.freeze({ ...h }))),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -192,6 +217,33 @@ export function validateProgram(p) {
     if (op === OP.POINTWISE) {
       if (a < 0 || a >= p.pointwise.length) {
         throw new ProgramError(`pc ${pc}: POINTWISE ${a} outside ${p.pointwise.length} names`)
+      }
+    }
+    if (op === OP.READ_HIST_SLOT) {
+      // ⛔⛔ THE DEPTH IS CHECKED HERE, AGAINST THE SLOT'S OWN PLAN. A read of
+      // `x[5]` against a ring the front end sized for 2 would answer `na` on
+      // every bar — a wrong number that looks exactly like a warm-up, forever.
+      // Refusing it at the boundary makes it a compiler bug, which is what it is.
+      // ⚠️ THIS BOUND IS EXACT ONLY WHILE HISTORY IS MAIN-PROGRAM-ONLY. Function
+      // -local history is refused by name today (`runtime:history-function-local`),
+      // so every history slot belongs to the main frame and `a` is a global
+      // index. When UDF history lands, `a` becomes frame-relative against a call
+      // site's `historyBase` and this check must loosen exactly the way the
+      // persist bound above already has — deliberately, not by drift.
+      if (a < 0 || a >= p.history.length) {
+        throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} outside ${p.history.length} history slots`)
+      }
+      const b2 = p.code[pc * 3 + 2]
+      if (!Number.isInteger(b2) || b2 < 1) {
+        throw new ProgramError(
+          `pc ${pc}: READ_HIST_SLOT offset ${b2} — history counts whole bars BACKWARDS from 1; `
+          + '`x[0]` is the live value and lowers to a slot read, never to this opcode')
+      }
+      if (b2 > p.history[a].depth) {
+        throw new ProgramError(
+          `pc ${pc}: READ_HIST_SLOT reads \`${p.history[a].name}\`[${b2}] but its ring was `
+          + `planned for depth ${p.history[a].depth} — the static demand analysis and the `
+          + 'lowering disagree about how far back this program looks')
       }
     }
     if (op === OP.CALL) {

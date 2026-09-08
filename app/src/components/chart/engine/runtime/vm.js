@@ -114,6 +114,49 @@ export function execute(program, ctx, limits) {
   // re-run an initialiser every bar for any slot legitimately holding `na`.
   const initialised = new Uint8Array(Math.max(program.persists, 1))
 
+  // ⭐⭐⭐ THE HISTORY RINGS — 2F-2, and the second of the runtime's two lifetimes
+  // becomes three. `locals` is this bar. `persist` is across bars, live. This is
+  // across bars, COMMITTED: what each past bar's FINAL value was.
+  //
+  // ⛔⛔ IT IS A SEPARATE STORE ON PURPOSE. The tempting implementation is to let
+  // `x[1]` read the slot and rely on it not having been assigned yet — which
+  // works for exactly one shape (`x := f(x[1])` as the first statement) and is
+  // wrong for every other, silently. `trend := trend[1]` after `trend` was
+  // already touched this bar would read the CURRENT bar and the state machine
+  // would never advance a bar behind, which is what SuperTrend actually means.
+  //
+  // ⭐ ONE FLAT Float64Array WITH PER-SLOT OFFSETS, not an array of arrays: a
+  // ring per slot allocated separately would put N allocations and N pointer
+  // hops in a loop that runs once per bar per slot across 5,000 symbols.
+  const histPlan = program.history
+  const nHist = histPlan.length
+  const histOffset = new Int32Array(nHist + 1)
+  for (let i = 0; i < nHist; i += 1) histOffset[i + 1] = histOffset[i] + histPlan[i].depth
+  const histTotal = histOffset[nHist]
+  budget.peak('HISTORY_SLOTS', nHist)
+  budget.peak('HISTORY_VALUES', histTotal)
+  const hist = new Float64Array(histTotal).fill(NaN)
+  // How many bars have been committed, so a ring position is `(committed - k) % depth`.
+  let committed = 0
+  // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
+  //
+  // The reasoning for it was good and is the `var float x = na` lesson: a
+  // committed bar's value may legitimately BE `na`, so "is this cell NaN" cannot
+  // answer "did that bar happen". It was written, it was commented, and the
+  // mutation control that deleted it left ALL 160 runtime tests green — because
+  // in THIS design the distinction is unreachable three times over. Warm-up is
+  // already answered by `b > committed`; the ring is `fill(NaN)` so an unwritten
+  // cell already reads `na`; and `b <= depth` guarantees the cell a read lands on
+  // was written by exactly the bar it names, never by an older one.
+  //
+  // ⛔ SO IT WAS AN UNFALSIFIABLE GUARD, which is the thing this repo keeps
+  // paying for (`lesson_gate_that_cannot_fail`, `lesson_built_tested_green_and_unreachable`):
+  // it cost a reader's attention and a write per slot per bar, and bought a
+  // feeling of protection no test could confirm. Removed rather than kept "for
+  // later". ⚠️ 2F-2B WILL NEED THE DISTINCTION FOR REAL — a finite window has to
+  // count how many genuine bars it has seen, and there `na` and absent give
+  // different answers — and it should introduce it THEN, where a test can see it.
+
   // The frame stack. ⛔ Parallel typed arrays rather than objects: a frame is
   // pushed and popped on every call, and allocating one per invocation would put
   // the garbage collector inside the hot loop.
@@ -181,6 +224,17 @@ export function execute(program, ctx, limits) {
           // opcode's, and conflating them is how a side effect fires twice.
           const bb = stack[--sp]; const aa = stack[--sp]
           stack[sp - 1] = TERNARY(stack[sp - 1], aa, bb)
+          break
+        }
+        case OP.READ_HIST_SLOT: {
+          // ⛔ BEYOND WHAT HAS BEEN COMMITTED IS `na`, NEVER A CLAMP. On bar 0
+          // nothing has been committed, so `x[1]` is `na` — the same answer
+          // READ_HIST gives a column, and for the same reason: clamping to the
+          // earliest bar is how a warm-up silently becomes a real number.
+          if (b > committed) { stack[sp++] = NaN; break }
+          const plan = histPlan[a]
+          const cell = histOffset[a] + ((committed - b) % plan.depth)
+          stack[sp++] = hist[cell]
           break
         }
         case OP.LOAD_LOCAL: stack[sp++] = locals[localsBase + a]; break
@@ -286,6 +340,40 @@ export function execute(program, ctx, limits) {
     }
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
+
+    // ─── ⭐⭐⭐ THE END-OF-BAR COMMIT ───────────────────────────────────────
+    //
+    // The bar has finished. Whatever each history-bearing slot holds NOW is that
+    // slot's value FOR THIS BAR, and that is what the next bar will see as `[1]`.
+    //
+    // ⛔⛔ IT IS A PHASE, NOT A SIDE EFFECT OF STORING. Committing inside
+    // STORE_LOCAL/STORE_PERSIST would make `x[1]` mean "the value before the most
+    // recent assignment", so a script that writes `x` twice on one bar would read
+    // its own first write as history — program order masquerading as bar history.
+    // Pine's `[]` counts BARS. This is the one place that advances them.
+    //
+    // ⭐ AND BECAUSE IT IS KEYED TO BAR ADVANCE RATHER THAN TO EXECUTION, the two
+    // futures this runtime is shaped for already work: a loop body that runs a
+    // call site fifty times inside one bar commits ONCE (§26), and a forming bar
+    // re-executed on every tick must not advance `committed` until the bar is
+    // confirmed (§27) — the counter is the only thing those features need to
+    // touch, not the storage model.
+    if (nHist) {
+      for (let i = 0; i < nHist; i += 1) {
+        const plan = histPlan[i]
+        // ⭐ `committed` IS THIS BAR'S ORDINAL, which is what makes the read side
+        // `(committed - back)` with no correction term. Writing at `committed+1`
+        // and reading at `committed-back` is the off-by-one this comment exists
+        // to stop somebody reintroducing: it is invisible on bar 0 and wrong on
+        // every bar after.
+        const cell = histOffset[i] + (committed % plan.depth)
+        // ⭐ THE LIVE VALUE IS READ FROM ITS OWN LIFETIME'S ARRAY. A history slot
+        // names a `local` or a `persist`; the plan says which, so this never has
+        // to guess and a local can never be silently promoted to a `var` (§21).
+        hist[cell] = plan.persist ? persist[plan.slot] : locals[plan.slot]
+      }
+      committed += 1
+    }
   }
 
   return { outputs, budget }

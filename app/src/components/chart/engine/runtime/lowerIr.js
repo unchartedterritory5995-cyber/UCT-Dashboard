@@ -70,17 +70,31 @@ export function lowerIrProgram(ir) {
         return
       }
       case EXPR.HIST: {
-        // ⛔ HISTORY IS OVER A COLUMN; HISTORY OF A VARIABLE IS A NAMED GAP.
-        // `x[1]` over a mutable slot needs a per-slot ring buffer written at the
-        // END of each bar. Refused rather than approximated, because the
-        // plausible approximation — read the slot's CURRENT value — is silently
-        // one bar wrong on every bar.
-        if (e.of.kind !== EXPR.COLUMN) {
-          throw new LoweringGap('history over a variable',
-            'only a precomputed column has history in this runtime yet')
+        // ⭐⭐ 2F-2 — TWO HISTORIES, TOLD APART BY WHAT THEY ARE OVER.
+        //
+        // A COLUMN's history is the pure lane's: the whole series was computed
+        // before the bar loop started, so `[n]` is an index into it.
+        //
+        // A READ's history is the runtime's: the value did not exist until the
+        // bar produced it, and its past bars exist only because the commit phase
+        // stored them. `READ_HIST_SLOT` addresses the RING, never the slot.
+        //
+        // ⛔ `x[0]` IS NOT HISTORY. Pine's `x[0]` is `x` — the live value at this
+        // point in the program — and routing it through the ring would answer
+        // with the PREVIOUS bar, one bar wrong in the one case a reader would
+        // never think to check.
+        if (e.of.kind === EXPR.COLUMN) { emit(OP.READ_HIST, e.of.index, e.back); return }
+        if (e.of.kind === EXPR.READ) {
+          if (e.back === 0) { expr(e.of); return }
+          emit(OP.READ_HIST_SLOT, e.slot, e.back)
+          return
         }
-        emit(OP.READ_HIST, e.of.index, e.back)
-        return
+        // ⛔ HISTORY OVER AN ARBITRARY EXPRESSION IS STILL A NAMED GAP. `(a+b)[1]`
+        // is a real Pine form and it needs its own committed series; approximating
+        // it as `a[1]+b[1]` is right for `+` and wrong the moment the expression
+        // contains anything with state.
+        throw new LoweringGap('history over an expression',
+          'only a column and a variable have committed history in this runtime yet')
       }
       case EXPR.BINARY: {
         const op = BIN_OP[e.op]
@@ -210,6 +224,13 @@ export function lowerIrProgram(ir) {
     pointwise,
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, at: c.at || null,
+    })),
+    // ⭐ CARRIED THROUGH, NOT RE-DERIVED. The front end's static demand analysis
+    // decided which values bear history and how deep; this only copies it, so the
+    // ring the VM allocates and the depth the validator enforces cannot come from
+    // two different answers to the same question.
+    history: (ir.history || []).map((h) => ({
+      name: h.name, varSlot: h.varSlot, slot: h.slot, persist: h.persist, depth: h.depth,
     })),
     version: ir.version,
   })

@@ -253,9 +253,26 @@ describe('⛔ boundaries stated rather than approximated', () => {
     expect(built.ir).toBeUndefined()
   })
 
-  it('history over a function-local variable is still refused', () => {
+  it('⛔⛔ history over a function-local variable is refused — and 2F-2 made the reason SHARPER, not weaker', () => {
+    // ⚰️ THIS ASSERTED `runtime:history-variable` UNTIL 2F-2, which builds that
+    // capability for top-level values. A function-local ring is a genuinely
+    // different problem and now says so: it needs the per-call-site base that
+    // persistent state already has (§23), and Pine's answer for a call site
+    // SKIPPED on a bar is not vendor-pinned (§25).
+    //
+    // ⛔ THE DISTINCTION IS LOAD-BEARING, not cosmetic. A ring keyed by frame
+    // index alone would have the commit phase read the MAIN frame's slot of the
+    // same number — a different variable entirely, committed under this one's
+    // name, with no exception anywhere. `ir.js`'s validator refuses it a second
+    // time for the same reason.
     const src = `${head}f(x) =>\n    var t = 0.0\n    t := t + x\n    t[1]\nplot(f(1))\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-variable')
+    const r = refusalOf(src)
+    expect(r.guard).toBe('runtime:history-function-local')
+    expect(r.message).toMatch(/per-call-site/)
+    // …and the same shape at TOP LEVEL executes, so the refusal is about the
+    // frame and not about history.
+    const top = buildRuntimeIr(`${head}var t = 0.0\nt := t + 1\nplot(t[1])\n`, { bars: BARS })
+    expect(top.ok).toBe(true)
   })
 })
 
