@@ -1806,6 +1806,72 @@ def register_screener_jobs(scheduler):
     return True
 
 
+def register_company_news_jobs(scheduler):
+    """Register Company Panel news ingestion.
+
+    CENTRAL AND GLOBAL, never per-user. FMP's `-latest` endpoints return the
+    whole market in one request and the ingestor fans out by symbol, so this
+    is ~1 request every few minutes for every member we have. If the global
+    endpoints turn out to be unavailable the adapter falls back to bounded,
+    scheduled iteration over the active universe — still central, still
+    independent of user count.
+
+    ⛔ Opening a company's News tab must never reach a provider. Nothing on
+    the read path calls into these jobs.
+
+    Off by default so a deploy cannot start ingesting before it is wanted:
+    set COMPANY_NEWS_INGEST_ENABLED=1. Returns True if jobs were registered.
+    """
+    if os.environ.get("COMPANY_NEWS_INGEST_ENABLED", "") not in ("1", "true", "yes"):
+        return False
+
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    def _poll():
+        try:
+            from api.services.news import ingest
+            res = ingest.run_fmp_cycle()
+            print(f"[news] fmp cycle mode={res.get('mode')} "
+                  f"items={res.get('items')} req={res.get('requests')}")
+        except Exception as e:
+            print(f"[news] fmp cycle error: {e}")
+
+    def _per_company():
+        """SEC + the local tweet store for the most-followed symbols.
+
+        Both are free and per-company: EDGAR is public domain at 10 req/s and
+        the tweet store is already on disk, so this adds no metered cost.
+        """
+        try:
+            from api.services.news import ingest
+            syms = ingest._active_universe(ingest.FALLBACK_SYMBOLS_PER_CYCLE)
+            if syms:
+                ingest.run_sec_cycle(syms[:40])
+                ingest.run_x_cycle(syms[:80])
+        except Exception as e:
+            print(f"[news] per-company cycle error: {e}")
+
+    def _prune():
+        try:
+            from api.services.news import store as news_store
+            print(f"[news] retention sweep: {news_store.prune()}")
+        except Exception as e:
+            print(f"[news] prune error: {e}")
+
+    poll_min = int(os.environ.get("COMPANY_NEWS_POLL_MINUTES", "5"))
+    scheduler.add_job(_poll, trigger=IntervalTrigger(minutes=poll_min),
+                      id="company_news_fmp", max_instances=1,
+                      replace_existing=True, coalesce=True)
+    scheduler.add_job(_per_company, trigger=IntervalTrigger(minutes=20),
+                      id="company_news_percompany", max_instances=1,
+                      replace_existing=True, coalesce=True)
+    scheduler.add_job(_prune, trigger=CronTrigger(hour=4, minute=20, timezone=_ET),
+                      id="company_news_prune", max_instances=1,
+                      replace_existing=True)
+    return True
+
+
 def register_signature_sweep_job(scheduler):
     """Register the nightly closed-bar UCT Signature sweep (20:05 ET weekdays).
 
@@ -5388,6 +5454,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] signature sweep registration error: {e}")
 
+        # -- Company Panel news ingestion (central, global, off by default) --
+        try:
+            if register_company_news_jobs(_scheduler):
+                print("[startup] company news ingestion scheduled")
+        except Exception as e:
+            print(f"[scheduler] company news registration error: {e}")
+
         # -- Nightly split back-adjustment sweep (`61f3b33b`) ----------------
         # ⛔ THE HALF THAT WAS MISSING. The repair shipped with a serve-path
         # hand-off and a manual tool and NO schedule, so nothing healed the
@@ -7131,6 +7204,12 @@ app.include_router(movers.router)
 app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
+# ── Company Panel News. The read route touches the persistent company_news
+# store ONLY and never contacts a provider; ingestion is the scheduled job
+# registered in the lifespan below.
+from api.routers import company_news as company_news_router
+app.include_router(company_news_router.router)
+app.include_router(company_news_router.ops_router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)

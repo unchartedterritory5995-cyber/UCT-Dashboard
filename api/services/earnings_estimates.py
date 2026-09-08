@@ -569,7 +569,9 @@ def _year_earnings_from_fmp(ticker: str, year: int) -> list:
     a consensus-tracked row + an alternate figure with no estimate), which would
     otherwise show as a duplicate quarter — so we dedup by (year, quarter),
     keeping the row that has a real surprise (estimate present), else the latest."""
-    data = _fmp_rows(ticker, fmp_client.get_earnings, limit=_history_limit(year))
+    data = _raw_history(
+        "fmp", ticker,
+        lambda n: _fmp_rows(ticker, fmp_client.get_earnings, limit=n))
     if not isinstance(data, list):
         return []
     best = {}
@@ -609,12 +611,51 @@ def _earn_row_preferred(new: dict, old: dict) -> bool:
     return (new.get("date") or "") > (old.get("date") or "")
 
 
+# ── raw provider-history memo (cost fix, 2026-09-07) ─────────────────────────
+# `get_year_earnings` is cached per (ticker, YEAR), but both provider legs fetch
+# the SAME full symbol history and then filter it to one year. Building four
+# years therefore made FOUR identical provider calls per symbol per leg — 8 of
+# the ~20 provider calls a cold Company Panel symbol spent, for zero extra data.
+#
+# The rows are a strict superset: a response fetched at limit L answers any
+# request with limit <= L, because the caller filters by year afterwards. So
+# memoize per ticker, keyed on the largest limit already fetched.
+_RAW_HIST_TTL = 900          # 15 min — matches _FRESH_TTL, so `fresh=True` still
+                             # surfaces a new print inside its own window.
+# Always fetch the raw history at the module cap. `_history_limit` grows for
+# older years, and years are built newest-first, so a limit-aware memo missed
+# on EVERY call: 2026 cached limit=24, 2025 then asked for 40, 2024 for 56...
+# Both providers bill per REQUEST, not per row, so one call at the cap is
+# strictly cheaper than four calls at growing limits.
+_RAW_HIST_LIMIT = 400
+
+
+def _raw_history(kind: str, ticker: str, fetch):
+    """Shared raw-history memo for the FMP / Finnhub earnings legs.
+
+    One provider call per symbol serves every year, because the caller filters
+    the rows by year afterwards.
+    """
+    ck = f"raw_earn_hist_{kind}_{ticker.upper()}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit.get("rows") if isinstance(hit, dict) else hit
+    rows = fetch(_RAW_HIST_LIMIT)
+    # Only memoize a real answer; a None/failure must stay retryable so a
+    # transient outage cannot pin an empty year for the whole TTL.
+    if rows is not None:
+        cache.set(ck, {"rows": rows}, _RAW_HIST_TTL)
+    return rows
+
+
 def _year_earnings_from_stock(ticker: str, year: int) -> list:
     """EPS-only history from Finnhub /stock/earnings (no revenue, but reliable on
     every Finnhub tier). Keeps the FISCAL quarters of `year`. Used as a gap-fill in
     get_year_earnings to populate quarters FMP is missing."""
     rows = []
-    eps_raw = _fh_get("/stock/earnings", {"symbol": ticker, "limit": _history_limit(year)})
+    eps_raw = _raw_history(
+        "fh", ticker,
+        lambda n: _fh_get("/stock/earnings", {"symbol": ticker, "limit": n}))
     if isinstance(eps_raw, list):
         for q in eps_raw:
             period = str(q.get("period") or "")[:10]

@@ -83,3 +83,12 @@ tools/ui_stress_out_run*.log
 # readdirSync+readFileSync, and a file that appears and vanishes mid-walk killed
 # whole test files with ENOENT at module scope. Per-run, deleted in a `finally`.
 /app/.mutations/
+
+# ── Company Panel: local review + audit artifacts (never deploy) ────────────
+# Seeded local stores, probe output, the visual-QA harness and the QA vite
+# override. All are development-only and some are large.
+_local_news/
+_probe_out/
+app/newsqa.html
+app/src/newsqa.jsx
+app/vite.qa.config.js

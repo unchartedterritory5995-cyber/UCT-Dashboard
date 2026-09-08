@@ -33,6 +33,25 @@ control disappear. The bundle is a build artifact of app/**, which is NOT on thi
 watch list, so an app-only push would leave flow-worker serving the OLD bundle and the
 picker still missing. This header edit is that deploy trigger. Shipped 18:0x ET on Labor
 Day with the market closed, so the consumer bounce gaps no live prints.
+(2026-09-07 later, same trigger:) 3b. The bundle can now emit a `TOP_PICKS` part
+— the TOP 10 FLOW PICKS product for all eight dataMode x capFilter variants, computed
+by the SAME flowCompute.buildTopPickCandidates the browser runs and stamped with the
+optionsflow_etf_replica content digest. It exists so first paint stops shipping
+`all_directional` (601 KB gz) + `all_trades` (1,312 KB gz) — 1.9 MB of raw rows whose
+only first-paint reader is a TEN ROW table. flow_aggregate.build_parts stages the
+replica to a temp file and passes --etf-file; NO replica means NO part and the client
+stays on its existing path. Same bundle-is-not-watched reason as above: this header
+edit is the deploy trigger. Market closed (Labor Day), so the bounce gaps no prints.
+(2026-09-08 correction, worth more than the entry above:) THIS TRIGGER WORKS, AND
+IT IS SLOW. An agent watching the running process concluded "the api/** watch path
+did not fire" from counters read DURING the build window, and was about to force a
+manual `railway up` on the OPRA consumer to fix a problem that did not exist. Push
+-> container start measured ~4-7 minutes (push landed 02:4x UTC, `Starting Container`
+at 02:51:55). ⛔ The process counters (`/api/flow/aggregate-health` ->
+stats_process_local) are the honest restart signal — they RESET — but only once the
+new container is up. WAIT for them rather than concluding from one early read; a
+manual deploy of this service is not free, and "the trigger is broken" is a much more
+expensive belief than "the trigger is slow".
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

@@ -138,7 +138,7 @@ test('RVOL renders from a directly-supplied ratio, with no raw volume anywhere',
   expect(screen.getByText('7.0x')).toBeTruthy()
 })
 
-test('ATR % and % from 50SMA render from metaOverride', () => {
+test('ATR % and distance from the 50SMA render from metaOverride', () => {
   // Both are breadth-only fields with no live source at all, so if the override
   // does not reach them the columns are permanently em-dashes — which is exactly
   // what the drill showed until this was pinned.
@@ -150,8 +150,29 @@ test('ATR % and % from 50SMA render from metaOverride', () => {
       defaultColCfg={{ order: ['flag', 'sym', 'price', 'atr', 'a50'] }}
     />,
   )
-  expect(screen.getByText('4.7%')).toBeTruthy()   // ATR %
-  expect(screen.getByText('+3.60%')).toBeTruthy() // % from 50SMA, signed + tinted
+  expect(screen.getByText('4.7%')).toBeTruthy()  // ATR %, a magnitude
+  expect(screen.getByText('+3.6x')).toBeTruthy() // 3.6 ATRs above the 50-day
+})
+
+test('the 50SMA distance is an ATR MULTIPLE, never a percentage', () => {
+  // ⛔ THIS ASSERTION USED TO READ `+3.60%`. The collector stores
+  // `(close - sma50) / atr_abs` — a multiple — and the cell rendered it through
+  // the % cell at `.toFixed(2)`, so a name 3.6 ATRs above its 50-day claimed to
+  // be "+3.60%" above it. Two wrongs at once: a unit the number never had, and
+  // a second decimal its 1dp source never carried. Both are asserted here
+  // because fixing either one alone still leaves a cell that lies.
+  render(
+    <Watchlists
+      embedded pickList="__scan__" pickName="UP 4%+" scanSymbols={SYMS}
+      quoteOverride={PINNED}
+      metaOverride={{ NX: { a50: 3.6 }, BBCP: { a50: -0.8 } }}
+      defaultColCfg={{ order: ['flag', 'sym', 'price', 'a50'] }}
+    />,
+  )
+  expect(screen.queryByText('+3.60%')).toBeNull()
+  expect(screen.queryByText('3.60%')).toBeNull()
+  expect(screen.getByText('+3.6x')).toBeTruthy()
+  expect(screen.getByText('-0.8x')).toBeTruthy()   // signed both ways
 })
 
 test('an empty override object does not count as augmenting the feed', () => {

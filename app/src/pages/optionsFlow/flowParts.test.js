@@ -10,6 +10,7 @@ import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   REQUIRED_PARTS, partUrlFrom, planBundle, retryablePartsFrom, fetchPartsBundle,
+  SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS,
 } from './flowParts.js'
 
 const CSV = '/api/flow/data?days=1'
@@ -253,8 +254,17 @@ describe('fetchPartsBundle', () => {
 // Built, tested, green and connected to nothing is this repo's most-repeated
 // defect. These derive the wiring from OptionsFlow.jsx itself.
 describe('the parts path is actually WIRED into the page', () => {
+  // ⛔ NORMALISE LINE ENDINGS. This repo checks out CRLF on Windows, and the
+  // slice below anchors on `'USE_PARTS\n'`. When git re-checked the file out
+  // during a rebase it became `USE_PARTS\r\n`, `indexOf` returned -1, the slice
+  // silently became an EMPTY STRING, and the guard failed claiming the parts
+  // path was unwired — while the wiring was untouched. A rail that fails for
+  // an environmental reason is worse than no rail: it trains the next person
+  // to ignore it. The wiring assertions are about CODE, not about which bytes
+  // end a line.
   const src = readFileSync(
     resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+    .replace(/\r\n/g, '\n')
 
   it('first paint chooses the parts bundle when the flag is on', () => {
     expect(src).toContain('fetchPartsBundle(')
@@ -283,5 +293,62 @@ describe('the parts path is actually WIRED into the page', () => {
   it('CONTROL: the source really was read', () => {
     expect(src.length).toBeGreaterThan(100000)
     expect(src).toContain('TOP 10 FLOW PICKS')
+  })
+})
+
+// ── 3b: the parts bundle can carry a DERIVED product ───────────────────────
+describe('planBundle with a custom part list', () => {
+  const part = (name, body, version = 'v1') => ({ part: name, body, version })
+  const boot = (D = {}, stats = null) => part('bootstrap', { ok: true, D, stats })
+
+  it('accepts an OBJECT body for a derived part', () => {
+    const product = { generation: 'g1', variants: { 'stocks|All': { candidates: [], adCount: 0 } } }
+    const plan = planBundle([boot({ x: 1 }), part('TOP_PICKS', product)], SERVER_TOPPICKS_PARTS)
+    expect(plan.ok).toBe(true)
+    expect(plan.D.TOP_PICKS).toEqual(product)
+    expect(plan.D.x).toBe(1)
+  })
+
+  it('⛔ still refuses an ARRAY where a derived product belongs', () => {
+    // The shape check was extended, not loosened: accepting "array or object"
+    // everywhere would let a malformed answer merge silently.
+    const plan = planBundle([boot(), part('TOP_PICKS', [1, 2, 3])], SERVER_TOPPICKS_PARTS)
+    expect(plan.ok).toBe(false)
+    expect(plan.reason).toBe('shape:TOP_PICKS')
+  })
+
+  it('⛔ still refuses an OBJECT where a raw array belongs', () => {
+    const plan = planBundle([boot(), part('all_trades', { not: 'an array' })],
+      ['bootstrap', 'all_trades'])
+    expect(plan.ok).toBe(false)
+    expect(plan.reason).toBe('shape:all_trades')
+  })
+
+  it('the fallback bundle needs no bootstrap', () => {
+    // Refetching the 583 KB bootstrap just to satisfy a shape check would spend
+    // most of what the fallback exists to avoid.
+    const plan = planBundle(
+      [part('all_directional', [{ S: 'AAA' }]), part('all_trades', [{ S: 'BBB' }])],
+      TOP_PICK_RAW_PARTS)
+    expect(plan.ok).toBe(true)
+    expect(plan.D.all_directional).toHaveLength(1)
+    expect(plan.D.all_trades).toHaveLength(1)
+    expect(plan.stats).toBeNull()
+  })
+
+  it('CONTROL: a bootstrap-less bundle still enforces its own parts', () => {
+    // Otherwise "no bootstrap" could become "no checks".
+    const plan = planBundle([part('all_directional', [])], TOP_PICK_RAW_PARTS)
+    expect(plan.ok).toBe(false)
+    expect(plan.reason).toBe('missing:all_trades')
+  })
+
+  it('one identity for the bundle still holds across a custom list', () => {
+    const product = { generation: 'g', variants: {} }
+    const plan = planBundle(
+      [boot({}, null), { part: 'TOP_PICKS', body: product, version: 'v2' }],
+      SERVER_TOPPICKS_PARTS)
+    expect(plan.ok).toBe(false)
+    expect(plan.reason).toBe('version-mismatch')
   })
 })

@@ -142,7 +142,25 @@ export function partsFrom(D) {
 /** Every part name this contract can produce. `bootstrap` first, then the rest. */
 export const PART_NAMES = Object.freeze(['bootstrap', ...DEFERRED_KEYS])
 
+/**
+ * Parts that are DERIVED from `D` rather than carved out of it.
+ *
+ * ⛔ DELIBERATELY NOT IN `PART_NAMES`. That list is a PARTITION: bootstrap
+ * plus the deferred keys reconstitute `D` exactly, key for key, and
+ * `flowBootstrap.test.js` asserts it. `TOP_PICKS` is a product computed FROM
+ * `D` (see flowTopPicksProduct.js), so folding it in would quietly turn the
+ * losslessness property into a falsehood while every test still passed — the
+ * recombination would carry a key `processFlowData` never returned.
+ *
+ * They travel over the same parts transport, so a caller may REQUEST them;
+ * they just are not part of the split.
+ */
+export const DERIVED_PART_NAMES = Object.freeze(['TOP_PICKS'])
+
+/** Everything the server may serve over the parts transport. */
+export const SERVED_PART_NAMES = Object.freeze([...PART_NAMES, ...DERIVED_PART_NAMES])
+
 /** True when `name` is a part a caller may legitimately ask for. */
 export function isPartName(name) {
-  return PART_NAMES.includes(name)
+  return SERVED_PART_NAMES.includes(name)
 }
