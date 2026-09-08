@@ -142,7 +142,7 @@ export function shareIsEmpty(share) {
   return !share || (!share.url && !share.passage && !share.thought && !share.title)
 }
 
-// ── Surviving the sign-in round trip (§4) ────────────────────────────────────
+// ── Carrying the share to the dialog (§4) ────────────────────────────────────
 //
 // ⛔ THE DEFECT THIS EXISTS TO PREVENT, and it is not hypothetical: `AuthGuard`
 // redirects an unauthenticated visitor with `<Navigate to="/login" replace />`
@@ -152,33 +152,83 @@ export function shareIsEmpty(share) {
 // to sign in, and land on the dashboard with the article gone. App.jsx already
 // records this same class being fixed once for `/calendar?earnings=NVDA`.
 //
-// Two independent carriers, because either alone has a real failure mode:
-// `?next=` cannot survive a storage-less browser, and sessionStorage cannot
-// survive the member finishing sign-in in a different tab.
+// ⛔⛔ AND THE PAYLOAD NEVER RIDES A URL TO DO IT (privacy gate, 2026-09-08).
+// The first version put the whole share into `/login?next=/journal/share?text=…`,
+// duplicating the member's prose into a second request, the login page's address
+// bar, and browser history. **It also never worked**: the only consumer,
+// `takePendingShare`, read sessionStorage, so in the storage-blocked browser
+// that carrier existed for, the payload arrived back on this page and died
+// there — no capture was ever produced. It was privacy cost with no benefit.
+//
+// The two carriers that actually work are both in-process:
+//   MEMORY   `/journal/share` → `/journal/notebook` is a client-side route
+//            change with no page load, so a module variable survives it. This
+//            is the primary path and needs no storage permission at all.
+//   SESSION  the sign-in round trip IS a full page load, which clears memory.
+//            sessionStorage survives it, in the same tab, on the member's own
+//            device — and is cleared the moment it is consumed.
+
+let _pendingShare = null
 
 export function writePendingShare(share) {
+  // Memory first: this is what the same-tab handoff actually uses, and it works
+  // in a browser that refuses storage entirely.
+  _pendingShare = share || null
   try {
     sessionStorage.setItem(PENDING_SHARE_KEY, JSON.stringify(share))
     return true
   } catch {
-    // Private mode, blocked storage, quota. The `?next=` carrier still works.
+    // Private mode, blocked storage, quota. The same-tab capture still works;
+    // only the sign-in round trip cannot be carried, and the page SAYS so
+    // rather than pretending or leaking the payload into a URL to cover it.
     return false
   }
 }
 
-/** Read AND clear. Consumed exactly once — a share that reopened every time the
- *  app mounted would be a capture the member cannot dismiss. */
+/** Read AND clear, from both carriers. Consumed exactly once — a share that
+ *  reopened every time the app mounted would be a capture the member cannot
+ *  dismiss. */
 export function takePendingShare() {
+  const fromMemory = _pendingShare
+  _pendingShare = null
+
   let raw = null
   try {
     raw = sessionStorage.getItem(PENDING_SHARE_KEY)
     sessionStorage.removeItem(PENDING_SHARE_KEY)
-  } catch { return null }
+  } catch { /* storage refused; memory may still hold it */ }
+
+  if (fromMemory) return fromMemory
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' ? parsed : null
   } catch { return null }
+}
+
+/**
+ * Take the shared text out of the visible URL as soon as it has been carried.
+ *
+ * ⛔ WHY THIS IS NOT THE WHOLE ANSWER, and must never be described as one. It
+ * removes the payload from the address bar, from browser history (Back/Forward
+ * cannot resurrect it), and from the `Referer` of any same-origin request the
+ * page makes AFTER this point. It does NOT reach the request that already
+ * happened: the GET that delivered the share has been seen by Railway's edge
+ * before our code ran, and by our own access log (redacted there separately, in
+ * `api/logging_redaction.py`). See the slice doc §10 for the residual.
+ */
+export function scrubShareUrlFromHistory(replaceFn, search) {
+  // The caller passes the ROUTER's search so this works under a MemoryRouter as
+  // well as in a browser; falling back to `window` keeps it usable standalone.
+  const current = search !== undefined
+    ? search
+    : (typeof window !== 'undefined' ? window.location.search : '')
+  if (!current) return false
+  try {
+    if (replaceFn) replaceFn(SHARE_ROUTE, { replace: true })
+    else window.history.replaceState(null, '', SHARE_ROUTE)
+    return true
+  } catch { return false }
 }
 
 /** The detail payload for `openCapture` — the SAME channel and the SAME shape

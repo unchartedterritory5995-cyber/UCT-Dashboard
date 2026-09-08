@@ -97,6 +97,10 @@ const occludedBy = (el) => {
     clientWidth: doc.clientWidth,
     smallTargets: small,
     signinHref: signin ? signin.getAttribute('href') : null,
+    // ⛔ The address bar AFTER the page has carried the payload. The shared
+    // text must not still be sitting here for the next person who picks up
+    // the phone, or in a Back press.
+    locationSearch: window.location.search,
     dialogOpen: !!document.querySelector('[role="dialog"]'),
     sourceUrl: document.querySelector('#\\\\:r0\\\\:, input[type=url]')?.value || null,
   };
@@ -157,6 +161,7 @@ const occludedBy = (el) => {
   return {
     found: true,
     dialogOccludedBy: occludedBy(dlg),
+    locationSearch: window.location.search,
     overflowX: doc.scrollWidth - doc.clientWidth,
     url: byLabel('Source link')?.value ?? null,
     title: byLabel('Source title')?.value ?? null,
@@ -196,6 +201,20 @@ def main() -> int:
                 what = key.replace("OccludedBy", "")
                 findings.append(f"{name}: the {what} is covered by {covered} — "
                                 "measured correctly in the DOM and unusable on the screen")
+        # ⛔⛔ PRIVACY GATE (2026-09-08). GET puts the member's shared prose in
+        # the request target; the least we owe them is that it does not LINGER
+        # in the address bar, in history, or get duplicated into a second URL.
+        left = data.get("locationSearch")
+        if left:
+            findings.append(f"{name}: the shared text is still in the address bar "
+                            f"({left[:60]}…) — Back would resurrect it")
+        href = data.get("signinHref")
+        if href:
+            for leak in ("wsj.com", "Powell", "signals", "patience"):
+                if leak in href:
+                    findings.append(f"{name}: the sign-in link carries the shared "
+                                    f"payload ({leak!r} in ?next=)")
+                    break
         for t in data.get("smallTargets", []):
             findings.append(f"{name}: tap target {t['w']}x{t['h']} — {t['tag']} \"{t['name']}\"")
 
@@ -214,15 +233,19 @@ def main() -> int:
         page.screenshot(path=str(OUT_DIR / "signed_out.png"), full_page=True)
 
         href = out.get("signinHref") or ""
+        # ⚰️ THIS BLOCK USED TO REQUIRE THE DEFECT. Written before the privacy
+        # gate, it asserted the shared payload WAS present in `?next=`, so it
+        # would fail the moment that leak was fixed — the same shape as
+        # `FolderSidebar.test.jsx` asserting the raw-error `alert()` it existed
+        # to prevent. Keep the intent (the member comes back to the share door),
+        # change the mechanism (they come back to the ROUTE; the payload travels
+        # in-process and never through a URL).
         if "/login?next=" not in href:
             findings.append(f"signed_out: sign-in link does not carry ?next= ({href!r})")
         else:
             nxt = urllib.parse.unquote(href.split("next=", 1)[1])
-            if not nxt.startswith("/journal/share"):
-                findings.append(f"signed_out: ?next= does not return to the share door ({nxt!r})")
-            if "wsj.com" not in nxt:
-                findings.append("signed_out: ?next= dropped the shared payload — "
-                                "the member would sign in and lose the article")
+            if nxt != "/journal/share":
+                findings.append(f"signed_out: ?next= should be the bare share route, got {nxt!r}")
         ctx.close()
 
         # ── SIGNED IN. The share must reach the dialog with its fields filled.

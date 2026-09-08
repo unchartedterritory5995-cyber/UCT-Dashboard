@@ -2523,6 +2523,21 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ⛔ Keep the Web Share Target's query out of OUR access log. The share
+    # arrives as GET /journal/share?title=…&text=…&url=…, and `text` carries
+    # member-selected prose, not just a public link.
+    # ⛔ IT MUST BE INSTALLED HERE, NOT AT IMPORT: uvicorn applies its own
+    # logging config during startup and rebuilds those loggers, silently
+    # discarding a filter added earlier (measured). This does NOT reach
+    # Railway's edge, which sees the URL before we do — see the module.
+    try:
+        from api import logging_redaction
+        logging_redaction.install()
+        print("[startup] access-log redaction armed for "
+              f"{sorted(logging_redaction.REDACTED_QUERY_PATHS)}")
+    except Exception as e:
+        print(f"[startup] access-log redaction failed to install (non-fatal): {e}")
+
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
     try:
         import anyio

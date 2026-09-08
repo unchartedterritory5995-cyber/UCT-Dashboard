@@ -94,18 +94,22 @@ logs. `App.jsx` already records this same class being fixed once for
 `/calendar?earnings=NVDA`.
 
 So `/journal/share` is registered **outside `AuthGuard`** (like Slice 3's
-`/journal/capture-connect`) and owns its own signed-out case, with the payload on
-**two independent carriers** because each alone has a real failure mode:
+`/journal/capture-connect`) and owns its own signed-out case. The payload is
+carried **in-process, never through a URL** (see §9 for why that changed):
 
-- `sessionStorage` (`uct.pendingShare.v1`), written **before any auth decision is
-  rendered** — writing it only on the signed-in path would lose it in exactly the
-  case it exists for. Consumed **exactly once** by `CaptureHost`; a share left in
-  storage reopens the dialog on every mount and becomes a capture the member
-  cannot dismiss.
-- `?next=` on the sign-in link, which survives blocked storage. `Login.jsx`'s
-  `safeNextPath` refuses anything not starting with a single `/`, so it cannot
-  become an open redirect; the page asserts that itself rather than relying on
-  the guard catching it.
+- **In memory** — `/journal/share` → `/journal/notebook` is a client-side route
+  change with no page load, so a module variable survives it. This is the
+  primary path and needs no storage permission at all.
+- **`sessionStorage`** (`uct.pendingShare.v1`) — only the sign-in round trip is a
+  real page load, and only that needs storage. Written **before any auth decision
+  is rendered**: writing it on the signed-in path alone would lose it in exactly
+  the case it exists for. Consumed **exactly once** by `CaptureHost`, from both
+  carriers — a share left behind reopens the dialog on every mount and becomes a
+  capture the member cannot dismiss.
+- When storage is refused, the page **says so** and asks the member to sign in
+  first. `next` names the route and nothing else; `Login.jsx`'s `safeNextPath`
+  keeps it same-site, and the page asserts that itself rather than relying on the
+  guard catching it.
 
 **It is not a hole.** The page mints nothing and reads nothing — it parses a
 query string the member's own share sheet produced. Every write that follows is
@@ -216,7 +220,66 @@ the real question (nesting, which survives reordering) and distinguishes
 
 ---
 
-## 9. Honest limits
+## 9. The GET privacy gate (owner-directed, 2026-09-08)
+
+GET puts `title`, `text` and `url` in the request target, and we deliberately
+read `text` because most Android apps put the link and its surrounding prose
+there. So the payload can be member-selected private material, not just a public
+link. Every channel was traced in the implementation rather than assumed.
+
+| Channel | Verdict | Evidence |
+|---|---|---|
+| `?next=` on the sign-in link | ⛔ **WAS LEAKING — fixed** | the audit report showed the whole share re-encoded into `/login?next=…`. `next` is now the bare route. |
+| Our own access log | ✅ **nothing logged** | `api/main.py` sets `uvicorn.access` to WARNING and uvicorn logs access at INFO. Verified empirically: the real app at `--log-level info` emits **zero** request lines. |
+| Address bar / history | ✅ **scrubbed** | `navigate(SHARE_ROUTE, {replace:true})` the moment the payload is carried. Real browser: `locationSearch` is `''` in all four states. |
+| `Referer` | ✅ mitigated | after the scrub, same-origin requests carry the clean URL. uvicorn's access format carries no Referer anyway. |
+| Analytics (`page_views`) | ✅ **clean** | `usePageTracking` sends `location.pathname` only — and the route is outside `Layout`, so it never fires here. |
+| Error monitoring (Sentry) | ✅ not configured | `SENTRY_DSN` absent from the 226 live web vars. ⚠️ the init exists, and Sentry attaches request URLs — **if the DSN is ever set, this channel opens.** |
+| `sessionStorage` | ✅ intentional | member's own device, one key, consumed exactly once. |
+| Test artifacts | ✅ | `tools/share_phone_out/` is gitignored; fixtures are synthetic. |
+| **Railway edge / any intermediary** | 🔴 **UNVERIFIED, AND WE CANNOT ENFORCE IT** | the GET reaches the platform before our code runs. We do not control its logging or retention, and we do not claim to. |
+
+⭐ **The `?next=` carrier was privacy cost with no benefit.** Tracing it showed
+the only consumer of a pending share reads `sessionStorage`, so in the
+storage-blocked browser that carrier existed for, the payload arrived back on
+the page and **died there — no capture was ever produced.** It has been replaced
+by an in-process carrier (a module variable survives the client-side route
+change to the Notebook and needs no storage permission), with `sessionStorage`
+covering only the sign-in round trip, which is a real page load. When storage is
+refused, the page now **says so** instead of smuggling the payload through a URL
+to cover a gap it never actually covered.
+
+⛔ **The access-log redactor (`api/logging_redaction.py`) is a BACKSTOP, and the
+report says so.** The channel is already closed by the `_noisy` list in
+`api/main.py` — but that list is about noise, so a one-word change by someone
+restoring "operational visibility" would open it. Both layers are pinned.
+
+### The ruling: GET stays (Outcome A)
+
+**Because the remaining exposure is one request to our own platform, and the
+alternative costs more than it buys.** POST would keep the payload out of the
+request target entirely — a real benefit against the one channel we cannot
+control — but it is delivered *through* a service-worker `fetch` handler, and a
+share handler must stay **registered**. Today this app has **no service worker at
+all**: `sw.js` installs, deletes every cache, and unregisters itself. That state
+was reached deliberately after a member-visible outage, and trading it for a
+permanent worker is not a call to make on a door with zero production usage.
+
+⭐ **A narrow POST worker is viable and is specified, not built.** It would
+handle only `POST /journal/share`, read `formData`, persist to **IndexedDB**
+(never the Cache API — so `caches` can be banned outright, which makes the rail
+crisp), redirect to `/journal/share?resume=1`, and call `respondWith` for
+nothing else. Rail: introducing cache-first behaviour or navigation interception
+goes RED. **It needs an owner decision, because it changes a standing safety
+invariant, not because it is hard.**
+
+⛔ Outcome C (dropping `text`) was rejected on evidence: `text` is where the
+majority of Android senders put the link, so narrowing it breaks the common case
+rather than protecting it.
+
+---
+
+## 10. Honest limits
 
 - **No real device.** Certified in Chromium at a phone viewport. Whether a given
   Android build offers UCT in its share sheet depends on that build's install

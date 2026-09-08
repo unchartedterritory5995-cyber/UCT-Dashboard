@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import BrandSplash from '../../../../components/BrandSplash'
 import { useAuth } from '../../../../context/AuthContext'
 import {
-  SHARE_ROUTE, shareFromSearch, writePendingShare,
+  SHARE_ROUTE, scrubShareUrlFromHistory, shareFromSearch, writePendingShare,
 } from '../../lib/shareTarget'
 // ⭐ The SAME interstitial styling as the Browser Capture authorization page,
 // imported rather than restated. Both are first-party "you arrived from outside
@@ -34,39 +34,81 @@ import styles from './CaptureConnectPage.module.css'
  */
 export default function ShareTargetPage() {
   const { user, isPaid, loading, authTransient } = useAuth()
+  const navigate = useNavigate()
+  // ⛔ THE ROUTER'S location, never the global `window.location`. Without this
+  // binding `location.search` silently resolves to the browser global, which
+  // works in a real browser and is empty under a MemoryRouter — so the rails
+  // below would exercise a door that had been handed nothing.
   const location = useLocation()
 
-  const share = useMemo(() => shareFromSearch(location.search), [location.search])
+  // ⛔ READ ONCE, AND PERSIST IN THE SAME BREATH. A `useState` initializer runs
+  // during the first render — before any child, any effect, and any auth branch
+  // — so the payload is already carried by the time this component decides to
+  // send the member to /login. It is also why the URL can be scrubbed
+  // immediately afterwards without the component losing what it was given.
+  const [share] = useState(() => shareFromSearch(location.search))
+  const [carried] = useState(() => writePendingShare(share))
 
   useEffect(() => { document.title = 'Save to UCT' }, [])
 
-  // ⛔ PERSIST BEFORE ANY AUTH DECISION IS RENDERED. The payload must already
-  // be safe by the time this component decides to send the member to /login —
-  // writing it in the signed-in branch only would lose it in precisely the case
-  // it exists for.
-  useEffect(() => { writePendingShare(share) }, [share])
+  // Is this render about to hand the member on to the Notebook?
+  const forwarding = !!user && isPaid
+
+  // ⛔ TAKE THE MEMBER'S TEXT OUT OF THE VISIBLE URL AS EARLY AS WE CAN REACH
+  // IT. `navigate` rather than a raw `replaceState` so react-router's own
+  // location stays in step; `replace` so Back/Forward cannot resurrect the
+  // payload. `share` is already captured above, so re-rendering with an empty
+  // search loses nothing. This does NOT undo the request that already reached
+  // Railway's edge — see the slice doc §10.
+  //
+  // ⛔⛔ NOT WHEN WE ARE FORWARDING, and a rail caught this the hour it was
+  // written. The paid branch renders `<Navigate to="/journal/notebook" replace/>`
+  // during the SAME render whose effect this is; effects run after, so an
+  // unconditional scrub navigated back to `/journal/share` and STRANDED the
+  // member one route short of the capture dialog. The redirect already removes
+  // the share URL from history — it is a `replace` — so there is nothing left
+  // for the scrub to do on that path.
+  useEffect(() => {
+    if (forwarding) return
+    scrubShareUrlFromHistory(navigate, location.search)
+  }, [forwarding, navigate, location.search])
 
   // A backend that could not ANSWER the session question has not said "logged
   // out" (the R2 ruling in AuthGuard). Same splash, never a bounce.
   if (loading || (!user && authTransient)) return <BrandSplash label="Signing you in" />
 
   if (!user) {
-    // ⭐ THE SECOND CARRIER. sessionStorage above covers a member who finishes
-    // sign-in in this tab; `?next=` covers one whose storage is blocked or who
-    // is bounced through a fresh context. Either alone has a real failure mode,
-    // so the payload rides both. `safeNextPath` in Login.jsx refuses anything
-    // not starting with a single `/`, so this cannot become an open redirect.
-    const next = `${SHARE_ROUTE}${location.search}`
+    // ⛔⛔ `next` NAMES THE ROUTE AND CARRIES NOTHING ELSE (privacy gate,
+    // 2026-09-08). It used to append the whole share, which duplicated the
+    // member's prose into a second request, the login page's address bar and
+    // browser history — and bought nothing: the only consumer reads
+    // sessionStorage, so in the storage-blocked browser that carrier existed
+    // for, the payload came back here and died. `safeNextPath` in Login.jsx
+    // refuses anything not starting with a single `/`, so this stays same-site.
+    const next = SHARE_ROUTE
     return (
       <div className={styles.page}>
         <div className={styles.card}>
           <h1 className={styles.title}>
             <UIcon name="journal" size={20} /> Sign in to save this
           </h1>
-          <p className={styles.body}>
-            Sign in to UCT and this will be waiting for you — nothing you shared
-            has been lost.
-          </p>
+          {carried ? (
+            <p className={styles.body}>
+              Sign in to UCT and this will be waiting for you — nothing you
+              shared has been lost.
+            </p>
+          ) : (
+            /* ⛔ SAID PLAINLY, NOT PAPERED OVER. This browser is refusing
+               storage, so the share cannot survive the trip to sign-in. The
+               alternative was to smuggle it through the URL, which is the
+               privacy defect above — and which never actually restored the
+               capture anyway. Telling the member costs them one re-share; the
+               URL carrier cost them their privacy and delivered nothing. */
+            <p className={styles.body} data-testid="share-not-carried">
+              Your browser is blocking storage for this site, so this share
+              can’t be held while you sign in. Sign in first, then share again.
+            </p>
+          )}
           <div className={styles.actions}>
             <a className={styles.primary} data-testid="share-signin"
                href={`/login?next=${encodeURIComponent(next)}`}>Sign in</a>

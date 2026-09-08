@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it, expect } from 'vitest'
 import * as acorn from 'acorn'
+import jsx from 'acorn-jsx'
 
 import { isInsideAuthGuard } from '../../testing/routeNesting'
 import { SHARE_ROUTE, SHARE_PARAMS, SHARE_METHOD } from './lib/shareTarget'
@@ -181,5 +182,51 @@ describe('the landing route is registered, and OUTSIDE the auth guard', () => {
     const freeLine = /const FREE_PAGES = \[([^\]]*)\]/.exec(guard)
     expect(freeLine, 'FREE_PAGES could not be read').toBeTruthy()
     expect(freeLine[1]).not.toContain('/journal')
+  })
+})
+
+describe('⛔⛔ the sign-in continuation carries no member content', () => {
+  // ⛔ WHY THIS IS STRUCTURAL AND NOT ONLY BEHAVIOURAL. The component test that
+  // reads the rendered href passes even with the payload put back into `next`,
+  // because the URL-scrub effect has already replaced the query away by the
+  // time Testing Library flushes effects and reads the DOM. That makes the
+  // behavioural assertion depend on effect ORDERING rather than on the
+  // invariant — a mutation check proved it green against a restored leak.
+  // The invariant is: `next` is the route, and nothing is appended to it.
+  const PAGE = path.join(APP, 'src/pages/journal-2-0/components/notebook/ShareTargetPage.jsx')
+
+  function nextInitialiser() {
+    const Parser = acorn.Parser.extend(jsx())
+    const ast = Parser.parse(fs.readFileSync(PAGE, 'utf8'),
+      { ecmaVersion: 'latest', sourceType: 'module' })
+    let found
+    const walk = (n) => {
+      if (!n || typeof n.type !== 'string' || found) return
+      if (n.type === 'VariableDeclarator' && n.id?.name === 'next') { found = n.init; return }
+      for (const k of Object.keys(n)) {
+        if (k === 'type') continue
+        const v = n[k]
+        if (Array.isArray(v)) v.forEach(walk)
+        else if (v && typeof v === 'object' && typeof v.type === 'string') walk(v)
+      }
+    }
+    walk(ast)
+    return found
+  }
+
+  it('`next` is the bare route identifier — never a template over the search', () => {
+    const init = nextInitialiser()
+    expect(init, 'ShareTargetPage no longer declares `next`').toBeTruthy()
+    // A template literal here is exactly how the payload got in the first time.
+    expect(init.type).toBe('Identifier')
+    expect(init.name).toBe('SHARE_ROUTE')
+  })
+
+  it('⭐ the probe can see a template literal (non-vacuity)', () => {
+    const Parser = acorn.Parser.extend(jsx())
+    const ast = Parser.parse('const next = `${A}${b.search}`', { ecmaVersion: 'latest', sourceType: 'module' })
+    const decl = ast.body[0].declarations[0]
+    expect(decl.id.name).toBe('next')
+    expect(decl.init.type).toBe('TemplateLiteral')
   })
 })

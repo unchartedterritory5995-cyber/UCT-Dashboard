@@ -10,7 +10,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   extractUrls, parseShare, shareFromSearch, shareIsEmpty, shareCaptureDetail,
-  writePendingShare, takePendingShare, PENDING_SHARE_KEY, SHARE_PARAMS,
+  writePendingShare, takePendingShare, scrubShareUrlFromHistory,
+  PENDING_SHARE_KEY, SHARE_PARAMS, SHARE_ROUTE,
 } from './shareTarget'
 
 describe('finding the link a share is actually about', () => {
@@ -143,7 +144,9 @@ describe('surviving the sign-in round trip', () => {
     expect(takePendingShare()).toBeNull()
   })
 
-  it('blocked storage fails soft — the ?next= carrier still works', () => {
+  it('blocked storage fails soft, and SAYS so via its return value', () => {
+    // The page reads this to tell the member the share cannot be held across
+    // sign-in, rather than smuggling it through a URL to cover the gap.
     const original = Storage.prototype.setItem
     Storage.prototype.setItem = () => { throw new Error('denied') }
     try {
@@ -151,5 +154,59 @@ describe('surviving the sign-in round trip', () => {
     } finally {
       Storage.prototype.setItem = original
     }
+  })
+})
+
+describe('⛔⛔ the share never rides a URL to survive sign-in (privacy gate)', () => {
+  beforeEach(() => { sessionStorage.clear(); takePendingShare() })
+
+  it('the same-tab handoff works with storage completely blocked', () => {
+    // ⭐ THE CARRIER THAT ACTUALLY WORKS. `/journal/share` → `/journal/notebook`
+    // is a client-side route change with no page load, so a module variable
+    // survives it and needs no storage permission at all. The URL carrier this
+    // replaced was not just a privacy cost — it never restored a capture,
+    // because the only consumer read sessionStorage.
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = () => { throw new Error('denied') }
+    try {
+      const s = parseShare({ url: 'https://a.com/x' })
+      expect(writePendingShare(s)).toBe(false)   // storage refused…
+      expect(takePendingShare()).toEqual(s)      // …and the handoff still works
+    } finally {
+      Storage.prototype.setItem = original
+    }
+  })
+
+  it('is still consumed exactly once when both carriers hold it', () => {
+    const s = parseShare({ url: 'https://a.com/x' })
+    writePendingShare(s)
+    expect(takePendingShare()).toEqual(s)
+    expect(takePendingShare()).toBeNull()
+    expect(sessionStorage.getItem(PENDING_SHARE_KEY)).toBeNull()
+  })
+
+  it('a stale storage entry cannot outlive a consumed in-memory share', () => {
+    const s = parseShare({ url: 'https://a.com/x' })
+    writePendingShare(s)
+    takePendingShare()
+    // Memory is cleared AND the key is gone, so nothing can replay.
+    expect(sessionStorage.getItem(PENDING_SHARE_KEY)).toBeNull()
+    expect(takePendingShare()).toBeNull()
+  })
+})
+
+describe('scrubbing the shared text out of the visible URL', () => {
+  it('replaces — never pushes — so Back cannot resurrect it', () => {
+    const calls = []
+    scrubShareUrlFromHistory((to, opts) => calls.push([to, opts]), '?text=SECRET')
+    expect(calls).toEqual([[SHARE_ROUTE, { replace: true }]])
+    // ⛔ The route it navigates to carries no query of its own.
+    expect(calls[0][0]).not.toContain('?')
+  })
+
+  it('does nothing when there is no query to scrub', () => {
+    const calls = []
+    expect(scrubShareUrlFromHistory((t, o) => calls.push([t, o]), '')).toBe(false)
+    expect(calls).toEqual([])
   })
 })

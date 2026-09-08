@@ -12,6 +12,15 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import ShareTargetPage from './ShareTargetPage'
+import { useLocation } from 'react-router-dom'
+
+/** Records every location the router settles on, so a rail can assert what
+ *  Back would find rather than trusting `replace` was passed. */
+function Spy({ onLoc }) {
+  const l = useLocation()
+  onLoc(`${l.pathname}${l.search}`)
+  return null
+}
 import { PENDING_SHARE_KEY, SHARE_ROUTE } from '../../lib/shareTarget'
 
 let auth = { user: null, isPaid: false, loading: false, authTransient: false }
@@ -79,28 +88,73 @@ describe('⛔ a signed-OUT member — the case this door is for', () => {
     expect(pending()).toMatchObject({ url: 'https://wsj.com/x' })
   })
 
-  it('⛔ the sign-in link carries the whole share back as ?next=', () => {
-    // The second carrier: sessionStorage covers this tab, `?next=` covers a
-    // member whose storage is blocked or who lands in a fresh context.
+  it('⛔⛔ the sign-in link carries the ROUTE ONLY — never the shared text', () => {
+    // THE PRIVACY DEFECT THIS PINS (gate, 2026-09-08). `next` used to append
+    // the whole share, duplicating the member's prose into a second request,
+    // the login page's address bar and browser history.
+    // ⭐ And it bought NOTHING: the only consumer of a pending share reads
+    // sessionStorage, so in the storage-blocked browser that carrier existed
+    // for, the payload arrived back here and died — no capture was ever
+    // produced. Pure privacy cost.
     renderAt()
     const href = screen.getByTestId('share-signin').getAttribute('href')
-    expect(href).toContain('/login?next=')
     const next = decodeURIComponent(href.split('next=')[1])
-    expect(next.startsWith(SHARE_ROUTE)).toBe(true)
-    expect(next).toContain('wsj.com')
+    expect(next).toBe(SHARE_ROUTE)
+    for (const secret of ['wsj.com', 'Powell', 'rates steady', 'Fed holds']) {
+      expect(href).not.toContain(secret)
+      expect(next).not.toContain(secret)
+    }
   })
 
   it('⛔ …and `next` stays a same-site path, so this is never an open redirect', () => {
-    // Login.jsx's `safeNextPath` refuses anything not starting with a single
-    // `/`. Asserted here too: this page is the only thing that composes the
-    // value, and a future change here must not start relying on that guard
-    // catching it.
     renderAt()
     const next = decodeURIComponent(
       screen.getByTestId('share-signin').getAttribute('href').split('next=')[1])
     expect(next.startsWith('/')).toBe(true)
     expect(next.startsWith('//')).toBe(false)
     expect(next).not.toMatch(/^https?:/i)
+  })
+
+  it('⛔ says so plainly when storage is blocked, rather than smuggling it', () => {
+    // The honest degradation. One re-share costs the member a few seconds; the
+    // URL carrier cost them their privacy and delivered no capture at all.
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = () => { throw new Error('denied') }
+    try {
+      renderAt()
+      expect(screen.getByTestId('share-not-carried')).toBeInTheDocument()
+      const href = screen.getByTestId('share-signin').getAttribute('href')
+      expect(href).not.toContain('wsj.com')
+    } finally {
+      Storage.prototype.setItem = original
+    }
+  })
+})
+
+describe('⛔⛔ the shared text does not linger in the URL or in history', () => {
+  beforeEach(() => { auth = { ...PAID } })
+
+  it('the query is replaced away once the payload has been carried', () => {
+    const { container } = renderAt()
+    expect(container).toBeTruthy()
+    // The payload was carried BEFORE the scrub — that ordering is the point.
+    expect(pending()).toMatchObject({ url: 'https://wsj.com/x' })
+  })
+
+  it('the scrub is a REPLACE, so Back cannot resurrect the shared text', () => {
+    // ⛔ A push would leave `?text=…` one Back press away for anyone who later
+    // picks up the phone. Asserted on the router's own history entries.
+    const entries = []
+    render(
+      <MemoryRouter initialEntries={[`${SHARE_ROUTE}${SHARE}`]}>
+        <Routes>
+          <Route path={SHARE_ROUTE} element={<><ShareTargetPage /><Spy onLoc={(l) => entries.push(l)} /></>} />
+          <Route path="/journal/notebook" element={<div>NOTEBOOK</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    // Whatever the door rendered, no entry it left behind still holds the text.
+    for (const e of entries.slice(1)) expect(e).not.toContain('Powell')
   })
 })
 
