@@ -29,7 +29,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Spark from './Spark'
 import MiniBars from './MiniBars'
-import { PROTOTYPES } from './prototypes'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -363,7 +362,7 @@ function Line({ item, periods, annual, mode, revenues, extraCols, openKey, setOp
               so the chart only has to answer "what does this look like over
               time". Key metrics only; a chart on all 12 statement rows is a
               dashboard, which is what this tab must not become. */}
-          {PROTOTYPES && item.k && periods.length >= 3 && (
+          {item.k && periods.length >= 3 && (
             <div className={styles.fmTrend}>
               <MiniBars
                 values={series.slice().reverse()}

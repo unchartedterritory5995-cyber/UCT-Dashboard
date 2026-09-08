@@ -37,7 +37,6 @@ import {
 } from './earningsRows'
 import Spark from './Spark'
 import EarningsReaction from './EarningsReaction'
-import { PROTOTYPES } from './prototypes'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -365,7 +364,7 @@ export default function DockEarnings({ sym }) {
               {/* PROTOTYPE: results, then how the market answered, then the
                   quality of the run. Reaction sits BEFORE Quality because it
                   belongs to the events in the table above it. */}
-              {PROTOTYPES && mode === 'quarterly' && <EarningsReaction reaction={intel?.reaction} />}
+              {mode === 'quarterly' && <EarningsReaction reaction={intel?.reaction} />}
 
               <Quality facts={quality} />
 

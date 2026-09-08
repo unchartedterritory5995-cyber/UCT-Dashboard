@@ -74,7 +74,10 @@ _log = logging.getLogger(__name__)
 #       failure the comment above warns about.
 #   v6: per-quarter net_margin_delta_pp, plus margin facts and series on the
 #       summary, for the Earnings Quality block.
-_KIND = "earnings_intel_v6"
+#   v7: summary.next_report_date is resolved DIRECTLY when no forward estimate
+#       carried one. Persisted payloads hold the old null, so without this bump
+#       every cached ticker would keep saying "Date TBD" after the fix shipped.
+_KIND = "earnings_intel_v7"
 _STALE_MAX = 45 * 86400
 # Proximity-weighted freshness: estimates and a pending print move, settled
 # history does not.
@@ -446,6 +449,31 @@ def _build(sym: str) -> dict:
 
     annual = _annual(sym)
     summary = _summarize(quarters, estimates)
+
+    # ── the scheduled date is a FACT, independent of forecast placement ──────
+    # `_summarize` can only report a date that rides on a forward estimate row,
+    # and those rows are dropped when they cannot be placed on the fiscal
+    # timeline — FMP's yfinance fallback supplies no period_end or label, so
+    # every such row is discarded and the date goes with it. The panel then
+    # said "Date TBD" (or showed nothing) for symbols whose next report date
+    # the provider had told us plainly.
+    #
+    # The date does not depend on the estimate: ask for it directly when the
+    # merge did not carry one through. Cheap (one cached provider read) and
+    # only on the miss.
+    if not summary.get("next_report_date"):
+        try:
+            from api.services import earnings_table as _et
+            nrd = _et._next_report_date(sym)
+            if nrd:
+                summary["next_report_date"] = nrd
+                if not summary.get("next_report_label") and cal:
+                    placed = cal.period_end_for_report(nrd)
+                    fy, fq = placed.get("fiscal_year"), placed.get("fiscal_quarter")
+                    if fy and fq:
+                        summary["next_report_label"] = fiscal_label(fy, fq)
+        except Exception as e:  # noqa: BLE001 — a missing date is never fatal
+            _log.debug("next_report_date fallback failed for %s: %s", sym, e)
     cal_desc = cal.describe() if cal else {"known": False}
 
     return {

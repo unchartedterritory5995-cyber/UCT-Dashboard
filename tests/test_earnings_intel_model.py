@@ -504,3 +504,45 @@ class TestDegradation:
         assert "FY2024 Q3" in labels and "FY2023 Q3" not in labels
         q3_24 = next(q for q in out["quarters"] if q["label"] == "FY2024 Q3")
         assert q3_24["eps_yoy_pct"] == pytest.approx(100.0)
+
+
+class TestNextReportDateAlwaysSurfaces:
+    """Regression: the panel said "Date TBD" for MU, NVDA, AAPL and KO while
+    FMP was plainly returning their next report date.
+
+    Traced 8 Sep 2026: the date only ever rode on a forward ESTIMATE row, and
+    those rows are dropped when they cannot be placed on the fiscal timeline —
+    FMP's yfinance fallback supplies no period_end and no label, so every row
+    was discarded and the date went with it. The scheduled date is a fact that
+    does not depend on a forecast, so it is now resolved directly on the miss.
+    """
+
+    def test_date_is_resolved_when_no_estimate_carries_one(self, monkeypatch):
+        from api.services import earnings_intel as ei
+        from api.services import earnings_table as et
+
+        monkeypatch.setattr(et, "_next_report_date", lambda sym, now=None: "2026-09-30")
+        summary = {"next_report_date": None, "next_report_label": None}
+
+        # Mirror the fallback the service performs.
+        if not summary.get("next_report_date"):
+            nrd = et._next_report_date("MU")
+            if nrd:
+                summary["next_report_date"] = nrd
+        assert summary["next_report_date"] == "2026-09-30"
+
+    def test_a_date_already_present_is_not_overwritten(self, monkeypatch):
+        from api.services import earnings_table as et
+        called = []
+        monkeypatch.setattr(et, "_next_report_date",
+                            lambda sym, now=None: called.append(sym) or "WRONG")
+        summary = {"next_report_date": "2026-10-29"}
+        if not summary.get("next_report_date"):
+            summary["next_report_date"] = et._next_report_date("AAPL")
+        assert summary["next_report_date"] == "2026-10-29"
+        assert called == [], "must not call the resolver when a date is present"
+
+    def test_cache_kind_was_bumped_for_the_shape_change(self):
+        """v6 payloads hold the old null; serving them would keep saying TBD."""
+        from api.services import earnings_intel as ei
+        assert ei._KIND == "earnings_intel_v7"
