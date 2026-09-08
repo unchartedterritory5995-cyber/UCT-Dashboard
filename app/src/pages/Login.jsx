@@ -1,12 +1,29 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { COMING_SOON } from '../utils/comingSoon'
 import styles from './AuthForm.module.css'
 
+/** Where a `?next=` may send a member after signing in.
+ *
+ * ⛔ SAME-ORIGIN PATHS ONLY, and this is the whole check: a `next` that is not
+ * an in-app absolute path is DISCARDED, never followed. `//evil.example` and
+ * `https://evil.example` both start a URL a browser reads as another origin,
+ * so "starts with a slash" alone is not sufficient and the second clause is
+ * load-bearing. An open redirect on a login page is a credential-phishing
+ * primitive, which is why this is a function with a name rather than a
+ * condition inlined at the call site.
+ */
+export function safeNextPath(raw) {
+  if (!raw || typeof raw !== 'string') return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
 export default function Login() {
   const { login, verifyTotp } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -16,6 +33,11 @@ export default function Login() {
   const [code, setCode] = useState('')
 
   const finishLogin = (data) => {
+    // A flow that sent the member here to sign in gets them back. Added for the
+    // Browser Capture handshake, whose authorization window would otherwise be
+    // a dead end for a member not already signed in on this browser.
+    const next = safeNextPath(params.get('next'))
+    if (next) { navigate(next, { replace: true }); return }
     // Dashboard is paid-only; free users land on Morning Wire (the only free page).
     const paid = data?.user?.role === 'admin' || ['pro', 'premium', 'lifetime'].includes(data?.plan)
     navigate(paid ? '/dashboard' : '/morning-wire', { replace: true })

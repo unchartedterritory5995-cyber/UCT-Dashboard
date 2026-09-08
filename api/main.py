@@ -67,6 +67,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import capture_auth as capture_auth_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -2534,6 +2535,21 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ⛔ Keep the Web Share Target's query out of OUR access log. The share
+    # arrives as GET /journal/share?title=…&text=…&url=…, and `text` carries
+    # member-selected prose, not just a public link.
+    # ⛔ IT MUST BE INSTALLED HERE, NOT AT IMPORT: uvicorn applies its own
+    # logging config during startup and rebuilds those loggers, silently
+    # discarding a filter added earlier (measured). This does NOT reach
+    # Railway's edge, which sees the URL before we do — see the module.
+    try:
+        from api import logging_redaction
+        logging_redaction.install()
+        print("[startup] access-log redaction armed for "
+              f"{sorted(logging_redaction.REDACTED_QUERY_PATHS)}")
+    except Exception as e:
+        print(f"[startup] access-log redaction failed to install (non-fatal): {e}")
+
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
     try:
         import anyio
@@ -7350,6 +7366,10 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+# Browser Capture authorization handshake + the two scoped extension
+# surfaces. Separate path space from POST /api/j2/capture, so no route
+# shadows another; mounted beside it so the family reads as one.
+app.include_router(capture_auth_router.router)
 app.include_router(community_router.router)
 app.include_router(dashboard_signposts_router.router)
 app.include_router(market_calendar_router.router)  # public: NYSE full closures, derived from bars_fetch

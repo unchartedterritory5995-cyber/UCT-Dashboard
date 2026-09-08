@@ -25,6 +25,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 
 import FormulaLibrary from './FormulaLibrary'
 import { FORMULA_LIBRARY_PATH } from './formulaShareLink'
+import { isInsideAuthGuard } from '../../testing/routeNesting'
 
 const APP_SRC = fs.readFileSync(path.resolve(process.cwd(), 'src/App.jsx'), 'utf8')
 
@@ -84,20 +85,27 @@ describe('🔴 the library is wired into the app', () => {
     expect(freeLine, 'FREE_PAGES could not be read').toBeTruthy()
     expect(freeLine[1]).not.toContain('/formulas')
 
-    // ⛔ AND IT IS INSIDE `AuthGuard`. Asserted by POSITION in the source: the
-    // routes deliberately placed outside it (the shared-formula link, the
-    // headless chart render) are declared BEFORE `<AuthGuard`, so a route that
-    // sits after it is inside. Crude, and it is the half that would otherwise go
-    // unnoticed — nobody re-reads a `<Route>`'s nesting.
-    const guardAt = APP_SRC.indexOf('<AuthGuard')
-    const libAt = APP_SRC.indexOf('<Route path={FORMULA_LIBRARY_PATH}')
-    expect(guardAt).toBeGreaterThan(-1)
-    expect(libAt).toBeGreaterThan(guardAt)
-    // ⭐ THE CONTROL: the deliberately-public shared-formula route IS before it,
-    // so "after AuthGuard" is a real discriminator and not true of every route.
-    const sharedAt = APP_SRC.indexOf('<Route path={SHARED_FORMULA_ROUTE}')
-    expect(sharedAt).toBeGreaterThan(-1)
-    expect(sharedAt).toBeLessThan(guardAt)
+    // ⛔ AND IT IS INSIDE `AuthGuard` — the half that would otherwise go
+    // unnoticed, because nobody re-reads a `<Route>`'s nesting.
+    //
+    // ⚰️ THIS WAS ASSERTED BY POSITION until 2026-09-08, comparing
+    // `APP_SRC.indexOf('<AuthGuard')` against each route's offset. It broke
+    // silently when a route was added carrying a comment that explains it sits
+    // "OUTSIDE <AuthGuard/>": `indexOf` matched the PROSE ~8,000 characters
+    // before the element, the control below inverted, and this file went red
+    // against correct code — in a suite outside the slice that introduced the
+    // comment, so it stayed red for a day. Exactly the text-probe
+    // false-positive class `rawErrorSurface.test.js` warns about. Nesting is
+    // the real invariant anyway, and it survives the route table being
+    // reordered, which an offset comparison does not.
+    expect(isInsideAuthGuard(APP_SRC, 'FORMULA_LIBRARY_PATH')).toBe(true)
+    // ⭐ THE CONTROL: the deliberately-public shared-formula route is NOT inside
+    // it, so `true` above is a discriminator rather than something the probe
+    // says about every route.
+    expect(isInsideAuthGuard(APP_SRC, 'SHARED_FORMULA_ROUTE')).toBe(false)
+    // ⭐ …and a path that is not registered reads as `null`, never a passing
+    // `false` — "public" and "deleted" are different facts.
+    expect(isInsideAuthGuard(APP_SRC, 'NO_SUCH_ROUTE_CONST')).toBeNull()
   })
 
   it('⛔⛔ …and something LINKS to it — a route nobody can reach is not shipped', () => {

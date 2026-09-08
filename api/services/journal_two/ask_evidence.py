@@ -50,6 +50,48 @@ DOCUMENT_EXCERPT = "document_excerpt"
 FINANCIAL_FACT = "financial_fact"
 THESIS_STATE = "thesis_state"
 
+# ── Coverage: the CORPUS BOUNDARY of one evidence item (Wave L §1) ───────────
+# ⛔ What the synthesis layer is entitled to claim it has. A captured web
+# passage is the whole of an evidence ITEM and a sliver of an ARTICLE, and
+# nothing downstream may confuse the two.
+COVERAGE_COMPLETE = "document_complete"        # this item IS the whole source object
+COVERAGE_PASSAGE_ONLY = "selected_passage_only"  # one passage the member chose
+COVERAGE_METADATA_ONLY = "metadata_only"       # title/URL/domain only; no body text
+
+COVERAGES = frozenset({COVERAGE_COMPLETE, COVERAGE_PASSAGE_ONLY, COVERAGE_METADATA_ONLY})
+
+#: capture_type -> what a reader may claim. Absent capture_type means a
+#: pre-Wave-L PDF row, whose extracted text IS the document.
+_COVERAGE_BY_CAPTURE = {
+    "pdf_full_text": COVERAGE_COMPLETE,
+    "web_passage": COVERAGE_PASSAGE_ONLY,
+    "web_reference": COVERAGE_METADATA_ONLY,
+}
+
+
+def coverage_for(capture_type: str | None) -> str:
+    return _COVERAGE_BY_CAPTURE.get(capture_type or "pdf_full_text", COVERAGE_COMPLETE)
+
+
+def _row_get(row, key, default=None):
+    if isinstance(row, dict):
+        return row.get(key, default)
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return default
+
+
+def passage_label(row, page_number) -> str:
+    """⛔ A web capture's `page_number` is CAPTURE ORDER, not article pagination.
+    Labelling it "p.2" would invent a precision the source never had and imply
+    the article has pages we hold. Member-facing text says what it is."""
+    name = _row_get(row, "name") or _row_get(row, "document_name") or "Document"
+    if _row_get(row, "capture_type") in ("web_passage", "web_reference"):
+        return f"{name} · captured passage {page_number}"
+    return f"{name} · p.{page_number}"
+
+
 SOURCE_TYPES = frozenset({NOTE, DOCUMENT_PAGE, DOCUMENT_EXCERPT,
                           FINANCIAL_FACT, THESIS_STATE})
 
@@ -95,6 +137,7 @@ def make_evidence(
     temporal: dict[str, Any] | None = None,
     rights: dict[str, Any] | None = None,
     stance: str | None = None,
+    coverage: str = COVERAGE_COMPLETE,
     curation: int = 0,
     score: float = 0.0,
 ) -> dict[str, Any]:
@@ -108,6 +151,8 @@ def make_evidence(
     """
     if source_type not in SOURCE_TYPES:
         raise ValueError(f"unknown source_type {source_type!r}")
+    if coverage not in COVERAGES:
+        raise ValueError(f"unknown coverage {coverage!r}")
     return {
         # identity -- survives edits
         "source_type": source_type,
@@ -127,6 +172,10 @@ def make_evidence(
         "temporal": temporal or {},
         "rights": rights or {},
         "stance": stance,
+        # ⛔ The corpus boundary travels WITH the evidence. A consumer that
+        # ignores it can over-claim; a consumer that never receives it cannot
+        # even try to be truthful.
+        "coverage": coverage,
         "curation": curation,
         "score": score,
     }
@@ -162,13 +211,14 @@ def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, An
         source_type=DOCUMENT_PAGE,
         source_id=f"{row['document_id']}#p{row['page_number']}",
         user_id=row["user_id"],
-        label=f"{row.get('name') or 'Document'} · p.{row['page_number']}",
+        label=passage_label(row, row["page_number"]),
         text=snippet,
         location={"document_id": row["document_id"], "page_number": row["page_number"]},
         navigation={"kind": "document", "document_id": row["document_id"],
                     "page_number": row["page_number"]},
         citation_validity=CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+        coverage=coverage_for(_row_get(row, "capture_type")),
         curation=0, score=score,
     )
 
@@ -182,7 +232,7 @@ def from_excerpt(row, *, anchor_ok: bool, score: float = 0.0) -> dict[str, Any]:
     """
     return make_evidence(
         source_type=DOCUMENT_EXCERPT, source_id=row["id"], user_id=row["user_id"],
-        label=f"{row.get('document_name') or 'Document'} · p.{row['page_number']}",
+        label=passage_label(row, row["page_number"]),
         text=row.get("captured_text") or "",
         payload={"annotation": row.get("annotation")} if row.get("annotation") else {},
         location={"document_id": row["document_id"], "page_number": row["page_number"],
@@ -193,6 +243,7 @@ def from_excerpt(row, *, anchor_ok: bool, score: float = 0.0) -> dict[str, Any]:
                     "page_number": row["page_number"]},
         citation_validity=CITE_EXACT if anchor_ok else CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
+        coverage=coverage_for(_row_get(row, "capture_type")),
         curation=1, score=score,
     )
 

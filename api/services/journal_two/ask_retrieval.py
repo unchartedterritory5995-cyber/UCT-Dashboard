@@ -681,6 +681,129 @@ def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
     return out
 
 
+def _no_capture_tables(exc: sqlite3.OperationalError) -> bool:
+    """Is this "that table does not exist" rather than a real failure?
+
+    ⛔ NARROW ON PURPOSE. A note can be asked about in a database that predates
+    the capture tables (several Ask suites build a minimal schema of exactly the
+    tables they exercise), and "there are no captured pages" is the correct
+    answer there — not a 500. But swallowing every OperationalError would turn a
+    genuine corruption or a locked database into a confident "nothing captured",
+    which is the failure mode `lesson_a_swallowed_error_becomes_a_confident_finding`
+    names. So only a missing-table error is absorbed; everything else re-raises.
+    """
+    msg = str(exc).lower()
+    return msg.startswith("no such table") and "j2_note_" in msg
+
+
+def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
+                            limit: int) -> list[dict[str, Any]]:
+    """Page hits inside any document ATTACHED TO ONE NOTE.
+
+    ⛔⛔ WHY THIS EXISTS (Wave L Slice 5, 2026-09-08). `retrieve_note` read the
+    note's `body_json` and nothing else. That was complete when a note's only
+    content WAS its body — but Wave L made captures land in a note as documents
+    and excerpts, so "Ask Current Note" on a note whose content is three
+    captured passages answered **"This note doesn't have any text yet."** The
+    material was stored, indexed, and reachable from the NOTEBOOK scope (which
+    reported "6 document pages, 6 saved excerpts" searched) — just not from the
+    one scope a member reaches by asking about the note they are looking at.
+    A new content type was added to notes without extending the note retriever.
+
+    ⭐ Same SQL shape and the SAME evidence builders as `_document_pages_scoped`,
+    filtered on `d.note_id` instead of `p.document_id`, so citation, lineage and
+    tenant scoping cannot diverge between the two scopes.
+    """
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    try:
+        rows = conn.execute(
+            "SELECT p.document_id AS document_id, p.page_number AS page_number,"
+            " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+            " bm25(j2_note_document_pages_fts) AS score,"
+            " d.name AS name, d.note_id AS note_id"
+            " FROM j2_note_document_pages_fts p"
+            " JOIN j2_note_documents d ON d.id = p.document_id"
+            " JOIN j2_notes n ON n.id = d.note_id"
+            " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
+            " AND d.note_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
+            (expr, user_id, note_id, limit),
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        if not _no_capture_tables(e):
+            raise
+        return []
+    out = []
+    for r in rows:
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
+                                         score=0.6))
+    return out
+
+
+def _excerpts_in_note(conn, user_id: str, note_id: str, q: str,
+                      limit: int) -> list[dict[str, Any]]:
+    """Saved excerpts belonging to ONE NOTE, each anchor-verified.
+
+    ⛔ Keyed on `e.note_id`, NOT on the `j2_note_excerpt_refs` sidecar. That
+    sidecar is derived from `documentExcerpt` nodes in the note BODY, so a
+    captured passage — which is never embedded in the body — has no ref and
+    would be invisible here for the same reason it is absent from
+    `list_note_excerpts`. Ownership is the right question for Ask.
+    """
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    try:
+        rows = conn.execute(
+            "SELECT e.* , d.name AS document_name"
+            " FROM j2_note_excerpts_fts f"
+            " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
+            " JOIN j2_note_documents d ON d.id = e.document_id"
+            " JOIN j2_notes n ON n.id = e.note_id"
+            " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
+            " AND e.note_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY bm25(j2_note_excerpts_fts) LIMIT ?",
+            (expr, user_id, note_id, limit),
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        if not _no_capture_tables(e):
+            raise
+        return []
+    out = []
+    for r in rows:
+        row = dict(r)
+        out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
+                                   score=0.8))
+    return out
+
+
+def note_attachment_counts(conn, user_id: str, note_id: str) -> dict[str, int]:
+    """How much CAPTURED material this note holds, regardless of the query.
+
+    ⛔ Coverage must be answerable even when nothing matched, or the refusal
+    lies: "this note has no text yet" and "this note has three captured
+    passages, none of which mention that" are different sentences and only one
+    of them was true.
+    """
+    try:
+        pages = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_document_pages p"
+            " JOIN j2_note_documents d ON d.id = p.document_id"
+            " WHERE d.note_id = ? AND p.user_id = ?", (note_id, user_id)).fetchone()[0]
+        excerpts = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_excerpts WHERE note_id = ? AND user_id = ?",
+            (note_id, user_id)).fetchone()[0]
+    except sqlite3.OperationalError as e:
+        if not _no_capture_tables(e):
+            raise
+        return {"pages": 0, "excerpts": 0}
+    return {"pages": int(pages), "excerpts": int(excerpts)}
+
+
 def document_coverage(conn, user_id: str, document_id: str) -> dict[str, Any]:
     """Can this document be answered from at all? (§29/§30)
 
@@ -856,8 +979,38 @@ def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
             e["relevance"] = QUERY_MATCH if b["hits"] else ENTITY_CONTEXT
             items.append(e)
 
+        # ⭐ WAVE L: a note's content is no longer only its body. Captured
+        # documents and excerpts belong to this note and are answerable from
+        # it — see `_document_pages_in_note` for the defect this closes.
+        attach = note_attachment_counts(conn, user_id, note_id)
+        captured = (_document_pages_in_note(conn, user_id, note_id, query, limit)
+                    + _excerpts_in_note(conn, user_id, note_id, query, limit))
+        # ⛔ TAGGED BY THE SAME JUDGE THE NOTEBOOK SCOPE USES. An item with no
+        # `relevance` never becomes answer evidence, so retrieving captured
+        # material and leaving it untagged produced the *second* version of this
+        # defect: the passage was returned as a source, and the answer still
+        # said "I couldn't find that in this note." Reusing
+        # `_answers_the_question` keeps one definition of "this actually answers
+        # the question" across scopes.
+        # `_substantive_terms` takes an ENTITY dict (it reads `symbols`), not a
+        # bare ticker — passing the string raised inside the request and turned
+        # a retrieval improvement into a 500. The note's own ticker is the
+        # security whose NAME must not count as answering a question about it.
+        entity = {"symbols": [row["ticker"]]} if row.get("ticker") else None
+        substantive = _substantive_terms(query, entity)
+        for i in captured:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+        items.extend(captured)
+
         cov = {"exists": True, "blocks": len(blocks), "matched_blocks": matched,
-               "has_text": bool(blocks)}
+               # ⛔ `has_text` drives the member-facing "this note doesn't have
+               # any text yet" notice. A note holding only captured passages
+               # HAS text — it just is not in the body — and saying otherwise
+               # was the visible half of this defect.
+               "has_text": bool(blocks) or attach["pages"] > 0 or attach["excerpts"] > 0,
+               "captured_pages": attach["pages"],
+               "captured_excerpts": attach["excerpts"]}
         # ⛔ NO PER-TYPE CAP IN A SINGLE-SOURCE SCOPE. The diversity cap exists
         # so one document cannot crowd out the member's own note in a
         # corpus-wide answer. Here every candidate IS the same note by
