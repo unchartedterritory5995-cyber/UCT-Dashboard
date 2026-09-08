@@ -1,6 +1,6 @@
 # PINE LANGUAGE + RUNTIME COMPLETION MATRIX
 
-As of C4 Phase 2F-2A. Branch `worktree-indicator-ecosystem`.
+As of C4 Phase 2F-2A-CLOSE + P7.4. Branch `worktree-indicator-ecosystem`.
 
 ⭐⭐ **FIVE LEVELS, NOT ONE WORD (§52).** "LOOP: partial" tells an engineer
 nothing about what is left. These columns do:
@@ -37,7 +37,7 @@ the RUNTIME lane, not the product overall.
 | `%` modulo | ✅ | ✅ | 🟡 | 🟡 | ✅ | pure lane only (lowers to `mod`); beside a mutable value it refuses `runtime:operator`. **VENDOR-PINNED 2026-09-08**: truncated, sign follows the dividend (`-7 % 2 = -1`) — Phase 1's documentation-only assumption confirmed |
 | `na` | ✅ | ✅ | 🟡 | 🟡 | ✅ | NaN for floats today; the TAG model (`na(someLine)`) is designed, not built |
 | history `x[n]` over a column | ✅ | ✅ | ✅ | ✅ | ⬜ | out of range is `na`, never a clamp |
-| **history `x[n]` over a MUTABLE variable** | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-2A** — a committed ring per history-bearing slot. See the fine-grain table below; `VENDOR ⬜` |
+| **history `x[n]` over a MUTABLE variable** | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-2A** — a committed ring per history-bearing slot, **VENDOR-PINNED v5+v6 2026-09-08**. Demand **35** scripts, first blocker 1. See the fine-grain table |
 
 ## State and control flow
 
@@ -48,32 +48,33 @@ the RUNTIME lane, not the product overall.
 | `var x = na` | ✅ | ✅ | ✅ | ✅ | ⬜ | initialisation tracked separately from value |
 | `:=` reassignment | ✅ | ✅ | ✅ | ✅ | ⬜ | statement order observable |
 | `if` / `else` as statements | ✅ | ✅ | ✅ | ✅ | ⬜ | mutation in either branch; nested |
-| `else if` chains | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | 🔴 **THIS ROW READ `✅ ✅ ✅ ✅` AND WAS FALSE** — see below |
+| `else if` chains | ✅ | ✅ | ✅ | ✅ | ⬜ | **P7.4** — chain collected, arms lowered in source order, assembled as NESTED `IF`s. **RUNTIME-LANE evidence**: `elseIfChain.test.js`, 14 cases from Pine source |
 | `na` does not take a branch | ✅ | ✅ | ✅ | ✅ | ⬜ | |
 | block-local scope + shadowing | ✅ | ✅ | ✅ | ✅ | ⬜ | a slot per DECLARATION, never per name |
 | `switch` | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:switch` |
 | `varip` | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:varip` — intrabar, which a closed-bar runtime cannot reproduce |
 
-🔴🔴 **`else if` DOES NOT WORK IN THE RUNTIME LANE, AND THIS TABLE SAID IT DID.**
-Measured 2F-2 with a minimal repro, after the corpus pushed a script onto it:
+⚰️⚰️ **THAT ROW READ `✅ ✅ ✅ ✅` FOR MONTHS AND WAS FALSE — THE LESSON OUTLIVES
+THE FIX.** Until P7.4, `if / else` ran in the runtime lane and
+`if / else if / else` refused `runtime:statement`, *"`else` with no `if`"*. The
+cause was a one-element list: the `else if` arm was lowered by recursing with
+`lowerStmts([synthetic], scope)`, so the nested `if` looked for its own `else` at
+`list[i + 1]` of a list with ONE entry and every later arm stayed in the outer
+list.
 
-| source | runtime front end | shipped columnar door |
-|---|---|---|
-| `if` / `else` | ✅ | ✅ |
-| `if` / `else if` / `else` | 🔴 `runtime:statement` — *"`else` with no `if`"* | ✅ |
-| `if` / `else if` / `else if` / `else` | 🔴 same | ✅ |
+⛔⛔ **IT SURVIVED BECAUSE THE OTHER LANE CAN DO IT.** The shipped columnar door
+handles chains correctly, so every spot check corroborated a claim about a front
+end that could not. **From now on, a capability that exists in more than one
+execution lane must carry evidence naming WHICH LANE was tested** — that rule is
+this row's real legacy, and it is why the corrected row above cites a
+runtime-lane test file by name.
 
-⚰️ **THE ROW WAS MEASURING THE WRONG LANE.** The shipped door handles chains
-fine, so a spot check there corroborates a claim about a front end that cannot do
-it at all. `pine/15-anchored-vwap` and `pine/10-supertrend` both sit on this today
-— the second only reached it *because* 2F-2 removed the history wall in front of
-it, which is how the false row surfaced.
-
-⛔ **NOT FIXED IN 2F-2, DELIBERATELY.** The directive scopes this wave to history
-and says not to patch adjacent families to move acceptance (§35/§43). The row is
-corrected to the truth and the gap is registered (P7.4) as the cheapest
-high-value control-flow item — the IR already holds nested `IF`, so this is a
-front-end chaining fix, not an architecture change.
+⚠️ And a correction to the first version of this note: it said *two* corpus
+scripts sat on `else if`. Only `pine/15-anchored-vwap` did.
+`pine/10-supertrend`'s `runtime:statement` is at line 30 on a bare `longStop` —
+BLOCK-AS-VALUE, a different gap (register Q6.4). Two refusals sharing a guard
+name are not two instances of one cause; attributing each to its line is what
+told them apart.
 
 ## Functions, tuples, collections, types
 
@@ -86,7 +87,7 @@ front-end chaining fix, not an architecture change.
 | user-defined types | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:udt` |
 | builtin calls (closed table, 70) | ✅ | ✅ | ✅ | ✅ | ✅ | via `READ_COLUMN` — evaluated once by the columnar lane |
 | a **POINTWISE** builtin fed by state | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-1** — `EXPR.BUILTIN` → `OP.POINTWISE`, applied per bar. **14 → 0** across all five corpora |
-| a **WINDOWED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — **9 scripts** (was reported 13; see the correction below). The real series bridge |
+| a **WINDOWED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — first blocker **11**, **TOTAL DEMAND 24**. The real series bridge, and the census says its dominant shape is a windowed call INSIDE a UDF frame over its parameters — **2F-2B** |
 | an **UNDECLARED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-undeclared-builtin-state` — 2 scripts. Blocked on the BUILTIN existing in the closed table, not on the runtime |
 | a **TEXT** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-text-state` — 1 script. A value-model change; deferred by name (§22) |
 | a **CONVERSION** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-conversion-state` — 1 script. `int`/`float`/`bool`; `pine.js` rules on each separately |
@@ -236,10 +237,45 @@ Rows, not a word — the same discipline the UDF table below applies to `UDF ✅
 | RESOURCE ACCOUNTING | ✅ | `HISTORY_SLOTS` + `HISTORY_VALUES`, charged at run time and capped at compile time |
 | GRAPH-vs-RUNTIME DIFFERENTIAL | ✅ | 8 paired cases, both lanes, 1e-12 |
 | MUTATION CONTROLS | ✅ | 5 wrong implementations, each turns a rail red |
-| **VENDOR VERIFIED** | 🔴 ⬜ | **NOT CAPTURED — see below. The 2F-2A gate is therefore NOT fully met.** |
+| **VENDOR VERIFIED** | ✅ | **2F-2A-CLOSE** — TradingView v5 AND v6, SPY 1D, 400 rows. Both wrong models positively excluded. Gate **18/18** |
 | PROD INTEGRATED | ⬜ | the runtime lane is still deliberately unwired (§43/§44) |
 
-### 🔴 VENDOR: the 2F-2 history pin was NOT taken, and why
+### ⭐⭐⭐ VENDOR: the history pin WAS taken — v5 and v6 agree
+
+Fixture `tests/fixtures/vendor/runtime/mutable-history-spy-1d-2026-09-08.json`;
+rail `runtime/__tests__/vendorMutableHistory.test.js`. SPY · NYSE Arca · 1D · 400
+rows over ~8,459 loaded bars. Identity proved from the model first
+(`shortDescription`, 4 plots A/B/C/D, study `pTxDCO`, no other UCT study).
+
+| measurement | v5 | v6 |
+|---|---|---|
+| distinct `A − B` | `[1]` | `[1]` |
+| `B[i] === A[i−1]` | 399/399 | 399/399 |
+| distinct `C − D` | `[100]` | `[100]` |
+| `D[i] === C[i−1]` | 399/399 | 399/399 |
+| rows where `B === A` (reads-current) | **0** | **0** |
+| rows where `D === A−1` (commits-at-first-assignment) | **0** | **0** |
+
+**`x[1]` is the previous COMMITTED bar**, and **a bar that assigns several times
+contributes its FINAL value**. `C − D = 100` is the discriminating cell: had Pine
+committed at the first assignment, `D` would be `A−1` rather than `(A−1)×100`.
+Both wrong models are positively excluded, not merely unobserved.
+
+⚠️ **Not pinned, and the fixture says so:** the window starts at `A = 8060`, so
+warm-up at bar 0 was not observed, and a committed-`na` history value was not
+probed. UCT answers both by rules its columnar lane already applies; the vendor
+has not been asked.
+
+⚰️ **Capture technique, for whoever does the next one.** In this tab
+(`visibilityState: "hidden"` even while rendering) `execCommand` selectAll and
+insertText BOTH return `true` and change nothing, `navigator.clipboard` never
+resolves, Monaco is unreachable from the DOM, and the rendered `.view-line` DOM
+is stale and wrong. What works is the extension's own key/type dispatch, line by
+line, with `Escape` before each `Return` to kill the autocomplete widget. Monaco
+auto-close is OFF here (measured), so type every closing character; keep the
+probe FLAT so auto-indent has nothing to corrupt.
+
+### ⚰️ The earlier attempt, kept because the failure mode is the lesson
 
 §32/§33 ask TradingView what a mutable value commits as its bar value. **No
 evidence was captured, and none was invented.**
@@ -350,6 +386,54 @@ single largest runtime-side demand the census can see.
 `runtime:tuple` 2 · `pine:request` 1 · `pine:window` 1 ·
 `runtime:call-conversion-state` 1 · `runtime:call-text-state` 1 ·
 `runtime:request-with-state` 1.
+
+## ⭐⭐⭐ TOTAL DEMAND vs FIRST BLOCKER — every family (§7/§8)
+
+Instrument: `ast/capabilityDemandCensus.test.js`
+(`CAPABILITY_CENSUS_OUT`). 169 scripts, 27 executing end-to-end.
+
+⛔⛔ **FIRST-BLOCKER COUNTS ARE NOT DEMAND.** Every capability row this matrix has
+ever published was priced by "how many scripts stop here today", which is
+structurally a LOWER BOUND because an earlier gap hides everything behind it. The
+gaps are not small:
+
+| family | **TOTAL DEMAND** | sites | first blocker | hidden behind other gaps |
+|---|---|---|---|---|
+| presentation | 156 | 1127 | 20 | 136 |
+| windowed builtin (any) | 149 | 937 | — | — |
+| state (`var` / `:=`) | 89 | 2412 | — | — |
+| **user functions** | **76** | 520 | **0** | **76** |
+| graphical objects | 67 | 1816 | 1 | 66 |
+| text | 51 | 678 | 11 | 40 |
+| loops | 47 | 280 | 4 | 43 |
+| tuples | 46 | 207 | 15 | 31 |
+| arrays / collections | 45 | 1655 | 8 | 37 |
+| **runtime history** | **35** | 172 | **1** | **34** |
+| MTF / `request` | 33 | 128 | 5 | 28 |
+| conversions | 29 | 95 | 1 | 28 |
+| **`else if`** | **27** | 75 | — | — |
+| **windowed OVER STATE** | **24** | 165 | **11** | **13** |
+| `switch` | 14 | 17 | 0 | 14 |
+| user-defined types | 9 | 13 | 5 | 4 |
+| `varip` | 0 | 0 | 0 | 0 |
+
+⭐ **User functions are the sharpest case: ZERO scripts stop there and 76 use
+them.** 2E's work is load-bearing for 45% of the corpus and the matrix could not
+have said so. History: 1 vs 35. Objects: 1 vs 67. `else if`: 1 vs 27.
+
+⚰️⚰️ **THE WINDOWED DETECTOR WAS WRONG TWICE, AND THE SECOND ERROR RESHAPED THE
+NEXT WAVE.** Draft one reported DEMAND 4 against FIRST_BLOCKER 11 — an impossible
+ordering the consistency rail caught. Draft two reached 6, and checking the
+OVERLAP found **zero** of those six among the eleven that actually block. The
+guard is dominated by windowed calls **inside a UDF body over its parameters**
+(`HMA(src, len) => wma(src, len)`) — a parameter is a frame slot — not by windowed
+calls over a top-level `var`. So 2F-2B's real target is *a finite window over a
+series produced inside a call frame*, a harder shape than the top-level one.
+
+⚠️ Declared imprecision: the detectors are SYNTACTIC (they run over the lexer's
+tokens, so a keyword in a comment or string cannot count, but they do not
+type-check), and 3 of the 11 first-blocker windowed scripts are still undetected.
+The instrument pins no number.
 
 ### ⭐⭐ THE DEMAND NUMBER THIS MATRIX HAS BEEN UNDER-REPORTING
 

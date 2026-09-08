@@ -1427,3 +1427,198 @@ than being quietly omitted.
 | **P7.6** | TABLE / BUILTINS | `runtime:call-undeclared-builtin-state` — 2 scripts (`iff`, `cum`). A TABLE gap surfacing through the runtime lane; `cum` in particular is cumulative and belongs to a semantic row that does not exist yet (§42). |
 | **P7.7** | PERSISTENCE | Carried from N7.6. `history[]` is now part of the program shape and MUST be in the artifact contract before anything is saved (§61). Still no persisted runtime artifact and no version. |
 | **P7.8** | PERFORMANCE | None found. History overhead is within measurement noise (−2% to +3% vs a no-history baseline of the same program); memory is exactly `slots × depth × 8` bytes, so the census-typical script costs 24 B/symbol and **0.11 MB across a 5,000-symbol universe**. The scaling lever is the bar loop, not the ring. |
+
+---
+
+# PART Q — 2F-2A-CLOSE + P7.4 (2026-09-08)
+
+HEAD at entry `c17524b1a`. Engine suite **4,454 passing / 1 failing** (N6,
+pre-existing at HEAD, untouched).
+
+### Q1 — ⭐⭐⭐ 2F-2A IS VENDOR-PINNED. THE GATE IS NOW 18/18.
+
+Fixture `tests/fixtures/vendor/runtime/mutable-history-spy-1d-2026-09-08.json`;
+rail `runtime/__tests__/vendorMutableHistory.test.js` (6 tests).
+
+SPY · NYSE Arca · 1D · 400 returned rows over ~8,459 loaded bars. Probe:
+
+```
+var float x = 0.0
+x := x + 1
+var float m = 0.0
+m := x
+m := m * 100
+plot(x,"A")  plot(x[1],"B")  plot(m,"C")  plot(m[1],"D")
+```
+
+**Identity proved from the model before any value was accepted** —
+`shortDescription: "UCT runtime history probe"` / `"… v6"`, 4 plots titled
+A · B · C · D, study `pTxDCO`, zero other UCT studies. This was not ceremony: on
+this capture the DOM lied again, returning ONE `.view-line` while the editor
+genuinely held eleven.
+
+| measurement | v5 | v6 |
+|---|---|---|
+| distinct `A − B` | `[1]` | `[1]` |
+| `B[i] === A[i−1]` | 399/399 | 399/399 |
+| distinct `C ÷ A` | `[100]` | `[100]` |
+| distinct `C − D` | `[100]` | `[100]` |
+| `D[i] === C[i−1]` | 399/399 | 399/399 |
+| rows where `B === A` | **0** | **0** |
+| rows where `D === A − 1` | **0** | **0** |
+
+**Rule 1: `x[1]` is the PREVIOUS COMMITTED BAR, never the live slot.**
+**Rule 2: a bar that assigns a variable several times contributes its FINAL value.**
+
+⭐ `C − D = 100` is the commit-point cell. Had Pine committed at the FIRST
+assignment, `D` would be `A − 1` (8458) rather than `(A−1)×100` (845800) — a
+factor of 100, on every row. Both wrong models are positively excluded, not
+merely unobserved. v5 and v6 agree.
+
+⚠️ **What the fixture does NOT pin, said out loud:** the returned window begins at
+`A = 8060`, so bar 0 of the variable's life is outside it — `x[1] === na` on the
+first bar was NOT observed, and neither was a committed-`na` history value. UCT
+answers both by rules its columnar lane already applies and engine tests cover,
+but the vendor has not been asked. The fixture carries a `not_observed` block and
+the rail asserts it, so silence cannot read as coverage.
+
+⭐ **Mutation-proven**: pointing `READ_HIST_SLOT` at the live slot turns the
+vendor rail red (2 of its 6 tests). Restored byte-identically, sha256 verified.
+
+**Capture hygiene:** both probes removed from the chart afterwards, layout not
+saved, no brokerage state touched.
+
+### Q2 — ⚰️ THE CAPTURE ITSELF: `execCommand` IS DEAD HERE, REAL KEYS WORK
+
+Recorded because the next capture will need it. The tab reports
+`visibilityState: "hidden"` even while rendering, and in that state:
+
+- `execCommand('selectAll')` → `true`, `execCommand('insertText')` → `true`,
+  **content unchanged** (twice, including after a real click gave `hasFocus: true`)
+- `navigator.clipboard.writeText` never resolves
+- Monaco is unreachable from the DOM — no React fiber, no own properties
+- the rendered `.view-line` DOM is **stale and wrong**, not merely delayed
+
+⭐ **What works: the extension's own key/type dispatch** (`computer` tool),
+line by line, with `Escape` before each `Return` to dismiss the autocomplete
+widget — that widget is what made a plain `Return` accept `chart.point` in 2E.
+⭐ **Monaco auto-close is OFF in this editor**, measured rather than assumed
+(typing `indicator("x"` left the paren unclosed), so the source is typed
+including every closing character.
+⛔ **And the probe is deliberately FLAT** — no indented blocks — so auto-indent
+has nothing to corrupt.
+
+### Q3 — ⚰️⚰️ P7.4: `else if` NEVER WORKED, AND THE ROOT CAUSE WAS A ONE-ELEMENT LIST
+
+```js
+lowerStmts([{ header: elseToks, body: nxt.body, sub: nxt.sub }], elseScope)
+```
+
+The nested `if` looked for its own `else` at `list[i + 1]` of a list with **one**
+entry. Every remaining arm stayed in the OUTER list, where the loop then met an
+`else` with no `if` and refused `runtime:statement`.
+
+So `if / else` ran and `if / else if / else` — the ordinary two-arm chain — did
+not, while the matrix read `✅ ✅ ✅ ✅`.
+
+⛔ **IT SURVIVED BECAUSE THE OTHER LANE CAN DO IT.** The shipped columnar door
+handles chains correctly, so every spot check corroborated a claim about a front
+end that could not. **A capability that exists in two execution lanes needs
+evidence naming WHICH LANE was tested** — now a standing rule (§32).
+
+**Fix:** collect the whole chain first, lower the arms in SOURCE order (so
+columns, slots and history rings are numbered as written), then assemble
+last-arm-first into nested `IF`s. Nested, never flattened: `else if b` is not
+`if not a and b`, and nesting is what makes "do not evaluate a later test after a
+match" structural.
+
+**14 conformance tests**, including: two/three arms, final else, no final else,
+statement after the chain, nested chains, both-conditions-true → first wins,
+state mutation per arm summing to the bar count, a chain over runtime history
+(2F-2A × P7.4), a stateful UDF per arm keeping per-call-site state (2E × P7.4),
+`na` taking no arm, and source-location fidelity inside a later arm.
+
+⭐ **Test-skipping is MEASURED, not argued**: when the first arm matches the
+program executes strictly fewer instructions than when the last does — later
+tests live inside the untaken `else`. A structural claim would not have been
+evidence.
+
+⭐ **Three mutations, each caught, each byte-restored**: stop after the first arm
+(the original bug — 11 tests), flatten the chain into siblings (11), drop the
+final else (8).
+
+### Q4 — P7.4 BLOCKER TRANSITIONS
+
+| script | before | after |
+|---|---|---|
+| `curated/15-anchored-vwap` | `runtime:statement` | `pine:function` |
+| `oos1/long_tail__16-spy-position-helper` | `runtime:expression-statement` | `pine:builtin` |
+| `oos1/mid_engagement__08-hourly-alpha-profile-term` | `runtime:expression-statement` | `pine:builtin` |
+| `parity/long_tail__16-spy-position-helper` | `runtime:expression-statement` | `pine:builtin` |
+
+Executed unchanged at 27/169.
+
+⚠️ **A CORRECTION TO PART P.** P7.4 claimed *two* corpus scripts sat on `else if`.
+Only one did — `15-anchored-vwap`. `pine/10-supertrend`'s `runtime:statement` is
+at line 30 on a bare `longStop`, which is a BLOCK-AS-VALUE expression, a
+different unnamed gap (Q5.5). The over-claim came from reading two
+`runtime:statement` refusals as one cause without attributing each to its line.
+
+### Q5 — ⭐⭐⭐ THE PROJECT-WIDE MEASUREMENT CORRECTION (§7/§8)
+
+New instrument `ast/capabilityDemandCensus.test.js`. Every family now reports
+**TOTAL DEMAND** (the construct is present in the source) beside **FIRST BLOCKER**
+(the script stops here today). 169 scripts, 27 executing:
+
+| family | DEMAND | sites | first blocker | hidden |
+|---|---|---|---|---|
+| presentation | 156 | 1127 | 20 | 136 |
+| windowed builtin (any) | 149 | 937 | — | — |
+| state (`var`/`:=`) | 89 | 2412 | — | — |
+| **UDF** | **76** | 520 | **0** | **76** |
+| object | 67 | 1816 | 1 | 66 |
+| text | 51 | 678 | 11 | 40 |
+| loop | 47 | 280 | 4 | 43 |
+| tuple | 46 | 207 | 15 | 31 |
+| collection | 45 | 1655 | 8 | 37 |
+| **history** | **35** | 172 | **1** | **34** |
+| MTF/request | 33 | 128 | 5 | 28 |
+| conversion | 29 | 95 | 1 | 28 |
+| **`else if`** | **27** | 75 | — | — |
+| **windowed OVER STATE** | **24** | 165 | **11** | **13** |
+| switch | 14 | 17 | 0 | 14 |
+| UDT | 9 | 13 | 5 | 4 |
+| varip | 0 | 0 | 0 | 0 |
+
+⛔ **FIRST-BLOCKER COUNTS ARE NOT DEMAND, AND THE GAPS ARE ENORMOUS.** UDF: 0
+scripts stop there, 76 use it. Object: 1 versus 67. History: 1 versus 35.
+`else if`: 1 versus 27. Every capability row this matrix has ever published was
+priced by the small number.
+
+⚰️⚰️ **THE WINDOWED DETECTOR WAS WRONG TWICE AND THE SECOND ERROR WAS THE
+INSTRUCTIVE ONE.** Draft one reported DEMAND 4 against FIRST_BLOCKER 11 — an
+impossible ordering the internal-consistency rail caught. Draft two reached 6,
+and measuring the OVERLAP showed **zero** of those six were among the eleven that
+actually block. The guard is dominated by windowed calls **inside a UDF body over
+its parameters** (`HMA(src, len) => wma(src, len)`), because a parameter is a
+frame slot, not by windowed calls over a top-level `var`.
+
+⭐ **That reshapes 2F-2B**: its real target is *a finite window over a series
+produced inside a call frame*, which is a harder shape than the top-level one and
+would have been mis-sized by the flat scan.
+
+⚠️ Residual imprecision, declared: 3 of the 11 first-blocker scripts are still
+undetected by the syntactic walk (Klinger ×2 corpora, `13-relative-strength`).
+The instrument states it is syntactic and pins no number.
+
+### Q6 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **Q6.1** | CONTROL FLOW | ✅ **P7.4 CLOSED.** `else if` chains lower and execute in the runtime lane; matrix row corrected with lane-specific evidence. |
+| **Q6.2** | VENDOR | ✅ **2F-2A CLOSED at 18/18.** Two follow-ups remain UNPINNED and named: warm-up at bar 0, and a committed-`na` history value. |
+| **Q6.3** | RUNTIME / SERIES BRIDGE | `runtime:call-windowed-state` — first blocker 11, **total demand 24**. The dominant shape is a windowed call inside a UDF frame over its parameters. **2F-2B.** |
+| **Q6.4** | RUNTIME / STATEMENTS | 🆕 **BLOCK-AS-VALUE.** `pine/10-supertrend` line 30 is a bare `longStop` as an `if` body's result — Pine's "a block evaluates to its last expression". Currently a generic `runtime:statement`; it deserves its own name. |
+| **Q6.5** | MEASUREMENT | Every remaining matrix row still needs its TOTAL DEMAND column filled from the new census (§8). History, `else if` and windowed-over-state have it; the rest are listed in Q5 but not yet threaded into the per-family rows. |
+| **Q6.6** | RUNTIME / FRAMES | `runtime:history-function-local` (P7.2) unchanged — 1 first blocker, and now visibly part of the larger UDF-frame story Q6.3 exposes. |
+| **Q6.7** | PERSISTENCE | Carried (P7.7/N7.6). `history[]` is part of the program shape and must be in the artifact contract before anything is saved. |

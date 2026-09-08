@@ -739,28 +739,64 @@ export function buildRuntimeIr(source, opts = {}) {
         throw new RuntimeRefusal('runtime:tuple', null, locate(first))
       }
 
-      // ── if / else ──
+      // ── if / else if / else ──
+      //
+      // ⚰️⚰️ P7.4 — THIS READ `else if` AS A ONE-ELEMENT LIST AND LOST THE REST
+      // OF THE CHAIN. The old line was:
+      //
+      //     lowerStmts([{ header: elseToks, body: nxt.body, sub: nxt.sub }], elseScope)
+      //
+      // The nested call therefore saw a list of LENGTH ONE, so when that inner
+      // `if` looked at `list[i + 1]` for its own `else` there was nothing there —
+      // every remaining arm was still sitting in the OUTER list. The outer loop
+      // then walked onto the next `else if` with no `if` in front of it and
+      // refused `runtime:statement`: "`else` with no `if`".
+      //
+      // ⛔⛔ SO `if / else` WORKED AND `if / else if / else` DID NOT, while the
+      // completion matrix claimed the whole family was green — because the
+      // SHIPPED COLUMNAR DOOR does handle chains, and a spot check there
+      // corroborated a claim about a front end that could not do it at all. Two
+      // corpus scripts sat on this, one of them only visible after 2F-2A removed
+      // the history wall in front of it.
+      //
+      // ⭐ THE FIX IS TO COLLECT THE WHOLE CHAIN FIRST, then fold it. Nothing is
+      // left in the outer list, and `i` advances past every arm the chain owns.
       if (word === 'if') {
-        const test = parseWholeExpression(toks.slice(1))
-        const thenScope = new Scope(scope)
-        const thenStmts = lowerStmts(st.sub || [], thenScope)
-        let elseStmts = []
-        const nxt = list[i + 1]
-        const nxtWord = nxt && nxt.header && nxt.header[0] && nxt.header[0].kind === 'ident'
-          ? nxt.header[0].value : null
-        if (nxtWord === 'else') {
+        const arms = [{ test: parseWholeExpression(toks.slice(1)), from: st }]
+        let finalElse = null
+        for (;;) {
+          const nxt = list[i + 1]
+          const nxtWord = nxt && nxt.header && nxt.header[0] && nxt.header[0].kind === 'ident'
+            ? nxt.header[0].value : null
+          if (nxtWord !== 'else') break
           const elseToks = nxt.header.slice(1)
-          const elseScope = new Scope(scope)
-          if (elseToks.length && elseToks[0].kind === 'ident' && elseToks[0].value === 'if') {
-            // `else if` — one nested IF, so the chain keeps its structure rather
-            // than being flattened into an unreadable condition.
-            elseStmts = lowerStmts([{ header: elseToks, body: nxt.body, sub: nxt.sub }], elseScope)
-          } else {
-            elseStmts = lowerStmts(nxt.sub || [], elseScope)
-          }
           i += 1
+          if (elseToks.length && elseToks[0].kind === 'ident' && elseToks[0].value === 'if') {
+            arms.push({ test: parseWholeExpression(elseToks.slice(1)), from: nxt })
+            continue
+          }
+          finalElse = nxt
+          break
         }
-        out.push(ifStmt(lowerExpr(test, scope), thenStmts, elseStmts))
+        // ⭐ LOWERED IN SOURCE ORDER, ASSEMBLED BACKWARDS. The two are different
+        // orders and both matter: lowering allocates columns, slots and history
+        // rings, so doing it back-to-front would number the artifact by an order
+        // nobody wrote. Assembly has to run last-arm-first because each arm's
+        // `else` IS the rest of the chain.
+        const lowered = arms.map((a) => ({
+          test: lowerExpr(a.test, scope),
+          body: lowerStmts(a.from.sub || [], new Scope(scope)),
+        }))
+        const tail = finalElse ? lowerStmts(finalElse.sub || [], new Scope(scope)) : []
+        // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION. `else if b` is not `if not a
+        // and b` — the runtime must not evaluate a later arm's test after an
+        // earlier one matched, and nesting is what makes that structural rather
+        // than a rule somebody has to remember.
+        let chain = tail
+        for (let k = lowered.length - 1; k >= 0; k -= 1) {
+          chain = [ifStmt(lowered[k].test, lowered[k].body, chain)]
+        }
+        out.push(chain[0])
         continue
       }
       if (word === 'else') {
