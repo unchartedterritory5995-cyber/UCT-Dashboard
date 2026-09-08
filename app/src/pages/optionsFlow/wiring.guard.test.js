@@ -573,3 +573,50 @@ describe('Search deep dive: the er overlay and the fetch lifecycle are one chang
       'the Search product flag is not a build-time env read' + FIX).toBe(true)
   })
 })
+
+
+// ⛔⛔ TICKER_DB / CONV ARE INTERACTION-ONLY AND ARRIVE AFTER FIRST PAINT.
+// Sixteen call sites did `D.TICKER_DB.find(...)` / `FD.TICKER_DB.find(...)` and
+// only TWO checked the array existed. Once the key stops arriving in the
+// bootstrap, every unguarded one is a TypeError the member triggers by clicking
+// — and NO first-paint test can catch it, because first paint never touches
+// these keys. That is exactly why this rail is source-level: the defect lives on
+// a path a render test does not walk.
+describe('interaction-only keys: no unguarded member access', () => {
+  /** Direct `.find(`/`.filter(`/`.map(` on the raw key, i.e. no presence check. */
+  const UNGUARDED = /\b(?:D|FD)\.TICKER_DB\.(?:find|filter|map|forEach|some|reduce|sort)\(/g
+
+  it('CONTROL: the probe can see the pattern it hunts', () => {
+    // Prove the regex matches the shape it is meant to catch, so a green result
+    // below cannot be "the probe matches nothing at all".
+    expect('const tk = D.TICKER_DB.find(x=>x)'.match(UNGUARDED)).not.toBe(null)
+    UNGUARDED.lastIndex = 0
+  })
+
+  it('every TICKER_DB consumer goes through the guarded accessor', () => {
+    const hits = CODE.match(UNGUARDED) || []
+    expect(hits,
+      'an unguarded TICKER_DB member call is back. Once the key is deferred this '
+      + 'throws the moment a member clicks a sector or ticker, and no first-paint '
+      + 'test can see it. Use the `tickerDb` accessor.' + FIX).toEqual([])
+  })
+
+  it('the guarded accessor exists and falls back to a FROZEN shared empty', () => {
+    expect(CODE.includes('const tickerDb ='),
+      'the guarded accessor is gone' + FIX).toBe(true)
+    expect(/EMPTY_ROWS\s*=\s*Object\.freeze\(\[\]\)/.test(CODE),
+      'the fallback is not a frozen shared constant — a per-call [] can be '
+      + 'mutated by one consumer and read as real, empty data by another' + FIX)
+      .toBe(true)
+  })
+
+  it('the post-paint fetch is wired, version-keyed, and asks for both keys', () => {
+    expect(CODE.includes('INTERACTION_PARTS'),
+      'nothing fetches the interaction keys after paint' + FIX).toBe(true)
+    // ⛔ Version-keyed, not a one-shot boolean: a one-shot ref would never
+    // refetch after a version roll replaced D, stranding the page without its
+    // interaction data for the life of the mount.
+    expect(CODE.includes('_interactionAskedFor'),
+      'the post-paint fetch is no longer keyed on the data version' + FIX).toBe(true)
+  })
+})
