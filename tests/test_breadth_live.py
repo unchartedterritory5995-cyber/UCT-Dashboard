@@ -1169,6 +1169,29 @@ def test_live_drill_sorts_by_day_change_like_the_collector():
     assert pcts == sorted(pcts, reverse=True)
 
 
+# The drill table renders `.toFixed(2)`. Storing one decimal did not round the
+# display — it destroyed the second digit and the table padded a fake zero back
+# on, which is how "-19.90%" reached members for a stock that fell 19.94%. The
+# recorded lists (breadth_collector.PCT_DP) and this live path feed the SAME
+# table, so they must agree on digits.
+def test_live_drill_stores_pct_at_the_precision_the_table_renders():
+    cdf, vdf = _frame(seed=23, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    pcts = [i["pct"] for i in bl.live_drill("universe_count")["items"]]
+    assert len(pcts) > 5
+    # Nothing beyond 2dp is stored...
+    assert all(round(v, 2) == v for v in pcts)
+    # ...and the second decimal is REAL. Without this the assertion above passes
+    # on a 1dp payload, which is exactly the bug it exists to catch.
+    assert any(round(v, 1) != v for v in pcts), f"every live pct is 1dp: {pcts[:8]}"
+
+
 # A dead click must not surface an error page.
 def test_live_drill_on_a_cold_cache_returns_empty_with_a_reason():
     bl._live_cache.clear()

@@ -25,6 +25,7 @@ silent clamp: a caller that asked for 100,000 sessions should be told the answer
 is not what it asked for, not handed 3,650 dressed as it.
 """
 
+import hmac
 import os
 import re
 import threading
@@ -71,6 +72,30 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
         raise HTTPException(status_code=402,
                             detail="The breadth monitor requires a paid plan")
     return user
+
+
+def require_push_secret(request: Request) -> None:
+    """The WORKER's credential for this router — the `PUSH_SECRET` bearer.
+
+    ⛔ THE FAILURE DIRECTION IS CLOSED: an unset or blank secret refuses
+    everybody rather than letting `Authorization: Bearer ` (empty) match.
+
+    ⭐ A NAMED `Depends`, NOT another inline body check. The auth census
+    (`tests/test_exposed_routes_gated.py`) reads each route's DEPENDENCY TREE, so
+    a bearer verified inside a handler is UNCLAIMABLE — 29 routes in this app sit
+    outside that audit for exactly that reason, `_check_auth` below among them.
+    A new route has no behaviour to preserve, so it is born claimable.
+
+    `_check_auth` is deliberately left alone: converting the routes that already
+    ship on it would change their responses (500 → 401 when the secret is unset)
+    and that is an owner call, not a drive-by.
+    """
+    secret = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.lower().startswith("bearer ") else ""
+    if not secret or not token or not hmac.compare_digest(
+            token.encode("utf-8", "ignore"), secret.encode("utf-8", "ignore")):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 def _check_auth(request: Request) -> None:
@@ -853,6 +878,30 @@ def get_drill_list(date_str: str, metric_key: str,
     except Exception:
         pass
     return {"date": date_str, "metric": metric_key, "items": items}
+
+
+@router.get("/api/breadth-monitor/{date_str}/lists")
+def get_breadth_lists(date_str: str,
+                      keys: str = Query(default=""),
+                      _worker: None = Depends(require_push_secret)):
+    """Every `*_list` on one snapshot — the READ half of a maintenance rewrite.
+
+    The drill GET above serves ONE list to a member. This serves ALL of them to
+    the collector, which is the only caller that ever needs the whole set: to
+    change a stored list it must first read the one it is about to write, and it
+    has no member session to do that with.
+
+    `keys` narrows it (comma-separated) so a patch touching two lists does not
+    drag `universe_list`'s ~2,900 rows across the wire with them.
+
+    ⛔ NOT `require_paid`. This is not a member surface — it is the machine door,
+    and it admits no human account at all.
+    """
+    wanted = [k.strip() for k in keys.split(",") if k.strip()] or None
+    out = svc.get_snapshot_lists(_require_iso_date(date_str), wanted)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"No snapshot for {date_str}")
+    return {"date": date_str, "lists": out}
 
 
 @router.post("/api/breadth/industries")

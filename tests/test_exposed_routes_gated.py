@@ -177,6 +177,10 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/breadth-monitor/live/dividends"): "paid",
     ("GET", "/api/breadth-monitor/live/drill/{metric_key}"): "paid",
     ("GET", "/api/breadth-monitor/{date_str}/drill/{metric_key}"): "paid",
+    # The machine door beside it: ALL of a snapshot's lists, for the collector's
+    # read-modify-write patches. A member reads one cell at a time and has no
+    # business with the whole set, so this admits no human account at all.
+    ("GET", "/api/breadth-monitor/{date_str}/lists"): "worker",
     ("POST", "/api/breadth/industries"): "paid",
     ("GET", "/api/breadth/industries/status"): "paid",
     ("GET", "/api/theme-performance"): "paid",

@@ -1013,6 +1013,36 @@ def get_universe_stocks(date_str: str = None) -> dict:
         return {"date": None, "universe_count": 0, "stocks": []}
 
 
+def get_snapshot_lists(date_str: str, keys: Optional[list] = None) -> Optional[dict]:
+    """Every `*_list` field stored for one date, or just the `keys` asked for.
+
+    ⭐ WHY THIS EXISTS SEPARATELY FROM `get_drill_list`. `get_history` STRIPS the
+    list keys (they are large and the page fetches them one cell at a time), and
+    the per-key drill route is gated on a MEMBER session. A maintenance job holds
+    the PUSH_SECRET bearer and no member account, so before this it could read a
+    snapshot's counts and rewrite any field — but could not read the lists it was
+    about to rewrite. A read-modify-write patch had no read.
+
+    Returns None when the date has no snapshot at all, so a caller can tell "no
+    row" (skip it) from "a row that happens to carry no lists" ({}).
+    """
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
+            ).fetchone()
+        if not row:
+            return None
+        m = json.loads(row["metrics"])
+        wanted = set(keys) if keys else None
+        return {k: v for k, v in m.items()
+                if k.endswith("_list") and isinstance(v, list)
+                and (wanted is None or k in wanted)}
+    except Exception as e:
+        print(f"[breadth_monitor] get_snapshot_lists error: {e}")
+        return None
+
+
 def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     """Return a single *_list metric for a given date, or None if not found."""
     try:
