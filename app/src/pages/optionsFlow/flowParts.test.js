@@ -253,8 +253,17 @@ describe('fetchPartsBundle', () => {
 // Built, tested, green and connected to nothing is this repo's most-repeated
 // defect. These derive the wiring from OptionsFlow.jsx itself.
 describe('the parts path is actually WIRED into the page', () => {
+  // ⛔ NORMALISE LINE ENDINGS. This repo checks out CRLF on Windows, and the
+  // slice below anchors on `'USE_PARTS\n'`. When git re-checked the file out
+  // during a rebase it became `USE_PARTS\r\n`, `indexOf` returned -1, the slice
+  // silently became an EMPTY STRING, and the guard failed claiming the parts
+  // path was unwired — while the wiring was untouched. A rail that fails for
+  // an environmental reason is worse than no rail: it trains the next person
+  // to ignore it. The wiring assertions are about CODE, not about which bytes
+  // end a line.
   const src = readFileSync(
     resolve(dirname(fileURLToPath(import.meta.url)), '../OptionsFlow.jsx'), 'utf8')
+    .replace(/\r\n/g, '\n')
 
   it('first paint chooses the parts bundle when the flag is on', () => {
     expect(src).toContain('fetchPartsBundle(')
