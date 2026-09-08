@@ -556,7 +556,30 @@ export function consistencyTable(trades, n=8) {
 }
 
 // Recomputes all chart data from a clean_confirmed slice (used by cap filter)
+// Counts what this actually costs at runtime. `buildCharts` is the heaviest
+// pure function on the Options Flow entry path (it walks every confirmed trade
+// and then aggregates by ticker six ways), the server ALREADY runs it once in
+// node, and the client used to run it again on every FD recompute. A claim
+// about how many times it runs is a claim about a RUN — so count it rather
+// than reason about it. Read in the browser as `window.__flowChartsStats` —
+// OptionsFlow.jsx attaches that handle. ⛔ It must NOT be attached here: this
+// module runs inside the flow Web Worker AND in node (the FLOW_FACTS_BUNDLE
+// subprocess), neither of which has `window`, and wiring.guard.test.js fails the
+// build on any browser global in this file.
+export const chartsBuildStats = { calls: 0, rows: 0, ms: 0 };
+
 export function buildCharts(cc) {
+  const _t0 = typeof performance !== "undefined" ? performance.now() : 0;
+  chartsBuildStats.calls += 1;
+  chartsBuildStats.rows += cc ? cc.length : 0;
+  try {
+    return _buildCharts(cc);
+  } finally {
+    if (typeof performance !== "undefined") chartsBuildStats.ms += performance.now() - _t0;
+  }
+}
+
+function _buildCharts(cc) {
   const dayMap = {};
   // Pre-split all trades in one pass into 6 buckets + day map
   const sb=[], sbr=[], lb=[], lbr=[], lpb=[], lpr=[], leapsAll=[];

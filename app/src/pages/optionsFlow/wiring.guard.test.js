@@ -170,11 +170,21 @@ describe('Options Flow correctness guard', () => {
     }
   })
 
-  it('renders the mode toggle without waiting for data', () => {
-    // The toggle must sit OUTSIDE the `&& D &&` content gate, or "no full-page
-    // return" would just mean "a blank page" instead.
+  // The content gate, located rather than retyped. It has changed shape twice
+  // (`&& D && (<>` -> `(D || !tabNeedsD) && (<>`) and each time a literal here
+  // went stale and took a real invariant offline with it, so find it by the
+  // stable part — the JSX-fragment opener that starts the body — and let the
+  // condition vary.
+  const contentGateIndex = () => {
     const ret = CODE.indexOf('<div className="of-mroot"')
-    const gate = CODE.indexOf('&& D && (<>', ret)
+    const gate = CODE.indexOf('&& (D || !tabNeedsD) && (<>', ret)
+    return { ret, gate }
+  }
+
+  it('renders the mode toggle without waiting for data', () => {
+    // The toggle must sit OUTSIDE the content gate, or "no full-page return"
+    // would just mean "a blank page" instead.
+    const { ret, gate } = contentGateIndex()
     expect(ret !== -1 && gate > ret, 'could not locate the render').toBe(true)
     expect(CODE.slice(ret, gate).includes('Indexes / ETF'),
       'the mode toggle moved behind the data gate — the page is blank until D' + FIX).toBe(true)
@@ -185,8 +195,44 @@ describe('Options Flow correctness guard', () => {
     expect((CODE.match(/\{viewTabsBar\}/g) || []).length,
       'viewTabsBar is not rendered in both the pending and loaded states' + FIX)
       .toBeGreaterThanOrEqual(2)
-    expect(CODE.includes('&& !D && !csvError && (<>'),
+    expect(CODE.includes('&& !D && !csvError && tabNeedsD && (<>'),
       'the pending state is gone — the data region has no placeholder' + FIX).toBe(true)
+  })
+
+  it('the market strip is NOT behind the data gate — it has its own fetch', () => {
+    // `marketIndices` comes from fetchMarketData and references neither D nor
+    // FD. It sat inside the content gate, so live index prices that had already
+    // arrived were withheld until the flow parts landed. One definition, two
+    // call sites (pending + loaded) — a second copy would drift.
+    expect((CODE.match(/\{marketPulseStrip\}/g) || []).length,
+      'marketPulseStrip is not rendered in both the pending and loaded states' + FIX)
+      .toBeGreaterThanOrEqual(2)
+    const strip = CODE.indexOf('const marketPulseStrip')
+    const { gate } = contentGateIndex()
+    expect(strip !== -1 && strip < gate,
+      'the market strip moved back inside the data gate' + FIX).toBe(true)
+  })
+
+  it('tabs that never read the flow dataset do not wait for it', () => {
+    // Measured over each tab's own render region: Confluence, Tracker and
+    // Watchlist reference `D.` zero times and Watchlist's only FD uses are
+    // optional-chained. Sealing them behind `D &&` showed a flow-data
+    // placeholder for panels that never needed flow data.
+    expect(CODE.includes('const TABS_WITHOUT_D'),
+      'the D-independent tab list is gone — every tab waits on D again' + FIX).toBe(true)
+    for (const t of ['Confluence', 'Tracker', 'Watchlist']) {
+      expect(new RegExp(`TABS_WITHOUT_D = \\[[^\\]]*"${t}"`).test(CODE),
+        `${t} no longer renders without D` + FIX).toBe(true)
+    }
+  })
+
+  it('FD does not rebuild charts the server already sent', () => {
+    // processFlowData returns clean_confirmed AND buildCharts(clean_confirmed).
+    // When FD's filters drop nothing, rebuilding recomputes a value already in
+    // hand — on the main thread, over every confirmed trade. The length test is
+    // what skips it; flowChartsReuse.test.js proves the equivalence it relies on.
+    expect(CODE.includes('if (cc.length === D.clean_confirmed.length) return D;'),
+      'the redundant buildCharts rebuild is back on the entry path' + FIX).toBe(true)
   })
 
   it('CONTROL: the guard can still see this file', () => {

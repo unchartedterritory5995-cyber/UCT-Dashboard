@@ -34,6 +34,7 @@ import {
   isETFSymbol,
   filterByCap,
   buildTopPickCandidates,
+  chartsBuildStats,
 } from "./optionsFlow/flowCompute";  // moved out of this file 2026-07-25 — see that file
 import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoadedVersion, forgetLoaded, computeCsv } from "./optionsFlow/flowWorkerClient";
 // View-layer decisions live in a module because THIS file is edited through the
@@ -41,6 +42,12 @@ import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoad
 // A clobber that drops these call sites also drops this import -> CI fails.
 import { flowBaseFor, gexPayloadDte, gexDteLabel, applyStillOpenOverlay, capNoticeFor } from "./optionsFlow/flowViewPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
+
+// buildCharts counts its own runs (flowCompute.chartsBuildStats). flowCompute
+// must stay worker-safe -- it also runs in the flow Web Worker and in node --
+// so the browser handle is attached HERE, on the page that only ever runs in a
+// browser. Read it as window.__flowChartsStats -> { calls, rows, ms }.
+if (typeof window !== "undefined") window.__flowChartsStats = chartsBuildStats;
 
 // ─── Deferred heavy surfaces ─────────────────────────────────────────────────
 // ⛔ These two were STATIC imports until 2026-08-29, which put ~849 KB of JS
@@ -1666,6 +1673,30 @@ export default function OptionsFlowDashboard() {
       });
     }
     if (capFilter !== "All") cc = filterByCap(cc, capFilter);
+
+    // ⭐ THE SERVER ALREADY BUILT THESE CHARTS. `flowCompute.processFlowData`
+    // does `const clean_confirmed = confirmed_trades.filter(…)` immediately
+    // followed by `const charts = buildCharts(clean_confirmed)` and returns
+    // BOTH (flowCompute.js:1435-1440, :1652) — so `D`'s charts are, by
+    // construction, `buildCharts(D.clean_confirmed)`.
+    //
+    // `Array.prototype.filter` preserves order and never substitutes elements,
+    // so if neither filter above dropped a row, `cc` is `D.clean_confirmed`
+    // element-for-element. `buildCharts` is pure over its input (it reads
+    // t.D/t.P/t.Dt/t.DTE and writes only its own locals), therefore
+    // `buildCharts(cc)` would recompute a value we already hold. Length
+    // equality is a SUFFICIENT test for that, and it costs one comparison
+    // against a full re-walk of every confirmed trade plus six per-ticker
+    // aggregations on the main thread.
+    //
+    // ⛔ This does NOT skip the filter, only the rebuild. The client-side
+    // classification stays load-bearing: `isETF` closes over the fetched
+    // `remoteETFSet` and is fresher than the server's, so when it genuinely
+    // reclassifies a symbol the length changes and we rebuild — which is the
+    // whole reason the filter runs client-side. Removing the filter fails 8
+    // tests; skipping a provably-redundant rebuild fails none.
+    if (cc.length === D.clean_confirmed.length) return D;
+
     const charts = buildCharts(cc);
     return { ...D, ...charts };
   }, [D, capFilter, dataMode, isETF]);
@@ -3681,6 +3712,67 @@ export default function OptionsFlowDashboard() {
     </div>
   );
 
+  // ── Market Pulse — ZERO references to D or FD ────────────────────────────
+  // `marketIndices` / `marketNarrative` come from fetchMarketData, an entirely
+  // separate request. This strip sat inside the `D &&` body, so live index
+  // prices that had ALREADY ARRIVED were withheld until the 2.5 MB flow parts
+  // landed. Measured over the body: this region references `D.` 0 times and
+  // `FD` 0 times. One definition, two call sites — same idiom as viewTabsBar.
+  const marketPulseStrip = (
+        tab==="Market Read" && (
+          <div style={{ marginBottom:12 }}>
+            {/* Ticker Strip */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0, position:"relative", background:P.cd, border:"1px solid "+P.bd, borderRadius:marketNarrative&&!narrativeLoading?"10px 10px 0 0":10, padding:"8px 14px", flexWrap:"wrap" }}>
+              {marketIndices ? marketIndices.map((idx,i) => {
+                const up = idx.pct >= 0;
+                const c = up ? P.bu : P.be;
+                const short = {"S&P 500":"SPY","NASDAQ":"QQQ","DOW 30":"DIA","Russell 2000":"IWM","VIX":"VIX"}[idx.name]||idx.name;
+                return (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:6, padding:"0 14px", borderRight:i<marketIndices.length-1?("1px solid "+P.bd):undefined }}>
+                    <span style={{ fontSize:10, fontWeight:700, color:P.dm }}>{short}</span>
+                    <span style={{ fontSize:11, fontWeight:800, color:P.wh, fontVariantNumeric:"tabular-nums" }}>${idx.price>0?idx.price.toLocaleString(undefined,{minimumFractionDigits:2}):"—"}</span>
+                    <span style={{ fontSize:10, fontWeight:700, color:c, fontVariantNumeric:"tabular-nums" }}>{idx.pct>0?"+":""}{idx.pct}%</span>
+                  </div>
+                );
+              }) : (
+                <div style={{ display:"flex", alignItems:"center", gap:8, width:"100%" }}>
+                  <span style={{ fontSize:10, color:P.dm }}>Market data loads automatically</span>
+                  <button onClick={fetchMarketData} style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.ac, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                    Load Now
+                  </button>
+                </div>
+              )}
+              {marketIndices && (
+                <button className="of-refresh" onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
+              )}
+            </div>
+            {/* AI Narrative */}
+            {narrativeLoading && (
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 8px 8px", padding:"8px 14px", fontSize:10, color:P.dm }}>
+                <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:P.ac, marginRight:6, animation:"pulse 1.5s infinite" }}/>
+                Generating market summary…
+                <style>{"@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}"}</style>
+              </div>
+            )}
+            {marketNarrative && !narrativeLoading && (
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 8px 8px", padding:"10px 14px" }}>
+                <div style={{ fontSize:11, color:P.tx, lineHeight:1.8 }}>{marketNarrative}</div>
+              </div>
+            )}
+          </div>
+        )
+  );
+
+  // ── Tabs that do NOT read the flow dataset ───────────────────────────────
+  // Measured over each tab's own render region: Confluence, Tracker and
+  // Watchlist reference `D.` ZERO times, and Watchlist's only three `FD` uses
+  // are already optional-chained (`FD?.CONV?.find`). They were nonetheless
+  // sealed inside `D && (...)`, so opening Tracker on a cold entry showed a
+  // flow-data placeholder for a panel that never needed flow data.
+  // ⛔ Add a tab here ONLY after measuring its region for `D.` / unguarded FD.
+  const TABS_WITHOUT_D = ["Confluence", "Tracker", "Watchlist"];
+  const tabNeedsD = !TABS_WITHOUT_D.includes(tab);
+
   // ── The pending skeleton ─────────────────────────────────────────────────
   // ⛔ This is the shape of the page, NOT a spinner in a box. UCT20 — the
   // section the owner measures this one against — never shows a loading state
@@ -4788,59 +4880,19 @@ export default function OptionsFlowDashboard() {
 
         {/* Data pending: the real interface, not a loading screen. See the
             note above the return -- this replaced two full-page spinners. */}
-        {dataMode !== "gex" && dataMode !== "darkpool" && !D && !csvError && (<>
+        {dataMode !== "gex" && dataMode !== "darkpool" && !D && !csvError && tabNeedsD && (<>
         {sectionHeader}
+        {marketPulseStrip}
         {viewTabsBar}
         {pendingSkeleton}
         </>)}
 
-        {dataMode !== "gex" && dataMode !== "darkpool" && D && (<>
+        {dataMode !== "gex" && dataMode !== "darkpool" && (D || !tabNeedsD) && (<>
         {/* Header — same definition the pending branch renders (see sectionHeader). */}
         {sectionHeader}
 
-        {/* ── Market Pulse — compact ticker strip ────────────────────────── */}
-        {tab==="Market Read" && (
-          <div style={{ marginBottom:12 }}>
-            {/* Ticker Strip */}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:0, position:"relative", background:P.cd, border:"1px solid "+P.bd, borderRadius:marketNarrative&&!narrativeLoading?"10px 10px 0 0":10, padding:"8px 14px", flexWrap:"wrap" }}>
-              {marketIndices ? marketIndices.map((idx,i) => {
-                const up = idx.pct >= 0;
-                const c = up ? P.bu : P.be;
-                const short = {"S&P 500":"SPY","NASDAQ":"QQQ","DOW 30":"DIA","Russell 2000":"IWM","VIX":"VIX"}[idx.name]||idx.name;
-                return (
-                  <div key={i} style={{ display:"flex", alignItems:"center", gap:6, padding:"0 14px", borderRight:i<marketIndices.length-1?("1px solid "+P.bd):undefined }}>
-                    <span style={{ fontSize:10, fontWeight:700, color:P.dm }}>{short}</span>
-                    <span style={{ fontSize:11, fontWeight:800, color:P.wh, fontVariantNumeric:"tabular-nums" }}>${idx.price>0?idx.price.toLocaleString(undefined,{minimumFractionDigits:2}):"—"}</span>
-                    <span style={{ fontSize:10, fontWeight:700, color:c, fontVariantNumeric:"tabular-nums" }}>{idx.pct>0?"+":""}{idx.pct}%</span>
-                  </div>
-                );
-              }) : (
-                <div style={{ display:"flex", alignItems:"center", gap:8, width:"100%" }}>
-                  <span style={{ fontSize:10, color:P.dm }}>Market data loads automatically</span>
-                  <button onClick={fetchMarketData} style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.ac, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                    Load Now
-                  </button>
-                </div>
-              )}
-              {marketIndices && (
-                <button className="of-refresh" onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
-              )}
-            </div>
-            {/* AI Narrative */}
-            {narrativeLoading && (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 8px 8px", padding:"8px 14px", fontSize:10, color:P.dm }}>
-                <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:P.ac, marginRight:6, animation:"pulse 1.5s infinite" }}/>
-                Generating market summary…
-                <style>{"@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}"}</style>
-              </div>
-            )}
-            {marketNarrative && !narrativeLoading && (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 8px 8px", padding:"10px 14px" }}>
-                <div style={{ fontSize:11, color:P.tx, lineHeight:1.8 }}>{marketNarrative}</div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Market Pulse — independent of D; see marketPulseStrip. */}
+        {marketPulseStrip}
 
         {viewTabsBar}
 
