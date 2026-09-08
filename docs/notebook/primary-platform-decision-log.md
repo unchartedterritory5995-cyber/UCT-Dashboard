@@ -2320,6 +2320,91 @@ not impose a construction freeze.**
 
 ---
 
+## G-080 ruled, and the post-Wave-K integrity mini-pass (2026-09-07)
+
+### G-080 — configuration is not authorization
+
+A bounded, read-only authorization-evidence search (decision log, build plan,
+gap ledger, Phase Zero/One rights findings, git history on the share-link code,
+`docs/feature_flags.json`) found **no affirmative record** that the §21 review
+completed or that public share links were intentionally authorized. Three pieces
+of evidence point the other way:
+
+- the shipping commit `e05e1699b` (2026-08-13): *"shipped DARK … default OFF —
+  nothing reachable … The Share button is admin-only while the owner evaluates"*;
+- Phase Zero §21: the share link *"would need explicit review before ever being
+  enabled"* for a note carrying captured vendor data, because a share-link viewer
+  *"is neither an Authorized User nor an Edge User of UCT"*;
+- the Wave F checkpoint, restating the standing rule as still in force:
+  *"vendor-data … decisions stay gated on Patrick's external legal review. No new
+  rights approval was sought or assumed."*
+
+`docs/feature_flags.json` recorded `status: armed` with an **empty note** — armed,
+with no reason. Per owner ruling the flag was returned to `0`.
+
+⛔ **`railway variables --set` STAGES; it does not restart.** Six health samples
+after the change showed uptime still climbing — the live process was still serving
+share links with the old value. Reporting "disabled" at that moment would have been
+the exact configuration-vs-reality error this whole exercise was about. The
+operational proof required three things together: **A** config truth (`= 0`),
+**B** a process that started after the change (it restarted through another
+workstream's own deploy — Notebook forced nothing), and **C** no competing config
+source (the only reader is `note_shares.py:39`, defaulting `"0"`; nothing in
+`railway.json`, `nixpacks.toml`, a Dockerfile or a committed `.env` sets it).
+
+⛔ **The HTTP response cannot be the proof** and must not be weakened to become
+one: `resolve_shared_note_endpoint` raises the same `404 "Not found"` for a
+disabled flag and for an invalid token. That non-confirming contract is a feature.
+
+**G-080 = IMPLEMENTED · ACTIVATION DISABLED · AUTHORIZATION UNVERIFIED.** The
+implementation was not deleted.
+
+### G-063 — knowability, not string ordering
+
+`calendar` was `reconstructable: true` unconditionally, on the grounds that the
+calendar endpoints are date-parameterized and backfilled. **That sentence is true
+about the endpoints and false about the member.** A day captured before it happened
+re-rendered live, so a note written as a pre-event thesis later displayed the
+result.
+
+The gate asks whether the capture's subject could already have HAPPENED, at the
+only precision available: `date` is `YYYY-MM-DD` and the widget renders one ET
+session, so a day counts as knowable **only once it had fully elapsed at
+`capturedAt`**. Same-day is deliberately not-knowable — nothing in the data model
+can show a capture followed that day's outcomes, and the failure directions are not
+symmetric: a wrong archive costs a re-render, a wrong live rewrites the member's own
+research. Missing or invalid `capturedAt` fails safe. Chart is untouched by design.
+
+### The raw-error class was much larger than the finding that scheduled it
+
+Fixed in the Notebook's own UI (TickerResearchWorkspace, FolderSidebar ×3,
+NotebookTab ×2, HeroImagePicker ×2, plus OpenPositionsTab and TradeJournalTab that
+the rail surfaced) and railed by an AST walk with six controls — never a grep,
+which matches the very comments and docs that describe the pattern. Run over all of
+`journal-2-0/` the rail reports **104 violations across 32 files, 12 of them native
+`alert()`**. Those are recorded as **G-128 with the count** rather than swept into
+this pass or hidden by quietly narrowing the rail.
+
+⛔ **A test required the defect.** `FolderSidebar.test.jsx` asserted
+`alert(serverDetail)`. Its intent — a failed delete must reach the member, never an
+unhandled rejection — was right and was kept; only the mechanism changed. The
+honest cost is recorded in the test: that fixture's server message is genuinely
+useful copy the member now loses, because at the catch site a helpful server string
+and a stack fragment are the same `Error`.
+
+### ⛔ A retraction of my own finding
+
+**G-102 was wrong.** Notebook has participated in the app-wide command palette
+since Wave B: `CommandPalette.jsx` imports `useJ2Favorites`/`useJ2Recents` from
+`journal-2-0`, ships New note / Open Notebook / Search Notebook / Trash, and
+matches note rows. I grepped `journal-2-0/` for a *registration* and found none —
+but the palette **pulls**. The original audit made that mistake and the
+2026-09-07 re-baseline repeated it, which is the same error class the re-baseline
+had just accused the ledger of. Wave L loses "palette participation"; the gap that
+actually remains is a note-level keyboard shortcut set.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
