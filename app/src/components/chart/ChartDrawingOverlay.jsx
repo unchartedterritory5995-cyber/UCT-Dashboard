@@ -74,6 +74,7 @@ function autoLabelInk(chart) {
 // Line tools whose right-click menu offers "Set level" (type an exact price) and,
 // for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
 const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
+const ALERT_BIND_KEY = 'uct.chart.alertBind'   // 'bound' (default) | 'fixed'
 const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
 // Trim a price to a tidy prefill string (max 4 decimals, no trailing zeros).
 function fmtLevel(v) {
@@ -2795,7 +2796,7 @@ export default function ChartDrawingOverlay({
             levelSupported={LEVEL_LINE_TYPES.has(d.type)}
             horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
             alertSupported={!!onSetAlert && LEVEL_LINE_TYPES.has(d.type)}
-            onSetAlert={(direction) => { onSetAlert?.(d, direction); setCtxMenu(null) }}
+            onSetAlert={(direction, opts) => { onSetAlert?.(d, direction, opts); setCtxMenu(null) }}
             currentLevel={leftLevel}
             onSetLevel={(price) => {
               // Flatten the whole line onto the typed price — a clean horizontal
@@ -3011,11 +3012,27 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+// Exported for its own rail: the alert-mode choice is a decision the overlay
+// only PASSES ON, so testing it through canvas hit-testing in jsdom (which does
+// no layout) would measure the harness, not the menu.
+export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
+  /* ⭐ TWO ALERT SEMANTICS, AND THE CHOICE IS REMEMBERED (MOB-05). A trader
+     picks one meaning and mostly stays there, so re-asking every time would be
+     the kind of "configurable" that is really just repeated work. Default is
+     BOUND: an alert set ON a line is, to almost everyone, an alert about THAT
+     LINE — and the fixed-level intent already has its own zero-typing door in
+     the price-context sheet, which is untouched. */
+  const [alertBound, setAlertBound] = useState(() => {
+    try { return localStorage.getItem(ALERT_BIND_KEY) !== 'fixed' } catch { return true }
+  })
+  const chooseBind = (bound) => {
+    setAlertBound(bound)
+    try { localStorage.setItem(ALERT_BIND_KEY, bound ? 'bound' : 'fixed') } catch { /* private mode */ }
+  }
   const [levelVal, setLevelVal] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)  // brief "Saved ✓" confirmation
   const openLevel = () => { setLevelVal(fmtLevel(currentLevel)); setLevelOpen(o => !o) }
@@ -3218,6 +3235,37 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
             icon={<><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>}
           />
           {alertOpen && (
+            <div
+              style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 6px' : '2px 12px 4px' }}
+              onPointerDown={(e) => e.stopPropagation()}
+              role="radiogroup"
+              aria-label="Alert follows the drawing or stays at a fixed level"
+            >
+              {[
+                { bound: true, label: 'Follows the line', hint: 'Move the line and the alert moves with it. Delete the line and the alert goes too.' },
+                { bound: false, label: 'Fixed level', hint: 'Takes the price where the line is now, then stops caring about the line.' },
+              ].map((m) => (
+                <button
+                  key={m.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={alertBound === m.bound}
+                  onClick={() => chooseBind(m.bound)}
+                  title={m.hint}
+                  style={{
+                    flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
+                    background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                    border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                    borderRadius: 6,
+                    color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
+                    cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
+                    fontWeight: alertBound === m.bound ? 700 : 500,
+                  }}
+                >{m.label}</button>
+              ))}
+            </div>
+          )}
+          {alertOpen && (
             <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
               {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
                   surface, so theme-variable colors (which flip dark on light) would
@@ -3228,8 +3276,8 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
               ].map(b => (
                 <button
                   key={b.dir}
-                  onClick={() => onSetAlert?.(b.dir)}
-                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}`}
+                  onClick={() => onSetAlert?.(b.dir, { bound: alertBound })}
+                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
                   style={{
                     flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
                     background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,

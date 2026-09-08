@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } fr
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
+import { anchorsForDrawing } from './chart/drawingAlertAnchors'
+import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
 // to freeze an error card or a loading skeleton as the snapshot. Inert on every
@@ -4631,51 +4633,38 @@ export default function StockChart({
   // line = a 'trendline' alert carrying its two anchors (real unix-seconds + price)
   // so the checker can interpolate the line's level over time. A point placed past
   // the last candle (futureBars) is resolved to a real future time via the bar cadence.
-  const handleSetDrawingAlert = useCallback(async (drawing, direction) => {
+  /* Create an alert from a drawing.
+   *
+   * ⭐ TWO SEMANTICS, OFFERED ON PURPOSE (MOB-05). `bound` decides which:
+   *   • bound: true  — "follow this line". The alert carries `drawing_id`, and
+   *     `useBoundDrawingAlerts` below re-pushes its anchors whenever the line
+   *     moves, so dragging the trendline drags the alert with it. Deleting the
+   *     line deletes the alert rather than leaving one firing off a line nobody
+   *     can see any more.
+   *   • bound: false — a FIXED level, snapshotted from where the line is right
+   *     now and then independent of it. This is the pre-existing behaviour and
+   *     it is deliberately kept: "alert me at 114.26, which I found by drawing
+   *     a line" is a real intent, and it is the ONLY intent the seeded
+   *     price-context alerts express.
+   *
+   * ⛔ THE GEOMETRY COMES FROM `anchorsForDrawing`, NOT FROM HERE — the resync
+   * path needs the identical answer, and two copies of that conversion would
+   * disagree silently at the first edit. */
+  // MOB-05 — keep every "follow this line" alert glued to its drawing. Dormant
+  // unless this chart actually carries a line-ish drawing; see the hook header.
+  useBoundDrawingAlerts({
+    sym, drawings, tf: resolvedTf, etOffset: _ET_OFFSET,
+    getBars: useCallback(() => drawBarsRef.current || [], []),
+  })
+
+  const handleSetDrawingAlert = useCallback(async (drawing, direction, opts) => {
     if (!sym || !drawing) return
-    const pts = drawing.points || []
-    const kind = (drawing.type === 'horizontal' || drawing.type === 'hray') ? 'line' : 'trendline'
-    const arr = drawBarsRef.current || []
-    // Exact per-bar spacing for THIS timeframe (matches how the chart lays out its
-    // uniform logical axis), so a point placed past the last candle resolves to a
-    // real future time consistent with the visual line — not a fragile median.
-    const barSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'W' ? 604800 : resolvedTf === 'M' ? 2592000 : 86400)
-    // A drawing point's `time` is in the chart's DISPLAY epoch, NOT true UTC:
-    //  • intraday = UTC-floored + _ET_OFFSET (fake-ET shift for the axis)
-    //  • D/W/M    = a "YYYY-MM-DD" ET date STRING
-    // The server-side checker compares against true-UTC time.time(), so we MUST
-    // convert here or the trendline evaluates hours off (intraday) or not at all
-    // (daily → Math.round(string) = NaN → alert never created).
-    const toUtcSec = (t) => {
-      if (typeof t === 'number' && Number.isFinite(t)) return t - _ET_OFFSET          // reverse the intraday ET shift
-      if (typeof t === 'string') {
-        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
-        if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], 16, 0, 0) / 1000               // D/W/M date → ~noon ET (16:00 UTC)
-      }
-      return NaN
-    }
-    const anchorUtc = (p) => {
-      const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
-      if (fb > 0 && arr.length) {
-        const lastUtc = toUtcSec(arr[arr.length - 1].t)
-        return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
-      }
-      return toUtcSec(p?.time)
-    }
-    const body = { sym, direction, alert_type: kind }
-    if (kind === 'line') {
-      const price = pts[0]?.price
-      if (!Number.isFinite(price)) return
-      body.target_price = price
-    } else {
-      const a = pts[0], b = pts[1]
-      if (!Number.isFinite(a?.price) || !Number.isFinite(b?.price)) return
-      const t1 = anchorUtc(a), t2 = anchorUtc(b)
-      if (!Number.isFinite(t1) || !Number.isFinite(t2)) return
-      body.target_price = b.price   // display fallback (latest anchor); server falls back to it if t1==t2
-      body.anchor_t1 = Math.round(t1); body.anchor_p1 = a.price
-      body.anchor_t2 = Math.round(t2); body.anchor_p2 = b.price
-    }
+    const geom = anchorsForDrawing(drawing, {
+      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET,
+    })
+    if (!geom) return
+    const body = { sym, direction, ...geom }
+    if (opts?.bound !== false && drawing.id) body.drawing_id = drawing.id
     try {
       const res = await fetch('/api/watchlist-alerts', {
         method: 'POST',

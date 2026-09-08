@@ -609,7 +609,8 @@ def init_db():
                 anchor_t1       INTEGER,
                 anchor_p1       REAL,
                 anchor_t2       INTEGER,
-                anchor_p2       REAL
+                anchor_p2       REAL,
+                drawing_id      TEXT
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wl_alerts_user ON watchlist_alerts(user_id)")
@@ -624,6 +625,11 @@ def init_db():
             ("anchor_p1", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_p1 REAL"),
             ("anchor_t2", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_t2 INTEGER"),
             ("anchor_p2", "ALTER TABLE watchlist_alerts ADD COLUMN anchor_p2 REAL"),
+            # MOB-05 "follow this line": the drawing this alert is BOUND to.
+            # ⛔ NULL is the whole of "fixed level" — there is no second `bound`
+            # flag, because two columns encoding one fact drift the moment either
+            # is written alone. Bound IS `drawing_id IS NOT NULL`.
+            ("drawing_id", "ALTER TABLE watchlist_alerts ADD COLUMN drawing_id TEXT"),
         ]
         _wa_added = False
         for _col, _ddl in _wa_new:
