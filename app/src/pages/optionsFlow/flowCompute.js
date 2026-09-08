@@ -1783,6 +1783,38 @@ export const STOCK_OVERRIDE_TICKERS = new Set([
   "SPCX",
 ]);
 
+/**
+ * The page's EFFECTIVE ETF/index predicate: `isETFSymbol` plus the runtime set.
+ *
+ * ⛔ ONE AUTHORITY, and 3b is why it has to be. OptionsFlow.jsx built this
+ * predicate inline in a useCallback; the server now has to classify with the
+ * SAME rule, because classification decides which universe a ticker belongs to
+ * and therefore which TOP 10 a member sees. Two copies of these five lines
+ * would be a second authority over the product's own membership — and the
+ * divergence would be silent, since both sides would happily produce a
+ * well-formed ten-row table.
+ *
+ * `remoteSet` is the fetched ETF/index universe (≈19.5k symbols) or null.
+ * Null is NOT "no ETFs": the hardcoded fallback still classifies, which is
+ * exactly the first-render behaviour the page has always had.
+ *
+ * ⛔ Order is load-bearing. STOCK_OVERRIDE_TICKERS wins over EVERYTHING,
+ * including the trade's own stocketf column and the remote set — upstream
+ * providers mislabel real equities (SPCX is the known case), and without the
+ * override that flow is filtered off the Stocks tab entirely.
+ */
+export function makeIsETF(remoteSet) {
+  return (sym, stocketf) => {
+    const upper = (sym||"").toUpperCase();
+    if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
+    const st = (stocketf||"").toUpperCase();
+    if (st === "ETF" || st === "INDEX") return true;
+    if (KNOWN_ETF_TICKERS.has(upper)) return true;
+    if (remoteSet && remoteSet.has(upper)) return true;
+    return false;
+  };
+}
+
 export function isETFSymbol(sym, stocketf) {
   const upper = (sym||"").toUpperCase();
   if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;

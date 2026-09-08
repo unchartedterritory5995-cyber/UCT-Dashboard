@@ -32,6 +32,7 @@ import {
   KNOWN_ETF_TICKERS,
   STOCK_OVERRIDE_TICKERS,
   isETFSymbol,
+  makeIsETF,
   filterByCap,
   buildTopPickCandidates,
   chartsBuildStats,
@@ -625,22 +626,15 @@ export default function OptionsFlowDashboard() {
   // Effective ETF check — hardcoded fallback set UNION remote-fetched set.
   // Component-scope so it closes over remoteETFSet and forces memos that
   // depend on it to recompute when the fetch resolves.
-  const isETF = useCallback((sym, stocketf) => {
-    const upper = (sym||"").toUpperCase();
-    // Whitelist wins over ALL other classifications, including Massive's
-    // ticker_types remote data and the trade's own stocketf column. Some
-    // stocks get misclassified as ETF/INDEX by external data providers
-    // (SPCX is a known example — SpaceX-tracking company that trades like
-    // a regular equity but was tagged ETF upstream). Without this override,
-    // legitimate stock flow gets filtered off the Stocks tab and never
-    // reaches scoring or watchlist.
-    if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
-    const st = (stocketf||"").toUpperCase();
-    if (st === "ETF" || st === "INDEX") return true;
-    if (KNOWN_ETF_TICKERS.has(upper)) return true;
-    if (remoteETFSet && remoteETFSet.has(upper)) return true;
-    return false;
-  }, [remoteETFSet]);
+  // ⛔ THE PREDICATE ITSELF LIVES IN flowCompute (makeIsETF) — it was inline
+  // here until 3b. The server must classify with the SAME rule, because
+  // classification decides which universe a ticker belongs to and therefore
+  // which TOP 10 a member sees; two copies of those five lines would be a
+  // second authority over the product's own membership, and the divergence
+  // would be silent because both sides would still produce a ten-row table.
+  // Still memoised on remoteETFSet so the memos that depend on it recompute
+  // when the fetch resolves.
+  const isETF = useMemo(() => makeIsETF(remoteETFSet), [remoteETFSet]);
   const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
   const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
 
