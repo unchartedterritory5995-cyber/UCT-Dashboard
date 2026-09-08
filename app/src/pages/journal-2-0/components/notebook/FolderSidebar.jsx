@@ -484,6 +484,10 @@ export default function FolderSidebar({
   const [parentForNew, setParentForNew] = useState(null)
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState(null)
+  // Folder mutations used to fail into a native alert() carrying the raw
+  // exception. One line, both defects the scorecard names; railed in
+  // rawErrorSurface.test.js so it cannot come back.
+  const [folderError, setFolderError] = useState('')
   const [editName, setEditName] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   // Panel mode: the folder tree, or a full-panel note search (Obsidian-style).
@@ -720,11 +724,13 @@ export default function FolderSidebar({
   const submitNew = async (e) => {
     e.preventDefault()
     if (!newName.trim()) return
+    setFolderError('')
     try {
       await create(newName.trim(), parentForNew || undefined)
       cancelAdd()
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] create folder failed', err)
+      setFolderError("Couldn't create that folder. Nothing was changed.")
     }
   }
 
@@ -733,7 +739,8 @@ export default function FolderSidebar({
     try {
       await rename(id, editName.trim())
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] rename folder failed', err)
+      setFolderError("Couldn't rename that folder. It kept its old name.")
     }
     setEditingId(null)
   }
@@ -750,7 +757,8 @@ export default function FolderSidebar({
       await remove(id)
       if (activeFolderId === id) onSelectFolder(null)
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] delete folder failed', err)
+      setFolderError("Couldn't delete that folder. Nothing was removed.")
     }
   }
 
@@ -802,6 +810,10 @@ export default function FolderSidebar({
           </button>
         </div>
       </div>
+
+      {folderError && (
+        <div className={styles.folderError} role="alert">{folderError}</div>
+      )}
 
       {mode === 'search' ? (
         <div className={styles.searchView}>

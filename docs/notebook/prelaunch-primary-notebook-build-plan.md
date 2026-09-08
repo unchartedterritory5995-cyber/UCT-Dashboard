@@ -317,7 +317,7 @@ complexity, low initial frequency, or dependent on real usage — never a dumpin
 | G-083 | Read-only offline cache of recently-viewed notes. |
 | G-044/G-084 | Mobile capture / share-sheet (real usage data should prioritize this, not assumption). |
 | G-093/G-094 (extend) | Any bidirectional sync work, if member demand surfaces. |
-| G-080 (activation) | Flip `J2_SHARE_LINKS_ENABLED` on — policy decision once real demand exists, not an engineering gap. |
+| G-080 (activation) | ⛔ **SUPERSEDED 2026-09-07 — do not read this row as pending work.** The flag was found already `1` in production with no durable record of the §21/activation approval, and was returned to `0` by owner ruling. Re-enabling now requires affirmative evidence the review completed, not merely demand. See the gap ledger's G-080 row and the decision log's G-080 entry. |
 | — | Tasks/reminders (financial-native: review-thesis-before-earnings, revisit-position-in-N-days) — not yet a gap-ledger row; add one when scoped. |
 | — | Calendar/catalyst view over structured research dates — depends on G-021/G-025 landing first. |
 

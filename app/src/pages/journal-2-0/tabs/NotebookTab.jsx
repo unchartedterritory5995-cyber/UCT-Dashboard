@@ -71,6 +71,9 @@ export default function NotebookTab() {
   // (folder selection stays local component state once read) -- only a
   // freshly-arriving `folder` param drives it.
   const [folderId, setFolderId] = useState(null)
+  // Restore/create used to fail into a native alert() carrying the raw
+  // exception (railed: rawErrorSurface.test.js).
+  const [actionError, setActionError] = useState('')
   useEffect(() => {
     const f = searchParams.get('folder')
     if (!f) return
@@ -436,7 +439,8 @@ export default function NotebookTab() {
       // this tab may still show the pre-restore "Trashed" state.
       invalidateNoteLinkTarget(note.id)
     } catch (e) {
-      alert(`Could not restore note: ${e.message || e}`)
+      console.error('[notebook] restore note failed', e)
+      setActionError("Couldn't restore that note. It's still in the trash.")
     }
   }
 
@@ -462,7 +466,8 @@ export default function NotebookTab() {
       refreshAll()
       openNote(created)
     } catch (e) {
-      alert(`Could not create note: ${e.message || e}`)
+      console.error('[notebook] create note failed', e)
+      setActionError("Couldn't create that note. Nothing was saved.")
     } finally {
       setCreating(false)
     }
@@ -538,6 +543,9 @@ export default function NotebookTab() {
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
     >
+      {actionError && (
+        <div className={styles.actionError} role="alert">{actionError}</div>
+      )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
       {!sidebarOpen && (
