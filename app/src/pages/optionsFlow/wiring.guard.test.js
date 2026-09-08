@@ -347,8 +347,24 @@ describe('Options Flow correctness guard', () => {
     // When FD's filters drop nothing, rebuilding recomputes a value already in
     // hand — on the main thread, over every confirmed trade. The length test is
     // what skips it; flowChartsReuse.test.js proves the equivalence it relies on.
-    expect(CODE.includes('if (cc.length === D.clean_confirmed.length) return D;'),
-      'the redundant buildCharts rebuild is back on the entry path' + FIX).toBe(true)
+    //
+    // ⛔ STATED AS THE INVARIANT, NOT RETYPED. This asserted the literal
+    // `if (cc.length === D.clean_confirmed.length) return D;` and went red the
+    // day the return was wrapped for tracing — the guard broke while the
+    // invariant it protects was completely intact. That is the exact failure
+    // this file has already paid for once: a retyped literal takes a real
+    // invariant offline the moment the code changes shape.
+    const test = CODE.indexOf('cc.length === D.clean_confirmed.length')
+    expect(test, 'the length short-circuit is gone — buildCharts now reruns on '
+      + 'every entry, on the main thread, over every confirmed trade' + FIX)
+      .toBeGreaterThan(-1)
+    // It must SHORT-CIRCUIT: a return between the test and the rebuild.
+    const rebuild = CODE.indexOf('buildCharts(', test)
+    const ret = CODE.indexOf('return', test)
+    expect(ret).toBeGreaterThan(-1)
+    expect(ret, 'the length test no longer returns before buildCharts — it is '
+      + 'computed and then discarded, which is the cost it exists to skip' + FIX)
+      .toBeLessThan(rebuild === -1 ? Number.MAX_SAFE_INTEGER : rebuild)
   })
 
   it('CONTROL: the guard can still see this file', () => {
@@ -555,5 +571,81 @@ describe('Search deep dive: the er overlay and the fetch lifecycle are one chang
   it('the flag is read the same build-time way as its three siblings', () => {
     expect(CODE.includes('VITE_FLOW_SERVER_SEARCH === "1"'),
       'the Search product flag is not a build-time env read' + FIX).toBe(true)
+  })
+})
+
+
+// ⛔⛔ TICKER_DB / CONV ARE INTERACTION-ONLY AND ARRIVE AFTER FIRST PAINT.
+// Sixteen call sites did `D.TICKER_DB.find(...)` / `FD.TICKER_DB.find(...)` and
+// only TWO checked the array existed. Once the key stops arriving in the
+// bootstrap, every unguarded one is a TypeError the member triggers by clicking
+// — and NO first-paint test can catch it, because first paint never touches
+// these keys. That is exactly why this rail is source-level: the defect lives on
+// a path a render test does not walk.
+describe('interaction-only keys: no unguarded member access', () => {
+  /** Direct `.find(`/`.filter(`/`.map(` on the raw key, i.e. no presence check. */
+  const UNGUARDED = /\b(?:D|FD)\.TICKER_DB\.(?:find|filter|map|forEach|some|reduce|sort)\(/g
+
+  it('CONTROL: the probe can see the pattern it hunts', () => {
+    // Prove the regex matches the shape it is meant to catch, so a green result
+    // below cannot be "the probe matches nothing at all".
+    expect('const tk = D.TICKER_DB.find(x=>x)'.match(UNGUARDED)).not.toBe(null)
+    UNGUARDED.lastIndex = 0
+  })
+
+  it('every TICKER_DB consumer goes through the guarded accessor', () => {
+    const hits = CODE.match(UNGUARDED) || []
+    expect(hits,
+      'an unguarded TICKER_DB member call is back. Once the key is deferred this '
+      + 'throws the moment a member clicks a sector or ticker, and no first-paint '
+      + 'test can see it. Use the `tickerDb` accessor.' + FIX).toEqual([])
+  })
+
+  it('the guarded accessor exists and falls back to a FROZEN shared empty', () => {
+    expect(CODE.includes('const tickerDb ='),
+      'the guarded accessor is gone' + FIX).toBe(true)
+    expect(/EMPTY_ROWS\s*=\s*Object\.freeze\(\[\]\)/.test(CODE),
+      'the fallback is not a frozen shared constant — a per-call [] can be '
+      + 'mutated by one consumer and read as real, empty data by another' + FIX)
+      .toBe(true)
+  })
+
+  it('the post-paint fetch is wired, version-keyed, and asks for both keys', () => {
+    expect(CODE.includes('INTERACTION_PARTS'),
+      'nothing fetches the interaction keys after paint' + FIX).toBe(true)
+    // ⛔ Version-keyed, not a one-shot boolean: a one-shot ref would never
+    // refetch after a version roll replaced D, stranding the page without its
+    // interaction data for the life of the mount.
+    expect(CODE.includes('_interactionAskedFor'),
+      'the post-paint fetch is no longer keyed on the data version' + FIX).toBe(true)
+  })
+})
+
+
+// ⛔⛔ THE GUARD THAT SILENTLY DISABLED THE WHOLE SLICE.
+// The post-paint fetch is keyed on the data version so it does not re-ask for a
+// version it already has. Initialised to `null`, that ref compared EQUAL to
+// `dataVersionRef.current` (still null before /api/flow/version answers) on the
+// very first run — so it returned before fetching, permanently, and nothing
+// reset it. Verified on production: first paint dropped to bootstrap +
+// TOP_PICKS exactly as designed and the deferred request NEVER fired. Every
+// test was green; only loading the real page found it.
+describe('the post-paint fetch cannot be disabled by its own guard', () => {
+  it('the version ref is seeded with a sentinel, never null/undefined', () => {
+    const m = /_interactionAskedFor\s*=\s*useRef\(([^)]*)\)/.exec(CODE)
+    expect(m, 'the post-paint fetch lost its version ref' + FIX).not.toBe(null)
+    const seed = m[1].trim()
+    expect(['null', 'undefined', ''],
+      'the version ref is seeded with a value a real version can EQUAL, so the '
+      + '"already asked" guard returns before the first fetch and the deferred '
+      + 'payload never loads' + FIX).not.toContain(seed)
+  })
+
+  it('CONTROL: the sentinel is a value no version can equal', () => {
+    // A string seed would also pass the check above while still colliding with
+    // a string version, so pin the construct rather than merely "not null".
+    expect(/ASKED_NONE\s*=\s*Symbol\(/.test(CODE),
+      'the sentinel is no longer a Symbol — a primitive seed can collide with a '
+      + 'real version value' + FIX).toBe(true)
   })
 })

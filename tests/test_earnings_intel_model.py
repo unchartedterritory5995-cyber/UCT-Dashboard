@@ -543,6 +543,14 @@ class TestNextReportDateAlwaysSurfaces:
         assert called == [], "must not call the resolver when a date is present"
 
     def test_cache_kind_was_bumped_for_the_shape_change(self):
-        """v6 payloads hold the old null; serving them would keep saying TBD."""
+        """v6 payloads hold the old null; serving them would keep saying TBD.
+
+        Asserted as a FLOOR, not an exact match. Pinning the exact string made
+        this fail on the next legitimate bump (v8 added `reaction`) even though
+        the guarantee it exists to protect -- that no v6 payload can still be
+        served -- was perfectly intact."""
+        import re
         from api.services import earnings_intel as ei
-        assert ei._KIND == "earnings_intel_v7"
+        m = re.fullmatch(r"earnings_intel_v(\d+)", ei._KIND)
+        assert m, f"unexpected cache kind format: {ei._KIND!r}"
+        assert int(m.group(1)) >= 7, "must stay past the v6 shape"

@@ -3,14 +3,17 @@
  *
  *   INTELLIGENCE HEADER   identity · what it does · sector/industry · company facts
  *   THE STORY             why the stock is moving (signature block, gold rail)
- *   FUNDAMENTALS          one system: Valuation · Growth · Price & Performance ·
+ *   FUNDAMENTALS          one system: Growth · Valuation · Price & Performance ·
  *                         Profitability · Financial Health
- *   OWNERSHIP             snapshot → explore
+ *
+ * Ownership is NOT here. It had a snapshot-plus-explore block at the bottom of
+ * this tab until the Ownership tab shipped (8 Sep 2026); keeping both meant the
+ * same 13F data in two places, and the tab is the fuller of the two.
  *
  * The first viewport is DESIGNED, not inherited. Orientation (who/what/why) is
  * paid for in as little vertical space as it can be — company facts ride inline
- * with the identity and the Story defaults to ~60 words — so that Valuation,
- * Growth and Price & Performance all clear the fold at the default panel size.
+ * with the identity and the Story defaults to ~60 words — so that Growth,
+ * Valuation and Price & Performance all clear the fold at the default panel size.
  * Profitability and Financial Health keep every row, just below it.
  *
  * Hierarchy is carried by typography and spacing rather than cards: one gold
@@ -24,10 +27,10 @@ import { useEffect, useMemo, useState } from 'react'
 import useStockBrief from '../../../hooks/useStockBrief'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useEarningsTable from '../../../hooks/useEarningsTable'
-import useOwnership from '../../../hooks/useOwnership'
 import CompanyLogo from '../../../components/CompanyLogo'
 import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils/profileFormat'
 import BusinessTrend from './BusinessTrend'
+import { growthCell } from './earningsRows'
 import styles from './dockPanels.module.css'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -35,7 +38,6 @@ const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number
 const pctVal = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${Number(v).toFixed(d)}%`)
 const signPct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(d)}%`)
 const str = (v) => (v == null || v === '' ? '—' : v)
-const shortShares = (v) => (v == null ? '—' : Math.abs(v) >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${v}`)
 const compactInt = (v) => (v == null ? '—' : v >= 1000 ? `${Math.round(v / 1000)}K` : String(v))
 // yfinance ships officer names with an honorific ("Mr. Sanjay Mehrotra"). In a
 // compact inline fact that prefix is pure width for zero information.
@@ -55,10 +57,33 @@ function useGrowth(quarterly) {
       epsQoQ: pctChange(latest.eps_actual, prev?.eps_actual),
       epsYoY: pctChange(latest.eps_actual, yearAgo?.eps_actual),
       salesYoY: pctChange(latest.rev_actual, yearAgo?.rev_actual),
+      // The BASE of each EPS comparison. A swing off a loss produces a huge
+      // positive percentage that is not growth, and gold here means "this
+      // tripled" — so the renderer needs to know which side it came from.
+      epsQoQBase: prev?.eps_actual ?? null,
+      epsYoYBase: yearAgo?.eps_actual ?? null,
     }
   }, [quarterly])
 }
 const sgn = (v) => (v == null ? '' : v >= 0 ? styles.pos : styles.neg)
+
+/**
+ * Growth cell tone, from the SAME rule the Earnings table uses: >= +100% is
+ * gold, because "the business tripled" is the one thing worth pulling out of a
+ * grid of percentages. Reusing `growthCell` rather than re-testing >= 100 here
+ * keeps one definition of the threshold and one definition of what disqualifies
+ * it.
+ *
+ * `base` is the value the percentage was measured FROM, where we know it. A
+ * swing off a loss (-$0.10 -> +$0.40) computes as +500% and is not growth, so
+ * it never earns gold — the same guard the Earnings table applies through the
+ * backend's loss notes.
+ */
+const TONE = { gold: styles.etGold, up: styles.pos, down: styles.neg, none: styles.muted }
+const growthTone = (v, base) => {
+  const cell = growthCell(v, (base != null && base < 0) ? 'loss_narrowing' : undefined)
+  return cell ? (TONE[cell.tone] || '') : ''
+}
 
 // lead sentences, cut only on a sentence boundary (never mid-word)
 function leadSentences(about, n = 3) {
@@ -132,63 +157,6 @@ function IdFact({ label, value }) {
       <span className={styles.idFactK}>{label}</span>
       <span className={styles.idFactV}>{value}</span>
     </>
-  )
-}
-
-// ── Ownership snapshot (deep list behind one interaction) ───────────────────
-function OwnershipSnapshot({ sym, instPct, insiderPct }) {
-  const { data } = useOwnership(sym)
-  const [open, setOpen] = useState(false)
-  const holders = data?.top_holders || []
-  const inst = data?.inst_pct ?? instPct
-  const buyers = (data?.biggest_buyers || []).slice(0, 3)
-  const sellers = (data?.biggest_sellers || []).slice(0, 3)
-  const CHIP = { new: 'NEW', added: 'ADD', reduced: 'CUT', sold_out: 'SOLD' }
-  if (data?.locked) return null
-  if (inst == null && !holders.length) return null
-
-  return (
-    <section className={styles.section}>
-      <div className={styles.secHead}>Ownership</div>
-      <div className={styles.ownLine}>
-        {inst != null && <span><b className={styles.ownStat}>{inst > 100 ? '>100' : inst}%</b> institutional</span>}
-        {insiderPct != null && <span className={styles.ownSep}><b className={styles.ownStat}>{insiderPct}%</b> insider</span>}
-      </div>
-      {holders.length > 0 && <div className={styles.ownNames}>{holders.slice(0, 3).map(h => h.holder).join(' · ')}</div>}
-      {holders.length > 0 && (
-        <button type="button" className={styles.moreLink} onClick={() => setOpen(v => !v)}>
-          {open ? 'Hide ownership' : 'Explore ownership →'}
-        </button>
-      )}
-      {open && (
-        <div className={styles.ownDeep}>
-          {holders.slice(0, 12).map((h, i) => (
-            <div key={i} className={styles.ownHolder}>
-              <span className={styles.ownHolderName}>{h.holder}</span>
-              <span className={styles.ownHolderMeta}>{h.pct_out != null ? `${h.pct_out}%` : shortShares(h.shares)}</span>
-              {h.change && h.change !== 'flat' && <span className={`${styles.ownChip} ${(h.change === 'new' || h.change === 'added') ? styles.pos : styles.neg}`}>{CHIP[h.change]}</span>}
-            </div>
-          ))}
-          {(buyers.length > 0 || sellers.length > 0) && (
-            <div className={styles.ownFlow}>
-              {buyers.length > 0 && (
-                <div className={styles.ownFlowCol}>
-                  <div className={styles.ownFlowLabel}>Buying</div>
-                  {buyers.map((b, i) => <div key={i} className={styles.ownFlowRow}><span className={styles.ownFlowName}>{b.holder}</span><span className={styles.pos}>+{shortShares(b.change_shares)}</span></div>)}
-                </div>
-              )}
-              {sellers.length > 0 && (
-                <div className={styles.ownFlowCol}>
-                  <div className={styles.ownFlowLabel}>Selling</div>
-                  {sellers.map((s, i) => <div key={i} className={styles.ownFlowRow}><span className={styles.ownFlowName}>{s.holder}</span><span className={styles.neg}>−{shortShares(Math.abs(s.change_shares))}</span></div>)}
-                </div>
-              )}
-            </div>
-          )}
-          {data?.as_of && <div className={styles.ownAsOf}>13F filings · {String(data.as_of).slice(0, 10)}</div>}
-        </div>
-      )}
-    </section>
   )
 }
 
@@ -331,10 +299,13 @@ export default function DockProfile({ sym }) {
 
       {/* ── Fundamentals — one system (layer 2).
              Order is deliberate for a CHARTING product: the user is staring at a
-             price chart, so Valuation → Growth → Price & Performance are the
-             three groups that earn the first screen. Profitability and Financial
-             Health are financial-QUALITY questions — still here in full, just
-             below the fold, where a reader who is digging will find them. ── */}
+             price chart, so Growth → Valuation → Price & Performance are the
+             three groups that earn the first screen. Growth leads (owner call,
+             8 Sep 2026): it is the directional read that pairs with the move on
+             the chart, where valuation is the static multiple you check second.
+             Profitability and Financial Health are financial-QUALITY questions —
+             still here in full, just below the fold, where a reader who is
+             digging will find them. ── */}
       <section className={`${styles.section} ${styles.layerBreak}`}>
         {/* No "Fundamentals" head: Valuation / Growth / Price & Performance /
             Profitability / Financial Health are self-evidently company metrics,
@@ -342,7 +313,16 @@ export default function DockProfile({ sym }) {
             above the panel's most valuable content. The layer divider alone is
             the transition out of the Story, and the gold group titles ARE the
             section headings now. */}
-        <Group title="Valuation" first>
+        <Group title="Growth" first>
+          <Row k="Revenue YoY" v={signPct(f.revenue_growth_pct)} cls={growthTone(f.revenue_growth_pct)} p />
+          <Row k="Earnings YoY" v={signPct(f.earnings_growth_pct)} cls={growthTone(f.earnings_growth_pct)} p />
+          <Row k="Q Sales YoY" v={signPct(g.salesYoY)} cls={growthTone(g.salesYoY)} />
+          <Row k="EPS Last Q" v={g.epsLastQ != null ? fmtEps(g.epsLastQ) : '—'} />
+          <Row k="EPS QoQ" v={signPct(g.epsQoQ)} cls={growthTone(g.epsQoQ, g.epsQoQBase)} />
+          <Row k="EPS YoY" v={signPct(g.epsYoY)} cls={growthTone(g.epsYoY, g.epsYoYBase)} />
+        </Group>
+
+        <Group title="Valuation">
           <Row k="Market Cap" v={str(f.market_cap)} p />
           <Row k="Ent. Value" v={str(f.enterprise_value)} />
           <Row k="P/E (ttm)" v={num(f.pe_trailing)} p />
@@ -353,15 +333,6 @@ export default function DockProfile({ sym }) {
           <Row k="P/B" v={num(f.pb)} />
           <Row k="EV / Revenue" v={num(f.ev_to_revenue)} />
           <Row k="Div Yield" v={fund?.div_yield != null ? `${num(fund.div_yield)}%` : '—'} />
-        </Group>
-
-        <Group title="Growth">
-          <Row k="Revenue YoY" v={signPct(f.revenue_growth_pct)} cls={sgn(f.revenue_growth_pct)} p />
-          <Row k="Earnings YoY" v={signPct(f.earnings_growth_pct)} cls={sgn(f.earnings_growth_pct)} p />
-          <Row k="Q Sales YoY" v={signPct(g.salesYoY)} cls={sgn(g.salesYoY)} />
-          <Row k="EPS Last Q" v={g.epsLastQ != null ? fmtEps(g.epsLastQ) : '—'} />
-          <Row k="EPS QoQ" v={signPct(g.epsQoQ)} cls={sgn(g.epsQoQ)} />
-          <Row k="EPS YoY" v={signPct(g.epsYoY)} cls={sgn(g.epsYoY)} />
         </Group>
 
         {/* Chart context, as a peer group rather than its own gold-headed section:
@@ -402,8 +373,6 @@ export default function DockProfile({ sym }) {
       {/* PROTOTYPE: one visual, after the numbers it summarises. */}
       <BusinessTrend annual={intel?.annual} />
 
-      {/* ── Ownership snapshot ── */}
-      <OwnershipSnapshot sym={sym} instPct={f.held_pct_institutions ?? fund?.inst_own_pct} insiderPct={f.held_pct_insiders} />
     </div>
   )
 }

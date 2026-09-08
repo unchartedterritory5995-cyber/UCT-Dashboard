@@ -77,8 +77,23 @@ _log = logging.getLogger(__name__)
 #   v7: summary.next_report_date is resolved DIRECTLY when no forward estimate
 #       carried one. Persisted payloads hold the old null, so without this bump
 #       every cached ticker would keep saying "Date TBD" after the fix shipped.
-_KIND = "earnings_intel_v7"
+# v9: `reaction` is now the CLOSE-TO-CLOSE move of the reacting session (was
+# the opening gap), and the report date is the announcement rather than the
+# later of two disagreeing providers. Both change stored VALUES, so a cached v8
+# payload would keep serving MU's FY2026 Q3 as -6.3% instead of +15.7%.
+#
+# Safe to bump now in a way it was not this morning: `_has_quarterly` refuses to
+# persist a build that lost its quarters, so a failed cold rebuild costs an hour
+# rather than weeks of "No earnings history is available".
+# v10: the announcement-date fix only actually took effect here — v9 shipped it
+# with the min() comparing the incoming date against itself, so MU kept
+# 2026-06-30 and the reaction measured the wrong session.
+_KIND = "earnings_intel_v10"
 _STALE_MAX = 45 * 86400
+# A build that came back without its quarterly series is held only this
+# long, and never written to disk, so a transient provider failure costs
+# an hour rather than weeks of "No earnings history is available".
+_PARTIAL_TTL = 3600
 # Proximity-weighted freshness: estimates and a pending print move, settled
 # history does not.
 _TTL_FAR = 24 * 3600        # > 10 days from the next report
@@ -246,12 +261,33 @@ def _quarters_from_estimates(sym: str, cal: FiscalCalendar | None) -> dict:
             # a merge opportunity — combining them would fuse distinct periods.
             # Keep the one bearing a real consensus, else the later report.
             collisions += 1
+            # Captured BEFORE the tiebreak below can replace the stored row.
+            # Reading it afterwards compared the incoming date against itself,
+            # so the min() was a no-op and MU kept 2026-06-30.
+            prior_date = prior.get("report_date")
             prior_has = prior.get("eps_estimate") is not None
             new_has = row.get("eps_estimate") is not None
             if new_has and not prior_has:
                 rows[(fy, fq)] = row
             elif new_has == prior_has and str(rd or "") > str(prior.get("report_date") or ""):
                 rows[(fy, fq)] = row
+            # ⛔ ...but the DATE is decided separately, and it is the EARLIEST.
+            #
+            # The winner above is chosen on which row carries real consensus —
+            # the right test for the financial fields. It is the wrong test for
+            # the date. FMP and Finnhub disagree on when a quarter was reported:
+            # for MU FY2026 Q3, FMP says 2026-06-24 (the announcement, after the
+            # close) and Finnhub says 2026-06-30 (a later filing/period date).
+            # Taking the later one made the earnings-reaction strip measure
+            # 30 Jun -> 1 Jul, printing -6.3% for a print the market answered
+            # with +17.6% on 25 Jun.
+            #
+            # A price reaction is measured from the ANNOUNCEMENT, so the
+            # earliest date any provider reports for the quarter is the one that
+            # can be right; a later one is always a filing artifact.
+            dates = [d for d in (rd, prior_date) if d]
+            if dates:
+                rows[(fy, fq)]["report_date"] = min(str(d)[:10] for d in dates)
     if collisions:
         _log.info("earnings_intel %s: %d report(s) collided onto an occupied fiscal quarter",
                   sym, collisions)
@@ -476,12 +512,23 @@ def _build(sym: str) -> dict:
             _log.debug("next_report_date fallback failed for %s: %s", sym, e)
     cal_desc = cal.describe() if cal else {"known": False}
 
+    # Earnings-day price reaction, from OUR OWN daily bars (no metered call).
+    # Never let it break the tab: the reaction strip is one block inside
+    # Earnings, so a failure here must cost that block, not the whole payload.
+    try:
+        from api.services import earnings_reaction as _er
+        reaction = _er.reaction_for(sym, quarters)
+    except Exception as e:                                # noqa: BLE001
+        _log.warning("earnings reaction failed for %s: %s", sym, e)
+        reaction = None
+
     return {
         "ticker": sym,
         "quarters": quarters,
         "estimates": estimates,
         "annual": annual,
         "summary": summary,
+        "reaction": reaction,
         # Drives the proximity-weighted TTL below. Previously read but never
         # written, so every payload silently took the 24-hour branch.
         "next_report_date": summary.get("next_report_date"),
@@ -618,8 +665,25 @@ def _ttl_for(payload: dict) -> float:
 
 
 def _has_content(payload: dict) -> bool:
+    """Anything worth returning to a caller at all."""
     return bool(payload.get("quarters") or payload.get("estimates")
                 or (payload.get("annual") or {}).get("reported"))
+
+
+def _has_quarterly(payload: dict) -> bool:
+    """The QUARTERLY series — what this payload actually exists to carry.
+
+    ⛔ Not the same question as `_has_content`, and conflating them cost the
+    Earnings tab its history. A build can lose both quarterly tiers and still
+    return populated `annual`, because annual is derived from the statements
+    document while the quarters need the fiscal calendar and the estimates
+    provider. `_has_content` said True on the annual alone, so that half-built
+    payload was cached at full TTL AND persisted to disk — and the tab read "No
+    earnings history is available for MU" while serving it stale for up to 45
+    days. A payload with no quarters is a PARTIAL build: worth returning once,
+    never worth remembering.
+    """
+    return bool(payload.get("quarters") or payload.get("estimates"))
 
 
 def _schedule_refresh(sym: str) -> None:
@@ -657,7 +721,10 @@ def get_earnings(ticker: str) -> dict:
     stored = snap_store.get(_KIND, sym)
     if stored is not None:
         payload, age, ttl = stored
-        if isinstance(payload, dict) and _has_content(payload):
+        # A persisted payload with no quarterly series is a partial build that
+        # an earlier, more permissive check let through. Treat it as a miss so
+        # it rebuilds now, rather than serving the gap for the rest of its TTL.
+        if isinstance(payload, dict) and _has_quarterly(payload):
             payload.setdefault("meta", {})["age_seconds"] = int(age)
             if age <= ttl:
                 cache.set(ck, payload, max(60, int(ttl - age)))
@@ -669,7 +736,12 @@ def get_earnings(ticker: str) -> dict:
                 return payload
     out = _build(sym)
     ttl = _ttl_for(out)
-    cache.set(ck, out, ttl if _has_content(out) else 600)
-    if _has_content(out):
+    if _has_quarterly(out):
+        cache.set(ck, out, ttl)
         snap_store.put(_KIND, sym, out, ttl)
+    else:
+        # Partial or empty: hold it briefly so a burst of requests doesn't
+        # re-hammer the providers, but NEVER persist it and never let it reach
+        # the 45-day stale window. It retries on its own within the hour.
+        cache.set(ck, out, _PARTIAL_TTL if _has_content(out) else 600)
     return out

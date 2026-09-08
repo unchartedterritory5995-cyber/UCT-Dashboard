@@ -70,6 +70,7 @@ from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB, parse_columns
 from api.services import flow_aggregate
+import collections
 from collections import OrderedDict
 import json
 import os
@@ -1640,7 +1641,9 @@ async def etf_replica_status():
 # lock non-blockingly and declines when it is held, so a preparer tick during a
 # member's build simply does nothing and tries again next tick. The preparer can
 # never queue ahead of, or compete with, a real request.
-_PREPARE_POLL_S = int(os.environ.get("FLOW_PREPARE_POLL_S", "20") or 20)
+# Detection only — `_current_version()` is probe-cached, so a fast poll adds
+# no database work. Preparation runs off this loop.
+_PREPARE_POLL_S = int(os.environ.get("FLOW_PREPARE_POLL_S", "2") or 2)
 _PREPARE_STATE = {"enabled": False, "prepared": 0, "declined": 0, "failed": 0,
                   "last_version": None, "last_ms": None, "last_error": None}
 
@@ -1667,10 +1670,21 @@ def _prepare_once(last_version):
     key = (source, days, date_filter)
     t0 = time.monotonic()
     try:
+        # ⛔ TWO PASSES: PUBLISH THE CRITICAL PATH, THEN FILL THE REST.
+        # A single full build pipes 23.8 MB of parts back and took 23-34 s on
+        # every RTH roll (measured across four consecutive rolls), while the
+        # version rolls every 60 s -- so preparation kept losing the race and
+        # members fell to the 8-12 MB raw tape. node's own work in that build is
+        # only ~6.3 s; the rest is IPC for parts first paint never reads.
+        #
+        # Pass 1 emits ONLY what first paint fetches, so the page becomes fast as
+        # early as possible. Pass 2 then warms everything else in the same tick,
+        # so the deferred TICKER_DB/CONV fetch and the 3b raw fallback stay warm
+        # too -- nothing stops being prepared, it is only ORDERED now.
+        provider = lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")
         got = flow_aggregate.get_cached_or_build_part(
-            key, version,
-            lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
-            date_filter, "bootstrap")
+            key, version, provider, date_filter, "bootstrap",
+            only=flow_aggregate.FIRST_PAINT_PARTS)
     except Exception as e:  # noqa: BLE001
         _PREPARE_STATE["failed"] += 1
         _PREPARE_STATE["last_error"] = repr(e)[:200]
@@ -1685,7 +1699,32 @@ def _prepare_once(last_version):
         _PREPARE_STATE["last_version"] = version
         _PREPARE_STATE["last_ms"] = ms
         _PREPARE_STATE["last_error"] = None
-        log.info("[flow-prepare] warmed %s v=%s in %dms", key, version, ms)
+        log.info("[flow-prepare] first paint warmed %s v=%s in %dms", key, version, ms)
+        # Pass 2 -- everything else, so the deferred and fallback paths stay warm.
+        # Failure here is NOT a failure of the roll: first paint is already
+        # published, which is the member-visible property.
+        try:
+            # ⛔ FIRST PAINT BEATS THE REMAINDER. If the tape rolled while pass 1
+            # ran, spending another ~7-11 s warming the OLD version's deferred
+            # parts delays the new version's first paint -- the only part a
+            # member is waiting on. Drop it and let the loop pick up the newer
+            # version immediately; the remainder for that version follows there.
+            if _current_version() != version:
+                log.info("[flow-prepare] version moved during pass 1 — skipping "
+                         "the remainder for v=%s", version)
+                _record_roll(version, ms, pass2_skipped=True)
+                return version
+            t1 = time.monotonic()
+            rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
+                         if p not in flow_aggregate.FIRST_PAINT_PARTS)
+            flow_aggregate.get_cached_or_build_part(
+                key, version, provider, date_filter, rest[0], only=rest)
+            log.info("[flow-prepare] remainder warmed v=%s in %dms",
+                     version, int((time.monotonic() - t1) * 1000))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[flow-prepare] remainder pass failed (first paint is "
+                        "already live): %s", e)
+        _record_roll(version, ms, pass2_skipped=False)
         return version
 
     _PREPARE_STATE["declined"] += 1
@@ -1693,14 +1732,118 @@ def _prepare_once(last_version):
     return last_version
 
 
+# At most one preparation at a time; the DETECTION loop never waits for it.
+# ── Roll ledger: measure the race without the bucket ambiguity ─────────────
+#
+# ⛔⛔ `version * 60` IS NOT THE GENERATION'S BIRTH INSTANT. `_SIG_VERSION` is
+# assigned `int(time.time() // 60)` AT PROBE TIME, so the number encodes the
+# MINUTE in which the probe noticed the signature change — the true instant lies
+# anywhere in [version*60, version*60+60). Deriving "detection latency" from the
+# bucket therefore yields an UPPER BOUND inflated by an unknown 0-60 s, and an
+# earlier report of mine quoted those bounds as if they were point estimates.
+#
+# So record what can actually be observed: the DETECTOR'S OWN first sighting of
+# a new version. `first_seen -> prepared` is exact and is the number this gate
+# should be judged on; the bucket figure is kept beside it, explicitly labelled
+# as a bound, so the two can never be confused again.
+#
+# ⛔ AND A GENERATION THAT PREDATES THIS PROCESS IS NOT A ROLL. On boot the
+# preparer legitimately catches up a version that may be minutes old; counting
+# that as detection latency is what produced a nonsense 130 s sample. Those are
+# classified `startup_catchup` and MUST be excluded from steady-state stats.
+_PROCESS_START_WALL = time.time()
+_VERSION_FIRST_SEEN = {}
+_PREPARE_ROLLS = collections.deque(maxlen=80)
+
+
+def _note_version_seen(version) -> None:
+    """Called by the detector the moment it observes a version it has not seen."""
+    if version in _VERSION_FIRST_SEEN:
+        return
+    if len(_VERSION_FIRST_SEEN) > 200:
+        _VERSION_FIRST_SEEN.clear()
+    _VERSION_FIRST_SEEN[version] = time.time()
+
+
+def _record_roll(version, prepare_ms, pass2_skipped) -> None:
+    now = time.time()
+    first_seen = _VERSION_FIRST_SEEN.get(version)
+    born_bucket = version * _VERSION_BUCKET_SEC if _FORCE_BUMP_OFFSET == 0 else None
+    kind = "steady_state_roll"
+    if born_bucket is None or born_bucket < _PROCESS_START_WALL:
+        # Predates this process (or the bucket arithmetic is invalidated by a
+        # forced bump) — a catch-up, never a measurement of the detector.
+        kind = "startup_catchup"
+    _PREPARE_ROLLS.append({
+        "version": version,
+        "kind": kind,
+        # EXACT: detector sighting -> first paint published.
+        "observed_s": round(now - first_seen, 2) if first_seen else None,
+        "handoff_ms": (round((first_seen and (now - first_seen) * 1000 - prepare_ms) or 0)
+                       if first_seen else None),
+        "prepare_ms": prepare_ms,
+        # UPPER BOUND ONLY -- see the note above. Never quote as detection.
+        # ⛔ None rather than a negative: a bucket that starts in the future
+        # means the arithmetic does not describe this generation (a forced bump,
+        # a clock step, or a synthetic version), and reporting a negative
+        # "latency" invites someone to average it into a distribution.
+        "bucket_bound_s": (round(now - born_bucket, 2)
+                           if born_bucket and now >= born_bucket else None),
+        "pass2_skipped": bool(pass2_skipped),
+    })
+
+
+def prepare_rolls(kind: str | None = None) -> list:
+    rows = list(_PREPARE_ROLLS)
+    return [r for r in rows if kind is None or r["kind"] == kind]
+
+
+_PREPARE_INFLIGHT = threading.Lock()
+_PREPARE_LAST = None
+# Lets the loop be stopped deterministically (tests, and a clean shutdown).
+_PREPARE_STOP = threading.Event()
+
+
 def _prepare_loop():
-    last = None
-    while True:
+    """Detect version changes FAST; prepare OFF this loop.
+
+    ⛔ PREPARATION USED TO RUN INLINE HERE, AND THAT WAS THE DOMINANT COST.
+    Measured across 12 real rolls: preparation itself is stable at 6.1-9.1 s,
+    but the observed version-change -> prepared time ranged 9-51 s (mean 23.4 s)
+    because the two passes (~15-19 s together) blocked this loop, so the poll
+    interval was never the real cadence -- the loop's own work was. Detection
+    lag alone averaged 15.9 s and peaked at 44.9 s, roughly 68% of the cold
+    window, which is why members still met the raw-tape fallback.
+
+    Now this loop only READS the version and hands off. `_current_version()` is
+    itself probe-cached (_SIG_PROBE_SEC), so polling faster costs no extra
+    database work.
+
+    ⛔ STILL A POLL, DELIBERATELY. There is no event subscription here and no
+    correctness dependence on a signal that could be lost: if a handoff is
+    missed for any reason, the very next tick sees the version differs and
+    prepares it. The producer is in-process but partner-owned; this needs no
+    hook in it.
+    """
+    global _PREPARE_LAST
+    while not _PREPARE_STOP.is_set():
         try:
-            last = _prepare_once(last)
+            _seen_now = _current_version()
+            _note_version_seen(_seen_now)
+            if _seen_now != _PREPARE_LAST and _PREPARE_INFLIGHT.acquire(blocking=False):
+                def _run():
+                    global _PREPARE_LAST
+                    try:
+                        _PREPARE_LAST = _prepare_once(_PREPARE_LAST)
+                    except Exception as e:  # noqa: BLE001
+                        log.warning("[flow-prepare] build failed: %s", e)
+                    finally:
+                        _PREPARE_INFLIGHT.release()
+                threading.Thread(target=_run, name="flow-prepare-build",
+                                 daemon=True).start()
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] tick failed: %s", e)
-        time.sleep(_PREPARE_POLL_S)
+        _PREPARE_STOP.wait(_PREPARE_POLL_S)
 
 
 def start_background_prepare() -> bool:
@@ -1739,6 +1882,10 @@ async def aggregate_health():
     # Colour, not verdict: `warm` above already answers "is the first paint
     # ready". These say whether the preparer is the reason it is.
     out["prepare"] = prepare_state()
+    # ⛔ SPLIT BY CLASSIFICATION. A generation that predates this process is a
+    # catch-up, not a roll; mixing them produced a nonsense 130 s "detection".
+    out["rolls_steady"] = prepare_rolls("steady_state_roll")[-25:]
+    out["rolls_startup"] = prepare_rolls("startup_catchup")[-5:]
     out["search_warm"] = search_warm_state()
     return JSONResponse(out)
 

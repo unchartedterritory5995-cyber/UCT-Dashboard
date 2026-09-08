@@ -20,6 +20,7 @@ it is looking for.
 """
 import ast
 import pathlib
+import time
 
 import pytest
 
@@ -51,8 +52,8 @@ class _Recorder:
         self.result = result
         self.calls = []
 
-    def __call__(self, key, version, provider, date_filter, part):
-        self.calls.append((key, version, date_filter, part))
+    def __call__(self, key, version, provider, date_filter, part, only=None):
+        self.calls.append((key, version, date_filter, part, only))
         return self.result(version) if callable(self.result) else self.result
 
 
@@ -83,6 +84,17 @@ def test_a_successful_build_records_the_version_as_prepared(monkeypatch):
     # CONTROL: it asked for the default view, not something of its own devising.
     assert rec.calls[0][0] == ("stocks", 1, "Last1")
     assert rec.calls[0][3] == "bootstrap"
+    # ⛔ TWO PASSES, AND PASS 1 IS THE CRITICAL PATH. A full build pipes 23.8 MB
+    # of parts back and took 23-34 s on every RTH roll while the version rolls
+    # every 60 s. Pass 1 emits ONLY what first paint fetches so the page becomes
+    # fast as early as possible; pass 2 warms the rest so nothing stops being
+    # prepared. If pass 1 ever asked for everything again, the race returns.
+    assert rec.calls[0][4] == fa.FIRST_PAINT_PARTS, (
+        "the first pass is no longer scoped to the first-paint parts")
+    assert len(rec.calls) == 2, "the remainder pass is gone"
+    rest = rec.calls[1][4]
+    assert rest and not (set(rest) & set(fa.FIRST_PAINT_PARTS)), (
+        "the remainder pass overlaps the first-paint pass -- work done twice")
 
 
 def test_a_DECLINED_tick_does_not_record_progress_and_so_retries(monkeypatch):
@@ -103,7 +115,7 @@ def test_a_DECLINED_tick_does_not_record_progress_and_so_retries(monkeypatch):
     fresh = _Recorder(lambda v: (v, b"gz"))
     _patch(monkeypatch, version=1001, builder=fresh)
     assert fr._prepare_once(out) == 1001
-    assert len(fresh.calls) == 1
+    assert len(fresh.calls) == 2   # first-paint pass + remainder pass
 
 
 def test_a_build_returning_nothing_also_does_not_record_progress(monkeypatch):
@@ -138,7 +150,7 @@ def test_an_unchanged_version_does_no_work_at_all(monkeypatch):
     # assertion above is about the version check and not a dead builder.
     _patch(monkeypatch, version=1002, builder=rec)
     assert fr._prepare_once(1001) == 1002
-    assert len(rec.calls) == 1
+    assert len(rec.calls) == 2   # first-paint pass + remainder pass
 
 
 # ── It yields to members rather than competing with them ─────────────────────
@@ -259,3 +271,194 @@ def test_parts_built_for_a_SUPERSEDED_version_are_not_warm(monkeypatch, _clean_c
     h = fa.health(current_version=7)
     assert h["warm"] is False
     assert "stale" in (h["reason"] or "")
+
+
+# ── Detection must not wait behind preparation ───────────────────────────────
+#
+# ⛔⛔ THE MEASUREMENT THAT FORCED THIS, 12 real production rolls:
+# preparation is stable at 6.1-9.1 s, but version-change -> prepared ranged
+# 9-51 s (mean 23.4 s). Detection lag alone averaged 15.9 s and peaked at
+# 44.9 s -- ~68% of the cold window -- because the two passes (~15-19 s) ran
+# INLINE in the poll loop, so the loop's own work, not FLOW_PREPARE_POLL_S, set
+# the cadence. A 60 s roll cannot be tracked by a loop that is busy for 20 s.
+
+def test_the_detection_loop_KEEPS_POLLING_while_a_build_runs(monkeypatch):
+    """⛔ BEHAVIOURAL, because the defect is about BLOCKING and a structural
+    check cannot prove absence of it — my first version asserted `Thread(`
+    appears in the loop, which a mutation that ALSO calls inline satisfies
+    trivially. So run the real loop against a slow build and watch whether
+    detection keeps ticking.
+
+    This is the 44.9 s lag reproduced in miniature: preparation takes far longer
+    than the poll interval, and detection must not wait for it."""
+    import threading as _t
+    polls = []
+    building = _t.Event()
+    release = _t.Event()
+
+    def slow_once(last):
+        building.set()
+        release.wait(5)
+        return 1001
+
+    def version():
+        polls.append(1)
+        return 1001 if len(polls) < 3 else 1002
+
+    monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.02)
+    monkeypatch.setattr(fr, "_prepare_once", slow_once)
+    monkeypatch.setattr(fr, "_current_version", version)
+    monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+
+    fr._PREPARE_STOP.clear()
+    t = _t.Thread(target=fr._prepare_loop, daemon=True)
+    t.start()
+    try:
+        assert building.wait(3), "preparation never started"
+        before = len(polls)
+        time.sleep(0.4)                 # build still held open
+        after = len(polls)
+    finally:
+        # ⛔ Stop the loop and free the lane, or this test leaks a thread that
+        # polls the REAL version for the rest of the session and breaks its
+        # neighbours — which is exactly what it did on the first run.
+        release.set()
+        fr._PREPARE_STOP.set()
+        t.join(timeout=3)
+        if fr._PREPARE_INFLIGHT.locked():
+            try: fr._PREPARE_INFLIGHT.release()
+            except RuntimeError: pass
+
+    assert after > before + 2, (
+        f"detection stalled while a build ran ({before} -> {after} polls). The "
+        "loop is blocking on preparation again, which is exactly what made "
+        "version-change -> prepared reach 44.9 s in production.")
+
+
+def test_only_one_preparation_runs_at_a_time():
+    """The lock is what stops a fast detection loop starting a build per tick."""
+    assert fr._PREPARE_INFLIGHT.acquire(blocking=False)
+    try:
+        assert fr._PREPARE_INFLIGHT.acquire(blocking=False) is False
+    finally:
+        fr._PREPARE_INFLIGHT.release()
+
+
+def test_pass_2_is_SKIPPED_when_the_version_moved_during_pass_1(monkeypatch):
+    """⛔ FIRST PAINT BEATS THE REMAINDER. Spending another ~7-11 s warming the
+    OLD version's deferred parts delays the NEW version's first paint, which is
+    the only thing a member is waiting on."""
+    seen = []
+
+    def versions():
+        # first call = the version being prepared; second = after pass 1
+        seen.append(1)
+        return 1001 if len(seen) == 1 else 1002
+
+    rec = _Recorder(lambda v: (v, b"gz"))
+    monkeypatch.setattr(fr, "_current_version", versions)
+    monkeypatch.setattr(fa, "get_cached_or_build_part", rec)
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (1001, __import__("gzip").compress(b"csv")))
+
+    out = fr._prepare_once(None)
+
+    assert out == 1001, "the prepared version should still be recorded"
+    assert len(rec.calls) == 1, (
+        "the remainder pass ran even though the version had already moved — the "
+        "newer version's first paint is delayed behind stale work")
+    assert rec.calls[0][4] == fa.FIRST_PAINT_PARTS
+
+
+def test_CONTROL_pass_2_DOES_run_when_the_version_is_stable(monkeypatch):
+    """Without this, the test above would pass on a preparer that had simply
+    lost its remainder pass — and the deferred/fallback parts would go cold."""
+    rec = _Recorder(lambda v: (v, b"gz"))
+    _patch(monkeypatch, version=1001, builder=rec)
+
+    fr._prepare_once(None)
+
+    assert len(rec.calls) == 2, "the remainder pass is gone"
+
+
+# ── The roll ledger: startup must never pollute steady state ─────────────────
+#
+# ⛔⛔ TWO SEPARATE MEASUREMENT DEFECTS THIS PINS.
+# (1) A generation that predates the process is a CATCH-UP, not a roll. Counting
+#     one produced a nonsense 130 s "detection latency" in a real report.
+# (2) `version * 60` is NOT the birth instant. `_SIG_VERSION` is assigned
+#     `int(time.time() // 60)` AT PROBE TIME, so the number encodes the MINUTE
+#     the change was noticed and the true instant lies anywhere inside it. Any
+#     latency derived from the bucket is an UPPER BOUND inflated by 0-60 s — and
+#     an earlier report of mine quoted those bounds as point estimates.
+
+@pytest.fixture(autouse=True)
+def _clean_ledger():
+    fr._PREPARE_ROLLS.clear()
+    fr._VERSION_FIRST_SEEN.clear()
+    yield
+    fr._PREPARE_ROLLS.clear()
+    fr._VERSION_FIRST_SEEN.clear()
+
+
+def test_a_generation_predating_this_process_is_startup_catchup(monkeypatch):
+    old_version = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(old_version, prepare_ms=8000, pass2_skipped=False)
+
+    assert fr.prepare_rolls("steady_state_roll") == [], (
+        "a generation older than the process leaked into the steady-state "
+        "distribution — this is exactly the 130 s confusion")
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+
+
+def test_a_generation_born_after_startup_is_a_steady_state_roll():
+    new_version = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(new_version, prepare_ms=7000, pass2_skipped=False)
+
+    rows = fr.prepare_rolls("steady_state_roll")
+    assert len(rows) == 1 and rows[0]["version"] == new_version
+    assert fr.prepare_rolls("startup_catchup") == []
+
+
+def test_observed_s_uses_the_DETECTOR_sighting_not_the_bucket():
+    """⛔ The exact number. `observed_s` is detector-sighting -> published, which
+    carries none of the bucket's 0-60 s ambiguity."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._note_version_seen(v)
+    time.sleep(0.05)
+    fr._record_roll(v, prepare_ms=40, pass2_skipped=False)
+
+    row = fr.prepare_rolls("steady_state_roll")[0]
+    assert row["observed_s"] is not None and row["observed_s"] >= 0.04
+    # And it must be far smaller than the bucket figure, which starts counting
+    # from the beginning of the minute.
+    assert row["bucket_bound_s"] is None or row["bucket_bound_s"] >= row["observed_s"]
+
+
+def test_the_bucket_figure_is_reported_but_never_as_detection():
+    """It is kept for continuity with earlier reports and MUST stay labelled a
+    bound — the field name is the label."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(v, prepare_ms=7000, pass2_skipped=False)
+    row = fr.prepare_rolls()[0]
+    assert "bucket_bound_s" in row
+    assert "detection_s" not in row, (
+        "a field called detection_s would invite quoting the bucket bound as a "
+        "measured detection latency, which is the error this exists to prevent")
+
+
+def test_pass2_skipped_is_recorded(monkeypatch):
+    """So the gate can count how often a newer version overtook the remainder."""
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(v, prepare_ms=7000, pass2_skipped=True)
+    assert fr.prepare_rolls()[0]["pass2_skipped"] is True
+
+
+def test_CONTROL_the_two_classes_are_actually_distinguishable():
+    """Without this the split could pass by putting everything in one bucket."""
+    old_v = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    new_v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(old_v, 8000, False)
+    fr._record_roll(new_v, 7000, False)
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1

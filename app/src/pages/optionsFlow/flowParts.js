@@ -59,6 +59,18 @@ export const SERVER_TOPPICKS_PARTS = Object.freeze(['bootstrap', 'TOP_PICKS'])
 export const TOP_PICK_RAW_PARTS = Object.freeze(['all_directional', 'all_trades'])
 
 /**
+ * The interaction-only halves of the old bootstrap, pulled immediately AFTER
+ * first paint rather than before it.
+ *
+ * ⛔ NOT FETCHED ON A SURFACE'S FIRST USE like the other deferred keys. Both are
+ * reachable from an IMMEDIATE interaction on the default tab — clicking a
+ * sector or a ticker on Market Read — so waiting for the click would trade a
+ * fast paint for a slow first click. They are ~77% of what the bootstrap used
+ * to weigh, and nothing on the render path reads either one.
+ */
+export const INTERACTION_PARTS = Object.freeze(['TICKER_DB', 'CONV'])
+
+/**
  * Parts whose body is an OBJECT rather than a bare array.
  *
  * ⛔ An explicit list, not a loosened check. Every deferred part is a slice of

@@ -640,7 +640,17 @@ def _needs_desc(s) -> bool:
 def _desc_messages(symbol, company, year, gain_pct):
     """Build (system, prompt) for the description LLM call. Extracted so the debug
     endpoint can exercise the EXACT same prompt."""
-    gain_txt = f"about {round(gain_pct)}%" if gain_pct is not None else "a large amount"
+    # ⛔ Direction-aware. This prompt was written for the Model Book, whose
+    # entries are all big WINNERS, so it hardcoded "rose". The Company Panel now
+    # runs it over the WHOLE universe -- decliners and flat SPACs included -- and
+    # it was literally telling the model "The stock rose about -15% that year"
+    # for AAL. The model coped, but do not make it work around the prompt.
+    if gain_pct is None:
+        move_txt = "The stock made a large move that year."
+    elif gain_pct >= 0:
+        move_txt = f"The stock rose about {round(gain_pct)}% that year."
+    else:
+        move_txt = f"The stock fell about {abs(round(gain_pct))}% that year."
     system = ("You write concise, factual stock study notes for a trader's model book. "
               "Output JSON only — no preamble, no markdown fences. Always return the JSON "
               "for the ticker as it trades today, even if the company was recently spun off, "
@@ -648,7 +658,7 @@ def _desc_messages(symbol, company, year, gain_pct):
               "history or the year.")
     prompt = (
         f"Stock: {symbol} ({company or symbol}). Calendar year: {year}. "
-        f"The stock rose {gain_txt} that year.\n\n"
+        f"{move_txt}\n\n"
         'Return JSON exactly: {"company_desc": "...", "run_story": "...", '
         '"sector": "...", "industry": "..."}\n'
         "- company_desc: ONE plain sentence on what the company does.\n"
@@ -659,7 +669,8 @@ def _desc_messages(symbol, company, year, gain_pct):
         "- industry: the company's specific GICS industry that year (e.g. "
         "\"Software - Infrastructure\", \"Entertainment\", \"Personal Services\", "
         "\"Semiconductors\"). Keep it short — 1-4 words.\n"
-        "- run_story: 2-3 sentences on WHY the stock made its big move that year — "
+        "- run_story: 2-3 sentences on WHY the stock performed the way it did "
+        "that year — "
         "the specific catalysts/drivers, or the broader market theme it rode. "
         "Be factual and specific to that year; if unsure of specifics, describe the "
         "dominant theme/driver. No price targets, no buy/sell advice.\n\n"

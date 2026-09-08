@@ -248,6 +248,15 @@ def stats() -> dict:
 # background preparer warms this view; if those two ever named it separately, a
 # preparer could report success for a view nobody opens while health honestly
 # said cold, and each would look right on its own.
+# What first paint actually fetches. Everything else -- the deferred keys and
+# the 3b raw fallback pair -- is needed LATER and must not hold paint hostage.
+#
+# ⛔ Measured on prod during RTH: a full build pipes 23.8 MB of parts back and
+# takes ~30s, of which node's own work is ~6.3s. Preparing these two first turns
+# the critical path into a fraction of that, and the rest follows in a second
+# pass, so nothing stops being warm.
+FIRST_PAINT_PARTS = ("bootstrap", "TOP_PICKS")
+
 DEFAULT_VIEW = ("stocks", 1, "Last1")
 
 
@@ -505,12 +514,18 @@ def _write_etf_replica_file() -> str | None:
         return None
 
 
-def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
+def build_parts(csv_text: str, date_filter: str | None = None,
+                only: tuple | None = None) -> dict | None:
     """{part_name: gzipped_json_bytes} plus 'stats', from ONE node run."""
     if not available():
         return None
     df = valid_date_filter(date_filter)
     argv = [node_bin(), bundle_path(), "aggregate", "--split-frames"]
+    # ⛔ EMISSION FILTER ONLY. processFlowData still runs in full and every part
+    # is still computed; this decides what gets serialised and piped back. See
+    # flowFactsEntry.js for the measurement that motivated it.
+    if only:
+        argv.append("--only=" + ",".join(only))
     if df:
         argv.append(f"--date-filter={df}")
     # 3b: hand the bundle the ETF/index replica so it can compute TOP 10 with
@@ -604,7 +619,8 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
 
 
 def get_cached_or_build_part(base_key: tuple, version, csv_provider,
-                             date_filter: str | None, part: str) -> tuple | None:
+                             date_filter: str | None, part: str,
+                             only: tuple | None = None) -> tuple | None:
     """(version, gzipped_json) for ONE part, building every part at most once.
 
     Same single-flight + stale-serve contract as `get_cached_or_build` — and for
@@ -628,7 +644,7 @@ def get_cached_or_build_part(base_key: tuple, version, csv_provider,
         csv_text = csv_provider()
         if not csv_text:
             return None
-        built = build_parts(csv_text, date_filter)
+        built = build_parts(csv_text, date_filter, only=only)
         if not built:
             _STATS["build_failures"] += 1
             return None
@@ -664,6 +680,12 @@ PART_NAMES = (
     "ALL_SYMS",
     "UOA_TRADES",
     "darkPool",
+    # 2026-09-08: interaction-only, ~77% of what bootstrap used to weigh. The
+    # audit rows that kept them on first paint said only "yes" / "pre-tab hooks"
+    # while every other row carried a reason; a call-site derivation found NO
+    # useMemo/useEffect reads either one. See flowBootstrap.js.
+    "TICKER_DB",
+    "CONV",
 )
 
 
