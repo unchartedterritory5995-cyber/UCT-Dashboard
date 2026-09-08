@@ -13,6 +13,7 @@ IMMEDIATELY with 503, the client starts the tape at once, and the build it would
 have waited for runs in the background so the NEXT search is a hit.
 """
 import ast
+import gzip
 import pathlib
 import threading
 import time
@@ -168,3 +169,115 @@ def test_a_warm_skips_the_build_when_the_entry_arrived_meanwhile(monkeypatch):
 ])
 def test_truthy(v, expected):
     assert fr._truthy(v) is expected
+
+
+# ── The test that would have caught the outage ───────────────────────────────
+#
+# ⛔⛔ EVERY TEST ABOVE PASSED WHILE THE ENDPOINT RETURNED 500 IN PRODUCTION.
+# The `warm_only` branch read `request.query_params`, and this endpoint has no
+# `request` parameter -- `NameError: name 'request' is not defined` on EVERY
+# call, including ones that never mention warm_only. AST and helper tests are
+# structurally blind to that: they proved the branch was in the right place and
+# called the right things, and none of them ever executed the function.
+#
+# Members were shielded only because the client declines any non-OK response and
+# falls back to the raw tape. The speedup was silently off, and nothing red.
+#
+# So: actually CALL it. One real request through the app is worth every
+# structural assertion above.
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from api.flow_admin_auth import require_flow_user
+
+
+@pytest.fixture
+def client():
+    app = FastAPI()
+    app.include_router(fr.flow_router)   # it already has prefix="/api/flow"
+    app.dependency_overrides[require_flow_user] = lambda: {"via": "test"}
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def _statuses(client, sym="ALIT"):
+    return (client.get(f"/api/flow/ticker-product/{sym}?source=stocks").status_code,
+            client.get(f"/api/flow/ticker-product/{sym}?source=stocks&warm_only=1").status_code)
+
+
+def test_the_endpoint_does_not_500_with_or_without_warm_only(client, monkeypatch):
+    """The regression itself. Any 500 here is an unhandled exception in the
+    handler -- exactly what shipped to production.
+
+    ⛔ IT MUST REACH THE `warm_only` LINE, AND MY FIRST VERSION DID NOT. It
+    stubbed `available()` to False, which returns EARLIER in the handler, so the
+    buggy line never ran and the test passed against the outage. The mutation
+    check caught that: reintroducing `request.query_params` left it green. The
+    stubs below are chosen to land the handler ON that line.
+
+    ⛔ It also asserts the route resolved. An earlier version mounted the router
+    under a second "/api/flow" prefix, so every call 404'd and `!= 500` passed on
+    all of them."""
+    blob = gzip.compress(b'{"ok":true}')
+    monkeypatch.setattr(fr.flow_aggregate, "available", lambda: True)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+    monkeypatch.setattr(fr, "_spawn_search_warm", lambda *a, **k: True)
+    monkeypatch.setattr(fr, "_build_search_product", lambda *a, **k: (blob, None))
+
+    plain, warm = _statuses(client)
+
+    assert plain != 404 and warm != 404, (
+        "the endpoint is not mounted where this test calls it -- every "
+        "assertion here would pass vacuously")
+    assert plain != 500, "the endpoint raises without warm_only"
+    assert warm != 500, "the endpoint raises with warm_only"
+    # CONTROL: prove we actually traversed the handler rather than exiting early.
+    assert (plain, warm) == (200, 503), (
+        f"expected a build then a fast decline, got {plain}/{warm} -- the test "
+        "is not reaching the code it claims to cover")
+
+
+def test_warm_only_is_a_declared_parameter_not_read_off_a_request(client, monkeypatch):
+    """⛔ The endpoint takes no `request`, so reading query params off one is a
+    NameError at call time. Declaring it is what makes the branch reachable."""
+    import inspect
+    params = inspect.signature(fr.get_flow_ticker_product).parameters
+    assert "warm_only" in params, (
+        "warm_only is not a declared parameter -- if the handler reads it off a "
+        "`request` it does not have, every call 500s")
+
+
+def test_a_warm_only_miss_declines_fast_and_does_not_build(client, monkeypatch):
+    """The behavioural contract, exercised through the app rather than the AST."""
+    built = []
+    monkeypatch.setattr(fr.flow_aggregate, "available", lambda: True)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+    monkeypatch.setattr(fr, "_build_search_product",
+                        lambda *a, **k: built.append(a) or (b"gz", None))
+    spawned = []
+    monkeypatch.setattr(fr, "_spawn_search_warm",
+                        lambda *a, **k: spawned.append(a) or True)
+
+    r = client.get("/api/flow/ticker-product/ALIT?source=stocks&warm_only=1")
+
+    assert r.status_code == 503
+    assert built == [], "a warm_only miss built inline -- the member paid for it"
+    assert spawned, "a warm_only miss warmed nothing, so the next search is cold too"
+
+
+def test_CONTROL_without_warm_only_the_same_miss_DOES_build(client, monkeypatch):
+    """Without this, the test above would pass on an endpoint that never builds."""
+    built = []
+    # The response declares Content-Encoding: gzip, so the stub has to BE gzip —
+    # a placeholder blob makes the client fail to decode and the test fail for a
+    # reason that has nothing to do with what it is checking.
+    blob = gzip.compress(b'{"ok":true,"sym":"ALIT"}')
+    monkeypatch.setattr(fr.flow_aggregate, "available", lambda: True)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+    monkeypatch.setattr(fr, "_build_search_product",
+                        lambda *a, **k: built.append(a) or (blob, None))
+
+    r = client.get("/api/flow/ticker-product/ALIT?source=stocks")
+
+    assert r.status_code == 200
+    assert built, "the synchronous build path is gone"

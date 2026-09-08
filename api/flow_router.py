@@ -835,6 +835,7 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
 
 @flow_router.get("/ticker-product/{symbol}")
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
+                            warm_only: str = "",
                             _auth: dict = Depends(require_flow_user)):
     """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
 
@@ -874,7 +875,7 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     # it cannot stack: a thread that finds the lock held exits immediately rather
     # than queueing. Many distinct symbols searched at once therefore cost at
     # most one running derivation, not one per symbol.
-    if _truthy(request.query_params.get("warm_only")):
+    if _truthy(warm_only):
         _spawn_search_warm(sym, src, key, version)
         st.flush("MISS_WARM_ONLY")
         return JSONResponse({"ok": False, "error": "not warm"}, status_code=503)
