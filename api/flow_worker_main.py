@@ -70,6 +70,24 @@ over it in the worker to render ~17 rows. This runs the SAME bundle
 flag, which the client re-applies as a copy-on-overlay; that is what makes the
 product user-independent and cacheable at all. Nothing calls it yet. Bundle
 change => this header edit is the deploy trigger.
+(2026-09-08, first-paint preparer + an honest warm verdict:) flow-worker now
+builds the parts for the view the page opens on the MOMENT the tape version
+rolls, instead of leaving the first member after every roll to trigger a cold
+build (~16.4 s measured live), give up at the client's 3 s deadline and fall back
+to the 3.7 MB raw tape. Same `get_cached_or_build_part` a member request calls,
+same key, same CSV provider, same non-blocking single-flight lock -- so it yields
+to real requests and the product is byte-identical. Version-triggered, which
+self-gates it to market hours: one version was observed holding 5 h 07 m on a
+quiet tape and the thread did nothing at all. Runtime flag FLOW_PREPARE_ENABLED.
+⛔ AND THE REASON THIS HEADER EDIT EXISTS: `api/services/flow_aggregate.py` is
+NOT on this service's watch list (the list above is specific `api/*.py` files),
+so the health fix that ships with it -- `warm` must grade the PARTS transport
+members actually take, not the whole-D cache beside it -- would have sat
+undeployed forever. Observed on prod before the fix: {"warm": true, "parts":
+{"enabled": true, "entries": []}}, i.e. the health check calling the fast path
+ready while the path every member takes was stone cold. Same trap as the
+app/**-built bundle above, one directory deeper: a change confined to
+api/services/ deploys ONLY when something watched moves with it.
 (2026-09-08 follow-up:) that endpoint now records STAGES as they begin and
 flushes them on every exit path. The first cold-miss attempt died at the proxy's
 120 s read timeout and left NO log line at all, because logging was success-only,
