@@ -1340,6 +1340,27 @@ class TestPressSweep:
                                restart=True)
         assert sorted(calls) == ["A", "B", "C"]
 
+    def test_a_completed_pass_does_not_silently_start_over(self, db, monkeypatch):
+        """Completing resets the cursor to 0, so a re-run would read cursor=0 and
+        sweep the whole universe again. A supervisor relaunching the finished job
+        re-spent 3,742 requests on data we already had before this guard."""
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        first = ingest.run_press_sweep(["A", "B", "C"], job="t_done")
+        assert first["complete"] is True and len(calls) == 3
+
+        again = ingest.run_press_sweep(["A", "B", "C"], job="t_done")
+        assert again.get("already_complete") is True
+        assert again["requests"] == 0
+        assert len(calls) == 3, "a finished sweep must not re-request anything"
+
+    def test_restart_overrides_the_done_guard(self, db, monkeypatch):
+        calls: list[str] = []
+        ingest = self._fake_fmp(monkeypatch, calls)
+        ingest.run_press_sweep(["A", "B"], job="t_done2")
+        ingest.run_press_sweep(["A", "B"], job="t_done2", restart=True)
+        assert len(calls) == 4, "restart=True is the deliberate way to sweep again"
+
     def test_it_actually_stores_displayable_wire_copy(self, db, monkeypatch):
         """The point of the pass: issuer releases must land SHOWN, not rejected."""
         calls: list[str] = []

@@ -428,6 +428,17 @@ def run_press_sweep(symbols: Iterable[str] | None = None, *,
     b = fmp_news.RequestBudget(budget if budget is not None else len(syms) + 50,
                                "fmp-press-sweep")
     state = {} if restart else (store.get_backfill(job) or {})
+
+    # ⛔ A finished pass must STAY finished. Completing resets the cursor to 0,
+    # so without this a re-run reads cursor=0 and cheerfully sweeps the whole
+    # universe again -- which is exactly what happened when a supervisor
+    # relaunched it after it completed, silently re-spending 3,742 requests on
+    # data we already had. Pass restart=True to deliberately sweep again.
+    if state.get("done"):
+        return {"job": job, "symbols": 0, "universe": len(syms), "items": 0,
+                "failures": 0, "requests": 0, "complete": True, "cursor": 0,
+                "already_complete": True, "stats": {}}
+
     try:
         start = int(str(state.get("cursor") or "0") or 0)
     except Exception:                                     # noqa: BLE001
