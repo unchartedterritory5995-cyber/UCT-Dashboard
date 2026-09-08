@@ -1,0 +1,125 @@
+// app/src/components/chart/engine/runtime/limits.js
+//
+// ─── THE RESOURCE MODEL, AND WHY IT IS NOT THE OLD ONE ──────────────────────
+//
+// ⛔⛔ `maxLookback`'s TREE SUM IS NOT CARRIED OVER AS THE BOUND. It measured a
+// property of an EXPRESSION — how far back the deepest offset reaches — and it
+// was exactly right for a walker that evaluates each node once into a column.
+// It says nothing whatever about a loop, an array that grows, or a function that
+// calls itself through three frames. A bound that no longer bounds the thing it
+// is pointed at is worse than no bound: it reads as protection.
+//
+// ⭐ WHAT *IS* CARRIED OVER IS ITS INTENT — a static, provable ceiling computed
+// BEFORE execution, so a program that cannot possibly fit is refused rather than
+// discovered mid-bar. The front end computes the static worst case; the runtime
+// counts against it while running. Both halves are required: a static estimate
+// alone cannot see a data-dependent loop bound, and a running counter alone lets
+// a hopeless program start.
+//
+// ⛔ EVERY LIMIT HAS A NAMED FAILURE. A resource stop must never look like a
+// short series, an `na`, or a quiet zero — `lesson_a_saturated_instrument_reports_zero`
+// is the whole reason. `RuntimeLimitError` carries the limit's name, the ceiling
+// and what was reached, so the member is told which ceiling they met.
+
+/** The sixteen accounted resources. ⭐ DERIVED-FROM, NEVER RETYPED: every other
+ *  file in this directory reads limit names from here, and the conformance rail
+ *  asserts the runtime counts something for each one it claims to enforce. */
+export const LIMIT_NAMES = Object.freeze([
+  'PROGRAM_SIZE',
+  'IR_SIZE',
+  'INSTRUCTIONS_PER_BAR',
+  'TOTAL_INSTRUCTIONS',
+  'LOOP_ITERATIONS',
+  'LOOP_NESTING',
+  'CALL_DEPTH',
+  'ARRAY_ELEMENTS',
+  'ARRAY_OPERATIONS',
+  'LIVE_OBJECTS',
+  'OBJECT_OPERATIONS',
+  'HISTORY',
+  'REQUEST_COUNT',
+  'REQUEST_FANOUT',
+  'MEMORY',
+  'WALL_TIME',
+])
+
+/** ⚠️ PROVISIONAL AND SAID SO. These are starting ceilings, not measured ones.
+ *  `PHASE2_RUNTIME_ARCHITECTURE.md` §7 owns the gates that will correct them —
+ *  `lesson_an_acceptance_number_is_a_forecast_until_derived`. Each is generous
+ *  enough that no honest indicator meets it and tight enough that a runaway
+ *  stops in well under a second. */
+export const DEFAULT_LIMITS = Object.freeze({
+  PROGRAM_SIZE: 512 * 1024,
+  IR_SIZE: 200000,
+  INSTRUCTIONS_PER_BAR: 200000,
+  TOTAL_INSTRUCTIONS: 200000000,
+  LOOP_ITERATIONS: 100000,
+  LOOP_NESTING: 8,
+  CALL_DEPTH: 64,
+  ARRAY_ELEMENTS: 100000,
+  ARRAY_OPERATIONS: 2000000,
+  LIVE_OBJECTS: 500,
+  OBJECT_OPERATIONS: 200000,
+  HISTORY: 20000,
+  REQUEST_COUNT: 16,
+  REQUEST_FANOUT: 64,
+  MEMORY: 64 * 1024 * 1024,
+  WALL_TIME: 5000,
+})
+
+/** ⛔ A RESOURCE STOP IS ITS OWN FAILURE CLASS, distinct from a refusal (the
+ *  member wrote something this engine cannot mean) and from a bug (an Error).
+ *  `PHASE2_RUNTIME_ARCHITECTURE.md` §45 keeps those layered so nobody blames the
+ *  object model for a compiler failure — the same discipline C2A established for
+ *  output containment. */
+export class RuntimeLimitError extends Error {
+  constructor(limit, ceiling, reached) {
+    super(`${limit}_EXCEEDED — ceiling ${ceiling}, reached ${reached}`)
+    this.name = 'RuntimeLimitError'
+    this.limit = limit
+    this.ceiling = ceiling
+    this.reached = reached
+  }
+}
+
+export function resolveLimits(overrides) {
+  if (!overrides) return DEFAULT_LIMITS
+  const out = { ...DEFAULT_LIMITS }
+  for (const k of Object.keys(overrides)) {
+    if (!LIMIT_NAMES.includes(k)) {
+      throw new Error(`unknown limit ${JSON.stringify(k)} — this module declares ${LIMIT_NAMES.join(', ')}`)
+    }
+    out[k] = overrides[k]
+  }
+  return Object.freeze(out)
+}
+
+/** The running account. ⭐ ONE OBJECT, PASSED DOWN — never module state, because
+ *  the runtime must be re-entrant across symbols in one screener pass and module
+ *  state would let symbol 4,000 inherit symbol 3,999's budget. */
+export class Budget {
+  constructor(limits) {
+    this.limits = resolveLimits(limits)
+    this.counts = Object.create(null)
+    for (const n of LIMIT_NAMES) this.counts[n] = 0
+    this.startedAt = 0
+  }
+
+  /** Charge `n` against a limit and stop by name if it is exceeded. */
+  charge(limit, n) {
+    const next = this.counts[limit] + n
+    this.counts[limit] = next
+    const ceiling = this.limits[limit]
+    if (next > ceiling) throw new RuntimeLimitError(limit, ceiling, next)
+    return next
+  }
+
+  /** Set-and-check, for the peak measures (nesting, depth, live objects) where
+   *  the interesting number is the high-water mark rather than a total. */
+  peak(limit, n) {
+    if (n > this.counts[limit]) this.counts[limit] = n
+    const ceiling = this.limits[limit]
+    if (n > ceiling) throw new RuntimeLimitError(limit, ceiling, n)
+    return n
+  }
+}

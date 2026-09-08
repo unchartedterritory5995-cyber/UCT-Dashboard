@@ -1731,7 +1731,19 @@ const isNan = (x) => Number.isNaN(x)
 const cmp = (f) => (a, b) => (isNan(a) || isNan(b) ? 0 : (f(a, b) ? 1 : 0))
 const logical = (f) => (a, b) => (isNan(a) || isNan(b) ? NaN : (f(a !== 0, b !== 0) ? 1 : 0))
 
-const BINARY = Object.freeze({
+// ⭐⭐ EXPORTED FOR THE BAR-BY-BAR RUNTIME, and for the reason this file already
+// states two hundred lines below about its own step loop: "A second scalar table
+// here would be a second grammar, and the first thing to diverge would be the NaN
+// rule (`cmp` answers 0, `logical` answers NaN) — a difference no cross-lane
+// parity run would catch, because it would be wrong identically in both lanes."
+//
+// That argument does not stop at this module's edge. `engine/runtime/vm.js`
+// executes the same operators one bar at a time, so it imports THESE — it does
+// not keep a copy. The graph-vs-runtime differential rail is then free to test
+// what actually differs between the lanes (history indexing, ordering, emit
+// alignment, warm-up NaN patterns) instead of re-testing arithmetic that is
+// shared by construction.
+export const BINARY = Object.freeze({
   '+': (a, b) => a + b,
   '-': (a, b) => a - b,
   '*': (a, b) => a * b,
@@ -1746,12 +1758,12 @@ const BINARY = Object.freeze({
   '||': logical((a, b) => a || b),
 })
 
-const UNARY = Object.freeze({
+export const UNARY = Object.freeze({
   'u-': (a) => -a,
   '!': (a) => (isNan(a) ? NaN : (a !== 0 ? 0 : 1)),
 })
 
-const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))
+export const TERNARY = (t, a, b) => (isNan(t) ? NaN : (t !== 0 ? a : b))
 
 // --------------------------------------------------------------------------- //
 // the static measurements Task 6's budgets threshold
