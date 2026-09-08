@@ -88,6 +88,19 @@ undeployed forever. Observed on prod before the fix: {"warm": true, "parts":
 ready while the path every member takes was stone cold. Same trap as the
 app/**-built bundle above, one directory deeper: a change confined to
 api/services/ deploys ONLY when something watched moves with it.
+(2026-09-08, TICKER_DB + CONV leave first paint:) `splitAggregate` now defers
+both, so `part=bootstrap` drops from ~333 KB gz to a fraction of it. Neither key
+has a single first-paint reader: every TICKER_DB consumer is a button handler, a
+`selectedItem`-gated Market Read branch, or a non-default tab, and every CONV
+consumer is `wlPopulate`/`wlPopulateUnusual` or Scanner Suggestions inside the
+Watchlist tab -- NO useMemo/useEffect reads either one. The client pulls both
+immediately AFTER paint and nothing is removed, summarised or reshaped.
+⛔ THIS HEADER EDIT IS THE DEPLOY TRIGGER, AND WITHOUT IT THE SLICE IS INERT.
+The split lives in `app/dist/flow-facts.cjs`, built from `app/**`, and the
+mirrored allowlist lives in `api/services/flow_aggregate.py` -- NEITHER path is
+on this service's watch list. Pushing them alone changes precisely nothing while
+every test stays green: flow-worker would keep serving the OLD bundle and the
+old, fat bootstrap. Same trap as the availableDates and TOP_PICKS entries above.
 (2026-09-08 follow-up:) that endpoint now records STAGES as they begin and
 flushes them on every exit path. The first cold-miss attempt died at the proxy's
 120 s read timeout and left NO log line at all, because logging was success-only,
