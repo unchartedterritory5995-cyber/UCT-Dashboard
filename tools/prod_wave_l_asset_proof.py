@@ -41,6 +41,11 @@ MARKERS = {
     # Slice 5: the context-derived destination label. Its presence is the only
     # asset-level evidence that the door passes a destination at all.
     "context_destination_label": "This note",
+    # ── Wave M ─────────────────────────────────────────────────────────────
+    # The source-kind-aware labels. Their PRESENCE is the asset-level evidence
+    # that a web capture can no longer be rendered as "· p.N".
+    "wave_m_captured_passage_label": "Captured passage",
+    "wave_m_saved_passage_label": "Saved passage",
 }
 
 
