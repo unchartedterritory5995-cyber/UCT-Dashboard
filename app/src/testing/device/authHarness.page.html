@@ -7,7 +7,14 @@
 <style>
   html,body{margin:0;height:100%;background:#080907;color:#e8e4d8;
     font:11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
-  #app{position:fixed;inset:0 0 46% 0;width:100%;border:0;background:#000}
+  /* ⛔⛔ THE `height` IS LOAD-BEARING, AND ITS ABSENCE COST EVERY RUN SO FAR.
+     An <iframe> carries a DEFAULT height of 150px (HTML's 300x150 replaced-element
+     default). With `top`, `bottom` AND `height` all non-auto, CSS is
+     over-constrained and `bottom` is the one that gets dropped — so this frame
+     resolved to 150px tall on a 659px phone, and the app inside it spent every
+     device run rendering into a 393x150 window. Measured, not guessed:
+     computed height 150px while top/bottom both read 0px. */
+  #app{position:fixed;inset:0 0 46% 0;width:100%;height:54%;border:0;background:#000}
   #panel{position:fixed;left:0;right:0;bottom:0;height:46%;overflow:auto;
     background:rgba(8,9,7,.98);border-top:1px solid #3a3a3a;padding:4px 6px;
     z-index:2147483647}
@@ -93,6 +100,9 @@ function render(results, done) {
       })
     } catch { /* the panel will say what happened */ }
     frame.src = view
+    // Full-screen in view mode — the height must be set too, for the reason in
+    // the stylesheet above; `inset:0` alone leaves the 150px default standing.
+    frame.style.height = '100%'
     /* ⛔ SKIP THE INTRO IN VIEW MODE TOO. The cinematic intro plays on every page
        load and runs ~9 seconds — a sixth of a device session, spent on an
        animation, before the thing being looked at exists. The step suite has

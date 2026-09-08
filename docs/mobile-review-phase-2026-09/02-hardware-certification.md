@@ -6,8 +6,8 @@
 |---|---|
 | `REVIEW_FEED_HARDWARE` | **PASS** |
 | `FEED_SCROLL_INTENT` | **PASS** (structural, on-device; the finger half is named below) |
-| `TOUCH_SLOP_HARDWARE` | **NOT RUN** |
-| `REVIEW_PILL_POSITION` | **STILL_UNRESOLVED** — default stays LEFT |
+| `TOUCH_SLOP_HARDWARE` | **PASS** — iPhone 15 Pro / iOS 17.5, 12/12 |
+| `REVIEW_PILL_POSITION` | **LEFT** — resolved on measurement, not preference |
 | `PRE_EXISTING_REACHABILITY_FAILURE` | **OUT_OF_SCOPE** |
 
 ---
@@ -105,7 +105,59 @@ feature, and the brief says no density setting yet.
 over a long session. Those are a trader's call, and 70 vh is the geometry that
 makes both candidates cheap to compare again if it is wrong.
 
-## 6 · Pill placement — STILL_UNRESOLVED
+## 6 · Pill placement — RESOLVED: LEFT
+
+Both variants place an **identical control** — 145×52 (LEFT) vs 152×52 (RIGHT).
+The only thing that differs is WHICH bars it sits on. Measured at the iPhone 15
+Pro's real viewport width (393 px, price axis 76 px, price action 0–317 px):
+
+| | pill x-range | covers | thumb distance |
+|---|---|---|---|
+| **LEFT** portrait | 8 – 153 | the **oldest 48%**; the newest half stays clear | 326 px |
+| **RIGHT** portrait | 169 – 321 | **the newest 47% of price action**, hard against the axis | 175 px |
+| **LEFT** landscape | 68 – 213 | 24.9% of a 583 px plot, oldest end | 520 px |
+| **RIGHT** landscape | 435 – 587 | **the newest 25.4%**, hard against the axis | 152 px |
+
+Vertically both sit at y 540–592 in a 53–604 chart — the bottom ~60 px, which is
+the volume pane and the lower wicks. So the obstruction is a band across those
+bars, not the whole column; the question is only *which* bars wear it.
+
+**A · Is RIGHT materially easier one-handed?** Yes — **151 px** closer in
+portrait (175 vs 326) and **368 px** closer in landscape (152 vs 520). This is RIGHT's only advantage, and it is real.
+
+**B · Does RIGHT obstruct the newest bars?** Yes, by construction. Its 64 px
+inset exists to clear the price axis, which lands it directly on the most recent
+candles. Vertically it is a 52 px band at the bottom of the plot, so it covers
+the volume pane and the lower wicks of the newest bars rather than the whole
+column — but that band is over the newest 47% of price action in portrait.
+
+**C · Does LEFT's reach cost more than RIGHT's intrusion?** No. **The pill is
+pressed BETWEEN looks, not during them** — one tap to advance a symbol, then
+seconds of reading. Reach is paid once per symbol; obstruction is paid the whole
+time the chart is on screen. In a review flow the looking dominates the tapping.
+
+**D · Is either materially worse in landscape?** No, and the asymmetry favours
+holding one position: landscape is where RIGHT's reach gap is largest (520 vs
+152) *and* where LEFT's intrusion is smallest (24.9% of a much wider plot, at the
+oldest end). Neither is bad enough to justify a per-orientation rule.
+
+**E · Interference with crosshair / drawing / price actions?** This is the cost
+that is easy to miss. The pill is `z-index: 5` with `touch-action: manipulation`,
+so **every tap inside its box belongs to the pill, not the chart**. Under RIGHT
+that dead zone sits exactly where a member taps to drop a drawing anchor at the
+current price or open the price-context menu on the latest bar. Under LEFT the
+dead zone is over the oldest bars.
+
+**REVIEW_PILL_POSITION = LEFT.** No code change — LEFT is already the shipped
+default; this converts a recommendation into a measured decision.
+
+⚠️ **The split between device and local, stated plainly.** pillRight was rendered
+and confirmed on the **iPhone 15 Pro / iOS 17.6** — it draws, it is reachable,
+and it sits hard against the price axis with candles behind it. The exact
+rectangles above come from a local run at the real 393×659 viewport with a coarse
+pointer, re-taken after the harness bug in §8 was fixed.
+
+## ⚰️ Superseded: the earlier STILL_UNRESOLVED
 
 Two attempts at the right-hand variant were lost inside the 60-second cap: one to
 the cinematic intro animation (now skipped in view mode) and one to a promotional
@@ -123,14 +175,28 @@ hardware.
 one device, portrait, with the chart drawn — compare the pill against the newest
 bars, then rotate. The intro skip now makes that fit in one session.
 
-## 7 · Touch slop — NOT RUN
+## 7 · Touch slop — PASS
 
-No hardware step exists for it. The shipped contract (`SLOP_COARSE = 8`,
-`SLOP_FINE = 2`) is covered by source-rail and unit tests only. Building the step
-is tractable — the drawing overlay is driven by pointer events, which synthetic
-events *can* exercise (unlike native scrolling) — but it was not built in this
-pass, and reporting a PASS from the existing evidence would be claiming a device
-result that does not exist.
+**iPhone 15 Pro / iOS 17.5, Safari, 393×659 portrait — 12/12 PASS in 9.4 s**,
+reproduced a second time at 1.3 s on the same device.
+
+```
+PASS 12 · FAIL 0 · BLOCKED 0 / 12
+  the device reports a COARSE pointer — which slop is in force
+  a drawing is PLACED BY TAPPING, so its pixel anchor is known
+  SETTLED != READY — a tap SELECTS it before any gesture is judged
+  A · tap to select                    -> geometry UNCHANGED
+  B · 4px, below the coarse threshold  -> geometry UNCHANGED
+  C · exactly 8px, STRICTLY GREATER    -> geometry UNCHANGED
+  D · 30px, clearly a drag             -> geometry CHANGES
+  E/F · select-only taps left NO history entry; the drag left one
+  G · a SECOND finger cancels an in-progress drag
+```
+
+Every verdict is read from `drawingsStore`'s synchronously-persisted geometry —
+the product's own truth — never inferred from the pointer events the harness
+dispatched. All seven cases A–G the brief required are covered, including the
+strictly-greater-than boundary and multi-touch cancellation.
 
 ## 8 · Feed scroll intent — PASS, with the finger half named
 
@@ -178,3 +244,32 @@ reaching them, from `cc195e888`, which pointed `/community` at
 FULL SCOPE             exit=1   1,251 passed / 1 failed (1,252)   <- the Floor
 THIS PHASE (no Floor)  exit=0   1,240 passed (1,240)
 ```
+
+## 8 · ⚰️ The harness was testing a 393×150 phone
+
+Found while answering "why is the screen only showing this much?" — and it is the
+most consequential harness defect of the programme.
+
+`#app` is `position: fixed; inset: 0 0 46% 0` with **no CSS `height`**. An
+`<iframe>` carries HTML's default replaced-element size of **300×150**, and when
+`top`, `bottom` *and* `height` are all non-auto, CSS is over-constrained and
+`bottom` is the declaration that gets dropped. Measured, not inferred: computed
+`top: 0px`, `bottom: 0px`, **`height: 150px`** on a 659 px phone.
+
+**So every device run before this rendered the app into a 393×150 window.**
+
+⭐ What that does and does not invalidate, stated case by case:
+- **Unaffected — logic verdicts.** The slop contract (geometry before/after a
+  gesture), the feed handoff, the ≤3 ceiling, order and continuity are all
+  reasoning about state, not layout. Re-run at the corrected 393×659: **slop
+  12/12, feed 9/9**, and slop re-confirmed **on device, 12/12 in 2.7 s**.
+- **Unaffected — the density number.** Cards-per-screen is `100 / height-vh`,
+  a ratio; it is the same at any viewport height.
+- **Corrected — the pill rectangles.** The first measurement put LEFT at x 68 and
+  a 255 px thumb distance; at the true viewport it is x 8 and 326 px. The
+  decision does not move — LEFT still covers the oldest bars and RIGHT the newest
+  — but the numbers in §6 are the corrected ones.
+
+Fix: give `#app` an explicit `height: 54%`, and set `height: 100%` alongside
+`inset: 0` in view mode. Verified on hardware: the app now fills the phone, with
+the chart, drawing toolbar and placed line all visible.
