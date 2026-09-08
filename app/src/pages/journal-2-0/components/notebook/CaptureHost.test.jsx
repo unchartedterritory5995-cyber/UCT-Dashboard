@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import CaptureHost from './CaptureHost'
 import { openCapture } from '../../lib/captureBus'
 import { captureDestination } from '../../lib/capture'
+import { parseShare, writePendingShare } from '../../lib/shareTarget'
 
 const mount = () => render(<MemoryRouter><CaptureHost /></MemoryRouter>)
 
@@ -110,6 +111,49 @@ describe('capture preserves the member context (§5/§20)', () => {
     openCapture({})
     await screen.findByRole('dialog')
     fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+})
+
+describe('the mobile share door lands here (Slice 4)', () => {
+  // `ShareTargetPage` lives outside `Layout`, so arriving from it always mounts
+  // this component fresh — which is why a mount-time consume is enough and no
+  // second channel exists to keep in sync.
+  beforeEach(() => { sessionStorage.clear() })
+
+  it('a parked share opens the dialog on mount, with no door event', async () => {
+    writePendingShare(parseShare({ url: 'https://wsj.com/x', title: 'Fed holds', text: 'rates steady' }))
+    mount()
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByLabelText('Source link')).toHaveValue('https://wsj.com/x')
+    expect(screen.getByLabelText('Selected passage')).toHaveValue('rates steady')
+  })
+
+  it('⛔ a url-less share opens the THOUGHT box, not a quotation', async () => {
+    // Source mode would demand a URL the share never carried, so the member
+    // would meet a blocked Save; and calling their text a passage would assert
+    // provenance nobody established.
+    writePendingShare(parseShare({ text: 'margins normalize by Q3' }))
+    mount()
+    await screen.findByRole('dialog')
+    expect(screen.getByLabelText('Quick thought')).toHaveValue('margins normalize by Q3')
+    expect(screen.queryByLabelText('Selected passage')).toBeNull()
+  })
+
+  it('⛔ it is consumed ONCE — a remount does not reopen it', async () => {
+    writePendingShare(parseShare({ url: 'https://wsj.com/x' }))
+    const first = mount()
+    await screen.findByRole('dialog')
+    first.unmount()
+    mount()
+    // A share left in storage would reopen on every mount: a capture the member
+    // cannot dismiss.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('no parked share means no dialog — the normal case is untouched', async () => {
+    mount()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 })

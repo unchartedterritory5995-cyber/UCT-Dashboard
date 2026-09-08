@@ -94,3 +94,4 @@ app/src/newsqa.jsx
 app/vite.qa.config.js
 tools/capture_phone_out/
 tools/capture_extension_out/
+tools/share_phone_out/

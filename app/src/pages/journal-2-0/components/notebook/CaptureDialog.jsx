@@ -47,7 +47,12 @@ export default function CaptureDialog({
   // provenance line forbids. A door that supplies a URL opens in source mode;
   // everything else opens on the highest-frequency action, a quick thought.
   const [mode, setMode] = useState(initial.url || initial.passage ? 'source' : 'thought')
-  const [thought, setThought] = useState('')
+  // ⭐ A door may prefill the thought box (Wave L Slice 4). The mobile share
+  // sheet is the first: a share carrying text but NO url has no citable source,
+  // so it cannot be a passage — it opens here, and the member's own Save (or the
+  // "Capture a source" switch below) settles what it is. A door that prefilled
+  // `passage` instead would open source mode and then block on a missing URL.
+  const [thought, setThought] = useState(initial.thought || '')
   const [pickedDest, setPickedDest] = useState(null)
   const [url, setUrl] = useState(initial.url || '')
   const [title, setTitle] = useState(initial.title || '')

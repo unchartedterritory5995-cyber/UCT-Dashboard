@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import CaptureDialog from './CaptureDialog'
 import { CAPTURE_OPEN_EVENT } from '../../lib/captureBus'
 import { captureDestination } from '../../lib/capture'
+import { shareCaptureDetail, takePendingShare } from '../../lib/shareTarget'
 import { useJ2Recents } from '../../hooks/useJ2Notes'
 
 /**
@@ -36,6 +37,21 @@ export default function CaptureHost() {
     const onOpen = (e) => { setDetail(e.detail || {}); setSeq((n) => n + 1); setOpen(true) }
     window.addEventListener(CAPTURE_OPEN_EVENT, onOpen)
     return () => window.removeEventListener(CAPTURE_OPEN_EVENT, onOpen)
+  }, [])
+
+  // ⭐ THE MOBILE SHARE DOOR LANDS HERE (Wave L Slice 4 §6). `ShareTargetPage`
+  // lives OUTSIDE `Layout`, so arriving from it always mounts this component
+  // fresh — a mount-time consume is sufficient and needs no second channel.
+  //
+  // ⛔ CONSUMED EXACTLY ONCE (`takePendingShare` reads AND clears). A share left
+  // in storage would reopen the dialog on every subsequent mount, which is a
+  // capture the member cannot dismiss.
+  useEffect(() => {
+    const pending = takePendingShare()
+    if (!pending) return
+    setDetail(shareCaptureDetail(pending))
+    setSeq((n) => n + 1)
+    setOpen(true)
   }, [])
 
   useEffect(() => {
