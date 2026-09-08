@@ -7,6 +7,7 @@ import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
 import useExcerptSearch from '../../hooks/useExcerptSearch'
 import { searchResultTitle, searchResultHint } from '../../lib/searchResultLabel'
+import { searchResultTarget } from '../../lib/searchNavigation'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -979,7 +980,8 @@ export default function FolderSidebar({
                   key={`${d.documentId}-${d.pageNumber}`}
                   type="button"
                   className={styles.searchResultRow}
-                  onClick={() => onOpenNote({ id: d.noteId })}
+                  onClick={() => onOpenNote({ id: d.noteId },
+                                             searchResultTarget(d, { kind: 'page' }))}
                   title={searchResultHint(d, { kind: 'page' })}
                 >
                   {/* ⛔ The icon follows the KIND too: a captured web source is
@@ -1013,7 +1015,8 @@ export default function FolderSidebar({
                   key={e.excerptId}
                   type="button"
                   className={styles.searchResultRow}
-                  onClick={() => onOpenNote({ id: e.noteId })}
+                  onClick={() => onOpenNote({ id: e.noteId },
+                                             searchResultTarget(e, { kind: 'excerpt' }))}
                   title={searchResultHint(e, { kind: 'excerpt' })}
                 >
                   <UIcon name="quote" size={12} gold={false} />
