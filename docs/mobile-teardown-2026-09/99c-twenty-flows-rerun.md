@@ -153,3 +153,26 @@ competitor needs the same proof as a positive one, and I do not have it.
 Plus two standing product decisions, unchanged and correct:
 **bar replay** and **symbol comparison** are `INTENTIONALLY_DESKTOP_ONLY`, now
 recorded as such in `98` §3.3 rather than looking like oversights.
+
+---
+
+## Addendum · one capability the 20 flows never covered
+
+**Drawing Boards** ("tracings" — named overlay sheets of drawings spanning every
+ticker) is not one of the 20 certified flows, because the research never built a
+flow for it. It was found instead by the MOB-06′ presentation register, as an
+**orphaned mobile task**: real, per-user, synced, rendered by the canvas, and
+reachable only through a `ChartToolbar` the phone shell sets to `display:none`.
+
+It shipped tonight (`f8d625c27`) — Tools → **Drawing boards**, beside Layouts:
+switch · rename · show/hide · delete · new, with the active board named on the row.
+
+⭐ **Worth recording as a method point:** the flow comparison found *zero* of this.
+Twenty task flows chosen by comparing two products can only see capabilities that
+sit on both sides of the comparison; a **register of the product's own controls**
+found this in one pass. The two instruments answer different questions and this
+study needed both.
+⚠️ I am deliberately **not** claiming TradingView lacks an equivalent — I have not
+verified that, and a negative claim about a competitor needs the same proof as a
+positive one. What is verified is that UCT has boards, and that until tonight the
+phone could not reach them.

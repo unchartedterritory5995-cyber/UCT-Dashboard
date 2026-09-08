@@ -136,7 +136,7 @@ not a CSS-comment rewrite.
 | `Indicator alerts` | GR | M2 | set an alert on an indicator | ✅ **A** — tap the indicator's legend chip → **Alerts**, and long-press an indicator pane → **Add alert on ‹label›…** (`i-alert`). Both call `toolbarRef.openAlerts`, which serves from the hidden host by design. Live because `showDrawingTools` defaults **true** and the phone shell does not override it. ⚠️ `97` had this UNVERIFIED | SRC (chain) | ✅ | `NO_CHANGE` — **confirm on device**, the popover's host is `display:none` | `IndicatorAlertPopover.scope.test.jsx` |
 | `Clear all drawings ({n})` | — | M2 | wipe every drawing at once | ❌ **NONE.** `onClearAll` reaches only `ChartToolbar` and the two annotation toolbars. The eraser is one-at-a-time | SRC (exhaustive) | ❌ **ORPHANED MOBILE TASK** | `MOVE_TO_TOOLS` — one row, next wave | *(none yet)* |
 | `Repeat drawing: on` / `off` | — | M2 | keep a tool armed across placements | ❌ **NONE.** `repeatMode`/`setRepeatMode` are passed to `ChartToolbar` and `ChartDrawingOverlay`, **never** to `MobileDrawBar` | SRC (exhaustive) | ❌ **ORPHANED — but benign**: the default is OFF, which is the correct phone default, and `MobileDrawBar.arm()` re-arms in one tap | `MOVE_TO_TOOLS` (low priority) | *(none yet)* |
-| `Drawing Boards` (`BoardsToolButton`) | — | M2 | save / switch named drawing sets | ❌ **NONE.** Rendered only inside the hidden strip (`showTracings`) | SRC (exhaustive) | ❌ **ORPHANED MOBILE TASK** — highest-value of the three | **owner call** — a phone door is real work, not a row | *(none yet)* |
+| `Drawing Boards` (`BoardsToolButton`) | TS | M2 | save / switch named drawing sets | ✅ **A (repaired 2026-09-08)** — Tools → **Drawing boards** (`MobileBoardsSheet`), beside Layouts: switch · rename · show/hide · delete · new, with the active board's name on the row. Was ❌ NONE | SRC + TEST | ✅ **A** *after* the repair; **was the last high-value orphan** | `NO_CHANGE` | `charts/mobile/MobileBoardsSheet.test.jsx` + `boardsDoor.wire.test.jsx` |
 | `Customize drawing tools` | NA | M2 | show/hide & favourite tools on the desktop rail | ❌ none — **and correctly so**: it customises a rail the phone does not have. `MobileDrawBar` ships its own fixed 18-tool roster | SRC | ✅ **B** | `NO_CHANGE` | `MobileDrawBar.roster.test.js` |
 | `Undo` · `Redo` | GR | M2 | step history | ✅ **A** — `MobileDrawBar` carries both | SRC + REAL | ✅ | `NO_CHANGE` | `MobileDrawBar.roster.test.js` |
 
@@ -160,14 +160,21 @@ non-shell surface that is literally true. Do not add it.
 
 Two were repaired under this wave. Three remain, and they are **recorded, not hidden**:
 
-| orphan | severity | why it is not being fixed here |
-|---|---|---|
-| `Clear all drawings` | low | one row in the Tools sheet; MOB-06′ authorized two specific repairs, not a third |
-| `Repeat drawing` | very low | the phone is locked to the *correct* default and re-arming costs one tap |
-| `Drawing Boards` | **medium** | a real feature with no phone surface at all. Building one is a wave, not a row — **owner call** |
+**ALL FIVE ARE NOW REPAIRED.** The register above is, for the first time, free of
+orphaned mobile tasks.
 
-**Repaired:** percentage scale (had no phone writer in the entire app) and
-`$ Vol` / `Avg ND` (rendered on no phone surface).
+| orphan | closed by |
+|---|---|
+| Percentage scale — no phone writer existed in the entire app | `0f1a5e2f5` |
+| `$ Vol` / `Avg ND` — rendered on no phone surface | `0f1a5e2f5` |
+| `Clear all drawings` | `3930bb0a3` — a Tools row that names what it will destroy |
+| `Repeat drawing` | `3930bb0a3`, relocated `47dd0bbcc` — a mode row on the Tools sheet |
+| `Drawing Boards` | `f8d625c27` — a phone sheet beside Layouts |
+
+⚠️ Two capabilities remain absent from the phone and are **deferred, not orphaned** —
+the distinction being that both are recorded with a reason: per-object `Hide`
+(needs a recovery surface first) and object→alert *binding* (needs a schema and a
+server-evaluation change that could not be verified). Both are in `99b`.
 
 ---
 

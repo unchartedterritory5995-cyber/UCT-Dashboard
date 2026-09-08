@@ -48,7 +48,7 @@ tombstone) · `90-independent-validation.md` · `95-census-errata.md` ·
 | 6 | **MOB-05** bind a drawing's alert to the drawing | ⛔ **DEFERRED — explicitly.** It needs an alert-row schema change AND a change to server-side alert evaluation. Neither can be verified in this session: the device cannot authenticate (below), so there is no way to watch a bound alert actually fire. Shipping an unverifiable change to *when a member's alerts trigger* is not a trade worth making. TradingView stays ahead on F14 and the rerun says so |
 | 7 | **MOB-10** `Hide` in the drawing object menu | ⛔ **DEFERRED — with a product reason, not a scheduling one.** Drawings carry `locked` but no `hidden`: a model field, the render loop, both hit-test loops, **and a recovery surface**. Hiding an object that vanishes with no list to unhide it from is exactly the ACCIDENTALLY_UNAVAILABLE state this sprint forbids, and the object tree that fixes it (MOB-15) is deferred. Half of this is worse than none of it |
 | 8 | **MOB-08** `presentation[deviceClass]` | ⛔ **DEFERRED.** `L`, MEDIUM risk, and a persistence-shape migration on the workspace record — the one place a careless refactor produces a blank board. Not a 4am change without device verification |
-| 9 | **Drawing Boards** phone door | ⛔ **OWNER CALL**, unchanged — a phone door is a wave, not a row |
+| 9 | **Drawing Boards** phone door | ✅ **SHIPPED** `f8d625c27` — evaluated on value rather than because it was listed, and it earned it: MOB-09 had just made a phone correctly ADOPT boards it still could not choose between. 19 tests, 5 mutations red |
 
 ## TOMBSTONED — and one row that must be OVERTURNED
 
