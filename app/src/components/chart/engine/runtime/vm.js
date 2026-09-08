@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
 import { Budget } from './limits.js'
 
@@ -31,6 +31,7 @@ const LT = BINARY['<'], GT = BINARY['>'], LE = BINARY['<='], GE = BINARY['>=']
 const EQ = BINARY['=='], NE = BINARY['!=']
 const AND = BINARY['&&'], OR = BINARY['||']
 const NOT = UNARY['!'], NEG = UNARY['u-']
+const PW = POINTWISE_FOR_PARITY
 
 export class VmError extends Error {
   constructor(message) { super(message); this.name = 'VmError' }
@@ -226,6 +227,23 @@ export function execute(program, ctx, limits) {
           // This one line is §6: the code is shared, the `var` state is not.
           persistBase = site.persistBase
           pc = fn.entry
+          break
+        }
+        case OP.POINTWISE: {
+          // ⭐⭐ THE SCALAR IMPLEMENTATION IS THE COLUMNAR LANE'S OWN. `POINTWISE`
+          // is the very table `interpret.js` applies elementwise to build a
+          // column, so a pointwise call over runtime state and the same call over
+          // a pure series are the SAME arithmetic by construction — including the
+          // na rules, which is where a re-implementation would have diverged
+          // first and least visibly.
+          const fn = PW[program.pointwise[a]]
+          if (!fn) throw new VmError(`pc ${pc - 1}: no pointwise implementation for ${program.pointwise[a]}`)
+          sp -= b
+          let v
+          if (b === 1) v = fn(stack[sp])
+          else if (b === 2) v = fn(stack[sp], stack[sp + 1])
+          else v = fn(...Array.prototype.slice.call(stack, sp, sp + b))
+          stack[sp++] = v
           break
         }
         case OP.RET: {

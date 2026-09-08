@@ -1,6 +1,6 @@
 # PINE LANGUAGE + RUNTIME COMPLETION MATRIX
 
-As of C4 Phase 2E. Branch `worktree-indicator-ecosystem`.
+As of C4 Phase 2F-1. Branch `worktree-indicator-ecosystem`.
 
 ⭐⭐ **FIVE LEVELS, NOT ONE WORD (§52).** "LOOP: partial" tells an engineer
 nothing about what is left. These columns do:
@@ -64,9 +64,24 @@ the RUNTIME lane, not the product overall.
 | arrays / matrix / map | ✅ | ✅ | 🟡 | ⬜ | ⬜ | `runtime:array` — routed to the COLLECTION family, not `pine:builtin` |
 | user-defined types | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:udt` |
 | builtin calls (closed table, 70) | ✅ | ✅ | ✅ | ✅ | ✅ | via `READ_COLUMN` — evaluated once by the columnar lane |
-| a **POINTWISE** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-pointwise-state` — **8 scripts**; needs only a per-bar apply, no series |
-| a **WINDOWED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — **6 scripts**; the real series bridge |
-| a **REQUEST** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:request-with-state` — 1 script |
+| a **POINTWISE** builtin fed by state | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-1** — `EXPR.BUILTIN` → `OP.POINTWISE`, applied per bar. **14 → 0** across all five corpora |
+| a **WINDOWED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-windowed-state` — **9 scripts** (was reported 13; see the correction below). The real series bridge |
+| an **UNDECLARED** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-undeclared-builtin-state` — 2 scripts. Blocked on the BUILTIN existing in the closed table, not on the runtime |
+| a **TEXT** builtin fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-text-state` — 1 script. A value-model change; deferred by name (§22) |
+| a **CONVERSION** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:call-conversion-state` — 1 script. `int`/`float`/`bool`; `pine.js` rules on each separately |
+| a **REQUEST** fed by state | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:request-with-state` — 2 scripts |
+
+⚰️⚰️ **THE SERIES BRIDGE WAS OVER-SIZED BY FOUR SCRIPTS, AND 2F-1 IS WHAT FOUND
+IT.** With the pointwise 14 executing, the residual bucket was re-read BY NAME
+instead of by count, and `runtime:call-windowed-state` held `str.upper`, `int`,
+`iff` and `cum` beside `ema`, `sma` and `wma`. Measured against `TABLE.functions`,
+none of those four is windowed — three are not declared by the closed table **at
+all**, so their wall is the builtin existing, and one is a numeric cast. Left
+alone, this matrix would have priced the series bridge at 13 when it is 9, and
+hidden a text demand and a conversion demand inside a series row. This is the
+same defect 2E fixed one level up (`runtime:call-with-state` was three
+capabilities wearing one label) — **a residual bucket is a hypothesis, not a
+family, until someone reads the names in it.**
 
 ## Outputs, presentation, objects
 
@@ -108,18 +123,24 @@ Instrument: `app/src/components/chart/engine/ast/runtimeFrontendCoverage.test.js
 | community | 30 | **5** | 25 |
 | curated Pine | 21 | **3** | 18 |
 | OOS-1 frozen | 60 | 0 | 60 |
-| **total** | **159** | **27** | 132 |
+| OOS-2 parity | 10 | 0 | 10 |
+| **total** | **169** | **27** | 142 |
+
+⚰️ This table read `159` across FOUR corpora while the census beneath it quoted
+five — the fifth (`tests/fixtures/oos2_parity`, 10 scripts) was being measured and
+not counted. Re-measured 2F-1: all five, one instrument, one run each.
 
 **Differential against the columnar lane, where both lanes describe the
 indicator** (paired output-for-output, 1e-9): **blind 18/19 · community 5/5 ·
 curated 3/3.** The single exception is named and exempted with its reason.
+OOS-1 and parity contribute no pairs — nothing in them executes yet.
 
 ### The next dependency, on the frozen OOS-60
 
 ⚰️ **THE 2D-2 CENSUS THAT STOOD HERE IS SUPERSEDED** — it read `runtime:function`
-18 and would have contradicted the 2E section below in the same document, which
-is the second-authority-over-one-value defect this repo pays for most often.
-**The live census is under "Next dependency … after 2E".**
+18 and would have contradicted the later section in the same document, which is
+the second-authority-over-one-value defect this repo pays for most often.
+**The live census is under "Next dependency … after 2F-1".**
 
 
 ---
@@ -161,7 +182,7 @@ prevent.** Rows, not a word.
 **Therefore the honest headline is `STATEFUL UDF CALL FRAMES COMPLETE` (§66) —
 not "UDF support complete".**
 
-## Measured coverage after 2E
+## Measured coverage after 2F-1
 
 | corpus | n | executed | differential |
 |---|---|---|---|
@@ -169,18 +190,61 @@ not "UDF support complete".**
 | community | 30 | 5 | 5/5 |
 | curated | 21 | 3 | 3/3 |
 | OOS-1 | 60 | 0 | — |
+| parity | 10 | 0 | — |
 
-⚠️ **Executed counts did not move, and that is the expected shape** (§42): the 18
-function-blocked scripts each hit their next true dependency. What moved is the
-wall.
+⚠️ **Executed counts did not move, and that is the expected shape** (§42) — it was
+the expected shape after 2E for the same reason. Every script that cleared the
+pointwise wall hit its NEXT true dependency; none regressed, and none started
+executing with an unproven number. What moved is the wall.
 
-### Next dependency on the frozen OOS-60, after 2E
+### The transition, measured by NAME on the same instrument
 
-`runtime:function` **18 → 0**.
+⭐ Not by histogram arithmetic. The pointwise classifier was fitted with a kill
+switch, all five corpora were re-measured with it armed, and the front end was
+restored **byte-identically** (sha256 `a95c6208…`) — never by `git checkout`
+(`feedback_mutation_check_never_git_checkout`). The armed run reproduced the
+recorded 2E number exactly (OOS-60 = 8), which makes it the mutation control as
+well as the baseline: with the pointwise path off, these fourteen scripts come
+straight back.
 
-`pine:block` 9 · `runtime:call-pointwise-state` **8** ·
-`runtime:call-windowed-state` 6 · `pine:text-value` 6 · `runtime:presentation` 5 ·
-`pine:character` 4 · `pine:collection` 4 · `pine:statement` 3 · `runtime:udt` 3 ·
-`runtime:directive` 2 · `pine:builtin` 2 · `pine:colour-value` 2 ·
-`runtime:expression-statement` 2 · `runtime:tuple` 2 · `pine:function` 1 ·
+| corpus | `call-pointwise-state` before → after |
+|---|---|
+| OOS-1 | **8 → 0** |
+| curated | 3 → 0 |
+| community | 2 → 0 |
+| parity | 1 → 0 |
+| blind | 0 → 0 |
+| **total** | **14 → 0** |
+
+Where each of the fourteen went next — every one a NEW, further dependency:
+
+| script | new wall |
+|---|---|
+| `high_engagement__03-supertrend-kivancozbilgic` | `runtime:history-variable` |
+| `high_engagement__14-heikin-ashi-candle-overlay-bjorgum` | `runtime:history-variable` |
+| `high_engagement__16-klinger-volume-oscillator-everget` (×2 corpora) | `runtime:history-variable` |
+| `05-chandelier-exit` · `10-supertrend` | `runtime:history-variable` |
+| `high_engagement__20-ehlers-fisher-transform-cheatcountry` | `pine:request` |
+| `long_tail__19-session-fibs-falcon-ai` · `mid_engagement__16-ict-smc-guide` · `06-adx-advanced` | `pine:function` |
+| `mid_engagement__17-volume-surge-radar` | `pine:text-value` |
+| `mid_engagement__21-market-compass-dynamic-range` | `pine:window` |
+| `13-relative-strength-vs-benchmark-spy` | `runtime:call-windowed-state` |
+| `14-bollinger-bands-fixed-timeframe` | `pine:builtin` |
+
+⭐⭐ **`runtime:history-variable` is the capability this wave exposed** — six of the
+fourteen land on it, and it was invisible while the pointwise wall stood in front
+of it. History over a mutable variable (a per-slot ring buffer committed at end of
+bar, refused today rather than approximated with the current value) is now the
+single largest runtime-side demand the census can see.
+
+### Next dependency on the frozen OOS-60, after 2F-1
+
+`runtime:call-pointwise-state` **8 → 0**.
+
+`pine:block` 9 · `pine:text-value` 7 · `runtime:presentation` 5 ·
+`pine:character` 4 · `pine:collection` 4 · `runtime:call-windowed-state` **4** ·
+`pine:function` 3 · `pine:statement` 3 · `runtime:history-variable` **3** ·
+`runtime:udt` 3 · `pine:builtin` 2 · `pine:colour-value` 2 · `runtime:directive` 2 ·
+`runtime:expression-statement` 2 · `runtime:tuple` 2 · `pine:request` 1 ·
+`pine:window` 1 · `runtime:call-conversion-state` 1 · `runtime:call-text-state` 1 ·
 `runtime:request-with-state` 1.

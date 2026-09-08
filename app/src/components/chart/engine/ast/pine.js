@@ -527,7 +527,11 @@ const NAMESPACE_GUARD = Object.freeze({
  *  ⛔ `ta` AND `math` ARE NOT AN ALLOW-LIST OF FUNCTIONS. They are the two places
  *  Pine keeps the kind of thing this table could declare; whether any particular
  *  member exists is `TABLE.functions`'s answer and nothing else's. */
-const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
+// ⭐ EXPORTED NARROWLY FOR THE RUNTIME'S POINTWISE CLASSIFIER (2F-1). The
+// runtime must decide 'is this call pointwise' from AUTHORITATIVE metadata, not
+// from a namespace-stripping heuristic — this set plus `PINE_CALL_SHAPES` IS
+// that authority, and exporting it is cheaper and safer than a second catalog.
+export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
 
 /**
  * ⭐⭐ THE ONE THING THE MANIFEST DOES NOT DECLARE, AND THE ONLY REASON THIS

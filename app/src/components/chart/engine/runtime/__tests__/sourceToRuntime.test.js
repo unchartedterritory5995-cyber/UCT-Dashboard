@@ -195,7 +195,18 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // an MTF request — so the label was retired rather than kept as a wall that
     // looked bigger and more uniform than it is. `ta.sma` is the windowed case.
     ['a WINDOWED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, 'runtime:call-windowed-state'],
-    ['a POINTWISE builtin fed by state', `${head}var x = 0.0\nx := close\nplot(math.max(x, 5))\n`, 'runtime:call-pointwise-state'],
+    // ⚰️⚰️ `math.max` OVER STATE REFUSED HERE UNTIL 2F-1, WHICH EXECUTES IT, and
+    // the replacement case is worth reading because the first attempt was WRONG.
+    // It moved to `ta.cum` and asserted `call-windowed-state` — "cumulative needs
+    // the series foundation" — which sounded right and was not: the closed table
+    // does not declare `cum` AT ALL, so nothing about it is windowed. 2F-1's
+    // census found the same mistake sitting in the corpus numbers (`str.upper`,
+    // `int` and `iff` were all filed as windowed), and the split below is what
+    // that correction looks like. These three refusals are three different walls.
+    ['a WINDOWED builtin fed by state (declared)', `${head}var x = 0.0\nx := close\nplot(ta.ema(x, 5))\n`, 'runtime:call-windowed-state'],
+    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`, 'runtime:call-undeclared-builtin-state'],
+    ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
+    ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(int(x))\n`, 'runtime:call-conversion-state'],
     ['a strategy', `//@version=5\nstrategy("s")\nplot(close)\n`, 'runtime:declaration'],
   ]
   for (const [label, src, guard] of CASES) {

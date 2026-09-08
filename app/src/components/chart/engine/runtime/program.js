@@ -81,6 +81,12 @@ export const OP = Object.freeze({
   // twice.
   CALL: 70,
   RET: 71,
+  // ⭐⭐ 2F-1 — a POINTWISE table builtin applied to CURRENT-BAR values.
+  // a: index into `program.pointwise` (a TABLE function name), b: argument count.
+  // ⛔ NO SYNTHETIC SERIES. A genuinely pointwise function needs only the values
+  // on this bar, so materialising a fake history column just to reuse a columnar
+  // implementation would invent data the program never had.
+  POINTWISE: 72,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -95,7 +101,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.AND, OP.OR, OP.NOT, OP.SELECT,
   OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
   OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT,
-  OP.CALL, OP.RET,
+  OP.CALL, OP.RET, OP.POINTWISE,
   OP.EMIT, OP.HALT,
 ]))
 
@@ -120,7 +126,7 @@ export class ProgramError extends Error {
  */
 export function makeProgram({
   code, consts, columns, outputs, locals = 0, persists = 0, version = null,
-  functions = [], callSites = [],
+  functions = [], callSites = [], pointwise = [],
 }) {
   if (!Array.isArray(code) || code.length % 3 !== 0) {
     throw new ProgramError(`code must be a flat array of [op,a,b] triples; got length ${code && code.length}`)
@@ -137,6 +143,7 @@ export function makeProgram({
     // invocation owns; `params` is how many of them are bound from the stack.
     functions: Object.freeze((functions || []).map((f) => Object.freeze({ ...f }))),
     callSites: Object.freeze((callSites || []).map((c) => Object.freeze({ ...c }))),
+    pointwise: Object.freeze((pointwise || []).slice()),
     instructions: code.length / 3,
   })
   validateProgram(p)
@@ -181,6 +188,11 @@ export function validateProgram(p) {
     }
     if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= maxPersist)) {
       throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${maxPersist} persist slots`)
+    }
+    if (op === OP.POINTWISE) {
+      if (a < 0 || a >= p.pointwise.length) {
+        throw new ProgramError(`pc ${pc}: POINTWISE ${a} outside ${p.pointwise.length} names`)
+      }
     }
     if (op === OP.CALL) {
       if (a < 0 || a >= p.functions.length) {

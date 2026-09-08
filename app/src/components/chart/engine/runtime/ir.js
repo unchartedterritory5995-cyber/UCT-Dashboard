@@ -48,6 +48,7 @@ export const EXPR = Object.freeze({
   UNARY: 'unary',
   TERNARY: 'ternary',
   CALL: 'call',           // a user-defined function invocation at a CALL SITE
+  BUILTIN: 'builtin',     // a POINTWISE table builtin applied to current-bar values
   // ── declared, not yet lowerable ──
   TUPLE: 'tuple',
   ARRAY_OP: 'arrayOp',
@@ -194,6 +195,16 @@ export function validateIr(p) {
         e.args.forEach((a, k) => walkExpr(a, `${where}.args[${k}]`))
         return
       }
+      case EXPR.BUILTIN: {
+        // ⛔ NAMED BY ITS TABLE ENTRY, never by its Pine spelling. `math.max`,
+        // `max` and a v2 bare `max` are ONE semantic function; carrying the
+        // surface name here would make the runtime re-decide that mapping and
+        // become a second authority over it.
+        if (typeof e.fn !== 'string') throw new IrError(`${where}: a builtin carries its TABLE name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: a builtin carries args`)
+        e.args.forEach((a, k) => walkExpr(a, `${where}.args[${k}]`))
+        return
+      }
       case EXPR.TUPLE: case EXPR.ARRAY_OP: case EXPR.OBJECT_OP:
         // ⛔ DECLARED, NOT LOWERABLE. Accepted by the validator so a front end
         // can BUILD one and get a named refusal from the lowering, rather than
@@ -297,6 +308,7 @@ export const binary = (op, left, right) => ({ kind: EXPR.BINARY, op, left, right
 export const unary = (op, of) => ({ kind: EXPR.UNARY, op, of })
 export const ternary = (test, a, b) => ({ kind: EXPR.TERNARY, test, then: a, else: b })
 export const call = (fn, site, args) => ({ kind: EXPR.CALL, fn, site, args })
+export const builtin = (fn, args) => ({ kind: EXPR.BUILTIN, fn, args })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })

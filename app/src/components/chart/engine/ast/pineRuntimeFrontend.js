@@ -31,12 +31,13 @@
 import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal,
+  VALUE_NAMESPACES, PINE_CALL_SHAPES,
 } from './pine.js'
 import { TABLE, isPointwise } from './parse.js'
-import { interpret } from './interpret.js'
+import { interpret, POINTWISE_FOR_PARITY } from './interpret.js'
 import {
   makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
-  declare, assign, ifStmt, emit, call as irCall,
+  declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin,
 } from '../runtime/ir.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
@@ -64,6 +65,21 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'a WINDOWED builtin fed by a mutable variable — this one needs the series bridge',
   'runtime:request-with-state':
     'a data request whose argument is a mutable value',
+  // ⭐⭐ SPLIT AGAIN IN 2F-1, FOR THE SAME REASON 2E SPLIT THE FIRST ONE (§14).
+  // With the pointwise 14 executing, the residual bucket was re-read by name and
+  // it was NOT one family either: `str.upper`, `int` and `iff` sat in
+  // `call-windowed-state` beside `ema`, `sma` and `wma`. Measured against the
+  // closed table (`TABLE.functions`), those three are not windowed — they are
+  // **not declared at all**, so the wall is the TABLE, not the series bridge.
+  // Left alone, the matrix would have sized the series bridge at 13 when it is
+  // 10, and hidden a text/conversion demand inside a series row.
+  'runtime:call-text-state':
+    'a TEXT builtin applied to a mutable value — text is a value-model change, not a series one',
+  'runtime:call-conversion-state':
+    'a numeric CONVERSION applied to a mutable value — a cast, not a series',
+  'runtime:call-undeclared-builtin-state':
+    'a builtin fed by a mutable value that the CLOSED TABLE does not declare at all — '
+    + 'this one is blocked on the builtin existing, not on the runtime',
   'runtime:operator': 'an operator the runtime has no instruction for',
   'runtime:switch': 'a switch — the runtime has no multi-way branch yet',
   'runtime:varip': 'varip — intrabar persistence, which a closed-bar runtime cannot reproduce',
@@ -102,6 +118,16 @@ const PRICE = new Set(['open', 'high', 'low', 'close', 'volume'])
 const BLOCK_WORDS = new Set(['for', 'while'])
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
+/** Pine's three numeric casts, as a REPORTING label only.
+ *
+ *  ⭐ THEY ARE `pine.js`'s, not this file's invention: its resolver handles
+ *  `int`, `bool` and `float` by name and rules on each separately — `float(x)`
+ *  is the identity in a one-numeric-column engine, `bool(x)` is `x != 0`, and
+ *  `int(x)` REFUSES unless the argument already reduces to a whole number
+ *  because TradingView does not publish whether the cast truncates, rounds or
+ *  floors. Naming them here keeps a cast from being filed as a windowed series
+ *  function; it can never make one execute. */
+const CONVERSION_NAMES = Object.freeze(new Set(['int', 'float', 'bool']))
 
 // ── mutability pre-scan ─────────────────────────────────────────────────────
 
@@ -148,6 +174,64 @@ class Scope {
 }
 
 // ── the builder ─────────────────────────────────────────────────────────────
+
+/** ⚠️ EXPORTED FOR THE RAIL ONLY, like `PINE_CALL_SHAPES`, and `shapes` is a
+ *  parameter FOR THE SAME REASON — read-only, defaulting to the real table.
+ *
+ *  ⛔⛔ WITHOUT BOTH, THE IDENTITY-BUILD GUARD IS UNFALSIFIABLE. It was nested
+ *  inside `buildRuntimeIr` and every rewrite shape in `PINE_CALL_SHAPES` happens
+ *  to name a NON-pointwise table, so `isPointwise` rejected them one line later
+ *  and DELETING the guard changed no observable answer — measured, not assumed:
+ *  the deletion left all 124 runtime tests green. A guard nobody has seen fire is
+ *  not a guard (`lesson_gate_that_cannot_fail`), so the rail passes a synthetic
+ *  rewrite shape onto a pointwise target and watches this refuse it. */
+/** ⭐⭐ THE AUTHORITATIVE POINTWISE CLASSIFIER (§14) — EXECUTION SEMANTICS.
+ *
+ *  ⛔ THIS IS NOT THE NAMESPACE HEURISTIC BELOW, and the difference is the
+ *  whole of §14. `builtinStateFamily` labels a REFUSAL for the census and may
+ *  mislabel without ever changing a number. THIS decides whether code RUNS, so
+ *  every step of it comes from an authority that already exists:
+ *
+ *    · `VALUE_NAMESPACES`  — pine.js's own set of namespaces that carry values
+ *    · `PINE_CALL_SHAPES`  — pine.js's own Pine-name -> TABLE-name mapping
+ *    · `TABLE.functions`   — the closed table's declaration
+ *    · `isPointwise`       — parse.js's own predicate (lookback 0, no forward,
+ *                            every argument a series)
+ *    · `POINTWISE_FOR_PARITY` — interpret.js's own scalar implementations
+ *
+ *  Nothing here is a second catalog, and a function only executes if ALL FIVE
+ *  agree it is pointwise and implemented.
+ *
+ *  @returns {{table:string, spec:object}|null}
+ */
+export const pointwiseTarget = (pineName, shapes = PINE_CALL_SHAPES) => {
+  const name = String(pineName || '')
+  let bare = name
+  const dot = name.indexOf('.')
+  if (dot >= 0) {
+    const ns = name.slice(0, dot)
+    // ⛔ ONLY A DECLARED VALUE NAMESPACE. `str.`, `request.`, `array.`,
+    // `line.` and friends are different families entirely and must not be
+    // stripped into a table lookup that happens to collide.
+    if (!VALUE_NAMESPACES.has(ns)) return null
+    bare = name.slice(dot + 1)
+  }
+  const shape = shapes[bare]
+  if (shape) {
+    // ⛔ ONLY AN IDENTITY BUILD. A shape whose `build` rearranges, injects or
+    // synthesises arguments is not a rename — it is a REWRITE, and applying it
+    // by passing the Pine arguments straight through would compute a different
+    // function. Fail closed.
+    const identity = Array.isArray(shape.build)
+      && shape.build.every((b, i) => b && b.pine === i && Object.keys(b).length === 1)
+    if (!identity) return null
+  }
+  const table = shape && shape.table ? shape.table : bare
+  const spec = TABLE.functions[table]
+  if (!spec || !isPointwise(spec)) return null
+  if (typeof POINTWISE_FOR_PARITY[table] !== 'function') return null
+  return { table, spec }
+}
 
 /**
  * @param {string} source  Pine source
@@ -274,6 +358,7 @@ export function buildRuntimeIr(source, opts = {}) {
   }
   const readsSlot = needsRuntime
 
+
   /** ⭐ WHICH builtin-with-state family a call belongs to.
    *
    *  ⚠️ THE NAMESPACE STRIP IS A HEURISTIC AND IT ONLY AFFECTS A LABEL. Pine
@@ -286,12 +371,22 @@ export function buildRuntimeIr(source, opts = {}) {
   const builtinStateFamily = (rawName) => {
     const name = String(rawName || '')
     if (/^request\./.test(name)) return 'runtime:request-with-state'
+    // ⭐ A NAMESPACE THAT ANSWERS THE QUESTION BY ITSELF. `str.` is text whatever
+    // the bare name turns out to be, so it is read BEFORE the strip rather than
+    // after — stripping first is what let `str.upper` be filed as windowed.
+    if (/^str\./.test(name)) return 'runtime:call-text-state'
     const bare = name.replace(/^(ta|math|str|array|matrix|map)\./, '')
     const spec = TABLE.functions[bare]
     if (spec && isPointwise(spec)) return 'runtime:call-pointwise-state'
     // `na`/`nz` are Pine forms rather than table entries, and both are pointwise
     // by construction — they read one value and answer about that value.
     if (bare === 'na' || bare === 'nz') return 'runtime:call-pointwise-state'
+    if (CONVERSION_NAMES.has(bare)) return 'runtime:call-conversion-state'
+    // ⛔⛔ AND THE RESIDUAL IS NOT AUTOMATICALLY "WINDOWED". Only a name the
+    // closed table actually declares can be said to need the series bridge; a
+    // name it does not declare is blocked on the builtin existing, and calling
+    // that "windowed" inflates the series row with work that belongs elsewhere.
+    if (!spec) return 'runtime:call-undeclared-builtin-state'
     return 'runtime:call-windowed-state'
   }
 
@@ -392,6 +487,31 @@ export function buildRuntimeIr(source, opts = {}) {
         }
         const fam = callFamily(node.name)
         if (fam) { note(fam); throw new RuntimeRefusal(fam, `\`${node.name}\``, locate(node.tok)) }
+        // ⭐⭐ A POINTWISE BUILTIN OVER RUNTIME STATE — 2F-1's whole capability.
+        // Its arguments are lowered in the caller's scope, so a state-derived
+        // argument is an ordinary runtime expression, and the result composes
+        // back into assignments, conditions, outputs and further calls.
+        const pw = pointwiseTarget(node.name)
+        if (pw) {
+          for (const a of node.args) {
+            if (a && a.name) {
+              throw new RuntimeRefusal('runtime:statement',
+                `a named argument \`${a.name}\` on \`${node.name}\``, locate(node.tok))
+            }
+          }
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          const want = pw.spec.args.length
+          let args = given.map((a) => lowerExpr(a, scope))
+          // ⭐ `nz(x)` IS `nz(x, 0)` — pine.js's own resolver says so, and this
+          // mirrors that ruling rather than inventing a default.
+          if (pw.table === 'nz' && given.length === 1 && want === 2) args = [args[0], num(0)]
+          if (args.length !== want) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes ${want} argument${want === 1 ? '' : 's'}, given ${given.length}`,
+              locate(node.tok))
+          }
+          return irBuiltin(pw.table, args)
+        }
         // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
         const g = builtinStateFamily(node.name)
         note(g)

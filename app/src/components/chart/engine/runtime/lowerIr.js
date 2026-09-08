@@ -33,6 +33,7 @@ const UN_OP = Object.freeze({ '!': OP.NOT, 'u-': OP.NEG })
 export function lowerIrProgram(ir) {
   const code = []
   const consts = []
+  const pointwise = []
 
   const constIndex = (v) => {
     const i = consts.indexOf(v)
@@ -99,6 +100,13 @@ export function lowerIrProgram(ir) {
         // (`STMT.IF`) and must never be routed here.
         expr(e.test); expr(e.then); expr(e.else); emit(OP.SELECT)
         return
+      case EXPR.BUILTIN: {
+        for (const a of e.args) expr(a)
+        let i = pointwise.indexOf(e.fn)
+        if (i < 0) { pointwise.push(e.fn); i = pointwise.length - 1 }
+        emit(OP.POINTWISE, i, e.args.length)
+        return
+      }
       case EXPR.CALL: {
         // ⭐ ARGUMENTS PUSH LEFT TO RIGHT; the frame pops them in reverse. The
         // order is fixed HERE rather than left to the host, because once an
@@ -199,6 +207,7 @@ export function lowerIrProgram(ir) {
     locals: ir.slots.filter((s) => s.owner === null && s.kind === SLOT.LOCAL).length,
     persists: persistTotal(ir),
     functions,
+    pointwise,
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, at: c.at || null,
     })),

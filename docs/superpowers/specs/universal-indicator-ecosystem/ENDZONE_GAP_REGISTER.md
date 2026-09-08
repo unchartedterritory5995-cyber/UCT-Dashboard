@@ -1157,3 +1157,125 @@ recorded as TradingView's answer about a script nobody wrote.
 `shortDescription`, plot count, plot titles, and the absence of stale studies —
 before accepting a single value.** The editor DOM is rAF-rendered and is not
 evidence of what compiled. Both captures here carry that proof in the fixture.
+
+---
+
+# PART N — 2F-1: POINTWISE CALLS OVER RUNTIME STATE (2026-09-08)
+
+HEAD at entry `2f75addb5`. Suites: `src/components/chart/engine/runtime`
+**123 passing** (6 files); whole engine **4,387 passing / 1 failing**, the failure
+pre-existing at HEAD and named in N6.
+
+### N1 — ⭐⭐ THE CAPABILITY IS BUILT, AND IT EXECUTES
+
+A builtin that depends on nothing but its current-bar inputs now runs against a
+value the runtime mutated. `EXPR.BUILTIN` in the IR → `OP.POINTWISE` in the
+program → the VM applies `interpret.js`'s own `POINTWISE_FOR_PARITY` scalar per
+bar. `math.max(x, 5)`, `math.min`, `abs`, `sign`, `round`, `sqrt`, `pow`, `mod`,
+`idiv`, `sin`, `cos`, `exp`, `ln` (reached as `math.log`), `log10`, `na` and `nz`
+all execute over state, inside UDF bodies, inside branches, and in both
+directions of composition (state → pointwise → state, stateful-UDF → pointwise →
+stateful-UDF).
+
+⛔ **NO SYNTHETIC HISTORY.** A pointwise function needs only this bar's values, so
+nothing materialises a fake column to reuse a columnar implementation. `sma`,
+`ema` and friends over state stay refused.
+
+### N2 — ⭐⭐ THE CLASSIFIER IS FIVE AUTHORITIES AGREEING, NOT A NAME HEURISTIC
+
+`pointwiseTarget` executes a call only when **all five** agree it is pointwise and
+implemented: `VALUE_NAMESPACES` (pine.js's own namespace set) · `PINE_CALL_SHAPES`
+(pine.js's own Pine-name → table-name mapping) · `TABLE.functions` · `isPointwise`
+(parse.js's own predicate) · `POINTWISE_FOR_PARITY` (interpret.js's own scalar).
+Nothing here is a second catalog.
+
+- A namespace outside `VALUE_NAMESPACES` is **never stripped** — `str.length` can
+  never collide with a table entry called `length`.
+- A `PINE_CALL_SHAPES` entry is admitted **only if its `build` is an identity
+  passthrough**. A shape that rearranges, injects or synthesises arguments is a
+  REWRITE, and applying it by passing Pine's arguments straight through would
+  compute a different function. Fails closed.
+- `nz(x)` is `nz(x, 0)` — **mirroring pine.js's own ruling**, not inventing a
+  default.
+- `int()` is deliberately EXCLUDED. `pine.js` records that cast as
+  written-and-taken-back-out (TradingView does not publish whether it truncates,
+  rounds or floors), so implementing it in the runtime lane alone would create a
+  cross-lane divergence under the member's own title.
+
+⚠️ The identity-build guard is currently **unreachable from Pine source** — no
+rewrite shape names a pointwise table. Rather than fake a call, the rail asserts
+the PROPERTY over the shipped tables (`pointwise.test.js`), with a two-way
+non-vacuity control: the predicate must call `max` identity and `stoch`/`atr`
+not, and the loop must actually have found pointwise-reachable shapes to judge.
+
+### N3 — ⭐⭐ MEASURED: `call-pointwise-state` **14 → 0**, BY NAME, ON THE SAME INSTRUMENT
+
+Not by histogram arithmetic. The classifier was fitted with a kill switch, all
+five corpora re-measured with it armed, and `pineRuntimeFrontend.js` restored
+**byte-identically** (sha256 `a95c62080b9edf9521f6697f6fb1f5ae42eb33cb2bc9b6a06513022ecc80c702`),
+never by `git checkout` (`feedback_mutation_check_never_git_checkout`).
+
+⭐ **The armed run reproduced the recorded 2E number exactly (OOS-60 = 8)**, so it
+is the mutation control as well as the baseline: with the pointwise path off, the
+fourteen come straight back.
+
+OOS-1 **8 → 0** · curated 3 → 0 · community 2 → 0 · parity 1 → 0 · blind 0 → 0.
+
+⭐ **All fourteen were genuinely pointwise** — §14's condition is met. Every one
+moved to a NEW, further dependency; none regressed and none began executing with
+an unproven number. Executed counts are unchanged (27/169), which is the expected
+shape (§42): what moved is the wall.
+
+### N4 — ⚰️⚰️ THE RESIDUAL BUCKET WAS NOT ONE FAMILY EITHER (the correction §14 asked for)
+
+With the pointwise 14 gone, `runtime:call-windowed-state` was re-read BY NAME and
+held `str.upper`, `int`, `iff` and `cum` beside `ema`, `sma` and `wma`. Measured
+against `TABLE.functions`: three of the four are **not declared by the closed
+table at all** (so their wall is the builtin existing, not the series bridge) and
+one is a numeric cast.
+
+Split into `runtime:call-text-state` · `runtime:call-conversion-state` ·
+`runtime:call-undeclared-builtin-state`, and `str.` is now read BEFORE the
+namespace strip rather than after — stripping first is exactly what let
+`str.upper` be filed as a windowed series function.
+
+**The series bridge is 9 scripts, not 13** (OOS-60: 6 → 4). This is the same
+defect 2E fixed one level up. ⛔ **A residual bucket is a hypothesis, not a
+family, until someone reads the names in it** — and the label-only heuristic that
+files these is documented as a REPORTING device precisely so a mislabel misfiles
+a matrix row and can never change a number.
+
+### N5 — ⭐⭐ THE CAPABILITY THIS WAVE EXPOSED: `runtime:history-variable`
+
+Six of the fourteen land on it (`supertrend` ×2, `heikin-ashi-candle-overlay`,
+`klinger-volume-oscillator` ×2 corpora, `chandelier-exit`), and it was invisible
+while the pointwise wall stood in front of it. History over a MUTABLE variable
+needs a per-slot ring buffer committed at end of bar; `lowerIr.js` refuses it by
+name rather than approximating it with the slot's CURRENT value, which would be
+silently one bar wrong on every bar. **It is now the largest runtime-side demand
+the census can see** and the natural 2F-2 candidate.
+
+### N6 — 🔴 PRE-EXISTING RED, NOT THIS WAVE'S AND NOT FIXED HERE
+
+`app/src/components/chart/engine/__tests__/flipCRecord.test.js` asserts
+`tools/chart_parity_cases.json` has **52** cases; it has **53**. Verified
+pre-existing: neither file is modified in this working tree, and
+`git show HEAD:tools/chart_parity_cases.json` already counts 53.
+
+⚰️ It is the repo's recurring defect — **a hand-typed count beside the list it
+describes** — this time inside a non-vacuity guard, so the rail that exists to
+prove the assertions above it are not vacuous is itself the thing that is red.
+Left for the wave that owns the parity corpus: 52 → 53 is the plausible fix and
+the wrong one if a case was added that should not have been.
+
+### N7 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **N7.1** | RUNTIME / HISTORY | `runtime:history-variable` — 7 scripts across five corpora. Per-slot ring buffer committed at end of bar. **Largest runtime-side demand.** |
+| **N7.2** | RUNTIME / SERIES BRIDGE | `runtime:call-windowed-state` — 9 scripts (corrected from 13). |
+| **N7.3** | TABLE / BUILTINS | `runtime:call-undeclared-builtin-state` — 2 scripts. `iff` and `cum` are not in the closed table; this is a TABLE gap surfacing through the runtime lane. |
+| **N7.4** | VALUE MODEL | `runtime:call-text-state` — 1 script. Deferred by name (§22); text is a value-model change. |
+| **N7.5** | VALUE MODEL | `runtime:call-conversion-state` — 1 script. `int` stays refused for the reason pine.js gives; `float`/`bool` are cheap if the lanes are moved together. |
+| **N7.6** | PERSISTENCE | Still no persisted runtime artifact and no version (carried from M5.6 / L7.4). `pointwise[]` is now part of the program shape and must be in the artifact contract before anything is saved. |
+| **N7.7** | RUNTIME / FRAMES | `runtime:function-global-state` (carried M5.3), default parameters (M5.4), tuple/collection ABI (M5.5) — all unchanged. |
