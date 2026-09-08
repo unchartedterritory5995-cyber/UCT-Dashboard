@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-07 · **Occasion:** Wave K parked behind the 8G-B shared-production
 hold; the waiting window used for read-only re-baselining.
-**Status:** PLANNING ONLY. No implementation authorized by this document. Wave L
+**Status:** PLANNING ONLY — **ACCEPTED with owner rulings 2026-09-07 (see §6, which governs).** No implementation authorized by this document. Wave L
 does not begin until Wave K is fully production-certified.
 
 **The question this answers:** *after Waves A–K, what would still force a serious
@@ -135,8 +135,13 @@ notebook becomes primary.**
 
 ## 3. The re-baseline's central insight
 
-**OCR and semantic retrieval are the same decision, and the roadmap treats them as
-two unrelated rows.**
+**OCR and semantic retrieval are blocked on the same decision, and the roadmap
+treats them as two unrelated rows.**
+
+⛔ **Corrected by owner ruling 2026-09-07** (this section originally said they were
+"the same decision", which overstated it): they share the *external-data / privacy*
+question, and they are **NOT the same technical capability**. One privacy
+evaluation, two separate technical benchmarks. See §6.A/§6.B.
 
 - G-121 (OCR) is blocked on: *may private member documents be processed by an
   external service, and at what cost?*
@@ -148,12 +153,16 @@ that dissolves both: **Obsidian's most-used AI plugin does vault-wide semantic
 search with a local embedding model — no API key, nothing leaving the machine.**
 The same shape applies to OCR (Tesseract-class local extraction).
 
-⭐ **Recommendation: one bounded "local intelligence" spike answers both blocked
-rows at once** — model choice, index size, CPU cost on the web pod, and whether
-the pod can carry it without touching request latency. If it clears, OCR and
-semantic recall both unblock with **no vendor retention question at all**, and the
-ZDR conversation stops being a dependency for shipping. If it does not clear, both
-stay blocked on the same single owner decision instead of two.
+⭐ **Recommendation: one privacy/compute evaluation, two separate technical
+benchmarks** (§6). The purpose is to determine whether UCT can close both gaps
+**without expanding private member content to an external processor.** If it
+clears, OCR and semantic recall both unblock with no vendor retention question at
+all, and ZDR stops being a dependency for shipping. If it does not clear, both stay
+blocked on one owner decision instead of two.
+
+⛔ **Benchmark first. Do not adopt a model merely because a competitor uses one.**
+Obsidian's plugin is evidence that the shape is viable, not evidence that any
+particular model is right for this corpus on this pod.
 
 This does not authorize implementation, and it changes nothing about Wave K:
 semantic retrieval remains architecturally approved, quality-justified by the
@@ -239,3 +248,150 @@ research tool.
 - **Zero real member usage evidence.** Day 0. Every ranking above is a judgment
   about what members will need, not a measurement of what they do need — and the
   first real cohort should be allowed to reorder it.
+
+---
+
+# 6. OWNER RULINGS — 2026-09-07 (re-baseline ACCEPTED)
+
+The re-baseline above is accepted subject to the rulings in this section. Where a
+ruling refines or corrects the analysis above, **the ruling governs**; the original
+text is left in place rather than rewritten, with the correction marked inline.
+
+**The 8G-B shared-production hold remains active.** No merge, no deploy, no
+production flag change, no 8G-B polling, no Wave L implementation.
+**Wave K release remains the next executable production action.**
+
+## 6.0 G-080 / public share link — LIVE CONFIGURATION, AUTHORIZATION UNVERIFIED
+
+`J2_SHARE_LINKS_ENABLED=1` is live. The durable planning artifacts still describe
+activation as gated on conditions whose satisfaction has not been recovered.
+Classify the state exactly as:
+
+    LIVE CONFIGURATION
+    BUT ACTIVATION AUTHORIZATION / GATE EVIDENCE UNVERIFIED
+
+- ⛔ **Do NOT close G-080 merely because the flag is enabled.** A flag being on is
+  evidence of configuration, not of authorization.
+- ⛔ **Do NOT change the production flag while the 8G-B hold is active.**
+
+**After the hold clears**, in this order:
+1. Search for durable evidence that the required §21 / legal and activation
+   approval actually occurred.
+2. **If that evidence exists** — reconcile the canonical records and close or
+   reclassify G-080 appropriately.
+3. **If that evidence does NOT exist** — **disable `J2_SHARE_LINKS_ENABLED`** until
+   the required review/approval is completed.
+
+⛔ The engineering mitigations (sanitized public payload; no user id, tags, folder
+or ticker; static archived widget images rather than live vendor widgets) **are
+relevant risk controls but are NOT substitutes for the missing activation
+evidence.** Do not let their quality be read as approval.
+
+## 6.1 Post-Wave-K integrity mini-pass — AFTER production certification, BEFORE Wave L
+
+Narrowly scoped. It owns three items and **no additional product features**.
+
+**A. G-063 temporal correctness.** A reconstructable widget captured before a
+future event must not later rewrite the research context with resolved/live
+results. The invariant to preserve:
+
+> **WHAT THE MEMBER CAPTURED THEN MUST NOT SILENTLY BECOME WHAT IS TRUE NOW.**
+
+Investigate the exact `widgetEmbedCore.js` behavior and implement the *smallest*
+correct frozen-at-insert / current-state distinction consistent with the existing
+temporal-semantics architecture (`docs/notebook/financial-temporal-semantics.md`).
+
+**B. Raw-error regression.** `TickerResearchWorkspace.jsx` reintroduced
+`alert(...e.message)` after an earlier wave fixed this defect class. Fix the
+current paths **and add a reusable rail** so member-facing Notebook surfaces cannot
+regress to raw backend/provider errors.
+
+**C. Gap-ledger reconciliation.** Reconcile the **ORIGINAL authoritative rows** —
+do not merely append another section saying they shipped. The planning artifact
+must again answer truthfully: **what is OPEN, what is PARTIAL, what is CLOSED.**
+⛔ Do not rewrite history: preserve dates and evidence, and add closure references.
+
+⛔ **G-102 command-palette participation is NOT in this mini-pass — it remains
+Wave L scope.**
+
+## 6.2 Wave L — CAPTURE & COMMAND (next major implementation wave)
+
+Begins only after Wave K is production-certified **and** the integrity mini-pass is
+complete. Scope, with evidence-based design rather than assumed solutions:
+
+- external web capture;
+- **reconsideration of G-043** now that Notebook has documents, excerpts, theses
+  and Ask to capture *into* — the rejection predates the destination existing;
+- the four remaining internal capture surfaces: **Screener, Options Flow, COT,
+  Model Book**;
+- Notebook participation in the existing application-wide command palette;
+- fast navigation / command discoverability;
+- mobile capture / share workflow;
+- appropriate PWA foundations / manifest.
+
+The goal, in the owner's words:
+
+> **ANYTHING IMPORTANT I ENCOUNTER CAN ENTER MY RESEARCH WITH MINIMAL FRICTION**, and
+> **I CAN REACH NOTEBOOK ACTIONS WITHOUT HUNTING THROUGH UI.**
+
+## 6.3 Wave M — PRIVATE RECALL FOUNDATION (refined)
+
+**Local/private semantic retrieval + local/private OCR, under ONE privacy/compute
+evaluation but TWO separate technical benchmarks.** They share the external-data
+question; they are not the same capability, and a single combined verdict would
+hide which one actually failed.
+
+**A. Local embedding model** — paraphrase recall · false positives · index size ·
+RAM · CPU · latency · incremental indexing · Railway/pod impact · the real
+751-note corpus · larger synthetic scale.
+**Fixed baseline: the existing low-overlap benchmark** (0/7 before the AND→OR fix,
+3/7 after). It is the control, and it does not move to flatter a candidate.
+
+**B. Local OCR engine** — scanned-PDF accuracy · screenshot/image accuracy ·
+financial-document quality specifically · CPU/RAM · page latency · large-document
+behavior · temp-file lifecycle.
+
+**Purpose:** determine whether UCT can close both gaps **without expanding private
+member content to an external processor.**
+⛔ **Benchmark first. Do not adopt a model merely because a competitor uses one.**
+
+Wave K's semantic status is unchanged and is not affected by this evaluation:
+**ARCHITECTURALLY APPROVED · QUALITY-JUSTIFIED · NOT ACTIVATED · BLOCKED ON
+EXACT-PROJECT ZDR.** No Notebook content has been sent to the embedding endpoint.
+
+## 6.4 Wave N — FINANCIAL REVIEW LOOP (elevated)
+
+Preserved and **elevated as a major financial-differentiation candidate.**
+Potential jobs: thesis review date · catalyst reminder · earnings review ·
+assumption review · invalidation condition · evidence/counter-evidence follow-up ·
+position/thesis review loop.
+
+It must **compose** what already exists — Wave F temporal facts + Wave G
+thesis/evidence + Wave H research workspace + Wave K private-corpus intelligence —
+rather than introduce a parallel object model.
+
+⛔ **Do NOT reduce this to generic todo-list parity.** The product goal:
+
+> **UCT BRINGS ME BACK TO THE INVESTMENT DECISION WHEN SOMETHING I SAID MATTERED
+> NEEDS REASSESSMENT.**
+
+## 6.5 Wave O / later
+
+Durability and reach remain later. **API/extensibility, plugins, and
+multiplayer/collaboration remain DEFERRED** unless future evidence changes their
+priority. **Offline, mobile, security and portability remain real parity
+requirements** and must be re-evaluated as the roadmap progresses — deferred is not
+dismissed.
+
+## 6.6 Day-0 evidence cap
+
+Zero real-member usage evidence. This roadmap is an **evidence-informed pre-launch
+judgment, not behavioral validation**, and the first genuine cohort may reorder it.
+⛔ **That does NOT impose a construction freeze** — it is a statement about the
+confidence of the ordering, not a reason to stop building.
+
+## 6.7 Stop condition
+
+Park until the 8G-B release hold is **explicitly cleared**. No production mutation,
+no new implementation. Wave K release is the next executable production action;
+the sequence after it is: **Wave K certification → integrity mini-pass → Wave L.**

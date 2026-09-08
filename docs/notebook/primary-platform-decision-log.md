@@ -2219,6 +2219,107 @@ sees a real call and ignores a docstring that merely says "NO EMBEDDINGS".
   Not Wave K's, recorded so nobody re-diagnoses it.
 - **Wave J residual debt remains open and unchanged.**
 
+## Post-Wave-K re-baseline — owner rulings (2026-09-07)
+
+Wave K is parked behind the 8G-B shared-production hold; the waiting window was
+spent on a read-only re-baseline of the remaining Notebook roadmap. Full artifact:
+`docs/notebook/post-wave-k-roadmap-rebaseline.md`, §6 of which carries the rulings
+verbatim and governs where it and the analysis differ. Recorded here because three
+of these outlive the roadmap document.
+
+### 1. A live production surface the planning record believes is dark
+
+`J2_SHARE_LINKS_ENABLED=1` on the `web` service — read from Railway during the
+re-baseline, corroborated by the 2026-09-04 observability audit's actual-prod-value
+column, with the share UI wired in `NoteEditorPage.jsx`. The gap ledger, the build
+plan's activation row and the Phase Zero table all record the surface as OFF, and
+G-080's own preconditions for flipping it — real usage demand, and a §21 legal
+review of shared vendor-data exposure — are recorded nowhere as met.
+
+**Ruling: classify as LIVE CONFIGURATION BUT ACTIVATION AUTHORIZATION / GATE
+EVIDENCE UNVERIFIED.** G-080 is NOT closed by the flag being on — a flag is
+evidence of configuration, not of authorization. The flag is not to be changed
+while the hold is active. After the hold clears: search for durable evidence the
+§21/activation approval occurred; if it exists, reconcile and close/reclassify; **if
+it does not, disable the flag until the review completes.**
+
+⛔ The engineering mitigations — sanitized payload, no user id/tags/folder/ticker,
+static archived widget images instead of live vendor widgets — are relevant risk
+controls and **not substitutes for the missing activation evidence.** The quality of
+a control is not the same fact as permission to ship the thing it protects. This is
+the inverse of the failure `project_feature_flag_ledger` records: not "off and unset
+are indistinguishable", but *the documentation says off while production says on* —
+and the roadmap would have scheduled work to enable something already enabled.
+
+### 2. A post-Wave-K integrity mini-pass, before any new feature wave
+
+Three items, no product features, after Wave K production certification and before
+Wave L:
+
+**G-063 temporal correctness.** `widgetEmbedCore.js` returns `live` for any
+reconstructable embed with no future-relative-to-capture gate, so a Calendar embed
+captured before an event resolves re-renders with the resolved result. The invariant
+being restored: **WHAT THE MEMBER CAPTURED THEN MUST NOT SILENTLY BECOME WHAT IS
+TRUE NOW.** Frozen-at-insert temporal correctness is the differentiator this program
+calls its moat, and this is a hole in it — fixed with the *smallest* correct
+distinction consistent with `financial-temporal-semantics.md`, not a redesign.
+
+**The raw-error class, railed this time.** `TickerResearchWorkspace.jsx` reintroduced
+`alert(...e.message)` in Wave H, one wave after Wave B fixed that defect class.
+Fixing the call sites is half the work; the rail is the other half. **A fix that is
+not railed has a shelf life** — this one lasted a single wave.
+
+**Gap-ledger reconciliation.** The ORIGINAL rows are to be reconciled — not another
+appended section announcing that things shipped. Saved views, templates, Ask
+Notebook and the per-ticker workspace all still read OPEN while being live in code,
+because the house convention is that a wave closing a gap writes its own section
+rather than editing the row. ⛔ **A ledger whose status column is stale is worse than
+no ledger, because it is the artifact consulted for planning.** Preserve dates and
+evidence, add closure references, do not rewrite history.
+
+### 3. OCR and semantic retrieval: one privacy question, two benchmarks
+
+The re-baseline originally called these "the same decision". **Corrected by ruling:**
+they share the external-data/privacy question and are **NOT the same technical
+capability.** Wave M evaluates them under one privacy/compute evaluation with two
+separate benchmarks — a local embedding model (paraphrase recall, false positives,
+index size, RAM/CPU, latency, incremental indexing, pod impact, the real 751-note
+corpus and larger synthetic scale, against the existing low-overlap benchmark as a
+fixed control) and a local OCR engine (scanned-PDF and screenshot accuracy,
+financial-document quality, CPU/RAM, page latency, large-document behavior,
+temp-file lifecycle). A single combined verdict would hide which one failed.
+
+**Benchmark first; do not adopt a model merely because a competitor uses one.**
+Obsidian's plugin proves the shape is viable, not that any particular model suits
+this corpus on this pod. The purpose is to learn whether both gaps can close
+**without expanding private member content to an external processor.**
+
+⛔ Wave K's status is unchanged by any of this: **SEMANTIC RETRIEVAL —
+architecturally approved, quality-justified by measured deterministic recall
+failure, NOT ACTIVATED, blocked on exact-project Zero Data Retention verification.
+No Notebook content has been sent to the embedding endpoint**, and no deployment or
+certification wording may imply otherwise.
+
+### 4. Sequence and the honest cap
+
+Wave L **Capture & Command** (external web capture with G-043 reconsidered now that
+there is a destination worth capturing into; the four remaining internal surfaces —
+Screener, Options Flow, COT, Model Book; command-palette participation; mobile
+capture and PWA foundations). Wave M **Private Recall Foundation**. Wave N **the
+financial review loop**, elevated as the major differentiation candidate and
+required to compose Waves F+G+H+K rather than introduce a parallel object model —
+*UCT brings me back to the investment decision when something I said mattered needs
+reassessment*, never generic todo-list parity. Wave O durability and reach.
+API/extensibility, plugins and multiplayer stay deferred; offline, mobile, security
+and portability remain real parity requirements, deferred rather than dismissed.
+
+**Zero real-member usage evidence.** This ordering is an evidence-informed
+pre-launch judgment, not behavioral validation, and the first genuine cohort may
+reorder it. ⛔ That is a statement about the confidence of the ordering — **it does
+not impose a construction freeze.**
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:
