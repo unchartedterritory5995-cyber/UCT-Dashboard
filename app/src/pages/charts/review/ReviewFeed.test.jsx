@@ -36,7 +36,7 @@ vi.mock('../../../components/StockChart', async () => {
   }
 })
 
-import ReviewFeed, { DENSITIES } from './ReviewFeed'
+import ReviewFeed from './ReviewFeed'
 import { FEED_MAX_LIVE } from './feedWindow'
 import { enter, step } from './reviewSession'
 
@@ -145,20 +145,14 @@ describe('the review feed', () => {
     expect(screen.queryByTestId('feed-seen-S9')).toBe(null)
   })
 
-  it('⭐ the density A/B flips and is remembered', () => {
-    // The question — how many charts a reviewer wants per screen — is answered
-    // by a trader on a real phone, so the toggle exists to be felt, and it has
-    // to survive the trip back into the feed.
+  it('⛔ ONE DENSITY, AND NO TOGGLE — the instrument is not the feature', () => {
+    // ⚰️ This case used to flip a density toggle and assert it was remembered.
+    // The toggle existed to ANSWER the density question on hardware; hardware
+    // answered it (70vh = 1.43 charts per screen), so the control is gone and
+    // this case now guards against it coming back as a setting nobody asked for.
     render(<ReviewFeed session={sessionAt(0)} tf="D" onOpen={() => {}} onClose={() => {}} />)
-    const btn = screen.getByTestId('feed-density')
-    expect(btn).toHaveAttribute('aria-pressed', 'false')
-    act(() => { fireEvent.click(btn) })
-    expect(btn).toHaveAttribute('aria-pressed', 'true')
-    expect(DENSITIES).toContain(localStorage.getItem('uct.review.feed.density'))
-
-    cleanup()
-    render(<ReviewFeed session={sessionAt(0)} tf="D" onOpen={() => {}} onClose={() => {}} />)
-    expect(screen.getByTestId('feed-density')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByTestId('feed-density')).toBe(null)
+    expect(localStorage.getItem('uct.review.feed.density')).toBeNull()
   })
 
   it('⭐ publishes an instrument, because the real budget is a claim about a device', () => {

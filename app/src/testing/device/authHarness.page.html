@@ -23,7 +23,7 @@
 /* The driver. Everything it knows about flows lives in the committed
  * `authHarness.js`; everything it knows about WHO IT IS arrives from the
  * generated `uct-r1.cred.js`, which the launcher deletes after the run. */
-import { buildSteps, runSteps, summarise, cleanup, STATE } from './uct-r1.js'
+import { buildSteps, runSteps, summarise, cleanup, STATE, skipIntro } from './uct-r1.js'
 import { buildFeedSteps, SESSION_KEY, FEED_SYMS } from './uct-r1-feed.js'
 import { CRED } from './uct-r1.cred.js'
 
@@ -92,8 +92,57 @@ function render(results, done) {
       })
     } catch { /* the panel will say what happened */ }
     frame.src = view
+    /* ⛔ SKIP THE INTRO IN VIEW MODE TOO. The cinematic intro plays on every page
+       load and runs ~9 seconds — a sixth of a device session, spent on an
+       animation, before the thing being looked at exists. The step suite has
+       always skipped it; view mode did not, and one pill-placement run was lost
+       to a compass. */
+    const _skip = setInterval(() => { try { skipIntro(frame) } catch (e) {} }, 200)
+    setTimeout(() => clearInterval(_skip), 20000)
     document.getElementById('app').style.inset = '0'
     panel.style.height = 'auto'
+    /* ⛔ AUTO-OPEN THE FEED WHEN ASKED. A device session is 60 seconds and about
+       20 of them are spent typing the URL; spending more of it hunting a 44px
+       chip for a LOOKING question leaves no time for the thing being looked at.
+       `&feed=1` taps the position chip as soon as it exists — the same control a
+       member taps, not a back door into the component. */
+    if (_q.get('feed')) {
+      (async () => {
+        for (let i = 0; i < 120; i++) {
+          const d = frame.contentDocument
+          const p = d && d.querySelector('[data-review-nav]')
+          if (p) { const b = [...p.querySelectorAll('button')][1]; if (b) { b.click(); break } }
+          await new Promise((r) => setTimeout(r, 150))
+        }
+        /* ⛔⛔ A SCREENSHOT OF A DARK PANEL IS NOT AN OBSERVATION. Three device
+           runs showed the feed open with cards that looked empty, and from a
+           picture there is no way to tell "no cards", "cards with no charts",
+           "charts with no bars" or "scrolled past them" apart — four different
+           verdicts, one identical image. This strip answers in numbers, and it
+           re-measures forever so it can never report a stale moment as now. */
+        const strip = document.createElement('div')
+        strip.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;'
+          + 'background:rgba(8,9,7,.97);border-top:1px solid #3a3a3a;padding:4px 6px;font:10px/1.35 ui-monospace,monospace;color:#e8e4d8'
+        document.body.appendChild(strip)
+        setInterval(() => {
+          const d = frame.contentDocument
+          if (!d) { strip.textContent = 'no app document'; return }
+          const sc = d.querySelector('[data-testid="feed-scroll"]')
+          const cards = [...d.querySelectorAll('[data-feed-index]')]
+          const charts = sc ? sc.querySelectorAll('.tv-lightweight-charts').length : 0
+          const painted = sc ? [...sc.querySelectorAll('canvas')].filter((c) => c.width > 0 && c.height > 0).length : 0
+          const shots = d.querySelectorAll('[data-testid^="feed-shot-"]').length
+          const skels = d.querySelectorAll('[data-testid^="feed-skeleton-"]').length
+          const h0 = cards[0] ? Math.round(cards[0].getBoundingClientRect().height) : 0
+          const vh = frame.contentWindow.innerHeight
+          strip.innerHTML =
+            `<b>FEED</b> ${sc ? 'open' : 'CLOSED'} · cards ${cards.length} · charts ${charts}`
+            + ` · canvases ${painted} · shots ${shots} · skeletons ${skels}`
+            + `<br>card ${h0}px of ${vh}px viewport = <b>${vh ? (vh / (h0 || 1)).toFixed(2) : '?'} cards/screen</b>`
+            + ` · scrollTop ${sc ? Math.round(sc.scrollTop) : '-'} · ${new Date().toISOString().slice(11, 19)}`
+        }, 400)
+      })()
+    }
     panel.innerHTML = `<div class="hd">VIEW ${esc(view)} · ${innerWidth}×${innerHeight} · `
       + `${innerWidth > innerHeight ? 'LANDSCAPE' : 'portrait'}</div>`
     return

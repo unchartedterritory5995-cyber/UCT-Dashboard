@@ -36,20 +36,11 @@ import styles from './ReviewFeed.module.css'
  * be "at" a symbol is how "12 / 47" and the chart start disagreeing.
  */
 
-const DENSITY_KEY = 'uct.review.feed.density'
-
-/** ⭐ THE A/B IS A TOGGLE, NOT AN EXPERIMENT. The question — how many charts a
- *  reviewer wants per screen — is answered by a trader scrolling a real list on
- *  a real phone, and a toggle lets the same person feel both within a second.
- *  A bucketed experiment would need traffic this surface does not have yet. */
-export const DENSITIES = ['tall', 'dense']
-
-function readDensity() {
-  try {
-    const v = localStorage.getItem(DENSITY_KEY)
-    return DENSITIES.includes(v) ? v : 'tall'
-  } catch { return 'tall' }
-}
+/* ⚰️ A DENSITY TOGGLE AND ITS PERSISTED PREFERENCE LIVED HERE. It existed to
+ * ANSWER a question — how many charts per screen a reviewer wants — by letting
+ * a trader feel both candidates on a real phone. Hardware answered it (see the
+ * `.card` height comment in the stylesheet: 70vh, 1.43 charts per screen), so
+ * the instrument is gone rather than left behind as a setting. */
 
 /**
  * @param {object}   props.session   the review session (symbols + index).
@@ -68,8 +59,6 @@ export default function ReviewFeed({ session, tf = 'D', onOpen, onClose }) {
   // Open ON the symbol the review is at — a feed that opened at the top would
   // make "where am I" the first thing a member has to solve.
   const [centre, setCentre] = useState(() => (session ? session.index || 0 : 0))
-  const [density, setDensity] = useState(readDensity)
-  const dense = density === 'dense'
 
   const windowIds = useMemo(() => feedWindow(symbols, centre), [symbols, centre])
   const { mountedIds, release } = useStaggeredMount(windowIds, { limit: FEED_MAX_LIVE })
@@ -146,20 +135,11 @@ export default function ReviewFeed({ session, tf = 'D', onOpen, onClose }) {
         peakLive: peakRef.current,
         budget: FEED_MAX_LIVE,
         snapshots: shotsRef.current.size(),
-        density,
         heapMB: window.performance && window.performance.memory
           ? Math.round(window.performance.memory.usedJSHeapSize / 1048576) : null,
       }
     } catch { /* an instrument never breaks the surface it measures */ }
-  }, [mountedIds, centre, symbols.length, density])
-
-  const toggleDensity = useCallback(() => {
-    setDensity((d) => {
-      const next = d === 'tall' ? 'dense' : 'tall'
-      try { localStorage.setItem(DENSITY_KEY, next) } catch { /* private mode */ }
-      return next
-    })
-  }, [])
+  }, [mountedIds, centre, symbols.length])
 
   const label = (session && session.label) || 'Review'
 
@@ -172,17 +152,6 @@ export default function ReviewFeed({ session, tf = 'D', onOpen, onClose }) {
       ariaLabel={`${label} review feed`}
     >
       <div className={styles.wrap}>
-        <div className={styles.bar}>
-          <button
-            type="button"
-            className={styles.densityBtn}
-            data-testid="feed-density"
-            aria-pressed={dense}
-            onClick={toggleDensity}
-          >
-            {dense ? 'Two up' : 'One up'}
-          </button>
-        </div>
         <ul className={styles.scroll} ref={scrollRef} data-testid="feed-scroll">
           {symbols.map((sym, i) => (
             <ReviewFeedCard
@@ -193,7 +162,6 @@ export default function ReviewFeed({ session, tf = 'D', onOpen, onClose }) {
               live={mountedIds.has(sym)}
               seen={reviewed.has(sym)}
               tf={tf}
-              dense={dense}
               onOpen={onOpen}
               onBarsReady={readyFor(sym)}
               onSnapshot={onSnapshot}

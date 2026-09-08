@@ -19,7 +19,7 @@ import styles from './ReviewFeed.module.css'
  * queue — StockChart fires it on a fatal error too, deliberately.
  */
 function ReviewFeedCard({
-  sym, index, total, live, seen, tf, dense,
+  sym, index, total, live, seen, tf,
   onOpen, onBarsReady, onSnapshot, snapshot,
 }) {
   const bodyRef = useRef(null)
@@ -40,7 +40,7 @@ function ReviewFeedCard({
        a `<ul>` is invalid markup that jsdom accepts and a screen reader does
        not — the list would stop being a list. */
     <li
-      className={`${styles.card} ${dense ? styles.cardDense : ''}`}
+      className={styles.card}
       data-feed-index={index}
       data-testid={`feed-card-${sym}`}
     >
@@ -87,7 +87,7 @@ function ReviewFeedCard({
             hideJournalOverlay
             verticalLegend
             rightPadBars={4}
-            dailyDefaultBars={dense ? 90 : 126}
+            dailyDefaultBars={126}
             volumeSeparatePane
             volumePaneHeightPct={9}
             priceScaleTopMargin={0.12}

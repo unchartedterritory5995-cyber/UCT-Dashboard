@@ -15,31 +15,11 @@
   min-height: 0;
 }
 
-.bar {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 4px 8px 6px;
-  border-bottom: 1px solid var(--border, #2a3340);
-}
-
-.densityBtn {
-  min-height: var(--tap-min, 44px);
-  padding: 0 14px;
-  border: 1px solid var(--border, #2a3340);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text, #e8e4d8);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.densityBtn[aria-pressed='true'] {
-  border-color: var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
-}
+/* ⚰️ A DENSITY TOGGLE LIVED HERE. It was the INSTRUMENT for the decision above,
+   not a feature: two candidate heights a trader could feel on a real phone
+   within a second of each other. The question is answered, so the instrument
+   goes — a settings control nobody asked for is how a measurement becomes
+   permanent surface area. */
 
 .scroll {
   flex: 1;
@@ -55,18 +35,31 @@
   overscroll-behavior: contain;
 }
 
+/* ⭐ ONE DENSITY, AND 70vh IS A MEASURED CHOICE, not a taste.
+ *
+ * Cards-per-screen is `100 / height-vh` and is therefore VIEWPORT-INDEPENDENT —
+ * the same on every phone. Measured on hardware: the old 62vh was showing
+ * **1.61 charts per screen** while its own toggle was labelled "One up", which
+ * it never was.
+ *
+ * ⛔ AND ONE-PER-SCREEN WAS REJECTED ON ITS OWN COSTS. At ~100vh nothing of the
+ * next card is visible, so the surface stops LOOKING scrollable and the adjacent
+ * symbol stops giving context — two of the things a reviewer is actually using
+ * the feed for. `scroll-snap-align: start` already delivers the one-card-per-
+ * flick ergonomics that made one-up attractive, so the choice costs nothing.
+ *
+ * 70vh = **1.43 charts per screen**: the current chart gets ~13% more height
+ * than before for candle readability, and ~30vh of the next card stays on
+ * screen as the scroll affordance. Mount churn is unchanged — the live window
+ * is the centred card ±1 either way. */
 .card {
   scroll-snap-align: start;
   display: flex;
   flex-direction: column;
-  /* ⛔ THE HEIGHT IS THE BUDGET MADE VISIBLE. Tall = roughly one card per
-     screen, so the three live charts are the one you see and its neighbours. */
-  height: 62vh;
+  height: 70vh;
   border-bottom: 1px solid var(--border, #2a3340);
   background: var(--bg-surface, #0f1216);
 }
-
-.cardDense { height: 38vh; }
 
 .cardHead {
   display: flex;
