@@ -244,14 +244,34 @@ export async function main(argv) {
       //   STATS <byteLen>\n<json>\n
       //   PART <name> <byteLen>\n<json>\n   (repeated, one per part)
       const parts = partsFrom(D)
+      // ⛔ EMISSION FILTER, NOT A COMPUTATION FILTER. `processFlowData` has
+      // already run and `partsFrom(D)` is unchanged — this only decides which
+      // parts get JSON.stringify'd and written to stdout. Nothing about what is
+      // computed, or what any part CONTAINS, depends on it.
+      //
+      // WHY IT EXISTS, measured on prod during RTH: a full build reports
+      // `spawn+run=32976ms` while node's own accounted work is
+      // parse 1332ms + process 4980ms = ~6.3s. The other ~26s is process
+      // startup plus piping 13.9 MB of CSV in and 23.8 MB of parts OUT. Most of
+      // that output is parts first paint never reads (all_trades, all_directional
+      // and WATCH alone are 2.3 MB gzipped), so a preparer that only needs
+      // `bootstrap` + `TOP_PICKS` warm was paying ~26s of IPC to serialise work
+      // nobody was waiting for — and losing the 60s version race because of it.
+      const onlyFlag = argv.find(a => a.startsWith('--only='))
+      const only = onlyFlag ? new Set(onlyFlag.slice('--only='.length).split(',').filter(Boolean)) : null
+      const wanted = (name) => !only || only.has(name)
       const chunks = []
       const frame = (header, body) => {
         const b = Buffer.from(body, 'utf8')
         chunks.push(Buffer.from(`${header} ${b.length}\n`, 'utf8'), b, Buffer.from('\n', 'utf8'))
       }
+      // STATS is always emitted: it is small and the caller's envelope needs it
+      // (availableDates lives there, and a missing calendar hides the date picker).
       frame('STATS', JSON.stringify(stats))
-      for (const name of Object.keys(parts)) frame(`PART ${name}`, JSON.stringify(parts[name]))
-      if (topPicks) frame('PART TOP_PICKS', JSON.stringify(topPicks))
+      for (const name of Object.keys(parts)) {
+        if (wanted(name)) frame(`PART ${name}`, JSON.stringify(parts[name]))
+      }
+      if (topPicks && wanted('TOP_PICKS')) frame('PART TOP_PICKS', JSON.stringify(topPicks))
       process.stdout.write(Buffer.concat(chunks))
       return
     } else if (argv.includes('--split')) {

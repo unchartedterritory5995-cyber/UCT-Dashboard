@@ -51,8 +51,8 @@ class _Recorder:
         self.result = result
         self.calls = []
 
-    def __call__(self, key, version, provider, date_filter, part):
-        self.calls.append((key, version, date_filter, part))
+    def __call__(self, key, version, provider, date_filter, part, only=None):
+        self.calls.append((key, version, date_filter, part, only))
         return self.result(version) if callable(self.result) else self.result
 
 
@@ -83,6 +83,17 @@ def test_a_successful_build_records_the_version_as_prepared(monkeypatch):
     # CONTROL: it asked for the default view, not something of its own devising.
     assert rec.calls[0][0] == ("stocks", 1, "Last1")
     assert rec.calls[0][3] == "bootstrap"
+    # ⛔ TWO PASSES, AND PASS 1 IS THE CRITICAL PATH. A full build pipes 23.8 MB
+    # of parts back and took 23-34 s on every RTH roll while the version rolls
+    # every 60 s. Pass 1 emits ONLY what first paint fetches so the page becomes
+    # fast as early as possible; pass 2 warms the rest so nothing stops being
+    # prepared. If pass 1 ever asked for everything again, the race returns.
+    assert rec.calls[0][4] == fa.FIRST_PAINT_PARTS, (
+        "the first pass is no longer scoped to the first-paint parts")
+    assert len(rec.calls) == 2, "the remainder pass is gone"
+    rest = rec.calls[1][4]
+    assert rest and not (set(rest) & set(fa.FIRST_PAINT_PARTS)), (
+        "the remainder pass overlaps the first-paint pass -- work done twice")
 
 
 def test_a_DECLINED_tick_does_not_record_progress_and_so_retries(monkeypatch):
@@ -103,7 +114,7 @@ def test_a_DECLINED_tick_does_not_record_progress_and_so_retries(monkeypatch):
     fresh = _Recorder(lambda v: (v, b"gz"))
     _patch(monkeypatch, version=1001, builder=fresh)
     assert fr._prepare_once(out) == 1001
-    assert len(fresh.calls) == 1
+    assert len(fresh.calls) == 2   # first-paint pass + remainder pass
 
 
 def test_a_build_returning_nothing_also_does_not_record_progress(monkeypatch):
@@ -138,7 +149,7 @@ def test_an_unchanged_version_does_no_work_at_all(monkeypatch):
     # assertion above is about the version check and not a dead builder.
     _patch(monkeypatch, version=1002, builder=rec)
     assert fr._prepare_once(1001) == 1002
-    assert len(rec.calls) == 1
+    assert len(rec.calls) == 2   # first-paint pass + remainder pass
 
 
 # ── It yields to members rather than competing with them ─────────────────────

@@ -1667,10 +1667,21 @@ def _prepare_once(last_version):
     key = (source, days, date_filter)
     t0 = time.monotonic()
     try:
+        # ⛔ TWO PASSES: PUBLISH THE CRITICAL PATH, THEN FILL THE REST.
+        # A single full build pipes 23.8 MB of parts back and took 23-34 s on
+        # every RTH roll (measured across four consecutive rolls), while the
+        # version rolls every 60 s -- so preparation kept losing the race and
+        # members fell to the 8-12 MB raw tape. node's own work in that build is
+        # only ~6.3 s; the rest is IPC for parts first paint never reads.
+        #
+        # Pass 1 emits ONLY what first paint fetches, so the page becomes fast as
+        # early as possible. Pass 2 then warms everything else in the same tick,
+        # so the deferred TICKER_DB/CONV fetch and the 3b raw fallback stay warm
+        # too -- nothing stops being prepared, it is only ORDERED now.
+        provider = lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")
         got = flow_aggregate.get_cached_or_build_part(
-            key, version,
-            lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
-            date_filter, "bootstrap")
+            key, version, provider, date_filter, "bootstrap",
+            only=flow_aggregate.FIRST_PAINT_PARTS)
     except Exception as e:  # noqa: BLE001
         _PREPARE_STATE["failed"] += 1
         _PREPARE_STATE["last_error"] = repr(e)[:200]
@@ -1685,7 +1696,21 @@ def _prepare_once(last_version):
         _PREPARE_STATE["last_version"] = version
         _PREPARE_STATE["last_ms"] = ms
         _PREPARE_STATE["last_error"] = None
-        log.info("[flow-prepare] warmed %s v=%s in %dms", key, version, ms)
+        log.info("[flow-prepare] first paint warmed %s v=%s in %dms", key, version, ms)
+        # Pass 2 -- everything else, so the deferred and fallback paths stay warm.
+        # Failure here is NOT a failure of the roll: first paint is already
+        # published, which is the member-visible property.
+        try:
+            t1 = time.monotonic()
+            rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
+                         if p not in flow_aggregate.FIRST_PAINT_PARTS)
+            flow_aggregate.get_cached_or_build_part(
+                key, version, provider, date_filter, rest[0], only=rest)
+            log.info("[flow-prepare] remainder warmed v=%s in %dms",
+                     version, int((time.monotonic() - t1) * 1000))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[flow-prepare] remainder pass failed (first paint is "
+                        "already live): %s", e)
         return version
 
     _PREPARE_STATE["declined"] += 1
