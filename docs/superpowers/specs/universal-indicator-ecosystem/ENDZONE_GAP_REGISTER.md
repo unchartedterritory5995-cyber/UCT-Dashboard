@@ -1279,3 +1279,151 @@ the wrong one if a case was added that should not have been.
 | **N7.5** | VALUE MODEL | `runtime:call-conversion-state` — 1 script. `int` stays refused for the reason pine.js gives; `float`/`bool` are cheap if the lanes are moved together. |
 | **N7.6** | PERSISTENCE | Still no persisted runtime artifact and no version (carried from M5.6 / L7.4). `pointwise[]` is now part of the program shape and must be in the artifact contract before anything is saved. |
 | **N7.7** | RUNTIME / FRAMES | `runtime:function-global-state` (carried M5.3), default parameters (M5.4), tuple/collection ABI (M5.5) — all unchanged. |
+
+---
+
+# PART P — 2F-2A: RUNTIME SERIES AND MUTABLE HISTORY (2026-09-08)
+
+HEAD at entry `f2ada6dd6`; implementation `386e9b94a`. Runtime suite **163
+passing** (8 files); whole engine **4,430 passing / 1 failing**, the failure
+pre-existing at HEAD (N6, unchanged).
+
+### P0 — ⭐⭐ PREREQUISITE MET: THE 2E VENDOR PIN IS **VERIFIED**
+
+Checked in the repository before any 2F-2 code was written, not inferred.
+
+- fixture `tests/fixtures/vendor/runtime/callsite-state-spy-1d-2026-09-08.json`
+- rail `runtime/__tests__/vendorCallSiteState.test.js` — 6 tests, green
+- versions **v5 (study `Qbn5Kg`) and v6 (study `Y07OY8`)**, both on SPY · NYSE
+  Arca · 1D · 300 bars, captured 2026-09-08
+- identity proved from the model before values were accepted:
+  `shortDescription: "UCT callsite probe"`, 2 plots titled `A`/`B`
+- observed: **A steps by 1, B steps by 10, B/A is exactly 10 on every row, 0 rows
+  deviate.** Rule: a function-local `var` is INDEPENDENT PER CALL SITE.
+  Per-function-definition sharing is positively excluded.
+
+2E is closed. The frame model 2F-2 builds on is vendor-backed.
+
+### P1 — ⭐⭐⭐ THE CAPABILITY: A COMMITTED RING, NOT A SLOT READ
+
+Three lifetimes now: `locals` (this bar, live) · `persist` (across bars, live) ·
+**history** (across bars, committed). `x[n]` over a mutable value reads the ring;
+`x[0]` is the live slot and allocates no ring at all.
+
+⛔ **THE COMMIT IS A PHASE KEYED TO BAR ADVANCE.** Committing inside STORE would
+make `x[1]` mean "before the most recent write", so a bar that assigns twice
+would read its own first write as history — program order masquerading as bar
+history. Because the phase is keyed to the bar, the two futures this runtime is
+shaped for already work: a loop body running one call site fifty times in a bar
+commits ONCE (§26), and a forming bar re-executed per tick only has to not
+advance the counter (§27).
+
+### P2 — ⭐⭐ THE CENSUS RESIZED THE WAVE, AND THE MATRIX HAS BEEN UNDER-REPORTING
+
+New instrument `ast/historyDemandCensus.test.js`. Two different questions:
+
+| | |
+|---|---|
+| earliest blocker is history | **7** of 169 |
+| CONTAINS history over a mutated value | **35** of 169 — one script in five |
+
+Depth: **29 at `[1]`, one at `[2]`, none deeper**; 7 with a non-literal offset.
+
+⛔ **EVERY CAPABILITY ROW IN THE MATRIX IS PRICED BY THE FIRST NUMBER AND IS
+THEREFORE A LOWER BOUND.** A script stopped on a tuple wants history just as
+badly and cannot say so. History now reports both; nothing else does yet.
+
+### P3 — ⭐⭐ THE THREE OFFSET TIERS (§18), MEASURED NOT ASSUMED
+
+| tier | example | status |
+|---|---|---|
+| literal | `x[1]`, `x[2]` | ✅ 30 scripts |
+| input-derived | `currentState[fwdBars]` | ✅ folded off the **canonical tree** |
+| runtime-derived | `cg[i + 1]` inside a `for` | ⬜ `runtime:history-dynamic-offset` |
+
+⛔ **THE FOLD READS THE CANONICAL TREE, NOT AN EVALUATION.** The first draft
+interpreted the expression and asked whether the result was a scalar. `interpret`
+broadcasts a constant to a Float64Array, so it never fired — caught by a test.
+The dangerous version is the one that would have "fixed" it by accepting a flat
+array: on a synthetic fixture almost every series is constant, so it would fold
+runtime-derived offsets too (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+A canonical `num` node is a compile-time constant BY CONSTRUCTION; no data fakes it.
+
+⚠️ Folding freezes the input's **default**, not a later override — `pine.js`'s
+existing deliberate behaviour (owner decision 2026-08-11). A test asserting the
+opposite failed and was corrected to pin the real rule.
+
+### P4 — MEASURED `runtime:history-variable` **7 → 0**, every one to a NEW wall
+
+| script | new blocker |
+|---|---|
+| `oos1/high_engagement__03-supertrend-kivancozbilgic` | `runtime:presentation` |
+| `oos1/high_engagement__14-heikin-ashi-candle-overlay-bjorgum` | `runtime:presentation` |
+| `oos1/high_engagement__16-klinger-volume-oscillator-everget` | `runtime:call-windowed-state` |
+| `community/05-chandelier-exit` | `runtime:presentation` |
+| `parity/high_engagement__16-klinger-volume-oscillator-everget` | `runtime:call-windowed-state` |
+| `curated/02-ict-retracement-to-order-block-screener` | `runtime:history-function-local` |
+| `curated/10-supertrend` | `runtime:statement` (an `else if` chain — see P7.4) |
+
+Executed unchanged at **27/169** — the expected shape (§68). Acceptance was not
+chased and nothing adjacent was patched to move it.
+
+### P5 — ⚰️⚰️ A MUTATION SURVIVED AND THE RIGHT ANSWER WAS TO DELETE THE CODE
+
+Five of six mutations turn a rail red — read the live slot (18 tests), commit one
+bar early (9), read one bar late (9), never advance the counter (22), clear state
+before commit (21). All restored byte-identically (sha256), never by
+`git checkout` (`feedback_mutation_check_never_git_checkout`).
+
+The sixth deleted a `histPresent` flag array that tracked "did that bar happen"
+separately from its value — reasoning straight from the `var float x = na`
+lesson — and **all 160 runtime tests stayed green**. In this design the
+distinction is unreachable three times over: warm-up is answered by
+`b > committed`, the ring is `fill(NaN)`, and `b <= depth` guarantees a read lands
+on the bar it names.
+
+⛔ It was an unfalsifiable guard costing a write per slot per bar, so it was
+REMOVED rather than kept "for later"
+(`lesson_gate_that_cannot_fail` · `lesson_built_tested_green_and_unreachable`).
+⚠️ **2F-2B genuinely needs the distinction** — a finite window must count real
+bars, where `na` and absent differ — and should introduce it there, where a test
+can see it fire.
+
+### P6 — 🔴 THE 2F-2 VENDOR PIN WAS **NOT** TAKEN. NOTHING WAS INVENTED.
+
+§32/§33 ask TradingView what a mutable value commits as its bar value. **No
+evidence captured.**
+
+The chart tab is `visibilityState: "hidden"` and the authoring path fails there
+exactly as 2E-CLOSE measured: `execCommand('selectAll')` returned `true`,
+`execCommand('insertText')` returned `true`, **editor content unchanged** — still
+holding the leftover *UCT modulo probe* from the previous session. *Add to chart*
+would have compiled THAT and returned modulo values to be recorded as history
+truth. The Monaco instance is unreachable from the DOM (no React fiber, no own
+properties), so the focus-free route does not exist either.
+
+⭐ The identity gate would have caught it. But a write path that reports success
+and lands nothing cannot produce evidence at all — stopped per **NO VENDOR
+EVIDENCE is preferable to FALSE VENDOR EVIDENCE**.
+
+**Environment clean:** no study added, editor unchanged, no layout saved, no
+brokerage state touched. **To close it the tab must be FOREGROUND**, as it was
+for 2E-CLOSE; the probe is written and deliberately flat (no indented blocks, so
+Monaco auto-indent cannot corrupt it) and is recorded in the completion matrix.
+
+⛔ **THE 2F-2A EXIT GATE IS THEREFORE NOT FULLY MET** — item 14 of 18 is open.
+Seventeen are met; this one is not, and the matrix row reads `VENDOR ⬜` rather
+than being quietly omitted.
+
+### P7 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **P7.1** | VENDOR | The top-level mutable-history pin (§32) and the same-bar-multiple-assignment pin (§33) are UNTAKEN. Blocked on a foreground tab. Highest-priority open item for 2F-2A. |
+| **P7.2** | RUNTIME / FRAMES | `runtime:history-function-local` — 1 script. Needs the per-call-site ring base (mirrors `persistBase`, designed not built) **and** a vendor answer for a call site SKIPPED on a bar (§25). |
+| **P7.3** | RUNTIME / HISTORY | `runtime:history-expression` — `(a+b)[1]` needs its own committed series. `runtime:history-dynamic-offset` — every corpus instance is inside a `for` body, so it is gated behind loops anyway. |
+| **P7.4** | 🔴 CONTROL FLOW | **`else if` chains do not work in the runtime lane and the matrix claimed they did.** `if/else` ✅; `if/else if/else` 🔴 `runtime:statement`. The shipped columnar door handles them, which is why the false row survived — it was measuring the wrong lane. 2 corpus scripts. The IR already holds nested `IF`, so this is a front-end chaining fix, not architecture. **Cheapest high-value control-flow item.** |
+| **P7.5** | RUNTIME / SERIES BRIDGE | `runtime:call-windowed-state` — 11 scripts across five corpora (5 on OOS-60). **2F-2B.** |
+| **P7.6** | TABLE / BUILTINS | `runtime:call-undeclared-builtin-state` — 2 scripts (`iff`, `cum`). A TABLE gap surfacing through the runtime lane; `cum` in particular is cumulative and belongs to a semantic row that does not exist yet (§42). |
+| **P7.7** | PERSISTENCE | Carried from N7.6. `history[]` is now part of the program shape and MUST be in the artifact contract before anything is saved (§61). Still no persisted runtime artifact and no version. |
+| **P7.8** | PERFORMANCE | None found. History overhead is within measurement noise (−2% to +3% vs a no-history baseline of the same program); memory is exactly `slots × depth × 8` bytes, so the census-typical script costs 24 B/symbol and **0.11 MB across a 5,000-symbol universe**. The scaling lever is the bar loop, not the ring. |

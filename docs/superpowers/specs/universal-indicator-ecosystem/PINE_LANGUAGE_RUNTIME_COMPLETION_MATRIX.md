@@ -1,6 +1,6 @@
 # PINE LANGUAGE + RUNTIME COMPLETION MATRIX
 
-As of C4 Phase 2F-1. Branch `worktree-indicator-ecosystem`.
+As of C4 Phase 2F-2A. Branch `worktree-indicator-ecosystem`.
 
 ⭐⭐ **FIVE LEVELS, NOT ONE WORD (§52).** "LOOP: partial" tells an engineer
 nothing about what is left. These columns do:
@@ -37,7 +37,7 @@ the RUNTIME lane, not the product overall.
 | `%` modulo | ✅ | ✅ | 🟡 | 🟡 | ✅ | pure lane only (lowers to `mod`); beside a mutable value it refuses `runtime:operator`. **VENDOR-PINNED 2026-09-08**: truncated, sign follows the dividend (`-7 % 2 = -1`) — Phase 1's documentation-only assumption confirmed |
 | `na` | ✅ | ✅ | 🟡 | 🟡 | ✅ | NaN for floats today; the TAG model (`na(someLine)`) is designed, not built |
 | history `x[n]` over a column | ✅ | ✅ | ✅ | ✅ | ⬜ | out of range is `na`, never a clamp |
-| **history `x[n]` over a MUTABLE variable** | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:history-variable` — needs per-slot history committed at end of bar (2E) |
+| **history `x[n]` over a MUTABLE variable** | ✅ | ✅ | ✅ | ✅ | ⬜ | **2F-2A** — a committed ring per history-bearing slot. See the fine-grain table below; `VENDOR ⬜` |
 
 ## State and control flow
 
@@ -48,11 +48,32 @@ the RUNTIME lane, not the product overall.
 | `var x = na` | ✅ | ✅ | ✅ | ✅ | ⬜ | initialisation tracked separately from value |
 | `:=` reassignment | ✅ | ✅ | ✅ | ✅ | ⬜ | statement order observable |
 | `if` / `else` as statements | ✅ | ✅ | ✅ | ✅ | ⬜ | mutation in either branch; nested |
-| `else if` chains | ✅ | ✅ | ✅ | ✅ | ⬜ | kept as nested IF, not flattened |
+| `else if` chains | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | 🔴 **THIS ROW READ `✅ ✅ ✅ ✅` AND WAS FALSE** — see below |
 | `na` does not take a branch | ✅ | ✅ | ✅ | ✅ | ⬜ | |
 | block-local scope + shadowing | ✅ | ✅ | ✅ | ✅ | ⬜ | a slot per DECLARATION, never per name |
 | `switch` | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:switch` |
 | `varip` | ✅ | ✅ | ⬜ | ⬜ | ⬜ | `runtime:varip` — intrabar, which a closed-bar runtime cannot reproduce |
+
+🔴🔴 **`else if` DOES NOT WORK IN THE RUNTIME LANE, AND THIS TABLE SAID IT DID.**
+Measured 2F-2 with a minimal repro, after the corpus pushed a script onto it:
+
+| source | runtime front end | shipped columnar door |
+|---|---|---|
+| `if` / `else` | ✅ | ✅ |
+| `if` / `else if` / `else` | 🔴 `runtime:statement` — *"`else` with no `if`"* | ✅ |
+| `if` / `else if` / `else if` / `else` | 🔴 same | ✅ |
+
+⚰️ **THE ROW WAS MEASURING THE WRONG LANE.** The shipped door handles chains
+fine, so a spot check there corroborates a claim about a front end that cannot do
+it at all. `pine/15-anchored-vwap` and `pine/10-supertrend` both sit on this today
+— the second only reached it *because* 2F-2 removed the history wall in front of
+it, which is how the false row surfaced.
+
+⛔ **NOT FIXED IN 2F-2, DELIBERATELY.** The directive scopes this wave to history
+and says not to patch adjacent families to move acceptance (§35/§43). The row is
+corrected to the truth and the gap is registered (P7.4) as the cheapest
+high-value control-flow item — the IR already holds nested `IF`, so this is a
+front-end chaining fix, not an architecture change.
 
 ## Functions, tuples, collections, types
 
@@ -140,7 +161,7 @@ OOS-1 and parity contribute no pairs — nothing in them executes yet.
 ⚰️ **THE 2D-2 CENSUS THAT STOOD HERE IS SUPERSEDED** — it read `runtime:function`
 18 and would have contradicted the later section in the same document, which is
 the second-authority-over-one-value defect this repo pays for most often.
-**The live census is under "Next dependency … after 2F-1".**
+**The live census is under "Next dependency … after 2F-2A".**
 
 
 ---
@@ -182,7 +203,88 @@ prevent.** Rows, not a word.
 **Therefore the honest headline is `STATEFUL UDF CALL FRAMES COMPLETE` (§66) —
 not "UDF support complete".**
 
-## Measured coverage after 2F-1
+## History fine grain (§62) — after 2F-2A
+
+⛔ **`HISTORY ✅` FROM `x[1]` ALONE IS EXACTLY WHAT THIS TABLE EXISTS TO PREVENT.**
+Rows, not a word — the same discipline the UDF table below applies to `UDF ✅`.
+
+| row | status | note |
+|---|---|---|
+| TOP-LEVEL PURE HISTORY (a column) | ✅ | pre-2F-2; `READ_HIST` indexes a series the columnar lane already built |
+| **TOP-LEVEL MUTABLE HISTORY** | ✅ | `READ_HIST_SLOT` against a committed ring |
+| `var` HISTORY | ✅ | the ring reads the persist array |
+| BAR-LOCAL RUNTIME HISTORY | ✅ | a non-`var` mutable value bears history **and still resets every bar** (§21) |
+| CURRENT vs COMMITTED distinct | ✅ | separate stores; the live slot is never read as history |
+| END-OF-BAR COMMIT | ✅ | a phase keyed to bar advance, never to an assignment |
+| MULTIPLE SAME-BAR ASSIGNMENT | ✅ | the bar's FINAL value is what it commits — **UNPINNED, see VENDOR below** |
+| `na` WARM-UP | ✅ | `b > committed` is `na`; never a clamp to the earliest bar |
+| HISTORICAL `na` | ✅ | a committed `na` reads back as `na`, indistinguishable from warm-up **as Pine intends** |
+| DEPTH `x[n]`, n > 1 | ✅ | ring sized to the deepest offset any site asks for |
+| LITERAL OFFSET | ✅ | 30 of the 35 census scripts |
+| INPUT-DERIVED OFFSET | ✅ | folded off the CANONICAL TREE; freezes the input's DEFAULT, matching `pine.js` |
+| RUNTIME-DERIVED OFFSET | ⬜ | `runtime:history-dynamic-offset` — every corpus instance is inside a `for` body |
+| HISTORY OVER AN EXPRESSION | ⬜ | `runtime:history-expression` — `(a+b)[1]` needs its own committed series |
+| UDF-LOCAL HISTORY | ⬜ | `runtime:history-function-local` — 1 script (`curated/02-ict-retracement`) |
+| UDF `var` HISTORY | ⬜ | same refusal; needs the per-call-site ring base |
+| DISTINCT CALL-SITE HISTORY | ⬜ | designed (mirrors `persistBase`), not built |
+| CONDITIONAL UDF HISTORY | ⬜ | §25 — Pine's answer for a SKIPPED call site is not pinned |
+| FINITE WINDOW OVER RUNTIME SERIES | ⬜ | **2F-2B**; `runtime:call-windowed-state`, 11 scripts |
+| RECURRENT OVER RUNTIME SERIES | ⬜ | **2F-2C**; own initialisation, not a ring |
+| CUMULATIVE OVER RUNTIME SERIES | ⬜ | `cum` is not in the closed table at all — a TABLE gap, not a runtime one |
+| REALTIME / FORMING-BAR HISTORY | ⬜ | the commit counter is the only thing it needs to touch (§27) |
+| LOOP-COMPATIBLE COMMIT | ✅ | commit is per BAR, so N invocations in one bar commit once (§26) |
+| RESOURCE ACCOUNTING | ✅ | `HISTORY_SLOTS` + `HISTORY_VALUES`, charged at run time and capped at compile time |
+| GRAPH-vs-RUNTIME DIFFERENTIAL | ✅ | 8 paired cases, both lanes, 1e-12 |
+| MUTATION CONTROLS | ✅ | 5 wrong implementations, each turns a rail red |
+| **VENDOR VERIFIED** | 🔴 ⬜ | **NOT CAPTURED — see below. The 2F-2A gate is therefore NOT fully met.** |
+| PROD INTEGRATED | ⬜ | the runtime lane is still deliberately unwired (§43/§44) |
+
+### 🔴 VENDOR: the 2F-2 history pin was NOT taken, and why
+
+§32/§33 ask TradingView what a mutable value commits as its bar value. **No
+evidence was captured, and none was invented.**
+
+The chart tab is `visibilityState: "hidden"`, and the authoring path fails there
+exactly as 2E-CLOSE measured: `execCommand('selectAll')` returned `true`,
+`execCommand('insertText')` returned `true`, and **the editor content did not
+change** — it still held the leftover *UCT modulo probe* from the previous
+session. Pressing *Add to chart* would have compiled THAT script and returned
+modulo values to be recorded as history truth. The Monaco instance is not
+reachable from the DOM either (no React fiber, no own properties), so the
+focus-free route does not exist.
+
+⭐ **THE IDENTITY GATE WORKED** — the leftover would have been caught by its
+`shortDescription` — but a write path that reports success and lands nothing
+cannot be trusted to produce evidence at all. Stopped per *NO VENDOR EVIDENCE is
+preferable to FALSE VENDOR EVIDENCE*.
+
+**Environment left clean:** no study added to the chart, editor unchanged, no
+layout saved, no brokerage state touched.
+
+**To close it:** the tab needs to be in the FOREGROUND, as it was for 2E-CLOSE.
+The probe is written and flat by design — no indented blocks, so Monaco's
+auto-indent cannot corrupt it:
+
+```
+//@version=5
+indicator("UCT history probe")
+var c = 0.0
+c := c + 1
+var m = 0.0
+m := close
+m := m + 1000
+plot(c, "A")
+plot(c[1], "B")
+plot(m, "C")
+plot(m[1], "D")
+```
+
+`B` must be `A − 1` on every bar with history (the one-bar lag), and `D` must be
+the previous bar's `C` — which is `close[1] + 1000` and **not** `close[1]`, the
+discriminating cell for §33: if Pine committed at the first assignment rather
+than at end of bar, `D` would lack the `+1000`.
+
+## Measured coverage after 2F-2A
 
 | corpus | n | executed | differential |
 |---|---|---|---|
@@ -237,14 +339,35 @@ of it. History over a mutable variable (a per-slot ring buffer committed at end 
 bar, refused today rather than approximated with the current value) is now the
 single largest runtime-side demand the census can see.
 
-### Next dependency on the frozen OOS-60, after 2F-1
+### Next dependency on the frozen OOS-60, after 2F-2A
 
-`runtime:call-pointwise-state` **8 → 0**.
+`runtime:history-variable` **3 → 0** (7 → 0 across all five corpora).
 
-`pine:block` 9 · `pine:text-value` 7 · `runtime:presentation` 5 ·
-`pine:character` 4 · `pine:collection` 4 · `runtime:call-windowed-state` **4** ·
-`pine:function` 3 · `pine:statement` 3 · `runtime:history-variable` **3** ·
-`runtime:udt` 3 · `pine:builtin` 2 · `pine:colour-value` 2 · `runtime:directive` 2 ·
-`runtime:expression-statement` 2 · `runtime:tuple` 2 · `pine:request` 1 ·
-`pine:window` 1 · `runtime:call-conversion-state` 1 · `runtime:call-text-state` 1 ·
+`pine:block` 9 · `pine:text-value` 7 · `runtime:presentation` 7 ·
+`runtime:call-windowed-state` **5** · `pine:character` 4 · `pine:collection` 4 ·
+`pine:function` 3 · `pine:statement` 3 · `runtime:udt` 3 · `pine:builtin` 2 ·
+`pine:colour-value` 2 · `runtime:directive` 2 · `runtime:expression-statement` 2 ·
+`runtime:tuple` 2 · `pine:request` 1 · `pine:window` 1 ·
+`runtime:call-conversion-state` 1 · `runtime:call-text-state` 1 ·
 `runtime:request-with-state` 1.
+
+### ⭐⭐ THE DEMAND NUMBER THIS MATRIX HAS BEEN UNDER-REPORTING
+
+`historyDemandCensus.test.js` measures two different questions, and the one this
+table has always shown is the smaller:
+
+| question | answer |
+|---|---|
+| scripts whose EARLIEST blocker was history | **7** of 169 |
+| scripts that CONTAIN `x[n]` over a value they mutate | **35** of 169 |
+
+⛔ **THE EARLIEST-BLOCKER NUMBER IS A LOWER BOUND, ALWAYS.** A script stopped on a
+tuple wants history just as badly and cannot say so yet, so a capability's row
+here systematically under-prices it. Both numbers are now reported for history;
+every other row in this matrix still shows only the first, and should be read
+accordingly.
+
+Depth demand, measured over those 35: **29 scripts at `[1]`, one at `[2]`, none
+deeper**; 7 scripts use a non-literal offset. That measurement — not a guess —
+is what sets `HISTORY_SLOTS`/`HISTORY_VALUES` and why the ring is sized per slot
+rather than reserved in bulk.
