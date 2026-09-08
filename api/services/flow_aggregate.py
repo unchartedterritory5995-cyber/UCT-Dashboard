@@ -488,6 +488,7 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     if etf_path:
         argv.append(f"--etf-file={etf_path}")
     t0 = time.monotonic()
+    _st = {"csv_kb": len(csv_text) // 1024}
     # ⛔ try/FINALLY, not a call after the except arms: the timeout and
     # failed-to-start branches both `return None`, so a cleanup placed after
     # them leaks the staged replica on exactly the paths that repeat.
@@ -508,7 +509,11 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
                     (proc.stderr or b"")[:300].decode("utf-8", "replace"))
         return None
 
+    _st["spawn_ms"] = int((time.monotonic() - t0) * 1000)
+    _t_frames = time.monotonic()
     frames = _read_frames(proc.stdout)
+    _st["frames_ms"] = int((time.monotonic() - _t_frames) * 1000)
+    _st["stdout_kb"] = len(proc.stdout or b"") // 1024
     if not frames or "bootstrap" not in frames:
         log.warning("[flow-agg] parts stream unusable (%d bytes, %d frames)",
                     len(proc.stdout), len(frames))
@@ -538,10 +543,24 @@ def build_parts(csv_text: str, date_filter: str | None = None) -> dict | None:
     # the client has one shape to understand rather than two.
     frames = envelope_bootstrap(frames, stats)
 
+    _t_gz = time.monotonic()
     gz = {name: gzip.compress(body, compresslevel=6) for name, body in frames.items()}
+    _st["gzip_ms"] = int((time.monotonic() - _t_gz) * 1000)
     _STATS["builds"] += 1
-    log.info("[flow-agg] parts built in %d ms: %s", stats["buildMs"],
-             ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
+    # ⛔ STAGE DECOMPOSITION, not just a total. "the build takes ~6 s" is not an
+    # actionable fact: the question is how much is CSV acquisition, how much is
+    # node startup, how much is the parse, how much is processFlowData itself,
+    # and how much is transport work this process does afterwards. `parseMs` and
+    # `processMs` come from inside the node run; the rest are measured here.
+    # Without this, optimisation is guesswork and "precompute it" becomes an
+    # excuse not to delete redundant work first.
+    log.info(
+        "[flow-agg] parts built in %d ms :: csv=%dKB spawn+run=%dms "
+        "(node parse=%sms process=%sms) frames=%dms stdout=%dKB gzip=%dms :: %s",
+        stats["buildMs"], _st.get("csv_kb", 0), _st.get("spawn_ms", 0),
+        stats.get("parseMs", "?"), stats.get("processMs", "?"),
+        _st.get("frames_ms", 0), _st.get("stdout_kb", 0), _st.get("gzip_ms", 0),
+        ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
     return {"parts": gz, "stats": stats}
 
 

@@ -79,6 +79,15 @@ over a ticker's COMPLETE uncapped history, and a retrying caller could
 otherwise stack a second and a third on one shared pod. A caller that gives up
 does NOT cancel the build: the work is useful warming, and request lifetime must
 not decide product lifecycle.
+(2026-09-08 evidence pass:) added a TEMPORARY admin-gated read-only diagnostic
+GET /api/flow/_diag/search-capacity (cardinality, per-ticker row-count
+distribution, exact freshness-probe cost + its query plan, and an opt-in
+rows->derivation curve), plus stage decomposition on the aggregate parts build.
+⛔ CORRECTION TO CARRY: the aggregate build is ~3.5-6.4 s of intrinsic work,
+NOT 20.4 s. The 20.4 s was CLIENT-OBSERVED TTFB and included decline/retry,
+sequential different-key builds and proxy overhead. Two separate targets: shrink
+the ~6 s, and remove the amplification. The diagnostic is REMOVABLE once the
+lifecycle design is settled.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

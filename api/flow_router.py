@@ -816,6 +816,184 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
         _SEARCH_BUILD_LOCK.release()
 
 
+# ---------------------------------------------------------------------------
+# TEMPORARY INVESTIGATION SURFACE. Admin-gated, read-only, bounded, removable.
+#
+# It exists to answer a specific set of questions about Options Flow product
+# preparation lifecycle -- cardinality, per-ticker history sizes, the cost of an
+# exact per-ticker freshness probe, and how derivation cost scales with rows.
+# It changes NO Options Flow semantics and writes nothing.
+#
+# DELETE IT once the lifecycle design is settled unless it earns lasting
+# operational value. It is deliberately NOT a general benchmarking framework.
+#
+# SAFETY: this runs on the shared flow-worker pod.
+#   - builds are OPT-IN (`builds=0` by default) and hard-capped;
+#   - builds run SERIALLY and take the same single-flight lock member requests
+#     use, so a diagnostic can never run a derivation alongside a member's;
+#   - every scan is bounded and the whole call is time-budgeted.
+_DIAG_MAX_BUILDS = 6
+_DIAG_TIME_BUDGET_S = 90.0
+
+
+def _diag_percentile(sorted_vals, q):
+    if not sorted_vals:
+        return None
+    i = int(round((len(sorted_vals) - 1) * q))
+    return sorted_vals[max(0, min(i, len(sorted_vals) - 1))]
+
+
+@flow_router.get("/_diag/search-capacity")
+def diag_search_capacity(source: str = "stocks", builds: int = 0, top: int = 12,
+                         _auth: dict = Depends(require_flow_admin)):
+    """Cardinality, history-size distribution, freshness-probe cost and the
+    rows->derivation curve. Read-only. `builds` is opt-in and capped."""
+    src = "indexes" if source == "indexes" else "stocks"
+    n_builds = max(0, min(int(builds or 0), _DIAG_MAX_BUILDS))
+    t_start = time.monotonic()
+    out = {"source": src, "budget_s": _DIAG_TIME_BUDGET_S, "builds_requested": n_builds}
+
+    def elapsed():
+        return time.monotonic() - t_start
+
+    # --- 1/2: cardinality + per-ticker row-count distribution ----------------
+    t0 = time.monotonic()
+    try:
+        with db._conn() as conn:
+            rows = conn.execute(
+                "SELECT Symbol, COUNT(*) AS c FROM flow WHERE source=? GROUP BY Symbol",
+                (src,),
+            ).fetchall()
+    except Exception as e:
+        return JSONResponse({"ok": False, "stage": "distribution", "error": str(e)},
+                            status_code=500)
+    counts = sorted(int(r[1]) for r in rows)
+    by_sym = sorted(((str(r[0]), int(r[1])) for r in rows), key=lambda x: -x[1])
+    out["distribution_ms"] = int((time.monotonic() - t0) * 1000)
+    out["cardinality"] = {"distinct_symbols": len(rows), "total_rows": sum(counts)}
+    out["row_counts"] = {
+        "min": counts[0] if counts else None,
+        "p50": _diag_percentile(counts, 0.50),
+        "p90": _diag_percentile(counts, 0.90),
+        "p95": _diag_percentile(counts, 0.95),
+        "p99": _diag_percentile(counts, 0.99),
+        "max": counts[-1] if counts else None,
+    }
+    out["heaviest"] = [{"sym": s_, "rows": c} for s_, c in by_sym[: max(1, min(top, 40))]]
+
+    # --- 3: exact per-ticker freshness probe cost, across buckets ------------
+    # The candidate identity is the SAME construction the global signature uses
+    # (MAX(rowid) catches inserts, COUNT(*) catches prunes) -- neither alone is
+    # sound. Measured here rather than assumed cheap because MAX(rowid) filtered
+    # by Symbol is NOT SQLite's rightmost-leaf special case.
+    def pick(q):
+        v = _diag_percentile(counts, q)
+        if v is None:
+            return None
+        for s_, c in by_sym:
+            if c <= v:
+                return (s_, c)
+        return by_sym[-1] if by_sym else None
+
+    probe_targets = []
+    for label, cand in (("p50", pick(0.50)), ("p90", pick(0.90)), ("p99", pick(0.99)),
+                        ("max", by_sym[0] if by_sym else None)):
+        if cand:
+            probe_targets.append((label, cand[0], cand[1]))
+
+    probes = []
+    for label, sym, nrows in probe_targets:
+        timings = []
+        for _ in range(3):
+            t1 = time.monotonic()
+            try:
+                with db._conn() as conn:
+                    r = conn.execute(
+                        "SELECT MAX(rowid), COUNT(*) FROM flow WHERE Symbol=? AND source=?",
+                        (sym, src),
+                    ).fetchone()
+            except Exception as e:
+                r = ("err", str(e))
+            timings.append(round((time.monotonic() - t1) * 1000, 2))
+        probes.append({"bucket": label, "sym": sym, "rows": nrows,
+                       "probe_ms": timings, "cold_ms": timings[0],
+                       "warm_ms": min(timings[1:]) if len(timings) > 1 else None,
+                       "value": [r[0], r[1]] if r and r[0] != "err" else None})
+    out["freshness_probe"] = probes
+
+    # --- 4: the query plan SQLite actually chooses ---------------------------
+    try:
+        with db._conn() as conn:
+            plan = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT MAX(rowid), COUNT(*) FROM flow "
+                "WHERE Symbol=? AND source=?", ("AAPL", src)).fetchall()
+        out["probe_query_plan"] = [" ".join(str(x) for x in row) for row in plan]
+    except Exception as e:
+        out["probe_query_plan"] = ["error: %s" % e]
+
+    # --- 5: rows -> derivation curve (OPT-IN, serial, single-flight) ---------
+    out["builds"] = []
+    if n_builds and flow_aggregate.available():
+        picks, seen = [], set()
+        for q in (0.50, 0.90, 0.99):
+            c = pick(q)
+            if c and c[0] not in seen:
+                seen.add(c[0]); picks.append(c)
+        if by_sym and by_sym[0][0] not in seen:
+            picks.append(by_sym[0])
+        picks = picks[:n_builds]
+        for sym, nrows in picks:
+            if elapsed() > _DIAG_TIME_BUDGET_S:
+                out["builds"].append({"sym": sym, "skipped": "time budget"})
+                continue
+            if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+                out["builds"].append({"sym": sym, "skipped": "build lock busy"})
+                continue
+            try:
+                b = {"sym": sym, "rows_in_db": nrows}
+                t1 = time.monotonic()
+                parts, nl_count = [], 0
+                for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+                    x = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
+                    parts.append(x); nl_count += x.count(b"\n")
+                csv_bytes = b"".join(parts)
+                b["csv_ms"] = int((time.monotonic() - t1) * 1000)
+                b["csv_kb"] = len(csv_bytes) // 1024
+                b["csv_rows"] = nl_count
+                t2 = time.monotonic()
+                try:
+                    proc = subprocess.run(
+                        [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
+                        input=csv_bytes, capture_output=True,
+                        timeout=flow_aggregate.BUILD_TIMEOUT_S)
+                    b["derive_ms"] = int((time.monotonic() - t2) * 1000)
+                    b["rc"] = proc.returncode
+                    if proc.returncode == 0:
+                        try:
+                            d = json.loads(proc.stdout)
+                            prod = d.get("product") or {}
+                            b["out_kb"] = len(proc.stdout) // 1024
+                            b["all_directional"] = len(prod.get("all_directional") or [])
+                            b["ticker_db"] = len(prod.get("TICKER_DB") or [])
+                            gz = gzip.compress(json.dumps(prod, separators=(",", ":")).encode("utf-8"), 6)
+                            b["product_gz_kb"] = len(gz) // 1024
+                        except Exception as e:
+                            b["parse_error"] = str(e)
+                    else:
+                        b["stderr"] = (proc.stderr or b"")[:200].decode("utf-8", "replace")
+                except subprocess.TimeoutExpired:
+                    b["derive_ms"] = int((time.monotonic() - t2) * 1000)
+                    b["timeout"] = True
+                b["total_ms"] = b.get("csv_ms", 0) + b.get("derive_ms", 0)
+                out["builds"].append(b)
+            finally:
+                _SEARCH_BUILD_LOCK.release()
+
+    out["ok"] = True
+    out["elapsed_ms"] = int(elapsed() * 1000)
+    return JSONResponse(out)
+
+
 @flow_router.get("/data")
 # sync def (not async): the gzip+stream build is CPU/sync work; a `def`
 # handler runs in the threadpool instead of blocking the single event loop.
