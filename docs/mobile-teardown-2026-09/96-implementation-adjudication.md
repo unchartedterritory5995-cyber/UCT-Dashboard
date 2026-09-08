@@ -105,3 +105,82 @@ negative claim taken from this harness needs a coarse-pointer confirmation befor
 | **MOB-01** phone Layouts door | ▶️ **next** — unaffected by the above, and independently confirmed: the phone Tools sheet has no layout row, while `applyTemplate` / `handleSaveLayout` / `handleSaveAsTemplate` / `deleteLayout` all already exist in `ChartsWorkspace.jsx` and are reusable as props |
 
 **MOB-01 remains the largest validated gap and is now the whole of Wave 0.**
+
+---
+
+## MOB-01 · Phone layout door — **SHIPPED AND DEVICE-VERIFIED** (`7b0877781`)
+
+**Reconciled first:** MOB-01 survives `90-independent-validation.md` and `95-census-errata.md`
+untouched — neither mentions `CMP-069`/`CMP-070` or the layout surface. Not tombstoned, not
+narrowed.
+
+### What the defect actually was
+Not a missing feature and not a bug in a component: **two `const` declarations on the wrong
+side of a `return`.** `wsGlobalLayouts` / `wsMyLayouts` were computed two lines *below*
+`ChartsWorkspace.jsx`'s `if (isMobile) { … return }`, so the phone branch could not reference
+them. Everything else — the API, the table, the prebuilts, the five handlers — already existed.
+
+### Reuse vs new code
+| reused, untouched | new |
+|---|---|
+| `applyTemplate` · `applyUctDefault` · `handleSaveLayout` · `handleSaveAsTemplate` · `handleDeleteTemplate` · `useChartLayouts` · `GET/POST/DELETE /api/charts/layouts` · the `charts_layouts` table · `charts_active_template` | `MobileLayoutsSheet.jsx` (presentation only) · a `Layouts` row in `MobileMoreSheet` · CSS · **one optional `(nameArg, scopeArg)` on `handleSaveAsTemplate`** so the phone's own input reuses the desktop's save path instead of forking it |
+
+**No second persistence layer.** A test asserts the sheet's *code* contains no
+`/api/charts/layouts`, no `useChartLayouts`, no `usePreferences`, no `fetch(`, no
+`localStorage` — comments stripped first, because the first draft of that probe matched the
+component's own doc comment and failed a correct file.
+
+### The scope model, read from code — and one correction to the research
+| scope | what |
+|---|---|
+| `USER_OWNED` | `scope:'user'` rows — delete allowed |
+| `FIRM_PUBLISHED / READ_ONLY` | `scope:'global'` — admin-only write/delete server-side, so a member sees a **"Firm"** badge and **no delete control** rather than one that 403s |
+| `PER_WORKSPACE` | arrangement + per-widget `opts` + chart/widget settings + watchlist columns (captured into the template) |
+| **NOT in a layout** | **the colour-group tickers.** `handleSaveAsTemplate` sends `groups: null` and `applyTemplate` deliberately leaves them alone — *"a template must not swap the stock you're looking at."* |
+| `PER_DEVICE` | watchlist columns (localStorage) and the pan/zoom view lock — unchanged by this work |
+
+⛔ **ERRATUM to the research package.** `CMP-068` / `UCT-P9-0003` / `85-*`'s MOB-01 acceptance
+criterion (1) all state that a saved layout "carries the symbols". **It does not.** That was read
+off the API schema (`LayoutIn.groups: Optional[dict]`) rather than off the caller, which passes
+`null` by design. The sheet's copy says *arrangement*, and a test pins that it never promises
+symbols. ⚠️ Same defect class as the rest of this study: **schema existence ≠ behaviour.**
+
+### Real-device verification — iPhone 15 / iOS 17.5, portrait, `REAL_COARSE_POINTER_VERIFIED`
+Physical device via BrowserStack App Live → mobile Safari → BrowserStack Local → the local
+sandbox on `bs-local.com:8092`. Observed on the touchscreen:
+
+- **Tools sheet:** `Set price alert… · Draw on chart · Flag SPY · Share chart image ·
+  Chart settings · **Layouts — Phone board** ·` YOUR WIDGETS…
+  The active layout's name rides the row, and it was the layout saved earlier from a *different*
+  session — cross-session persistence proven on hardware.
+- **Layouts sheet:** `CURRENT — PHONE BOARD` · `Save — updates this layout` · `Save as… ›` ·
+  PREBUILT `UCT Default [FIRM]` · MY LAYOUTS `✓ Phone board 🗑`
+- **Save-as sub-sheet:** auto-focused `Layout name` field, `Just me / Firm-wide` scope choice
+  (admin), **`Save layout` disabled while the name is empty**, and the note stating that opening
+  a layout never swaps the symbol.
+- No horizontal overflow; bottom-sheet presentation and safe-area correct.
+
+⭐ **Two research findings independently re-confirmed on the same screen:** the A/L/% scale
+toggles and the `$-Vol` strip are **absent** on the real phone — the `(pointer: coarse)`
+`display:none` rule the adversarial review found, seen working.
+
+### Acceptance criteria
+1–9 ✅ (behavioural tests + device) · 10, 12 ✅ (full reload → row reads "Layouts · Phone board",
+header `CURRENT — PHONE BOARD`, `aria-current=true`) · 11 ✅ (desktop at 1400×900 lists
+"Phone board" in Open Layout) · 13 ✅ (source probe) · 14 ✅ (34/34 existing ChartsWorkspace
+desktop tests, 547 chart tests total).
+
+**MEASURE-02 (landscape) is untouched and remains the pre-ship gate for orientation work.**
+
+---
+
+## Wave 0 — **COMPLETE**
+
+| item | outcome |
+|---|---|
+| MOB-03 legend/member-state | **P0_NOT_REPRODUCED** — rail shipped `e433e98f6` |
+| MOB-02 watchlist row | **layout claims disproven**; residue is a pre-ship verification item needing a live feed |
+| MOB-01 phone layout door | **SHIPPED + device-verified** `7b0877781` |
+
+**Next: Wave 1** — MOB-06 (the phone-presentation rule), MOB-07 (`_COARSE_POINTER` → hook),
+MEASURE-01, MEASURE-02.
