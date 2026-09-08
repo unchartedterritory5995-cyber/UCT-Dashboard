@@ -705,7 +705,60 @@ class _Stages:
 # A DISAPPEARING CALLER DOES NOT CANCEL THE BUILD. If the proxy or the browser
 # gives up, the derivation still finishes and installs its cache entry: the work
 # is useful warming, and request lifetime must not decide product lifecycle.
-_SEARCH_BUILD_LOCK = threading.Lock()
+class _Lane:
+    """A bounded set of build slots, with the mutex's exact call shape.
+
+    ⛔ WHY A SEMAPHORE AND NOT A BIGGER LOCK. The single slot existed to stop
+    concurrent derivations saturating a shared pod. The pod probe says memory is
+    not the constraint (limit 30,517 MB, idle ~3.4 GB, worker 346 MB, zero node
+    children), and every job is now bounded at 48 MB / 20 s -- so a slot can
+    only ever hold a bounded amount of work. Two slots therefore cost at most
+    two bounded jobs, which the measured headroom absorbs comfortably.
+
+    ⛔ THIS DOES NOT WEAKEN "SAME TICKER -> ONE BUILD". That invariant never came
+    from this lane: it is `_SEARCH_WARMING` (one warm per symbol) plus the
+    cache re-check inside the slot. The lane only ever bounded how many
+    DIFFERENT tickers derive at once, which is precisely what starved cheap
+    tickers behind a heavy one.
+
+    Keeps `.acquire(blocking=False)` / `.release()` / `.locked()` so all three
+    existing call sites and the pod probe are unchanged.
+    """
+
+    def __init__(self, slots: int):
+        self.slots = max(1, slots)
+        self._sem = threading.BoundedSemaphore(self.slots)
+        self._active = 0
+        self._guard = threading.Lock()
+
+    def acquire(self, blocking=False):
+        got = self._sem.acquire(blocking=blocking)
+        if got:
+            with self._guard:
+                self._active += 1
+        return got
+
+    def release(self):
+        with self._guard:
+            self._active -= 1
+        self._sem.release()
+
+    def locked(self) -> bool:
+        """True when every slot is taken -- what the old `.locked()` meant."""
+        with self._guard:
+            return self._active >= self.slots
+
+    @property
+    def active(self) -> int:
+        with self._guard:
+            return self._active
+
+
+# 2 by default: measured on prod 2026-09-08, one bounded job at a time left a
+# cheap ticker waiting ~30 s behind a heavy ticker's budget. Env-overridable so
+# it can be returned to 1 without a code change.
+_SEARCH_LANES = int(os.environ.get("FLOW_SEARCH_LANES", "2") or 2)
+_SEARCH_BUILD_LOCK = _Lane(_SEARCH_LANES)
 
 # The materialisation budget for ONE ticker's Search product. Derived from the
 # measured cost curve, not chosen: p50 ALIT 5 KB / 242 ms, p90 WPM 125 KB /
@@ -1125,7 +1178,9 @@ def diag_pod(_auth: dict = Depends(require_flow_admin)):
         "node_child_count": len(node),
         "top_procs": procs[:8],
         "search_lane": {**search_warm_state(),
-                        "lock_held": _SEARCH_BUILD_LOCK.locked()},
+                        "lock_held": _SEARCH_BUILD_LOCK.locked(),
+                        "lanes": _SEARCH_BUILD_LOCK.slots,
+                        "active": _SEARCH_BUILD_LOCK.active},
         "prepare": prepare_state(),
     })
 

@@ -355,7 +355,13 @@ def test_a_declined_warm_is_counted_rather_than_vanishing(monkeypatch):
     """⛔ A silent decline is indistinguishable from a broken warmer. It must
     leave a trace."""
     fr._WARM_STATS["declined"] = 0
-    fr._SEARCH_BUILD_LOCK.acquire()          # hold the lane, as a real build would
+    # Fill EVERY slot — the lane is a bounded semaphore now, so taking one of
+    # two would leave a free slot and the warm would (correctly) proceed. The
+    # invariant is about a FULL lane, not a busy one.
+    held = [fr._SEARCH_BUILD_LOCK.acquire(blocking=False)
+            for _ in range(fr._SEARCH_BUILD_LOCK.slots)]
+    assert all(held), "could not fill the lane, so this test proves nothing"
+    assert fr._SEARCH_BUILD_LOCK.locked() is True
     try:
         done = threading.Event()
         monkeypatch.setattr(fr, "_build_search_product",
@@ -368,4 +374,83 @@ def test_a_declined_warm_is_counted_rather_than_vanishing(monkeypatch):
             time.sleep(0.02)
         assert done.is_set(), "a warm declined on the busy lane and recorded nothing"
     finally:
-        fr._SEARCH_BUILD_LOCK.release()
+        for _ in held:
+            fr._SEARCH_BUILD_LOCK.release()
+
+
+# ── Bounded parallelism: different tickers yes, same ticker never ────────────
+
+def test_two_DIFFERENT_tickers_build_concurrently(monkeypatch):
+    """⛔ THE SLICE-1 INVARIANT. Measured on prod with one slot, a cheap ticker
+    waited ~30 s behind a heavy ticker's budget before it could even start. With
+    a bounded lane they overlap.
+
+    Proven by a barrier: if the lane still serialised them, the first build
+    would never see the second arrive and this blocks until it fails."""
+    # ⛔ NO SKIP HERE. This first read `if slots < 2: pytest.skip(...)`, which
+    # disabled the test in exactly the case it exists to catch -- collapsing the
+    # lane to one slot made it SKIP, not fail, and the mutation check proved the
+    # rail was worthless. The mechanism is tested against an explicit two-slot
+    # lane; the SHIPPED value is a separate assertion below, so a config change
+    # and a mechanism regression fail independently.
+    monkeypatch.setattr(fr, "_SEARCH_BUILD_LOCK", fr._Lane(2))
+    both_inside = threading.Barrier(2, timeout=5)
+    done = threading.Event()
+    seen = []
+
+    def build(sym, src, key, version, st):
+        try:
+            both_inside.wait()          # only returns if BOTH are in the lane
+            seen.append(sym)
+        finally:
+            if len(seen) == 2:
+                done.set()
+        return b"gz", None
+
+    monkeypatch.setattr(fr, "_build_search_product", build)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+
+    assert fr._spawn_search_warm("ALIT", "stocks", ("ALIT", "stocks", "1"), "1") is True
+    assert fr._spawn_search_warm("WPM", "stocks", ("WPM", "stocks", "1"), "1") is True
+
+    assert done.wait(6), (
+        "two different tickers did not overlap in the lane -- they are still "
+        "serialised, which is the starvation this slice exists to remove")
+    assert sorted(seen) == ["ALIT", "WPM"]
+
+
+def test_the_SAME_ticker_still_gets_exactly_one_build(monkeypatch):
+    """⛔ The invariant that must survive the widening. It never came from the
+    lane -- it is `_SEARCH_WARMING` plus the in-slot cache re-check -- so
+    widening the lane must not have weakened it."""
+    started = threading.Event()
+    release = threading.Event()
+    builds = []
+
+    def build(sym, src, key, version, st):
+        builds.append(sym)
+        started.set()
+        release.wait(5)
+        return b"gz", None
+
+    monkeypatch.setattr(fr, "_build_search_product", build)
+    monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
+
+    assert fr._spawn_search_warm("AMD", "stocks", ("AMD", "stocks", "1"), "1") is True
+    assert started.wait(5)
+    # A free slot EXISTS now — the refusal must come from per-symbol dedupe.
+    assert fr._SEARCH_BUILD_LOCK.locked() is False, "no free slot; test is vacuous"
+    assert fr._spawn_search_warm("AMD", "stocks", ("AMD", "stocks", "1"), "1") is False
+
+    release.set()
+    assert builds == ["AMD"]
+
+
+def test_the_SHIPPED_lane_has_more_than_one_slot():
+    """The configuration half. Collapsing the lane to a single slot restores the
+    starvation measured on prod (a cheap ticker waiting ~30 s behind a heavy
+    ticker's budget), so it must fail loudly rather than silently skip."""
+    assert fr._SEARCH_LANES >= 2, (
+        "the search lane is back to a single slot -- different tickers will "
+        "serialise again")
+    assert fr._SEARCH_BUILD_LOCK.slots == fr._SEARCH_LANES
