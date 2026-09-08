@@ -39,7 +39,14 @@ of the ten dimensions are 🔴, two are unmeasured, and the minimum bar the prot
 | **3** | *"Import most common Pine indicators with their visuals."* | 🔴 **NOT earned.** Two-way conditional colour and plot↔plot bands draw; N-way colour (8 rows), colour-as-visibility (16 rows) and `plotcandle` payloads (12 rows) do not, and 16 of 18 accepted scripts remain VISUALLY PARTIAL. |
 | **4** | *"Bring sophisticated TradingView indicators into UCT."* | 🔴 Needs the object model (Wave E); this is the tier the governing objective actually names |
 
-**Recommendation as of 2026-09-07: Tier 2 may now be claimed, and Tier 3 may not.**
+**Recommendation as of 2026-09-07 (after C0R, C1 and C2): Tier 2 may be claimed,
+and Tier 3 may not.**
+
+⛔ **C2 DID NOT MOVE THE TIER AND WAS NOT SUPPOSED TO.** Capacity work removes
+blockers; it does not add visual fidelity. `master-line-lite` went from seven dead
+columns to three drawn ones, and the corpus counts stayed 13/2/2/1. Promoting on
+"capacity blockers disappeared" would be exactly the unearned claim the tier table
+exists to prevent.
 
 ⛔ **AND THE TIER-2 WORDING MUST CARRY ITS OWN CAVEAT.** "Import supported Pine
 indicators" is earned only because *"and be told plainly what did and didn't come
