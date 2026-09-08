@@ -570,7 +570,33 @@ function expToISO(expStr) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist","Confluence"];
 
+// Tabs whose panels read the demand-driven feature datasets (curatedThresholds,
+// wlDates, topFlowPicks). Derived by reading every consumer of those three
+// states — none of them renders on Market Read, the default tab. ⛔ Widen this
+// only after grepping the new consumer: a tab missing here gets an empty panel,
+// which is the failure this list exists to prevent.
+const FEATURE_DATA_TABS = ["Top Flow", "Tracker", "Watchlist"];
+
 export default function OptionsFlowDashboard() {
+  // ── Render timeline instrument ───────────────────────────────────────────
+  // "Options Flow renders 8-15 times before stabilising while UCT20 renders
+  // 2-3" is a claim about a RUN, so it needs a count from a run rather than an
+  // argument from the source. `marks` holds ms-since-first-render for the first
+  // 60 renders, which is what makes a CASCADE visible: a serial effect chain
+  // shows up as renders spaced by request latency, while independent hydration
+  // shows up as a burst. Read it in the browser as `window.__flowRenderStats`.
+  // Cost is one ref bump per render; it stays in production because the next
+  // person to ask this question should not have to re-instrument the page.
+  const _renderStats = useRef(null);
+  if (_renderStats.current === null) {
+    _renderStats.current = { renders: 0, t0: typeof performance !== "undefined" ? performance.now() : 0, marks: [] };
+  }
+  _renderStats.current.renders += 1;
+  if (_renderStats.current.marks.length < 60 && typeof performance !== "undefined") {
+    _renderStats.current.marks.push(Math.round(performance.now() - _renderStats.current.t0));
+  }
+  if (typeof window !== "undefined") window.__flowRenderStats = _renderStats.current;
+
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";  // gates the Discord push controls
   const [dataMode, setDataMode] = useState("stocks"); // "stocks" | "index"
@@ -981,14 +1007,9 @@ export default function OptionsFlowDashboard() {
   // IT IS TUNED (premium floors, V/OI, confirmers). Falls back to curated
   // defaults if unset/unreachable. Same endpoint the curated tuning panel uses.
   const [curatedThresholds, setCuratedThresholds] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/live/massive/thresholds")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (!cancelled && d && d.thresholds) setCuratedThresholds(d.thresholds); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  // ⛔ NOT fetched on mount — see the demand-driven feature-data effect below.
+  // Every consumer (`passesCuratedGate`, reached only from `wlPopulate` and the
+  // Watchlist Suggestions block) lives on the Watchlist tab.
 
 // Fetch DB version on mount + when tab regains focus (so a fresh upload in
   // another tab is picked up immediately). Version is the row count; when it
@@ -2737,20 +2758,45 @@ export default function OptionsFlowDashboard() {
     }).catch(()=>{});
   };
 
-  useEffect(()=>{
-    fetch("/api/watchlist/dates").then(r=>r.ok?r.json():[]).then(d=>setWlDates(d)).catch(()=>{});
-  },[]);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Fetch history after initial render (deferred)
+  // ── Demand-driven feature data ───────────────────────────────────────────
+  // THREE separate mount effects used to fetch these, for panels the default
+  // tab never renders:
+  //   /api/live/massive/thresholds -> curatedThresholds (Watchlist auto-fill +
+  //        Suggestions; documented fallback to curated defaults when unset)
+  //   /api/watchlist/dates         -> wlDates      (Watchlist date <select>)
+  //   /api/top-flow/history        -> topFlowPicks (Top Flow / Tracker /
+  //        Watchlist — grep every reader: none is on Market Read)
+  //
+  // Verified by reading every consumer, not by assuming: each one renders only
+  // under `tab === "Top Flow" | "Tracker" | "Watchlist"`. On a default Market
+  // Read entry all three were a request, a setState and a render for something
+  // nobody could see. UCT20 does not fetch a tile's data before the tile
+  // exists; this is that rule, applied to tabs.
+  //
+  // ⛔ ONCE PER MOUNT, tracked by a ref — `tab` changes on every tab click and
+  // a plain dep array would refetch on every visit. The flag is cleared on
+  // failure so a dropped request retries on the next visit rather than leaving
+  // the panel permanently empty.
+  const _featureFetched = useRef({});
   useEffect(() => {
-    const t = setTimeout(() => {
-      fetch("/api/top-flow/history").then(r=>r.ok?r.json():null).then(data=>{
-        if (data) setTopFlowPicks(data);
-      }).catch(()=>{});
-    }, 500);
-    return () => clearTimeout(t);
-  }, []);
+    if (!FEATURE_DATA_TABS.includes(tab)) return;
+    const once = (key, run) => {
+      if (_featureFetched.current[key]) return;
+      _featureFetched.current[key] = true;
+      run().catch(() => { _featureFetched.current[key] = false; });
+    };
+    once("thresholds", () => fetch("/api/live/massive/thresholds")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.thresholds) setCuratedThresholds(d.thresholds); }));
+    once("wlDates", () => fetch("/api/watchlist/dates")
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setWlDates(d)));
+    once("topFlowPicks", () => fetch("/api/top-flow/history")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setTopFlowPicks(data); }));
+  }, [tab]);
 
   // NOTE: Auto-save of "top 20 per CSV date from D.CONV" was REMOVED. It
   // pulled from the broader confirmed-cluster list (D.CONV), which mixed in
@@ -2759,8 +2805,15 @@ export default function OptionsFlowDashboard() {
   // the cap-weighted "Top 10 Flow Picks" via the manual "💾 Save Top 10"
   // button in Market Read. One click per trading day (or per backfill date).
 
-  // Auto-load market data (deferred — non-critical)
-  useEffect(() => { const t = setTimeout(fetchMarketData, 800); return () => clearTimeout(t); }, []);
+  // Market data is FIRST-PAINT CONTENT now, so it no longer waits 800 ms.
+  // ⛔ That delay was correct when this strip lived inside the `D &&` body: it
+  // could not be seen before the flow dataset landed, so deferring it kept a
+  // non-critical request off a critical path. The strip is now rendered in the
+  // pending branch (marketPulseStrip), which makes it the FIRST real data the
+  // member sees — and an 800 ms timer was holding it at "Market data loads
+  // automatically / Load Now" for longer than the section takes to appear.
+  // A stale deferral is invisible: nothing fails, the panel is just late.
+  useEffect(() => { fetchMarketData(); }, []);
   useEffect(() => { if (dataMode === "gex" && gexTicker) fetchGex(gexTicker, gexDte, gexAdjusted); }, [dataMode, gexTicker, gexDte, gexAdjusted]);
 
   // GEX horizontal price lines — derived from gexData. Passed as `priceLines`
@@ -3623,24 +3676,22 @@ export default function OptionsFlowDashboard() {
   }
 
   async function fetchMarketData() {
-    // Fetch index quotes
-    try {
-      const resp = await fetch("/api/schwab/market-summary");
-      if (resp.ok) {
-        const data = await resp.json();
-        setMarketIndices(data.indices || []);
-      }
-    } catch(e) { console.warn("Market indices error:", e); }
-    // Fetch AI narrative
+    // ⛔ These two endpoints are INDEPENDENT and were awaited SERIALLY, so the
+    // narrative could not start until the quotes had fully landed. The strip is
+    // first-paint content now, so both start together and each paints when it
+    // arrives — the prices are not held back by a summary nobody is waiting on,
+    // and the summary is not held back by the quotes.
     setNarrativeLoading(true);
-    try {
-      const resp = await fetch("/api/schwab/market-narrative");
-      if (resp.ok) {
-        const data = await resp.json();
-        setMarketNarrative(data.narrative || null);
-      }
-    } catch(e) { console.warn("Narrative error:", e); }
-    setNarrativeLoading(false);
+    const indices = fetch("/api/schwab/market-summary")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMarketIndices(d.indices || []); })
+      .catch(e => { console.warn("Market indices error:", e); });
+    const narrative = fetch("/api/schwab/market-narrative")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMarketNarrative(d.narrative || null); })
+      .catch(e => { console.warn("Narrative error:", e); })
+      .finally(() => setNarrativeLoading(false));
+    await Promise.all([indices, narrative]);
   }
 
 

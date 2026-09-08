@@ -226,6 +226,69 @@ describe('Options Flow correctness guard', () => {
     }
   })
 
+  it('feature-tab data is demand-driven, not fetched on mount', () => {
+    // Every consumer of these three lives on Top Flow / Tracker / Watchlist, so
+    // on a default Market Read entry they were a request, a setState and a
+    // render for something nobody could see. They now fetch when a consuming
+    // tab first opens.
+    expect(CODE.includes('const FEATURE_DATA_TABS'),
+      'the demand-driven tab list is gone' + FIX).toBe(true)
+    for (const t of ['Top Flow', 'Tracker', 'Watchlist']) {
+      expect(new RegExp(`FEATURE_DATA_TABS = \\[[^\\]]*"${t}"`).test(CODE),
+        `${t} dropped out of FEATURE_DATA_TABS — its panel will render empty` + FIX).toBe(true)
+    }
+    // The endpoints must not sit in a mount effect (`}, []);`) any more. Find
+    // each fetch and read the dep array of the effect that encloses it.
+    // ⛔ State the invariant DIRECTLY — "no mount effect fetches these" — rather
+    // than "the effect enclosing the first occurrence has deps". Two earlier
+    // shapes of this check were wrong for the same reason: they assumed the
+    // first textual occurrence was the one that moved. `/api/watchlist/dates`
+    // has a SECOND, legitimate call site (a post-save refresh) that is not in
+    // an effect at all, and the bare path also appears in the comment above the
+    // effect. Enumerate the mount effects and look inside them.
+    const mountEffectBodies = []
+    for (let i = 0; ; ) {
+      const at = CODE.indexOf('useEffect(', i)
+      if (at === -1) break
+      let depth = 0
+      let j = at + 'useEffect'.length
+      for (; j < CODE.length; j++) {
+        const c = CODE[j]
+        if (c === '(') depth++
+        else if (c === ')') { depth--; if (depth === 0) break }
+      }
+      const body = CODE.slice(at, j + 1)
+      if (/\}\s*,\s*\[\s*\]\s*\)$/.test(body.trim())) mountEffectBodies.push(body)
+      i = j + 1
+    }
+    // CONTROL: the scanner can see mount effects at all. Without this the loop
+    // below passes trivially the day the bracket matcher breaks.
+    expect(mountEffectBodies.length,
+      'the mount-effect scanner found none — it is not reading this file').toBeGreaterThan(0)
+
+    for (const url of ['/api/live/massive/thresholds', '/api/watchlist/dates', '/api/top-flow/history']) {
+      expect(CODE.includes(`fetch("${url}")`), `${url} is gone entirely`).toBe(true)
+      const onMount = mountEffectBodies.filter(b => b.includes(url))
+      expect(onMount.length,
+        `${url} is fetched from a mount effect again — it loads for a tab nobody opened` + FIX).toBe(0)
+    }
+  })
+
+  it('market data is not held behind a timer — it is first paint now', () => {
+    // The 800 ms deferral was right while the strip lived inside `D &&`. It is
+    // rendered in the pending branch now, so the timer only delayed the first
+    // real data on the page. A stale deferral fails nothing; it is just late.
+    expect(/setTimeout\(\s*fetchMarketData/.test(CODE),
+      'fetchMarketData is behind a timer again — the strip is first-paint content' + FIX).toBe(false)
+  })
+
+  it('the render timeline instrument survives', () => {
+    // "renders before TOP 10" is a claim about a run. Without this the next
+    // person to ask has to re-instrument the page.
+    expect(CODE.includes('window.__flowRenderStats'),
+      'the render counter is gone — render-cascade claims become unfalsifiable' + FIX).toBe(true)
+  })
+
   it('FD does not rebuild charts the server already sent', () => {
     // processFlowData returns clean_confirmed AND buildCharts(clean_confirmed).
     // When FD's filters drop nothing, rebuilding recomputes a value already in
