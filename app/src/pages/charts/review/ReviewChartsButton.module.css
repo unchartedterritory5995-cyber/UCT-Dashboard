@@ -1,0 +1,43 @@
+/* The review-entry action. Sized for a thumb wherever it lands, because the
+   surfaces that mount it (scan results, screener results) are read on a phone
+   as often as a desktop — and this is the control that STARTS the mobile review
+   flow, so it is the last place to ship a 22px target. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min, 44px);
+  padding: 0 12px;
+  border: 1px solid var(--ut-gold, #c9a84c);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent);
+  color: var(--text, #e8e4d8);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ut-gold, #c9a84c) 22%, transparent);
+}
+
+/* ⛔ A DISABLED REVIEW STILL READS AS A CONTROL. It is muted, not erased — an
+   empty screen is a result, and a member must be able to see that reviewing is
+   a thing this surface does even on the day nothing matched. */
+.btn:disabled {
+  border-color: var(--border, #2a3340);
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  cursor: default;
+}
+
+.label { white-space: nowrap; }
+
+.count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ut-gold, #c9a84c);
+  font-size: 11px;
+}

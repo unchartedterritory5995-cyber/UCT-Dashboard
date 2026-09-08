@@ -23,6 +23,13 @@ const { META, SAVED, scanMock, exportMock } = vi.hoisted(() => ({
   exportMock: vi.fn(),
 }))
 
+// ⚠️ THE TOOLBAR NOW CARRIES A REVIEW-CHARTS ACTION, AND IT NAVIGATES, so this
+// shell needs a router. Mocked rather than wrapped in a `MemoryRouter`: these
+// cases are about the shell's own states, and real routing here would be
+// scaffolding that asserts nothing. Entering a review is owned by
+// `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
+
 vi.mock('../hooks/useScreenerMeta', () => ({ default: () => ({ meta: META, isLoading: false }) }))
 vi.mock('../hooks/useScreenerScan', () => ({ default: scanMock }))
 vi.mock('../hooks/useSavedScreens', () => ({ default: () => SAVED }))

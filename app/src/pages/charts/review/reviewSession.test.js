@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  enter, step, position, syncToSymbol, reconcile,
+  enter, step, position, syncToSymbol, reconcile, adopt,
   currentSymbol, nextSymbol, prevSymbol, normaliseSymbols, neighbours,
   read, write, clear, STORAGE_KEY,
 } from './reviewSession'
@@ -129,6 +129,43 @@ describe('REFRESH — the list moved while reviewing', () => {
 
   it('⛔ and ends on an emptied list rather than reporting a phantom total', () => {
     expect(reconcile(mk('AVGO'), [])).toBeNull()
+  })
+})
+
+describe('the handoff flag', () => {
+  it('a same-page entry is adopted from the start', () => {
+    // The watchlist sets the symbol in the same gesture that enters, so its
+    // session is never waiting on anything.
+    expect(mk('AMD').pending).toBe(false)
+  })
+
+  it('an entry made from another page starts pending', () => {
+    const s = enter({ source: 'scan', symbols: LIST, symbol: 'AMD', pending: true })
+    expect(s.pending).toBe(true)
+  })
+
+  it('⛔ ONLY an explicit `true` — a truthy value does not buy a wait state', () => {
+    // The flag suppresses the EXIT rule. Anything that can slip into it by
+    // accident (a string, an object, a stray 1) would suppress it by accident.
+    expect(enter({ symbols: LIST, symbol: 'AMD', pending: 'yes' }).pending).toBe(false)
+    expect(enter({ symbols: LIST, symbol: 'AMD', pending: 1 }).pending).toBe(false)
+  })
+
+  it('adopt clears it, and is a no-op on an already-adopted session', () => {
+    const p = enter({ symbols: LIST, symbol: 'AMD', pending: true })
+    expect(adopt(p).pending).toBe(false)
+    const done = adopt(p)
+    expect(adopt(done)).toBe(done)          // same object — nothing to change
+    expect(adopt(null)).toBe(null)
+  })
+
+  it('⭐ adoption changes NOTHING else about the review', () => {
+    const p = enter({ source: 'scan', symbols: LIST, symbol: 'AVGO', pending: true })
+    const a = adopt(p)
+    expect(a.symbols).toEqual(p.symbols)
+    expect(a.index).toBe(p.index)
+    expect(a.source).toBe(p.source)
+    expect(a.reviewed).toEqual(p.reviewed)
   })
 })
 

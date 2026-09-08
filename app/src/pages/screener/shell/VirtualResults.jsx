@@ -5,7 +5,6 @@ import TickerActionsMenu, { useTickerActions } from '../../../components/TickerA
 import PatternFeedbackChip from '../../../components/PatternFeedbackChip'
 import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
 import ColumnDesc from './ColumnDesc'
-import { sortRowsLive } from './liveSort'
 import styles from './ScannerShell.module.css'
 
 // The virtualized grid-table door: an ARIA grid on top of @tanstack/react-virtual.
@@ -26,10 +25,21 @@ const colWidth = key =>
   : `${NUM_W}px`
 
 export default function VirtualResults({ rows, columns, sort, onSort, livePrices,
-  liveSortOn, density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }) {
+  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }) {
   const ta = useTickerActions()
   const scrollRef = useRef(null)
-  const displayRows = liveSortOn ? sortRowsLive(rows, sort, livePrices) : rows
+  /* ⛔ `rows` ARE ALREADY IN DISPLAY ORDER — the live re-sort moved UP to
+   * `ScannerShell` (which now owns it for every renderer) rather than living
+   * here for the desktop table alone. Two reasons, and the second is why it had
+   * to move rather than be copied:
+   *   1. the toggle is in the underbar, which the PHONE shows too, so
+   *      "Re-sort loaded rows live" did nothing at all on `ResultCards`;
+   *   2. "Review charts" publishes the order the member is looking at, and a
+   *      display order computed inside one renderer is not reachable by the
+   *      surface that has to name it. Deriving it a second time in the shell
+   *      would be two authorities over one list — and they would agree on the
+   *      day they were written. */
+  const displayRows = rows
   const rowH = ROW_H[density] || ROW_H.compact
 
   const virtualizer = useVirtualizer({

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   read, publish, position, step, syncToSymbol, currentSymbol, REVIEW_EVENT,
-  neighbours,
+  neighbours, adopt,
 } from './reviewSession'
 import { prefetchBars } from '../../../utils/prefetchBars'
 
@@ -20,11 +20,21 @@ import { prefetchBars } from '../../../utils/prefetchBars'
  * the symbol would give the app two opinions about what it is showing.
  */
 export default function useReviewSession(symbol, { tf = 'D' } = {}) {
-  const [session, setSession] = useState(() => read())
+  const [raw, setRaw] = useState(() => read())
+
+  /* ⛔ A SESSION NO CHART HAS ADOPTED IS NOT REPORTED AS A SESSION.
+   *
+   * An entry made from another page (a scan's "Review charts") is published
+   * before this shell resolves its symbol, so for one beat the chart shows the
+   * member's saved ticker instead. Reporting the session during that beat would
+   * put "1 / 20" beside a symbol that is not in the review — and every consumer
+   * here reads `session`, so gating it once, here, covers the control, the
+   * position chip and the return-to-list door together. */
+  const session = raw && raw.pending ? null : raw
 
   // Cross-surface sync: any publisher updates every consumer.
   useEffect(() => {
-    const onChange = (e) => setSession(e?.detail ?? read())
+    const onChange = (e) => setRaw(e?.detail ?? read())
     window.addEventListener(REVIEW_EVENT, onChange)
     return () => window.removeEventListener(REVIEW_EVENT, onChange)
   }, [])
@@ -33,11 +43,20 @@ export default function useReviewSession(symbol, { tf = 'D' } = {}) {
   // which is the EXIT — a stale "12 of 47" must never sit beside an unrelated
   // chart the user opened from search or a deep link.
   useEffect(() => {
-    if (!symbol || !session) return
-    if (currentSymbol(session) === symbol) return
-    const next = syncToSymbol(session, symbol)
-    if (next !== session) publish(next)          // null clears it
-  }, [symbol, session])
+    if (!symbol || !raw) return
+    if (raw.pending) {
+      // THE HANDOFF. The chart has not caught up yet, so a foreign symbol says
+      // nothing about the review and must not end it (see `adopt`'s header —
+      // without this the entry destroys itself before the deep link lands).
+      // The session's OWN symbol arriving is the adoption, and the only thing
+      // that ends the silence.
+      if (currentSymbol(raw) === symbol) publish(adopt(raw))
+      return
+    }
+    if (currentSymbol(raw) === symbol) return
+    const next = syncToSymbol(raw, symbol)
+    if (next !== raw) publish(next)              // null clears it
+  }, [symbol, raw])
 
   /* PREFETCH the neighbours the user is about to reach.
    *
@@ -52,13 +71,16 @@ export default function useReviewSession(symbol, { tf = 'D' } = {}) {
    * is why the window is asymmetric rather than a tidy ±2.
    */
   useEffect(() => {
-    if (!session || !session.symbols) return
-    const want = neighbours(session)
+    // ⭐ `raw`, NOT `session` — warming runs DURING the handoff on purpose. The
+    // navigation to the chart shell is exactly the dead time the prefetch was
+    // built to use, and a warm queue is invisible either way.
+    if (!raw || !raw.symbols) return
+    const want = neighbours(raw)
     if (!want.length) return
     // The queue supersedes naturally: a later call enqueues the new neighbours,
     // and anything already in flight is a bounded, cheap request either way.
     try { prefetchBars(want, tf) } catch { /* warming is never load-bearing */ }
-  }, [session, tf])
+  }, [raw, tf])
 
   const go = useCallback((delta) => {
     const cur = read()

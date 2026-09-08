@@ -43,6 +43,14 @@ import { evaluateFormula } from '../chart/builder/FormulaField'
 // file is about — and `data-testid="chart-pane"` deliberately lives on the
 // SURFACE's wrapper, not inside the pane, so mocking the pane cannot make the
 // assertion pass by removing the thing under test.
+// ⚠️ THE HEADER NOW HAS A REVIEW-CHARTS ACTION, AND IT NAVIGATES, so this
+// component needs a router. Mocked rather than wrapped in a `MemoryRouter`:
+// every case below is about what the RESULTS say, and real routing here would
+// be scaffolding that asserts nothing. The navigation itself — that entering a
+// review publishes the session and lands on the chart — is owned by
+// `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
+
 vi.mock('../chart/pane/ChartPane', () => ({
   default: ({ sym, tf }) => <div data-testid={`pane-inner-${sym}-${tf}`}>pane</div>,
 }))

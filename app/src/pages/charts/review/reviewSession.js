@@ -55,7 +55,7 @@ export function normaliseSymbols(symbols) {
  * Returns null when there is nothing to review (no symbols, or the opened
  * symbol is not in them) rather than a session that lies about its position.
  */
-export function enter({ source = 'other', sourceId = null, label = '', symbols, symbol, sort = null } = {}) {
+export function enter({ source = 'other', sourceId = null, label = '', symbols, symbol, sort = null, pending = false } = {}) {
   const list = normaliseSymbols(symbols)
   const sym = isStr(symbol) ? symbol.trim().toUpperCase() : null
   if (!list.length || !sym) return null
@@ -72,7 +72,35 @@ export function enter({ source = 'other', sourceId = null, label = '', symbols, 
     symbols: list,
     index,
     reviewed: [sym],
+    // ⭐ THE HANDOFF FLAG — true only for an entry made from ANOTHER PAGE. See
+    // `adopt()` below; a same-page entry (the watchlist) is adopted the instant
+    // it is made, because the gesture that entered it also set the symbol.
+    pending: pending === true,
   }
+}
+
+/**
+ * ADOPTION — a chart is now showing this session's current symbol.
+ *
+ * ⛔⛔ WHY A HANDOFF STATE EXISTS AT ALL, because it looks like slack in an
+ * otherwise strict lifecycle. Entering a review from a RESULTS PAGE is two
+ * events, not one: the session is published here, and the chart shell resolves
+ * its symbol over there. The shell hydrates its saved color-group symbol FIRST
+ * (that is what a returning member should see) and applies the incoming deep
+ * link a beat later. For that beat the chart is showing an unrelated ticker —
+ * and `syncToSymbol`'s EXIT rule, correctly, reads an unrelated ticker as "the
+ * review is over". Without this flag, every entry from a scan would destroy
+ * itself between the click and the chart, deterministically.
+ *
+ * ⛔ AND A PENDING SESSION IS INVISIBLE, which is what keeps this honest.
+ * `useReviewSession` reports no session and an empty position while pending, so
+ * there is no "1 / 20" chip beside a symbol that is not part of the review —
+ * the exact lie the EXIT rule exists to prevent. The flag buys silence, never a
+ * claim.
+ */
+export function adopt(s) {
+  if (!s || !s.pending) return s
+  return { ...s, pending: false }
 }
 
 export const currentSymbol = (s) => (s && s.symbols ? s.symbols[s.index] || null : null)
