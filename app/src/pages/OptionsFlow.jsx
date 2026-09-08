@@ -18,6 +18,9 @@ const USE_PARTS = import.meta.env.VITE_FLOW_PARTS === "1";
 // for ONE reader — a ten-row table. The derived product measures 195 KB gz on
 // prod. ⛔ OFF => byte-identical fetch behaviour; that is the rollback path.
 // ⛔ Requires USE_PARTS: the product travels over the parts transport.
+// 🟢 LIVE on Railway web since 2026-09-08. ⛔ BUILD-time, like the two flags
+// above: `railway redeploy` reuses the image and would silently change nothing —
+// rollback means unsetting the var AND rebuilding.
 const SERVER_TOPPICKS = import.meta.env.VITE_FLOW_SERVER_TOPPICKS === "1";
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";

@@ -42,6 +42,16 @@ only first-paint reader is a TEN ROW table. flow_aggregate.build_parts stages th
 replica to a temp file and passes --etf-file; NO replica means NO part and the client
 stays on its existing path. Same bundle-is-not-watched reason as above: this header
 edit is the deploy trigger. Market closed (Labor Day), so the bounce gaps no prints.
+(2026-09-08 correction, worth more than the entry above:) THIS TRIGGER WORKS, AND
+IT IS SLOW. An agent watching the running process concluded "the api/** watch path
+did not fire" from counters read DURING the build window, and was about to force a
+manual `railway up` on the OPRA consumer to fix a problem that did not exist. Push
+-> container start measured ~4-7 minutes (push landed 02:4x UTC, `Starting Container`
+at 02:51:55). ⛔ The process counters (`/api/flow/aggregate-health` ->
+stats_process_local) are the honest restart signal — they RESET — but only once the
+new container is up. WAIT for them rather than concluding from one early read; a
+manual deploy of this service is not free, and "the trigger is broken" is a much more
+expensive belief than "the trigger is slow".
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is
