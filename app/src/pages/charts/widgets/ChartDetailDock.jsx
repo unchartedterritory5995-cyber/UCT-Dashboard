@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import DockProfile from './DockProfile'
 import DockNews from './DockNews'
+import ErrorBoundary from '../../../components/ErrorBoundary'
 import DockFinancials from './DockFinancials'
 import DockEarnings from './DockEarnings'
 import DockOwnership from './DockOwnership'
@@ -120,11 +121,25 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, chil
               </button>
             </div>
             <div className={styles.dockBody}>
-              {tab === 'overview' && <DockProfile sym={sym} onPickSymbol={onPickSymbol} />}
-              {tab === 'financials' && <DockFinancials sym={sym} />}
-              {tab === 'earnings' && <DockEarnings sym={sym} />}
-              {tab === 'ownership' && <DockOwnership sym={sym} />}
-              {tab === 'news' && <DockNews sym={sym} filter={dock.newsFilter} onFilter={setNewsFilter} />}
+              {/* ⛔ RELEASE SAFETY. Without this boundary a render error in any
+                  ONE tab unmounts the whole React tree — taking the CHART down
+                  with it, which is the core product. Keyed on the tab + symbol
+                  so a failure on one company clears when you move to the next
+                  instead of latching. */}
+              <ErrorBoundary
+                key={`${tab}:${sym || ''}`}
+                fallback={
+                  <div className={styles.emptyState}>
+                    This panel could not be displayed. Switch tabs or symbols to retry.
+                  </div>
+                }
+              >
+                {tab === 'overview' && <DockProfile sym={sym} onPickSymbol={onPickSymbol} />}
+                {tab === 'financials' && <DockFinancials sym={sym} />}
+                {tab === 'earnings' && <DockEarnings sym={sym} />}
+                {tab === 'ownership' && <DockOwnership sym={sym} />}
+                {tab === 'news' && <DockNews sym={sym} sentiment={dock.newsFilter} onSentiment={setNewsFilter} />}
+              </ErrorBoundary>
               {searchOpen && <CompanySearch sym={sym} onClose={() => setSearchOpen(false)} />}
             </div>
           </div>

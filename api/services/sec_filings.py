@@ -60,6 +60,40 @@ def _ticker_to_cik(ticker: str) -> str | None:
     return _cik_map().get(t)
 
 
+def _name_map() -> dict[str, str]:
+    """Ticker -> registered company name, from the SAME cached SEC document.
+
+    `company_tickers.json` already carries `title` ("Apple Inc.") for every
+    US-listed issuer; `_cik_map` was discarding it. Additive and free: no extra
+    request, and the Company News subject test needs a name for every ticker,
+    not just the ones somebody has opened a filing list for.
+    """
+    cached = _CACHE.get("sec::name_map")
+    if cached:
+        return cached
+    try:
+        r = requests.get(_CIK_MAP_URL, headers={"User-Agent": _UA}, timeout=_TIMEOUT)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        _log.warning("SEC name map fetch failed: %s", e)
+        return {}
+    m: dict[str, str] = {}
+    for v in data.values():
+        t = str(v.get("ticker") or "").upper()
+        title = str(v.get("title") or "").strip()
+        if t and title:
+            m[t] = title
+    _CACHE.set("sec::name_map", m, _CIK_MAP_TTL)
+    return m
+
+
+def company_name(ticker: str) -> str:
+    """Registered company name for a US-listed ticker, or ''."""
+    t = (ticker or "").upper().strip()
+    return _name_map().get(t, "") if t else ""
+
+
 def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[str, Any]:
     """Recent SEC filings for a ticker, optionally filtered by form type
     (10-K, 10-Q, 8-K, S-1, DEF 14A, 13F-HR, etc.). Returns up to `count`
@@ -92,6 +126,11 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
     accession = recent.get("accessionNumber") or []
     primary_doc = recent.get("primaryDocument") or []
     period = recent.get("reportDate") or []
+    # 8-K item codes ("2.02,9.01"). Additive: purely a new key on each returned
+    # filing, so no existing consumer changes behaviour. The Company News SEC
+    # adapter turns these into plain-language headlines -- without them every
+    # 8-K reads "Current report" instead of "Results of operations".
+    items_col = recent.get("items") or []
 
     form_norm = (form_type or "").upper().strip().replace(" ", "")
     out: list[dict] = []
@@ -115,6 +154,7 @@ def recent_filings(ticker: str, form_type: str = "", count: int = 10) -> dict[st
             "filed": dates[i] if i < len(dates) else "",
             "period": period[i] if i < len(period) else "",
             "accession": acc_raw,
+            "items": items_col[i] if i < len(items_col) else "",
             "url": url,
         })
         if len(out) >= count:

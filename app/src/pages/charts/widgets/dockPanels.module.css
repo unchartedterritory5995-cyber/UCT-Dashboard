@@ -262,53 +262,265 @@
 .ownAsOf { margin-top: 8px; font-size: 9px; color: var(--t-meta); }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   NEWS (right dock)
+   NEWS — a financial wire, not a table.
+   Financials / Earnings / Ownership are grids of numbers; news is
+   chronological prose. Shared vocabulary comes from the gold section head,
+   the underlined segmented control and the inline accordion — NOT from
+   columns. Density target: several headlines visible at 360px without
+   scrolling, while the headline still reads as the strongest thing on screen.
    ───────────────────────────────────────────────────────────────────────── */
-.news { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #d8d2c2); }
-.newsFilters { flex: 0 0 auto; display: flex; gap: 4px; padding: 7px 10px 8px; }
-.filterPill {
-  appearance: none; border: 1px solid var(--divider, rgba(255,255,255,0.1));
-  background: transparent; color: var(--text-muted, #8b8574);
-  font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+.nw {
+  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  color: var(--text, #d8d2c2);
+  container-type: inline-size; container-name: dock;
 }
-.filterPill:hover { color: var(--text, #d8d2c2); }
-.filterOn { background: var(--accent-weak, rgba(201,168,76,0.16)); color: var(--accent, #c9a84c); border-color: transparent; }
 
-.feed { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 4px 8px; scrollbar-width: thin; }
-.feed::-webkit-scrollbar { width: 8px; }
-.feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+/* ── search ───────────────────────────────────────────────────────────── */
+.nwBar { flex: 0 0 auto; padding: 8px 10px 6px; }
+.nwSearchWrap {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--divider, rgba(255,255,255,0.10));
+  border-radius: 5px; padding: 4px 7px;
+  background: rgba(255,255,255,0.022);
+  color: var(--text-muted, #8b8574);
+  transition: border-color .12s ease;
+}
+.nwSearchWrap:focus-within { border-color: rgba(201,168,76,0.55); }
+.nwSearch {
+  flex: 1; min-width: 0; appearance: none; border: 0; background: transparent;
+  color: var(--text-bright, #f8f7f3); font-size: 11px; font-family: inherit;
+  padding: 0; outline: none;
+}
+.nwSearch::placeholder { color: var(--text-muted, #8b8574); }
+.nwSearch::-webkit-search-cancel-button { display: none; }
+.nwClear {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-muted, #8b8574); display: inline-flex; padding: 0;
+}
+.nwClear:hover { color: var(--text-bright, #f8f7f3); }
 
-.newsRow {
-  position: relative; display: flex; gap: 9px; padding: 9px 8px;
-  border-bottom: 1px solid var(--divider, rgba(255,255,255,0.055));
-  border-left: 2px solid transparent;
+/* ── ALL | BULLISH | BEARISH — the Financials/Earnings segmented control ── */
+.nwSeg {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 1px;
+  padding: 0 10px 7px; border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.newsRow:hover { background: rgba(255,255,255,0.025); }
-.newsRow.up { border-left-color: var(--dock-up, #26a869); }
-.newsRow.down { border-left-color: var(--dock-down, #e5484d); }
-.newsIcon { flex: 0 0 auto; margin-top: 1px; display: inline-flex; }
-/* small stroke glyphs, not fills — text tier */
-.newsIcon.up { color: var(--dock-up-text, #3fc885); }
-.newsIcon.down { color: var(--dock-down-text, #f1696e); }
-.newsIcon.neutral { color: var(--text-muted, #8b8574); }
-.newsMain { flex: 1; min-width: 0; }
-.newsTitle { font-size: 12px; line-height: 1.4; color: var(--text, #d8d2c2); }
-.newsDesc { font-size: 11px; line-height: 1.45; color: var(--text-muted, #a49e8d); margin-top: 3px; }
-.newsMeta { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 10.5px; color: var(--text-muted, #8b8574); }
-.newsMove { font-weight: 700; font-variant-numeric: tabular-nums; }
-.newsMove.up { color: var(--dock-up-text, #3fc885); }
-.newsMove.down { color: var(--dock-down-text, #f1696e); }
-.newsSource { color: var(--text-muted, #8b8574); text-decoration: none; }
-.newsSource:hover { color: var(--accent, #c9a84c); }
-.pinBtn {
-  position: absolute; top: 6px; right: 6px;
-  appearance: none; border: 0; background: rgba(0,0,0,0.25); color: var(--text-muted, #8b8574);
-  width: 20px; height: 20px; border-radius: 5px; cursor: pointer;
-  display: none; align-items: center; justify-content: center;
+
+.nwSearchNote {
+  flex: 0 0 auto; display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 10px 5px; font-size: 10px; color: var(--text-muted, #cfcac0);
 }
-.newsRow:hover .pinBtn { display: inline-flex; }
-.pinBtn:hover { color: var(--accent, #c9a84c); }
-.pinOn { display: inline-flex; color: var(--dock-up, #26a869); }
+.nwClearLink {
+  appearance: none; border: 0; background: transparent; padding: 0;
+  color: var(--accent, #c9a84c); font-size: 10px; font-weight: 600; cursor: pointer;
+}
+.nwClearLink:hover { text-decoration: underline; }
+
+/* ── the feed ─────────────────────────────────────────────────────────── */
+.nwFeed {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding-bottom: 10px; scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.nwFeed::-webkit-scrollbar { width: 8px; }
+.nwFeed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+/* Date separator — the SAME gold uppercase head Earnings and Ownership use
+   for their sections, so chronology reads as this tab's structural layer. */
+.nwDate {
+  position: sticky; top: 0; z-index: 2;
+  padding: 9px 10px 4px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+  background: var(--widget-canvas, var(--bg, #0e0f0d));
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.nwGroup + .nwGroup .nwDate { margin-top: 2px; }
+
+.nwItem { border-bottom: 1px solid rgba(255,255,255,0.045); }
+.nwItem:last-child { border-bottom: 0; }
+.nwItemOpen { background: rgba(201,168,76,0.055); }
+
+/* The row is a BUTTON: the whole thing is the expand affordance, which is
+   how Financials, Earnings and Ownership already behave. */
+.nwRow {
+  appearance: none; border: 0; background: transparent; width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px;
+  align-items: start; text-align: left; cursor: pointer;
+  padding: 8px 10px 9px; font-family: inherit;
+}
+.nwRow:hover { background: rgba(255,255,255,0.028); }
+.nwItemOpen .nwRow:hover { background: transparent; }
+.nwRow:focus-visible {
+  outline: 1px solid rgba(201,168,76,0.7); outline-offset: -2px;
+}
+.nwMain { min-width: 0; }
+
+/* SOURCE · TIME — secondary to the headline but BRIGHT, never faint grey. */
+.nwMeta {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  margin-bottom: 3px; font-size: 9.5px; line-height: 1.4;
+  color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums;
+}
+.nwSrc { font-weight: 700; color: var(--text-bright, #f0efea); letter-spacing: 0.1px; }
+/* Source trust, said subtly (§12). The date separators already own this
+   panel's gold; a second gold on the very next line competed with them for
+   the same glance. Brightness alone marks a primary source — a rule or badge
+   here read as a stray artifact beside the empty time slot, and "SEC · 8-K"
+   already says what it is. */
+.nwSrc_primary { color: var(--text-bright, #f8f7f3); }
+.nwSrc_social { font-weight: 600; }
+.nwDot { color: var(--text-muted, #6f6a5c); }
+.nwTime { color: var(--text-muted, #cfcac0); }
+
+.nwBreaking {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--accent, #c9a84c); border: 1px solid rgba(201,168,76,0.45);
+  border-radius: 3px; padding: 0 3px; line-height: 1.5;
+}
+/* Sentiment: a single small glyph. Never a filled card, never a score. */
+.nwSent { font-size: 9px; font-weight: 700; line-height: 1; }
+.nwSent.up { color: var(--dock-up-text, #3fc885); }
+.nwSent.down { color: var(--dock-down-text, #f1696e); }
+
+/* HEADLINE — the strongest thing in the row. */
+.nwHead {
+  font-size: 12px; font-weight: 700; line-height: 1.32;
+  color: var(--text-bright, #f8f7f3);
+  overflow-wrap: anywhere;
+}
+/* Description — a readable tier below, NOT dead grey. */
+.nwDesc {
+  margin-top: 3px; font-size: 10.5px; line-height: 1.45;
+  color: var(--text-muted, #cfcac0);
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Media stays small: it improves a story, it does not decorate the panel. */
+.nwThumb {
+  width: 52px; height: 38px; object-fit: cover; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  align-self: start;
+}
+.nwPlay {
+  width: 22px; height: 22px; border-radius: 50%; align-self: start;
+  border: 1px solid rgba(255,255,255,0.16); color: var(--text-muted, #cfcac0);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ── expanded ─────────────────────────────────────────────────────────── */
+.nwExp { padding: 0 10px 11px; font-size: 11px; }
+.nwExpText {
+  color: var(--text, #e9e7df); line-height: 1.5; margin-bottom: 9px;
+  font-size: 11px;
+}
+.nwFacts {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px;
+  align-items: baseline; margin-bottom: 9px;
+}
+.nwFactK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0); white-space: nowrap;
+}
+.nwFactV { font-size: 10.5px; color: var(--text-bright, #f8f7f3); min-width: 0; overflow-wrap: anywhere; }
+.nwFactV.up { color: var(--dock-up-text, #3fc885); }
+.nwFactV.down { color: var(--dock-down-text, #f1696e); }
+
+.nwEmbed {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 9px;
+  padding: 5px 9px; border-radius: 4px; text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-bright, #f8f7f3); font-size: 10.5px; font-weight: 600;
+}
+.nwEmbed:hover { border-color: rgba(201,168,76,0.5); color: var(--accent, #c9a84c); }
+
+.nwRelated { margin-bottom: 9px; }
+.nwRelHead {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c); margin-bottom: 4px;
+}
+.nwRelItem {
+  display: flex; gap: 7px; padding: 2px 0; text-decoration: none;
+  font-size: 10px; line-height: 1.4;
+}
+.nwRelSrc { flex: 0 0 auto; font-weight: 700; color: var(--text-bright, #f0efea); }
+.nwRelTitle {
+  min-width: 0; color: var(--text-muted, #cfcac0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nwRelItem:hover .nwRelTitle { color: var(--text-bright, #f8f7f3); }
+
+.nwOpen {
+  display: inline-flex; align-items: center; gap: 5px; text-decoration: none;
+  color: var(--accent, #c9a84c); font-size: 10.5px; font-weight: 600;
+}
+.nwOpen:hover { text-decoration: underline; }
+
+/* ── states ───────────────────────────────────────────────────────────── */
+.nwEmpty { padding: 20px 12px 16px; }
+.nwEmptyTitle {
+  font-size: 11.5px; font-weight: 600; color: var(--text-bright, #f8f7f3);
+  line-height: 1.45; margin-bottom: 4px;
+}
+.nwEmptyHint { font-size: 10.5px; color: var(--text-muted, #cfcac0); line-height: 1.5; }
+.nwEnd {
+  padding: 12px 10px 6px; text-align: center;
+  font-size: 9.5px; color: var(--text-muted, #8b8574);
+}
+.nwRetry {
+  appearance: none; border: 0; background: transparent; padding: 0 0 0 6px;
+  color: var(--accent, #c9a84c); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.nwRetry:hover { text-decoration: underline; }
+
+.nwSkel { padding: 4px 10px; }
+.nwSkelRow { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.045); }
+.nwSkelMeta, .nwSkelHead {
+  height: 8px; border-radius: 3px; background: rgba(255,255,255,0.055);
+  animation: nwPulse 1.5s ease-in-out infinite;
+}
+.nwSkelMeta { width: 34%; margin-bottom: 7px; }
+.nwSkelHead { width: 92%; height: 10px; margin-bottom: 5px; }
+@keyframes nwPulse { 0%,100% { opacity: .45 } 50% { opacity: .85 } }
+@media (prefers-reduced-motion: reduce) {
+  .nwSkelMeta, .nwSkelHead { animation: none; }
+}
+
+/* ── responsive (§39) ─────────────────────────────────────────────────────
+   Container queries, so the panel responds to ITS width, not the viewport's.
+   These sit AFTER the base rules on purpose: equal specificity means source
+   order decides, and putting them first silently disabled every override. */
+@container dock (max-width: 339px) {
+  .nwBar { padding: 7px 8px 5px; }
+  .nwSeg { padding: 0 8px 6px; }
+  .nwRow { padding: 7px 8px 8px; gap: 7px; }
+  .nwDate { padding: 8px 8px 4px; }
+  .nwExp { padding: 0 8px 10px; }
+  .nwHead { font-size: 11.5px; }
+  .nwThumb { display: none; }        /* headline wins the width at 300px */
+  .nwFacts { grid-template-columns: 1fr; gap: 1px; }
+  .nwFactK { margin-top: 5px; }
+}
+@container dock (min-width: 470px) {
+  .nwRow { padding: 9px 12px 10px; }
+  .nwDate { padding: 10px 12px 5px; }
+  .nwBar { padding: 9px 12px 6px; }
+  .nwSeg { padding: 0 12px 8px; }
+  .nwExp { padding: 0 12px 12px; }
+  .nwHead { font-size: 12.5px; }
+  .nwDesc { font-size: 11px; }
+  .nwThumb { width: 64px; height: 46px; }
+}
+@container dock (min-width: 560px) {
+  .nwThumb { width: 76px; height: 54px; }
+  /* Keep the reading measure controlled — a wide panel must not turn the
+     feed into full-width banners. */
+  .nwMain { max-width: 62ch; }
+  .nwExpText { max-width: 68ch; }
+}
+@container dock (min-width: 700px) {
+  .nwThumb { width: 88px; height: 62px; }
+  .nwHead { font-size: 13px; }
+}
 
 .emptyState { padding: 16px 12px; color: var(--text-muted, #8b8574); font-size: 12px; line-height: 1.5; }
 

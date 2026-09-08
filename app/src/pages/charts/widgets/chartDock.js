@@ -46,7 +46,7 @@ export function normalizeDock(raw) {
     tab = d.right === 'news' ? 'news' : 'overview'
   }
   const fundView = ['quarterly', 'annual', 'analyst', 'ownership'].includes(d.fundView) ? d.fundView : 'quarterly'
-  const newsFilter = ['all', 'up', 'down'].includes(d.newsFilter) ? d.newsFilter : 'all'
+  const newsFilter = ['all', 'bullish', 'bearish'].includes(d.newsFilter) ? d.newsFilter : 'all'
   return {
     open,                                    // right (company) panel open?
     tab,                                     // active company tab

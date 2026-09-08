@@ -22,6 +22,7 @@ fallback are now FMP-primary, Finnhub-fallback.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait as _futures_wait
 from typing import Any
