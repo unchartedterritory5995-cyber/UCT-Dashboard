@@ -142,26 +142,6 @@ export default function MobileDrawBar({
         >
           <UIcon name="magnet" size={17} gold={false} />
         </button>
-        {/* MOB-06′ orphan · REPEAT. The state and its persistence already
-            existed; `repeatMode` simply never reached this bar, so a phone user
-            was locked to the default forever. It sits beside Magnet because both
-            answer "how should the NEXT placement behave" — the grammar's rule
-            that related actions live together. */}
-        {typeof setRepeatMode === 'function' && (
-          <button
-            type="button"
-            className={`${styles.ctl} ${repeatMode ? styles.ctlOn : ''}`}
-            onClick={() => { haptics.tap(); setRepeatMode(!repeatMode) }}
-            aria-label={repeatMode ? 'Repeat drawing: on' : 'Repeat drawing: off'}
-            aria-pressed={!!repeatMode}
-            title="Keep the tool armed after each drawing"
-          >
-            {/* The desktop button's OWN glyph, from the shared TOOL_ICONS map —
-                UIcon has no `repeat`, and a substituted icon would make the two
-                presentations of one control look like two controls. */}
-            <span className={styles.glyph} aria-hidden="true">{TOOL_ICONS.repeat}</span>
-          </button>
-        )}
       </div>
 
       <MobileToolPicker
@@ -170,6 +150,8 @@ export default function MobileDrawBar({
         tools={DRAW_TOOLS}
         activeTool={activeTool}
         onPick={(id) => setActiveTool(id)}
+        repeatMode={repeatMode}
+        setRepeatMode={setRepeatMode}
         className={sheetClassName}
       />
     </div>

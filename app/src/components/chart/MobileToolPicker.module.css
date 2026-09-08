@@ -97,3 +97,34 @@
   font-size: 13px;
   text-align: center;
 }
+
+/* The one CONFIGURATION row on this sheet. Deliberately NOT a tile: it is a
+   mode, not a tool, and making it look like a tool would put it in the grid's
+   scanning path. */
+.settingRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.settingRow input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--ut-gold);
+  flex: 0 0 auto;
+}
+.settingHint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}

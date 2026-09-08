@@ -58,7 +58,11 @@ export function filterTools(tools, query) {
     t.label.toLowerCase().replace(/\s+/g, '').includes(q) || t.id.toLowerCase().includes(q))
 }
 
-export default function MobileToolPicker({ open, onClose, tools, activeTool, onPick, className = '' }) {
+export default function MobileToolPicker({
+  open, onClose, tools, activeTool, onPick,
+  repeatMode, setRepeatMode,
+  className = '',
+}) {
   const [q, setQ] = useState('')
   const recents = useMemo(() => (open ? readRecents() : []), [open])
 
@@ -111,6 +115,30 @@ export default function MobileToolPicker({ open, onClose, tools, activeTool, onP
             <div className={styles.sectionLabel}>Recent</div>
             <div className={styles.grid}>{recentTools.map((t) => <Tile key={`r-${t.id}`} t={t} />)}</div>
           </>
+        )}
+
+        {/* ⛔ REPEAT LIVES HERE, NOT ON THE RAIL, AND THE MEASUREMENT IS WHY.
+            It shipped on the bar first. At 390px the bar is 386px wide: Done 54 +
+            the pinned All 44 + a five-button side cluster 223 left the tool rail
+            **51px — 0.98 of one 52px tile**, down from the ~3 the research
+            measured. Every test still passed; the strip just got worse, which is
+            what opening the artifact is for.
+            It also belongs here by the grammar: "keep the tool armed after each
+            drawing" is a MODE you set once, not a high-frequency action, and
+            low-frequency configuration does not get to compete with the tiles. */}
+        {typeof setRepeatMode === 'function' && (
+          <label className={styles.settingRow}>
+            <input
+              type="checkbox"
+              checked={!!repeatMode}
+              onChange={() => { haptics.tap(); setRepeatMode(!repeatMode) }}
+              aria-label={repeatMode ? 'Repeat drawing: on' : 'Repeat drawing: off'}
+            />
+            <span>
+              Keep tool armed after each drawing
+              <span className={styles.settingHint}>Off: the tool disarms so you can move what you drew</span>
+            </span>
+          </label>
         )}
 
         <div className={styles.sectionLabel}>{q ? 'Matching' : 'All tools'}</div>
