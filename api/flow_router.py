@@ -788,6 +788,34 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
     return gz, None
 
 
+def _search_freshness(sym: str, src: str) -> str:
+    """The cache identity for ONE ticker's Search product.
+
+    ⛔ PER-SYMBOL, NOT THE GLOBAL TAPE VERSION, and that is a measured decision.
+    During RTH `_current_version()` rolls EVERY 60 SECONDS (observed 2026-09-08:
+    consecutive buckets, one per minute) because it moves whenever ANY symbol
+    ticks. Keyed on it, a per-ticker product is thrown away once a minute no
+    matter how quiet that ticker is -- which makes warming per-ticker products
+    close to pointless during the exact hours members use Search.
+
+    `symbol_freshness` is "<max_id>.<prune_generation>": exact for inserts (ids
+    are monotonic and never reused) and exact for prunes (any prune bumps the
+    generation). So a ticker that has not traded keeps its product indefinitely,
+    and one that HAS invalidates immediately rather than up to 60 s late --
+    faster AND fresher, not a trade of one for the other.
+
+    ⛔ FAILS BACK, NEVER FAILS. If the probe cannot run we fall back to the
+    global version: that is the previous behaviour, so the worst case is the
+    cache we already had, never an error on the member path.
+    """
+    try:
+        return db.symbol_freshness(sym, src)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow-search] freshness probe failed for %s (%s) — "
+                    "falling back to the global version", sym, e)
+        return "v" + str(_current_version())
+
+
 def _truthy(v) -> bool:
     return str(v or "").strip().lower() in ("1", "true", "yes", "on")
 
@@ -894,7 +922,7 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     src = "indexes" if source == "indexes" else "stocks"
     st = _Stages(sym + "/" + src)
     st.mark("accepted")
-    version = str(_current_version())
+    version = _search_freshness(sym, src)
     key = (sym, src, version)
 
     cached = _search_product_cache_get(key)
