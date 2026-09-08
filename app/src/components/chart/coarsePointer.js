@@ -57,6 +57,21 @@ export const HIT_FINE = 8
 /** Selection-handle PAINT radius in px (the halo is drawn from the hit radius). */
 export const HANDLE_COARSE = 7
 export const HANDLE_FINE = 4
+/**
+ * Movement required before a grab becomes a DRAG, in px.
+ *
+ * ⛔ WITHOUT THIS, TAP-TO-SELECT AND DRAG-TO-MOVE ARE THE SAME GESTURE. The
+ * overlay writes `dragRef` on pointerdown and the very next pointermove applied
+ * the delta, so on a finger — which always jitters a pixel or two — tapping a
+ * trendline to select it NUDGED IT OFF ITS ANCHOR. The user then has to notice
+ * the damage and undo it, on a surface where undo is not obvious.
+ *
+ * ⭐ 8px for a finger is roughly the jitter of a deliberate tap and well under
+ * the movement of an intended drag; 2px for a mouse keeps precision work exact.
+ * A mouse barely needs one, but a threshold of zero is not a threshold.
+ */
+export const SLOP_COARSE = 8
+export const SLOP_FINE = 2
 
 let _mql = null            // cached MediaQueryList, or null when unavailable
 let _resolved = false      // has _mql been looked up yet?
@@ -101,6 +116,25 @@ export function hitThreshold() { return isCoarsePointer() ? HIT_COARSE : HIT_FIN
 
 /** Selection-handle paint radius for the current pointer. */
 export function handleRadius() { return isCoarsePointer() ? HANDLE_COARSE : HANDLE_FINE }
+/** Movement before a grab becomes a drag. See SLOP_COARSE. */
+export function dragSlop() { return isCoarsePointer() ? SLOP_COARSE : SLOP_FINE }
+
+/**
+ * Has this gesture moved far enough to BE a drag?
+ *
+ * ⛔ A MISSING ORIGIN RETURNS TRUE, deliberately. If no `startPixel` was
+ * recorded there is nothing to measure against, and swallowing the drag would
+ * make an object unmovable — a silent, permanent failure. Failing OPEN here
+ * degrades to the old (pre-slop) behaviour; failing closed would break the
+ * feature outright.
+ *
+ * Strictly greater-than: a gesture that moves EXACTLY the slop distance has not
+ * yet crossed it, so the boundary is testable rather than a matter of taste.
+ */
+export function crossedDragSlop(startPixel, pos, slop = dragSlop()) {
+  if (!startPixel || !pos) return true
+  return Math.hypot(pos.x - startPixel.x, pos.y - startPixel.y) > slop
+}
 
 /**
  * Subscribe to pointer-type changes. Returns an unsubscribe function.

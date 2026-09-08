@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
-import { isCoarsePointer, hitThreshold, handleRadius, useCoarsePointer } from './coarsePointer'
+import { isCoarsePointer, hitThreshold, handleRadius, crossedDragSlop, useCoarsePointer } from './coarsePointer'
 import { fmtLevel, visibleOnly } from './drawingObjects'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
@@ -93,6 +93,9 @@ const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
 // the dot grows and renderSelectionHandles adds a halo sized to the real hit
 // zone, so the affordance matches it.
 const HIT_THRESHOLD = () => hitThreshold()
+// Same shape as HIT_THRESHOLD: a FUNCTION, never a module-load constant — the
+// pointer answer must be read when the gesture happens, not when the file loads.
+const CROSSED_SLOP = (startPixel, pos) => crossedDragSlop(startPixel, pos)
 const HANDLE_R = () => handleRadius()
 // One-time "tap two points" coach chip for multi-point tools on touch —
 // single flag across all tools (the voice.dictation.hintSeen idiom).
@@ -2206,6 +2209,20 @@ export default function ChartDrawingOverlay({
       const drag = dragRef.current
       const d = drawings.find(d => d.id === drag.drawingId)
       if (!d || !drag.startCoords) return
+
+      // ⛔ TOUCH SLOP — the gate between "I am selecting this" and "I am moving
+      // this". Without it the first pointermove after a grab applied the delta,
+      // and a finger always jitters a pixel or two: tapping a trendline to
+      // select it moved it off its anchor, silently, with an undo the user has
+      // to think of. Below the threshold this is still a TAP — geometry is not
+      // touched and no history entry is created.
+      // ⭐ Once armed it STAYS armed, and the delta is still measured from the
+      // ORIGINAL grab point, so the object ends up exactly under the finger
+      // rather than permanently lagging it by the slop distance.
+      if (!drag.armed) {
+        if (!CROSSED_SLOP(drag.startPixel, pos)) return
+        drag.armed = true
+      }
 
       // Compute delta in chart coordinates. In the empty right-pad, toChart clamps
       // `time` to the last candle and stashes the real offset in `futureBars`, so

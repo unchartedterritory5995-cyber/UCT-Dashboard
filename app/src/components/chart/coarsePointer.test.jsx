@@ -16,6 +16,7 @@ import {
   isCoarsePointer, hitThreshold, handleRadius, useCoarsePointer,
   subscribeCoarsePointer, __resetCoarsePointerForTest,
   HIT_COARSE, HIT_FINE, HANDLE_COARSE, HANDLE_FINE,
+  SLOP_COARSE, SLOP_FINE, dragSlop, crossedDragSlop,
 } from './coarsePointer'
 
 // ── a matchMedia that can actually CHANGE, which is the whole point ─────────
@@ -204,5 +205,61 @@ describe('H — the values the drawing layer actually uses', () => {
     const after = hitThreshold()
     expect(before).toBe(HIT_FINE)
     expect(after, 'hitThreshold() returned a stale value — it was frozen somewhere').toBe(HIT_COARSE)
+  })
+})
+
+/* ─── MOB-REVIEW · touch slop ────────────────────────────────────────────────
+ * The gate between "I am selecting this" and "I am moving this". Before it, the
+ * first pointermove after a grab applied the delta — so on a finger, which
+ * always jitters, tapping a trendline to select it nudged it off its anchor.
+ */
+describe('drag slop — tap-to-select must not move geometry', () => {
+  const at = (x, y) => ({ x, y })
+
+  it('fine and coarse get different thresholds, from the SAME pointer answer', () => {
+    expect(SLOP_FINE).toBeLessThan(SLOP_COARSE)
+    expect(SLOP_COARSE).toBe(8)
+    expect(SLOP_FINE).toBe(2)
+  })
+
+  it('⛔ EXACTLY the threshold has NOT crossed it — the boundary is defined, not tasteful', () => {
+    expect(crossedDragSlop(at(0, 0), at(8, 0), 8)).toBe(false)
+    expect(crossedDragSlop(at(0, 0), at(0, 8), 8)).toBe(false)
+  })
+
+  it('⛔⛔ a finger-sized jitter is a TAP, not a drag', () => {
+    // The shipped defect, in one line: 3px of jitter used to move the object.
+    expect(crossedDragSlop(at(100, 100), at(102, 101), 8)).toBe(false)
+  })
+
+  it('a deliberate drag crosses it', () => {
+    expect(crossedDragSlop(at(100, 100), at(112, 100), 8)).toBe(true)
+    expect(crossedDragSlop(at(0, 0), at(6, 6), 8)).toBe(true)   // hypot 8.49
+  })
+
+  it('measures DIAGONALLY — not per-axis, or a corner drag would need 1.4x the movement', () => {
+    expect(crossedDragSlop(at(0, 0), at(5, 5), 8)).toBe(false)  // hypot 7.07
+    expect(crossedDragSlop(at(0, 0), at(6, 6), 8)).toBe(true)   // hypot 8.49
+  })
+
+  it('⛔ a MISSING origin fails OPEN — an unmovable object is worse than a jumpy one', () => {
+    expect(crossedDragSlop(null, at(1, 1), 8)).toBe(true)
+    expect(crossedDragSlop(at(0, 0), null, 8)).toBe(true)
+  })
+
+  it('dragSlop() follows the live pointer, like every other radius here', () => {
+    installMatchMedia({ coarse: true }); __resetCoarsePointerForTest()
+    expect(dragSlop()).toBe(SLOP_COARSE)
+    installMatchMedia({ coarse: false }); __resetCoarsePointerForTest()
+    expect(dragSlop()).toBe(SLOP_FINE)
+  })
+
+  it('NON-VACUITY · the default threshold is the LIVE one, not a hard-coded 8', () => {
+    // Without this, every case above could pass against a frozen constant while
+    // the shipped call site used something else entirely.
+    installMatchMedia({ coarse: false }); __resetCoarsePointerForTest()
+    expect(crossedDragSlop({ x: 0, y: 0 }, { x: 4, y: 0 })).toBe(true)   // >2 (fine)
+    installMatchMedia({ coarse: true }); __resetCoarsePointerForTest()
+    expect(crossedDragSlop({ x: 0, y: 0 }, { x: 4, y: 0 })).toBe(false)  // <8 (coarse)
   })
 })
