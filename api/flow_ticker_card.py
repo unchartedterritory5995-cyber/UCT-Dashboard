@@ -24,8 +24,8 @@ _MIXED = (201, 168, 76)   # gold for two-sided / unclear leans
 # (header, x, align) — one row per CONTRACT (no ticker column; it's one ticker)
 _COLS = [
     ("STRIKE", 120, "r"), ("C/P", 138, "l"), ("EXP · DTE", 200, "l"),
-    ("ITM/OTM", 360, "l"), ("WHEN", 460, "l"), ("PREMIUM", 600, "r"), ("VOL", 722, "r"),
-    ("OI", 828, "r"), ("V/OI", 912, "r"), ("PERF", 1012, "r"), ("DIR", 1032, "l"),
+    ("ITM/OTM", 360, "l"), ("PREMIUM", 560, "r"), ("VOL", 735, "r"),
+    ("LATEST OI", 835, "r"), ("OI TREND", 858, "l"), ("PERF", 1012, "r"), ("DIR", 1032, "l"),
 ]
 
 
@@ -57,6 +57,19 @@ def _fmt_money(pct):
     if abs(p) < 1.0:
         return ("ATM", _DIM)
     return (f"{abs(p):.0f}% {'ITM' if p > 0 else 'OTM'}", _DIM)
+
+
+def _fmt_doi(v):
+    """(text, color) for the OI Δ column — open interest the flow built (or shed)
+    since it hit: latest OI − OI at flow-start. + = OI grew (opened/held, green),
+    − = OI fell (closing, red)."""
+    try:
+        n = int(round(float(v)))
+    except (TypeError, ValueError):
+        return ("—", _DIM)
+    if n == 0:
+        return ("0", _DIM)
+    return (f"{'+' if n > 0 else '−'}{abs(n):,}", _BULL if n > 0 else _BEAR)
 
 
 def _fmt_perf(p):
@@ -171,13 +184,35 @@ def render_ticker_flow_card(data: dict) -> bytes:
         txt(200, y, _exp, f_row, _DIM)
         _mtext, _mcol = _fmt_money(c.get("moneynessPct"))
         txt(360, y, _mtext, f_row, _mcol)
-        txt(460, y, _md_compact(c.get("first_seen")), f_row, _DIM)
-        txt(600, y, _fmt_prem(c.get("premium")), f_rowb, _GOLD, "r")
-        v = _num(c, "volume"); txt(722, y, f"{v:,}" if v is not None else "—", f_row, _TXT, "r")
-        o = _num(c, "oi"); txt(828, y, f"{o:,}" if o is not None else "—", f_row, _DIM, "r")
-        voi = c.get("voi")
-        txt(912, y, _fmt_voi(voi), f_row,
-            _BULL if (voi is not None and float(voi) >= 3) else _DIM, "r")
+        txt(560, y, _fmt_prem(c.get("premium")), f_rowb, _GOLD, "r")
+        # FLOW VOL carries the flow's date inline ("5,282 · 8/4") so the volume is
+        # unmistakably tied to when it traded (not a today's-tape number). The date
+        # is the first flow day; dim, right after the count.
+        v = _num(c, "volume")
+        _vstr = f"{v:,}" if v is not None else "—"
+        _wday = _md_compact(c.get("first_seen"))
+        if _wday and _wday != "—":
+            _dsuf = f"  ({_wday})"
+            txt(735, y, _dsuf, f_row, _DIM, "r")                 # dim date in parens, right edge
+            txt(735 - tw(_dsuf, f_row), y, _vstr, f_row, _TXT, "r")  # count left of it
+        else:
+            txt(735, y, _vstr, f_row, _TXT, "r")
+        o = _num(c, "oi"); txt(835, y, f"{o:,}" if o is not None else "—", f_row, _DIM, "r")
+        # OI TREND sparkline: daily OI over the window. Green rising / red falling
+        # (position grew vs shed — NOT bull/bear); endpoint dot marks the latest.
+        _series = [float(x) for x in (c.get("oiSeries") or []) if x is not None]
+        if len(_series) >= 2:
+            sx0, sx1, sy0, sh = 858, 948, y + 2, 14
+            lo, hi = min(_series), max(_series); rng = (hi - lo) or 1.0
+            npts = len(_series)
+            _scol = _BULL if _series[-1] > _series[0] else (_BEAR if _series[-1] < _series[0] else _DIM)
+            _pts = [(s(sx0 + (sx1 - sx0) * (i / (npts - 1))),
+                     s(sy0 + sh - (val - lo) / rng * sh)) for i, val in enumerate(_series)]
+            d.line(_pts, fill=_scol, width=s(1.5))
+            _ex, _ey = _pts[-1]; _rr = s(2.2)
+            d.ellipse([_ex - _rr, _ey - _rr, _ex + _rr, _ey + _rr], fill=_scol)
+        else:
+            txt(900, y, "—", f_row, _DIM)
         _pt, _pc = _fmt_perf(c.get("perf"))
         txt(1012, y, _pt, f_rowb, _pc, "r")
         dr = (c.get("direction") or "").upper()

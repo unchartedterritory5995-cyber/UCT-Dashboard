@@ -4528,23 +4528,51 @@ def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
             pass
         return None
 
+    # OI history for the sparkline: daily OI over the window from the snapshot store
+    # (same universe as flow.db — every carded contract is covered — 90-day retention),
+    # so each row shows the position BUILDING or FADING, far richer than a single delta.
+    _oisnap = None
+    try:
+        from api import oi_snapshots as _oisnap  # noqa: F401
+    except Exception:
+        _oisnap = None
+
+    def _oi_series(c):
+        if _oisnap is None:
+            return None
+        try:
+            k = _oisnap.make_key(sym, c.get("cp"), c.get("strike"), c.get("exp"))
+            h = _oisnap.get_history(k, max(int(lookback) + 5, 10))
+            s = [p["oi"] for p in h if p.get("oi") is not None]
+            return s or None
+        except Exception:  # noqa: BLE001 — sparkline is decoration; never break the card
+            return None
+
     # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
     slim = []
     for c in top:
         _loi, _now = _enrich(c)
         _entry = c.get("avg_fill")
+        _oi_val = _loi if _loi is not None else c.get("max_oi")   # LATEST OI (fallback flow-time)
+        _vol_val = _eff_vol(c)                                    # cumulative flow volume
         slim.append({
             "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
             "exp": c.get("exp"), "dte": c.get("dte"),
-            "premium": _eff_prem(c), "volume": _eff_vol(c),
-            "oi": _loi if _loi is not None else c.get("max_oi"),  # LATEST OI (fallback flow-time)
-            "voi": c.get("cum_voi"),
+            "premium": _eff_prem(c), "volume": _vol_val,
+            "oi": _oi_val,
+            # V/OI reconciled to the DISPLAYED figures (flow volume ÷ latest OI) so the
+            # three columns tie out. The old cum_voi used the OI at flow-time, which on a
+            # newly-opened contract (entry OI ~0) printed absurd ratios (e.g. 2641x) next
+            # to a latest-OI column that had since grown — VOL÷OI looked like ~1x. Now
+            # V/OI ≈ 1 means "most of the current OI came from this flow" (new positioning).
+            "voi": (round(_vol_val / _oi_val, 1) if _oi_val else None),
             "direction": c.get("direction"),
             "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
             "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
             "days_active": c.get("days_active"),
             "first_seen": c.get("first_seen"),   # WHEN the flow came in (first print date)
             "entry": _entry, "now": _now, "perf": _perf(_entry, _now),
+            "oiSeries": _oi_series(c),           # daily OI over the window (sparkline)
         })
     result = {
         "ok": True, "symbol": sym, "source": se, "spot": spot,
