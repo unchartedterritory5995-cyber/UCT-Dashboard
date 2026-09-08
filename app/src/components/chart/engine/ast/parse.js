@@ -866,7 +866,12 @@ function stableStringify(value) {
       value === undefined ? 'undefined' : typeof value}`)
 }
 
-const CANONICAL_KEYS = Object.freeze({
+/** The exact key set every canonical node type carries. Exported because
+ *  `graph.js` (C2C) checks the SAME shapes on a shared-graph node — a V2 node
+ *  differs from a V1 one only in what an `args` ENTRY means (an integer node
+ *  reference instead of an inlined child), never in which keys exist. A second
+ *  copy over there would be a second authority over one grammar. */
+export const CANONICAL_KEYS = Object.freeze({
   num: ['type', 'value'],
   series: ['type', 'name'],
   op: ['type', 'name', 'args'],

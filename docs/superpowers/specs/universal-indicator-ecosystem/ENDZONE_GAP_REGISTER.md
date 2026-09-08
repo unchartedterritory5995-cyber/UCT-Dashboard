@@ -380,3 +380,57 @@ close it, per this register's own rule.
 Two-way conditionals are supported and drawn. Three- and four-way rules, and colour
 used as a visibility gate, are not — and together they are 24 output rows against the
 2-way class's handful. The scorecard states it that way.
+
+---
+
+## PART F — WHAT C2C MEASURED (2026-09-07)
+
+### F1 — E2.1 and E2.2b, ANSWERED TOGETHER
+
+They were always one fact with two symptoms, and the shared canonical graph
+(`engine/ast/graph.js` · `api/services/compute_graph.py`) is the lever.
+
+| | before | after | with the cap UNCHANGED |
+|---|---|---|---|
+| `…03-supertrend-kivancozbilgic` | 331,977 B (×5.1 the cap) | **6,882 B** | **11% of the cap — FITS** |
+| `…22-rsi-levels-regime-map` | 181,315 B (×2.8 the cap) | **10,485 B** | **16% of the cap — FITS** |
+| the frozen 60, over cap | **2 of 21 buildable** | **0 of 21** | — |
+
+- supertrend: **8,119 inlined nodes across 10 trees → 76 distinct. 99.1% was
+  repetition.** rsi-levels: 4,719 → 146, **96.9%**.
+- `treesHash` and `compute.fn` are **asserted unchanged** in both lanes: the
+  documents are the same indicators, not smaller ones, and adopting the
+  representation migrates nobody's alerts.
+- **No gzip anywhere.** Every number is raw canonical JSON — the bytes
+  `MAX_DEFINITION_BYTES` counts. `MAX_DEFINITION_BYTES` was not touched.
+- **E2.1 status: CLOSED for the corpus.** **E2.2b: CLOSED for STORAGE, and
+  measured-but-small for COMPUTE** — see F2.
+
+### F2 — the half of E2.2b that did NOT pay, reported as measured
+
+The same 77–84% repetition was expected to buy compute. It does not, on the
+documents that are expensive:
+
+```
+=== C2C.19 COMPUTE COST, 400 bars, cross-column memo on ===
+   4957ms ->  4559ms  ( 8% saved)  …03-supertrend-kivancozbilgic
+     19ms ->     7ms  (63% saved)  …22-rsi-levels-regime-map
+    276ms ->   255ms  ( 8% saved)  …14-master-line-lite
+      2ms ->     2ms  ( 0% saved)  …12-cm-ultimate-rsi-mtf
+```
+
+⛔ **The repetition C2A measured is of counted NODES; the cost is in
+RECURRENCE, and a subtree that reads a recurrence bind can never be memoised**
+(caching it freezes the recurrence at step one — a silent wrong number). This is
+the third time this hypothesis has been tested and the third time it has come
+back small (C2A's hoisting probe: ~7%). **E2.2 is unchanged by C2C**, and the
+budget still must not be raised.
+
+### F3 — new, opened by this wave
+
+| # | Item | Note |
+|---|---|---|
+| F3.1 | A shared graph can describe a tree far larger than itself | Guarded: `expandedSizes` bounds the inlining in integers before anything is built (2048/plot, 32768/document). A cycle is *unrepresentable* — references run strictly backwards by construction. |
+| F3.2 | V2 is emitted only when V1 would not fit | A deliberate conditional, safe because the two forms have provably identical identities, so the threshold can only decide whether a save is REFUSED. Making V2 the default for every multi-tree document needs a corpus-wide re-baseline and is **not** smuggled into this wave. |
+| F3.4 | **The WIRE payload for a graph document is its MATERIALISED size** | `_row_to_dict` expands on read so every server-side reader keeps working, and the API therefore answers `GET /api/user-definitions` with the 362 KB forest for a 8 KB stored document. The bytes at REST are what the cap governs and what this wave was authorised to fix, so this is not a regression against the baseline (the document could not be stored at all before) — but it is a real cost, measured, and the fix is cheap: the client already reconstructs the whole document from the graph (`hydrateGraphDocument`), so the route could send the graph alone once every read surface hydrates. **Named, not fixed** — see F3.3 for the surfaces that would have to be wired first. |
+| F3.3 | Share-preview / version-history surfaces do not hydrate | A graph document read through `previewSharedDefinition` / `fetchDefinitionHistory` gets `trees` (the server materialises) but not the re-derived `compute.source`. Named rather than fixed; the list door and the save door are both wired. |

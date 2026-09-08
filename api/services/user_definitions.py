@@ -164,6 +164,8 @@ import threading
 import time
 from typing import Any, Mapping, Optional
 
+from api.services import compute_graph
+
 # ─── caps ────────────────────────────────────────────────────────────────────
 
 #: One definition's canonical JSON, in bytes. 64 KiB is ~1,000 lines of formula
@@ -609,6 +611,103 @@ def trees_identity(definition: Any) -> Optional[str]:
         return UNHASHABLE_TREES
 
 
+# ─── the shared-graph document (Wave C2C) ────────────────────────────────────
+#
+# ⭐⭐ THE STORED FORM IS THE GRAPH; THE IN-MEMORY FORM IS THE FOREST. C2B
+# measured why: `compute.trees` is 84% of a 332 KB document and ~99% of that is
+# ONE consensus expression written out ten times, because a multi-plot Pine
+# script computes a thing once and plots several views of it. Storing the DAG
+# instead of its inlining takes the corpus' two DOCUMENT_SIZE_BLOCKED documents
+# from 332 KB and 181 KB to 6.9 KB and 10.5 KB — with `MAX_DEFINITION_BYTES`
+# left exactly where it is, which is the point.
+#
+# ⛔ AND NOTHING DOWNSTREAM LEARNS A NEW SHAPE. `materialize` hands every
+# existing reader — `ast_lint`, `alert_user_series`, `trees_hash`, the sweep —
+# the same `compute.ast`/`compute.trees` they were written against. The saving
+# is in the bytes at rest, which is where the cap counts them.
+#
+# ⛔⛔ NO DOCUMENT EVER STORES BOTH. A row carrying a graph AND its inlining is
+# two authorities over one program, and the ONE that a given reader happens to
+# consult would decide the maths. `normalize_graph_document` therefore VERIFIES
+# any inlining a client sent (by hash — cheap, and it catches a broken client
+# instead of masking it) and then DROPS it, so exactly one representation
+# reaches the blob.
+
+
+def _graph_scan_plot(compute: Mapping, keys: list) -> str:
+    scan = compute.get("scanPlot")
+    if not isinstance(scan, str) or scan not in keys:
+        raise ValueError(
+            f"compute.scanPlot: must name one key of compute.graph.outputRoots "
+            f"({', '.join(keys)}) — the plot whose tree IS compute.ast — got {scan!r}")
+    return scan
+
+
+def materialize(definition: dict) -> dict:
+    """A stored shared-graph document, with the forest every reader expects.
+
+    Returns `definition` unchanged when it declares no graph — the inert path
+    every V1 document takes. The expansion is bounded before it runs
+    (`compute_graph.expanded_sizes`), so a crafted graph is refused from
+    arithmetic rather than by exhausting memory.
+    """
+    compute = (definition or {}).get("compute")
+    if not compute_graph.declares_graph(compute):
+        return definition
+    trees = compute_graph.expand_graph(compute["graph"])
+    keys = sorted(trees)
+    if len(keys) < 2:
+        raise ValueError(
+            "compute.graph.outputRoots: a shared-graph document names at least two plots — "
+            "one tree is compute.ast, and a single-tree document is byte-identical to a "
+            "schema-1 one on purpose")
+    scan = _graph_scan_plot(compute, keys)
+    out = dict(compute)
+    out["trees"] = trees
+    out["ast"] = trees[scan]
+    d = dict(definition)
+    d["compute"] = out
+    return d
+
+
+def normalize_graph_document(definition: dict) -> tuple:
+    """``(stored, working)`` — the bytes to persist and the shape to validate.
+
+    A V1 document is returned twice, unchanged: this is inert for every
+    document that declares no graph.
+    """
+    compute = (definition or {}).get("compute")
+    if not compute_graph.declares_graph(compute):
+        return definition, definition
+
+    working = materialize(definition)
+    wcompute = working["compute"]
+
+    # ⛔ VERIFY, THEN DROP. A client is free to send the inlining it already had
+    # (a read-modify-write round trip does exactly that); it is not free to send
+    # one that disagrees with the graph, because then which of the two is "the
+    # definition" would depend on the reader.
+    if isinstance(compute.get("trees"), dict):
+        sent = trees_hash(compute["trees"])
+        derived = trees_hash(wcompute["trees"])
+        if sent != derived:
+            raise ValueError(
+                f"compute.trees: disagrees with compute.graph (trees hash {sent!r} vs the "
+                f"graph's {derived!r}) — a document carries the graph OR its inlining, never "
+                "two that must agree")
+    if compute.get("ast") is not None:
+        if ast_hash(compute["ast"]) != ast_hash(wcompute["ast"]):
+            raise ValueError(
+                "compute.ast: disagrees with the tree compute.graph.outputRoots names for "
+                "compute.scanPlot — a document carries the graph OR its inlining")
+
+    stored_compute = {k: v for k, v in compute.items()
+                      if k not in ("ast", "trees", "source", "sources")}
+    stored = dict(definition)
+    stored["compute"] = stored_compute
+    return stored, working
+
+
 def validate_v2(definition: dict) -> None:
     """The rules `defSchema.validateAstCompute` / `validateTrees` /
     `validateTreesAgainstPlots` apply in the browser, applied again at the LAST
@@ -718,6 +817,26 @@ def validate_v2(definition: dict) -> None:
     # ── the sources ──────────────────────────────────────────────────────────
     # REQUIRED and COMPLETE, for the reason `compute.source` is required at all:
     # a tree the sheet cannot print back is a formula no author can ever reopen.
+    #
+    # ⛔ EXCEPT ON A SHARED-GRAPH DOCUMENT, AND THE EXEMPTION IS NARROW ENOUGH TO
+    # STATE IN ONE SENTENCE: the reason for the rule is "a formula no author can
+    # ever reopen", and a graph document's text is DERIVED by the one lane that
+    # can print (`printFormula` over the expansion), so there is nothing to lose
+    # by not storing it — while storing it would be ~11% of the bytes this whole
+    # representation exists to save, in a field THIS LANE HAS NEVER BEEN ABLE TO
+    # VERIFY (see the asymmetry named at the top of this file: there is one
+    # parser and it is in JS, so `sources[k]` may already disagree with
+    # `trees[k]` and be stored anyway). Dropping an unverifiable derived copy is
+    # the second-authority fix, not a weakened check.
+    if compute_graph.declares_graph(compute):
+        for k in ("sources", "source"):
+            if compute.get(k) is not None:
+                raise ValueError(
+                    f"compute.{k}: a shared-graph document derives its source text from "
+                    "compute.graph — storing it too is a second copy of the formula that "
+                    "nothing on this lane can hold to the tree")
+        return
+
     sources = compute.get("sources")
     if "sources" not in compute or sources is None:
         raise ValueError(
@@ -780,13 +899,35 @@ def _check_def_id(def_id: str) -> str:
 # ─── rows ────────────────────────────────────────────────────────────────────
 
 def _row_to_dict(row: sqlite3.Row) -> dict:
+    """One stored row, with a shared-graph document MATERIALISED.
+
+    ⭐⭐ THIS IS THE WHOLE COMPATIBILITY STORY FOR C2C, IN ONE LINE. Every
+    server-side reader of a definition — `ast_lint`, `alert_user_series`, the
+    sweep, `definition_record` — is written against `compute.ast` /
+    `compute.trees`, and every one of them arrives through here. Materialising
+    at the row boundary means the graph is a STORAGE fact and nothing else in
+    this codebase has to know it exists. The graph itself stays on the returned
+    document, so a caller that reads-modifies-writes hands it straight back and
+    `normalize_graph_document` re-derives the same small blob.
+
+    ⚠️ A MALFORMED STORED GRAPH IS RETURNED RAW RATHER THAN RAISING. A row that
+    cannot be expanded is one a reader must be able to SEE (to report it, to let
+    its owner delete it); raising here would make one bad row take out every
+    listing that includes it. The refusal belongs on the write path, where
+    `save` already runs `assert_graph` before anything is stored.
+    """
+    definition = json.loads(row["definition"])
+    try:
+        definition = materialize(definition)
+    except ValueError:
+        pass
     return {
         "user_id": row["user_id"],
         "def_id": row["def_id"],
         "version": row["version"],
         "rev": row["rev"],
         "ast_hash": row["ast_hash"],
-        "definition": json.loads(row["definition"]),
+        "definition": definition,
         "repaint": json.loads(row["repaint"]),
         "deleted_at": row["deleted_at"],
         "created_at": row["created_at"],
@@ -881,13 +1022,27 @@ def save(user_id: Any, def_id: str, definition: dict,
     # reordering of it; a future pass MAY fold these into one read if the two
     # purposes are ever unified, but nothing about correctness requires it.
     from api.services import param_manifest
-    if isinstance(compute.get("paramManifest"), dict):
+    if param_manifest.declares_parameters(compute):
         with contextlib.closing(_connect()) as _c:
             _ensure(_c)
             _prev_row = _newest(_c, user_id, def_id)
         _prev_definition = json.loads(_prev_row["definition"]) if _prev_row is not None else None
         definition = param_manifest.apply(definition, _prev_definition)
         compute = definition["compute"]
+
+    # ⭐ THE SHARED-GRAPH SPLIT, AND IT IS THE ONLY PLACE THE TWO SHAPES MEET
+    # (Wave C2C). `stored` is what the blob and the 64 KB cap see — the graph;
+    # `definition` from here down is the materialised forest every rule below
+    # was written against. A document that declares no graph is returned twice,
+    # unchanged, so nothing about a V1 save moves by one byte.
+    #
+    # ⛔ IT RUNS AFTER THE PARAMETER HOOK, ON PURPOSE. `param_manifest.apply`
+    # canonicalises the roster IN PLACE on whichever slot the document uses, and
+    # a shared-graph document keeps that roster INSIDE the graph — so
+    # normalising first would carry a pre-trust copy of the graph into `stored`
+    # and persist the client's submitted bounds. The hook first, then the split.
+    stored, definition = normalize_graph_document(definition)
+    compute = definition["compute"]
 
     # The hash comes off the tree BEFORE anything is written, so a tree this
     # lane cannot hash is refused rather than stored with a hash nobody can
@@ -910,7 +1065,11 @@ def save(user_id: Any, def_id: str, definition: dict,
     # why it is placed here rather than behind a `if trees` branch.
     validate_v2(definition)
 
-    blob = json.dumps(definition, sort_keys=True, separators=(",", ":"),
+    # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
+    # materialised working copy from here up; persisting it would write the
+    # inlining this representation exists to avoid — and the 64 KB cap two lines
+    # down would then refuse exactly the documents the graph was built to admit.
+    blob = json.dumps(stored, sort_keys=True, separators=(",", ":"),
                       ensure_ascii=False)
     size = len(blob.encode("utf-8"))
     if size > MAX_DEFINITION_BYTES:

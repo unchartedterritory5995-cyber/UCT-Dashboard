@@ -80,6 +80,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from api.services import compute_graph
+
 # The five states named in the ADR (V2.1 S4, V2.2 SS1-2).
 ATTACHED = "attached"
 DETACHED = "detached"
@@ -106,6 +108,102 @@ def _tree_for(definition: dict, tree_index: Optional[str]) -> Any:
         return compute.get("ast")
     trees = compute.get("trees") or {}
     return trees.get(tree_index)
+
+
+# ─── the V2 (shared-graph) locator, and where a V2 manifest lives ────────────
+#
+# ⭐⭐ THE TRUST MODEL DOES NOT CHANGE BY ONE RULE. `_canonicalize_manifest`
+# (prior record wins verbatim), owner condition 15 (an edit may never mint a
+# parameter identity), `reconcile` (state derived fresh, never trusted) and
+# `_validate_bounds` (the declared min/max checked against the value AT the
+# locator) all run exactly as they do for a V1 document. What changes is one
+# thing: how a locator names the literal it owns.
+#
+#   V1  {"treeIndex": "out3" | None, "astPath": ["args", 1]}   a path through
+#       one INLINED tree — invalidated by any change of representation, and
+#       repeated once per occurrence of a shared subtree.
+#   V2  {"node": 41, "path": ["value"]}                        an index into
+#       `compute.graph.nodes` — one locator for ALL uses of a shared node.
+#
+# ⛔ THAT COLLAPSE REMOVES A REAL FAILURE STATE. A V1 parameter inside a subtree
+# written out nineteen times had nineteen locators that could disagree with each
+# other, which is what `CONFLICTED` exists to report. A shared node holds one
+# literal, so the disagreement is not handled — it is unrepresentable.
+#
+# ⛔⛔ AND THE MANIFEST LIVES IN EXACTLY ONE PLACE PER DOCUMENT. A V2 document
+# carries `compute.graph.parameters`; a V1 document carries
+# `compute.paramManifest`. A document carrying BOTH is refused rather than
+# merged or preferred — two rosters of adjustable parameters over one tree is
+# the second-authority defect this repo pays for most often, and here it would
+# be a SECURITY one: the bounds actually enforced would depend on which copy the
+# reader happened to consult.
+
+
+def _manifest_slot(compute: Any) -> tuple:
+    """``(manifest, is_graph)`` — which parameter roster this document declares.
+
+    Returns ``(None, False)`` when it declares none, which is the inert path
+    every ordinary, non-parameterized definition takes.
+    """
+    if not isinstance(compute, dict):
+        return None, False
+    graph = compute.get("graph")
+    graph_params = graph.get("parameters") if isinstance(graph, dict) else None
+    flat = compute.get("paramManifest")
+    if graph_params is not None and flat is not None:
+        raise ParamManifestRejected(
+            "compute.paramManifest: a shared-graph document declares its parameters at "
+            "compute.graph.parameters — carrying both is two rosters over one tree, and the "
+            "bounds actually enforced would depend on which one the reader consulted")
+    if graph_params is not None:
+        return graph_params, True
+    return flat, False
+
+
+def declares_parameters(compute: Any) -> bool:
+    """Does this ``compute`` carry an adjustable-parameter roster at all?
+
+    ⛔ THE ROSTER IS ASKED FOR, NEVER RESTATED. ``save()`` used to spell this
+    as ``isinstance(compute.get("paramManifest"), dict)`` — a second authority
+    over where a manifest lives, and the day a shared-graph document put its
+    parameters somewhere else that call site would have skipped the whole
+    trusted-manifest hook silently, storing the client's submitted bounds
+    verbatim. One question, one answer, one place.
+    """
+    try:
+        manifest, _ = _manifest_slot(compute)
+    except ParamManifestRejected:
+        # A document declaring BOTH rosters certainly declares one; let the
+        # hook run so `apply` raises the specific refusal rather than this
+        # predicate swallowing it into "no parameters here".
+        return True
+    return isinstance(manifest, dict)
+
+
+def _resolve_locator(definition: dict, loc: Any) -> Any:
+    """The node one locator names, or ``None`` if it no longer resolves.
+
+    ⛔ A LOCATOR IS ONE SHAPE OR THE OTHER, NEVER BOTH. A V2 locator that also
+    carried `astPath` would resolve differently depending on which key the
+    reader looked at first; the mixed shape is refused at its own field rather
+    than silently preferred one way.
+    """
+    if not isinstance(loc, dict):
+        return None
+    has_node = "node" in loc
+    has_tree = "astPath" in loc or "treeIndex" in loc
+    if has_node and has_tree:
+        raise ParamManifestRejected(
+            "paramManifest: a locator names a graph node OR a path through an inlined tree, "
+            f"never both — got {sorted(loc)}")
+    if has_node:
+        graph = (definition.get("compute") or {}).get("graph")
+        node = compute_graph.node_at(graph, loc.get("node"))
+        if node is None:
+            return None
+        return _walk(node, loc.get("path") or [])
+    tree = _tree_for(definition, loc.get("treeIndex"))
+    return _walk(tree, loc.get("astPath") or [])
 
 
 def _walk(tree: Any, path: list) -> Any:
@@ -226,8 +324,7 @@ def reconcile(definition: dict, canonical_manifest: dict) -> dict:
         any_detached = False
         any_non_literal = False
         for loc in locators:
-            tree = _tree_for(definition, loc.get("treeIndex"))
-            node = _walk(tree, loc.get("astPath") or [])
+            node = _resolve_locator(definition, loc)
             if node is None:
                 any_detached = True
                 continue
@@ -300,15 +397,24 @@ def apply(definition: dict, prev_definition: Optional[dict]) -> dict:
     can raise.
     """
     compute = definition.get("compute") or {}
-    submitted_manifest = compute.get("paramManifest")
+    submitted_manifest, is_graph = _manifest_slot(compute)
     if submitted_manifest is None:
         return definition
+    field = "compute.graph.parameters" if is_graph else "compute.paramManifest"
     if not isinstance(submitted_manifest, dict):
         raise ParamManifestRejected(
-            f"compute.paramManifest: expected an object, got {type(submitted_manifest).__name__}")
+            f"{field}: expected an object, got {type(submitted_manifest).__name__}")
 
     is_fresh_creation = prev_definition is None
-    prev_manifest = ((prev_definition or {}).get("compute") or {}).get("paramManifest") or {}
+    # ⛔ THE PRIOR ROSTER IS READ FROM WHEREVER THE PRIOR DOCUMENT KEPT IT, not
+    # from wherever THIS one does. A member whose V1 definition is re-saved as a
+    # shared graph must keep every parameter identity they already had —
+    # otherwise condition 15 ("an edit may never mint a new identity") would
+    # refuse the migration itself, and the escape from that would be to trust
+    # the client's submitted bounds, which is the bypass condition 15 exists to
+    # close. `_manifest_slot` on the PREVIOUS document answers this exactly.
+    prev_manifest, _ = _manifest_slot((prev_definition or {}).get("compute"))
+    prev_manifest = prev_manifest if isinstance(prev_manifest, dict) else {}
 
     canonical = _canonicalize_manifest(prev_manifest, submitted_manifest, is_fresh_creation)
     state = reconcile(definition, canonical)
@@ -319,6 +425,11 @@ def apply(definition: dict, prev_definition: Optional[dict]) -> dict:
 
     definition = dict(definition)
     definition["compute"] = dict(compute)
-    definition["compute"]["paramManifest"] = canonical
+    if is_graph:
+        graph = dict(compute["graph"])
+        graph["parameters"] = canonical
+        definition["compute"]["graph"] = graph
+    else:
+        definition["compute"]["paramManifest"] = canonical
     definition["compute"]["paramState"] = state
     return definition

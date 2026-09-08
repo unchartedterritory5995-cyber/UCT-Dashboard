@@ -1220,6 +1220,23 @@ function astColumnsFor(def, bars, inputs, ctx) {
   if (trees) {
     const out = {}
     const errors = {}
+    // ⭐⭐ C2C.11 — ONE MEMO FOR THE WHOLE DOCUMENT'S COLUMNS, CREATED HERE AND
+    // DROPPED HERE. A multi-plot import computes one consensus expression and
+    // plots several views of it (C2A: 77-84% of a real document's counted nodes
+    // are repeated subtrees), and until now every view paid for the whole thing
+    // again because `interpret`'s own memo is scoped to one tree.
+    //
+    // ⛔ ITS LIFETIME IS THIS CALL. The columns it holds were computed against
+    // THESE bars and THESE inputs; a memo that outlived the pass would serve
+    // stale numbers with nothing red anywhere. It is a local, never a module
+    // cache, and it is not keyed — so there is nothing to invalidate and no way
+    // to forget to.
+    //
+    // ⚠️ IT ONLY PAYS WHEN THE TREES ACTUALLY SHARE NODES, which is what a
+    // document stored as a shared graph gives (its expansion materialises each
+    // distinct node once). On an inlined document every lookup misses and the
+    // cost is one Map probe per self-free node.
+    const crossMemo = new Map()
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -1259,7 +1276,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // The REASON is preserved instead — see `columnErrors`.
       try {
         out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
-          undefined, { tf: ctx && ctx.tf })
+          undefined, { tf: ctx && ctx.tf, crossMemo })
       } catch (err) {
         errors[key] = {
           guard: (err && err.guard) || 'compute:error',

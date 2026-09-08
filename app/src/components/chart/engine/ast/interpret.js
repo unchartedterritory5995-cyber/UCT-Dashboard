@@ -2685,6 +2685,30 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // a cost the engine does not pay.
   const { idOf, freeOf } = structuralMaps(ast)
   const memo = new Map()
+  // ⭐⭐ C2C.11 — THE CROSS-COLUMN HALF OF THE SAME MEMO. `memo` above is keyed
+  // on a STRUCTURAL id within ONE tree, so it already collapses the repetition
+  // inside a single plot. It cannot see the repetition BETWEEN plots, which is
+  // where C2A measured 77-84% of a real document's counted nodes: a multi-plot
+  // Pine script computes one consensus expression and plots several views of
+  // it, and each view was paying for the whole thing again.
+  //
+  // ⛔ KEYED ON THE NODE OBJECT, WHICH IS WHY THIS ONLY PAYS AFTER C2C's
+  // STORAGE WORK. Structural ids are per-tree and mean nothing across trees;
+  // object identity means "literally the same subtree", which is exactly what a
+  // shared graph's expansion produces (`graph.js::expandGraph` materialises each
+  // distinct node once and hands the same object to every parent). On an
+  // inlined V1 document nothing is shared, every lookup misses, and the only
+  // cost is a Map miss per self-free node.
+  //
+  // ⛔⛔ THE CALLER OWNS ITS LIFETIME AND MUST NOT OUTLIVE ONE COMPUTE PASS.
+  // The cached value is a column computed against THESE bars, THESE inputs and
+  // THIS timeframe; a memo that survived a bar update would serve yesterday's
+  // numbers with nothing red anywhere. `nativeRegistry.astColumnsFor` creates
+  // one per call and drops it — never module state, never a cache with a key.
+  //
+  // ⚠️ AND IT INHERITS `memo`'s SELF-FREE GATE UNCHANGED (`id !== undefined`),
+  // so a subtree that reads a recurrence bind is never cached here either.
+  const crossMemo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
 
   const evalNode = (n) => {
     // 🔴 SELF-FREE ONLY. A subtree that reads a recurrence bind is re-evaluated
@@ -2703,8 +2727,16 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // kills the mutation, add it and delete this paragraph.
     const id = freeOf.get(n) ? idOf.get(n) : undefined
     if (id !== undefined && memo.has(id)) return memo.get(id)
+    if (crossMemo !== null && id !== undefined && crossMemo.has(n)) {
+      const shared = crossMemo.get(n)
+      memo.set(id, shared)
+      return shared
+    }
     const value = evalNodeRaw(n)
-    if (id !== undefined) memo.set(id, value)
+    if (id !== undefined) {
+      memo.set(id, value)
+      if (crossMemo !== null) crossMemo.set(n, value)
+    }
     return value
   }
 

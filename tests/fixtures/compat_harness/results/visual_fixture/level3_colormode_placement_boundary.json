@@ -36,7 +36,7 @@
       "discovery": [
         "placement is DOCUMENT-level, not per-plot -- a single document cannot mix overlay and own-pane across its own plots",
         "colorMode is plot-level and schema-validated (validateColorModes) but buildDefinition()'s own row API has no field for it -- only reachable by patching the document directly, not through the current BuilderSheet UI form",
-        "colorMode:\"column:<key>\" is schema-VALID (installs cleanly), consistent with the already-known VALIDATED-BUT-INERT finding -- whether it actually draws requires a live render, not answered here"
+        "colorMode:\"column:<key>\" is schema-VALID (installs cleanly) AND, since C1-A, is DRAWN: pool.columnColorsForPlot resolves it and binder.toPoints colours each point by whether the named column is non-zero. It now REQUIRES colorUp/colorDown, exactly as \"sign\" does. The earlier VALIDATED-BUT-INERT finding is SUPERSEDED, not merely re-stated"
       ]
     },
     "chart_render": {

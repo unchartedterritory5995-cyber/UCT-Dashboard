@@ -248,3 +248,43 @@ inert, both have measured demand (47 rows / 17 scripts), and both are renderer
 work inside an existing, validated vocabulary — no new object lifecycle. That
 keeps the object model (the genuine architecture project) behind the two cheapest
 remaining fidelity wins.
+
+
+---
+
+# POST-C2C UPDATE (2026-09-07) — SHARED CANONICAL COMPUTATION GRAPH
+
+Measured on the same frozen corpus (`5df718c2`) and the same 18 accepted
+scripts. Baseline preserved unchanged.
+
+## What moved
+
+| # | Dimension | Before C2C | After | Why |
+|---|---|---|---|---|
+| E | SAVE / REOPEN | 🟡 | 🟡 | **The two documents that could not be stored at all now store, reopen and render.** 331,977 B → 6,882 B and 181,315 B → 10,485 B, ×48.2 and ×17.3, **with `MAX_DEFINITION_BYTES` untouched at 65,536**. Live-journey proof, not an offline estimate. Still 🟡 because the ceiling moved for the corpus, not for every conceivable document. |
+| H | PERFORMANCE | ⬜ | 🟡 | First measurement of the wave's own cost: `expandGraph` 0.15 ms vs 5.05 ms to JSON-clone the same forest; cross-column memoisation saves 0–63% and **only 8% on the two expensive documents**. Now measured rather than unmeasured — and the number is small, which is the finding. |
+| D | PARAMETER FIDELITY | 🟡 | 🟡 | Unchanged as a capability, but **a real pre-existing Track F defect was found and reported**: on both complex scripts, one of two parameters carries an `astPath` that does not resolve against the tree the document saves, so that control is already non-functional. C2C preserves the behaviour exactly and does not fix it (Track F's to fix). |
+| J | REGRESSION SAFETY | ✅ | ✅ | 51 new JS cases + 23 new Python cases, including a dedicated mutation file naming eleven bad implementations, each with a control. |
+
+**A and F are untouched and still 🔴. The marketable claim does not move.**
+Tier 2 remains the earned ceiling; nothing here is a promotion, and this wave is
+explicitly a storage/representation improvement, which the owner has already
+ruled cannot promote a tier.
+
+## What C2C deliberately did NOT do
+
+- **Did not raise the 64 KB cap, or the interpreter budget.** Neither constant
+  changed. The size result is measured against the cap as it stands.
+- **Did not use gzip** to make anything fit.
+- **Did not fix the Track F locator mismatch** it uncovered — reported instead.
+- **Did not make V2 the default** for every multi-tree document. V2 is emitted
+  when V1 would not fit; making it universal needs a corpus-wide re-baseline.
+- **Did not implement any object lifecycle.** `line.new`/`label.new`/`box.new`/
+  tables remain absent; the graph is noted as *where* they would fit, which is a
+  note, not a feature.
+
+## The next wave is unchanged by this one
+
+**The object model is still the largest single item** (43/60 scripts, 1,204 call
+sites, 8 `pine:no-output` refusals). C2C removed a storage ceiling that stood in
+front of it; it did not reduce it.

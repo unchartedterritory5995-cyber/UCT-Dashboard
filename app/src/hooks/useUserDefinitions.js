@@ -30,6 +30,7 @@ import { AuthContext } from '../context/AuthContext'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration,
 } from '../components/chart/engine/nativeRegistry'
+import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 
 export const USER_DEFINITIONS_KEY = '/api/user-definitions'
@@ -49,7 +50,12 @@ async function fetcher(url) {
   }
   const body = await r.json()
   if (!Array.isArray(body?.definitions)) throw new Error('user-definitions: malformed response')
-  return body.definitions
+  // ⭐ C2C: a row stored as a shared graph reads back as the ORDINARY document
+  // every surface below already knows — trees, ast, and the source text
+  // re-derived by the one lane that can print it. Inert for every other row.
+  return body.definitions.map((row) => (row && row.definition
+    ? { ...row, definition: hydrateGraphDocument(row.definition) }
+    : row))
 }
 
 /**
@@ -108,6 +114,18 @@ export function useUserDefinitions() {
  *   "no journey to join", not an error.
  */
 export async function saveUserDefinition(definition, defId = null, telemetry = null) {
+  // ⭐⭐ C2C: SEND THE SMALLER FORM WHEN THE INLINED ONE WOULD NOT FIT. A
+  // multi-plot Pine import computes one consensus expression and plots several
+  // views of it, so `compute.trees` inlines the same subtree ten times and the
+  // corpus' two heaviest scripts weigh 332 KB and 181 KB against a 64 KB cap
+  // that is ~99% repetition (C2B). `reduceIfOversized` stores the DAG instead.
+  //
+  // ⛔ IT CANNOT MAKE A DOCUMENT WRONG, ONLY SMALLER. `def_hash` and
+  // `treesHash` are provably identical for both forms, the server accepts
+  // either and materialises the forest for every reader, and a conversion it
+  // cannot do safely returns the original untouched — so the worst outcome is
+  // the refusal the member would have got anyway.
+  definition = reduceIfOversized(definition)
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {

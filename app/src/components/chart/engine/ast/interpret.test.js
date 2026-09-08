@@ -1457,7 +1457,23 @@ describe('the node budget may only discount what the interpreter actually shares
     expect(SRC).toMatch(/const \{ idOf, freeOf \} = structuralMaps\(ast\)/)
     expect(SRC).toMatch(/const id = freeOf\.get\(n\) \? idOf\.get\(n\) : undefined/)
     expect(SRC).toMatch(/if \(id !== undefined && memo\.has\(id\)\) return memo\.get\(id\)/)
-    expect(SRC).toMatch(/if \(id !== undefined\) memo\.set\(id, value\)/)
+    expect(SRC).toMatch(/if \(id !== undefined\) \{[\s\S]{0,40}?memo\.set\(id, value\)/)
+  })
+
+  it('🔴 …and so does the CROSS-COLUMN memo, off the same `id` gate', () => {
+    // C2C.11 added a second memo — one shared by every column of a document, so
+    // that two plots computing the same subtree compute it once. It widens
+    // exactly the same claim this describe block exists to protect, so it is
+    // held to exactly the same rail.
+    //
+    // ⛔⛔ THE GATE IS THE WHOLE SAFETY ARGUMENT. `id !== undefined` is
+    // `freeOf.get(n)` — SELF-FREE ONLY. A cross-column memo that skipped it
+    // would cache a subtree reading a recurrence bind and freeze that
+    // recurrence at step one: a silent wrong number on a chart that still
+    // draws, in a place no behavioural test looks, because the memo is
+    // otherwise a pure speed-up.
+    expect(SRC).toMatch(/if \(crossMemo !== null && id !== undefined && crossMemo\.has\(n\)\)/)
+    expect(SRC).toMatch(/if \(crossMemo !== null\) crossMemo\.set\(n, value\)/)
   })
 
   it('⛔ …and the walk refuses to invent an id for a child it has not keyed', () => {
