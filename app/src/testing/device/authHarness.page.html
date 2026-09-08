@@ -25,6 +25,7 @@
  * generated `uct-r1.cred.js`, which the launcher deletes after the run. */
 import { buildSteps, runSteps, summarise, cleanup, STATE, skipIntro } from './uct-r1.js'
 import { buildFeedSteps, SESSION_KEY, FEED_SYMS } from './uct-r1-feed.js'
+import { buildSlopSteps } from './uct-r1-slop.js'
 import { CRED } from './uct-r1.cred.js'
 
 const panel = document.getElementById('panel')
@@ -153,8 +154,8 @@ function render(results, done) {
      reads as a feed failure. */
   const ctx = {}
   const suite = _q.get('suite')
-  const steps = suite === 'feed'
-    ? buildFeedSteps({ frame, cred: CRED })
+  const steps = suite === 'feed' ? buildFeedSteps({ frame, cred: CRED })
+    : suite === 'slop' ? buildSlopSteps({ frame, cred: CRED })
     : buildSteps({ frame, cred: CRED, runId, ctx })
   const results = await runSteps(steps, {}, (r) => render(r, false))
   let cleaned = []
