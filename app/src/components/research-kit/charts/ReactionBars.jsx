@@ -16,6 +16,13 @@ export const SIZE = { width: '100%', height: VIEWBOX.height }
 const PAD_TOP = 10
 const PAD_BOTTOM = 18   // room for the quarter labels
 const DOT_GAP = 7
+/* Vertical room reserved at BOTH ends for the printed move (showValues). The
+   text sits outside the bar, so without this a full-scale bar puts its number
+   where something else already is: a max down bar bottomed at y=114, its value
+   landed at y=128, and the quarter labels are at y=127 — the -16% sat on top of
+   "Q1 '25". Reserving the band shortens the bars instead of nudging the text,
+   so nothing can collide at any scale. */
+const VALUE_PAD = 14
 
 const num = (v) => {
   if (v == null) return null
@@ -47,7 +54,7 @@ export function outcomeOf(row) {
  * read as "the market is pricing less than it ever moves", the exact opposite
  * of the truth.
  */
-export function reactionGeometry(rows, { width = VIEWBOX.width, height = VIEWBOX.height, impliedPct = null } = {}) {
+export function reactionGeometry(rows, { width = VIEWBOX.width, height = VIEWBOX.height, impliedPct = null, valuePad = 0 } = {}) {
   const list = rows || []
   const implied = num(impliedPct)
   const magnitudes = list.map((r) => Math.abs(num(r?.reaction_pct) ?? 0))
@@ -55,9 +62,11 @@ export function reactionGeometry(rows, { width = VIEWBOX.width, height = VIEWBOX
   const peak = Math.max(0, ...magnitudes)
   const scaleMax = (peak > 0 ? peak : 1) * 1.15
 
-  const plotH = height - PAD_TOP - PAD_BOTTOM
+  // `valuePad` is taken off BOTH halves so the baseline stays centred in what
+  // is left; the bars get shorter, the axis and the numbers keep their rows.
+  const plotH = height - PAD_TOP - PAD_BOTTOM - valuePad * 2
   const halfH = plotH / 2
-  const baselineY = PAD_TOP + halfH
+  const baselineY = PAD_TOP + valuePad + halfH
   const n = Math.max(list.length, 1)
   const slot = width / n
   // The 18 cap was the RIGHT number when the viewBox was always 320 wide (8
@@ -177,7 +186,10 @@ export default function ReactionBars({
     )
   }
 
-  const geo = reactionGeometry(rows, { impliedPct, width: vbWidth, height: VIEWBOX.height })
+  const geo = reactionGeometry(rows, {
+    impliedPct, width: vbWidth, height: VIEWBOX.height,
+    valuePad: showValues ? VALUE_PAD : 0,
+  })
   // Thin the axis on a narrow chart rather than shrinking the type below the
   // smallest token — see labelStep's docblock.
   const slotPx = geo.width / Math.max(geo.bars.length, 1)
@@ -256,7 +268,11 @@ export default function ReactionBars({
                 cx={b.cx} cy={b.dotY} r="3"
               />
             )}
-            {b.diverged && (
+            {/* The ★ marks "beat the number, sold off anyway" — an annotation
+                ON the beat/miss channel. With showValues that channel is gone
+                (the number replaced the dot), so the star would be marking a
+                comparison the reader can no longer see. It rides with the dot. */}
+            {!showValues && b.diverged && (
               <text
                 className={styles.star}
                 data-testid="rk-reaction-star"
