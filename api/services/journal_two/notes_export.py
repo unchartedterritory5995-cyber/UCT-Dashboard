@@ -754,6 +754,19 @@ def _front_matter(
             lines.append(f"    target: {_yaml_scalar(item['targetLabel'])}")
             if item.get("caption"):
                 lines.append(f"    note: {_yaml_scalar(item['caption'])}")
+            # ⛔ WAVE N §11. Three separate fields, never merged: what the
+            # SOURCE said, what the MEMBER wrote about it, and how much of the
+            # source we actually hold. `source_url` appears only for a web
+            # capture -- an attachment's location is meaningless outside this
+            # account, and printing one would imply a file that did not travel.
+            if item.get("source_url"):
+                lines.append(f"    source_url: {_yaml_scalar(item['source_url'])}")
+            if item.get("coverage"):
+                lines.append(f"    coverage: {item['coverage']}")
+            if item.get("passage"):
+                lines.append(f"    passage: {_yaml_scalar(item['passage'])}")
+            if item.get("passage_note"):
+                lines.append(f"    passage_note: {_yaml_scalar(item['passage_note'])}")
     import_source = row["import_source"] if "import_source" in row.keys() else None
     if import_source:
         lines.append(f"import_source: {_yaml_scalar(import_source)}")
@@ -933,6 +946,7 @@ def _resolve_facts_by_note(
 
 
 from api.services.journal_two import web_capture as wc
+from api.services.journal_two import ask_evidence as ev_envelope
 
 
 def _export_domain(url: str | None) -> str:
@@ -1003,17 +1017,20 @@ def _resolve_thesis_evidence_by_note(
     # `source_kind` has disambiguated this since Wave L; export simply never
     # asked. Found by the §1 downstream consumer audit.
     excerpt_labels: dict[str, str] = {}
+    excerpt_detail: dict[str, dict[str, Any]] = {}
     if excerpt_targets:
         ph = ",".join("?" for _ in excerpt_targets)
         for r in conn.execute(
-            f"SELECT e.id, e.page_number, d.name, d.source_kind, d.source_url"
+            f"SELECT e.id, e.page_number, e.captured_text, e.annotation,"
+            f" d.name, d.source_kind, d.source_url, d.capture_type"
             f" FROM j2_note_excerpts e"
             f" JOIN j2_note_documents d ON d.id = e.document_id"
             f" WHERE e.user_id = ? AND e.id IN ({ph})",
             (user_id, *excerpt_targets),
         ).fetchall():
             name = r["name"] or "Document"
-            if r["source_kind"] == wc.SOURCE_KIND_WEB:
+            is_web = r["source_kind"] == wc.SOURCE_KIND_WEB
+            if is_web:
                 # Provenance without fabricated pagination: what it is, what it
                 # came from, and where -- never "full article", never a page.
                 domain = _export_domain(r["source_url"])
@@ -1022,6 +1039,28 @@ def _resolve_thesis_evidence_by_note(
                     else f"Captured passage, {name}")
             else:
                 excerpt_labels[r["id"]] = f"{name}, p.{r['page_number']}"
+            # ⛔⛔ WAVE N §11 — A LABEL IS NOT THE EVIDENCE. The export carried
+            # "Captured passage, Reuters: NVDA margins (reuters.com)" and
+            # nothing else, so the artefact the member keeps forever could not
+            # say WHAT the source actually said, what the member made of it, or
+            # where to read the rest. A capture is never embedded in the note
+            # body, so unlike a Wave J excerpt there is no blockquote elsewhere
+            # in the file to fall back on -- the front matter is the only place
+            # this exists.
+            # ⛔ SOURCE, MEMBER NOTE AND THE EDGE'S CAPTION STAY THREE FIELDS
+            # (§7). `note` is why this bears on the thesis; `passage_note` is
+            # what the member wrote about the passage itself; `passage` is the
+            # publisher's words. Merging any two of them is how a member's
+            # opinion becomes a quotation.
+            excerpt_detail[r["id"]] = {
+                "passage": r["captured_text"] or "",
+                "passage_note": r["annotation"] or None,
+                "source_url": (r["source_url"] or None) if is_web else None,
+                # The corpus boundary travels with the evidence, exactly as it
+                # does through Ask: one clipped paragraph must not read as the
+                # whole article on the way out either.
+                "coverage": ev_envelope.coverage_for_row(dict(r)),
+            }
 
     out: dict[str, list[dict[str, str]]] = {}
     for r in rows:
@@ -1033,9 +1072,11 @@ def _resolve_thesis_evidence_by_note(
             label = fact_labels.get(r["target_id"])
         if label is None:
             continue  # target no longer resolves (e.g. deleted since) -- omit rather than show a dangling id
-        out.setdefault(r["note_id"], []).append({
-            "stance": r["stance"], "targetLabel": label, "caption": r["caption"] or None,
-        })
+        item = {"stance": r["stance"], "targetLabel": label,
+                "caption": r["caption"] or None}
+        if r["target_type"] == "document_excerpt":
+            item.update(excerpt_detail.get(r["target_id"]) or {})
+        out.setdefault(r["note_id"], []).append(item)
     return out
 
 
