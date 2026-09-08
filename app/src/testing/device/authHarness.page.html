@@ -24,6 +24,7 @@
  * `authHarness.js`; everything it knows about WHO IT IS arrives from the
  * generated `uct-r1.cred.js`, which the launcher deletes after the run. */
 import { buildSteps, runSteps, summarise, cleanup, STATE } from './uct-r1.js'
+import { buildFeedSteps, SESSION_KEY, FEED_SYMS } from './uct-r1-feed.js'
 import { CRED } from './uct-r1.cred.js'
 
 const panel = document.getElementById('panel')
@@ -65,7 +66,23 @@ function render(results, done) {
   const _q = new URLSearchParams(location.search)
   const _v = _q.get('view')
   const _np = _q.get('navprobe')
-  const view = _v ? ('/' + _v.replace(/^\/+/, '') + (_np ? ('?navprobe=' + encodeURIComponent(_np)) : '')) : null
+  /* ⭐ SEED A REVIEW BEFORE SHOWING THE CHART. The density and pill-placement
+     questions are LOOKING questions — a person has to see the surface with a
+     real review on it — and without this the view mode shows a chart with no
+     transport control and no feed, which is not the thing being judged. */
+  const _rv = _q.get('review')
+  if (_rv) {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        v: 1, source: _rv, sourceId: 'device', label: _rv, sort: null,
+        symbols: FEED_SYMS, index: 0, reviewed: [FEED_SYMS[0]], pending: true,
+      }))
+    } catch (e) { /* the panel will say what happened */ }
+  }
+  const _extra = []
+  if (_np) _extra.push('navprobe=' + encodeURIComponent(_np))
+  if (_rv) _extra.push('sym=' + encodeURIComponent(FEED_SYMS[0]), 'tf=D')
+  const view = _v ? ('/' + _v.replace(/^\/+/, '') + (_extra.length ? ('?' + _extra.join('&')) : '')) : null
   if (view) {
     try {
       const me = await fetch('/api/auth/me', { credentials: 'include' })
@@ -81,8 +98,15 @@ function render(results, done) {
       + `${innerWidth > innerHeight ? 'LANDSCAPE' : 'portrait'}</div>`
     return
   }
+  /* ⛔ THE SUITE IS SELECTABLE BECAUSE A DEVICE MINUTE IS ONE MINUTE. Re-proving
+     the phone shell before every feed question would spend half the session on
+     answers already recorded, and the run would be cut off mid-feed — which
+     reads as a feed failure. */
   const ctx = {}
-  const steps = buildSteps({ frame, cred: CRED, runId, ctx })
+  const suite = _q.get('suite')
+  const steps = suite === 'feed'
+    ? buildFeedSteps({ frame, cred: CRED })
+    : buildSteps({ frame, cred: CRED, runId, ctx })
   const results = await runSteps(steps, {}, (r) => render(r, false))
   let cleaned = []
   try { cleaned = await cleanup(runId, ctx) } catch (e) { cleaned = ['cleanup threw: ' + e.message] }

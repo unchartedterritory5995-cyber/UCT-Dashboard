@@ -46,8 +46,9 @@ OUT = REPO / "app" / "dist" / "assets"
 
 PAGE = OUT / "uct-r1.html"
 MODULE = OUT / "uct-r1.js"
+FEED = OUT / "uct-r1-feed.js"           # the feed suite, copied beside the module
 CRED = OUT / "uct-r1.cred.js"           # generated - secret - always deleted
-GENERATED = (PAGE, MODULE, CRED)
+GENERATED = (PAGE, MODULE, FEED, CRED)
 
 BREAK_PASSWORD = "!!wrong-on-purpose!!"
 
@@ -91,6 +92,14 @@ def stage(break_auth: bool = False, base: str | None = None) -> None:
         raise SystemExit("no built dist at " + str(OUT) + " - run `npm run build` in app/ first")
     shutil.copyfile(SRC / "authHarness.js", MODULE)
     shutil.copyfile(SRC / "authHarness.page.html", PAGE)
+    # ⛔ THE ONE IMPORT HAS TO BE REPOINTED. `feedSteps.js` imports from
+    # `./authHarness`, which does not exist under the staged names — a bare copy
+    # 200s and then fails to resolve the module IN THE DEVICE, where the failure
+    # is a blank panel and a spent minute. The rewrite is explicit and narrow:
+    # exactly the specifier the copy invalidates.
+    feed_src = (SRC / "feedSteps.js").read_text(encoding="utf-8")
+    FEED.write_text(feed_src.replace("from './authHarness'", "from './uct-r1.js'"),
+                    encoding="utf-8")
     pw = BREAK_PASSWORD if break_auth else SANDBOX_PASSWORD
     body = "export const CRED = " + json.dumps({"email": SANDBOX_EMAIL, "password": pw})
     CRED.write_text(_HEADER + body + "\n", encoding="utf-8")

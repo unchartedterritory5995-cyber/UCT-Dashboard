@@ -117,6 +117,21 @@
   position: relative;
 }
 
+/* ⚰️ A `touch-action: pan-y !important` OVERRIDE LIVED HERE FOR ONE HOUR, on a
+ * defect that did not exist. The device step reported `chartTouchAction: "none"`
+ * — but it had selected the FIRST card body, which is a PLACEHOLDER, found no
+ * chart in it, and fell back to the literal string 'none'. The fallback was the
+ * finding.
+ *
+ * ⭐ WHAT DISPROVED IT: the phone shell's OWN chart — the same component with
+ * none of this stylesheet on it — computes `touch-action: auto`. lightweight
+ * charts never set `none` here, so there was nothing to override.
+ *
+ * ⛔ AND THE REAL QUESTION IS STILL OPEN, which is why this note stays: whether
+ * the chart's own touch handlers steal a mostly-vertical drag from the scroller
+ * is not decidable from computed styles at all. It needs a finger. See
+ * FEED_SCROLL_INTENT in the certification record. */
+
 /* The stored frame fills the same box the live chart had, so a card does not
    twitch as it changes state. */
 .cardShot {
