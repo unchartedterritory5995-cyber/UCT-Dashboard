@@ -26,13 +26,13 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { buildRuntimeIr, carriedTarget } from '../../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, carriedTarget, changeTarget } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { RuntimeLimitError } from '../limits.js'
 import { translatePine } from '../../ast/pine.js'
 import { parseFormula } from '../../ast/parse.js'
-import { interpret, CARRIED, FINITE_WINDOW } from '../../ast/interpret.js'
+import { interpret, CARRIED, FINITE_WINDOW, BINARY } from '../../ast/interpret.js'
 
 const N = 40
 // ⛔ A MOVING SOURCE. On a flat series an EMA, an RMA and the source itself all
@@ -634,5 +634,63 @@ describe('⛔⛔ THE CARRIED CLASSIFIER — exercised, not restated', () => {
     // ...but the CLOSED TABLE still gates it: a name it never declares is out
     // even when the carried table claims it.
     expect(carriedTarget('ta.notathing', {}, { notathing: {} })).toBeNull()
+  })
+})
+
+describe('⭐ `ta.change` — lowered into semantics that already ship (§42–§45)', () => {
+  it('⭐⭐ it EXECUTES, and it is the hand-written form exactly', () => {
+    // ⚰️ THE GAP THIS CLOSES: `ta.change(x)` refused while `x - x[1]` executed —
+    // the same computation, one spelled with a builtin name. Reach was 17 scripts.
+    const a = runPine(`${head}var x = 0.0\nx := close\nplot(ta.change(x))\n`)
+    const b = runPine(`${head}var x = 0.0\nx := close\nplot(x - x[1])\n`)
+    expect(a.out).toEqual(b.out)
+    expect(Number.isNaN(a.out[0]), 'bar 0 has nothing behind it').toBe(true)
+    for (let i = 1; i < N; i += 1) expect(a.out[i], `bar ${i}`).toBeCloseTo(BARS[i].c - BARS[i - 1].c, 12)
+  })
+
+  it('⭐ and it equals the COLUMNAR door, index for index', () => {
+    const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.change(x))\n`)
+    sameSeries(out, pureLane('ta.change(close)'), 'change')
+  })
+
+  it('⭐ inside a UDF, per call site', () => {
+    const { out, ir } = runPine(`${head}f(v) =>\n    ta.change(v)\nplot(f(close))\nplot(f(open))\n`)
+    expect(ir.history.length, 'one ring per call site, depth 1').toBe(2)
+    for (const h of ir.history) expect(h.depth).toBe(1)
+    sameSeries(out, pureLane('ta.change(close)'), 'change in a udf')
+  })
+
+  it('⛔ the forms it does NOT serve refuse BY NAME, each for its own reason', () => {
+    // an expression source has no committed series — same wall as a window
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x + 1))\n`).guard)
+      .toBe('runtime:history-expression')
+    // `ta.change(source, length)` is a CLOSED TABLE gap: the table's `change`
+    // declares one argument, so the two-argument Pine overload has no entry.
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)
+    expect(r.guard).toBe('runtime:statement')
+    expect(r.message).toMatch(/closed-table gap/)
+  })
+
+  it('⛔⛔ `ta.crossover`/`crossunder` STAY REFUSED, and the reason is MEASURED', () => {
+    // ⭐ THEY LOOK LIKE THE SAME SHAPE AND THEY ARE NOT SERVABLE THE SAME WAY.
+    // `interpret.js::crossing` answers NaN when ANY of the four values it reads
+    // is NaN. This grammar's `>` answers 0 on a NaN — measured below, not
+    // assumed — so lowering `a > b and a[1] <= b[1]` would answer 0 where the
+    // table says NOT COMPUTABLE. That is a silent approximation, so they wait
+    // for the family to get its own authoritative step.
+    expect(BINARY['>'](NaN, 5), 'the operator swallows the NaN').toBe(0)
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.crossover(x, 102) ? 1 : 0)\n`).guard)
+      .toBe('runtime:call-windowed-state')
+  })
+
+  it('⛔ the classifier asks the TABLE, and a synthetic one proves the lookup is live', () => {
+    expect(changeTarget('ta.change')).toEqual({ table: 'change' })
+    expect(changeTarget('change')).toEqual({ table: 'change' })
+    expect(changeTarget('ta.ema'), 'a carried member is not offset-one').toBeNull()
+    expect(changeTarget('str.change'), 'a non-value namespace cannot reach it').toBeNull()
+    // ⛔ `lookback: 1` is the PROPERTY it tests, not the name: flip the table's
+    // declaration and the classifier must stop admitting it.
+    expect(changeTarget('ta.change', { functions: { change: { lookback: 5 } } })).toBeNull()
+    expect(changeTarget('ta.change', { functions: { change: { lookback: 1 } } })).toEqual({ table: 'change' })
   })
 })

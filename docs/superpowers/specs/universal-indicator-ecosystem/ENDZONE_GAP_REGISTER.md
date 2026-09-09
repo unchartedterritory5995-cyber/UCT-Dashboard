@@ -2254,7 +2254,7 @@ remains open** (§70), now with two waves of evidence.
 | **V10.1** | ✅ CLOSED | The carried-state runtime FOUNDATION: shared `{cells, init, step}`, per-call-site instance identity, bounded and accounted state, no ring, no second EMA. 14/14 mutations killed behind a clean-file control. |
 | **V10.2** | ✅ CLOSED by ruling | `na` HOLD vs RESET — owner ruled 2026-09-08 that vendor truth wins. Corrected in BOTH lanes; see **PART X**. A NEW divergence of the same class (finite windows) was found while fixing it and awaits its own ruling — X5. |
 | **V10.3** | RUNTIME / MEMBERS | 14 of 16 carried members pending, in three groups with three different first dependencies (V8). None is blocked on the mechanism. |
-| **V10.4** | ⛔ TABLE / GRAMMAR | `ta.barssince` / `ta.valuewhen` need the CLOSED TABLE to declare Pine's actual unbounded / occurrence-indexed signatures. **The event-history family is blocked on a table change, not on runtime state** — which is why 2F-2C did not implement it. |
+| **V10.4** | ⛔ **OWNER RULING** | Event history. The table change turns out to be a FOUNDATIONAL exclusion, not a signature edit: Pine's form is fetch-dependent, which `_functions_excluded` refuses for `cum` and whose re-opening the manifest assigns to two owners together. Demonstrated, not argued — **PART Y**, Y2. |
 | **V10.5** | VENDOR, UNPINNED | The recurrent SEED is still prose-derived only. This wave could not pin it: TradingView's studies carry state from before any capture window, and the `na` probe cannot re-seed because the vendor HOLDS. A short-history symbol/timeframe (total bars < window) is the design that would work. |
 | **V10.6** | VENDOR, UNPINNED | `barssince` with an `na` condition at a would-be-TRUE bar; `barssince` before the first true bar. |
 | **V10.7** | REALTIME | ⛔ **UNVERIFIED AND EXPLICITLY OPEN.** Carried state commits inside the call with no rollback path. Historical output matches; forming-bar re-execution, bar confirmation and rollback are untested and the architecture has not been exercised against them (§73/§74). |
@@ -2458,3 +2458,151 @@ Artifact/version implications: no saved-definition shape changed, but the comput
 VALUES of `ema`/`rma` over a gappy source do change. If a semantic hash is intended
 to encode calculation meaning, this correction should move it — flagged, not
 decided here.
+
+
+## PART Y — CARRIED-STATE CLOSURE: INVENTORY, EVENT HISTORY, `ta.change` (2026-09-08)
+
+### Y1 — ⭐ THE 16-MEMBER INVENTORY (§21/§80), IN FOUR SUBFAMILIES
+
+⛔ **NOT "14 unsupported" AS ONE BUCKET** (§39). The remaining members split into
+three groups with three *different* first dependencies, and only one of them is
+blocked on anything this runtime owns.
+
+| member | subfamily | reach | pure authority | state shape | runtime | first dependency |
+|---|---|---:|---|---|---|---|
+| `ema` | recurrent smoother | 63 | `smoothStep` | 3 cells | ✅ | — |
+| `rma` | recurrent smoother | 16 | `smoothStep` | 3 cells | ✅ | — |
+| `rsi` | recurrent composite | 27 | `computeRSI` | — | ⬜ | factor the SHIPPED impl into `{init, step}` |
+| `atr` | recurrent composite | 55 | `computeATR` | — | ⬜ | same |
+| `adx` | recurrent composite | 0 | `computeADX` | — | ⬜ | same |
+| `plusDI` | recurrent composite | 0 | `computeADX` | — | ⬜ | same |
+| `minusDI` | recurrent composite | 0 | `computeADX` | — | ⬜ | same |
+| `macd` | recurrent composite | 5 | `computeMACD` | — | ⬜ | same |
+| `barssince` | **event history** | 11 | `barsSince` | 1 cell | ⛔ | **closed-table exclusion — Y2** |
+| `valuewhen` | **event history** | 9 | `valueWhen` | occ+1 ring | ⛔ | **closed-table exclusion — Y2** |
+| `accum` | cumulative | 0 | per-bar body | 1 cell | ⬜ | it has a per-bar BODY — a different shape, not `{init, step}` |
+| `cumFrom` | cumulative (anchored) | 0 | `barCumFrom` | 2 cells | ⬜ | needs bar TIME in the runtime |
+| `vwap` | cumulative (session) | 5 | `computeVWAP` | 2 cells | ⬜ | needs SESSION semantics |
+| `avwap` | cumulative (anchored) | 0 | `barAvwap` | 2 cells | ⬜ | needs bar time |
+| `obvN` | cumulative + offset | 0 | `barObvN` | 1 cell + ring | ⬜ | a running level differenced `n` back |
+| `pvtN` | cumulative + offset | 0 | `barPvtN` | 1 cell + ring | ⬜ | same |
+
+⭐ **THE SIX RECURRENT COMPOSITES SHARE ONE PATH** and it is architecture-neutral:
+they bind shipped implementations (`computeRSI`, `computeATR`, `computeADX`,
+`computeMACD`) that are Wilder/EMA recursions *inside a function*, not step
+functions. Factoring one factors most of the rest, and `atr` + `rsi` alone are
+reach 55 and 27. ⚠️ Those implementations are a THIRD authority and were **not**
+touched by the `na` correction — they very likely carry the same defect.
+
+⛔ **NOT DONE IN THIS BLOCK** because factoring a shipped indicator implementation
+changes chart behaviour for `rsi`/`atr`/`adx`/`macd`, which is the same class of
+change the owner has now ruled on twice. It is the obvious next carried-state
+increment and it needs its own before/after evidence, not a drive-by.
+
+### Y2 — ⛔⛔ EVENT HISTORY: BLOCKED BY A FOUNDATIONAL EXCLUSION, NOT BY STORAGE
+
+The generalized carried-state mechanism is **ready** for `barssince`/`valuewhen`:
+bounded state, forward step, per-call-site identity all ship. `valuewhen`'s
+occurrence argument is `simple int`, so even the general case needs only a bounded
+ring of `occurrence + 1` — precisely what §74 allows.
+
+**It is blocked one level up, at the closed table, and the reason is argued and
+pre-existing.**
+
+`closedTable.json::_functions_bounded_state` states the engine's bargain:
+
+> *"FIVE ENTRIES CARRY BAR-TO-BAR STATE ... AND EVERY ONE IS BOUNDED BY A DECLARED
+> `int` ... so a bar's value is a function of that window alone"*, and a
+> not-found answer may be reported *"only once `n` READABLE condition bars
+> actually sit behind it — otherwise 'not true in the last 10' is a claim about
+> bars nobody fetched, and it would change the moment somebody asked for one
+> more."*
+
+Pine's `ta.barssince(cond)` is **unbounded**, and therefore fetch-dependent.
+Demonstrated rather than argued — the same calendar bar, one condition, four
+fetch sizes:
+
+| fetch | first bar | `barssince` at bar 900 |
+|---:|---:|---|
+| 1000 | 0 | 500 |
+| 700 | 300 | 500 |
+| 450 | 550 | **na** |
+| 300 | 700 | **na** |
+
+That is exactly the property `_functions_excluded` refuses for `cum`:
+
+> *"🔴 A RUNNING TOTAL FROM THE FIRST BAR OF THE CHART — **THE FETCH IS ITS SEED,
+> SO THE FETCH IS IN ITS ANSWER**. ... the same date reads two different numbers
+> off a 500-bar request and a 5,000-bar one."*
+
+and the manifest assigns the remedy by name:
+
+> *"⛔ Adding one is not an implementation task: it either re-opens `_no_offset`
+> (which `_no_offset_reopened_by` assigns to the owner of the repaint claim plus
+> the owner of this manifest, **together**) or it needs a declaration form this
+> table does not have."*
+
+⭐⭐ **AND TRADINGVIEW HAS THE SAME PROPERTY** — Pine's `ta.barssince` genuinely
+answers differently depending on how much history is loaded. So "faithful Pine"
+here *means accepting fetch-dependence*, which this engine refuses by a rule that
+exists because a SCREENER must not answer differently at different fetch sizes.
+**That is a real product-level tension, not an implementation gap**, and it may
+resolve as a per-lane capability (chart accepts it, screener does not) — which is
+new architecture and a §41/§86 STOP.
+
+⛔ **SO IT IS CLASSIFIED, NOT FORCED.** Implementing it would either invent a
+bound Pine never wrote (the silent mistranslation `pine.js`'s own refusal text
+argues against at length) or overturn a foundational exclusion from inside a
+runtime wave. **Owner ruling required.** The vendor semantics are captured and
+waiting: `barssince` is 0 ON the true bar then +1, an `na` condition at a
+would-be-false bar behaves as false; `valuewhen` occurrence 0 is the most recent
+occurrence INCLUDING the current bar, occurrence 1 the one before.
+
+⚠️ Two dimensions remain unobserved and are recorded as such: `barssince` with an
+`na` condition at a would-be-TRUE bar, and `barssince` before the first true bar.
+
+### Y3 — ✅ `ta.change` — CLOSED, BY LOWERING RATHER THAN BY A NEW MACHINE
+
+`ta.change(x)` over runtime state now executes, and it is **byte-identical** to
+the hand-written `x - x[1]` it used to be shamed by. §44's preferred route:
+`interpret.js::FN.change` is `series[i] - series[i-1]` with NaN falling out of the
+subtraction, and `x - x[1]` is that expression in this IR — the ring supplies the
+previous bar, the subtraction supplies the NaN rule, bar 0 answers `na` because
+the ring has nothing to give. **No second definition, no new opcode, no state.**
+
+Honest signature split (§44):
+
+| form | status |
+|---|---|
+| `ta.change(source)` numeric | ✅ executes, columnar-identical, works inside a UDF (one ring per call site) |
+| `ta.change(source)` bool/colour | the columnar door already maps it; its *return type* is a `_functions_domain` question this wave did not open |
+| `ta.change(source, length)` | ⬜ **CLOSED-TABLE GAP** — the table's `change` declares ONE argument. Refuses by name saying so. |
+| source is an expression | ⬜ `runtime:history-expression` — same wall as a window, same reason |
+
+⛔⛔ **`ta.crossover`/`ta.crossunder` STAY REFUSED, AND THE REASON IS MEASURED.**
+They look like the same `offsetOne` shape and they are **not servable the same
+way**: `interpret.js::crossing` answers NaN when ANY of the four values it reads
+is NaN, while this grammar's `>` answers **0** on a NaN — measured
+(`BINARY['>'](NaN, 5) === 0`), not assumed. Lowering them as
+`a > b and a[1] <= b[1]` would answer 0 where the table says NOT COMPUTABLE. That
+is a silent approximation, so they wait for their own authoritative step rather
+than shipping a look-alike.
+
+⚠️ **`ta.change` moved NO first blocker** — 27 executing before and after. Its 17
+reaching scripts are all blocked earlier. Reported flat, as the third consecutive
+wave to do so.
+
+### Y4 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **Y4.1** | ✅ CLOSED | EMA/RMA `na` = HOLD, corrected in BOTH lanes, blast radius measured, rails inverted, mutation permanent. |
+| **Y4.2** | ✅ CLOSED | `ta.change(source)` executes by authoritative lowering. |
+| **Y4.3** | ⛔ **OWNER RULING** | `finite-window-propagates-na-instead-of-skipping-it` — confirmed, twelve members, two lanes (PART X, X5). |
+| **Y4.4** | ⛔ **OWNER RULING** | Event history needs an unbounded, fetch-dependent table entry. Re-opening `_no_offset` is assigned by the manifest to two owners together. |
+| **Y4.5** | RUNTIME / MEMBERS | Six recurrent composites (`rsi` 27, `atr` 55, `adx`, `plusDI`, `minusDI`, `macd` 5) share ONE architecture-neutral path: factor the shipped implementation into `{init, step}`. The obvious next increment. |
+| **Y4.6** | RUNTIME / MEMBERS | Six cumulatives need bar TIME or SESSION semantics in the runtime — a genuinely different dependency, not carried state. |
+| **Y4.7** | SEPARATE AUTHORITY | `computeRSI`/`computeATR`/`computeADX`/`computeMACD` were NOT touched by the `na` correction and very likely carry the same defect. Unmeasured. |
+| **Y4.8** | RUNTIME / OFFSET-ONE | `crossOver`/`crossUnder` need an authoritative step; the operator lowering is not faithful on NaN. |
+| **Y4.9** | TABLE | `ta.change(source, length)` — a one-argument table entry against a two-argument Pine overload. |
+| **Y4.10** | REALTIME | Still explicitly open and untested (V10.7). |

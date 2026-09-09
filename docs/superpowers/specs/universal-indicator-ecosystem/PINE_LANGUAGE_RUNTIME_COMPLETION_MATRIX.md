@@ -636,7 +636,7 @@ limit, not a scan depth. Full measurement: gap register **PART U**.
 
 | row | state | evidence |
 |---|---|---|
-| CARRIED-STATE RUNTIME FOUNDATION | ✅ | shared `{cells, init, step}`; 14/14 mutations killed behind a clean-file control |
+| CARRIED-STATE RUNTIME FOUNDATION | ✅ | shared `{cells, init, step}`; 14/14 mutations killed behind a clean-file control. **2 of 16 members implemented** — the other 14 in four subfamilies with three distinct first dependencies (PART Y, Y1) |
 | EMA OVER RUNTIME SERIES | ✅ | graph-vs-runtime, index for index, warm-up included |
 | RMA OVER RUNTIME SERIES | ✅ | same |
 | OTHER CARRIED MEMBERS | ⬜ | 14 of 16 pending in three groups, three different first dependencies |
@@ -649,11 +649,13 @@ limit, not a scan depth. Full measurement: gap register **PART U**.
 | RECURRENT SKIPPED UDF | ✅ | **VENDOR-PINNED**: does NOT step. Opposite of P7.2's history rule |
 | RECURRENT OVER AN EXPRESSION | ✅ | needs no committed series — the asymmetry with 2F-2B is deliberate |
 | RECURRENT INITIALIZATION | 🟡 | matches the columnar lane; the SEED itself is still prose-derived (V10.5) |
-| RECURRENT NA | ❌ | **VENDOR-CONFIRMED AGAINST US.** They HOLD, we RESET. Unchanged on purpose — owner ruling (V10.2) |
+| RECURRENT NA | ✅ | **CORRECTED 2026-09-08** to the vendor rule, in BOTH lanes. Blast radius measured; 0 of 82 corpus scripts moved. PART X |
 | RECURRENT REALTIME | ⬜ | **explicitly unverified** — no rollback path exercised (V10.7) |
-| EVENT-HISTORY FOUNDATION | ⬜ | blocked on a CLOSED TABLE signature change, not on runtime state |
+| EVENT-HISTORY FOUNDATION | ⬜ | ⛔ blocked on a FOUNDATIONAL exclusion, not a signature edit — Pine's form is fetch-dependent (demonstrated). Owner ruling. PART Y, Y2 |
 | BARSSINCE / VALUEWHEN | ⬜ | vendor semantics CAPTURED; Pine door refuses the spellings |
-| TA.CHANGE | ⬜ | still open — `offsetOne` shape, reach 17 scripts, needs its full overload semantics first |
+| TA.CHANGE (source) | ✅ | lowered into `x - x[1]` — no new opcode, no state, columnar-identical. PART Y, Y3 |
+| TA.CHANGE (source, length) | ⬜ | a CLOSED-TABLE gap: one declared argument against a two-argument Pine overload |
+| CROSSOVER / CROSSUNDER | ⬜ | ⛔ NOT lowerable into operators: `crossing` answers NaN where `>` answers 0 (measured). Needs its own authoritative step |
 | CUMULATIVE STATE | ⬜ | `accum`/`cumFrom`/`vwap`/`avwap`/`obvN`/`pvtN` — carried shape, unfactored |
 | RESOURCE ACCOUNTING | ✅ | `CARRIED_INSTANCES`/`CARRIED_CELLS`/`CARRIED_STEPS`, per execution |
 | GRAPH-vs-RUNTIME DIFFERENTIAL | ✅ | every member, every index, warm-up included |

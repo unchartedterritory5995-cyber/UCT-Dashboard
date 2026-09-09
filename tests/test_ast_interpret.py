@@ -1009,13 +1009,34 @@ def test_stdev_is_the_POPULATION_divisor_and_the_two_are_DISTINGUISHABLE_here():
     assert abs(population - sample) > 1e-3, "the two divisors agree — this pins nothing"
 
 
-def test_ema_RESTARTS_its_seed_after_a_hole_and_never_averages_bars_it_never_saw():
+def test_ema_HOLDS_its_state_across_a_hole_because_that_is_what_tradingview_does():
+    """⚰⚰ THIS TEST WAS NAMED
+    ``test_ema_RESTARTS_its_seed_after_a_hole_and_never_averages_bars_it_never_saw``
+    AND IT PINNED A DEFECT. The engine reset the smoother on a hole and this test
+    demanded it, so the divergence could not be seen from inside the suite.
+
+    TradingView HOLDS. Measured 2026-09-08 on four holes for ema and rma
+    (err 0-1.1e-13) and again over a 400-bar capture where 0 of 133 na bars
+    carried an ema while every finite bar did. Owner ruled the same day: vendor
+    truth wins, and cross-lane agreement is worth nothing when the shared
+    authority is wrong. Fixture:
+    ``tests/fixtures/vendor/runtime/na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08.json``.
+
+    ⛔ The old assertion is preserved as an EXCLUSION below rather than deleted:
+    a test that only confirms the new rule would pass for an engine that had
+    never had the bug, and the point is that this one did.
+    """
     bars = [dict(b) for b in BARS]
     del bars[2]["c"]                              # one hole in the middle
     col = run(CALL("ema", SER("close"), NUM(2)), bars=bars)
-    assert col[2] is None, "the hole itself must stay a hole"
-    assert col[3] is None, "the seed did not restart — it carried state across a hole"
-    assert col[4] == pytest.approx((11.0 + 10.0) / 2, rel=1e-12)
+    assert col[2] is None, "the hole itself is still a hole - the bar answers na"
+    # ⭐ THE RULING: the very next finite bar answers, from the HELD state.
+    assert col[3] is not None, (
+        "state must be held across the hole - a `None` here is the old reset bug")
+    # and it is exactly one step of the smoother from the pre-hole value
+    k = 2 / (2 + 1)
+    assert col[3] == pytest.approx(col[1] * (1 - k) + bars[3]["c"] * k, rel=1e-12)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

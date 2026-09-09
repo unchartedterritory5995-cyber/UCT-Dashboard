@@ -217,6 +217,30 @@ class Scope {
  *  not a guard (`lesson_gate_that_cannot_fail`), so the rail passes a synthetic
  *  rewrite shape onto a pointwise target and watches this refuse it. */
 
+/** ⭐ `ta.change` AND ITS BARE SPELLING — the `offsetOne` shape's one member
+ *  this runtime can serve today.
+ *
+ *  ⛔ IT IS A LOOKUP, NOT A NAME TEST. The closed table declares `change` with
+ *  `lookback: 1`; asking the table (through `PINE_CALL_SHAPES`, so a renamed
+ *  spelling still resolves) is what keeps this from becoming a second opinion
+ *  about which builtins read exactly one bar back. */
+export const changeTarget = (pineName, table = TABLE) => {
+  const name = String(pineName || '')
+  if (PINE_NAMESPACED_TREE[name]) return null
+  let bare = name
+  const dot = name.indexOf('.')
+  if (dot >= 0) {
+    if (!VALUE_NAMESPACES.has(name.slice(0, dot))) return null
+    bare = name.slice(dot + 1)
+  }
+  const shape = PINE_CALL_SHAPES[bare]
+  const tbl = shape && shape.table ? shape.table : bare
+  if (tbl !== 'change') return null
+  const spec = table.functions[tbl]
+  if (!spec || spec.lookback !== 1) return null
+  return { table: tbl }
+}
+
 /** ⭐⭐ THE CARRIED-STATE CLASSIFIER (2F-2C) — `windowTarget`'s counterpart.
  *
  *  Same five-authority discipline, with `CARRIED` standing where
@@ -933,7 +957,48 @@ export function buildRuntimeIr(source, opts = {}) {
           // reducer with a flipped comparison. One reducer, one negation node.
           return win.negate ? unary('u-', call) : call
         }
-        const car = carriedTarget(node.name)
+        // ⭐⭐ `ta.change(x)` — LOWERED INTO SEMANTICS THIS RUNTIME ALREADY HAS,
+        // never a new state machine (§44). `interpret.js::FN.change` is exactly
+        // `series[i] - series[i-1]` with NaN falling out of the subtraction, and
+        // `x - x[1]` is that expression in this IR: the ring supplies `x[1]`, the
+        // subtraction supplies the NaN rule, and bar 0 answers NaN because the
+        // ring has nothing to give. There is no second definition to keep in step.
+        //
+        // ⛔ `ta.crossover`/`ta.crossunder` ARE NOT DONE THE SAME WAY, AND THE
+        // REASON IS MEASURED. `interpret.js::crossing` answers NaN when ANY of the
+        // four values it reads is NaN; this grammar's `>` answers 0 on a NaN
+        // (checked: `BINARY['>'](NaN, 5) === 0`). Lowering them into operators
+        // would answer 0 where the table says NOT COMPUTABLE — a silent
+        // approximation, which is the one thing this engine may not ship. They
+        // stay refused until the family gets its own authoritative step.
+        if (changeTarget(node.name)) {
+          const at = locate(node.tok)
+          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+          if (given.length !== 1) {
+            // Pine also has `ta.change(source, length)`; the closed table's
+            // `change` declares ONE argument, so the two-argument form is a
+            // TABLE gap and refuses at the columnar door as `pine:arity`. Saying
+            // so here keeps the runtime from inventing a second answer.
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes one source here; the two-argument form is a closed-table gap`, at)
+          }
+          const srcNode = given[0]
+          if (!srcNode || srcNode.type !== 'name') {
+            note('runtime:history-expression')
+            throw new RuntimeRefusal('runtime:history-expression',
+              `\`${node.name}\` over an expression needs that expression's own committed series`, at)
+          }
+          const varSlot = scope.lookup(srcNode.name)
+          if (varSlot === null) {
+            note('runtime:function-global-state')
+            throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
+          }
+          const prev = owner !== null
+            ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, 1, at), 1)
+            : histSlot(varSlot, historySlotFor(varSlot, 1, at), 1)
+          return binary('-', read(varSlot), prev)
+        }
+                const car = carriedTarget(node.name)
         if (car) {
           const at = locate(node.tok)
           const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
