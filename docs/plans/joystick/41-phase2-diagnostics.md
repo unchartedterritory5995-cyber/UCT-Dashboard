@@ -235,3 +235,70 @@ would explain why it only appears once the chart finishes painting.
 
 ⚠️ **Pixel 8 only so far** — not yet reproduced on the other three devices, so the finding is
 one device wide until run 4.
+
+### RESOLVED — root cause found, fixed hub-side, verified on three devices
+
+**Probe A (backdrop-filter: none on `.pad`) FALSIFIED the hypothesis.** With the filter off the
+canvas still won at every sample. Layer promotion was not the cause, and the §3 preference
+order — (1) move the glass inward, (2) `isolation: isolate`, (3) `will-change` — was built on
+that premise, so none of the three was the right fix. Good that it was measured before it was
+applied.
+
+**Probe B found the trigger and the real mechanism.**
+
+| t | canvases | pad is top? |
+|---|---|---|
+| 0 ms | **0** | YES |
+| 250 ms | 3 | NO |
+| 500 ms → 7 s | **15** | NO |
+
+The chart mounts its canvases lazily, `0 → 3 → 15`. At t=0 the pad was "on top" only because
+**nothing was there yet**. `/screener` control: pad stays top at all seven samples, 0 canvases —
+chart-specific by construction, exactly as suspected.
+
+**THE ROOT CAUSE — `hub-root` is `position: fixed` with `z-index: auto`.**
+
+> **A `position: fixed` element ALWAYS creates a stacking context, z-index or not.**
+
+So every `--z-hub-*` value in the subtree — pad `360`, fan and scrim `401` — was ordering the
+hub's children **against each other**, inside a context that itself sat at level `auto` (0) in
+the root stacking context. A Lightweight Charts canvas at `z-index: 2` therefore painted above
+the entire hub.
+
+⭐ **The whole z-index scale was inert, everywhere — not only on `/charts`.** The documented
+ordering (`hub-open > backdrop > hub-rest > fab`) was never in effect against the rest of the
+app; it only ever *looked* right because no other route had a positioned element above 0 at that
+corner. `hubZIndex.test.js` compared the **tokens**, which were always correct, and structurally
+could not see that the element carrying them was pinned to one rung.
+
+**The fix — one line, hub-side, no chart-shell change:**
+
+```jsx
+zIndex: state.open ? 'var(--z-hub-open)' : 'var(--z-hub-rest)',   // on hub-root
+```
+
+Measured with the fix injected as test-only CSS, `padIsTop` at t = 0/250/500/1000/2000/4000/7000:
+
+| device | as shipped | with the fix |
+|---|---|---|
+| Google Pixel 8 | NO at every sample | **YES at every sample** |
+| Samsung Galaxy S24 | NO at every sample | **YES at every sample**, including while canvases grow 0→3→15 |
+| iPhone 15 Pro | NO at every sample | **YES at every sample** |
+
+Then verified **end to end with the real code and no injected CSS**: the `/charts` scrim step,
+inconclusive in every run to date, returns
+`PASS — scrim bottom 598px of 808px viewport; clearance 210px` on Pixel 8.
+
+**§4 does not apply.** The fix is hub-owned, so `/charts` does **not** go to `hideOnRoute`, no
+`requests.md` entry is filed, and the preview ships with `/charts` working rather than gapped.
+
+**New rail** (`hubZIndex.test.js`): `HubRoot` must set `zIndex` from `--z-hub-open` /
+`--z-hub-rest`, with the reason recorded that a fixed container without one pins the whole
+scale. Mutation-proved — deleting the line turns it red, restored byte-identically
+(`sha256 15ebecbbf3f6`). ⚠️ It asserts the source, not layout: jsdom composites nothing, so the
+device rail (`elementFromPoint` at the pad centre on `/charts`) stays the real check and lands
+in run 4.
+
+⚠️ **CDP `LayerTree` was requested and is UNAVAILABLE** through BrowserStack's hub
+(`debuggerAddress.match is not a function`). No layer-tree evidence is claimed — the finding
+rests on `elementFromPoint`, computed styles and the full ancestor walk, which were sufficient.

@@ -115,3 +115,41 @@ describe('rail integrity', () => {
     expect(executed).toBeGreaterThanOrEqual(5)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  THE RAIL THIS FILE WAS MISSING, AND THE DEFECT IT LET THROUGH
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// ⛔ EVERY ASSERTION ABOVE COMPARES TOKENS, AND THE TOKENS WERE ALWAYS RIGHT.
+//
+// `hub-root` is `position: fixed`, and a fixed element ALWAYS creates a stacking context —
+// with or without a z-index. It had none, so it sat at level `auto` (0) in the root context
+// and every `--z-hub-*` value inside it (pad 360, fan/scrim 401) ordered the hub's children
+// against EACH OTHER while the whole hub painted at 0 against the page.
+//
+// Measured on three real devices on `/charts`: a Lightweight Charts canvas at `z-index: 2`
+// covered the pad from 250ms after load. `elementFromPoint` at the pad centre returned
+// CANVAS, the pointerdown never reached the pad, and the hub rendered perfectly while being
+// impossible to touch. Every test in this file stayed green throughout, because a token
+// comparison cannot see which ELEMENT carries the token.
+describe('the hub subtree is placed on the page, not just ordered within itself', () => {
+  it('HubRoot itself carries a z-index — a fixed container without one pins the whole scale', () => {
+    ran()
+    // `fromApp`, not `new URL(import.meta.url)` — this file's own header records why:
+    // under this vitest config `import.meta.url` is not always a `file:` URL.
+    const src = fromApp('src/hub/HubRoot.jsx')
+    // The style object on the root element must set zIndex from a hub token.
+    expect(
+      /zIndex:\s*state\.open\s*\?\s*'var\(--z-hub-open\)'\s*:\s*'var\(--z-hub-rest\)'/.test(src),
+      'HubRoot must set zIndex from --z-hub-open / --z-hub-rest. Without it the element that '
+      + 'CREATES the stacking context (position: fixed) sits at level 0 and every z-index '
+      + 'inside the hub becomes internal-only — the /charts defect.',
+    ).toBe(true)
+  })
+
+  it('the root element is position: fixed, which is WHY it needs the z-index', () => {
+    ran()
+    const src = fromApp('src/hub/HubRoot.jsx')
+    expect(/position:\s*'fixed'/.test(src)).toBe(true)
+  })
+})

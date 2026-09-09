@@ -174,6 +174,27 @@ function HubShell() {
         bottom: 'calc(env(safe-area-inset-bottom) + 68px)',
         width: '84px',
         height: '84px',
+        // ⛔ THE Z-INDEX BELONGS ON THIS ELEMENT, AND WITHOUT IT THE WHOLE SCALE IS INERT.
+        //
+        // `position: fixed` ALWAYS creates a stacking context — z-index `auto` or not. So
+        // every `--z-hub-*` value inside this subtree (pad 360, fan/scrim 401, …) is scoped
+        // to a context that itself sat at level `auto` (0) in the root context. The children
+        // were ordering themselves correctly relative to each other and the whole hub was
+        // painting at 0 relative to the page.
+        //
+        // Measured, three devices, `/charts` (Pixel 8, Galaxy S24, iPhone 15 Pro): a
+        // Lightweight Charts canvas at `z-index: 2` covered the pad at every sample from
+        // 250ms after load, so `elementFromPoint` at the pad centre returned CANVAS and the
+        // pointerdown never reached the pad — a hub that rendered and could not be touched.
+        // With this one line, `padIsTop` is true at every sample on all three, including
+        // while the chart's canvas count grows 0 → 3 → 15.
+        //
+        // ⭐ It only ever "worked" elsewhere because nothing on those routes competed above
+        // 0. The documented ordering (hub-open > backdrop > hub-rest > fab) was never
+        // actually in effect against the rest of the app — `hubZIndex.test.js` compared the
+        // TOKENS, which were always correct, and could not see that the subtree carrying
+        // them was pinned to one rung.
+        zIndex: state.open ? 'var(--z-hub-open)' : 'var(--z-hub-rest)',
       }}
     >
       <HubScrim
