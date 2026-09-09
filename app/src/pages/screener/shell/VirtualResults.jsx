@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
@@ -24,8 +24,19 @@ const colWidth = key =>
   : descFor(key) ? `${NUM_W + DESC_TRIGGER_W}px`
   : `${NUM_W}px`
 
-export default function VirtualResults({ rows, columns, sort, onSort, livePrices,
-  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }) {
+// `ref` exposes `scrollToIndex` off the `@tanstack/react-virtual` instance
+// this component already creates — the seam Phase 3's shared hub cursor binds
+// to (joystick-hub spec §2d / exception (d)). Nothing consumes it yet; this
+// only opens the door.
+//
+// ⚠️ MERGE NOTE — master's version of this line still took `liveSortOn`, and it
+// is deliberately NOT restored here. The live re-sort moved UP to `ScannerShell`
+// (see the `displayRows` comment below), which no longer passes the prop; taking
+// master's list verbatim would reintroduce a dead parameter whose presence
+// claims this component still sorts — the exact confusion the lift removed. The
+// forwardRef seam is master's and is preserved in full.
+const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort, onSort, livePrices,
+  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }, ref) {
   const ta = useTickerActions()
   const scrollRef = useRef(null)
   /* ⛔ `rows` ARE ALREADY IN DISPLAY ORDER — the live re-sort moved UP to
@@ -50,6 +61,10 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
     ...(virtualOpts || {}),
   })
   const items = virtualizer.getVirtualItems()
+
+  useImperativeHandle(ref, () => ({
+    scrollToIndex: (index, options) => virtualizer.scrollToIndex(index, options),
+  }), [virtualizer])
 
   // auto-append near the end (the explicit button below remains)
   const last = items[items.length - 1]
@@ -174,4 +189,6 @@ export default function VirtualResults({ rows, columns, sort, onSort, livePrices
       {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
-}
+})
+
+export default VirtualResults

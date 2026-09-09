@@ -1,0 +1,348 @@
+/* Joystick hub — shared presentational styles for HubPad/HubKnob/HubFan/HubChip/
+   HubScrim/HubActionsButton. See docs/plans/joystick/00-master-spec-v1.4.md §2a
+   (tokens/glass), §2c (position/Actions button), §5 (Phase 2 gesture-engine UI). */
+
+/* Every colour, radius, blur and shadow below is a --hub-* or existing app
+   token (`hubComponents.test.jsx` asserts no literal hex anywhere in this
+   file). Geometry — px sizes, fixed-viewport offsets — is computed in JS from
+   ./constants.js and ./fanGeometry.js and passed as inline styles; this file
+   owns appearance only, never position or size, so there is exactly one
+   authority for "where things are" (the components) and one for "what they
+   look like" (here). `blur(18px) saturate(160%)` is the literal recipe §2a
+   gives in prose — no --hub-blur token exists to reference; every colour
+   feeding backdrop-filter's own tint still comes from --hub-glass-tint. */
+
+/* ── Pad (§2a, §5) ─────────────────────────────────────────────────────── */
+.pad {
+  position: fixed;
+  border-radius: var(--radius-pill);
+  background: var(--hub-glass-tint);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  box-shadow: var(--hub-shadow), inset 0 1px 0 var(--hub-rim-highlight);
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  z-index: var(--z-hub-rest);
+}
+
+/* The brand's 8-tick compass ring — repeating-conic-gradient (8 * 45deg = a
+   full turn) punched into a ring by a radial mask. Dual-declared for Safari. */
+.padRing {
+  position: absolute;
+  inset: 5px;
+  border-radius: var(--radius-pill);
+  background: repeating-conic-gradient(var(--hub-tick) 0deg 1deg, transparent 1deg 45deg);
+  -webkit-mask: radial-gradient(circle, transparent 66%, black 67%, black 74%, transparent 75%);
+  mask: radial-gradient(circle, transparent 66%, black 67%, black 74%, transparent 75%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* ── Knob (§5) ─────────────────────────────────────────────────────────── */
+.knobLayer {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* HubPad beneath is the real hit-surface (spec §5's pointer handlers live
+     there) — the knob must never intercept a drag. Swipe-based AT navigation
+     (VoiceOver/TalkBack) walks the accessibility tree, not touch hit-testing,
+     so this does not hide the knob's role="button" from that path. */
+  pointer-events: none;
+  z-index: var(--z-hub-rest);
+}
+
+.knobFace {
+  border-radius: var(--radius-pill);
+  background: var(--hub-knob-face); /* opaque — never translucent; it sits ON the glass */
+  border: 1.5px solid var(--hub-rim-highlight);
+  box-shadow: var(--hub-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Suppresses the spring-back transition while a drag is live, so the knob
+   tracks the finger 1:1 instead of chasing it. */
+.knobDragging {
+  transition: none;
+}
+
+.knobDot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+.knobDotPressing {
+  transform: scale(1.8);
+}
+
+/* ── Fan — bubbles + the quarter-circle wedge backdrop (§5) ──────────────── */
+.fan {
+  /* Decorative: selection is by wedge ANGLE, never by hit-testing a bubble
+     (fanGeometry.js header) — nothing in here is ever a pointer target. */
+  pointer-events: none;
+}
+
+.fanWedge {
+  position: fixed;
+  border-radius: 100% 0 0 0;
+  background: radial-gradient(circle at 100% 100%, var(--hub-glass-tint), transparent 70%);
+  border-left: var(--hub-rim-width) solid var(--hub-rim);
+  border-top: var(--hub-rim-width) solid var(--hub-rim);
+  opacity: 0;
+  transition: opacity 0.18s;
+  z-index: var(--z-hub-open);
+}
+
+.fanOpen .fanWedge {
+  opacity: 1;
+}
+
+.fanSlice {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.1s;
+  background: conic-gradient(
+    from 180deg at 100% 100%,
+    transparent var(--hub-slice-a0),
+    var(--hub-slice-color) var(--hub-slice-a0),
+    var(--hub-slice-color) var(--hub-slice-a1),
+    transparent var(--hub-slice-a1)
+  );
+}
+
+.fanSliceOn {
+  opacity: 0.35;
+}
+
+.bubble {
+  position: fixed;
+  border-radius: var(--radius-pill);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: color-mix(in srgb, var(--hub-bubble-color) 22%, var(--hub-glass-tint));
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  color: var(--text);
+  text-align: center;
+  line-height: 1.1;
+  z-index: var(--z-hub-open);
+  transition:
+    transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 0.18s,
+    background-color 0.12s,
+    border-color 0.12s;
+}
+
+.bubbleOuter {
+  width: 46px;
+  height: 46px;
+  font-size: var(--text-xs);
+}
+
+.bubbleInner {
+  width: 36px;
+  height: 36px;
+  font-size: 9px;
+}
+
+.bubbleOn {
+  border-color: var(--hub-bubble-color);
+  background: color-mix(in srgb, var(--hub-bubble-color) 40%, transparent);
+}
+
+.bubbleDisabled {
+  opacity: 0.4;
+}
+
+.bubbleLabel {
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Remove interpolation, never functionality (spec §5): under reduced motion
+   every one of these snaps to its final opacity/transform in one frame —
+   the global reset in tokens.css already zeroes transition-duration
+   app-wide, this just says so locally and explicitly for the hub. */
+@media (prefers-reduced-motion: reduce) {
+  .knobFace,
+  .knobDot,
+  .fanWedge,
+  .fanSlice,
+  .bubble {
+    transition: none;
+  }
+}
+
+/* ── Chip (§5) ─────────────────────────────────────────────────────────── */
+.chip {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--hub-glass-tint);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  box-shadow: var(--hub-shadow);
+  white-space: nowrap;
+  z-index: var(--z-hub-rest);
+}
+
+.chipMode {
+  font-weight: 500;
+  font-size: var(--text-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.chipHint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Scrim (§5) ────────────────────────────────────────────────────────── */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--hub-scrim);
+  z-index: var(--z-backdrop); /* the scrim itself owns this rung */
+}
+
+/* ── Actions button (§2c, §5) ─────────────────────────────────────────── */
+.actionsButton {
+  position: fixed;
+  border-radius: var(--radius-pill);
+  background: var(--hub-glass-tint-strong);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  box-shadow: var(--hub-shadow);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-hub-rest);
+}
+
+.actionsButton:focus-visible {
+  outline: var(--focus-ring);
+}
+
+.actionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.actionListItem {
+  display: block;
+}
+
+.actionListButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--hub-glass-tint);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  color: var(--text);
+  font-size: var(--text-md);
+  text-align: left;
+}
+
+.actionListButton:focus-visible {
+  outline: var(--focus-ring);
+}
+
+.actionListButton[aria-disabled='true'] {
+  opacity: 0.5;
+}
+
+.actionReason {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* ── The two rungs ────────────────────────────────────────────────────────────
+   At rest the hub is ordinary floating chrome (--z-hub-rest, just above the FAB
+   rung) and MUST sit below any backdrop — otherwise a resting knob floats over
+   somebody else's modal. While its own fan is open the hub owns the screen and
+   lifts above the scrim it paints (--z-hub-open).
+
+   ⛔ Do not collapse these to one value. Using --z-hub-open everywhere puts the
+   resting pad above every backdrop in the app; using --z-hub-rest everywhere
+   buries the open fan under its own scrim, which is the bug this pair exists to
+   fix. `[data-hub-open='true']` is set on <html> by HubRoot while the fan is up. */
+:global([data-hub-open='true']) .pad,
+:global([data-hub-open='true']) .knobLayer,
+:global([data-hub-open='true']) .chip,
+:global([data-hub-open='true']) .actionsButton {
+  z-index: var(--z-hub-open);
+}
+
+/* ── Preview coach mark (Phase 2.5) ───────────────────────────────────────
+   Sits ABOVE the pad rather than beside it: the chip already owns the inner
+   side, and the Actions button owns the other. Same glass recipe as every
+   other hub surface, both backdrop-filter spellings (Safari ships only the
+   prefixed one — the F-1 defect). */
+.coachMark {
+  position: fixed;
+  right: 24px;
+  bottom: calc(env(safe-area-inset-bottom) + 68px + 84px + 10px);
+  max-width: 210px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--hub-glass-tint);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  box-shadow: var(--hub-shadow);
+  z-index: var(--z-hub-rest);
+  pointer-events: auto;
+}
+
+.coachMarkText {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.coachMarkClose {
+  flex: 0 0 auto;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  margin: -8px -10px -8px 0;
+  background: none;
+  border: 0;
+  color: var(--color-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
