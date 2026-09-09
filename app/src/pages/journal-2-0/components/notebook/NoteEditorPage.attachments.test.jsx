@@ -168,7 +168,6 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     // ⛔ And it must NOT promise a page count — that number moves with DPI,
     // colour depth and compression, which is why the server does not state one.
     expect(toast.textContent).not.toMatch(/\d+\s*pages/)
-    expect(toast.textContent).toContain('Your note is unchanged.')
     expect(alertSpy).not.toHaveBeenCalled()
     expect(document.querySelector('a[data-type="attachmentChip"]')).toBeNull()
   })
@@ -183,8 +182,10 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     await renderEditor()
     const input = screen.getByLabelText('Upload file attachment')
     fireEvent.change(input, { target: { files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] } })
+    // ⛔ No server detail to show, so the mapper's own sentence stands — and it
+    // is a sentence, never a bare status code or a raw exception.
     await waitFor(() => expect(
-      screen.getByText("Couldn't upload x.pdf. Your note is unchanged.")).toBeInTheDocument())
+      screen.getByText(/Couldn't upload x\.pdf — .*server/i)).toBeInTheDocument())
   })
 
   // Drop itself isn't exercised here: jsdom's ProseMirror integration needs

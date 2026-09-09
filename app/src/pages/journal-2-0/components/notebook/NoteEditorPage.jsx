@@ -38,6 +38,7 @@ import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
 import ThesisSection from './ThesisSection'
+import { createNoteViaApi } from '../../lib/noteCreation'
 import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -826,13 +827,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // so someone attaching a 30 MB scan could not tell whether to split the
       // file, retry, or report a bug — and with OCR now live, the natural
       // (wrong) guess is that the SCAN failed rather than the upload.
-      // ⛔ The generic sentence stays as the fallback: a network failure has
-      // no detail to show, and inventing one would be worse than saying less.
-      const why = (e && e.message) ? String(e.message) : ''
+      //
+      // ⛔ AND IT GOES THROUGH `friendlySaveError`, NOT THROUGH `e.message`.
+      // The first attempt built the sentence from the exception and
+      // `rawErrorSurface.test.js` caught it — correctly: a bare "500" or a
+      // "Failed to fetch" is not member-facing copy. That mapper already
+      // returns the server-authored detail when there is one and a real
+      // sentence when there is not, so this reuses the product's ONE
+      // error-to-copy authority instead of adding a second.
+      // ⛔ The mapping happens FIRST, on its own line. The rail is
+      // ancestor-based: `e` anywhere beneath a template literal or a `+` is a
+      // violation even when it is only being handed to a function — which is
+      // the right conservatism, because "it is only passed to a helper" is
+      // exactly what the next unsafe version would also claim.
+      const why = friendlySaveError(e, e?.status)
       setUploadToast({
-        message: why
-          ? `Couldn't upload ${file.name || 'file'} — ${why} Your note is unchanged.`
-          : `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`,
+        message: `Couldn't upload ${file.name || 'file'} — ${why}`,
         tone: 'error',
       })
     }
@@ -1210,30 +1220,123 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // after our baseline"; an embed the user deleted locally in that same
   // window gets resurrected rather than lost — the safe direction), then
   // advance the baseline so the caller's retry wins cleanly.
+  const embedKeyOf = (a) => `${a?.widgetId}|${a?.capturedAt}|${a?.searchText}`
+
+  /** Is the server's change provably nothing but APPENDED widget embeds?
+   *
+   * ⛔⛔ THE WHOLE SAFETY OF THE MERGE BRANCH RESTS ON THIS BEING A PROOF, NOT
+   * A GUESS. It compares the server's document against our BASE (what we last
+   * saw), not against our working copy: strip the widget embeds the server has
+   * that the base did not, and if what remains is byte-identical to the base —
+   * and the title and subtitle never moved — then the server's ONLY change was
+   * appending those embeds, and merging them cannot lose anything.
+   *
+   * Anything else, including a change we simply cannot characterise, is NOT
+   * safe to merge (§6: preserve both when safe reconciliation cannot be
+   * PROVEN). */
+  const serverChangeIsAppendOnlyEmbeds = (fresh, base) => {
+    if ((fresh.title || '') !== (base.title || '')) return false
+    if ((fresh.subtitle || '') !== (base.subtitle || '')) return false
+    if (!base.bodyJson || !fresh.bodyJson) return false
+    const baseKeys = new Set()
+    const collect = (node) => {
+      if (!node || typeof node !== 'object') return
+      if (node.type === 'widgetEmbed') baseKeys.add(embedKeyOf(node.attrs))
+      for (const child of node.content || []) collect(child)
+    }
+    collect(base.bodyJson)
+    const strip = (node) => {
+      if (!node || typeof node !== 'object') return node
+      const out = { ...node }
+      if (Array.isArray(node.content)) {
+        out.content = node.content
+          .filter((c) => !(c && c.type === 'widgetEmbed' && !baseKeys.has(embedKeyOf(c.attrs))))
+          .map(strip)
+      }
+      return out
+    }
+    return JSON.stringify(strip(fresh.bodyJson)) === JSON.stringify(base.bodyJson)
+  }
+
+  /** ⚰️⚰️ WAVE Q1 ENTRY GATE — THIS USED TO OVERWRITE THE SERVER.
+   *
+   * The old handler appended the widget embeds it was missing, advanced the
+   * baseline, and let `commitSave` retry with the LOCAL document — so any
+   * newer server prose, title or subtitle was replaced. It was built for the
+   * Send-to-Journal server-side append (its comment says so) and it is correct
+   * for exactly that case. Against two humans it was last-write-wins, and it
+   * had no rail.
+   *
+   * Wave Q makes the stale-baseline case ORDINARY rather than rare — an
+   * offline outbox manufactures it on purpose — so the handler now proves the
+   * merge is safe or preserves both versions.
+   *
+   * Returns true when the caller may retry, false when the conflict has been
+   * resolved by forking (and the retry must NOT happen).
+   */
   const reconcileConflict = async () => {
     const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
     if (!res.ok) throw new Error(`${res.status}`)
     const fresh = (await res.json())?.note
     if (!fresh) throw new Error('empty note on reconcile')
-    const embedKey = (a) => `${a?.widgetId}|${a?.capturedAt}|${a?.searchText}`
-    const localKeys = new Set()
-    editor.state.doc.descendants((n) => {
-      if (n.type.name === 'widgetEmbed') localKeys.add(embedKey(n.attrs))
+    const base = lastSavedRef.current
+
+    if (serverChangeIsAppendOnlyEmbeds(fresh, base)) {
+      const localKeys = new Set()
+      editor.state.doc.descendants((n) => {
+        if (n.type.name === 'widgetEmbed') localKeys.add(embedKeyOf(n.attrs))
+        return true
+      })
+      const missing = []
+      const walk = (node) => {
+        if (!node || typeof node !== 'object') return
+        if (node.type === 'widgetEmbed' && !localKeys.has(embedKeyOf(node.attrs))) missing.push(node)
+        for (const child of node.content || []) walk(child)
+      }
+      walk(fresh.bodyJson)
+      // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
+      // position, never a NodeSelection that would swallow a trailing atom.
+      // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-
+      // after-insert trap).
+      if (missing.length) editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
+      lastSavedRef.current.updatedAt = fresh.updatedAt || null
       return true
-    })
-    const missing = []
-    const walk = (node) => {
-      if (!node || typeof node !== 'object') return
-      if (node.type === 'widgetEmbed' && !localKeys.has(embedKey(node.attrs))) missing.push(node)
-      for (const child of node.content || []) walk(child)
     }
-    walk(fresh.bodyJson)
-    // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
-    // position, never a NodeSelection that would swallow a trailing atom.
-    // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-
-    // after-insert trap).
-    if (missing.length) editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
-    lastSavedRef.current.updatedAt = fresh.updatedAt || null
+
+    // ⛔ PRESERVE BOTH. The server keeps its version untouched; the member's
+    // version becomes a sibling, using the vocabulary the connectors already
+    // taught members (`sync-conflict`, a titled copy) rather than a second,
+    // offline-only conflict system.
+    const localTitle = titleRef.current || ''
+    const localSubtitle = subtitleRef.current || ''
+    const localBody = editor.getJSON()
+    await createNoteViaApi({
+      title: `${localTitle} (conflicted copy)`.trim(),
+      bodyJson: localBody,
+      tags: ['sync-conflict'],
+      folderId: note?.folderId || undefined,
+    })
+    if (localSubtitle) {
+      // The create endpoint takes no subtitle; the copy carries it in the body
+      // only if the member had one. Recorded here rather than silently dropped.
+      console.info('[note-conflict] subtitle not carried onto the conflicted copy')
+    }
+
+    // The editor now shows what the SERVER has — the canonical version — so the
+    // member is not typing into a document that no longer exists anywhere.
+    setTitle(fresh.title || '')
+    titleRef.current = fresh.title || ''
+    setSubtitle(fresh.subtitle || '')
+    subtitleRef.current = fresh.subtitle || ''
+    if (fresh.bodyJson) editor.commands.setContent(fresh.bodyJson, false)
+    lastSavedRef.current = {
+      title: fresh.title || '', subtitle: fresh.subtitle || '',
+      bodyJson: fresh.bodyJson, updatedAt: fresh.updatedAt || null,
+    }
+    clearDraftLocally()
+    setSaveStatus('conflict')
+    setSaveErrorMsg('')
+    return false
   }
 
   const commitSave = async () => {
@@ -1280,7 +1383,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (status === 409 && !conflictRetriedRef.current) {
         conflictRetriedRef.current = true
         try {
-          await reconcileConflict()
+          const mayRetry = await reconcileConflict()
+          // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
+          // after one would push the local document over the server version
+          // the fork exists to protect — the exact overwrite this gate closes.
+          if (!mayRetry) return
           retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
           return
         } catch (re) {
@@ -1480,6 +1587,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Only surface a PROBLEM (reconnecting / save failed) — the steady
             "Saved"/"Saving"/"Editing" chatter is dropped so the formatting
             toolbar sits at the far left of the header. */}
+        {/* ⛔ CSS-module classes are hashes, not strings: `styles.saveState`
+            would have compiled to `undefined` and rendered unstyled. Reuse the
+            class the other save states already use. */}
+        {saveStatus === 'conflict' && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {'Conflict — this note changed elsewhere. Your version was kept as a conflicted copy.'}
+          </div>
+        )}
         {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
             {saveStatus === 'reconnecting' && 'Reconnecting…'}
