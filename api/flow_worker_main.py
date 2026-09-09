@@ -600,15 +600,33 @@ def _start_flow_schedulers():
             # 2026-09-06: dropped the redundant content line — the post is image-only
             # now (bot name already reads "UCT Intelligence · Top Flow").
             from apscheduler.triggers.cron import CronTrigger as _CRCron
+            from apscheduler.triggers.interval import IntervalTrigger as _CREvery
             from api import cream_card as _cream
-            sched.add_job(_cream.scheduled_cream_eod,
-                          trigger=_CRCron(day_of_week="mon-fri", hour=16, minute=10,
+            # ⛔ THE SLOT IS READ, NOT RETYPED — cream_card.SLOT_ET is the one
+            # authority, so the cron and the catch-up below cannot disagree about
+            # which fire they mean (mirrors the OI-morning pair).
+            _crh, _crmin = _cream.SLOT_ET
+            sched.add_job(_cream.run_scheduled,
+                          trigger=_CRCron(day_of_week="mon-fri", hour=_crh, minute=_crmin,
                                           timezone=ZoneInfo("America/New_York")),
                           id="cream_eod", max_instances=1,
                           coalesce=True, replace_existing=True)
             n += 1
-            log.info("[startup] Cream of the Crop EOD cron registered (16:10 ET weekdays; "
-                     "dark until CREAM_EOD_ENABLED=1)")
+            # ⚰️ AND A CATCH-UP, because the job store is IN-MEMORY: a pod that
+            # restarts across the slot never SCHEDULES that fire, so
+            # `misfire_grace_time` cannot see it and the card vanishes with no trace
+            # (observed 2026-09-08 — a redeploy burst held the worker unstable until
+            # 17:53 ET, 103m past the slot; nothing posted). run_scheduled + catch_up
+            # both self-gate on CREAM_EOD_ENABLED, so this stays dark until armed.
+            # Same shape the OI card and /buzz already run.
+            sched.add_job(_cream.catch_up,
+                          trigger=_CREvery(seconds=60),
+                          id="cream_eod_catchup", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] Cream of the Crop EOD cron registered (%02d:%02d ET "
+                     "weekdays) + 60s catch-up; dark until CREAM_EOD_ENABLED=1",
+                     _crh, _crmin)
         except Exception as e:  # noqa: BLE001
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
 
