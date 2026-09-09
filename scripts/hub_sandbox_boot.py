@@ -131,6 +131,41 @@ def _norm(path):
     return os.path.normcase(os.path.abspath(path))
 
 
+def _refuse_port_in_use(port):
+    """Hard-exit if something is ALREADY listening on this port.
+
+    ⛔ THIS COST A WHOLE DEVICE RUN. On 2026-09-08 a concurrent session on this machine
+    started `tools/local_backend_sandbox.py --port 8077` while the hub sandbox was already
+    serving on 8077. Windows let the second bind succeed, and from that moment the phones
+    in BrowserStack were driving SOMEBODY ELSE'S BACKEND through the tunnel: signup and
+    login returned 200 against a store the hub sandbox could not see, and the hub simply
+    was not in the build being served, so every gesture step reported "hub-pad not
+    present".
+
+    ⭐ THE FAILURE MODE IS THE POINT: nothing errored. The suite kept running, the tunnel
+    stayed up, HTTP kept answering 200, and the results looked like a product that had
+    stopped mounting. A device result gathered against an unknown server is not a weaker
+    result, it is not a result at all — so this refuses to start rather than serve a
+    second opinion on a contested port.
+    """
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(1.5)
+        if probe.connect_ex(("127.0.0.1", port)) != 0:
+            return
+    print("")
+    print("  REFUSING TO RUN.")
+    print("")
+    print(f"  Something is ALREADY listening on port {port}.")
+    print("  Two servers on one port means the device suite may reach either one, and a")
+    print("  result gathered against an unknown server is not a result.")
+    print("")
+    print("  Find the owner:   Get-NetTCPConnection -LocalPort %d -State Listen" % port)
+    print("  Then use another: python scripts/hub_sandbox_boot.py --port 8099")
+    print("")
+    sys.exit(1)
+
+
 def _refuse_shared_root(sandbox, shared_roots):
     """Hard-exit if the sandbox IS, or sits inside, the shared data root.
 
@@ -303,6 +338,7 @@ def main():
     args = ap.parse_args()
 
     sandbox = os.path.abspath(args.data_dir)
+    _refuse_port_in_use(args.port)
 
     # ⛔ THE SNAPSHOT IS THE FIRST THING THIS RUN REPORTS, BEFORE ANY HEALTH
     # CHECK. "Reports clean" is never evidence of "wrote nowhere" — the boot

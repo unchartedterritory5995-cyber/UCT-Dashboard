@@ -560,12 +560,15 @@ discovered, and the exact questions needed. Then stop.
   never re-derived by a caller):
 
   > Enabled if the user's stored `joystick_hub.enabled` is `true`; if unset, enabled only for
-  > `role === 'admin'`; otherwise disabled. Founder rollout flips the unset-default per tier in a
-  > later wave.
+  > `role === 'admin'`; otherwise disabled. Phase 2.5 Step 2 flips the unset-default to `true`
+  > for every authenticated user — a one-line change, not a new gate.
 
-  There is no founder tier and no tier ladder at all today: one product, one price, so the flag is
-  **not** a tier gate — `role === 'admin'` is the only identity this codebase currently distinguishes
-  from a member, and the "per tier" language above is reserved for a wave that has not shipped. An
+  ⛔ **THERE ARE TWO ROLES: `admin` AND `member`. THERE IS NO FOUNDER TIER AND NO TIER LADDER.**
+  Owner correction, given twice. One product, one price. The wording above previously said
+  "Founder rollout flips the unset-default per tier", which described a rollout model that does
+  not exist and a field (`tier`) that `validateRegistry` actively REJECTS — the rollout is the
+  two-step admin-then-member sequence in `45-phase2.5-plan.md`. `role === 'admin'` is the only
+  identity this codebase distinguishes from a member. An
   explicit stored choice (on OR off) always wins over the admin default. Members opt in through the
   Settings toggle when the owner opens it; flipping the unset-default for everyone is a one-line change
   in `hub/useHubSettings.js` (`HUB_SETTINGS_DEFAULTS`/the admin check), not a migration.

@@ -20,6 +20,30 @@ forbids (master spec §2, "No new dependencies"). This script is written for the
 owner's existing paid BrowserStack account, driven by hand through
 `https://live.browserstack.com`.
 
+## RUN 2 (2026-09-08 23:40) — VOID. Not a result set.
+
+⛔ **A SECOND SERVER WAS ON THE TEST PORT FOR PART OF THIS RUN.** At 23:52:03 a concurrent
+session started `tools/local_backend_sandbox.py --port 8077` while the hub sandbox was
+already serving on 8077; Windows allowed the second bind, and the phones were driving an
+unknown server through the tunnel from that moment. Run 2 spans 23:40–23:54.
+
+**No row from run 2 is reported as a finding.** Full analysis, including the per-device
+timeline and the tells, is in `41-phase2-diagnostics.md`.
+
+What survives from run 2, because it was measured BEFORE the collision and is corroborated
+elsewhere:
+
+| claim | evidence |
+|---|---|
+| **F-1 fixed — the hub mounts on iPhone** | iPhone 15 Pro / iOS 17.3.1 `3e883f42…` and iPhone SE 3rd gen / iOS 16 `165bd12d…`, both `hub expected to mount: mounted` |
+| **iOS 16 version floor verified POSITIVELY** | the iOS 16 device mounts; run 1's iOS 15 check was vacuous under F-1 |
+| **F-2 fixed — the inner ring is reachable** | Galaxy S24 `00441e0a…`: ring 0 **10/10**, ring 1 **10/10**, flick **10/10** — the first inner-ring selections this project has ever recorded |
+
+Everything else awaits **run 3** on a dedicated port. The guard that makes run 3 trustworthy
+(`hub_sandbox_boot.py` refuses a busy port) did not exist when run 2 ran.
+
+---
+
 ## RESULTS — run 1, 2026-09-08 (Selenium/Appium via BrowserStack Automate)
 
 **Transport: Selenium, not Playwright.** BrowserStack's real-device cloud is

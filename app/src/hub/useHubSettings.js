@@ -90,8 +90,14 @@ function withDefaults(stored) {
  * §B11, tightened at the gate — verbatim):
  *
  *   "Enabled if the user's stored joystick_hub.enabled is true; if unset,
- *    enabled only for role === 'admin'; otherwise disabled. Founder rollout
- *    flips the unset-default per tier in a later wave."
+ *    enabled only for role === 'admin'; otherwise disabled."
+ *
+ * ⛔ THERE ARE TWO ROLES: admin and member. NO FOUNDER TIER, NO TIER LADDER.
+ * This block used to end "Founder rollout flips the unset-default per tier in a
+ * later wave" — a rollout model that does not exist, naming a field
+ * (`tier`) that `validateRegistry` actively REJECTS. Phase 2.5 Step 2 flips the
+ * unset-default to true for every authenticated user; that is a one-line change
+ * here, not a new gate anywhere. See docs/plans/joystick/45-phase2.5-plan.md.
  *
  * This is the ONE authority for that decision — callers (HubRoot included)
  * read `settings.enabled` and never re-derive it from `storedEnabled` +

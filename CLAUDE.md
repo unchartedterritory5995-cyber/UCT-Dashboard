@@ -1257,6 +1257,14 @@ mtime.
 off to `scripts/hub_sandbox_boot.py`, which owns all env sandboxing, arms the
 conftest tripwire in-process, and runs the snapshot rail.
 
+### > A results file is claimed (truncated + timestamped) before the session starts; a run that dies leaves an explicit INCOMPLETE, never a stale pass.
+
+Same failure shape as the line below, in file form. Phase 2 device run 2's Pixel 8 threw
+mid-session, before the code that writes its result. The PREVIOUS run's JSON stayed on
+disk — older session id, healthy-looking rows — and read as a current pass. The runner now
+writes a placeholder naming the device and `(session did not complete)` **before** opening
+the session, and overwrites it only with a real result.
+
 ### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
 
 ### Live-data backup (operator safety net)
