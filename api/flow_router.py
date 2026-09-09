@@ -1720,7 +1720,8 @@ def _prepare_once(last_version):
             if _current_version() != version:
                 log.info("[flow-prepare] version moved during pass 1 — skipping "
                          "the remainder for v=%s", version)
-                _record_roll(version, ms, pass2_skipped=True, published_at=published_at)
+                _record_roll(version, ms, pass2_skipped=True, published_at=published_at,
+                             prev_version=last_version)
                 return version
             t1 = time.monotonic()
             rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
@@ -1732,7 +1733,8 @@ def _prepare_once(last_version):
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] remainder pass failed (first paint is "
                         "already live): %s", e)
-        _record_roll(version, ms, pass2_skipped=False, published_at=published_at)
+        _record_roll(version, ms, pass2_skipped=False, published_at=published_at,
+                     prev_version=last_version)
         return version
 
     _PREPARE_STATE["declined"] += 1
@@ -1773,17 +1775,35 @@ def _note_version_seen(version) -> None:
     _VERSION_FIRST_SEEN[version] = time.time()
 
 
-def _record_roll(version, prepare_ms, pass2_skipped, published_at=None) -> None:
+def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
+                 prev_version=None) -> None:
     # `published_at` is when FIRST PAINT became servable. Falling back to now
     # keeps older callers working, but the preparer always passes it.
     now = published_at if published_at is not None else time.time()
     first_seen = _VERSION_FIRST_SEEN.get(version)
     born_bucket = version * _VERSION_BUCKET_SEC if _FORCE_BUMP_OFFSET == 0 else None
-    kind = "steady_state_roll"
-    if born_bucket is None or born_bucket < _PROCESS_START_WALL:
-        # Predates this process (or the bucket arithmetic is invalidated by a
-        # forced bump) — a catch-up, never a measurement of the detector.
-        kind = "startup_catchup"
+    if born_bucket is not None:
+        kind = ("startup_catchup" if born_bucket < _PROCESS_START_WALL
+                else "steady_state_roll")
+    else:
+        # ⛔⛔ A FORCED BUMP INVALIDATES THE BUCKET, NOT THE QUESTION.
+        # This branch used to fall straight to "startup_catchup", so from the
+        # first bump onward EVERY roll was filed as a catch-up and
+        # `rolls_steady` stayed empty for the life of the process — while
+        # `rolls_startup` is served [-5:], so a whole session compressed to its
+        # last five rows. That is not an exotic state: flow_gap_autofill
+        # re-bumps AT BOOT after a recent fill and ships enabled in production,
+        # so the offset is non-zero before the first roll is ever recorded and
+        # the steady-state gate could never collect one sample. The 2026-09-09
+        # RTH session was lost to exactly this.
+        #
+        # The classification asks one thing: did this generation predate the
+        # process? `_FORCE_BUMP_OFFSET` is process-local and starts at 0, so a
+        # version carrying a non-zero offset was MINTED BY THIS PROCESS and
+        # cannot predate it. The only catch-up in that regime is the version the
+        # preparer found already in place on its first pass — which is
+        # precisely `prev_version is None`.
+        kind = "startup_catchup" if prev_version is None else "steady_state_roll"
     _PREPARE_ROLLS.append({
         "version": version,
         "kind": kind,
