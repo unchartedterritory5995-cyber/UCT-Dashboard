@@ -61,7 +61,7 @@ function resolveNavTarget(to) {
  * handlers are never even reached while the hub is gated off. See
  * `HubRoot.test.jsx`'s "off adds no listeners" suite.
  */
-function HubShell({ toastMsg, setToastMsg }) {
+function HubShell({ setToastMsg }) {
   const keyboardVisible = useKeyboardVisible()
   const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
   const { settings, updateHubSettings } = useHubSettings()
@@ -318,7 +318,8 @@ function HubShell({ toastMsg, setToastMsg }) {
         onAction={runAction}
         onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
       />
-      <JournalToast msg={toastMsg} />
+      {/* No toast here — see HubToastHost. Every message this feature shows is set by an
+          action that unmounts this subtree. */}
     </div>
   )
 }
@@ -336,6 +337,46 @@ function HubShell({ toastMsg, setToastMsg }) {
  */
 
 /**
+ * ⛔ THE ONE TOAST HOST FOR THE WHOLE HUB, AND IT DELIBERATELY OUTLIVES BOTH THE PAD AND THE
+ * SHEET.
+ *
+ * Every message this feature shows is set by an action that DESTROYS the thing that triggered
+ * it: "Hide joystick" (in the Actions sheet, inside HubShell) unmounts HubShell; tapping the
+ * restore tab unmounts the hidden branch. A toast owned by either one is destroyed in the same
+ * commit that fills it, so it renders for ZERO FRAMES. Both of those shipped, and both left
+ * every structural assertion green — the hub hid, the tab worked, the hub came back, and the
+ * only broken part was the half that talks to the member.
+ *
+ * So this sits ABOVE the visible/hidden branch and is the single element either side writes to.
+ *
+ * ⭐ One fixed anchor for both states, not two. `.toast` is `position:absolute`, so a toast
+ * nested in `hub-root` resolves against the hub's own 84px box while one beside the edge tab
+ * resolves against the PAGE (top:30px of the document). Anchoring the host itself, just above
+ * the hub's resting corner, means the message appears in the same place whether the hub is
+ * there or not — which is also what a member expects, since the thing they just acted on was
+ * in that corner either way. `style` is JournalToast's own documented escape hatch for this.
+ *
+ * @param {{msg: string|null, mirrored: boolean}} props
+ */
+function HubToastHost({ msg, mirrored }) {
+  return (
+    <JournalToast
+      msg={msg}
+      style={{
+        position: 'fixed',
+        top: 'auto',
+        bottom: 'calc(env(safe-area-inset-bottom) + 68px + 84px + 8px)',
+        right: mirrored ? 'auto' : '16px',
+        left: mirrored ? '16px' : 'auto',
+        // Above the open fan and its scrim: a confirmation the member cannot read is not a
+        // confirmation, and the sheet is open at the moment "Hide joystick" fires.
+        zIndex: 'var(--z-hub-open)',
+      }}
+    />
+  )
+}
+
+/**
  * Mounted once, inside `<HubProvider>` as a sibling of `<FeedbackWidget/>` in
  * Layout.jsx (§2c). Renders `null` unless `useHubActive()` says every mount
  * condition holds — see that hook for the full list.
@@ -350,45 +391,25 @@ export default function HubRoot() {
   // renders, not even the restore tab: there would be nothing to restore.
   if (!eligible) return null
 
-  if (resolveVisible(settings.enabled, sessionOverride)) {
-    return <HubShell toastMsg={toastMsg} setToastMsg={setToastMsg} />
-  }
-
-  // Hidden — but never unrecoverable. `persistent` only changes the toast copy: the tab itself
-  // appears for a session hide and a stored hide alike, because a member who cannot find their
-  // way back does not care which kind it was.
-  const persistent = !settings.enabled
+  const visible = resolveVisible(settings.enabled, sessionOverride)
   const mirrored = settings.handedness === 'left'
+  // `persistent` only changes the toast copy: the tab itself appears for a session hide and a
+  // stored hide alike, because a member who cannot find their way back does not care which
+  // kind it was.
+  const persistent = !settings.enabled
+
   return (
     <>
-      <HubEdgeTab
-        persistent={persistent}
-        mirrored={mirrored}
-        onRestore={() => { showForSession(); setToastMsg(restoreToast(persistent)) }}
-      />
-      {/* ⛔ BOTH BRANCHES MUST RENDER A TOAST, AND THE STATE MUST LIVE ABOVE THEM.
-          Every message this feature shows is set by an action that FLIPS THIS BRANCH:
-          "Hide joystick" unmounts HubShell, the restore tab unmounts this. So a toast owned
-          by either branch is destroyed in the same commit that fills it — the message renders
-          for zero frames and the member is told nothing. Both of those shipped: the hide toast
-          ("Hidden for now. Reload to bring it back.") is the ONLY thing that says the hide is
-          temporary, and the restore toast is the only thing that names Settings → Joystick.
-
-          ⭐ The anchor is explicit because `.toast` is `position:absolute` with `top:30px`.
-          Inside `hub-root` that resolves against the hub's own 84px box; out here the nearest
-          positioned ancestor is the page, which would pin it to the top of the document. The
-          `style` escape hatch is JournalToast's own documented answer for a different anchor. */}
-      <JournalToast
-        msg={toastMsg}
-        style={{
-          position: 'fixed',
-          top: 'auto',
-          bottom: 'calc(env(safe-area-inset-bottom) + 68px + 24px + 52px)',
-          right: mirrored ? 'auto' : '16px',
-          left: mirrored ? '16px' : 'auto',
-          zIndex: 'var(--z-hub-rest)',
-        }}
-      />
+      {visible ? (
+        <HubShell setToastMsg={setToastMsg} />
+      ) : (
+        <HubEdgeTab
+          persistent={persistent}
+          mirrored={mirrored}
+          onRestore={() => { showForSession(); setToastMsg(restoreToast(persistent)) }}
+        />
+      )}
+      <HubToastHost msg={toastMsg} mirrored={mirrored} />
     </>
   )
 }

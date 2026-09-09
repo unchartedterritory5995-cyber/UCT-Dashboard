@@ -1377,6 +1377,48 @@ or it silently wipes `handedness` and `coachMarkSeen`. The snippet previously in
 merge", and was neither.
 
 
+### ⛔ Assert user-facing feedback by RENDERED TEXT, never by state (Testing)
+
+> **User-facing feedback is asserted by rendered DOM text after the triggering action settles,
+> never by state alone.**
+
+Owner ruling, 2026-09-09, after two toast defects shipped in the joystick hub that left **every
+structural assertion green**:
+
+1. The toast was passed `message` where `JournalToast` reads `msg` — the component renders `''`
+   for anything else, so the copy was blank.
+2. Both toasts were owned by the element their own action unmounts. "Hide joystick" lives in
+   the Actions sheet inside `HubShell`; firing it unmounts `HubShell`. Tapping the restore tab
+   unmounts the hidden branch. Each message was destroyed in the same commit that set it and
+   rendered for **zero frames**.
+
+In both cases the state transition was correct, the control worked, and the only broken part was
+the half that talks to the member. A test that asserts `setToastMsg` was called proves nothing
+about whether a human ever saw the sentence.
+
+**Structural corollary:** a toast/banner/confirmation host must OUTLIVE the control that fires
+it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible/hidden branch,
+written to by both sides, with one fixed anchor so the message lands in the same place either
+way. Do not nest a feedback element inside a subtree that its own trigger tears down.
+
+### Rebasing a feature branch — when, and when not
+
+> **Rebase only when master has touched a file the branch touches, or the branch is more than
+> five commits behind. Otherwise merge clean.**
+
+Owner ruling, 2026-09-09. Rebasing rewrites already-published commits and forces a
+`--force-with-lease` push; when master's changes cannot interact with the branch's, that buys
+nothing and risks clobbering a concurrent session's work on the same branch (see
+`feedback_agent_authority_and_worktree_isolation`). Measure it, don't guess:
+
+```sh
+BASE=$(git merge-base origin/master HEAD)
+git rev-list --count $BASE..origin/master                       # behind
+comm -12 <(git diff --name-only $BASE..origin/master | sort -u)          <(git diff --name-only $BASE..HEAD          | sort -u) # overlap
+```
+
+Empty overlap and fewer than six behind ⇒ push and open the PR as-is.
+
 ### Tooling — GitHub MCP reads `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 The `github` MCP server (plugin `claude-plugins-official`) is configured as:
