@@ -1364,3 +1364,68 @@ review legs are verified in production. R5 characterises an optimisation that is
 already shipped and behaving. It is a measurement gap in a nice-to-know, not a
 defect and not a release gate — and it should be finished when it is cheap, not
 by spending more of the owner's morning on sign-in prompts.
+
+---
+
+# R5 ATTEMPT #5/#6 — THE COORDINATION GAP — 2026-09-09
+
+## R5-J · What was measured (no owner action required)
+
+| probe | result |
+|---|---|
+| scratch profile `C:\uct-r5-profile` after sign-in **and close** | **HTTP 401 · `{"detail":"Not authenticated"}`** |
+| same, second independent sign-in | **HTTP 401** again |
+| login form controls | `email`, `password`, `Log In` — **zero checkboxes, no "remember me"** |
+
+⇒ **The session cookie is session-scoped BY DESIGN and there is no persistence
+option to enable.** "Sign in, then close the browser" cannot work, and no
+configuration makes it work. Confirmed twice, on two separate sign-ins, without
+costing the owner anything.
+
+## R5-K · Why attempts #5 and #6 still produced nothing
+
+Both launched a window and waited (420 s, then 480 s) for a sign-in that had to
+happen *inside* that window. Both timed out. The owner had signed in — correctly,
+and as previously instructed — but in a **different, already-closed** window.
+
+⭐ **This is a coordination failure, not a technical one, and it is mine.** The
+measurement requires a human to be at the keyboard during a window the automation
+opens on its own schedule. I kept opening that window on my schedule and asking
+the owner to be there. Six attempts is the evidence that the arrangement itself is
+wrong.
+
+# R5_INCONCLUSIVE
+
+**N = 0 warm / 0 cold.** No p50, p95, tap→useful, tap→settled or improvement
+figures — none were measured. The instrument is proven
+(visible · 60.6 fps · 19.9 Hz · `pointer: coarse`); only the human-in-the-loop
+timing remains unsolved.
+
+## R5-L · Handoff — owner-driven, no coordination needed
+
+⛔ **No further automated sign-in windows will be opened.** The remaining step
+belongs to whoever has two spare minutes, run at their own pace:
+
+```
+python tools/r5_prefetch_measure.py --profile "C:/uct-r5-profile" \
+       --wait-login 600 --samples 90 --symbols 60
+```
+
+Sign in **in the window it opens**, leave it open and uncovered, and walk away —
+it drives ~90 review transitions itself and writes `tools/r5_prefetch_out.json`
+with both populations, p50/p95 for tap→useful and tap→settled, censored samples
+and the delta. If the app fails to mount it retries six times in-session and
+saves `tools/r5_diag_*.png` with a full page dump, so that run yields either the
+measurement or the diagnosis.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.**
+
+⏸️ Future architecture debt, not a blocker: **TWO_CURSOR_MODELS_OVER_ONE_LIST**
+— `NOT_CURRENTLY_ACTIVE`, release impact `NONE`.
+
+⭐ The release is live, healthy, and its six review legs are verified in
+production. R5 characterises an optimisation that already ships and behaves.
