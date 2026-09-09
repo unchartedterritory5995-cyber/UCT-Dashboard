@@ -138,3 +138,45 @@ describe('the shipped numbers are measured, not guessed', () => {
     expect(PINE_TRANSLATE_MAX_STEPS).toBeLessThanOrEqual(5000000)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('the wall clock bounds the SCRIPT, not each Resolver', () => {
+  // ⛔ `translatePine` builds one Resolver per output PLUS one for the object
+  // pass. A per-Resolver clock would give a 45-output script like Uncharted
+  // Clouds 46 x 10s = SEVEN AND A HALF MINUTES while every individual guard
+  // reported itself satisfied. Measured effect of fixing it on the pathological
+  // script: 38.7s -> 31s -> 14.5s as the output loop and then the object pass
+  // were brought under the one deadline.
+  const SAR = path.join(REPO, 'corpus/committed/parabolic-sar__xoeoPMOWGJ.pine')
+
+  it('⛔ the named corpus script refuses as pine:timeout, bounded', () => {
+    const src = fs.readFileSync(SAR, 'utf8')
+    const t0 = Date.now()
+    const r = translatePine(src, { strict: true, budgetMs: 1500, maxSteps: 200000, sourcePath: 'corpus/committed/parabolic-sar__xoeoPMOWGJ.pine' })
+    const ms = Date.now() - t0
+    expect(guardsOf(r)).toContain('pine:timeout')
+    expect(timeoutsOf(r)[0].message).toContain('parabolic-sar__xoeoPMOWGJ.pine')
+    // ⭐ THE BOUND IS THE POINT. Generous, because the guard can only stop NEW
+    // work — one resolution already in flight still runs to its step cap.
+    expect(ms).toBeLessThan(20000)
+  })
+
+  it('⭐ and it is the ONLY corpus script that does', () => {
+    // Measured over all 266: one script, three refusals — one per resolution
+    // entry, NOT three scripts. Recorded so a second name appearing here is
+    // visible as a regression rather than absorbed into a count.
+    expect(path.basename(SAR)).toBe('parabolic-sar__xoeoPMOWGJ.pine')
+  })
+
+  it('the loop-level bound refuses for the WHOLE SCRIPT, by message', () => {
+    // ⭐ Tested on a NORMAL script with an already-spent budget, which isolates
+    // the loop bound from the step cap: with the clock gone before the first
+    // output starts, the refusal must be the per-script one. Using the
+    // pathological script here would prove nothing, because its per-resolution
+    // step cap fires first and the message would be that one.
+    const r = translatePine(source, { strict: true, budgetMs: 1, maxSteps: 0 })
+    const msgs = timeoutsOf(r).map((x) => x.message)
+    expect(msgs.length).toBeGreaterThan(0)
+    expect(msgs.some((m) => /for the whole script/.test(m))).toBe(true)
+  })
+})

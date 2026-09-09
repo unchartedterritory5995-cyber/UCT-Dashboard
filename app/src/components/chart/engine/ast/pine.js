@@ -3832,6 +3832,24 @@ export function endTranslateBudget() {
 
 /** Throws `pine:timeout` once the wall-clock budget is gone. Cheap: a masked
  *  counter, with `Date.now()` only every 4096th call. */
+/**
+ * ⭐⭐ THE PER-SCRIPT DEADLINE, ASKED DIRECTLY.
+ *
+ * ⛔ THE INNER CHECK IS NOT ENOUGH ON ITS OWN, MEASURED. A budget consulted only
+ * from inside `resolve` depends on `resolve` continuing to be entered, and on the
+ * pathological script it demonstrably stops being entered often enough to matter:
+ * with the step cap disabled and a 2s budget, the call still never returned.
+ *
+ * So the OUTPUT LOOP asks this before each output. That bounds the whole
+ * `translatePine` call rather than each Resolver inside it, which is the
+ * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
+ */
+export function translateBudgetExpired() {
+  return TRANSLATE_DEADLINE !== Infinity && Date.now() > TRANSLATE_DEADLINE
+}
+
+export function translateBudgetMs() { return TRANSLATE_BUDGET }
+
 export function tickTranslateBudget() {
   if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
   if (Date.now() <= TRANSLATE_DEADLINE) return
@@ -4715,9 +4733,22 @@ export class Resolver {
     const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
     const tail = '. This is a translator defect, not a limit on the script: '
       + 'report it with the file.'
-    if (Date.now() <= this.deadline) return
+    // ⭐⭐ THE CLOCK IS PER SCRIPT, NOT PER RESOLVER, AND THAT DISTINCTION IS THE
+    // WHOLE POINT OF THE MODULE-LEVEL DEADLINE. `translatePine` builds one
+    // Resolver per output plus one for the object pass, so a per-Resolver clock
+    // gives a 45-output script like Uncharted Clouds 46 × 10s = SEVEN AND A HALF
+    // MINUTES while every individual guard reports itself satisfied. The step cap
+    // stays per-Resolver deliberately — it bounds one resolution's expansion —
+    // but the wall clock bounds the CALL.
+    //
+    // `this.deadline` is the fallback for a Resolver constructed directly,
+    // outside `translatePine`, where no window was ever opened.
+    const deadline = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_DEADLINE : this.deadline
+    if (Date.now() <= deadline) return
+    const budget = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_BUDGET : this.budgetMs
     throw new PineRefusal('pine:timeout',
-      `${REFUSALS['pine:timeout']} — gave up after ${this.budgetMs}ms` + where + tail,
+      `${REFUSALS['pine:timeout']} — gave up after ${budget}ms for the whole script`
+      + where + tail,
       tok ? locate(tok) : null)
   }
 
@@ -8952,6 +8983,20 @@ export function translatePine(source, opts = {}) {
     }
     let row
     try {
+      // ⛔ THE CALL IS BOUNDED HERE, NOT JUST EACH RESOLVER. One output that ate
+      // the whole budget must not buy the next output a fresh one — a 45-output
+      // script like Uncharted Clouds would otherwise get 46 × the budget while
+      // every individual guard reported itself satisfied. Inside the try on
+      // purpose: this becomes a per-output refusal like any other, rather than an
+      // exception escaping `translatePine`.
+      if (translateBudgetExpired()) {
+        throw new PineRefusal('pine:timeout',
+          `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+          + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
+          + '. This is a translator defect, not a limit on the script: report it with the file.',
+          null)
+      }
+
       const cur = new Cursor(out.toks.slice(2))
       const args = parseArguments(cur)
       const rest = cur.peek()
@@ -9132,6 +9177,16 @@ export function translatePine(source, opts = {}) {
   // translation for the sake of a drawing.
   let objectPass = { program: null, diagnostics: null }
   try {
+    // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
+    // builds its own Resolver, so without this it buys a fresh step budget after
+    // the output loop has already spent the script's whole wall clock.
+    if (translateBudgetExpired()) {
+      throw new PineRefusal('pine:timeout',
+        `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+        + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
+        + '. This is a translator defect, not a limit on the script: report it with the file.',
+        null)
+    }
     objectPass = buildObjectProgram(stmts, source, env, () => {
       const r = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,

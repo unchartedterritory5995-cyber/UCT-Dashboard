@@ -90,7 +90,15 @@ from what the live chart EMITTED — `tests/fixtures/vendor/reference/{A,B,C,D}/
 clouds-volume-*.{csv,meta.json}`, captured per `tools/visual_conformance/README.md`,
 without reading the source at all.
 
-The source declares **21 `display=display.none` plots and 20 `fill()` calls**. The
+The source declares **21 `display=display.none` plots and 20 `fill()` calls**.
+
+⭐⭐ **THIS IS THE EVIDENCE STANDARD FOR R2.** The two counts were derived
+independently — one by censusing the committed source, one by decoding the chart's
+emitted output — by two sessions that had not seen each other's number, and they
+agree. Neither is a check of the other; each is a measurement of the same object
+from a different direction. Where R2 can get two such routes to a number, it should,
+and where it cannot, it should say which single route the number rests on.
+ The
 emitted output carries **21 layer boundary plots and 20 band-colour plots**. Neither
 number was derived from the other. When a source census and a vendor capture land on
 the same two integers by different methods, the render model is not a guess.
