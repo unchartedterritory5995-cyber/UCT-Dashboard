@@ -137,7 +137,16 @@ was never set anywhere.
 - **The file-before-variable sequencing was right** and is worth keeping for
   whatever mechanism replaces this one.
 
-## E · Options for the owner
+## E · Options for the owner — ⭐ DECIDED: option 2
+
+⛔ **This section is superseded by `wave-p15-web-build-boundary.md`.** The owner
+ruled for the web-specific Dockerfile, and forbade spending a build separating
+the two explanations below — the mechanism failed the property that matters
+(the build boundary was never explicitly selected), so it is abandoned either
+way. It was then settled by a READ rather than a build: web's service manifest
+carries `nixpacksConfigPath: /nixpacks.toml` as a first-class field, so the
+service variable never had standing to select the config. Explanation 1.
+
 
 1. **Railway dashboard per-service build settings.** Railway exposes per-service
    *Root Directory*, *Build Command* and config-file settings that the CLI does
