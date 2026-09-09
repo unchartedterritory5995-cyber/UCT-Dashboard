@@ -267,3 +267,100 @@
 
 .menuDanger:hover { color: var(--danger, #f87171); }
 .menuDiv { height: 1px; background: var(--menu-divider, rgba(255, 255, 255, 0.06)); margin: 4px 0; }
+
+/* ── the layout library ─────────────────────────────────────────────────────
+   Anchored above the RIGHT of the rail, under the ＋ that opens it. This is the
+   durable store; the rail above it is only a working set pointing into this. */
+.library {
+  position: absolute;
+  bottom: 30px;
+  right: 8px;
+  width: 244px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 4px;
+  box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
+  padding: 4px 0;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+}
+
+.libraryHead {
+  padding: 6px 12px 5px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--menu-accent, #c9a84c);
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  margin-bottom: 4px;
+}
+
+.libraryNew {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--menu-accent, #c9a84c);
+}
+.libraryNew:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+
+/* One row = one library layout: the name adds it to the bar, the ✕ is the only
+   place in the whole feature that can destroy it. */
+.libraryRow { display: flex; align-items: center; }
+.libraryRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+
+.libraryPick {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--menu-text, #ededed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.libraryRow:hover .libraryPick { color: var(--menu-accent, #c9a84c); }
+
+.libraryDel {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--menu-text-faint, #6b6b6b);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 10px;
+  opacity: 0;
+}
+.libraryRow:hover .libraryDel { opacity: 1; }
+.libraryDel:focus-visible { opacity: 1; outline: 1px solid var(--danger, #f87171); }
+.libraryDel:hover { color: var(--danger, #f87171); }
+
+.libraryDelConfirm {
+  flex: 0 0 auto;
+  background: var(--danger, #f87171);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #0b0f14;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  margin: 0 8px 0 4px;
+}
+.libraryDelConfirm:hover { filter: brightness(1.08); }
