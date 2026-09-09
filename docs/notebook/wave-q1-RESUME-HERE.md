@@ -156,7 +156,8 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 |---|---|
 | **Fix commit #1** | **`4fef130d9`** — the `hydratedRef` gate, `EMIT_NOTHING`, the drain's baseline refusal, and their rails |
 | **Fix commit #2** | **`8826e8aa7`** — the null-baseline hunt, the `??`-vs-truthy fix (`baseline.js`), the blocked-entry audit, the inherited-red ledger, the memory-pointer gate, the deploy packet |
-| **Branch tip** | `8826e8aa7` **plus one docs-only commit stamping this table** — so the tip is that stamp, and the last *work* commit is `8826e8aa7`. ⛔ A doc cannot name its own SHA; this is why the row says what each commit IS rather than pretending to a single "the commit". |
+| **Reconciliation** | **`9741ddff1`** (merge of `184a7e77b`) + **`b8eedb42f`** — the master merge, the artifact-verified flag, the five index retirements, the corrected packet |
+| **Branch tip** | `b8eedb42f` **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
 | **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** It was `78ac8016b` when this session began and `184a7e77b` four hours later (three OptionsFlow commits, no overlap with this branch). What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
