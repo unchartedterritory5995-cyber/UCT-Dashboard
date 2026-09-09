@@ -1044,3 +1044,115 @@ Single concrete remaining closure item:
 
 Secondary, non-blocking: hub/review coexistence is still unexercised on a live
 coarse-pointer device (verified by construction only).
+
+---
+
+# R5 MEASUREMENT ATTEMPT #2 — 2026-09-09
+
+No product code changed. R5 not modified.
+
+## R5-1 · The instrument problem is now SOLVED
+
+A foregrounded harness was built and **proved** before any sampling:
+`tools/r5_prefetch_measure.py` (uncommitted) launches Chromium headed with
+background throttling disabled, emulating an iPhone (390×844, DPR 3,
+`is_mobile`/`has_touch`).
+
+| gate | required | measured |
+|---|---|---|
+| `visibilityState` | `visible` | ✅ **visible** |
+| `hasFocus()` | true | ✅ **true** |
+| rAF advancing | ≥30 fps | ✅ **58.7 fps** |
+| timers unclamped | ≥10 Hz | ✅ **19.9 Hz** (50 ms interval) |
+| `pointer: coarse` | true | ✅ **true** |
+| network visible | >0 | ✅ 6 `/api/` calls |
+
+Contrast with the disqualified instrument, now quantified rather than asserted:
+the extension-driven Chrome sits at **0.1 rAF fps and 1 Hz timers** — and it does
+so *while reporting* `hasFocus: true`, which is exactly why "it looks focused"
+was never adequate evidence.
+
+⭐ **Root cause of that throttling, identified:** there is exactly one Chrome
+window on this machine and its active tab is **Robinhood Legend**. The UCT tab is
+a *background tab in that same window*, and a non-active tab is `hidden` by
+definition. `SetForegroundWindow` gave the window focus but could not make a
+background tab visible. **I did not steal focus from a live trading application
+to fix this.**
+
+## R5-2 · The blocker moved from instrumentation to AUTHENTICATION
+
+The harness reaches production and is fast enough to measure — but
+`GET /charts` **redirects an unauthenticated client to `/login`**, so there is no
+review workflow to measure. Every fresh-browser path hits the same wall:
+
+| path | foreground? | authenticated? | verdict |
+|---|---|---|---|
+| Playwright Chromium (this harness) | ✅ proven | ❌ redirects to `/login` | cannot measure |
+| BrowserStack real device (preferred #1) | ✅ | ❌ fresh device, same `/login` | cannot measure |
+| Extension-driven Chrome | ❌ 0.1 fps | ✅ owner session | disqualified by instruction |
+
+Attach-to-running-Chrome was checked and is unavailable: **no CDP port is open**
+(9222/9223/9229/8315/21222 all closed, no `--remote-debugging-port` in the
+command line).
+
+⛔ **Deliberately not done:** entering credentials (prohibited), and extracting
+the browser's cookie store. I began copying profile material, judged it
+disproportionate for a latency measurement, and **removed it** — nothing was
+retained. Profile selection would also have been guesswork; this machine has five
+Chrome profiles and the live one is not obviously `Default`.
+
+## R5-3 · Result
+
+| required output | status |
+|---|---|
+| N (warm / unwarmed) | **0 / 0** |
+| p50 / p95 tap → useful | **not measured** |
+| p50 / p95 tap → settled | **not measured** |
+| network-fetch rate | **not measured** |
+| absolute / % improvement | **not calculable** |
+| qualitative finding | **none — no data** |
+
+# R5_INCONCLUSIVE
+
+Not because prefetch was found wanting, and not because the instrument is
+missing — the instrument now exists and passes its own proof. Solely because the
+foregrounded instrument cannot reach an authenticated production session.
+
+⭐ **The design is ready to run the moment auth exists.** `--samples N` collects
+transitions, varying dwell only to *produce* both populations, and labels every
+sample WARM or COLD from whether a `/api/bars/<SYM>` request actually left the
+browser — never from the dwell that was intended. `T_USEFUL` is the first frame
+where the header shows the new symbol **and** the chart canvas has changed from
+its pre-tap signature; `T_SETTLED` is canvas quiescence for 400 ms, with the
+12 s cap recorded as a censored sample rather than dropped. No arbitrary sleep is
+ever an endpoint.
+
+**One step unblocks it** — either is fine:
+
+1. **Bring the "UCT Intelligence" tab to the front** in Chrome and leave it the
+   active tab. It becomes `visible`, rAF runs, and the existing authenticated
+   session is measurable immediately.
+2. **Sign in once** in a Chrome started against a scratch profile directory, and
+   point the harness at that directory — no credential ever passes through me.
+
+## R5-4 · Hub / review coexistence real-device check — NOT PERFORMED
+
+Blocked by the same wall. The harness does produce a genuine coarse-pointer
+context (`pointer: coarse` proven), which is the hard part, but both the review
+session and the hub require an authenticated session — the hub additionally
+resolves to admin-only when the per-user preference is unset. Coexistence
+therefore remains verified **by construction only** (`--z-modal` 1000 above
+`--z-hub-open` 401, plus master's own `hubZIndex` rail), unchanged from the
+production closeout.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason, unchanged in substance but narrowed in cause:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.** The instrument is
+   built and proven; it needs an authenticated foregrounded session (one of the
+   two steps above) to produce them.
+
+Carried forward as future architecture debt, not a blocker:
+⏸️ **TWO_CURSOR_MODELS_OVER_ONE_LIST** — hub cursor vs review session cursor,
+`NOT_CURRENTLY_ACTIVE`, release impact `NONE`.
