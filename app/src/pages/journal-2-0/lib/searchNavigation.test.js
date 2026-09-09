@@ -157,3 +157,39 @@ describe('a thesis review is reached in its own history', () => {
     expect(reviewTargetFromParams(null)).toBeNull()
   })
 })
+
+// ⛔⛔ WAVE P2 §20 — PROVENANCE IS NOT IDENTITY, AND IT IS NOT A DESTINATION.
+// A hit whose words were read off a scan is still a DOCUMENT at a real page.
+// If a later change ever routed scanned hits somewhere of their own — an "OCR
+// view", a text-only pane, a refusal — the member would lose the one thing
+// §22 makes non-negotiable: landing on the original page to check the figure
+// with their own eyes.
+describe('a scanned page navigates exactly like any other page', () => {
+  const SCANNED = {
+    noteId: 'n1', documentId: 'd1', pageNumber: 47, textOrigin: 'ocr',
+  }
+  const NATIVE = { ...SCANNED, textOrigin: 'native' }
+
+  it('reaches the page, not the note', () => {
+    expect(navigationDepth(SCANNED, { kind: 'page' })).toBe('page')
+  })
+
+  it('produces the identical target as the same hit natively extracted', () => {
+    expect(searchResultTarget(SCANNED, { kind: 'page' }))
+      .toEqual(searchResultTarget(NATIVE, { kind: 'page' }))
+  })
+
+  it('round-trips through the url to the same page', () => {
+    const target = searchResultTarget(SCANNED, { kind: 'page' })
+    const params = applyTargetToParams(new URLSearchParams(''), target)
+    const back = targetFromParams(params)
+    expect(back.documentId).toBe('d1')
+    expect(back.page).toBe(47)
+  })
+
+  it('carries no provenance into the url — it is not part of the address', () => {
+    const params = applyTargetToParams(
+      new URLSearchParams(''), searchResultTarget(SCANNED, { kind: 'page' }))
+    expect(params.toString()).not.toMatch(/ocr|origin|scan/i)
+  })
+})

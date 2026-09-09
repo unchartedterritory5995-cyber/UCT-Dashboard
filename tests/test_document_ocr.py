@@ -824,3 +824,40 @@ class TestAClaimNobodyCanServeIsNotProcessing:
         [d] = [x for x in r.json()["documents"] if x["id"] == doc_id]
         assert d["pagesAwaitingOcr"] == 1
         assert d["ocrUnavailable"] is True
+
+    def test_the_member_facing_chain_ends_at_a_navigable_page(self, env, monkeypatch):
+        # ⛔⛔ A SERVICE RAIL IS NOT A ROUTE RAIL. The test above proves the
+        # pipeline; this one proves the DOOR — the member searches, and what
+        # comes back is a document at a page they can open, carrying the fact
+        # that its words were read off an image.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        assert tess.install_if_enabled()["active"] is True
+
+        doc_id, note_id = _attach(_scanned_pdf(), name="q3-filing.pdf")
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, ocr.get_adapter())
+
+        from fastapi.testclient import TestClient
+        from api.main import app
+        from api.routers.journal_two import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: {"id": A}
+        client = TestClient(app)
+
+        r = client.get("/api/j2/notes/documents/search?q=CONDENSED")
+        assert r.status_code == 200, r.text
+        [hit] = [x for x in r.json()["results"] if x["documentId"] == doc_id]
+        # Everything `searchResultTarget` needs to reach the page, and the one
+        # fact that tells the member to verify a figure against it.
+        assert hit["pageNumber"] == 1
+        assert hit["noteId"] == note_id
+        assert hit["name"] == "q3-filing.pdf"
+        assert hit["sourceKind"] == "attachment"
+        assert hit["attachmentUrl"]
+        assert hit["textOrigin"] == ocr.ORIGIN_OCR
+
+        d = client.get(f"/api/j2/notes/{note_id}/documents").json()["documents"]
+        [doc] = [x for x in d if x["id"] == doc_id]
+        assert doc["textComplete"] is True
+        assert doc["pagesFromOcr"] == 1
+        assert doc["ocrUnavailable"] is False
