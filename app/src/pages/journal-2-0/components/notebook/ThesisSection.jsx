@@ -6,6 +6,8 @@ import useThesisSummary from '../../hooks/useThesisSummary'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useEvidenceCandidates from '../../hooks/useEvidenceCandidates'
+import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
+  from '../../lib/documentProvenance'
 import ThesisReviewSection from './ThesisReviewSection'
 // ⛔ Wave M's canonical source-kind labeller. The picker used to format
 // `${documentName} · p.${pageNumber}` itself — a THIRD formatter over one
@@ -408,6 +410,15 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
                         >
                           <span className={styles.candidateLabel}>
                             {label}{c.alreadyAttached ? ' · already attached' : ''}
+                            {/* ⛔ WAVE P4 §24 — the member is choosing what to
+                                stake a thesis on. If these words were READ OFF
+                                AN IMAGE they should know before they attach,
+                                not after. Quiet, and only where it is true. */}
+                            {isScannedText(c) && (
+                              <span className={styles.scannedChip} title={SCANNED_TEXT_HINT}>
+                                {SCANNED_TEXT_LABEL}
+                              </span>
+                            )}
                           </span>
                           {/* ⛔ SOURCE CLAIM AND MEMBER NOTE ARE TWO THINGS, and
                               the picker is where a member decides which they are

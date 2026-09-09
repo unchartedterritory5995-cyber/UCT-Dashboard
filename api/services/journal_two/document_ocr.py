@@ -674,3 +674,58 @@ def queue_ocr(document_id: str, adapter: OcrAdapter) -> None:
                 log.warning("[doc-ocr] background job crashed for %s: %s",
                             document_id, e)
     threading.Thread(target=_run, daemon=True, name="j2-doc-ocr").start()
+
+
+# ── Wave P4 §11/§14/§40/§41 · the page transcript ───────────────────────────
+
+def page_transcript(user_id: str, document_id: str, page_number: int,
+                    *, conn=None) -> dict[str, Any] | None:
+    """The canonical text UCT holds for ONE page, or None if there is none.
+
+    ⛔⛔ IT IS A SELECTION AID, NOT THE DOCUMENT (§11). The scanned page is the
+    source of truth; this is the text we derived from it, returned so a member
+    can select a passage they can also see with their own eyes. Nothing here
+    may be presented as "the document" or as a text layer of the PDF.
+
+    ⛔ ONE PAGE (§40). A 500-page filing must never ship its whole transcript to
+    a browser looking at page 12.
+
+    ⛔ TENANT-SCOPED IN THE QUERY, AND NON-CONFIRMING (§41). A foreign document
+    id returns None exactly like a missing one — the caller cannot learn that
+    somebody else's scan exists, let alone what it says.
+
+    ⛔ AND IT RETURNS WHAT WE ACTUALLY HOLD. A page whose OCR output the
+    usability gate rejected holds an empty row, so it reports empty text and
+    `available: False` — there is nothing to select, and saying so is the whole
+    point of the gate.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT p.text AS text, p.text_origin AS text_origin,"
+            " d.name AS name"
+            " FROM j2_note_document_pages p"
+            " JOIN j2_note_documents d ON d.id = p.document_id"
+            " JOIN j2_notes n ON n.id = d.note_id"
+            " WHERE p.document_id = ? AND p.user_id = ? AND p.page_number = ?"
+            " AND n.deleted_at IS NULL",
+            (document_id, user_id, int(page_number))).fetchone()
+        if row is None:
+            return None
+        text = row["text"] or ""
+        return {
+            "document_id": document_id,
+            "page_number": int(page_number),
+            "name": row["name"],
+            "text_origin": row["text_origin"],
+            "text": text,
+            # ⛔ "There is text" and "the page exists" are different facts, and
+            # a surface that conflates them offers an empty selection box on an
+            # unreadable scan.
+            "available": bool(text.strip()),
+        }
+    finally:
+        if owned:
+            conn.close()

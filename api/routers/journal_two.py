@@ -2845,6 +2845,35 @@ def list_note_documents_endpoint(
         conn.close()
 
 
+@router.get("/notes/documents/{document_id}/pages/{page_number}/text")
+def document_page_text_endpoint(
+    document_id: str,
+    page_number: int,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave P4 — the text UCT read from ONE page, so a member can select it.
+
+    ⛔ A SELECTION AID, NOT THE DOCUMENT. The scanned page stays the source of
+    truth; this is the derived transcript, and the surface that renders it says
+    so (§11/§13).
+
+    ⛔ NON-CONFIRMING (§41). A foreign or missing document answers 404 the same
+    way, so this cannot be used to learn that somebody else's scan exists.
+    """
+    from api.services.journal_two import document_ocr
+    out = document_ocr.page_transcript(user["id"], document_id, page_number)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "documentId": out["document_id"],
+        "pageNumber": out["page_number"],
+        "name": out["name"],
+        "textOrigin": out["text_origin"],
+        "text": out["text"],
+        "available": out["available"],
+    }
+
+
 @router.get("/notes/documents/search")
 def search_note_documents_endpoint(
     q: str = "",

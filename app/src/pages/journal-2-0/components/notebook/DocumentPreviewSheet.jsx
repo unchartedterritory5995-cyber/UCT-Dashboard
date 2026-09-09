@@ -64,6 +64,9 @@ export default function DocumentPreviewSheet({
       <PdfDocumentViewer
         ref={viewerRef}
         href={href}
+        /* Wave P4: the viewer needs the document id to fetch ONE page's
+           scanned-text transcript. */
+        documentId={documentId}
         initialPage={page}
         excerpts={excerpts}
         onSaveExcerpt={onSaveExcerpt}

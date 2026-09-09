@@ -1287,3 +1287,261 @@ class TestOcrFollowsTheNoteLifecycle:
         assert SCAN_PHRASE in text["text"]
         assert text["text_origin"] == ocr.ORIGIN_OCR
         assert jobs == 1
+
+
+# ── Wave P4 §16/§41/§45/§46 · a quote has to be ON the page ─────────────────
+
+from api.services.journal_two import note_excerpts as nx  # noqa: E402
+
+
+class TestTheTranscriptIsASelectionAid:
+    def test_it_returns_the_text_we_actually_read(self, env):
+        doc_id, _ = _attach(_scanned_pdf(), name="deck.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        t = ocr.page_transcript(A, doc_id, 1)
+        assert t["available"] is True
+        assert t["text_origin"] == ocr.ORIGIN_OCR
+        assert SCAN_PHRASE in t["text"]
+        assert t["name"] == "deck.pdf"
+
+    def test_an_unreadable_page_offers_nothing_to_select(self, env):
+        # ⛔ §45 — the gate rejected the output, so there is no source text.
+        # The surface must not present an empty box as a transcript.
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)   # claimed, never read
+        t = ocr.page_transcript(A, doc_id, 1)
+        assert t is not None and t["available"] is False and t["text"] == ""
+
+    def test_a_foreign_document_is_indistinguishable_from_a_missing_one(self, env):
+        # ⛔ §41 — non-confirming. B must not learn that A's scan exists.
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        assert ocr.page_transcript(B, doc_id, 1) is None
+        assert ocr.page_transcript(B, "no-such-document", 1) is None
+
+    def test_a_trashed_note_takes_its_transcript_with_it(self, env):
+        doc_id, note_id = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        assert ocr.page_transcript(A, doc_id, 1)["available"] is True
+        notes_svc.delete_note(A, note_id)
+        assert ocr.page_transcript(A, doc_id, 1) is None
+
+    def test_the_route_answers_404_the_same_way_for_both(self, env):
+        from fastapi.testclient import TestClient
+        from api.main import app
+        from api.routers.journal_two import get_current_user
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+
+        app.dependency_overrides[get_current_user] = lambda: {"id": A}
+        r = TestClient(app).get(f"/api/j2/notes/documents/{doc_id}/pages/1/text")
+        assert r.status_code == 200 and r.json()["textOrigin"] == ocr.ORIGIN_OCR
+        assert SCAN_PHRASE in r.json()["text"]
+
+        app.dependency_overrides[get_current_user] = lambda: {"id": B}
+        mine = TestClient(app).get(f"/api/j2/notes/documents/{doc_id}/pages/1/text")
+        missing = TestClient(app).get("/api/j2/notes/documents/nope/pages/1/text")
+        assert mine.status_code == missing.status_code == 404
+        assert mine.json() == missing.json()
+
+
+class TestAnExcerptMustBeOnThePage:
+    """⛔⛔ §46 IS LOAD-BEARING. Without it a client posts 'Revenue was $99
+    billion' and it is filed as a QUOTE from a real filing, on a real page,
+    with a working citation. The member may write that in THEIR OWN NOTE."""
+
+    def _ocr_page(self):
+        doc_id, note_id = _attach(_scanned_pdf(), name="filing.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        return doc_id, note_id
+
+    def test_the_exact_selected_passage_is_accepted(self, env):
+        doc_id, note_id = self._ocr_page()
+        text = ocr.page_transcript(A, doc_id, 1)["text"]
+        passage = text.split(".")[0].strip()
+        ex = nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                               captured_text=passage)
+        assert ex["capturedText"] == passage
+
+    def test_a_line_break_does_not_make_an_honest_quote_a_lie(self, env):
+        # Whitespace-only normalisation: a selection spanning a wrapped line
+        # is the same passage.
+        doc_id, note_id = self._ocr_page()
+        text = ocr.page_transcript(A, doc_id, 1)["text"]
+        passage = text.split(".")[0].strip()
+        wrapped = passage.replace(" ", "\n  ", 1)
+        ex = nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                               captured_text=wrapped)
+        assert ex["id"]
+
+    def test_invented_text_is_refused(self, env):
+        doc_id, note_id = self._ocr_page()
+        with pytest.raises(nx.ExcerptValidationError) as e:
+            nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                              captured_text="Revenue was $99 billion")
+        assert "scanned page" in str(e.value)
+
+    def test_a_real_sentence_from_a_DIFFERENT_page_is_refused(self, env):
+        # ⛔ Source-backed means backed by THIS page. Text that exists
+        # elsewhere in the document is still not a quote from page 1.
+        doc_id, note_id = _attach(_scanned_pdf(2), name="two.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter, page_numbers=[2])
+        # page 1 was claimed but never read -> empty canonical row
+        with pytest.raises(nx.ExcerptValidationError):
+            nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                              captured_text=SCAN_PHRASE)
+
+    def test_an_unreadable_page_cannot_be_quoted_at_all(self, env):
+        # §45 — Tesseract emitted bytes, the gate rejected them, and there is
+        # nothing a member may save as a source quote.
+        doc_id, note_id = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        with pytest.raises(nx.ExcerptValidationError):
+            nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                              captured_text="anything at all")
+
+    def test_a_native_page_excerpt_is_unaffected(self, env):
+        # ⛔ §44 — the control. pdf.js and pypdf are two extractions of one
+        # page; demanding equality between them would reject honest quotes.
+        doc_id, note_id = _attach(_native_pdf(), name="native.pdf")
+        ex = nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                               captured_text="a passage the extractor renders differently")
+        assert ex["id"]
+
+
+# ── Wave P4 §43 · the flagship chain ────────────────────────────────────────
+
+from api.services.journal_two import thesis_evidence as te  # noqa: E402
+from api.services.journal_two import evidence_candidates as ec  # noqa: E402
+
+
+class TestTheFlagshipChain:
+    """SCANNED PAGE → transcript → exact excerpt → member's own note →
+    thesis evidence → Ask → back to the original page. One source the whole
+    way, and the member's opinion never becomes the publisher's words."""
+
+    def test_a_scanned_page_becomes_thesis_evidence_that_counts_once(self, env):
+        doc_id, note_id = _attach(_scanned_pdf(), name="q3-filing.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+
+        # 1 · the transcript the member selects from IS the canonical text
+        t = ocr.page_transcript(A, doc_id, 1)
+        assert t["available"] and t["text_origin"] == ocr.ORIGIN_OCR
+        # The passage the member selects has to be one they would search for —
+        # otherwise the retrieval step below cannot see the excerpt at all and
+        # the "one source" assertion has only one object to be true of.
+        passage = t["text"].split(". ", 1)[1].strip().rstrip(".")
+        assert SCAN_PHRASE in passage
+
+        # 2 · an exact, source-backed excerpt, with the member's own note kept
+        #     as a SEPARATE field (§25)
+        ex = nx.create_excerpt(
+            A, note_id, document_id=doc_id, page_number=1,
+            captured_text=passage,
+            annotation="Margin durability still depends on mix.")
+        assert ex["capturedText"] == passage
+        assert ex["annotation"] == "Margin durability still depends on mix."
+        assert passage not in ex["annotation"]
+
+        # 3 · the picker tells the member where the words came from (§24)
+        [cand] = [c for c in ec.list_candidates(A, note_id) if c["id"] == ex["id"]]
+        assert cand["textOrigin"] == ocr.ORIGIN_OCR
+        assert cand["sourceTitle"] == "q3-filing.pdf"
+        assert cand["pageNumber"] == 1
+        assert cand["text"] == passage and cand["annotation"]
+
+        # 4 · attach it with a stance the MEMBER chose (§26)
+        ev_row = te.add_evidence(A, note_id, target_type="document_excerpt",
+                                 target_id=ex["id"], stance="opposes",
+                                 caption="reads against the margin case")
+        assert ev_row["stance"] == "opposes"
+
+        # 5 · ⛔ ONE SOURCE. The page, the excerpt saved from it and the thesis
+        #     relationship are three records of one filing (§27/§28).
+        #
+        # ⚰️ AND BOTH RECORDS HAVE TO BE PRESENT FOR THAT TO MEAN ANYTHING. The
+        # first version of this rail asked note scope, which reaches excerpts
+        # only through the note BODY's sidecar — so it retrieved the page
+        # alone, and "one distinct lineage key" was trivially true of one item.
+        # A mutation that gave the excerpt a different destination sailed
+        # straight through it. Document scope reads the excerpt FTS index, so
+        # both objects genuinely arrive.
+        out = askr.retrieve_document(A, doc_id, SCAN_PHRASE)
+        items = [i for i in out["evidence"]
+                 if i["source_type"] in (ev.DOCUMENT_PAGE, ev.DOCUMENT_EXCERPT)]
+        # ⭐ EXACTLY ONE SURVIVES, AND IT IS THE CURATED RECORD. That is the
+        # product working: the saved excerpt outranks the raw page on the same
+        # lineage, so an answer can never say "the filing says X, and my saved
+        # quote of the filing also says X" as two sources.
+        assert len(items) == 1, [i["source_type"] for i in items]
+        [kept] = items
+        assert kept["source_type"] == ev.DOCUMENT_EXCERPT
+        # ⛔ AND THE COLLAPSE IS PROVEN, NOT ASSUMED. `absorbed` names what it
+        # swallowed — without this the rail passes just as happily when the
+        # page was never retrieved at all, which is exactly how the first
+        # version of it let a navigation mutation through.
+        absorbed = {a["source_type"] for a in (kept.get("absorbed") or [])}
+        assert ev.DOCUMENT_PAGE in absorbed, kept.get("absorbed")
+        assert len({i["lineage_key"] for i in items}) == 1
+        assert ev.independent_source_count(items) == 1
+
+        # 6 · and every one of them points back at the ORIGINAL PAGE (§48).
+        # ⛔ THE KIND IS PART OF THE DESTINATION, not decoration: the client
+        # routes on it, so a new kind — a transcript-only "scanned text view",
+        # say — would silently take the member somewhere derived while the
+        # document id and page still looked right. Only these two kinds reach
+        # the page, and this rail exists because a mutation proved that
+        # asserting the ids alone did not catch it.
+        assert kept["navigation"]["kind"] in ("document", "excerpt"), kept["navigation"]
+        assert kept["navigation"]["document_id"] == doc_id
+        assert kept["navigation"]["page_number"] == 1
+        # …and the raw page evidence, before ranking collapsed it, said the
+        # same thing — so neither record could have led somewhere derived.
+        raw = [i for i in askr._document_pages_scoped(_conn(), A, doc_id,
+                                                      SCAN_PHRASE, 5)]
+        assert raw and all(r["navigation"]["kind"] == "document"
+                           and r["navigation"]["page_number"] == 1 for r in raw)
+
+    def test_the_saved_excerpt_is_not_rewritten_when_the_page_is_read_again(self, env):
+        # ⛔ §34/§36 — a saved excerpt is HISTORICAL member research. Re-reading
+        # the page may produce different text; what the member selected does
+        # not retroactively change.
+        doc_id, note_id = _attach(_scanned_pdf(), name="filing.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        passage = ocr.page_transcript(A, doc_id, 1)["text"].split(".")[0].strip()
+        ex = nx.create_excerpt(A, note_id, document_id=doc_id, page_number=1,
+                               captured_text=passage)
+
+        def different_adapter(_image):
+            return ocr.OcrPageResult(
+                text="Revenue rose. kimberlitegabbro appears on this rescanned page.",
+                engine=ENGINE, engine_version="2.0.0")
+        ocr.set_adapter(different_adapter)
+        c = _conn()
+        c.execute("UPDATE j2_note_document_ocr_pages SET status = ?, attempts = 0"
+                  " WHERE document_id = ?", (ocr.OCR_REQUIRED, doc_id))
+        c.commit(); c.close()
+        ocr.ocr_document(doc_id, different_adapter)
+
+        after = nx.get_excerpt(A, ex["id"])
+        assert after["capturedText"] == passage, "history was rewritten"
+        # …while the page itself now holds the newer reading.
+        assert "rescanned" in ocr.page_transcript(A, doc_id, 1)["text"]

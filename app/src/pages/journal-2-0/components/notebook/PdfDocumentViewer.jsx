@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { pdfjsLib, loadPdfDocument } from '../../lib/pdfjs'
+import ScannedTextPanel from './ScannedTextPanel'
 import styles from './PdfDocumentViewer.module.css'
 
 const OVERSCAN = 2
@@ -28,7 +29,8 @@ const MAX_PAGE_WIDTH = 960
  * copy of the page's text, never a DOM mutation of the text layer itself.
  */
 const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
-  { href, excerpts = [], onSaveExcerpt, emphasizeExcerptId, initialPage }, ref,
+  { href, excerpts = [], onSaveExcerpt, emphasizeExcerptId, initialPage,
+    documentId = null }, ref,
 ) {
   const scrollRef = useRef(null)
   const [pdf, setPdf] = useState(null)
@@ -209,6 +211,32 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
     setSelectionPopover(null)
   }, [selectionPopover, onSaveExcerpt])
 
+  // ⛔⛔ WAVE P4 — WHICH PAGES HAVE NOTHING TO SELECT. A scanned page renders a
+  // canvas and an EMPTY text layer, so the member can read a figure and cannot
+  // quote it. This is measured from the page pdf.js actually rendered, not
+  // guessed from a status field: it is true exactly when the browser has no
+  // text, which is exactly when the transcript is worth offering.
+  const [pagesWithoutText, setPagesWithoutText] = useState(() => new Set())
+  const notePageText = useCallback((pageNumber, info) => {
+    pageTextRef.current.set(pageNumber, info)
+    const empty = !(info?.fullText || '').trim()
+    setPagesWithoutText((prev) => {
+      if (prev.has(pageNumber) === empty) return prev
+      const next = new Set(prev)
+      if (empty) next.add(pageNumber); else next.delete(pageNumber)
+      return next
+    })
+  }, [])
+  // ⛔ The transcript's own text goes to the SAME map so selections resolve —
+  // but it must never clear the "this page has no text layer" fact, or the
+  // panel would vanish the moment it succeeded.
+  const noteTranscriptText = useCallback((pageNumber, info) => {
+    pageTextRef.current.set(pageNumber, info)
+  }, [])
+
+  const visible = virtualizer.getVirtualItems()
+  const currentPage = visible.length ? visible[0].index + 1 : null
+
   const excerptsByPage = useMemo(() => {
     const m = new Map()
     for (const ex of excerpts) {
@@ -234,11 +262,21 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
             top={vi.start}
             excerptsOnPage={excerptsByPage.get(vi.index + 1) || []}
             emphasized={emphasized}
-            onTextReady={(pageNumber, info) => { pageTextRef.current.set(pageNumber, info) }}
+            onTextReady={notePageText}
             registerContainer={(pageNumber, el) => { pageContainerRef.current.set(pageNumber, el) }}
           />
         ))}
       </div>
+      {/* Wave P4 §11/§12 — the derived-text selection aid, for the page on
+          screen, and only when that page has no text of its own. */}
+      {documentId && currentPage && pagesWithoutText.has(currentPage) && (
+        <ScannedTextPanel
+          documentId={documentId}
+          pageNumber={currentPage}
+          onTextReady={noteTranscriptText}
+          buildPageText={_buildPageText}
+        />
+      )}
       {selectionPopover && (
         <button
           type="button"
