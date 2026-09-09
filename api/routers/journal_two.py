@@ -2180,6 +2180,117 @@ def get_thesis_summary_endpoint(note_id: str, user: dict = Depends(get_current_u
     return {"evidence": evidence, "changelog": changelog}
 
 
+# ── Wave O: thesis reviews ──────────────────────────────────────────────────
+from api.services.journal_two import (review_search, thesis_review_changes,
+                                     thesis_reviews)
+
+
+@router.post("/notes/{note_id}/reviews")
+def open_thesis_review_endpoint(
+    note_id: str, body: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Start or RESUME the one open review draft for this thesis.
+
+    ⛔ Idempotent on purpose (§38): a surface may call this when the member
+    opens the review panel, and a review obligation must not accumulate every
+    time somebody looks at the page. The service returns the existing draft.
+    """
+    try:
+        review = thesis_reviews.open_review(
+            user["id"], note_id,
+            reason=(body or {}).get("reason") or thesis_reviews.REASON_MANUAL)
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.get("/reviews/search")
+def search_reviews_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave O6 -- find a completed review by what the member wrote in it.
+
+    ⛔ DECLARED BEFORE THE `/reviews/{review_id}` ROUTES ON PURPOSE. There is
+    no `GET /reviews/{id}` today, so nothing shadows this yet -- and the day
+    somebody adds one, a literal path declared after a parameterised sibling
+    is matched as an id and this endpoint 404s with every test still green
+    (the exact shape of the breadth `/live/drill` incident).
+
+    ⛔ A FOURTH SECTION, NEVER A FOURTH SCORE -- see review_search.py. The
+    caller renders these beside Notes / Documents / Evidence; nothing blends
+    them into another list's ranking.
+    """
+    rows = review_search.search_reviews(user["id"], q, limit=limit)
+    return {"results": [{
+        "reviewId": r["review_id"], "noteId": r["note_id"],
+        "noteTitle": r["note_title"], "ticker": r["ticker"],
+        "snippet": r["snippet"],
+        # The outcome the member chose and when they chose it. A review result
+        # that showed only prose would make "I was wrong about this" and "no
+        # change" look like the same kind of finding.
+        "outcome": r["outcome"], "completedAt": r["completed_at"],
+        "reviewReason": r["review_reason"],
+    } for r in rows]}
+
+
+@router.patch("/reviews/{review_id}")
+def save_thesis_review_draft_endpoint(
+    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Autosave the member's work. ⛔ Never completes it (§34)."""
+    try:
+        review = thesis_reviews.save_draft(
+            user["id"], review_id,
+            member_note=body.get("memberNote"), outcome=body.get("outcome"),
+            next_review_at=body.get("nextReviewAt"))
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.post("/reviews/{review_id}/complete")
+def complete_thesis_review_endpoint(
+    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Record what the member decided.
+
+    ⛔⛔ THIS DOES NOT TOUCH THE THESIS (§4/§9). If the member revised it, they
+    did that through the canonical note/property path before completing, and
+    the service records which version it landed on. There is deliberately no
+    `thesisStatus` field on this request body: a review form that could set a
+    thesis status would make UCT the author of an investment judgement.
+    """
+    try:
+        review = thesis_reviews.complete(
+            user["id"], review_id, outcome=body.get("outcome"),
+            member_note=body.get("memberNote"),
+            next_review_at=body.get("nextReviewAt"))
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.get("/notes/{note_id}/reviews")
+def list_thesis_reviews_endpoint(
+    note_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """This thesis's review history, plus the deterministic what-changed block.
+
+    ONE aggregated read, mirroring `thesis-summary`'s own shape — the review
+    panel needs history and the diff together, and two round trips would let
+    them disagree about which review is the anchor.
+    """
+    if notes_service.get_note(user["id"], note_id) is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "reviews": thesis_reviews.list_reviews(user["id"], note_id),
+        "attention": thesis_review_changes.review_attention(user["id"], note_id),
+    }
+
+
 # ── Wave H (Research Home + Ticker Research Workspace) ──────────────────────
 from api.services.journal_two import notebook_home, ticker_research
 
@@ -2827,6 +2938,25 @@ def create_excerpt_endpoint(
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     return {"excerpt": excerpt}
+
+
+@router.get("/notes/{note_id}/evidence-candidates")
+def list_evidence_candidates_endpoint(
+    note_id: str, q: str | None = None, limit: int = 50,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave N — research this note OWNS that could serve as thesis evidence.
+
+    ⛔ DELIBERATELY NOT `/excerpts`. That endpoint answers "which excerpts are
+    embedded in this note's BODY" (it joins the `j2_note_excerpt_refs` sidecar
+    that `notes.py` rebuilds from `documentExcerpt` nodes) — a real question the
+    editor needs, and the reason a captured web passage was invisible to the
+    evidence picker: a capture never embeds such a node. Attachability is a
+    different question, answered by OWNERSHIP.
+    """
+    from api.services.journal_two import evidence_candidates
+    return {"candidates": evidence_candidates.list_candidates(
+        user["id"], note_id, q=q, limit=limit)}
 
 
 @router.get("/notes/{note_id}/excerpts")

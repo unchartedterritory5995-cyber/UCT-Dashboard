@@ -66,6 +66,13 @@ vi.mock('../../hooks/useExcerptSearch', () => ({
   default: (...args) => useExcerptSearchMock(...args),
 }))
 
+// Wave O6: thesis-review search — a FOURTH hook/section. Same default-empty
+// convention, so every pre-existing search test is unaffected by its arrival.
+const useReviewSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useReviewSearch', () => ({
+  default: (...args) => useReviewSearchMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
@@ -75,6 +82,8 @@ beforeEach(() => {
   useDocumentSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useExcerptSearchMock.mockReset()
   useExcerptSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useReviewSearchMock.mockReset()
+  useReviewSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useJ2NoteFolderCountsMock.mockReset()
   useJ2NoteFolderCountsMock.mockImplementation(() => ({
     counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
@@ -1052,6 +1061,92 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
     expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
+  })
+})
+
+// ── Wave O6: Thesis reviews, the fourth search section ──────────────────────
+//
+// ⚰️ THE DEFECT. Search could find everything the member had READ and nothing
+// they had CONCLUDED. A member who wrote "I was wrong about the datacenter
+// buildout" in a review and searched "datacenter" three months later got
+// notes, pages and excerpts — never their own judgement.
+describe('search — thesis reviews section', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  const REVIEW = {
+    reviewId: 'rv1', noteId: 'n7', noteTitle: 'NVDA thesis', ticker: 'NVDA',
+    outcome: 'invalidated', completedAt: '2026-03-20T00:00:00+00:00',
+    reviewReason: 'manual', snippet: 'the <mark>datacenter</mark> call was wrong',
+  }
+
+  it('renders the members own reviews as their OWN section, not merged into another', () => {
+    // ⛔ FOUR LISTS, FOUR COUNTS. Blending a conclusion into the notes list
+    // would rank the one thing only this member could have written against
+    // whatever bm25 thought of a PDF page.
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.getByText('1 thesis review')).toBeInTheDocument()
+    expect(screen.getByText('Thesis review · NVDA thesis')).toBeInTheDocument()
+  })
+
+  it('⛔ shows the DECISION beside the prose, in the members own vocabulary', () => {
+    // "I was wrong about this" and "no change" must not look like the same
+    // kind of finding — and 'deferred' must read as it does in the panel where
+    // the member chose it.
+    useReviewSearchMock.mockReturnValue({
+      results: [{ ...REVIEW, outcome: 'deferred' }], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.getByText(/Need more work/)).toBeInTheDocument()
+  })
+
+  it('clicking a review result opens its thesis AND targets the review itself', () => {
+    // ⛔ §4 — the Wave M lesson, one section later: a result that names a thing
+    // and navigates somewhere else is half a retrieval system.
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    fireEvent.click(screen.getByText('Thesis review · NVDA thesis'))
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n7' },
+      expect.objectContaining({ noteId: 'n7', reviewId: 'rv1', depth: 'review' }),
+    )
+  })
+
+  it('shows an honest "Searching your reviews…" state while the query is in flight', () => {
+    useReviewSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching your reviews…')).toBeInTheDocument()
+  })
+
+  it('a search with no review hits grows no empty block', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.queryByText(/thesis review/i)).not.toBeInTheDocument()
   })
 })
 

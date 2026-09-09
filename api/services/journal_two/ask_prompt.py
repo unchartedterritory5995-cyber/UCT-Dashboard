@@ -127,6 +127,31 @@ _GROUNDING = (
     "since, and do not append current data the sources do not contain.\n\n"
 )
 
+# ⛔⛔ WHO WROTE THIS SOURCE (O6 §8/§14/§15). The corpus now contains the
+# member's own conclusions beside material published by other people, and the
+# one thing that must never happen is a review's words being reported as a
+# publisher's finding.
+_AUTHORSHIP = (
+    "AUTHORSHIP: the sources are not all the same kind of thing.\n"
+    "A source of type `thesis_review` is the MEMBER'S OWN conclusion about "
+    "their own thesis, written by them when they reviewed it. It is evidence "
+    "of what THEY decided and when. It is NEVER evidence that a claim about "
+    "the world is true, and it must never be attributed to a publisher, an "
+    "analyst, a document or a news source. Write 'you concluded' or 'in your "
+    "review on <date>' -- never 'according to <a source name>'.\n"
+    "A review's `outcome` is the decision the member recorded, in their own "
+    "vocabulary. Report it as their decision; do not restate it as a fact "
+    "about the security, and never convert it into a recommendation.\n"
+    "REVIEW ORDER: each review carries `review_ordinal` (1 is the most recent "
+    "review of that thesis) and `review_total`. Use those to answer 'last', "
+    "'previous' or 'the first time'. Do NOT infer recency from the order the "
+    "sources appear in, from how much text they contain, or from their "
+    "wording. If the ordinal needed to answer the question is not present, "
+    "say which reviews you can see instead of guessing.\n"
+    "Reviews of DIFFERENT theses are different histories. Never merge them "
+    "into one sequence.\n\n"
+)
+
 _CITATION = (
     "CITATIONS: cite a source by its number in square brackets -- [1], [3] -- "
     "immediately after the claim it supports. Only the numbers actually listed "
@@ -149,7 +174,7 @@ def system_prompt() -> str:
     """
     from api.routers.ai_search import _SAFETY_BLOCKS  # shared desk safety text
     return (_CONTRACT_HEAD + _SAFETY_BLOCKS + "\n\n" + _BOUNDARY
-            + _CAPABILITY + _GROUNDING + _CITATION)
+            + _CAPABILITY + _GROUNDING + _AUTHORSHIP + _CITATION)
 
 
 # ── The data layer ───────────────────────────────────────────────────────────
@@ -166,6 +191,12 @@ _PAYLOAD_FIELDS = {
     # `source_context` is the wider page text a saved excerpt was taken from.
     # It is CONTEXT, not the citation -- the citation still resolves to the
     # passage the member actually saved.
+    # ⛔ THE CHRONOLOGY FIELDS ARE NOT OPTIONAL HERE (§9). Without them the
+    # model is handed several member notes that all look alike and asked which
+    # one is "last" -- the exact inference this whole retrieval path was built
+    # to make unnecessary.
+    ev.THESIS_REVIEW: ("outcome", "completed_at", "review_ordinal",
+                       "review_total", "thesis_title"),
     ev.NOTE: (),
     ev.DOCUMENT_PAGE: (),
 }

@@ -254,3 +254,61 @@ target), each byte-identical restore, each with a positive control.
 **Regression:** 209 files / 2112 tests green at `--maxWorkers=4`; backend corpus
 contract 10/10. Pre-existing reds inherited from master are named in §9 of the
 Wave L closure and were not touched.
+
+---
+
+## 9. PRODUCTION — deployed and verified 2026-09-08
+
+| Item | Value |
+|---|---|
+| Branch commits | `6cac94274` · `178469ae3` · `f4d1eeac0` |
+| Merge pushed to master | **`d97772730`** |
+| Pre-deploy control entry | `index-BSNQuZph.js` |
+| **Serving entry** | **`index-DWiXiP5b.js`** |
+| Fresh process | ✅ `uptime_seconds: 55` |
+| `broker_sync` floor | 10 (floor 7) — preserved |
+
+Master had moved 6 commits with **zero file overlap** (a Search-diagnostic
+workstream); reconciled normally, no force push, and only drift-affected rails
+re-run — nothing Notebook-relevant had changed.
+
+### Frontend asset proof — COMPLETE sweep, 288 assets
+
+⛔ The entry hash was **watched until it changed** before sweeping. A stale
+bundle reads exactly like a missing feature, and this exact tool produced that
+false negative once already.
+
+| Marker | Chunk |
+|---|---|
+| `Captured passage` (Wave M label) | **`FolderSidebar-BE5mqn8S.js`** |
+| `Saved passage` (Wave M label) | `index-DWiXiP5b.js` |
+| `/journal/share` · `/journal/capture-connect` | `index-DWiXiP5b.js` |
+| `share-signin` · storage-refusal copy | `ShareTargetPage-U6O7UUoO.js` |
+| `This note` (Slice 5 context destination) | `index-DWiXiP5b.js` |
+
+### Backend
+
+`GET /api/j2/notes/documents/search`, `…/excerpts/search` and `…/notes?q=` all
+answer **401** — mounted and auth-gated, not the 405 SPA catch-all.
+
+### Flags — unchanged
+
+`J2_SHARE_LINKS_ENABLED=0`. **Zero** semantic/embedding env vars: semantic
+remains **DARK**, as decided in §3.
+
+### ⛔ What production verification did NOT cover
+
+**The rendered label and the click-through were not exercised on production data
+with a member session.** I have no production credentials, and seeding a
+captured passage into the owner's live Notebook to read its label back would
+pollute real member research.
+
+What is proven: the labeller and both of its call sites are **in the serving
+bundle** (in the code-split chunk that renders search results), the search
+endpoints are **live and gated**, and the rendered output is asserted by the
+component rails (`FolderSidebar.test.jsx`) and exercised in the fail-closed
+sandbox against this same commit.
+
+⭐ Same honest limit Wave L recorded. It is stated, not rounded up.
+
+**WAVE M — RETRIEVAL TRUTH & NAVIGATION: CLOSED IN PRODUCTION.**

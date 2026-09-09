@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   navigationDepth, searchResultTarget, applyTargetToParams, targetFromParams,
+  reviewTargetFromParams,
 } from './searchNavigation'
 
 const PDF_PAGE = {
@@ -97,5 +98,62 @@ describe('the target rides the routing the app already uses', () => {
 
   it('no document target reads back as nothing to do', () => {
     expect(targetFromParams(new URLSearchParams('note=n1'))).toBeNull()
+  })
+})
+
+// ── Wave O6 §4: a review result lands ON the review ─────────────────────────
+//
+// ⛔ THE FAILURE THIS BLOCKS is the Wave M one repeating in a new section. A
+// review hit that resolved to `{depth:'note'}` would open the thesis, leave
+// the review panel collapsed (its children are unmounted while it is), and
+// look identical to "search only opens the note" — which is what O6 exists to
+// fix, not to reintroduce one section later.
+describe('a thesis review is reached in its own history', () => {
+  const REVIEW = { noteId: 'n1', reviewId: 'rv1' }
+
+  it('is depth "review", not the note floor', () => {
+    expect(navigationDepth(REVIEW, { kind: 'review' })).toBe('review')
+    expect(searchResultTarget(REVIEW, { kind: 'review' }))
+      .toEqual({ noteId: 'n1', reviewId: 'rv1', depth: 'review' })
+  })
+
+  it('folds into ?note=&review=', () => {
+    const p = applyTargetToParams(new URLSearchParams(),
+                                  searchResultTarget(REVIEW, { kind: 'review' }))
+    expect(p.get('note')).toBe('n1')
+    expect(p.get('review')).toBe('rv1')
+  })
+
+  it('⛔ never routes through the DOCUMENT reader — there is no viewer', () => {
+    // A review is not a document. `targetFromParams` drives the PDF preview
+    // sheet; handing it a review would open a viewer over nothing, which is
+    // the same refusal `excerptRevisitTarget` makes for a web capture.
+    const p = applyTargetToParams(new URLSearchParams(),
+                                  searchResultTarget(REVIEW, { kind: 'review' }))
+    expect(targetFromParams(p)).toBeNull()
+    expect(reviewTargetFromParams(p)).toEqual({ reviewId: 'rv1' })
+  })
+
+  it('⛔ a stale review anchor cannot ride along to the next hit', () => {
+    const first = applyTargetToParams(new URLSearchParams(),
+                                      searchResultTarget(REVIEW, { kind: 'review' }))
+    const second = applyTargetToParams(first, searchResultTarget(PDF_PAGE, { kind: 'page' }))
+    expect(second.get('review')).toBeNull()
+    expect(second.get('page')).toBe('47')
+  })
+
+  it('a review row with no review id degrades to the note, never to null', () => {
+    // The honest floor: we can still open the thesis. Refusing to navigate at
+    // all would be a worse answer than the one destination we can stand behind.
+    expect(navigationDepth({ noteId: 'n1' }, { kind: 'review' })).toBe('note')
+  })
+
+  it('no note id is nothing to do at all', () => {
+    expect(navigationDepth({ reviewId: 'rv1' }, { kind: 'review' })).toBeNull()
+  })
+
+  it('reads back as nothing when the url carries no review', () => {
+    expect(reviewTargetFromParams(new URLSearchParams('note=n1'))).toBeNull()
+    expect(reviewTargetFromParams(null)).toBeNull()
   })
 })

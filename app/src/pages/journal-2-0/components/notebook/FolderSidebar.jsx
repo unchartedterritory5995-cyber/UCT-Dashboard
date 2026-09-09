@@ -6,7 +6,10 @@ import useJ2Notes, {
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
 import useExcerptSearch from '../../hooks/useExcerptSearch'
-import { searchResultTitle, searchResultHint } from '../../lib/searchResultLabel'
+import useReviewSearch from '../../hooks/useReviewSearch'
+import { searchResultTitle, searchResultHint, reviewDateText }
+  from '../../lib/searchResultLabel'
+import { outcomeLabel } from '../../lib/reviewOutcomes'
 import { searchResultTarget } from '../../lib/searchNavigation'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
@@ -640,6 +643,14 @@ export default function FolderSidebar({
   const { results: excerptResults, isLoading: excerptsSearching } =
     useExcerptSearch(debouncedQuery, { enabled: mode === 'search' })
 
+  // Wave O6: the member's own completed reviews — what they DECIDED about a
+  // thesis, in their words. A FOURTH section for the same reason Evidence is a
+  // third: a conclusion reached after the fact is not the same kind of hit as
+  // the material it was reached from, and ranking them together would bury the
+  // one thing only this member could have written.
+  const { results: reviewResults, isLoading: reviewsSearching } =
+    useReviewSearch(debouncedQuery, { enabled: mode === 'search' })
+
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
   //
@@ -1025,6 +1036,44 @@ export default function FolderSidebar({
                       {searchResultTitle(e, { kind: 'excerpt' })}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(e.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Wave O6: Thesis reviews — the member's own conclusions. Fourth and
+              last, each section still its own list. ⛔ The row says "Thesis
+              review" and carries the outcome the member chose: a result that
+              rendered only their prose would make "I was wrong about this" and
+              "no change" look like the same finding. */}
+          {trimmedQuery && (reviewsSearching || reviewResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {reviewsSearching
+                  ? 'Searching your reviews…'
+                  : `${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!reviewsSearching && reviewResults.map((r) => (
+                <button
+                  key={r.reviewId}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: r.noteId },
+                                             searchResultTarget(r, { kind: 'review' }))}
+                  title={searchResultHint(r, { kind: 'review' })}
+                >
+                  <UIcon name="clock" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {searchResultTitle(r, { kind: 'review' })}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(r.snippet)}</span>
+                    {/* The decision itself, never inferred from the prose. */}
+                    <span className={styles.searchResultMeta}>
+                      {[outcomeLabel(r.outcome), reviewDateText(r.completedAt)]
+                        .filter(Boolean).join(' · ')}
+                    </span>
                   </span>
                 </button>
               ))}

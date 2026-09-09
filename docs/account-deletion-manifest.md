@@ -92,6 +92,7 @@ own internal fleet-check digest, not per-user member data.
 
 External-party data: SnapTrade's own revoke is unaffected by this change — it already runs via
 the existing broker purge, unchanged.
+| `j2_thesis_reviews` | `user_id` | Direct | n/a — new in Wave O | Purged | Test matrix below |
 
 ## Verification method
 

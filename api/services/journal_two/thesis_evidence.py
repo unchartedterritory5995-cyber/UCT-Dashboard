@@ -100,6 +100,33 @@ def add_evidence(
         if not _target_exists(user_id, target_type, target_id, conn=conn):
             raise ThesisEvidenceValidationError("Evidence target not found")
 
+        # ⛔⛔ WAVE N §4 — ONE LIVE EDGE PER (THESIS, TARGET).
+        #
+        # ⚰️ There was no guard here at all. The picker disables an
+        # already-attached candidate, so the MEMBER could not create a
+        # duplicate — and anything that was not the picker could: a second POST
+        # simply inserted a second live row. A thesis holding one passage twice
+        # then reports TWO supporting/opposing counts for ONE source, which is
+        # §6's "curation cannot manufacture corroboration" arriving through a
+        # different door. A guard that lives only in a disabled button is not a
+        # guard.
+        #
+        # ⛔ DELIBERATELY NARROW. It is scoped to ONE note, so the same passage
+        # still bears on as many theses as the member likes (that is the point
+        # of a shared research corpus), and it ignores removed edges, so a
+        # changed judgement — remove, re-add with the other stance — still
+        # works. It runs AFTER the ownership check, so a member who cannot see
+        # the target is refused for that reason and never learns from this
+        # message that somebody else attached it.
+        if conn.execute(
+            "SELECT 1 FROM j2_thesis_evidence"
+            " WHERE user_id = ? AND note_id = ? AND target_type = ? AND target_id = ?"
+            " AND removed_at IS NULL LIMIT 1",
+            (user_id, note_id, target_type, target_id),
+        ).fetchone() is not None:
+            raise ThesisEvidenceValidationError(
+                "This evidence is already attached to this thesis")
+
         evidence_id = uuid.uuid4().hex
         now = _now_iso()
         conn.execute(
@@ -122,7 +149,22 @@ def list_note_evidence(
 ) -> list[dict[str, Any]]:
     """Newest-first. `include_removed=True` is for the changelog's own read
     (checkpoint decision 22c) -- the note-facing evidence panel always uses
-    the default (live evidence only)."""
+    the default (live evidence only).
+
+    ⛔⛔ WAVE N §10 — EACH ROW SAYS WHETHER ITS SOURCE STILL EXISTS.
+    Purging a note hard-deletes its excerpts and documents; the evidence edges
+    pointing at them survive ON PURPOSE — `db.py` says so where the cascade is
+    written: "any note/thesis-evidence row still referencing a deleted excerpt
+    id degrades via the same 'no longer available' pattern FinancialFactView
+    already established". That degrade was never implemented in the thesis. The
+    row rendered its caption with no sign the source was gone, and clicking it
+    hit a 404 and silently did nothing — GHOST EVIDENCE, which is §20's own
+    named mutation class. The client cannot work it out for itself: a target in
+    ANOTHER note looks exactly like a purged one from here.
+
+    `_target_exists` is the same check `add_evidence` uses, so "does this
+    target exist" has ONE answer in this module rather than two.
+    """
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -131,7 +173,13 @@ def list_note_evidence(
             sql += " AND removed_at IS NULL"
         sql += " ORDER BY created_at DESC"
         rows = conn.execute(sql, (note_id, user_id)).fetchall()
-        return [_row_to_evidence(r) for r in rows]
+        out = []
+        for r in rows:
+            item = _row_to_evidence(r)
+            item["targetAvailable"] = _target_exists(
+                user_id, item["targetType"], item["targetId"], conn=conn)
+            out.append(item)
+        return out
     finally:
         if owned:
             conn.close()

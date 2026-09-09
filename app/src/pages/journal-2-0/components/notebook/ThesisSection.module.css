@@ -64,6 +64,17 @@
 .evidenceCitation {
   color: var(--color-text-muted, #98a0aa);
 }
+/* Wave N §10 — a purged source. Muted and NOT interactive: it is a record of
+   a judgement the member made, not a door to something that still exists.
+   Deliberately not colour-only — the row says "source no longer available" in
+   words and carries a warning glyph. */
+.evidenceGone {
+  color: var(--color-text-muted, #98a0aa);
+  cursor: default;
+}
+.evidenceGone:hover {
+  color: var(--color-text-muted, #98a0aa);
+}
 .evidenceLabel {
   font-size: 13px;
   color: var(--color-text-primary, #e8eaed);
@@ -257,4 +268,102 @@
   .changelogDate {
     flex: none;
   }
+}
+
+/* Wave N — an evidence candidate shows three distinct things, and they must
+   stay visually distinct: what it IS, what the SOURCE said, and what the MEMBER
+   wrote about it. Collapsing them into one line is how a member's own opinion
+   ends up attached to a thesis as a publisher's claim. */
+.candidateLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text, #e8eaed);
+}
+.candidateSource {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  font-style: italic;
+  opacity: 0.86;
+  border-left: 2px solid var(--color-accent, #c9a84c);
+  padding-left: 8px;
+}
+.candidateAnnotation {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+.resultItem:disabled { opacity: 0.55; cursor: default; }
+
+
+/* ⛔⛔ WAVE N §13 — THE TOUCH TIER. Measured on a real 390x844 coarse-pointer
+   viewport with the picker OPEN (tools/wave_n_mobile_a11y.py): the trigger was
+   28px, both stance buttons 28px, the type buttons 38px, the caption field
+   32px and the primary "Add evidence" action 30px — every control in the
+   evidence flow under the app's own documented `--tap-min: 44px`. Nothing was
+   occluded and nothing overflowed; the flow was simply built at desktop
+   density and never re-measured on a phone.
+
+   ⭐ TOUCH, not phone. `@media (max-width: 1024px)` is the canonical string
+   from `styles/breakpoints.css` — a tablet has the same thumb, and a floor
+   restored only at 640px leaves tablets broken (the mistake this repo has
+   already made once across 54 stylesheets). Desktop density is untouched. */
+@media (max-width: 1024px) {
+  .addLink,
+  .stanceBtn,
+  .saveBtn,
+  .cancelBtn,
+  .clearSel {
+    min-height: var(--tap-min, 44px);
+  }
+  .searchInput,
+  .resultItem {
+    min-height: var(--tap-min, 44px);
+  }
+  .removeBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* The two toggle groups wrap rather than squeeze once their buttons are
+     thumb-sized — five controls at 44px do not fit across 390px, and a
+     horizontally scrolling toggle row is worse than a second line. */
+  .pickerRow {
+    flex-wrap: wrap;
+  }
+  .stanceBtn {
+    padding: 8px 12px;
+  }
+  /* ⛔ AND THE ATTACHED ROW MUST STILL NAME ITS SOURCE. `nowrap` + ellipsis is
+     right on a wide row; at 390px it cut "Captured passage · Reuters: NVDA
+     margins (reuters.com)" down to "Captured passage · …", which is a
+     citation that cites nothing. Two lines beat a truncated provenance. */
+  .evidenceLink {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.45;
+  }
+  .evidenceRow {
+    align-items: flex-start;
+  }
+}
+
+/* Announcements only — the same shape AskPanel already uses. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

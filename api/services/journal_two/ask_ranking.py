@@ -64,9 +64,15 @@ TIER_NAMES = {
 # resolve by whatever the alphabet or the retrieval order happened to be.
 # A structured record is the most precise, then what the member curated, then
 # their own writing, then raw extracted document text.
+# ⛔ A COMPLETED REVIEW SITS BESIDE THE THESIS, NOT ABOVE THE SOURCES. It is
+# the member's own decision record, so it outranks the material it was decided
+# from when scores tie -- but it deliberately does NOT get TIER_STRUCTURED in
+# `assign_tier`. Its substance is prose, and promoting every review to the top
+# tier would answer "what were gross margins" with "here is what you decided",
+# which is a different question. Curation 2 already places it correctly.
 TYPE_PRIOR = {
-    ev.THESIS_STATE: 0, ev.FINANCIAL_FACT: 1, ev.DOCUMENT_EXCERPT: 2,
-    ev.NOTE: 3, ev.DOCUMENT_PAGE: 4,
+    ev.THESIS_STATE: 0, ev.THESIS_REVIEW: 1, ev.FINANCIAL_FACT: 2,
+    ev.DOCUMENT_EXCERPT: 3, ev.NOTE: 4, ev.DOCUMENT_PAGE: 5,
 }
 
 # A title match this short is a coincidence, not a signal ("a", "AI").

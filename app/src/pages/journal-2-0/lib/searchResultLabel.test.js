@@ -6,7 +6,7 @@
 // refused to make about somebody else's content.
 import { describe, it, expect } from 'vitest'
 import {
-  searchResultTitle, searchResultHint, sourceDomain,
+  searchResultTitle, searchResultHint, sourceDomain, reviewDateText,
   SOURCE_WEB, SOURCE_ATTACHMENT,
 } from './searchResultLabel'
 
@@ -82,5 +82,62 @@ describe('the domain is a provenance line, not a URL dump', () => {
     expect(sourceDomain('not a url')).toBe('')
     expect(sourceDomain(null)).toBe('')
     expect(searchResultTitle({ sourceKind: SOURCE_WEB })).toBe('Captured passage')
+  })
+})
+
+// ── Wave O6 §8/§14: a review says whose words these are ─────────────────────
+//
+// ⛔⛔ THE FAILURE THIS BLOCKS. The member's own conclusion now sits in the
+// same result list as material other people published. If a review renders as
+// "Document" — or falls through to the untitled-document branch and renders as
+// nothing in particular — an answer built on it can read as though a publisher
+// said it. That is the one mistake this whole retrieval path must not make.
+describe('a thesis review is labelled as the member’s own review', () => {
+  const REVIEW = {
+    noteId: 'n1', reviewId: 'rv1', noteTitle: 'NVDA thesis',
+    outcome: 'invalidated', completedAt: '2026-03-20T00:00:00+00:00',
+  }
+
+  it('names the thesis and says it is a review', () => {
+    expect(searchResultTitle(REVIEW, { kind: 'review' }))
+      .toBe('Thesis review · NVDA thesis')
+  })
+
+  it('⛔ is never labelled as a document or a captured passage', () => {
+    const title = searchResultTitle(REVIEW, { kind: 'review' })
+    expect(title).not.toMatch(/document/i)
+    expect(title).not.toMatch(/passage/i)
+    expect(title).not.toMatch(/p\.\d/)
+  })
+
+  it('⛔ a page number on the row cannot leak into a review label', () => {
+    // Defence in depth: a review row has no pageNumber, and if a future
+    // projection ever adds one it must still not render as a page.
+    expect(searchResultTitle({ ...REVIEW, pageNumber: 47, name: 'NVDA 10-Q' },
+                             { kind: 'review' }))
+      .toBe('Thesis review · NVDA thesis')
+  })
+
+  it('an untitled thesis still says what the row is', () => {
+    expect(searchResultTitle({ noteId: 'n1' }, { kind: 'review' }))
+      .toBe('Thesis review')
+  })
+
+  it('the hint carries the decision in the member’s own vocabulary', () => {
+    // ⛔ "Need more work", not "deferred" — the panel where they chose it says
+    // the former, and two spellings read as two different decisions.
+    expect(searchResultHint({ ...REVIEW, outcome: 'deferred' }, { kind: 'review' }))
+      .toMatch(/Need more work on /)
+  })
+
+  it('⛔ an outcome with no date never renders an unfinished sentence', () => {
+    const hint = searchResultHint({ ...REVIEW, completedAt: null }, { kind: 'review' })
+    expect(hint).toContain('Invalidated')
+    expect(hint).not.toMatch(/on\s*$/)
+  })
+
+  it('an unparseable timestamp is dropped, never rendered as a fake date', () => {
+    expect(reviewDateText('not a date')).toBe('')
+    expect(reviewDateText(null)).toBe('')
   })
 })

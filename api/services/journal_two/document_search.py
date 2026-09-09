@@ -17,6 +17,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two.notes_search import fts_match_expr
+from api.services.journal_two.web_capture import capture_columns
 
 
 def search_document_pages(
@@ -36,7 +37,7 @@ def search_document_pages(
             "SELECT j2_note_document_pages_fts.document_id AS document_id,"
             " j2_note_document_pages_fts.page_number AS page_number,"
             " snippet(j2_note_document_pages_fts, 3, '<mark>', '</mark>', '…', 12) AS snippet,"
-            " d.note_id AS note_id, d.name AS name, d.attachment_url AS attachment_url,"
+            " d.note_id AS note_id, d.name AS name, d.attachment_url AS attachment_url"
             # ⛔ WAVE M: THE RESULT MUST SAY WHAT IT IS. `page_number` on a
             # captured web source is a CAPTURE ORDINAL, not a page: a second
             # passage clipped from one article becomes "2", and the sidebar was
@@ -44,8 +45,8 @@ def search_document_pages(
             # pages, implying a completeness the member never captured.
             # `source_kind` already distinguishes them at write time; it simply
             # was never selected, so the surface could not tell the truth.
-            " d.source_kind AS source_kind, d.source_url AS source_url,"
-            " n.title AS note_title"
+            f"{capture_columns(conn)}"
+            ", n.title AS note_title"
             " FROM j2_note_document_pages_fts"
             " JOIN j2_note_documents d ON d.id = j2_note_document_pages_fts.document_id"
             " JOIN j2_notes n ON n.id = d.note_id"

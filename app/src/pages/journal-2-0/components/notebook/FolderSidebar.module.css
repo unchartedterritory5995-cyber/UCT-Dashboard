@@ -217,6 +217,18 @@
   border-radius: 2px;
   padding: 0 1px;
 }
+/* Wave O6: the decision line on a thesis-review result -- the outcome the
+   member chose and when. Distinct from .searchResultSnippet above because it
+   is NOT an excerpt of their prose: it is the structured record beside it, and
+   styling the two identically would read as more of the same sentence. */
+.searchResultMeta {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #dcbb5e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Wave 4 Slice 2: the tag/ticker-only match explanation -- shown ONLY when
    there is no snippet to render (never both at once). */
 .searchResultReason {
