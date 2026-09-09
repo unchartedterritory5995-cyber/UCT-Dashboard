@@ -312,8 +312,16 @@ def from_document_page(row, *, snippet: str, score: float = 0.0) -> dict[str, An
         label=passage_label(row, row["page_number"]),
         text=snippet,
         location={"document_id": row["document_id"], "page_number": row["page_number"]},
+        # ⛔ WAVE P3 §12 — THE NOTE TRAVELS WITH THE DESTINATION. A document
+        # lives inside a note, and Ask Notebook / Ask Security Research both
+        # span notes, so a citation that names only the document cannot be
+        # opened from them. `note_id` is optional rather than demanded: a host
+        # that already knows the note (the editor asking about ITS note) can
+        # supply it, and a missing one degrades to "open the note I am in"
+        # rather than to a confident jump into the wrong one.
         navigation={"kind": "document", "document_id": row["document_id"],
-                    "page_number": row["page_number"]},
+                    "page_number": row["page_number"],
+                    **({"note_id": row["note_id"]} if row.get("note_id") else {})},
         citation_validity=CITE_PAGE_ONLY,
         lineage_key=f"page:{row['document_id']}#{row['page_number']}",
         coverage=coverage_for_row(row),

@@ -1381,7 +1381,11 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         "SELECT p.document_id AS document_id, p.page_number AS page_number,"
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
         " bm25(j2_note_document_pages_fts) AS score,"
-        " d.name AS name"
+        # ⛔ WAVE P3 §12: THE NOTE THE DOCUMENT LIVES IN. A citation
+        # that cannot name its note cannot be opened from a scope that
+        # spans notes — the member is told where the answer came from
+        # and handed no way to get there.
+        " d.name AS name, d.note_id AS note_id"
         f"{_capture_cols(conn)}"
         f"{_PROVENANCE_COL}"
         " FROM j2_note_document_pages_fts p"

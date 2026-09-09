@@ -9,7 +9,7 @@ import {
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
-import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
@@ -915,6 +915,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       )
       return
     }
+    // ⚰️ WAVE P3 §12 — A CITED DOCUMENT PAGE USED TO GO NOWHERE. This handler
+    // knew about reviews and about the note body, and returned silently for
+    // `kind: 'document'` — so Ask could say "q3-filing.pdf · p.1", the member
+    // could click it, and nothing at all would happen. Search has reached the
+    // page since Wave M; the Ask citation never learned the same contract.
+    // Found by driving the real UI, because every unit rail below asserts the
+    // TARGET and none of them clicks the row in the editor.
+    //
+    // ⛔ THE SAME `?note=&doc=&page=` CONTRACT, never a second route shape —
+    // and never an OCR-specific one: a scanned page opens exactly the way a
+    // native page does, which is what makes the scanned page authoritative.
+    if (source?.navigation?.kind === 'document') {
+      // The decision lives in `searchNavigation`, beside the one Search uses,
+      // so the two can never answer differently about the same document.
+      const target = citationTarget(source, { fallbackNoteId: noteId })
+      if (!target) return
+      setSearchParams((prev) => applyTargetToParams(prev, target),
+                      { replace: false })
+      return
+    }
     const ed = editorRef.current
     if (!ed || source?.navigation?.kind !== 'note') return
     if (!resolved || !PRECISE_STATES.has(resolved.state)) return
@@ -922,7 +942,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       .setTextSelection({ from: resolved.from, to: resolved.to })
       .scrollIntoView()
       .run()
-  }, [setSearchParams])
+  }, [setSearchParams, noteId])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
