@@ -304,7 +304,7 @@ def test_save_note_attachment_bytes_size_cap(conn, tmp_path, monkeypatch):
     note = notes_svc.create_note("u1", {"title": "n"}, conn=conn)
 
     oversized = b"x" * (notes_svc._MAX_FILE_BYTES + 1)
-    with pytest.raises(notes_svc.NoteValidationError, match="< 25 MB"):
+    with pytest.raises(notes_svc.NoteValidationError, match="25 MB"):
         notes_svc.save_note_attachment_bytes(
             "u1", note["id"], oversized, "huge.pdf", "application/pdf"
         )

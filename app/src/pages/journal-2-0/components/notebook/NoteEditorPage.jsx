@@ -819,7 +819,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // the moment the chip does.
       refreshDocuments()
     } catch (e) {
-      setUploadToast({ message: `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`, tone: 'error' })
+      // ⚰️ WAVE P POST-CLOSURE — THE SERVER'S REASON WAS BEING THROWN AWAY.
+      // `uploadNoteAttachment` already preserves it (`body.detail`), and the
+      // server already says something a member can act on: "File is larger
+      // than the 25 MB limit…". This catch replaced it with "Couldn't upload",
+      // so someone attaching a 30 MB scan could not tell whether to split the
+      // file, retry, or report a bug — and with OCR now live, the natural
+      // (wrong) guess is that the SCAN failed rather than the upload.
+      // ⛔ The generic sentence stays as the fallback: a network failure has
+      // no detail to show, and inventing one would be worse than saying less.
+      const why = (e && e.message) ? String(e.message) : ''
+      setUploadToast({
+        message: why
+          ? `Couldn't upload ${file.name || 'file'} — ${why} Your note is unchanged.`
+          : `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`,
+        tone: 'error',
+      })
     }
   }
 

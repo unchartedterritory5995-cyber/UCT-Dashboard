@@ -3036,7 +3036,15 @@ def save_note_attachment_bytes(
     if content_type not in _ALLOWED_FILE_MIMES:
         raise NoteValidationError(f"MIME type {content_type} not allowed")
     if len(data) > _MAX_FILE_BYTES:
-        raise NoteValidationError("File must be < 25 MB")
+        # WAVE P POST-CLOSURE: the byte cap is the ONLY member-facing
+        # authority. `_MAX_PAGES = 500` is an internal secondary ceiling and
+        # must never be quoted as an upload guarantee: how many scanned
+        # pages fit inside 25 MB moves with DPI, colour depth, compression
+        # and page composition. Measured on the Wave P fixture it was ~145
+        # pages — which is exactly why no page number appears here.
+        raise NoteValidationError(
+            "File is larger than the 25 MB limit. How many scanned pages "
+            "fit depends on scan quality and compression.")
     if len(data) == 0:
         raise NoteValidationError("Empty file")
     try:

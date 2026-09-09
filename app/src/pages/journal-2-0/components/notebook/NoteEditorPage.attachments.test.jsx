@@ -139,10 +139,21 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     expect(screen.queryByRole('dialog', { name: 'Preview of data.csv' })).not.toBeInTheDocument()
   })
 
-  it('an upload failure shows a toast and leaves the note otherwise unchanged (no alert())', async () => {
+  // ⚰️ WAVE P POST-CLOSURE — THIS RAIL USED TO PIN THE DEFECT. It mocked the
+  // server's real 400 ("File is larger than the 25 MB limit…") and then
+  // asserted the member saw only "Couldn't upload". The reason was already
+  // being carried to the client and thrown away one line before the toast.
+  // With OCR live the wrong guess a member makes is "the scan failed", so the
+  // server's sentence is the one that has to survive.
+  it('an upload failure shows the SERVER REASON, and leaves the note unchanged (no alert())', async () => {
     fetchMock.mockImplementation((url) => {
       if (String(url).endsWith('/attachments')) {
-        return Promise.resolve({ ok: false, status: 400, json: () => Promise.resolve({ detail: 'File must be < 25 MB' }) })
+        return Promise.resolve({
+          ok: false, status: 400,
+          json: () => Promise.resolve({
+            detail: 'File is larger than the 25 MB limit. How many scanned '
+                    + 'pages fit depends on scan quality and compression.' }),
+        })
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
     })
@@ -152,9 +163,28 @@ describe('NoteEditorPage — Wave I live attachment authoring', () => {
     const file = new File(['x'], 'huge.pdf', { type: 'application/pdf' })
     fireEvent.change(input, { target: { files: [file] } })
 
-    await waitFor(() => expect(screen.getByText("Couldn't upload huge.pdf. Your note is unchanged.")).toBeInTheDocument())
+    const toast = await screen.findByText(/Couldn't upload huge\.pdf/)
+    expect(toast.textContent).toContain('25 MB limit')
+    // ⛔ And it must NOT promise a page count — that number moves with DPI,
+    // colour depth and compression, which is why the server does not state one.
+    expect(toast.textContent).not.toMatch(/\d+\s*pages/)
+    expect(toast.textContent).toContain('Your note is unchanged.')
     expect(alertSpy).not.toHaveBeenCalled()
     expect(document.querySelector('a[data-type="attachmentChip"]')).toBeNull()
+  })
+
+  it('falls back to the plain sentence when there is no reason to give', async () => {
+    // ⛔ THE CONTROL. A network failure carries no `detail`; inventing one
+    // would be worse than saying less.
+    fetchMock.mockImplementation((url) => {
+      if (String(url).endsWith('/attachments')) return Promise.reject(new Error(''))
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    await renderEditor()
+    const input = screen.getByLabelText('Upload file attachment')
+    fireEvent.change(input, { target: { files: [new File(['x'], 'x.pdf', { type: 'application/pdf' })] } })
+    await waitFor(() => expect(
+      screen.getByText("Couldn't upload x.pdf. Your note is unchanged.")).toBeInTheDocument())
   })
 
   // Drop itself isn't exercised here: jsdom's ProseMirror integration needs
