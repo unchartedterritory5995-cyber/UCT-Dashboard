@@ -140,6 +140,65 @@ def _verify_sandbox() -> None:
         raise SystemExit(2)
 
 
+def _verify_no_remote_sync() -> None:
+    """⛔⛔ FAIL CLOSED: this sandbox may not be ABLE to pull the R2 snapshot.
+
+    ⚰️ WHY A CAPABILITY CHECK AND NOT A FLAG. `USE_REMOTE_BARS=0` closed the
+    bars-prewarmer door. It did not close `api/main.py`'s boot-time integrity
+    smoke probe, which calls `data_sync.force_resync()` without consulting that
+    flag — and a sandbox always boots with an empty DATA_DIR, so the probe
+    failed and pulled on EVERY boot. Two O6 boots leaked ~46 GB.
+
+    Blanking the credentials closes every door at once, including doors nobody
+    has written yet. This asserts the RESULT of that rather than the spelling
+    of the pins: `data_sync._client()` is the one function every pull path goes
+    through, and it returns None when the endpoint or either key is missing.
+
+    ⛔ IT RAISES RATHER THAN WARNS. A sandbox that CAN restore a multi-GB
+    production snapshot onto a developer's system drive should not start, and a
+    printed warning in a 400-line boot log is not a guard — the line that said
+    `bars.db FAILED integrity smoke probe -- pulling fresh snapshot from R2`
+    was there for both leaked boots and nobody read it.
+
+    ⛔ AND IT PROVES IT CAN FIRE. The check is run twice: once with a dummy
+    credential set, where the client MUST come back non-None, and then for real.
+    A guard whose condition can never be true is not a guard
+    (`lesson_gate_that_cannot_fail`).
+    """
+    from api.services import data_sync
+
+    # Non-vacuity: with credentials present, this function DOES build a client.
+    _saved = {k: os.environ.get(k) for k in
+              ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY",
+               "DATA_SYNC_SECRET_KEY")}
+    try:
+        os.environ["DATA_SYNC_ENDPOINT_URL"] = "https://example.invalid"
+        os.environ["DATA_SYNC_ACCESS_KEY"] = "probe"
+        os.environ["DATA_SYNC_SECRET_KEY"] = "probe"
+        if data_sync._client() is None:
+            raise SystemExit(
+                "SANDBOX GUARD IS VACUOUS: data_sync._client() returned None "
+                "even WITH credentials present, so its returning None below "
+                "would prove nothing. The capability check has moved; fix this "
+                "guard before trusting a boot.")
+    finally:
+        for k, v in _saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    client = data_sync._client()
+    if client is not None:
+        raise SystemExit(
+            "REFUSING TO START: this sandbox can reach R2. A boot-time "
+            "integrity probe would restore a multi-GB production bars snapshot "
+            "into TEMP, and a killed sandbox leaks the staging directory. "
+            "Blank DATA_SYNC_ENDPOINT_URL / _ACCESS_KEY / _SECRET_KEY.")
+    print("remote data-sync : UNAVAILABLE (data_sync._client() is None) "
+          "— no R2 pull can start, from any caller")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--port", type=int, default=8077)
@@ -158,6 +217,10 @@ def main() -> int:
     # ⛔ VERIFY AFTER loading the .env, not before: the point of the check is
     # that nothing -- including a credential file -- points at the shared root.
     _verify_sandbox()
+    # ⛔ AFTER `_load_env()`, for the same reason `_verify_sandbox` is: the
+    # point is that nothing — including a credential file — restores the
+    # capability the pins above removed.
+    _verify_no_remote_sync()
     print(f"anthropic key    : "
           f"{'present' if os.environ.get('ANTHROPIC_API_KEY') else 'MISSING'}")
 
