@@ -3,15 +3,19 @@
 Branch `fix/mobile-legend-legacy-state`. **Two** master integrations were performed.
 Nothing deployed; no feature work; no R5 measurement.
 
-- **Final merge commit: `5fa3d6209`**
-- **Frozen integration point: `origin/master` @ `f139ad8ce`**, pinned locally as
-  `_certify-master-pin` so master's continued movement could not shift the target.
-- **Verdict at certification (§8): ⛔ NOT_SHIP_READY** — one branch-owned
-  regression, §7.
-- **Verdict now: ✅ LOCAL_SHIP_READY — see the MOB-09 RELEASE BLOCKER CLOSEOUT at
-  the end.** That blocker is fixed, gated and mutation-checked. §7/§8 are kept
-  exactly as written: they are the correction trail, not the current state.
-  ⛔ LOCAL only — `origin/master` is still not contained.
+**Read the last section first — everything above it is the trail, not the state.**
+
+| stage | merge | verdict |
+|---|---|---|
+| §1–§8 certification @ pin `f139ad8ce` | `5fa3d6209` | ⛔ NOT_SHIP_READY — one branch-owned regression (§7) |
+| MOB-09 blocker closeout | `ace13811f` | ✅ LOCAL_SHIP_READY |
+| **Final release-tip reconciliation @ tip `068629ed5`** | **`94569640b`** | ✅ **RELEASE_READY = YES** |
+
+`_certify-master-pin` = `f139ad8ce` (historical, retained) ·
+`_release-tip` = `068629ed5` (this cycle).
+Earlier verdicts are preserved verbatim as the correction trail — three diagnoses
+in this document were wrong and were overturned by measurement, and the record of
+that is worth more than a tidy summary.
 
 ---
 
@@ -507,3 +511,187 @@ for this fix; the merge's own backend result (21 passed) stands from §4.
 NOT contained. The release-tip reconciliation against whatever master is at that
 moment remains a separate controlled step, and shipping still requires it because
 `push origin <branch>:master` is a non-fast-forward until then. Never `--force`.
+
+---
+
+# FINAL RELEASE-TIP RECONCILIATION — 2026-09-09
+
+Not deployed. Not pushed. No force. No R5, no feature work.
+`_certify-master-pin` still `f139ad8ce` (historical). New pin `_release-tip` =
+the tip captured **once** for this cycle.
+
+- **Release tip: `068629ed5`**
+- **Final merge: `94569640b`**
+- **0 behind / 55 ahead** of both the captured tip and live `origin/master`
+- `git merge-base --is-ancestor origin/master HEAD` → **TRUE**
+
+## R1 · The 47-commit delta
+
+44 content commits + 3 merges, 113 files.
+
+| group | n | subsystem | class |
+|---|---|---|---|
+| Notebook **Wave P** — OCR pipeline, Tesseract adapter, web-only build boundary (`Dockerfile.web`, `railway.web.json`), frozen certification corpus, Ask provenance/citation | ~30 | Notebook / packaging | REQUIRED_FOR_RELEASE *(mechanically — see R3)* · UNRELATED semantically |
+| **Perplexity cost-spike** — durable daily budget, `cost_surface` labels, redeploy-reset guards | 3 | backend catalyst/news | **REQUIRED_FOR_RELEASE** — live production fix |
+| **charts: earnings strip** in the widget dock + FY-label fix | 2 | `pages/charts/widgets/**` | SAFE_FOLLOW_ON |
+| **flow**: EOD cream cron catch-up, then dropping the first-run bootstrap | 2 | backend flow | UNRELATED |
+| chore diagnostic workflow — added **and** removed | 4 | CI | UNRELATED (net ≈ zero) |
+| `.gitattributes` — OCR corpus is bytes | 1 | repo config | UNRELATED, scoped |
+
+## R2 · Semantic overlap map — measured, not inferred
+
+⚰️ **A naive `9c6078503..HEAD` overlap reports 36 shared files and is WRONG.**
+That range includes everything master handed us *through* our own two merges.
+Measured from the real merge base `f139ad8ce`: our side 130 files, master's 113,
+and they share **exactly one — `.gitignore`**, appended by both.
+
+Contact with the release surface, by reading the diffs:
+
+| surface | contact |
+|---|---|
+| StockChart / chart rendering | **none** |
+| `usePreferences` / auth preferences | **none** |
+| `useTracingsSync` / drawings persistence | **none** |
+| watchlists / review workflow | **none** |
+| mobile chart shell | **none** directly — but see `Sheet.jsx` below |
+| layouts / workspaces | **none** |
+| alerts | **none** |
+| scanner / screener review entry | **none** |
+| backend/API contracts mobile consumes | **none** — no changed `api/` file serves preferences, auth, watchlists, bars, drawings or scan/review |
+
+⭐ **The one real neighbour, found by reading rather than by filename:**
+`app/src/components/mobile/Sheet.jsx` (`c225e22c5`) gains an **additive**
+`bodyClassName` prop defaulting to `''`. **Ten files in our surface consume
+`Sheet`** — nine mobile sheets plus `ReviewFeed.jsx` — so it was treated as a
+first-class regression target, not waved through as "additive".
+
+**Test/fixture changes relevant to certification:** master adds
+`chartEarningsStripModel.test.js`, extends `chartDock.width.test.js`, and adds 9
+notebook test files. These *raise* the gate's counts; §R6 accounts for the growth
+exactly.
+
+## R3 · Conflicts and resolutions
+
+`git merge-tree --write-tree` predicted a clean auto-merge; the real merge matched.
+
+| file | ours | theirs | resolution |
+|---|---|---|---|
+| `.gitignore` | `+tools/review_feed_probe_out/` | `+` Wave-P output dirs and the local earnings-strip design harness | **auto-merged, both retained** — append-only at different offsets, no semantic choice to make |
+
+No other file conflicted. Nothing was resolved wholesale as "ours" or "theirs";
+there was nothing to choose between.
+
+⛔ **Why every commit in the delta is REQUIRED_FOR_RELEASE mechanically, whatever
+its content:** shipping is `push origin <branch>:master`, never forced, which
+demands the branch CONTAIN master. A branch missing these would either be
+rejected or — if forced — **revert master's live Perplexity cost fix**. That is
+the concrete harm of omission, and it is why this merge is not optional.
+
+## R4 · Invalidation analysis (scope declared before running)
+
+| tier | scope | why |
+|---|---|---|
+| **A** directly-overlapped | `pages/charts/widgets`, `pages/journal-2-0/{components/notebook,lib}`, 13 backend test files | master changed/added these tests |
+| **B** semantic neighbours | `components/mobile`, `pages/charts/mobile`, `pages/charts/review` | every `Sheet.jsx` consumer |
+| **C** our owned surface | MOB-09 set, `VideoDockSlot`, drawing-bound alerts, MOB-06′, screener/scanner entry | the release's own subject |
+| **D** backend | ask/OCR, catalyst, perplexity, flow/cream, prewarm, startup fingerprint | contracts changed (none mobile-facing) |
+| **E** full 10-slice gate | **run** | `Sheet.jsx` is shared infrastructure reaching our surface, the delta adds ~11 frontend test files, and the gate is the directly comparable artifact |
+
+## R5 · Results
+
+| set | result |
+|---|---|
+| **B+C** Sheet consumers · mobile shell · review · MOB-09 · blocker · alerts · MOB-06′ | **44 files / 450 passed** |
+| **A** master's new tests (widgets, notebook) + screener entry | 168 files / 1,997 — 1 failure (`reachable.test.js`) |
+| **D** backend | **467 passed**, no `C:\data` tripwire |
+| **A′** blocker re-check ×3 | **3s / 3s / 3s, 6/6 each** |
+
+## R6 · Full 10-slice gate — directly comparable to certification
+
+| slice | files | tests | failures |
+|---|---|---|---|
+| `components/chart/engine` | 2F / 158P (160) | 2F / 3,888P / 4S | `manifestProse`, `pine.blindCorpus` |
+| `components/chart/builder` | 1F / 45P (46) | 1F / 1,581P | `ImportBox.thinkscript` |
+| `components/chart` (rest) | 98P | 1,796P | — |
+| `components` research-kit + research | 47P / 1S (48) | 869P / 5S | — |
+| `components` tiles·mobile·video·screener | 1F / 53P (54) | 1F / 503P | `reachable.test.js` |
+| `components` remainder | 64P | 544P | — |
+| `pages/charts` | **84P** | **894P** | — |
+| `pages/journal-2-0` | **215P** | **2,258P** | — |
+| `pages` (rest) | 1F / 286P (287) | 2F / 3,167P | `ThemeTrackerPage.chartmount` ×2 |
+| `hooks·lib·utils·…` | 1F / 76P (77) | 1F / 911P | `pollingSites.rail` |
+| **TOTAL** | **1,133 files** | **16,427 — 16,411 passed · 7 failed · 9 skipped** | |
+
+**699s (11.7 min).** Every slice completed and printed a summary. No hangs, no
+timeouts, no worker crashes, no forced terminations, no open-handle stalls.
+
+**Comparison with the pre-reconciliation certification:**
+
+| | certification | after catch-up | Δ |
+|---|---|---|---|
+| files | 1,128 | 1,133 | **+5** |
+| tests | 16,321 | 16,427 | **+106** |
+| passed | 16,305 | 16,411 | **+106** |
+| failed | **7** | **7** | **0** |
+| skipped | 9 | 9 | 0 |
+
+⭐ **The entire +5/+106 is master's own new tests, accounted for exactly:**
+`pages/charts` +1 file / +37 tests (`chartEarningsStripModel.test.js` and the
+extended `chartDock.width.test.js`); `pages/journal-2-0` +4 files / +69 tests
+(Wave-P notebook suites). **No slice lost a test, and no slice gained a failure.**
+
+⚠️ One unhandled error persists in `components` remainder — the `LineType`
+`vi.mock` gap in `StockChart.smoke.test.jsx`. **MASTER_OWNED**, unchanged by this
+merge (already documented in the closeout).
+
+## R7 · Failure attribution
+
+Same 5 files, same 7 cases as both prior runs. **Zero new.**
+
+| file | cases | classification | evidence |
+|---|---|---|---|
+| `chart/engine/ast/manifestProse.test.js` | 1 | **MASTER_OWNED** | reproduced on clean master worktree |
+| `chart/engine/ast/pine.blindCorpus.test.js` | 1 | **MASTER_OWNED** | reproduced on clean master |
+| `chart/builder/ImportBox.thinkscript.test.jsx` | 1 | **MASTER_OWNED** | reproduced on clean master |
+| `components/screener/reachable.test.js` | 1 | **MASTER_OWNED** | list re-read after the merge: **identical 18 modules**, so master's 113 new/changed files added nothing unreachable |
+| `pages/ThemeTrackerPage.chartmount.test.jsx` | 2 | **MASTER_OWNED** | reproduced on clean master; master's 2026-09-06 rework deleted the `firstThemeTicker` auto-open the test asserts |
+| `hooks/pollingSites.rail.test.js` | 1 | **MASTER rail + PRE_EXISTING_BRANCH_DEBT** | clean master fails with `useFloor.js` + `useWatchlistIntelligence.js`; our third offender `useBoundDrawingAlerts.js` is byte-identical across `93cd64ac2^1..93cd64ac2` |
+
+**INTRODUCED_BY_CATCHUP_MERGE: 0 · INTRODUCED_BY_MOBILE_BRANCH: 0 · UNKNOWN: 0.**
+
+## R8 · Blocker and master-behaviour checks
+
+| check | result |
+|---|---|
+| MOB-09 blocker still closed | ✅ `useTracingsSync` 16/16, `writeConfirmation` 10/10, `usePreferences` 21/21 |
+| `VideoDockSlot.returns` still settles | ✅ **3 consecutive runs, 3s each, 6/6** |
+| SEED_LIVE `!_snap.ext_session` guard | ✅ present exactly once |
+| Perplexity durable budget / `cost_surface` | ✅ present (24 references) |
+| earnings-strip files | ✅ both present |
+| `Sheet.bodyClassName` | ✅ present |
+| Wave-P OCR service | ✅ present |
+| every `_release-tip` commit contained | ✅ **YES** |
+
+**No current-master behaviour was lost.** Nothing from the delta was overridden;
+the merge added only.
+
+## R9 · Safe to fast-forward into master?
+
+**Mechanically: yes.** `origin/master` is an ancestor of HEAD, the branch is 0
+behind, and `push origin fix/mobile-legend-legacy-state:master` would fast-forward
+without force. ⚠️ That is true **as of tip `068629ed5`** — master moves several
+commits an hour, so the check must be re-run immediately before any push, and a
+non-fast-forward rejection then means "catch up again", never "force".
+
+# RELEASE_READY = YES
+
+- Ordinary merge, no rebase, no force; conflicts: one append-only file,
+  auto-merged with both sides retained.
+- 16,411 / 16,427 passing in 11.7 min; **the same 7 failures as certification**,
+  each attributed empirically, none introduced by the catch-up.
+- The MOB-09 blocker stays closed and the formerly hanging test settles in 3s.
+- Every commit of the captured release tip is contained; no master behaviour lost,
+  including the live Perplexity cost fix.
+
+⛔ Held per instruction: **not deployed, not pushed, no R5, no feature work**, and
+`_certify-master-pin` retained at `f139ad8ce`.
