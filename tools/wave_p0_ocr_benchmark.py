@@ -37,6 +37,7 @@ import io
 import json
 import pathlib
 import re
+import sqlite3
 import statistics
 import sys
 import time
@@ -110,6 +111,50 @@ def _page_images(page):
     except Exception:  # noqa: BLE001
         return []
     return out
+
+
+# ⛔⛔ THE METRIC THAT CAUGHT WHAT NOTHING ELSE DID (P1.5). CER and financial
+# token recall both looked acceptable for an engine whose output Search could
+# not use at all: `j2_note_document_pages_fts` tokenises with `porter
+# unicode61`, so a recogniser that emits `revenuewas$12.48billion` as one run
+# produces a page that is indexed, a job that reports complete, and a member
+# who searches "revenue" and gets nothing. Measured: one candidate scored CER
+# 0.075 on a slide and found ZERO of its searchable words.
+#
+# This indexes the OCR output with the PRODUCTION tokenizer and asks the only
+# question Wave P actually exists to answer.
+_SEARCH_STOPWORDS = {
+    "the", "was", "and", "for", "with", "per", "net", "not", "all", "its",
+    "are", "our", "from", "that", "this", "were", "than", "over", "year",
+}
+
+
+def _searchable_words(truth_lines):
+    """Words a member would plausibly type. Derived from THIS page's own ground
+    truth, never a global list, for the same reason the financial tokens are."""
+    out = []
+    for w in re.findall(r"[A-Za-z]{4,}", " ".join(truth_lines)):
+        lw = w.lower()
+        if lw not in _SEARCH_STOPWORDS and lw not in out:
+            out.append(lw)
+    return out
+
+
+def _fts_search_recall(text, words):
+    """Index as production indexes, query as production queries."""
+    if not words:
+        return 1.0, []
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE VIRTUAL TABLE t USING fts5(text, tokenize='porter unicode61')")
+    conn.execute("INSERT INTO t(text) VALUES (?)", (text,))
+    missing, found = [], 0
+    for w in words:
+        if conn.execute("SELECT 1 FROM t WHERE t MATCH ?", (w,)).fetchone():
+            found += 1
+        else:
+            missing.append(w)
+    conn.close()
+    return found / len(words), missing
 
 
 def _financial_tokens(truth_lines: list[str], ledger: dict) -> list[str]:
@@ -193,6 +238,8 @@ def run(fixtures: pathlib.Path) -> dict:
             toks = _financial_tokens(truth_lines, ledger)
             hits = [t_ for t_ in toks if t_ in got]
             recall = (len(hits) / len(toks)) if toks else None
+            words = _searchable_words(truth_lines)
+            search_recall, unfindable = _fts_search_recall(got, words)
 
             row.update({
                 "ocr_ran": True, "seconds": round(secs, 2),
@@ -202,6 +249,9 @@ def run(fixtures: pathlib.Path) -> dict:
                 "financial_hits": len(hits),
                 "financial_recall": round(recall, 4) if recall is not None else None,
                 "missed_tokens": [t_ for t_ in toks if t_ not in got][:8],
+                "searchable_words": len(words),
+                "fts_search_recall": round(search_recall, 4),
+                "unfindable_words": unfindable[:8],
                 "ocr_chars": len(got),
             })
             results.append(row)
@@ -245,9 +295,12 @@ def run(fixtures: pathlib.Path) -> dict:
 
     ocr_rows = [r for r in results if r["ocr_ran"]]
     per_page = [r["seconds"] for r in ocr_rows]
+    def _readable(r):
+        return not (r["fixture"] == "scan_failed_page" and r["page"] == 2)
     recalls = [r["financial_recall"] for r in ocr_rows
-               if r["financial_recall"] is not None
-               and not (r["fixture"] == "scan_failed_page" and r["page"] == 2)]
+               if r["financial_recall"] is not None and _readable(r)]
+    searches = [r["fts_search_recall"] for r in ocr_rows
+                if r.get("fts_search_recall") is not None and _readable(r)]
 
     report = {
         "engine": "rapidocr-onnxruntime (candidate, NOT in requirements.txt)",
@@ -263,6 +316,11 @@ def run(fixtures: pathlib.Path) -> dict:
         "financial_recall": {
             "mean_readable": round(statistics.mean(recalls), 4) if recalls else None,
             "min_readable": round(min(recalls), 4) if recalls else None,
+        },
+        # ⛔ THE PRIMARY ACCEPTANCE METRIC. Wave P ships a SEARCH feature.
+        "fts_search_recall": {
+            "mean_readable": round(statistics.mean(searches), 4) if searches else None,
+            "min_readable": round(min(searches), 4) if searches else None,
         },
         "results": results,
         "findings": findings,
@@ -298,15 +356,22 @@ def main() -> int:
     print(f"cold start {rep['cold_start_seconds']}s · RSS "
           f"{rep['rss_mb']['before_engine']} -> {rep['rss_mb']['peak']} MB")
     print(f"{'fixture':<20} {'p':>2} {'class':<8} {'ocr':>4} {'sec':>6} "
-          f"{'CER':>6} {'fin':>6}  missed")
+          f"{'CER':>6} {'fin':>6} {'srch':>6}  words Search would miss")
     print("-" * 96)
     for r in rep["results"]:
         cer = f"{r['cer']:.3f}" if r["cer"] is not None else "  -  "
         fin = (f"{r['financial_recall']:.2f}"
                if r["financial_recall"] is not None else "  -  ")
+        srch = (f"{r['fts_search_recall']:.2f}"
+                if r.get("fts_search_recall") is not None else "  -  ")
         print(f"{r['fixture']:<20} {r['page']:>2} {r['classified']:<8} "
               f"{('yes' if r['ocr_ran'] else 'no'):>4} {r['seconds']:>6.2f} "
-              f"{cer:>6} {fin:>6}  {','.join(r.get('missed_tokens') or [])[:44]}")
+              f"{cer:>6} {fin:>6} {srch:>6}  "
+              f"{','.join(r.get('unfindable_words') or [])[:40]}")
+    print(f"\nFTS SEARCH recall (readable pages): mean "
+          f"{rep['fts_search_recall']['mean_readable']} · min "
+          f"{rep['fts_search_recall']['min_readable']}   "
+          f"<- the metric Wave P is actually judged on")
     print(f"\nfinancial recall (readable pages): mean "
           f"{rep['financial_recall']['mean_readable']} · min "
           f"{rep['financial_recall']['min_readable']}")
