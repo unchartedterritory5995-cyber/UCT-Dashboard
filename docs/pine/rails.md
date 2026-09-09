@@ -96,6 +96,22 @@ at a limit derived from what real inputs need, so the reply is a property of the
 `catch` with no discrimination between "this refusal is expected" and "the host just told us
 we are out of stack" turns the second into the first.
 
+⭐⭐ **THE EVIDENCE, AND IT IS THE KIND WORTH COLLECTING.** The same file, through the
+SAME pre-fix translator, produced **three different refusals** across three execution
+contexts today:
+
+```
+pine:timeout@40:nextsar | pine:timeout@63:change | pine:timeout@64:change
+pine:timeout@40:nextsar | pine:timeout@null:null | pine:timeout@null:null
+pine:timeout@40:nextsar | pine:timeout@63:change | pine:timeout@null:null
+```
+
+⚠️ **State it precisely: it is stable within one tight loop** (five consecutive runs agreed
+each time) **and varies between contexts** — how much stack the caller had already spent,
+what ran before it. That is exactly the signature of an answer derived from host state
+rather than from the input, and it is why "I ran it twice and got the same thing" is not
+evidence of determinism here. After the bound: one answer, five times, 20-61ms.
+
 ⚠️ Related and separate: never cache across an impurity. A subtree memo built during this fix
 looked sound and dropped the `accum(...)` wrapper from four supertrend-family scripts — same
 guards, `ok:true` both ways, and a formula that had quietly stopped being stateful. A cache
