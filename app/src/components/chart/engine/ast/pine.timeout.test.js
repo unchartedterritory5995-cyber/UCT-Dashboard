@@ -121,12 +121,20 @@ describe('the shipped numbers are measured, not guessed', () => {
     expect(PINE_TRANSLATE_MAX_STEPS / 167336).toBeGreaterThan(25)
   })
 
-  it('⚠️ and neither number is what catches the SAR hang', () => {
-    // Recorded so nobody reads this file as "the hang is handled". It is not:
-    // on that script `resolve` stops being entered after ~130k steps and the
-    // process spends the rest of its life in native GC, where no in-process
-    // guard runs at all. The batch runner's process isolation is what covers it.
-    // See docs/pine/r11-vocabulary-gap.md.
-    expect(PINE_TRANSLATE_MAX_STEPS).toBeGreaterThan(130000)
+  it('⭐ and the step cap DOES catch the SAR hang — measured, after a correction', () => {
+    // ⚠️ THIS ASSERTION REPLACES ONE THAT SAID THE OPPOSITE. The first reading of
+    // the evidence was that no in-process guard could fire, because `resolve`
+    // appeared to stop being entered after ~130k steps. That measurement was
+    // taken against a build in which the step cap was still gated behind the
+    // 4096-step mask and therefore could not fire AT ALL — so the experiment was
+    // measuring the broken guard, not the script.
+    //
+    // With the cap checked outside the mask, the real script refuses under the
+    // SHIPPED defaults in ~35s: `pine:timeout`, naming the file. The step cap has
+    // to be above the legitimate maximum (167,336) and low enough to trip before
+    // the process falls into GC thrashing; 5,000,000 satisfies both, verified at
+    // 50k / 200k / 1M / 2M / 3M / 5M — every one of them fires.
+    expect(PINE_TRANSLATE_MAX_STEPS).toBeGreaterThan(167336)
+    expect(PINE_TRANSLATE_MAX_STEPS).toBeLessThanOrEqual(5000000)
   })
 })

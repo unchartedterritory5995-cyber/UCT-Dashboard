@@ -2,24 +2,24 @@
 //
 // ─── RUN THE TRANSLATOR OVER A CORPUS WITHOUT LETTING ONE SCRIPT TAKE THE RUN ──
 //
-// ⛔⛔ THE IN-PROCESS GUARD IS NOT ENOUGH, AND THIS IS THE MEASUREMENT THAT SAYS SO.
-// `pine:timeout` (wall clock + step cap, in `pine.js`) catches every shape where
-// JS keeps executing. It does NOT catch the one that started all this: on
-// `parabolic-sar__xoeoPMOWGJ.pine`, `resolve` is entered ~130,000 times in 134ms
-// and then STOPS being entered at all, while the process spends the next 150
-// seconds in native GC — profiled at 47% node.exe, 36% ntdll, ~2% JS, with no OOM
-// even at a 1 GB heap cap. A guard written in JS cannot fire in a process that has
-// stopped running JS.
+// ⭐ THE IN-PROCESS GUARD IS THE FIRST LINE, AND IT DOES HOLD. `pine:timeout`
+// (wall clock + step cap, in `pine.js`) returns a named refusal for the script
+// that started all this — `parabolic-sar__xoeoPMOWGJ.pine` refuses in ~35s under
+// the shipped defaults instead of running forever.
 //
-// ⭐ SO THE BATCH GUARD IS A PROCESS BOUNDARY. Each script is translated in a
-// child process with a kill timeout. A child that never answers is killed and
-// recorded as a `pine:timeout` refusal NAMING THE FILE — which is exactly what the
-// in-process guard would have produced, arrived at from the outside.
+// ⛔ THIS PROCESS BOUNDARY IS THE SECOND LINE, AND IT IS NOT REDUNDANT. A guard
+// written in JS cannot fire in a process that has stopped running JS — an OOM, a
+// native stall, a future shape that never re-enters `resolve`. The survey has
+// already met a script that drove the translator past a 4GB heap, which no
+// in-process check survives. A child that never answers is killed and recorded as
+// a `pine:timeout` refusal NAMING THE FILE, so the batch finishes and says which
+// script it was.
 //
-// ⚠️ THE TWO ARE NOT REDUNDANT. The in-process guard gives a real refusal inside a
-// single translation (a member pasting a script gets an answer, not a spinner);
-// the process boundary is what makes a 4,898-script run finish. Neither replaces
-// the other.
+// ⚠️ HISTORICAL NOTE, KEPT BECAUSE IT NEARLY BECAME A WRONG DESIGN. It first
+// looked as though no in-process guard COULD fire here — `resolve` seemed to stop
+// being entered after ~130k steps. That measurement was taken against a build
+// where the step cap was still gated behind a sampling mask and could not fire at
+// all, so the experiment was measuring the broken guard rather than the script.
 //
 // Usage
 // -----

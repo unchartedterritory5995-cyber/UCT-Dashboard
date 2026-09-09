@@ -4,8 +4,8 @@
  "okStrict": 30,
  "okLenient": 45,
  "threw": 1,
- "killed": 1,
- "timeoutMs": 25000,
+ "killed": 0,
+ "timeoutMs": 90000,
  "guards": [
   {
    "guard": "pine:request",
@@ -116,27 +116,15 @@
    "refusals": 3
   },
   {
-   "guard": "pine:presentation-only",
-   "refusals": 1
+   "guard": "pine:timeout",
+   "refusals": 3
   },
   {
-   "guard": "pine:timeout",
+   "guard": "pine:presentation-only",
    "refusals": 1
   }
  ],
  "names": {
-  "pine:request": [
-   {
-    "name": "security",
-    "scripts": 12,
-    "sites": 103
-   },
-   {
-    "name": "request.security",
-    "scripts": 11,
-    "sites": 69
-   }
-  ],
   "pine:reassign": [
    {
     "name": ":=",
@@ -214,6 +202,18 @@
     "name": "year",
     "scripts": 1,
     "sites": 4
+   }
+  ],
+  "pine:request": [
+   {
+    "name": "security",
+    "scripts": 12,
+    "sites": 103
+   },
+   {
+    "name": "request.security",
+    "scripts": 11,
+    "sites": 69
    }
   ],
   "pine:declaration-strategy": [
@@ -717,9 +717,19 @@
     "scripts": 3,
     "sites": 8
    }
+  ],
+  "pine:timeout": [
+   {
+    "name": "change",
+    "scripts": 1,
+    "sites": 2
+   },
+   {
+    "name": "nextsar",
+    "scripts": 1,
+    "sites": 1
+   }
   ]
  },
- "killedFiles": [
-  "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine"
- ]
+ "killedFiles": []
 }
