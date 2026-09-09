@@ -191,3 +191,56 @@ So an `observed_s >= 60 s` reading has two possible causes with two different fi
 itself losing the race** (`declined` flat). `summary.py` now attributes any roll over
 30 s automatically. If tomorrow's session shows contention, that is the next thing to
 fix and it is **separate from the classifier**.
+
+---
+
+## E9 — A BUILD CAN HANG FOR 30+ MINUTES WITH NO OUTPUT (observed 2026-09-09)
+
+The freeze rule (E0) costs "4–7 min container start". **The honest number is
+"4–7 min *if the build does not hang*, and a build can hang for 30+ minutes emitting
+nothing."**
+
+**Observed.** Master push `184a7e77b` at 18:11:58 ET rebuilt four services.
+`web`, `worker` and `bars-api` all reached SUCCESS within ~5 minutes. **`flow-worker`
+sat in `BUILDING` for 35+ minutes**, with its build log frozen on the same line across
+three fetches ~13 minutes apart:
+
+```
+[INFO]   Downloading resend-2.43.0-py2.py3-none-any.whl.metadata (3.7 kB)
+```
+
+**Stage: dependency install** — pip's metadata-collection phase inside
+`RUN pip install -r requirements.txt && cd app && npm install && npm run build`,
+at line 52 of `requirements.txt`. Not the nixpacks plan, not the image push, not the
+container start, and **not the health check** — the new container never started, so
+`/api/health` was never involved.
+
+**Three of four services built fine on the same commit at the same moment, so this
+was not a Railway builder outage.** flow-worker's build is the heaviest of the four
+(pip + `npm install` + a full Vite build producing `flow-facts.cjs`).
+
+### What this changes
+
+⛔ **A "quick revert" is not a thing.** Any plan whose safety rests on "we can push a
+fix and be serving in 4–7 minutes" is resting on an assumption this incident falsified.
+Pre-open remediation windows must be sized against a build that may never finish, not
+against the happy path.
+
+### Two operational facts worth keeping
+
+- ⭐ **Railway keeps the old container serving throughout.** `activeDeployments` listed
+  BOTH `25622bb9` (BUILDING) and `ff886d43` (SUCCESS, the 00:08 ET deploy) for the whole
+  35 minutes. A hung build is *blind*, never *down*.
+- ⛔ **`railway redeploy` REFUSES while a build is in flight**: *"The latest deployment
+  for service flow-worker cannot be redeployed. This may be because it's currently
+  building, deploying, or was removed."* So the CLI cannot rescue a hung build — the
+  only CLI verb that could is `railway down` ("Remove the most recent deployment"),
+  whose interaction with the still-serving old container is exactly the risk you do not
+  want to take blind. **Cancelling a stuck build is a Railway dashboard action.**
+
+### What a hung build looks like from the outside
+
+**Indistinguishable from a slow one, and invisible to the sampler.** The roll-gate
+sampler showed `prepared=437, gen=0, restart=False` throughout — which is also what a
+healthy quiet tape looks like. **Railway's deployment status is the only authority.**
+Do not try to infer build health from application telemetry.
