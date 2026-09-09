@@ -1,178 +1,172 @@
 # Wave Q1 — browser certification (§32)
 
-> **STATUS: OPEN. Q1 CANNOT CLOSE.**
-> Safari/iOS is not measured. §32 makes this a HARD certification / merge gate
-> and the directive is explicit: *"Safari/iOS missing: Q1 cannot close."*
+> **STATUS: THE BROWSER MATRIX IS COMPLETE AND GREEN. Q1 IS STILL OFF.**
 >
-> The Wave Q1 offline layer is therefore merged **DARK**.
+> Every environment §32 names has been measured on a real browser, including
+> **Safari on two real iPhones**. Nothing here was inferred from Chrome.
+>
 > `OFFLINE_DEFAULT_ON` in `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`
-> is `false`, so on production today the Notebook opens no database, writes no
-> durable copy, queues nothing and elects no leader. That is not an assumption —
-> it is measured below, on the deployed build.
->
-> Per-browser opt-in for certification:
-> `localStorage.setItem('uct.j2.offline.enabled', '1')` — the
-> `uct.barsPush.enabled` idiom, deliberately not a `VITE_` build variable, so
-> certification runs against the real production build rather than a sandbox.
+> remains **`false`**. Because the code already reached `master` dark, the next
+> step is not a merge — it is an activation, and that is the owner's call.
+> **This document requests it; it does not take it.**
 
-Measured 2026-09-09, **Chrome 152.0.0.0 / Windows 11**, against
-`https://uctintelligence.com` (production, commit `edb1b4022`), signed in as the
-owner account `7a6d0299…`.
+Measured 2026-09-09 against `https://uctintelligence.com` (production).
+Instrument: `app/public/q1-probe.html` (`/q1-probe.html`), driven by
+`tools/q1_browser_probe_run.py` for the desktop rows and by hand on
+BrowserStack Live for the two iPhones.
+
+- Raw JSON for the five automated rows: `docs/notebook/wave-q1-probe-results/`.
+- Raw JSON for the device and owner-profile rows: `GET /api/q1-probe-results`
+  (admin-gated, on the production volume, newest 25 kept).
+- ⛔ The probe touches only databases named `uct_q1_browser_probe*`; its delete
+  helper refuses every other name. No member note was involved in any row.
 
 ---
 
-## The matrix §32 asks for
+## The matrix
 
-| Environment | IDB | persistence | quota / headroom | Web Locks | multi-tab versionchange | reload durability | tab-close durability | degraded / private |
+| Environment | IDB | persistence | quota / headroom | Web Locks | versionchange (with / without handler) | reload durability | tab-close durability | verdict |
 |---|---|---|---|---|---|---|---|---|
-| **Chrome desktop** 152 / Win 11 | ✅ available | ✅ `persisted() === true` (already granted on this origin) | ✅ quota 10.54 GB, usage 549 MB → **9.99 GB headroom** | ✅ available **and granted** (exclusive, cross-tab) | ✅ upgrades in **1 ms** with the handler; **blocked past 3,000 ms** without it | ✅ working copy + outbox survive a reload | ✅ survive a real tab close | ✅ degrades truthfully with no IDB (rail, not a browser run) |
-| **Safari / iOS** | ⛔ NOT MEASURED | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
-| **Firefox desktop** | ⛔ NOT MEASURED | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
-| **Fresh profile** | ⛔ NOT MEASURED | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
-| **Private / incognito** | ⛔ NOT MEASURED | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
+| **Safari / iOS 17.5.1** — real iPhone 15 | ✅ open 4 ms, atomic note+outbox write **2 ms** | `persisted()` false; **`persist()` returned false** | **41.2 GB** quota, 47 B used | ✅ present · exclusive · second contender refused · queued waited then granted · `query()` supported · none left held | **0 ms** / **blocked, still stuck at 2,502 ms** | ✅ note, body and outbox all survive | ⚠️ via reload (see note) | **DURABLE_OFFLINE_SUPPORTED** |
+| **Safari 26.6 / iOS** — real iPhone 17 (UA reports `OS 18_7`) | ✅ open 6 ms, atomic write **1 ms** | same | **41.2 GB** | ✅ all legs | ✅ / blocked | ✅ | ⚠️ via reload | **DURABLE_OFFLINE_SUPPORTED** |
+| **Chrome 152 desktop** — owner's real profile | ✅ open 1.7 ms, atomic write 11.6 ms | ✅ **`persisted()` already true** | 10,790 MB quota, **550 MB used** (the bars store) | ✅ grant delay 0.6 ms | 1.2 ms / blocked 2,993.8 ms | ✅ | ✅ measured directly (tab closed, state read from another tab) | **DURABLE_OFFLINE_SUPPORTED** |
+| **Chrome — fresh profile** (throwaway user-data-dir) | ✅ first-ever origin, stores created | false; **`persist()` refused** | 285,690 MB, 0 used | ✅ delay 0.7 ms | 0.8 ms / blocked 2,512.8 ms | ✅ | ⚠️ via reload | **DURABLE_OFFLINE_SUPPORTED** |
+| **Chrome — incognito** (`confirmedPrivate: true`) | ✅ within the session | false; refused | **2,095.6 MB** (vs 285 GB on the fresh profile) | ✅ delay 0.4 ms | 0.4 ms / blocked 2,506 ms | ✅ within the session | ⭐ **data did NOT survive the session** — see §28 below | **DURABLE_OFFLINE_SUPPORTED (within the session)** |
+| **Firefox 146 desktop** (disposable profile) | ✅ | false; **`persist()` TIMED OUT — a permission prompt with no user gesture** | 10,240 MB | ✅ delay 0 ms | 18 ms / blocked 2,753 ms | ✅ | ⚠️ via reload | **DURABLE_OFFLINE_SUPPORTED** |
+| **Firefox 146 private browsing** | ✅ within the session | false; refused | 10,240 MB | ✅ | 15 ms / blocked 2,510 ms | ✅ within the session | ⚠️ no cross-session control taken | **DURABLE_OFFLINE_SUPPORTED (within the session)** |
+| _WebKit 26 (Playwright, Windows)_ — supporting only | ✅ | ⛔ **`storage.estimate()` and `persist()` NOT SUPPORTED** | ⛔ unreadable | ✅ delay 15 ms | 30 ms / blocked 2,504 ms | ✅ | — | supporting evidence, **not a Safari row** |
 
-⛔ **No Chrome-first rationalization.** A row is filled in by a run on that
-browser or it stays ⛔. The two empty desktop rows are not "probably fine"; the
-private/incognito and fresh-profile rows are unmeasured for a specific reason,
-recorded below rather than glossed.
-
-**Why fresh-profile and private are still empty:** both would mean either
-clearing this origin's real storage in the owner's own browser — which would
-destroy live preferences (chart settings, saved drawings, the bars-push
-override, dismissed hints) for a test — or driving an incognito window, which
-this automation cannot attach to. Neither is a reason to guess. They need a
-throwaway Chrome profile.
+⛔ **The WebKit row does not count as Safari, and it proved why.** Playwright's
+WebKit reports no Storage Manager at all — while both real iPhones report a
+41.2 GB quota through the same API. A build of the engine on a desktop OS is not
+the browser members use, and had it been allowed to stand in for Safari it would
+have written a false limitation into this table.
 
 ---
 
-## What was actually run
+## The gate that could have stopped Wave Q1
 
-### 0 · Dark by default, on the deployed build
+§6: *"If Safari/iOS lacks Web Locks or otherwise cannot safely drain the outbox:
+STOP."*
 
-Flag unset, one keystroke into a new note:
+**It does not.** On a real iPhone 15 running iOS 17.5.1, `navigator.locks`:
 
-| | at +450 ms | at +2,250 ms (after the server save) |
-|---|---|---|
-| IndexedDB `notes` | **0** | **0** |
-| IndexedDB `outbox` | **0** | **0** |
-| localStorage draft | present, with the typed title | cleared by the successful save |
+- is present, and `locks.query()` works
+- granted an exclusive lock
+- **refused a second contender while it was held**
+- made a queued contender **wait**, then granted it on release
+- left nothing held afterwards
 
-⭐ That is the pre-Wave-Q1 Notebook exactly: synchronous draft, ~800 ms PUT,
-draft retired on success. **Nothing is written to IndexedDB at all.** This is
-also the build check — the previous build had no flag and would have written.
-
-### 1 · The pipeline (flag on)
-
-One keystroke, read at +400 ms:
-
-- localStorage draft written, carrying its `sessionId`
-- `notes`: `dirty: 1`, `generation: 1`, `baseUpdatedAt` = the note's real server revision
-- `outbox`: one entry, same baseline, `permanent: false`
-
-Then the ~800 ms PUT lands → the record goes clean and the outbox empties.
-
-### 2 · Server unreachable (note PUTs rejected at `fetch`)
-
-- `notes`: `dirty: 1`, `generation: 3`
-- `outbox`: one entry holding the newest words
-- header shows **"Reconnecting…"** *and* **"Saved on this device — not yet synced to UCT"**
-
-⭐ Both sentences at once, which is the point: the device has it, UCT does not.
-
-### 3 · Reload durability
-
-After a full page reload with the server still unreachable:
-
-- working copy survived (`dirty: 1`, generation 3), outbox entry survived
-- the editor shows the **server's** last-saved title, and the newer local
-  version is **offered** by the recovery banner — never auto-applied
-
-### 4 · Reconnect — the Q1 flagship happy path (§31)
-
-Closing the note hands it to the sweep. The leader drained it:
-
-- `outbox` → empty, `notes.dirty` → 0, `conflicts` → 0
-- the server now holds the offline text, at a new revision the durable copy
-  adopted as its baseline
-
-Full chain, end to end, in production: online base → unreachable server → edit →
-crash buffer → debounced durable copy → durable outbox → reload → recover →
-reconnect → CAS → synced, with no duplicate history.
-
-### 5 · Reconnect — the conflict path (§31)
-
-Set up deliberately: local work queued against revision `13:42:02`, then the
-server advanced to `13:43:02` by a different writer ("EDITED ON ANOTHER DEVICE").
-On reconnect:
-
-- the stale compare-and-set was **rejected** — the server's version is
-  byte-unchanged at `13:43:02`
-- the local work was preserved as a real note, `… (conflicted copy)`, tagged
-  **`sync-conflict`**
-- the durable copy adopted the server's version, clean; outbox empty
-
-⭐ **Both versions survived. Nothing was overwritten.**
-
-### 6 · Multi-tab leadership
-
-Second tab open on the same account, `navigator.locks.query()`:
-
-- the sync lock `uct.nb.sync.<account>` is **held, exclusive** (tab 1 leads)
-- the second tab **could not take it** → it is a follower
-- `pending: 1` — the follower has exactly one queued request waiting for
-  handover. It waits; it does not poll, and it does not race.
-
-### 7 · Cross-tab `versionchange` — the measurement that justifies the design
-
-Two probe databases held open at v1 in tab 1, a v2 upgrade requested from tab 2:
-
-| probe | `blocked` fired | outcome |
-|---|---|---|
-| **with** `onversionchange → close()` (what `notebookDb` installs, from v1) | no | **upgraded in 1 ms** |
-| **without** a handler (the `barsIDB` shape) | yes | **still blocked at 3,000 ms** |
-
-⚰️ This is the cross-tab confirmation of the correction in `notebookDb.js`:
-`barsIDB` froze `DB_VERSION` at 2 because "the v3 bump caused a deadlock", and
-the lesson was written down as *version bumps are dangerous*. The deadlock is a
-**missing handler**. Bumps are survivable — but only if every connection already
-in the wild closes when asked, which is why the handler goes on from v1.
-(Probe databases were created and deleted by this run; the notebook database was
-never deleted.)
-
-### 8 · Tab-close durability
-
-Typed with the server unreachable, waited for the durable write, then closed the
-tab outright. Read from the other tab: working copy (`dirty: 1`) and outbox entry
-both intact, server untouched. Unblocking the leader then drained it to the
-server and settled the record clean.
+That is the whole single-leader contract, measured on the device. The same on
+the iPhone 17. Safari tabs will not be READ-ONLY FOR SYNC, and the outbox drains
+there like anywhere else.
 
 ---
 
-## Known behaviour worth stating
+## Findings worth keeping
 
-- **The open note is not the sweep's.** `useOutboxDrain` skips the note the
-  editor currently has open — two writers on one note is the last-write-wins this
-  wave forbids. A consequence, seen in step 3: after a reload with work still
-  queued for the note you are looking at, that entry waits until you accept the
-  recovery banner, edit again, or navigate away. It is never lost, and closing
-  the note drains it (step 4). If this proves confusing in use, the fix is a
-  one-shot drain of the editor's own note on mount — not removing the exclusion.
-- **Settle lags the PUT slightly.** Sampled 4 s after the drain's request the
-  record still read `dirty: 1`; the settling transaction had not committed. It
-  was clean on the next read. Timing, not a defect.
-- **`persisted() === true` on this origin** — a grant that was already there.
-  ⛔ Correctness does not depend on it and nothing in the code requires it; it is
-  recorded, never required.
+**1 · `persist()` is refused nearly everywhere — and Q1 already assumed that.**
+Safari says no on both iPhones. A fresh Chrome profile says no. Firefox does not
+answer at all without a user gesture (its prompt never settles; the probe bounds
+it and reports the timeout rather than hanging). The only environment where
+persistence is granted is the owner's own Chrome profile, where it was granted
+long ago through ordinary use. ⛔ Nothing in Q1 depends on
+`navigator.storage.persist() === true`, which §19 required and this measurement
+vindicates.
+
+**2 · The `barsIDB` epitaph is settled on every engine.** With the
+`onversionchange` handler `notebookDb` installs from version 1, a v2 upgrade
+lands in 0–30 ms. Without it, the upgrade is blocked and still stuck when the
+probe gives up — 2,502 ms on iOS, 2,993.8 ms on Chrome, 2,753 ms on Firefox,
+2,504 ms on WebKit. Same result on seven environments: **the deadlock was never
+the version bump.**
+
+**3 · IndexedDB on iOS is fast.** Open 4–6 ms, and the atomic note+outbox
+transaction 1–2 ms — quicker than the owner's Chrome profile (11.6 ms), which
+carries 550 MB of chart bars. The ~200 ms coalescing window is comfortable on
+every platform measured, and §21's instruction not to fork the debounce per
+browser holds: one number still fits all of them.
+
+**4 · Quota is not the constraint for Q1.** 41.2 GB on iOS, 10.2 GB free on the
+owner's Chrome profile, 2.1 GB even in incognito — against note bodies measured
+in kilobytes. (§18: this informs Q4's attachment budget; it is not a Q1
+pass/fail, and the 500 MB attachment target was NOT certified here.)
+
+**5 · ⚠️ Private browsing is not distinguishable from a normal profile by
+capability test, and that is a product statement.** In Chromium incognito the
+probe found IndexedDB available, writes durable, reload durable — and then the
+control proved the data did **not** survive the session. §28 asks the product to
+identify the case *from capability behaviour*; the honest finding is that it
+**cannot**. `persisted()` is false and `persist()` is refused in incognito, but
+both are equally false on a brand-new ordinary profile, so neither separates
+them. The only visible difference is a quota heuristic (2.1 GB vs 285 GB), and
+§28 forbids fingerprinting.
+
+The consequence, stated plainly: **in a private window, "Saved on this device —
+not yet synced to UCT" is true when it is shown and stops being true when the
+window closes.** That is the browser mode behaving as designed, not a defect in
+the wording — but it is the one place where our sentence outlives the fact.
+Options, for the owner to rule on rather than for me to choose:
+   (a) accept it — private browsing users are told the same thing every site
+       tells them, and the server copy is unaffected;
+   (b) soften the sentence wherever `persisted()` is false to "Saved in this
+       browser", which is true in every case measured above;
+   (c) treat a refused `persist()` as a reason to keep the note in the outbox
+       more aggressively (sync sooner, hold less).
+   ⛔ Not recommended: detecting private mode. It is fingerprinting, §28 forbids
+   it, and it breaks the moment a browser changes its heuristics.
 
 ---
 
-## What has to happen before Q1 can close
+## Cleanup (§22)
 
-1. **Safari / iOS** — the hard blocker. IDB availability, persistence behaviour,
-   quota, Web Locks (a real risk: if Web Locks is missing, every Safari tab is
-   READ-ONLY FOR SYNC by design and nothing drains there), multi-tab
-   versionchange, reload and tab-close durability, private-mode behaviour.
-2. **Firefox desktop** — same list.
-3. **Fresh Chrome profile** and **private/incognito** — needs a throwaway profile.
-4. Only then is flipping `OFFLINE_DEFAULT_ON` a decision anyone may make, and it
-   is a measurement decision, not a cleanup task.
+- Both production certification notes removed through the canonical Notebook
+  lifecycle (`DELETE /api/j2/notes/{id}` → 200 → soft-delete to Trash, the
+  normal retention path). Neither is listed any more; the notebook is back to
+  the 32 notes it held before this work began.
+  - `d508bc73155d464bb4258cb48cea4eb4` — the certification test note
+  - `44d796d671904fb5b143ba7f7b72329d` — the `(conflicted copy)` it produced
+- The owner's per-account Notebook database is **empty on all four stores**
+  (`notes` 0, `outbox` 0, `conflicts` 0, `meta` 0). ⛔ No unsynced state, no
+  outbox residue, no conflict residue.
+- Every probe database created by every run reported `deleted`, and the
+  cross-session `carryover` marker was removed from the owner's browser too.
+  The only Notebook-related database left on that profile is the empty
+  per-account one.
+- ⛔ Nothing else was touched: no other note, no preference, no `localStorage`
+  key, and the origin's storage was never cleared.
+
+## Inherited red, routed not fixed (§23)
+
+`app/src/components/screener/reachable.test.js` fails on **19 modules** under
+`app/src/pages/community/**`, `app/src/floor2/`, `app/src/hub/contracts.js`,
+`app/src/lib/chatStreamManager.js`, `app/src/pages/charts/widgets/DockFundamentals.jsx`
+and `app/src/pages/optionsFlow/flowBootstrap.js` — orphaned when `/community`
+was pointed at `CommunityRedesign`. **Not Wave Q's, not touched, not claimed as
+green.** It belongs to the workstream that made that swap.
+
+---
+
+## What Q1 asks for now
+
+The matrix is complete. Per §29, that means Q1 certification **may close** — and
+that the next step is an activation, not a merge, because the code is already on
+`master` and inert.
+
+**Recommended controlled activation sequence, for approval:**
+
+1. Flip `OFFLINE_DEFAULT_ON` to `true` in one commit that changes nothing else,
+   so the revert is one line.
+2. Verify on the deployed artifact that a keystroke now reaches IndexedDB —
+   the same check that proves it dark today, run in the opposite direction.
+3. Watch for one week: `(conflicted copy)` notes created (should stay near zero
+   for single-device members), and any `permanent: true` outbox entries (an
+   entry that can never send is the shape worth knowing about early).
+4. Rollback is `localStorage['uct.j2.offline.enabled'] = '0'` for one browser,
+   or the one-line flip for everyone. No data is destroyed either way: a durable
+   copy left behind by a switched-off feature is inert, and the server holds
+   every synced note regardless.
+
+⛔ **Until that approval, the flag stays false and every deploy re-proves it**
+(`NoteEditorPage.durable.test.jsx` → *"the §32 certification gate — DARK BY
+DEFAULT"*, with its control).

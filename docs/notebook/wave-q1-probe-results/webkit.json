@@ -1,0 +1,107 @@
+{
+ "probeVersion": "1.0.0",
+ "runId": "mtu8qcby-1ig5tg",
+ "startedAt": "2026-09-09T15:15:49.102Z",
+ "env": {
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+  "platform": "Win32",
+  "vendor": "Apple Computer, Inc.",
+  "language": "en-US",
+  "origin": "https://uctintelligence.com",
+  "isSecureContext": true,
+  "cookieEnabled": true,
+  "onLine": true,
+  "hardwareConcurrency": 8,
+  "screen": "1280x720@1",
+  "standalone": false
+ },
+ "carryover": {
+  "checked": true,
+  "found": false
+ },
+ "storage": {
+  "estimateSupported": false,
+  "persistSupported": false,
+  "persistedBefore": null
+ },
+ "idb": {
+  "available": true,
+  "opened": true,
+  "openMs": 77,
+  "storesCreated": [
+   "notes",
+   "outbox"
+  ],
+  "atomicWriteMs": 30,
+  "wrote": true,
+  "readBackSameSession": true
+ },
+ "reload": {
+  "tested": true,
+  "noteSurvived": true,
+  "bodyIntact": true,
+  "outboxSurvived": true,
+  "outboxEntryNotPermanent": true
+ },
+ "webLocks": {
+  "present": true,
+  "exclusiveAcquired": true,
+  "grantCallbackDelayMs": 15,
+  "secondContenderRefusedWhileHeld": true,
+  "queuedWaitedWhileHeld": true,
+  "queuedGrantedAfterRelease": true,
+  "querySupported": true,
+  "stillHeldAfterRelease": 0
+ },
+ "versionchange": {
+  "withHandler": {
+   "upgraded": true,
+   "oldConnectionGotVersionChange": true,
+   "blockedEventFired": false,
+   "ms": 30
+  },
+  "withoutHandler": {
+   "upgraded": false,
+   "timedOut": true,
+   "blockedEventFired": true,
+   "ms": 2504
+  },
+  "handlerIsLoadBearing": true
+ },
+ "drain": {
+  "queuedWorkPresent": true,
+  "stillRetryable": true,
+  "leadershipObtainable": true,
+  "eligible": true
+ },
+ "verdict": {
+  "indexedDbUsable": true,
+  "durableAcrossReload": true,
+  "webLocksUsable": true,
+  "versionchangeSafe": true,
+  "drainPossible": true,
+  "classification": "DURABLE_OFFLINE_SUPPORTED"
+ },
+ "cleanup": {
+  "attempted": [
+   "uct_q1_browser_probe_mtu8qcby-1ig5tg",
+   "uct_q1_browser_probe_vc_with_mtu8qcby-1ig5tg",
+   "uct_q1_browser_probe_vc_without_mtu8qcby-1ig5tg"
+  ],
+  "results": {
+   "uct_q1_browser_probe_mtu8qcby-1ig5tg": "deleted",
+   "uct_q1_browser_probe_vc_with_mtu8qcby-1ig5tg": "deleted",
+   "uct_q1_browser_probe_vc_without_mtu8qcby-1ig5tg": "deleted"
+  },
+  "carryoverWritten": true
+ },
+ "finishedAt": "2026-09-09T15:15:52.985Z",
+ "_runner": {
+  "label": "webkit",
+  "engine": "webkit",
+  "mode": "launch",
+  "playwrightBrowserVersion": "26.0",
+  "url": "https://uctintelligence.com/q1-probe.html",
+  "userDataDir": null
+ }
+}
