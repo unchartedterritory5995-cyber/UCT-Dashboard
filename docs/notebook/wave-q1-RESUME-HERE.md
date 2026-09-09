@@ -189,6 +189,30 @@ const q = await navigator.locks.query()
 ;[...q.held, ...q.pending].filter(l => String(l.name).startsWith('uct.nb.sync.'))   // → []
 ```
 
+⭐ **And a better one that needs no sign-in and no browser — read the flag out of
+the DEPLOYED BUNDLE.** This is the artifact, not the source default:
+
+```bash
+UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0.0.0 Safari/537.36"
+# 1. the entry chunk names the lazy ones; the flag lives in the Notebook chunk
+curl -s -H "User-Agent: $UA" https://uctintelligence.com/ | grep -oE '/assets/index-[^"]+\.js'
+# 2. find the chunk carrying the opt-in key, then read the compiled default
+curl -s -H "User-Agent: $UA" https://uctintelligence.com/assets/NotebookTab-<hash>.js \
+  | grep -oE '.{130}uct\.j2\.offline\.enabled.{130}'
+```
+
+Measured 2026-09-09 on the live artifact:
+
+```js
+const Fi=!1, Mi="uct.j2.offline.enabled";
+function ws(t=globalThis.localStorage){ try{ const n=t?.getItem(Mi);
+  if(n==="1")return!0; if(n==="0")return!1 }catch{} return Fi }
+```
+
+`Fi = !1` **is** `OFFLINE_DEFAULT_ON = false`, and `offlineEnabled()` returns it
+when the key is unset. ⛔ The chunk hash changes every deploy — crawl for the key,
+never bookmark the URL.
+
 ---
 
 ## The open defect, in full — ✅ NOW REPRODUCED AND FIXED (`4fef130d9`)
@@ -318,13 +342,17 @@ git log --oneline origin/master..HEAD          # exactly the Wave Q1 commits, no
 git diff --stat origin/master -- app/src/pages/journal-2-0/lib/offline/offlineFlag.js
 #    ^ MUST be empty: the flag is not part of this deploy
 
-# ⛔ master MOVES under you — it gained three OptionsFlow commits during the
-#    session that wrote this. Decide rebase-vs-merge by MEASURING, per CLAUDE.md:
+# ⛔ master MOVES under you. It gained three OptionsFlow commits mid-session and
+#    THAT MERGE IS ALREADY DONE on this branch (clean, zero conflicts, zero lines
+#    changed in any of the six fix files). Re-measure anyway — it may move again:
 BASE=$(git merge-base origin/master HEAD)
-git rev-list --count $BASE..origin/master      # behind: rebase only if > 5
+git rev-list --count $BASE..origin/master      # behind: 0 if nothing new landed
 comm -12 <(git diff --name-only $BASE..origin/master | sort -u) \
          <(git diff --name-only $BASE..HEAD          | sort -u)
-#    ^ empty overlap + fewer than six behind ⇒ push as-is, no rebase
+#    ^ empty overlap + fewer than six behind ⇒ merge and push, no rebase
+#    ⛔ If a conflict lands in ANY of the six fix files, STOP and show the diff:
+#       NoteEditorPage.jsx · outboxDrain.js · baseline.js · useDurableNote.js
+#       · recoverLocalState.js · useOutboxDrain.js
 
 cd app && npx vitest run src/pages/journal-2-0   # gate: 230 files / 2388 tests green
 cd .. && python -m pytest tests/test_note_updated_at_is_always_a_baseline.py -q
@@ -352,10 +380,19 @@ One revert, one push, one deploy cycle — the same shape as the 15-minute
 rollback on 2026-09-09.
 
 ```bash
-git revert --no-edit <the merge/commit sha on master>
+# The SHA to revert is not knowable before the deploy — DERIVE it, never type it.
+git fetch origin
+git log --oneline -5 origin/master           # the Wave Q1 commits are at the top
+BAD=$(git rev-parse origin/master)           # if Wave Q1 is the newest thing on master
+git revert --no-edit -m 1 $BAD               # -m 1 only if $BAD is a MERGE commit
 git push origin HEAD:master
 # 5-12 minutes, then verify the artifact's uptime reset again.
 ```
+
+⛔ **`-m 1` is required if, and only if, the commit being reverted is a merge.**
+Wave Q1 reaches master as a merge (the branch carries master's own OptionsFlow
+commits back), so expect to need it. `git revert` without `-m` on a merge fails
+loudly rather than silently doing the wrong thing — that is the safe direction.
 
 ⭐ **Rolling this back is cheaper than the last rollback was**, because there is
 no flag to also flip and no local state to reason about: the offline layer is
@@ -452,7 +489,9 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 | The `??`-vs-truthy baseline defect fixed + railed | ✅ one authority, mutation-proved |
 | Backend baseline guarantee railed + mutation-proved | ✅ 14 tests, 2 mutations |
 | Full frontend suite green | ❌ **8 files red — all inherited, see `inherited-red-ledger.md`** |
-| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on branch and master |
+| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `184a7e77b`, and on the deployed artifact |
+| Reconciled with the current master | ✅ merged clean, 0 conflicts, 0 lines changed in the six fix files |
+| Mutations re-run post-merge | ✅ 4/4 red, controls green, restored |
 | Service worker untouched | ✅ |
 | `baseUpdatedAt: null` **explained** | ❌ **NOT closed** — see below |
 | A blocked entry is surfaced to the member | ❌ **it is not** — silent for a note you are not looking at |

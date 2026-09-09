@@ -1,12 +1,13 @@
 # The inherited-red ledger — the full frontend suite on `master`
 
 **Measured 2026-09-09** on `notebook-primary-platform`, whose only difference
-from `origin/master` (`78ac8016b`) is Wave Q1 work.
+from `origin/master` is Wave Q1 work. **Re-verified against `184a7e77b`** after
+master moved mid-session — see "Re-verification" below.
 
 ```
 Test Files   8 failed | 1164 passed | 1 skipped  (1173)
      Tests   9 failed | 16899 passed | 9 skipped (16917)
-journal-2-0 alone: 227 files / 2365 tests — ALL GREEN
+journal-2-0 alone: 230 files / 2388 tests — ALL GREEN
 ```
 
 ## Why this file exists
@@ -61,5 +62,33 @@ row 3, is a touch-target rule on a different Notebook dialog. They are also
 them.
 
 ⚠️ What that does mean: **a green full-suite run is not available as a deploy
-gate on this branch.** The gate is `journal-2-0` green (227 / 2365) plus this
+gate on this branch.** The gate is `journal-2-0` green (230 / 2388) plus this
 ledger being unchanged — same eight, same offenders.
+
+## Re-verification against the NEW master (`184a7e77b`), 2026-09-09
+
+`origin/master` moved from `78ac8016b` to `184a7e77b` mid-session — three
+OptionsFlow commits by Claude Fable 5. **Every row above still holds**, and the
+proof is stronger than a re-blame:
+
+```
+git diff --name-only 78ac8016b..184a7e77b -- app/     →  0 files
+```
+
+⛔ **Master's new work touches nothing under `app/`** (only `api/flow_router.py`
+and `tests/test_flow_prepare.py`), and the frontend suite reads only `app/`. So
+the eight reds are identical at `184a7e77b` **by construction**, not by argument.
+
+⭐ **And the converse was checked too**, because this branch ADDED a non-test
+source (`lib/offline/baseline.js`) that the sweep-style rails
+(`reachable`, `sourcesAreText`, `tapFloor`, `pollingSites`) do read. The full
+offender lists from before and after the merge are **byte-for-byte identical**:
+the new module is imported by five siblings (so reachable), is plain text, adds
+no stylesheet and no polling site. Nothing this branch added appears in any red.
+
+⚠️ A direct run of the eight files at `184a7e77b` in a scratch worktree was
+attempted and **abandoned as invalid**: a fresh worktree has no `node_modules`,
+and the junction recipe still left Vite resolving its temp config from the parent
+repo — the result was `ERR_MODULE_NOT_FOUND`, **a startup error, not a test
+result**, which CLAUDE.md warns about explicitly. It is recorded here rather than
+quietly dropped, and the `app/`-diff proof above is what the claim rests on.
