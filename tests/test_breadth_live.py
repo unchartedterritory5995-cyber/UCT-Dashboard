@@ -691,6 +691,12 @@ def test_a_cold_anchor_build_is_not_cached_so_it_self_heals_when_bars_warm(monke
     bl._anchor_cache.clear()
     monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)  # these test in-memory caching only
     monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    # A thin build is now KEPT and re-tried after `_THIN_RETRY_SECONDS` rather than
+    # rebuilt on literally every call — with the 0.95 floor (2026-09-09) "thin" is a
+    # far wider net than the old flat 500, and one full re-pricing per request would
+    # sink the pod. Zero here so this still asserts what it always did: the NEXT call
+    # rebuilds. The throttle itself is covered by its own test below.
+    monkeypatch.setattr(bl, "_THIN_RETRY_SECONDS", 0)
     stored = {"date": "2026-08-31", "universe_count": 2602, "stage2_count": 470}
     monkeypatch.setattr(bm, "get_history", lambda days=30: [stored])
 
@@ -816,6 +822,126 @@ def test_anchor_snapshot_recovers_coverage_across_a_cold_build(tmp_path, monkeyp
     b = bl.anchor_basis(20260901, ["A", "B"], force=True)
     assert b["counts_anchored"] is True, "persisted anchor recovered coverage across the cold build"
     assert b["coverage"] == 1.0
+
+
+# ── a build that clears 500 but not the universe is still thin (2026-09-09) ──────
+
+_U2647 = [f"T{i}" for i in range(2647)]
+
+
+def test_a_two_thirds_anchor_build_is_never_pinned_for_the_session(tmp_path, monkeypatch):
+    """The 2026-09-09 outage. A deploy at 00:18 ET restarted web mid-overnight-ingest;
+    the anchor build priced 1,823 of the 2,647-name universe — coverage 0.69, i.e.
+    `degraded`, i.e. the live row is HIDDEN — and 1,823 cleared the flat 500 cache
+    floor. So it was cached AND written to /data, and every one of the twenty later
+    restarts reloaded it: no live breadth all session, with bars.db fully warm behind
+    it. A build the published row would call degraded must never be pinned or
+    persisted, and must be re-tried while the bars finish warming.
+    """
+    from api.services import breadth_monitor as bm
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    monkeypatch.setattr(bl, "_THIN_RETRY_SECONDS", 0)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    stored = {"date": "2026-09-08", "universe_count": 2647, "stage2_count": 470}
+    monkeypatch.setattr(bm, "get_history", lambda days=30: [stored])
+    bl._anchor_cache.clear()
+
+    calls = {"n": 0}
+    def _at_close(conn, tickers, ts):
+        calls["n"] += 1
+        thin = calls["n"] == 1
+        return {"universe_count": 1823 if thin else 2647,
+                "stage2_count": 300 if thin else 470}
+    monkeypatch.setattr(bl, "_metrics_at_close", _at_close)
+
+    b1 = bl.anchor_basis(20260908, _U2647)
+    assert b1["coverage"] == 0.6887 and b1["ratios_anchored"] is False, "this is the hidden row"
+    assert bl._load_persisted_anchor(20260908) is None, \
+        "a two-thirds build must NOT reach /data — restarts would reload it all day"
+
+    b2 = bl.anchor_basis(20260908, _U2647)
+    assert calls["n"] == 2, "the thin anchor must be re-tried, not pinned"
+    assert b2["coverage"] == 1.0 and b2["ratios_anchored"] is True
+    assert (bl._load_persisted_anchor(20260908) or {}).get("universe_count") == 2647
+
+
+def test_a_thin_anchor_is_served_from_cache_between_retries(monkeypatch):
+    """The throttle that makes the retry affordable: re-pricing 2,600 names is the
+    expensive half of the read, so a thin anchor is SERVED (a degraded row still
+    carries the session's shape) and rebuilt on a timer — not once per request."""
+    from api.services import breadth_monitor as bm
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)
+    monkeypatch.setattr(bl, "_THIN_RETRY_SECONDS", 300)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    monkeypatch.setattr(bm, "get_history",
+                        lambda days=30: [{"date": "2026-09-08", "universe_count": 2647}])
+    bl._anchor_cache.clear()
+
+    calls = {"n": 0}
+    def _at_close(conn, tickers, ts):
+        calls["n"] += 1
+        return {"universe_count": 1823}
+    monkeypatch.setattr(bl, "_metrics_at_close", _at_close)
+
+    for _ in range(5):
+        assert bl.anchor_basis(20260908, _U2647)["coverage"] == 0.6887
+    assert calls["n"] == 1, "a thin anchor is served from cache until the retry window"
+
+
+def test_a_rebuild_thinner_than_what_we_hold_is_not_an_upgrade(monkeypatch):
+    """Retrying must never go backwards: if the bars have gone colder than they were
+    when the snapshot was written, keep the better read."""
+    from api.services import breadth_monitor as bm
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", False)
+    monkeypatch.setattr(bl, "_THIN_RETRY_SECONDS", 0)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    monkeypatch.setattr(bm, "get_history",
+                        lambda days=30: [{"date": "2026-09-08", "universe_count": 2647}])
+    bl._anchor_cache.clear()
+
+    monkeypatch.setattr(bl, "_metrics_at_close", lambda conn, t, ts: {"universe_count": 1823})
+    assert bl.anchor_basis(20260908, _U2647)["coverage"] == 0.6887
+    monkeypatch.setattr(bl, "_metrics_at_close", lambda conn, t, ts: {"universe_count": 40})
+    assert bl.anchor_basis(20260908, _U2647)["coverage"] == 0.6887, "kept the better read"
+
+
+def test_a_thin_levels_build_is_neither_persisted_nor_pinned(tmp_path, monkeypatch):
+    """The levels half of the same hole: on 2026-09-09 the persisted levels snapshot
+    carried a 200-SMA for 883 of 2,647 names (`measured` 882 on the live read) and was
+    reloaded by every restart, so the whole session's metrics were computed over a
+    third of the market. The floor has to be a share of the universe, not a flat 500.
+    """
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    monkeypatch.setattr(bl, "_THIN_RETRY_SECONDS", 0)
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    monkeypatch.setattr(bl, "last_completed_session", lambda conn=None: 20260908)
+    monkeypatch.setattr(bl, "universe", lambda *a, **k: (_U2647, "2026-09-08"))
+    monkeypatch.setattr(bl, "_session_dates", lambda conn, a, b: list(range(240)))
+    monkeypatch.setattr(bl, "_load_frame", lambda conn, t, d: (None, None))
+    monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, *a: c)
+    monkeypatch.setattr(bl, "_load_index_series", lambda conn, a, b: {})
+    monkeypatch.setattr(bl, "build_index_levels", lambda s: {})
+    bl._levels_cache.clear()
+
+    def _levels(n):
+        ok = np.zeros(2647, bool); ok[:n] = True
+        return lambda tickers, closes, vols, ts: {
+            "as_of_ts": ts, "tickers": list(tickers), "sma_ok": {200: ok}, "n": n}
+
+    monkeypatch.setattr(bl, "build_levels", _levels(883))
+    assert bl.reference_levels()["n"] == 883, "a thin build is still SERVED — better than a 503"
+    assert bl._load_persisted_levels(20260908) is None, \
+        "883 of 2,647 must NOT reach /data; a restart would reload it all day"
+
+    monkeypatch.setattr(bl, "build_levels", _levels(2615))
+    assert bl.reference_levels()["n"] == 2615, "the thin build was re-tried, not pinned"
+    assert bl._load_persisted_levels(20260908)["n"] == 2615
+
+    # And a warm build IS pinned: no rebuild on the next call.
+    monkeypatch.setattr(bl, "build_levels", _levels(10))
+    assert bl.reference_levels()["n"] == 2615
 
 
 def test_a_missing_basis_leaves_the_numbers_untouched():
