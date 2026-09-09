@@ -1335,6 +1335,48 @@ someone forgot to set indistinguishable from a deliberate shutdown — the ambig
   "fixed" to match).
 
 
+### ⛔ A dismissable control needs a recovery path IN THE SAME COMMIT — the joystick "Hide" defect
+
+**"Hide joystick" shipped writing `joystick_hub.enabled = false` while the Settings toggle that
+turns it back on was scheduled for Phase 4.** The two documented routes back were *an admin
+editing `user_preferences`* and *the member pasting a `fetch()` into a devtools console*. The
+owner hit it on the live admin preview, on production, as an admin.
+
+> **A control that can be dismissed and not recovered is a defect regardless of how good the
+> toast copy is.** The toast read "Hidden. Re-enable in Settings soon" — honest, friendly, and
+> describing a screen that did not exist.
+
+⚰️ **The gap was known and written down, and that is what made it survive.**
+`45-phase2.5-plan.md` carried a ⚠️ block instructing that both workarounds "must be documented
+for support". Writing the workaround down made the hole feel handled. **A recorded workaround is
+not a recovery path — it is a record of one being missing.**
+
+The fix (`docs/plans/joystick/47-hide-recovery.md`) is three parts, and a persistent hide is
+only allowed to exist because part 2 sits beside it:
+1. hiding from the sheet is **session-only** and writes nothing — "Hidden for now. Reload to
+   bring it back." is true only because `hubSessionVisibility.js` has no persistence layer, so
+   the load-bearing test asserts **no write**, not that the hub vanished;
+2. **Settings → Joystick** (pulled forward from Phase 4) is the one control that writes a
+   persistent hide — and it must `clearSessionOverride()` before writing, or a member who
+   session-hid then switched it ON sees nothing happen;
+3. a 12×36px **edge tab** at the hub's resting position restores it, for either kind of hide.
+   `HUB_PREVIEW_ENABLED=false` removes the tab too — a way back that outlives the kill switch is
+   a live door into a feature that is supposed to be gone.
+
+**Two defects found while building it, both invisible to structural tests, both in the same
+place:** the toast was passed `message` where `JournalToast` reads `msg` (rendered blank), and
+both toasts were owned by the branch their own action unmounts (rendered for zero frames). The
+hub still hid, the tab still worked, every assertion stayed green — **the only broken part was
+the half that talks to the member.** `hubHideRestore.test.jsx` therefore has a **copy contract**
+section asserting rendered TEXT, not just state transitions.
+
+⚠️ **`POST /api/auth/preferences` is `{key: str, value: str}` and REPLACES the whole value**
+(`set_user_preference` writes one TEXT column). Any recovery snippet must be read-modify-write
+or it silently wipes `handedness` and `coachMarkSeen`. The snippet previously in
+`46-preview-production-check.md` posted `{joystick_hub: {...}}`, called itself "a JSON-patch
+merge", and was neither.
+
+
 ### Tooling — GitHub MCP reads `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 The `github` MCP server (plugin `claude-plugins-official`) is configured as:

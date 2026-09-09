@@ -84,10 +84,14 @@ afterEach(() => {
 })
 
 describe('HubRoot — the mount gate', () => {
-  it('renders nothing for a normal member with nothing stored (hub.enabled defaults off)', () => {
+  it('renders the RESTORE TAB, not the hub, for a member with it off', () => {
     ran()
-    const { container } = renderHub({ role: 'user' })
-    expect(container.innerHTML).toBe('')
+    // ⚰️ This asserted `container.innerHTML === ''`. It is no longer true and the change is
+    // the point: a hidden hub now always leaves a way back. The hub itself must still be
+    // absent — that is what the second assertion holds.
+    renderHub({ role: 'user' })
+    expect(screen.queryByTestId('hub-root')).toBeNull()
+    expect(screen.getByTestId('hub-edge-tab')).toBeTruthy()
   })
 
   it('renders for an admin with nothing stored (the one default-on identity)', () => {
@@ -99,8 +103,10 @@ describe('HubRoot — the mount gate', () => {
   it('an explicit false beats the admin default — a choice always wins over a default', () => {
     ran()
     mockPrefs = { joystick_hub: JSON.stringify({ enabled: false }) }
-    const { container } = renderHub({ role: 'admin' })
-    expect(container.innerHTML).toBe('')
+    renderHub({ role: 'admin' })
+    expect(screen.queryByTestId('hub-root')).toBeNull()
+    // Still recoverable — an explicit off is a preference, not a trap.
+    expect(screen.getByTestId('hub-edge-tab')).toBeTruthy()
   })
 
   it('an explicit true turns it on for a non-admin', () => {
@@ -141,9 +147,12 @@ describe('HubRoot — off adds no listeners', () => {
     const winSpy = vi.spyOn(window, 'addEventListener')
     const docSpy = vi.spyOn(document, 'addEventListener')
 
-    const { container } = renderHub({ role: 'user' })
+    renderHub({ role: 'user' })
 
-    expect(container.innerHTML).toBe('')
+    // The restore tab is a plain <button> with an onClick — React attaches nothing to
+    // window or document for it, so the claim this test actually makes (the gesture engine
+    // is not running while the hub is off) is unchanged.
+    expect(screen.queryByTestId('hub-root')).toBeNull()
     expect(winSpy).not.toHaveBeenCalled()
     expect(docSpy).not.toHaveBeenCalled()
     // The visualViewport stub carries its own spy — the keyboard hook lives

@@ -4,8 +4,9 @@
 while you run these steps.
 
 ⛔ **READ-ONLY, with exactly two exceptions**, both scoped to the admin account you sign in as:
-its own `joystick_hub` preference blob (step 8 sets `enabled: false`, and you set it back), and
+its own `joystick_hub` preference blob (step 8b toggles it in Settings, and you set it back) and
 its own coach-mark flag (step 3 dismisses it once, permanently, for that account).
+⭐ Step 8a writes NOTHING at all any more — hiding from the sheet is session-only.
 **Nothing else may be created, edited or deleted.** No test tickets beyond step 7's draft — do
 **not** submit it. No writes to any member's data.
 
@@ -38,9 +39,12 @@ Shipped as: `2d8373449` · deployment `ae03a0c7` · `HUB_PREVIEW_ENABLED=true`.
 | A5 | From **three different** pages (say `/screener`, `/charts`, `/journal/trades`), press and **hold the pad for ~0.5 s** without dragging. | Each time: back to `/dashboard`. | ☐ |
 | A6 | Go to `/charts`. Wait for the chart to draw. Drag the pad open. Then close it, **pan the chart ~100px sideways**, and drag the pad open again. | Fan opens **upper-left**; the scrim dims the page but **leaves the volume band at the bottom of the chart visible**; and the pad **still responds after the pan**. | ☐ |
 | A7 | Tap the **Actions** button beside the pad → **Feedback**. | Lands on `/support` with a new ticket whose subject is prefilled **`[joystick preview]`**. ⛔ **Do not submit it** — read it and go back. | ☐ |
-| A8 | Actions → **Hide joystick**. Then bring it back (see *Re-enabling* below). | Toast reads **"Hidden. Re-enable in Settings soon"**, hub disappears immediately, and after re-enabling it returns on reload. | ☐ |
+| A8a | Actions → **Hide joystick**. Read the toast. Then **reload the page**. | Toast reads **"Hidden for now. Reload to bring it back."**; the hub disappears immediately; a **12px glass sliver** appears at the hub's resting position on the right edge; **the reload brings the hub back on its own.** ⛔ This is the load-bearing one — the hide must not survive a reload. | ☐ |
+| A8b | Hide it again, then **tap the edge sliver** instead of reloading. | The hub returns immediately. | ☐ |
+| A8c | **Settings → Joystick**, switch **"Joystick shortcuts (preview)"** OFF. Reload. | Hub gone, **and still gone after the reload** — this is the persistent hide. The edge sliver is still there, and tapping it brings the hub back for the session with a toast naming **Settings → Joystick**. | ☐ |
+| A8d | Switch it back ON in Settings. Reload. | Hub is back and stays back. ⭐ Leave the account in this state. | ☐ |
 | A9 | Sign out. Sign in as the **member** account on the same device. | **No hub anywhere.** No coach mark. The old voice orb and feedback button behave as they always did. | ☐ |
-| A10 | Ask Patrick to set `HUB_PREVIEW_ENABLED=false` in Railway (web service). Wait ~30 s, sign back in as **admin**, reload. Then set it back to `true` and reload again. | `false` → **no hub for the admin either**. `true` → hub returns. | ☐ |
+| A10 | Ask Patrick to set `HUB_PREVIEW_ENABLED=false` in Railway (web service). Wait ~30 s, sign back in as **admin**, reload. Then set it back to `true` and reload again. | `false` → **no hub for the admin either, and no edge sliver** (the kill switch takes the way back with it — otherwise it would be a live door into a feature that is supposed to be gone). `true` → hub returns. | ☐ |
 
 ## Block B — Google Pixel 8 · Android 14 · Chrome
 
@@ -54,26 +58,59 @@ Identical steps. Two differences to watch for:
 
 ---
 
-## Re-enabling a hidden hub (needed by step 8) — the two paths
+## Re-enabling a hidden hub (needed by step 8)
 
-⚠️ **The Settings toggle does not exist yet; it ships in Phase 4.** The toast says "soon"
-deliberately. Until then there are exactly two ways back, and support needs both:
+⚰️ **This section used to say "the Settings toggle does not exist yet; it ships in Phase 4",
+and the console snippet below it was WRONG.** Both are fixed, and the fix is a product change,
+not a doc change: a control that can be dismissed and not recovered is a defect. See
+`47-hide-recovery.md`.
 
-1. **The member clears their own stored preference.** In the browser devtools console on the
-   signed-in page:
-   ```js
-   fetch('/api/auth/preferences', {
-     method: 'POST', headers: { 'Content-Type': 'application/json' },
-     credentials: 'include',
-     body: JSON.stringify({ joystick_hub: { enabled: true } }),
-   }).then(r => r.json()).then(console.log)
-   ```
-   Then reload. (This is a JSON-patch **merge** — it will not clobber handedness or the
-   coach-mark flag.)
-2. **An admin flips that member's stored preference** to `enabled: true` in
-   `user_preferences` for their user id.
+**There are now three ways back, in the order support should offer them:**
 
-For **step A8 on your own admin account**, path 1 is the one to use.
+1. **Reload the page.** "Hide joystick" is SESSION-ONLY — it writes nothing. This is what the
+   toast ("Hidden for now. Reload to bring it back.") promises, and it is the whole answer for
+   the overwhelmingly common case.
+2. **Tap the edge tab.** Even after a *persistent* hide, a 12×36px glass sliver sits at the
+   hub's resting position (44px tap target, `aria-label="Show joystick"`). Tapping it restores
+   the hub for the session and points at the permanent switch.
+3. **Settings → Joystick → "Joystick shortcuts (preview)".** The permanent switch. This is the
+   only control that writes a persistent hide, and the only one needed to undo it.
+
+### The console fallback — only if the member is on a build older than the fix
+
+⛔ **The snippet that was here was wrong and would have silently destroyed data.** It posted
+`{joystick_hub: {enabled: true}}` and called it "a JSON-patch **merge**". It is neither:
+`SetPreferenceRequest` is `{key: str, value: str}`, so that body fails validation outright —
+and the shape it was reaching for, `{key: 'joystick_hub', value: '{"enabled":true}'}`, does a
+whole-value **REPLACE** (`set_user_preference` writes one TEXT column), which would have wiped
+the member's `handedness` and re-shown the coach mark they had already dismissed.
+
+**Recovery must be read-modify-write.** Signed in, in the devtools console:
+
+```js
+await (async () => {
+  const p = await (await fetch('/api/auth/preferences', { credentials: 'include' })).json()
+  const cur = (() => { try { return JSON.parse(p.joystick_hub ?? '{}') } catch { return {} } })()
+  cur.enabled = true
+  await fetch('/api/auth/preferences', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ key: 'joystick_hub', value: JSON.stringify(cur) }),
+  })
+  location.reload()
+})()
+```
+
+Verify (should print a JSON string containing `"enabled":true`):
+
+```js
+fetch('/api/auth/preferences', { credentials: 'include' })
+  .then(r => r.json()).then(p => console.log(p.joystick_hub))
+```
+
+An admin can do the same for a member by editing that user's `joystick_hub` row in
+`user_preferences` — again, read the existing JSON and change one field, never replace it.
 
 ---
 

@@ -346,3 +346,40 @@
   line-height: 1;
   cursor: pointer;
 }
+
+/* ── The restore tab (Phase 2.5) ──────────────────────────────────────────
+   A 12x36 sliver at the hub's own resting height. Painted small so it reads
+   as "something is here", not as a second floating control competing with the
+   one the member just dismissed — but the TAP TARGET is a full 44px, extended
+   inward with padding, because WCAG 2.5.5 measures the touch area and not the
+   paint. Same safe-area anchor as the pad, so it tracks the home indicator. */
+.edgeTab {
+  position: fixed;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 68px + 24px);
+  width: var(--tap-min);
+  height: var(--tap-min);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  z-index: var(--z-hub-rest);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The visible sliver, inside the 44px target. */
+.edgeTabGrip {
+  display: block;
+  width: 12px;
+  height: 36px;
+  border-radius: 6px 0 0 6px;
+  background: var(--hub-glass-tint);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  border-right: 0;
+  box-shadow: var(--hub-shadow);
+}
