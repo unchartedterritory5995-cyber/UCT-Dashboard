@@ -25,6 +25,7 @@
 //    subscribers at drag START, before any commit.
 
 import { uid } from '../../utils/uid'
+import { normalizeDrawing, normalizeDrawings } from './drawingSchema'
 
 const STORAGE_KEY = 'uct-chart-drawings'
 const MAX_HISTORY = 100   // undo/redo depth per symbol (mirrors the legacy hook)
@@ -74,7 +75,13 @@ function _buildSnapshot(e) {
 function _ensure(sym) {
   let e = _entries.get(sym)
   if (!e) {
-    e = { drawings: loadAll()[sym] || [], past: [], future: [], refs: 0, snapshot: null }
+    // ⛔ NORMALISED ON THE WAY IN, AND ONLY ON THE WAY IN. `normalizeDrawings`
+    // is in-memory: nothing is written back here, `points` are passed through by
+    // reference, and `_bumpAny()` is NOT called — so a page load can neither
+    // rewrite a user's drawing library nor make the tracings sync layer push it
+    // to the server. A drawing acquires `sv` on disk only when a real edit
+    // causes `_writeSym` to run anyway. See drawingSchema.js.
+    e = { drawings: normalizeDrawings(loadAll()[sym] || []), past: [], future: [], refs: 0, snapshot: null }
     e.snapshot = _buildSnapshot(e)
     _entries.set(sym, e)
   }
@@ -177,7 +184,7 @@ export function peekDrawings(sym) {
   if (!sym) return []
   try {
     const e = _entries.get(sym)
-    const src = e ? e.drawings : (loadAll()[sym] || [])
+    const src = e ? e.drawings : normalizeDrawings(loadAll()[sym] || [])
     return Array.isArray(src) ? JSON.parse(JSON.stringify(src)) : []
   } catch {
     return []
@@ -200,7 +207,7 @@ export function addDrawing(sym, d) {
   _addGuard.set(key, id)
   queueMicrotask(() => _addGuard.delete(key))
   const e = _ensure(sym)
-  _commit(sym, e, [...e.drawings, { ...d, id }])
+  _commit(sym, e, [...e.drawings, normalizeDrawing({ ...d, id })])
   return id
 }
 
@@ -465,7 +472,7 @@ export function setTracingVisible(id, visible) {
 // (quota) can't desync the live session from what the user sees.
 function _reloadAllEntriesFrom(activeMap) {
   for (const [sym, e] of _entries) {
-    e.drawings = activeMap[sym] || []
+    e.drawings = normalizeDrawings(activeMap[sym] || [])
     e.past = []
     e.future = []
     e.snapshot = _buildSnapshot(e)
@@ -542,7 +549,7 @@ export function peekTracingDrawings(tracingId, sym) {
     const doc = _ensureDoc()
     const src = tracingId === doc.activeId ? loadAll() : ((doc.archive && doc.archive[tracingId]) || {})
     const arr = src[sym]
-    return Array.isArray(arr) ? JSON.parse(JSON.stringify(arr)) : []
+    return Array.isArray(arr) ? normalizeDrawings(JSON.parse(JSON.stringify(arr))) : []
   } catch { return [] }
 }
 
