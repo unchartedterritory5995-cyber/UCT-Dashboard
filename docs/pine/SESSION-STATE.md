@@ -156,3 +156,79 @@ boundary and record conflicts touched.
 **Pause on:** member data · a vendor contradiction (Aroon, valuewhen, the fold probe) · the
 other session's files · the calendar census contradicting the screener's session logic · a real
 blocker.
+
+---
+
+# ⛔⛔ FIRST THING ON RESUME — the two sessions BOTH implemented barstate
+
+Discovered at the end of the session, after `84a52adf7`. `worktree-indicator-ecosystem`
+carries three new commits, one of which is **`ae2ed68ec` "barstate: six columns from the clock
+and the fetch, one refusal, two named gaps"**.
+
+⭐⭐ **THE TWO IMPLEMENTATIONS AGREE ON THE RULING, INDEPENDENTLY** — which is the evidence
+standard this repo values, and it is worth more than either version alone. Both arrived at:
+six clock columns owned by `computeClock` / `compute_clock`; `islast` **not** window-dependent
+and `isfirst` **is**; `BUILTIN_REQUEST_DEPENDENT` emptied-but-kept with its reasoning;
+`barstate.isnew` refused on both contracts; the host no longer refusing `pine:live-bar-state`;
+the screener fold untouched.
+
+## ⚠️ …but the CALENDAR CENSUS disagrees, and they may be right
+
+| | this branch (`cc1171d23`) | theirs (`ae2ed68ec`) |
+|---|---|---|
+| full closures | `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` | same — agreed |
+| **early closes** | **represented** — found `liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD` and used it | **not known** — cites `bars_fetch`'s own words that half-days are *"intentionally NOT"* included; ships regular-session-only with the gap NAMED |
+| **extended hours** | assumed regular-session-only, *"an assumption with a test"* | ⛔ **measured that extended-hours bars CAN appear** — `bars_fetch` keeps those prints deliberately and the yfinance fallback asks `prepost=True` |
+
+⛔ **Their extended-hours finding is a measurement and mine was an assumption, so mine is the
+one to distrust.** `docs/pine/barstate.md` on this branch asserts *"The bars pipeline delivers
+regular-session bars"* — **treat that sentence as unverified until re-measured.** If they are
+right, "the regular session was open" is not a precondition any of this may rely on, and the
+scheduled-close logic for a daily bar needs revisiting.
+
+⚠️ On early closes we each found something the other did not: they read the `bars_fetch`
+comment, I found a second set in `liveflow_monitor`. **Both facts are true** — the half-day
+dates exist in the repo, and the bars authority deliberately excludes them. What that means for
+`isrealtime` is a decision, not a lookup.
+
+## The merge is deliberately NOT done
+
+`git merge worktree-indicator-ecosystem` conflicts in **16 files**:
+
+```
+api/services/indicator_compute.py
+app/src/components/chart/indicators.js
+app/src/components/chart/engine/ast/closedTable.json
+app/src/components/chart/engine/ast/pine.js
+app/src/components/chart/engine/ast/pine.barstate.test.js
+app/src/components/chart/engine/ast/pineStrictMode.test.js
+app/src/components/chart/engine/ast/pine.blindCorpus.test.js
+app/src/components/chart/engine/ast/pine.refusalAuthority.test.js
+app/src/components/chart/engine/ast/parse.test.js
+app/src/components/chart/engine/ast/sentence.test.js
+app/src/components/chart/engine/__tests__/clockTimeframeWire.test.js
+tests/fixtures/ast/clock_parity.json
+tests/fixtures/vendor/divergences.json
+tests/test_ast_interpret.py
+docs/formulas/GRAMMAR.md
+docs/pine/barstate.md
+```
+
+Assessed with `merge --no-commit` and then **aborted**, so the tree is clean at `84a52adf7`.
+⛔ A half-resolved merge left across a machine restart is the worst possible state; the merge
+wants a session that can finish it.
+
+## What resume should do, in order
+
+1. **Do not blind-merge.** Read `ae2ed68ec` in full first. The conflicts are two correct
+   implementations of one ruling, not a mistake to be resolved mechanically.
+2. **Settle the calendar question on evidence, not on whose branch it is.** Re-measure whether
+   extended-hours bars reach a fetch. That answer decides the scheduled-close logic and it is
+   the only place the two versions genuinely disagree about behaviour.
+3. Decide which implementation survives — probably theirs for the calendar half, since it was
+   measured — and carry over anything this branch has that theirs lacks: the
+   **stability tests** (`barstateStability.test.js`), the **`divergences.json` row**, the
+   **`pine:window-dependent` guard**, and the **rail-tightenings** (both
+   `pineTimeframeAlias` and `clockTimeframeWire` had been deriving "timeframe flag" as
+   *clock keys starting with `is`*, a correct set reached by a wrong rule).
+4. Then resume the ten-item order at item 4.
