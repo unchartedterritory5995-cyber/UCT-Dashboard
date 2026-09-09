@@ -58,6 +58,38 @@ OFF = {
     # 13.5 GB free to 160 MB across a handful of sandbox restarts. A browser
     # check of the Notebook needs no real bars at all.
     "USE_REMOTE_BARS": "0",
+    # ⛔⛔ AND `USE_REMOTE_BARS=0` WAS NOT ENOUGH — MEASURED 2026-09-08 (O6).
+    #
+    # ⚰️ ONE BEHAVIOUR, TWO DOORS, AND THE FLAG CLOSED ONE. Wave N found the
+    # snapshot pull and turned off the flag that reaches it through the bars
+    # prewarmer. The boot-time INTEGRITY SMOKE PROBE in `api/main.py` calls
+    # `data_sync.force_resync()` on its own, without consulting
+    # `USE_REMOTE_BARS` at all — and a sandbox always starts with an empty
+    # DATA_DIR, so the probe fails EVERY boot and pulls EVERY boot. Two O6
+    # sandbox restarts leaked ~69 GB in `data_sync_*` staging directories and
+    # took this machine from 80.7 GB free to 11 GB. The fingerprint is one
+    # line in the sandbox log:
+    #
+    #     [startup] bars.db FAILED integrity smoke probe (0.02s)
+    #               -- pulling fresh snapshot from R2
+    #
+    # ⛔ SO THE FIX IS AT THE CREDENTIAL, NOT AT A SECOND FLAG. `data_sync`
+    # builds its S3 client lazily and returns None when the endpoint or either
+    # key is missing, so a blanked credential makes EVERY door to that pull —
+    # this one, the prewarmer's, and any future third — a no-op that costs one
+    # function call. Chasing callers one at a time is how a second door gets
+    # missed, which is exactly what happened here.
+    #
+    # ⛔ BLANKED, NEVER POPPED. An empty string is falsy to `os.environ.get`
+    # and, unlike a deleted key, it cannot be silently refilled by `.env`
+    # (load_dotenv does not override an existing variable). Production
+    # resolves byte-identically with nothing set here.
+    #
+    # ⛔ AND NOTHING THE NOTEBOOK VERIFIES NEEDS REAL BARS. If a future check
+    # ever does, it must seed the handful of series it needs — not restore a
+    # 23 GB production snapshot onto a developer's system drive.
+    "DATA_SYNC_ENDPOINT_URL": "", "DATA_SYNC_ACCESS_KEY": "",
+    "DATA_SYNC_SECRET_KEY": "", "DATA_SYNC_BUCKET": "",
 }
 
 # ⛔ NOT A GUARD BEING DISABLED — it is the guard's OWN documented override,
