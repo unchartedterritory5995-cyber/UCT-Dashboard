@@ -18,12 +18,23 @@ a small latency effect unmeasurable.
 
 ## Decision rule, agreed in advance
 
-| Phase A result | Consequence |
+| Phase A **non-`warm` server hits** | Consequence |
 |---|---|
-| **0 server hits** | Caveat (a) closed. R5 closes clean. |
-| **> 0 server hits** | The experiment is valid after all. Only then do we discuss the headless probe, storageState, and a sample size derived from the observed fire rate. |
+| **0** | Network caveat closed. R5 closes — **but the in-memory benefit is recorded as UNMEASURED**, not as "no benefit". See below. |
+| **> 0** | The experiment is valid after all. Only then do we discuss the headless probe, storageState, and a sample size derived from the observed fire rate. |
 
-**Phase B is annotation, never a decision input.**
+⛔ **`&warm=1` rows do not count toward this rule.** See the counting section.
+
+⛔⛔ **The rule no longer says "R5 closes clean".** `prefetchBars` warms **SWR's
+in-memory cache**, not IndexedDB (`prefetchBars.js:204`, in-file). So a prefetched
+neighbour is a memory hit, while a symbol that is IDB-warm-but-not-prefetched
+still costs an IndexedDB read plus deserialize plus render — **and both show zero
+network requests.** A request count is structurally blind to that difference. Zero
+therefore establishes the *network* half only.
+
+**Phase B is a candidate future item if nonzero, not merely annotation** — a
+nonzero Phase B means the ±2 window does not cover feed selection, which is a
+possible future work item. It remains **not** an R5 decision input.
 
 ---
 
@@ -138,6 +149,30 @@ than "not separated."
 
 ---
 
+## ⛔⛔ FIRST: separate `&warm=1` rows from the rest — this decides the run
+
+**A `/api/bars/` request is not automatically evidence of a cold transition.** The
+prefetcher issues its own network requests, and they are marked:
+
+| URL contains | What it is | Counts as |
+|---|---|---|
+| `&warm=1` | **the prefetcher working ahead** — `prefetchBars` → `_enqueue` → `_url(sym, tf, warm=true)`. Server-side this is best-effort and shed with a fast 503 under load. | **prefetch traffic — NOT a cold transition** |
+| no `&warm` | **the visible chart fetching on demand** — the member is waiting for this one | **cold transition** |
+
+⛔ **The decision rule keys on the second row only.** Counting `&warm=1` rows as
+"server hits" would make Phase A nonzero for the best possible reason — the
+prefetch doing exactly its job — and would fire the "experiment is valid" branch
+backwards.
+
+**Expect `&warm=1` rows.** Up to two concurrent (`_MAX_CONCURRENT = 2`), idle-
+deferred, deduped per-URL for 30 s. Seeing them is the prefetcher confirming it is
+alive, which is itself useful: §P2 recorded **zero** `/api/bars/` of any kind, and
+the most likely reason is that the hidden tab never fired `requestIdleCallback`
+and clamped `setTimeout`, so the warm queue never drained at all. In other words
+§P2 may have observed *prefetch not running*, not *everything already warm*.
+
+**Report both numbers separately.**
+
 ## Counting: server hit vs cache hit
 
 Read the **Size** column:
@@ -170,9 +205,13 @@ window.__vis contained "hidden":    yes / no    (yes ⇒ run void, redo)
 Filter-liveness check passed:       yes / no
 Used the app earlier today:         yes / no
 
-Phase A  — server hits: ___    cache hits: ___
-Phase B  — server hits: ___    cache hits: ___
+Phase A  — non-warm server hits: ___   &warm=1 rows: ___   cache hits: ___
+Phase B  — non-warm server hits: ___   &warm=1 rows: ___   cache hits: ___
 Phase B targets: ___________________________
+
+OPTIONAL, if you have another minute — bounds "expected small" with a number
+instead of a hope, now that we know a memory layer exists:
+Performance panel, 3 Phase A transitions, main-thread cost per transition: ___
 ```
 
 Approximate transition counts for A and B are useful but not critical — the
