@@ -1,0 +1,98 @@
+# Wave Q1 — the seven-day production observation window
+
+> **Q1 is ACTIVE in production.** `OFFLINE_DEFAULT_ON = true` as of 2026-09-09.
+> This is the first durable client-side member research state in the Notebook's
+> history, so it gets an isolated week of watching before anything else moves.
+>
+> ⛔ **Q2 IS LOCKED UNTIL THIS WINDOW CLOSES.** No expanded conflict UX, no
+> attachment caching, no offline search, no service worker, no finance-native
+> offline writes. Introducing new offline semantics while measuring the
+> foundation would contaminate the only clean read we will ever get of it.
+
+**Window:** 2026-09-09 → 2026-09-16.
+
+---
+
+## What to watch (§18)
+
+| # | Signal | Why it matters | Where it shows |
+|---|---|---|---|
+| A | `(conflicted copy)` notes created | The headline number — but the COUNT is not the finding. Each one must be classified: a genuine concurrent edit, a false conflict, a stale-base bug, or a recovery/restore artifact. A single-device member should produce approximately none. | notes tagged `sync-conflict`; creation timestamps |
+| B | `permanent: true` outbox entries | An entry that can never send, holding member work. **Highest priority.** | `outbox` store, `permanent` / `lastStatus` |
+| C | Stuck outbox entries | Queued and not moving. Waiting indefinitely is not acceptable. | `queuedAt` age vs now |
+| D | Repeated CAS (409) failures | A baseline that keeps going stale points at the write path, not at the member. | server 409s on `PUT /api/j2/notes/{id}` |
+| E | Web Locks ownership anomalies | Two leaders, or none. Either breaks the single-drainer contract. | `navigator.locks.query()` on `uct.nb.sync.*` |
+| F | Duplicate conflict forks | The same local version forked twice means the fork path is not idempotent. | duplicate `(conflicted copy)` titles |
+| G | Local restore mismatches | The recovery banner offering the wrong copy — the failure `chooseLocalRecovery` exists to prevent. | member reports; `ambiguous: true` decisions |
+| H | Logout with unsynced work | The case where "discard" has to be honest. | (no logout flow shipped in Q1 — watch for the need) |
+| I | Local persistence / quota errors | `durableWriter` status `FAILED`. | writer status, `error` |
+| J | Cross-account database anomalies | **A release blocker if it ever appears.** The account is part of the database NAME, so a leak would mean a name was built wrong. | `indexedDB.databases()` → `uct_notebook_*` |
+
+## ⛔ Watch state, not content (§19)
+
+Everything above is answerable from **note id, queue age, record state, retry
+count, conflict presence, account-scoped counts, error class and lock state**.
+
+⛔ **Do not read or log member note bodies to monitor this wave.** Member
+research is private, and the operational fields are sufficient. If a question
+genuinely cannot be answered without content, that is a finding about the
+instrumentation — write it down instead of reaching for the prose.
+
+## How to look, without disturbing anything
+
+In a signed-in browser's console, on `uctintelligence.com`:
+
+```js
+// state only — no bodies
+const acc = '<accountId>'
+const db = await new Promise(r => { const q = indexedDB.open('uct_notebook_' + acc); q.onsuccess = () => r(q.result) })
+const all = s => new Promise(r => { const q = db.transaction(s, 'readonly').objectStore(s).getAll(); q.onsuccess = () => r(q.result) })
+const notes = await all('notes'), outbox = await all('outbox'), conflicts = await all('conflicts')
+console.table(outbox.map(e => ({ noteId: e.noteId, ageMin: Math.round((Date.now() - e.queuedAt) / 60000),
+                                 permanent: !!e.permanent, lastStatus: e.lastStatus ?? null, attempts: e.attempts ?? 0 })))
+console.log({ notes: notes.length, dirty: notes.filter(n => n.dirty).length, conflicts: conflicts.length })
+db.close()
+const locks = await navigator.locks.query()
+console.log([...locks.held, ...locks.pending].filter(l => String(l.name).startsWith('uct.nb.sync.')))
+```
+
+Server-side, conflicted copies are ordinary notes tagged `sync-conflict`, so they
+are countable from the notes list without touching bodies.
+
+---
+
+## Rollback (§20, §21)
+
+**One line:** `OFFLINE_DEFAULT_ON` back to `false`, or per browser with no deploy
+at all: `localStorage.setItem('uct.j2.offline.enabled', '0')`.
+
+⛔ **Turning it off stops PROCESSING. It does not delete anything.** With the
+wave off:
+
+- the editor writes nothing new and leaves any durable copy and its queued
+  intent byte for byte where they are, saving to the server exactly as it did
+  before Wave Q1;
+- the drain claims no leadership — not even a queued lock request — and sends
+  nothing;
+- a later re-enable picks the queue back up.
+
+Both halves are railed and mutation-proved (`NoteEditorPage.durable.test.jsx`
+§21 and `useOutboxDrain.test.jsx` §21). **Feature disable has never been
+authority over member work**, and that matters now in a way it did not before
+activation.
+
+If a material issue appears: **flag off first**, preserve the local state, then
+diagnose.
+
+---
+
+## What closes the window (§28)
+
+A Q1 production reliability report covering: accounts exercising Q1 where
+measurable · notes edited offline · outbox writes · successful drains · retry
+counts · conflicts, split into true vs false where classifiable · permanent
+failures · stuck queues · lock anomalies · persistence/quota failures ·
+logout-with-unsynced cases · rollback events, if any · production browser
+issues.
+
+Then **STOP for Q2 authorization.** Q2 does not begin automatically.
