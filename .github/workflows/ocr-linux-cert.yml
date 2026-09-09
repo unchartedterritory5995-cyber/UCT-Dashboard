@@ -79,8 +79,30 @@ jobs:
           # remembered fact.
           sha256sum /usr/share/tesseract-ocr/*/tessdata/eng.traineddata
 
+      # ⛔ The three the corpus + benchmark actually import, and no more — this
+      # job must not drag in the app's runtime. numpy is not optional: the
+      # fixture generator's `degrade_noise` is what makes a scan look scanned,
+      # and the first run failed here rather than silently producing a cleaner
+      # corpus than the reference was measured on.
       - name: Benchmark dependencies only
-        run: pip install --no-cache-dir --disable-pip-version-check pillow pypdf
+        run: pip install --no-cache-dir --disable-pip-version-check pillow pypdf numpy
+
+      # ⛔ The searchability metric is an FTS5 query, so a python built against
+      # a sqlite without FTS5 would fail deep inside the benchmark and read as
+      # an OCR problem. Ask the question here, where the answer is legible.
+      - name: The searchability metric needs FTS5
+        run: |
+          python - <<'PY'
+          import sqlite3, sys
+          c = sqlite3.connect(":memory:")
+          try:
+              c.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
+          except sqlite3.OperationalError as e:
+              print(f"REFUSING: no FTS5 in this sqlite ({e}). The search-recall "
+                    "number cannot be computed here.", file=sys.stderr)
+              raise SystemExit(2)
+          print("fts5 present ·", sqlite3.sqlite_version)
+          PY
 
       - name: Build the controlled corpus
         run: python tools/wave_p_fixtures.py
