@@ -85,6 +85,47 @@ def parse_totals(log_text: str) -> dict | None:
     return {"files": files, "tests": tests}
 
 
+_FAIL_RE = re.compile(r"^\s*FAIL\s+(?P<id>\S+.*?)\s*$")
+
+BASELINE = REPO / "docs" / "plans" / "joystick" / "gate-baseline.json"
+
+
+def parse_failures(log_text: str) -> list[str]:
+    """Every failing test's full identity — `file > describe > test`.
+
+    ⛔ NAMES, NOT A COUNT. "9 failed" is satisfied by NINE DIFFERENT failures just as happily as by
+    the nine known ones, so a count-based gate passes a branch that fixed nine and broke nine. The
+    merge ruling rests on this comparison, so it compares identities.
+    """
+    out = []
+    for line in strip_ansi(log_text).split("\n"):
+        m = _FAIL_RE.match(line)
+        if m:
+            ident = m.group("id").strip()
+            if ident and ident not in out:
+                out.append(ident)
+    return sorted(out)
+
+
+def load_baseline() -> dict:
+    """The known-failing set this branch is measured against, or an empty baseline if absent."""
+    if not BASELINE.exists():
+        return {"measured_at": None, "sha": None, "failures": []}
+    return json.loads(BASELINE.read_text(encoding="utf-8"))
+
+
+def compare_failures(observed: list[str], baseline: list[str]) -> dict:
+    """What this run changed about the failing set. `new` is the only one that can block a merge."""
+    obs, base = set(observed), set(baseline)
+    return {
+        "observed_count": len(obs),
+        "baseline_count": len(base),
+        "new": sorted(obs - base),               # ⛔ regressions — the gate's actual verdict
+        "no_longer_failing": sorted(base - obs),  # informational: fixed, or silently stopped running
+        "matches_baseline": obs == base,
+    }
+
+
 def sum_totals(per_shard: list[dict]) -> dict:
     """The summed line a future reader reconciles against, without re-running anything."""
     acc = {"files": {}, "tests": {}}
@@ -102,8 +143,11 @@ def blob_hash(path: pathlib.Path) -> str:
 
 
 def _git(args: list[str]) -> str:
+    # ⛔ encoding= IS NOT OPTIONAL. `text=True` alone decodes with the platform default, which is
+    # cp1252 on this machine — so a non-ASCII commit message or branch name would take the wrapper
+    # down with a UnicodeDecodeError and no obvious cause. Same omission as `_run_shard` below.
     return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True,
-                          check=True).stdout.strip()
+                          encoding="utf-8", errors="replace", check=True).stdout.strip()
 
 
 def tree_state() -> tuple[str, list[str]]:
@@ -119,13 +163,32 @@ def count_test_files() -> int:
                and (".test." in p.name or ".spec." in p.name))
 
 
+def _capture(cmd: list[str], cwd, *, shell: bool | None = None, timeout=None) -> str:
+    """⛔ THE ONE PLACE A SUBPROCESS IS READ, so `encoding=` cannot be omitted in two places.
+
+    It was omitted in one, and that is the entire reason this function exists as a seam: a rail can
+    execute THIS for real, which is what rule 10 asks for. Duplicating the `subprocess.run(...)`
+    call shape at another site is how the omission comes back.
+    """
+    proc = subprocess.run(
+        cmd, cwd=cwd, capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+        shell=(sys.platform == "win32") if shell is None else shell,
+        timeout=timeout,
+    )
+    return (proc.stdout or "") + (proc.stderr or "")
+
+
 def _run_shard(index: int, shards: int, out_dir: pathlib.Path) -> str:
     log = out_dir / f"shard-{index}.log"
-    proc = subprocess.run(
-        ["npx", "vitest", "run", f"--shard={index}/{shards}", "--maxWorkers=2"],
-        cwd=APP, capture_output=True, text=True, shell=(sys.platform == "win32"),
-    )
-    text = (proc.stdout or "") + (proc.stderr or "")
+    # ⛔⛔ `encoding="utf-8"` IS THE WHOLE POINT OF THIS LINE. Shipped without it, `text=True`
+    # decoded vitest's UTF-8 output as cp1252, the reader thread died on the first check mark
+    # (0x90), and SIX SHARDS RAN FOR SIXTEEN MINUTES AND RETURNED EMPTY STDOUT. The wrapper then
+    # correctly reported "no totals line" — a true statement about a false cause.
+    # `errors="replace"` means a stray undecodable byte degrades one character instead of
+    # destroying an entire run.
+    text = _capture(
+        ["npx", "vitest", "run", f"--shard={index}/{shards}", "--maxWorkers=2"], APP)
     log.write_text(text, encoding="utf-8")
     return text
 
@@ -153,14 +216,28 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         )
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    per_shard, missing = [], []
+    per_shard, missing, failures = [], [], []
     for i in range(1, shards + 1):
-        totals = parse_totals(run_shard_fn(i))
-        # ⛔ (b) A SHARD WITH NO TOTALS LINE DID NOT RUN. Never the exit code — it lies.
+        text = run_shard_fn(i) or ""
+        # ⛔ CAPTURE FAILURE IS NOT PARSE FAILURE, AND CONFLATING THEM COST SIXTEEN MINUTES OF
+        # DIAGNOSIS. A shard that ran for minutes and returned NOTHING is a broken pipe between
+        # this process and vitest; a shard that returned output with no totals line is a run that
+        # died. Different causes, different fixes, so they get different names.
+        # ⭐ AND IT ABORTS: five more shards into a pipe already known to be broken is thirteen
+        # wasted minutes to reach a conclusion that was available at shard 1.
+        if not text.strip():
+            raise GateError(
+                f"EMPTY CAPTURE from shard {i}: the shard was executed but its output never "
+                f"reached this process — a broken pipe, not a failed run (check the subprocess "
+                f"decoding). Aborting; the remaining shards were NOT run."
+            )
+        totals = parse_totals(text)
+        # ⛔ (b) A SHARD WITH OUTPUT BUT NO TOTALS LINE DID NOT RUN. Never the exit code.
         if totals is None:
             missing.append(i)
         else:
             per_shard.append({"shard": i, **totals})
+            failures.extend(parse_failures(text))
 
     if missing:
         raise GateError(
@@ -180,6 +257,8 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
 
     summed = sum_totals(per_shard)
     declared = file_count_fn()
+    base = load_baseline()
+    failures = sorted(set(failures))
     return {
         "at": _dt.datetime.now().isoformat(timespec="seconds"),
         "tree_head_start": start_head,
@@ -191,6 +270,10 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
         "summed": summed,
         "test_files_on_disk": declared,
         "file_count_reconciles": summed["files"]["total"] == declared,
+        "failures": failures,
+        "baseline_sha": base.get("sha"),
+        "baseline_measured_at": base.get("measured_at"),
+        "vs_baseline": compare_failures(failures, base.get("failures") or []),
     }
 
 
@@ -219,6 +302,29 @@ def render(manifest: dict) -> str:
         f"{'RECONCILES' if manifest['file_count_reconciles'] else '⛔ DOES NOT RECONCILE'} "
         f"with the summed file total ({f['total']}).",
     ]
+
+    # ⛔ THE VERDICT IS A SET COMPARISON, NOT A COUNT. Nine different failures also count nine.
+    v = manifest.get("vs_baseline") or {}
+    lines += [
+        "",
+        f"## Failing set vs baseline (`{manifest.get('baseline_sha') or 'NO BASELINE'}`, "
+        f"measured {manifest.get('baseline_measured_at') or '—'})",
+        "",
+        f"- observed **{v.get('observed_count', 0)}** failing tests, baseline has "
+        f"**{v.get('baseline_count', 0)}**",
+        f"- **NEW failures (regressions): {len(v.get('new') or [])}**"
+        + ("" if v.get("new") else " — none"),
+    ]
+    for nf in (v.get("new") or []):
+        lines.append(f"    - ⛔ {nf}")
+    if v.get("no_longer_failing"):
+        lines.append(f"- no longer failing: {len(v['no_longer_failing'])} "
+                     f"(fixed, or silently stopped running — check which)")
+        for nf in v["no_longer_failing"]:
+            lines.append(f"    - {nf}")
+    lines.append("")
+    lines.append("✅ **The failing set matches the baseline exactly.**" if v.get("matches_baseline")
+                 else "⛔ **The failing set DIFFERS from the baseline** — read the two lists above.")
     return "\n".join(lines) + "\n"
 
 
@@ -231,7 +337,26 @@ def main(argv=None) -> int:
     try:
         manifest = run_gate(args.shards, out_dir)
     except GateError as e:
+        # ⛔ A REFUSED RUN LEAVES NO ARTIFACT THAT LOOKS LIKE A RUN. The first failure of this
+        # wrapper left six 0-byte `shard-*.log` files behind, and a directory of empty logs reads
+        # as "a run happened" to anyone who does not know the story. Clear them, and leave ONE
+        # file that says INVALID and why.
+        removed = 0
+        stamp = _dt.datetime.now().isoformat(timespec="seconds").replace(":", "-")
+        if out_dir.exists():
+            for stale in out_dir.glob("shard-*.log"):
+                stale.unlink()
+                removed += 1
+            (out_dir / f"INVALID-{stamp}.md").write_text(
+                f"# Gate run INVALID — {stamp}\n\n"
+                f"**No result was produced. This is not a gate run.**\n\n"
+                f"> {e}\n\n"
+                f"Per-shard logs from the refused attempt were deleted ({removed} file(s)) so an\n"
+                f"empty log directory cannot be mistaken for a completed run.\n",
+                encoding="utf-8")
         print(f"\n  GATE INVALID: {e}\n", file=sys.stderr)
+        print(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n",
+              file=sys.stderr)
         return 2
     stamp = manifest["at"].replace(":", "-")
     (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")

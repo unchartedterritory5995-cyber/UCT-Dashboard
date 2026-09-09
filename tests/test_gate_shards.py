@@ -8,6 +8,18 @@ unchecked, and it failed in the ALARMING direction — which is the lucky direct
 one character different (matching nothing and reporting nothing) would have passed a void run.
 
 So: four proofs, one per way a gate result can be a lie, each naming the assertion that fires.
+
+⛔⛔ AND THEN THE SAME DISEASE IN A SECOND BODY. Those four proofs all inject `run_shard_fn`, so
+they test the CALLER and never the boundary. `_run_shard` — the one impure function, the one that
+actually talks to vitest — was covered by nothing, and it shipped with `text=True` and no
+`encoding=`. On Windows that decodes as cp1252, vitest emits UTF-8, and SIX SHARDS RAN FOR SIXTEEN
+MINUTES AND RETURNED EMPTY STDOUT. The wrapper then reported "no totals line": a true statement
+about a false cause.
+
+Rule 10 is the fix for the disease rather than the symptom: **every impure function gets at least
+one rail that executes it for real.** The two `_run_shard` rails at the bottom of this file are
+that, and the injected-fake tests above remain — they are good tests of the decision logic, which
+is a different thing from a test of the boundary.
 """
 from __future__ import annotations
 
@@ -158,3 +170,98 @@ def test_a_file_count_that_does_not_reconcile_is_reported_not_hidden(tmp_path):
     )
     assert manifest["summed"]["files"]["total"] == 392
     assert manifest["file_count_reconciles"] is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# RULE 10 — THE REAL BOUNDARY. Everything above injects `run_shard_fn`; these two execute
+# `_run_shard` itself, against a real subprocess. They are the rails that would have caught the
+# cp1252 encoding omission, and nothing above them could have.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+def test_rail1_capture_round_trips_the_characters_vitest_actually_prints(tmp_path):
+    """`_capture` — THE REAL BOUNDARY FUNCTION — must return UTF-8 text unmangled.
+
+    ⭐ IT CALLS `gate_shards._capture` ITSELF. An earlier draft of this rail rebuilt the same
+    `subprocess.run(...)` shape locally and asserted on that, which would have stayed green while
+    the real function kept the bug — the identical "tests the caller, not the boundary" mistake,
+    one level down. Removing `encoding=` from `_capture` must turn THIS red.
+
+    Payload: U+2713 CHECK MARK and U+2014 EM DASH, the two characters vitest prints on every run
+    that cp1252 cannot represent.
+
+    ⚠️ HONEST ABOUT ITS OWN TEETH: this rail's bite is PLATFORM-DEPENDENT. On a machine whose
+    default encoding is already UTF-8 it passes even against the bug, because the omission is
+    harmless there. Acceptable only because the gate of record runs on THIS Windows box, where the
+    default is cp1252 — recorded here rather than left for someone to rediscover.
+    """
+    import gate_shards
+
+    script = tmp_path / "emit.py"
+    script.write_text(
+        "import sys\n"
+        "sys.stdout.reconfigure(encoding='utf-8')\n"
+        "print('✓ ok — done')\n",
+        encoding="utf-8")
+
+    got = gate_shards._capture([sys.executable, str(script)], tmp_path, shell=False)
+
+    assert got.strip(), "the real subprocess returned NOTHING — the pipe is broken (encoding?)"
+    assert "✓" in got, "the check mark did not survive _capture — this is the cp1252 bug"
+    assert "—" in got, "the em dash did not survive _capture — this is the cp1252 bug"
+
+
+def test_rail2_capture_against_real_vitest_produces_a_parseable_totals_line(tmp_path):
+    """`_capture` -> REAL vitest -> `parse_totals` returns counts matching the file it ran.
+
+    ⭐ THE BOUNDARY AGAINST ITS ACTUAL PRODUCER. Rail 1 proves a pipe carries UTF-8; only this
+    proves the thing on the other end of OUR pipe is vitest, that its output arrives intact, and
+    that our parser understands the format vitest emits TODAY. A future vitest that renames
+    "Test Files" breaks this rail and nothing else in the suite.
+    """
+    import gate_shards
+
+    app = gate_shards.APP
+    if not (app / "node_modules").exists():
+        pytest.skip("app/node_modules absent — cannot invoke the real vitest")
+
+    spec_dir = app / "src" / "__gate_rail__"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    spec = spec_dir / "boundary.test.js"
+    spec.write_text(
+        "import { describe, it, expect } from 'vitest'\n"
+        "describe('gate wrapper boundary rail', () => {\n"
+        "  it('passes one', () => { expect(1).toBe(1) })\n"
+        "  it('passes two ✓ —', () => { expect(2).toBe(2) })\n"
+        "})\n",
+        encoding="utf-8")
+    try:
+        text = gate_shards._capture(
+            ["npx", "vitest", "run", "src/__gate_rail__/boundary.test.js"], app, timeout=300)
+
+        assert text.strip(), (
+            "REAL vitest returned EMPTY output through _capture — exactly the capture failure "
+            "that cost a sixteen-minute run")
+        totals = parse_totals(text)
+        assert totals is not None, (
+            "parse_totals could not read REAL vitest output — the format changed, or the capture "
+            "is mangled")
+        assert totals["tests"]["passed"] == 2, totals
+        assert totals["files"]["total"] == 1, totals
+    finally:
+        spec.unlink(missing_ok=True)
+        try:
+            spec_dir.rmdir()
+        except OSError:
+            pass
+
+
+def test_run_shard_delegates_to_the_single_capture_seam():
+    """⛔ AND THE SEAM CANNOT BE BYPASSED. `_run_shard` must go through `_capture`, or a fresh
+    `subprocess.run(...)` there would reintroduce the omission with both rails above still green."""
+    import inspect
+    import gate_shards
+    src = inspect.getsource(gate_shards._run_shard)
+    assert "_capture(" in src, "_run_shard no longer uses the capture seam"
+    assert "subprocess.run" not in src, (
+        "_run_shard calls subprocess.run directly again — that is a second place for `encoding=` "
+        "to be forgotten, which is how this bug shipped the first time")
