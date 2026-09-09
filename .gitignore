@@ -124,3 +124,8 @@ app/_stripqa/
 app/vite.local.config.js
 app/stripqa2.html
 app/src/stripqa2.jsx
+
+# R5 harness artifacts — an authenticated session screenshot must never be committable.
+tools/r5_prefetch_out.json
+tools/r5_diag_*.png
+tools/r5_diag_*.json
