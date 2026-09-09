@@ -1167,8 +1167,17 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  manifest's `clock` keys out of this bundle and throws BY NAME on an entry the
  *  bundle has no column for — a declared name quietly seeded NaN would be a
  *  clock that reads "not computable" forever, on every bar, silently. */
+/** ⭐⭐ THE SIX `barstate.*` COLUMNS. Like `barindex` they read no `t` at all —
+ *  each is a pure function of (bar index, delivered bar count, and the single
+ *  `newestBarIsForming` boolean) — so they are filled OUTSIDE the unit gate and a
+ *  series whose `t` is a `YYYYMMDD` int still gets them. */
+export const CLOCK_BARSTATE = Object.freeze([
+  'islast', 'isfirst', 'isrealtime', 'isconfirmed', 'ishistory', 'islastconfirmedhistory',
+])
+
 export const CLOCK_COLUMNS = Object.freeze([
   ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
+  ...CLOCK_BARSTATE,
 ])
 
 /**
@@ -1204,7 +1213,7 @@ export const CLOCK_COLUMNS = Object.freeze([
  *                      timeframe booleans are NaN
  * @returns {object} `{<name>: Float64Array}` — one entry per `CLOCK_COLUMNS`
  */
-export function computeClock(bars, tf) {
+export function computeClock(bars, tf, newestBarIsForming = false) {
   const length = bars && bars.length ? bars.length : 0
   const cols = {}
   for (const name of CLOCK_COLUMNS) cols[name] = new Float64Array(length)
@@ -1222,6 +1231,45 @@ export function computeClock(bars, tf) {
   // `interpret` so the clock has ONE owner: a second place that knew what bar
   // number a bar is would be a second authority over a value both lanes compare.
   for (let i = 0; i < length; i++) cols.barindex[i] = i
+
+  // ── barstate ─────────────────────────────────────────────────────────────
+  // ⭐⭐ ALL SIX ARE DECIDED BY (index, length, forming) AND NOTHING ELSE. No
+  // clock is read here and NO TRADING CALENDAR IS CONSULTED — whether the newest
+  // bar is still forming is settled once by the caller, where the calendar
+  // actually lives (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` +
+  // `liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`, both Python).
+  //
+  // ⛔⛔ THAT IS THE LOAD-BEARING DESIGN DECISION, NOT AN IMPLEMENTATION DETAIL.
+  // Restating the NYSE holiday set here would put a SECOND AUTHORITY over a
+  // value in a second language, where the two would drift silently and each
+  // would look correct on its own. The boundary carries the boolean instead.
+  //
+  // ⭐ THE DEFAULT IS THE SCREENER'S TRUE STATE, NOT A GUESS. A sweep evaluates
+  // bars that are all closed at scan time, so `forming=false` makes
+  // `isconfirmed` 1 on every bar — exactly the constant the Pine door folded to
+  // before these columns existed, now reached by EVALUATION rather than by a
+  // special case. Contrast `tf`, which fails CLOSED when absent because a
+  // guessed timeframe is a wrong answer; there is no wrong answer to guess here,
+  // only the caller's own situation.
+  const forming = newestBarIsForming === true
+  const lastI = length - 1
+  for (let i = 0; i < length; i++) {
+    const isLast = i === lastI
+    const rt = forming && isLast
+    cols.islast[i] = isLast ? 1 : 0
+    cols.isfirst[i] = i === 0 ? 1 : 0
+    cols.isrealtime[i] = rt ? 1 : 0
+    cols.isconfirmed[i] = rt ? 0 : 1
+    // ⚠️ `ishistory` IS THE SAME PREDICATE, deliberately. TradingView separates
+    // the two by VIEWER ARRIVAL — a bar that formed under your session is
+    // confirmed but not history — and we have no viewers, so the distinction has
+    // no referent here. Documented in docs/pine/barstate.md rather than faked.
+    cols.ishistory[i] = rt ? 0 : 1
+  }
+  // The newest bar that is not still forming: the last bar normally, the one
+  // before it while the last is forming, and NO bar when a 1-bar series forms.
+  const lch = forming ? lastI - 1 : lastI
+  for (let i = 0; i < length; i++) cols.islastconfirmedhistory[i] = (lch >= 0 && i === lch) ? 1 : 0
 
   // THE UNIT GATE — before any formatter work, so a refused series costs none.
   let instants = true

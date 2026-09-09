@@ -18,7 +18,7 @@
 // until a member pastes a script that uses it.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, BUILTIN_TIMEFRAME_ALIAS, BUILTIN_CONSTANT_TREE, BUILTIN_CALENDAR_TREE } from './pine.js'
+import { translatePine, BUILTIN_TIMEFRAME_ALIAS, BUILTIN_BARSTATE_ALIAS, BUILTIN_CONSTANT_TREE, BUILTIN_CALENDAR_TREE } from './pine.js'
 import { TABLE } from './parse.js'
 
 const plot = (expr) => `//@version=6\nindicator("t")\nplot(${expr})\n`
@@ -39,16 +39,43 @@ describe('the alias map points at real columns, in both directions', () => {
     }
   })
 
-  it('⛔⛔ every clock PREDICATE has an alias — this is the direction that rots', () => {
-    // ⭐ ADDING `clock.isseconds` AND FORGETTING THIS MAP IS INVISIBLE until a
+  it('⛔⛔ every clock PREDICATE is REACHABLE under some Pine name — the direction that rots', () => {
+    // ⭐ ADDING `clock.isseconds` AND FORGETTING THE MAP IS INVISIBLE until a
     // member pastes `timeframe.isseconds` and is told the engine has no such
     // name — while the engine has exactly that name. Derived from the manifest,
     // so a new predicate is covered on the day it lands.
-    const aliased = new Set(Object.values(BUILTIN_TIMEFRAME_ALIAS))
+    //
+    // ⚰️ WIDENED 2026-09-09, AND THE INTENT IS UNCHANGED. This asserted a
+    // `timeframe.` alias specifically, which was right while every bool clock
+    // column WAS a timeframe predicate. The six barstate columns broke that
+    // premise without weakening the rule: what a member needs is that the column
+    // be reachable under the name THEY write, whichever namespace that is. So the
+    // rail now unions the namespaces — and asserts they stay DISJOINT, because a
+    // column reachable under two Pine names would be two authorities over it.
+    const tf = Object.values(BUILTIN_TIMEFRAME_ALIAS)
+    const bs = Object.values(BUILTIN_BARSTATE_ALIAS)
+    const overlap = tf.filter((n) => bs.includes(n))
+    expect(overlap, `column(s) ${overlap.join(', ')} are reachable under BOTH `
+      + '`timeframe.` and `barstate.` — one column, two Pine names').toEqual([])
+
+    const aliased = new Set([...tf, ...bs])
     const missing = clockPredicates().filter((n) => !aliased.has(n))
-    expect(missing, `clock predicate(s) ${missing.join(', ')} have no `
-      + '`timeframe.` alias — the engine holds the column and the Pine door will '
-      + 'refuse the name a member actually writes').toEqual([])
+    expect(missing, `clock predicate(s) ${missing.join(', ')} have no Pine alias `
+      + '— the engine holds the column and the door will refuse the name a member '
+      + 'actually writes').toEqual([])
+  })
+
+  it('⛔ and the barstate map points at real columns too', () => {
+    const names = Object.values(BUILTIN_BARSTATE_ALIAS)
+    expect(names.length, 'the barstate map is empty — the rail above proves nothing')
+      .toBeGreaterThan(0)
+    for (const n of names) {
+      expect(TABLE.clock, `${n} is aliased but the manifest declares no such clock column`)
+        .toHaveProperty(n)
+    }
+    for (const [key, col] of Object.entries(BUILTIN_BARSTATE_ALIAS)) {
+      expect(key).toBe(`barstate.${col}`)
+    }
   })
 
   it('⭐ the key is exactly `timeframe.` + the column name', () => {

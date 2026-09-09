@@ -134,42 +134,85 @@ describe('⭐ strict mode does NOT punish a script for being correct', () => {
   })
 })
 
-describe('⛔⛔ `barstate.*` folds on closed bars and is REFUSED for a pane', () => {
-  // ⭐⭐ THE SECOND PLACE THE TWO CONTRACTS DIVERGE, and the reason is the same
-  // one: the screener evaluates CLOSED bars, so folding `barstate.isconfirmed`
-  // to true there is EXACT. A chart pane draws the forming bar, where it is
-  // false exactly once — on the one bar the member is watching. Realtime has
-  // never been tested in this engine, so host mode declines rather than
-  // shipping a confident wrong value on that bar.
+describe('⛔⛔ `barstate.*` folds for a screen and is EVALUATED for a pane', () => {
+  // ⭐⭐ THE SECOND PLACE THE TWO CONTRACTS DIVERGE. The screener evaluates CLOSED
+  // bars, so folding `barstate.isconfirmed` to true there is EXACT — not
+  // near-enough — and that half is unchanged.
+  //
+  // ⚰️⚰️ THE PANE HALF WAS "REFUSES" AND IS NOW "EVALUATES", 2026-09-09. This block
+  // used to say realtime "has never been tested in this engine, so host mode
+  // declines rather than shipping a confident wrong value". It HAS been tested
+  // now — read off a live TradingView chart across the US open, fixture
+  // `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json` — and the
+  // finding was that there was never a vendor value to match: the vendor's flags
+  // on a CLOSED bar depend on when the viewer arrived, so a bar that formed under
+  // your session keeps its realtime barstate afterwards while the same bar loaded
+  // as history reads differently.
+  // ⭐ So the pane gets a value defined from OUR clock and OUR fetch instead of a
+  // refusal awaiting a vendor number that does not exist.
   const each = (member) => `//@version=6\nindicator("t")\nplot(barstate.${member} ? close : open)\n`
 
   for (const [member, folded] of [['isconfirmed', 'close'], ['ishistory', 'close'],
-    ['isnew', 'close'], ['isrealtime', 'open']]) {
-    it(`⭐ barstate.${member} — folds to \`${folded}\` for the screener, refuses for a pane`, () => {
+    ['isrealtime', 'open']]) {
+    it(`⭐ barstate.${member} — still folds to \`${folded}\` for the screener`, () => {
       const l = translatePine(each(member))
       expect(l.ok, 'the screener contract is unchanged').toBe(true)
       expect(l.outputs[0].formula, 'and it still folds to its closed-bar value').toBe(folded)
+    })
 
+    it(`⭐ barstate.${member} — a pane EVALUATES it rather than refusing`, () => {
       const h = translatePine(each(member), { strict: true })
-      expect(h.ok).toBe(false)
-      expect(h.refusal.guard).toBe('pine:live-bar-state')
+      expect(h.ok, h.refusal && h.refusal.message).toBe(true)
+      // ⛔ AND IT IS NOT THE SCREENER'S FOLD WEARING A PANE'S HAT. The pane must
+      // reach the CLOCK COLUMN, so its formula names the column and differs from
+      // the folded one — without this, a build that simply stopped refusing and
+      // returned the constant would pass.
+      expect(h.outputs[0].formula, 'a pane got the screener fold, not the column')
+        .not.toBe(folded)
+      expect(h.outputs[0].formula).toMatch(new RegExp(member))
     })
   }
 
-  it('⛔ the refusal says the name is KNOWN, not missing', () => {
-    // ⚰️ `pine:builtin` would be the wrong sentence here and this file's
-    // neighbour already argued that for `barstate.islast`: "this engine has no
-    // home for that name" is false when the engine holds it and folds it.
-    const h = translatePine(each('isconfirmed'), { strict: true })
-    expect(h.refusal.message).toMatch(/forming bar/)
-    expect(h.refusal.message).not.toMatch(/does not hold/)
+  it('⛔ barstate.isnew is refused on BOTH — a pane sees no ticks either', () => {
+    // ⚰️ IT USED TO FOLD TO `close` FOR THE SCREENER, i.e. to the constant 1, on
+    // the argument that a once-per-bar model makes every evaluation "the first".
+    // That was unfalsifiable rather than true: nothing here ever observes the
+    // second tick that would make it false. It refuses by name now.
+    for (const opts of [{}, { strict: true }]) {
+      const r = translatePine(each('isnew'), opts)
+      expect(r.ok, `isnew was served on ${JSON.stringify(opts)}`).toBe(false)
+      const why = String((r.refusal && r.refusal.message)
+        || (r.outputs || []).map((o) => o.refusal && o.refusal.message).join(' '))
+      expect(why).toMatch(/per-tick/)
+    }
   })
 
-  it('⭐ `barstate.islast` is refused by BOTH — it was never a fold', () => {
-    // A request-dependent name, refused for a different and older reason. It
-    // must not quietly become a live-bar refusal.
-    expect(translatePine(each('islast')).refusal.guard).toBe('pine:builtin')
-    expect(translatePine(each('islast'), { strict: true }).refusal.guard).toBe('pine:builtin')
+  it('⭐ `barstate.islast` is SERVED by both now — the withdrawal', () => {
+    // ⚰️ THIS TEST ASSERTED THE OPPOSITE and named it "refused by BOTH — it was
+    // never a fold". The refusal was withdrawn because its reasoning was wrong
+    // about which end of the series moves: a fetch reaches BACKWARDS from now, so
+    // deepening it never changes which bar is newest. `isfirst` DOES move and
+    // keeps the constraint — as a `window_dependent` tag, asserted below.
+    for (const opts of [{}, { strict: true }]) {
+      const r = translatePine(each('islast'), opts)
+      expect(r.ok, `islast refused on ${JSON.stringify(opts)}: `
+        + String(r.refusal && r.refusal.message)).toBe(true)
+    }
+  })
+
+  it('⛔⛔ `barstate.isfirst` — a pane draws it, a SCREEN refuses it', () => {
+    // ⭐ THE PAIR IS THE RULING, and asserting one half is how an exemption
+    // becomes a hole. This is the `cum` bargain applied to a name.
+    const screen = translatePine(each('isfirst'))
+    expect(screen.ok, 'a screen was handed a fetch-dependent flag').toBe(false)
+    const why = String((screen.refusal && screen.refusal.message)
+      || (screen.outputs || []).map((o) => o.refusal && o.refusal.message).join(' '))
+    expect(why).toMatch(/depends on how much history was loaded/)
+    expect(why, 'the refusal must point at the end of the series that DOES work')
+      .toMatch(/islast/)
+
+    expect(translatePine(each('isfirst'), { strict: true }).ok,
+      'a pane must be allowed to draw it').toBe(true)
   })
 })
 

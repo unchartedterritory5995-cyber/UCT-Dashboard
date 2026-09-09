@@ -963,9 +963,25 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:dayofmonth',
       'clock:dayofweek',
       'clock:hour',
+      // ⭐⭐ 104 -> 110: THE SIX BARSTATE COLUMNS (2026-09-09), NAMED rather than
+      // a bumped count. They arrived under an owner ruling that UCT defines
+      // `barstate.*` from OUR clock and OUR fetch instead of matching the vendor,
+      // because the vendor's flags on a CLOSED bar depend on when the viewer
+      // opened the chart — measured, fixture
+      // `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json`.
+      // ⚠️ `islast` is here at all because the earlier ruling that refused it as
+      // request-dependent was WRONG about which end of the series moves: a fetch
+      // reaches backwards from now, so deepening it never changes which bar is
+      // newest. `isfirst` DOES move, and carries `window_dependent`.
+      'clock:isconfirmed',
       'clock:isdaily',
+      'clock:isfirst',
+      'clock:ishistory',
       'clock:isintraday',
+      'clock:islast',
+      'clock:islastconfirmedhistory',
       'clock:ismonthly',
+      'clock:isrealtime',
       'clock:isweekly',
       'clock:minute',
       'clock:month',
@@ -1080,7 +1096,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(104)
+    expect(entries.length).toBe(110)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1090,7 +1106,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(104)
+    expect(subjects.length).toBe(110)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2470,10 +2486,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
+    // 104 -> 110 (2026-09-09): the six barstate clock columns.
     // 103 -> 104 (2026-09-09): `cum`. The addend is the ENTRY COUNT of the
     // table's generated set, so it moves with a declaration and not with the
     // corpus — which is why it is written as a sum rather than one number.
-    expect(sentences.length).toBe(CORPUS.cases.length + 104)
+    expect(sentences.length).toBe(CORPUS.cases.length + 110)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

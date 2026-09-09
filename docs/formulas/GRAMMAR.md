@@ -44,6 +44,12 @@ says which name and why — it never guesses a meaning.
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
 | `isweekly` | 1 when the chart's timeframe is weekly, otherwise 0 |
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
+| `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
+| `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
+| `isrealtime` | 1 on the newest bar when its scheduled close time has not yet passed, otherwise 0 |
+| `isconfirmed` | 1 unless the bar is still forming, which only the newest bar can ever be |
+| `ishistory` | 1 unless the bar is still forming -- the same predicate as isconfirmed, kept as its own name because Pine spells both |
+| `islastconfirmedhistory` | 1 on the newest bar that is not still forming, otherwise 0 |
 
 ## Operators
 

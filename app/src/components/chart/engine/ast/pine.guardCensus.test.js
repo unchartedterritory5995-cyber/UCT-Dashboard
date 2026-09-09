@@ -171,6 +171,18 @@ const EXPECTED_UNEXERCISED = [
   // ⚠️ Unexercised does NOT mean dead: an undefined name is still a real refusal
   // a member can reach by typo. It means no PUBLISHED script does.
   'pine:undefined',
+  // ⭐⭐ ARRIVED 2026-09-09 WITH THE BARSTATE RULING, and it belongs here on
+  // purpose. `pine:window-dependent` refuses a value whose answer moves with how
+  // much history was loaded — today exactly one name reaches it, `barstate.isfirst`
+  // on a SCREEN, and no published script in either corpus writes it. Being
+  // unexercised is the correct state rather than a gap.
+  // ⚠️ IT IS NOT UNTESTED: `pine.barstate.test.js` and `pineStrictMode.test.js`
+  // both drive it directly, in BOTH directions — a screen refuses, a pane draws —
+  // because asserting only the refusal is how an exemption becomes a hole.
+  // ⛔ IT WILL LEAVE THIS LIST the day a corpus script writes `barstate.isfirst`,
+  // which is a perfectly ordinary thing to write for initialisation, so the move
+  // would be a fact about the corpus rather than a defect.
+  'pine:window-dependent',
 ]
 
 /* ⭐ MEASURED ACROSS BOTH PUBLISHED CORPORA. The guards above are reached by NONE

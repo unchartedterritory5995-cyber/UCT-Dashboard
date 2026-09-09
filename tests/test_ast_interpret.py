@@ -270,7 +270,10 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # type, argument kind, or lookback form.
     # 103 -> 104 (2026-09-09): `cum`, admitted under owner Ruling D with its
     # containment on the DEFINITION (`_requirement_tags`) rather than on the entry.
-    assert len(ast_table.bar_names()) == 104, len(ast_table.bar_names())
+    # 104 -> 110 (2026-09-09): the six barstate clock columns. Named rather than
+    # bumped -- islast, isfirst, isrealtime, isconfirmed, ishistory,
+    # islastconfirmedhistory. See closedTable.json::_clock_barstate.
+    assert len(ast_table.bar_names()) == 110, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -296,7 +299,7 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 240 -> 241 (2026-09-09): `cum`. The bar half moved and the scalar half did
     # not, which is what the two assertions above are for; this is their sum and
     # it has to move with them or the pair stops being a partition claim.
-    assert len(declared) == 241, f"the table declares {len(declared)} names, not 241"
+    assert len(declared) == 247, f"the table declares {len(declared)} names, not 247"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

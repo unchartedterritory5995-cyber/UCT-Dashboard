@@ -126,6 +126,12 @@ export const DROP = Object.freeze([
   "_functions_sum_dev",
   "_benchmarks",
   "_functions_vendor_parity_resolutions",
+  // ⭐ ADDED 2026-09-09 with the six barstate clock columns. DROP, because the
+  // running product reads the COLUMNS (which are ordinary `clock` entries the
+  // browser already receives) and never this note — it is the argument for why
+  // they are columns rather than folds, and for why the trading calendar stays
+  // in Python. Full version: docs/pine/barstate.md.
+  "_clock_barstate",
 ])
 
 export function stripProse(table) {

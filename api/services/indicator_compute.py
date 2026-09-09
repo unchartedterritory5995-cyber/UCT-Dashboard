@@ -1446,11 +1446,19 @@ CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
 #: over which of these names a formula may spell; this module is the authority
 #: over what each one MEANS, and ``ast_interpret`` raises by name when the two
 #: disagree.
+#: The six ``barstate.*`` columns. Like ``barindex`` they read no ``t`` at all —
+#: each is a pure function of (bar index, delivered bar count, and the single
+#: ``newest_bar_is_forming`` boolean) — so they sit OUTSIDE the unit gate and a
+#: series stored as ``YYYYMMDD`` still gets them.
+CLOCK_BARSTATE = ("islast", "isfirst", "isrealtime", "isconfirmed", "ishistory",
+                  "islastconfirmedhistory")
+
 CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
-                                      "isweekly", "ismonthly")
+                                      "isweekly", "ismonthly") + CLOCK_BARSTATE
 
 
-def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[MaybeNum]]:
+def compute_clock(bars: List[dict], tf: Optional[str] = None,
+                  newest_bar_is_forming: bool = False) -> Dict[str, List[MaybeNum]]:
     """The clock columns for a bar series, aligned to ``bars``.
 
     Mirrors ``computeClock`` in ``indicators.js``, value for value.
@@ -1497,6 +1505,40 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[
     # in ``ast_interpret`` so the clock has ONE owner: a second place that knew
     # what bar number a bar is would be a second authority over a compared value.
     cols["barindex"] = [float(i) for i in range(n)]
+
+    # ── barstate ───────────────────────────────────────────────────────────
+    # ⭐⭐ ALL SIX ARE DECIDED BY (index, n, forming) AND NOTHING ELSE. No clock
+    # is read here and no trading calendar is consulted: whether the newest bar
+    # is still forming is settled ONCE by the caller, where the calendar
+    # actually lives (``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`` +
+    # ``liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD``). That keeps ONE
+    # authority over the calendar and lets the JS lane mirror this function
+    # without a second copy of the holiday set.
+    #
+    # ⭐ THE DEFAULT IS THE SCREENER'S TRUE STATE, NOT A GUESS. A screener sweep
+    # evaluates bars that are all closed at scan time, so ``forming=False``
+    # makes ``isconfirmed`` 1 on every bar — which is exactly the constant the
+    # door folded to before these columns existed, reached by evaluation rather
+    # than by a special case. Contrast ``tf``, which fails CLOSED when absent
+    # because a guessed timeframe would be a wrong answer; there is no wrong
+    # answer to guess here, only the caller's own situation.
+    forming = bool(newest_bar_is_forming)
+    last_i = n - 1
+    cols["islast"] = [1.0 if i == last_i else 0.0 for i in range(n)]
+    cols["isfirst"] = [1.0 if i == 0 else 0.0 for i in range(n)]
+    cols["isrealtime"] = [1.0 if (forming and i == last_i) else 0.0 for i in range(n)]
+    cols["isconfirmed"] = [0.0 if (forming and i == last_i) else 1.0 for i in range(n)]
+    # ⚠️ ``ishistory`` IS THE SAME PREDICATE, deliberately. TradingView separates
+    # the two by VIEWER ARRIVAL — a bar that formed under your session is
+    # confirmed but not history — and we have no viewers, so the distinction has
+    # no referent here. Documented in docs/pine/barstate.md rather than faked.
+    cols["ishistory"] = list(cols["isconfirmed"])
+    # The newest bar that is not still forming: the last bar normally, the one
+    # before it while the last is forming, and NO bar when a 1-bar series is
+    # still forming.
+    lch = last_i - 1 if forming else last_i
+    cols["islastconfirmedhistory"] = [1.0 if (lch >= 0 and i == lch) else 0.0
+                                      for i in range(n)]
 
     # THE UNIT GATE — before ``_et_zone()``, so a refused series costs no tz
     # lookup, and before any accumulation so the answer is all-or-nothing.

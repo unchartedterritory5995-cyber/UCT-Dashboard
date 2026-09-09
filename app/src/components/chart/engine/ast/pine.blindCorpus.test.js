@@ -438,7 +438,14 @@ plot(${body} ? 1 : 0)
   it('⛔ NON-VACUITY: a built-in with no ruling still gets the generic sentence', () => {
     // Without this, a change that appended the mintick paragraph to every
     // built-in refusal would satisfy both cases above.
-    const r = refuse('barstate.islast')
+    // ⚰️ THIS USED `barstate.islast`, WHICH NOW TRANSLATES. Its refusal was
+    // withdrawn on 2026-09-09 (the newest bar is the same bar at any fetch
+    // depth), so the control had quietly become a test of a name that no longer
+    // refuses — it would have gone red for the right reason and been "fixed" by
+    // deleting it. `timeframe.period` is a REAL Pine built-in this engine still
+    // holds no column for and has ruled nothing about, which is exactly the
+    // property this control needs.
+    const r = refuse('timeframe.period')
     expect(r.guard).toBe('pine:builtin')
     expect(r.message).not.toContain('minimum price increment')
   })

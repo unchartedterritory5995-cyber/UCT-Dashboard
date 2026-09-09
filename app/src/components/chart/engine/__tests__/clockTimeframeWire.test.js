@@ -22,6 +22,7 @@
 import { describe, it, expect } from 'vitest'
 import { computeFor } from '../nativeRegistry'
 import { TABLE } from '../ast/parse'
+import { BUILTIN_TIMEFRAME_ALIAS } from '../ast/pine.js'
 
 /** 04:00 and 04:05 ET on 2025-10-30 — real instants, so the unit gate passes and
  *  the wall-clock columns are answerable. Two bars is enough: the timeframe is a
@@ -39,9 +40,19 @@ const defFor = (name) => ({
 
 const col = (name, ctx) => Array.from(computeFor(defFor(name), BARS, {}, ctx).v)
 
-/** The four entries that can only be answered from what the CALLER knows —
- *  derived from the manifest, never typed, so a fifth arrives covered. */
-const TF_FLAGS = Object.keys(TABLE.clock).filter((n) => n.startsWith('is'))
+/** The entries that can only be answered from what the CALLER knows — derived,
+ *  never typed, so a fifth timeframe flag arrives covered.
+ *
+ *  ⚰️ THIS WAS `Object.keys(TABLE.clock).filter((n) => n.startsWith('is'))`, which
+ *  was a correct SET reached by a wrong RULE: it happened to select exactly the
+ *  timeframe flags only while they were the only `is*` clock columns. The six
+ *  barstate columns are `is*` too and are answered from the FETCH rather than
+ *  from `ctx.tf`, so the heuristic started sweeping in names this file's
+ *  assertions are false of — `isconfirmed` is 1 with no `tf` at all, correctly,
+ *  because it does not read one.
+ *  ⭐ Deriving from the alias map names the real property: these are the columns
+ *  the `timeframe.` namespace serves, which is exactly the set `ctx.tf` decides. */
+const TF_FLAGS = Object.values(BUILTIN_TIMEFRAME_ALIAS)
 
 describe('the timeframe reaches interpret through computeFor', () => {
   it('⭐ ctx.tf ANSWERS the timeframe booleans — one true, the rest false, per code', () => {

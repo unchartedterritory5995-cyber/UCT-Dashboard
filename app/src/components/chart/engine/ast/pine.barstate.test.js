@@ -6,19 +6,31 @@
 // evaluates is closed, historical, and evaluated once. So the four constants here
 // are exact, not near-enough.
 //
-// ⛔ AND THE POINT OF THIS FILE IS THE OTHER THREE. `barstate.islast` sits in the
-// same namespace, has the same shape and the same one-word answer, and is WRONG
-// to resolve: it is decided by how many bars were requested, so the same scan on
-// the same stock disagrees with itself at two window sizes. That is
-// `lesson_a_derived_value_must_not_depend_on_the_request`. A test that only
-// checked the four that work would pass just as happily on a build that resolved
-// all seven, which is the build that quietly returns a different answer per
-// request — so both directions are asserted, and the split is asserted to be
-// disjoint and exhaustive so a future edit cannot move a name across it silently.
+// ⚰️⚰️ REWRITTEN 2026-09-09 UNDER THE BARSTATE RULING, and this header's own
+// previous claim is the thing that changed. It said `barstate.islast` "is decided
+// by how many bars were requested, so the same scan on the same stock disagrees
+// with itself at two window sizes". THAT IS FALSE, and it conflated the two ends
+// of a series: a fetch reaches BACKWARDS FROM NOW, so deepening it adds bars to
+// the OLD end and never moves which bar is newest. `islast` names the same bar at
+// any depth. `isfirst` names the OLDEST one and DOES move — one sentence had been
+// covering both ends of the series when only one of them travels.
+//
+// ⭐ SO THE SPLIT IS NOW FOUR-WAY, and all four are asserted here:
+//   · BUILTIN_CONSTANT_TREE   — the SCREENER fold. On a sweep every delivered bar
+//                               is closed, so `isconfirmed` is exactly 1.
+//   · BUILTIN_BARSTATE_ALIAS  — the clock columns a PANE evaluates per bar.
+//   · PINE_LIVE_ONLY          — `isnew`, refused on BOTH contracts: it needs a
+//                               per-tick event this engine never observes.
+//   · window_dependent        — `isfirst`, served on a pane, refused for a screen.
+//
+// ⛔ BOTH DIRECTIONS STILL MATTER. A test that only checked what resolves would
+// pass just as happily on a build that resolved everything — which is the build
+// that quietly returns a different answer per request.
 
 import { describe, it, expect } from 'vitest'
 import {
   translatePine, BUILTIN_CONSTANT_TREE, BUILTIN_REQUEST_DEPENDENT,
+  BUILTIN_BARSTATE_ALIAS, PINE_LIVE_ONLY,
 } from './pine.js'
 import { interpret } from './interpret.js'
 
@@ -63,19 +75,32 @@ const RESOLVES = Object.keys(BUILTIN_CONSTANT_TREE)
 const REFUSES = Object.keys(BUILTIN_REQUEST_DEPENDENT)
 
 describe('the four the evaluation model answers', () => {
-  it('⛔ NON-VACUITY FIRST, and the split is pinned in BOTH directions', () => {
-    // Everything below is `0/0` on an empty map. The counts are pinned so the
-    // split cannot GROW by accident either — adding a name to either map is a
-    // deliberate edit here, which is the point: each one is a judgement about
-    // what this engine's evaluation model does and does not decide.
-    expect(RESOLVES.length,
-      `the constant map moved — now [${RESOLVES.join(' | ')}]`).toBe(4)
-    expect(REFUSES.length,
-      `the request-dependent map moved — now [${REFUSES.join(' | ')}]`).toBe(3)
-    // ⛔ AND NO NAME IS IN BOTH. This is the assertion that catches a name being
-    // promoted out of "the request decides this" into "the engine decides this".
-    const both = RESOLVES.filter((n) => REFUSES.includes(n))
-    expect(both, `claimed by BOTH maps: [${both.join(' | ')}]`).toEqual([])
+  it('⛔ NON-VACUITY FIRST, and the split is pinned in EVERY direction', () => {
+    // Everything below is vacuous on empty maps. The membership is pinned so the
+    // split cannot GROW by accident either — moving a name is a deliberate edit
+    // here, which is the point: each one is a judgement about what this engine's
+    // evaluation model does and does not decide.
+    expect([...RESOLVES].sort(),
+      `the screener fold moved — now [${RESOLVES.join(' | ')}]`)
+      .toEqual(['barstate.isconfirmed', 'barstate.ishistory', 'barstate.isrealtime'])
+    expect(Object.keys(BUILTIN_BARSTATE_ALIAS).length, 'the alias map moved').toBe(6)
+    expect(Object.keys(PINE_LIVE_ONLY)).toEqual(['barstate.isnew'])
+    // ⚰️ THE WITHDRAWN MAP IS ASSERTED EMPTY RATHER THAN DELETED. It is where the
+    // NEXT genuinely request-dependent name lands, so a name reappearing there is
+    // a decision somebody made rather than a silent regrowth.
+    expect(REFUSES, `the withdrawn map is no longer empty: [${REFUSES.join(' | ')}]`)
+      .toEqual([])
+    // ⛔ NO NAME IS IN TWO PLACES AT ONCE — catches a name being promoted out of
+    // "refused" into "served" without leaving the map that refuses it.
+    const live = Object.keys(PINE_LIVE_ONLY)
+    for (const [a, b, what] of [
+      [RESOLVES, live, 'the screener fold AND the live-only refusal'],
+      [Object.keys(BUILTIN_BARSTATE_ALIAS), live, 'the alias map AND the live-only refusal'],
+      [RESOLVES, REFUSES, 'the screener fold AND the withdrawn map'],
+    ]) {
+      const both = a.filter((n) => b.includes(n))
+      expect(both, `claimed by ${what}: [${both.join(' | ')}]`).toEqual([])
+    }
   })
 
   for (const name of RESOLVES) {
@@ -95,7 +120,6 @@ describe('the four the evaluation model answers', () => {
     // 50 apart on every fixture bar, so a swapped branch is unmissable.
     expect(col(outOf('barstate.isconfirmed ? close : open').ast)[10]).toBe(BARS[10].c)
     expect(col(outOf('barstate.ishistory ? close : open').ast)[10]).toBe(BARS[10].c)
-    expect(col(outOf('barstate.isnew ? close : open').ast)[10]).toBe(BARS[10].c)
     // ⛔ THE ONE THAT INVERTS. Without this, a map that returned 1 for everything
     // would pass every assertion above.
     expect(col(outOf('barstate.isrealtime ? close : open').ast)[10]).toBe(BARS[10].o)
@@ -109,17 +133,47 @@ describe('the four the evaluation model answers', () => {
   })
 })
 
-describe('🔴 the three the REQUEST decides — refused, and refused with the reason', () => {
-  for (const name of REFUSES) {
-    it(`${name} refuses and names the request as the reason`, () => {
-      const { ast, refusal } = outOf(name)
-      expect(ast, `${name} RESOLVED — it must not`).toBeNull()
-      expect(refusal).toBeTruthy()
-      expect(refusal.message,
-        `${name} refused without saying the answer would depend on the request`)
-        .toMatch(/depends on how (many|far)|relative to the end of the request/)
-    })
-  }
+describe('🔴 what is still refused, and refused with its own reason', () => {
+  it('⛔ barstate.isnew refuses on BOTH contracts — a pane sees no ticks either', () => {
+    for (const opts of [{}, { strict: true }]) {
+      const r = translatePine(script('barstate.isnew ? close : open'), opts)
+      const found = (r.outputs || []).find((o) => o.refusal)
+      const why = String((found && found.refusal && found.refusal.message)
+        || (r.refusal && r.refusal.message) || '')
+      expect(why, `isnew was served on ${JSON.stringify(opts)}`).toMatch(/per-tick/)
+      expect(why).toMatch(/once per bar/)
+    }
+  })
+
+  it('⛔⛔ barstate.isfirst: a SCREEN refuses it, a PANE draws it', () => {
+    // ⭐ THE PAIR IS THE RULING. Served on a pane because a pane is one symbol and
+    // one fetch; refused for a screen because the OLDEST delivered bar moves with
+    // the request. Asserting only one half is how an exemption becomes a hole.
+    const screen = translatePine(script('barstate.isfirst ? close : open'))
+    const sFound = (screen.outputs || []).find((o) => o.refusal)
+    const sWhy = String((sFound && sFound.refusal && sFound.refusal.message)
+      || (screen.refusal && screen.refusal.message) || '')
+    expect(sWhy, 'a screen was handed a fetch-dependent flag').toMatch(/OLDEST bar/)
+    expect(sWhy).toMatch(/depends on how much history was loaded/)
+
+    const pane = translatePine(script('barstate.isfirst ? close : open'), { strict: true })
+    const pFound = (pane.outputs || []).find((o) => o.ast || o.refusal)
+    expect(pFound && pFound.refusal, 'a pane must be allowed to draw it').toBeFalsy()
+    expect(pFound && pFound.ast).toBeTruthy()
+  })
+
+  it('⭐ barstate.islast is SERVED now — the withdrawal, asserted', () => {
+    // ⚰️ It was refused as request-dependent. A fetch reaches backwards from now,
+    // so the newest bar is the same bar at any depth. Both contracts serve it.
+    for (const opts of [{}, { strict: true }]) {
+      const r = translatePine(script('barstate.islast ? close : open'), opts)
+      const found = (r.outputs || []).find((o) => o.ast || o.refusal)
+      expect(found && found.refusal,
+        `islast refused on ${JSON.stringify(opts)}: `
+        + String(found && found.refusal && found.refusal.message)).toBeFalsy()
+      expect(found && found.ast).toBeTruthy()
+    }
+  })
 
   it('⛔ THE CONTROL — an ordinary unknown builtin does NOT get that sentence', () => {
     // Without this, every assertion above would pass for a reader that appended
