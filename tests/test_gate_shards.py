@@ -306,3 +306,100 @@ def test_the_drift_exemption_does_not_cover_anything_else(tmp_path):
                  run_shard_fn=lambda i: REAL_ANSI_PASS, file_count_fn=lambda: 392)
     assert "TREE DRIFT" in str(e.value)
     assert "registry.js" in str(e.value), "the real source change must still void the run"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# CONSOLE OUTPUT IS AN I/O BOUNDARY TOO — the third body of the encoding disease.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+def test_say_survives_a_cp1252_console(capsysbinary):
+    """`say` must not raise on characters the console cannot encode.
+
+    ⛔ THE BUG THIS RAILS. `print(render(manifest))` raised UnicodeEncodeError on the Σ in the
+    summary row, and the wrapper died AFTER A COMPLETELY SUCCESSFUL GATE — manifest written, tree
+    verified, zero new failures, exit 1. Failing on the last line of a passing run is the least
+    harmful version of this bug and the most embarrassing.
+    """
+    import gate_shards
+    gate_shards.say("Σ summed — ✓ done")
+    out = capsysbinary.readouterr().out.decode("utf-8", "replace")
+    assert "Σ" in out
+    assert "✓" in out
+
+
+def test_say_survives_a_stream_with_no_binary_buffer():
+    """Some captured streams (pytest's default capture, notebooks) expose no `.buffer`. `say` must
+    degrade instead of raising AttributeError — a crash in the reporting path would once again turn
+    a successful gate into exit 1."""
+    import io
+    import gate_shards
+
+    class NoBuffer(io.StringIO):
+        pass
+
+    stream = NoBuffer()
+    old = sys.stdout
+    sys.stdout = stream
+    try:
+        gate_shards.say("Σ — ✓")
+    finally:
+        sys.stdout = old
+    assert "Σ" in stream.getvalue()
+
+
+def test_render_output_actually_contains_a_character_cp1252_cannot_encode():
+    """⛔ NON-VACUITY. If `render` stopped emitting a non-cp1252 character, the two rails above
+    would pass against a `say` that never had the bug — and prove nothing. The Σ in the summed row
+    is the character that took the run down, so its presence is the hazard being preserved."""
+    manifest = {
+        "at": "2026-01-01T00:00:00", "tree_head_start": "a", "tree_head_end": "a",
+        "wrapper": "scripts/gate_shards.py", "wrapper_blob": "b", "shards": 1,
+        "per_shard": [{"shard": 1, "files": {"failed": 0, "passed": 1, "skipped": 0, "todo": 0,
+                                             "total": 1},
+                       "tests": {"failed": 0, "passed": 2, "skipped": 0, "todo": 0, "total": 2}}],
+        "summed": {"files": {"failed": 0, "passed": 1, "skipped": 0, "todo": 0, "total": 1},
+                   "tests": {"failed": 0, "passed": 2, "skipped": 0, "todo": 0, "total": 2}},
+        "test_files_on_disk": 1, "file_count_reconciles": True,
+        "failures": [], "baseline_sha": "x", "baseline_measured_at": "y",
+        "vs_baseline": {"observed_count": 0, "baseline_count": 0, "new": [],
+                        "no_longer_failing": [], "matches_baseline": True},
+    }
+    import gate_shards
+    text = gate_shards.render(manifest)
+    with pytest.raises(UnicodeEncodeError):
+        text.encode("cp1252")
+
+
+def test_say_survives_a_REAL_cp1252_console_subprocess():
+    """⭐⭐ THE ONLY ONE OF THE `say` RAILS WITH TEETH, and the two above are kept honest by it.
+
+    ⛔ WHY THE IN-PROCESS RAILS ARE NOT ENOUGH — measured, not assumed. Under pytest, `sys.stdout`
+    is captured as UTF-8, so a bare `print("Σ")` succeeds and every in-process assertion passes
+    against the bug. Verified by mutation on 2026-09-09: reverting `say` to `print(...)` left
+    `test_say_survives_a_cp1252_console` GREEN, while the same call against a real console raised
+    `UnicodeEncodeError: 'charmap' codec can't encode character '\\u03a3'`.
+
+    So this rail spawns a REAL child with `PYTHONIOENCODING=cp1252` — the actual condition the
+    wrapper faces on this machine — and asserts it exits 0. Under the bug it exits 1.
+
+    ⚠️ Platform-honest: on a UTF-8 console this still passes against the bug, because the bug is
+    harmless there. The gate of record runs on this Windows box, which is why the forced encoding
+    is in the environment rather than left to chance.
+    """
+    import os
+    import subprocess as sp
+
+    scripts = str(pathlib.Path(__file__).resolve().parent.parent / "scripts")
+    env = dict(os.environ, PYTHONIOENCODING="cp1252")
+    code = (
+        "import sys; sys.path.insert(0, r'" + scripts + "')\n"
+        "import gate_shards\n"
+        "gate_shards.say('\\u03a3 summed \\u2014 \\u2713 done')\n"
+    )
+    proc = sp.run([sys.executable, "-c", code], capture_output=True, text=True,
+                  encoding="utf-8", errors="replace", env=env, timeout=60)
+
+    assert proc.returncode == 0, (
+        "say() crashed on a real cp1252 console — this is the bug that turned a PASSING gate into "
+        f"exit 1. stderr:\n{proc.stderr}")
+    assert "UnicodeEncodeError" not in (proc.stderr or "")

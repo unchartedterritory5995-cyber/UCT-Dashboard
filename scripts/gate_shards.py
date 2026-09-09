@@ -193,6 +193,29 @@ def _run_shard(index: int, shards: int, out_dir: pathlib.Path) -> str:
     return text
 
 
+def say(text: str, *, err: bool = False) -> None:
+    """⛔ CONSOLE OUTPUT IS AN I/O BOUNDARY TOO, AND THIS IS THE THIRD BODY OF ONE DISEASE.
+
+    First the subprocess READ decoded as cp1252 and destroyed a sixteen-minute run. Then `_git` had
+    the same exposure. Now the WRITE: `print(render(manifest))` raised UnicodeEncodeError on the Σ
+    in the summary row, and the wrapper died **after a completely successful gate** — manifest
+    written, tree verified, zero new failures, exit 1.
+
+    Failing at the last line of a passing run is the least harmful version of this bug and the most
+    embarrassing. Every console write goes through here so there is ONE place, and `errors=replace`
+    means an unencodable character degrades to `?` instead of taking the process down.
+    """
+    stream = sys.stderr if err else sys.stdout
+    data = (text + "\n").encode("utf-8", "replace")
+    buf = getattr(stream, "buffer", None)
+    if buf is not None:
+        buf.write(data)
+        buf.flush()
+    else:                                   # a stream with no binary buffer (captured in tests)
+        stream.write(data.decode("utf-8", "replace"))
+        stream.flush()
+
+
 class GateError(RuntimeError):
     """Raised for every condition that invalidates a run. The message NAMES the cause."""
 
@@ -385,14 +408,13 @@ def main(argv=None) -> int:
                 f"Per-shard logs from the refused attempt were deleted ({removed} file(s)) so an\n"
                 f"empty log directory cannot be mistaken for a completed run.\n",
                 encoding="utf-8")
-        print(f"\n  GATE INVALID: {e}\n", file=sys.stderr)
-        print(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n",
-              file=sys.stderr)
+        say(f"\n  GATE INVALID: {e}\n", err=True)
+        say(f"  (cleared {removed} partial shard log(s); wrote INVALID-{stamp}.md)\n", err=True)
         return 2
     stamp = manifest["at"].replace(":", "-")
     (out_dir / f"{stamp}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     (out_dir / f"{stamp}.md").write_text(render(manifest), encoding="utf-8")
-    print(render(manifest))
+    say(render(manifest))
     # ⚠️ Exit 0 means THE RUN IS VALID, not that the suite is green — this branch gates on "no NEW
     # failures against a measured baseline", which is a judgement the manifest supports and this
     # script deliberately does not make.
