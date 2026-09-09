@@ -45,23 +45,35 @@ TARGETS = {
     "webkit": ("webkit", "launch"),
     "chromium-fresh": ("chromium", "persistent"),
     "chromium-incognito": ("chromium", "incognito"),
+    "firefox-private": ("firefox", "private"),
 }
 
 
-def run_one(pw, label: str, url: str, timeout_s: int) -> dict:
+def run_one(pw, label: str, url: str, timeout_s: int, user_data_dir: str | None = None) -> dict:
     engine, how = TARGETS[label]
     browser_type = getattr(pw, engine)
     context = None
     browser = None
-    tmpdir = None
+    tmpdir = user_data_dir
     try:
         if how == "launch":
             browser = browser_type.launch(headless=True)
             context = browser.new_context()
+        elif how == "private":
+            # Firefox's own private-browsing mode, not a fresh profile: the
+            # distinction matters because §28 asks what the browser TELLS us
+            # about durability, and a clean profile is durable while a private
+            # window is not.
+            browser = browser_type.launch(
+                headless=True,
+                firefox_user_prefs={"browser.privatebrowsing.autostart": True},
+            )
+            context = browser.new_context()
         else:
             # A brand-new user-data-dir IS the fresh-profile case: first-ever
             # origin, no prior IndexedDB, no prior quota history.
-            tmpdir = tempfile.mkdtemp(prefix=f"q1-{label}-")
+            if tmpdir is None:
+                tmpdir = tempfile.mkdtemp(prefix=f"q1-{label}-")
             args = ["--incognito"] if how == "incognito" else []
             context = browser_type.launch_persistent_context(
                 tmpdir, headless=True, args=args
@@ -89,6 +101,7 @@ def run_one(pw, label: str, url: str, timeout_s: int) -> dict:
             "mode": how,
             "playwrightBrowserVersion": (browser.version if browser else "persistent-context"),
             "url": url,
+            "userDataDir": tmpdir,
         }
         return result
     finally:
@@ -129,7 +142,26 @@ def main() -> int:
         for label in labels:
             print(f"\n=== {label} ===")
             try:
-                result = run_one(pw, label, args.url, args.timeout)
+                if label == "chromium-incognito":
+                    # ⛔ THE CONTROL. `--incognito` on a persistent context can
+                    # silently hand back an ORDINARY page, and a private-mode
+                    # result taken in a normal profile is worse than none. So run
+                    # it TWICE against the SAME user-data-dir: a genuine private
+                    # session cannot find its own carryover record on the second
+                    # launch, and an ordinary profile always will.
+                    shared = tempfile.mkdtemp(prefix="q1-incognito-")
+                    result = run_one(pw, label, args.url, args.timeout, user_data_dir=shared)
+                    second = run_one(pw, label, args.url, args.timeout, user_data_dir=shared)
+                    carried = bool((second.get("carryover") or {}).get("found"))
+                    result["privateContext"] = {
+                        "secondLaunchFoundCarryover": carried,
+                        "confirmedPrivate": not carried,
+                        "note": ("an ordinary profile keeps its carryover across launches; a private "
+                                 "session cannot. confirmedPrivate=false means this run measured an "
+                                 "ORDINARY profile and must NOT be read as private-mode evidence."),
+                    }
+                else:
+                    result = run_one(pw, label, args.url, args.timeout)
             except Exception as e:  # a browser that will not launch is a result too
                 result = {"label": label, "error": f"{type(e).__name__}: {e}"}
             path = OUT_DIR / f"{label}.json"

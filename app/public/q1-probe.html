@@ -24,6 +24,7 @@
         white-space: pre-wrap; word-break: break-word; -webkit-user-select: text; user-select: text; }
   .status { margin: 0 0 12px; color: #c9a84c; font-size: 14px; min-height: 20px; }
   .verdict { font-weight: 700; }
+  .summary { font-size: 13px; font-weight: 700; color: #c9a84c; border-color: #4a3f22; }
 </style>
 </head>
 <body>
@@ -39,10 +40,12 @@
 </div>
 
 <button id="run">Run the probe</button>
+<button id="send" hidden>Send result to UCT</button>
 <button id="copy" class="ghost" hidden>Copy result</button>
 <button id="wipe" class="ghost" hidden>Remove all probe data</button>
 
 <p class="status" id="status"></p>
+<pre id="summary" class="summary" hidden></pre>
 <pre id="out">Not run yet.</pre>
 
 <script>
@@ -401,11 +404,41 @@
     return v;
   }
 
+  // A single legible line, because a certification result read off a phone
+  // screenshot is how a matrix acquires a number nobody actually measured.
+  function summarize(r) {
+    var v = r.verdict || {};
+    var st = r.storage || {};
+    var wl = r.webLocks || {};
+    var vc = (r.versionchange || {});
+    var b = function (x) { return x === true ? '1' : (x === false ? '0' : '?') };
+    return [
+      'IDB:' + b(v.indexedDbUsable),
+      'RELOAD:' + b(v.durableAcrossReload),
+      'LOCKS:' + b(v.webLocksUsable),
+      'VCHANGE:' + b(v.versionchangeSafe),
+      'DRAIN:' + b(v.drainPossible),
+      'QUOTA:' + (st.quotaMB == null ? '?' : st.quotaMB + 'MB'),
+      'PERSISTED:' + b(st.persistedBefore),
+      'PERSIST_GRANTED:' + (st.persistResult === undefined ? '-' : b(st.persistResult)),
+      'LOCKDELAY:' + (wl.grantCallbackDelayMs == null ? '?' : wl.grantCallbackDelayMs + 'ms'),
+      'VC_WITH:' + ((vc.withHandler || {}).upgraded === true ? (vc.withHandler.ms + 'ms') : 'FAIL'),
+      'VC_WITHOUT:' + ((vc.withoutHandler || {}).upgraded === false ? 'blocked' : 'upgraded'),
+      'CARRY:' + b((r.carryover || {}).found)
+    ].join('  ') + '
+=> ' + (v.classification || '?');
+  }
+
   function render(result) {
     var text = JSON.stringify(result, null, 1);
+    $('summary').textContent = summarize(result);
+    $('summary').hidden = false;
+    $('send').hidden = false;
     $('out').textContent = text;
     window.__q1Result = result;          // read by the automated runs
     window.__q1Done = true;
+    // `?send=1` makes the whole remote-device flow: open the link, tap Run.
+    try { if ((new URL(location.href)).searchParams.get('send') === '1') sendResult() } catch (e) {}
     $('copy').hidden = false;
     $('wipe').hidden = false;
     say(result.verdict ? result.verdict.classification : 'done');
@@ -451,6 +484,25 @@
     var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
     say('Selected — copy it with the usual gesture.');
   }
+  async function sendResult() {
+    if (!window.__q1Result) return;
+    $('send').disabled = true;
+    say('Sending…');
+    try {
+      var res = await fetch('/api/q1-probe-result', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: (new URL(location.href)).searchParams.get('label') || null,
+                               result: window.__q1Result })
+      });
+      var body = await res.json().catch(function () { return {} });
+      say(res.ok && body.ok ? 'Sent to UCT ✓ — nothing else needed.'
+                            : 'Could not send (' + res.status + ') — copy the result instead.');
+    } catch (e) {
+      say('Could not send — copy the result instead.');
+    } finally { $('send').disabled = false }
+  }
+  $('send').addEventListener('click', function () { sendResult() });
+
   $('wipe').addEventListener('click', async function () {
     say('Removing probe data…');
     var r = await dropDb(CARRY);

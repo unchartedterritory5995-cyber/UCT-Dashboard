@@ -9787,6 +9787,48 @@ if os.path.exists(DIST):
     # REMOVAL CONDITION: delete this route and the file together when the
     # Wave Q1 browser matrix in docs/notebook/wave-q1-browser-certification.md
     # is complete.
+    # Where a probe run reports its result. ⛔ A remote real device (a
+    # BrowserStack iPhone, Patrick's own phone) cannot hand a 3 KB JSON back by
+    # hand, and transcribing a certification result off a screenshot is exactly
+    # how a matrix acquires a number nobody measured. So the page posts it here.
+    #
+    # Deliberately unauthenticated, because the device running the probe is not
+    # signed in: bounded to 32 KB, keeps only the newest 25, stores the payload
+    # verbatim and nothing about the caller. Reading them back IS admin-gated.
+    # REMOVAL CONDITION: goes with the probe page, when the matrix is complete.
+    _Q1_RESULTS_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "q1_probe_results.json")
+
+    @app.post("/api/q1-probe-result", include_in_schema=False)
+    async def _q1_probe_result(request: Request):
+        raw = await request.body()
+        if len(raw) > 32768:
+            return JSONResponse({"ok": False, "error": "too large"}, status_code=413)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except Exception:
+            return JSONResponse({"ok": False, "error": "not json"}, status_code=400)
+        try:
+            rows = []
+            if os.path.exists(_Q1_RESULTS_PATH):
+                with open(_Q1_RESULTS_PATH, "r", encoding="utf-8") as fh:
+                    rows = json.load(fh) or []
+            rows.append({"receivedAt": datetime.now().astimezone().isoformat(), "result": payload})
+            rows = rows[-25:]
+            tmp = _Q1_RESULTS_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(rows, fh)
+            os.replace(tmp, _Q1_RESULTS_PATH)
+            return {"ok": True, "stored": len(rows)}
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    @app.get("/api/q1-probe-results", include_in_schema=False)
+    def _q1_probe_results(_admin: dict = Depends(require_admin)):
+        if not os.path.exists(_Q1_RESULTS_PATH):
+            return {"ok": True, "results": []}
+        with open(_Q1_RESULTS_PATH, "r", encoding="utf-8") as fh:
+            return {"ok": True, "results": json.load(fh) or []}
+
     @app.get("/q1-probe.html", include_in_schema=False)
     def _serve_q1_probe():
         return FileResponse(
