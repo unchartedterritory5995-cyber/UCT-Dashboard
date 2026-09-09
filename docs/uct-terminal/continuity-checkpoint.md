@@ -108,9 +108,10 @@ day) is explicitly NOT a real acceptance session per the directive's
 own caveat — `PATTERN_VISION_ENABLED=1` live-read, still LIVE/NOT YET
 ACCEPTED; Tue 9/8 and Wed 9/9 haven't happened yet. Re-check this gate
 at the start of whatever comes next — it is the closest live external
-event to actually firing this week. S7 NVDA interrupt condition
-re-checked live and still does not apply (`alert_fires` table: 0
-rows). **HOLDING** — continuing under the Continuous Execution
+event to actually firing this week. S7's interrupt condition HAS
+SINCE FIRED — a natural NVDA Form 4 on 2026-09-08 (`alert_fires` now
+1 row); see "S7 — STAGE 2 CLOSED" below. **HOLDING** — continuing
+under the Continuous Execution
 Directive means reporting this honestly rather than manufacturing
 activity against a genuinely gated pool. No independent, bounded,
 unblocked work remains identified as of this checkpoint.
@@ -159,14 +160,15 @@ evidence. Do not manufacture activity to fill this hold period.
   Technical Ask AI into production. Record the exact failure evidence.
   Determine the smallest evidence-based remediation program. Do not
   reopen unrelated Terminal convergence work.
-- **SECONDARY EXTERNAL INTERRUPT: a natural S7 filing event.** S7 remains
-  WAITING ON NATURAL EXTERNAL EVENT — no genuine newer NVDA filing has
-  fired the required Stage 2 path yet. Do NOT replay, fabricate, mutate
-  the baseline, mint a fake session, or force the evaluator. If a genuine
-  filing occurs during the hold, preserve the natural evidence and
-  prioritize: REAL SEC DOCUMENT → S7 EVALUATOR → DURABLE FIRE → DELIVERY
-  → MEMBER ALERT → RESEARCH RETURN → REPEAT EVALUATION → ZERO DUPLICATE
-  → report. Do NOT automatically merge the parked Stage 4/5 UI.
+- **SECONDARY EXTERNAL INTERRUPT: RESOLVED — the natural S7 filing event
+  occurred.** S7 is NO LONGER waiting: a real NVDA SEC Form 4 (accession
+  `0001199039-26-000014`) fired the Stage 2 path naturally on 2026-09-08
+  at 17:40:00 ET. All eight prioritised chain elements were verified
+  read-only. Full record in "S7 — STAGE 2 CLOSED" below. The standing
+  prohibitions still bind for any FUTURE fire: do NOT replay, fabricate,
+  mutate the baseline, mint a fake session, or force the evaluator. Do NOT
+  automatically merge the parked Stage 4/5 UI — it remains PARKED and
+  requires explicit release authorization.
 - **Other programs during the hold:** protect concurrent Notebook work;
   do not pick up Seam 13 while a real semantic collision remains; do not
   independently decide unresolved product-policy items; do not spend the
@@ -177,6 +179,70 @@ period.** A resuming session's first move is to re-check Pattern
 Vision's live flag/evidence state and S7's `alert_fires` row count —
 both live-checkable in under a minute — before assuming anything above
 is still current.
+
+## S7 — STAGE 2 CLOSED (natural external event, 2026-09-08)
+
+**CLOSED ON READ-ONLY EVIDENCE + OWNER RULING.** The standing S7 gate was
+WAITING ON A NATURAL EXTERNAL EVENT. It fired on its own on Tuesday
+2026-09-08 at 17:40:00 ET: a real NVDA SEC **Form 4**, accession
+`0001199039-26-000014`, filed 2026-09-08, EDGAR URL persisted on the fire.
+No replay, no manual invocation, no baseline mutation, no fabricated read —
+the entire adjudication was read-only (`mode=ro` SQLite + log reads).
+
+**Eligibility settled from the predicate, not from memory.** Predicate
+`pred_dd253fcc78ab498a` (active, `suspended_at` NULL, created 2026-09-05
+04:26:11 ET) carries `params = {"form_type": null, "keyword": null}`, and the
+trigger registry's own `params_schema` documents `null = any form`. A Form 4
+was therefore fully eligible. **CORRECTION TO THE EARLIER READING:** it had
+been assumed Stage 2 required a 10-Q / 10-K / 8-K. That assumption was wrong;
+reading the predicate corrected it. `entity_scope` resolved to
+`ent_01M1R6899FJW1TBGZVQF6WNAK7` -> alias NVDA (CIK 0001045810, FIGI
+BBG000BBJQV0) in `entity_master.db`.
+
+**Chain, each element verified against the stored artifact:**
+- REAL SEC DOCUMENT — Form 4, accession `0001199039-26-000014`, filed 2026-09-08.
+- AUTONOMOUS EVALUATOR — `ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1`, sweep
+  `CronTrigger(minute="*/20", ET)`; watermark `last_seen_state` advanced to the
+  fired accession at 17:40:01 ET.
+- DURABLE FIRE — `alert_fires` id=1; survived FOUR pod restarts observed that
+  evening (another workstream was actively deploying).
+- DELIVERY — `delivered_at` 17:40:01 ET (+1s), `delivery_attempts` 1,
+  `channels_failed` 0, channels `{"in_app":"ok","discord":"skipped","email":"ok"}`.
+- DURABLE S7 MEMBER ALERT — **owner ruling: the authority is `alert_fires` /
+  the accepted S7 durable alert contract, NOT a legacy `user_alerts` mirror.**
+  The S7 durable in-app bridge projects `s7fire_1` from the fire's immutable
+  `detail`, with `read` derived from `alert_fires.read_at` (read-state parity);
+  served by `GET /api/alerts/taxonomy/fires`.
+- RESEARCH RETURN — the projection emits `data.research_url = "/research/NVDA"`;
+  route present at `app/src/App.jsx:507` (`/research/:sym`).
+- NATURAL REPEAT / ZERO DUPLICATE — a natural sweep at 21:00 ET returned
+  `[alert_taxonomy] document-arrival sweep: checked=1 fired=0 errors=0`,
+  observed not invoked. `fires_total=1`, `fires_this_accession=1`,
+  `fires_this_fire_key=1`, `distinct_fire_keys=1` under
+  `UNIQUE(predicate_id, fire_key)` with an accession-keyed `fire_key`.
+
+`read_at` remains NULL — the member has not opened it, and that was deliberately
+not fabricated.
+
+**RULING RECORDED:** adding a `user_alerts` mirror merely to satisfy Stage 2 is
+explicitly REJECTED. Accepting that error path would redefine the acceptance
+contract AFTER the natural event had already occurred, and would couple S7 to
+the legacy alert store. A `user_alerts` search was run first, found nothing, and
+very nearly produced a false defect report — recorded here so the next reader
+does not repeat it.
+
+**Instrument traps hit while adjudicating this (keep):**
+- `delivery_channels.in_app == "ok"` is a **raise-check, not a write-check** —
+  the source comment says so explicitly. It cannot testify that a row persisted.
+- `railway logs --since 14h` silently caps at a few minutes of wall-clock on
+  this chatty pod. A saturated buffer reads exactly like "zero matches"; always
+  print the log window's first/last timestamp as a control.
+- `deploy_log.jsonl` has recorded no boot since 2026-07-07 — the instrument
+  built to measure market-hours deploys is dead; `boots_today_count` reads 0.
+
+**Not Terminal's to fix, recorded only:** `[dashboard-warm] breadth failed —
+TypeError: '<' not supported between instances of 'Query' and 'str'` -> caught,
+non-fatal 503 at boot. Breadth/catalyst workstream.
 
 ## FRESH WHOLE-PRODUCT STRATEGIC RE-ANCHOR (2026-09-06) — supersedes the priority
 ## stack below; read this FIRST before selecting any future program
@@ -1727,8 +1793,11 @@ D2 broad canonical model and D5 corporate actions remain deferred.
   **Gate: do not merge until Pattern Vision reaches LIVE + ACCEPTED.**
 - **S7 Stage 4/5 member filing-watch UI** — branch
   `feat/s7-stage4-5-filing-watch-ui`, HEAD `01a89834771e6b0c3c5b7177ba93640c03c5d466`.
-  Implemented + tested, NOT deployed. Do not reconcile until S7 Stage 2 closes
-  naturally and release is explicitly authorized.
+  Implemented + tested, NOT deployed. S7 Stage 2 HAS now closed naturally
+  (2026-09-08, see "S7 — STAGE 2 CLOSED"), so that precondition is met —
+  but this UI remains PARKED and must NOT be reconciled or merged until
+  release is explicitly authorized. Closure of Stage 2 is not a release
+  authorization.
 - **Technical Ask AI — Grounding + Convergence V1, Phase A ONLY (2026-09-06,
   worktree `technical-ask-ai`, branch `feat/technical-ask-ai`, base
   `2940f557b` — ZERO product-code changes made; a 3-agent Workflow audit +
