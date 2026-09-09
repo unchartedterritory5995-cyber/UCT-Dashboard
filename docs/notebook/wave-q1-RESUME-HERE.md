@@ -157,7 +157,7 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Fix commit #1** | **`4fef130d9`** — the `hydratedRef` gate, `EMIT_NOTHING`, the drain's baseline refusal, and their rails |
 | **Fix commit #2** | **`8826e8aa7`** — the null-baseline hunt, the `??`-vs-truthy fix (`baseline.js`), the blocked-entry audit, the inherited-red ledger, the memory-pointer gate, the deploy packet |
 | **Branch tip** | `8826e8aa7` **plus one docs-only commit stamping this table** — so the tip is that stamp, and the last *work* commit is `8826e8aa7`. ⛔ A doc cannot name its own SHA; this is why the row says what each commit IS rather than pretending to a single "the commit". |
-| **`origin/master`** | **`78ac8016b`** — unchanged; **no commit above is an ancestor of it** |
+| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** It was `78ac8016b` when this session began and `184a7e77b` four hours later (three OptionsFlow commits, no overlap with this branch). What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
 doc said only *"Last Wave Q commit: `4fef130d9`"*, which was true when written and
@@ -317,6 +317,14 @@ git fetch origin
 git log --oneline origin/master..HEAD          # exactly the Wave Q1 commits, nothing else
 git diff --stat origin/master -- app/src/pages/journal-2-0/lib/offline/offlineFlag.js
 #    ^ MUST be empty: the flag is not part of this deploy
+
+# ⛔ master MOVES under you — it gained three OptionsFlow commits during the
+#    session that wrote this. Decide rebase-vs-merge by MEASURING, per CLAUDE.md:
+BASE=$(git merge-base origin/master HEAD)
+git rev-list --count $BASE..origin/master      # behind: rebase only if > 5
+comm -12 <(git diff --name-only $BASE..origin/master | sort -u) \
+         <(git diff --name-only $BASE..HEAD          | sort -u)
+#    ^ empty overlap + fewer than six behind ⇒ push as-is, no rebase
 
 cd app && npx vitest run src/pages/journal-2-0   # gate: 230 files / 2388 tests green
 cd .. && python -m pytest tests/test_note_updated_at_is_always_a_baseline.py -q
