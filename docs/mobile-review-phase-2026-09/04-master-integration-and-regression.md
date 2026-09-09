@@ -1156,3 +1156,101 @@ One concrete remaining reason, unchanged in substance but narrowed in cause:
 Carried forward as future architecture debt, not a blocker:
 ⏸️ **TWO_CURSOR_MODELS_OVER_ONE_LIST** — hub cursor vs review session cursor,
 `NOT_CURRENTLY_ACTIVE`, release impact `NONE`.
+
+---
+
+# R5 MEASUREMENT ATTEMPT #3 — 2026-09-09
+
+Owner foregrounded the authenticated UCT tab and authorised the run.
+No credentials requested or entered. No product code changed. R5 not modified.
+
+## R5-A · Instrument gates — FAILED, and the cause is now structural
+
+| gate | required | measured |
+|---|---|---|
+| `visibilityState` | `visible` | ❌ **hidden** |
+| `hasFocus()` | true | ✅ true |
+| rAF advancing | ≥30 fps | ❌ **0.1 fps** (1 frame / 10.4 s) |
+| timers unclamped | ≥10 Hz | ❌ **0.6 Hz** |
+
+Per the standing rule, sampling was **not** started.
+
+⭐ **THE CONTROL THAT SETTLES IT.** A brand-new tab was created through the
+extension and measured immediately: **0.2 fps · 0.9 Hz · `hidden`**. A tab that
+has existed for seconds, with nothing in front of it, is throttled identically.
+This is not a stale-occlusion artefact and not something a click can fix.
+
+**Why foregrounding the tab did not help.** Enumerating every top-level
+`Chrome_WidgetWin_1` window returns exactly three: *Robinhood Legend*,
+*Discord*, and an invisible *Widgets* helper. **No window is titled "UCT
+Intelligence"** — before or after the extension created a tab and navigated it.
+The window title always tracks its active tab, so the extension's tabs are never
+the active tab of any visible window. `SetForegroundWindow` / `ShowWindow(SW_MAXIMIZE)`
+/ `BringWindowToTop` / `HWND_TOPMOST` were all applied and the title never changed.
+
+⇒ **The tab the owner foregrounded and the tab this tooling executes in are
+different tabs.** The extension's `selectedTabId` is the selection *within its own
+tab group*, not the browser's active tab. The owner did exactly what was asked;
+the request was based on my incorrect assumption that the two were the same tab.
+
+## R5-B · Result
+
+| required output | status |
+|---|---|
+| WARM N / COLD N | **0 / 0** (target 30 / 30) |
+| p50 · p95 tap → useful | **not measured** |
+| p50 · p95 tap → settled | **not measured** |
+| censored samples | n/a — no sampling began |
+| network-fetch classification | n/a |
+| improvement (abs / %) | **not calculable** |
+| qualitative finding | **none** |
+
+# R5_INCONCLUSIVE
+
+Third attempt, third distinct cause, each narrowing:
+1. hidden Chrome (assumed fixable by focus) →
+2. instrument built and proved, blocked by authentication →
+3. **the two capable halves cannot be combined**: the authenticated browser is
+   structurally un-foregroundable, and the foregrounded browser is unauthenticated.
+
+| instrument | foreground | authenticated |
+|---|---|---|
+| extension-driven Chrome | ❌ 0.1–0.2 fps, structural | ✅ |
+| `tools/r5_prefetch_measure.py` (Playwright) | ✅ **58.7 fps · 19.9 Hz · visible · coarse** | ❌ `/charts` → `/login` |
+
+## R5-C · The one remaining unblock
+
+The harness is finished and self-proving; it needs a foregrounded browser that
+carries a session. **No credential passes through me in either option:**
+
+1. **Sign in once in a scratch-profile Chrome, then point the harness at it.**
+   `chrome.exe --user-data-dir=C:\uct-r5-profile https://uctintelligence.com` —
+   sign in in that window, close it, then
+   `python tools/r5_prefetch_measure.py --samples 90` with
+   `launch_persistent_context(user_data_dir=...)`. The harness needs a two-line
+   change to take the profile path; the measurement logic is unchanged.
+2. **BrowserStack real device** — same requirement: the session must already
+   exist on the device.
+
+## R5-D · Hub / review coexistence real-device check — NOT PERFORMED
+
+Same wall. Unchanged from the production closeout: coexistence is verified **by
+construction** (`--z-modal` 1000 > `--z-hub-open` 401; `ReviewFeed` renders
+through `Sheet`; master's own `hubZIndex` rail asserts the ordering), and **not**
+by live interaction on a coarse pointer.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.** The instrument exists
+   and passes its own gates; it needs an authenticated foregrounded session
+   (R5-C option 1 is ~2 minutes of owner action plus a two-line harness change).
+
+⏸️ Carried forward as future architecture debt, not a blocker:
+**TWO_CURSOR_MODELS_OVER_ONE_LIST** — `NOT_CURRENTLY_ACTIVE`, release impact
+`NONE`.
+
+⭐ **Nothing about the shipped release is in question.** It is live, healthy, and
+its six review legs are verified in production. R5 is a *characterisation* of an
+optimisation that is already shipped and behaving — not a release gate.
