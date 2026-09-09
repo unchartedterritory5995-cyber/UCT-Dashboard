@@ -19,6 +19,7 @@ Both are pinned below, each with a control proving the probe can see the thing
 it is looking for.
 """
 import ast
+import threading
 import pathlib
 import time
 
@@ -636,3 +637,74 @@ def test_CONTROL_the_preparer_on_its_FIRST_pass_records_a_catchup(monkeypatch):
 
     assert fr.prepare_rolls("steady_state_roll") == []
     assert len(fr.prepare_rolls("startup_catchup")) == 1
+
+
+# ── Multi-roll bursts under a forced bump ─────────────────────────────────────
+# ⛔ THE ADJACENT BLIND SPOT. The bump fix classifies the boot generation by
+# `prev_version is None`, which is true for exactly ONE roll. The obvious worry
+# is a BURST: if a boot burst produced N rolls, rolls 2..N would carry a
+# non-null prev_version and land in the steady distribution as startup noise —
+# the same defect with its sign flipped, and a gate reporting green on garbage.
+#
+# It does not, and the reason is structural rather than lucky: `_record_roll` is
+# reachable only from `_prepare_once`, which is reachable only from the POLLING
+# `_prepare_loop`. The loop reads `_current_version()`, which returns only the
+# LATEST value — intermediate versions are never observed. N bumps therefore
+# collapse into ONE roll. These pin that, so the property cannot be refactored
+# away silently.
+
+def test_a_BURST_of_bumps_collapses_to_ONE_roll(monkeypatch):
+    """N rapid bumps must not become N rolls. If this ever fails, the burst
+    concern becomes real and `prev_version is None` stops being sufficient."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    monkeypatch.setattr(fr, "_PREPARE_LAST", None)
+    monkeypatch.setattr(fr, "_PREPARE_POLL_S", 0.05)
+    base = _bumped_version()
+    state = {"v": base}
+    _stub_build(monkeypatch, base, lambda: state["v"])
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (state["v"],
+                                              __import__("gzip").compress(b"csv")))
+
+    fr._PREPARE_STOP.clear()
+    t = threading.Thread(target=fr._prepare_loop, daemon=True)
+    t.start()
+    try:
+        for i in range(1, 6):        # five bumps, back to back
+            state["v"] = base + i
+        time.sleep(1.2)
+    finally:
+        fr._PREPARE_STOP.set()       # ⛔ never leak the thread into a neighbour
+        t.join(timeout=5)
+        fr._PREPARE_STOP.clear()
+
+    rolls = list(fr._PREPARE_ROLLS)
+    assert len(rolls) == 1, (
+        f"{len(rolls)} rolls from 5 bumps — the loop is observing intermediate "
+        "versions, so a burst CAN reach the ledger and rolls 2..N would be "
+        "misfiled as steady-state")
+    assert rolls[0]["version"] == base + 5, "the loop must prepare the LATEST"
+
+
+def test_a_boot_then_REAL_transitions_gives_one_catchup_and_the_rest_steady(monkeypatch):
+    """The counterpart: versions the detector genuinely watched ARRIVE are
+    steady-state rolls no matter how soon after boot they happen — each was
+    minted after _PROCESS_START_WALL, so `observed_s` is a real measurement."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    base = _bumped_version()
+    seq = [base, base + 3, base + 4, base + 5, base + 6]   # prod's real shape
+    state = {"v": None}
+    _stub_build(monkeypatch, base, lambda: state["v"])
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (state["v"],
+                                              __import__("gzip").compress(b"csv")))
+
+    last = None
+    for v in seq:
+        state["v"] = v
+        fr._note_version_seen(v)
+        last = fr._prepare_once(last)     # exactly what the loop assigns
+
+    assert [r["version"] for r in fr.prepare_rolls("startup_catchup")] == [base]
+    assert ([r["version"] for r in fr.prepare_rolls("steady_state_roll")]
+            == seq[1:]), "a detected transition is a roll, not a catch-up"
