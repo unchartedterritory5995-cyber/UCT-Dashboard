@@ -1,75 +1,236 @@
-// Joystick hub — Phase 1 mount point (EMPTY positioned container; no knob/fan/gestures yet).
-// See docs/plans/joystick/00-master-spec-v1.3.md §2c, §2f, §5, §8/§B11 (enable-gate) and docs/plans/joystick/20-wave05-ux.md §3.
+// Joystick hub — Phase 2 composition: the real gesture engine + glass UI wired
+// to navigation, Home, and the Phase-2 "nothing writes yet" placeholder toast.
+// See docs/plans/joystick/00-master-spec-v1.4.md §2c, §2f, §5, §8/§B11 (enable-gate).
+//
+// ⛔ FILE SCOPE (this session): this is one of the Wiring engineer's four files.
+// `useJoystick.js`, `HubPad.jsx`, `HubKnob.jsx`, `HubFan.jsx`, `HubChip.jsx`,
+// `HubScrim.jsx`, `HubActionsButton.jsx` and `hubViewport.js` are being written
+// by other agents in this same worktree — imported here strictly against their
+// documented contracts (see the Phase 2 spec), never modified or recreated
+// from this file. If one is missing when a test runs, that test fails on
+// module resolution, not on logic in this file.
 
+import { useCallback, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useHubSettings from './useHubSettings'
+import useHubActive from './useHubActive'
+import { useHub } from './HubContext'
 import useKeyboardVisible from '../hooks/useKeyboardVisible'
+import useHubViewport from './hubViewport'
+import useJoystick from './useJoystick'
+import HubPad from './HubPad'
+import HubKnob from './HubKnob'
+import HubFan from './HubFan'
+import HubChip from './HubChip'
+import HubScrim from './HubScrim'
+import HubActionsButton from './HubActionsButton'
+import { modesById } from './registry'
+import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
 /**
- * The actual pad — split out from HubRoot so that `useKeyboardVisible()`
- * (the one thing in this file that subscribes to a `visualViewport` event
- * listener) is never even CALLED while the hub is gated off.
+ * Resolve a `HubAction.to` value to an actual router path.
  *
- * HubRoot's early returns happen before this component exists at all, so
- * React never mounts it and its effect never subscribes. Do NOT inline this
- * back into HubRoot: that would make the hook call conditional on `enabled`,
- * which breaks across a toggle — HubRoot stays mounted for the life of the
- * app (Layout.jsx renders it unconditionally), so `enabled` can flip in
- * place (a settings change, an admin logging in) without HubRoot itself
- * remounting, and the rules of hooks require the same hooks in the same
- * order on every render of one component instance. This split is the ONE
- * piece of the Phase 1 mount worth keeping verbatim across every future
- * revision of this file: whatever else changes, gating off must never cost
- * a listener.
+ * `to` is either a mode id known to the registry (`'chart'`, `'scan'`, ...) —
+ * resolved to that mode's own `route` — or already a literal path
+ * (`/ai-search`, `/calendar/mystocks`, `/journal/notebook?new=daily-prep`).
+ * Reading the route off `modesById` rather than hand-mapping mode ids to
+ * paths here keeps ONE authority over "what path does mode X live at"
+ * (`registry.js`'s own `route` field — the same field `hubRoutes.js` derives
+ * `SECTION_ROUTES` from) — a second table here would be exactly the
+ * hand-typed-second-authority defect this codebase keeps re-finding.
  */
-function HubPad() {
-  // Visibility only — position stays pure CSS (§2c / Wave 0.5 §3): driving
-  // it from visualViewport.resize would add a guaranteed frame of lag the
-  // compositor already avoids for a plain `position: fixed` element.
+function resolveNavTarget(to) {
+  return modesById[to]?.route ?? to
+}
+
+/**
+ * The gated shell — everything that actually mounts once the hub is on.
+ *
+ * Renamed from Phase 1's internal `HubPad` to `HubShell`: `./HubPad.jsx` is
+ * now a real, separate component (the glass gesture pad itself, per the fixed
+ * contract this file composes), and keeping the old name here would collide
+ * with that import. The SPLIT itself is the one piece of Phase 1 worth
+ * keeping verbatim — this component exists only inside the enabled branch, so
+ * `useKeyboardVisible()`, `useHubViewport()` and `useJoystick()`'s pointer
+ * handlers are never even reached while the hub is gated off. See
+ * `HubRoot.test.jsx`'s "off adds no listeners" suite.
+ */
+function HubShell() {
   const keyboardVisible = useKeyboardVisible()
+  const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
+  const { settings } = useHubSettings()
+  const {
+    mode, activeModeConfig, symbol, timeframe, activeScan, selectedPosition,
+    chartRef, livePrice, isStreaming, lastSection,
+  } = useHub()
+  const navigate = useNavigate()
+  const padRef = useRef(null)
+  const [toastMsg, setToastMsg] = useJournalToast()
+
+  const mirrored = settings.handedness === 'left'
+  const fan = activeModeConfig?.fan ?? []
+
+  // The context object every mode's onTap/onDoubleTap/onScrub/onScrubCommit is
+  // called with (registry.js's HubMode JSDoc) — Part C4's shared cross-section
+  // values, read-only from here.
+  const ctx = useMemo(() => ({
+    mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice,
+    isStreaming, lastSection,
+  }), [mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice, isStreaming, lastSection])
+
+  const goHome = useCallback(() => navigate('/dashboard'), [navigate])
+
+  // The one place every navigate/run/confirm/home action resolves — fed by
+  // BOTH doors an action can fire from: `useJoystick`'s `onFire` (a gesture)
+  // and `HubActionsButton`'s `onAction` (the Peek sheet, the WCAG 2.5.1 door
+  // — spec §C2). `onAction` hands this the bare action directly; `useJoystick`
+  // hands its `onFire` the whole RESOLVED target instead (`{action, index,
+  // angle, ring}` — its own JSDoc's `ResolveResult`), unwrapped just below.
+  //
+  // ⛔ PHASE 2 SCOPE: `navigate` actions only. `run` and `confirm` fire the
+  // placeholder toast and touch NOTHING else — no fetch, no state write,
+  // nothing. NOTHING IN PHASE 2 WRITES. Phase 3 gives `run`/`confirm` a real
+  // implementation (confirm sheets, `hub_planned_trades`, etc. — master spec §6).
+  const runAction = useCallback((action) => {
+    if (!action) return
+    if (action.kind === 'home') { goHome(); return }
+    if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
+    setToastMsg('Phase 3')
+  }, [goHome, navigate, setToastMsg])
+
+  const fireResolved = useCallback((resolved) => runAction(resolved?.action), [runAction])
+
+  // `useJoystick` hands `onScrub` `{delta, axis}` (its own JSDoc) — passed
+  // through to the mode's own `onScrub(ctx, delta)` (registry.js's HubMode
+  // JSDoc) as one object rather than picked apart here, since some modes need
+  // the axis (chart mode scrubs symbol vertically, bar position horizontally
+  // — spec Part C "chart") and others don't.
+  const handleScrub = useCallback((scrub) => {
+    activeModeConfig?.onScrub?.(ctx, scrub)
+  }, [activeModeConfig, ctx])
+
+  const handleScrubCommit = useCallback(() => {
+    activeModeConfig?.onScrubCommit?.(ctx)
+  }, [activeModeConfig, ctx])
+
+  // `useJoystick`'s `mode` param is the whole HubMode config (it reads
+  // `mode.fan`/`mode.onTap`/`mode.onDoubleTap` itself) — NOT the bare mode id
+  // string the presentational components below take.
+  const { handlers, state, dismiss } = useJoystick({
+    mode: activeModeConfig,
+    settings,
+    padRef,
+    onFire: fireResolved,
+    onScrub: handleScrub,
+    onScrubCommit: handleScrubCommit,
+    onHome: goHome,
+  })
+
+  const hidden = keyboardVisible || viewportHidden
+  const selectedId = state.target?.action?.id ?? null
+
+  // An action whose `requires` the current context cannot satisfy renders DISABLED, never hidden
+  // (spec 2e). Hiding it teaches the member the action does not exist; dimming it with a reason
+  // teaches them what to select first. Computed here because this is the only place that holds
+  // both the fan and the live context.
+  const disabledIds = useMemo(() => {
+    // ⚠️ `chart` is deliberately absent. Satisfying it means "the chart is mounted and ready to
+    // accept commands", and Wave 0 established that no such signal reaches the host: StockChart
+    // has `onBarsReady`, but neither ChartPane nor the mobile shell wires it through. Reading
+    // `chartRef.current` here would ALSO be a refs-during-render violation (React cannot
+    // re-render when a ref changes, so the answer would be stale as often as not). Rather than
+    // guess, chart-requiring actions stay enabled; in Phase 2 they fire the "Phase 3" toast
+    // anyway. Phase 3 wires a real readiness signal and adds it here.
+    const have = { symbol: !!symbol, position: !!selectedPosition }
+    return fan
+      .filter((a) => (a.requires ?? []).some((r) => have[r] === false))
+      .map((a) => a.id)
+  }, [fan, symbol, selectedPosition])
+  const targetColor = state.target?.action?.color ?? null
 
   return (
     <div
       data-testid="hub-root"
-      hidden={keyboardVisible}
+      hidden={hidden}
       style={{
         position: 'fixed',
         right: '24px',
         bottom: 'calc(env(safe-area-inset-bottom) + 68px)',
         width: '84px',
         height: '84px',
-        pointerEvents: 'none',
       }}
-    />
+    >
+      <HubScrim
+        open={state.open}
+        excludeBottom={scrimExcludeBottom}
+        onPointerDown={dismiss}
+      />
+      <HubFan
+        actions={fan}
+        mirrored={mirrored}
+        open={state.open}
+        selectedId={selectedId}
+        disabledIds={disabledIds}
+      />
+      <HubPad ref={padRef} {...handlers} mirrored={mirrored} />
+      <HubKnob
+        mode={activeModeConfig?.label}
+        modeColor={activeModeConfig?.color}
+        targetColor={targetColor}
+        offset={state.knob}
+        pressing={state.pressing}
+        dragging={state.dragging}
+        mirrored={mirrored}
+      />
+      {/* Phase 3 wires a real per-mode scrub readout (e.g. "NVDA · 4H") off
+          `activeModeConfig`; nothing in the registry produces one yet, so this
+          stays null (HubChip falls back to the literal "Scrub" while scrubbing). */}
+      <HubChip
+        label={activeModeConfig?.label}
+        tapHint={activeModeConfig?.tapHint}
+        scrubbing={state.scrubbing}
+        scrubReadout={null}
+        open={state.open}
+        mirrored={mirrored}
+        modeColor={activeModeConfig?.color}
+      />
+      {/* onFeedback MUST be wired. With the hub enabled, Layout.jsx stops mounting
+          `<FeedbackWidget/>` on touch (spec 2c), so an unwired entry here would not be a
+          deferred feature — it would DELETE the only feedback path a mobile member has.
+          `/support` is that path's real destination (FeedbackWidget's own menu offers it),
+          so navigating there keeps the capability whole without reaching into that
+          component's internals. Phase 4 can restore the richer in-place form. */}
+      <HubActionsButton
+        mode={activeModeConfig?.label}
+        actions={fan}
+        mirrored={mirrored}
+        disabledIds={disabledIds}
+        onAction={runAction}
+        onFeedback={() => navigate('/support')}
+      />
+      <JournalToast msg={toastMsg} />
+    </div>
   )
 }
 
 /**
- * Mounted once, as a sibling of `<FeedbackWidget/>` in Layout.jsx (§2c).
- *
- * Renders `null` unless ALL of the following hold — every check below is a
- * synchronous, one-time capability read, never a subscription, so a disabled
- * hub adds NO event listener of any kind:
- *   - `settings.enabled` — the ONE authority for this is `useHubSettings()`
- *     (`./useHubSettings.js`): explicit stored `joystick_hub.enabled` wins;
- *     otherwise `role === 'admin'`; otherwise disabled (spec v1.3 §8/§B11,
- *     Phase 1 gate wording). HubRoot does not re-derive any part of that
- *     rule — it only reads the resolved boolean.
- *   - `CSS.supports('backdrop-filter', 'blur(1px)')` — the glass minimum;
- *     below it there is no fallback variant, per spec (§2).
- *   - `typeof window.visualViewport !== 'undefined'` — iOS Safari 16 /
- *     Android Chrome 110 floor.
- *   - `matchMedia('(max-width: 1023px) and (pointer: coarse)').matches` —
- *     mobile + touch only; the hub never mounts on desktop.
+ * Whether the hub will actually render, given EVERY mount condition —
+ * `settings.enabled` plus every capability/viewport check below. Exported so
+ * `Layout.jsx`'s orb/feedback-FAB gate (spec §2 exception (a)) reads this ONE
+ * authority instead of re-deriving "is the hub really showing" — a second
+ * copy of these checks would be exactly the kind of drift this codebase keeps
+ * re-discovering. Because these conditions already require
+ * `(max-width: 1023px) and (pointer: coarse)`, a `true` result also means the
+ * viewport is touch by construction — there is no separate "and the viewport
+ * is touch" test left to duplicate at the call site.
+ */
+
+/**
+ * Mounted once, inside `<HubProvider>` as a sibling of `<FeedbackWidget/>` in
+ * Layout.jsx (§2c). Renders `null` unless `useHubActive()` says every mount
+ * condition holds — see that hook for the full list.
  */
 export default function HubRoot() {
-  const { settings } = useHubSettings()
-
-  if (!settings.enabled) return null
-  if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return null
-  if (!CSS.supports('backdrop-filter', 'blur(1px)')) return null
-  if (typeof window.visualViewport === 'undefined') return null
-  if (typeof window.matchMedia !== 'function') return null
-  if (!window.matchMedia('(max-width: 1023px) and (pointer: coarse)').matches) return null
-
-  return <HubPad />
+  if (!useHubActive()) return null
+  return <HubShell />
 }

@@ -33,6 +33,7 @@
 // the branch and has been corrected rather than left as a standing excuse for
 // a red test.)
 
+import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 

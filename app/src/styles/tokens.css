@@ -244,7 +244,27 @@
      long-press menu — including `Chart settings…`, the only phone route to the
      criteria builder. Anything that floats permanently belongs on THIS rung. */
   --z-fab: 350;
+  /* ── Joystick hub — TWO rungs, because the hub changes rung when it opens ──
+     At rest the hub is an ordinary floating affordance and sits just above the
+     FAB rung. Once its fan is open it OWNS the screen: it paints its own scrim
+     at --z-backdrop and must render ABOVE that scrim, or the control dims
+     itself and the fan is unreachable.
+
+     ⛔ ONE TOKEN CANNOT SERVE BOTH. The hub was first built on --z-fab (350),
+     which is BELOW --z-backdrop (399) — so the moment the fan opened, the hub
+     rendered underneath its own dim layer. That is not a styling nit: the fan
+     is the only thing the scrim exists to isolate. Ordering invariant, pinned
+     by app/src/hub/hubZIndex.test.js:
+         --z-hub-open  >  --z-backdrop  >  --z-hub-rest  >  --z-fab
+     ⚠️ --z-hub-open (401) is ABOVE --z-drawer (400), not below — there is no
+     integer between 399 and 400 to sit in. They never actually contend: the hub
+     hides itself whenever a Sheet is open (the rule FloatingOrb already follows
+     via `scrollLocked`), so an open fan and an open drawer cannot coexist.
+     Modals and toasts (1000 / 1100) stay above regardless, so a confirm sheet
+     opened FROM the hub still draws over it. */
+  --z-hub-rest: 360;
   --z-backdrop: 399;
+  --z-hub-open: 401;
   --z-drawer: 400;
   --z-modal: 1000;
   --z-toast: 1100;

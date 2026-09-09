@@ -582,6 +582,31 @@ discovered, and the exact questions needed. Then stop.
 | Flick (<120ms) | Quick | Fires the outer action in that direction without opening the fan |
 | Two-finger tap | Peek | Gesture map + tap-to-select for every action + the Feedback button |
 
+**Haptics — the mapping, ruled at the Phase 2 gate.** `app/src/components/mobile/haptics.js` exposes
+`tap()` / `impact()` / `success()` / `warn()`, each with a fixed pattern and **no parameter**, so the
+millisecond figures this spec once named were unusable and have been retired:
+
+| Event | Call |
+|---|---|
+| Fan opens | `tap()` |
+| Target changes | `tap()` |
+| Action fires | `impact()` |
+| Confirm sheet opens | `warn()` |
+
+Open and target-change share `tap()` deliberately — both are "something moved under your thumb", and
+the escalation is reserved for the two events that actually do something.
+⛔ Never add a second `navigator.vibrate` call site.
+
+**Wedge selection — the acceptance window is `max(30°, half-spacing)`, not a flat ±30°.**
+Accepted at the Phase 2 gate. Sparse fans get wide wedges (2 actions → ±45°, so the whole arc is
+live); dense fans keep the ±30° floor and their bands **overlap**, which is intended — nearest-wins
+resolves it, and the overlap is what stops a thumb ever falling between two bubbles.
+
+⛔ **Do not restore a flat ±30°.** It left a **dead zone**: two actions sit at 90° and 180°, so a
+thumb at 135° — the middle of the fan — was 45° from both and selected nothing. Every 2-action ring
+in the registry had that hole, Flow's entire fan included. Owner: `fanGeometry.selectWindowFor(n)`.
+Rail: `fanGeometry.test.js`, "keeps the middle of a 2-action fan LIVE".
+
 Constraints:
 - Primary and Reverse must be safe to fire accidentally — never destructive, never sends anything.
   Validated in Wave 0.5: every Primary and Reverse across all ten modes is a navigate-or-read action;
@@ -782,6 +807,21 @@ Fans below are the real ones. Anything the spec once promised that Wave 0 found 
 ---
 
 # Part D — Agent organization
+
+## D0. File ownership lock (standing, from the Phase 2 gate)
+
+- **Every brief carries an OWNS list, and a file appears in exactly one agent's OWNS list per wave.**
+- An agent needing a change in a file it does not own **writes the requested diff into
+  `requests.md` and stops**. The owner — or the Director — applies it.
+- **Two agents editing the same file in one wave is a WAVE FAILURE** and is reported as such at the
+  gate even when the result happened to be fine. Phase 1 hit this: two agents raced on the two
+  Layout test mocks, one reverting the other's edit mid-turn.
+- **Report complete exactly once, then stop.** Anything found afterwards goes into `requests.md`,
+  never into more work. Phase 1's tokens agent kept running after reporting — 2.2M tokens and 141
+  tool calls past its own gate. That is a budget defect regardless of what it produced.
+- **Real-device testing runs on BrowserStack Live** (paid, browser-accessed; **no MCP or SDK is
+  configured and none is to be installed**). Scripts live in `docs/plans/joystick/*-device.md` and
+  results are recorded in the same file. **Never claim a device result from jsdom or an emulator.**
 
 Unchanged from v1.1 in structure; the 24 role definitions are written to `.claude/agents/`. Two
 amendments from Wave 0:

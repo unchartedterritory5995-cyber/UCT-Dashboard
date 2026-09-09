@@ -18,6 +18,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 
 // One mutable prefs bag the mock reads, so each test can set the stored value.
@@ -54,11 +55,17 @@ function stubCapable({ width = 375, height = 812, coarse = true } = {}) {
   }))
 }
 
-const renderHub = (user = null) =>
+// ⚠️ A Router is REQUIRED, not scaffolding. Since Phase 2, HubRoot derives its mode from the
+// route (`useHubViewport` -> `useLocation`), so rendering it bare throws
+// "useLocation() may be used only in the context of a <Router>". The real app always has one:
+// `BrowserRouter` wraps the whole tree in App.jsx.
+const renderHub = (user = null, { route = '/dashboard' } = {}) =>
   render(
-    <AuthContext.Provider value={{ user, plan: 'pro', trial: null, isPaid: true }}>
-      <HubRoot />
-    </AuthContext.Provider>,
+    <MemoryRouter initialEntries={[route]}>
+      <AuthContext.Provider value={{ user, plan: 'pro', trial: null, isPaid: true }}>
+        <HubRoot />
+      </AuthContext.Provider>
+    </MemoryRouter>,
   )
 
 let executed = 0

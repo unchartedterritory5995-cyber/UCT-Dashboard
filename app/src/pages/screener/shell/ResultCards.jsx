@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import TickerPopup from '../../../components/TickerPopup'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
@@ -10,8 +10,12 @@ import styles from './ScannerShell.module.css'
 // + price/chg (live-overlaid). Line 2 = the first THREE visible non-required
 // columns as label/value stats — picker-driven by construction, since
 // `columns` is exactly what ColumnPicker handed the shell.
-export default function ResultCards({ rows, columns, livePrices,
-  hasMore, onLoadMore, isLoading, virtualOpts }) {
+// `ref` exposes `scrollToIndex` off the `@tanstack/react-virtual` instance
+// this component already creates — the phone-door half of the same seam
+// VirtualResults opens (joystick-hub spec §2d / exception (d): "both are
+// virtualized, including the phone card list"). Nothing consumes it yet.
+const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
+  hasMore, onLoadMore, isLoading, virtualOpts }, ref) {
   const ta = useTickerActions()
   const scrollRef = useRef(null)
   const statCols = columns.filter(c => !REQUIRED_COLS.includes(c)).slice(0, 3)
@@ -22,6 +26,11 @@ export default function ResultCards({ rows, columns, livePrices,
     overscan: 8,
     ...(virtualOpts || {}),
   })
+
+  useImperativeHandle(ref, () => ({
+    scrollToIndex: (index, options) => virtualizer.scrollToIndex(index, options),
+  }), [virtualizer])
+
   return (
     <div className={styles.cardsScroll} ref={scrollRef}>
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -71,4 +80,6 @@ export default function ResultCards({ rows, columns, livePrices,
       {ta.menu && <TickerActionsMenu menu={ta.menu} onClose={ta.closeMenu} />}
     </div>
   )
-}
+})
+
+export default ResultCards

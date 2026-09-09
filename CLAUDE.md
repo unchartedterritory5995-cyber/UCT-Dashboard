@@ -647,6 +647,57 @@ The whole app is being made mobile-seamless with **near-full feature parity** (T
 ### Tap targets
 `--tap-min: 44px` is defined in tokens.css. Enforce on all interactive elements on touch (use `.touchTarget` or `min-height/width: var(--tap-min)`).
 
+### Preview environments for a feature branch — the decision, and why
+
+**There is ONE Railway environment (`production`) and no per-branch preview.** Measured
+`railway status --json`, 2026-01: project `luminous-recreation`, environments = `[production]`,
+services = `web · worker · flow-worker · bars-api · chart-renderer`. A single `web` service serves
+the built React SPA *and* `/api/*` from one FastAPI process — there is no separate frontend service.
+
+⚠️ **There is no Postgres and no Redis.** The entire data layer is **SQLite files on the Railway
+volume at `/data`** (auth.db, bars.db, breadth_monitor.db, catalysts.db, community.db, flow.db,
+education.db, …). This matters for previews: a Postgres plugin can be duplicated and migrated, **a
+Railway volume cannot** — there is no clone-volume primitive, so any new environment starts with an
+EMPTY `/data`.
+
+**CHOSEN (device testing): a local sandbox + BrowserStack Local tunnel.** Run
+`scripts/hub-sandbox.ps1`, then point BrowserStack Live at the tunnel. The script pins
+`DATA_DIR` to a sandbox, mints an admin via `ADMIN_EMAILS`, and zeroes/blanks every scheduler and
+outbound channel. **It hard-exits if `DATA_DIR` would resolve to `C:\data` or `/data`.**
+The BrowserStack Local binary is an **operator tool on the owner's machine, not a repo dependency** —
+it appears in no `package.json` or `requirements.txt` and must not be added to either.
+
+**APPROVED IN PRINCIPLE, NOT BUILT (durable): a persistent Railway staging environment.**
+⛔ **Ruling, recorded before it can become a blocker: NEVER copy `auth.db` or any member data to
+staging.** Production `auth.db` holds ~20,640 real members; duplicating it into a second environment
+duplicates real PII for a convenience. Staging uses a **synthetic `auth.db`** containing only the one
+`ADMIN_EMAILS` account, plus non-PII data files if any are needed at all (bars, breadth, catalysts).
+
+**REJECTED: Railway PR / ephemeral environments.** Recorded so it is not re-proposed. Railway copies
+env vars into the new environment, and **this app's env vars arm schedulers** — a booted clone posts
+to a ~750-member Discord channel, publishes to YouTube, and emails members via Resend, all on live
+credentials. It is also still data-empty (see the volume note), so it buys **no realism** over a local
+run while carrying the entire blast radius. Wrong trade in both directions.
+
+**Named test account: `hubtest@local.dev`**, promoted by `ADMIN_EMAILS` inside the sandbox DB.
+Never the owner's account, never a colleague's, never a member.
+
+**Every device script names its preview URL explicitly**, as a stated precondition at the top of the
+file. A device script that does not say what it is pointed at is not a test.
+
+### Real-device testing — BrowserStack Live (paid)
+
+**Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no
+BrowserStack MCP or SDK configured**, and none is to be installed — that would be a new dependency.
+Run scripts live in `docs/plans/joystick/*-device.md`; **results are recorded in the same file**, by
+the operator who ran them.
+
+⛔ **Never claim a device result from jsdom or an emulator.** jsdom performs no layout — it never
+resolves `calc()`, never applies `env(safe-area-inset-*)`, and reports zero for every measured box —
+so "the control sits 68px above the home indicator" is not a claim any local suite can make. A
+script written for a device and a result gathered from a device are two different artifacts; only
+the second closes a gate.
+
 ### Mobile audit harness — `tools/mobile_audit.py` (no device needed)
 Playwright sweep (Python Playwright + Chromium already installed). Boots phone/tablet viewports, dismisses the intro overlay, visits each route, flags **horizontal overflow** (the #1 objective mobile bug) + sub-44px tap targets, saves a full-page screenshot per route/viewport to `tools/mobile_audit_out/` (gitignored) + `report.md`.
 
