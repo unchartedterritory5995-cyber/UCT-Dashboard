@@ -126,6 +126,58 @@ PAGE_JS = r"""
 """
 
 
+PROOF_JS = """async () => {
+          const t0 = performance.now();
+          let raf = 0, timer = 0;
+          const iv = setInterval(() => timer++, 50);
+          await new Promise(res => { const tick = () => { raf++;
+            if (performance.now() - t0 < 2000) requestAnimationFrame(tick); else res(); };
+            requestAnimationFrame(tick); });
+          clearInterval(iv);
+          const el = performance.now() - t0;
+          return { elapsedMs: Math.round(el), fps: +(raf / (el/1000)).toFixed(1),
+                   timerHz: +(timer / (el/1000)).toFixed(1),
+                   visibility: document.visibilityState, hasFocus: document.hasFocus(),
+                   canvases: document.querySelectorAll('canvas').length,
+                   coarse: matchMedia('(pointer: coarse)').matches,
+                   mobileShell: document.documentElement.getAttribute('data-mobile-chart-shell'),
+                   apiCalls: performance.getEntriesByType('resource').filter(r=>r.name.includes('/api/')).length };
+        }"""
+
+
+def _settle_app(page, budget_ms: int = 75000):
+    """Get past the ~9.3s cinematic intro and wait for the app to actually mount.
+
+    ⛔ THE INTRO IS NOT A LOADING SPINNER — it plays on EVERY page load (see
+    CLAUDE.md) and it is what made the first proof report `canvases: 0` with a
+    perfectly healthy 60 fps. Waiting a fixed 9 s lands inside it. So: click the
+    Skip affordance the product already provides, then wait on the ARTIFACT (a
+    painted canvas), never on a duration.
+    """
+    waited = 0
+    while waited < budget_ms:
+        try:
+            for sel in ("button:has-text('Skip')", "text=SKIP"):
+                loc = page.locator(sel).first
+                if loc.count() and loc.is_visible():
+                    loc.click(timeout=2000)
+                    break
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            n = page.evaluate("() => document.querySelectorAll('canvas').length")
+        except Exception:  # noqa: BLE001
+            n = 0
+        if n > 0:
+            page.wait_for_timeout(4000)   # let the first chart finish its paint
+            return True
+        if "/login" in page.url:
+            return False
+        page.wait_for_timeout(1500)
+        waited += 1500
+    return False
+
+
 def pct(vals, p):
     if not vals:
         return None
@@ -159,57 +211,142 @@ def main() -> int:
     ap.add_argument("--samples", type=int, default=80)
     ap.add_argument("--symbols", type=int, default=60)
     ap.add_argument("--out", default="tools/r5_prefetch_out.json")
+    ap.add_argument("--wait-login", type=int, default=0,
+                    help="Seconds to wait for the owner to sign in IN the launched window. "
+                         "The session cookie is session-scoped, so the browser must stay open.")
+    ap.add_argument("--profile", default=None,
+                    help="Chrome user-data-dir carrying an existing signed-in session. "
+                         "The owner signs in there once; no credential ever reaches this script.")
     args = ap.parse_args()
 
     from playwright.sync_api import sync_playwright
 
+    FLAGS = [
+        # The whole point: no background throttling of any kind.
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-features=CalculateNativeWinOcclusion",
+        "--autoplay-policy=no-user-gesture-required",
+    ]
+    MOBILE = dict(
+        viewport={"width": 390, "height": 844},
+        device_scale_factor=3,
+        is_mobile=True, has_touch=True,
+        user_agent=("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"),
+    )
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=False,
-            args=[
-                # The whole point: no background throttling of any kind.
-                "--disable-background-timer-throttling",
-                "--disable-renderer-backgrounding",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-features=CalculateNativeWinOcclusion",
-                "--autoplay-policy=no-user-gesture-required",
-            ],
-        )
-        ctx = browser.new_context(
-            viewport={"width": 390, "height": 844},
-            device_scale_factor=3,
-            is_mobile=True, has_touch=True,
-            user_agent=("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-                        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"),
-        )
-        page = ctx.new_page()
+        if args.profile:
+            # ⛔ PERSISTENT CONTEXT, REAL CHROME. The session lives in the profile
+            # the owner signed into; this script never sees a credential and never
+            # reads the cookie store — Chrome does, exactly as it would normally.
+            browser = None
+            ctx = p.chromium.launch_persistent_context(
+                args.profile, headless=False, channel="chrome", args=FLAGS, **MOBILE)
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        else:
+            browser = p.chromium.launch(headless=False, args=FLAGS)
+            ctx = browser.new_context(**MOBILE)
+            page = ctx.new_page()
         page.goto(f"{BASE}/charts", wait_until="domcontentloaded", timeout=90000)
-        page.wait_for_timeout(9000)
+        _settle_app(page)
+        if "/login" in page.url and args.wait_login > 0:
+            # ⛔ WHY WE WAIT IN-PROCESS RATHER THAN ASKING FOR A PRE-SIGNED PROFILE.
+            # UCT's auth cookie is a SESSION cookie: Chrome never writes it to disk
+            # and drops it when the browser closes. "Sign in, then close the
+            # browser" therefore destroys exactly the thing it was meant to
+            # preserve — measured, after the first attempt came back at /login with
+            # a freshly written 20 KB cookie store. Keeping ONE browser alive across
+            # sign-in and measurement is the only arrangement that holds the
+            # session, and it keeps every credential inside the owner's own window.
+            print(f"\n  >>> Sign in to UCT in the Chrome window that just opened.")
+            print(f"  >>> Do NOT close it. Waiting up to {args.wait_login}s...\n")
+            waited = 0
+            closed = False
+            while waited < args.wait_login:
+                try:
+                    page.wait_for_timeout(3000)
+                    waited += 3
+                    # ⛔ NEVER NAVIGATE WHILE THE OWNER IS SIGNING IN. The earlier
+                    # version re-issued `goto('/charts')` every 3 s, which wiped the
+                    # login form mid-typing and interrupted the auth POST before its
+                    # Set-Cookie landed — the run then reported "not authenticated"
+                    # and blamed the session. Poll the API instead: it is read-only,
+                    # it cannot disturb the form, and it asks the one question that
+                    # matters.
+                    authed = page.evaluate("""async () => {
+                      try {
+                        const r = await fetch('/api/auth/me', {credentials:'include'});
+                        if (!r.ok) return false;
+                        const b = await r.json();
+                        return !!(b && b.user);
+                      } catch (e) { return false; }
+                    }""")
+                    if authed:
+                        print(f"  signed in (detected via /api/auth/me after ~{waited}s)")
+                        page.goto(f"{BASE}/charts", wait_until="domcontentloaded", timeout=60000)
+                        break
+                except Exception as e:  # noqa: BLE001
+                    # ⛔ A CLOSED WINDOW IS FATAL AND MUST SAY SO. The session
+                    # cookie lives only in that browser; closing it ends the run.
+                    if "closed" in str(e).lower():
+                        print("  !! The Chrome window was CLOSED during sign-in.")
+                        print("  !! UCT's auth cookie is session-scoped - closing the window")
+                        print("  !! destroys it. Re-run and leave the window OPEN.")
+                        closed = True
+                        break
+            if closed:
+                return 5
+            print(f"  auth wait finished after ~{waited}s; url = {page.url}")
+            _settle_app(page)
+        if "/login" in page.url:
+            print(f"NOT AUTHENTICATED — {BASE}/charts redirected to {page.url}")
+            (browser or ctx).close()
+            return 4
 
         # ── PROVE THE INSTRUMENT ────────────────────────────────────────────
-        proof = page.evaluate("""async () => {
-          const t0 = performance.now();
-          let raf = 0, timer = 0;
-          const iv = setInterval(() => timer++, 50);
-          await new Promise(res => { const tick = () => { raf++;
-            if (performance.now() - t0 < 2000) requestAnimationFrame(tick); else res(); };
-            requestAnimationFrame(tick); });
-          clearInterval(iv);
-          const el = performance.now() - t0;
-          return { elapsedMs: Math.round(el), fps: +(raf / (el/1000)).toFixed(1),
-                   timerHz: +(timer / (el/1000)).toFixed(1),
-                   visibility: document.visibilityState, hasFocus: document.hasFocus(),
-                   canvases: document.querySelectorAll('canvas').length,
-                   coarse: matchMedia('(pointer: coarse)').matches,
-                   mobileShell: document.documentElement.getAttribute('data-mobile-chart-shell'),
-                   apiCalls: performance.getEntriesByType('resource').filter(r=>r.name.includes('/api/')).length };
-        }""")
+        proof = page.evaluate(PROOF_JS)
+        def _gates(pr):
+            return (pr["visibility"] == "visible" and pr["fps"] >= 30
+                    and pr["timerHz"] >= 10 and pr["canvases"] > 0 and pr["apiCalls"] > 0)
+
+        # ⛔ ONE SIGN-IN MUST BUY MANY ATTEMPTS. The auth cookie dies with the
+        # browser, so aborting on the first failed proof charges the owner another
+        # manual sign-in for every diagnostic cycle. Retry in-process instead, and
+        # DUMP what the page actually is each time rather than guessing at it.
+        attempt = 0
+        while not _gates(proof) and attempt < 6:
+            attempt += 1
+            print(f"INSTRUMENT PROOF not satisfied (attempt {attempt}) — diagnosing:")
+            print(json.dumps(proof, indent=2))
+            try:
+                diag = page.evaluate("""() => ({
+                  url: location.href, title: document.title,
+                  shell: document.documentElement.getAttribute('data-mobile-chart-shell'),
+                  bodyLen: document.body ? document.body.innerText.length : -1,
+                  head: document.body ? document.body.innerText.slice(0,240) : '',
+                  canvases: document.querySelectorAll('canvas').length,
+                  buttons: [...document.querySelectorAll('button')].map(b=>(b.textContent||'').trim()).filter(Boolean).slice(0,14),
+                  apiCalls: performance.getEntriesByType('resource').filter(r=>r.name.includes('/api/')).length
+                })""")
+                print("  PAGE:", json.dumps(diag)[:700])
+                page.screenshot(path=f"tools/r5_diag_{attempt}.png")
+            except Exception as e:  # noqa: BLE001
+                print("  diag failed:", str(e)[:160])
+                if "closed" in str(e).lower():
+                    return 5
+            _settle_app(page, budget_ms=30000)
+            try:
+                proof = page.evaluate(PROOF_JS)
+            except Exception as e:  # noqa: BLE001
+                print("  re-proof failed:", str(e)[:160])
+                break
         print("INSTRUMENT PROOF:", json.dumps(proof, indent=2))
-        ok = (proof["visibility"] == "visible" and proof["fps"] >= 30
-              and proof["timerHz"] >= 10 and proof["canvases"] > 0 and proof["apiCalls"] > 0)
-        if not ok:
+        if not _gates(proof):
             print("INSTRUMENT PROOF FAILED — refusing to emit latency numbers.")
-            browser.close()
+            (browser or ctx).close()
             return 2
 
         # Seed a review session through the app's own contract.
@@ -235,7 +372,7 @@ def main() -> int:
         print("SESSION:", state, f"({len(syms)} symbols seeded)")
         if not state.get("idx"):
             print("Review session did not mount — aborting rather than measuring the wrong thing.")
-            browser.close()
+            (browser or ctx).close()
             return 3
 
         rows = []
@@ -286,7 +423,7 @@ def main() -> int:
         import pathlib
         pathlib.Path(args.out).write_text(json.dumps(out, indent=2), encoding="utf-8")
         print("wrote", args.out)
-        browser.close()
+        (browser or ctx).close()
     return 0
 
 

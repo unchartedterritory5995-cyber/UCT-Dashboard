@@ -1254,3 +1254,113 @@ One concrete remaining reason:
 ⭐ **Nothing about the shipped release is in question.** It is live, healthy, and
 its six review legs are verified in production. R5 is a *characterisation* of an
 optimisation that is already shipped and behaving — not a release gate.
+
+---
+
+# R5 MEASUREMENT ATTEMPT #4 (SCRATCH-PROFILE PATH) — 2026-09-09
+
+No credentials requested, captured, printed, stored or inspected. No product code
+changed. R5 logic untouched.
+
+## R5-E · What the scratch-profile path established
+
+⭐ **The instrument is no longer in question.** With a dedicated profile
+(`C:\uct-r5-profile`) and a foregrounded Chrome, the gates passed cleanly and
+repeatably:
+
+| gate | required | measured |
+|---|---|---|
+| `visibilityState` | visible | ✅ **visible** |
+| `hasFocus()` | true | ✅ **true** |
+| rAF | ≥30 fps | ✅ **60.6 fps** |
+| timers | ≥10 Hz | ✅ **19.9 Hz** |
+| `pointer: coarse` | true | ✅ **true** |
+
+That is the environment three earlier attempts could not obtain. It now exists.
+
+## R5-F · Two defects in MY harness, and what each cost
+
+Both were found by measurement, and both are fixed. They are recorded because
+each one produced a *confident wrong conclusion* before being caught.
+
+**1 · "Sign in, then close the browser" destroyed the session.**
+UCT's auth cookie is session-scoped: Chrome never writes it to disk. Reopening
+the profile afterwards returned **HTTP 401 / `authenticated: false`**, proving it.
+My instruction was the defect, not the owner's execution. Fixed: one browser now
+stays alive across sign-in and measurement.
+
+**2 · ⛔ THE HARNESS FOUGHT THE OWNER WHILE THEY TYPED.**
+The wait loop re-issued `page.goto('/charts')` **every three seconds** during
+sign-in. That wiped the login form mid-entry and could interrupt the auth POST
+before its `Set-Cookie` landed — and the run then reported "not authenticated"
+and blamed the cookie. A harness that disturbs the thing it is waiting for cannot
+measure it. Fixed: the loop now polls `/api/auth/me` read-only and navigates
+exactly once, after a real user object is seen.
+
+A third design fault was fixed along the way: the harness aborted on the FIRST
+failed proof, so every diagnostic cycle cost another manual sign-in. It now
+retries six times in-session, dumping the page's actual URL/title/shell
+attribute/buttons/body and a screenshot each time.
+
+## R5-G · Why there are still no samples
+
+| attempt | outcome |
+|---|---|
+| #1 (scratch profile, pre-signed) | `/charts` → `/login` — session-scoped cookie did not survive the close |
+| #2 (wait-login) | window closed during sign-in → run aborted |
+| #3 (wait-login) | signed in at ~126 s, but the app never mounted (`canvases: 0`, `data-mobile-chart-shell` absent) — the harness was navigating over the sign-in |
+| #4 (wait-login) | signed in at ~165 s, then bounced back to `/login` — same self-inflicted navigation |
+| #5 (non-navigating poll) | 420 s elapsed with no authenticated session detected |
+
+⚠️ **One thing remains genuinely unproven, and is not an excuse:** the app has
+never been observed mounting under *mobile emulation* in this harness
+(`data-mobile-chart-shell` was absent every time). Because every one of those
+runs was also poisoned by defect #2, that cannot yet be separated from the
+navigation bug. The mount step is **unverified**, and the next run may still find
+a real issue there.
+
+# R5_INCONCLUSIVE
+
+Fourth attempt, and the honest summary is that the blocker moved each time and is
+now *mine to have caused*: throttled browser → authentication → a harness that
+disrupted its own precondition. **N = 0 warm / 0 cold. No p50, p95, tap→useful,
+tap→settled, or improvement figures are reported, because none were measured.**
+
+⛔ **I have stopped requesting sign-ins.** Five attempts is more of the owner's
+time than this measurement is worth spending in one sitting, and continuing to
+ask would be trading their attention for my completeness.
+
+## R5-H · How to finish it, in one attempt, whenever it is worth doing
+
+```
+python tools/r5_prefetch_measure.py --profile "C:/uct-r5-profile" \
+       --wait-login 420 --samples 90 --symbols 60
+```
+
+Sign in **in the window it opens** and leave it open and uncovered. The harness
+no longer touches the page while waiting. If the app still fails to mount it will
+print exactly what the page is and save `tools/r5_diag_*.png` — enough to fix it
+without another sign-in.
+
+## R5-I · Hub / review coexistence real-device check — NOT PERFORMED
+
+Same blocker. Unchanged: coexistence is verified **by construction**
+(`--z-modal` 1000 > `--z-hub-open` 401; `ReviewFeed` renders through `Sheet`;
+master's own `hubZIndex` rail asserts the ordering), not by live interaction on a
+coarse pointer.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason, unchanged:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.**
+
+⏸️ Carried forward as future architecture debt, not a blocker:
+**TWO_CURSOR_MODELS_OVER_ONE_LIST** — `NOT_CURRENTLY_ACTIVE`, release impact
+`NONE`.
+
+⭐ **Proportion, stated plainly:** the release is live, healthy, and its six
+review legs are verified in production. R5 characterises an optimisation that is
+already shipped and behaving. It is a measurement gap in a nice-to-know, not a
+defect and not a release gate — and it should be finished when it is cheap, not
+by spending more of the owner's morning on sign-in prompts.
