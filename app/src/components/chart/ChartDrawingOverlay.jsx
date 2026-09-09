@@ -6,9 +6,13 @@ import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
 import { hitThreshold, crossedDragSlop, useCoarsePointer } from './coarsePointer'
 import { fmtLevel, visibleOnly } from './drawingObjects'
-import { brightenAnnotationColor, autoLabelInk } from './drawingColors'
+import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
 import { computeAdvancePct, hitTestDrawing, offsetPoints } from './drawingGeometry'
 import { dashFor } from './drawingStyle'
+import {
+  PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
+  toPaneFraction, fromPaneFraction,
+} from './drawingPanes'
 import {
   renderTrendline, renderRay, renderExtended, renderHorizontal, renderHRay, renderVertical,
   renderRect, renderCircle, renderArrow, renderCup, renderText, renderAdvance,
@@ -47,6 +51,28 @@ const FUTURE_BARS_CAP = 500
 // `placeCalloutPoint` below. They are News-widget callout PLACEMENT, not drawing
 // tools, they are outside this project's blast radius, and one of them already
 // has its own test importing it from here.
+/**
+ * Narrow the current clip to a pane rect.
+ *
+ * THE CALLER MUST ALREADY HAVE CALLED ctx.save(). Canvas clips only ever
+ * INTERSECT - there is no "unclip" - so the only way back out is the matching
+ * restore(), and this helper deliberately does not save() for you: a helper that
+ * saved without restoring would be a stack leak that shows up three drawings
+ * later, or in the share PNG and nowhere on screen.
+ *
+ * A null rect is a no-op rather than an error: the fallbacks in drawingPanes all
+ * resolve to the whole plot, and "clip to nothing" would make a drawing vanish -
+ * which is indistinguishable, to the user, from having lost it.
+ */
+function clipToPane(ctx, rect) {
+  if (!rect) return
+  const w = rect.x1 - rect.x0, h = rect.y1 - rect.y0
+  if (!(w > 0) || !(h > 0)) return
+  ctx.beginPath()
+  ctx.rect(rect.x0, rect.y0, w, h)
+  ctx.clip()
+}
+
 const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
 const ALERT_BIND_KEY = 'uct.chart.alertBind'   // 'bound' (default) | 'fixed'
 const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
@@ -274,6 +300,13 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
 
 export default function ChartDrawingOverlay({
   chartRef, seriesRef, bars,
+  volumeSeriesRef = null,    // the ONLY way to know where the volume pane/band is.
+                             // Volume has two layouts (its own pane, or an overlay
+                             // BAND inside pane 0 - and the band is the DEFAULT),
+                             // and only the volume series itself knows which one it
+                             // is in. Absent -> the chart has no volume zone and the
+                             // whole plot is the price pane, which is right for the
+                             // Model Book index pane and every embed.
   activeTool, setActiveTool,
   color, lineWidth,
   lineStyle = 'solid',
@@ -407,13 +440,109 @@ export default function ChartDrawingOverlay({
     return res < 0 ? 0 : res   // before the first bar → first bar
   }, [bars, timeToIndex])
 
-  // Bottom edge (CSS px) of the price pane = pane-0 height. Annotations below it
-  // live in the volume (or index) pane, which the candle price scale doesn't map.
+  // Bottom edge (CSS px) of the price pane = pane-0 height. Kept because the
+  // instant-snap transient in `toPixel` needs the pane height directly.
   const pricePaneBottomPx = useCallback(() => {
     try { const h = seriesRef?.current?.getPane?.()?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
     try { const h = chartRef?.current?.panes?.()?.[0]?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
     return null
   }, [chartRef, seriesRef])
+
+  // -- Pane geometry ----------------------------------------------------------
+  //
+  // MEASURED FROM THE RENDERER, ONCE PER REDRAW, AND CACHED IN A REF.
+  // `redraw` runs on every frame the visible range changes; asking
+  // lightweight-charts for pane heights and axis widths per DRAWING would repeat
+  // half a dozen cross-boundary reads ~60 times a second x 50 drawings. It is
+  // measured at the top of `redraw` and every drawing reads the same answer, so
+  // it is also impossible for two drawings in one frame to disagree about where
+  // the divider is.
+  //
+  // The ref is ALSO what pointer handlers read: a click has to resolve to the
+  // same zones the last paint used, or a drawing could be created in a pane it
+  // was not drawn in.
+  const paneGeomRef = useRef(null)
+  const measurePanes = useCallback(() => {
+    const chart = chartRef?.current
+    const series = seriesRef?.current
+    const { w, h } = sizeRef.current
+    let axisWidth = 0, timeAxisHeight = 0, candlePaneIndex = 0
+    const paneHeights = []
+    let volumePaneIndex = null, volumeBandTop = null
+    try { axisWidth = series?.priceScale?.()?.width?.() ?? 0 } catch { /* default 0 */ }
+    try { timeAxisHeight = chart?.timeScale?.()?.height?.() ?? 0 } catch { /* default 0 */ }
+    let panes = []
+    try { panes = chart?.panes?.() || [] } catch { panes = [] }
+    for (const pane of panes) {
+      let ph = 0
+      try { ph = pane.getHeight() } catch { ph = 0 }
+      // ⚠️ A SUB-PANE CAN REPORT HEIGHT 0 WHILE IT IS STILL BEING LAID OUT.
+      // Measured in-browser: right after mount `chart.panes()` gave `[668, 0]`
+      // for a chart that settles at `[622, 85]`, and during that window the
+      // volume zone has no height. `rectForKey` treats a zero-height zone as
+      // "not laid out yet" and falls back to the plot, so drawings stay on
+      // screen through the transient rather than blinking out.
+      //
+      // The element read below is a second opinion for the same window (it is
+      // usually null then too). It costs a layout flush, so it runs ONLY when the
+      // cheap answer is unusable, and `measurePanes` runs once per FRAME, never
+      // once per drawing.
+      if (!(ph > 0)) {
+        try { ph = pane.getHTMLElement?.()?.clientHeight || 0 } catch { ph = 0 }
+      }
+      paneHeights.push(ph)
+    }
+    // WHICH PANE IS A SERIES IN? ASK `paneIndex()`, NOT `indexOf`.
+    //
+    // `chart.panes()` hands back a FRESH wrapper object on every call, so
+    // `panes.indexOf(series.getPane())` compares two different wrappers around
+    // the same pane and answers -1. It fails SILENTLY and it fails CONSISTENTLY:
+    // the volume pane is simply never found, `zones` degrades to price-only, and
+    // every volume-pane drawing resolves its `paneY` against the whole plot -
+    // i.e. it renders up in the candles. (Measured in-browser: 106,152 ink pixels
+    // in the price pane for six volume-pane drawings, 5 in the volume pane.)
+    //
+    // `paneIndex()` is the identity lightweight-charts actually exposes for this,
+    // and it is what StockChart's own index-pane code uses. `indexOf` stays only
+    // as a fallback for an older API that lacks it.
+    const paneIdxOf = (sref) => {
+      if (!sref) return -1
+      try {
+        const pane = sref.getPane?.()
+        if (!pane) return -1
+        const idx = pane.paneIndex?.()
+        if (Number.isFinite(idx)) return idx
+        return panes.indexOf(pane)
+      } catch { return -1 }
+    }
+    const cIdx = paneIdxOf(series)
+    if (cIdx >= 0) candlePaneIndex = cIdx
+    // Which volume layout is this chart in? Ask the volume series, not the
+    // settings: a chart can be forced into a separate pane by its HOST (grid
+    // cells, Review cards) regardless of what cs.volume.separatePane says.
+    const vs = volumeSeriesRef?.current
+    if (vs) {
+      const vIdx = paneIdxOf(vs)
+      if (vIdx >= 0 && vIdx !== candlePaneIndex) volumePaneIndex = vIdx
+      else {
+        try {
+          // Band layout: the overlay price scale's own top margin IS the divider.
+          const m = vs.priceScale?.()?.options?.()?.scaleMargins
+          if (m && Number.isFinite(m.top)) volumeBandTop = m.top
+        } catch { /* no volume zone; price owns the plot */ }
+      }
+    }
+    return resolveZones({
+      width: w, height: h, axisWidth, timeAxisHeight,
+      paneHeights, volumePaneIndex, volumeBandTop, candlePaneIndex,
+    })
+  }, [chartRef, seriesRef, volumeSeriesRef])
+
+  /** The zones the last paint used; measured on demand if a pointer arrives first. */
+  const paneGeom = useCallback(() => {
+    if (!paneGeomRef.current) paneGeomRef.current = measurePanes()
+    return paneGeomRef.current
+  }, [measurePanes])
 
   // ── Coordinate conversion: chart → pixel ──
   // Uses refs at call-time so always gets latest chart/series
@@ -479,18 +608,62 @@ export default function ChartDrawingOverlay({
     return { x, y }
   }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx])
 
-  // Helper: convert to pixel, returning { x, y, rawPrice } with nulls handled.
-  // A point with `paneRelY` (placed below the price pane — see toChart) is
-  // anchored to a fraction of the canvas height, NOT the candle price scale, so
-  // it stays in the volume pane across a Setup⇄Result rescale.
-  const resolvePixels = useCallback((points) => {
+  /**
+   * Stored anchors -> pixels, ONE OUTPUT SLOT PER INPUT ANCHOR.
+   *
+   * TWO BUGS DIED HERE, AND BOTH WERE SILENT.
+   *
+   * 1. `.filter(p => p.x != null || p.y != null)` - note the OR. A point whose
+   *    time could not be mapped kept `x: null`, passed the filter on the strength
+   *    of its y, and every downstream expression (`p2.x - p1.x`) then read that
+   *    null as **0**, because that is what JS does. The anchor snapped to the
+   *    chart's left edge and snapped back when the mapping recovered: the
+   *    Pitchfork "lines jump / skip around" report, and a whole class of
+   *    "my drawing flew to the left" reports besides.
+   * 2. When the filter DID drop a point the array shortened, so `pts[i]` stopped
+   *    corresponding to `points[i]`. A three-point tool silently became a
+   *    two-point one, and `handleIdx` - an index into the STORED points - started
+   *    dragging the wrong anchor.
+   *
+   * SO NOTHING IS EVER DROPPED. Every anchor gets a slot, carrying an explicit
+   * `valid`. Painters and hit tests ask (`ok(pts, n)`); nobody coerces.
+   *
+   * AND `paneY` IS PANE-RELATIVE WHILE `paneRelY` IS CANVAS-RELATIVE. They are
+   * different units and both are live. `paneRelY` is the legacy field: a fraction
+   * of the WHOLE CANVAS, which is why dragging the volume divider used to slide
+   * every volume-pane drawing across the bars it was marking. It is read exactly
+   * as it always was, so no existing drawing moves. `paneY` is the new one - a
+   * fraction of the OWNING ZONE - and a drawing upgrades to it the first time the
+   * user moves it. Nothing is rewritten on load.
+   */
+  const resolvePixels = useCallback((points, paneRect = null) => {
     const H = sizeRef.current.h || 0
-    return points.map(p => {
+    return (points || []).map((p) => {
       const px = toPixel(p.time, p.price, p.futureBars)
-      const y = (p.paneRelY != null && H) ? p.paneRelY * H : px?.y
-      return { x: px?.x, y, rawPrice: p.price, price: p.price, time: p.time, futureBars: p.futureBars }
-    }).filter(p => p.x != null || p.y != null)
+      let y = px?.y
+      if (p.paneY != null && paneRect) y = fromPaneFraction(paneRect, p.paneY)
+      else if (p.paneRelY != null && H) y = p.paneRelY * H
+      const x = px?.x
+      // `valid` is the BOTH-AXES answer most tools want; `pointsUsable(pts, n,
+      // 'x'|'y')` asks for one axis where a tool genuinely only has one (a
+      // Horizontal Line is a price with no time; a Vertical Line the reverse).
+      const hasX = Number.isFinite(x)
+      const hasY = Number.isFinite(y)
+      return {
+        x, y, hasX, hasY, valid: hasX && hasY,
+        rawPrice: p.price, price: p.price, time: p.time, futureBars: p.futureBars,
+      }
+    })
   }, [toPixel])
+
+  /** The pane rect a drawing owns. Legacy drawings (no `pane`) are inferred from
+   *  their lowest resolved anchor - see `inferPaneKey` for why the LOWEST. */
+  const rectForDrawing = useCallback((d, geom) => {
+    const g = geom || paneGeom()
+    if (!g) return null
+    if (d?.pane) return rectForKey(g, d.pane)
+    return rectForKey(g, inferPaneKey(g, resolvePixels(d?.points || [])))
+  }, [paneGeom, resolvePixels])
 
   // One-time migration of LEGACY volume-pane annotations (saved before paneRelY
   // existed): they're price-anchored and jump onto the chart after a rescale.
@@ -580,22 +753,35 @@ export default function ChartDrawingOverlay({
     let price = null
     try { price = series.coordinateToPrice(pixelY) } catch {}
 
-    // Vertical anchor for annotations placed BELOW the price pane (volume / index
-    // pane). The candle price scale doesn't cover those rows, so a price stored
-    // there gets re-extrapolated onto the price pane after a rescale (Setup⇄Result)
-    // and the label jumps up onto the chart. Pin such points to a fraction of the
-    // canvas height instead — the pane layout is stable across rescales, so they
-    // stay put in the volume pane.
-    let paneRelY = null
-    const pb = pricePaneBottomPx()
-    const H = sizeRef.current.h || 0
-    if (pb != null && H && pixelY > pb + 1) paneRelY = pixelY / H
+    // Vertical anchor.
+    //
+    // OWNERSHIP IS DECIDED HERE, ONCE, FOR THE WHOLE DRAWING. It used to be
+    // re-derived per POINT on every frame from "is this y below the price pane",
+    // which is how a two-point line could end up with one anchor in each pane and
+    // how dragging an endpoint across the divider silently converted half a
+    // drawing. The caller stamps the returned `pane` onto the drawing at creation
+    // and every later resolution reads that, not the pixels.
+    //
+    // `paneY` IS A FRACTION OF THE OWNING ZONE, not of the canvas. That is the
+    // whole difference between a volume-pane drawing that stays on its bars when
+    // the divider moves and one that slides across them. Only non-price zones get
+    // it: a price-pane drawing is anchored to a PRICE, which is better than any
+    // fraction because it tracks the data through a rescale.
+    const geom = paneGeom()
+    const paneKey = geom ? paneKeyAtY(geom, pixelY) : PRICE
+    let paneY = null
+    if (paneKey !== PRICE) {
+      const rect = rectForKey(geom, paneKey)
+      paneY = toPaneFraction(rect, pixelY)
+    }
 
     // Allow partial coords: horizontal only needs price, vertical only needs time
-    if (!time && price == null && paneRelY == null) return null
+    if (!time && price == null && paneY == null) return null
     const fb = futureBars ? { futureBars } : null
-    return paneRelY != null ? { time, price, paneRelY, ...fb } : { time, price, ...fb }
-  }, [chartRef, seriesRef, bars, pricePaneBottomPx])
+    return paneY != null
+      ? { time, price, paneY, pane: paneKey, ...fb }
+      : { time, price, pane: paneKey, ...fb }
+  }, [chartRef, seriesRef, bars, paneGeom])
 
   // Line mode (index pane): time → line value, for magnet-snap-to-line + advance %.
   const timeToLineValue = useMemo(() => {
@@ -743,11 +929,20 @@ export default function ChartDrawingOverlay({
     // Clip everything to the plot area (exclude the right price axis) so no line,
     // ray, or label ever renders over the price scale — e.g. an hray streaking to
     // the edge while transitioning between setups. Restored at the end of redraw.
-    let axisW = 0
-    try { axisW = seriesRef?.current?.priceScale?.()?.width?.() ?? 0 } catch { /* default 0 */ }
+    // PANE GEOMETRY IS MEASURED EXACTLY ONCE PER FRAME. Every drawing below reads
+    // the same object, so N drawings cost one set of cross-boundary reads into
+    // lightweight-charts rather than N, and two drawings in one frame cannot
+    // disagree about where the divider is.
+    const geom = measurePanes()
+    paneGeomRef.current = geom
+    const plotRight = geom.plot.x1
+
+    // Clip everything to the plot area (exclude the right price axis) so no line,
+    // ray, or label ever renders over the price scale. Phase 1 adds a SECOND,
+    // per-drawing clip INSIDE this one for the pane; this outer clip is unchanged
+    // and still the thing that keeps drawings off the price scale.
     ctx.save()
     ctx.beginPath()
-    const plotRight = Math.max(0, w - axisW - 1)   // right edge of the plot area (price axis excluded)
     ctx.rect(0, 0, plotRight, h)
     ctx.clip()
 
@@ -806,7 +1001,7 @@ export default function ChartDrawingOverlay({
       const asPoint = (p) => p && ({
         time: p.time, price: p.price,
         ...(p.futureBars != null ? { futureBars: p.futureBars } : {}),
-        ...(p.paneRelY != null ? { paneRelY: p.paneRelY } : {}),
+        ...(p.paneY != null ? { paneY: p.paneY } : {}),
       })
       for (const d of drawings) {
         if (d.type !== 'text' || d.calloutRole !== 'label' || !d.calloutAutoPlace || d.calloutAnchorTime == null) continue
@@ -870,20 +1065,25 @@ export default function ChartDrawingOverlay({
       if (textInput?.editId === d.id) continue
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
+        const rect = rectForDrawing(d, geom)
+        const ink = brightenAnnotationColor(d.color) || UCT_DRAW_GOLD
         ctx.save()
-        ctx.strokeStyle = brightenAnnotationColor(d.color) || '#c9a84c'
+        clipToPane(ctx, rect)
+        ctx.strokeStyle = ink
         ctx.lineWidth = d.lineWidth || 1
         ctx.setLineDash([])
         renderAnchoredVwap(ctx, d.points[0], bars, timeToIndex, toPixel)
         if (d.id === selectedId) {
-          const pts = resolvePixels(d.points)
-          if (pts.length) renderSelectionHandles(ctx, pts)
+          renderSelectionHandles(ctx, resolvePixels(d.points, rect), ink)
         }
         ctx.restore()
         continue
       }
 
-      const pts = resolvePixels(d.points || [])
+      // The drawing's OWN pane rect, and the anchors resolved against it. Both are
+      // needed before anything is painted: `paneY` is a fraction of this rect.
+      const rect = rectForDrawing(d, geom)
+      const pts = resolvePixels(d.points || [], rect)
       if (!pts.length) continue
       // Off-screen guard (Model Book): if this drawing's anchor bar — its setup
       // candle (rightmost point / rightBoundTime) — is outside the visible range,
@@ -899,7 +1099,15 @@ export default function ChartDrawingOverlay({
         }
       }
       ctx.save()
-      ctx.strokeStyle = brightenAnnotationColor(d.color) || '#c9a84c'
+      // THE PANE CLIP. One call, here, for every tool - not a per-renderer
+      // special case. It nests inside the plot-area clip established above, so a
+      // drawing is bounded by BOTH: never over the price scale, never across the
+      // volume divider. `ctx.restore()` at the bottom of this loop iteration is
+      // what balances it, and `drawingRenderers.test.js` pins that every painter
+      // leaves the stack even so the share/screenshot capture cannot be corrupted.
+      clipToPane(ctx, rect)
+      const ink = brightenAnnotationColor(d.color) || UCT_DRAW_GOLD
+      ctx.strokeStyle = ink
       ctx.lineWidth = d.lineWidth || 1
       // Per-drawing line style (e.g. a dashed horizontal level). Most shapes set
       // their own dash internally; lines respect this before they draw.
@@ -913,18 +1121,21 @@ export default function ChartDrawingOverlay({
 
       switch (d.type) {
         case 'trendline': renderTrendline(ctx, pts); break
-        case 'ray': renderRay(ctx, pts, w, h); break
-        case 'extended': renderExtended(ctx, pts, w, h); break
-        case 'horizontal': renderHorizontal(ctx, pts, w, !hidePriceLabels); break
+        case 'ray': renderRay(ctx, pts, rect); break
+        case 'extended': renderExtended(ctx, pts, rect); break
+        // `w` (the CANVAS width) is still the label anchor on purpose - see
+        // renderHorizontal. Phase 1 changes where the LINE stops, not where the
+        // (still invisible) label goes; Phase 4 owns that.
+        case 'horizontal': renderHorizontal(ctx, pts, rect, !hidePriceLabels, w); break
         case 'hray': {
           // Optional right bound (time-anchored): stop the ray at this bar
           // instead of running to the canvas edge. Model Book uses it so that,
           // when all setups are shown on the zoomed-out chart, each ray ends at
           // its setup candle rather than streaking across the whole year.
-          let hrayRight = w
+          let hrayRight = rect.x1
           if (d.rightBoundTime != null) {
             const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
-            if (bx != null) hrayRight = Math.max(pts[0].x ?? 0, Math.min(w, bx))
+            if (bx != null) hrayRight = Math.max(pts[0].x ?? rect.x0, Math.min(rect.x1, bx))
           }
           // No price label on a horizontal ray — the bare line is what the user
           // wants; the price is already read from the axis/crosshair. (The
@@ -932,15 +1143,15 @@ export default function ChartDrawingOverlay({
           renderHRay(ctx, pts, hrayRight, false)
           break
         }
-        case 'vertical': renderVertical(ctx, pts, h); break
+        case 'vertical': renderVertical(ctx, pts, rect); break
         case 'rect': renderRect(ctx, pts); break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts); break
         case 'text': renderText(ctx, pts, d, textOpacity); break
-        case 'fib': renderFib(ctx, pts, w, toPixelY); break
-        case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
-        case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
-        case 'channel': renderChannel(ctx, pts, w, h); break
+        case 'fib': renderFib(ctx, pts, rect, toPixelY); break
+        case 'fibext': renderFibExtension(ctx, pts, rect, toPixelY); break
+        case 'pitchfork': renderPitchfork(ctx, pts, rect); break
+        case 'channel': renderChannel(ctx, pts, rect); break
         case 'cup': renderCup(ctx, pts); break
         case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
         case 'priceRange': renderMeasure(ctx, pts, d); break
@@ -966,7 +1177,11 @@ export default function ChartDrawingOverlay({
         }
       }
 
-      if (d.id === selectedId) renderSelectionHandles(ctx, pts)
+      // Handles inherit the drawing's RENDERED ink (the brightened value the
+      // stroke used), so a green line gets green handles - and they are painted
+      // inside the same pane clip, so a handle cannot sit in the other pane
+      // either.
+      if (d.id === selectedId) renderSelectionHandles(ctx, pts, ink)
       ctx.restore()
     }
 
@@ -978,8 +1193,12 @@ export default function ChartDrawingOverlay({
     // polyline once two are down (a 3-point tool's first segment). Desktop is
     // unchanged in practice: the mouse is always moving, so the live preview
     // draws right over these.
+    // The pane the tool is currently placing INTO - taken from the first anchor,
+    // so a half-finished drawing previews inside the pane it will be created in.
+    const previewRect = rectForKey(geom, pendingPoints[0]?.pane || mouseCoords?.pane || PRICE)
+
     if (activeTool && pendingPoints.length > 0) {
-      const anchorPts = resolvePixels(pendingPoints)
+      const anchorPts = resolvePixels(pendingPoints, previewRect)
       if (anchorPts.length) {
         ctx.save()
         const ink = brightenAnnotationColor(color)
@@ -1006,9 +1225,10 @@ export default function ChartDrawingOverlay({
 
     // Draw in-progress preview
     if (activeTool && pendingPoints.length > 0 && mouseCoords) {
-      const previewPts = resolvePixels([...pendingPoints, mouseCoords])
+      const previewPts = resolvePixels([...pendingPoints, mouseCoords], previewRect)
       if (previewPts.length) {
         ctx.save()
+        clipToPane(ctx, previewRect)
         ctx.strokeStyle = brightenAnnotationColor(color)
         ctx.lineWidth = lineWidth
         ctx.globalAlpha = 0.7
@@ -1016,17 +1236,17 @@ export default function ChartDrawingOverlay({
 
         switch (activeTool) {
           case 'trendline': renderTrendline(ctx, previewPts); break
-          case 'ray': renderRay(ctx, previewPts, w, h); break
-          case 'extended': renderExtended(ctx, previewPts, w, h); break
-          case 'horizontal': renderHorizontal(ctx, previewPts, w); break
-          case 'vertical': renderVertical(ctx, previewPts, h); break
+          case 'ray': renderRay(ctx, previewPts, previewRect); break
+          case 'extended': renderExtended(ctx, previewPts, previewRect); break
+          case 'horizontal': renderHorizontal(ctx, previewPts, previewRect, true, w); break
+          case 'vertical': renderVertical(ctx, previewPts, previewRect); break
           case 'rect': renderRect(ctx, previewPts); break
           case 'circle': renderCircle(ctx, previewPts); break
           case 'arrow': renderArrow(ctx, previewPts); break
-          case 'fib': renderFib(ctx, previewPts, w, toPixelY); break
-          case 'fibext': renderFibExtension(ctx, previewPts, w, toPixelY); break
-          case 'pitchfork': renderPitchfork(ctx, previewPts, w, h); break
-          case 'channel': renderChannel(ctx, previewPts, w, h); break
+          case 'fib': renderFib(ctx, previewPts, previewRect, toPixelY); break
+          case 'fibext': renderFibExtension(ctx, previewPts, previewRect, toPixelY); break
+          case 'pitchfork': renderPitchfork(ctx, previewPts, previewRect); break
+          case 'channel': renderChannel(ctx, previewPts, previewRect); break
           case 'cup': renderCup(ctx, previewPts); break
           case 'measure': {
             const md = {
@@ -1076,11 +1296,11 @@ export default function ChartDrawingOverlay({
     if (activeTool && mouseCoords) {
       const px = toPixel(mouseCoords.time, mouseCoords.price)
       if (px?.x != null && px?.y != null) {
-        renderCrosshair(ctx, px.x, px.y, mouseCoords.price, w, h)
+        renderCrosshair(ctx, px.x, px.y, mouseCoords.price, geom.plot)
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
+  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId, measurePanes, rectForDrawing])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1140,33 +1360,42 @@ export default function ChartDrawingOverlay({
   }, [toPixel, bars, timeToIndex])
 
   const hitTestAll = useCallback((mx, my) => {
-    const { w, h } = sizeRef.current
-    // You cannot select what you cannot see — a hidden object must not steal a
-    // tap from the visible one underneath it.
+    const geom = paneGeom()
+    // You cannot select what you cannot see - a hidden object must not steal a
+    // tap from the visible one underneath it. THE SAME NOW GOES FOR THE CLIPPED
+    // HALF OF A DRAWING: `hitTestDrawing` rejects a cursor outside the pane rect,
+    // so a price trendline cannot keep swallowing clicks in the volume pane it is
+    // no longer painted in. A clip without a matching hit test is an invisible
+    // hitbox, which is the worse of the two bugs.
     for (let i = visibleDrawings.length - 1; i >= 0; i--) {
       const d = visibleDrawings[i]
-      const pts = resolvePixels(d.points || [])
+      const rect = rectForDrawing(d, geom)
+      const pts = resolvePixels(d.points || [], rect)
       const hit = d.type === 'advance'
         ? hitTestAdvance(d, pts, mx, my)
-        : hitTestDrawing(d, pts, mx, my, w, h)
+        : hitTestDrawing(d, pts, mx, my, rect)
       if (hit) return d.id
     }
     return null
-  }, [visibleDrawings, resolvePixels, hitTestAdvance])
+  }, [visibleDrawings, resolvePixels, hitTestAdvance, paneGeom, rectForDrawing])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
     if (!selectedId) return null
     const d = drawings.find(d => d.id === selectedId)
     if (!d) return null
-    const pts = resolvePixels(d.points || [])
+    const pts = resolvePixels(d.points || [], rectForDrawing(d))
     for (let i = 0; i < pts.length; i++) {
+      // INDEX-STABLE: `i` is an index into the STORED points, which is exactly
+      // what `handleIdx` means to the drag path. Skipping an unresolvable anchor
+      // (rather than filtering it out of the array) is what keeps that true.
+      if (!pts[i].valid) continue
       if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD() + 2) {
         return { drawingId: d.id, handleIdx: i }
       }
     }
     return null
-  }, [selectedId, drawings, resolvePixels])
+  }, [selectedId, drawings, resolvePixels, rectForDrawing])
 
   // ── Latest-value refs for the long-lived native listeners below ──
   // (window/canvas listeners are attached once with []; read live state via refs
@@ -1347,7 +1576,7 @@ export default function ChartDrawingOverlay({
 
     // Text tool: place text input (use fixed position via clientX/clientY to avoid overflow clip)
     if (activeTool === 'text') {
-      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price, paneRelY: coords.paneRelY ?? null })
+      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price, paneY: coords.paneY ?? null, pane: coords.pane || PRICE })
       return
     }
 
@@ -1362,7 +1591,13 @@ export default function ChartDrawingOverlay({
           points: newPending,
           color,
           lineWidth,
-          lineStyle,   // 'solid' | 'dashed' — honored for line-type drawings
+          lineStyle,   // 'solid' | 'dashed' | 'dotted'
+          // PANE OWNERSHIP IS A PROPERTY OF THE DRAWING, SET ONCE, HERE.
+          // It comes from the FIRST anchor: that is the pane the user aimed at,
+          // and using the first (rather than, say, the lowest) means a drawing
+          // started in the candles stays a price drawing even if the second click
+          // strays over the divider. A drawing can no longer be half-and-half.
+          pane: newPending[0]?.pane || PRICE,
         }
         if ((activeTool === 'measure' || activeTool === 'dateRange') && newPending.length >= 2) {
           const idx0 = timeToIndex.get(newPending[0].time) || 0
@@ -1466,23 +1701,28 @@ export default function ChartDrawingOverlay({
       // in the volume pane. A point dragged ACROSS the pane boundary re-anchors to
       // the side it lands on — so an old price-anchored volume label fixes itself
       // permanently once nudged. The boundary is the price pane's bottom edge.
-      const ser = seriesRef?.current
       const H = sizeRef.current.h || 0
-      const pb = pricePaneBottomPx()
       const pixelDY = (drag.startPixel) ? (pos.y - drag.startPixel.y) : 0
       const clamp01 = v => Math.max(0, Math.min(1, v))
+      // The drawing keeps the pane it was created in for the whole gesture. A
+      // drag can no longer convert an anchor - or worse, HALF a drawing - into
+      // the other pane; that was only ever possible because ownership was
+      // re-derived per point from the pixel it happened to land on.
+      const dragRect = rectForDrawing(d)
       const moveY = (p) => {
-        if (p.paneRelY != null) {
-          const ny = p.paneRelY + (H ? pixelDY / H : 0)
-          if (pb != null && H && ny * H <= pb + 1) {       // dragged up into the price pane
-            let np = null; try { np = ser?.coordinateToPrice(ny * H) } catch { /* disposed */ }
-            if (np != null) return { price: np }
-          }
-          return { paneRelY: clamp01(ny), price: p.price }
-        }
-        let oy = null; try { oy = ser?.priceToCoordinate(p.price) } catch { /* disposed */ }
-        if (pb != null && H && oy != null && oy + pixelDY > pb + 1) {   // dragged down into the volume pane
-          return { paneRelY: clamp01((oy + pixelDY) / H) }
+        // Pane-fraction anchors (new `paneY`, and legacy `paneRelY` on its way to
+        // becoming one) move by a fraction of THEIR OWN PANE, so the drawing keeps
+        // its place among the volume bars when the divider moves.
+        if (p.paneY != null || p.paneRelY != null) {
+          const zoneH = dragRect ? (dragRect.y1 - dragRect.y0) : 0
+          const cur = p.paneY != null
+            ? p.paneY
+            : (dragRect && H ? toPaneFraction(dragRect, p.paneRelY * H) : 0)
+          const next = clamp01(cur + (zoneH > 0 ? pixelDY / zoneH : 0))
+          // A legacy canvas-fraction point UPGRADES to a pane fraction the first
+          // time it is moved - the one moment a rewrite is legitimate, because the
+          // user is already changing the geometry. Nothing is migrated on load.
+          return { paneY: next, paneRelY: null, price: p.price }
         }
         return { price: (p.price ?? 0) + priceDelta }
       }
@@ -1494,14 +1734,35 @@ export default function ChartDrawingOverlay({
       // exactly as before.
       const _lastIdx = bars.length - 1
       const moveX = (p) => {
+        // NO HORIZONTAL MOVEMENT MEANS NO HORIZONTAL WRITE.
+        //
+        // This guard is the whole of the "vertical drag moved my drawing
+        // sideways" fix. Without it, a purely vertical nudge still ran the point
+        // through `nearestIndex(p.time)` and wrote back `bars[thatIndex].t` - and
+        // on any timeframe where the stored anchor is not an EXACT bar (a
+        // daily-anchored drawing viewed weekly; an intraday chart whose buckets
+        // were re-sanitised), `nearestIndex` returns the CONTAINING bar. So a 3px
+        // vertical drag silently re-anchored the drawing to the start of the
+        // containing week, permanently, and it had visibly moved the next time the
+        // user looked at it on the daily.
+        //
+        // Time is data. It changes when the user drags along the time axis, and at
+        // no other moment.
+        if (timeDelta === 0) return { ...p, ...moveY(p) }
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : (nearestIndex(p.time) ?? 0)   // nearest, not exact — see effLogical note
+          : (nearestIndex(p.time) ?? 0)   // nearest, not exact - see effLogical note
         const rawIdx = origIdx + timeDelta
         if (rawIdx > _lastIdx) {
-          return { time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
+          return { ...p, time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
         }
-        return { time: bars[Math.max(0, rawIdx)]?.t || p.time, ...moveY(p) }
+        // `...p` FIRST so fields this function does not know about survive a drag.
+        // The old version built a fresh {time, ...moveY(p)} object, so anything
+        // else on a point was dropped by the first person who moved the drawing -
+        // which is exactly how a new per-point property gets silently lost.
+        const next = { ...p, time: bars[Math.max(0, rawIdx)]?.t || p.time, ...moveY(p) }
+        if (!(Number.isFinite(p.futureBars) && p.futureBars > 0)) delete next.futureBars
+        return next
       }
       let newPoints
       if (drag.handleIdx != null) {
@@ -1534,7 +1795,7 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
+  }, [activeTool, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle, rectForDrawing])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
@@ -1686,8 +1947,16 @@ export default function ChartDrawingOverlay({
         }
       }
       if (dPx) {
-        if (p.paneRelY != null) {
-          np.paneRelY = clamp01(p.paneRelY + (H ? dPx / H : 0))
+        if (p.paneY != null || p.paneRelY != null) {
+          // Mirrors the drag's moveY: pane fractions move within their own pane,
+          // and a legacy canvas fraction upgrades on the first deliberate move.
+          const rect = rectForDrawing(sel)
+          const zoneH = rect ? (rect.y1 - rect.y0) : 0
+          const cur = p.paneY != null
+            ? p.paneY
+            : (rect && H ? toPaneFraction(rect, p.paneRelY * H) : 0)
+          np.paneY = clamp01(cur + (zoneH > 0 ? dPx / zoneH : 0))
+          delete np.paneRelY
         } else if (p.price != null) {
           let y = null; try { y = ser?.priceToCoordinate(p.price) } catch { /* disposed */ }
           if (y != null) {
@@ -1828,7 +2097,8 @@ export default function ChartDrawingOverlay({
     if (!text.trim()) { setTextInput(null); return }
     addDrawing({
       type: 'text',
-      points: [{ time: textInput.time, price: textInput.price, ...(textInput.paneRelY != null ? { paneRelY: textInput.paneRelY } : {}) }],
+      pane: textInput.pane || PRICE,
+      points: [{ time: textInput.time, price: textInput.price, ...(textInput.paneY != null ? { paneY: textInput.paneY } : {}) }],
       color,
       lineWidth,
       text: text.trim(),
@@ -2155,10 +2425,27 @@ function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSub
 
 // ─── Right-click context menu ───────────────────────────────────────────────
 
-// Drawings store lineStyle as a string ('solid' | 'dashed'); ColorPanel's `line`
-// prop uses the numeric code (0 solid / 2 dashed / 1 dotted). Map between them.
-const DRAW_STYLE_TO_NUM = { solid: 0, dashed: 2 }
-const numToDrawStyle = (n) => (n === 0 ? 'solid' : 'dashed')
+// Drawings store lineStyle as a STRING; ColorPanel's `line` prop speaks the
+// numeric code (0 solid / 2 dashed / 1 dotted).
+//
+// THIS PAIR IS WHY "DOTTED" APPEARED DEAD. `numToDrawStyle` was
+// `(n) => (n === 0 ? 'solid' : 'dashed')`, so clicking Dotted (code 1) STORED
+// 'dashed'; and `DRAW_STYLE_TO_NUM` had no 'dotted' key, so reopening the menu
+// read the stored 'dashed' back and highlighted Dashed. The button was always
+// clickable and always did something - it wrote the wrong value, twice, in a way
+// that looked exactly like an inert control.
+//
+// BOTH DIRECTIONS ARE NOW TOTAL, AND DERIVED FROM ONE TABLE. `LINE_DASH` in
+// drawingStyle.js is the authority for what styles exist; these two maps are its
+// numeric spelling for the picker. A style added there and forgotten here is a
+// test failure, not a silent fallback.
+//
+// The Chart Settings CROSSHAIR picker uses the same ColorPanel with the same
+// codes and is deliberately untouched: those go to lightweight-charts' own
+// LineStyle enum, where 1 has always meant dotted and always worked.
+const DRAW_STYLE_TO_NUM = { solid: 0, dotted: 1, dashed: 2 }
+const NUM_TO_DRAW_STYLE = { 0: 'solid', 1: 'dotted', 2: 'dashed' }
+const numToDrawStyle = (n) => NUM_TO_DRAW_STYLE[n] || 'solid'
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
@@ -2311,7 +2598,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   const locked = !!drawing?.locked
   const curColor = (drawing?.type === 'advance' ? drawing?.labelColor : drawing?.color) || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
-  const dashed = drawing?.lineStyle === 'dashed'
+  const curStyle = drawing?.lineStyle || 'solid'
   const isText = drawing?.type === 'text'
   const curFontSize = Math.round(drawing?.fontSize || 13)
   const bumpFont = (delta) => onSetFontSize?.(Math.max(8, Math.min(64, curFontSize + delta)))
@@ -2380,7 +2667,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         <span style={labelStyle}>Color</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
           <span style={{ width: sw, height: sw, borderRadius: '50%', background: curColor, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
-          <span style={{ display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: dashed ? 'dashed' : 'solid', borderTopColor: curColor }} />
+          <span style={{ display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: curStyle === 'solid' ? 'solid' : curStyle, borderTopColor: curColor }} />
           <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
         </span>
       </button>

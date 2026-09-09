@@ -58,3 +58,52 @@ export function dashFor(style) {
 export function isLineStyle(style) {
   return Object.prototype.hasOwnProperty.call(LINE_DASH, style)
 }
+
+// ─── Fill resolution ────────────────────────────────────────────────────────
+
+/**
+ * What colour and opacity should this drawing's fill be?
+ *
+ * ⛔ PHASE 1 BUILDS IT AND CHANGES NOTHING. Five surfaces fill a region today —
+ * Rectangle, Circle, Measure, Pitchfork's prongs, Parallel Channel's band — and
+ * every one of them does the same two lines inline with its own hard-coded
+ * alpha (0.08, 0.08, 0.06, 0.04, 0.04). The defaults below ARE those numbers, so
+ * routing a painter through this resolver is visually a no-op. Rectangle's
+ * separate border/fill colours and Fib's bands are later phases; this is the
+ * thing they will ask.
+ *
+ * ⭐ TWO OPACITIES MULTIPLY, AND THAT IS THE DESIGN. `ColorPanel` already emits
+ * `rgba()` when its opacity slider is below 100%, so a drawing's colour can
+ * ALREADY carry alpha — that is why `renderRect` fills with `globalAlpha = 0.08`
+ * on top of a possibly-translucent stroke colour. Keeping the two multiplicative
+ * means the slider goes on meaning "how solid is this drawing" while
+ * `fillOpacity` goes on meaning "how much lighter is the fill than its border" —
+ * the alternative (one replacing the other) makes the slider look broken on any
+ * shape with a fill.
+ *
+ * @param {object} drawing
+ * @param {string} strokeInk  the drawing's RESOLVED (brightened) stroke colour —
+ *                            the same value the border is painted with, so a
+ *                            fill that follows the colour cannot drift a shade
+ *                            away from its own outline
+ * @param {number} baseOpacity the painter's shipped alpha, used when the drawing
+ *                            names none
+ */
+export function fillFor(drawing, strokeInk, baseOpacity = 0.08) {
+  const own = drawing ? drawing.fillColor : null
+  const color = (own === undefined || own === null) ? strokeInk : own
+  const o = drawing ? drawing.fillOpacity : undefined
+  const opacity = (typeof o === 'number' && Number.isFinite(o))
+    ? Math.max(0, Math.min(1, o))
+    : baseOpacity
+  return { color, opacity }
+}
+
+/**
+ * The border colour for a shape: its own if it has one, else the drawing colour.
+ * `null` means "follow the line", which is a real user choice and not "unset".
+ */
+export function borderFor(drawing, strokeInk) {
+  const own = drawing ? drawing.borderColor : null
+  return (own === undefined || own === null) ? strokeInk : own
+}

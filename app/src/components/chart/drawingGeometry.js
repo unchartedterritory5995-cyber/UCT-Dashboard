@@ -1,29 +1,24 @@
 /* Deterministic pixel geometry for the drawing layer.
  *
- * ⛔ EVERY FUNCTION HERE IS THE OVERLAY'S OWN BODY, MOVED VERBATIM. Phase 0 is
- * behaviour-neutral by contract: not one comparison, tolerance or early return
- * was "cleaned up" on the way across, because there was no executable test to
- * catch it if the cleanup was wrong. The tests land here first; the fixes land
- * in Phase 1 and 2, as edits with a failing test in front of them.
+ * ⭐ PHASE 0 MOVED THESE BODIES HERE VERBATIM SO THEY COULD BE TESTED; PHASE 1
+ * FIXED THE TWO THAT WERE WRONG. What changed, and nothing else did:
  *
- * ⭐ WHY THIS BOUNDARY, AND NOT JUST "MAKE THE BIG FILE SMALLER". These are the
- * functions Pitchfork and Parallel Channel are BUILT ON — `extendToEdges` alone
- * has six call sites — and both of their reported bugs are geometry bugs. They
- * were unreachable from a test because they were module-private inside a 3,411
- * line React component whose canvas maps no coordinates under jsdom, which is
- * why the drawing layer's existing tests read SOURCE TEXT instead of running
- * anything. Taking plain numbers in and giving plain numbers back is the whole
- * point: `drawingGeometry.test.js` can now assert the exact failures the audit
- * predicted, and Phase 2 becomes "make these tests go green" instead of "drag
- * the anchors around and squint".
+ *   • `extendToEdges` / `extendRay` — the ±100px candidate search is gone,
+ *     replaced by a Liang–Barsky clip against a real pane RECT. Deterministic,
+ *     order-free, and `null` when the line misses (see `clipLineToRect`). Both
+ *     now take a rect instead of a bare `w, h`, because "the price pane" is not
+ *     expressible as a width and a height.
+ *   • `hitTestDrawing` takes the same rect, and tolerates index-stable points
+ *     carrying `valid: false` rather than treating a null x as 0.
  *
- * ⚠️ KNOWN-WRONG BEHAVIOUR IS PRESERVED AND PINNED, NOT FIXED. `extendToEdges`
- * has a ±100px candidate search whose chosen pair flips as the slope changes;
- * that is the Pitchfork "jump", and the test suite CHARACTERISES it (it asserts
- * what today's code does, and says so) rather than pretending it is correct. Do
- * not silently repair anything in this file — a green suite here is currently a
- * statement that behaviour has not drifted, which is exactly what Phase 0 owes
- * the phases after it.
+ * Everything else in this file is still the shipped body, character for
+ * character. `drawingGeometry.test.js` executes all of it — which is the whole
+ * reason the two fixes above could be made as edits with a failing test in front
+ * of them rather than as a rewrite nobody could check.
+ *
+ * ⛔ NO lightweight-charts IMPORT, EVER. Plain numbers in, plain numbers out is
+ * what makes this testable without a chart, and a chart is exactly what jsdom
+ * cannot give us.
  */
 import { hitThreshold } from './coarsePointer'
 
@@ -51,46 +46,143 @@ export function distToLine(px, py, x1, y1, x2, y2) {
 }
 
 /**
- * Both points where the infinite line through p1,p2 leaves the w×h box.
+ * Clip the INFINITE line through p1,p2 to a rectangle — Liang–Barsky.
  *
- * ⚠️ THIS IS THE FUNCTION PHASE 2 REPLACES. Three properties of it are load-
- * bearing bugs, all pinned by test rather than repaired here:
- *   1. the ±100px slack admits crossings that are OFF the canvas, so a steep
- *      line can be drawn between two points that are both outside the box;
- *   2. which two of the four candidates win depends on PUSH ORDER, so the pair
- *      flips discontinuously as the slope changes during a zoom — the Pitchfork
- *      "lines jump/skip" report;
- *   3. the returned pair has no consistent direction, so two PARALLEL lines can
- *      come back with reversed endpoints — build a quad from them and you get a
- *      bow-tie, which is the Parallel Channel "fill disappears" report.
- * Phase 2 swaps this for a parametric clip against the pane rect. Until then it
- * behaves exactly as it has shipped.
+ * ⚰️ WHAT THIS REPLACES, AND WHY THE OLD ONE COULD NOT BE PATCHED.
+ * `extendToEdges` computed the line's four possible edge crossings, admitted any
+ * that fell within a ±100px SLACK around the box, and returned the first two in
+ * PUSH ORDER (left, right, top, bottom). Three consequences, all of them bugs
+ * the audit found in the field:
+ *
+ *   1. the slack let it return points up to 100px OUTSIDE the box, so a "clipped"
+ *      line was drawn past the edge it was supposed to stop at;
+ *   2. WHICH two crossings won depended on the slope, so a slow zoom flipped the
+ *      chosen pair and the segment changed identity mid-gesture — the Pitchfork
+ *      "lines jump / skip around" report;
+ *   3. the pair had no consistent direction, so two PARALLEL lines could come
+ *      back traversed opposite ways. Build a quad from them and it self-
+ *      intersects — the Parallel Channel "part of the tint disappears" report.
+ *
+ * ⭐ LIANG–BARSKY HAS NO CANDIDATES AND NO ORDER. It solves for the parameter
+ * interval [t0, t1] along the direction vector p1→p2 for which the point stays
+ * inside the rect, then evaluates the endpoints. There is nothing to choose
+ * between, so nothing can flip: the answer is a continuous function of the
+ * inputs, which is exactly the property zoom and anchor-dragging need. And
+ * because t is measured ALONG p1→p2, the returned pair is always ordered
+ * low-t → high-t, so parallel lines are always traversed the same way and a band
+ * built from two of them can never bow-tie.
+ *
+ * Returns `null` when the line misses the rect entirely — which is a real answer
+ * ("draw nothing"), not a failure. Callers must handle it rather than falling
+ * back to the raw anchors, or an off-screen line reappears across the pane.
  */
-export function extendToEdges(p1, p2, w, h) {
+export function clipLineToRect(p1, p2, rect) {
+  if (!p1 || !p2 || !rect) return null
+  const { x0, y0, x1, y1 } = rect
+  if (!(x1 > x0) || !(y1 > y0)) return null
+  const px = p1.x, py = p1.y
   const dx = p2.x - p1.x, dy = p2.y - p1.y
-  if (dx === 0) return [{ x: p1.x, y: 0 }, { x: p1.x, y: h }]
-  if (dy === 0) return [{ x: 0, y: p1.y }, { x: w, y: p1.y }]
-  const m = dy / dx, b = p1.y - m * p1.x
-  const pts = []
-  const yAt0 = b, yAtW = m * w + b
-  const xAt0 = -b / m, xAtH = (h - b) / m
-  if (yAt0 >= -100 && yAt0 <= h + 100) pts.push({ x: 0, y: yAt0 })
-  if (yAtW >= -100 && yAtW <= h + 100) pts.push({ x: w, y: yAtW })
-  if (xAt0 >= -100 && xAt0 <= w + 100 && pts.length < 2) pts.push({ x: xAt0, y: 0 })
-  if (xAtH >= -100 && xAtH <= w + 100 && pts.length < 2) pts.push({ x: xAtH, y: h })
-  return pts.length >= 2 ? pts : [p1, p2]
+  if (![px, py, dx, dy].every(Number.isFinite)) return null
+
+  // A degenerate "line" is a point: inside → a zero-length segment, outside →
+  // nothing. Returning the box diagonal here (which the old code effectively did
+  // for dx === 0) is how a collapsed drawing used to sprout a full-height line.
+  if (dx === 0 && dy === 0) {
+    return (px >= x0 && px <= x1 && py >= y0 && py <= y1) ? [{ x: px, y: py }, { x: px, y: py }] : null
+  }
+
+  // Unbounded in both directions: the infinite line, not the segment.
+  let t0 = -Infinity, t1 = Infinity
+  const clip = (p, q) => {
+    if (p === 0) return q >= 0            // parallel to this edge: inside iff q >= 0
+    const r = q / p
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r }
+    else { if (r < t0) return false; if (r < t1) t1 = r }
+    return true
+  }
+  if (!clip(-dx, px - x0)) return null
+  if (!clip(dx, x1 - px)) return null
+  if (!clip(-dy, py - y0)) return null
+  if (!clip(dy, y1 - py)) return null
+  if (!(t0 <= t1) || !Number.isFinite(t0) || !Number.isFinite(t1)) return null
+
+  return [
+    { x: px + t0 * dx, y: py + t0 * dy },
+    { x: px + t1 * dx, y: py + t1 * dy },
+  ]
 }
 
-export function extendRay(p1, p2, w, h) {
+/**
+ * Both points where the infinite line through p1,p2 leaves `rect`.
+ *
+ * Kept as the name every multi-line tool calls, but it is now a thin wrapper
+ * over `clipLineToRect` — same determinism, same ordering, and `null` when the
+ * line misses. The old `(p1, p2, w, h)` signature is gone on purpose: a bare
+ * width/height cannot express "the price pane", and every caller now has a real
+ * pane rect to hand it.
+ */
+export function extendToEdges(p1, p2, rect) {
+  return clipLineToRect(p1, p2, rect)
+}
+
+/**
+ * The line through p1,p2 extended WELL BEYOND `rect`, in the p1 -> p2 direction.
+ *
+ * ⭐ THIS IS HOW A BAND FILL STOPS LOSING CORNERS. The region between two
+ * parallel lines clipped to a rectangle is NOT always a quadrilateral — when the
+ * two edges leave through different sides it is a pentagon, and
+ * `renderChannel` / `renderPitchfork` filled a 4-gon built from clipped
+ * endpoints, so a corner simply went uncovered. Clipping the polygon by hand
+ * means re-deriving that case analysis; extending past the rect and letting
+ * `ctx.clip()` trim is correct for every case by construction, and canvas has to
+ * do the clipping work anyway.
+ *
+ * Always returns [-k, +k] along p1 -> p2, so two parallel lines are traversed
+ * the same way and the quad between them can never self-intersect.
+ */
+export function extendLineFar(p1, p2, rect) {
+  if (!p1 || !p2 || !rect) return null
   const dx = p2.x - p1.x, dy = p2.y - p1.y
-  if (dx === 0 && dy === 0) return [p1, p2]
-  // Extend from p1 through p2 to edge
-  const edges = extendToEdges(p1, p2, w, h)
-  // Pick the edge point on the p2 side of p1
-  const dotA = (edges[0].x - p1.x) * dx + (edges[0].y - p1.y) * dy
-  const dotB = edges[1] ? (edges[1].x - p1.x) * dx + (edges[1].y - p1.y) * dy : -1
-  const farPt = dotA >= dotB ? edges[0] : edges[1]
-  return [p1, farPt || p2]
+  const len = Math.hypot(dx, dy)
+  if (!Number.isFinite(len) || len === 0) return null
+  // Two diagonals plus a slack — far enough that the extended segment always
+  // spans the rect, small enough to stay well inside canvas coordinate precision.
+  const reach = Math.hypot(rect.x1 - rect.x0, rect.y1 - rect.y0) * 2 + 1000
+  const k = reach / len
+  return [
+    { x: p1.x - dx * k, y: p1.y - dy * k },
+    { x: p1.x + dx * k, y: p1.y + dy * k },
+  ]
+}
+
+/**
+ * A RAY: anchored at p1, extended through p2 to the edge of `rect`.
+ *
+ * ⭐ THE ORDERING GUARANTEE FROM `clipLineToRect` IS WHAT MAKES THIS TRIVIAL.
+ * t is measured along p1→p2, so the far end is simply the larger t — no dot
+ * products, no "pick the edge on the p2 side", and no way for the two to
+ * disagree. The old version compared dot products against a pair whose order was
+ * itself unstable.
+ *
+ * Returns `null` when the ray is entirely outside the rect. When p1 is outside
+ * but the ray crosses the rect, the visible part is returned — which is correct
+ * and is what lets a ray anchored off-screen still draw where it should.
+ */
+export function extendRay(p1, p2, rect) {
+  if (!p1 || !p2) return null
+  const dx = p2.x - p1.x, dy = p2.y - p1.y
+  if (dx === 0 && dy === 0) return null
+  const seg = clipLineToRect(p1, p2, rect)
+  if (!seg) return null
+  // `clipLineToRect` returns [t0, t1] with t0 <= t1 along p1 -> p2, so tB is the
+  // far end by construction. Recover t from whichever component is larger, so a
+  // near-axis-aligned ray never divides by ~0.
+  const tOf = (q) => (Math.abs(dx) >= Math.abs(dy) ? (q.x - p1.x) / dx : (q.y - p1.y) / dy)
+  const tA = tOf(seg[0]), tB = tOf(seg[1])
+  if (tB <= 0) return null            // the visible span is entirely behind the anchor
+  // tA < 0 means the anchor itself is inside the rect (t = 0 lies within the
+  // visible span), so the ray starts exactly where the user put it.
+  return [tA >= 0 ? seg[0] : { x: p1.x, y: p1.y }, seg[1]]
 }
 
 // Cup curve control point: quadratic B(0.5) = 0.25·L + 0.5·C + 0.25·R; solve C
@@ -140,29 +232,80 @@ export function boundsOf(pts) {
 
 // ─── Hit testing ─────────────────────────────────────────────────────────────
 
-export function hitTestDrawing(d, pts, mx, my, w, h) {
-  if (!pts.length) return false
+/**
+ * Are the first `n` resolved points usable — and usable FOR WHAT?
+ *
+ * Index-stable resolution keeps a slot for every stored anchor and marks the
+ * unresolvable ones, so a painter must ask rather than assume: a point whose x
+ * could not be mapped used to numeric-coerce to 0 and drag the whole drawing to
+ * the chart's left edge.
+ *
+ * ⛔ BUT "USABLE" IS PER AXIS, AND GETTING THAT WRONG DELETES A TOOL.
+ * ⚰️ CAUGHT IN-BROWSER: a Horizontal Line is stored as `{ price }` with NO
+ * `time` — it is a price LEVEL, it has no x and never needed one, and the
+ * renderer spans the pane rect rather than reading `p.x`. A blanket
+ * "both coordinates must be finite" made every horizontal line invalid, and they
+ * all silently stopped rendering. The mirror case is the Vertical Line, which is
+ * a time marker with no meaningful price.
+ *
+ * `axis` says which coordinates this call actually depends on:
+ *   'both' (default) · 'x' (vertical) · 'y' (horizontal)
+ */
+export const pointsUsable = (pts, n, axis = 'both') => {
+  if (!pts || pts.length < n) return false
+  const needX = axis !== 'y'
+  const needY = axis !== 'x'
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]
+    if (!p) return false
+    if (needX && !Number.isFinite(p.x)) return false
+    if (needY && !Number.isFinite(p.y)) return false
+  }
+  return true
+}
+
+/**
+ * @param {object} d      the drawing
+ * @param {object[]} pts  index-stable resolved points
+ * @param {number} mx
+ * @param {number} my
+ * @param {object} rect   the drawing's PANE rect — a click outside it is not a
+ *                        hit, which is what stops an invisible (clipped) part of
+ *                        a drawing still swallowing clicks in the other pane.
+ */
+const ok = pointsUsable
+
+export function hitTestDrawing(d, pts, mx, my, rect) {
+  if (!pts.length || !rect) return false
+  // ⛔ THE CLIP AND THE HIT TEST MUST AGREE. Phase 1 clips a drawing to its pane;
+  // if hit-testing did not, a price trendline would keep stealing clicks from the
+  // volume pane it can no longer be seen in — the classic invisible-hitbox bug.
+  if (mx < rect.x0 || mx > rect.x1 || my < rect.y0 || my > rect.y1) return false
+  const w = rect.x1
   switch (d.type) {
     case 'trendline':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
+      return ok(pts, 2) && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'ray': {
-      if (pts.length < 2) return false
-      const [a, b] = extendRay(pts[0], pts[1], w, h)
-      return distToSegment(mx, my, a.x, a.y, b.x, b.y) < HIT_THRESHOLD()
+      if (!ok(pts, 2)) return false
+      const seg = extendRay(pts[0], pts[1], rect)
+      if (!seg) return false
+      return distToSegment(mx, my, seg[0].x, seg[0].y, seg[1].x, seg[1].y) < HIT_THRESHOLD()
     }
     case 'extended': {
-      if (pts.length < 2) return false
+      if (!ok(pts, 2)) return false
       return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     }
     case 'horizontal':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD()
+      // y only: a price level has no time and needs no x.
+      return ok(pts, 1, 'y') && Math.abs(my - pts[0].y) < HIT_THRESHOLD()
     case 'hray':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD() && mx >= (pts[0].x || 0) - HIT_THRESHOLD()
+      return ok(pts, 1) && Math.abs(my - pts[0].y) < HIT_THRESHOLD() && mx >= pts[0].x - HIT_THRESHOLD()
     case 'vertical':
-      return Math.abs(mx - pts[0].x) < HIT_THRESHOLD()
+      // x only: a time marker needs no price.
+      return ok(pts, 1, 'x') && Math.abs(mx - pts[0].x) < HIT_THRESHOLD()
     case 'rect':
     case 'circle': {
-      if (pts.length < 2) return false
+      if (!ok(pts, 2)) return false
       const x1 = Math.min(pts[0].x, pts[1].x) - HIT_THRESHOLD()
       const y1 = Math.min(pts[0].y, pts[1].y) - HIT_THRESHOLD()
       const x2 = Math.max(pts[0].x, pts[1].x) + HIT_THRESHOLD()
@@ -170,8 +313,9 @@ export function hitTestDrawing(d, pts, mx, my, w, h) {
       return mx >= x1 && mx <= x2 && my >= y1 && my <= y2
     }
     case 'arrow':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
+      return ok(pts, 2) && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'text': {
+      if (!ok(pts, 1)) return false
       // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
       // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
       // = estimated wrapped line count. Approximation is fine for hit-testing.
@@ -191,21 +335,21 @@ export function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'advance': {
       // Label sits above the 2nd point's candle; box a vertical strip above it.
       const p = pts[pts.length - 1]
-      if (!p || p.x == null || p.y == null) return false
+      if (!p || p.valid === false || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return false
       return mx >= p.x - 26 && mx <= p.x + 26 && my >= p.y - 70 && my <= p.y + 10
     }
     case 'fib':
     case 'fibext':
-      if (pts.length < 2) return false
-      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
+      if (!ok(pts, 2)) return false
+      return mx >= rect.x0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
     case 'pitchfork':
-      if (pts.length < 3) return false
+      if (!ok(pts, 3)) return false
       return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD() * 2
     case 'channel':
-      if (pts.length < 2) return false
+      if (!ok(pts, 2)) return false
       return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD() * 2
     case 'cup': {
-      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
+      if (!ok(pts, 3)) return ok(pts, 2) && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
       const L = pts[0], R = pts[2]
       const c = cupControlPoint(L, pts[1], R)
       // Sample the quadratic and test each chord against the cursor.
@@ -222,18 +366,18 @@ export function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'measure':
     case 'priceRange':
     case 'dateRange': {
-      if (pts.length < 2) return false
+      if (!ok(pts, 2)) return false
       const bx1 = Math.min(pts[0].x, pts[1].x), by1 = Math.min(pts[0].y, pts[1].y)
       const bx2 = Math.max(pts[0].x, pts[1].x), by2 = Math.max(pts[0].y, pts[1].y)
       return mx >= bx1 && mx <= bx2 && my >= by1 && my <= by2
     }
     case 'position': {
-      if (pts.length < 3) return false
+      if (!ok(pts, 3)) return false
       const xs = pts.map(p => p.x), ys = pts.map(p => p.y)
       return mx >= Math.min(...xs) && mx <= Math.max(...xs) && my >= Math.min(...ys) && my <= Math.max(...ys)
     }
     case 'avwap':
-      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD() * 2
+      return ok(pts, 1) && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD() * 2
     default: return false
   }
 }

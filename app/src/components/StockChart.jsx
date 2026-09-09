@@ -509,6 +509,7 @@ import ScreenshotPopover from './chart/ScreenshotPopover'
 import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
+import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 
@@ -3916,13 +3917,24 @@ export default function StockChart({
   activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
   const positionPriceLines = useRef([])
-  const [drawColor, setDrawColor] = useState(canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color)
-  // Sunrise defaults the drawing color to black (reads on the bright canvas); other
-  // themes use the user's configured default. A manual palette pick persists until the
-  // theme (or the saved default) changes.
+  const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color || UCT_DRAW_GOLD)
+  // THE COLOUR FOLLOWS THE USER'S SAVED DEFAULT AND NOTHING ELSE.
+  //
+  // This used to read `canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color`
+  // with `canvasTheme` IN THE DEPENDENCY ARRAY, which cost two things:
+  //   1. on the light (Sunrise) canvas, new drawings were BLACK no matter what
+  //      default the user had saved - their setting was simply overruled;
+  //   2. worse, because the effect re-ran on every theme change, switching theme
+  //      SILENTLY DISCARDED a colour the user had just picked from the palette.
+  //      Pick red, change theme, draw - you get black.
+  //
+  // Now: the default is the saved default (UCT gold out of the box), a manual
+  // palette pick survives a theme switch, and someone who genuinely wants black
+  // on Sunrise picks black and saves it as their default - which now sticks,
+  // because nothing overrides it.
   useEffect(() => {
-    setDrawColor(canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color)
-  }, [canvasTheme, cs.drawingDefaults.color])
+    setDrawColor(cs.drawingDefaults.color || UCT_DRAW_GOLD)
+  }, [cs.drawingDefaults.color])
   const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
   const [magnet, setMagnet] = useState(false)  // snap drawings to nearest O/H/L/C
   const [selectedId, setSelectedId] = useState(null)
@@ -4316,7 +4328,7 @@ export default function StockChart({
     const drawLineItem = hasPrice ? {
       id: 'draw-hline',
       label: <><UIcon name="ruler" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{`Draw line at $${fmtPrice(clickPrice)}`}</>,
-      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c'), lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
+      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: cs.drawingDefaults?.color || UCT_DRAW_GOLD, lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
     } : null
     const copyPriceItem = hasPrice ? {
       id: 'copy-price',
@@ -13252,7 +13264,7 @@ export default function StockChart({
       const ctx = c.getContext('2d'); if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
+      const col = cs.drawingDefaults?.color || UCT_DRAW_GOLD
       ctx.strokeStyle = col; ctx.lineWidth = cs.drawingDefaults?.width || 1
       // Match the toolbar Trendline tool exactly: a clean line, NO endpoint dots,
       // honoring the saved dash style.
@@ -13292,7 +13304,7 @@ export default function StockChart({
       const p = getPos(e)
       if (Math.abs(p.x - st.startX) < 4 && Math.abs(p.y - st.startY) < 4) return
       const b = ptAt(p.x, p.y); if (!b) return
-      const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
+      const col = cs.drawingDefaults?.color || UCT_DRAW_GOLD
       addDrawingRef.current?.({
         type: 'trendline',
         points: [st.a, b],
@@ -15801,6 +15813,7 @@ export default function StockChart({
           <ChartDrawingOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             activeTool={null}
             setActiveTool={NOOP}
@@ -15826,6 +15839,7 @@ export default function StockChart({
           <ChartDrawingOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
@@ -16013,6 +16027,7 @@ export default function StockChart({
             readOnly={!annotationsEditable}
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             hidePriceLabels
             redrawHandleRef={annRedrawRef}
@@ -16082,6 +16097,7 @@ export default function StockChart({
             readOnly
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             activeTool={null}
             setActiveTool={NOOP}

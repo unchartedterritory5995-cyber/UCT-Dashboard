@@ -1,42 +1,55 @@
 /* Canvas painters for the drawing layer.
  *
- * ⛔ MOVED VERBATIM FROM `ChartDrawingOverlay.jsx` (Phase 0). Not one drawing
- * order, dash reset, alpha, font string or `save()/restore()` pair was changed
- * on the way across. Canvas is a STATE MACHINE: a painter that sets
- * `globalAlpha` and does not put it back changes the drawing painted after it,
- * so "tidying" a stray assignment here is not a cleanup, it is a behaviour
- * change in a different tool. `drawingRenderers.test.js` records the exact call
- * sequence each painter emits and will fail if any of that drifts.
+ * Phase 0 moved these bodies out of `ChartDrawingOverlay.jsx` verbatim so they
+ * could be executed by a test. Phase 1 changed exactly four things, each of them
+ * an approved shared fix:
  *
- * ─── THE CONTRACT THESE PAINTERS ACTUALLY HAVE ──────────────────────────────
+ *   • every painter that extended a line now takes a PANE RECT instead of a bare
+ *     `w, h`, and gets its geometry from the deterministic Liang–Barsky clip;
+ *   • `renderPitchfork` / `renderChannel` build their band fills from UNCLIPPED,
+ *     far-extended lines and let `ctx.clip()` trim them — a band clipped to a
+ *     rect is not always a quadrilateral, which is why a corner used to go
+ *     unfilled;
+ *   • every painter checks `ok(pts, n)` rather than `pts.length`, because
+ *     resolution is now index-stable and an unresolvable anchor is marked rather
+ *     than dropped;
+ *   • `renderSelectionHandles` takes the drawing's rendered ink.
  *
- * ⚠️ IT IS NOT "LEAVE THE CONTEXT AS YOU FOUND IT", AND PRETENDING OTHERWISE
- * WOULD HAVE BROKEN THINGS. The caller (`redraw`) wraps EVERY drawing in its own
- * `ctx.save()` / `ctx.restore()` and re-establishes `strokeStyle`, `lineWidth`
- * and `setLineDash` before each one. That outer pair is what actually contains
- * the leaks, and several painters lean on it:
+ * ─── THE CONTRACT THESE PAINTERS HAVE ───────────────────────────────────────
+ *
+ * ⚠️ IT IS NOT "LEAVE THE CONTEXT AS YOU FOUND IT". The caller (`redraw`) wraps
+ * EVERY drawing in its own `ctx.save()` / `ctx.restore()` — now including the
+ * pane clip — and re-establishes `strokeStyle`, `lineWidth` and the dash before
+ * each one. That outer pair is what contains the leaks, and several painters
+ * lean on it:
  *
  *   • `renderFib` / `renderFibExtension` overwrite `strokeStyle` and `fillStyle`
  *     per level and never put them back (they do reset the dash).
  *   • `renderPitchfork` sets `globalAlpha = 0.4` for its handle bar and then
  *     writes `globalAlpha = 1` — NOT the layer alpha it found. Under Model
- *     Book's focus-zoom fade the layer alpha can be < 1, so the prong fill after
- *     it paints at full strength for the rest of that drawing. Pinned by test,
- *     NOT fixed here: it is a real (small) bug and it belongs to a phase that
- *     can look at it on a real chart.
- *   • `renderMeasure` sets `textAlign` and restores it to `'start'` rather than
- *     saving the previous value — harmless only because the caller sets what it
- *     needs.
+ *     Book's focus-zoom fade that means the prong fill paints at full strength
+ *     for the rest of THAT drawing. Still pinned by test rather than fixed:
+ *     it is contained by the caller's restore, and changing it is a visible
+ *     change to a surface Phase 1 was told not to touch.
+ *   • `renderMeasure` restores `textAlign` to `'start'` rather than to whatever
+ *     it found.
  *
- * So the honest contract is: **a painter may mutate ctx freely; the caller owns
- * the save/restore boundary.** Phase 0 writes that down and tests it. Tightening
- * it to per-painter save/restore is a real improvement and a real risk, and it
- * is Phase 1's to make deliberately — with these tests already in place to say
- * what changed.
+ * So the contract is: **a painter may mutate ctx freely; the caller owns the
+ * save/restore boundary.** `drawingRenderers.test.js` asserts that boundary
+ * balances for all 20 painters — the invariant the share/screenshot capture
+ * depends on, and the one the new per-drawing clip makes load-bearing.
  */
 import { isCoarsePointer, hitThreshold, handleRadius } from './coarsePointer'
 import { UCT_DRAW_GOLD } from './drawingColors'
-import { boundsOf, cupControlPoint, extendRay, extendToEdges } from './drawingGeometry'
+import {
+  boundsOf, cupControlPoint, extendLineFar, extendRay, extendToEdges, pointsUsable,
+} from './drawingGeometry'
+
+/** Index-stable resolution keeps a slot for every stored anchor and marks the
+ *  unresolvable ones. A painter must ask before it draws — the alternative is
+ *  what used to happen: a null x numeric-coerced to 0 and the shape snapped to
+ *  the left edge of the chart. */
+const ok = pointsUsable
 
 const HIT_THRESHOLD = () => hitThreshold()
 const HANDLE_R = () => handleRadius()
@@ -60,28 +73,30 @@ export function drawArrowhead(ctx, from, to, size = 8) {
 // ─── Lines ───────────────────────────────────────────────────────────────────
 
 export function renderTrendline(ctx, pts) {
-  if (pts.length < 2) return
+  if (!ok(pts, 2)) return
   ctx.beginPath()
   ctx.moveTo(pts[0].x, pts[0].y)
   ctx.lineTo(pts[1].x, pts[1].y)
   ctx.stroke()
 }
 
-export function renderRay(ctx, pts, w, h) {
-  if (pts.length < 2) return
-  const [a, b] = extendRay(pts[0], pts[1], w, h)
+export function renderRay(ctx, pts, rect) {
+  if (!ok(pts, 2)) return
+  const seg = extendRay(pts[0], pts[1], rect)
+  if (!seg) return              // wholly outside its pane — draw nothing
   ctx.beginPath()
-  ctx.moveTo(a.x, a.y)
-  ctx.lineTo(b.x, b.y)
+  ctx.moveTo(seg[0].x, seg[0].y)
+  ctx.lineTo(seg[1].x, seg[1].y)
   ctx.stroke()
 }
 
-export function renderExtended(ctx, pts, w, h) {
-  if (pts.length < 2) return
-  const [a, b] = extendToEdges(pts[0], pts[1], w, h)
+export function renderExtended(ctx, pts, rect) {
+  if (!ok(pts, 2)) return
+  const seg = extendToEdges(pts[0], pts[1], rect)
+  if (!seg) return
   ctx.beginPath()
-  ctx.moveTo(a.x, a.y)
-  ctx.lineTo(b.x, b.y)
+  ctx.moveTo(seg[0].x, seg[0].y)
+  ctx.lineTo(seg[1].x, seg[1].y)
   ctx.stroke()
 }
 
@@ -91,13 +106,21 @@ export function renderExtended(ctx, pts, w, h) {
  *  entirely inside the clipped-away strip, on every chart that has an axis.
  *  That is why the Horizontal Line has never appeared to have a price label.
  *  Phase 4 re-anchors it to `plotRight`; Phase 0 leaves it exactly where it is. */
-export function renderHorizontal(ctx, pts, w, showLabel = true) {
-  if (!pts.length) return
+export function renderHorizontal(ctx, pts, rect, showLabel = true, labelRight = null) {
+  // 'y' ONLY: a horizontal line is a price LEVEL stored as `{ price }` with no
+  // `time`, so it has no x and the span comes from the pane rect. Requiring x
+  // here made every horizontal line in the product stop rendering.
+  if (!ok(pts, 1, 'y')) return
   ctx.beginPath()
-  ctx.moveTo(0, pts[0].y)
-  ctx.lineTo(w, pts[0].y)
+  ctx.moveTo(rect.x0, pts[0].y)
+  ctx.lineTo(rect.x1, pts[0].y)
   ctx.stroke()
-  // Price label
+  // Price label.
+  // ⛔ `labelRight` IS THE CANVAS WIDTH, NOT `rect.x1`, AND THAT IS DELIBERATE.
+  // Anchoring it to the plot edge would make this label VISIBLE for the first
+  // time — which is Phase 4's feature to ship, with a toggle and a real chip.
+  // Phase 1 changes where the LINE stops, not where the label goes.
+  const w = labelRight != null ? labelRight : rect.x1
   if (showLabel && pts[0].price != null) {
     const label = pts[0].price.toFixed(2)
     ctx.font = '10px "Instrument Sans", sans-serif'
@@ -111,8 +134,8 @@ export function renderHorizontal(ctx, pts, w, showLabel = true) {
  *  the ray's own colour — and the overlay hard-codes `false` at the call site.
  *  Phase 4 replaces that literal with the drawing's own toggle. */
 export function renderHRay(ctx, pts, w, showLabel = true) {
-  if (!pts.length) return
-  const x = pts[0].x ?? 0
+  if (!ok(pts, 1)) return
+  const x = pts[0].x
   ctx.beginPath()
   ctx.moveTo(x, pts[0].y)
   ctx.lineTo(w, pts[0].y)
@@ -129,18 +152,18 @@ export function renderHRay(ctx, pts, w, showLabel = true) {
   }
 }
 
-export function renderVertical(ctx, pts, h) {
-  if (!pts.length) return
+export function renderVertical(ctx, pts, rect) {
+  if (!ok(pts, 1, 'x')) return          // a time marker needs no price
   ctx.beginPath()
-  ctx.moveTo(pts[0].x, 0)
-  ctx.lineTo(pts[0].x, h)
+  ctx.moveTo(pts[0].x, rect.y0)
+  ctx.lineTo(pts[0].x, rect.y1)
   ctx.stroke()
 }
 
 // ─── Shapes ──────────────────────────────────────────────────────────────────
 
 export function renderRect(ctx, pts) {
-  if (pts.length < 2) return
+  if (!ok(pts, 2)) return
   const { x1: x, y1: y, w, h } = boundsOf(pts)
   // ⚰️ DEAD LINE, KEPT ON PURPOSE (Phase 0 is behaviour-neutral). This builds a
   // nonsense colour string by chained .replace() and assigns it; canvas ignores
@@ -159,7 +182,7 @@ export function renderRect(ctx, pts) {
 }
 
 export function renderCircle(ctx, pts) {
-  if (pts.length < 2) return
+  if (!ok(pts, 2)) return
   const cx = (pts[0].x + pts[1].x) / 2
   const cy = (pts[0].y + pts[1].y) / 2
   const rx = Math.abs(pts[1].x - pts[0].x) / 2
@@ -178,7 +201,7 @@ export function renderCircle(ctx, pts) {
  *  That independence is what Phase 4's "Arrow size" asks for — the control is
  *  missing, not the separation. */
 export function renderArrow(ctx, pts) {
-  if (pts.length < 2) return
+  if (!ok(pts, 2)) return
   ctx.beginPath()
   ctx.moveTo(pts[0].x, pts[0].y)
   ctx.lineTo(pts[1].x, pts[1].y)
@@ -191,10 +214,10 @@ export function renderArrow(ctx, pts) {
 // left rim, bottom, right rim (clicked in that order). Two placed points
 // (mid-draw) fall back to a straight guide line.
 export function renderCup(ctx, pts) {
-  if (pts.length < 2) return
+  if (!ok(pts, 2)) return
   const L = pts[0]
   const R = pts[pts.length - 1]
-  if (pts.length < 3) {
+  if (!ok(pts, 3)) {
     ctx.beginPath()
     ctx.moveTo(L.x, L.y)
     ctx.lineTo(R.x, R.y)
@@ -244,7 +267,7 @@ export function wrapTextLines(ctx, text, maxWidth) {
  *  the "text note moves after I place it" report. Phase 6 makes both sides
  *  render from one origin; Phase 0 changes neither. */
 export function renderText(ctx, pts, drawing, opacity = 1) {
-  if (!pts.length || !drawing.text || opacity <= 0.02) return
+  if (!ok(pts, 1) || !drawing.text || opacity <= 0.02) return
   const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
   const prevAlpha = ctx.globalAlpha
   ctx.globalAlpha = prevAlpha * opacity
@@ -264,7 +287,7 @@ export function renderText(ctx, pts, drawing, opacity = 1) {
 export function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null, autoInk = '#ffffff') {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
-  if (p.x == null) return
+  if (!p || p.valid === false || !Number.isFinite(p.x)) return
   // If the anchor candle is itself scrolled OUTSIDE the plot area (e.g. a setup
   // months to the right while zoomed in on a different setup), don't render —
   // otherwise the on-canvas clamp below would pin the label to the screen edge
@@ -311,8 +334,9 @@ export function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW 
  *  (every level overwrites `strokeStyle`). Phase 7 moves the ladder onto the
  *  drawing, defaulted from exactly these arrays so an existing Fib renders
  *  identically until somebody edits it. */
-export function renderFib(ctx, pts, w, toPixel) {
-  if (pts.length < 2) return
+export function renderFib(ctx, pts, rect, toPixel) {
+  if (!ok(pts, 2)) return
+  const { x0, x1: w } = rect
   const highPrice = Math.max(pts[0].rawPrice, pts[1].rawPrice)
   const lowPrice = Math.min(pts[0].rawPrice, pts[1].rawPrice)
   const range = highPrice - lowPrice
@@ -326,19 +350,20 @@ export function renderFib(ctx, pts, w, toPixel) {
     ctx.strokeStyle = FIB_COLORS[i] || ctx.strokeStyle
     ctx.setLineDash(level === 0 || level === 1 ? [] : [4, 3])
     ctx.beginPath()
-    ctx.moveTo(0, y)
+    ctx.moveTo(x0, y)
     ctx.lineTo(w, y)
     ctx.stroke()
     // Label
     ctx.fillStyle = FIB_COLORS[i] || '#a8a290'
     const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
-    ctx.fillText(label, 4, y - 3)
+    ctx.fillText(label, x0 + 4, y - 3)
   })
   ctx.setLineDash([])
 }
 
-export function renderFibExtension(ctx, pts, w, toPixel) {
-  if (pts.length < 2) return
+export function renderFibExtension(ctx, pts, rect, toPixel) {
+  if (!ok(pts, 2)) return
+  const { x0, x1: w } = rect
   // P0 = swing start, P1 = swing end. Extensions project beyond P1 in P0→P1 direction.
   const p0Price = pts[0].rawPrice
   const p1Price = pts[1].rawPrice
@@ -354,12 +379,12 @@ export function renderFibExtension(ctx, pts, w, toPixel) {
     ctx.strokeStyle = FIB_EXT_COLORS[i] || '#a8a290'
     ctx.setLineDash(level > 1 ? [6, 3] : level === 0 || level === 1 ? [] : [4, 3])
     ctx.beginPath()
-    ctx.moveTo(0, y)
+    ctx.moveTo(x0, y)
     ctx.lineTo(w, y)
     ctx.stroke()
     ctx.fillStyle = FIB_EXT_COLORS[i] || '#a8a290'
     const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
-    ctx.fillText(label, 4, y - 3)
+    ctx.fillText(label, x0 + 4, y - 3)
   })
   ctx.setLineDash([])
 }
@@ -373,35 +398,37 @@ export function renderFibExtension(ctx, pts, w, toPixel) {
  *  the two edges exit through different sides, so a corner goes unfilled.
  *  Also note `globalAlpha = 1` after the handle bar: that is a WRITE, not a
  *  restore, and it discards a Model Book layer fade for the rest of the drawing. */
-export function renderPitchfork(ctx, pts, w, h) {
-  if (pts.length < 3) return
+export function renderPitchfork(ctx, pts, rect) {
+  if (!ok(pts, 3)) return
   // P1 = pivot, P2 = left shoulder, P3 = right shoulder
   const [p1, p2, p3] = pts
   // Median line anchor = midpoint of P2–P3
   const mid = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 }
+  const dir = { x: mid.x - p1.x, y: mid.y - p1.y }
+  const along = (p) => ({ x: p.x + dir.x, y: p.y + dir.y })
 
-  // Extend all three lines to canvas edges
-  const [ma1, ma2] = extendToEdges(p1, mid, w, h)
-  const [ua1, ua2] = extendToEdges(p2, { x: p2.x + (mid.x - p1.x), y: p2.y + (mid.y - p1.y) }, w, h)
-  const [la1, la2] = extendToEdges(p3, { x: p3.x + (mid.x - p1.x), y: p3.y + (mid.y - p1.y) }, w, h)
-
-  // Median line (solid)
+  // Median line (solid). `null` = this line does not cross the pane at all, so
+  // nothing is drawn — the old code would have drawn a wrong segment instead.
   ctx.setLineDash([])
-  ctx.beginPath()
-  ctx.moveTo(ma1.x, ma1.y)
-  ctx.lineTo(ma2.x, ma2.y)
-  ctx.stroke()
+  const median = extendToEdges(p1, mid, rect)
+  if (median) {
+    ctx.beginPath()
+    ctx.moveTo(median[0].x, median[0].y)
+    ctx.lineTo(median[1].x, median[1].y)
+    ctx.stroke()
+  }
 
   // Upper and lower prongs (dashed)
   ctx.setLineDash([5, 3])
-  ctx.beginPath()
-  ctx.moveTo(ua1.x, ua1.y)
-  ctx.lineTo(ua2.x, ua2.y)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(la1.x, la1.y)
-  ctx.lineTo(la2.x, la2.y)
-  ctx.stroke()
+  const upper = extendToEdges(p2, along(p2), rect)
+  const lower = extendToEdges(p3, along(p3), rect)
+  for (const seg of [upper, lower]) {
+    if (!seg) continue
+    ctx.beginPath()
+    ctx.moveTo(seg[0].x, seg[0].y)
+    ctx.lineTo(seg[1].x, seg[1].y)
+    ctx.stroke()
+  }
   ctx.setLineDash([])
 
   // Handle bar connecting P2–P3
@@ -412,58 +439,78 @@ export function renderPitchfork(ctx, pts, w, h) {
   ctx.stroke()
   ctx.globalAlpha = 1
 
-  // Fill between upper and lower prongs
-  ctx.save()
-  ctx.globalAlpha = 0.04
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.beginPath()
-  ctx.moveTo(ua1.x, ua1.y)
-  ctx.lineTo(ua2.x, ua2.y)
-  ctx.lineTo(la2.x, la2.y)
-  ctx.lineTo(la1.x, la1.y)
-  ctx.closePath()
-  ctx.fill()
-  ctx.restore()
-}
-
-/** ⚠️ THE FILL IS THE PHASE-2 BUG. `[a1, b1, b2, a2]` assumes the two clipped
- *  lines come back in a matching direction. `extendToEdges` gives no such
- *  guarantee — it returns whichever two of four candidate crossings happened to
- *  pass first — so the quad can self-intersect into a bow-tie and the nonzero
- *  winding fill cancels part of itself. That is the "part of the tint
- *  disappears" report, and it is a geometry bug, not a repaint bug. */
-export function renderChannel(ctx, pts, w, h) {
-  if (pts.length < 2) return
-  // First line: p1 to p2
-  const [a1, b1] = extendToEdges(pts[0], pts[1], w, h)
-  ctx.beginPath()
-  ctx.moveTo(a1.x, a1.y)
-  ctx.lineTo(b1.x, b1.y)
-  ctx.stroke()
-  // Second line: parallel through p3
-  if (pts.length >= 3) {
-    const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y
-    const p3a = { x: pts[2].x, y: pts[2].y }
-    const p3b = { x: pts[2].x + dx, y: pts[2].y + dy }
-    const [a2, b2] = extendToEdges(p3a, p3b, w, h)
-    ctx.setLineDash([4, 3])
-    ctx.beginPath()
-    ctx.moveTo(a2.x, a2.y)
-    ctx.lineTo(b2.x, b2.y)
-    ctx.stroke()
-    ctx.setLineDash([])
-    // Fill between
+  // Fill between upper and lower prongs.
+  // ⭐ BUILT FROM UNCLIPPED, FAR-EXTENDED LINES AND TRIMMED BY `ctx.clip()`.
+  // The band between two parallel lines clipped to a rectangle is a pentagon
+  // whenever the two edges leave through different sides, so the old 4-gon built
+  // from clipped endpoints left a corner unfilled. `extendLineFar` also returns
+  // both lines traversed the SAME way, so the quad can never bow-tie.
+  const uf = extendLineFar(p2, along(p2), rect)
+  const lf = extendLineFar(p3, along(p3), rect)
+  if (uf && lf) {
     ctx.save()
     ctx.globalAlpha = 0.04
     ctx.fillStyle = ctx.strokeStyle
     ctx.beginPath()
-    ctx.moveTo(a1.x, a1.y)
-    ctx.lineTo(b1.x, b1.y)
-    ctx.lineTo(b2.x, b2.y)
-    ctx.lineTo(a2.x, a2.y)
+    ctx.moveTo(uf[0].x, uf[0].y)
+    ctx.lineTo(uf[1].x, uf[1].y)
+    ctx.lineTo(lf[1].x, lf[1].y)
+    ctx.lineTo(lf[0].x, lf[0].y)
     ctx.closePath()
     ctx.fill()
     ctx.restore()
+  }
+}
+
+export function renderChannel(ctx, pts, rect) {
+  if (!ok(pts, 2)) return
+  // First line: p1 to p2
+  const first = extendToEdges(pts[0], pts[1], rect)
+  if (first) {
+    ctx.beginPath()
+    ctx.moveTo(first[0].x, first[0].y)
+    ctx.lineTo(first[1].x, first[1].y)
+    ctx.stroke()
+  }
+  // Second line: parallel through p3
+  if (ok(pts, 3)) {
+    const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y
+    const p3a = { x: pts[2].x, y: pts[2].y }
+    const p3b = { x: pts[2].x + dx, y: pts[2].y + dy }
+    const second = extendToEdges(p3a, p3b, rect)
+    ctx.setLineDash([4, 3])
+    if (second) {
+      ctx.beginPath()
+      ctx.moveTo(second[0].x, second[0].y)
+      ctx.lineTo(second[1].x, second[1].y)
+      ctx.stroke()
+    }
+    ctx.setLineDash([])
+    // Fill between.
+    // ⚰️ THIS IS THE "part of the tint disappears" FIX. The old polygon was
+    // [a1, b1, b2, a2] built from CLIPPED endpoints, which assumed (a) the band
+    // is always a quadrilateral and (b) both edges come back traversed the same
+    // way. Neither held: a band clipped to a rect is a pentagon when its edges
+    // leave through different sides, and `extendToEdges` used to return whichever
+    // two of four candidate crossings passed a ±100px test first — so the quad
+    // could self-intersect and the nonzero winding fill cancelled its own area.
+    // Extending past the rect and letting the pane clip trim is right for every
+    // case, and `extendLineFar` guarantees a consistent traversal.
+    const fa = extendLineFar(pts[0], pts[1], rect)
+    const fb = extendLineFar(p3a, p3b, rect)
+    if (fa && fb) {
+      ctx.save()
+      ctx.globalAlpha = 0.04
+      ctx.fillStyle = ctx.strokeStyle
+      ctx.beginPath()
+      ctx.moveTo(fa[0].x, fa[0].y)
+      ctx.lineTo(fa[1].x, fa[1].y)
+      ctx.lineTo(fb[1].x, fb[1].y)
+      ctx.lineTo(fb[0].x, fb[0].y)
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
+    }
   }
 }
 
@@ -474,7 +521,7 @@ export function renderChannel(ctx, pts, w, h) {
  *  leaves a stale count and changing timeframe leaves one that was never right
  *  for the new bars. Phase 5 derives it here instead. */
 export function renderMeasure(ctx, pts, drawing, pctOnly = false) {
-  if (pts.length < 2) return
+  if (!ok(pts, 2)) return
   const { x1, y1, x2, y2 } = boundsOf(pts)
   // Dashed rect
   ctx.setLineDash([3, 3])
@@ -539,7 +586,7 @@ export function renderMeasure(ctx, pts, drawing, pctOnly = false) {
  *  and keeps letting the owner delete it. Deleting this function is how you turn
  *  "we retired a tool" into "we silently erased somebody's chart". */
 export function renderPosition(ctx, pts) {
-  if (pts.length < 3) return
+  if (!ok(pts, 3)) return
   const [entry, stop, target] = pts
   const xs = pts.map(p => p.x)
   const xL = Math.min(...xs), xR = Math.max(...xs)
@@ -639,17 +686,40 @@ export function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) 
 
 // ─── Chrome ──────────────────────────────────────────────────────────────────
 
-/** ⚠️ THE FILL IS UNCONDITIONALLY GOLD, FOR EVERY TOOL. This painter takes only
- *  points — it has no access to the drawing — which is exactly why a green trend
- *  line gets gold handles. Phase 1 passes the drawing in and fills with the
- *  drawing's own (brightened) colour. The dark ring stays: it is what keeps a
- *  handle visible on top of its own line whatever colour that line is. */
-export function renderSelectionHandles(ctx, pts) {
+/**
+ * Selection handles — one dot per resolved anchor, in the drawing's own colour.
+ *
+ * ⚰️ THEY USED TO BE GOLD FOR EVERY TOOL, and the reason was structural: this
+ * painter took only points, so it could not see the drawing. A green trend line
+ * got gold handles because nothing here knew the line was green.
+ *
+ * ⭐ `ink` MUST BE THE *BRIGHTENED* COLOUR, NOT `d.color`. `brightenAnnotationColor`
+ * silently remaps five stored hexes on the way to the canvas (#ef4444 → #ff5b5b,
+ * three greens → #1ae51a), so a handle painted from the raw stored value would be
+ * a visibly different shade from the line it sits on — which is worse than gold,
+ * because it looks like a bug rather than a convention. The caller resolves the
+ * stroke colour once and hands the same value here.
+ *
+ * ⛔ THE DARK RING STAYS, AND IS NOT NEGOTIABLE. It is what keeps a handle
+ * visible on top of its own line at any colour; without it a thick line and its
+ * handles merge into one blob and the grab points become invisible.
+ *
+ * ⛔ THE COARSE HALO STAYS NEUTRAL GOLD. It is not part of the shape — it is a
+ * readout of the grab radius, chrome that means "you can touch here". Tinting it
+ * per drawing would make it read as part of the drawing and, on a dark red line,
+ * nearly invisible at 16% alpha.
+ *
+ * Positions are still one-per-anchor. The Circle's on-circumference handles and
+ * Price Move's label handle are per-tool overrides and belong to their own phases.
+ */
+export function renderSelectionHandles(ctx, pts, ink = UCT_DRAW_GOLD) {
   // Pure canvas painter — no hook available here, so it asks the store directly.
   // That is precisely why coarsePointer.js exposes a synchronous read as well as
   // a hook: one fact, two doors, and they cannot disagree.
   const coarse = isCoarsePointer()
+  const fill = ink || UCT_DRAW_GOLD
   for (const p of pts) {
+    if (!p || p.valid === false || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
     if (coarse) {
       // Halo = the actual grab zone (HIT_THRESHOLD + the handle slack), so a
       // finger sees exactly how close is close enough.
@@ -660,7 +730,7 @@ export function renderSelectionHandles(ctx, pts) {
     }
     ctx.beginPath()
     ctx.arc(p.x, p.y, HANDLE_R(), 0, Math.PI * 2)
-    ctx.fillStyle = UCT_DRAW_GOLD
+    ctx.fillStyle = fill
     ctx.fill()
     ctx.strokeStyle = '#1a1c17'
     ctx.lineWidth = 1
@@ -668,14 +738,15 @@ export function renderSelectionHandles(ctx, pts) {
   }
 }
 
-export function renderCrosshair(ctx, x, y, price, w, h) {
+export function renderCrosshair(ctx, x, y, price, rect) {
+  const { x0, y0, x1: w, y1: h } = rect
   ctx.save()
   ctx.strokeStyle = 'rgba(168, 162, 144, 0.35)'
   ctx.lineWidth = 0.5
   ctx.setLineDash([3, 3])
   ctx.beginPath()
-  ctx.moveTo(x, 0); ctx.lineTo(x, h)
-  ctx.moveTo(0, y); ctx.lineTo(w, y)
+  ctx.moveTo(x, y0); ctx.lineTo(x, h)
+  ctx.moveTo(x0, y); ctx.lineTo(w, y)
   ctx.stroke()
   ctx.setLineDash([])
   // No floating "$price" label at the cursor while a tool is armed — it read as

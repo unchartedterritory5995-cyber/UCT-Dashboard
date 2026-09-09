@@ -95,6 +95,9 @@ afterEach(() => {
 
 const P = (x, y, extra = {}) => ({ x, y, ...extra })
 const W = 800, H = 400
+// Painters take a pane RECT now, not a bare width/height.
+const R = { x0: 0, y0: 0, x1: W, y1: H }
+const VOL = { x0: 0, y0: 300, x1: W, y1: H }
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('⭐ save/restore balance — the invariant that protects the screenshot', () => {
@@ -108,25 +111,25 @@ describe('⭐ save/restore balance — the invariant that protects the screensho
   const toPixel = (_, price) => 200 - price
   const CASES = [
     ['renderTrendline', (c) => renderTrendline(c, [P(0, 0), P(10, 10)])],
-    ['renderRay', (c) => renderRay(c, [P(10, 10), P(20, 20)], W, H)],
-    ['renderExtended', (c) => renderExtended(c, [P(10, 10), P(20, 20)], W, H)],
-    ['renderHorizontal', (c) => renderHorizontal(c, [P(10, 50, { price: 1.5 })], W, true)],
+    ['renderRay', (c) => renderRay(c, [P(10, 10), P(20, 20)], R)],
+    ['renderExtended', (c) => renderExtended(c, [P(10, 10), P(20, 20)], R)],
+    ['renderHorizontal', (c) => renderHorizontal(c, [P(10, 50, { price: 1.5 })], R, true, W)],
     ['renderHRay', (c) => renderHRay(c, [P(10, 50, { price: 1.5 })], W, true)],
-    ['renderVertical', (c) => renderVertical(c, [P(10, 50)], H)],
+    ['renderVertical', (c) => renderVertical(c, [P(10, 50)], R)],
     ['renderRect', (c) => renderRect(c, [P(10, 10), P(90, 60)])],
     ['renderCircle', (c) => renderCircle(c, [P(10, 10), P(90, 60)])],
     ['renderArrow', (c) => renderArrow(c, [P(10, 10), P(90, 60)])],
     ['renderCup', (c) => renderCup(c, [P(0, 0), P(50, 80), P(100, 0)])],
     ['renderText', (c) => renderText(c, [P(10, 10)], { text: 'hi\nthere', fontSize: 13 })],
     ['renderAdvance', (c) => renderAdvance(c, [P(10, 10), P(90, 60)], { advPct: 12, advHigh: 5 }, toPixelY, 16, W)],
-    ['renderFib', (c) => renderFib(c, [P(0, 0, { rawPrice: 10 }), P(100, 100, { rawPrice: 20 })], W, toPixel)],
-    ['renderFibExtension', (c) => renderFibExtension(c, [P(0, 0, { rawPrice: 10 }), P(100, 100, { rawPrice: 20 })], W, toPixel)],
-    ['renderPitchfork', (c) => renderPitchfork(c, [P(50, 300), P(200, 100), P(200, 200)], W, H)],
-    ['renderChannel', (c) => renderChannel(c, [P(50, 300), P(200, 100), P(60, 350)], W, H)],
+    ['renderFib', (c) => renderFib(c, [P(0, 0, { rawPrice: 10 }), P(100, 100, { rawPrice: 20 })], R, toPixel)],
+    ['renderFibExtension', (c) => renderFibExtension(c, [P(0, 0, { rawPrice: 10 }), P(100, 100, { rawPrice: 20 })], R, toPixel)],
+    ['renderPitchfork', (c) => renderPitchfork(c, [P(50, 300), P(200, 100), P(200, 200)], R)],
+    ['renderChannel', (c) => renderChannel(c, [P(50, 300), P(200, 100), P(60, 350)], R)],
     ['renderMeasure', (c) => renderMeasure(c, [P(10, 10, { rawPrice: 100 }), P(90, 60, { rawPrice: 110 })], { barCount: 4 })],
     ['renderPosition', (c) => renderPosition(c, [P(10, 10, { rawPrice: 100 }), P(20, 40, { rawPrice: 95 }), P(30, 0, { rawPrice: 115 })])],
     ['renderSelectionHandles', (c) => renderSelectionHandles(c, [P(10, 10), P(90, 60)])],
-    ['renderCrosshair', (c) => renderCrosshair(c, 10, 10, 100, W, H)],
+    ['renderCrosshair', (c) => renderCrosshair(c, 10, 10, 100, R)],
   ]
 
   for (const [name, run] of CASES) {
@@ -161,14 +164,14 @@ describe('lines', () => {
 
   it('renderHorizontal spans 0 → w at the point’s y', () => {
     const ctx = makeCtx()
-    renderHorizontal(ctx, [P(400, 123)], W, false)
+    renderHorizontal(ctx, [P(400, 123)], R, false)
     expect(ctx.__find('moveTo')[0].args).toEqual([0, 123])
     expect(ctx.__find('lineTo')[0].args).toEqual([W, 123])
   })
 
   it('renderVertical spans 0 → h at the point’s x', () => {
     const ctx = makeCtx()
-    renderVertical(ctx, [P(321, 50)], H)
+    renderVertical(ctx, [P(321, 50)], R)
     expect(ctx.__find('moveTo')[0].args).toEqual([321, 0])
     expect(ctx.__find('lineTo')[0].args).toEqual([321, H])
   })
@@ -180,10 +183,30 @@ describe('lines', () => {
     expect(ctx.__find('lineTo')[0].args).toEqual([W, 90])
   })
 
-  it('renderHRay tolerates a missing x (falls back to 0)', () => {
+  it('✅ renderHRay now SKIPS an anchor with no x, instead of falling back to 0', () => {
+    // It used to read `pts[0].x ?? 0`, so an unresolvable anchor drew a ray from
+    // the chart's left edge — a line the user never placed, in a place they never
+    // clicked. An unresolvable anchor now renders nothing at all.
     const ctx = makeCtx()
-    renderHRay(ctx, [{ y: 90 }], W, false)
-    expect(ctx.__find('moveTo')[0].args).toEqual([0, 90])
+    renderHRay(ctx, [{ y: 90, valid: false }], W, false)
+    expect(ctx.__ops()).toEqual([])
+  })
+
+  it('every painter skips a drawing whose anchors cannot be resolved', () => {
+    const bad = [{ x: null, y: 10, valid: false }, P(90, 60)]
+    for (const run of [
+      (c) => renderTrendline(c, bad),
+      (c) => renderRay(c, bad, R),
+      (c) => renderExtended(c, bad, R),
+      (c) => renderRect(c, bad),
+      (c) => renderCircle(c, bad),
+      (c) => renderArrow(c, bad),
+      (c) => renderMeasure(c, bad, { type: 'measure' }),
+    ]) {
+      const ctx = makeCtx()
+      run(ctx)
+      expect(ctx.__ops()).toEqual([])
+    }
   })
 })
 
@@ -194,7 +217,7 @@ describe('⚠️ CHARACTERISATION — price labels as they ship (Phase 4 changes
     // `plotRight = w − axisWidth − 1`. With a ~56px price axis and a 6-char
     // label (36px here) the whole label sits inside the clipped-away strip.
     const ctx = makeCtx({ strokeStyle: '#c9a84c' })
-    renderHorizontal(ctx, [P(400, 123, { price: 123.456 })], W, true)
+    renderHorizontal(ctx, [P(400, 123, { price: 123.456 })], R, true, W)
     const [text, x] = ctx.__find('fillText')[0].args
     expect(text).toBe('123.46')                     // fixed 2dp, not tick-aware
     expect(x).toBe(W - '123.46'.length * 6 - 4)     // = 760
@@ -204,7 +227,7 @@ describe('⚠️ CHARACTERISATION — price labels as they ship (Phase 4 changes
 
   it('renderHorizontal paints the label in the LINE colour', () => {
     const ctx = makeCtx({ strokeStyle: '#1ae51a' })
-    renderHorizontal(ctx, [P(400, 123, { price: 10 })], W, true)
+    renderHorizontal(ctx, [P(400, 123, { price: 10 })], R, true, W)
     expect(ctx.__find('set:fillStyle').at(-1).args[0]).toBe('#1ae51a')
   })
 
@@ -228,7 +251,7 @@ describe('⚠️ CHARACTERISATION — price labels as they ship (Phase 4 changes
   })
 
   it('neither label is drawn when the point carries no price', () => {
-    const a = makeCtx(); renderHorizontal(a, [P(400, 123)], W, true)
+    const a = makeCtx(); renderHorizontal(a, [P(400, 123)], R, true, W)
     const b = makeCtx(); renderHRay(b, [P(250, 90)], W, true)
     expect(a.__find('fillText')).toHaveLength(0)
     expect(b.__find('fillText')).toHaveLength(0)
@@ -431,8 +454,8 @@ describe('⚠️ CHARACTERISATION — Fibonacci as it ships (Phase 7 rebuilds th
   })
 
   it('renderFib places 0% at the HIGH and 100% at the LOW, whichever way it was drawn', () => {
-    const up = makeCtx(); renderFib(up, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], W, toPixel)
-    const down = makeCtx(); renderFib(down, [P(0, 0, { rawPrice: 20 }), P(1, 1, { rawPrice: 10 })], W, toPixel)
+    const up = makeCtx(); renderFib(up, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], R, toPixel)
+    const down = makeCtx(); renderFib(down, [P(0, 0, { rawPrice: 20 }), P(1, 1, { rawPrice: 10 })], R, toPixel)
     const labels = (c) => c.__find('fillText').map((k) => k.args[0])
     expect(labels(up)).toEqual(labels(down))
     expect(labels(up)[0]).toBe('0.0% — $20.00')
@@ -441,19 +464,19 @@ describe('⚠️ CHARACTERISATION — Fibonacci as it ships (Phase 7 rebuilds th
 
   it('renderFib leaves the dash array clean for the next painter', () => {
     const ctx = makeCtx()
-    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], W, toPixel)
+    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], R, toPixel)
     expect(ctx.__state.lineDash).toEqual([])
   })
 
   it('renderFib bails on a zero or inverted range instead of dividing by it', () => {
     const ctx = makeCtx()
-    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 10 })], W, toPixel)
+    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 10 })], R, toPixel)
     expect(ctx.__ops()).toEqual([])
   })
 
   it('renderFibExtension projects BEYOND the swing and dashes those levels differently', () => {
     const ctx = makeCtx()
-    renderFibExtension(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], W, toPixel)
+    renderFibExtension(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], R, toPixel)
     expect(ctx.__find('stroke')).toHaveLength(FIB_EXT_LEVELS.length)
     const dashes = ctx.__find('setLineDash').map((c) => c.args[0])
     expect(dashes[0]).toEqual([])          // 0    → solid
@@ -467,7 +490,7 @@ describe('⚠️ CHARACTERISATION — Fibonacci as it ships (Phase 7 rebuilds th
 describe('⚠️ CHARACTERISATION — multi-line tools (Phase 2 rebuilds the geometry)', () => {
   it('renderPitchfork draws median + two prongs + handle bar + one fill', () => {
     const ctx = makeCtx()
-    renderPitchfork(ctx, [P(50, 300), P(200, 100), P(200, 200)], W, H)
+    renderPitchfork(ctx, [P(50, 300), P(200, 100), P(200, 200)], R)
     expect(ctx.__find('stroke')).toHaveLength(4)
     expect(ctx.__find('fill')).toHaveLength(1)
   })
@@ -479,7 +502,7 @@ describe('⚠️ CHARACTERISATION — multi-line tools (Phase 2 rebuilds the geo
     // into the next drawing — which is why it is small, and why it is pinned
     // rather than fixed inside a behaviour-neutral phase.
     const ctx = makeCtx({ globalAlpha: 0.3 })
-    renderPitchfork(ctx, [P(50, 300), P(200, 100), P(200, 200)], W, H)
+    renderPitchfork(ctx, [P(50, 300), P(200, 100), P(200, 200)], R)
     const alphas = ctx.__find('set:globalAlpha').map((c) => c.args[0])
     expect(alphas).toContain(0.4)
     expect(alphas).toContain(1)            // ← not 0.3
@@ -488,29 +511,63 @@ describe('⚠️ CHARACTERISATION — multi-line tools (Phase 2 rebuilds the geo
 
   it('renderChannel draws only the first line until the third point exists', () => {
     const ctx = makeCtx()
-    renderChannel(ctx, [P(50, 300), P(200, 100)], W, H)
+    renderChannel(ctx, [P(50, 300), P(200, 100)], R)
     expect(ctx.__find('stroke')).toHaveLength(1)
     expect(ctx.__find('fill')).toHaveLength(0)
   })
 
-  it('renderChannel’s fill polygon is built from the two lines’ CLIPPED endpoints', () => {
-    // ⚰️ This is the bug, expressed as a shape: the band between two parallel
-    // lines clipped to a rectangle is not always a quadrilateral, and this fills
-    // a quadrilateral. Four vertices, whatever the geometry actually needs.
+  it('✅ renderChannel’s fill is now built OUTSIDE the rect and trimmed by the clip', () => {
+    // WAS: a 4-gon built from CLIPPED endpoints, which assumed the band is always
+    // a quadrilateral (it is a pentagon when its edges leave through different
+    // sides — hence the missing corner) and that both edges come back traversed
+    // the same way (they did not — hence the bow-tie).
+    // NOW: both edges are extended well past the pane and `ctx.clip()` does the
+    // trimming, which is correct for every case by construction.
     const ctx = makeCtx()
-    renderChannel(ctx, [P(50, 300), P(200, 100), P(60, 350)], W, H)
-    const fillIdx = ctx.__ops().lastIndexOf('fill')
+    renderChannel(ctx, [P(50, 300), P(200, 100), P(60, 350)], R)
     const closeIdx = ctx.__ops().lastIndexOf('closePath')
     const verts = ctx.__calls
       .slice(ctx.__ops().lastIndexOf('beginPath'), closeIdx)
       .filter((c) => c.op === 'moveTo' || c.op === 'lineTo')
     expect(verts).toHaveLength(4)
-    expect(closeIdx).toBeLessThan(fillIdx)
+    // At least one vertex is OUTSIDE the pane — that is the whole point.
+    const outside = verts.filter((v) => {
+      const [x, y] = v.args
+      return x < R.x0 || x > R.x1 || y < R.y0 || y > R.y1
+    })
+    expect(outside.length).toBeGreaterThan(0)
+    expect(closeIdx).toBeLessThan(ctx.__ops().lastIndexOf('fill'))
+  })
+
+  it('✅ the fill quad is SIMPLE — its edges never cross (no bow-tie)', () => {
+    const ctx = makeCtx()
+    // The exact geometry Phase 0 pinned as producing reversed traversal.
+    renderChannel(ctx, [P(100, 20), P(120, -60), P(100, 120)], R)
+    const closeIdx = ctx.__ops().lastIndexOf('closePath')
+    const q = ctx.__calls
+      .slice(ctx.__ops().lastIndexOf('beginPath'), closeIdx)
+      .filter((c) => c.op === 'moveTo' || c.op === 'lineTo')
+      .map((c) => ({ x: c.args[0], y: c.args[1] }))
+    expect(q).toHaveLength(4)
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+    const signs = q.map((_, i) => Math.sign(cross(q[i], q[(i + 1) % 4], q[(i + 2) % 4]))).filter(Boolean)
+    expect(new Set(signs).size).toBe(1)      // convex ⇒ simple ⇒ nothing cancels
+  })
+
+  it('renders a channel inside a VOLUME pane without reaching the candles', () => {
+    const ctx = makeCtx()
+    renderChannel(ctx, [P(50, 380), P(200, 340), P(60, 395)], VOL)
+    const strokes = ctx.__find('moveTo').concat(ctx.__find('lineTo'))
+    // Stroked geometry is clipped analytically to the volume rect. (The FILL is
+    // deliberately outside it — ctx.clip() trims that, which the recorder cannot
+    // model, so only the strokes are asserted here.)
+    const strokeVerts = strokes.slice(0, 4)
+    for (const v of strokeVerts) expect(v.args[1]).toBeGreaterThanOrEqual(VOL.y0 - 1e-6)
   })
 
   it('renderChannel leaves the dash array clean', () => {
     const ctx = makeCtx()
-    renderChannel(ctx, [P(50, 300), P(200, 100), P(60, 350)], W, H)
+    renderChannel(ctx, [P(50, 300), P(200, 100), P(60, 350)], R)
     expect(ctx.__state.lineDash).toEqual([])
   })
 })
@@ -640,15 +697,29 @@ describe('renderAnchoredVwap', () => {
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('⚠️ CHARACTERISATION — selection handles (Phase 1 makes them adaptive)', () => {
-  it('⚰️ fills EVERY handle with the drawing gold, whatever colour the drawing is', () => {
-    // This painter takes only points — it cannot see the drawing — which is
-    // precisely why a green trend line gets gold handles. Phase 1 passes the
-    // drawing in. The dark ring stays: it is what keeps a handle visible on top
-    // of its own line at any colour.
+  it('✅ handles now INHERIT the drawing’s rendered ink', () => {
+    // WAS: gold for every tool, because this painter took only points and could
+    // not see the drawing. The ink passed in is the BRIGHTENED value the stroke
+    // used — not `d.color` — so a handle can never be a different shade from the
+    // line it sits on.
     const ctx = makeCtx({ strokeStyle: '#1ae51a' })
-    renderSelectionHandles(ctx, [P(10, 10), P(90, 60)])
-    expect(ctx.__find('set:fillStyle').map((c) => c.args[0])).toEqual([UCT_DRAW_GOLD, UCT_DRAW_GOLD])
+    renderSelectionHandles(ctx, [P(10, 10), P(90, 60)], '#1ae51a')
+    expect(ctx.__find('set:fillStyle').map((c) => c.args[0])).toEqual(['#1ae51a', '#1ae51a'])
+    // The dark ring stays: it is what keeps a handle visible on top of its own
+    // line at any colour.
     expect(ctx.__find('set:strokeStyle').map((c) => c.args[0])).toEqual(['#1a1c17', '#1a1c17'])
+  })
+
+  it('falls back to the drawing gold when no ink is given', () => {
+    const ctx = makeCtx()
+    renderSelectionHandles(ctx, [P(10, 10)])
+    expect(ctx.__find('set:fillStyle')[0].args[0]).toBe(UCT_DRAW_GOLD)
+  })
+
+  it('skips an anchor that could not be resolved', () => {
+    const ctx = makeCtx()
+    renderSelectionHandles(ctx, [{ x: null, y: 10, valid: false }, P(90, 60)], '#60a5fa')
+    expect(ctx.__find('arc')).toHaveLength(1)
   })
 
   it('paints one dot per point at the fine-pointer radius, with no halo', () => {
@@ -661,9 +732,11 @@ describe('⚠️ CHARACTERISATION — selection handles (Phase 1 makes them adap
   it('adds a grab-zone halo and a bigger dot on a coarse pointer', () => {
     setPointer(true)
     const ctx = makeCtx()
-    renderSelectionHandles(ctx, [P(10, 10)])
+    renderSelectionHandles(ctx, [P(10, 10)], '#ff5b5b')
     const radii = ctx.__find('arc').map((c) => c.args[2])
     expect(radii).toEqual([HIT_COARSE + 2, HANDLE_COARSE])
+    // The touch HALO stays neutral gold: it is a readout of the grab radius —
+    // chrome, not part of the shape — and at 16% alpha a dark red would vanish.
     expect(ctx.__find('set:fillStyle')[0].args[0]).toBe('rgba(201, 168, 76, 0.16)')
   })
 
@@ -677,7 +750,7 @@ describe('⚠️ CHARACTERISATION — selection handles (Phase 1 makes them adap
 describe('renderCrosshair', () => {
   it('draws a dashed full-width and full-height pair, and restores the dash', () => {
     const ctx = makeCtx()
-    renderCrosshair(ctx, 100, 50, 123, W, H)
+    renderCrosshair(ctx, 100, 50, 123, R)
     expect(ctx.__find('moveTo').map((c) => c.args)).toEqual([[100, 0], [0, 50]])
     expect(ctx.__find('lineTo').map((c) => c.args)).toEqual([[100, H], [W, 50]])
     expect(ctx.__state.lineDash).toEqual([])
@@ -687,7 +760,7 @@ describe('renderCrosshair', () => {
     // Deliberate: the price scale's own crosshair label already shows it, and a
     // second one read as clutter. `price` stays in the signature for the caller.
     const ctx = makeCtx()
-    renderCrosshair(ctx, 100, 50, 123, W, H)
+    renderCrosshair(ctx, 100, 50, 123, R)
     expect(ctx.__find('fillText')).toHaveLength(0)
   })
 })

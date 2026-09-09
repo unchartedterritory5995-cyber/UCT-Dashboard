@@ -21,9 +21,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { __resetCoarsePointerForTest, HIT_FINE, HIT_COARSE } from './coarsePointer'
 import {
-  distToSegment, distToLine, extendToEdges, extendRay, cupControlPoint,
-  computeAdvancePct, offsetPoints, boundsOf, hitTestDrawing,
+  distToSegment, distToLine, clipLineToRect, extendToEdges, extendLineFar,
+  extendRay, cupControlPoint, computeAdvancePct, offsetPoints, boundsOf,
+  hitTestDrawing, pointsUsable,
 } from './drawingGeometry'
+
+// Every geometry call now takes a pane RECT rather than a bare width/height,
+// because "the price pane" is not expressible as a width and a height.
+const RECT = { x0: 0, y0: 0, x1: 800, y1: 400 }
 
 // ── pointer control ─────────────────────────────────────────────────────────
 // Hit radii are pointer-dependent BY DESIGN (8px mouse / 15px finger), read at
@@ -80,108 +85,178 @@ describe('distToLine — infinite-line distance (Extended Line, Channel, Pitchfo
   })
 })
 
-describe('extendToEdges — contracts that must survive Phase 2', () => {
+describe('clipLineToRect / extendToEdges — deterministic, Phase 1', () => {
   const W = 800, H = 400
+  const R = { x0: 0, y0: 0, x1: W, y1: H }
 
   it('returns the two full-width crossings for a horizontal line', () => {
-    expect(extendToEdges(P(10, 200), P(90, 200), W, H)).toEqual([P(0, 200), P(W, 200)])
+    expect(extendToEdges(P(10, 200), P(90, 200), R)).toEqual([P(0, 200), P(W, 200)])
   })
 
   it('returns the two full-height crossings for a vertical line', () => {
-    expect(extendToEdges(P(300, 10), P(300, 90), W, H)).toEqual([P(300, 0), P(300, H)])
+    expect(extendToEdges(P(300, 10), P(300, 90), R)).toEqual([P(300, 0), P(300, H)])
   })
 
   it('puts both returned points ON the infinite line through the inputs', () => {
-    // THE contract. Whatever pair the algorithm picks, both points must be
-    // collinear with p1→p2 — otherwise the rendered line is not the line the
-    // user drew. Phase 2 must keep this exactly.
     const a = P(100, 100), b = P(300, 250)
-    const [e1, e2] = extendToEdges(a, b, W, H)
+    const [e1, e2] = extendToEdges(a, b, R)
     const cross = (p) => (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x)
     expect(cross(e1)).toBeCloseTo(0, 6)
     expect(cross(e2)).toBeCloseTo(0, 6)
   })
 
-  it('falls back to the input points when it cannot find two crossings', () => {
-    const a = P(10, 10), b = P(10, 10)   // degenerate: dx === 0 short-circuits
-    expect(extendToEdges(a, b, W, H)).toEqual([P(10, 0), P(10, H)])
+  // ── the three Phase 0 characterisations, now inverted into invariants ──────
+
+  it('✅ WAS: admitted crossings 100px outside the box. NOW: never leaves the rect', () => {
+    // Phase 0 pinned that (100,20)→(120,−60) returned a left-edge crossing at
+    // y = 420 on an H = 400 canvas, because a ±100px slack waved it through.
+    const [e1, e2] = extendToEdges(P(100, 20), P(120, -60), R)
+    for (const e of [e1, e2]) {
+      expect(e.x).toBeGreaterThanOrEqual(R.x0 - 1e-9)
+      expect(e.x).toBeLessThanOrEqual(R.x1 + 1e-9)
+      expect(e.y).toBeGreaterThanOrEqual(R.y0 - 1e-9)
+      expect(e.y).toBeLessThanOrEqual(R.y1 + 1e-9)
+    }
+  })
+
+  it('✅ WAS: the chosen edge pair flipped with the slope. NOW: continuous', () => {
+    // Phase 0 pinned that a shallow line resolved to [left, right] and a steep one
+    // to [top, bottom] — a discontinuity the user saw as the segment jumping
+    // mid-zoom. Sweeping the slope must now move the endpoints smoothly: no step
+    // larger than a few px for a 0.5px change in the second anchor.
+    const pivot = P(400, 200)
+    let prev = null, worst = 0
+    for (let dy = -900; dy <= 900; dy += 0.5) {
+      const seg = extendToEdges(pivot, P(500, 200 + dy), R)
+      expect(seg).not.toBeNull()
+      if (prev) {
+        const d = Math.min(
+          Math.hypot(seg[0].x - prev[0].x, seg[0].y - prev[0].y) + Math.hypot(seg[1].x - prev[1].x, seg[1].y - prev[1].y),
+          Math.hypot(seg[0].x - prev[1].x, seg[0].y - prev[1].y) + Math.hypot(seg[1].x - prev[0].x, seg[1].y - prev[0].y),
+        )
+        worst = Math.max(worst, d)
+      }
+      prev = seg
+    }
+    expect(worst).toBeLessThan(12)
+  })
+
+  it('✅ WAS: parallel lines came back reversed (the bow-tie). NOW: same direction', () => {
+    // Phase 0 pinned direction (+20,−80) returning [(0,420),(105,0)] for one line
+    // and [(130,0),(30,400)] for its parallel twin — opposite traversals, which is
+    // what turned the Parallel Channel's fill quad into a self-intersecting bow-tie.
+    const dx = 20, dy = -80
+    const along = (pair) => (pair[1].x - pair[0].x) * dx + (pair[1].y - pair[0].y) * dy
+    for (let y = 5; y < 400; y += 7) {
+      const seg = extendToEdges(P(100, y), P(100 + dx, y + dy), R)
+      if (!seg) continue
+      expect(along(seg)).toBeGreaterThan(0)   // ALWAYS traversed p1 -> p2
+    }
+  })
+
+  it('✅ WAS: a degenerate line sprouted a full-height segment. NOW: a point or nothing', () => {
+    // `dx === 0` used to short-circuit to [{x,0},{x,h}] — so two anchors collapsed
+    // onto one bar grew a line down the whole chart.
+    expect(extendToEdges(P(10, 10), P(10, 10), R)).toEqual([P(10, 10), P(10, 10)])
+    expect(extendToEdges(P(-50, -50), P(-50, -50), R)).toBeNull()
+  })
+
+  it('returns null — not the raw anchors — when the line misses the rect', () => {
+    // The old fallback was `[p1, p2]`, which drew a line where there should be
+    // none. `null` means "draw nothing", and every caller now handles it.
+    expect(clipLineToRect(P(0, -100), P(800, -100), R)).toBeNull()
+    expect(clipLineToRect(P(-10, 0), P(-10, 400), R)).toBeNull()
+  })
+
+  it('clips to an OFFSET rect — a volume pane does not start at y = 0', () => {
+    const vol = { x0: 0, y0: 300, x1: 800, y1: 400 }
+    const seg = clipLineToRect(P(0, 350), P(800, 350), vol)
+    expect(seg).toEqual([P(0, 350), P(800, 350)])
+    expect(clipLineToRect(P(0, 100), P(800, 100), vol)).toBeNull()   // price-pane line
+  })
+
+  it('is stable under a NEARLY vertical and a NEARLY horizontal line', () => {
+    const nearV = extendToEdges(P(400, 0), P(400.0001, 400), R)
+    expect(nearV[0].y).toBeCloseTo(0, 3)
+    expect(nearV[1].y).toBeCloseTo(400, 3)
+    const nearH = extendToEdges(P(0, 200), P(800, 200.0001), R)
+    expect(nearH[0].x).toBeCloseTo(0, 3)
+    expect(nearH[1].x).toBeCloseTo(800, 3)
+  })
+
+  it('refuses a malformed rect or non-finite anchors rather than emitting NaN', () => {
+    expect(clipLineToRect(P(0, 0), P(1, 1), { x0: 0, y0: 0, x1: 0, y1: 400 })).toBeNull()
+    expect(clipLineToRect(P(NaN, 0), P(1, 1), R)).toBeNull()
+    expect(clipLineToRect(P(0, 0), P(1, 1), null)).toBeNull()
   })
 })
 
-describe('⚠️ CHARACTERISATION — extendToEdges as it ships today (Phase 2 replaces this)', () => {
-  const W = 800, H = 400
+describe('extendLineFar — the band-fill builder', () => {
+  const R = { x0: 0, y0: 0, x1: 800, y1: 400 }
 
-  // ⚰️ ONE GEOMETRY, TWO BUGS. Direction (+20,−80) from y=20: the left-edge
-  // crossing is at y=420 — twenty pixels BELOW an H=400 canvas — and the ±100
-  // slack waves it through. The same direction from y=120 flips the returned
-  // order. Both characterisations below use this exact case so the Phase 2 fix
-  // has one concrete shape to be judged against.
-  const STEEP = { p1: P(100, 20), p2: P(120, -60) }        // dx +20, dy −80
-
-  it('admits crossings up to 100px OUTSIDE the box, so a drawn point can be off-canvas', () => {
-    const [e1] = extendToEdges(STEEP.p1, STEEP.p2, W, H)
-    expect(e1.x).toBe(0)
-    expect(e1.y).toBeCloseTo(420, 6)
-    expect(e1.y).toBeGreaterThan(H)          // BELOW the canvas — accepted anyway
-    expect(e1.y).toBeLessThanOrEqual(H + 100)
+  it('spans well beyond the rect in both directions', () => {
+    const [a, b] = extendLineFar(P(400, 200), P(500, 200), R)
+    expect(a.x).toBeLessThan(R.x0)
+    expect(b.x).toBeGreaterThan(R.x1)
   })
 
-  it('picks its pair by PUSH ORDER, so which edges win flips with the slope', () => {
-    // ⚰️ THIS IS THE PITCHFORK "lines jump / skip around" REPORT, reduced.
-    // Two lines through the same pivot, 1° apart in slope. One is shallow enough
-    // that both side crossings pass the ±100 test; the other is not, so the
-    // resolver silently switches to the top/bottom crossings — and the segment
-    // the user sees changes identity mid-zoom for no reason they can perceive.
-    const pivot = P(400, 200)
-    const shallow = extendToEdges(pivot, P(500, 210), W, H)
-    const steep = extendToEdges(pivot, P(500, 900), W, H)
-    const edgesOf = (pair) => pair.map((p) =>
-      p.x === 0 ? 'left' : p.x === W ? 'right' : p.y === 0 ? 'top' : 'bottom')
-    expect(edgesOf(shallow)).toEqual(['left', 'right'])
-    expect(edgesOf(steep)).toEqual(['top', 'bottom'])
-  })
-
-  it('gives PARALLEL lines endpoints in inconsistent order — the bow-tie fill', () => {
-    // ⚰️ THIS IS THE PARALLEL CHANNEL "part of the tint disappears" REPORT.
-    // `renderChannel` fills the quad [a1, b1, b2, a2], which is only a quad if
-    // the two parallel edges come back pointing the same way. They do not:
+  it('always runs p1 -> p2, so two parallel lines can never bow-tie', () => {
     const dx = 20, dy = -80
-    const lineA = extendToEdges(P(100, 20), P(100 + dx, 20 + dy), W, H)
-    const lineB = extendToEdges(P(100, 120), P(100 + dx, 120 + dy), W, H)
-    expect(lineA).toEqual([P(0, 420), P(105, 0)])     // up-and-right
-    expect(lineB).toEqual([P(130, 0), P(30, 400)])    // down-and-left
+    const A = extendLineFar(P(100, 20), P(120, -60), R)
+    const B = extendLineFar(P(100, 120), P(120, 40), R)
     const along = (pair) => (pair[1].x - pair[0].x) * dx + (pair[1].y - pair[0].y) * dy
-    // Same direction vector; opposite traversal. Build [a1,b1,b2,a2] from these
-    // and the polygon crosses itself, so the nonzero winding fill cancels part
-    // of its own area — which is exactly what the user sees go missing.
-    expect(Math.sign(along(lineA))).not.toBe(Math.sign(along(lineB)))
+    expect(Math.sign(along(A))).toBe(Math.sign(along(B)))
+    // and the quad [A0,A1,B1,B0] is convex/simple — no crossing edges
+    const seg = (p, q) => ({ p, q })
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+    const quad = [A[0], A[1], B[1], B[0]]
+    const signs = quad.map((_, i) => Math.sign(cross(quad[i], quad[(i + 1) % 4], quad[(i + 2) % 4])))
+    expect(new Set(signs.filter(Boolean)).size).toBe(1)
+    expect(seg).toBeTruthy()
+  })
+
+  it('returns null for a degenerate direction', () => {
+    expect(extendLineFar(P(5, 5), P(5, 5), R)).toBeNull()
   })
 })
 
 describe('extendRay — one anchored end, one edge end', () => {
-  const W = 800, H = 400
+  const R = { x0: 0, y0: 0, x1: 800, y1: 400 }
 
-  it('keeps the origin point untouched as the first element', () => {
-    const a = P(100, 100)
-    expect(extendRay(a, P(300, 200), W, H)[0]).toBe(a)
+  it('starts AT the anchor when the anchor is inside the pane', () => {
+    expect(extendRay(P(100, 100), P(300, 200), R)[0]).toEqual(P(100, 100))
   })
 
-  it('extends in the p1 → p2 direction, never backwards', () => {
+  it('extends in the p1 -> p2 direction, never backwards', () => {
     const a = P(400, 200), b = P(500, 200)
-    const [, far] = extendRay(a, b, W, H)
+    const [, far] = extendRay(a, b, R)
     expect((far.x - a.x) * (b.x - a.x)).toBeGreaterThan(0)
-    expect(far.x).toBe(W)
+    expect(far.x).toBe(R.x1)
   })
 
   it('reverses correctly when p2 is to the LEFT of p1', () => {
-    const a = P(400, 200), b = P(300, 200)
-    const [, far] = extendRay(a, b, W, H)
-    expect(far.x).toBe(0)
+    expect(extendRay(P(400, 200), P(300, 200), R)[1].x).toBe(R.x0)
   })
 
-  it('returns the inputs unchanged for a zero-length ray', () => {
-    const a = P(5, 5), b = P(5, 5)
-    expect(extendRay(a, b, W, H)).toEqual([a, b])
+  it('returns null for a zero-length ray instead of a phantom segment', () => {
+    expect(extendRay(P(5, 5), P(5, 5), R)).toBeNull()
+  })
+
+  it('returns null when the whole ray is behind the pane', () => {
+    // Anchored right of the rect, pointing further right: nothing to draw.
+    expect(extendRay(P(900, 200), P(1000, 200), R)).toBeNull()
+  })
+
+  it('draws only the visible part when the anchor is off-screen', () => {
+    const seg = extendRay(P(-200, 200), P(0, 200), R)
+    expect(seg[0]).toEqual(P(0, 200))
+    expect(seg[1]).toEqual(P(800, 200))
+  })
+
+  it('respects an offset pane — a volume ray never reaches the candles', () => {
+    const vol = { x0: 0, y0: 300, x1: 800, y1: 400 }
+    const seg = extendRay(P(100, 350), P(200, 340), vol)
+    for (const q of seg) expect(q.y).toBeGreaterThanOrEqual(300 - 1e-9)
   })
 })
 
@@ -259,11 +334,12 @@ describe('boundsOf — one answer for rect, circle and measure', () => {
 
 describe('hitTestDrawing — per type', () => {
   const W = 800, H = 400
+  const R = { x0: 0, y0: 0, x1: W, y1: H }
   const hit = (type, pts, mx, my, extra = {}) =>
-    hitTestDrawing({ type, ...extra }, pts, mx, my, W, H)
+    hitTestDrawing({ type, ...extra }, pts, mx, my, R)
 
   it('returns false for a drawing with no resolved points', () => {
-    expect(hitTestDrawing({ type: 'trendline' }, [], 10, 10, W, H)).toBe(false)
+    expect(hitTestDrawing({ type: 'trendline' }, [], 10, 10, R)).toBe(false)
   })
 
   it('trendline: inside the grab radius hits, just outside misses', () => {
@@ -286,9 +362,49 @@ describe('hitTestDrawing — per type', () => {
     expect(hit('ray', pts, 100, 200)).toBe(false)
   })
 
+  it('⭐ a HORIZONTAL LINE has no time, and must still work', () => {
+    // CAUGHT IN-BROWSER. A horizontal is stored as { price } with no time, so it
+    // resolves with no x at all. A blanket both-axes validity check made every
+    // horizontal line in the product silently stop rendering and stop being
+    // clickable. Validity is per AXIS.
+    const noX = [{ x: null, y: 200, hasX: false, hasY: true, valid: false }]
+    expect(hit('horizontal', noX, 400, 200)).toBe(true)
+    expect(hit('horizontal', noX, 400, 260)).toBe(false)
+  })
+
+  it('⭐ a VERTICAL LINE is the mirror case — x, no price', () => {
+    const noY = [{ x: 400, y: null, hasX: true, hasY: false, valid: false }]
+    expect(hit('vertical', noY, 400, 300)).toBe(true)
+    expect(hit('vertical', noY, 500, 300)).toBe(false)
+  })
+
+  it('pointsUsable asks per axis', () => {
+    const p = [{ x: 10, y: null }]
+    expect(pointsUsable(p, 1)).toBe(false)
+    expect(pointsUsable(p, 1, 'x')).toBe(true)
+    expect(pointsUsable(p, 1, 'y')).toBe(false)
+  })
+
   it('horizontal: hits at ANY x — it spans the chart', () => {
     expect(hit('horizontal', [P(400, 200)], 0, 200)).toBe(true)
     expect(hit('horizontal', [P(400, 200)], W, 200)).toBe(true)
+  })
+
+  it('⭐ a click OUTSIDE the drawing’s pane is not a hit', () => {
+    // The clip and the hit test must agree. A price-pane horizontal is clipped
+    // out of the volume pane, so it must stop swallowing clicks there too — an
+    // invisible hitbox is worse than the bleed it replaced.
+    const price = { x0: 0, y0: 0, x1: W, y1: 300 }
+    expect(hitTestDrawing({ type: 'horizontal' }, [P(400, 200)], 400, 200, price)).toBe(true)
+    expect(hitTestDrawing({ type: 'horizontal' }, [P(400, 350)], 400, 350, price)).toBe(false)
+  })
+
+  it('⭐ an UNRESOLVABLE anchor never becomes a hit at x = 0', () => {
+    // The bug this replaces: a null x coerced to 0, so the drawing was grabbable
+    // at the chart's left edge, nowhere near where it was drawn.
+    const broken = [{ x: null, y: 100, valid: false }, P(300, 100)]
+    expect(hit('trendline', broken, 0, 100)).toBe(false)
+    expect(hit('trendline', broken, 150, 100)).toBe(false)
   })
 
   it('hray: hits at and to the right of its anchor, misses well to the left', () => {

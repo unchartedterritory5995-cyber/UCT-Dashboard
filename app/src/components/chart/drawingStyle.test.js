@@ -85,33 +85,45 @@ describe('isLineStyle', () => {
   })
 })
 
-describe('⚠️ CHARACTERISATION — the picker maps as they ship (Phase 1 fixes these)', () => {
-  // ⛔ SOURCE-READ, DELIBERATELY. The two maps live inside
-  // ChartDrawingOverlay.jsx next to the menu that uses them, and importing the
-  // component to reach them would pull React, portals and ColorPanel into a
-  // three-line assertion. What matters is that the WRONG VALUES ARE WRITTEN
-  // DOWN somewhere a Phase 1 diff has to touch.
+describe('✅ the picker maps — fixed in Phase 1', () => {
+  // SOURCE-READ, DELIBERATELY. The two maps live inside ChartDrawingOverlay.jsx
+  // next to the menu that uses them, and importing the component to reach them
+  // would pull React, portals and ColorPanel into a three-line assertion.
   const OVERLAY = fs.readFileSync(path.join(HERE, 'ChartDrawingOverlay.jsx'), 'utf8')
 
-  it('⚰️ DRAW_STYLE_TO_NUM has no `dotted` key, so the picker can never show it selected', () => {
+  it('✅ WAS: DRAW_STYLE_TO_NUM had no `dotted` key. NOW: all three', () => {
+    // Without it, reopening the menu after choosing Dotted read the (wrongly)
+    // stored 'dashed' back and highlighted Dashed — so the control looked inert
+    // in both directions.
     const m = OVERLAY.match(/const DRAW_STYLE_TO_NUM = \{([^}]*)\}/)
     expect(m, 'DRAW_STYLE_TO_NUM has moved — this gate is reading nothing').toBeTruthy()
-    expect(m[1]).toContain('solid')
-    expect(m[1]).toContain('dashed')
-    expect(m[1]).not.toContain('dotted')
+    for (const k of ['solid', 'dashed', 'dotted']) expect(m[1]).toContain(k)
   })
 
-  it('⚰️ numToDrawStyle maps the dotted code (1) to "dashed"', () => {
-    const m = OVERLAY.match(/const numToDrawStyle = ([^\n]*)/)
-    expect(m, 'numToDrawStyle has moved — this gate is reading nothing').toBeTruthy()
-    // The shipped expression: `(n) => (n === 0 ? 'solid' : 'dashed')`.
-    // Anything that is not 0 — including ColorPanel's dotted code, 1 — becomes
-    // 'dashed'. Clicking Dotted stores Dashed, and reopening the menu then
-    // highlights Dashed. The button is not dead; it writes the wrong value.
-    const numToDrawStyle = new Function('return ' + m[1])()
-    expect(numToDrawStyle(0)).toBe('solid')
-    expect(numToDrawStyle(2)).toBe('dashed')
-    expect(numToDrawStyle(1)).toBe('dashed')   // ← the bug, stated
+  it('✅ WAS: numToDrawStyle turned the dotted code (1) into "dashed". NOW: dotted', () => {
+    const m = OVERLAY.match(/const NUM_TO_DRAW_STYLE = (\{[^}]*\})/)
+    expect(m, 'NUM_TO_DRAW_STYLE has moved — this gate is reading nothing').toBeTruthy()
+    const table = new Function('return ' + m[1])()
+    expect(table[0]).toBe('solid')
+    expect(table[1]).toBe('dotted')     // <- the bug, fixed
+    expect(table[2]).toBe('dashed')
+  })
+
+  it('the two directions are inverses of each other', () => {
+    const toNum = new Function('return ' + OVERLAY.match(/const DRAW_STYLE_TO_NUM = (\{[^}]*\})/)[1])()
+    const toStr = new Function('return ' + OVERLAY.match(/const NUM_TO_DRAW_STYLE = (\{[^}]*\})/)[1])()
+    for (const style of Object.keys(LINE_DASH)) {
+      expect(toStr[toNum[style]]).toBe(style)
+    }
+  })
+
+  it('every style the dash table knows has a numeric spelling', () => {
+    // The guard against the ORIGINAL bug class: a style added to LINE_DASH and
+    // forgotten in the picker maps is a failure here, not a silent fallback.
+    const toNum = new Function('return ' + OVERLAY.match(/const DRAW_STYLE_TO_NUM = (\{[^}]*\})/)[1])()
+    for (const style of Object.keys(LINE_DASH)) {
+      expect(toNum[style], `LINE_DASH has '${style}' but the picker cannot express it`).toBeDefined()
+    }
   })
 
   it('ColorPanel still offers three styles, with 1 meaning dotted', () => {
@@ -120,9 +132,17 @@ describe('⚠️ CHARACTERISATION — the picker maps as they ship (Phase 1 fixe
   })
 
   it('the renderer resolves its dash through the shared table', () => {
-    // Phase 0 DID land this half: the overlay no longer inlines
-    // `d.lineStyle === 'dashed' ? [6, 4] : []`.
     expect(OVERLAY).toContain('dashFor(')
     expect(OVERLAY).not.toContain("=== 'dashed' ? [6, 4]")
+  })
+
+  it('⛔ the Chart Settings CROSSHAIR picker is untouched', () => {
+    // It uses the same ColorPanel with the same numeric codes, but they go to
+    // lightweight-charts' own LineStyle enum, where 1 has ALWAYS meant dotted and
+    // has always worked. The two systems share a widget, not a mapping.
+    const TB = fs.readFileSync(path.join(HERE, 'ChartToolbar.jsx'), 'utf8')
+    expect(TB).toContain("{ value: 0, label: 'Solid' }")
+    expect(TB).toContain("{ value: 2, label: 'Dashed' }")
+    expect(TB).toContain("{ value: 3, label: 'Dotted' }")
   })
 })

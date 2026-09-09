@@ -8,6 +8,7 @@
 // but safe by accident, and a `const` added to either side at the wrong moment
 // is a TDZ crash inside the merge every chart is on. Both helpers moved to
 // `./instanceShape`, which imports nothing; this file re-exports them.
+import { UCT_DRAW_GOLD } from './drawingColors'
 import { migrateLegacyToInstances, normalizeInstances, instanceScope } from './engine/instances'
 import * as engineRegistry from './engine/nativeRegistry'
 // The legend's one reader. Imported (never re-implemented) so the merge below
@@ -148,7 +149,11 @@ export const CHART_DEFAULTS = {
     y: 0.5,
   },
 
-  drawingDefaults: { color: '#c9a84c', width: 1, style: 'solid', fontSize: 13 },
+  // UCT_DRAW_GOLD, not a retyped hex. The drawing layer's gold is #c9a84c (the
+  // CANVAS gold), which is a different value from tokens.css's --ut-gold
+  // (#dcbb5e, the chrome gold) - so a literal here is a value that can silently
+  // drift from the one the renderer paints with.
+  drawingDefaults: { color: UCT_DRAW_GOLD, width: 1, style: 'solid', fontSize: 13 },
 
   // ⭐⭐ B5 TASK 9 — THIS SECTION USED TO ENUMERATE FIFTEEN INDICATORS, AND IT IS
   // DOWN TO ONE. Ledger site #1, retired.
