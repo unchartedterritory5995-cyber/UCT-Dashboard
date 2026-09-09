@@ -3138,5 +3138,18 @@
       "vendor": "TradingView seeds `ta.cum` at bar 0 of the whole loaded series — measured 2026-09-08 on SPY 1D, where `ta.cum(1) == bar_index + 1` on all 8,459 bars. Our pipeline delivers ~5,000, a BAR-COUNT ratio of about 1.69. ⚠️ The VOLUME ratio is NOT measured and must not be quoted: older sessions traded differently, and the capture exposes only the last 400 bars. Fixture: tests/fixtures/vendor/runtime/ta-cum-and-context-namespaces-spy-1d-2026-09-08.json",
       "na_rule": "⭐ `na` before the first finite input; `na` ON an `na` bar; the total HELD across it — it neither advances nor resets — and resumes on the next finite bar. Measured: 7330 -> na -> 7331, and the final value equals the count of finite inputs exactly. NOT 'contributes 0 and keeps drawing', which would paint a value on a bar the vendor leaves blank."
     }
+  },
+  "_bind_time_constants": {
+    "_": "⭐⭐⭐ THE NAMES THAT ARE CONSTANT FOR ONE BINDING BUT NOT UNIVERSAL — the fourth kind of value in this engine, and the one that makes a COMPUTED WINDOW LENGTH decidable. A binding is (definition, symbol, timeframe): the pane when a member attaches an indicator, one symbol of a sweep when the screener evaluates it. Within one binding these do not change from bar to bar; across bindings they do. ⛔ THAT IS WHY THEY ARE NOT CONSTANTS AND NOT SERIES. A universal constant could be folded at SAVE time and stored — these cannot, because the saved definition must still run on the next symbol. A per-bar series cannot size a window at all. They fold at BIND time, per binding, every time, and `fold_bound` is the pass that does it.",
+    "_why_a_window_may_use_them": "⭐⭐ `Uncharted Volume` line 233 is the case this exists for: `ta.sma(v, isWeekly ? lenWeekly : lenDaily)`. Every operand is constant for a binding — `timeframe.isweekly` is the CHART's timeframe and the two lengths are `input.*` values — so the expression is a plain whole number the moment a symbol and timeframe are known, and `max_lookback` stays the tree sum it has always been. ⛔ WITHOUT THE FOLD IT REFUSES `resolve:window`, which reads as a missing capability and is really a missing PASS.",
+    "_the_test_is_the_manifest_s_own_prose": "⛔ THE ROSTER BELOW IS NOT A HAND-LIST — IT IS CHECKED AGAINST THE SENTENCES. Every clock entry named here declares itself about *the chart's timeframe*; every clock entry NOT named here declares itself about *the bar*. `dayofweek` and `isdaily` sit in the same section and are opposite kinds, and the only thing that says so is the sentence each already carries. A rail parses them, so adding a clock entry on either side of the line classifies itself and a mistake is loud.",
+    "clock": [
+      "isdaily",
+      "isweekly",
+      "ismonthly",
+      "isintraday"
+    ],
+    "_inputs": "Every `input.*` value is bind-time constant by construction — it is a property of the DEFINITION, fixed before any symbol is chosen — so inputs are foldable without being listed here.",
+    "_syminfo": "⚠️ `syminfo.*` IS THE OTHER HALF AND IT IS NOT LISTED YET. It is symbol-scoped rather than timeframe-scoped, it is resolved from OUR symbol store rather than from the vendor, and only the fields the store can actually populate may ship. Until that lands, a window expression mentioning `syminfo.*` does not fold and refuses naming the operand — which is the correct answer, not a placeholder."
   }
 }

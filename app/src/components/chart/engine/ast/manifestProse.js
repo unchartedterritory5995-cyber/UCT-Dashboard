@@ -49,6 +49,14 @@ export const KEEP = Object.freeze([
   // on the day the key was added, which is the whole reason the rail derives
   // the accessed set instead of trusting this list.
   '_requirement_tags',
+  // ⛔⛔ READ BY `ast_bind.BIND_TIME_CLOCK`, WHICH DECIDES WHETHER A COMPUTED
+  // WINDOW LENGTH FOLDS AT ALL. Stripping it does not break the fold pass — it
+  // makes the roster EMPTY, so `timeframe.isweekly ? lenWeekly : lenDaily` stops
+  // folding and every script using one refuses `resolve:window` in production
+  // while passing every test here. ⚠️ The direction is fail-CLOSED (a refusal,
+  // not a wrong number), which is the safe half — and still a whole capability
+  // silently absent from the shipped bundle. Third key this rail has caught.
+  '_bind_time_constants',
 ])
 
 /**
