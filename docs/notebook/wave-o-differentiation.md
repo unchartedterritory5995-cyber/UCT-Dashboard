@@ -29,6 +29,7 @@ Every row states its tier: **MEASURED** (run this session, artefact on disk) ·
 | 7 | **Financial state integration** | MEASURED — the thesis carries a ticker; positions link through typed trade refs | VENDOR DOC — a relation to a manually maintained table | — | — | **SUPERIOR** |
 | 8 | **Portability** | MEASURED — review history exports in the note's front matter | VENDOR DOC — Markdown/CSV export of database rows | VENDOR DOC — ENEX | COMMUNITY DOC — it is already markdown | **COMPETITIVE** — Obsidian's files are portable by construction |
 | 9 | **Mobile** | MEASURED — 390×844 coarse pointer, every control ≥44px, hit-tested, announced | VENDOR DOC — mature native apps | VENDOR DOC — mature native apps | COMMUNITY DOC — mobile plugin support varies | **COMPETITIVE** at best; their apps are years older than ours |
+| 10 | **Recalling a past decision** | MEASURED — a completed review is a first-class search result labelled as the member's own, and Ask answers "what did I decide last time / the time before / when" from a carried chronology rather than an inference | NOT ASSESSED | NOT ASSESSED | NOT ASSESSED | **NOT COMPARABLE** — see below |
 
 ---
 
@@ -49,6 +50,21 @@ the member's own research chronology.
   Notion and Evernote have had native apps for years.
 - **Portability (row 8).** Obsidian's vault is plain files. Our export is good
   and it is still an export.
+
+⭐ **Row 10 (added by Wave O6)** is the one that turns row 4 into a product
+rather than a record. A review history nothing can retrieve is a diary. Search
+returns a completed review as its own kind of result — labelled "Thesis review",
+carrying the outcome the member chose, landing on that exact review in its own
+history — and Ask answers *last* / *previous* / *when* from a chronology the
+retrieval carries, never from a model guessing which of several undated
+paragraphs is the newest.
+
+⛔⛔ **AND ROW 10'S COMPETITOR CELLS ARE "NOT ASSESSED", WHICH IS NOT "THEY
+CANNOT".** Nobody measured whether a determined Notion user could build a
+reviews database with a rollup that orders by date and surfaces the latest, and
+they very likely could. A negative claim about a competitor needs the same
+evidence as a positive claim about us, and this session gathered none.
+What Wave O6 measured is on our side of the row only.
 
 ⛔ **What is NOT claimed:** rows 3 and 6 say **NOT ASSESSED** for competitors,
 not "they cannot do it". Nobody measured whether a sufficiently determined Notion
@@ -84,4 +100,8 @@ UCT surfaces the facts and never the verdict.
 
 UCT rows rest on this session's artefacts: `tools/wave_o_e2e_out/report.json`,
 `tools/wave_o_mobile_out/report.json`, `tools/wave_o_perf_out/report.json`, and
-the rails named in `docs/notebook/wave-o-closure.md`.
+the rails named in `docs/notebook/wave-o-closure.md`. **Row 10 rests on**
+`tools/wave_o6_e2e_out/report.json` (search → find → land, and last/previous/when
+through a real model), `tools/wave_o6_mobile_out/report.json` and
+`tools/wave_o6_perf_out/report.json`, with the rails in
+`docs/notebook/wave-o6-closure.md`.

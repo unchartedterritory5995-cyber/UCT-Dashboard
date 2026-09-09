@@ -3,6 +3,14 @@
 **Branch:** `notebook-primary-platform` · **not merged** · awaiting merge/deploy
 approval (§64).
 
+> ⛔⛔ **THIS SLICE WAS HELD, AND THE HOLD WAS RIGHT.** Wave O built a place to
+> record a financial judgement and nothing that could find it again: Search
+> could not reach a review, and Ask could not answer from one. That is a
+> completed loop only from the producing side. **Wave O6 closes it** — read
+> `wave-o6-closure.md` beside this document, and `wave-o6-review-consumer-audit.md`
+> for the full consumer matrix. The merge request at the bottom of this file now
+> covers both slices together.
+
 Wave O turns UCT from *a place where research is stored* into *a system that
 helps the member revisit financial judgements over time*.
 
@@ -225,7 +233,10 @@ content in logs · account deletion removes reviews.
 
 ## What is being asked for
 
-**Merge and deploy approval for the Wave O slice** — commits `3a3122c21`
-through the closure commit on `notebook-primary-platform`.
+**Merge and deploy approval for the Wave O slice TOGETHER WITH Wave O6** —
+commits `3a3122c21` through the O6 closure commit on
+`notebook-primary-platform`. The two are one product change: a review that
+cannot be recalled is not a review loop, so shipping O without O6 would ship the
+half a member never sees. See `wave-o6-closure.md`.
 
 ⛔ **Wave P — OCR / Scanned Intelligence is NOT started** (§67).

@@ -412,9 +412,34 @@ def _facts(conn, user_id: str, entity: dict[str, Any] | None,
     return [ev.from_fact(dict(r), score=0.8) for r in rows]
 
 
+def _has_column(conn, table: str, column: str) -> bool:
+    """⛔⛔ ASK THE SCHEMA, NEVER CATCH "no such column".
+
+    Wave M shipped a query that selected a column some databases do not have
+    and left 28 Ask tests red; the fix then, and the rule since, is that a
+    `no such column` error cannot distinguish "this schema predates the
+    feature" from "somebody deleted a column" — so the question gets asked
+    directly. This is the same mechanism `web_capture.capture_columns` uses,
+    for the same reason.
+    """
+    try:
+        return any(r[1] == column
+                   for r in conn.execute(f"PRAGMA table_info({table})").fetchall())
+    except sqlite3.OperationalError:
+        return False
+
+
 def _thesis_states(conn, user_id: str, note_ids: list[str] | None,
                    limit: int) -> list[dict[str, Any]]:
-    """Authoritative thesis state from Wave E properties + Wave G edges."""
+    """Authoritative thesis state from Wave E properties + Wave G edges.
+
+    ⛔ A database with no `properties_json` has no thesis state, which is a
+    correct answer rather than an error — several Ask suites build a minimal
+    schema of exactly the tables and columns they exercise, and O6 made this
+    reachable from the NOTE scope where it never used to run.
+    """
+    if not _has_column(conn, "j2_notes", "properties_json"):
+        return []
     sql = ("SELECT id, user_id, title, ticker, properties_json FROM j2_notes"
            " WHERE user_id = ? AND deleted_at IS NULL"
            " AND properties_json IS NOT NULL AND properties_json != '{}'")
@@ -1166,6 +1191,20 @@ def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
             i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
                               else ENTITY_CONTEXT)
         items.extend(reviews)
+
+        # ⭐⛔ O6 §16: THE CURRENT STATE, RETRIEVED BESIDE THE HISTORICAL ONES.
+        # This scope had no "now" object at all before O6, which was harmless
+        # while everything in it was current. It stopped being harmless the
+        # moment past DECISIONS joined the packet: a thesis with a thin body
+        # and an old `invalidated` review could be answered entirely from a
+        # judgement the member has since reversed. Retrieved whenever the note
+        # actually has a thesis state, so "what do I think now" always has an
+        # authority that is not a dated opinion.
+        state = _thesis_states(conn, user_id, [note_id], 1)
+        for i in state:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+        items.extend(state)
 
         cov = {"exists": True, "blocks": len(blocks), "matched_blocks": matched,
                # ⛔ `has_text` drives the member-facing "this note doesn't have

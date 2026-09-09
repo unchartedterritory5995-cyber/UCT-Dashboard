@@ -265,3 +265,53 @@ describe('landing on a specific review', () => {
     expect(screen.queryByText(/the datacenter call still holds/)).toBeNull()
   })
 })
+
+// ⚰️ FOUND BY THE O6 FLAGSHIP HARNESS, and invisible to every rail above it.
+// The URL anchor is cleared the moment it is consumed, so a refresh or a Back
+// cannot re-fire the jump — which took `anchorReviewId` back to null and
+// un-marked the row on the very next render. The member clicked a review
+// result, watched the history open and scroll, and found nothing highlighted
+// when they looked. Both halves are required: a clean URL AND a visible
+// "you are here".
+describe('the landing mark outlives the url parameter', () => {
+  const HISTORY = [
+    { id: 'rv2', status: 'completed', outcome: 'revised',
+      completedAt: '2026-03-20T00:00:00Z', memberNote: 'trimmed the growth case' },
+    { id: 'rv1', status: 'completed', outcome: 'no_change',
+      completedAt: '2026-01-10T00:00:00Z', memberNote: 'the datacenter call still holds' },
+  ]
+
+  beforeEach(() => {
+    try { window.localStorage.clear() } catch { /* private mode */ }
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
+  it('stays marked after the anchor is consumed and the param goes away', () => {
+    reviewsResult = base({ completed: HISTORY })
+    const { rerender } = render(
+      <ThesisReviewSection noteId="n1" evidence={EVIDENCE} anchorReviewId="rv1" />)
+    expect(screen.getByText(/the datacenter call still holds/).closest('li')
+      .getAttribute('aria-current')).toBe('true')
+    // the URL cleanup lands: the prop returns to null
+    rerender(<ThesisReviewSection noteId="n1" evidence={EVIDENCE} anchorReviewId={null} />)
+    const row = screen.getByText(/the datacenter call still holds/).closest('li')
+    expect(row.getAttribute('aria-current')).toBe('true')
+    expect(row.className).toMatch(/historyRowAnchored/)
+  })
+
+  it('⛔ marks exactly one row — the one that was navigated to', () => {
+    reviewsResult = base({ completed: HISTORY })
+    renderIt({ anchorReviewId: 'rv1' })
+    const marked = document.querySelectorAll('li[aria-current="true"]')
+    expect(marked.length).toBe(1)
+    expect(marked[0].textContent).toMatch(/the datacenter call still holds/)
+  })
+
+  it('does not scroll twice when the param is cleared under it', () => {
+    reviewsResult = base({ completed: HISTORY })
+    const { rerender } = render(
+      <ThesisReviewSection noteId="n1" evidence={EVIDENCE} anchorReviewId="rv1" />)
+    rerender(<ThesisReviewSection noteId="n1" evidence={EVIDENCE} anchorReviewId={null} />)
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+  })
+})

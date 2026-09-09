@@ -380,3 +380,48 @@ def _conn():
     c = gc()
     c.row_factory = _sq.Row
     return c
+
+
+# ── 6. §16 — the CURRENT thesis and a PAST decision are different objects ────
+
+class TestCurrentVersusHistorical:
+    def test_the_note_scope_retrieves_the_current_state_beside_the_reviews(self, db):
+        # ⚰️ FOUND BY THE O6 FLAGSHIP HARNESS. Before O6 this scope had no
+        # "now" object at all, which was harmless while everything in it was
+        # current. It stopped being harmless the moment past DECISIONS joined
+        # the packet: a thesis with a thin body and an old `invalidated` review
+        # could be answered entirely from a judgement the member had reversed.
+        n = _thesis()
+        notes_svc.update_note(A, n["id"], {"properties": {
+            "builtin:thesis_status": "active", "builtin:confidence": "medium"}})
+        _reviewed(A, n["id"], when=T1, note="margins are broken", outcome="invalidated")
+        _reviewed(A, n["id"], when=T3, note="margins recovered", outcome="no_change")
+        out = ar.retrieve_note(A, n["id"], "what is my thesis on margins now?")
+        types = {e["source_type"] for e in out["evidence"]}
+        assert ev.THESIS_STATE in types, "the current position has no authority"
+        assert ev.THESIS_REVIEW in types, "the history is gone"
+
+    def test_a_note_with_no_thesis_state_still_answers(self, db):
+        # A plain note is not a thesis. Retrieving nothing is correct; raising
+        # would turn every ordinary note question into a 500.
+        n = notes_svc.create_note(A, {
+            "title": "Reading list", "bodyJson": {
+                "type": "doc", "content": [{"type": "paragraph", "content": [
+                    {"type": "text", "text": "kimberlite grades matter"}]}]}})
+        out = ar.retrieve_note(A, n["id"], "kimberlite")
+        assert out["query_matches"] >= 1
+        assert not any(e["source_type"] == ev.THESIS_STATE for e in out["evidence"])
+
+    def test_a_minimal_schema_reports_no_thesis_state_rather_than_raising(self, db):
+        # ⛔ ASK THE SCHEMA, NEVER CATCH "no such column" (the Wave M lesson).
+        # A database without `properties_json` has no thesis state; that is an
+        # answer, not an error.
+        import sqlite3 as _sq
+        c = _sq.connect(":memory:")
+        c.row_factory = _sq.Row
+        c.execute("CREATE TABLE j2_notes (id TEXT, user_id TEXT, title TEXT,"
+                  " ticker TEXT, updated_at TEXT, deleted_at TEXT)")
+        assert ar._thesis_states(c, A, None, 3) == []
+        assert ar._has_column(c, "j2_notes", "title") is True
+        assert ar._has_column(c, "j2_notes", "properties_json") is False
+        c.close()

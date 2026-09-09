@@ -105,6 +105,19 @@ export default function ThesisReviewSection({
   const reviewIdRef = useRef(null)
   const anchorDoneRef = useRef(null)
   const anchorScrolledRef = useRef(null)
+  /** ⛔⛔ THE MARK OUTLIVES THE URL PARAM, AND IT HAS TO.
+   *
+   * ⚰️ Found by the O6 flagship harness: the member clicked a review result,
+   * the history opened and scrolled — and the highlight was gone by the time
+   * they looked at it. The anchor is deliberately cleared from the URL the
+   * moment it is consumed (so a refresh or a Back does not re-fire the jump),
+   * which took `anchorReviewId` to null and un-marked the row on the very next
+   * render. Latching it keeps "you are here" on screen while still leaving the
+   * URL clean. */
+  const [markedId, setMarkedId] = useState(null)
+  useEffect(() => {
+    if (anchorReviewId) setMarkedId(anchorReviewId)
+  }, [anchorReviewId])
 
   /** ⛔⛔ A CALLBACK REF, NOT A FRAME GUESS. The anchored row does not exist
    *  until the history section has been told to open and React has committed
@@ -114,11 +127,11 @@ export default function ThesisReviewSection({
    *  moment the scroll can mean anything. Guarded so a re-render of the same
    *  anchor does not yank the member's scroll position back. */
   const anchorRowRef = useCallback((el) => {
-    if (!el || !anchorReviewId) return
-    if (anchorScrolledRef.current === anchorReviewId) return
-    anchorScrolledRef.current = anchorReviewId
+    if (!el || !markedId) return
+    if (anchorScrolledRef.current === markedId) return
+    anchorScrolledRef.current = markedId
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }, [anchorReviewId])
+  }, [markedId])
 
   const counts = useMemo(() => ({
     supports: evidence.filter((e) => e.stance === 'supports').length,
@@ -338,13 +351,18 @@ export default function ThesisReviewSection({
 
       {completed.length > 0 && (
         <CollapsibleSection id={`thesis-reviews-${noteId}`} title="Review history"
-                            defaultOpen={false} openSignal={anchorReviewId}>
+                            defaultOpen={false} openSignal={markedId}>
           <ul className={styles.historyList}>
             {completed.map((r) => (
+              /* ⛔ aria-current IS the mark, not a test hook: this row is
+                 literally the one the member was navigated to, and a colour
+                 cue alone says nothing to a screen reader — the reader most
+                 likely to have lost their place after a jump. */
               <li key={r.id}
-                  ref={r.id === anchorReviewId ? anchorRowRef : null}
+                  ref={r.id === markedId ? anchorRowRef : null}
+                  aria-current={r.id === markedId ? 'true' : undefined}
                   className={`${styles.historyRow}`
-                    + (r.id === anchorReviewId ? ` ${styles.historyRowAnchored}` : '')}>
+                    + (r.id === markedId ? ` ${styles.historyRowAnchored}` : '')}>
                 <span className={styles.historyDate}>{fmtDate(r.completedAt)}</span>
                 <span className={styles.historyOutcome}>
                   {OUTCOMES.find((o) => o.id === r.outcome)?.label || r.outcome}
