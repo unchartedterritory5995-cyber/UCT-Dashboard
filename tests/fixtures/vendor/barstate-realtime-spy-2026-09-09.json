@@ -67,6 +67,49 @@
       ],
       "_ruling": "BEFORE THE SESSION OPENS THERE IS NO REALTIME BAR AT ALL. The newest bar is YESTERDAY's (2026-09-08) and it carries isconfirmed=1, islast=1 and ishistory=1 SIMULTANEOUSLY. So `islast` does not imply 'forming', and `ishistory` does not imply 'not the last bar' — a fold that treats either as the other's negation is wrong for the whole pre-open window, which is when a screener actually runs.",
       "_note_no_bar_for_today": "There is no 2026-09-09 bar at 08:58 ET. The daily bar is created at the open, which is what makes the 09:30 transition observable."
+    },
+    {
+      "id": "the-0930-bar-open-transition",
+      "resolution": "1D",
+      "symbol": "AMEX:SPY",
+      "cols": [
+        "observedAtET",
+        "bars",
+        "lastBarET",
+        "isconfirmed",
+        "islast",
+        "ishistory"
+      ],
+      "rows": [
+        [
+          "2026-09-09 08:58:17",
+          400,
+          "2026-09-08 09:30:00",
+          1,
+          1,
+          1
+        ],
+        [
+          "2026-09-09 09:27:47",
+          400,
+          "2026-09-08 09:30:00",
+          1,
+          1,
+          1
+        ],
+        [
+          "2026-09-09 09:30:14",
+          401,
+          "2026-09-09 09:30:00",
+          0,
+          1,
+          0
+        ]
+      ],
+      "_ruling_the_transition": "At the open the bar count goes 400 -> 401, a NEW bar is created for today, and TWO flags flip on it: isconfirmed 1 -> 0 and ishistory 1 -> 0. `islast` stays 1 and simply MOVES to the new bar.",
+      "_ruling_why_strict_mode_must_refuse_the_fold": "⛔⛔ THE SAME SCRIPT, THE SAME SYMBOL, THE SAME TIMEFRAME give DIFFERENT answers for barstate.isconfirmed and barstate.ishistory before and after 09:30 ET. A screener column that folded either to its closed-bar value pre-open would silently change meaning at the open, with nothing to refuse and nothing to point at. This is the measured justification for pine:live-bar-state in strict mode.",
+      "_ruling_forming_bar_signature": "On the FORMING bar: isconfirmed=0, islast=1, ishistory=0. So for the newest bar, `ishistory` is the complement of 'this bar is still forming'. Note it is NOT the complement of `islast` — pre-open, islast=1 AND ishistory=1 on the same bar.",
+      "_note_still_unmeasured": "isrealtime / isnew / islastconfirmedhistory are NOT in this capture. The existing UCTPROBE_NS plots only isconfirmed/islast/ishistory, and extending it needs a study added — blocked this visit by the hidden tab."
     }
   ],
   "tickerid_shape": {
