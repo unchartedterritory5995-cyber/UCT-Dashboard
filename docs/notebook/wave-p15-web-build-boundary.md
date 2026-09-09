@@ -291,3 +291,81 @@ nix with no Tesseract. `J2_SHARE_LINKS_ENABLED=0` unchanged, NOTE_SYNC state
 unchanged, broker_sync floor 10 on master, local disk 72.6 GB.
 
 ⛔ **P1.5 CANNOT CLOSE.** Stopping here with the evidence, as instructed.
+
+---
+
+## H · The second canary — one variable, and it had TWO sources
+
+The authorized change is exactly one thing: **stop supplying a Railway start
+command and let the image's `CMD` be authoritative.** Nothing else moves — same
+packages, same base, same Python, same Node, same healthcheck, same OCR gate,
+same builder selection, same Dockerfile path, same volume.
+
+⚰️ **But "the start command" turned out to live in two places, and only one of
+them was visible from the first canary.** Reading web's service instance
+directly:
+
+```
+serviceInstance(web).startCommand = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+```
+
+A **stale service-level start command** — no `--proxy-headers`, no
+`--forwarded-allow-ips`, no `--timeout-graceful-shutdown`, no service branching.
+It has been silently overridden by `railway.json`'s `deploy.startCommand` for as
+long as that file has existed, so it has never run and nobody has had a reason
+to look at it.
+
+⛔ **Removing only the file's copy would have contaminated the experiment.**
+With `railway.web.json` no longer supplying one, that service-level value would
+have applied instead, the image `CMD` would still not have been authoritative,
+and a green result would have proved the wrong thing — the classic
+`lesson_a_second_authority_over_one_value`, discovered one step before it could
+lie to us.
+
+Both are now gone:
+
+| source | before | after |
+|---|---|---|
+| `railway.web.json` `deploy.startCommand` | the branching `if…fi` string | **absent** |
+| web service-level `startCommand` | `uvicorn api.main:app --host 0.0.0.0 --port $PORT` | **cleared** |
+
+⭐ **And the clearing idiom is now known.** The API **ignores `null`** for these
+string fields — null means "leave unchanged" — while an **empty string clears
+them**. That is why the config pointer could not be returned to unset earlier.
+Use `""`, never `null`, and always read back.
+
+### The start command still has exactly one authority
+
+Moving a command is not the same as forking it. `Dockerfile.web`'s `CMD` must be
+the *same* command every other service runs out of `railway.json`, so the rail
+now derives it:
+
+```
+railway.json  startCommand -> take the `else` branch -> normalise ${PORT:-8080} to $PORT
+                                          ==
+Dockerfile.web  CMD
+```
+
+It matched character for character on the first run. Two mutations prove it can
+fail: drop `--proxy-headers` from the image CMD, or put a `startCommand` back
+into `railway.web.json` — each turns a named rail red, with byte-identical
+restores. 21 isolation rails green.
+
+⛔ **One consequence, stated rather than discovered later:** with the branching
+start command gone, the web image can only ever start the web service. That is
+correct — it is the web image, and the other three build from `nixpacks.toml`
+and keep the branching command — but it means this image must never be reused
+for worker/flow-worker/bars-api.
+
+### What the deployment manifest must show for the result to count
+
+`serviceManifest.deploy.startCommand` on the new deployment decides whether this
+was a clean experiment:
+
+- **absent/null** → no start command was applied → the image `CMD` was
+  authoritative → the result means what it says.
+- **`""`** → Railway kept an empty command → the run is contaminated and we know
+  exactly why, rather than guessing again.
+
+⛔ **A green health check is NOT proof the CMD was used.** The process's own
+command line is (`/proc/1/cmdline` in the running container).
