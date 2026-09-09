@@ -203,7 +203,12 @@ def test_stale_provider_data_across_simulated_holiday_yields_zero_paid_judge_cal
 
     _freeze_today(monkeypatch, orch, 2026, 9, 7)  # Labor Day cron fires, provider unchanged
     out = orch.judge_ticker("NVDA", client=object())
-    assert out == {"judged": 0, "confirmed": 0, "skipped": 1, "cost_capped": False}
+    # Exact-equality is deliberate: it pins the whole return contract, which the
+    # slot logger now reads. The four added keys are the observability counters
+    # for paths that previously wrote nothing anywhere.
+    assert out == {"judged": 0, "confirmed": 0, "skipped": 1, "cost_capped": False,
+                   "render_failed": 0, "errored": 0, "problems": [],
+                   "asof_dates": ["2026-09-03"]}
 
 
 def test_persisted_verdict_asof_date_reflects_evidence_and_cost_day_stays_wallclock(tmp_path, monkeypatch):
