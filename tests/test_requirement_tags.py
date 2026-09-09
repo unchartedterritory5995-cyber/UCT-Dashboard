@@ -37,7 +37,7 @@ def test_the_manifest_declares_the_tag_and_this_test_reads_it_there():
     """⛔ THE CONTROL FOR EVERY CASE BELOW. If the manifest stopped declaring the
     tag, every other assertion here would pass vacuously against an empty set."""
     spec = _spec()
-    assert spec["builtins"], "the tag must name at least one builtin"
+    assert spec["calls"], "the tag must name at least one call"
     assert spec["refused_by"], "and at least one consumer that refuses it"
     assert spec["accepted_by"], "and at least one that accepts it"
     assert set(spec["refused_by"]) & set(spec["accepted_by"]) == set(), \
@@ -50,7 +50,7 @@ def test_an_ordinary_script_carries_no_requirements():
 
 
 def test_a_script_calling_the_manifests_builtin_is_TAGGED():
-    name = sorted(_spec()["builtins"])[0]
+    name = sorted(_spec()["calls"])[0]
     d = {"compute": {"ast": _call(name, VOLUME)}}
     assert requirement_tags(d) == ["window_dependent"]
 
@@ -59,7 +59,7 @@ def test_the_tag_is_found_however_DEEPLY_the_call_is_nested():
     """⭐ THE UNCHARTED VOLUME SHAPE. It never plots the running total — it writes
     `ta.cum(nz(v)) > 0`, so the call sits under a comparison. A walk that only
     looked at the top of each tree would miss exactly the real case."""
-    name = sorted(_spec()["builtins"])[0]
+    name = sorted(_spec()["calls"])[0]
     d = {"compute": {"trees": [
         _call("gt", _call(name, _call("nz", VOLUME)), {"type": "number", "value": 0})]}}
     assert requirement_tags(d) == ["window_dependent"]
@@ -86,8 +86,8 @@ def test_every_comparability_consumer_REFUSES_by_name(consumer):
     why = consumer_refusal(consumer, ["window_dependent"])
     assert why, f"{consumer} must refuse a window-dependent definition"
     assert consumer in why, "the refusal names the consumer"
-    for builtin in _spec()["builtins"]:
-        assert builtin in why, "and names the builtin that caused it"
+    for name in _spec()["calls"]:
+        assert name in why, "and names the call that caused it"
     assert "loaded" in why or "history" in why or "fetch" in why, \
         "and says WHY, not just that it declined"
 

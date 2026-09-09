@@ -90,7 +90,16 @@ AST_KIND = "ast"
 #: — "your formula is malformed" and "that instrument is fine to chart but not
 #: to sweep" are different things to tell a member, and only one of them has a
 #: list of alternatives to offer.
-GATES = ("kind", "tree", "hash", "yields", "symbol", "cadence", "budget")
+#: ⚠️ `requirements` JOINED THEM ON 2026-09-08 AND NOTHING IN THIS FILE RAISES IT.
+#: It is the CONSUMER contract (`user_definitions.consumer_refusal`), asked one
+#: door earlier — at `routers/user_definitions._stamped`, before a definition is
+#: offered as a filter at all — because the property it tests is not a property of
+#: the tree. `ta.cum` yields a perfectly good 0/1 column; what it cannot do is
+#: mean the same thing across two symbols or across two runs, and no check in this
+#: file can see that. The name is declared HERE because this tuple is what a
+#: surface branches on, and a gate a surface cannot enumerate is prose.
+GATES = ("kind", "tree", "hash", "yields", "symbol", "cadence", "budget",
+         "requirements")
 
 
 class ScanRefused(Exception):

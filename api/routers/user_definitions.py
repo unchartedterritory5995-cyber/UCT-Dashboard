@@ -228,6 +228,16 @@ def _stamped(row: dict) -> dict:
     gate, never on the prose.
     """
     out = dict(row)
+    # ⭐ THE CONSUMER CONTRACT RUNS BEFORE THE SCANNABILITY CHECK, and the order is
+    # the attribution. A `window_dependent` script can be a perfectly well-formed
+    # 0/1 column — `assert_scannable` would pass it — so asking second would offer
+    # it as a filter and refuse it later at the sweep, which is the forever-chip
+    # this whole function exists to stop. Asking first means the member reads WHY.
+    why = svc.consumer_refusal("screener", row.get("requirements"))
+    if why:
+        out["scannable"] = False
+        out["scan_refusal"] = {"gate": "requirements", "detail": why}
+        return out
     try:
         scan_definition.assert_scannable(row.get("definition") or {})
     except scan_definition.ScanRefused as exc:
@@ -467,6 +477,8 @@ def share_definition(def_id: str, user: dict = Depends(require_paid)):
     """
     try:
         out = svc.share(user["id"], def_id)
+    except svc.ShareRefused as exc:
+        raise _share_http(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if out is None:
@@ -522,7 +534,14 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: share refusal → HTTP status. ⭐ A CLOSED MAP, so a reason this module does not
 #: know becomes a 400 rather than silently reading as "not found" — the two say
 #: very different things to somebody holding a link.
-_SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410, "table-version": 409}
+#:
+#: ⚠️ `requirements` IS 409, NOT 403. 403 says *you* may not do this; this refusal
+#: says the DEFINITION may not go through this door — anybody's copy of the same
+#: script is refused identically, and a member who reads 403 goes looking for a
+#: plan upgrade that would not help. 409 is the same answer `table-version` gets
+#: and for the same shape of reason: the request conflicts with what the thing IS.
+_SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
+                 "table-version": 409, "requirements": 409}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:
@@ -554,6 +573,8 @@ def publish_definition(def_id: str, user: dict = Depends(require_paid)):
     """
     try:
         out = svc.publish(user["id"], def_id)
+    except svc.ShareRefused as exc:
+        raise _share_http(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if out is None:

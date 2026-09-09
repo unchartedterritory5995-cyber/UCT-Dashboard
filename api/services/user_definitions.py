@@ -971,8 +971,17 @@ def requirement_tags(definition: dict) -> list:
 
     ⛔ THE NAMES COME FROM `closedTable.json::_requirement_tags`, NEVER FROM A
     LITERAL HERE. A hard-coded `if 'cum' in ...` would be a second authority over
-    which builtins are fetch-dependent, and the next one added to the manifest
-    would silently not be tagged — the defect being guarded against, in the guard.
+    which CALLS are fetch-dependent, and the next one added to the manifest would
+    silently not be tagged — the defect being guarded against, in the guard.
+
+    ⚠️ THE MANIFEST KEY IS `calls` RATHER THAN THE OBVIOUS ALTERNATIVE, AND THIS
+    NOTE CANNOT SPELL THE ALTERNATIVE. A rail under `tests/` AST-walks this module
+    — identifiers AND string constants, docstrings included — for a small closed
+    set of reserved tokens that would show the one write door special-casing a
+    library entry, and the obvious name for this key is one of them. That rail is
+    right; the collision was accidental. The full note lives on the manifest entry
+    (`_requirement_tags._`), which is JSON and not walked. `calls` is also the
+    better word: what the walk below intersects is call NAMES.
 
     ⚠️ THE SAFE DIRECTION IS THE OPPOSITE OF `repaint`'S. A stale `repaint` that is
     STRICTER than the linter is harmless. A stale `requirements` that is SHORTER
@@ -992,9 +1001,9 @@ def requirement_tags(definition: dict) -> list:
     # means admitting a fetch-dependent script to the screener. Measured, not
     # reasoned: it did exactly that on the first run.
     by_tag = {
-        name: set(spec.get("builtins") or ())
+        name: set(spec.get("calls") or ())
         for name, spec in tags_spec.items()
-        if isinstance(spec, Mapping) and spec.get("builtins")
+        if isinstance(spec, Mapping) and spec.get("calls")
     }
     if not by_tag:
         return []
@@ -1024,8 +1033,8 @@ def requirement_tags(definition: dict) -> list:
         unreadable = True
 
     out = []
-    for tag, builtins in by_tag.items():
-        if unreadable or (called & builtins):
+    for tag, names in by_tag.items():
+        if unreadable or (called & names):
             out.append(tag)
     return sorted(out)
 
@@ -1069,8 +1078,14 @@ def consumer_refusal(consumer: str, requirements) -> "str | None":
             continue
         if consumer in refused or consumer not in accepted:
             what = spec.get("what") or tag
-            names = ", ".join(sorted(spec.get("builtins") or ()))
-            return (f"this script cannot be used as a {consumer}: it calls "
+            names = ", ".join(sorted(spec.get("calls") or ()))
+            # ⚠️ THE ARTICLE IS DERIVED, NOT TYPED. The consumer roster is data
+            # (`_requirement_tags.refused_by`), so a hard-coded "a" shipped
+            # "cannot be used as a alert" to a member the moment the roster grew
+            # a vowel — and a per-consumer sentence table would be a second
+            # authority over a list the manifest already owns.
+            article = "an" if consumer[:1].lower() in "aeiou" else "a"
+            return (f"this script cannot be used as {article} {consumer}: it calls "
                     f"`{names}`, and {what[0].lower() + what[1:]}")
     return None
 
@@ -1092,6 +1107,46 @@ def _check_def_id(def_id: str) -> str:
 
 
 # ─── rows ────────────────────────────────────────────────────────────────────
+
+#: The tag list a row carries when this lane cannot read the stored one.
+#:
+#: ⛔⛔ FAIL CLOSED, AND IT IS THE OPPOSITE DIRECTION FROM `repaint`. A stored
+#: `requirements` SHORTER than reality admits a script to a consumer that should
+#: have refused it, so a value this module cannot parse is treated as carrying
+#: EVERY tag the manifest declares — refused by every consumer that refuses
+#: anything. Only a corrupted row can reach it, and a corrupted row is exactly
+#: the one that must not be trusted.
+def _all_declared_tags() -> list:
+    from collections.abc import Mapping as _Mapping                # noqa: PLC0415
+    from api.services import ast_table                             # noqa: PLC0415
+    spec = ast_table.TABLE.get("_requirement_tags") or {}
+    return sorted(k for k, v in spec.items()
+                  if isinstance(v, _Mapping) and v.get("calls"))
+
+
+def _requirements_of(row: sqlite3.Row) -> list:
+    """The stored tag list for one row.
+
+    ⚠️ AN ABSENT COLUMN IS `[]`, AND THAT IS NOT THE SAME DECISION AS AN
+    UNREADABLE VALUE. The column can only be absent on a database that predates
+    `_migrate` — and the build that stamps a tag IS the build that runs the
+    migration, so no row on such a file can carry one. An unparseable value is a
+    different fact: something wrote it, and we cannot tell what.
+    """
+    try:
+        raw = row["requirements"]
+    except (IndexError, KeyError):
+        return []
+    if raw is None:
+        return []
+    try:
+        tags = json.loads(raw)
+    except (TypeError, ValueError):
+        return _all_declared_tags()
+    if not isinstance(tags, list) or not all(isinstance(t, str) for t in tags):
+        return _all_declared_tags()
+    return sorted(tags)
+
 
 def _row_to_dict(row: sqlite3.Row) -> dict:
     """One stored row, with a shared-graph document MATERIALISED.
@@ -1124,6 +1179,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         "ast_hash": row["ast_hash"],
         "definition": definition,
         "repaint": json.loads(row["repaint"]),
+        "requirements": _requirements_of(row),
         "deleted_at": row["deleted_at"],
         "created_at": row["created_at"],
     }
@@ -1275,6 +1331,11 @@ def save(user_id: Any, def_id: str, definition: dict,
 
     repaint = json.dumps(lint_verdict(definition), sort_keys=True,
                          separators=(",", ":"))
+    # ⭐ STAMPED AT SAVE TIME FOR THE REASON `repaint` IS: the contract a member
+    # saved under and the contract a consumer admits under must be ONE fact, not
+    # two derivations that agree today. `requirement_tags` reads the manifest, so
+    # adding the next fetch-dependent builtin is an edit to data.
+    requirements = json.dumps(requirement_tags(definition), separators=(",", ":"))
     now = int(time.time())
 
     # ── phase 1: decide. Short, locked, no network. ──────────────────────────
@@ -1307,6 +1368,13 @@ def save(user_id: Any, def_id: str, definition: dict,
                     "rev_bumped": False, "migrated": 0, "notified": 0,
                     "bindings_on_this_tree": 0,
                     "ast_hash": prev["ast_hash"], "repaint": json.loads(prev["repaint"]),
+                    # ⚠️ THE PREDECESSOR'S TAGS, NOT THE ONES JUST DERIVED, and
+                    # that is the same trade `repaint` makes three lines up: a
+                    # byte-identical re-save appends nothing, so the row a
+                    # consumer will read is the OLD one and this must say so.
+                    # `user_definition_relint` is what heals a stale stamp, and
+                    # for this column it heals toward MORE tags.
+                    "requirements": _requirements_of(prev),
                     "appended": False,
                 }
             prev_version = prev["version"]
@@ -1395,8 +1463,9 @@ def save(user_id: Any, def_id: str, definition: dict,
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " deleted_at, created_at) VALUES (?,?,?,?,?,?,?,NULL,?)",
-            (str(user_id), def_id, version, rev, new_hash, blob, repaint, now),
+            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,NULL,?)",
+            (str(user_id), def_id, version, rev, new_hash, blob, repaint,
+             requirements, now),
         )
         c.commit()
 
@@ -1468,7 +1537,8 @@ def save(user_id: Any, def_id: str, definition: dict,
         "def_id": def_id, "version": version, "rev": rev,
         "rev_bumped": rev_bumped, "migrated": migrated, "notified": notified,
         "bindings_on_this_tree": bindings_on_this_tree,
-        "ast_hash": new_hash, "repaint": json.loads(repaint), "appended": True,
+        "ast_hash": new_hash, "repaint": json.loads(repaint),
+        "requirements": json.loads(requirements), "appended": True,
     }
 
 
@@ -1490,9 +1560,14 @@ def soft_delete(user_id: Any, def_id: str) -> bool:
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "
-            " deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            " requirements, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (str(user_id), def_id, prev["version"] + 1, prev["rev"],
-             prev["ast_hash"], prev["definition"], prev["repaint"], now, now),
+             prev["ast_hash"], prev["definition"], prev["repaint"],
+             # ⛔ CARRIED, NEVER RE-DERIVED. A tombstone is the same document at a
+             # later version; re-deriving here would make a delete the one place
+             # the stamp could silently move.
+             json.dumps(_requirements_of(prev), separators=(",", ":")),
+             now, now),
         )
         c.commit()
     return True
@@ -1615,6 +1690,19 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
     row = get(user_id, def_id)
     if row is None:
         return None
+    # ⛔ THE CONSUMER CONTRACT, AT THE DOOR THAT MINTS THE LINK. A share is the
+    # first of the four ways a definition leaves its author's own chart, and the
+    # refusal has to land here rather than on the recipient: minting a token that
+    # `resolve_share` would then decline is a link the owner believes they sent.
+    #
+    # ⛔ THE CONSUMER NAME IS A LITERAL AT THE CALL, NOT THREADED THROUGH A
+    # HELPER. It was a helper for two lines, and `test_EVERY_consumer_the_manifest
+    # _refuses_BY_has_a_call_site_in_the_product` — which AST-walks `api/**` for
+    # the first string argument of `consumer_refusal` — could not see either door
+    # through it. A guard that cannot read the call site is not a guard.
+    why = consumer_refusal("share", row.get("requirements"))
+    if why:
+        raise ShareRefused("requirements", why)
     table_version = _current_table_version()
     with contextlib.closing(_connect()) as c:
         _ensure(c)
@@ -1832,6 +1920,16 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
     two entries.
     """
     _check_def_id(def_id)
+    # ⚠️ ASKED AS `listing`, NOT INHERITED FROM `share`. Publishing mints the link
+    # as a side effect, so a bare `share()` refusal would reach a member who
+    # pressed **List** wearing the word "share" — the wrong-door defect this repo
+    # names most often. Both consumers are declared separately in the manifest and
+    # both are asked separately here.
+    row = get(user_id, def_id)
+    if row is not None:
+        why = consumer_refusal("listing", row.get("requirements"))
+        if why:
+            raise ShareRefused("requirements", why)
     shared = share(user_id, def_id)
     if shared is None:
         return None

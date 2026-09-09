@@ -2406,6 +2406,18 @@ def definitions_to_sweep() -> list:
         definition = row.get("definition")
         if not isinstance(definition, dict):
             continue
+        # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
+        # `user_definitions.consumer_refusal` is one authority for five consumers;
+        # here it stops a fetch-dependent column from being filed in `scan_hits`
+        # under an `ast_hash` that promises the number means the same thing
+        # tomorrow. ⚠️ SILENT ON PURPOSE, unlike the other four: the sweep is a
+        # background job with no member in front of it, and the SAME definition is
+        # refused BY NAME at `routers/user_definitions._stamped` before it can
+        # ever be offered as a filter — so nobody learns of this skip by its
+        # absence. A log line per definition per night would be noise about a
+        # refusal the member already read.
+        if user_definitions.consumer_refusal("sweep", row.get("requirements")):
+            continue
         compute = definition.get("compute")
         if not isinstance(compute, dict) or compute.get("kind") != scan_definition.AST_KIND:
             continue

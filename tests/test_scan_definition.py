@@ -456,8 +456,18 @@ def test_the_gates_are_a_CLOSED_set_and_an_unknown_one_cannot_be_raised():
     # SWEEP already refused an over-budget tree while this door admitted it, so
     # the server stamped `scannable: true` on a definition it would then refuse
     # every night. See `tests/test_scan_budget_gate.py`.
+    # ⚠️ `requirements` JOINED 2026-09-08, and it is the ODD ONE OUT: nothing in
+    # `scan_definition` raises it. It is the CONSUMER contract
+    # (`user_definitions.consumer_refusal`), asked one door earlier at
+    # `routers/user_definitions._stamped` before a definition is offered as a
+    # filter at all — because the property it tests is not a property of the
+    # tree. `ta.cum` yields a fine 0/1 column; what it cannot do is mean the same
+    # thing across two symbols or two runs, and no check in this file can see
+    # that. The name is DECLARED here because this tuple is what a surface
+    # branches on. See `tests/test_requirement_consumers.py`.
     assert scan_definition.GATES == (
-        "kind", "tree", "hash", "yields", "symbol", "cadence", "budget")
+        "kind", "tree", "hash", "yields", "symbol", "cadence", "budget",
+        "requirements")
     for gate in scan_definition.GATES:
         assert scan_definition.ScanRefused(gate, "x").gate == gate
     with pytest.raises(ValueError, match="not one of this module's gates"):

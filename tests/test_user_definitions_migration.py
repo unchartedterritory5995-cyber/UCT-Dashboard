@@ -136,8 +136,8 @@ def test_the_EMPTY_DEFAULT_IS_TRUE_FOR_HISTORY_and_here_is_why(db):
     tagged = set()
     for spec in (ast_table.TABLE.get("_requirement_tags") or {}).values():
         if hasattr(spec, "get"):
-            tagged |= set(spec.get("builtins") or ())
-    assert tagged, "the manifest must declare at least one tagged builtin"
+            tagged |= set(spec.get("calls") or ())
+    assert tagged, "the manifest must declare at least one tagged call"
 
     # Every tagged builtin must be absent from the shipped function table — that
     # is what makes it unreachable from a saved definition today.

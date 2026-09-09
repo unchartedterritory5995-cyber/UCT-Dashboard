@@ -76,6 +76,7 @@ SCOPE_SEP = "\x1f"
 GATES: tuple[str, ...] = (
     "definition",     # no such definition for this user, or it is a tombstone
     "lane",           # the definition is not a formula (compute.kind != "ast")
+    "requirements",   # the script needs something an ALERT cannot give it
     "repaint",        # the badge is a GATE, not a label (spec §1.3)
     "budget",         # the tree is over the budget AT THE VERSION BEING ARMED
     "cross-lane",     # the two lanes do not agree at 1e-9 on THESE bars
@@ -122,6 +123,12 @@ class AdmissionRefused(RuntimeError):
 REFUSAL_FRAGMENTS: Mapping[str, str] = {
     "definition": "names no stored definition on this account",
     "lane": "is not a formula and cannot be admitted as one",
+    # ⛔ DELIBERATELY NOT THE SENTENCE `consumer_refusal` PRODUCES. That sentence
+    # is APPENDED to this one, and it is the same prose the screener and the
+    # sweep show — so using it as the gate fragment would make a
+    # `pytest.raises(match=…)` on the ALERT gate satisfiable by any consumer's
+    # refusal. The fragment names THIS door; the appended sentence explains it.
+    "requirements": "was refused by the alert lane's consumer contract",
     "repaint": "a repainting formula cannot arm an alert",
     "budget": "is over its declared budget at the version being armed",
     "cross-lane": "the two lanes disagree at bar",
@@ -522,6 +529,28 @@ def _gate_lane(row: Mapping[str, Any]) -> dict:
     return definition
 
 
+def _gate_requirements(row: Mapping[str, Any], def_id: str) -> None:
+    """⭐ WHAT THE SCRIPT NEEDS, ASKED OF THE ALERT LANE — the STORED answer.
+
+    Read off the row exactly as `_gate_repaint` reads the stored linter verdict,
+    and for the identical reason: the contract a member saved under and the
+    contract an alert was armed under must be ONE fact. `consumer_refusal` is the
+    single authority all five consumers share, so this door cannot drift from the
+    sweep's or the screener's.
+
+    ⛔ IT RUNS BEFORE `_gate_repaint` AND THAT ORDER IS DELIBERATE. Both are
+    cheap and deterministic, but a `window_dependent` script is refused for
+    EVERY member on EVERY plot, while a repaint refusal is per-plot and can be
+    acknowledged away. Asking the unconditional question first means the refusal
+    a member reads is the one they can actually act on.
+    """
+    from api.services import user_definitions                       # noqa: PLC0415
+    why = user_definitions.consumer_refusal("alert", row.get("requirements"))
+    if why:
+        raise AdmissionRefused(
+            "requirements", f"{def_id} {REFUSAL_FRAGMENTS['requirements']}: {why}")
+
+
 def _gate_repaint(row: Mapping[str, Any], definition: Mapping[str, Any]) -> None:
     """⭐ THE BADGE IS A GATE, NOT A LABEL (spec §1.3).
 
@@ -743,6 +772,7 @@ def admit_user_definition(user_id: Any, def_id: str,
     """
     row = _gate_definition(user_id, def_id, version)
     definition = _gate_lane(row)
+    _gate_requirements(row, def_id)
     _gate_repaint(row, definition)
     _gate_budget(definition, def_id)
     report = _gate_cross_lane(definition, def_id, bars)
@@ -811,6 +841,7 @@ def user_value_function(user_id: Any, address: str
     def_id, plot_key = split_user_address(address)
     row = _gate_definition(user_id, def_id, None)
     definition = _gate_lane(row)
+    _gate_requirements(row, def_id)
     _gate_repaint(row, definition)
     _gate_budget(definition, def_id)
     keys = {str(p.get("key")) if isinstance(p, dict) else str(p)
