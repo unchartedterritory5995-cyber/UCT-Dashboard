@@ -116,6 +116,26 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
       continue
     }
+    // ⛔⛔ A WRITE THAT CANNOT PROVE IT IS NOT CLOBBERING IS NEVER SENT.
+    //
+    // `baseUpdatedAt` IS the compare-and-set, and `sendNoteUpdate` omits the
+    // field when it is falsy — so a queued entry with no baseline would go out
+    // as a PUT with no CAS at all, and the server would apply it over whatever
+    // is there. Every `note-update` targets a note that already has a server
+    // revision, so there is no legitimate baseline-less entry to protect.
+    //
+    // ⛔ Blocked, not deleted, and not retried: the same posture as `permanent`.
+    // The member's words stay on disk and stay visible; what stops is the one
+    // action that could destroy someone else's. This is DEFENCE IN DEPTH — the
+    // path that produced such an entry is fixed at its source in
+    // `NoteEditorPage`'s `hydratedRef` — and it is here because the next
+    // unforeseen path must fail this way too.
+    if (!entry.baseUpdatedAt) {
+      // eslint-disable-next-line no-await-in-loop
+      await settleBlocked(db, entry, new Error('queued without a baseline — refusing to send a write with no compare-and-set'))
+      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+      continue
+    }
     try {
       // eslint-disable-next-line no-await-in-loop
       const saved = await send(entry)

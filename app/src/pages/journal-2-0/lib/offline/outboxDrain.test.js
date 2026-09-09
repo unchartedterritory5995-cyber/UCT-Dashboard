@@ -177,3 +177,65 @@ describe('⭐ the note moved on while the request was in flight', () => {
     expect(left[0].baseUpdatedAt).toBe('T2')
   })
 })
+
+describe('⛔⛔ a write that cannot prove it is not clobbering is NEVER sent', () => {
+  // `baseUpdatedAt` IS the compare-and-set, and `sendNoteUpdate` omits the field
+  // when it is falsy — so a baseline-less entry would go out as a PUT with no
+  // CAS at all and overwrite whatever the server holds. The activation canary
+  // (2026-09-09) found exactly such an entry queued in production.
+  //
+  // The path that produced it is fixed at its source in NoteEditorPage; this is
+  // the second line, for the next unforeseen path.
+
+  it('refuses a null baseline, keeps every word, and stops retrying', async () => {
+    const entry = await seed(db, 'n1', 'the member typed this', null)
+    expect(entry.baseUpdatedAt).toBeNull()
+    const send = vi.fn(async () => ({ id: 'n1', updatedAt: 'T9' }))
+    const results = await drainOutbox(db, { send, fork: vi.fn() })
+    await settleIdb()
+
+    // ⛔ The load-bearing assertion: the request was never made.
+    expect(send).not.toHaveBeenCalled()
+    expect(results[0].outcome).toBe(BLOCKED)
+
+    // …and NOTHING was discarded to achieve that.
+    const queued = await listOutbox(db)
+    expect(queued).toHaveLength(1)
+    expect(queued[0].permanent).toBe(true)
+    expect(JSON.stringify(queued[0].patch.bodyJson)).toContain('the member typed this')
+    const rec = await getNote(db, 'n1')
+    expect(rec.dirty).toBe(1)
+    expect(JSON.stringify(rec.bodyJson)).toContain('the member typed this')
+  })
+
+  it('refuses an empty-string baseline too — falsy is what the sender checks', async () => {
+    await seed(db, 'n1', 'still the member', '')
+    const send = vi.fn(async () => ({ id: 'n1', updatedAt: 'T9' }))
+    const results = await drainOutbox(db, { send, fork: vi.fn() })
+    await settleIdb()
+    expect(send).not.toHaveBeenCalled()
+    expect(results[0].outcome).toBe(BLOCKED)
+  })
+
+  it('⭐ CONTROL — an entry WITH a baseline still goes out', async () => {
+    // Without this, deleting the whole drain would pass both rails above.
+    await seed(db, 'n1', 'ordinary work', 'T1')
+    const send = vi.fn(async () => ({ id: 'n1', updatedAt: 'T2' }))
+    const results = await drainOutbox(db, { send, fork: vi.fn() })
+    await settleIdb()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0][0].baseUpdatedAt).toBe('T1')
+    expect(results[0].outcome).toBe(SENT)
+  })
+
+  it('⭐ CONTROL — one bad entry does not stop a good one behind it', async () => {
+    await seed(db, 'n1', 'baseline-less', null)
+    await seed(db, 'n2', 'perfectly fine', 'T1')
+    const send = vi.fn(async () => ({ id: 'n2', updatedAt: 'T2' }))
+    const results = await drainOutbox(db, { send, fork: vi.fn() })
+    await settleIdb()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0][0].noteId).toBe('n2')
+    expect(results.map((r) => r.outcome).sort()).toEqual([BLOCKED, SENT].sort())
+  })
+})
