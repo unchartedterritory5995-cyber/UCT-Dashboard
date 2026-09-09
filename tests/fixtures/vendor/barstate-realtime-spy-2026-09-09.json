@@ -144,5 +144,38 @@
     "_ruling_1_no_slash_anywhere": "str.contains(...,'/') is FALSE on all five, INCLUDING forex (EURUSD) and crypto (BTCUSD). So on these feeds Volume line 222 folds to FALSE. ⛔ It does NOT follow that it is always false — other exchanges spell pairs with a separator. The fold must be a whitelist of measured feeds that REFUSES an unmeasured one, never a blanket false.",
     "_ruling_2_the_vendor_rewrites_the_prefix": "⛔⛔ THE TRAP. 'SP:SPX' was requested and the vendor resolved it to 'SP_DLY:SPX' — confirmed independently by tickerid_len=10 (6+1+3), not merely by the symbol string. So THE TICKERID IS NOT THE TEXT THE MEMBER TYPED. A bind-time fold keyed on an exchange prefix cannot use the requested prefix; it must use the RESOLVED one, which is only knowable at bind time. A whitelist doing exact-prefix comparison against 'SP' would miss; str.contains('SP') happens to still match inside 'SP_DLY' — which is worse, because it makes the wrong design look correct on this one example.",
     "_caveat": "INFERRED, NOT ENUMERATED. Five symbols on five feeds. This says nothing about what other exchanges emit."
+  },
+  "fold_pass_ruling_1g": {
+    "_what": "Does the vendor accept a timeframe-conditional LENGTH — Volume line 233's shape?",
+    "_line233_shape": "length = timeframe.isweekly ? 5 : 20, then used as a ta.* window",
+    "capturedAtET": "2026-09-09 09:10:46",
+    "condition_half": {
+      "_measured": "the existing probe's N05/N06/N07, chart resolution switched and restored",
+      "on_1D": {
+        "timeframe.isdaily": 1,
+        "timeframe.isweekly": 0,
+        "timeframe.ismonthly": 0
+      },
+      "on_1W": {
+        "timeframe.isdaily": 0,
+        "timeframe.isweekly": 1,
+        "timeframe.ismonthly": 0
+      },
+      "_ruling": "The ternary's CONDITION flips exactly as expected on the vendor."
+    },
+    "acceptance_half": {
+      "_instrument": "Uncharted Volume ITSELF, already on the chart — the script that contains line 233",
+      "on_1D": {
+        "rows": 400,
+        "computing": true
+      },
+      "on_1W": {
+        "rows": 400,
+        "computing": true
+      },
+      "_ruling": "⭐⭐ THE VENDOR ACCEPTS AND RUNS IT. Uncharted Volume computes 400 rows on BOTH 1D and 1W with live values, and its outputs DIFFER between them. So a timeframe-conditional length is legal Pine — TradingView's own rule is that a length needs a 'simple int', which a bind-time ternary over two constants satisfies. Our pine:window refusal at line 233 is therefore a CAPABILITY GAP, not a correctness guard.",
+      "_why_this_beats_a_synthetic_probe": "It is the actual line in question, in the member's own script, running on the vendor — not a reconstruction of it."
+    },
+    "_still_unmeasured": "⛔ The NUMERIC half. That the vendor accepts the shape does NOT establish that the folded window is 5 on 1W and 20 on 1D. Proving the VALUE needs the three-SMA probe (fold vs sma20 vs sma5) from tools/visual_conformance/probes/fold-pass.pine, which requires ADDING a study — blocked this visit by the hidden tab. Until that is measured, the fold may be implemented but must not be assumed correct."
   }
 }
