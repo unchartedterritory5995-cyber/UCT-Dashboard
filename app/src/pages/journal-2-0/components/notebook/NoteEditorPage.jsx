@@ -38,6 +38,7 @@ import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
 import ThesisSection from './ThesisSection'
+import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
@@ -998,6 +999,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
       }).run()
       await refreshExcerpts()
+      // ⛔ WAVE P5 — and the EVIDENCE PICKER's list, which is a different
+      // subscription. Without this the passage a member just saved is
+      // absent from Add evidence until they reload the note; the picker
+      // then tells them to "save an excerpt from a PDF in this note
+      // first", about the excerpt they are looking at. Measured on a
+      // phone, end to end, in one sitting.
+      refreshEvidenceCandidates(noteId)
     } catch (e) {
       setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
     }

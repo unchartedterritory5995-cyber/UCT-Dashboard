@@ -1,6 +1,25 @@
 .scroll {
   position: relative;
+  /* ⛔⛔ WAVE P5 — THIS CONTAINER HAS TO OWN ITS SCROLLING, and it can only do
+     that if its parent gives it a bounded height. `flex: 1` was inert here for
+     the whole of Wave J: the Sheet's body was a BLOCK, so this element sized to
+     its content (measured 1461px inside an 842px sheet) and became a scrollport
+     that never scrolls. Nothing depended on that until a sticky control was
+     added — the Scanned text panel then anchored to the bottom of a 1461px box,
+     i.e. permanently off-screen on a phone, while the page scrolled AROUND it.
+     Measured at 390x844: the toggle sat at y=1174.
+
+     ⚰️ `max-height: 100%` was the first fix and it was NOT enough — a
+     percentage resolves against the body's whole content box, so this box
+     became 810px starting 94px below the top and its bottom edge landed at
+     y=920, off a screen that ends at 842. The toggle moved from y=1174 to
+     y=845: still invisible, and now invisible for a reason that reads as
+     fixed. The parent is a flex column now (`DocumentPreviewSheet.module.css`),
+     so `flex: 1` finally means "the space that is left".
+     ⛔ `min-height: 0` is load-bearing beside it — without it a flex item
+     refuses to shrink below its content and the whole thing returns. */
   flex: 1;
+  min-height: 0;
   overflow: auto;
   background: #525659;
   padding: 16px 0;

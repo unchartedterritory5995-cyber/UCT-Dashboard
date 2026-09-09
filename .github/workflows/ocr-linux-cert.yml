@@ -1,0 +1,118 @@
+# P2-LINUX-OCR-VERSION-CERT — the 5.3.0 measurement, on a Linux that is not this box.
+#
+# ⛔⛔ WHY THIS FILE EXISTS. Production runs Tesseract 5.3.0 (Debian bookworm);
+# every quality number in Wave P was measured on 5.4.0 on Windows. The ruling
+# was right that those numbers do not transfer for free, and four local routes
+# to a runnable 5.3.0 were tried and all failed (no Docker toolchain on the dev
+# box, WSL not installed and not ours to install, conda-forge 5.3.0 and 5.3.4
+# both STATUS_DLL_NOT_FOUND). The owner's decision was explicit: do NOT install
+# WSL or Docker just for this, and do NOT overwrite the working local 5.4.0.
+#
+# ⭐ A GITHUB-HOSTED RUNNER IS A LINUX THAT ALREADY EXISTS. This job runs inside
+# `python:3.12-slim-bookworm` — the SAME base `Dockerfile.web`'s runtime stage
+# uses — and installs `tesseract-ocr tesseract-ocr-eng` with the same
+# `--no-install-recommends`, so the engine under test is the one that ships.
+#
+# ⛔ THE CORPUS IS SYNTHETIC AND REPO-OWNED, AND THAT IS A HARD RULE. It is
+# generated here by `tools/wave_p_fixtures.py` from repo-tracked fonts. No
+# member Notebook document, no production note, no production database, no
+# credentials, ever. This job talks to nothing but the checkout.
+#
+# ⛔ AND IT REFUSES TO PRODUCE AN INCOMPARABLE NUMBER. The corpus is generated,
+# not committed, so before measuring anything the run proves the page images are
+# byte-identical to the ones the 5.4.0 reference was measured on. A recall
+# figure from a corpus that drifted by one pixel is worse than no figure,
+# because it looks like an answer.
+#
+# ⛔ IT SETS NO BAR. "Do not retune against 5.3.0 before first measurement."
+# The comparison prints the delta and the benchmark's own findings; closing
+# P2-LINUX-OCR-VERSION-CERT is the owner reading those numbers.
+name: OCR Linux version cert
+
+on:
+  workflow_dispatch:
+  push:
+    # Deliberately narrow: this must not fire on unrelated work. A workflow that
+    # runs on everything gets ignored, which is how the guard beside this one
+    # explains its own scope.
+    paths:
+      - '.github/workflows/ocr-linux-cert.yml'
+      - 'tools/wave_p_fixtures.py'
+      - 'tools/wave_p0_ocr_benchmark.py'
+      - 'tools/wave_p15_tesseract_benchmark.py'
+      - 'tools/wave_p_corpus_signature.py'
+      - 'tools/wave_p_corpus_signature.json'
+      - 'tools/wave_p_ocr_version_compare.py'
+      - 'tools/wave_p_ocr_reference_5_4_0.json'
+
+jobs:
+  bookworm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: python:3.12-slim-bookworm
+    steps:
+      # git first: the slim image has none, and actions/checkout needs it.
+      - name: The runtime the web image installs, and nothing else
+        run: |
+          set -eux
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            git \
+            tesseract-ocr \
+            tesseract-ocr-eng
+          rm -rf /var/lib/apt/lists/*
+
+      - uses: actions/checkout@v4
+
+      - name: What is actually installed here
+        run: |
+          set -eux
+          tesseract --version
+          dpkg-query -W -f='${Package} ${Version}\n' tesseract-ocr tesseract-ocr-eng
+          # ⭐ The recognition MODEL was already proven byte-identical to the
+          # file the 5.4.0 benchmark ran against (Wave P1.5 §J):
+          #   4,113,088 bytes
+          #   7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+          # Printing it here keeps that claim a measurement rather than a
+          # remembered fact.
+          sha256sum /usr/share/tesseract-ocr/*/tessdata/eng.traineddata
+
+      - name: Benchmark dependencies only
+        run: pip install --no-cache-dir --disable-pip-version-check pillow pypdf
+
+      - name: Build the controlled corpus
+        run: python tools/wave_p_fixtures.py
+
+      - name: Refuse a corpus that is not the one the reference was measured on
+        run: python tools/wave_p_corpus_signature.py
+
+      - name: Tesseract, same corpus, same metrics, baseline settings
+        id: bench
+        continue-on-error: true
+        run: |
+          python tools/wave_p15_tesseract_benchmark.py \
+            --tesseract tesseract \
+            --label linux-bookworm
+
+      - name: 5.4.0 (measured) against this (what ships)
+        run: |
+          python tools/wave_p_ocr_version_compare.py \
+            --reference tools/wave_p_ocr_reference_5_4_0.json \
+            --candidate tools/wave_p15_tesseract_out/linux-bookworm.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ocr-linux-cert
+          path: tools/wave_p15_tesseract_out/linux-bookworm.json
+          if-no-files-found: error
+
+      # ⛔ The benchmark exits non-zero on its OWN findings. Those must not be
+      # swallowed just because the comparison table printed — but the table has
+      # to print first, or a failing run tells you nothing about WHY.
+      - name: Carry the benchmark's verdict
+        if: steps.bench.outcome == 'failure'
+        run: |
+          echo "The benchmark reported findings on this engine — see the step above."
+          exit 1

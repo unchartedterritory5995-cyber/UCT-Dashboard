@@ -142,6 +142,81 @@ describe('NoteEditorPage — Wave J excerpt capture + click-to-source', () => {
     expect(document.querySelector('a[data-type="attachmentChip"]')).toBeTruthy()
   })
 
+  // ⚰️ WAVE P5 — SAVING A PASSAGE HAS TO REACH THE PICKER THAT OFFERS IT.
+  //
+  // Found by driving the journey on a phone in ONE sitting: save an excerpt
+  // from a scanned page, open Add evidence, and the picker said "save an
+  // excerpt from a PDF in this note first" — about the passage saved forty
+  // seconds earlier. The server was right throughout; the candidate list is
+  // subscribed at note-open with `revalidateOnFocus: false`, so the browser
+  // kept serving the empty answer it had cached before the excerpt existed.
+  //
+  // ⛔ A RELOAD HID IT, which is why nothing caught it earlier: any check that
+  // starts by loading the page sees a working picker. This asserts the list is
+  // re-read on the SAVE, with no remount — the only version of the question a
+  // member would recognise.
+  it('re-reads the evidence-candidate list after an excerpt is saved, without a reload', async () => {
+    const { SWRConfig } = await import('swr')
+    const candidateCalls = () => fetchMock.mock.calls
+      .filter(([u]) => String(u).startsWith('/api/j2/notes/n1/evidence-candidates')).length
+    fetchMock.mockImplementation((url, opts) => {
+      if (String(url).endsWith('/documents')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            documents: [{ id: 'doc1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/abc.pdf', name: 'report.pdf', status: 'ready', pageCount: 3 }],
+          }),
+        })
+      }
+      if (String(url) === '/api/j2/notes/n1/excerpts' && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            excerpt: { id: 'ex1', documentId: 'doc1', pageNumber: 1, capturedText: 'Total revenue was $12.48 billion', documentName: 'report.pdf', annotation: null },
+          }),
+        })
+      }
+      if (String(url).startsWith('/api/j2/notes/n1/evidence-candidates')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ candidates: [] }) })
+      }
+      if (String(url).endsWith('/excerpts')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ excerpts: [] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+
+    const NoteEditorPage = (await import('./NoteEditorPage')).default
+    render(
+      // ⛔ NO custom `provider` here, deliberately. The app's own SWRConfig
+      // (App.jsx) sets no provider, so the invalidation runs against SWR's
+      // DEFAULT cache — give this tree a private Map and the refresher writes
+      // to a cache nothing on screen reads, and the rail goes red against
+      // correct code. `dedupingInterval: 0` only stops the revalidation being
+      // folded into the mount read.
+      <SWRConfig value={{ dedupingInterval: 0 }}>
+        <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+      </SWRConfig>,
+    )
+    await screen.findByPlaceholderText('Title')
+    // Control: the picker's list is subscribed at note-open, so it has been
+    // read once already. Without this the assertion below could pass on a
+    // first read and prove nothing.
+    await waitFor(() => expect(candidateCalls()).toBeGreaterThan(0))
+    const before = candidateCalls()
+
+    const chip = await screen.findByText('report.pdf')
+    fireEvent.click(chip)
+    await waitFor(() => expect(lastViewerProps?.href).toBeTruthy())
+    await act(async () => {
+      await lastViewerProps.onSaveExcerpt({
+        pageNumber: 1, capturedText: 'Total revenue was $12.48 billion',
+        quotePrefix: null, quoteSuffix: null, charStart: 98, charEnd: 130,
+      })
+    })
+
+    await waitFor(() => expect(candidateCalls()).toBeGreaterThan(before))
+  })
+
   it('a failed excerpt save shows a toast and inserts no node', async () => {
     fetchMock.mockImplementation((url, opts) => {
       if (String(url).endsWith('/documents')) {
