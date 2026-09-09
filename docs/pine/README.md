@@ -98,13 +98,26 @@ exactly that reason.
 
 ## Two robustness findings for the runtime
 
-Running our own translator across the corpus, **10 published scripts kill the process outright** — some by
-exhausting a 4 GB heap, some by never returning. They include well-known indicators (Parabolic SAR, Renko
-Chart, Chandelier Exit ATR, an Ehlers oscillator). They are named in the survey outputs. A runtime that must
-execute the wild has to survive them, and the harness must attribute a crash rather than dying with it.
+The full pass judged **4,886 of 4,898** scripts; **1,415 yielded at least one screenable column (29.0%)**.
 
-Separately: the first full pass *looked* clean because the shell pipeline's exit code was `tail`'s, not
-node's. Check the number, not the word "passed".
+The other 12 **killed the translator process outright** — 8 by non-termination, 4 by heap exhaustion.
+Neither failure is catchable in-process. They include well-known indicators: Parabolic SAR, Renko Chart,
+Chandelier Exit ATR, an Ehlers oscillator, and three QuantNomad trailing-stop scripts. All are named in
+`engine_killed.json`.
+
+**They are not random.** 11 of the 12 carry a self-referencing assignment (`x := … x[1]`) against a corpus
+base rate of **17.9%** — a 5.1x enrichment, which makes the self-reference path a strong lead. It is *not*
+a diagnosis: only **1.25%** of the 878 scripts carrying that idiom actually kill the process, so a further
+condition narrows it. Start there, but confirm before believing it.
+
+Two harness lessons worth keeping:
+
+- **A crash must be attributed, not merely survived.** An OOM or hang cannot be caught in-process, so the
+  runner names the file on disk *before* translating it and runs under an external `timeout` in small
+  bounded batches. A timeout on a whole-corpus run would have falsely accused whichever innocent file it
+  happened to be holding.
+- **The first full pass looked clean because the shell pipeline's exit code was `tail`'s, not node's.**
+  Read the number, not the word "passed".
 
 ## Open decisions for the owner
 
