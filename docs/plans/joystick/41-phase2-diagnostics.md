@@ -144,3 +144,94 @@ owner's call and the number belongs in `40-phase2-device.md`.
 - **Test account drift** — the sandbox account authenticated against the foreign server, so
   the local store's copy went stale. Recreated; role `admin` verified in
   `C:\data-hubtest\auth.db` directly rather than trusting a 200.
+
+---
+
+## 3. `/charts` — the fan does not open. It is PRODUCT, and the touch never reaches the pad.
+
+Sessions (Pixel 8): `a684c1441a27c2783fe27829af3fccf794528d6c` ·
+`5296dd8f262fb7bbea3e6b7b039d248ab3da48b0` · `a4593125088120a5cf24a751ad9a0d154258865f` ·
+`fa33dd0208010d58838b27efc33fecfa1a238210` · `1ba86f59851eaec3b1f6d2e4943dd1411765de36`.
+Every probe ran `/dashboard` first as a control, where the same gesture works.
+
+### (a) MOUNT — fine, and identical to the working route
+
+`hub-root` and `hub-pad` are both present and displayed. `padRect` is **byte-identical on both
+routes**: `{x:303, y:632, w:84, h:84}`. `display:block`, `visibility:visible`, `opacity:1`,
+`pointer-events:auto`, `position:fixed`, `z-index:360`. **No ancestor transform or filter.**
+`hidden` is false. Nothing about the mount differs.
+
+### (d) ROUTE — fine
+
+`data-mobile-chart-shell` correctly true on `/charts`, false on `/dashboard`.
+`(pointer:coarse) and (max-width:640px) and (orientation:portrait)` = true; landscape-immersive
+= false; no mode sets `hideOnRoute`. Viewport identical on both routes: `411×808`,
+`visualViewport` `411×808`, `scale 1`, `scroll 0,0`. Route detection is not involved.
+
+### (b) DELIVERY — ⛔ THE FAULT. The pad never receives the touch.
+
+Capture-phase listeners at every level of the path:
+
+```
+/dashboard   window -> document -> html -> body -> hub-root -> pad-capture -> pad-bubble
+/charts      window -> document -> html -> body            (stops)
+```
+
+It stops at `body` because **`hub-root` is not an ancestor of the event target**. The target is
+a chart `CANVAS`:
+
+```
+/dashboard   aimed (345,674)  delivered (345,674)  target=hub-pad  elementFromPoint(there)=hub-pad
+/charts      aimed (345,674)  delivered (345,674)  target=CANVAS   elementFromPoint(there)=CANVAS
+```
+
+Ruled out **by measurement**, not by reasoning:
+
+- **Not a coordinate problem** — delivered `clientX/clientY` equal the aimed point exactly, with
+  `scroll 0,0` and `visualViewport.scale 1`.
+- **Not node replacement** — the instrumented pad is still the live pad (`sameNode: true`,
+  `isConnected: true`), so no React re-render swapped it.
+- **Not an overlay in the paint order at rest** — at load the pad IS the top element.
+
+### (c) ENGINE — moot
+
+`useJoystick` never receives a `pointerdown`, so travel, `OPEN_AT_PX`, a CSS transform on the
+fixed container and pointer capture cannot be involved. The scrim never mounts and the `fanOpen`
+class never appears — exactly what an engine that was never told anything happened looks like.
+
+### ⚠️ The mechanism is NOT plain stacking, and it is time-dependent
+
+`elementFromPoint` at the pad centre, after `/charts` loads:
+
+| t | top element |
+|---|---|
+| 0 ms | **hub-pad** (z-index 360, fixed) |
+| 500 ms → 7 s | **CANVAS** (z-index 2, absolute, rect `x:334 y:653 w:76 h:52`) |
+
+The full ancestor walk puts **both elements in the ROOT stacking context**: the pad's chain is
+`hub-pad(fixed, z360) → hub-root(fixed, z auto) → ._shell → body`, the canvas's is
+`CANVAS(absolute, z2) → … → #mobile-charts-app → main → ._shell → body`, and there is **no
+stacking context anywhere between either element and `body`**. On those facts `z-index 360` must
+beat `z-index 2` — and at t=0 it does.
+
+**I have not established what changes at ~500 ms, and I am not naming a one-line fix I cannot
+support.** Proposing "raise the z-index" against measurements that already show 360 losing to 2
+would be a guess dressed as a diagnosis.
+
+**Strongest untested candidate, recorded as a hypothesis:** `hub-pad` is the only element in
+either chain carrying **`backdrop-filter`**, which promotes it to its own compositing layer on
+Android Chrome, while the Lightweight Charts canvases are separately composited. Layer-promotion
+hit-testing against a late-painting canvas would explain an outcome plain stacking cannot, and
+would explain why it only appears once the chart finishes painting.
+
+**Next measurement — cheap and decisive:** re-run the time-sampled probe with
+`backdrop-filter: none` injected on `.pad` through test-only CSS.
+
+- If the pad stays hit-testable ⇒ layer promotion is the cause, and the fix is **hub-side**
+  (`isolation: isolate` on `hub-root`, or moving the glass onto an inner element so the hit
+  surface itself is unfiltered). No chart-shell change, no `requests.md` entry.
+- If the canvas still wins ⇒ the cause is in the chart shell's compositing, and it goes to
+  `requests.md` under the concurrent-work rule.
+
+⚠️ **Pixel 8 only so far** — not yet reproduced on the other three devices, so the finding is
+one device wide until run 4.
