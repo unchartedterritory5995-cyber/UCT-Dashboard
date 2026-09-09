@@ -116,6 +116,17 @@ Clear the log again, then:
 - ~3 feed selections to symbols **well outside the current ±2 window** — e.g.
   from position 3 to position 40, then somewhere else distant, then a third.
 
+⛔ **Pick targets that are actually cold, or Phase B sees nothing.** Two ordinary
+kinds of real-life warmth will mask the signal: a symbol you already opened
+earlier in this session, and a symbol you viewed within roughly the last 26 hours
+(`barsIDB` evicts intraday entries on bar-data freshness, so anything newer than
+~26h is still a cache hit). Neither is a defect — both are the product working —
+but a falsely-warm target makes Phase B look like Phase A for the wrong reason.
+Choose symbols you have not opened this session and, as far as you can tell,
+haven't looked at today; **record in the report whether you used the app earlier
+today at all**, since that's what a later reader needs to judge how cold "cold"
+really was.
+
 `neighbours()` warms next+1, next+2 and prev−1 only (`reviewSession.js:189`), so a
 far jump is by definition outside what current+2 covers.
 
@@ -154,11 +165,14 @@ you want to confirm the filter works, briefly clear the filter box and check oth
 ## Report back
 
 ```
-Shell attribute present:   yes / no        (data-mobile-chart-shell === "1")
-window.__vis contained "hidden":  yes / no  (yes ⇒ run void, redo)
+Shell attribute at start / at end:  ___ / ___   (data-mobile-chart-shell === "1")
+window.__vis contained "hidden":    yes / no    (yes ⇒ run void, redo)
+Filter-liveness check passed:       yes / no
+Used the app earlier today:         yes / no
 
 Phase A  — server hits: ___    cache hits: ___
 Phase B  — server hits: ___    cache hits: ___
+Phase B targets: ___________________________
 ```
 
 Approximate transition counts for A and B are useful but not critical — the
