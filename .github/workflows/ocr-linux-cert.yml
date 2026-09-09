@@ -83,8 +83,15 @@ jobs:
       # ⛔ The two the measurement actually imports, and no more — this job
       # must not drag in the app's runtime. (numpy went away with the generator
       # step: the benchmark's tesseract path never touches it.)
+      #
+      # ⛔ pypdf IS PINNED TO THE VERSION THE REFERENCE WAS MEASURED WITH.
+      # Unpinned, run #4 came back with the two NATIVE pages' CER moved from
+      # 0.0 to 0.0013 — pages OCR never touches, so that was pypdf 6.18 reading
+      # a text layer a hair differently from 6.15. Harmless, and exactly the
+      # kind of noise that makes a reader wonder which column the engine is in.
+      # The engine is the one variable this job is allowed to change.
       - name: Benchmark dependencies only
-        run: pip install --no-cache-dir --disable-pip-version-check pillow pypdf
+        run: pip install --no-cache-dir --disable-pip-version-check pillow "pypdf==6.15.0"
 
       # ⛔ The searchability metric is an FTS5 query, so a python built against
       # a sqlite without FTS5 would fail deep inside the benchmark and read as
