@@ -746,3 +746,159 @@ require:**
    **Recommended: two-step, and measure.**
 6. **Scope of Q1's offline editing** — note *body/title/subtitle* only, or also
    properties, tags and folder moves? **Recommended: body/title/subtitle only.**
+
+
+---
+
+# Q1 entry gates — results
+
+```
+GATE 1  the 409 overwrite          FIXED · 5 rails · 3 mutations        ✅
+GATE 2  retry / version safety     MEASURED · 3 rails · 1 mutation      ✅
+GATE 3  browser measurements       CHROME ONLY — BLOCKED, see below     ⛔
+GATE 4  Download a copy            design accepted (§17), Q1 build item ▫
+GATE 5  localStorage two-step      CONFIRMED BY MEASUREMENT             ✅
+GATE 6  write scope                body/title/subtitle only             ✅
+```
+
+## Gate 1 — the 409 overwrite is fixed
+
+⚰️ **Reproduced first.** `NoteEditorPage.conflict.test.jsx` was written to the
+required behaviour and went red exactly where the defect lives:
+
+```
+expected "vi.fn()" to be called 1 times, but got 2 times
+```
+
+Two PUTs: the first rejected with 409, the second the retry carrying the local
+patch — the overwrite. ⭐ And the append-only control **passed from the start**,
+proving the merge path the handler was built for works and must survive.
+
+**The fix.** `reconcileConflict` now proves the merge is safe or preserves both:
+
+```
+serverChangeIsAppendOnlyEmbeds(fresh, base)
+  fresh.title    === base.title
+  fresh.subtitle === base.subtitle
+  strip from fresh.bodyJson every widgetEmbed the BASE did not have
+     → what remains must be byte-identical to base.bodyJson
+```
+
+⛔ **It compares against the BASE, not the working copy.** That is what makes it
+a proof: if stripping the new embeds returns the document we last saw, then
+appending them is the server's only change and merging cannot lose anything.
+Anything else — including a change we cannot characterise — forks.
+
+**The fork**, in the vocabulary members already have:
+
+```
+server version   untouched, still canonical, loaded back into the editor
+local version    a sibling note, "{title} (conflicted copy)", tags ['sync-conflict']
+                 created through createNoteViaApi — the SAME creation path every
+                 other feature uses, not a second flow
+status           'conflict' → "this note changed elsewhere. Your version was kept
+                 as a conflicted copy."
+retry            SUPPRESSED — a fork is a resolution, not a reason to try again
+```
+
+**Rails (5) and mutations (3, byte-identically restored):**
+
+| mutation | rail that went red |
+|---|---|
+| the safety proof always returns true | `does NOT re-send the local body…` |
+| the safety proof always returns false | `a server-appended widgetEmbed is merged…` |
+| `if (!mayRetry) return` neutered | `does NOT re-send the local body…` |
+
+⚠️ **Also found while tracing, and NOT changed:** `restoreDraft` has its own PUT
+and its own catch — on 409 it sets `error` and keeps the localStorage draft. It
+does not clobber, so it is not a gate; but it is a *second* conflict path with
+different behaviour, and Q2 should bring it under the same posture.
+
+## Gate 2 — the outbox can retry, and needs no new server contract
+
+⛔ The reason to believe the PUT was retry-safe was a **docstring**. Measured
+instead (`test_wave_c_versions.py::TestTheOutboxCanRetrySafely`):
+
+```
+duplicate delivery, SAME base, after the first landed
+   → NoteConflictError (409) · nothing applied twice · no new version row     ✅
+byte-identical resave, backdated PAST the 30-minute coalescing window
+   → no new version row                                                        ✅
+a DIFFERENT resave, same conditions   ← the control
+   → exactly one new version row                                               ✅
+```
+
+⭐ **So Q1 adds no server-side idempotency key** (§27). The outbox still needs
+stable local `mutationId`s for its own UI, dedupe and crash recovery.
+
+⛔ Mutation-checked: blanking `body_plain` out of `_versioned_content_of` makes
+the control go red, so the rails are not passing on a service that never
+versions.
+
+## Gate 3 — browser measurements ⛔ BLOCKED
+
+**Chrome 152 desktop, production origin, measured:**
+
+```
+quota                     10,798 MB      usage 558.1 MB — ALL of it uct_bars_v1
+navigator.storage.persisted()            true (already granted, no prompt)
+Web Locks                 available AND granted (ifAvailable → true)
+BroadcastChannel          available
+25 MB Blob → IDB → read   OK · 26,214,400 bytes returned · 1,239 ms incl. open
+```
+
+### ⭐ The measurement that changes the design
+
+A realistic 48 KB note document, warm path, 40 writes:
+
+```
+IndexedDB     p50 282.6 ms   p95 800.7 ms   max 1,288.6 ms
+localStorage  p50   1.0 ms                  max    15.9 ms
+```
+
+⛔ **IndexedDB is ~280× slower at p50, and its p95 is as long as the entire
+800 ms autosave debounce.** Two consequences, neither of which was visible from
+reading code:
+
+1. **The localStorage synchronous draft is not redundant** — it covers a crash
+   window IDB demonstrably cannot. §20's two-step retirement is now confirmed by
+   measurement rather than caution, and stage 2 may well conclude *keep it*.
+2. **The durable working copy must NOT be written per keystroke.** At 282 ms p50
+   a per-keystroke IDB write would enqueue transactions faster than they commit.
+   Q1 writes it on a short debounce (~150–300 ms) and coalesces.
+
+### ⭐ The barsIDB deadlock, reproduced and explained
+
+```
+v2 upgrade while a v1 connection is open, WITHOUT an onversionchange handler
+   → STILL BLOCKED after 2s   (the deadlock, exactly as barsIDB records)
+the same, with the connection closing on versionchange
+   → succeeded cleanly
+```
+
+⭐ **So the deadlock is not inherent to version bumps — it is a missing
+`onversionchange` handler.** A future physical migration IS survivable provided
+every connection closes on `versionchange`. ⛔ The Notebook store must install
+that handler from day one, even at version 1, because the handler cannot be
+added retroactively to connections already open in other tabs.
+
+### ⛔ What could not be measured, and why
+
+```
+Safari desktop      NOT MEASURED — not installed / not drivable from this machine
+Safari on iOS       NOT MEASURED — no device or simulator reachable here
+Firefox desktop     NOT MEASURED — not drivable from this machine
+a fresh profile     NOT MEASURED — the automation drives the owner's profile only
+private/incognito   NOT MEASURED — same limitation
+```
+
+⛔ **This is an environment limitation, not a decision, and it is reported rather
+than worked around.** §12 makes these part of the architecture and §42 says to
+stop if a supported browser cannot provide durable IDB or safe cross-tab
+behaviour. Safari/iOS is the one that could actually invalidate Q1's
+assumptions — its quota is far smaller, `persist()` is not grantable the same
+way, and eviction is aggressive.
+
+**Q1 implementation of durable storage is therefore held** until these exist.
+Everything in Q1 that does not depend on them — the 409 fix, the retry rails,
+schema design — is done or safe to do.
