@@ -125,6 +125,15 @@ Two harness lessons worth keeping:
    file: the committed community corpus treats a script with no licence line as MPL-2.0 per TradingView
    Terms §22, while an unmerged branch's manifest marks every "licence not stated" file local-only. Under
    the stricter reading, commit-eligible scripts in the expansion plan drop from **370 to 202**.
+
+> ⚠️ **SUPERSEDED — the number is 266, not 202.** The plan's `local_source` field is null
+> for 133 of its 537 entries, which reads as "could not be fetched". They were ALL fetched —
+> every one is in the fetch log with status `ok` — the plan simply never recorded the path.
+> Resolving through the fetch log's own `slug` finds all 133 and moves commit-eligible from
+> 196 to **266**. Built by `tools/pine_survey/corpus_ingest.py`; the tree is `corpus/` and the
+> counts are in `corpus/index.json`. One further script is excluded on a licence typo — see
+> `LICENSING.md` §2b.
+
 2. **A pre-existing licence defect, flagged and not touched.**
    `tests/fixtures/pine/12-ichimoku-clouds.pine` is committed today carrying a **CC BY-NC-ND** header. The
    non-commercial policy was applied to the community corpus but never applied backwards to the

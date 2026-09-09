@@ -73,7 +73,16 @@ its 30 files carry no licence line, and all 19 are committed on that reasoning, 
 
 **Both cannot be the policy.** This is not a detail: **168 of the 370 commit-eligible entries in
 Deliverable B are "no licence line"**. Under the master `pine_community` rule they are committable;
-under the `pine_oos` rule they are not, and commit-eligible drops from **370 to 202**. Deliverable B is
+under the `pine_oos` rule they are not, and commit-eligible drops from **370 to 202**.
+
+> ⚠️ **SUPERSEDED — the number is 266, not 202.** The plan's `local_source` field is null
+> for 133 of its 537 entries, which reads as "could not be fetched". They were ALL fetched —
+> every one is in the fetch log with status `ok` — the plan simply never recorded the path.
+> Resolving through the fetch log's own `slug` finds all 133 and moves commit-eligible from
+> 196 to **266**. Built by `tools/pine_survey/corpus_ingest.py`; the tree is `corpus/` and the
+> counts are in `corpus/index.json`. One further script is excluded on a licence typo — see
+> `LICENSING.md` §2b.
+ Deliverable B is
 written to the **master rule** (it is the one that is actually committed and documented) and every such
 entry is tagged `licence_detected_raw: "NONE-IN-SOURCE (TV default MPL-2.0)"` so a single query flips
 them if the owner picks the stricter reading. **This needs one owner decision before any ingest, and it
@@ -462,7 +471,7 @@ Of the 370 commit-eligible: **196 declare MPL-2.0** in their own header, **168
 carry no licence line** and are therefore MPL-2.0 by TradingView Terms of Use §22 (the exact rule
 `pine_community/SOURCES.md` already quotes), 3 CC BY-SA, 1 MIT, 1 GPL-3.0, 1 GPL. ⛔ **If the owner
 adopts `pine_oos`'s stricter reading instead — no licence line means no commit — commit-eligible falls
-from 370 to 202 and reference-only rises to 335.** See §0; this is the one decision that has to be made
+from 370 to 202 and reference-only rises to 335. **MEASURED: 266 commit-eligible, 271 reference-only — see §0 note.**** See §0; this is the one decision that has to be made
 before step 1 of the ingest. The GPL entries are
 the same owner call already recorded for `tests/fixtures/pine/` (6 GPL-3.0 files) and
 `pine_community/05` + `/15`; they are flagged in `licence_status` so the call is visible rather than

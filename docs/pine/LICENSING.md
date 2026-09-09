@@ -40,6 +40,30 @@ re-creatable at any time with `python tools/pine_survey/tvfetch.py fetch`.
 > deletes it. It is a cache, not an archive — nothing depends on it surviving, and
 > anything that would is a bug.
 
+## 2b. ⭐ The worked example of why the gate does not widen
+
+**One script is excluded on a typo, and it stays excluded.**
+
+`Fourier Extrapolator of Price w/ Projection Forecast [Loxx]` declares, on line 1:
+
+```
+// This source code is subject to the terms of the Mozilla Public License 2. at https://mozilla.org/MPL/2./
+```
+
+The trailing zero is missing in **both** places. There is no "Mozilla Public License 2" —
+only 1.0, 1.1 and 2.0 — so the author's intent is not really in doubt.
+
+⚠️ **It was checked for fetch damage before any judgement was made.** All 4,898 cached
+sources are valid UTF-8; **1,936** spell it "2.0"; **exactly one** has the truncated form.
+So this is the author's own typo, faithfully fetched, and not something our pipeline did.
+
+⛔ **It is still reference-only, and that is the point of having a rule.** The ruling requires
+an EXPLICIT permitted header. Widening a licence predicate to absorb a typo is the one
+direction a licence gate must never loosen: the next widening is always as reasonable as this
+one, and the gate ends up matching intent rather than text. The cost of holding the line is a
+single script out of 266 — it lives in `corpus/reference/` with its source in the cache, which
+is everything the survey needs.
+
 ## 3. Legacy fixtures are exempt
 
 `tests/fixtures/pine`, `pine_community`, `pine_blind` and `pine_screener` predate this
