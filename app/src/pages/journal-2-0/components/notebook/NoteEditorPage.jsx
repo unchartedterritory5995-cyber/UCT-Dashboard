@@ -28,6 +28,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
+import { useDurableNote, SESSION_ID } from '../../lib/offline/useDurableNote'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -340,6 +341,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+  // Wave Q1: the durable local working copy. ⛔ The account is part of the
+  // DATABASE NAME, not a predicate — a wrong name yields no data, a forgotten
+  // filter yields another member's research. It degrades to `supported: false`
+  // (private windows, old browsers) without taking the editor with it.
+  const durable = useDurableNote({ accountId: user?.id, noteId })
+  // Read through a ref for the same reason every other callback here does:
+  // TipTap's onUpdate and every scheduled timeout close over an old render.
+  const durableRef = useRef(durable)
+  durableRef.current = durable
 
   // Wave B Recents: fire the "opened" beacon once per real note view (not on
   // every render, not while it's still loading, not on a failed load). Keyed
@@ -580,53 +590,100 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // (silently preferring a local draft over the server's copy could just as
   // easily clobber real, already-synced work from another tab/device).
   const [pendingDraft, setPendingDraft] = useState(null)
+  // The reasoning behind `pendingDraft` — which copy won, and whether the two
+  // local copies could be ordered at all. ⛔ An ambiguous answer is SAID so,
+  // not smoothed over: the member is the only one who can settle it.
+  const [recovery, setRecovery] = useState(null)
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
   const restoringDraftRef = useRef(false)
 
   useEffect(() => {
-    if (note) {
-      setTitle(note.title || '')
-      titleRef.current = note.title || ''
-      setSubtitle(note.subtitle || '')
-      subtitleRef.current = note.subtitle || ''
-      lastSavedRef.current = {
-        title: note.title || '',
-        subtitle: note.subtitle || '',
-        bodyJson: note.bodyJson,
-        updatedAt: note.updatedAt || null,
-      }
-
-      // Wave 0 (P1-10): a draft this note's own last session never
-      // successfully saved. Only offered when it actually differs from
-      // what the server has — a match means it saved fine (or was never
-      // touched) and is pure noise to surface.
-      try {
-        const raw = localStorage.getItem(DRAFT_KEY(note.id))
-        const draft = raw ? JSON.parse(raw) : null
-        const draftDiffers = draft && (
-          draft.title !== (note.title || '') ||
-          draft.subtitle !== (note.subtitle || '') ||
-          JSON.stringify(draft.bodyJson) !== JSON.stringify(note.bodyJson)
-        )
-        if (draftDiffers) {
-          setPendingDraft(draft)
-        } else {
-          if (raw) localStorage.removeItem(DRAFT_KEY(note.id))
-          setPendingDraft(null)
-        }
-      } catch {
-        setPendingDraft(null)
-      }
+    if (!note) return undefined
+    setTitle(note.title || '')
+    titleRef.current = note.title || ''
+    setSubtitle(note.subtitle || '')
+    subtitleRef.current = note.subtitle || ''
+    lastSavedRef.current = {
+      title: note.title || '',
+      subtitle: note.subtitle || '',
+      bodyJson: note.bodyJson,
+      updatedAt: note.updatedAt || null,
     }
+
+    // Wave 0 (P1-10) offered a draft this note's own last session never
+    // successfully saved. Wave Q1 makes that a THREE-way decision — the
+    // server, the durable working copy, and the synchronous draft — owned by
+    // `chooseLocalRecovery`.
+    //
+    // ⛔ IT IS NOT "PREFER THE OFFLINE STORE". Within a session the draft is
+    // written synchronously on the keystroke and the durable copy lags it by
+    // the coalescing window, so reaching for IndexedDB because it is the
+    // offline store would silently regress the member's last ~200ms of typing.
+    // ⛔ And it is still OFFERED, never applied: silently preferring a local
+    // copy can clobber real work another device already synced.
+    let cancelled = false
+    const decide = async () => {
+      let raw = null
+      let lsDraft = null
+      try {
+        raw = localStorage.getItem(DRAFT_KEY(note.id))
+        lsDraft = raw ? JSON.parse(raw) : null
+      } catch { lsDraft = null }
+      let decision
+      try {
+        decision = await durableRef.current.recover({ server: note, lsDraft })
+      } catch {
+        // A store we cannot read is not a reason to lose the draft we can.
+        decision = null
+      }
+      if (cancelled) return
+      if (decision && decision.unsynced) {
+        setPendingDraft({ ...decision.state, savedAt: lsDraft?.savedAt ?? null })
+        setRecovery(decision)
+        return
+      }
+      // Nothing local differs from the server: it saved fine (or was never
+      // touched) and surfacing it is pure noise.
+      if (raw) { try { localStorage.removeItem(DRAFT_KEY(note.id)) } catch { /* private mode */ } }
+      setPendingDraft(null)
+      setRecovery(null)
+    }
+    decide()
+    return () => { cancelled = true }
   }, [note?.id])
 
-  const saveDraftLocally = () => {
-    if (!noteId || !editorRef.current) return
+  // Wave Q1: ONE snapshot per keystroke, shared by both local layers.
+  // ⛔ Taken once on purpose: `getJSON()` walks the whole document, and the
+  // draft and the durable copy must describe the SAME instant — two reads
+  // could differ by a keystroke, which is exactly the disagreement the reopen
+  // comparison would then have to resolve without being able to.
+  const captureLocalState = () => {
+    if (!noteId || !editorRef.current) return null
+    return {
+      title: titleRef.current,
+      subtitle: subtitleRef.current,
+      bodyJson: editorRef.current.getJSON(),
+      baseUpdatedAt: lastSavedRef.current.updatedAt || null,
+    }
+  }
+  const saveDraftLocally = (state) => {
+    const snap = state || captureLocalState()
+    if (!snap) return
     try {
       localStorage.setItem(DRAFT_KEY(noteId), JSON.stringify({
-        title: titleRef.current, subtitle: subtitleRef.current,
-        bodyJson: editorRef.current.getJSON(), savedAt: Date.now(),
+        title: snap.title, subtitle: snap.subtitle,
+        bodyJson: snap.bodyJson, savedAt: Date.now(),
+        // Wave Q1: which tab-session wrote it. On reopen that separates "the
+        // durable copy from THIS session" (where the draft is written first and
+        // can only be equal-or-newer — an exact structural answer) from one
+        // left by a previous session (where only timestamps remain, and they
+        // are a hint).
+        // ⛔ Deliberately NO generation: that number is minted by the durable
+        // writer, and taking it here would mean scheduling the durable write
+        // BEFORE this synchronous line — reversing the one ordering that owns
+        // the crash window.
+        sessionId: SESSION_ID,
       }))
     } catch { /* private mode / storage full — the network autosave is still the primary path */ }
   }
@@ -657,6 +714,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // note-load sync effect below.
     if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, false)
     setPendingDraft(null)
+    setRecovery(null)
 
     // Persist directly and immediately, from the local `draft*` values
     // captured above — NOT via the debounced scheduleAutosave path (a
@@ -669,13 +727,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const patch = { title: draftTitle, subtitle: draftSubtitle || null }
       if (draftBodyJson) patch.bodyJson = draftBodyJson
-      if (lastSavedRef.current.updatedAt) patch.baseUpdatedAt = lastSavedRef.current.updatedAt
+      // ⛔ The baseline is the revision this local work was WRITTEN ON, not
+      // whatever the server holds now. They differ exactly when another device
+      // saved in between — and that is the case where a restore must 409 and
+      // fork rather than quietly overwrite the newer copy.
+      const base = recovery?.baseUpdatedAt ?? lastSavedRef.current.updatedAt
+      if (base) patch.baseUpdatedAt = base
       const saved = await update(patch)
       lastSavedRef.current = {
         title: draftTitle, subtitle: draftSubtitle,
         bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
         updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
       }
+      durableRef.current.markSynced({
+        acked: { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson },
+        current: captureLocalState() || { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson },
+        updatedAt: lastSavedRef.current.updatedAt,
+      })
       setSaveStatus('saved')
       setSaveErrorMsg('')
       clearDraftLocally()
@@ -688,7 +756,19 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
   const discardDraft = () => {
     clearDraftLocally()
+    // ⛔ And the durable copy has to hear about it too. Clearing only the
+    // localStorage draft would leave a dirty working copy and a queued sync
+    // intent behind, and the next reconnect would push work the member just
+    // declined. This states the truth instead: what is on this device now is
+    // what the server has.
+    const server = {
+      title: note?.title || '',
+      subtitle: note?.subtitle || '',
+      bodyJson: note?.bodyJson ?? null,
+    }
+    durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
     setPendingDraft(null)
+    setRecovery(null)
   }
 
   const scheduleAutosave = () => {
@@ -699,7 +779,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // the debounce ever fires) must still have a local copy of what was
     // just typed; gating this on the same timer would leave exactly that
     // window unprotected, which is the gap this safety net exists to close.
-    saveDraftLocally()
+    const snapshot = captureLocalState()
+    saveDraftLocally(snapshot)
+    // Wave Q1: then — and only then — hand the SAME snapshot to the durable
+    // working copy, which coalesces it into an IndexedDB write ~200ms behind
+    // the last keystroke. ⛔ Second, never first: localStorage is the
+    // synchronous layer that owns the crash window, and IndexedDB's measured
+    // p95 (800.7ms in Chrome 152) is as long as the whole server autosave
+    // debounce. It is also NOT the network — a durable local write is not a
+    // save, and nothing here tells the member otherwise.
+    if (snapshot) durableRef.current.schedule(snapshot)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // Fresh user edit supersedes any in-flight retry — reset the backoff
     // counter so we don't waste a 30s wait on content the user just changed.
@@ -1369,6 +1458,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         title, subtitle, bodyJson,
         updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
       }
+      // Wave Q1: the server now holds `bodyJson`. ⛔ `current` is read AGAIN
+      // here rather than reusing what we sent: if the member typed during the
+      // PUT, the durable copy is ahead of this ack and its sync intent must
+      // SURVIVE — an acknowledgement of older words has never been permission
+      // to forget newer ones.
+      durableRef.current.markSynced({
+        acked: { title, subtitle, bodyJson },
+        current: captureLocalState() || { title, subtitle, bodyJson },
+        updatedAt: lastSavedRef.current.updatedAt,
+      })
       conflictRetriedRef.current = false
       setSaveStatus('saved')
       setSaveErrorMsg('')
@@ -1590,6 +1689,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* ⛔ CSS-module classes are hashes, not strings: `styles.saveState`
             would have compiled to `undefined` and rendered unstyled. Reuse the
             class the other save states already use. */}
+        {/* Wave Q1 — PERMANENT RULE: SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
+            Shown only while the server does NOT have the work (the healthy
+            path already stays quiet), and only once the durable write has
+            actually COMMITTED — never while it is pending, in flight, or
+            failed. `durable.unsynced` is that commit, not an intention. */}
+        {durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {'Saved on this device — not yet synced to UCT'}
+          </div>
+        )}
         {saveStatus === 'conflict' && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
@@ -1696,7 +1806,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       {pendingDraft && (
         <div className={styles.draftBanner} data-export-exclude role="status">
           <span>
-            Unsaved changes from a previous session were found for this note.
+            {recovery?.ambiguous
+              ? 'Two unsaved copies of this note were found on this device and they cannot be put in order. Restore uses the most recent one.'
+              : 'Unsaved changes from a previous session were found for this note.'}
           </span>
           <div className={styles.draftBannerActions}>
             <button

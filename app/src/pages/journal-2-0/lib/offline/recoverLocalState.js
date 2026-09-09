@@ -37,7 +37,14 @@ const authored = (o) => ({
   bodyJson: o?.bodyJson ?? null,
 })
 
-const sameAuthoredContent = (a, b) =>
+/**
+ * Do two copies hold the same authored content? ⛔ ONE authority for this
+ * question: recovery uses it to decide whether there is anything to recover,
+ * and the sync path uses it to decide whether a server ack actually caught up
+ * with what the member has typed since. Two answers to that would let a note be
+ * marked "synced" while the editor holds newer words.
+ */
+export const sameAuthoredContent = (a, b) =>
   (a?.title ?? '') === (b?.title ?? '')
   && (a?.subtitle ?? '') === (b?.subtitle ?? '')
   && JSON.stringify(a?.bodyJson ?? null) === JSON.stringify(b?.bodyJson ?? null)
