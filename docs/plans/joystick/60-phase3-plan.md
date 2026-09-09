@@ -108,9 +108,9 @@ says so rather than inventing a binding.
 
 | | |
 |---|---|
-| **Primary (tap)** | Next tab. Reads/writes `activeTab` — `Breadth.jsx:560` (`useState`), passed to `BreadthTabs` at `894/914/925/936`. |
+| **Primary (tap)** | Next tab. Reads/writes `activeTab` — `Breadth.jsx:560` (`useState`), verified by the 3.2 integrator. ⚰️ **`BreadthTabs` has FIVE call sites, not four.** This listed `894/914/925/936`; all four are real, but there is a fifth at **`:1010`** — the main Monitor/Views branch, the one a member sees most. A hand-typed enumeration beside the source it describes, the same shape as the writer-index `FOUR`. Nothing broke, because 3.2's change is inside `BreadthTabs` rather than at its call sites — but count them before binding to them. |
 | **Reverse** | Previous tab. |
-| **Scrub** | Tab index, horizontal. Tab list is `BREADTH_TAB_ITEMS` (`Breadth.jsx:519`) **plus `analogues` for admins only** (`:527`) — ⛔ the fan and the scrub range must both read the *resolved* list, not the constant, or an admin and a member get different behaviour from the same code. |
+| **Scrub** | Tab index, horizontal. Tab list now resolves through `resolveBreadthTabs(isAdmin)` in `hub/sections/breadthSection.js` (moved there by 3.2 so the page's own strip and the hub cannot drift); it is `BREADTH_TAB_ITEMS` **plus `analogues` for admins only** — ⛔ the fan and the scrub range must both read the *resolved* list, not the constant, or an admin and a member get different behaviour from the same code. |
 | **Fan — outer (4)** | `Monitor` · `Daily` · `Views` · `COT` — each `kind:'navigate'` in the sense of setting `activeTab` (in-place, no route change). |
 | **Fan — inner (3 + Home)** | `Drill` (`run`, opens the drill modal for the focused cell) · `Chart` (navigate) · `Voice` · `Home`. |
 | **confirmText** | None. |
@@ -120,25 +120,119 @@ says so rather than inventing a binding.
 | **Preview exit** | Remove `'breadth'`. |
 | **Tests** | Unit: tab cycling clamps; the admin-only tab is present for an admin and absent for a member. Contract. Device: tap ×10 lands on the intended tab each time. |
 
-### 3.3 Screener (`scan`) — route `/screener`
+### 3.3 Screener (`scan`) — route `/screener` · **bindings settled by the 3.3a scout, 2026-09-09**
 
-⚠️ **`Screener.jsx` no longer exposes an `activeTab`** — the Wave 0 scout described one and a
-grep for it now returns nothing. The tab state has moved (probably into the shell under
-`pages/screener/shell/`). **A fresh scout is task 3.3a**, before the bindings below are final.
+⚰️ **`activeTab` was DELETED, not moved — and Wave 0 never named it.** `Screener.jsx` is 92 lines
+and holds one piece of state, `shellKey` (`Screener.jsx:69`), an ErrorBoundary remount counter.
+The page's own header says why: *"THIS PAGE IS THE SCANNER NOW — there is no tab strip, because
+there is nothing to switch between"* (`Screener.jsx:50-54`), and `Screener.test.jsx:19-25` is the
+standing rail on that removal.
+
+⛔ **The stale line was worse than stale: it was an invented citation.** This plan said "the Wave 0
+scout described one". The string `activeTab` appears **nowhere** in `10-wave0-discovery.md`; the
+only `activeTab` in the plan set is Breadth's. A binding was attributed to a document that never
+made the claim, and it survived because nobody re-opened the source it named. Per A1 the scout's
+report replaces it — the speculation that it "moved into the shell" is struck, not annotated.
+
+**What the page uses now** is `view` (`useScreenSpec.js:18`, writer `setView` `:80`, default
+`'overview'` from `specUrl.js:7`, URL-encoded at `specUrl.js:22`), surfaced as a `role="tablist"`
+labelled "Column views" (`ShellToolbar.jsx:166-172`) whose tabs come from the SERVER
+(`api/services/screener/filters.py:790-880`). ⚠️ **It is not a renamed `activeTab` and §3.3 must
+not treat it as one** — `view` selects a COLUMN SET; only `'charts'` changes the renderer
+(`ScannerShell.jsx:219`). No page-level tab needs to exist for the hub, and the hub must not ask
+the page to grow one.
 
 | | |
 |---|---|
-| **Primary (tap)** | Next result. Cursor over the result list; scrolls via the `scrollToIndex` already exposed on `VirtualResults` (`VirtualResults.jsx:49`) and `ResultCards` — exception (d), built in Phase 1 precisely for this. |
+| **Primary (tap)** | Next result. **Verified seams:** `VirtualResults.jsx:65-67` and `ResultCards.jsx:30-32`, both `useImperativeHandle(ref, () => ({ scrollToIndex: (index, options) => … }))`. ⚠️ **Nothing consumes either today** — `ScannerShell.jsx:230/233` pass no `ref`. Wiring them is Increment 2 work; Phase 1 built the seam and stopped. |
 | **Reverse** | Previous result. |
 | **Scrub** | Result index, vertical. |
 | **Fan — outer (5)** | `Chart` · `Flag` (`run`) · `Journal` · `Breadth` · `Notebook`. |
-| **Fan — inner (3 + Home)** | `Alert` (**`confirm`**) · `Plan trade` (`run`, opens the Plan-trade sheet — §4) · `Voice` · `Home`. |
+| **Fan — inner (3 + Home)** | `Alert` (**`confirm`**) · `Plan trade` (`run` — see the ⛔ below) · `Voice` · `Home`. |
 | **confirmText** | `Alert` → **"Create alert for {symbol}?"**. |
-| **Chip during scrub** | `` `${symbol} · ${index + 1}/${total}` ``. |
-| **Mount point** | The screener shell component that owns the result list (**confirm in 3.3a**). |
-| **Cursor identity key** | `` `scan:${scanDefinitionId}:${resultsFingerprint}` `` — a re-run that returns different rows is a different list, and a stale index would point at a symbol the member never selected. |
+| **Chip during scrub** | `` `${symbol} · ${index + 1}/${displayRows.length}` `` — ⚰️ **NOT `total`.** `total` is the server's match count (`ScannerShell.jsx:65`, `query.py:1318`) while `PAGE_SIZE` is 100 (`useScreenSpec.js:5`), so the old line would read `3/3,745` with 100 rows loaded. The precedent is already in that file: *"THE LOADED PAGE, NOT `total`"* (`ScannerShell.jsx:158-161`). Either denominate by the loaded length or have `next` call `s.loadMore` (`useScreenSpec.js:92`) at the tail, as `VirtualResults.jsx:71-74` already does. |
+| **Mount point** | **`ScannerShell.jsx:43`**, registering **`displayRows`** (`:133-135`) — never `rows` (`:61`). `displayRows` is the array AS RENDERED (the live re-sort was lifted into the shell for exactly this reason, `ScannerShell.jsx:122-132`); registering `rows` makes the cursor and the phone list disagree the moment the live toggle is on. |
+| **Cursor identity key** | 🔴 **`useHubCursor('scan', displayRows, { key: r => r.ticker })` — the explicit key is REQUIRED.** See below. |
 | **Preview exit** | Remove `'scan'`. |
-| **Tests** | Unit: cursor clamps, `scrollToIndex` called with the new index, `requires:['symbol']` disables Chart when nothing is selected. Contract. Device: 10× tap advances exactly one row; the chip's symbol matches the highlighted row. |
+| **Tests** | Unit: cursor clamps; `scrollToIndex` called with the new index; `requires:['symbol']` disables Chart when nothing is selected; **a re-scan returning different rows resets the cursor**. Contract. Device: 10× tap advances exactly one row; the chip's symbol matches the highlighted row. |
+
+#### 🔴 The identity-key bug this scout found before it shipped
+
+`useHubCursor`'s `defaultKey` (`useHubCursor.js:88-99`) probes `id`, `sym`, `symbol`, `date`,
+`key` — **not `ticker`** — then falls through to a positional `__pos_<index>` key (`:98`). **No
+screener row carries `sym` or `symbol`**; the identity is `ticker`, unique by construction
+(`screener_rows` is `ticker TEXT PRIMARY KEY`, `snapshot_db.py:416-417`; forced first into every
+projection, `query.py:1131`; already the React key at `VirtualResults.jsx:145`,
+`ResultCards.jsx:43`, `ChartsGallery.jsx:32`).
+
+So registering `displayRows` without an explicit key yields an identity string made only of
+positions, **which changes only when the LENGTH changes** — a re-scan returning a completely
+different 100 rows reads as "the same list", and the cursor holds an index onto a symbol the
+member never selected. That is precisely the failure `reconcile` (`:127-141`) exists to prevent,
+defeated by its own default.
+
+⛔ **And `useHubCursor.js:81`'s docstring asserts the false half out loud** — *"Screener/Catalysts
+rows carry `sym`/`symbol`"*. Left standing it will send the next reader to the same wrong place.
+**Director fixes that comment; the call site passes `opts.key`.** Changing `defaultKey` itself is
+shared-infra behaviour and is NOT done from a section.
+
+⚰️ The old identity key `` `scan:${scanDefinitionId}:${resultsFingerprint}` `` is struck twice
+over: `listId` is a key into a module-level `Map` that is never pruned (`useHubCursor.js:45`), so
+a per-result fingerprint there leaks a store entry per scan — and the fingerprint is what
+`computeIdentity` already derives from the item keys. `scanDefinitionId` also does not generally
+exist: only a saved *scan* has one (the opaque `def_hash` at `ScannerShell.jsx:180-184`), and most
+screens have no scan filter. **The `listId` is the constant `'scan'`.**
+
+#### ⛔ "Plan trade" from the Screener is NOT buildable as A5 assumes — read before Increment 2
+
+A5 gates Increment 2 on a Screener → sheet → `POST /api/hub/planned-trades` → row-in-`GET` path.
+The scout measured what the Screener can actually supply, and it is not entry/stop/size:
+
+- **Entry and stop exist only as DISTANCES** — `pattern_entry_dist_pct` / `pattern_stop_dist_pct`
+  (`columnDefs.js:386-389`, derived server-side at `snapshot_builder.py:546-551`). Absolute levels
+  are `price × (1 + dist/100)`, and the live tier already performs that inversion
+  (`live_tier.py:576-577`, `:619-621`) — so deriving it client-side would be a **second authority
+  over the same number**. Ask the backend for the absolute levels instead.
+- ⚠️ **They are only present if the member asked for them.** The scan selects
+  `REQUIRED_COLS ∪ visibleColumns` (`useScreenSpec.js:97-99`) and both columns live in exactly one
+  view, `patterns` (`filters.py:837-841`). **The default view is `overview`, which carries
+  neither** — so on a default screener the sheet opens with no entry and no stop.
+- ⚠️ **Deliberately blank on stale rows and names with no qualifying detection**
+  (`snapshot_builder.py:94-107`; non-null on 2,889 of 3,714 rows — the `_stale_price` guard
+  withholds rather than divide across two clocks). The sheet must render an **honest absence**,
+  never a fabricated level.
+- ⛔ **`size` does not exist on the Screener at all** — no shares, no risk-dollars, no
+  position-size column in `COLUMN_DEFS`, and no account context on the page. Size comes from the
+  **Journal** side (`settings.defaultSizePct` → `computeDefaultShares`), which means the A5
+  end-to-end gate is a **3.4 Journal** deliverable that the Screener feeds, not a Screener one.
+
+**✅ RULED (owner, 2026-09-09) — option 1: the gate moves to 3.4.** The Screener's "Plan trade"
+supplies **symbol only, plus the last price from the stream store as the default entry when one is
+available** — nothing else. It opens the Plan-trade sheet, which **3.4 Journal owns**.
+
+Sheet fields and their defaults: `symbol` fixed · `entry` = last price if streaming, else blank ·
+`stop` = from the Journal 2.0 stop-placement mode in effect, **computed by importing the existing
+j2 logic** (if that logic needs a pattern level the Screener did not supply, the stop stays blank)
+· `size` = the member's sizing rule if present, else blank · `R` computed live by the calc module
+**only when entry, stop and size are all present**.
+
+⛔ **Blank means blank.** The sheet renders "—" and **disables Save plan** until entry, stop and
+size are filled. It never fabricates a level. ⚠️ Do **not** request the `patterns` columns
+unconditionally and do **not** add a backend endpoint for absolute levels in this increment —
+that is **D-32**.
+
+**Screener `view` is not a hub concern** (owner, same ruling). Primary/Reverse step RESULTS only;
+the inner ring's "Scans" opens the existing scan picker; the hub never touches `view`. If the
+`'charts'` view changes the renderer such that the adapter's items differ, the adapter reports
+*that* list — and `identityKey` stays `ticker` either way.
+
+#### Also reported, not fixed
+
+`ChartsGallery` (the `'charts'` view) has **no imperative seam at all** — it is unvirtualized and
+paginates internally (`PAGE = 24`, `ChartsGallery.jsx:13,23`), so a cursor at index 30 points at a
+card on a page the member is not looking at. And only the first **300** rows carry live prices
+(`LIVE_WINDOW`, `VirtualResults.jsx:14`, applied `ScannerShell.jsx:69`); past that `price` is the
+03:00 snapshot.
 
 ### 3.4 Journal (`journal`) — route `/journal/trades` · **the Plan-trade sheet and the Phase 2a consumer**
 
@@ -210,9 +304,16 @@ or more than five commits behind; otherwise merge clean.)
 Both exist because component tests are structurally blind to a severed wire — the defect class
 that produced "8 features built, tested, green, and connected to nothing" in the 2026-08-08 audit.
 
-1. **Plan-trade sheet, end to end.** Screener **"Plan trade"** → the confirm sheet → `POST
-   /api/hub/planned-trades` → **the row comes back in `GET`**. One test, the whole path, mocking
-   nothing on it. Phase 2a's 14 tests prove the backend; this proves a member can reach it.
+1. **Plan-trade sheet, end to end — BOTH doors** (rewritten by the owner's 3.3a ruling; the
+   original assumed the Screener could supply entry/stop/size, and it cannot — see §3.3):
+   - **From the Screener:** "Plan trade" opens the sheet with **symbol**, plus the last price as
+     `entry` when the stream has one → the member fills the rest → `POST /api/hub/planned-trades`
+     → **the row comes back in `GET`**.
+   - **From the Journal:** the same sheet opens **prefilled from the selected position**.
+   - ⭐ **And a third case that is not a happy path:** the Screener door with **no stream price** —
+     `entry` blank, **Save plan disabled**. That is the test that stops a future "helpful" default
+     from inventing a level, which is the whole reason the ruling put blank-means-blank in writing.
+   Both doors are contract-tested, mocking nothing on the path.
 2. **Journal scrub, contract-tested against a fake j2 client.** Asserts **exactly one `PUT`**, its
    body carries **`stopPrice` and no other field**, and a release *without* confirm sends nothing.
    ⭐ The "no other field" half is the load-bearing one: `PUT /api/j2/positions/{id}` is a partial

@@ -258,11 +258,20 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  * @property {string} id                      A registry mode id (`registry.js` `modes`).
  * @property {() => void} [onTap]
  * @property {() => void} [onDoubleTap]
- * @property {(scrub: {delta: number, axis: 'x'|'y'}) => void} [onScrub]
+ * @property {(ctx: object, scrub: {delta: number, axis: 'x'|'y'}) => void} [onScrub]
+ *   ⛔ **TWO ARGUMENTS, CONTEXT FIRST.** `HubRoot.jsx:147` calls `onScrub(ctx, scrub)` and
+ *   `registry.js:49` has documented that shape since Phase 2. This typedef said `onScrub(scrub)`
+ *   for one commit, and the contract TEST hand-wired the one-argument form to match itself — so a
+ *   section built against it would have read `ctx.delta === undefined` on the real page while its
+ *   own suite stayed green. That is the Phase 2 seam failure verbatim, reproduced inside the file
+ *   written to prevent it, and `validateSectionConfig` cannot catch it (arity is not a shape).
+ *   `contractArity.test.js` now derives this from `HubRoot.jsx` instead of restating it.
  *   `delta` is normalized 0..1 along the pad's travel; `axis` says which way the member dragged.
- * @property {() => void} [onScrubCommit]     Fired once on release, after the last `onScrub`.
- * @property {() => (string|{label: string, value: string})} [readout]
- *   What the chip shows during a scrub. Called per step; must be cheap and must not mutate.
+ * @property {(ctx: object) => void} [onScrubCommit]
+ *   Fired once on release, after the last `onScrub`. Also context-first (`HubRoot.jsx:151`).
+ * @property {(ctx: object) => (string|{label: string, value: string})} [readout]
+ *   What the chip shows during a scrub. Context-first like the others. Called per step; must be
+ *   cheap and must not mutate.
  * @property {HubListAdapter} [listAdapter]   Required only if the section has a cursor.
  */
 

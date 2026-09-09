@@ -1448,6 +1448,21 @@ it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
 
+### ⛔ A citation you cannot quote is struck
+
+> **A plan citation to a document or file must be verified AT WRITE TIME by quoting the cited
+> line. A citation that cannot be quoted is struck, not softened.**
+
+Owner ruling, 2026-09-09. The Phase 3 plan carried *"`Screener.jsx` no longer exposes an
+`activeTab` — the Wave 0 scout described one"*. The string `activeTab` appears **nowhere** in
+`10-wave0-discovery.md`. A binding was attributed to a document that never made the claim, and it
+survived weeks of review because a citation looks like evidence: nobody re-opens a source that has
+already been named.
+
+This is the same failure as a stale line number, one level up — and worse, because a wrong line
+number is discovered the moment someone follows it, while an invented citation sends them to a
+real document that simply does not say the thing. Quote the line into the plan, or do not cite it.
+
 ### ⛔ Provenance: `git show <sha>:<file>`, never `git status`
 
 > **"Did my change cause this?" is answered by asking the committed version, not by looking at

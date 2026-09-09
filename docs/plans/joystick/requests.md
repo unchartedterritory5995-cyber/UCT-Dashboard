@@ -4,6 +4,190 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## R-07 — `reachable.test.js`: Wave A wired both hooks; their `AWAITING_A_DECISION` entries must go
+
+**Filed by:** the 3.2 Breadth integrator. **Shared with 3.1 Wire** — either wave alone triggers it,
+so whichever lands first, this is one edit, not two.
+
+`app/src/components/screener/reachable.test.js` fails its own **`and it cannot excuse something
+that is actually wired`** assertion:
+
+```
+these are reachable — remove their AWAITING_A_DECISION entries
+  app/src/hub/useHubMode.js
+  app/src/hub/useHubCursor.js
+```
+
+That is the rail working exactly as written. Its own comment says so:
+
+> ⚠️ REMOVAL CONDITION, not a parking space: Phase 3 mounts them. … **When the first page wires
+> each one, DELETE ITS ENTRY HERE in the same commit.**
+
+Both conditions are now met, by two different waves:
+
+| Module | First real caller |
+|---|---|
+| `app/src/hub/useHubMode.js` | `app/src/pages/MorningWire.jsx:12,173` (3.1) **and** `app/src/hub/sections/breadthSection.js:41,224` (3.2) |
+| `app/src/hub/useHubCursor.js` | `app/src/hub/sections/wireSection.js:38,174` (3.1) |
+
+`reachable.test.js` is outside this build's owned set, so it is filed rather than applied.
+
+Requested diff — delete lines 280–303 of `app/src/components/screener/reachable.test.js` (the whole
+"JOYSTICK HUB, PHASE 1" comment block and both entries):
+
+```diff
+ const AWAITING_A_DECISION = {
+-  // ── JOYSTICK HUB, PHASE 1 (2026-01) ──────────────────────────────────────
+-  //
+-  // Two hooks that are BUILT AND TESTED BUT MOUNTED NOWHERE. …
+-  'app/src/hub/useHubMode.js':
+-    'JOYSTICK HUB PHASE 1 — the per-page mode registration hook. …',
+-  'app/src/hub/useHubCursor.js':
+-    'JOYSTICK HUB PHASE 1 — the one shared list cursor. …',
+   // ── JOYSTICK HUB, PHASE 3 TASK 0 (2026-09-09) ────────────────────────────
+```
+
+⛔ **`app/src/hub/HubConfirmSheet.jsx` STAYS.** Its removal condition is "the first section that
+opens a confirm sheet", and neither Wave A section proposes a write — Breadth's fan is not wired
+this wave and the plan lists no `confirm` action for `breadth` at all. Deleting all three entries
+together because they share a map would excuse a genuinely unmounted component.
+
+The `NOT MOUNTED YET` banners inside `useHubMode.js` / `useHubCursor.js` are also false now and
+should go in the same commit: they instruct the next reader to treat a mounted module as a design.
+Both files are Director-owned.
+
+---
+
+## R-06 — `HubRoot` hard-codes `scrubReadout={null}`, so every section's `readout()` is dead
+
+**Filed by:** the 3.2 Breadth integrator. **Blocks the visible half of every Phase 3 scrub.**
+
+`contracts.js` makes `readout()` mandatory beside `onScrub` for a stated reason:
+
+> a section with onScrub must also supply readout() — **a scrub the chip cannot narrate is invisible**
+
+Breadth supplies one (the resolved tab's label). It reaches nobody: `app/src/hub/HubRoot.jsx:298`
+passes the chip a literal `null`, under a comment saying Phase 3 will wire it —
+
+```jsx
+        scrubReadout={null}
+```
+
+so `HubChip` falls back to the literal word "Scrub" for every section, on every drag. The validator
+that exists to prevent an unnarrated scrub passes while the product ships exactly that.
+
+This bites Breadth harder than a cursor section: the tab scrub PREVIEWS and commits on release
+(each tab owns a heavy subtree — ECharts, Chart.js, a virtualized grid — which must not be mounted
+and torn down at every intermediate index of one drag), so between press and release the chip is
+the **only** feedback the member gets. With `null` there, the gesture reads as dead until they let
+go.
+
+Requested diff — `app/src/hub/HubRoot.jsx`:
+
+```diff
+-      {/* Phase 3 wires a real per-mode scrub readout (e.g. "NVDA · 4H") off
+-          `activeModeConfig`; nothing in the registry produces one yet, so this
+-          stays null (HubChip falls back to the literal "Scrub" while scrubbing). */}
+       <HubChip
+         label={activeModeConfig?.label}
+@@
+-        scrubReadout={null}
++        // Phase 3: the section narrates its own scrub. Called only WHILE scrubbing (the
++        // contract says readout() must be cheap and must not mutate), and defensively —
++        // a section throwing here would take the whole hub down mid-gesture.
++        scrubReadout={state.scrubbing ? safeReadout(activeModeConfig) : null}
+```
+
+with, beside `runAction`:
+
+```js
+/** A section's readout, or null. Never allowed to throw into HubRoot's render. */
+function safeReadout(config) {
+  if (typeof config?.readout !== 'function') return null
+  try { return validateChipReadout(config.readout(), `${config.id} readout`) } catch { return null }
+}
+```
+
+⚠️ `HubChip`'s prop is typed `string|null` in `contracts.js` (`HubChipProps.scrubReadout`) while
+`ChipReadout` also permits `{label, value}`. **Whoever applies this owns that reconciliation** —
+either `HubChip` learns the object form, or `HubSectionConfig.readout` is narrowed to a string.
+Breadth returns a bare string either way, so it is unaffected by the choice.
+
+**⭐ Confirmed independently by the 3.1 Wire integrator.** Wire is the section §3.1 specifies a chip
+string for by name — *"the segment's own label text, e.g. `"The Board"`"* — so with `null` there the
+one piece of copy the spec writes out for this section reaches nobody. `wireSection.js`'s `readout()`
+returns a **bare string** (the label, or `Segment N of M` when a rundown renders an empty one), so
+it is likewise unaffected by the `string` vs `{label, value}` choice above.
+
+⚠️ **Please add a rail that goes red if the prop returns to `null`, asserted on the chip's RENDERED
+TEXT.** A structural test that `readout()` exists, or that `safeReadout` was called, passes with the
+wire cut — which is the state this entry is reporting. Both Wave A sections' readouts are unit-tested
+today and both are dead in the product; that is precisely the pair of green suites either side of a
+severed wire that `contracts.js`'s own header was written about.
+
+---
+
+## R-05 — `onScrub` is documented with two different argument lists, and both are mounted
+
+**Filed by:** the 3.2 Breadth integrator. **Not blocking** (Breadth reads either) — **but it is a
+live severed-wire hazard for every later section.**
+
+Two authorities disagree about what a section's `onScrub` is called with:
+
+| Caller | Signature |
+|---|---|
+| `app/src/hub/HubRoot.jsx:147` — the MOUNTED path | `activeModeConfig?.onScrub?.(ctx, scrub)` |
+| `app/src/hub/registry.js:49` — `HubMode` JSDoc | `(ctx, delta) => void` |
+| `app/src/hub/contracts.js:261` — `HubSectionConfig` typedef | `(scrub: {delta, axis}) => void` |
+| `app/src/hub/phase3Contracts.test.jsx` — `EngineHarness` | `onScrub: config.onScrub` → the engine calls `(scrub)` |
+
+An integrator who builds against `contracts.js` — which is what the Phase 3 brief instructs, and
+what the contract test drives — writes `onScrub({delta, axis})`. On the real page that parameter is
+`ctx`, `ctx.delta` is `undefined`, and the scrub does nothing, **while the section's own suite stays
+green, because the harness calls it the other way.** That is the Phase 2 defect shape verbatim, and
+`contracts.js` cannot catch it: `validateSectionConfig` only checks that `onScrub` is a function.
+
+`breadthSection.js` sidesteps it by identifying the payload rather than positioning it
+(`scrubPayloadOf` — the argument carrying a finite numeric `delta`), and its suite asserts that BOTH
+call shapes land. That is a defensive read, not a fix: the seam still has two answers.
+
+**⭐ Confirmed independently by the 3.1 Wire integrator, which had not seen this entry when it hit
+the same wall** — two waves reaching the identical conclusion from opposite ends of the seam is the
+strongest evidence available that this is real and not a misreading. `wireSection.js` carries the
+same shim under a different name (`readScrubPayload`), and `wireSection.test.jsx` asserts both call
+shapes with a mutation check (collapsing it to "first argument wins" turns the `HubRoot` case red).
+**Whichever direction is chosen, please delete BOTH shims in that commit** — `readScrubPayload` in
+`hub/sections/wireSection.js` and `scrubPayloadOf` in `hub/sections/breadthSection.js`. Each is a
+workaround for a disagreement; left behind after the fix, they become two more places that quietly
+tolerate a signature nothing should be sending.
+
+⚠️ 3.1 has no preference between the two directions and is not relitigating the recommendation
+above — it only asks that the losing signature stop being documented anywhere, so the next
+integrator cannot read the wrong one first.
+
+Requested — pick one and make the other match. The cheaper direction is to align the typedef with
+the mounted caller, since `HubRoot` and `registry.js` already agree:
+
+```diff
+--- a/app/src/hub/contracts.js
++++ b/app/src/hub/contracts.js
+- * @property {(scrub: {delta: number, axis: 'x'|'y'}) => void} [onScrub]
++ * @property {(ctx: object, scrub: {delta: number, axis: 'x'|'y'}) => void} [onScrub]
++ *   ⚠️ ctx FIRST. `HubRoot.jsx` calls `onScrub(ctx, scrub)` and `onScrubCommit(ctx)`; a section
++ *   written to the one-argument form silently receives `ctx` and reads `undefined.delta`.
+```
+
+…and, in the same commit, `phase3Contracts.test.jsx`'s `EngineHarness` should pass
+`onScrub={(scrub) => config.onScrub(ctxStub, scrub)}` so the harness models `HubRoot` rather than a
+second wiring — otherwise the file that exists to test the join keeps testing a shape nothing
+mounted uses.
+
+If the one-argument form is preferred instead, `HubRoot.jsx:147,151` and `registry.js:49-50` are the
+two edits, and a section wanting `ctx` reads it from `useHub()` at its own mount point — Breadth
+already does, and needs no `ctx` at all.
+
+---
+
 ## R-04 — Seven standing suite failures, for their owners
 
 **Status:** filed, not acted on. **Measured on `origin/master` @ `75ca5c2ed`**, 2026-09-09 — a

@@ -1,18 +1,10 @@
 // Joystick hub — useHubMode(modeConfig): registers a page's tap/double-tap/scrub/fan.
 // See docs/plans/joystick/00-master-spec-v1.3.md §2e (adaptability), §4 (Phase 1).
 //
-// ⛔ NOT MOUNTED YET — PHASE 1 SHIPS THIS UNWIRED, DELIBERATELY.
-// Today the only thing that imports this file is its own test (or another
-// equally unmounted hub module). It is reached from NO route. Phase 2 wires it:
-// `HubProvider` goes around `<main>` in `Layout.jsx`, and the section
-// integrators call `useHubMode` / `useHubCursor` from their pages.
-//
-// It is recorded here rather than left to be discovered because this repo has
-// been bitten by the opposite: an agent read a green test file as the precedent
-// for its own work before noticing the page it tested reached no route. A test
-// is not a door. Until Phase 2, treat this module as a design, not a feature —
-// and if Phase 2 is cancelled, DELETE these files rather than leaving them
-// looking shipped.
+// ✅ WIRED IN PHASE 3 WAVE A (2026-09-09). This module is reached from real routes now:
+// `MorningWire.jsx` and `Breadth.jsx` register their sections through it, and the
+// `AWAITING_A_DECISION` entry that declared it unmounted has been deleted from
+// `components/screener/reachable.test.js` per its own stated removal condition.
 
 import { useEffect } from 'react'
 import { useHub } from './HubContext'

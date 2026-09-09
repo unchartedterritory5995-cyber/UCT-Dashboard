@@ -236,14 +236,23 @@ describe('the cursor seam — identity key and scrollTo', () => {
  * passed as engine callbacks. If that wiring ever drifts, this harness drifts with it and the
  * order assertions below go red — which is the point.
  */
-function EngineHarness({ config, settings = {} }) {
+function EngineHarness({ config, settings = {}, ctx = { fake: 'ctx' } }) {
   const padRef = useRef(null)
   const { handlers } = useJoystick({
     mode: config,
     settings,
     padRef,
-    onScrub: config.onScrub,
-    onScrubCommit: config.onScrubCommit,
+    // ⛔ CONTEXT-FIRST, EXACTLY AS HubRoot.jsx:147/151 DOES IT.
+    //
+    // This harness previously passed `config.onScrub` straight through, i.e. the one-argument
+    // form — and the contract typedef had been written to match the harness. Both halves agreed
+    // with each other and neither agreed with the mounted product, so a section built against
+    // the contract would have read `ctx.delta === undefined` on the real page with a green
+    // suite behind it. That is the Phase 2 seam failure reproduced inside the file written to
+    // prevent it. `contractArity.test.js` now derives the argument list from HubRoot rather
+    // than letting this harness be the authority.
+    onScrub: (scrub) => config.onScrub?.(ctx, scrub),
+    onScrubCommit: () => config.onScrubCommit?.(ctx),
   })
   return <div data-testid="pad" ref={padRef} {...handlers} />
 }
@@ -258,8 +267,10 @@ describe('a fake page + the real engine — the documented call order', () => {
       id: 'scan',
       onTap: () => calls.push('tap'),
       onDoubleTap: () => calls.push('doubleTap'),
-      onScrub: (s) => calls.push(`scrub:${s.axis}`),
-      onScrubCommit: () => calls.push('commit'),
+      // Context-first: the section asserts it RECEIVES ctx, so a regression to the
+      // one-argument form fails here rather than silently on a real page.
+      onScrub: (ctx, s) => calls.push(ctx && s ? `scrub:${s.axis}` : 'scrub:BAD-ARITY'),
+      onScrubCommit: (ctx) => calls.push(ctx ? 'commit' : 'commit:BAD-ARITY'),
       readout: () => 'row 3 of 41',
       listAdapter: { items: [], identityKey: (x) => x, scrollTo: () => {} },
     })
@@ -372,5 +383,43 @@ describe('a fake page + the real engine — the documented call order', () => {
 
     expect(calls).not.toContain('commit')
     expect(calls.filter((c) => c.startsWith('scrub'))).toEqual([])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('⛔ the contract argument lists are DERIVED from the mounted call sites', () => {
+  // The R-05 rail. A typedef and a test harness can agree with each other and both be wrong
+  // about the product — that is exactly what happened here, and `validateSectionConfig` cannot
+  // catch it because arity is not a shape. So this reads HubRoot and asserts the contract
+  // matches, rather than restating either.
+  const hubRoot = readFileSync(path.join(HERE, 'HubRoot.jsx'), 'utf8')
+  const contracts = readFileSync(path.join(HERE, 'contracts.js'), 'utf8')
+
+  it('CONTROL: the call sites are present in HubRoot', () => {
+    expect(hubRoot).toMatch(/onScrub\?\.\(/)
+    expect(hubRoot).toMatch(/onScrubCommit\?\.\(/)
+  })
+
+  it('HubRoot calls onScrub with (ctx, scrub) and the typedef says so', () => {
+    expect(hubRoot, 'HubRoot no longer passes ctx first').toMatch(/onScrub\?\.\(\s*ctx\s*,/)
+    // Line-scoped rather than one big regex: the type itself contains braces
+    // (`{delta, axis}`), so a `[^}]*` span stops inside it and can never reach `[onScrub]`.
+    const onScrubLine = contracts.split(/\r?\n/).find((l) => l.includes('[onScrub]'))
+    expect(onScrubLine, 'no [onScrub] property found in contracts.js').toBeTruthy()
+    expect(onScrubLine, 'the HubSectionConfig typedef disagrees with HubRoot')
+      .toContain('(ctx: object, scrub:')
+  })
+
+  it('HubRoot calls onScrubCommit with (ctx) and the typedef says so', () => {
+    expect(hubRoot).toMatch(/onScrubCommit\?\.\(\s*ctx\s*\)/)
+    expect(contracts).toMatch(/@property \{\(ctx: object\) => void\}\s*\[onScrubCommit\]/)
+  })
+
+  it('⛔ HubRoot renders the section readout — it is not hard-coded null', () => {
+    // R-06: `scrubReadout={null}` made every section's readout() dead code while the contract
+    // required one, so the product contradicted its own stated rule.
+    expect(hubRoot, 'scrubReadout is hard-coded null again — every readout() is dead')
+      .not.toMatch(/scrubReadout=\{null\}/)
+    expect(hubRoot).toMatch(/scrubReadout=\{scrubReadout\}/)
   })
 })

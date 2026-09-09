@@ -182,7 +182,12 @@ export const modes = [
     label: 'Breadth',
     color: '--hub-mode-breadth',
     route: '/breadth',
-    tapHint: 'tap: next session',
+    // ⚰️ WAS 'tap: next session'. Tap steps the TAB, not a session — nothing in Breadth's hub
+    // binding has ever touched a session. Invisible while `breadth` sits in PREVIEW_MODES (the
+    // chip shows "Preview — more coming"), which is exactly why it survived: copy that no one can
+    // see is copy no one checks, and it would have become wrong the moment the preview exited.
+    // Found by the 3.2 integrator, corrected here because registry.js is Director-owned.
+    tapHint: 'tap: next tab',
     fan: [
       {
         id: 'breadth.sizeRule',

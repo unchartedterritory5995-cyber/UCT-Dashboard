@@ -147,6 +147,8 @@ function HubShell({ setToastMsg }) {
     activeModeConfig?.onScrub?.(ctx, scrub)
   }, [activeModeConfig, ctx])
 
+
+
   const handleScrubCommit = useCallback(() => {
     activeModeConfig?.onScrubCommit?.(ctx)
   }, [activeModeConfig, ctx])
@@ -165,6 +167,20 @@ function HubShell({ setToastMsg }) {
   })
 
   // The coach mark dismisses itself the first time the fan actually opens — see HubCoachMark.
+  // The chip's live scrub text. Computed during render (not stored) so it always reflects the
+  // step the member is on, and only while actually scrubbing — a readout is about a gesture in
+  // progress, and calling it at rest would narrate a drag nobody is performing.
+  //
+  // `ChipReadout` allows `{label, value}`; `HubChip.scrubReadout` is `string|null`. Flattened
+  // HERE rather than widening HubChip mid-wave, so there is one place that knows how the two
+  // shapes meet.
+  const scrubReadout = useMemo(() => {
+    if (!state.scrubbing || !activeModeConfig?.readout) return null
+    const r = activeModeConfig.readout(ctx)
+    if (r == null) return null
+    return typeof r === 'string' ? r : `${r.label} ${r.value}`
+  }, [state.scrubbing, activeModeConfig, ctx])
+
   const usedRef = useRef(false)
   if (state.open) usedRef.current = true
 
@@ -295,7 +311,15 @@ function HubShell({ setToastMsg }) {
         tapHint={isPreviewMode(activeModeConfig?.id)
           ? 'Preview — more coming' : activeModeConfig?.tapHint}
         scrubbing={state.scrubbing}
-        scrubReadout={null}
+        // ⛔ WAS HARD-CODED `null`, WHICH MADE EVERY SECTION'S `readout()` DEAD CODE.
+        //
+        // The Phase 3 contract requires a section with `onScrub` to supply `readout()`, on the
+        // stated grounds that "a scrub the chip cannot narrate is invisible" — and with `null`
+        // wired here that sentence was true of the shipped product: the chip fell back to the
+        // literal "Scrub" no matter what the section computed. For a section that PREVIEWS on
+        // drag and applies on release (Breadth), the chip is the only feedback between press and
+        // release, so the gesture read as dead until the member let go.
+        scrubReadout={scrubReadout}
         open={state.open}
         // Named only while a ring is actually selected, so the chip does not assert a
         // ring during a sticky-open fan nobody is touching.
