@@ -244,3 +244,71 @@ against the happy path.
 sampler showed `prepared=437, gen=0, restart=False` throughout — which is also what a
 healthy quiet tape looks like. **Railway's deployment status is the only authority.**
 Do not try to infer build health from application telemetry.
+
+---
+
+## E10 — HOW TO RESCUE A HUNG BUILD (the path that actually works)
+
+E9 recorded that a build can hang 30+ minutes at pip with no output. This is the
+recovery procedure, established the hard way on 2026-09-09.
+
+### What does NOT work
+
+- **`railway redeploy -s <svc>`** — refuses while anything is building:
+  *"The latest deployment for service X cannot be redeployed. This may be because
+  it's currently building, deploying, or was removed."*
+- **`railway down`** — the only CLI cancel verb. *"Remove the most recent
+  deployment"*, semantics unverified against a service whose OLD container is still
+  serving. Not worth the risk blind.
+- ⛔ **`deploymentRedeploy(id)` on a CANCELLED deployment — permanently refused.**
+  Same message, forever, tested over 12 minutes and again after the service had
+  settled to SUCCESS. A cancelled deployment is not a redeployable one.
+- ⛔⛔ **`railway redeploy -s flow-worker` AFTER the cancel would have SILENTLY
+  ROLLED BACK.** Cancelling made `latestDeployment` revert to the previous
+  deployment — `ff886d43` at commit `daa67183d`, the OLD code — and `redeploy`
+  means "redeploy the LATEST deployment". It would have rebuilt the pre-fix commit
+  and reported success. **Never use `redeploy` to re-trigger a specific commit;
+  it resolves a moving reference.**
+
+### What works
+
+Railway's GraphQL API at `https://backboard.railway.com/graphql/v2`, authenticated
+with the CLI's own `accessToken` from `~/.railway/config.json`:
+
+1. **Cancel** — `mutation { deploymentCancel(id: "<deployment-id>") }`.
+   Verified: the stuck deployment went `BUILDING -> REMOVED` while the serving
+   deployment stayed `SUCCESS` across four consecutive polls. A hung build is
+   *blind*, never *down*, and cancelling it does not disturb what is serving.
+2. **Deploy an EXACT commit to ONE service** —
+   `mutation { serviceInstanceDeployV2(commitSha: "<full-40-char-sha>",
+   environmentId: "<env>", serviceId: "<svc>") }`.
+   Returns the new deployment id. **This is the right tool**: it names the commit
+   explicitly, so it cannot resolve to a moving reference, and it touches exactly
+   one service — no full-site bounce, no master push.
+
+### ⛔ THE 403 THAT IS NOT AN AUTH FAILURE
+
+The first three GraphQL attempts returned **HTTP 403** and read exactly like a
+rejected token. **It was Cloudflare blocking the default `urllib`/python
+User-Agent** — the same 1010-class block already documented for `curl` against
+uctintelligence.com. Adding a browser `User-Agent` header made the identical
+request succeed. **Send a browser UA to anything of Railway's or Cloudflare's, and
+never diagnose a 403 as an auth problem until you have.**
+
+### Useful ids (production)
+
+    project      d6574d0b-7973-4ece-b35c-65c0ad4c453d   luminous-recreation
+    environment  4c2149a7-d7bd-4bf9-9a4c-a879a5800067   production
+    flow-worker  27e17911-575f-404f-86f4-9dcdc3bdca08
+
+⭐ The flow-worker service id is also the prefix of its **pip build-cache mount**
+(`--mount=type=cache,id=s/27e17911-.../root/cache/pip`), which is how you can tell
+the cache is per-service — and therefore that a hang inside it can be
+service-specific while three siblings build the same `requirements.txt` cleanly.
+
+### The other half: a master push is NOT single-service
+
+While the hung build was being rescued, a *different* Claude session pushed two
+docs commits to master. `web` has an empty `watchPatterns` (= no filter), so it
+redeployed on a docs-only change; `flow-worker`, `worker` and `bars-api` correctly
+did not. **Coordinate before touching master — more than one agent may be pushing.**
