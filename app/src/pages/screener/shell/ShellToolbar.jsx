@@ -159,7 +159,7 @@ function Seal({ snapshot, snapshotDate }) {
 
 export default function ShellToolbar({ meta, view, onView, visibleColumns, allColumns,
   onColumns, onResetColumns, density, onDensity, snapshot, snapshotDate,
-  total, shown, isLoading, onExport, exportState, saveBar }) {
+  total, shown, isLoading, onExport, exportState, saveBar, reviewBar = null }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <div className={styles.toolbar}>
@@ -192,6 +192,12 @@ export default function ShellToolbar({ meta, view, onView, visibleColumns, allCo
         <button type="button" className={styles.toolBtn} disabled={exportState?.busy} onClick={onExport}>
           <UIcon name="download" size={13} /> {exportState?.busy ? 'Exporting…' : 'CSV'}
         </button>
+        {/* ⭐ THE REVIEW DOOR SITS WITH THE OTHER ACTIONS ON THE RESULT SET
+            (Columns, density, CSV) rather than beside the filters — it acts on
+            the answer, not on the question. A SLOT for the same reason `saveBar`
+            is one: this toolbar renders chrome and must not learn what a review
+            session is. */}
+        {reviewBar}
         {saveBar}
       </span>
       {(exportState?.note || exportState?.error) && (

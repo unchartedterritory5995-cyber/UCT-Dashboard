@@ -3,6 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
+import { uid } from '../utils/uid'
+import { anchorsForDrawing } from './chart/drawingAlertAnchors'
+import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
 // to freeze an error card or a loading skeleton as the snapshot. Inert on every
@@ -4089,6 +4092,12 @@ export default function StockChart({
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
+  // MOB-06′ orphan · CLEAR ALL. Same idiom and same reason as addDrawingRef:
+  // `buildRegionSections` is defined above `useChartDrawings`, and a direct
+  // capture would put `clearAll` and `drawings.length` in the menu's dep array,
+  // rebuilding it on every drawing edit for a row most users never open.
+  const clearAllRef = useRef(null)
+  const drawingCountRef = useRef(0)
 
   // ⭐ chart-UX-walls TASK 4 — "Add alert on <label>…", from the chip AND from the
   // right-click region menu, through the SAME popover the 🔔 button opens.
@@ -4465,8 +4474,21 @@ export default function StockChart({
       secs.push({ id: 'region', title: label, items })
     } else if (region.type === 'priceAxis') {
       secs.push(...priceActions)
+      // ⭐ THE PHONE'S ONLY PATH TO THE SCALE MODE. The always-visible A/L/% chips
+      // are `display:none` on the phone shell (StockChart.module.css), so before
+      // 2026-09-08 `percentScale` had NO mobile writer at all — the chips were the
+      // only control in the app that set it, and ChartSettingsModal has none.
+      //
+      // ⛔ ALL THREE ROWS GO THROUGH `setScale`, NEVER `setCs('logScale', …)`.
+      // `effectiveScale` resolves `pct` BEFORE `log`, so a bare logScale toggle is
+      // inert whenever Percent is on — it checks a box and moves nothing. One
+      // writer, one reader, and the checkmark is derived from the reader so the
+      // current mode is always the one shown.
       secs.push({ id: 'region', title: 'Price scale', items: [
-        { id: 'p-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+        { id: 'p-arith', label: 'Arithmetic scale', kind: 'toggle', checked: effectiveScale === 'arith', onSelect: () => setScale('arith') },
+        { id: 'p-log', label: 'Logarithmic scale', kind: 'toggle', checked: effectiveScale === 'log', onSelect: () => setScale('log') },
+        { id: 'p-pct', label: 'Percent scale', kind: 'toggle', checked: effectiveScale === 'pct', onSelect: () => setScale('pct') },
+        // Auto-scale is a FIT action, not a mode — it stays a plain row.
         { id: 'p-auto', label: 'Auto-scale', onSelect: autoScale },
       ] })
     } else if (region.type === 'timeAxis') {
@@ -4475,7 +4497,8 @@ export default function StockChart({
       // Open price area.
       secs.push(...priceActions)
       const items = [
-        { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: !!cs.logScale, onSelect: () => setCs('logScale', !cs.logScale) },
+        // Same one-writer rule as the price-axis section above: never setCs('logScale').
+        { id: 'pr-log', label: 'Logarithmic scale', kind: 'toggle', checked: effectiveScale === 'log', onSelect: () => setScale(effectiveScale === 'log' ? 'arith' : 'log') },
         { id: 'pr-magnet', label: 'Magnet crosshair', kind: 'toggle', checked: !!cs.crosshair?.magnet, onSelect: () => setCs('crosshair.magnet', !cs.crosshair?.magnet) },
       ]
       if (['1', '5', '15', '30', '60'].includes(resolvedTf)) {
@@ -4521,12 +4544,29 @@ export default function StockChart({
     })
     if (showDrawingTools) {
       viewItems.push({ id: 'hide-draw', label: 'Hide drawings', kind: 'toggle', checked: !!cs.hideDrawings, onSelect: () => setCs('hideDrawings', !cs.hideDrawings) })
+      // MOB-06′ orphan · CLEAR ALL. `clearAll` reached only the desktop toolbar,
+      // which is display:none on the phone shell, so erasing a board meant tapping
+      // the eraser once per drawing. It sits beside "Hide drawings" because both
+      // act on the whole set — the grammar's rule that related actions live in one
+      // place.
+      // ⭐ THE COUNT IS THE CLARITY. A destructive row on a phone needs to say what
+      // it will destroy, and the row is absent entirely at zero rather than being a
+      // live control that does nothing. Undo covers a mis-tap (the phone draw bar
+      // carries it), which is why this asks no second question.
+      const _drawCount = drawingCountRef.current || 0
+      if (_drawCount > 0) {
+        viewItems.push({
+          id: 'clear-draw',
+          label: `Clear all drawings (${_drawCount})`,
+          onSelect: () => { try { clearAllRef.current?.() } catch { /* noop */ } },
+        })
+      }
     }
     viewItems.push(...settingsLink('chart-set', 'Chart settings…'))
     secs.push({ id: 'view', items: viewItems })
 
     return secs
-  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings])
+  }, [cs, handleUpdateChartSettings, showDrawingTools, showVolumeProp, resolvedOverlays, resolvedTf, onTfChange, onOpenSettings, effectiveScale, setScale])
 
   // ── Pattern overlay state (Phase 5 Tasks 1, 3, 4) ──
   // Toggle persists via chart_settings (usePreferences). Local UI state mirrors
@@ -4751,6 +4791,8 @@ export default function StockChart({
   }, [])
   const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
+  clearAllRef.current = clearAll
+  drawingCountRef.current = drawings.length
 
   // "Set alert" from a line/trendline's right-click menu → create a server-side
   // watchlist alert (fires the bell/email/Discord like any price alert; appears in
@@ -4758,51 +4800,38 @@ export default function StockChart({
   // line = a 'trendline' alert carrying its two anchors (real unix-seconds + price)
   // so the checker can interpolate the line's level over time. A point placed past
   // the last candle (futureBars) is resolved to a real future time via the bar cadence.
-  const handleSetDrawingAlert = useCallback(async (drawing, direction) => {
+  /* Create an alert from a drawing.
+   *
+   * ⭐ TWO SEMANTICS, OFFERED ON PURPOSE (MOB-05). `bound` decides which:
+   *   • bound: true  — "follow this line". The alert carries `drawing_id`, and
+   *     `useBoundDrawingAlerts` below re-pushes its anchors whenever the line
+   *     moves, so dragging the trendline drags the alert with it. Deleting the
+   *     line deletes the alert rather than leaving one firing off a line nobody
+   *     can see any more.
+   *   • bound: false — a FIXED level, snapshotted from where the line is right
+   *     now and then independent of it. This is the pre-existing behaviour and
+   *     it is deliberately kept: "alert me at 114.26, which I found by drawing
+   *     a line" is a real intent, and it is the ONLY intent the seeded
+   *     price-context alerts express.
+   *
+   * ⛔ THE GEOMETRY COMES FROM `anchorsForDrawing`, NOT FROM HERE — the resync
+   * path needs the identical answer, and two copies of that conversion would
+   * disagree silently at the first edit. */
+  // MOB-05 — keep every "follow this line" alert glued to its drawing. Dormant
+  // unless this chart actually carries a line-ish drawing; see the hook header.
+  useBoundDrawingAlerts({
+    sym, drawings, tf: resolvedTf, etOffset: _ET_OFFSET,
+    getBars: useCallback(() => drawBarsRef.current || [], []),
+  })
+
+  const handleSetDrawingAlert = useCallback(async (drawing, direction, opts) => {
     if (!sym || !drawing) return
-    const pts = drawing.points || []
-    const kind = (drawing.type === 'horizontal' || drawing.type === 'hray') ? 'line' : 'trendline'
-    const arr = drawBarsRef.current || []
-    // Exact per-bar spacing for THIS timeframe (matches how the chart lays out its
-    // uniform logical axis), so a point placed past the last candle resolves to a
-    // real future time consistent with the visual line — not a fragile median.
-    const barSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'W' ? 604800 : resolvedTf === 'M' ? 2592000 : 86400)
-    // A drawing point's `time` is in the chart's DISPLAY epoch, NOT true UTC:
-    //  • intraday = UTC-floored + _ET_OFFSET (fake-ET shift for the axis)
-    //  • D/W/M    = a "YYYY-MM-DD" ET date STRING
-    // The server-side checker compares against true-UTC time.time(), so we MUST
-    // convert here or the trendline evaluates hours off (intraday) or not at all
-    // (daily → Math.round(string) = NaN → alert never created).
-    const toUtcSec = (t) => {
-      if (typeof t === 'number' && Number.isFinite(t)) return t - _ET_OFFSET          // reverse the intraday ET shift
-      if (typeof t === 'string') {
-        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
-        if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], 16, 0, 0) / 1000               // D/W/M date → ~noon ET (16:00 UTC)
-      }
-      return NaN
-    }
-    const anchorUtc = (p) => {
-      const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
-      if (fb > 0 && arr.length) {
-        const lastUtc = toUtcSec(arr[arr.length - 1].t)
-        return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
-      }
-      return toUtcSec(p?.time)
-    }
-    const body = { sym, direction, alert_type: kind }
-    if (kind === 'line') {
-      const price = pts[0]?.price
-      if (!Number.isFinite(price)) return
-      body.target_price = price
-    } else {
-      const a = pts[0], b = pts[1]
-      if (!Number.isFinite(a?.price) || !Number.isFinite(b?.price)) return
-      const t1 = anchorUtc(a), t2 = anchorUtc(b)
-      if (!Number.isFinite(t1) || !Number.isFinite(t2)) return
-      body.target_price = b.price   // display fallback (latest anchor); server falls back to it if t1==t2
-      body.anchor_t1 = Math.round(t1); body.anchor_p1 = a.price
-      body.anchor_t2 = Math.round(t2); body.anchor_p2 = b.price
-    }
+    const geom = anchorsForDrawing(drawing, {
+      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET,
+    })
+    if (!geom) return
+    const body = { sym, direction, ...geom }
+    if (opts?.bound !== false && drawing.id) body.drawing_id = drawing.id
     try {
       const res = await fetch('/api/watchlist-alerts', {
         method: 'POST',
@@ -4826,7 +4855,7 @@ export default function StockChart({
   // ── Annotation CRUD (Model Book) — operate on the `annotations` prop and
   // bubble the new array to the parent via onAnnotationsChange (no localStorage).
   const annAdd = useCallback((d) => {
-    const id = crypto.randomUUID()
+    const id = uid()
     onAnnotationsChange?.([...(annotations || []), { ...d, id }])
     return id
   }, [annotations, onAnnotationsChange])
@@ -4868,7 +4897,7 @@ export default function StockChart({
   const [indexActiveTool, setIndexActiveTool] = useState('advance')
   const [indexSelectedId, setIndexSelectedId] = useState(null)
   const idxAnnAdd = useCallback((d) => {
-    const id = crypto.randomUUID()
+    const id = uid()
     onIndexAnnotationsChange?.([...(indexAnnotations || []), { ...d, id }])
     return id
   }, [indexAnnotations, onIndexAnnotationsChange])
@@ -15384,6 +15413,24 @@ export default function StockChart({
           {crosshairData.volume != null && (
             <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           )}
+          {/* ⭐ MOB-06′ — dollar volume + average volume, for the PHONE only.
+              These already render on desktop in the volume-pane strip (.volLegend),
+              which is `display:none` on the phone shell — so on a phone the two
+              numbers existed in `crosshairData` and reached no surface at all.
+              They ride the crosshair legend (already contextual, already
+              device-verified) rather than restoring a second permanent strip.
+              ⛔ VISIBILITY IS CSS'S JOB, NOT JS'S: `.volXtra` is hidden by default
+              and unhidden only by the same phone-shell + coarse query that hides
+              `.volLegend`, so exactly one surface shows them on any given device.
+              No new state, no second subscription — the same crosshairData fields
+              the volume strip reads. Each guard is independent so an unavailable
+              metric renders NOTHING rather than a misleading zero. */}
+          {crosshairData.dollarVol != null && (
+            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>$ Vol <span className={styles.legendVal} style={legBase}>{formatDpNotional(crosshairData.dollarVol)}</span></span>
+          )}
+          {crosshairData.volAvg != null && crosshairData.volMaPeriod && (
+            <span className={`${styles.legendLabel} ${styles.volXtra}`} style={legBase}>Avg {crosshairData.volMaPeriod}D <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volAvg)}</span></span>
+          )}
           {/* Same Day-change colors as the header row (Chart Settings -> Header): one
               setting drives both readouts. Unset falls through to the CSS class. */}
           <span
@@ -15793,6 +15840,8 @@ export default function StockChart({
               canRedo={canRedo}
               magnet={magnet}
               setMagnet={setMagnet}
+              repeatMode={repeatMode}
+              setRepeatMode={handleSetRepeatMode}
             />
           )}
           <ChartToolbar

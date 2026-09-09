@@ -1,0 +1,123 @@
+/* The phone's Drawing Boards sheet. Row shape deliberately matches
+   MobileLayoutsSheet: a wide pick target on the left, small controls on the
+   right — a phone user should not have to learn two list idioms for the two
+   named-thing managers this product has. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 2px 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--tap-min);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.rowActive {
+  border-color: color-mix(in srgb, var(--ut-gold) 40%, transparent);
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent);
+}
+
+/* The whole name area is the switch target — the single most common action in
+   this sheet gets the largest box, and the destructive one gets the smallest. */
+.pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+  padding: 6px 4px 6px 8px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pick:active { background: var(--bg-hover); }
+
+.check {
+  flex: 0 0 auto;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ctl {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: var(--tap-min);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctl:active { background: var(--bg-hover); }
+/* A hidden board still lists — it is hidden on the CHART, not from the manager.
+   Dimming the control is how you tell, and the aria-label says it outright. */
+.ctlOff { opacity: 0.45; }
+.danger { color: var(--loss, #ef4444); }
+
+.rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap-min);
+  margin: 0 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text);
+  /* 16px or iOS Safari zooms the page on focus and never zooms back. */
+  font-size: 16px;
+}
+.rename:focus { outline: none; }
+
+.newRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap-min);
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.newRow:active { background: var(--bg-hover); }

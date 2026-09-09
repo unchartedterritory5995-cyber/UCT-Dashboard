@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
+import { isCoarsePointer, hitThreshold, handleRadius, crossedDragSlop, useCoarsePointer } from './coarsePointer'
+import { fmtLevel, visibleOnly } from './drawingObjects'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -73,21 +75,28 @@ function autoLabelInk(chart) {
 // Line tools whose right-click menu offers "Set level" (type an exact price) and,
 // for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
 const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
+const ALERT_BIND_KEY = 'uct.chart.alertBind'   // 'bound' (default) | 'fixed'
 const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
-// Trim a price to a tidy prefill string (max 4 decimals, no trailing zeros).
-function fmtLevel(v) {
-  if (v == null || !Number.isFinite(+v)) return ''
-  return String(+(+v).toFixed(4))
-}
 // Coarse pointers (finger/stylus) need a bigger grab radius than a mouse.
-const _COARSE_POINTER = typeof window !== 'undefined'
-  && !!window.matchMedia?.('(pointer: coarse)')?.matches
-const HIT_THRESHOLD = _COARSE_POINTER ? 15 : 8 // pixels
-// Selection-handle PAINT radius. The grab zone was already coarse-aware
-// (HIT_THRESHOLD above) but the dot itself stayed 4px — finger users couldn't
-// SEE what was grabbable. On touch the dot grows and renderSelectionHandles
-// adds a soft halo sized to the real hit zone, so the affordance matches it.
-const HANDLE_R = _COARSE_POINTER ? 7 : 4
+//
+// ⛔ THESE ARE FUNCTIONS, NOT CONSTANTS, AND THAT IS THE POINT. They were
+// `const HIT_THRESHOLD = _COARSE_POINTER ? 15 : 8` — evaluated ONCE at module
+// import, so a chart could never change pointer type for the life of the
+// bundle. An iPad that gains or loses a Magic Keyboard flips `(pointer: coarse)`
+// mid-session, and an emulated coarse pointer could never reach this branch at
+// all, which is why four coarse-pointer drawing behaviours were unverifiable in
+// the 2026-09 mobile teardown. `coarsePointer.js` owns the live answer; call it
+// at USE time and never hoist the result into a module-scope constant again.
+//
+// Selection-handle PAINT radius: the grab zone was already coarse-aware but the
+// dot itself stayed 4px — finger users couldn't SEE what was grabbable. On touch
+// the dot grows and renderSelectionHandles adds a halo sized to the real hit
+// zone, so the affordance matches it.
+const HIT_THRESHOLD = () => hitThreshold()
+// Same shape as HIT_THRESHOLD: a FUNCTION, never a module-load constant — the
+// pointer answer must be read when the gesture happens, not when the file loads.
+const CROSSED_SLOP = (startPixel, pos) => crossedDragSlop(startPixel, pos)
+const HANDLE_R = () => handleRadius()
 // One-time "tap two points" coach chip for multi-point tools on touch —
 // single flag across all tools (the voice.dictation.hintSeen idiom).
 const TAP_HINT_LS = 'uct.drawings.tapHintSeen'
@@ -699,17 +708,21 @@ function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
 }
 
 function renderSelectionHandles(ctx, pts) {
+  // Pure canvas painter — no hook available here, so it asks the store directly.
+  // That is precisely why coarsePointer.js exposes a synchronous read as well as
+  // a hook: one fact, two doors, and they cannot disagree.
+  const coarse = isCoarsePointer()
   for (const p of pts) {
-    if (_COARSE_POINTER) {
+    if (coarse) {
       // Halo = the actual grab zone (HIT_THRESHOLD + the handle slack), so a
       // finger sees exactly how close is close enough.
       ctx.beginPath()
-      ctx.arc(p.x, p.y, HIT_THRESHOLD + 2, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, HIT_THRESHOLD() + 2, 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(201, 168, 76, 0.16)'
       ctx.fill()
     }
     ctx.beginPath()
-    ctx.arc(p.x, p.y, HANDLE_R, 0, Math.PI * 2)
+    ctx.arc(p.x, p.y, HANDLE_R(), 0, Math.PI * 2)
     ctx.fillStyle = '#c9a84c'
     ctx.fill()
     ctx.strokeStyle = '#1a1c17'
@@ -740,33 +753,33 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
   if (!pts.length) return false
   switch (d.type) {
     case 'trendline':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'ray': {
       if (pts.length < 2) return false
       const [a, b] = extendRay(pts[0], pts[1], w, h)
-      return distToSegment(mx, my, a.x, a.y, b.x, b.y) < HIT_THRESHOLD
+      return distToSegment(mx, my, a.x, a.y, b.x, b.y) < HIT_THRESHOLD()
     }
     case 'extended': {
       if (pts.length < 2) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     }
     case 'horizontal':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD
+      return Math.abs(my - pts[0].y) < HIT_THRESHOLD()
     case 'hray':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD && mx >= (pts[0].x || 0) - HIT_THRESHOLD
+      return Math.abs(my - pts[0].y) < HIT_THRESHOLD() && mx >= (pts[0].x || 0) - HIT_THRESHOLD()
     case 'vertical':
-      return Math.abs(mx - pts[0].x) < HIT_THRESHOLD
+      return Math.abs(mx - pts[0].x) < HIT_THRESHOLD()
     case 'rect':
     case 'circle': {
       if (pts.length < 2) return false
-      const x1 = Math.min(pts[0].x, pts[1].x) - HIT_THRESHOLD
-      const y1 = Math.min(pts[0].y, pts[1].y) - HIT_THRESHOLD
-      const x2 = Math.max(pts[0].x, pts[1].x) + HIT_THRESHOLD
-      const y2 = Math.max(pts[0].y, pts[1].y) + HIT_THRESHOLD
+      const x1 = Math.min(pts[0].x, pts[1].x) - HIT_THRESHOLD()
+      const y1 = Math.min(pts[0].y, pts[1].y) - HIT_THRESHOLD()
+      const x2 = Math.max(pts[0].x, pts[1].x) + HIT_THRESHOLD()
+      const y2 = Math.max(pts[0].y, pts[1].y) + HIT_THRESHOLD()
       return mx >= x1 && mx <= x2 && my >= y1 && my <= y2
     }
     case 'arrow':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'text': {
       // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
       // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
@@ -793,15 +806,15 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
     case 'fib':
     case 'fibext':
       if (pts.length < 2) return false
-      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD * 2)
+      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
     case 'pitchfork':
       if (pts.length < 3) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD * 2
+      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD() * 2
     case 'channel':
       if (pts.length < 2) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD * 2
+      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD() * 2
     case 'cup': {
-      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD
+      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
       const L = pts[0], R = pts[2]
       const c = cupControlPoint(L, pts[1], R)
       // Sample the quadratic and test each chord against the cursor.
@@ -810,7 +823,7 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
         const t = i / 20, u = 1 - t
         const qx = u * u * L.x + 2 * u * t * c.x + t * t * R.x
         const qy = u * u * L.y + 2 * u * t * c.y + t * t * R.y
-        if (distToSegment(mx, my, px, py, qx, qy) < HIT_THRESHOLD) return true
+        if (distToSegment(mx, my, px, py, qx, qy) < HIT_THRESHOLD()) return true
         px = qx; py = qy
       }
       return false
@@ -829,7 +842,7 @@ function hitTestDrawing(d, pts, mx, my, w, h) {
       return mx >= Math.min(...xs) && mx <= Math.max(...xs) && my >= Math.min(...ys) && my <= Math.max(...ys)
     }
     case 'avwap':
-      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD * 2
+      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD() * 2
     default: return false
   }
 }
@@ -1077,6 +1090,11 @@ export default function ChartDrawingOverlay({
   quickBarInset = 10,        // px above the chart's bottom edge for the touch quick-action
                              //   bar — the phone shell raises it above its docked draw bar.
 }) {
+  // ⭐ LIVE, not frozen. Every touch affordance below (auto-select after placing,
+  // the touch pointer-routing effect, the coach chip, the quick bar, sheet-vs-
+  // popover) reads THIS, so attaching or detaching an iPad keyboard re-renders
+  // them instead of stranding the chart in the pointer type it booted with.
+  const coarsePointer = useCoarsePointer()
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
   // First-use coach chip for touch: a multi-point tool places by TAP-TAP, and
@@ -1137,6 +1155,14 @@ export default function ChartDrawingOverlay({
   // re-subscribing the listener on every drawings change, incl. mid-drag).
   const drawingsRef = useRef(drawings)
   drawingsRef.current = drawings
+  /* ⛔ EXPLICIT, NOT FILTERED AT THE PROP. Hiding must remove an object from the
+     CANVAS and from HIT-TESTING, and from nothing else. Filtering `drawings`
+     itself would have been one line and a silent data loss: the paneRelY
+     migration below builds a WHOLE REPLACEMENT list from `drawings` and hands it
+     to `onMigrate`, so a filtered prop would delete every hidden object the first
+     time a chart migrated — with every test still green. Undo, the object
+     manager and every mutation keep seeing the full list. */
+  const visibleDrawings = useMemo(() => visibleOnly(drawings), [drawings])
 
   // ── Time → bar index lookup ──
   const timeToIndex = useMemo(() => {
@@ -1623,7 +1649,7 @@ export default function ChartDrawingOverlay({
     }
 
     // Draw completed drawings
-    for (const d of drawings) {
+    for (const d of visibleDrawings) {
       // A text note being edited is HIDDEN on the canvas while its editor box is
       // open — otherwise the note renders BEHIND the (slightly offset) textarea and
       // reads as a duplicate "ghost" box (the reported double-click glitch).
@@ -1834,7 +1860,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
+  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1895,8 +1921,10 @@ export default function ChartDrawingOverlay({
 
   const hitTestAll = useCallback((mx, my) => {
     const { w, h } = sizeRef.current
-    for (let i = drawings.length - 1; i >= 0; i--) {
-      const d = drawings[i]
+    // You cannot select what you cannot see — a hidden object must not steal a
+    // tap from the visible one underneath it.
+    for (let i = visibleDrawings.length - 1; i >= 0; i--) {
+      const d = visibleDrawings[i]
       const pts = resolvePixels(d.points || [])
       const hit = d.type === 'advance'
         ? hitTestAdvance(d, pts, mx, my)
@@ -1904,7 +1932,7 @@ export default function ChartDrawingOverlay({
       if (hit) return d.id
     }
     return null
-  }, [drawings, resolvePixels, hitTestAdvance])
+  }, [visibleDrawings, resolvePixels, hitTestAdvance])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
@@ -1913,7 +1941,7 @@ export default function ChartDrawingOverlay({
     if (!d) return null
     const pts = resolvePixels(d.points || [])
     for (let i = 0; i < pts.length; i++) {
-      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD + 2) {
+      if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD() + 2) {
         return { drawingId: d.id, handleIdx: i }
       }
     }
@@ -2155,7 +2183,7 @@ export default function ChartDrawingOverlay({
           // SELECTED, so the quick-action bar appears at the exact moment you
           // most want to restyle or delete what you just placed. Mouse users
           // keep the unselected finish (they have hover + right-click).
-          if (_COARSE_POINTER && newId) setSelectedId(newId)
+          if (coarsePointer && newId) setSelectedId(newId)
         }
       } else {
         setPendingPoints(newPending)
@@ -2181,6 +2209,20 @@ export default function ChartDrawingOverlay({
       const drag = dragRef.current
       const d = drawings.find(d => d.id === drag.drawingId)
       if (!d || !drag.startCoords) return
+
+      // ⛔ TOUCH SLOP — the gate between "I am selecting this" and "I am moving
+      // this". Without it the first pointermove after a grab applied the delta,
+      // and a finger always jitters a pixel or two: tapping a trendline to
+      // select it moved it off its anchor, silently, with an undo the user has
+      // to think of. Below the threshold this is still a TAP — geometry is not
+      // touched and no history entry is created.
+      // ⭐ Once armed it STAYS armed, and the delta is still measured from the
+      // ORIGINAL grab point, so the object ends up exactly under the finger
+      // rather than permanently lagging it by the slop distance.
+      if (!drag.armed) {
+        if (!CROSSED_SLOP(drag.startPixel, pos)) return
+        drag.armed = true
+      }
 
       // Compute delta in chart coordinates. In the empty right-pad, toChart clamps
       // `time` to the last candle and stashes the real offset in `futureBars`, so
@@ -2307,7 +2349,7 @@ export default function ChartDrawingOverlay({
   useEffect(() => {
     const canvas = canvasRef.current
     const wrapper = canvas?.parentElement
-    if (!wrapper || !_COARSE_POINTER) return   // touch / coarse-pointer devices only
+    if (!wrapper || !coarsePointer) return     // touch / coarse-pointer devices only
     let dragging = false
     const onDown = (e) => {
       if (e.pointerType === 'mouse') return
@@ -2362,7 +2404,7 @@ export default function ChartDrawingOverlay({
       wrapper.removeEventListener('pointercancel', onUp, capT)
       wrapper.removeEventListener('touchmove', onTouchMove, { capture: true })
     }
-  }, [])
+  }, [coarsePointer])
 
   // Deselect when clicking away. In no-tool mode the overlay canvas is
   // pointer-transparent over empty space, so an empty-space click lands on the
@@ -2639,7 +2681,27 @@ export default function ChartDrawingOverlay({
           on coarse-pointer devices until the first completed placement (or ✕).
           Inline-styled like the overlay's other DOM chrome; palette matches the
           drawing context menu. */}
-      {_COARSE_POINTER && !tapHintSeen && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput && (
+      {/* ⭐ MOB-11 + MOB-18 — ONE SURFACE, BECAUSE THEY ARE ONE MOMENT.
+          The chip that lived here was a one-time COACH MARK: gated on
+          `!tapHintSeen`, so the moment a user dismissed it or placed their first
+          drawing, a half-finished placement had no narration and no way out. On
+          a phone that is the worst state on this surface — a channel wants three
+          taps, you have made one, and the only escapes are a keyboard key that
+          does not exist and completing a drawing you no longer want so you can
+          undo it.
+
+          So the chip now has two lives. With NOTHING pending it is the coach mark
+          it always was (still one-time, still dismissable). With a placement IN
+          PROGRESS it is a live HUD that says which point you are on and offers
+          Cancel — and that half is NOT gated on `tapHintSeen`, because it is not
+          teaching anything, it is reporting state.
+
+          ⛔ CANCEL REUSES ESCAPE'S PATH (`setPendingPoints([])`) rather than
+          adding a second abort. Escape already meant exactly this, and two abort
+          routines drift the first time one of them learns about a new tool. The
+          tool stays ARMED: the user aborted a placement, not a decision to draw. */}
+      {coarsePointer && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput
+        && (pendingPoints.length > 0 || !tapHintSeen) && (
         <div
           data-testid="tap-tap-hint"
           style={{
@@ -2655,11 +2717,31 @@ export default function ChartDrawingOverlay({
         >
           {pendingPoints.length === 0
             ? `Tap ${(POINT_COUNT[activeTool] || 2) === 3 ? '3 points' : '2 points'} to place`
-            : 'Now tap the next point'}
+            /* MOB-11 · the count, not just "next". "Point 2 of 3" tells you how
+               much is left; "Now tap the next point" did not, and on a
+               three-point tool that is the whole question. */
+            : `Point ${pendingPoints.length + 1} of ${POINT_COUNT[activeTool] || 2}`}
+          {pendingPoints.length > 0 && (
+            <button
+              type="button"
+              data-testid="cancel-placement"
+              aria-label="Cancel placement"
+              onClick={() => setPendingPoints([])}
+              style={{
+                minHeight: 28, padding: '0 10px', borderRadius: 999, border: 'none',
+                background: 'rgba(239, 68, 68, 0.18)', color: '#f0a3a3',
+                fontSize: 12.5, lineHeight: 1, cursor: 'pointer', touchAction: 'manipulation',
+                fontFamily: 'inherit',
+              }}
+            >Cancel</button>
+          )}
           <button
             type="button"
             aria-label="Dismiss drawing hint"
             onClick={markTapHintSeen}
+            /* Only the COACH half is dismissable. Hiding the live HUD would take
+               Cancel with it, which is the affordance the user is reaching for. */
+            hidden={pendingPoints.length > 0}
             style={{
               minWidth: 28, minHeight: 28, borderRadius: '50%', border: 'none',
               background: 'rgba(201, 168, 76, 0.16)', color: '#c9a84c',
@@ -2683,7 +2765,7 @@ export default function ChartDrawingOverlay({
           (or finish a drawing) → a visible door to editing; long-press alone
           buried it. Style opens the SAME DrawingContextMenu sheet the long-press
           opens (one editing authority); the rest reuse its exact handlers. */}
-      {_COARSE_POINTER && !readOnly && selectedId && !activeTool && !isDragging && !ctxMenu && !textInput && (() => {
+      {coarsePointer && !readOnly && selectedId && !activeTool && !isDragging && !ctxMenu && !textInput && (() => {
         const d = drawings.find(dd => dd.id === selectedId)
         if (!d) return null
         return (
@@ -2704,6 +2786,7 @@ export default function ChartDrawingOverlay({
               if (nid) setSelectedId(nid)
             }}
             onToggleLock={() => updateDrawing(d.id, { locked: !d.locked })}
+            onToggleHide={() => { updateDrawing(d.id, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null) }}
             onDelete={() => { removeDrawing(d.id); setSelectedId(null) }}
           />
         )
@@ -2732,12 +2815,12 @@ export default function ChartDrawingOverlay({
           <DrawingContextMenu
             x={ctxMenu.x}
             y={ctxMenu.y}
-            sheet={_COARSE_POINTER}
+            sheet={coarsePointer}
             drawing={d}
             levelSupported={LEVEL_LINE_TYPES.has(d.type)}
             horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
             alertSupported={!!onSetAlert && LEVEL_LINE_TYPES.has(d.type)}
-            onSetAlert={(direction) => { onSetAlert?.(d, direction); setCtxMenu(null) }}
+            onSetAlert={(direction, opts) => { onSetAlert?.(d, direction, opts); setCtxMenu(null) }}
             currentLevel={leftLevel}
             onSetLevel={(price) => {
               // Flatten the whole line onto the typed price — a clean horizontal
@@ -2758,6 +2841,7 @@ export default function ChartDrawingOverlay({
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
+            onToggleHide={() => { updateDrawing(ctxMenu.drawingId, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null); setCtxMenu(null) }}
             canReorder={!!reorderDrawing && drawings.length > 1}
             onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
             onSendBack={() => { reorderDrawing?.(ctxMenu.drawingId, 'back'); setCtxMenu(null) }}
@@ -2953,11 +3037,28 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
   )
 }
 
-function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+// Exported for its own rail: the alert-mode choice is a decision the overlay
+// only PASSES ON, so testing it through canvas hit-testing in jsdom (which does
+// no layout) would measure the harness, not the menu.
+export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
+  canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
+  /* ⭐ TWO ALERT SEMANTICS, AND THE CHOICE IS REMEMBERED (MOB-05). A trader
+     picks one meaning and mostly stays there, so re-asking every time would be
+     the kind of "configurable" that is really just repeated work. Default is
+     BOUND: an alert set ON a line is, to almost everyone, an alert about THAT
+     LINE — and the fixed-level intent already has its own zero-typing door in
+     the price-context sheet, which is untouched. */
+  const [alertBound, setAlertBound] = useState(() => {
+    try { return localStorage.getItem(ALERT_BIND_KEY) !== 'fixed' } catch { return true }
+  })
+  const chooseBind = (bound) => {
+    setAlertBound(bound)
+    try { localStorage.setItem(ALERT_BIND_KEY, bound ? 'bound' : 'fixed') } catch { /* private mode */ }
+  }
   const [levelVal, setLevelVal] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)  // brief "Saved ✓" confirmation
   const openLevel = () => { setLevelVal(fmtLevel(currentLevel)); setLevelOpen(o => !o) }
@@ -3160,6 +3261,37 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
             icon={<><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>}
           />
           {alertOpen && (
+            <div
+              style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 6px' : '2px 12px 4px' }}
+              onPointerDown={(e) => e.stopPropagation()}
+              role="radiogroup"
+              aria-label="Alert follows the drawing or stays at a fixed level"
+            >
+              {[
+                { bound: true, label: 'Follows the line', hint: 'Move the line and the alert moves with it. Delete the line and the alert goes too.' },
+                { bound: false, label: 'Fixed level', hint: 'Takes the price where the line is now, then stops caring about the line.' },
+              ].map((m) => (
+                <button
+                  key={m.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={alertBound === m.bound}
+                  onClick={() => chooseBind(m.bound)}
+                  title={m.hint}
+                  style={{
+                    flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
+                    background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                    border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                    borderRadius: 6,
+                    color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
+                    cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
+                    fontWeight: alertBound === m.bound ? 700 : 500,
+                  }}
+                >{m.label}</button>
+              ))}
+            </div>
+          )}
+          {alertOpen && (
             <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
               {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
                   surface, so theme-variable colors (which flip dark on light) would
@@ -3170,8 +3302,8 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
               ].map(b => (
                 <button
                   key={b.dir}
-                  onClick={() => onSetAlert?.(b.dir)}
-                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}`}
+                  onClick={() => onSetAlert?.(b.dir, { bound: alertBound })}
+                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
                   style={{
                     flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
                     background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
@@ -3202,6 +3334,22 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
           ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
           : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
       />
+      {/* ⛔ HIDE SHIPS ONLY BECAUSE RECOVERY DOES. On its own this control makes
+          an object vanish with no surface that can name it again — the user's
+          own instruction was not to ship it that way, and it is right: an
+          invisible, unselectable object you cannot list is indistinguishable
+          from one you deleted by accident. The Objects sheet lists every hidden
+          object, says how many there are, and restores them all in one tap. */}
+      {onToggleHide && (
+        <MenuAction
+          label={drawing?.hidden ? 'Show' : 'Hide'}
+          onClick={onToggleHide}
+          big={sheet}
+          icon={drawing?.hidden
+            ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
+            : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>}
+        />
+      )}
       {onSaveDefaults && (
         <MenuAction
           label={savedFlash ? 'Saved as default ✓' : 'Save as default'}

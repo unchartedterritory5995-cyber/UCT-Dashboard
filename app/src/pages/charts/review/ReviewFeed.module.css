@@ -1,0 +1,161 @@
+/* THE REVIEW FEED — a scroll of charts, bounded to three live ones.
+ *
+ * ⛔ EVERY CARD HAS A FIXED HEIGHT, and that is structural rather than cosmetic.
+ * A card whose height depended on whether its chart had mounted would change
+ * size the instant a chart went live or dark, moving every card below it — so
+ * scrolling would fight the reader, and the IntersectionObserver would re-decide
+ * the centre off geometry its own decision had just changed. Live chart,
+ * snapshot and skeleton therefore occupy exactly the same box.
+ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ⚰️ A DENSITY TOGGLE LIVED HERE. It was the INSTRUMENT for the decision above,
+   not a feature: two candidate heights a trader could feel on a real phone
+   within a second of each other. The question is answered, so the instrument
+   goes — a settings control nobody asked for is how a measurement becomes
+   permanent surface area. */
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  list-style: none;
+  overflow-y: auto;
+  /* One card per flick in tall mode: the reviewer's gesture and the unit of
+     content are the same thing, which is what makes a feed feel decisive. */
+  scroll-snap-type: y proximity;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ⭐ ONE DENSITY, AND 70vh IS A MEASURED CHOICE, not a taste.
+ *
+ * Cards-per-screen is `100 / height-vh` and is therefore VIEWPORT-INDEPENDENT —
+ * the same on every phone. Measured on hardware: the old 62vh was showing
+ * **1.61 charts per screen** while its own toggle was labelled "One up", which
+ * it never was.
+ *
+ * ⛔ AND ONE-PER-SCREEN WAS REJECTED ON ITS OWN COSTS. At ~100vh nothing of the
+ * next card is visible, so the surface stops LOOKING scrollable and the adjacent
+ * symbol stops giving context — two of the things a reviewer is actually using
+ * the feed for. `scroll-snap-align: start` already delivers the one-card-per-
+ * flick ergonomics that made one-up attractive, so the choice costs nothing.
+ *
+ * 70vh = **1.43 charts per screen**: the current chart gets ~13% more height
+ * than before for candle readability, and ~30vh of the next card stays on
+ * screen as the scroll affordance. Mount churn is unchanged — the live window
+ * is the centred card ±1 either way. */
+.card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  height: 70vh;
+  border-bottom: 1px solid var(--border, #2a3340);
+  background: var(--bg-surface, #0f1216);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap-min, 44px);
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text, #e8e4d8);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cardHead:active { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }
+
+.cardPos {
+  min-width: 22px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #6b7280);
+}
+
+.cardSym {
+  font-size: 15px;
+  letter-spacing: 0.6px;
+  color: var(--ut-gold, #c9a84c);
+}
+
+/* Quiet on purpose: "seen" is a memory aid, not a verdict on the symbol. */
+.cardSeen {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid var(--border, #2a3340);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.cardBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* ⚰️ A `touch-action: pan-y !important` OVERRIDE LIVED HERE FOR ONE HOUR, on a
+ * defect that did not exist. The device step reported `chartTouchAction: "none"`
+ * — but it had selected the FIRST card body, which is a PLACEHOLDER, found no
+ * chart in it, and fell back to the literal string 'none'. The fallback was the
+ * finding.
+ *
+ * ⭐ WHAT DISPROVED IT: the phone shell's OWN chart — the same component with
+ * none of this stylesheet on it — computes `touch-action: auto`. lightweight
+ * charts never set `none` here, so there was nothing to override.
+ *
+ * ⛔ AND THE REAL QUESTION IS STILL OPEN, which is why this note stays: whether
+ * the chart's own touch handlers steal a mostly-vertical drag from the scroller
+ * is not decidable from computed styles at all. It needs a finger. See
+ * FEED_SCROLL_INTENT in the certification record. */
+
+/* The stored frame fills the same box the live chart had, so a card does not
+   twitch as it changes state. */
+.cardShot {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  /* It is a PAST frame. Slightly dimmed so it never reads as live data — the
+     one visual distinction this surface owes the member. */
+  opacity: 0.72;
+}
+
+.cardSkeleton {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    var(--bg-surface, #0f1216) 30%,
+    color-mix(in srgb, var(--border, #2a3340) 45%, transparent) 50%,
+    var(--bg-surface, #0f1216) 70%
+  );
+  background-size: 200% 100%;
+  animation: feedShimmer 1.4s linear infinite;
+}
+
+@keyframes feedShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardSkeleton { animation: none; }
+  .scroll { scroll-snap-type: none; }
+}

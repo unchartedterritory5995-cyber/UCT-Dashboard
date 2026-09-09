@@ -94,3 +94,31 @@ def test_the_flag_is_on_every_auth_response_not_just_me(a_member):
     helper_at = src.index("def _access_payload")
     field_at = src.index('"hub_preview_enabled"')
     assert field_at > helper_at, "the flag must live inside _access_payload"
+
+def test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed():
+    """⛔ THE DEFAULT ITSELF IS PINNED, not just its observable effect.
+
+    `test_unset_means_not_killed` above proves the BEHAVIOUR today. This proves the
+    LITERAL, because the two fail differently: someone changing the default to "0" and
+    then "fixing" the behaviour test to match would leave production dark on a variable
+    nobody set, and every test would still be green.
+
+    Convention, recorded verbatim in CLAUDE.md and the spec:
+      HUB_PREVIEW_ENABLED unset or true -> hub eligible
+      false -> hub hidden for everyone on next authenticated request
+    Production sets it TRUE deliberately, so "on on purpose" is distinguishable from
+    "unset" (`project_feature_flag_ledger`).
+    """
+    src = open(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "api", "routers", "auth.py"),
+        encoding="utf-8",
+    ).read()
+    i = src.index("hub_preview_enabled")
+    window = src[i:i + 400]
+    assert '"HUB_PREVIEW_ENABLED", "1"' in window, (
+        "the env default for HUB_PREVIEW_ENABLED must be \"1\" (ON). It is a KILL "
+        "switch: unset means nothing has been killed. Flipping this default would make "
+        "a forgotten variable indistinguishable from a deliberate shutdown."
+    )
+

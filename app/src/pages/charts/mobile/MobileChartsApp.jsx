@@ -6,13 +6,24 @@ import { useWorkspace } from '../WorkspaceContext'
 import UIcon from '../../../components/ui/UIcon'
 import { labelMap } from '../../../widgets/registry'
 import MobileSymbolStrip from './MobileSymbolStrip'
+import ReviewNavControl, { VARIANTS as NAV_VARIANTS } from '../review/ReviewNavControl'
+import useReviewSession from '../review/useReviewSession'
+import ReviewFeed from '../review/ReviewFeed'
 import MobileChartToolbar from './MobileChartToolbar'
 import MobileSymbolSheet from './MobileSymbolSheet'
 import MobileTfSheet from './MobileTfSheet'
-import MobileChartTypeSheet from './MobileChartTypeSheet'
+import MobileChartTypeSheet, { selectedTypeKey, chartTypePatch } from './MobileChartTypeSheet'
 import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
+import MobileLayoutsSheet from './MobileLayoutsSheet'
+import MobileBoardsSheet from './MobileBoardsSheet'
+import MobileObjectsSheet from './MobileObjectsSheet'
+import useChartDrawings from '../../../components/chart/useChartDrawings'
+// The ACTIVE board's name for the Tools row's subtitle. Read here rather than
+// inside the row so the sheet stays the only thing that mounts the manager.
+import useTracings from '../../../components/chart/useTracings'
+import { tracingLabel } from '../../../components/chart/drawingsStore'
 import { pushRecent } from './mobileRecents'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
@@ -50,10 +61,17 @@ export function chartWidgetIndex(widgets) {
  * phone shows a full-screen page. Same state, same handlers; only the
  * presentation and the tap-to-chart rule change (a docked panel never covers
  * the chart, so it stays open while the chart retargets beside it). */
-export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOptsChange, onAddWidget, tablet = false }) {
+export default function MobileChartsApp({
+  widgets, onRemove, onColorChange, onOptsChange, onAddWidget, tablet = false,
+  /* MOB-01 — passed straight through to MobileLayoutsSheet. These are ChartsWorkspace's
+     OWN handlers; this component never touches /api/charts/layouts itself. */
+  layoutsMine = [], layoutsPrebuilt = [], layoutsActive = null, layoutsLoading = false,
+  layoutsSavedFlash = false, isAdmin = false,
+  onApplyLayout, onApplyUctDefault, onSaveLayout, onSaveLayoutAs, onDeleteLayout,
+}) {
   const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
 
-  // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more'
+  // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more' | 'layouts'
   const [sheet, setSheet] = useState(null)
   // Wave 10: a legend-chip tap opens the indicator sheet ALREADY INSIDE that
   // study's editor — {kind:'study', defId, instanceId}. Cleared with the sheet
@@ -78,6 +96,8 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   // Filled by StockChart with the mounted ChartToolbar's imperative API — the
   // door the ƒx sheet uses to open the real IndicatorLibraryDialog.
   const toolbarApiRef = useRef(null)
+  const { tracings: _boards, activeId: _activeBoardId } = useTracings()
+  const _activeBoard = _boards.find((t) => t.id === _activeBoardId)
 
   // The global FABs (voice orb bottom-right, feedback "?" bottom-left) anchor
   // just above the tab bar — exactly where the chart toolbar now lives. Stamp
@@ -102,6 +122,10 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
 
   const color = chartWidget?.color || 'A'
   const sym = groupSyms[color] || 'SPY'
+  // The objects on THIS symbol — the recovery surface's data, straight from the
+  // store the canvas draws from.
+  const _objDrawings = useChartDrawings(sym)
+  const _hiddenObjects = _objDrawings.drawings.reduce((n, d) => n + (d.hidden ? 1 : 0), 0)
 
   // Every page-open records the chart's symbol at that moment.
   const openWidgetScreen = useCallback((id) => {
@@ -129,6 +153,23 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     setScreen({ id: firstWatchlist.id, symAtOpen: sym })
   }
   const tf = chartWidget?.opts?.tf || 'D'
+
+  /* MOB-REVIEW · the transport control for an in-progress review.
+   *
+   * ⛔ It renders ONLY when a review session exists. A chart opened from search
+   * or a deep link has no ordered set behind it, and a "1 / 1" chip there would
+   * be furniture pretending to be context. */
+  const review = useReviewSession(groupSyms?.[color] || null, { tf })
+  const [feedOpen, setFeedOpen] = useState(false)
+  // Placement probe: `?navprobe=rail|pill|edge` forces a variant with a synthetic
+  // position so the three candidates can be MEASURED on hardware against the real
+  // chart. Never reachable without the param.
+  const navProbe = (() => {
+    try {
+      const v = new URLSearchParams(window.location.search).get('navprobe')
+      return NAV_VARIANTS.includes(v) ? v : null
+    } catch { return null }
+  })()
   const opts = chartWidget?.opts || null
 
   // Settings ride the SAME per-widget blob the desktop main tab edits.
@@ -216,6 +257,32 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     setPendingWatchlistOpen(true)
     onAddWidget('watchlist')
   }, [watchlistWidget, onAddWidget, openWidgetScreen])
+
+  /* THE LIST — the review's OWN set, as charts.
+   *
+   * ⚰️ THIS USED TO OPEN THE WATCHLIST WIDGET, and that was only ever right for
+   * one of the five sources a review can have. A review entered from a scan or
+   * a screener has no list surface on the phone at all, so the gesture showed an
+   * UNRELATED watchlist when one happened to be in the layout and fell through
+   * to the More sheet when one did not — a control labelled with the review's
+   * position, opening something that is not the review.
+   *
+   * ⛔ ONE GESTURE, ONE ANSWER, WHATEVER THE SOURCE: `ReviewFeed` shows the
+   * ordered set the review is actually walking. The watchlist page is unchanged
+   * and still one tap away through its own widget — going BACK to it is a
+   * different intent (leaving the review) from looking ACROSS the set. */
+  const openReviewList = useCallback(() => { setFeedOpen(true) }, [])
+
+  /* ⛔ THROUGH THE SESSION, never straight to the symbol. Tapping a card MOVES
+   * THE REVIEW to that index, so the transport control's "12 / 47" and the chart
+   * are the same fact; setting the symbol alone would leave the position chip
+   * describing where the member used to be. */
+  const goToReview = review.goTo
+  const pickFromFeed = useCallback((index) => {
+    const t = goToReview(index)
+    if (t) setGroupSym(color, t)
+    setFeedOpen(false)
+  }, [goToReview, color, setGroupSym])
   // Render-time state adjustment (the you-might-not-need-an-effect pattern):
   // the moment the added watchlist hydrates into `widgets`, consume the pending
   // flag and open it — React re-renders before committing, no effect pass.
@@ -308,6 +375,18 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
           <div className={styles.chartCol}>
           <MobileSymbolStrip sym={sym} onOpenSearch={() => setSheet('symbol')} />
           <div className={styles.chartArea}>
+            {(review.position.total > 0 || navProbe) && (
+              <ReviewNavControl
+                variant={navProbe || 'pill'}
+                label={navProbe ? '12 / 47' : review.position.label}
+                sourceLabel={review.session?.label || ''}
+                canPrev={navProbe ? true : review.position.canPrev}
+                canNext={navProbe ? true : review.position.canNext}
+                onPrev={() => { const t = review.prev(); if (t) setGroupSym(color, t) }}
+                onNext={() => { const t = review.next(); if (t) setGroupSym(color, t) }}
+                onOpenList={openReviewList}
+              />
+            )}
             <div className={styles.paneWrap}>
               <ChartPane
                 ref={paneRef}
@@ -386,6 +465,18 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         </div>
       )}
 
+      {/* ⛔ MOUNTED ONLY WHILE OPEN, and only with a session behind it. Each card
+          can hold a live chart; a feed rendered closed would be N charts nobody
+          asked for, which is the exact budget this surface exists to respect. */}
+      {feedOpen && review.session && (
+        <ReviewFeed
+          session={review.session}
+          tf={tf}
+          onOpen={pickFromFeed}
+          onClose={() => setFeedOpen(false)}
+        />
+      )}
+
       <MobileSymbolSheet open={sheet === 'symbol'} onClose={closeSheet} onPick={handleSymbolPick} className={sheetTheme} />
       <MobileTfSheet
         open={sheet === 'tf'}
@@ -398,8 +489,8 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
       <MobileChartTypeSheet
         open={sheet === 'type'}
         onClose={closeSheet}
-        chartType={cs?.chartType || 'candles'}
-        onPick={(t) => write({ ...cs, chartType: t, preset: 'custom' })}
+        chartType={selectedTypeKey(cs)}
+        onPick={(t) => write({ ...cs, ...chartTypePatch(t), preset: 'custom' })}
         className={sheetTheme}
       />
       <MobileIndicatorSheet
@@ -413,6 +504,22 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         initialEditing={sheetEditing}
       />
       <MobileAlertSheet open={sheet === 'alert'} onClose={closeSheet} sym={sym} className={sheetTheme} />
+      <MobileLayoutsSheet
+        open={sheet === 'layouts'}
+        onClose={closeSheet}
+        mine={layoutsMine}
+        prebuilt={layoutsPrebuilt}
+        active={layoutsActive}
+        isAdmin={isAdmin}
+        loading={layoutsLoading}
+        savedFlash={layoutsSavedFlash}
+        onApply={onApplyLayout}
+        onApplyUctDefault={onApplyUctDefault}
+        onSaveCurrent={onSaveLayout}
+        onSaveAs={onSaveLayoutAs}
+        onDelete={onDeleteLayout}
+        className={sheetTheme}
+      />
       <MobileMoreSheet
         open={sheet === 'more'}
         onClose={closeSheet}
@@ -420,10 +527,38 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         widgets={otherWidgets}
         onOpenWidget={openWidgetScreen}
         onAddWidget={handleAddFromSheet}
+        onOpenLayouts={() => setSheet('layouts')}
+        activeLayoutName={layoutsActive?.name || null}
+        onOpenBoards={() => setSheet('boards')}
+        onOpenObjects={() => setSheet('objects')}
+        hiddenObjectCount={_hiddenObjects}
+        activeBoardName={_activeBoard ? tracingLabel(_activeBoard) : null}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
         onDrawOnChart={drawOnChart}
+        className={sheetTheme}
+      />
+      <MobileBoardsSheet
+        open={sheet === 'boards'}
+        onClose={closeSheet}
+        sym={sym}
+        className={sheetTheme}
+      />
+      {/* The recovery surface. ⛔ It reads the SAME store the canvas draws from
+          (`useChartDrawings(sym)`), never a copy — a manager that could disagree
+          with the chart about what exists is worse than none. */}
+      <MobileObjectsSheet
+        open={sheet === 'objects'}
+        onClose={closeSheet}
+        sym={sym}
+        drawings={_objDrawings.drawings}
+        onToggleHidden={(id, hidden) => _objDrawings.updateDrawing(id, { hidden })}
+        onToggleLocked={(id, locked) => _objDrawings.updateDrawing(id, { locked })}
+        onDelete={(id) => _objDrawings.removeDrawing(id)}
+        onShowAll={() => {
+          for (const d of _objDrawings.drawings) if (d.hidden) _objDrawings.updateDrawing(d.id, { hidden: false })
+        }}
         className={sheetTheme}
       />
     </div>

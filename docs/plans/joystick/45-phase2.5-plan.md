@@ -62,13 +62,19 @@ tiers'`) — that is the protection, not a survival, and it stays.
 
 - **One change:** `hub.enabled` default becomes **true for every authenticated user**. Stored
   preference still wins; the kill switch still applies.
-- **"Hide joystick"** in the Actions sheet is the member opt-out. Toast: **"Hidden. Re-enable
-  in Settings soon"** — Phase 4 adds the real toggle.
-- ⚠️ **Until Phase 4, a hidden hub is re-enabled two ways, and BOTH must be documented for
-  support:** (1) an admin flips that member's stored `joystick_hub.enabled` preference, or
-  (2) the member clears the stored preference themselves, which returns them to the default.
-  A member who hides it and is told only "soon" with no path is a support ticket the team
-  cannot close.
+- **"Hide joystick"** in the Actions sheet is the member opt-out. It is **SESSION-ONLY** and
+  writes nothing. Toast: **"Hidden for now. Reload to bring it back."**
+- **Settings → Joystick** ("Joystick shortcuts (preview)") is the permanent switch, **pulled
+  forward from Phase 4**. It is the only control that writes a persistent hide.
+- **A discreet 12×36px glass edge tab** sits at the hub's resting position whenever the hub is
+  hidden — either way — and restores it for the session.
+- ⚰️ **THIS SHIPPED AS A ONE-WAY DOOR AND HAD TO BE FIXED IN PRODUCTION.** It read: *toast
+  "Hidden. Re-enable in Settings soon" — Phase 4 adds the real toggle*, with the two documented
+  routes back being **an admin editing the database** or **the member pasting a `fetch()` into
+  a devtools console**. Neither is a path a member has. The owner hit it on the live admin
+  preview the day it shipped. **A control that can be dismissed and not recovered is a defect
+  no matter how good the toast copy is** — and "we documented the workaround for support" is
+  not a recovery path, it is a record of one being missing. See `47-hide-recovery.md`.
 
 **Kill switch (both steps)**
 

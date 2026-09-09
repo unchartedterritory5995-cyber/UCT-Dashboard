@@ -1308,6 +1308,175 @@ touches ~68 call sites across `api/**` and must not ride along with a UI feature
 branch. Recorded in `docs/plans/joystick/deferred.md`.
 
 
+### Joystick hub preview — `HUB_PREVIEW_ENABLED` (Deploy)
+
+> **`HUB_PREVIEW_ENABLED` unset or `true` → hub eligible; `false` → hub hidden for everyone on
+> next authenticated request. Production sets it `true` deliberately so "on on purpose" is
+> distinguishable from "unset".**
+
+It is a **kill switch**, so the default is ON. The opposite default would make a variable
+someone forgot to set indistinguishable from a deliberate shutdown — the ambiguity
+`project_feature_flag_ledger` exists to prevent.
+
+- Read **at request time** in `api/routers/auth.py::_access_payload`, which signup, login and
+  `/api/auth/me` all share. There is **no feature-flag endpoint in this app** — the flag rides
+  that payload by design, so it needs no new route and is present the moment a session exists.
+- Accepted off values: `0`, `false`, `no`, `off` (case- and whitespace-insensitive). Everything
+  else, including unset, is ON.
+- **Rollback:** set `HUB_PREVIEW_ENABLED=false` in Railway → takes effect on each user's next
+  authenticated request, **no redeploy**. ⚠️ An already-open page keeps its hub until its next
+  `/api/auth/me` — in practice a reload or route change, not a background poll.
+  ⚠️ `railway variables --set` **stages and redeploys**; confirm with
+  `railway variables --service web --kv`.
+- Rails: `tests/test_hub_preview_flag.py` — `test_the_flag_is_read_per_request` (the
+  load-bearing one: a module-level capture passes every other test and makes the no-redeploy
+  rollback a fiction) and `test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed`
+  (pins the literal, not just the behaviour, so the default cannot be changed and the test
+  "fixed" to match).
+
+
+### ⛔ A dismissable control needs a recovery path IN THE SAME COMMIT — the joystick "Hide" defect
+
+**"Hide joystick" shipped writing `joystick_hub.enabled = false` while the Settings toggle that
+turns it back on was scheduled for Phase 4.** The two documented routes back were *an admin
+editing `user_preferences`* and *the member pasting a `fetch()` into a devtools console*. The
+owner hit it on the live admin preview, on production, as an admin.
+
+> **A control that can be dismissed and not recovered is a defect regardless of how good the
+> toast copy is.** The toast read "Hidden. Re-enable in Settings soon" — honest, friendly, and
+> describing a screen that did not exist.
+
+⚰️ **The gap was known and written down, and that is what made it survive.**
+`45-phase2.5-plan.md` carried a ⚠️ block instructing that both workarounds "must be documented
+for support". Writing the workaround down made the hole feel handled. **A recorded workaround is
+not a recovery path — it is a record of one being missing.**
+
+The fix (`docs/plans/joystick/47-hide-recovery.md`) is three parts, and a persistent hide is
+only allowed to exist because part 2 sits beside it:
+1. hiding from the sheet is **session-only** and writes nothing — "Hidden for now. Reload to
+   bring it back." is true only because `hubSessionVisibility.js` has no persistence layer, so
+   the load-bearing test asserts **no write**, not that the hub vanished;
+2. **Settings → Joystick** (pulled forward from Phase 4) is the one control that writes a
+   persistent hide — and it must `clearSessionOverride()` before writing, or a member who
+   session-hid then switched it ON sees nothing happen;
+3. a 12×36px **edge tab** at the hub's resting position restores it, for either kind of hide.
+   `HUB_PREVIEW_ENABLED=false` removes the tab too — a way back that outlives the kill switch is
+   a live door into a feature that is supposed to be gone.
+
+**Two defects found while building it, both invisible to structural tests, both in the same
+place:** the toast was passed `message` where `JournalToast` reads `msg` (rendered blank), and
+both toasts were owned by the branch their own action unmounts (rendered for zero frames). The
+hub still hid, the tab still worked, every assertion stayed green — **the only broken part was
+the half that talks to the member.** `hubHideRestore.test.jsx` therefore has a **copy contract**
+section asserting rendered TEXT, not just state transitions.
+
+⚠️ **`POST /api/auth/preferences` is `{key: str, value: str}` and REPLACES the whole value**
+(`set_user_preference` writes one TEXT column). Any recovery snippet must be read-modify-write
+or it silently wipes `handedness` and `coachMarkSeen`. The snippet previously in
+`46-preview-production-check.md` posted `{joystick_hub: {...}}`, called itself "a JSON-patch
+merge", and was neither.
+
+
+### ⛔ Assert user-facing feedback by RENDERED TEXT, never by state (Testing)
+
+> **User-facing feedback is asserted by rendered DOM text after the triggering action settles,
+> never by state alone.**
+
+Owner ruling, 2026-09-09, after two toast defects shipped in the joystick hub that left **every
+structural assertion green**:
+
+1. The toast was passed `message` where `JournalToast` reads `msg` — the component renders `''`
+   for anything else, so the copy was blank.
+2. Both toasts were owned by the element their own action unmounts. "Hide joystick" lives in
+   the Actions sheet inside `HubShell`; firing it unmounts `HubShell`. Tapping the restore tab
+   unmounts the hidden branch. Each message was destroyed in the same commit that set it and
+   rendered for **zero frames**.
+
+In both cases the state transition was correct, the control worked, and the only broken part was
+the half that talks to the member. A test that asserts `setToastMsg` was called proves nothing
+about whether a human ever saw the sentence.
+
+**Structural corollary:** a toast/banner/confirmation host must OUTLIVE the control that fires
+it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible/hidden branch,
+written to by both sides, with one fixed anchor so the message lands in the same place either
+way. Do not nest a feedback element inside a subtree that its own trigger tears down.
+
+### ⛔ Provenance: `git show <sha>:<file>`, never `git status`
+
+> **"Did my change cause this?" is answered by asking the committed version, not by looking at
+> what is dirty in the working tree.**
+
+Owner ruling, 2026-09-09. A suite baseline turned up four failing rails caused by the joystick
+hub — three of them shipped by PR #100 — and **not one of the four offending files was in that
+branch's working set**:
+
+| Rail | Offender | Hub cause |
+|---|---|---|
+| `styles/tokens.reachable.test.js` | `hub/hub.module.css` | `--color-text-muted` is not a token and never was, so the declaration was a silent no-op |
+| `__tests__/sourcesAreText.test.js` | `hub/useHubCursor.js` | a raw `0x01` byte made the file binary to git and ripgrep |
+| `research/EarningsResearchModal.themeIsland.test.js` | `styles/tokens.css` | three `--hub-*` glass tokens added with `[data-theme]` variants, never pinned in the island |
+| `screener/reachable.test.js` | `hub/contracts.js` | typedef-only module with no runtime importers |
+
+A `git status`-based argument would have cleared all four and filed them to other owners. Run
+`git show <sha>:<file>` and look for the construct.
+
+**Corollary — a timeout is never banked as permitted breakage.** A test that fails a full run on
+a timeout and passes in isolation is load-sensitive, not broken (`enumerationSites.test.js`:
+15 000 ms under the full suite, **1461 ms** alone on the same SHA). Banking one leaves a slot in
+the baseline that a real failure can occupy unnoticed. Re-run it alone before classifying it.
+
+### ⛔ A themed token must be pinned in every theme island
+
+> **Adding a custom property with a `[data-theme]` variant is a change to every theme island in
+> the app, whether or not you have heard of them.**
+
+A "theme island" re-declares theme-variant tokens at their `:root` values so everything inside it
+renders as one consistent surface whatever theme the page wears. PR #100 added
+`--hub-glass-tint`, `--hub-glass-tint-strong` and `--hub-rim` to `tokens.css` with theme variants
+and did not pin them in `EarningsResearchModal.module.css`'s island — so descendants of that
+modal resolved the hub's glass against the page theme instead of the dark chrome the modal is
+drawn on. The feature that added the tokens and the surface that broke were in different
+directories and neither had reason to look at the other.
+
+**Rail:** `app/src/styles/themeIslands.test.js`. Islands declare themselves with
+`--theme-island: <name>;`; the required set is derived from `tokens.css` every run; a missing
+token fails by name. Mutation-proved both directions. Self-declaring rather than
+threshold-guessed on purpose — `floor2/standalone.css` (substitutes for `tokens.css` on a page
+that never loads it) and `ChartsWorkspace.module.css` (pins under `[data-theme='light']`) both
+look like islands to a naive scan and are not (`lesson_a_guard_that_tests_the_adjacent_thing`).
+
+### Rebasing a feature branch — when, and when not
+
+> **Rebase only when master has touched a file the branch touches, or the branch is more than
+> five commits behind. Otherwise merge clean.**
+
+Owner ruling, 2026-09-09. Rebasing rewrites already-published commits and forces a
+`--force-with-lease` push; when master's changes cannot interact with the branch's, that buys
+nothing and risks clobbering a concurrent session's work on the same branch (see
+`feedback_agent_authority_and_worktree_isolation`). Measure it, don't guess:
+
+```sh
+BASE=$(git merge-base origin/master HEAD)
+git rev-list --count $BASE..origin/master                       # behind
+comm -12 <(git diff --name-only $BASE..origin/master | sort -u)          <(git diff --name-only $BASE..HEAD          | sort -u) # overlap
+```
+
+Empty overlap and fewer than six behind ⇒ push and open the PR as-is.
+
+### Tooling — GitHub MCP reads `GITHUB_PERSONAL_ACCESS_TOKEN`
+
+The `github` MCP server (plugin `claude-plugins-official`) is configured as:
+
+```json
+"github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/",
+            "headers": { "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}" } }
+```
+
+⛔ **It reads `GITHUB_PERSONAL_ACCESS_TOKEN` (user scope). `GITHUB_TOKEN` is NOT read** —
+setting that one does nothing, and the unexpanded `${...}` is what produces the connection
+error *"Authorization header is badly formatted"*, which reads like a malformed value rather
+than a missing variable. **A restart is required after setting it.**
+
 ## Design Documents
 
 All design docs are in `docs/plans/`. Key docs:

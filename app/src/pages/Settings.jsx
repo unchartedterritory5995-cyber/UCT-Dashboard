@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
+import JoystickSettingsCard from './settings/JoystickSettingsCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import useTagColors from '../hooks/useTagColors'
@@ -2295,6 +2296,9 @@ export default function Settings() {
     ],
     charts: [
       card('chartSettings', <ChartSettingsSection prefs={prefs} setPref={setPref} />),
+      // Phase 2.5: the ONE Phase 4 control pulled forward, so a persistent
+      // "Hide joystick" has a real re-enable path beside it.
+      card('joystick', <JoystickSettingsCard />),
     ],
     compass: [
       card('compassPanel', <VoicePanel />),

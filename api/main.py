@@ -67,6 +67,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
@@ -7520,6 +7521,9 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+# Phase 2a — the joystick hub's planned-trades backend. No client writes to it
+# yet; the preview is navigation-only plus Voice.
+app.include_router(hub_planned_trades_router.router)
 # Browser Capture authorization handshake + the two scoped extension
 # surfaces. Separate path space from POST /api/j2/capture, so no route
 # shadows another; mounted beside it so the family reads as one.

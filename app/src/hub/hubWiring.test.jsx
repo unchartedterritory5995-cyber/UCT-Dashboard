@@ -252,6 +252,26 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
   // ⭐ The replacement asserts something STRONGER than the toast ever did. The old tests proved
   // the action could be reached and said nothing useful; these prove it CANNOT be reached, on
   // every mode at once, which is the actual product claim being shipped.
+
+  it('EVERY mode is accounted for in PREVIEW_MODES — a missing one ships its full fan', async () => {
+    const { modes, PREVIEW_MODES } = await import('./registry')
+
+    // ⛔ THIS CAUGHT A REAL OMISSION. `calendar` was left out of the first hand-typed set,
+    // and `fanFor` therefore returned its FULL five-action fan into a preview sold as
+    // navigation-only. A mode absent from the set does not fail loudly — it silently behaves
+    // as though Phase 3 had already shipped it.
+    const missing = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id))
+    expect(
+      missing,
+      `these modes are not in PREVIEW_MODES and will show their FULL fan: ${missing.join(', ')}. `
+      + 'Remove a mode from the set only when its Phase 3 section actually ships.',
+    ).toEqual([])
+
+    // Non-vacuity: the set must not contain ids that are not modes either.
+    const stray = [...PREVIEW_MODES].filter((id) => !modes.some((m) => m.id === id))
+    expect(stray, `PREVIEW_MODES names unknown modes: ${stray.join(', ')}`).toEqual([])
+  })
+
   it('the preview fan contains NO run action except Voice, and no confirm action at all', async () => {
     const { modes, fanFor, validatePreview } = await import('./registry')
 

@@ -13,7 +13,7 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useHubSettings from './useHubSettings'
-import useHubActive from './useHubActive'
+import useHubActive, { useHubEligible } from './useHubActive'
 import { useHub } from './HubContext'
 import useKeyboardVisible from '../hooks/useKeyboardVisible'
 import useHubViewport from './hubViewport'
@@ -26,7 +26,10 @@ import HubScrim from './HubScrim'
 import HubActionsButton from './HubActionsButton'
 import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
-import { modesById, fanFor, PREVIEW } from './registry'
+import HubEdgeTab, { restoreToast } from './HubEdgeTab'
+import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
+  from './hubSessionVisibility'
+import { modesById, fanFor, isPreviewMode } from './registry'
 import { RING_NAMES } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
@@ -58,7 +61,7 @@ function resolveNavTarget(to) {
  * handlers are never even reached while the hub is gated off. See
  * `HubRoot.test.jsx`'s "off adds no listeners" suite.
  */
-function HubShell() {
+function HubShell({ setToastMsg }) {
   const keyboardVisible = useKeyboardVisible()
   const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
   const { settings, updateHubSettings } = useHubSettings()
@@ -68,7 +71,6 @@ function HubShell() {
   } = useHub()
   const navigate = useNavigate()
   const padRef = useRef(null)
-  const [toastMsg, setToastMsg] = useJournalToast()
 
   const mirrored = settings.handedness === 'left'
   // ⛔ THE PREVIEW PROJECTION, not `mode.fan`. Phase 2.5 ships navigation-only plus Voice, so
@@ -179,10 +181,22 @@ function HubShell() {
    * 45-phase2.5-plan.md, because a member told only "soon" with no path is a support ticket
    * nobody can close — which is why the toast names Settings rather than promising a date.
    */
+  /**
+   * "Hide joystick" — SESSION ONLY. It does NOT write the preference.
+   *
+   * ⛔ IT USED TO. The preference write made hiding a one-way door: the Settings toggle ships
+   * in Phase 4, so the only routes back were an admin editing the database or the member
+   * pasting a fetch() into a devtools console. The owner hit exactly that on the live admin
+   * preview. A control that can be dismissed and not recovered is a defect regardless of how
+   * good the toast copy is.
+   *
+   * A PERSISTENT hide now exists only where a real re-enable path sits beside it — the
+   * Settings → Joystick toggle.
+   */
   const hideHub = useCallback(() => {
-    setToastMsg('Hidden. Re-enable in Settings soon')
-    updateHubSettings((cur) => ({ ...cur, enabled: false }))
-  }, [setToastMsg, updateHubSettings])
+    setToastMsg('Hidden for now. Reload to bring it back.')
+    hideForSession()
+  }, [setToastMsg])
 
   const hidden = keyboardVisible || viewportHidden
   const selectedId = state.target?.action?.id ?? null
@@ -242,7 +256,7 @@ function HubShell() {
     >
       <HubVoiceBridge connectRef={voiceConnectRef} />
       <HubCoachMark
-        show={PREVIEW && !settings.coachMarkSeen}
+        show={!settings.coachMarkSeen}
         used={usedRef.current}
         mirrored={mirrored}
         onDismiss={dismissCoachMark}
@@ -277,7 +291,9 @@ function HubShell() {
         label={activeModeConfig?.label}
         // Preview chip hint (Phase 2.5): the mode name still leads, but the hint says what
         // this build IS rather than what tap does — most taps do nothing until Phase 3.
-        tapHint={PREVIEW ? 'Preview — more coming' : activeModeConfig?.tapHint}
+        // Per-mode: a section that has shipped its real fan shows its real hint again.
+        tapHint={isPreviewMode(activeModeConfig?.id)
+          ? 'Preview — more coming' : activeModeConfig?.tapHint}
         scrubbing={state.scrubbing}
         scrubReadout={null}
         open={state.open}
@@ -302,7 +318,8 @@ function HubShell() {
         onAction={runAction}
         onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
       />
-      <JournalToast msg={toastMsg} />
+      {/* No toast here — see HubToastHost. Every message this feature shows is set by an
+          action that unmounts this subtree. */}
     </div>
   )
 }
@@ -320,11 +337,79 @@ function HubShell() {
  */
 
 /**
+ * ⛔ THE ONE TOAST HOST FOR THE WHOLE HUB, AND IT DELIBERATELY OUTLIVES BOTH THE PAD AND THE
+ * SHEET.
+ *
+ * Every message this feature shows is set by an action that DESTROYS the thing that triggered
+ * it: "Hide joystick" (in the Actions sheet, inside HubShell) unmounts HubShell; tapping the
+ * restore tab unmounts the hidden branch. A toast owned by either one is destroyed in the same
+ * commit that fills it, so it renders for ZERO FRAMES. Both of those shipped, and both left
+ * every structural assertion green — the hub hid, the tab worked, the hub came back, and the
+ * only broken part was the half that talks to the member.
+ *
+ * So this sits ABOVE the visible/hidden branch and is the single element either side writes to.
+ *
+ * ⭐ One fixed anchor for both states, not two. `.toast` is `position:absolute`, so a toast
+ * nested in `hub-root` resolves against the hub's own 84px box while one beside the edge tab
+ * resolves against the PAGE (top:30px of the document). Anchoring the host itself, just above
+ * the hub's resting corner, means the message appears in the same place whether the hub is
+ * there or not — which is also what a member expects, since the thing they just acted on was
+ * in that corner either way. `style` is JournalToast's own documented escape hatch for this.
+ *
+ * @param {{msg: string|null, mirrored: boolean}} props
+ */
+function HubToastHost({ msg, mirrored }) {
+  return (
+    <JournalToast
+      msg={msg}
+      style={{
+        position: 'fixed',
+        top: 'auto',
+        bottom: 'calc(env(safe-area-inset-bottom) + 68px + 84px + 8px)',
+        right: mirrored ? 'auto' : '16px',
+        left: mirrored ? '16px' : 'auto',
+        // Above the open fan and its scrim: a confirmation the member cannot read is not a
+        // confirmation, and the sheet is open at the moment "Hide joystick" fires.
+        zIndex: 'var(--z-hub-open)',
+      }}
+    />
+  )
+}
+
+/**
  * Mounted once, inside `<HubProvider>` as a sibling of `<FeedbackWidget/>` in
  * Layout.jsx (§2c). Renders `null` unless `useHubActive()` says every mount
  * condition holds — see that hook for the full list.
  */
 export default function HubRoot() {
-  if (!useHubActive()) return null
-  return <HubShell />
+  const eligible = useHubEligible()
+  const { settings } = useHubSettings()
+  const sessionOverride = useHubSessionOverride()
+  const [toastMsg, setToastMsg] = useJournalToast()
+
+  // Not eligible = kill switch off, or a browser/viewport that cannot draw the hub. Nothing
+  // renders, not even the restore tab: there would be nothing to restore.
+  if (!eligible) return null
+
+  const visible = resolveVisible(settings.enabled, sessionOverride)
+  const mirrored = settings.handedness === 'left'
+  // `persistent` only changes the toast copy: the tab itself appears for a session hide and a
+  // stored hide alike, because a member who cannot find their way back does not care which
+  // kind it was.
+  const persistent = !settings.enabled
+
+  return (
+    <>
+      {visible ? (
+        <HubShell setToastMsg={setToastMsg} />
+      ) : (
+        <HubEdgeTab
+          persistent={persistent}
+          mirrored={mirrored}
+          onRestore={() => { showForSession(); setToastMsg(restoreToast(persistent)) }}
+        />
+      )}
+      <HubToastHost msg={toastMsg} mirrored={mirrored} />
+    </>
+  )
 }

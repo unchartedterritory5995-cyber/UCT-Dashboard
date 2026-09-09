@@ -26,6 +26,7 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
@@ -1833,8 +1834,12 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', 'null')
   }, [setPref, setChartsTheme])
 
-  const handleSaveAsTemplate = useCallback(async () => {
-    const nm = saveAsName.trim()
+  /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
+     onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
+     Layouts sheet owns its own input and passes the name explicitly. One handler,
+     two callers: the alternative was a second save path that would drift. */
+  const handleSaveAsTemplate = useCallback(async (nameArg, scopeArg) => {
+    const nm = (typeof nameArg === 'string' ? nameArg : saveAsName).trim()
     if (!nm) { setSaveErr('Name required'); return }
     try {
       // Templates store the arrangement + the current CHART SETTINGS (so opening
@@ -1849,7 +1854,7 @@ export default function ChartsWorkspace() {
       const fundamentalsSettings = parsePref(prefs?.fundamentals_settings, null)
       const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
       const watchlistColumns = readWatchlistColumns()
-      const scope = isAdmin ? saveAsScope : 'user'
+      const scope = isAdmin ? ((typeof scopeArg === 'string' && scopeArg) || saveAsScope) : 'user'
       const saved = await saveLayout({
         name: nm,
         layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -1866,7 +1871,7 @@ export default function ChartsWorkspace() {
     } catch (e) {
       setSaveErr(e.message || 'Save failed')
     }
-  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
+  }, [saveAsName, layout, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, prefs?.breadth_widget_settings, isAdmin, saveAsScope, saveLayout, setPref, flashSaved])
 
   // Explicit "Save current arrangement" — flush the debounced auto-save + persist
   // the working board immediately (the auto-save is debounced 500ms, so a refresh
@@ -2000,7 +2005,10 @@ export default function ChartsWorkspace() {
   }, [scheduleSave])
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
-  const mc = useMultiChartState()
+  // MOB-08 — the grid's `mode` is DEVICE-SCOPED. `isMobile` is already the one
+  // authority for which shell renders (a single MQL, deliberately), so the
+  // device class is derived from it rather than from a second opinion.
+  const mc = useMultiChartState(deviceClassOf(isMobile))
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
@@ -2042,9 +2050,13 @@ export default function ChartsWorkspace() {
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   // Grid-kind templates live in the same /api/charts/layouts store; keep them
   // out of the workspace Open-layout menu (their {widgets:[]} shape would
   // apply as a blank board) — the Multi Charts dropdown lists them instead.
+  // ⭐ COMPUTED ABOVE THE MOBILE RETURN ON PURPOSE: the phone's Layouts sheet reads the
+  // same two lists as the desktop menu. They sat below it until 2026-09-08, which is
+  // the entire reason the phone had no layout door.
   const wsGlobalLayouts = globalLayouts.filter(t => t.layout?.kind !== 'multichart')
   const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
 
@@ -2057,9 +2069,13 @@ export default function ChartsWorkspace() {
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
           <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Phone toolbar: grid mode persists from desktop, and without an
-                exit control a phone user is TRAPPED in it (mega-review #15 —
-                the desktop entry flyout doesn't exist on phone). */}
+            {/* Phone toolbar: an exit control, kept as a safety net.
+                ⚰️ It used to read "grid mode persists from desktop… a phone user
+                is TRAPPED in it" — that inheritance was the MOB-08 defect and is
+                fixed at the source: `mode` is device-scoped, so a phone no longer
+                inherits the desktop's grid at all. The button stays because a
+                phone that reaches grid mode by any future path still needs a way
+                out, and exiting now writes only the MOBILE branch. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: '1px solid var(--border, #2a3340)', flex: '0 0 auto' }}>
               <span style={{ fontSize: 12, color: 'var(--ut-gold, #c9a84c)', fontWeight: 600 }}>▦ Multi Chart</span>
               <button
@@ -2081,6 +2097,20 @@ export default function ChartsWorkspace() {
             onOptsChange={handleOptsChange}
             onAddWidget={handleAddWidget}
             tablet={shellTablet}
+            /* MOB-01 — the phone's door to the EXISTING layout system. Every one of
+               these is the same callback the desktop menu uses; the sheet adds no
+               persistence of its own. */
+            layoutsMine={wsMyLayouts}
+            layoutsPrebuilt={wsGlobalLayouts}
+            layoutsActive={parsePref(prefs?.charts_active_template, null)}
+            layoutsLoading={templatesLoading}
+            layoutsSavedFlash={savedFlash}
+            isAdmin={isAdmin}
+            onApplyLayout={applyTemplate}
+            onApplyUctDefault={applyUctDefault}
+            onSaveLayout={handleSaveLayout}
+            onSaveLayoutAs={handleSaveAsTemplate}
+            onDeleteLayout={handleDeleteTemplate}
           />
         )}
       </WorkspaceContext.Provider>

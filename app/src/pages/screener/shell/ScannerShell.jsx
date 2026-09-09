@@ -19,7 +19,8 @@ import ShellToolbar from './ShellToolbar'
 import VirtualResults, { LIVE_WINDOW } from './VirtualResults'
 import ResultCards from './ResultCards'
 import { exportScreen } from './csvExport'
-import { LIVE_SORTABLE } from './liveSort'
+import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
+import ReviewChartsButton from '../../charts/review/ReviewChartsButton'
 import styles from './ScannerShell.module.css'
 
 const densityKey = 'uct.screener.density'
@@ -118,6 +119,21 @@ export default function ScannerShell({ embedded = false }) {
     }
   }
 
+  /* ⭐ THE ORDER ON SCREEN, DECIDED ONCE, FOR EVERY RENDERER.
+   *
+   * This used to live inside `VirtualResults`, which made it true of the
+   * desktop table and of nothing else: the live-sort toggle sits in the
+   * underbar, which the PHONE also renders, so a member could turn on
+   * "Re-sort loaded rows live" and watch `ResultCards` ignore it.
+   *
+   * ⛔ AND "REVIEW CHARTS" NEEDS THIS LIST, NOT `rows`. The review publishes the
+   * order the member is looking at; if the display order is computed inside a
+   * child, the surface that has to name it cannot see it, and re-deriving it
+   * here would be a second authority over one list. */
+  const displayRows = useMemo(
+    () => (liveSortOn ? sortRowsLive(rows, s.sort, prices) : rows),
+    [liveSortOn, rows, s.sort, prices])
+
   const retry = () => setRetryNonce(n => n + 1)
   const isEmpty = result && total === 0
   const hasMore = rows.length < total
@@ -138,6 +154,24 @@ export default function ScannerShell({ embedded = false }) {
           snapshot={result?.snapshot} snapshotDate={result?.snapshot_date}
           total={total} shown={rows.length} isLoading={isLoading}
           onExport={handleExport} exportState={exportState}
+          reviewBar={(
+            /* ⛔ THE LOADED PAGE, NOT `total`. The toolbar can read "3,745
+             * matches" while 100 rows have arrived; a review can only walk what
+             * the member can see, so the button's own count is the honest number
+             * and it deliberately differs from the match count beside it. */
+            <ReviewChartsButton
+              symbols={displayRows.map(r => r.ticker)}
+              source="screener"
+              label="Screener"
+              /* ⛔ THE ORDERING IS NAMED, INCLUDING THE LIVE FLAG. A review taken
+               * under the live re-sort walked a different list from one taken
+               * under snapshot order, and the session records which — the same
+               * distinction the "snapshot order" chip makes on screen. */
+              sort={s.sort?.key
+                ? `${s.sort.key}:${s.sort.dir || 'desc'}${liveSortOn ? ':live' : ''}`
+                : null}
+            />
+          )}
           saveBar={<ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
             onUseScan={(hash, name) => {
               // useScreenSpec already exposes `filters` as the raw map keyed
@@ -184,7 +218,7 @@ export default function ScannerShell({ embedded = false }) {
           </div>
         ) : s.view === 'charts' ? (
           <div className={styles.gridScroll}>
-            <ChartsGallery rows={rows} livePrices={prices} />
+            <ChartsGallery rows={displayRows} livePrices={prices} />
             {hasMore && (
               <div className={styles.loadMoreRow}>
                 <button type="button" className={styles.loadMoreBtn} disabled={isLoading}
@@ -193,11 +227,11 @@ export default function ScannerShell({ embedded = false }) {
             )}
           </div>
         ) : isPhone ? (
-          <ResultCards rows={rows} columns={visibleColumns} livePrices={prices}
+          <ResultCards rows={displayRows} columns={visibleColumns} livePrices={prices}
             hasMore={hasMore} onLoadMore={s.loadMore} isLoading={isLoading} />
         ) : (
-          <VirtualResults rows={rows} columns={visibleColumns} sort={s.sort}
-            onSort={s.setSort} livePrices={prices} liveSortOn={liveSortOn}
+          <VirtualResults rows={displayRows} columns={visibleColumns} sort={s.sort}
+            onSort={s.setSort} livePrices={prices}
             density={density} view={s.view} hasMore={hasMore}
             onLoadMore={s.loadMore} isLoading={isLoading} />
         )}

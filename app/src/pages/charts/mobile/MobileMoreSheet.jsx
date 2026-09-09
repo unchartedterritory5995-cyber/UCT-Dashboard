@@ -16,6 +16,12 @@ export default function MobileMoreSheet({
   widgets = [],            // NON-chart widgets of the saved layout
   onOpenWidget,            // (widgetId) => void — open as a full-screen page
   onAddWidget,             // (type) => void
+  onOpenLayouts,           // MOB-01 — the workspace/layout sheet (row hidden when absent)
+  activeLayoutName,        // name of the open named layout, or null for the working board
+  onOpenBoards,            // the Drawing Boards sheet (row hidden when absent)
+  activeBoardName,         // name of the ACTIVE drawing board, or null
+  onOpenObjects,           // the Objects recovery sheet (row hidden when absent)
+  hiddenObjectCount = 0,   // how many objects on this chart are hidden
   onOpenSettings,          // chart settings modal
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
@@ -56,11 +62,58 @@ export default function MobileMoreSheet({
             <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
           </button>
         )}
+        {/* ⛔ THE COUNT IS ON THE DOOR, not just inside it. A hidden object is only
+            recoverable if you have a reason to go looking; a chart that quietly
+            omits three of your levels gives you none. This row says so from the
+            Tools sheet, before you open anything. */}
+        {onOpenObjects && (
+          <button type="button" className={styles.row} aria-label="Objects"
+            onClick={() => { haptics.tap(); onClose(); onOpenObjects() }}>
+            <span className={styles.rowIcon}><UIcon name="library" size={17} gold={hiddenObjectCount > 0} /></span>
+            <span className={styles.rowLabel}>Objects</span>
+            <span className={styles.rowRight}>
+              {hiddenObjectCount > 0
+                ? <span className={styles.rowSub}>{hiddenObjectCount} hidden</span>
+                : null}
+              <UIcon name="chevronRight" size={14} gold={false} />
+            </span>
+          </button>
+        )}
         <button type="button" className={styles.row} onClick={() => { onClose(); onOpenSettings?.() }}>
           <span className={styles.rowIcon}><UIcon name="gear" size={17} gold={false} /></span>
           <span className={styles.rowLabel}>Chart settings</span>
           <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
         </button>
+        {/* MOB-01. The phone was a first-class WRITER to the server-backed workspace with
+            no way to name, save or reopen one — the layout lists were computed two lines
+            above ChartsWorkspace's mobile return and used only on desktop. This row is the
+            door; MobileLayoutsSheet calls the desktop's own handlers. */}
+        {onOpenLayouts && (
+          <button type="button" className={styles.row} aria-label="Layouts" onClick={() => { haptics.tap(); onClose(); onOpenLayouts() }}>
+            <span className={styles.rowIcon}><UIcon name="columns" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Layouts</span>
+            <span className={styles.rowRight}>
+              {activeLayoutName ? <span className={styles.rowSub}>{activeLayoutName}</span> : null}
+              <UIcon name="chevronRight" size={14} gold={false} />
+            </span>
+          </button>
+        )}
+
+        {/* Drawing boards sit BESIDE Layouts because they are the same kind of
+            thing to a user: a named saved set they switch between. Two named-set
+            managers in two unrelated places is exactly the scattering the
+            interaction grammar forbids. */}
+        {onOpenBoards && (
+          <button type="button" className={styles.row} aria-label="Drawing boards"
+            onClick={() => { haptics.tap(); onClose(); onOpenBoards() }}>
+            <span className={styles.rowIcon}><UIcon name="rows" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Drawing boards</span>
+            <span className={styles.rowRight}>
+              {activeBoardName ? <span className={styles.rowSub}>{activeBoardName}</span> : null}
+              <UIcon name="chevronRight" size={14} gold={false} />
+            </span>
+          </button>
+        )}
 
         {widgets.length > 0 && (
           <>

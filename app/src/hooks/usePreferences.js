@@ -105,16 +105,67 @@ export default function usePreferences() {
     const serialized = typeof value === 'string' ? value : JSON.stringify(value)
     // Optimistic update
     mutate(prev => ({ ...DEFAULTS, ...prev, [key]: serialized }), false)
+
+    /** Report the failure and CHANGE NOTHING. This is the settle contract.
+     *
+     * ⛔⛔ A FAILED WRITE MUST NOT TOUCH THE CACHE. MOB-09 (`ecfec4a2c`) added a
+     * bare `mutate()` here, and it deadlocked the app against any failing
+     * preferences endpoint. Both obvious readings of that bug are wrong, and both
+     * were measured before this comment was written:
+     *
+     *   1. "It is the revalidation." It is not. Replacing `mutate()` with a
+     *      local, no-request rollback (`mutate(fn, false)`) STILL spun at 100%
+     *      CPU indefinitely.
+     *   2. "It is the failure itself." It is not that either — the pre-MOB-09
+     *      code returned from this branch having done nothing, and settled.
+     *
+     * The actual driver is that ANY write here re-renders every consumer, and
+     * `prefs` is rebuilt as a fresh object on each render (see below), so a
+     * `prefs`-keyed effect that writes fires again — and a rollback is the worst
+     * shape of all, because it flips the value back to the one that provoked the
+     * write, so the cycle cannot converge even in principle. Leaving the
+     * optimistic value in place is what terminates it: the second attempt sees
+     * the value already applied and has no reason to write again.
+     *
+     * ⛔ SO THE OPTIMISTIC VALUE DELIBERATELY SURVIVES A FAILED WRITE, in memory,
+     * for this session. That is the pre-MOB-09 behaviour and it is chosen, not
+     * inherited: it keeps the user's own edit on screen instead of yanking it
+     * back under them, and nothing durable is claimed by it — the SERVER is
+     * still the authority, `false` is returned, and a caller that keeps a
+     * durable mark (`useTracingsSync`) must not advance it. The cost is that a
+     * rejected value can linger in the in-memory cache until the next successful
+     * read; that is a smaller harm than an unbreakable render loop, and it is the
+     * behaviour every release before MOB-09 shipped.
+     */
     try {
-      await fetch(PREFS_URL, {
+      const res = await fetch(PREFS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value: serialized }),
       })
+      if (!res || !res.ok) {
+        // A 4xx/5xx used to read exactly like success. It is still reported —
+        // that is MOB-09's real requirement — but it is reported by the RETURN
+        // VALUE, not by mutating shared cache state. See the settle note above.
+        return false
+      }
     } catch {
-      // Revert on failure
+      // ⚠️ THE THROW PATH KEEPS ITS REVERT, AND THE ASYMMETRY IS DELIBERATE.
+      // This branch is not the one MOB-09 added and not the one that spun: the
+      // hang was driven by `{ok: false}`, which resolves and never lands here.
+      // This revert predates MOB-09, has shipped for a long time, and carries
+      // its own contract test (`usePreferences.test.js` — "still reverts on
+      // failure", which drives `fetch` to THROW). Removing it here as well was
+      // over-broad and turned that green test red; the narrow fix is the
+      // non-ok branch alone.
       mutate()
+      return false
     }
+    // ⭐ RETURNS WHETHER THE WRITE WAS CONFIRMED. Every existing caller ignores
+    // the return value and is unaffected. `useTracingsSync` does not ignore it,
+    // because it keeps a highwatermark of "what the server has seen" and that
+    // claim must never rest on a request nobody checked (MOB-09).
+    return true
   }, [mutate])
 
   /**

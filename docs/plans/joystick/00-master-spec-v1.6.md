@@ -924,3 +924,55 @@ amendments from Wave 0:
 - The **Mobile-browser specialist** owns the two viewport ⚠️ GAPs (volume-pane exclusion, visualViewport
   behaviour under a collapsing toolbar at the new 68px offset). The **Registry engineer** owns the
   virtualized-cursor question with the Architecture lead.
+
+---
+
+## C1.3 The preview kill switch (v1.6, Phase 2.5)
+
+### Joystick hub preview — `HUB_PREVIEW_ENABLED` (Deploy)
+
+> **`HUB_PREVIEW_ENABLED` unset or `true` → hub eligible; `false` → hub hidden for everyone on
+> next authenticated request. Production sets it `true` deliberately so "on on purpose" is
+> distinguishable from "unset".**
+
+It is a **kill switch**, so the default is ON. The opposite default would make a variable
+someone forgot to set indistinguishable from a deliberate shutdown — the ambiguity
+`project_feature_flag_ledger` exists to prevent.
+
+- Read **at request time** in `api/routers/auth.py::_access_payload`, which signup, login and
+  `/api/auth/me` all share. There is **no feature-flag endpoint in this app** — the flag rides
+  that payload by design, so it needs no new route and is present the moment a session exists.
+- Accepted off values: `0`, `false`, `no`, `off` (case- and whitespace-insensitive). Everything
+  else, including unset, is ON.
+- **Rollback:** set `HUB_PREVIEW_ENABLED=false` in Railway → takes effect on each user's next
+  authenticated request, **no redeploy**. ⚠️ An already-open page keeps its hub until its next
+  `/api/auth/me` — in practice a reload or route change, not a background poll.
+  ⚠️ `railway variables --set` **stages and redeploys**; confirm with
+  `railway variables --service web --kv`.
+- Rails: `tests/test_hub_preview_flag.py` — `test_the_flag_is_read_per_request` (the
+  load-bearing one: a module-level capture passes every other test and makes the no-redeploy
+  rollback a fiction) and `test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed`
+  (pins the literal, not just the behaviour, so the default cannot be changed and the test
+  "fixed" to match).
+
+---
+
+## C1.4 Phase 2a — planned trades (v1.6)
+
+`hub_planned_trades` (created by `journal_two/db.py::ensure_schema`, ALTER-list idiom,
+idempotent). Deliberately **not** a `j2_` table: a planned trade is a hub artifact that MAY
+become a `j2_positions` row in Phase 3, and folding it into the Journal's schema would make
+"did the member journal this?" ambiguous.
+
+- **`r_value` is derived through `calculations.trade_pnl_dollar`**, with the stop as the
+  modelled exit. ⭐ The reasoning is the second-authority rule, not the arithmetic:
+  `abs(entry - stop) * size` is correct and would still be wrong to write here, because it
+  puts a second copy of "how this app computes trade money" in the tree. A planned trade has
+  no exit, so the stop is the exit being modelled — P&L there is exactly −1R.
+- **Side is derived from the stop, never stored.** Storing both would let them disagree,
+  leaving a row that says Long with a stop above its entry and no field to trust.
+- **`stop == entry` is a hard 422.** The side is undefined, the risk is zero and `r_value`
+  is null — a plan that cannot say what it risks is not a plan.
+- **Cross-user access returns 404, never 403**; the scoping is in the WHERE clause. A 403
+  would confirm the id is real.
+- **Discarding is a state, not a delete** — discarded rows stay listed.

@@ -17,17 +17,21 @@ cannot see.
 >
 > It's a preview, so it navigates for now and more lands over the next few weeks.
 >
-> If you'd rather not have it, tap the button beside it and choose **Hide joystick** — and if
+> If you'd rather not have it, tap the button beside it and choose **Hide joystick** — that
+> hides it until you reload, and you can turn it off for good in **Settings → Joystick**. If
 > you have thoughts, the same menu has **Feedback**, which goes straight to us.
 
 ---
 
 ## Notes for the owner, not for the post
 
-- **Do not promise a Settings toggle in the post.** It ships in Phase 4. The hide toast says
-  "Re-enable in Settings soon", and until then a member who hides it needs either an admin to
-  flip their stored preference or to clear it themselves. Support should know both paths
-  before this goes out.
+- **The Settings toggle EXISTS — name it.** ⚰️ This said *"do not promise a Settings toggle;
+  it ships in Phase 4"*, and the recovery paths it told support to learn were an admin editing
+  the database or the member running a `fetch()` in a devtools console. That gap was a defect,
+  not a documentation problem, and it was closed: hiding from the sheet is now session-only,
+  **Settings → Joystick** is the permanent switch, and a hidden hub always leaves a small glass
+  tab on the right edge to bring it back. Support needs one sentence, not two paths:
+  *"Reload, or tap the sliver on the right edge — and Settings → Joystick turns it off for good."*
 - **Do not name a date.** Phase 3 is scoped but not scheduled.
 - **It is mobile-only** — phones and tablets, not desktop. Expect at least one "I don't see
   it" from someone on a laptop; that is correct behaviour, not a bug.

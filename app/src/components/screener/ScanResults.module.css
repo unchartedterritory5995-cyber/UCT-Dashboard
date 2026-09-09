@@ -108,7 +108,9 @@
 }
 
 /* The Evidence door sits at the right of the receipt, out of the hit list's way. */
-.toolbar { display: flex; justify-content: flex-end; }
+/* Two actions now (Review charts + Evidence), and on a phone they must be able
+   to wrap rather than squeeze each other below the 44px touch floor. */
+.toolbar { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 /* The ticker and its provenance chip travel together: the chip is a fact ABOUT
    this row, so it must not be able to drift to another one. */
