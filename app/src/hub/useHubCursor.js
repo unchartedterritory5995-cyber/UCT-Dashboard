@@ -36,7 +36,10 @@ import { useCallback, useLayoutEffect, useSyncExternalStore } from 'react';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMPTY_ITEMS = [];
-const KEY_SEP = ''; // a separator no real item key is expected to contain
+// ⛔ WRITTEN AS AN ESCAPE, NOT THE RAW BYTE. The literal 0x01 that used to sit here
+// made this file BINARY to git and ripgrep: its diff read "Binary files ... differ" and a
+// grep for any symbol in it found nothing. The runtime string is identical.
+const KEY_SEP = '\u0001'; // a separator no real item key is expected to contain
 
 /** @type {Map<string, { index: number, identity: string|null, listeners: Set<() => void> }>} */
 const _cursors = new Map();

@@ -341,7 +341,11 @@
   margin: -8px -10px -8px 0;
   background: none;
   border: 0;
-  color: var(--color-text-muted);
+  /* ⛔ `--text-muted`, NOT `--color-text-muted` — the latter is not a token and never
+     was, so this declaration was a silent no-op and the × inherited its colour.
+     An undefined custom property does not fall back to anything; the whole
+     declaration is simply dropped. Caught by styles/tokens.reachable.test.js. */
+  color: var(--text-muted);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
