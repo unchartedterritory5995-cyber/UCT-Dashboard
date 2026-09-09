@@ -1257,6 +1257,23 @@ mtime.
 off to `scripts/hub_sandbox_boot.py`, which owns all env sandboxing, arms the
 conftest tripwire in-process, and runs the snapshot rail.
 
+### > Gate criterion is hub cost relative to the device's idle baseline, not an absolute fps. Pass = fan-open fps >= 0.9 x idle baseline on the same device.
+
+Ruled after a Galaxy S24 measured 29.9 fps and an absolute >=45 gate would have called it a
+hub regression. It is not one: with the hub idle and **no fan open at all**, that unit
+already renders at **30.1 fps**, while a Pixel 8 on the identical build sits at 60.3. The
+S24 in BrowserStack is an **Exynos 2400 / Xclipse 940** part under ANGLE-on-Vulkan, Chrome
+149. An absolute threshold measures the device; a ratio measures the feature.
+
+### > Hub sandbox owns port 8077. `tools/local_backend_sandbox.py` and any other local server must use a different port; the launcher refuses a busy port and never kills another process.
+
+A concurrent session bound a second server to 8077 mid-run. Windows allowed it, and the
+BrowserStack phones drove the wrong server through the tunnel for the rest of the run:
+signup and login answered **200** against a store the hub sandbox could not see, and every
+gesture step reported "hub-pad not present". Nothing errored. That run is void.
+`hub_sandbox_boot.py` now refuses to boot on a busy port and names the command to find the
+owner — it does **not** kill the other process, which may belong to someone else's work.
+
 ### > A results file is claimed (truncated + timestamped) before the session starts; a run that dies leaves an explicit INCOMPLETE, never a stale pass.
 
 Same failure shape as the line below, in file form. Phase 2 device run 2's Pixel 8 threw

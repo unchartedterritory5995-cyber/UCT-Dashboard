@@ -18,7 +18,9 @@
 // component and a hook breaks React Fast Refresh (`react-refresh/only-export-components`), and
 // because "one authority" reads better as a file than as a footnote on a component.
 
+import { useContext } from 'react'
 import useHubSettings from './useHubSettings'
+import { AuthContext } from '../context/AuthContext'
 
 /**
  * Every mount condition, in one place.
@@ -33,6 +35,24 @@ import useHubSettings from './useHubSettings'
  */
 export default function useHubActive() {
   const { settings } = useHubSettings()
+  const auth = useContext(AuthContext)
+
+  // ⛔ THE SERVER-SIDE KILL SWITCH OUTRANKS EVERYTHING, INCLUDING AN EXPLICIT
+  // STORED PREFERENCE. `HUB_PREVIEW_ENABLED=false` in Railway hides the hub for
+  // every user with no redeploy — the backend re-reads the env var per request
+  // and carries the answer on the auth payload the client already polls.
+  //
+  // ⭐ `=== false`, NEVER a truthiness test. `undefined` means "a backend that
+  // predates this field, or a payload that did not parse" — neither is a
+  // decision to kill a shipped feature, and treating them as one would hide the
+  // hub for everyone the first time /api/auth/me hiccuped. Only an explicit
+  // false from the server counts.
+  //
+  // Read through `useContext(AuthContext)` rather than the `useAuth()` helper so
+  // this hook stays callable outside a provider (it returns null there, and the
+  // optional chain leaves the flag undefined = not killed) — HubRoot's own tests
+  // render it bare.
+  if (auth?.hubPreviewEnabled === false) return false
 
   if (!settings.enabled) return false
   // jsdom ships none of the three checks below, which is itself meaningful: an unstubbed test

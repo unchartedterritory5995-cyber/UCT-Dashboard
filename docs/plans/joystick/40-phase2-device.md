@@ -20,6 +20,25 @@ forbids (master spec §2, "No new dependencies"). This script is written for the
 owner's existing paid BrowserStack account, driven by hand through
 `https://live.browserstack.com`.
 
+## Gate criterion — frame rate is RELATIVE, not absolute (ruled 2026-09-09)
+
+> **Gate criterion is hub cost relative to the device's idle baseline, not an absolute fps.
+> Pass = fan-open fps >= 0.9 x idle baseline on the same device.**
+
+**Galaxy S24: WAIVED at 29.9 fps.** Measured baseline with the hub idle and no fan open:
+**30.1 fps** (session `9c6649862a1e14ac226f038584a9bd3335eef895`). Pixel 8 on the identical
+build: **60.3 fps**. The S24 unit is an **Exynos 2400 / Xclipse 940** under
+`ANGLE ... on Vulkan 1.3.231`, Chrome 149 — a 30 Hz ceiling that exists before any hub
+surface is drawn. An absolute >=45 gate would have recorded a device characteristic as a
+product regression.
+
+⚠️ Isolation conditions ii-v (blur on/off, canvas hidden) remain **INCONCLUSIVE** — the
+harness's own fan-open check failed on all four, so they did not hold the condition they
+name. Re-run in run 3 only if that check can be made to hold; otherwise drop them. Detail in
+`41-phase2-diagnostics.md`.
+
+---
+
 ## RUN 2 (2026-09-08 23:40) — VOID. Not a result set.
 
 ⛔ **A SECOND SERVER WAS ON THE TEST PORT FOR PART OF THIS RUN.** At 23:52:03 a concurrent

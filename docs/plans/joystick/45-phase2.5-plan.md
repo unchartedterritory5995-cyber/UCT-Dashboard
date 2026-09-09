@@ -17,14 +17,26 @@ tiers'`) — that is the protection, not a survival, and it stays.
 - Everything Phase 2 built: pad, knob, fan, chip, scrim, Actions button, Voice and Feedback
   fold-in, **reach-mode selection** (spec §C1.1), sticky fan, handedness through the existing
   settings blob (no settings UI yet — default right-handed).
-- **Home mode is the only mode with a real fan** in the preview:
-  - outer ring — Screener · Charts · Flow · Catalysts · Breadth
-  - inner ring — Journal · Notebook · Calendar · Wire
-  - ⚠️ Reconcile against `registry.js` before building: today's Home fan is
-    `scan · chart · breadth · wire · flow` (outer) and `journal · notebook · calendar · voice`
-    (inner). Catalysts is not in it and Voice is. **Do not hand-edit one and not the other** —
-    the registry is the authority and this list must be made to match it, or the ruling
-    restated. Flag the difference at the gate rather than silently picking one.
+- **Home mode is the only mode with a real fan** in the preview (owner ruling, 2026-09-09 —
+  the REGISTRY is the authority):
+  - **outer ring — Screener · Charts · Flow · Breadth**
+  - **inner ring — Journal · Notebook · Calendar · Voice**
+  - **Catalysts is NOT in the fan.** Wave 0 found it has no route — it is an in-place
+    dashboard tile mode, and it becomes reachable in Phase 3, not here.
+  - **Wire is dropped from the preview**, though `/morning-wire` is a perfectly real route
+    and Wire sits on Home's outer ring in `registry.js` today. That is a scope choice, not a
+    routing problem; removing it from the preview means editing the Home fan, so state it in
+    the commit rather than letting a reader assume the registry changed by accident.
+  - ⚠️ **Voice is the one entry that is NOT a navigation.** `registry.js`'s `voice()` helper
+    builds `{ ring: 1, kind: 'run' }` — it has no `to` and no route; it calls the orb's own
+    `useRealtimeSession().connect(context)`. It stays on the inner ring per the ruling, but
+    it is the single preview action that does something rather than going somewhere, and
+    "navigation-only preview" is therefore *nearly* true rather than exactly true. Worth one
+    line in the announcement so nobody is surprised.
+  - Every other listed entry IS a real route, verified against the registry:
+    Screener `/screener` · Charts `/charts` · Flow `/options-flow` · Breadth `/breadth` ·
+    Journal `/journal/trades` · Notebook `/journal/notebook` · Calendar `/calendar`.
+
 - Every other mode's fan is `[Voice, Home]` until Phase 3.
 - Tap / double-tap do nothing except on Home (tap → Screener, double-tap → Journal).
   Hold → Home everywhere.
@@ -60,9 +72,21 @@ tiers'`) — that is the protection, not a survival, and it stays.
 
 **Kill switch (both steps)**
 
-- Env flag **`HUB_PREVIEW_ENABLED`**, read **at request time, not at boot**, surfaced through
-  the config endpoint the client already polls. False ⇒ the hub does not mount for **anyone**,
-  regardless of role or stored preference.
+- ✅ **BUILT** (ahead of run 3, so run 3 verifies it). Env flag **`HUB_PREVIEW_ENABLED`**,
+  read **at request time** in `api/routers/auth.py::_access_payload`. False ⇒ the hub does not
+  mount for **anyone**, regardless of role or stored preference.
+- ⚠️ **THERE WAS NO "EXISTING CONFIG ENDPOINT".** The plan assumed one; a search found none —
+  no `/api/config`, no feature-flag route the client polls. Rather than add an endpoint (this
+  release ships zero new hub endpoints), the flag rides `_access_payload`, the block already
+  shared by **signup, login and `/api/auth/me`**. So it is present the moment a session
+  exists, with no extra round trip, and a user who just signed up never sees the hub for one
+  render before a poll corrects them.
+- Client half: `AuthContext` stores it and `useHubActive` returns false on it — the ONE
+  predicate `App.jsx`, `Layout.jsx` and `HubRoot.jsx` all read, so the switch cannot reach two
+  of the three and miss the other.
+- ⛔ **`=== false`, never truthiness.** `undefined` means an older backend or a payload that
+  did not parse; treating that as a shutdown would hide the feature the first time
+  `/api/auth/me` hiccuped. Default is ON — it is a KILL switch, so unset means "not killed".
 - ⛔ **Test both directions.** A kill switch nobody has watched turn something OFF is not a
   kill switch (`lesson_gate_that_cannot_fail`). Rails: on→mounts, off→absent, and off beats a
   stored `enabled: true`.
@@ -70,9 +94,12 @@ tiers'`) — that is the protection, not a survival, and it stays.
 
 ## 3. Prerequisites before the release commit
 
-- Run 2 **accepted**; sticky fan fixed per the diagnostics ruling; **S24 FPS ≥45**, either
-  fixed or explicitly waived by the owner **with the number recorded** in
-  `40-phase2-device.md`.
+- ✅ Run 2 ruled **VOID** (port collision) — superseded by **run 3**.
+- ✅ Sticky fan **CLEARED**: harness defect, not product (10/10 both devices). The old
+  element-handle / split-`perform()` path is **deleted**, not left beside the working one.
+- ✅ S24 FPS **WAIVED** at 29.9 against a measured 30.1 idle baseline. The gate criterion is
+  now relative: **fan-open fps ≥ 0.9 × idle baseline on the same device**, recorded in
+  `40-phase2-device.md` and `CLAUDE.md`.
 - Rebase `feat/joystick-hub` onto master. If the indicators branch has merged, re-run the
   chart scout and the `/charts` device steps; if not, ship anyway — the preview touches no
   chart internals.
