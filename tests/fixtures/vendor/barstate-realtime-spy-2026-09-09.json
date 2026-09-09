@@ -110,6 +110,92 @@
       "_ruling_why_strict_mode_must_refuse_the_fold": "⛔⛔ THE SAME SCRIPT, THE SAME SYMBOL, THE SAME TIMEFRAME give DIFFERENT answers for barstate.isconfirmed and barstate.ishistory before and after 09:30 ET. A screener column that folded either to its closed-bar value pre-open would silently change meaning at the open, with nothing to refuse and nothing to point at. This is the measured justification for pine:live-bar-state in strict mode.",
       "_ruling_forming_bar_signature": "On the FORMING bar: isconfirmed=0, islast=1, ishistory=0. So for the newest bar, `ishistory` is the complement of 'this bar is still forming'. Note it is NOT the complement of `islast` — pre-open, islast=1 AND ishistory=1 on the same bar.",
       "_note_still_unmeasured": "isrealtime / isnew / islastconfirmedhistory are NOT in this capture. The existing UCTPROBE_NS plots only isconfirmed/islast/ishistory, and extending it needs a study added — blocked this visit by the hidden tab."
+    },
+    {
+      "id": "the-1m-bar-open-transition-AND-a-repaint",
+      "resolution": "1m",
+      "symbol": "AMEX:SPY",
+      "_context": "Switched to 1m at 09:31:29, so the 09:31 bar formed LIVE under this session while the 09:30 bar arrived as server-side history. That accident is what exposed the finding.",
+      "cols": [
+        "barET",
+        "isconfirmed",
+        "islast",
+        "ishistory"
+      ],
+      "observations": [
+        {
+          "atET": "2026-09-09 09:31:41",
+          "bars": 400,
+          "last": [
+            "09:31:00",
+            0,
+            1,
+            0
+          ],
+          "prev": [
+            "09:30:00",
+            1,
+            0,
+            1
+          ]
+        },
+        {
+          "atET": "2026-09-09 09:32:01",
+          "bars": 401,
+          "last": [
+            "09:32:00",
+            0,
+            1,
+            0
+          ],
+          "prev": [
+            "09:31:00",
+            1,
+            1,
+            0
+          ]
+        },
+        {
+          "atET": "2026-09-09 09:32:47",
+          "bars": 401,
+          "tail5": [
+            [
+              "2026-09-08 15:58:00",
+              1,
+              0,
+              1
+            ],
+            [
+              "2026-09-08 15:59:00",
+              1,
+              0,
+              1
+            ],
+            [
+              "2026-09-09 09:30:00",
+              1,
+              0,
+              1
+            ],
+            [
+              "2026-09-09 09:31:00",
+              1,
+              1,
+              0
+            ],
+            [
+              "2026-09-09 09:32:00",
+              0,
+              1,
+              0
+            ]
+          ]
+        }
+      ],
+      "_ruling_bar_open": "A 1m bar-open behaves exactly like the daily one: a new bar appears, isconfirmed=0 and ishistory=0 on it, islast moves to it.",
+      "_ruling_THE_REPAINT": "⛔⛔ THE SAME BAR CARRIES DIFFERENT barstate VALUES DEPENDING ON WHETHER YOUR SESSION WATCHED IT FORM. At 09:32:47 — 46 seconds after it closed — the 09:31 bar still read isconfirmed=1, islast=1, ishistory=0, while the 09:30 bar (loaded as history) read 1, 0, 1. A bar that formed live KEEPS its realtime-computed barstate after closing; it does not get recomputed as history until the chart reloads. So `ishistory` and `islast` on a closed bar are a function of WHEN THE VIEWER ARRIVED, not of the bar.",
+      "_why_this_matters": "This is a repaint, and it is in the flag a screener would most naturally use to mean 'this bar is settled'. Two members opening the same script minutes apart get different columns for the same historical bar. It is a second, independent reason strict mode must refuse barstate.* rather than fold it — separate from the pre-open/post-open flip, which is about the CURRENT bar.",
+      "_bounds_on_the_claim": "Observed on one symbol, one session, over ~90 seconds, with the vendor's recompute not having occurred within that window. It does NOT establish that the recompute never happens — only that a closed bar can carry realtime values well after closing. The safe reading is: never assume a closed bar's barstate is stable."
     }
   ],
   "tickerid_shape": {
