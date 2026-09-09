@@ -933,3 +933,114 @@ load-dependent flake, classified as such rather than forced into a category.
 
 ⛔ Held: not deployed, not pushed, no R5, no hub/review convergence work, no
 chasing of master commits past the frozen target.
+
+---
+
+# PRODUCTION CLOSEOUT — 2026-09-09
+
+Post-release verification of the shipped mobile review workflow.
+Released HEAD `0ff9dfea7`; no product code changed in this phase.
+
+## P1 · Authenticated production validation — ALL SIX VERIFIED
+
+⚰️ **First, a correction to the release report.** It recorded *"not authenticated —
+these six items are UNVERIFIED"*. That was wrong, and it was my probe that was
+wrong, not production: `/api/auth/me` nests the account under a `user` key, and I
+tested for a top-level `email`. An authenticated owner/admin session existed the
+whole time. The items below were verifiable then and are verified now.
+
+Method: a same-origin **390×844 iframe** against live `uctintelligence.com`
+(never `resize_window`), driven through the app's own DOM controls.
+`data-mobile-chart-shell="1"` confirmed the phone shell mounted.
+
+| leg | result | evidence |
+|---|---|---|
+| screener → review entry | ✅ | **"Review charts 100"** button live on `/screener` |
+| enter review session | ✅ | click created `uct.review.session` — `source:"screener"`, `sort:"uct_composite:desc"`, 100 symbols; landed on `MGTX 1/100` |
+| next | ✅ | index and symbol advance; controls `Previous symbol` / `N / 100 in Screener — open the list` / `Next symbol` all present |
+| previous | ✅ | `ACLX 10/100 → LPG 9/100 → LQDA 8/100`, and Next returned to `LPG 9/100` — **symmetric** |
+| return to list | ✅ | the centre pill opens the list/feed dialog (`role=dialog`) titled **"Screener — 100 charts"** |
+| ReviewFeed | ✅ | **canvases 11 → 43**; rows 1–10 each render a full candle chart with MAs, volume pane and a live price badge, each tagged **SEEN** |
+
+Also verified beyond the required list: **selecting from the feed** navigated
+`EWCZ 15/100 → ACLX 10/100` and closed the feed.
+
+⚠️ **Not exercised:** the desktop browser reports `pointer: fine`, so
+`useHubActive()` is false there and the **joystick hub never mounted**. Hub/review
+coexistence therefore remains verified only by construction (z-index tokens +
+master's own rail), **not** by a live production interaction on a coarse pointer.
+
+## P2 · R5 current+2 prefetch — `R5_INCONCLUSIVE`
+
+**No p50/p95 or tap→useful figures are reported, because the only production
+browser available to me could not produce trustworthy ones.**
+
+The driven tab runs `visibilityState: "hidden"`. In that state
+`requestAnimationFrame` is frozen (a 1-second rAF probe never returned inside a
+45s budget), timers are clamped, and this app's own `useMobileSWR` deliberately
+pauses polling on hidden tabs. Latency sampled there measures the throttle, not
+the product. Publishing numbers from it would be the exact instrument error this
+document has corrected three times already, so the measurement was abandoned
+rather than dressed up.
+
+| required output | status |
+|---|---|
+| tap → useful chart | **not measured** |
+| tap → settled chart | **not measured** |
+| p50 / p95 | **not measured** |
+| sample size | 0 valid samples |
+
+**Conditions that were recorded** (for whoever repeats this): Chrome/Windows,
+`effectiveType: 4g`, RTT ≈ 50 ms, downlink ≈ 8.6 Mbps, iframe 390×844, DPR 1,
+`pointer: fine`.
+
+⭐ **One observation, offered as an observation and not as a measurement:** across
+the entire review session — entry, ~15 next/prev navigations, a feed open and a
+feed selection — the frame recorded **147 `/api/` calls and ZERO `/api/bars/`
+network requests**. That is consistent with bars being served warm from the
+prefetch/IDB path, which is what R5 exists to do. It does **not** establish a
+latency benefit, and must not be quoted as one.
+
+**To actually close R5** the run needs a foregrounded browser or the real-device
+rig (BrowserStack), where rAF is live and a warm-vs-deliberately-cold comparison
+is meaningful. Per instruction, **R5 was not modified.**
+
+## P3 · Post-release health
+
+| check | result |
+|---|---|
+| frontend errors | **none** — console clean across the whole session |
+| relevant 5xx | **none** |
+| review API failures | **none** — `/api/health`, `/api/auth/me`, `/api/auth/preferences`, `/api/watchlists`, `/api/bars/AAPL`, `/api/live-prices`, `/api/ticker-search` all **200** (67–221 ms) |
+| abnormal preference traffic | ⭐ **1 request for the entire session** — the MOB-09 spin is absent in production, under real navigation load |
+| request amplification | 147 API calls for a full 100-symbol review session with a feed open; no storm |
+| memory / CPU | web RSS 3.3 GB of the 32 GB container (~10%), 93 threads, JS heap 90.7 MB |
+| deployment stability | all five services **SUCCESS**; uptime climbed monotonically 39 → 400 → 455 s — **no restart loop** |
+
+⚠️ `/api/scans/definition-results` returned **422** — that is my own malformed
+probe (I omitted the required definition id/hash), not a production fault. Stated
+because a 4xx in a health table is otherwise easy to misread later.
+
+**Deployment lineage:** master has since advanced normally (`web` now on
+`5839f1609`). `0ff9dfea7`, `ace13811f` and `089ed07e9` are all **contained in the
+currently deployed artifact** — the release is live and was not displaced.
+
+## P4 · Closure state
+
+**Done:** authenticated production validation of all six review legs · health
+check clean · release confirmed live in the deployed artifact.
+
+**Outstanding (one item):** the **R5 current+2 prefetch measurement**, which
+produced zero valid samples because the available browser is throttled. It needs
+a foregrounded session or the device rig.
+
+# MOBILE_PHASE_CLOSED = NO
+
+Single concrete remaining closure item:
+
+1. **R5 current+2 prefetch is unmeasured.** Requires a foregrounded browser or the
+   real-device rig to yield trustworthy tap→useful / tap→settled, p50/p95 against
+   a deliberately unwarmed control. Everything else in this closeout passed.
+
+Secondary, non-blocking: hub/review coexistence is still unexercised on a live
+coarse-pointer device (verified by construction only).
