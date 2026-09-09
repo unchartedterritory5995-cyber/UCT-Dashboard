@@ -519,3 +519,120 @@ def test_CONTROL_a_later_stamp_DOES_show_up(monkeypatch):
     time.sleep(0.15)
     fr._record_roll(v, prepare_ms=50, pass2_skipped=False, published_at=time.time())
     assert fr.prepare_rolls("steady_state_roll")[0]["observed_s"] >= 0.14
+
+
+# ── The forced-bump blind spot ────────────────────────────────────────────────
+# ⛔⛔ THE DEFECT THESE PIN COST A WHOLE RTH SESSION (2026-09-09).
+# `_record_roll` classified a roll by BUCKET arithmetic, and a forced version
+# bump makes that arithmetic meaningless — so the branch fell straight to
+# "startup_catchup". From the first bump onward every roll in the process was
+# filed as a catch-up, `rolls_steady` stayed permanently empty, and
+# `rolls_startup` is served [-5:], so an entire session compressed to five rows.
+#
+# It is not an edge case. `flow_gap_autofill` re-bumps AT BOOT after a recent
+# fill and runs with FLOW_GAP_AUTOFILL_ENABLED=1 in production, so the offset is
+# already non-zero before the preparer records its first roll. Production read
+# `current_version: 39816459` (offset 1) with `rolls_steady: []`.
+#
+# ⛔ EVERY PRE-EXISTING TEST IN THIS FILE RAN AT _FORCE_BUMP_OFFSET == 0, which
+# is why nine green classification tests could not see it. The fixture, not the
+# assertion, was the blind spot.
+
+def _bumped_version(offset=1, plus=0):
+    """A version as `_current_version()` mints it while a bump is in effect."""
+    return int(time.time() // fr._VERSION_BUCKET_SEC) + offset * 10_000_000 + plus
+
+
+def test_a_forced_bump_does_not_blind_the_steady_state_gate(monkeypatch):
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    boot = _bumped_version()
+    for v, prev in ((boot, None), (boot + 1, boot), (boot + 2, boot + 1)):
+        fr._note_version_seen(v)
+        fr._record_roll(v, prepare_ms=7000, pass2_skipped=False, prev_version=prev)
+
+    steady = fr.prepare_rolls("steady_state_roll")
+    assert [r["version"] for r in steady] == [boot + 1, boot + 2], (
+        "a bumped generation cannot predate the process that minted it — "
+        "filing these as catch-ups is what left rolls_steady empty in prod")
+
+
+def test_CONTROL_the_boot_generation_is_STILL_a_catchup_under_a_bump(monkeypatch):
+    """Without this, 'always steady_state_roll' would satisfy the test above."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    boot = _bumped_version()
+    fr._note_version_seen(boot)
+    fr._record_roll(boot, prepare_ms=8000, pass2_skipped=False, prev_version=None)
+
+    assert fr.prepare_rolls("steady_state_roll") == []
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+
+
+def test_CONTROL_the_bucket_bound_stays_unavailable_under_a_bump(monkeypatch):
+    """The bump really does invalidate the bucket — the fix must recover the
+    CLASSIFICATION without inventing a bound out of nonsense arithmetic
+    (version * 60 under a bump lands in the year 2045)."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    v = _bumped_version()
+    fr._note_version_seen(v)
+    fr._record_roll(v, prepare_ms=7000, pass2_skipped=False, prev_version=v - 1)
+
+    row = fr.prepare_rolls("steady_state_roll")[0]
+    assert row["bucket_bound_s"] is None
+    assert row["observed_s"] is not None, "the EXACT number must survive a bump"
+
+
+def _stub_build(monkeypatch, version, current):
+    """Wire a preparer whose build always succeeds for `version`."""
+    monkeypatch.setattr(fr, "_current_version", current)
+    monkeypatch.setattr(fa, "get_cached_or_build_part",
+                        lambda key, ver, provider, date_filter, part, only=None: (ver, b"gz"))
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (version,
+                                              __import__("gzip").compress(b"csv")))
+
+
+def test_the_PREPARER_passes_the_prior_version_so_a_bumped_roll_is_STEADY(monkeypatch):
+    """⛔ THE ONE THAT GUARDS THE CALL SITE. `prev_version` defaults to None, so
+    a mutation that drops it at the call site re-files every roll as a catch-up
+    and the isolated tests above stay green. Drive the REAL preparer."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    v = _bumped_version()
+    _stub_build(monkeypatch, v, lambda: v)
+    fr._note_version_seen(v)
+
+    fr._prepare_once(v - 1)          # a prior version WAS prepared by this process
+
+    assert fr.prepare_rolls("startup_catchup") == [], (
+        "the preparer knew a prior version — this roll is a detected "
+        "transition, not a boot catch-up")
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1
+
+
+def test_the_pass2_SKIPPED_call_site_also_carries_the_prior_version(monkeypatch):
+    """There are TWO `_record_roll` call sites and the overtake path is the one
+    that fires under load — the exact condition the gate most wants to count."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    v = _bumped_version()
+    seq = iter([v])                  # 1st read = v, every later read = v+1
+    _stub_build(monkeypatch, v, lambda: next(seq, v + 1))
+    fr._note_version_seen(v)
+
+    fr._prepare_once(v - 1)
+
+    rows = fr.prepare_rolls("steady_state_roll")
+    assert len(rows) == 1 and rows[0]["pass2_skipped"] is True, (
+        "the version moved during pass 1, so the remainder must be skipped AND "
+        "the roll still recorded as steady-state")
+
+
+def test_CONTROL_the_preparer_on_its_FIRST_pass_records_a_catchup(monkeypatch):
+    """Proves the two call-site tests measure `prev_version` and not a constant."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    v = _bumped_version()
+    _stub_build(monkeypatch, v, lambda: v)
+    fr._note_version_seen(v)
+
+    fr._prepare_once(None)           # boot: nothing was prepared before
+
+    assert fr.prepare_rolls("steady_state_roll") == []
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
