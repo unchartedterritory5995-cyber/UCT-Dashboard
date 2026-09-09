@@ -9778,6 +9778,23 @@ if os.path.exists(DIST):
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
+    # Wave Q1 cross-browser certification probe (app/public/q1-probe.html).
+    # Root-level public/ files are not covered by the /assets mount, so without
+    # this route the SPA catch-all would answer with index.html and the probe
+    # would silently never load -- the same trap the OG card fell into above.
+    # It is a synthetic, unauthenticated measurement page: it touches only
+    # databases named `uct_q1_browser_probe*` and no member data.
+    # REMOVAL CONDITION: delete this route and the file together when the
+    # Wave Q1 browser matrix in docs/notebook/wave-q1-browser-certification.md
+    # is complete.
+    @app.get("/q1-probe.html", include_in_schema=False)
+    def _serve_q1_probe():
+        return FileResponse(
+            os.path.join(DIST, "q1-probe.html"),
+            media_type="text/html; charset=utf-8",
+            headers={"Cache-Control": "no-store"},
+        )
+
     @app.get("/robots.txt", include_in_schema=False)
     def _serve_robots():
         return FileResponse(os.path.join(DIST, "robots.txt"), media_type="text/plain; charset=utf-8")

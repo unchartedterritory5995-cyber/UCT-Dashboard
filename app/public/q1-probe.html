@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>UCT — Wave Q1 browser probe</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 20px 18px calc(28px + env(safe-area-inset-bottom));
+         background: #0d0f12; color: #e8e6e1;
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; letter-spacing: .3px; }
+  .sub { color: #8b9099; font-size: 13px; margin: 0 0 18px; }
+  .note { border-left: 2px solid #3a3f47; padding: 8px 0 8px 12px; margin: 0 0 18px;
+          color: #a9aeb6; font-size: 13px; }
+  button { -webkit-appearance: none; appearance: none; border: 0; border-radius: 10px;
+           padding: 15px 20px; font-size: 16px; font-weight: 600; margin: 0 8px 10px 0;
+           min-height: 48px; background: #c9a84c; color: #14161a; }
+  button.ghost { background: #22262c; color: #cfd3d9; }
+  button[disabled] { opacity: .45; }
+  pre { background: #14171c; border: 1px solid #262b32; border-radius: 10px;
+        padding: 12px; overflow: auto; font-size: 12px; line-height: 1.45;
+        white-space: pre-wrap; word-break: break-word; -webkit-user-select: text; user-select: text; }
+  .status { margin: 0 0 12px; color: #c9a84c; font-size: 14px; min-height: 20px; }
+  .verdict { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>UCT — Wave Q1 browser probe</h1>
+<p class="sub">Measures whether this browser can hold a Notebook note safely offline.</p>
+
+<div class="note">
+  It uses its <strong>own throwaway databases</strong> and synthetic text.
+  It never reads or writes your Notebook, your notes, or anything else this site
+  has stored. It cleans up after itself. Tap Run, wait a few seconds — the page
+  reloads itself once, on purpose — then copy the result back.
+</div>
+
+<button id="run">Run the probe</button>
+<button id="copy" class="ghost" hidden>Copy result</button>
+<button id="wipe" class="ghost" hidden>Remove all probe data</button>
+
+<p class="status" id="status"></p>
+<pre id="out">Not run yet.</pre>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── every database this file may ever create or delete ──────────────────
+  // ⛔ THE GUARD IS THE POINT: a name that does not start with this prefix is
+  // refused, so no code path here can reach `uct_notebook_<account>` or any
+  // other store on this origin.
+  var PREFIX = 'uct_q1_browser_probe';
+  var CARRY = PREFIX + '_carryover';
+  var RUN_KEY = 'uct.q1probe.pending';
+  var PROBE_VERSION = '1.0.0';
+
+  var $ = function (id) { return document.getElementById(id) };
+  var say = function (t) { $('status').textContent = t };
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms) }) };
+  var now = function () { return (window.performance && performance.now) ? performance.now() : Date.now() };
+  var created = [];
+
+  function openDb(name, version, onUpgrade, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve, reject) {
+      var req, settled = false, blocked = false;
+      try { req = version ? indexedDB.open(name, version) : indexedDB.open(name) }
+      catch (e) { reject(e); return }
+      req.onupgradeneeded = function () { try { if (onUpgrade) onUpgrade(req.result) } catch (e) { /* surfaced by onerror */ } };
+      req.onblocked = function () { blocked = true; if (opts.onBlocked) opts.onBlocked() };
+      req.onsuccess = function () {
+        // ⛔ If we already gave up on this open, close the connection when it
+        // finally lands — a stray open connection blocks the cleanup delete.
+        if (settled) { try { req.result.close() } catch (e) {} return }
+        settled = true; resolve(req.result);
+      };
+      req.onerror = function () { if (!settled) { settled = true; reject(req.error || new Error('open failed')) } };
+      if (opts.timeoutMs) setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        var e = new Error('timed out'); e.timeout = true; e.blocked = blocked; reject(e);
+      }, opts.timeoutMs);
+    });
+  }
+
+  function txDone(tx) {
+    return new Promise(function (res, rej) {
+      tx.oncomplete = function () { res(true) };
+      tx.onerror = function () { rej(tx.error || new Error('tx failed')) };
+      tx.onabort = function () { rej(tx.error || new Error('tx aborted')) };
+    });
+  }
+  function putBoth(db, note, entry) {
+    var tx = db.transaction(['notes', 'outbox'], 'readwrite');
+    tx.objectStore('notes').put(note);
+    tx.objectStore('outbox').put(entry);
+    return txDone(tx);
+  }
+  function getAll(db, store) {
+    return new Promise(function (res, rej) {
+      var q = db.transaction(store, 'readonly').objectStore(store).getAll();
+      q.onsuccess = function () { res(q.result || []) };
+      q.onerror = function () { rej(q.error) };
+    });
+  }
+  function makeStores(db) {
+    if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'noteId' });
+    if (!db.objectStoreNames.contains('outbox')) db.createObjectStore('outbox', { keyPath: 'mutationId' });
+  }
+  function dropDb(name) {
+    if (String(name).indexOf(PREFIX) !== 0) {
+      return Promise.resolve('REFUSED: ' + name + ' is not a probe database');
+    }
+    return new Promise(function (res) {
+      var q = indexedDB.deleteDatabase(name);
+      q.onsuccess = function () { res('deleted') };
+      q.onerror = function () { res('error') };
+      q.onblocked = function () { res('blocked') };
+      setTimeout(function () { res('timeout') }, 2500);
+    });
+  }
+
+  // ── phase 1: environment, storage posture, the durable write ────────────
+  async function phase1(runId) {
+    var out = { probeVersion: PROBE_VERSION, runId: runId, startedAt: new Date().toISOString() };
+
+    out.env = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform || null,
+      vendor: navigator.vendor || null,
+      language: navigator.language || null,
+      origin: location.origin,
+      isSecureContext: !!window.isSecureContext,
+      cookieEnabled: !!navigator.cookieEnabled,
+      onLine: !!navigator.onLine,
+      hardwareConcurrency: navigator.hardwareConcurrency || null,
+      screen: (window.screen ? (screen.width + 'x' + screen.height + '@' + (window.devicePixelRatio || 1)) : null),
+      standalone: (window.navigator.standalone === true) || (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || false
+    };
+
+    // Did a PREVIOUS session leave a record behind? That is tab-close /
+    // cross-session durability, measured rather than assumed.
+    out.carryover = { checked: true, found: false };
+    try {
+      var cdb = await openDb(CARRY, 1, makeStores, { timeoutMs: 4000 });
+      var rows = await getAll(cdb, 'notes');
+      cdb.close();
+      if (rows.length) {
+        out.carryover.found = true;
+        out.carryover.fromRunId = rows[0].runId || null;
+        out.carryover.writtenAt = rows[0].writtenAt || null;
+        out.carryover.ageSeconds = rows[0].writtenAt ? Math.round((Date.now() - rows[0].writtenAt) / 1000) : null;
+        out.carryover.bodyIntact = rows[0].body === sample(rows[0].runId);
+      }
+    } catch (e) { out.carryover.error = String(e && e.message || e) }
+
+    out.storage = { estimateSupported: !!(navigator.storage && navigator.storage.estimate) };
+    try {
+      if (out.storage.estimateSupported) {
+        var est = await navigator.storage.estimate();
+        out.storage.quotaBytes = est.quota != null ? est.quota : null;
+        out.storage.usageBytes = est.usage != null ? est.usage : null;
+        out.storage.quotaMB = est.quota != null ? +(est.quota / 1048576).toFixed(1) : null;
+        out.storage.usageMB = est.usage != null ? +(est.usage / 1048576).toFixed(1) : null;
+      }
+    } catch (e) { out.storage.estimateError = String(e && e.message || e) }
+    out.storage.persistSupported = !!(navigator.storage && navigator.storage.persist);
+    try { out.storage.persistedBefore = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null }
+    catch (e) { out.storage.persistedBefore = null; out.storage.persistedError = String(e && e.message || e) }
+    // ⛔ Only ASK when it is not already granted. Q1 correctness never depends
+    // on the answer; §19 asks whether it can be granted at all.
+    if (out.storage.persistSupported && out.storage.persistedBefore === false) {
+      try { out.storage.persistResult = await navigator.storage.persist() }
+      catch (e) { out.storage.persistResult = 'error: ' + String(e && e.message || e) }
+      try { out.storage.persistedAfter = await navigator.storage.persisted() } catch (e) { out.storage.persistedAfter = null }
+    }
+
+    out.idb = { available: !!(window.indexedDB && typeof indexedDB.open === 'function') };
+    if (!out.idb.available) return out;
+
+    var dbName = PREFIX + '_' + runId;
+    created.push(dbName);
+    var t0 = now();
+    try {
+      var db = await openDb(dbName, 1, makeStores, { timeoutMs: 8000 });
+      out.idb.opened = true;
+      out.idb.openMs = +(now() - t0).toFixed(1);
+      out.idb.storesCreated = Array.prototype.slice.call(db.objectStoreNames);
+
+      // A note-shaped record and its outbox-shaped sync intent, in ONE
+      // transaction — the shape Wave Q1 actually writes.
+      var t1 = now();
+      await putBoth(db,
+        { noteId: 'probe-note', title: 'Wave Q1 probe', subtitle: '',
+          body: sample(runId), runId: runId, generation: 1, dirty: 1,
+          baseUpdatedAt: 'T1', writtenAt: Date.now() },
+        { mutationId: 'note:probe-note', noteId: 'probe-note', kind: 'note-update',
+          patch: { title: 'Wave Q1 probe', subtitle: '', body: sample(runId) },
+          baseUpdatedAt: 'T1', permanent: false, queuedAt: Date.now() });
+      out.idb.atomicWriteMs = +(now() - t1).toFixed(1);
+      out.idb.wrote = true;
+
+      var notes = await getAll(db, 'notes');
+      var outbox = await getAll(db, 'outbox');
+      out.idb.readBackSameSession = notes.length === 1 && outbox.length === 1 && notes[0].body === sample(runId);
+      db.close();
+    } catch (e) {
+      out.idb.error = String(e && e.message || e);
+      out.idb.timedOut = !!(e && e.timeout);
+    }
+    return out;
+  }
+
+  // 4 KB of synthetic text — a realistic paragraph, no member content.
+  function sample(runId) {
+    var line = 'Synthetic probe text for run ' + runId + '. ';
+    var s = '';
+    while (s.length < 4096) s += line;
+    return s.slice(0, 4096);
+  }
+
+  // ── phase 2: reload durability, Web Locks, versionchange, cleanup ───────
+  async function phase2(result) {
+    var runId = result.runId;
+    var dbName = PREFIX + '_' + runId;
+    if (created.indexOf(dbName) < 0) created.push(dbName);
+
+    result.reload = { tested: true };
+    if (!result.idb || !result.idb.wrote) {
+      result.reload.tested = false;
+      result.reload.reason = 'nothing was written in phase 1';
+    } else {
+      try {
+        var db = await openDb(dbName, 1, makeStores, { timeoutMs: 8000 });
+        var notes = await getAll(db, 'notes');
+        var outbox = await getAll(db, 'outbox');
+        db.close();
+        result.reload.noteSurvived = notes.length === 1;
+        result.reload.bodyIntact = notes.length === 1 && notes[0].body === sample(runId);
+        result.reload.outboxSurvived = outbox.length === 1;
+        result.reload.outboxEntryNotPermanent = outbox.length === 1 && !outbox[0].permanent;
+      } catch (e) { result.reload.error = String(e && e.message || e) }
+    }
+
+    result.webLocks = await webLocksTest(runId);
+    result.versionchange = await versionchangeTest(runId);
+
+    // Drain eligibility, exactly as the product decides it: there is queued
+    // work, it is still retryable, and THIS context holds the account lock.
+    result.drain = {
+      queuedWorkPresent: !!result.reload.outboxSurvived,
+      stillRetryable: !!result.reload.outboxEntryNotPermanent,
+      leadershipObtainable: !!result.webLocks.exclusiveAcquired
+    };
+    result.drain.eligible = result.drain.queuedWorkPresent && result.drain.stillRetryable && result.drain.leadershipObtainable;
+
+    result.verdict = verdictFor(result);
+
+    // ── cleanup ───────────────────────────────────────────────────────────
+    result.cleanup = { attempted: created.slice(), results: {} };
+    for (var i = 0; i < created.length; i++) {
+      result.cleanup.results[created[i]] = await dropDb(created[i]);
+    }
+    // Leave ONE tiny record behind on purpose, so the NEXT run (in a new
+    // session, after this tab is closed) can report cross-session durability.
+    // "Remove all probe data" deletes it.
+    try {
+      await dropDb(CARRY);
+      var cdb = await openDb(CARRY, 1, makeStores, { timeoutMs: 4000 });
+      await putBoth(cdb,
+        { noteId: 'carryover', runId: runId, body: sample(runId), writtenAt: Date.now() },
+        { mutationId: 'carryover', noteId: 'carryover', permanent: false, queuedAt: Date.now() });
+      cdb.close();
+      result.cleanup.carryoverWritten = true;
+    } catch (e) { result.cleanup.carryoverWritten = false; result.cleanup.carryoverError = String(e && e.message || e) }
+
+    result.finishedAt = new Date().toISOString();
+    return result;
+  }
+
+  async function webLocksTest(runId) {
+    var out = { present: !!(navigator.locks && typeof navigator.locks.request === 'function') };
+    if (!out.present) {
+      // ⛔ This is the finding that would stop Wave Q1 on this browser: with no
+      // Web Locks there is no safe single-drainer, and the product's designed
+      // fallback is READ-ONLY FOR SYNC — durable locally, never draining.
+      out.consequence = 'no safe single-leader drain on this browser';
+      return out;
+    }
+    var name = PREFIX + '.lock.' + runId;
+    var release = null;
+    var held = new Promise(function (r) { release = r });
+    var acquired = false, delayMs = null;
+    var t0 = now();
+    var holder = navigator.locks.request(name, { ifAvailable: true }, function (lock) {
+      delayMs = +(now() - t0).toFixed(1);
+      acquired = !!lock;
+      if (!lock) return undefined;
+      return held;                         // hold it until release()
+    }).catch(function (e) { out.holderError = String(e && e.message || e) });
+
+    await sleep(150);
+    out.exclusiveAcquired = acquired;
+    // ⭐ The grant arrives in a LATER TASK, not a microtask — the timing that
+    // broke the first version of the app's own leadership claim.
+    out.grantCallbackDelayMs = delayMs;
+
+    try {
+      out.secondContenderRefusedWhileHeld =
+        !(await navigator.locks.request(name, { ifAvailable: true }, function (l) { return !!l }));
+    } catch (e) { out.secondContenderError = String(e && e.message || e) }
+
+    var queuedGot = false;
+    var queued = navigator.locks.request(name, {}, function () { queuedGot = true })
+      .catch(function (e) { out.queuedError = String(e && e.message || e) });
+    await sleep(150);
+    out.queuedWaitedWhileHeld = !queuedGot;
+    if (release) release();
+    await queued;
+    await sleep(50);
+    out.queuedGrantedAfterRelease = queuedGot;
+    await holder;
+
+    try {
+      var q = await navigator.locks.query();
+      out.querySupported = true;
+      out.stillHeldAfterRelease = (q.held || []).filter(function (h) { return h.name === name }).length;
+    } catch (e) { out.querySupported = false }
+    return out;
+  }
+
+  async function versionchangeTest(runId) {
+    var res = {};
+    // WITH the handler the Notebook store installs from version 1.
+    var nameA = PREFIX + '_vc_with_' + runId;
+    created.push(nameA);
+    try {
+      var a = await openDb(nameA, 1, makeStores, { timeoutMs: 6000 });
+      var gotVersionChange = false;
+      a.onversionchange = function () { gotVersionChange = true; try { a.close() } catch (e) {} };
+      var blockedFired = false, t0 = now();
+      try {
+        var b = await openDb(nameA, 2, function (db) { if (!db.objectStoreNames.contains('v2')) db.createObjectStore('v2', { keyPath: 'k' }) },
+          { timeoutMs: 3000, onBlocked: function () { blockedFired = true } });
+        b.close();
+        res.withHandler = { upgraded: true, oldConnectionGotVersionChange: gotVersionChange,
+                            blockedEventFired: blockedFired, ms: +(now() - t0).toFixed(1) };
+      } catch (e) {
+        try { a.close() } catch (e2) {}
+        res.withHandler = { upgraded: false, timedOut: !!e.timeout, oldConnectionGotVersionChange: gotVersionChange,
+                            blockedEventFired: blockedFired, ms: +(now() - t0).toFixed(1) };
+      }
+    } catch (e) { res.withHandler = { error: String(e && e.message || e) } }
+
+    // THE CONTROL: the same bump with no handler at all. If this also upgrades
+    // instantly, the test proved nothing about the handler.
+    var nameB = PREFIX + '_vc_without_' + runId;
+    created.push(nameB);
+    try {
+      var c = await openDb(nameB, 1, makeStores, { timeoutMs: 6000 });
+      var blocked2 = false, t1 = now();
+      try {
+        var d = await openDb(nameB, 2, function (db) { if (!db.objectStoreNames.contains('v2')) db.createObjectStore('v2', { keyPath: 'k' }) },
+          { timeoutMs: 2500, onBlocked: function () { blocked2 = true } });
+        d.close();
+        res.withoutHandler = { upgraded: true, blockedEventFired: blocked2, ms: +(now() - t1).toFixed(1) };
+      } catch (e) {
+        res.withoutHandler = { upgraded: false, timedOut: !!e.timeout, blockedEventFired: blocked2, ms: +(now() - t1).toFixed(1) };
+      }
+      try { c.close() } catch (e) {}
+      await sleep(200);          // let the pending upgrade land and self-close
+    } catch (e) { res.withoutHandler = { error: String(e && e.message || e) } }
+
+    res.handlerIsLoadBearing = !!(res.withHandler && res.withHandler.upgraded)
+      && !!(res.withoutHandler && res.withoutHandler.upgraded === false);
+    return res;
+  }
+
+  function verdictFor(r) {
+    var idbOk = !!(r.idb && r.idb.available && r.idb.wrote && r.idb.readBackSameSession);
+    var durable = !!(r.reload && r.reload.noteSurvived && r.reload.bodyIntact && r.reload.outboxSurvived);
+    var locks = !!(r.webLocks && r.webLocks.present && r.webLocks.exclusiveAcquired
+                   && r.webLocks.secondContenderRefusedWhileHeld);
+    var vc = !!(r.versionchange && r.versionchange.withHandler && r.versionchange.withHandler.upgraded);
+    var v = {
+      indexedDbUsable: idbOk,
+      durableAcrossReload: durable,
+      webLocksUsable: locks,
+      versionchangeSafe: vc,
+      drainPossible: !!(r.drain && r.drain.eligible)
+    };
+    if (!idbOk) v.classification = 'NO_DURABLE_OFFLINE — IndexedDB unusable here';
+    else if (!durable) v.classification = 'EPHEMERAL_ONLY — writes do not survive a reload';
+    else if (!locks) v.classification = 'DEGRADED_NO_SAFE_DRAIN — durable locally, no single-leader sync';
+    else if (!vc) v.classification = 'DURABLE_BUT_UPGRADE_UNSAFE';
+    else v.classification = 'DURABLE_OFFLINE_SUPPORTED';
+    return v;
+  }
+
+  function render(result) {
+    var text = JSON.stringify(result, null, 1);
+    $('out').textContent = text;
+    window.__q1Result = result;          // read by the automated runs
+    window.__q1Done = true;
+    $('copy').hidden = false;
+    $('wipe').hidden = false;
+    say(result.verdict ? result.verdict.classification : 'done');
+    try { console.log('[q1-probe]', text) } catch (e) {}
+  }
+
+  async function start() {
+    $('run').disabled = true;
+    var runId = String(Date.now().toString(36)) + '-' + Math.random().toString(36).slice(2, 8);
+    say('Measuring… the page will reload itself once.');
+    var result = await phase1(runId);
+    try {
+      sessionStorage.setItem(RUN_KEY, JSON.stringify(result));
+      location.reload();
+    } catch (e) {
+      // No sessionStorage (some private modes): finish without the reload leg
+      // and SAY so rather than reporting a durability result we did not take.
+      result.reload = { tested: false, reason: 'sessionStorage unavailable: ' + String(e && e.message || e) };
+      render(await phase2(result));
+    }
+  }
+
+  async function resume(raw) {
+    $('run').disabled = true;
+    say('Measuring…');
+    sessionStorage.removeItem(RUN_KEY);
+    var result;
+    try { result = JSON.parse(raw) } catch (e) { say('could not resume'); $('run').disabled = false; return }
+    render(await phase2(result));
+  }
+
+  $('run').addEventListener('click', function () { start() });
+  $('copy').addEventListener('click', function () {
+    var t = $('out').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { say('Copied — paste it back to UCT.') },
+        function () { selectOut() });
+    } else selectOut();
+  });
+  function selectOut() {
+    var range = document.createRange();
+    range.selectNodeContents($('out'));
+    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    say('Selected — copy it with the usual gesture.');
+  }
+  $('wipe').addEventListener('click', async function () {
+    say('Removing probe data…');
+    var r = await dropDb(CARRY);
+    say('Probe data removed (' + r + ').');
+  });
+
+  var pending = null;
+  try { pending = sessionStorage.getItem(RUN_KEY) } catch (e) {}
+  if (pending) resume(pending);
+  else say('Ready.');
+
+  // Let an automated runner drive it without a synthetic click.
+  window.__q1Run = start;
+})();
+</script>
+</body>
+</html>
