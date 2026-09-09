@@ -7,7 +7,7 @@
 // to a neighbour that would parse, lint, save, scan and be wrong.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, PINE_INEXPRESSIBLE, treeYieldsBool } from './pine.js'
+import { translatePine, PINE_INEXPRESSIBLE, treeYieldsBool, hostAdmissible } from './pine.js'
 import { parseFormula, astHash, TABLE } from './parse.js'
 import { interpret } from './interpret.js'
 import { lintRepaint } from './lint.js'
@@ -431,6 +431,22 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
       + 'if that is deliberate, delete this rail rather than letting it pass '
       + 'vacuously').toContain('barssince')
 
+    // ⭐⭐ THERE ARE TWO KINDS OF COLLISION AND THEY ARE NOT THE SAME CLAIM.
+    //
+    //  (a) THE ARITY KIND — `barssince`. Pine's is unbounded; the table declares a
+    //      DIFFERENT, bounded function under the same spelling. The refusal must
+    //      name that alternative, because the member has something else to write.
+    //
+    //  (b) THE LANE KIND — `cum`, from 2026-09-09. The table declares the SAME
+    //      function; what differs is WHERE it may run. A pane is one symbol and
+    //      one fetch, so a running total is honest there; a screen compares across
+    //      symbols and runs, so it is not. Arity is not the discriminator and
+    //      there is no bounded alternative to name, so (a)'s two assertions do not
+    //      apply — asking for them would force a message that lies.
+    //
+    // ⛔ THE POPULATION IS SPLIT BY `hostAdmissible`, WHICH IS THE MANIFEST'S OWN
+    // ANSWER, so a third collision of either kind classifies itself.
+    const laneOnly = hostAdmissible(TABLE)
     for (const name of collisions) {
       const spec = TABLE.functions[name]
       // The PINE spelling, with PINE's arity — one argument for `ta.barssince`.
@@ -439,6 +455,26 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
       expect(r.guard, `ta.${name} refused at the wrong door`).toBe('pine:function')
       expect(r.message, `ta.${name}'s refusal lost its REASON and reports arity`)
         .not.toMatch(/different signature/i)
+
+      if (laneOnly.has(name)) {
+        // ⛔ THE LANE CLAIM, AND IT IS THE STRONGER OF THE TWO because it is the
+        // one a spelling could bypass. Both spellings must refuse for a SCREEN —
+        // `09-on-balance-volume.pine` writes the BARE v3 form, and when `cum` was
+        // first declared that form translated for a screen until this was fixed.
+        expect(refusalOf(`${name}(close)`), `the BARE ${name}( ) got through`)
+          .toBeTruthy()
+        // …and the SAME script is served on the host lane, or the split is a
+        // refusal wearing a ruling's clothes.
+        expect(translatePine(
+          `//@version=6
+indicator("x")
+plot(${name}(volume))
+`,
+          { strict: true },
+        ).ok, `${name} refuses on the HOST lane too — then nothing serves it`).toBe(true)
+        continue
+      }
+
       // …and the reason names the engine's own bounded entry, so the member is
       // told what to write rather than only what not to.
       expect(r.message).toContain(`${name}(`)

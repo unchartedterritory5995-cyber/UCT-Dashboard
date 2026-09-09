@@ -86,6 +86,63 @@ export const TABLE = deepFreeze(TABLE_JSON)
  */
 export const SESSION_LOOKBACK = 'session'
 
+/** `lookback: 'series'` — THE WINDOW IS THE DELIVERED SERIES.
+ *
+ *  ⭐⭐ IT RESOLVES TO **0**, AND THAT IS A MEASUREMENT, NOT A CONVENIENCE.
+ *  `budget.maxLookback` prices WARM-UP — how many bars at the left edge are not
+ *  drawable (`ast_budget`'s own note: a 550-bar warmup leaves 89% of the
+ *  5,000-bar window drawable, one session leaves 81%). `ta.cum` answers on bar 0:
+ *  measured on TradingView 2026-09-08, `ta.cum(1) === bar_index + 1` on all 8,459
+ *  bars of a SPY 1D capture, so bar 0 reads 1. It sacrifices NOTHING at the left
+ *  edge, so 0 is its TRUE warm-up rather than an under-statement — and
+ *  under-stating is defined by the harm it causes, *"numbers computed from bars
+ *  that were never fetched"*, which a running total over exactly what arrived
+ *  cannot do.
+ *
+ *  ⛔⛔ WHAT IT COSTS IS COMPARABILITY, AND THAT IS HELD SOMEWHERE ELSE. Widen
+ *  the fetch and every value moves by the same constant, so the number is a fact
+ *  about the REQUEST. `closedTable.json::_requirement_tags.window_dependent`
+ *  carries that, the five comparability consumers refuse it BY NAME, and a rail
+ *  requires every `series` entry to be listed in some tag's `calls`. A reader who
+ *  sees `0` here and reads it as "this window is free" has the wrong half of the
+ *  story; the budget is free, the meaning is not.
+ *
+ *  ⛔ SAME HOME AS `SESSION_LOOKBACK`, same reason: `lint.test.js` pins this
+ *  module as the linter's ONLY import, so a sentinel owned by `interpret.js`
+ *  would be unreachable from a reader that needs it.
+ */
+export const SERIES_LOOKBACK = 'series'
+
+/** Names `PINE_INEXPRESSIBLE` refuses for a SCREEN but the HOST lane may serve.
+ *
+ *  ⭐⭐ DERIVED FROM `_requirement_tags`, NEVER TYPED HERE. A tag names the calls
+ *  that set it and the consumers that accept it; `pane` is the only acceptor
+ *  today, and "host mode may spell this" is precisely "some tag covering it is
+ *  accepted by the pane". A literal `['cum']` in this file would be a second
+ *  authority over a roster the manifest already owns, and the next name added to
+ *  a tag would silently NOT become host-spellable.
+ *
+ *  ⛔ IT IS THE ONE PLACE HOST MODE IS *LOOSER* THAN SCREENER MODE, and that
+ *  reads backwards until you have the reason. Host mode is otherwise stricter —
+ *  all-or-nothing, every plot resolved or the whole script is refused. This is
+ *  not an exception to that; it is a different question. Strictness is about
+ *  whether we can DRAW the script. This is about whether the number is
+ *  COMPARABLE across symbols and across runs — and a pane is one symbol, one
+ *  fetch, with the bar count on screen, so nothing on it is compared to anything.
+ *  `closedTable.json::_functions_cumulative` carries the whole ruling.
+ */
+export function hostAdmissible(table) {
+  const tags = (table && table._requirement_tags) || {}
+  const out = new Set()
+  for (const [tag, spec] of Object.entries(tags)) {
+    if (tag.startsWith('_') || !spec || typeof spec !== 'object') continue
+    if (!(spec.accepted_by || []).includes('pane')) continue
+    for (const name of spec.calls || []) out.add(name)
+  }
+  return out
+}
+
+
 /** How far back `lookback: 'session'` reaches, in bars — READ OFF THE MANIFEST.
  *
  *  ⛔⛔ NOT A LITERAL HERE, AND THAT IS THE POINT. Four readers need this number

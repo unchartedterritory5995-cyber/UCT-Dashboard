@@ -384,6 +384,10 @@ MAX_SELF_LAG = 4
 #: and the TIMEFRAME rather than by anything the author typed.
 SESSION_LOOKBACK = "session"
 
+#: ``lookback: "series"`` -- THE WINDOW IS THE DELIVERED SERIES. Resolves to 0 in
+#: the budget sum; see `_own_lookback` and `parse.js::SERIES_LOOKBACK`.
+SERIES_LOOKBACK = "series"
+
 #: How far back that reaches, in bars -- READ OFF THE MANIFEST.
 #:
 #: ⛔⛔ NOT A LITERAL HERE. Four readers need this number across two languages,
@@ -610,6 +614,36 @@ def _rolling(series: Sequence[float], n: int,
             out[i] = reduce(buf, lo, hi)
         elif na_current is not None and not math.isfinite(series[i]):
             out[i] = na_current
+    return out
+
+
+def _cum_col(series: Sequence[float]) -> List[float]:
+    """``cum(source)`` -- the running total from bar 0 of the DELIVERED series.
+
+    ⭐⭐ THE ``na`` RULE IS THE VENDOR'S AND IT IS THREE FACTS, NOT ONE. Measured
+    on TradingView 2026-09-08 (SPY 1D, 8,459 bars):
+      1. ``na`` BEFORE the first finite input -- a total of nothing is not 0.
+      2. ``na`` **ON** an ``na`` bar -- the vendor draws no point there.
+      3. the total is HELD across it: 7330 -> na -> 7331. It neither advances nor
+         resets, and the final value equalled the count of finite inputs EXACTLY
+         (7,690 of 8,459), which is what proves a skipped bar contributes nothing.
+
+    ⛔ (2) IS THE ONE AN IMPLEMENTATION GETS WRONG. The spec this was built from
+    said *"na inputs contribute 0 once the series has started"* -- true of the
+    TOTAL and false of the OUTPUT, and its literal wording would paint a value on
+    a bar TradingView leaves blank.
+
+    ⛔ MIRROR OF ``interpret.js::cumCol``, which carries the same note. The two
+    lanes are held to each other by the conformance comparator, not by this
+    comment.
+    """
+    out = [NAN] * len(series)
+    total = 0.0
+    for i, v in enumerate(series):
+        if not (isinstance(v, (int, float)) and math.isfinite(v)):
+            continue                       # out[i] stays NaN AND `total` is held
+        total += float(v)
+        out[i] = total
     return out
 
 
@@ -1657,6 +1691,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "idiv": lambda a, b: _elementwise2(a, b, _guarded_idiv),
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
     "rma": lambda series, n: _rma_col(series, n),
+    "cum": _cum_col,
     "wma": _window_fn("wma", _window_weighted_mean),
     "hma": lambda series, n: _hma_col(series, n),
     "sign": lambda series: [_guarded_sign(v) for v in series],
@@ -2507,6 +2542,15 @@ def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
         return int(lb)
     if lb == SESSION_LOOKBACK:
         return SESSION_MAX_BARS
+    # ⭐ ``series`` CONTRIBUTES 0 TO THE TREE SUM. `budget.maxLookback` prices
+    # WARM-UP, and `ta.cum` answers on bar 0 (measured: `ta.cum(1) == bar_index +
+    # 1` on all 8,459 bars of a SPY 1D capture), so it sacrifices nothing at the
+    # left edge. What it DOES cost -- the value moving with the fetch width -- is
+    # carried by `_requirement_tags.window_dependent`, never by this number.
+    # Mirror: `interpret.js::ownLookback`, and `parse.js::SERIES_LOOKBACK` has the
+    # full argument.
+    if lb == SERIES_LOOKBACK:
+        return 0
     m = _LOOKBACK_RE.fullmatch(str(lb))
     if m is None:
         _refuse("interpret:node",

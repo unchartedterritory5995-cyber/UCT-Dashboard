@@ -743,6 +743,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # the BAR half is untouched, which is the half this test is about.
     # 97 -> 101 (2026-09-06): Vendor Parity Tranche 2, Lane B (`rising`,
     # `median`, `percentrank`, `bbw`). Scalar half untouched at 137.
+    # 103 -> 104 (2026-09-09): `cum`, the running total, declared under owner
+    # Ruling D with its containment on the DEFINITION rather than on this entry.
+    # Scalar half untouched at 137.
     # 101 -> 103 (2026-09-08): `falling` and `pvtN`, from Vendor-Backed Unserved
     # Builtins Batch 1 (`32046d04c`). Scalar half untouched at 137 again.
     # ⚰️ THAT COMMIT DID NOT BUMP THIS LINE AND SHIPPED THIS RAIL RED — which is
@@ -750,7 +753,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # is the exact defect this file exists to catch, and it caught its own author.
     # Two entries landing on the bar floor is a claim about the corpus's coverage
     # obligation, so it is meant to cost somebody a deliberate edit here.
-    assert len(parts["bar"]) == 103 and len(parts["scalar"]) == 137
+    assert len(parts["bar"]) == 104 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

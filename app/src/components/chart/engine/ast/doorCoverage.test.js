@@ -24,7 +24,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { TABLE, parseFormula } from './parse'
-import { translatePine } from './pine'
+import { translatePine, hostAdmissible } from './pine'
 import { TS_CALL_SHAPES } from './thinkscript'
 import { PCF_FUSED, PCF_CALLS } from './pcf'
 import {
@@ -121,9 +121,32 @@ describe('🔴 THE RATCHET — these ceilings may only ever fall', () => {
     // languages — and every one is an indicator all three rival platforms have.
     // Naming them is what makes them workable.
     const pineOut = new Set(ROWS.filter((r) => r.pine.status !== 'reachable').map((r) => r.name))
+    // ⭐⭐ HOST-ONLY NAMES ARE NOT A GAP, AND CONFLATING THEM WITH ONE WOULD PUT A
+    // CLOSED DECISION ON A TO-DO LIST. `KNOWN` below means *a member cannot reach
+    // this from any language and that is work outstanding*. A `hostAdmissible`
+    // name is reachable — from the Pine door, on the HOST contract — and is
+    // withheld from the screener DELIBERATELY, because its value moves with the
+    // fetch (`_functions_cumulative`). The rows above measure the screener
+    // contract, so such a name looks unreachable to them and is not.
+    // ⛔ THE EXEMPTION IS PAID FOR TWO LINES DOWN: each excluded name must really
+    // translate on the host lane, or this is just a way of not counting something.
+    const hostOnly = hostAdmissible(TABLE)
     const nowhere = Object.keys(TABLE.functions)
       .filter((n) => pineOut.has(n) && !TS_REACH.has(n) && !PCF_REACH.has(n))
+      .filter((n) => !hostOnly.has(n))
       .sort()
+
+    for (const n of hostOnly) {
+      const spec = TABLE.functions[n]
+      if (!spec || spec.args.length !== 1) continue          // one-arg forms only
+      expect(translatePine(
+        `//@version=6
+indicator("t")
+plot(${n}(volume))
+`, { strict: true },
+      ).ok, `${n} is excused from the gap roster but does NOT translate on the `
+        + 'host lane — then it really is unreachable and belongs in KNOWN').toBe(true)
+    }
     const KNOWN = [
       'avwap', 'donchianLower', 'donchianMiddle', 'donchianUpper',
       'ichimokuChikou', 'ichimokuKijun', 'ichimokuSpanA', 'ichimokuSpanB',

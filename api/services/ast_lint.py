@@ -133,6 +133,17 @@ TABLE: Dict[str, Any] = load_table()
 #: back to the first bar of this bar's own New York calendar day.
 SESSION_LOOKBACK = "session"
 
+#: The other ``lookback`` that names a window instead of measuring one -- and this
+#: one names the WHOLE DELIVERED SERIES (``cum``).
+#:
+#: ⛔ SPELLED HERE RATHER THAN IMPORTED, for the reason the block below gives for
+#: ``SESSION_MAX_BARS``: ``test_no_evaluator_is_reachable_from_the_linter`` pins
+#: this file's imports to ``{__future__, json, pathlib, re, typing}``, so
+#: ``ast_interpret``'s copy is unreachable from here. ``test_ast_lookback_parity``
+#: is what holds the three readers (this one, ``ast_interpret``, ``interpret.js``)
+#: to ONE answer -- and it is what caught this constant missing.
+SERIES_LOOKBACK = "series"
+
 #: How far back that reaches, in bars -- READ OFF THE MANIFEST, never owned here.
 #:
 #: ⛔⛔ THIS MODULE COULD NOT HOLD IT EVEN IF IT WANTED TO.
@@ -245,6 +256,17 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         return UNBOUNDED
     if decl == SESSION_LOOKBACK:
         return SESSION_MAX_BARS
+    # ⭐⭐ ``"series"`` RESOLVES TO 0, FOR THE SAME REASON ``"session"`` RESOLVES TO
+    # A NUMBER AT ALL: ``UNKNOWN`` fails closed, and failing closed HERE means
+    # branding the definition ``repaints``. `ta.cum` cannot repaint — bar `i`
+    # depends on bars `0..i`, every one of them closed — so `UNKNOWN` would be a
+    # wrong badge on a member's pane, and the badge is a GATE rather than a label.
+    # ⛔ THIS IS THE THIRD READER OF A LOOKBACK DECLARATION, and it does not share
+    # code with the other two by design (the linter's import graph cannot reach
+    # `ast_interpret`). `tests/test_ast_lookback_parity.py` is what holds all
+    # three to one answer, and it is what caught this one missing.
+    if decl == SERIES_LOOKBACK:
+        return 0
     if isinstance(decl, bool):
         return UNKNOWN
     if isinstance(decl, int):

@@ -210,6 +210,23 @@ const FORMS = [
     parts: ['the running total of ', 0,
       ' from the first bar at or after epoch ', 1, ', for at most ', 2, ' bars'] },
 
+  // ⭐⭐ `cum` (2026-09-09, owner Ruling D) — the UNANCHORED running total, and
+  // the pair with `cumFrom` above is the whole reason this rail is hand-typed.
+  // Both sentences open `the running total of ` and a member must be able to tell
+  // them apart AFTER that word, because the difference is the entire ruling: one
+  // starts at an instant the member named, the other at whatever bar the fetch
+  // happened to begin on.
+  // ⛔ THE CHROME AFTER SLOT 0 IS WHAT DISAMBIGUATES — ` over every bar of the
+  // loaded history` against ` from the first bar at or after epoch ` — so the two
+  // forms cannot both match, and `the grammar is UNAMBIGUOUS` below is what
+  // proves that rather than this comment.
+  // ⚠️ AND THE PHRASE IS DELIBERATE: *of the loaded history* is the disclosure.
+  // The value moves with how many bars were fetched, so the read-back says so in
+  // the sentence a member actually reads, not only in the manifest.
+  { kind: 'call',
+    name: 'cum',
+    parts: ['the running total of ', 0, ' over every bar of the loaded history'] },
+
   // ⭐ THE BOUNDED-STATE FIVE (2026-08-26), hand-typed from the manifest's words
   // like every row above — deriving them would make the oracle agree with the
   // renderer by construction and the round trip would prove nothing.
@@ -996,6 +1013,13 @@ describe('totality over the closed table — derived from the manifest, never ha
       // cumulative sum arriving, which is a ruling
       // (`closedTable.json::_functions_cumulative`), not as a number somebody
       // adjusted.
+      // ⭐⭐ `cum` ARRIVED 2026-09-09 UNDER OWNER RULING D, and it is spelled out
+      // here for the same reason `cumFrom` is: a running total appearing in this
+      // table is a RULING, not a number somebody adjusted. What made it possible
+      // was not a change to the arithmetic — it was that the containment moved to
+      // the DEFINITION (`_requirement_tags.window_dependent`), so the five
+      // comparability consumers refuse it by name while a pane may draw it.
+      'function:cum',
       'function:cumFrom',
       'function:dev',
       'function:donchianLower',
@@ -1056,7 +1080,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(103)
+    expect(entries.length).toBe(104)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1066,7 +1090,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(103)
+    expect(subjects.length).toBe(104)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2397,6 +2421,13 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // ta-{falling-close3,pvt-delta5}-2026-09-06.json`).
       'falling_close_3',
       'pvtN_bounded_price_volume_trend_change',
+      // ⭐⭐ THE PLAIN RUNNING TOTAL (2026-09-09, owner Ruling D). It is the
+      // cross-lane rail on a column whose whole character is that it never
+      // forgets: a one-bar disagreement anywhere in the series persists to the
+      // last bar rather than washing out, which nothing else in this corpus has.
+      // Its three `cumFrom_*` neighbours above are the ANCHORED form; this is the
+      // unanchored one, admitted because the containment moved to the definition.
+      'cum_running_total',
     ])
   })
 
@@ -2439,7 +2470,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 103)
+    // 103 -> 104 (2026-09-09): `cum`. The addend is the ENTRY COUNT of the
+    // table's generated set, so it moves with a declaration and not with the
+    // corpus — which is why it is written as a sum rather than one number.
+    expect(sentences.length).toBe(CORPUS.cases.length + 104)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

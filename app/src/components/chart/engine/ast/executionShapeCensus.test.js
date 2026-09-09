@@ -83,6 +83,16 @@ const CARRIED_SHAPE = {
   minusDI: 'computeADX — RMA underneath',
   macd: 'computeMACD (shipped) — EMA-based, NOT composed here',
   accum: 'running sum from an anchor',
+  // ⭐⭐ `cum` JOINED ON 2026-09-09 (owner Ruling D) AND IT IS THE PUREST MEMBER
+  // OF THIS SHAPE: ONE carried cell and nothing else. `cumFrom` above is the same
+  // accumulator with an anchor test on each bar; this is it without the anchor —
+  // which is exactly why the anchor had to be replaced by a CONTAINMENT tag
+  // rather than by nothing (`_functions_cumulative`).
+  // ⚠️ IT LANDS IN `carriedPending`, NOT `carriedShipped`, and that is accurate:
+  // the columnar lane computes it as a single forward scan (`cumCol`), and the
+  // bar-by-bar RUNTIME has no entry for it yet. One cell, `total`, held across an
+  // `na` — the cheapest carried member there is when it gets built.
+  cum: 'cumCol — ONE running total, na-in/na-out, total HELD across the hole',
   cumFrom: 'barCumFrom — running sum from an anchor',
   vwap: 'computeVWAP — running Σpv / Σv',
   avwap: 'barAvwap — the same accumulator, re-anchored',

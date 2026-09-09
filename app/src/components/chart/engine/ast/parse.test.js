@@ -8,7 +8,7 @@ import path from 'node:path'
 // runs) but the order says out loud which module owns that configuration.
 import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
-  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK,
+  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE, SESSION_LOOKBACK, SERIES_LOOKBACK,
   BAR_READS, BAR_READERS, barReadersOf,
 } from './parse.js'
 import jsep from 'jsep'
@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 70 functions and 137 scalars — 240 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 71 functions and 137 scalars — 241 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -425,6 +425,11 @@ describe('the manifest', () => {
     // not have. See the `tableVersion` assertion at the end of this case.
     expect(Object.keys(TABLE.clock)).toHaveLength(13)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
+    // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
+    // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
+    // not on the entry — which is why a name this table spent months refusing on
+    // containment grounds could finally be declared. The scalar half is untouched
+    // at 137, which is what makes these separate assertions rather than one total.
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
     // legs, stoch, cci, williamsR, mfi, the three Donchian lines and the five
     // Ichimoku lines — became callable, every one of them BOUND to maths
@@ -485,7 +490,7 @@ describe('the manifest', () => {
     // reader, `reads: "bars"`, the structural mirror of `obvN` — its window is
     // `arg0`, the same declaration shape `obvN` already uses). No new node
     // type, argument kind, or lookback form. `tableVersion` is unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(70)
+    expect(Object.keys(TABLE.functions)).toHaveLength(71)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -574,9 +579,9 @@ describe('the manifest', () => {
     // 97 -> 101 IS VENDOR PARITY TRANCHE 2, LANE B. Scalar half untouched at 137.
     // 101 -> 103 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (`falling`, `pvtN`).
     // Scalar half untouched at 137.
-    expect(bar.size).toBe(103)
+    expect(bar.size).toBe(104)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(240)
+    expect(declared.size).toBe(241)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree
@@ -625,7 +630,10 @@ describe('the manifest', () => {
       // (W2a.3) until the day an entry carried it (W2a.4): the grammar had the
       // form and no entry used it, so the rail measured nothing.
       const shape = typeof lb === 'string' ? LOOKBACK_RE.exec(lb) : null
-      const ok = lb === SESSION_LOOKBACK
+      // ⭐ `series` NAMES NO ARGUMENT EITHER — the window IS the delivered
+      // series, which is why it cannot be an `argN`. Checked beside `session` for
+      // the same reason, and with the sentinel IMPORTED rather than typed.
+      const ok = lb === SESSION_LOOKBACK || lb === SERIES_LOOKBACK
         || (typeof lb === 'number' && lb >= 0)
         || (!!shape && Number(shape[2]) < spec.args.length)
       if (!ok) bad.push(`${name}: lookback ${JSON.stringify(lb)} is neither a constant nor a real argument`)
@@ -658,7 +666,12 @@ describe('the manifest', () => {
       // resolves to `sessionMaxBars` off the manifest, so `maxLookback` is still
       // a TREE SUM and no dataflow analysis appears. The sentinel is imported
       // from the module that owns it.
-      expect(spec.lookback === SESSION_LOOKBACK
+      // ⭐ `series` NAMES NO ARGUMENT EITHER, AND IS THE MOST STATICALLY DECIDABLE
+      // OF THE LOT: it resolves to a CONSTANT 0 in every one of the three readers.
+      // `ta.cum` answers on bar 0, so it adds no warm-up to the tree sum — what it
+      // costs is comparability, which is not a lookback question at all and is
+      // held by `_requirement_tags` instead. No dataflow analysis appears.
+      expect(spec.lookback === SESSION_LOOKBACK || spec.lookback === SERIES_LOOKBACK
         || typeof spec.lookback === 'number' || LOOKBACK_RE.test(spec.lookback),
         `lookback ${JSON.stringify(spec.lookback)} is not statically decidable`).toBe(true)
     }
