@@ -1749,3 +1749,54 @@ class TestTheSweepIsActuallyWiredToAScheduler:
         assert "requeue_awaiting(" in body, "the sweep dropped the abandoned half"
         assert "get_adapter()" in body, \
             "the sweep does not self-gate on OCR being armed"
+
+
+# ── ⛔⛔ RELEASE · THE FIRST MEMBER-FACING CONCURRENCY IS ONE ─────────────────
+#
+# P5 certified two-way concurrency and the owner declined it as the initial
+# production operating point: peak RSS reached ~1,014 MB under 2x100 pages and
+# there is no production memory-headroom evidence yet. Two is a CAPABILITY
+# result, not the default.
+#
+# ⛔ The dangerous direction is an UNSET variable quietly meaning "2". These
+# rails pin the default to the safe value and prove the semaphore is actually
+# built from it — a constant nobody reads is how an operating decision becomes
+# a comment.
+
+class TestTheProductionConcurrencyDefault:
+    def _reload(self, monkeypatch, value):
+        import importlib
+        if value is None:
+            monkeypatch.delenv("J2_OCR_MAX_CONCURRENCY", raising=False)
+        else:
+            monkeypatch.setenv("J2_OCR_MAX_CONCURRENCY", value)
+        return importlib.reload(ocr)
+
+    def test_unset_means_ONE_not_two(self, monkeypatch):
+        m = self._reload(monkeypatch, None)
+        assert m.OCR_MAX_CONCURRENCY == 1
+        # ⛔ And the semaphore is BUILT from it. A constant the pool ignores is
+        # the `lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage`
+        # shape: the number reads right and the machine does something else.
+        assert m._OCR_SEMAPHORE._value == 1
+
+    def test_it_can_be_raised_deliberately(self, monkeypatch):
+        m = self._reload(monkeypatch, "2")
+        assert m.OCR_MAX_CONCURRENCY == 2 and m._OCR_SEMAPHORE._value == 2
+
+    def test_nonsense_and_zero_fall_back_to_ONE(self, monkeypatch):
+        assert self._reload(monkeypatch, "banana").OCR_MAX_CONCURRENCY == 1
+        assert self._reload(monkeypatch, "0").OCR_MAX_CONCURRENCY == 1
+        assert self._reload(monkeypatch, "-4").OCR_MAX_CONCURRENCY == 1
+        # Leave the module at the production default for anything after this.
+        self._reload(monkeypatch, None)
+
+    def test_the_startup_line_reports_the_operating_point(self, monkeypatch):
+        # A deploy log that shows the capability but not the concurrency lets
+        # the operating decision drift silently.
+        from api.services.journal_two import document_ocr_tesseract as tess
+        self._reload(monkeypatch, None)
+        import importlib
+        importlib.reload(tess)
+        line = tess.startup_fingerprint()
+        assert "max_concurrency=1" in line, line

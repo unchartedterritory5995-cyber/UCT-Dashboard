@@ -41,6 +41,7 @@ P1 close while the real engine's PACKAGING is still an open question (§37).
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sqlite3
 import threading
@@ -99,7 +100,43 @@ DOC_READY = "ready"
 DOC_NO_TEXT = "no_text"
 DOC_FAILED = "processing_failed"
 
-_OCR_SEMAPHORE = threading.Semaphore(2)
+# ⛔⛔ HOW MANY DOCUMENTS MAY BE READ AT ONCE — AND THE DEFAULT IS ONE.
+#
+# P5 certified two-way concurrency: eight rounds, every document complete, two
+# 100-page scans finishing in one's wall time. That is a *capability* result. It
+# is NOT the production operating point, by owner ruling at release: peak RSS
+# reached ~1,014 MB under 2×100 pages and there is not yet production
+# memory-headroom evidence to justify making 2 the first member-facing default.
+#
+# ⛔ THE DEFAULT IS THE SAFE ONE, so an unset variable cannot quietly ship the
+# riskier posture — the whole failure shape of `feature_flag_ledger`
+# (OFF-and-unset indistinguishable from off-on-purpose) inverted: here, unset
+# means ONE, deliberately.
+#
+# ⭐ It is an OPERATING control, not a constant, so raising it after production
+# observation is a variable change and a restart, not a code change and a
+# deploy. Read once at import: the semaphore's bound cannot change under a job
+# that is already holding it.
+#
+# ⛔ ONE JOB IS NOT A THROUGHPUT PROBLEM. Measured 0.373 s/page linear to 100
+# pages, i.e. a 100-page scan in ~37s. Web-service stability outranks OCR
+# throughput.
+def _max_concurrency() -> int:
+    raw = os.environ.get("J2_OCR_MAX_CONCURRENCY", "").strip()
+    try:
+        n = int(raw) if raw else 1
+    except ValueError:
+        log.warning("[doc-ocr] J2_OCR_MAX_CONCURRENCY=%r is not a number; "
+                    "using 1", raw)
+        return 1
+    if n < 1:
+        log.warning("[doc-ocr] J2_OCR_MAX_CONCURRENCY=%r is below 1; using 1", raw)
+        return 1
+    return n
+
+
+OCR_MAX_CONCURRENCY = _max_concurrency()
+_OCR_SEMAPHORE = threading.Semaphore(OCR_MAX_CONCURRENCY)
 
 # ⚰️⚰️ WAVE P5, FOUND UNDER THE CONCURRENCY THE DIRECTIVE ASKED FOR.
 #

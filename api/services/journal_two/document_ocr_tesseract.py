@@ -142,9 +142,13 @@ def startup_fingerprint() -> str:
     """
     binary = binary_path()
     version = engine_version(binary) if binary else None
+    # ⛔ THE OPERATING POINT BELONGS ON THE SAME LINE AS THE CAPABILITY. At
+    # release the owner set the first member-facing concurrency to ONE, and a
+    # setting nobody can read from the deploy log is a setting that drifts.
     return ("[startup] j2-ocr: flag={flag} binary={binary} version={version} "
-            "active={active}").format(
+            "active={active} max_concurrency={conc}").format(
         flag=os.environ.get(FLAG, "0").strip(),
         binary=binary or "absent",
         version=(version or "none").replace(" ", "_"),
-        active=document_ocr.ocr_available())
+        active=document_ocr.ocr_available(),
+        conc=document_ocr.OCR_MAX_CONCURRENCY)
