@@ -52,12 +52,19 @@ export default function useTracingsSync() {
   const hydratedRef = useRef(false)
   const pushTimerRef = useRef(null)
   const lastPushedRef = useRef(0)
+  const lastAttemptedRef = useRef(0)   // newest stamp handed to the server, confirmed or not
+  const dirtyRef = useRef(false)       // an unconfirmed push is still owed to the server
 
   const flushPush = useCallback(async () => {
     if (pushTimerRef.current) { clearTimeout(pushTimerRef.current); pushTimerRef.current = null }
     // Monotonic timestamp: never emit one <= the last we pushed (clock-skew guard),
     // so our own writes always read as newer than what we last put on the server.
-    const updatedAt = Math.max(Date.now(), lastPushedRef.current + 1)
+    // Strictly monotonic across ATTEMPTS, not just confirmed pushes: a failed
+    // push does not advance `lastPushedRef`, so keying off that alone would let
+    // two attempts share a stamp and make "is this the newest attempt?" — the
+    // question the dirty flag turns on — unanswerable.
+    const updatedAt = Math.max(Date.now(), lastPushedRef.current + 1, lastAttemptedRef.current + 1)
+    lastAttemptedRef.current = updatedAt
     const ok = await setPref(PREF_KEY, { updatedAt, doc: drawingsStore.exportTracings() })
     // ⛔ MOB-09 — THE HIGHWATERMARK MOVES ONLY ON A CONFIRMED WRITE, AND THE
     // TWO FAILURE DIRECTIONS ARE NOT SYMMETRIC.
@@ -74,9 +81,29 @@ export default function useTracingsSync() {
     // Failing to advance costs one redundant adopt on the next load. Advancing
     // wrongly costs the user their drawings, silently and permanently. So the
     // write is awaited and the mark only moves on `true`.
+    // ⛔ A STALE ACKNOWLEDGEMENT MUST NOT REGRESS NEWER STATE. Two pushes can be
+    // in flight (a slow one, then a debounced newer one), and they can confirm
+    // out of order. Advancing on any `ok` would let the OLDER response walk the
+    // mark backwards from 101 to 100 and re-open the adopt gate against a
+    // document the server has already superseded. The mark therefore only ever
+    // moves FORWARD, and only for the push that actually carries the newest
+    // stamp this hook has emitted.
     if (ok) {
-      lastPushedRef.current = updatedAt
-      writeHW(updatedAt)
+      if (updatedAt > lastPushedRef.current) {
+        lastPushedRef.current = updatedAt
+        writeHW(updatedAt)
+      }
+      // Only the NEWEST attempt may declare us clean. An older push confirming
+      // late says nothing about the newer one that is still unacknowledged.
+      if (updatedAt === lastAttemptedRef.current) dirtyRef.current = false
+    } else if (updatedAt === lastAttemptedRef.current) {
+      // ⭐ EXPLICITLY DIRTY, NOT MERELY "not advanced". The document is still
+      // owed to the server, and saying so is what makes the retry legitimate
+      // rather than accidental. Nothing is scheduled here on purpose — retry
+      // rides triggers that already exist (the next store change, the unmount
+      // flush, the next mount's hydrate), so a server that stays down produces
+      // one attempt per real event and never a timer storm.
+      dirtyRef.current = true
     }
   }, [setPref])
 
@@ -123,7 +150,11 @@ export default function useTracingsSync() {
     })
     return () => {
       unsub()
-      if (pushTimerRef.current) flushPush()             // don't drop a debounced push on navigate-away
+      // Don't drop a debounced push on navigate-away — and take ONE more run at
+      // a push the server never confirmed. Bounded by construction: unmount
+      // happens once per mount, so a server that stays down costs one attempt
+      // per visit, never a retry loop.
+      if (pushTimerRef.current || dirtyRef.current) flushPush()
     }
   }, [schedulePush, flushPush])
 

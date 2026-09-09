@@ -11,7 +11,18 @@
  * awaited `fetch` and caught only a THROW, so a 401 or a 500 left the optimistic
  * value sitting in the cache forever while the server held the old one — a
  * divergence with no symptom until the next reload. Both failure modes now
- * revert, and both report `false`.
+ * report `false`.
+ *
+ * ⚰️ THIS HEADER USED TO END "Both failure modes now revert". They do not, and
+ * the correction is the point of the settle rails below. MOB-09 shipped that
+ * revert and it deadlocked the app against any failing preferences endpoint:
+ * every write to this cache re-renders each consumer, `prefs` is rebuilt fresh
+ * on every render, and a `prefs`-keyed effect that writes then fires again. A
+ * ROLLBACK is the worst shape available, because it restores the very value that
+ * provoked the write, so the cycle cannot converge even in principle. Measured
+ * at 100% CPU with no exit; `VideoDockSlot.returns.test.jsx` never terminated.
+ * A failed write now changes NOTHING and reports `false` — the server stays the
+ * authority, and the caller that keeps a durable mark declines to advance it.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -38,6 +49,57 @@ const write = async (key, value) => {
   await act(async () => { out = await result.current.setPref(key, value) })
   return out
 }
+
+const postCount = () => calls.filter(c => c.init?.method === 'POST').length
+const getCount = () => calls.filter(c => c.init?.method !== 'POST').length
+
+describe('a failed write SETTLES', () => {
+  it('🔴 issues NO follow-up request — the revalidation form of the spin', async () => {
+    respond = async () => ({ ok: false, status: 500 })
+    const { result } = renderHook(() => usePreferences())
+    // ⛔ THE BASELINE IS TAKEN BEFORE THE WRITE, not after it. A revalidation
+    // fires from inside `setPref`'s own await, so a count sampled afterwards
+    // has already absorbed it and the rail passes against the real bug — it
+    // did exactly that on its first draft, and the mutation check is what
+    // caught it.
+    const before = getCount()
+    await act(async () => { await result.current.setPref('tracings_doc', { updatedAt: 1, doc: {} }) })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(getCount(), 'the failure asked the server to revalidate — that is the re-entry edge').toBe(before)
+  })
+
+  it('🔴 leaves the optimistic value in the cache — the ROLLBACK form of the spin', async () => {
+    // ⛔ NON-OBVIOUS AND LOAD-BEARING. Reverting looks like the careful choice,
+    // and it is the one that cannot terminate: it restores the value that caused
+    // the write, so the next render writes again, forever. Removing the
+    // revalidation alone did NOT fix the hang — this did.
+    respond = async () => ({ ok: false, status: 500 })
+    const { result } = renderHook(() => usePreferences())
+    await act(async () => { await result.current.setPref('chart_settings', '{"a":1}') })
+    expect(result.current.prefs.chart_settings,
+      'the failed write rolled the cache back; that flip-flop is what spun at 100% CPU',
+    ).toBe('{"a":1}')
+  })
+
+  it('⛔ repeated failure is BOUNDED — one POST per call, nothing self-scheduled', async () => {
+    respond = async () => ({ ok: false, status: 503 })
+    const { result } = renderHook(() => usePreferences())
+    for (let i = 0; i < 3; i++) {
+      await act(async () => { await result.current.setPref('tracings_doc', { updatedAt: i, doc: {} }) })
+    }
+    await act(async () => { await Promise.resolve() })
+    expect(postCount(), 'a failing server produced more writes than it was asked for').toBe(3)
+  })
+
+  it('⛔ NON-VACUITY: the harness can see a request it is not looking for', async () => {
+    // Without this, a rail asserting "no extra traffic" would pass just as well
+    // against a broken counter.
+    respond = async () => ({ ok: true, json: async () => ({}) })
+    const before = postCount()
+    await write('tracings_doc', { updatedAt: 1, doc: {} })
+    expect(postCount()).toBeGreaterThan(before)
+  })
+})
 
 describe('setPref reports whether the write landed', () => {
   it('a 2xx returns true', async () => {

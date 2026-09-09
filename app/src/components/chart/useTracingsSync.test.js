@@ -138,6 +138,148 @@ describe('useTracingsSync', () => {
     ).toBeGreaterThan(0)
   })
 
+  // ── The settle contract (the MOB-09 follow-up) ──────────────────────────────
+  //
+  // MOB-09 stopped the mark advancing on an unconfirmed write, which was right,
+  // but it also made `setPref` roll the shared cache back on failure — and that
+  // rollback could not terminate (see usePreferences.writeConfirmation.test.js).
+  // These gate the other half: a failure must SETTLE, stay owed, and converge
+  // when the server returns, without ever scheduling work of its own.
+
+  it('🔴 an unconfirmed push stays DIRTY — and gets one more attempt on unmount', async () => {
+    pushConfirms = false
+    const { unmount } = renderHook(() => useTracingsSync())
+    await act(async () => {
+      drawingsStore.subscribe('SPY', () => {})
+      drawingsStore.addDrawing('SPY', hz(3))
+      vi.advanceTimersByTime(1600)
+      await Promise.resolve()
+    })
+    expect(setPref).toHaveBeenCalledTimes(1)
+    // The debounce timer has already fired, so ONLY the dirty flag can produce a
+    // second attempt here — that is what this asserts.
+    await act(async () => { unmount(); await Promise.resolve() })
+    expect(setPref, 'a failed push was forgotten on unmount — the document is still owed to the server')
+      .toHaveBeenCalledTimes(2)
+  })
+
+  it('🔴 a later successful retry CONVERGES — the mark advances once the server returns', async () => {
+    pushConfirms = false
+    renderHook(() => useTracingsSync())
+    await act(async () => {
+      drawingsStore.subscribe('SPY', () => {})
+      drawingsStore.addDrawing('SPY', hz(3))
+      vi.advanceTimersByTime(1600)
+      await Promise.resolve()
+    })
+    expect(Number(localStorage.getItem('uct-tracings-sync-hw')) || 0).toBe(0)
+
+    pushConfirms = true
+    await act(async () => {
+      drawingsStore.addDrawing('SPY', hz(4))
+      vi.advanceTimersByTime(1600)
+      await Promise.resolve()
+    })
+    expect(Number(localStorage.getItem('uct-tracings-sync-hw')) || 0,
+      'the server came back and the mark never caught up — this device re-adopts forever',
+    ).toBeGreaterThan(0)
+  })
+
+  it('⛔ a server that stays down does NOT spin — no self-scheduled retry', async () => {
+    pushConfirms = false
+    renderHook(() => useTracingsSync())
+    await act(async () => {
+      drawingsStore.subscribe('SPY', () => {})
+      drawingsStore.addDrawing('SPY', hz(3))
+      vi.advanceTimersByTime(1600)
+      await Promise.resolve()
+    })
+    const settled = setPref.mock.calls.length
+    // Two minutes of wall clock with NO user action. A bounded design does
+    // nothing at all here; a retry timer would show up as extra calls.
+    await act(async () => { vi.advanceTimersByTime(120000); await Promise.resolve() })
+    expect(setPref.mock.calls.length,
+      'the failed push scheduled its own retries — that is the timer storm this forbids',
+    ).toBe(settled)
+  })
+
+  it('⛔ the dirty retry is ONE request per mount — re-rendering while dirty adds none', async () => {
+    // The retry hangs off the unmount EDGE, not off render count. If it were
+    // render-bound, a component that re-renders freely (this one is mounted on
+    // the charts workspace) would turn one failed push into a request per frame.
+    pushConfirms = false
+    const { rerender, unmount } = renderHook(() => useTracingsSync())
+    await act(async () => {
+      drawingsStore.subscribe('SPY', () => {})
+      drawingsStore.addDrawing('SPY', hz(3))
+      vi.advanceTimersByTime(1600)
+      await Promise.resolve()
+    })
+    expect(setPref).toHaveBeenCalledTimes(1)
+
+    await act(async () => { rerender(); rerender(); rerender(); await Promise.resolve() })
+    expect(setPref, 'a re-render fired a retry — the retry is render-bound, not edge-bound')
+      .toHaveBeenCalledTimes(1)
+
+    await act(async () => { unmount(); await Promise.resolve() })
+    expect(setPref, 'the unmount edge did not take its one attempt').toHaveBeenCalledTimes(2)
+  })
+
+  it('⛔ after unmount NOTHING further fires — teardown cannot resurrect the sync loop', async () => {
+    // Answers the teardown questions by measurement rather than by reading the
+    // cleanup: the subscription is gone, no timer survives, and the one retry
+    // does not re-arm anything that could push again.
+    pushConfirms = false
+    const { unmount } = renderHook(() => useTracingsSync())
+    await act(async () => {
+      drawingsStore.subscribe('SPY', () => {})
+      drawingsStore.addDrawing('SPY', hz(3))
+      vi.advanceTimersByTime(1600)
+      await Promise.resolve()
+    })
+    await act(async () => { unmount(); await Promise.resolve() })
+    const afterTeardown = setPref.mock.calls.length
+
+    await act(async () => {
+      drawingsStore.addDrawing('SPY', hz(9))   // the store keeps changing after teardown
+      vi.advanceTimersByTime(120000)           // and a lot of time passes
+      await Promise.resolve()
+    })
+    expect(setPref.mock.calls.length,
+      'a change after unmount still reached the server — the subscription outlived teardown',
+    ).toBe(afterTeardown)
+  })
+
+  it('🔴 a LATE confirmation from an OLDER push cannot walk the mark backwards', async () => {
+    // Two pushes in flight; the newer one confirms first. Advancing on any `ok`
+    // would let the older response regress the mark and re-open the adopt gate
+    // against a document the server has already superseded.
+    let resolveOld
+    setPref
+      .mockImplementationOnce(() => new Promise(r => { resolveOld = r }))
+      .mockImplementationOnce(async () => true)
+
+    renderHook(() => useTracingsSync())
+    await act(async () => {
+      drawingsStore.subscribe('SPY', () => {})
+      drawingsStore.addDrawing('SPY', hz(3))
+      vi.advanceTimersByTime(1600)          // OLD push leaves, stays pending
+      await Promise.resolve()
+    })
+    await act(async () => {
+      drawingsStore.addDrawing('SPY', hz(4))
+      vi.advanceTimersByTime(1600)          // NEW push leaves and confirms
+      await Promise.resolve()
+    })
+    const afterNew = Number(localStorage.getItem('uct-tracings-sync-hw'))
+    expect(afterNew, 'the newer push did not land — the fixture proves nothing').toBeGreaterThan(0)
+
+    await act(async () => { resolveOld(true); await Promise.resolve() })
+    expect(Number(localStorage.getItem('uct-tracings-sync-hw')),
+      'a stale acknowledgement walked the highwatermark backwards',
+    ).toBe(afterNew)
+  })
+
   it('pushes local content up when there is no server copy', () => {
     drawingsStore.subscribe('NVDA', () => {})
     drawingsStore.addDrawing('NVDA', hz(7))
