@@ -4,6 +4,37 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## R-04 — Seven standing suite failures, for their owners
+
+**Status:** filed, not acted on. **Measured on `origin/master` @ `75ca5c2ed`**, 2026-09-09 — a
+detached worktree at that SHA, `node_modules` junctioned, full `npx vitest run`. The joystick
+branch gates its Phase 3 waves on "no new failures relative to this baseline", so these are
+recorded rather than fixed by us. Full table + method: `60-phase3-plan.md`.
+
+⛔ **Not on this list, deliberately:** `chart/engine/__tests__/enumerationSites.test.js` failed
+the full run on a **15 s timeout** and passes in isolation in **1461 ms**. Load-sensitive, not
+broken. If you see it red, re-run it alone before filing anything.
+
+⛔ **Also not on this list:** four rows the baseline turned up were HUB-owned and are fixed on
+`feat/joystick-hub` (`--color-text-muted`; a raw 0x01 byte in `hub/useHubCursor.js`; the three
+`--hub-*` glass tokens missing from the research modal's theme island) or are Task 0's
+(`hub/contracts.js` reading as unreachable). We are not asking anyone else to fix those.
+
+| Test | What it names | Suggested owner |
+|---|---|---|
+| `hooks/pollingSites.rail.test.js` | `floor2/hooks/useFloor.js` has 5 bare `useSWR(..., {refreshInterval})` sites and `hooks/useWatchlistIntelligence.js` 1, none in the 2026-08-09 census. The rail wants a decision (`useMobileSWR` vs bare) and a row with a reason — **not** a row added to silence it. | floor2 / watchlists |
+| `styles/tapFloor.test.js` | `journal-2-0/…/notebook/CaptureDialog.module.css: .actions` declares a finger target at ≤640px but not at ≤1024px. **The touch tier is ≤1024** — a floor restored only at ≤640 leaves tablet broken. | notebook |
+| `pages/ThemeTrackerPage.chartmount.test.jsx` | 2 tests: selecting a holding mounts ChartPane with that symbol/timeframe, and `stored=null` with no `onStore` keeps symbol retargeting enabled. | charts |
+| `__tests__/sourcesAreText.test.js` | `pages/optionsFlow/wiring.guard.test.js:339` holds two raw `0x08` bytes. A control byte makes the file **binary to git and ripgrep** — its diff reads "Binary files … differ" and a grep for any symbol in it finds nothing. Write it as an escape; the runtime string is identical. | optionsFlow |
+| `screener/reachable.test.js` | 18 modules reachable from no entry point: **13 under `pages/community/`** (`CommunityPage`, `ChatView`, `ThreadView`, `Composer`, `AckGate`, 5 components, 4 lib), `floor2/main.jsx`, `lib/chatStreamManager.js`, `charts/widgets/DockFundamentals.jsx`, `pages/optionsFlow/flowBootstrap.js`. Mount them, delete them, or record the decision with a reason. | community · floor2 · charts · optionsFlow |
+| `chart/builder/ImportBox.thinkscript.test.jsx` · `chart/engine/ast/manifestProse.test.js` · `chart/engine/ast/pine.blindCorpus.test.js` | The thinkscript import offer declines while the box is one keystroke behind; a manifest key the product reads does not survive the strip; the accepted floor moved. | **the indicators session** |
+
+⚠️ The community cluster is the one worth a second look: thirteen modules including a whole page
+is not a stray orphan, it is a feature that reaches no route. `lesson_built_tested_green_and_unreachable`
+is exactly this shape, and their own test files will stay green forever.
+
+---
+
 ## R-03 — ✅ RESOLVED: the orb is gated, the hub owns the corner
 
 **Status:** RESOLVED (Phase 2 gate, approved as spec v1.5 exception (h)) · **Applied at:** `app/src/App.jsx:207` (`const hubActive = useHubActive()`) guarding `<GlobalVoiceGate/>`; the shared predicate lives in `app/src/hub/useHubActive.js` so `App.jsx`, `Layout.jsx` and `HubRoot.jsx` cannot drift. Committed separately for a clean rebase against the indicators branch.

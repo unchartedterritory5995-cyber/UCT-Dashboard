@@ -237,3 +237,65 @@ times over.
 - The indicators branch merging mid-increment — Chart's surface gets re-diffed before wiring.
 - Any section needing a change outside its OWNS list — that becomes a `requests.md` entry, not
   an edit.
+
+---
+
+## Pre-existing suite baseline — measured on master, not inherited
+
+**Every Increment 2 wave gates on "no NEW failures relative to this baseline."** Not on a green
+suite: the repo is not green and this branch cannot make it so.
+
+**Baseline: `origin/master` @ `75ca5c2ed`** ("Wave Q1 gate 1: a 409 stopped overwriting the
+server"), measured 2026-09-09. Method: a detached worktree at that SHA with `node_modules`
+junctioned in per the CLAUDE.md pattern, then a full `npx vitest run`. **Not** the branch's own
+run — the branch was three commits behind, and master had just fixed one of the failures
+(`rawErrorSurface.test.js`, by the very commit above). Recording the branch's list as "the
+baseline at master" would have licensed a *fixed* test as permitted breakage for every wave.
+
+> **1121 files · 16256 tests · 11 files / 12 tests reported failing — of which the real
+> baseline is 10 files / 11 tests.**
+
+⛔ **`chart/engine/__tests__/enumerationSites.test.js` is NOT in the baseline.** It failed the
+full run on a **15 s timeout** while AST-walking `api/**`, and passes in isolation on the same
+SHA in **1461 ms**. It is load-sensitive, not broken. Banking a timeout as permitted baseline
+breakage would let a real failure hide behind it for the rest of Phase 3
+(`lesson_a_rail_can_be_green_alone_and_red_in_company`, inverted). If it fails a wave, re-run it
+alone before calling it anything.
+
+### The 10, with the offenders each one actually names
+
+| # | Test file | Offenders | Owner |
+|---|---|---|---|
+| 1 | `hooks/pollingSites.rail.test.js` | `floor2/hooks/useFloor.js` (5), `hooks/useWatchlistIntelligence.js` (1) | floor2 / watchlists |
+| 2 | `styles/tapFloor.test.js` | `journal-2-0/…/notebook/CaptureDialog.module.css: .actions` | notebook |
+| 3 | `styles/tokens.reachable.test.js` | `--color-text-muted`, ref'd from `hub/hub.module.css` | **HUB — fixed on this branch** |
+| 4 | `pages/ThemeTrackerPage.chartmount.test.jsx` (2 tests) | ChartPane mount assertions | charts |
+| 5 | `__tests__/sourcesAreText.test.js` | `hub/useHubCursor.js` (0x01) **+** `pages/optionsFlow/wiring.guard.test.js` (0x08 ×2) | **HUB half fixed**; optionsFlow half remains |
+| 6 | `research/EarningsResearchModal.themeIsland.test.js` | `--hub-glass-tint`, `--hub-glass-tint-strong`, `--hub-rim` | **HUB — fixed on this branch** |
+| 7 | `screener/reachable.test.js` | `community/*` (13), `floor2/main.jsx`, `lib/chatStreamManager.js`, `charts/widgets/DockFundamentals.jsx`, `optionsFlow/flowBootstrap.js`, **`hub/contracts.js`** | mixed; the hub row is **Task 0** |
+| 8 | `chart/builder/ImportBox.thinkscript.test.jsx` | thinkscript import offer | indicators |
+| 9 | `chart/engine/ast/manifestProse.test.js` | manifest strip | indicators |
+| 10 | `chart/engine/ast/pine.blindCorpus.test.js` | accepted-floor corpus | indicators |
+
+### ⚠️ Four of these were HUB-owned, three of them shipped by PR #100
+
+The Phase 3 ruling recorded the remaining failures as "not hub-owned". That was true of the
+areas it listed and wrong about the total: rows 3, 5 (half) and 6 are ours, and rows 3 and 6
+were *introduced* by the hub — `--color-text-muted` is not a token and never was, and the three
+`--hub-*` glass tokens were added to `tokens.css` with `[data-theme]` variants without pinning
+them in the research modal's theme island. Row 7's `hub/contracts.js` is ours too and is
+resolved by Task 0 making it a runtime module.
+
+**Verification method for "is this mine?"** — `git show HEAD:<file>` (or `git show <sha>:<file>`)
+and look for the offending construct in the committed version, rather than reasoning from which
+files appear in `git status`. That is what separated "the hub added this" from "this was already
+here" on every row above; a `git status`-based argument would have missed all four, because none
+of the four offending files were in this branch's working set.
+
+### After this branch merges
+
+Rows 3 and 6 go green. Row 5 stays red on its optionsFlow half alone. Row 7 loses its hub entry
+at Task 0. **Expected post-merge baseline: 8 files.** Re-measure at the merge SHA before Wave A
+gates on it; do not carry this table forward as if it were still true.
+
+Filed for the other owners as **R-04** in `requests.md`.

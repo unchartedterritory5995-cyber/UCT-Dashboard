@@ -73,6 +73,9 @@
   --glass-surface: rgba(34, 37, 30, 0.55);
   --header-line: rgba(255, 255, 255, 0.11);
   --header-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+  --hub-glass-tint: color-mix(in srgb, var(--text-heading) 8%, transparent);
+  --hub-glass-tint-strong: color-mix(in srgb, var(--text-heading) 20%, transparent);
+  --hub-rim: color-mix(in srgb, var(--text-heading) 18%, transparent);
   --ind-warn: #ff8100;
   --ind-warn-bg: #ff810015;
   --ind-warn-border: #ff810035;
