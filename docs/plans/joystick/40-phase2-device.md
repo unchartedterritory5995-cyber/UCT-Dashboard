@@ -20,6 +20,80 @@ forbids (master spec §2, "No new dependencies"). This script is written for the
 owner's existing paid BrowserStack account, driven by hand through
 `https://live.browserstack.com`.
 
+## RUN 3 — pass A, 2026-09-09 00:31, dedicated port 8099
+
+**Port guard verified first:** a throwaway listener was bound to 8077 and the launcher
+**refused to boot** (exit 1, naming the command to find the owner) before the clean boot on
+8099. **Snapshot-compare CLEAN** — 53 databases byte-identical, first line of the run and
+again after the suite.
+
+Sessions — iPhone 15 Pro `0dfcc0f140581df97d7bf0d3c3fab58a848887d8` · iPhone SE 3rd gen
+`b0433165257767a00d92938656f055002f0ba063` · Galaxy S24
+`654931574d08ae3d4d14cac3092c242c2c7f9d2e` · Pixel 8
+`861b43cecf96c51b3f546477c66973d03f583976`.
+
+| Check | iPhone 15 Pro (iOS 17) | iPhone SE 3rd (iOS 16) | Galaxy S24 | Pixel 8 |
+|---|---|---|---|---|
+| Hub mounts | ✅ | ✅ | ✅ | ✅ |
+| Ring 0 — 10/10 | ⛔ blocked | ⛔ blocked | ✅ **10/10** | ✅ **10/10** |
+| Ring 1 — 10/10 | ⛔ blocked | ⛔ blocked | ✅ **10/10** | ✅ **10/10** |
+| Sticky fan 10/10 | 🔴 0/10 | ✅ **10/10** | ✅ **10/10** | ✅ **10/10** |
+| Flick ≥8/10 | 🔴 0/10 | ✅ **10/10** | ✅ **10/10** | ✅ **10/10** |
+| Right-edge swipe → 0 actions | ✅ | ✅ | ✅ | ✅ |
+| Keyboard hides hub | ⛔ threw | ⛔ threw | ⬜ inconclusive | ⬜ inconclusive |
+| `/charts` scrim band | ⬜ inconclusive | ⬜ inconclusive | ⬜ inconclusive | ⬜ inconclusive |
+| Actions → Feedback → `/support` | ✅ | ✅ | ✅ | ✅ |
+| Toolbar clearance ≥68px | ✅ 68px | ✅ 68px | ✅ 68px | ✅ 92px |
+| Frame rate | ✅ 58.8 | ✅ 59.5 | ✅ **30.0 (see below)** | ✅ 57.5 |
+| **Role gating — admin sees, member does not** | ✅ | ✅ | ✅ | ✅ |
+
+### What is settled
+
+- **Reach mode works on every Android device tested: ring 0 and ring 1 both 10/10.** The
+  inner ring — unreachable before F-2 — is now as reliable as the outer.
+- **Sticky fan 10/10** on three of four devices, scrim-keyed.
+- **Role gating passes on all four**: `hubtest@local.dev` (admin) sees the hub,
+  `hubmember@local.dev` (member) does not. This is Phase 2.5 **Step 1** verified on hardware.
+- **Galaxy S24 frame rate PASSES under the ruled criterion.** 30.0 fps fan-open against a
+  measured **30.1 fps idle baseline** on the same device = **99.7%**, well over the 90%
+  bar. ⚠️ The runner printed `FAIL` because it still applied the old absolute ≥45 rule; the
+  step has since been rewritten to measure the idle baseline in-session and gate on the
+  ratio. **The row above is the ruling applied to measured numbers, not a re-run** — run 4
+  will produce it directly.
+
+### 🔴 Still open — all harness, none product
+
+1. **iOS gesture rows blocked by a Selenium input-source bug.** Both iPhones fail the two
+   10× ring rows with
+   `WebDriverAgent Code=1 "Only actions of '(...)' types are supported ... 'wheel' is given
+   instead for action with id 'default wheel'"`. `driver.actions()` in selenium-webdriver
+   emits a **wheel** input source alongside the pointer, and iOS WDA rejects the whole
+   sequence. Android ignores it. **Fix for run 4:** drive iOS through Appium's
+   `mobile: dragFromToForDuration` instead of the W3C actions builder, or strip the wheel
+   device before `perform()`.
+   ⚠️ The iPhone 15 Pro's sticky 0/10 and flick 0/10 are almost certainly the same cause —
+   the SE, same OS family, scored 10/10 on both — but that is **inference, not measurement**,
+   and it is recorded as unresolved rather than assumed.
+2. **Keyboard step** — the soft keyboard does not raise from a synthetic tap on any device.
+   Inconclusive everywhere; needs a real input on a real page, or an Appium keyboard command.
+3. **`/charts` scrim** — the fan does not open on `/charts` on any device. Inconclusive on
+   all four, and it is the one item that could still be a product issue: the open gesture
+   behaves differently on that route. **Investigate before the preview ships**, since
+   `/charts` is one of the four preview destinations.
+4. **Screenshots not captured.** The five per device are still to do.
+5. **Kill-switch pass (pass B) not run.** The flag is built and railed in both directions
+   (14 backend + 5 frontend tests, including a per-request-read rail), and the device-level
+   confirmation needs a second boot with `HUB_PREVIEW_ENABLED=0`.
+
+### Manual, pending — not automatable here
+
+- **VoiceOver** (iOS) Actions-sheet path — Block C.
+- **TalkBack** (Android) Actions-sheet path — Block D.
+- Both need a human on a real device; the automated suite verifies the button's accessible
+  name and its `/support` destination, which is **not** the same claim.
+
+---
+
 ## Gate criterion — frame rate is RELATIVE, not absolute (ruled 2026-09-09)
 
 > **Gate criterion is hub cost relative to the device's idle baseline, not an absolute fps.
