@@ -2,6 +2,13 @@
 //
 // ─── Series pooling: every decision, no lightweight-charts ───────────────────
 //
+// ⚠️⚠️ THERE IS ALSO AN `objectPool.js` IN THIS DIRECTORY AND IT IS NOT THIS. That
+// one models **Pine's drawing-object quota** — `max_lines_count` /
+// `max_labels_count` / `max_boxes_count` / `max_polylines_count` and their silent
+// oldest-first eviction. This one pools **lightweight-charts series** for reuse
+// across symbol flips, keyed on the LWC series type. Neither is the other, and a
+// grep for "pool" finds the wrong file half the time.
+//
 // This module answers three questions and touches nothing:
 //
 //   1. WHICH LWC SERIES TYPE does a plot need?              → poolKey()
