@@ -18,12 +18,45 @@ a small latency effect unmeasurable.
 
 ## Decision rule, agreed in advance
 
-| Phase A **non-`warm` server hits** | Consequence |
-|---|---|
-| **0** | Network caveat closed. R5 closes — **but the in-memory benefit is recorded as UNMEASURED**, not as "no benefit". See below. |
-| **> 0** | The experiment is valid after all. Only then do we discuss the headless probe, storageState, and a sample size derived from the observed fire rate. |
+### Phase B is the known-positive control — check it FIRST
 
-⛔ **`&warm=1` rows do not count toward this rule.** See the counting section.
+A genuinely cold target (not opened this session, not viewed in ~26 h) **must**
+produce a non-`warm` `/api/bars/` row: the visible chart has no mem hit, no IDB
+hit, and has to reach the network while the member waits.
+
+| Phase B non-`warm` | Meaning |
+|---|---|
+| **> 0** | Instrument validated. Phase A's number is trustworthy. |
+| **0** | **Run VOID.** Either the targets weren't cold or the filter is blind. Redo with colder targets after re-running the filter-liveness check. **Do not read Phase A.** |
+
+⭐ This is Q6 lesson #2 applied to ourselves: validate the instrument against a
+known positive before believing any negative from it. The first `canvases: 0`
+should have triggered exactly this and never did.
+
+### Then Phase A
+
+| Phase A non-`warm` | Consequence |
+|---|---|
+| **0** (with B > 0) | Network caveat closed. R5 closes — **in-memory benefit recorded as UNMEASURED**, not as "no benefit". |
+| **> 0** | The experiment is valid after all. Sample size from the observed fire rate, not the inherited 90/60. **See the prediction below — this outcome is now more likely than it looked.** |
+
+### The `&warm=1` count is the prefetcher's pulse
+
+⛔ **`&warm=1` rows never count toward either rule above.** But record them:
+**zero `&warm=1` rows in a visible tab across Phase A transitions means the
+prefetcher is not running in the foreground either** — a finding in its own right,
+and the thing that would retroactively explain §P2.
+
+### ⚠️ Prediction, recorded before the run so it can be wrong
+
+`prefetchBars` writes SWR under `…&bars=600&warm=1`. The visible chart reads
+`…&bars=<_primaryBars>` with **no `&warm`** (`StockChart.jsx:5322`). **Different
+keys.** So current+2 cannot produce an SWR hit for the chart's read; its benefit
+is server-side cache warming, and the chart may still have to make a network
+request that is merely *fast*. If that's right, Phase A non-`warm` should be
+**nonzero on most transitions**. If it comes back zero, something else is serving
+the chart — most likely IDB filled by the feed's own per-row charts — and that is
+worth knowing too.
 
 ⛔⛔ **The rule no longer says "R5 closes clean".** `prefetchBars` warms **SWR's
 in-memory cache**, not IndexedDB (`prefetchBars.js:204`, in-file). So a prefetched
