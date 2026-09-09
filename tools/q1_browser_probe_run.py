@@ -80,7 +80,11 @@ def run_one(pw, label: str, url: str, timeout_s: int, user_data_dir: str | None 
             )
         page = context.pages[0] if context.pages else context.new_page()
         page.goto(url, wait_until="load", timeout=45_000)
-        page.evaluate("window.__q1Run && window.__q1Run()")
+        # ⛔ Do NOT await it. `__q1Run` is async and its first act is to reload
+        # the page, so a plain `evaluate` waits on a promise that can never
+        # resolve -- Chromium throws when the context dies, Firefox and WebKit
+        # simply hang, which is how this runner sat silent for twelve minutes.
+        page.evaluate("setTimeout(function () { window.__q1Run && window.__q1Run() }, 0)")
         # The probe reloads itself once on purpose, so poll rather than wait on
         # a single navigation.
         deadline = time.time() + timeout_s

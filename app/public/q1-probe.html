@@ -67,6 +67,22 @@
   var now = function () { return (window.performance && performance.now) ? performance.now() : Date.now() };
   var created = [];
 
+  // ⛔ NO SINGLE API MAY STALL THE RUN. `navigator.storage.persist()` can sit
+  // on a permission prompt, a lock request can queue behind something we cannot
+  // see, and a browser we have never measured is exactly where that happens.
+  // Every awaited leg is bounded, and a leg that runs out of time is REPORTED
+  // as timed out rather than left as a missing field somebody reads as a pass.
+  function to(promise, ms, label) {
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise(function (_, rej) {
+        setTimeout(function () {
+          var e = new Error('timed out after ' + ms + 'ms: ' + label); e.timeout = true; rej(e);
+        }, ms);
+      })
+    ]);
+  }
+
   function openDb(name, version, onUpgrade, opts) {
     opts = opts || {};
     return new Promise(function (resolve, reject) {
@@ -164,7 +180,7 @@
     out.storage = { estimateSupported: !!(navigator.storage && navigator.storage.estimate) };
     try {
       if (out.storage.estimateSupported) {
-        var est = await navigator.storage.estimate();
+        var est = await to(navigator.storage.estimate(), 4000, 'storage.estimate');
         out.storage.quotaBytes = est.quota != null ? est.quota : null;
         out.storage.usageBytes = est.usage != null ? est.usage : null;
         out.storage.quotaMB = est.quota != null ? +(est.quota / 1048576).toFixed(1) : null;
@@ -172,14 +188,16 @@
       }
     } catch (e) { out.storage.estimateError = String(e && e.message || e) }
     out.storage.persistSupported = !!(navigator.storage && navigator.storage.persist);
-    try { out.storage.persistedBefore = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : null }
+    try { out.storage.persistedBefore = navigator.storage && navigator.storage.persisted ? await to(navigator.storage.persisted(), 4000, 'storage.persisted') : null }
     catch (e) { out.storage.persistedBefore = null; out.storage.persistedError = String(e && e.message || e) }
     // ⛔ Only ASK when it is not already granted. Q1 correctness never depends
     // on the answer; §19 asks whether it can be granted at all.
     if (out.storage.persistSupported && out.storage.persistedBefore === false) {
-      try { out.storage.persistResult = await navigator.storage.persist() }
-      catch (e) { out.storage.persistResult = 'error: ' + String(e && e.message || e) }
-      try { out.storage.persistedAfter = await navigator.storage.persisted() } catch (e) { out.storage.persistedAfter = null }
+      // ⛔ Firefox raises a PERMISSION PROMPT here; with no user gesture it can
+      // simply never settle. Bounded, and a timeout is recorded as one.
+      try { out.storage.persistResult = await to(navigator.storage.persist(), 5000, 'storage.persist') }
+      catch (e) { out.storage.persistResult = (e && e.timeout) ? 'timed-out (prompt?)' : 'error: ' + String(e && e.message || e) }
+      try { out.storage.persistedAfter = await to(navigator.storage.persisted(), 4000, 'storage.persisted'); } catch (e) { out.storage.persistedAfter = null }
     }
 
     out.idb = { available: !!(window.indexedDB && typeof indexedDB.open === 'function') };
@@ -314,8 +332,8 @@
 
     try {
       out.secondContenderRefusedWhileHeld =
-        !(await navigator.locks.request(name, { ifAvailable: true }, function (l) { return !!l }));
-    } catch (e) { out.secondContenderError = String(e && e.message || e) }
+        !(await to(navigator.locks.request(name, { ifAvailable: true }, function (l) { return !!l }), 5000, 'locks.ifAvailable'));
+    } catch (e) { out.secondContenderError = (e && e.timeout) ? 'timed out' : String(e && e.message || e) }
 
     var queuedGot = false;
     var queued = navigator.locks.request(name, {}, function () { queuedGot = true })
@@ -323,10 +341,10 @@
     await sleep(150);
     out.queuedWaitedWhileHeld = !queuedGot;
     if (release) release();
-    await queued;
+    try { await to(queued, 5000, 'locks.queued') } catch (e) { out.queuedTimedOut = true }
     await sleep(50);
     out.queuedGrantedAfterRelease = queuedGot;
-    await holder;
+    try { await to(holder, 5000, 'locks.holder') } catch (e) { out.holderTimedOut = true }
 
     try {
       var q = await navigator.locks.query();
@@ -445,10 +463,21 @@
     try { console.log('[q1-probe]', text) } catch (e) {}
   }
 
+  function armWatchdog(partialGetter) {
+    setTimeout(function () {
+      if (window.__q1Done) return;
+      var partial = partialGetter() || {};
+      partial.incomplete = 'the run did not finish within 45s; fields not present were never measured';
+      partial.verdict = partial.verdict || { classification: 'INCOMPLETE — see `incomplete`' };
+      render(partial);
+    }, 45000);
+  }
+
   async function start() {
     $('run').disabled = true;
     var runId = String(Date.now().toString(36)) + '-' + Math.random().toString(36).slice(2, 8);
     say('Measuring… the page will reload itself once.');
+    armWatchdog(function () { return { probeVersion: PROBE_VERSION, runId: runId, phase: 1 } });
     var result = await phase1(runId);
     try {
       sessionStorage.setItem(RUN_KEY, JSON.stringify(result));
@@ -467,6 +496,7 @@
     sessionStorage.removeItem(RUN_KEY);
     var result;
     try { result = JSON.parse(raw) } catch (e) { say('could not resume'); $('run').disabled = false; return }
+    armWatchdog(function () { return result });
     render(await phase2(result));
   }
 
