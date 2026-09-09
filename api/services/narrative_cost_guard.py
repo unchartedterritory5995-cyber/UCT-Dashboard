@@ -208,6 +208,28 @@ def over_budget(surface: str, env_name: str = _ENV_CAP,
     return spend_today_usd(surface) >= cap_usd(env_name, default)
 
 
+def calls_today(surface_prefix: str) -> int:
+    """Count of ledger rows today (ET) whose surface starts with
+    `surface_prefix` — e.g. calls_today("pplx:") counts every Perplexity call
+    across every caller (catalyst engine, ai_search, news_catalysts,
+    briefings, voice, ...) as ONE number, which no single per-surface $ cap
+    can see. Durable (SQLite-backed), so it survives a redeploy — unlike a
+    caller's own in-process counter (the 2026-09-08 cost-spike root cause:
+    per-process dedup/daily-cap guards silently reset on every restart)."""
+    try:
+        _init()
+        with _conn() as c:
+            row = c.execute(
+                "SELECT COUNT(*) FROM llm_route_cost_log "
+                "WHERE surface LIKE ? AND at >= ?",
+                (surface_prefix + "%", _et_midnight_utc_text())).fetchone()
+        return int(row[0] or 0)
+    except Exception as exc:  # noqa: BLE001 — a broken ledger must not 500 a read
+        logger.error("[narrative_cost_guard] call count read failed for %s: %s",
+                     surface_prefix, exc)
+        return 0
+
+
 def record(surface: str, model: str, input_tokens: int = 0,
            output_tokens: int = 0, web_searches: int = 0,
            cost_usd: float | None = None, cache_read_tokens: int = 0,

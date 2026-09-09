@@ -9,7 +9,7 @@ import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
-import ChartDetailDock, { ChartPanelsButton } from './ChartDetailDock'
+import ChartDetailDock, { ChartEarningsButton, ChartPanelsButton } from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
@@ -589,7 +589,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           ),
           /* Company Intelligence panel toggle — takes the slot Share-to-Floor
              used to hold (owner decision). One click opens/closes the panel. */
-          tfBarEnd: <ChartPanelsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />,
+          tfBarEnd: (
+            <>
+              <ChartEarningsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
+              <ChartPanelsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
+            </>
+          ),
           overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
         }}
       />

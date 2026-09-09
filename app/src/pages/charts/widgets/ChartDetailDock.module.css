@@ -22,12 +22,26 @@
   min-width: 0;
 }
 
-/* The chart lives here. min-0 + flex:1 so autoSize can shrink it when a panel opens. */
+/* The chart lives here. min-0 + flex:1 so autoSize can shrink it when a panel opens.
+   COLUMN, so the earnings strip can sit under the chart and inherit this box's
+   width — which is exactly the chart's plotting width. That is what stops the
+   strip at the Company Panel's edge structurally, rather than by maintaining a
+   matching width somewhere else. */
 .dockChartCol {
   position: relative;
   flex: 1;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The chart itself takes whatever the strip leaves. lightweight-charts is
+   created with autoSize, so it re-lays out from this box with no resize call. */
+.dockChartPane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   display: flex;
 }
 
@@ -215,6 +229,14 @@
 .dockClose:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #d8d2c2); }
 
 /* ── Drag-resize handles ─────────────────────────────────────────────────── */
+/* Holds the earnings strip at its dragged height and anchors the divider. */
+.stripWrap {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+}
+
 .resizerV {
   position: absolute;
   left: -3px;

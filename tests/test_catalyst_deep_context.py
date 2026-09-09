@@ -9,17 +9,29 @@ Covers `engine._enrich_top_movers_deep_context`:
 - source-rich skip.
 """
 
+import contextlib
+
 import pytest
 
 from api.services import perplexity_search
-from api.services.catalyst import engine
+from api.services.catalyst import engine, store
+
+
+def _clear_deep_context_done():
+    """The per-day-per-ticker guard is durable (catalyst_deep_context_done
+    table, 2026-09-09) — unlike the in-memory dict it replaced, it doesn't
+    reset itself between tests, so the fixture below does it explicitly."""
+    store._init_db()
+    with contextlib.closing(store._connect()) as c:
+        c.execute("DELETE FROM catalyst_deep_context_done")
+        c.commit()
 
 
 @pytest.fixture(autouse=True)
 def _reset_deep_cache():
-    engine._DEEP_CONTEXT_DONE.clear()
+    _clear_deep_context_done()
     yield
-    engine._DEEP_CONTEXT_DONE.clear()
+    _clear_deep_context_done()
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +134,7 @@ def test_anti_hallucination_drop(monkeypatch):
     assert len(stub.calls) == 1
     assert not any(r["source"] == "Perplexity (deep context)" for r in c["rss"])
     # Still marked done so we don't re-pay.
-    assert "AAA" in engine._DEEP_CONTEXT_DONE["2026-06-15"]
+    assert store.deep_context_already_done("2026-06-15", "AAA")
     engine._enrich_top_movers_deep_context([c], "2026-06-15")
     assert len(stub.calls) == 1
 

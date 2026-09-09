@@ -115,3 +115,11 @@ tools/semantic_benchmark_out/
 tools/prod_asset_proof_out/
 
 tools/wave_p5_load_out/
+# local-only earnings-strip design harness (never deployed)
+app/stripqa.html
+app/src/stripqa.jsx
+app/vite.strip.config.js
+app/_stripqa/
+app/vite.local.config.js
+app/stripqa2.html
+app/src/stripqa2.jsx

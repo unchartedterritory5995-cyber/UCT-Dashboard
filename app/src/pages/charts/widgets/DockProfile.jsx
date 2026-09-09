@@ -23,7 +23,7 @@
  * Business/Story come from the cached AI stock-brief (company_desc + run_story);
  * everything else is real snapshot/statement/ownership data.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import useStockBrief from '../../../hooks/useStockBrief'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useEarningsTable from '../../../hooks/useEarningsTable'
@@ -125,14 +125,30 @@ function fmtFresh(ts) {
 }
 
 // ── building blocks ─────────────────────────────────────────────────────────
-function Row({ k, v, cls, p }) {
+/* Is the fundamentals payload still in flight? An em dash means "this company
+   does not have this number"; while the request is open we do not know that
+   yet, and rendering the dash asserts it. ARM showed a full grid of dashes
+   purely because the payload had not landed — indistinguishable from a company
+   with no financials at all. */
+const LoadingCtx = createContext(false)
+
+function Row({ k, v, cls, p, loading }) {
   // Dim is reserved for MISSING data — every real value stays bright. `p` only
   // adds weight, never a colour change (dimming valid data read as disabled).
+  // ⚠️ useContext runs UNCONDITIONALLY. Inside `loading ?? useContext(...)` the
+  // right side only evaluates when `loading` is undefined, which makes it a
+  // conditional hook call and breaks the hook order between renders.
+  const ctxLoading = useContext(LoadingCtx)
   const empty = typeof v === 'string' && (v === '—' || v.trim() === '')
+  const pending = (loading ?? ctxLoading) && empty
   return (
     <div className={styles.mRow}>
       <span className={styles.mKey}>{k}</span>
-      <span className={`${styles.mVal}${p ? ' ' + styles.mValP : ''}${empty ? ' ' + styles.mValEmpty : ''} ${cls || ''}`}>{v}</span>
+      {pending ? (
+        <span className={styles.mValSkel} aria-label="loading" />
+      ) : (
+        <span className={`${styles.mVal}${p ? ' ' + styles.mValP : ''}${empty ? ' ' + styles.mValEmpty : ''} ${cls || ''}`}>{v}</span>
+      )}
     </div>
   )
 }
@@ -165,7 +181,7 @@ export default function DockProfile({ sym }) {
   const { status, company, stats, profile } = useStockBrief(sym || null, { generating: fastPoll })
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
 
-  const { data: full } = useMobileSWR(sym ? `/api/fundamentals-full/${encodeURIComponent(sym)}` : null, jsonFetcher, { refreshInterval: 0, dedupingInterval: 300000, revalidateOnFocus: false })
+  const { data: full, isLoading: fullLoading } = useMobileSWR(sym ? `/api/fundamentals-full/${encodeURIComponent(sym)}` : null, jsonFetcher, { refreshInterval: 0, dedupingInterval: 300000, revalidateOnFocus: false })
   const { data: fund } = useMobileSWR(sym ? `/api/fundamentals/${encodeURIComponent(sym)}` : null, jsonFetcher, { refreshInterval: 600000, dedupingInterval: 60000, revalidateOnFocus: false })
   const { data: earn } = useEarningsTable(sym || null)
   // PROTOTYPE: Business trend reads the normalized ANNUAL series from
@@ -306,7 +322,9 @@ export default function DockProfile({ sym }) {
              Profitability and Financial Health are financial-QUALITY questions —
              still here in full, just below the fold, where a reader who is
              digging will find them. ── */}
+      <LoadingCtx.Provider value={!!fullLoading}>
       <section className={`${styles.section} ${styles.layerBreak}`}>
+        {/* Skeletons rather than dashes while the payload is open — see Row. */}
         {/* No "Fundamentals" head: Valuation / Growth / Price & Performance /
             Profitability / Financial Health are self-evidently company metrics,
             and naming the container added a third hierarchy level plus ~30px
@@ -369,6 +387,7 @@ export default function DockProfile({ sym }) {
           <Row k="Short Float" v={fund?.short_pct_float != null ? `${num(fund.short_pct_float, 1)}%` : '—'} />
         </Group>
       </section>
+      </LoadingCtx.Provider>
 
       {/* PROTOTYPE: one visual, after the numbers it summarises. */}
       <BusinessTrend annual={intel?.annual} />

@@ -455,9 +455,14 @@ def test_a_timeout_retries_once_then_succeeds(monkeypatch):
     assert calls["n"] == 2, calls
 
 
-def test_two_timeouts_still_surface_an_honest_error(monkeypatch):
+def test_repeated_timeouts_still_surface_an_honest_error(monkeypatch):
     """CONTROL — the retry is BOUNDED. An unbounded retry on a blocking call is
-    the threadpool-exhaustion surface behind the 524 outage."""
+    the threadpool-exhaustion surface behind the 524 outage.
+
+    Bound derived from pplx._MAX_RETRIES, not hand-typed — a literal count
+    here is exactly the drift this repo's own CLAUDE.md keeps flagging
+    elsewhere (2026-09-09: retry budget widened 1->3 retries as part of the
+    Perplexity cost-spike hardening)."""
     calls = {"n": 0}
 
     def _dead(*a, **k):
@@ -471,4 +476,4 @@ def test_two_timeouts_still_surface_an_honest_error(monkeypatch):
     out = pplx.web_search("nvda", cache_salt="t-timeout-2")
     assert not out.get("answer")
     assert "timeout" in (out.get("error") or "").lower()
-    assert calls["n"] == 2, calls
+    assert calls["n"] == pplx._MAX_RETRIES + 1, calls
