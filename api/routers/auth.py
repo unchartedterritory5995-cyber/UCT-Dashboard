@@ -127,6 +127,23 @@ def _access_payload(user: dict, plan: str) -> dict:
         },
         "paid_equiv": bool(is_paid_plan or trial_active),
         "billing": {"annual_available": annual_available()},
+        # ── Joystick hub preview kill switch (Phase 2.5) ────────────────────
+        # ⭐ READ AT REQUEST TIME, NOT AT IMPORT. That is the whole point: flipping
+        # HUB_PREVIEW_ENABLED=false in Railway must hide the hub for everyone
+        # WITHOUT a redeploy. A module-level capture would need one, which is
+        # exactly the rollback this switch exists to avoid.
+        #
+        # ⭐ RIDES AN EXISTING PAYLOAD RATHER THAN ADDING AN ENDPOINT. The client
+        # already polls /api/auth/me, and signup/login share this block, so the
+        # flag is present the moment a session exists — no extra round trip and
+        # no new route (the preview release ships zero new hub endpoints).
+        #
+        # ⛔ DEFAULT ON. This is a KILL switch: unset means "not killed". Only an
+        # explicit "0"/"false"/"no"/"off" disables. The opposite default would make
+        # a forgotten variable indistinguishable from a deliberate shutdown.
+        "hub_preview_enabled": os.environ.get(
+            "HUB_PREVIEW_ENABLED", "1"
+        ).strip().lower() not in ("0", "false", "no", "off"),
     }
 
 

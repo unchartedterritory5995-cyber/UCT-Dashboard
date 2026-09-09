@@ -244,7 +244,27 @@
      long-press menu — including `Chart settings…`, the only phone route to the
      criteria builder. Anything that floats permanently belongs on THIS rung. */
   --z-fab: 350;
+  /* ── Joystick hub — TWO rungs, because the hub changes rung when it opens ──
+     At rest the hub is an ordinary floating affordance and sits just above the
+     FAB rung. Once its fan is open it OWNS the screen: it paints its own scrim
+     at --z-backdrop and must render ABOVE that scrim, or the control dims
+     itself and the fan is unreachable.
+
+     ⛔ ONE TOKEN CANNOT SERVE BOTH. The hub was first built on --z-fab (350),
+     which is BELOW --z-backdrop (399) — so the moment the fan opened, the hub
+     rendered underneath its own dim layer. That is not a styling nit: the fan
+     is the only thing the scrim exists to isolate. Ordering invariant, pinned
+     by app/src/hub/hubZIndex.test.js:
+         --z-hub-open  >  --z-backdrop  >  --z-hub-rest  >  --z-fab
+     ⚠️ --z-hub-open (401) is ABOVE --z-drawer (400), not below — there is no
+     integer between 399 and 400 to sit in. They never actually contend: the hub
+     hides itself whenever a Sheet is open (the rule FloatingOrb already follows
+     via `scrollLocked`), so an open fan and an open drawer cannot coexist.
+     Modals and toasts (1000 / 1100) stay above regardless, so a confirm sheet
+     opened FROM the hub still draws over it. */
+  --z-hub-rest: 360;
   --z-backdrop: 399;
+  --z-hub-open: 401;
   --z-drawer: 400;
   --z-modal: 1000;
   --z-toast: 1100;
@@ -311,6 +331,51 @@
   --glass-chrome: rgba(20, 22, 18, 0.94);
   --glass-inner-glow: inset 0 1px 0 rgba(224, 218, 200, 0.06);
 
+  /* ── Joystick Hub tokens (--hub-*) ────────────────────────────────────────
+     docs/plans/joystick/00-master-spec-v1.3.md §2a. Appended directly below
+     the research-kit --glass-* block above, on purpose: every value here is
+     composed from a token the app ALREADY owns via color-mix() — never a
+     restated literal — with --text-heading standing in for white and --bg
+     for black, so OLED contrast and shadow depth both derive for free
+     instead of needing a second authority per theme.
+
+     Glass is white at 6-22% over the dark canvas (§2a): --hub-glass-tint is
+     the resting tier near the bottom of that band, --hub-glass-tint-strong
+     the pressed/"worst case" tier the mode-accent contrast table (§2a) is
+     measured against.
+
+     No [data-theme="light"] --hub-* set anywhere in this file — deliberate,
+     riding the SAME decision as the research-kit glass tokens: see this
+     file's own "NO --glass-* HERE, ON PURPOSE" comment inside the
+     [data-theme="light"] block below (§3.2 — light-theme adaptation is
+     deferred to the post-launch app-wide token sweep). One decision, two
+     token families, linked here rather than re-justified — not an oversight
+     for a later sweep to "fix". */
+  --hub-glass-tint: color-mix(in srgb, var(--text-heading) 8%, transparent);
+  --hub-glass-tint-strong: color-mix(in srgb, var(--text-heading) 20%, transparent);
+  --hub-rim: color-mix(in srgb, var(--text-heading) 18%, transparent);
+  --hub-rim-width: 1px;
+  --hub-rim-highlight: color-mix(in srgb, var(--text-heading) 35%, transparent);
+  --hub-shadow: 0 10px 28px -8px color-mix(in srgb, var(--bg) 65%, transparent);
+  --hub-scrim: color-mix(in srgb, var(--bg) 70%, transparent);
+  --hub-knob-face: color-mix(in srgb, var(--text-heading) 16%, var(--bg-elevated) 84%);
+  --hub-tick: color-mix(in srgb, var(--text-heading) 14%, transparent);
+
+  /* The ten mode accents (§2a) — approved literal hexes, not derived; do not
+     adjust them. home/journal/wire are deliberately distinct green siblings
+     (v1.2 gave one hex to all three, which collided in Home's own fan) —
+     never collapse them back to one. */
+  --hub-mode-scan: #8fd3ff;
+  --hub-mode-chart: #9d95ff;
+  --hub-mode-flow: #f7c96b;
+  --hub-mode-catalysts: #ffb36b;
+  --hub-mode-breadth: #5dcaa5;
+  --hub-mode-notebook: #d6a4ff;
+  --hub-mode-calendar: #e9e9e9;
+  --hub-mode-home: #67DB44;
+  --hub-mode-journal: #4FB833;
+  --hub-mode-wire: #9FE887;
+
   /* Focus ring for interactive elements sitting on glass — the global
      :focus-visible outline disappears against a translucent border. */
   --focus-ring: 0 0 0 2px rgba(201, 168, 76, 0.75);
@@ -349,6 +414,15 @@
   --glass-elevated: rgba(26, 26, 26, 0.78);
   --glass-border-neutral: rgba(255, 255, 255, 0.09);
   --glass-chrome: rgba(0, 0, 0, 0.94);
+
+  /* Hub glass needs richer alpha on pure black — #000000 gives the tint no
+     ambient bounce to read against (§2a). Tint raised ~5pts, rim ~6pts; only
+     these tokens change — --hub-shadow/--hub-scrim already derive a deeper
+     black automatically because they're built from --bg, which OLED already
+     redefines above. */
+  --hub-glass-tint: color-mix(in srgb, var(--text-heading) 13%, transparent);
+  --hub-glass-tint-strong: color-mix(in srgb, var(--text-heading) 25%, transparent);
+  --hub-rim: color-mix(in srgb, var(--text-heading) 24%, transparent);
 }
 
 /* ── Light theme ──────────────────────────────────────────────────────────
@@ -441,6 +515,40 @@
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.10);
   --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.16);
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Hub high-contrast mode ([data-hub-contrast="high"]) ────────────────────
+   docs/plans/joystick/00-master-spec-v1.3.md §2a / Wave 0.5 §2 (C2 vision
+   commitment). A modifier that composes with either base theme rather than a
+   fourth theme of its own: the tint goes OPAQUE, keyed off the existing
+   --bg-elevated/--bg-hover surface tokens rather than a color-mix alpha —
+   because those two already resolve per-theme (OLED included), this needs no
+   separate OLED copy of its own. Rim goes full-strength + a wider 2px width. */
+[data-hub-contrast="high"] {
+  --hub-glass-tint: var(--bg-elevated);
+  --hub-glass-tint-strong: var(--bg-hover);
+  --hub-rim: color-mix(in srgb, var(--text-heading) 65%, transparent);
+  --hub-rim-width: 2px;
+}
+
+/* Hub cursor selection highlight (§2d) — a plain GLOBAL rule, not a CSS
+   module. `hub/useHubCursor.js` writes `data-hub-cursor="active"` directly
+   onto whichever row of whichever section it is currently iterating (both
+   declaratively via `itemProps(i)` and imperatively via `paintCursor` for
+   Morning Wire's injected-HTML rows) — see that file, `useHubCursor.test.js`,
+   and spec v1.3 §2d, which pins this exact selector: "The selection rule
+   lives in tokens.css as a global [data-hub-cursor="active"] rule." A CSS-
+   module class hashes bare selectors, so it could never match a plain data
+   attribute written from outside that module. Precedent for the exact shape:
+   :global([data-flash="true"]) in TranscriptSearch.module.css.
+   ⛔ Corrected at the Phase 1 gate: an earlier draft of this rule used
+   `[data-hub-selected]`, an attribute name nothing in the codebase ever
+   writes — dead CSS that would never have matched a real DOM node. */
+[data-hub-cursor="active"] {
+  outline: 2px solid var(--hub-rim-highlight);
+  outline-offset: -1px;
+  background: var(--hub-glass-tint-strong);
+  border-radius: var(--radius-sm);
 }
 
 * {

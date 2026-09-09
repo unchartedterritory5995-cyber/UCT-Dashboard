@@ -1,0 +1,61 @@
+{
+  "_README": "SYNTHETIC FIXTURE — NOT A PRODUCTION SNAPSHOT. Seeded into a sandbox DATA_DIR by scripts/hub-sandbox.ps1 so Dashboard / Morning Wire / Breadth render something for joystick-hub device testing. Every number here is invented. Tickers are real symbols only so charts resolve; the values attached to them are not. Never copy this into /data or C:\\data.",
+  "date": "2026-01-02",
+  "exposure": {
+    "score": 72,
+    "exposure": 72,
+    "note": "SANDBOX FIXTURE — constructive, not a real reading.",
+    "tier": "Constructive"
+  },
+  "breadth": {
+    "pct_above_5ma": 58.0,
+    "pct_above_50ma": 61.0,
+    "pct_above_200ma": 55.0,
+    "advancing": 3100,
+    "declining": 2400,
+    "new_highs": 140,
+    "new_lows": 60,
+    "new_highs_list": ["NVDA", "AMD", "AVGO"],
+    "new_lows_list": ["XYZ"],
+    "breadth_score": 62,
+    "distribution_days": 2,
+    "market_phase": "SANDBOX — uptrend under pressure"
+  },
+  "ma_data": {
+    "SPY": { "ema9": 1.1, "ema20": 1.8, "sma50": 3.2, "sma200": 8.4 },
+    "QQQ": { "ema9": 0.9, "ema20": 1.6, "sma50": 2.9, "sma200": 9.1 }
+  },
+  "leadership": [
+    { "rank": 1, "sym": "NVDA", "company": "NVIDIA Corp", "rs_score": 98, "thesis": "SANDBOX FIXTURE — invented thesis text for layout only.", "setup": "Classic Flag/Pullback", "cap": "Mega" },
+    { "rank": 2, "sym": "AVGO", "company": "Broadcom Inc", "rs_score": 95, "thesis": "SANDBOX FIXTURE — invented thesis text for layout only.", "setup": "Flat Base Breakout", "cap": "Mega" },
+    { "rank": 3, "sym": "AMD", "company": "Advanced Micro Devices", "rs_score": 91, "thesis": "SANDBOX FIXTURE — invented thesis text for layout only.", "setup": "VCP", "cap": "Large" }
+  ],
+  "themes": {
+    "leaders": [
+      { "ticker": "SMH", "name": "Semiconductors", "etf_name": "VanEck Semiconductor ETF", "pct": 4.2, "bar": 84, "holdings": ["NVDA", "AVGO", "AMD"], "intl_count": 0 },
+      { "ticker": "XLK", "name": "Technology", "etf_name": "Technology Select Sector SPDR", "pct": 2.6, "bar": 52, "holdings": ["AAPL", "MSFT"], "intl_count": 0 }
+    ],
+    "laggards": [
+      { "ticker": "XLU", "name": "Utilities", "etf_name": "Utilities Select Sector SPDR", "pct": -1.8, "bar": 36, "holdings": ["NEE", "DUK"], "intl_count": 0 }
+    ]
+  },
+  "earnings": {
+    "bmo": [
+      { "sym": "AAPL", "reported_eps": 2.4, "eps_estimate": 2.3, "surprise_pct": "+4.3%", "rev_actual": "$124B", "rev_surprise_pct": "+1.2%", "verdict": "BEAT" }
+    ],
+    "amc": [
+      { "sym": "MSFT", "reported_eps": 3.1, "eps_estimate": 3.2, "surprise_pct": "-3.1%", "rev_actual": "$62B", "rev_surprise_pct": "-0.4%", "verdict": "MISS" }
+    ]
+  },
+  "candidates": {
+    "pullback_ma": [
+      { "sym": "NVDA", "alert_state": "WATCH", "score": 72, "adr_pct": 5.1, "ema_distance_pct": 2.2, "pole_pct": 28.0, "rs_trend": "up", "prev_day_high": 100.0, "prev_day_low": 96.0, "prev_day_close": 98.5 }
+    ],
+    "remount": [],
+    "gappers": [],
+    "regime_context": { "phase": "SANDBOX", "distribution_days": 2, "vix": 15.2, "exposure_pct": 72 },
+    "premarket_context": { "SPY": 0.3, "QQQ": 0.5 },
+    "generated_at": "2026-01-02T12:30:00Z"
+  },
+  "rundown_html": "<div class=\"rd-sections\"><section class=\"rd-seg\" data-seg=\"tape\"><div class=\"rd-seg-label\">The Tape</div><p>SANDBOX FIXTURE. Invented copy so the Morning Wire renders addressable segments for gesture testing. <span class=\"rd-pick-sym\">NVDA</span> appears here only so the symbol-extraction path has something to find.</p></section><section class=\"rd-seg\" data-seg=\"macro\"><div class=\"rd-seg-label\">Macro</div><p>SANDBOX FIXTURE. Second segment.</p></section><section class=\"rd-seg\" data-seg=\"earn\"><div class=\"rd-seg-label\">Earnings</div><p>SANDBOX FIXTURE. Third segment.</p></section><section class=\"rd-seg\" data-seg=\"analyst\"><div class=\"rd-seg-label\">Analyst Moves</div><p>SANDBOX FIXTURE. Fourth segment.</p></section><section class=\"rd-seg\" data-seg=\"movers\"><div class=\"rd-seg-label\">Movers</div><p>SANDBOX FIXTURE. Fifth segment. <span class=\"rd-watch-sym\">AMD</span></p></section><section class=\"rd-seg\" data-seg=\"setups\"><div class=\"rd-seg-label\">Setups</div><p>SANDBOX FIXTURE. Sixth segment.</p></section><section class=\"rd-seg\" data-seg=\"close\"><div class=\"rd-seg-label\">Into the Close</div><p>SANDBOX FIXTURE. Seventh segment.</p></section></div>"
+}
