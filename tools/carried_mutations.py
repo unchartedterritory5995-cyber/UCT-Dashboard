@@ -67,10 +67,14 @@ MUTATIONS = [
      "  ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },",
      "  ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 1 / n },",
      "ema would silently compute rma - a plausible curve, wrong on every bar"),
-    ("the na rule flipped to HOLD", IN,
-     "    smoothInit(st, o)" + NL + "    return NaN",
-     "    return NaN",
-     "our behaviour would change without the owner ruling the divergence"),
+    # ⛔⛔ THE PERMANENT HIGH-VALUE REGRESSION TEST (§13). This mutation reverts
+    # the 2026-09-08 owner ruling by putting RESET-ON-NA back. It must turn the
+    # vendor parity rail red, forever. The divergence was live in this engine for
+    # months precisely because nothing could see it.
+    ("the vendor na ruling reverted to RESET", IN,
+     "    return NaN" + NL + "  }" + NL + "  if (Number.isNaN(st[o])) {",
+     "    smoothInit(st, o)" + NL + "    return NaN" + NL + "  }" + NL + "  if (Number.isNaN(st[o])) {",
+     "the smoother would reset on na again and every gappy source would go blank"),
     # ── wiring ──
     ("source not pushed before CARRIED", LOWER,
      "        expr(e.source)" + NL + "        emit(OP.CARRIED, e.site)",

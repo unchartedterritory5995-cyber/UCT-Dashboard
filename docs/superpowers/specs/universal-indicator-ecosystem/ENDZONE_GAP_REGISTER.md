@@ -2252,7 +2252,7 @@ remains open** (§70), now with two waves of evidence.
 | id | family | statement |
 |---|---|---|
 | **V10.1** | ✅ CLOSED | The carried-state runtime FOUNDATION: shared `{cells, init, step}`, per-call-site instance identity, bounded and accounted state, no ring, no second EMA. 14/14 mutations killed behind a clean-file control. |
-| **V10.2** | ⛔ **OWNER RULING REQUIRED** | `na` HOLD vs RESET. Vendor-confirmed, we are wrong, deliberately unchanged. Fixing it is ONE line in ONE place (that is what the factoring bought) but it changes shipped chart output. |
+| **V10.2** | ✅ CLOSED by ruling | `na` HOLD vs RESET — owner ruled 2026-09-08 that vendor truth wins. Corrected in BOTH lanes; see **PART X**. A NEW divergence of the same class (finite windows) was found while fixing it and awaits its own ruling — X5. |
 | **V10.3** | RUNTIME / MEMBERS | 14 of 16 carried members pending, in three groups with three different first dependencies (V8). None is blocked on the mechanism. |
 | **V10.4** | ⛔ TABLE / GRAMMAR | `ta.barssince` / `ta.valuewhen` need the CLOSED TABLE to declare Pine's actual unbounded / occurrence-indexed signatures. **The event-history family is blocked on a table change, not on runtime state** — which is why 2F-2C did not implement it. |
 | **V10.5** | VENDOR, UNPINNED | The recurrent SEED is still prose-derived only. This wave could not pin it: TradingView's studies carry state from before any capture window, and the `na` probe cannot re-seed because the vendor HOLDS. A short-history symbol/timeframe (total bars < window) is the design that would work. |
@@ -2351,3 +2351,110 @@ the numbers alone do not carry:
 `ta.crossunder`): reach 17 scripts, needs only `x[1]`, which shipped in 2F-2A.
 It is still not proposed — §56/§86 require its full overload semantics first, and
 `ta.change` has non-numeric forms this engine has not examined.
+
+
+## PART X — 2F-2C-REMEDIATION: THE `na` SEMANTIC CORRECTION (2026-09-08)
+
+### X1 — ⭐ SEMANTIC-CHANGE ACCOUNTING (§47)
+
+| | |
+|---|---|
+| **OLD UCT BEHAVIOUR** | a non-finite input RESET the smoother: `prev, count, sum → NaN, 0, 0`. The next value began a fresh warm-up. |
+| **VENDOR TRUTH** | the state is HELD unchanged. The `na` bar answers `na`; the next finite bar takes ONE normal step from the pre-hole state. |
+| **CORRECTION** | the shared authority in BOTH lanes: `interpret.js::smoothStep` and `api/services/ast_interpret.py::_smooth_col`. Neither lane was patched alone; no `runtimeHoldOnNa()` exists beside a `columnarResetOnNa()`. |
+| **RULED BY** | owner, 2026-09-08 — *"cross-lane agreement is valuable only when the shared semantic authority is correct."* |
+| **EVIDENCE** | `recurrent-na-and-skipped-callsite-spy-1d-2026-09-08` (4 holes, both members, err 0–1.1e-13) and `na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08` (400 bars, 133 `na` bars, 0 of them carrying an `ema`). |
+
+### X2 — Affected surface, measured before the change (§10)
+
+| | |
+|---|---|
+| **builtins reaching the smoother** | `ema`, `rma` — and ONLY those. Verified by reading every `carriedFn` route. |
+| **NOT affected** | `rsi`, `atr`, `adx`, `plusDI`, `minusDI`, `macd` — they bind SEPARATE shipped implementations (`computeRSI`, `computeATR`, `computeADX`, `computeMACD`) with their own Wilder recursion. Confirmed empirically: both were byte-identical before and after. ⚠️ **They very likely carry the same defect and are NOT fixed here** — a separate authority needs a separate ruling. |
+| **lanes** | two: JS (`interpret.js`) and Python (`ast_interpret.py`). ⛔ The "shared authority" was shared by DISCIPLINE, not by construction — two implementations that agreed. Both corrected together; `tools/ast_conformance.py --check` still reports **CONFORMANCE LOG MATCHES, 150 asts × 579 bars**. |
+
+### X3 — What actually changed
+
+| probe | before | after | verdict |
+|---|---|---|---|
+| `ta.ema(close, 10)` | 291 finite | 291 | unchanged |
+| `ta.ema(ta.sma(close,20), 9)` | 273 | 273 | unchanged — a LEFT-EDGE hole has no state to hold |
+| `ta.rma(ta.sma(close,20), 9)` | 273 | 273 | unchanged |
+| `ta.ema(bar_index % 97 == 0 ? na : close, 10)` | 261 | **287** | ⭐ corrected |
+| `ta.rma(...same...)` | 261 | **287** | ⭐ corrected |
+| `ta.ema(close > open ? close : na, 10)` | **90** | **144** | ⭐ corrected — now every finite input bar answers |
+| `ta.rsi(close, 14)` | — | identical | separate authority, untouched |
+| `ta.atr(14)` | — | identical | separate authority, untouched |
+
+**Corpus: 0 of 82 evaluable scripts changed.** Real OHLCV has no holes, and no corpus
+script feeds a conditional source into a smoother. ⭐ The correction is therefore
+tightly bounded: it fixes exactly the broken case and moves nothing else.
+
+⛔ **THE CONDITIONAL-SOURCE ROW IS THE ONE THAT MATTERS.**
+`ta.ema(close > open ? close : na, 10)` is entirely ordinary Pine, and it answered
+on **90 of 300** bars instead of 144 — because every hole threw away the warm-up
+as well as the state. A member would have seen a mostly-blank line and had no way
+to know why. That is what "known wrong behaviour is a defect, not backward
+compatibility" means in practice.
+
+### X4 — Evidence coverage, stated (§14/§16)
+
+| dimension | ema | rma | how |
+|---|---|---|---|
+| SEED | ⬜ **NOT OBSERVED** | ⬜ | every capture begins deep in real history where the smoother already carries state |
+| WARM-UP | ⬜ **NOT OBSERVED** | ⬜ | same |
+| STEADY STATE | ✅ | ✅ | both fixtures |
+| **NA** | ✅ | ✅ | 4 holes + a 400-bar 133-hole capture |
+| SKIPPED CALL | ✅ | — | `recurrent-na-and-skipped-callsite` |
+| PARAMETER CHANGE | ⬜ | ⬜ | not captured |
+| REALTIME | ⬜ | ⬜ | not captured |
+
+⛔ **`EMA INITIALIZATION VENDOR VERIFIED` IS NOT CLAIMED AND MUST NOT BE.** The
+seed remains prose-derived. The `na` probe cannot pin it *because* the vendor
+holds — there is no re-seed to observe. The design that would work is a
+symbol/timeframe whose TOTAL history fits inside the loaded window.
+
+### X5 — ⛔⛔ A THIRD DIVERGENCE, FOUND WHILE FIXING THE SECOND
+
+The same probe that confirmed the `na` hold also measured `ta.sma` over the same
+gappy source, and the two families **do not agree with each other**:
+
+| on an `na` source bar | vendor | ours |
+|---|---|---|
+| `ta.ema` / `ta.rma` | emits `na`, HOLDS state — 0 of 133 na bars carry a value | ✅ now matches |
+| `ta.sma` | emits a VALUE on **133 of 133** — the mean of the last 10 **finite** source values, reaching back over as many BARS as needed | ❌ `rolling` propagates the NaN |
+
+370 matches, **0 mismatches, worst delta 0.0** across the capture.
+
+⛔ **A window SKIPS an `na` and still answers; a recurrence WITHHOLDS its answer
+but keeps its state.** One rule cannot be applied to both — which is precisely why
+this was worth measuring rather than generalising from the EMA finding.
+
+**Recorded as `divergences.json::finite-window-propagates-na-instead-of-skipping-it`,
+status `confirmed`, and NOT fixed.** It reaches all twelve `FINITE_WINDOW` members
+across both lanes and changes the shipped chart for every gappy source — the same
+class of change the owner ruled on explicitly for EMA/RMA after reviewing its
+evidence. It is recorded to the same standard and awaits the same explicit ruling
+rather than being folded in silently. **Owner ruling required.**
+
+### X6 — Rails
+
+- The rail that deliberately asserted our **wrong** behaviour is replaced by one
+  asserting Pine (§11). The defect survives in this register, in `divergences.json`
+  and in the fixture — not as a test demanding the bug.
+- The vendor rail checks **all four holes**, and for each: state before, `na` AT
+  the hole, the value immediately after, and the absence of any restart warm-up
+  (§12) — not merely the first non-`na` value.
+- The mutation that reverts to RESET-ON-NA is permanent and **kills** (§13).
+  14/14 mutations killed behind a clean-file control.
+- A rail asserts the vendor's window/recurrence **asymmetry** so X5 cannot be lost,
+  and deliberately does **not** assert our own window behaviour, which is wrong.
+
+### X7 — Rollout
+
+Branch only; **not deployed** (§77). The runtime lane remains unwired, so the
+member-visible surface of this change is the COLUMNAR chart for gappy sources.
+Artifact/version implications: no saved-definition shape changed, but the computed
+VALUES of `ema`/`rma` over a gappy source do change. If a semantic hash is intended
+to encode calculation meaning, this correction should move it — flagged, not
+decided here.

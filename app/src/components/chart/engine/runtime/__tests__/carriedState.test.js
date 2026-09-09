@@ -413,35 +413,74 @@ describe('⭐⭐⭐ VENDOR — what TradingView actually does (2026-09-08)', () 
     }
   })
 
-  it('⚰️⚰️ `na` INPUT — THE VENDOR HOLDS, WE RESET, AND THAT IS A KNOWN DEFECT', () => {
-    // ⛔ THIS RAIL ASSERTS OUR *WRONG* BEHAVIOUR ON PURPOSE, so the divergence
-    // cannot be closed by accident and cannot be fixed without someone reading
-    // this. `divergences.json::nan-restarts-the-smoother` is `confirmed` with
-    // this observation; flipping `smoothStep` changes every shipped chart whose
-    // source has a mid-series hole, which is an owner ruling.
+  it('⭐⭐⭐ `na` INPUT — THE STATE HOLDS, and both members resume with one step', () => {
+    // ⚰⚰ THIS RAIL USED TO ASSERT OUR *WRONG* BEHAVIOUR ON PURPOSE. Until the
+    // owner ruled (2026-09-08), `smoothStep` reset on `na` and the divergence was
+    // pinned here so it could not close by accident. The ruling was: vendor truth
+    // wins, cross-lane agreement is worth nothing when the shared authority is
+    // wrong. The defect now lives in the decision log and the fixture; this test
+    // asserts Pine.
     const spec = CARRIED.ema
     const st = new Float64Array(spec.cells)
     spec.init(st, 0)
     for (let i = 0; i < 10; i += 1) spec.step(st, 0, 100 + i, 10, spec.alpha(10))
     const before = st[0]
     expect(Number.isFinite(before)).toBe(true)
-    expect(Number.isNaN(spec.step(st, 0, NaN, 10, spec.alpha(10))), 'the hole itself is na').toBe(true)
-    // OURS: the state is gone and the next finite bar starts a fresh warm-up.
-    expect(Number.isNaN(st[0]), 'ours resets').toBe(true)
-    expect(Number.isNaN(spec.step(st, 0, 110, 10, spec.alpha(10))), 'ours is still warming').toBe(true)
-
-    // THEIRS, read off the chart: a value on the VERY NEXT BAR, and it is the
-    // pre-hole state stepped once.
-    const h = obs.vendor.naHole
-    const at = h.findIndex((r) => r.srcna === null)
-    expect(at, 'the fixture must contain a hole').toBeGreaterThan(0)
-    expect(h[at + 1].ena, 'the vendor emits a number on the next bar').not.toBeNull()
-    const k = 2 / 11
-    expect(h[at + 1].ena).toBeCloseTo(h[at - 1].ena * (1 - k) + h[at + 1].srcna * k, 9)
-    const kr = 1 / 10
-    expect(h[at + 1].rna).toBeCloseTo(h[at - 1].rna * (1 - kr) + h[at + 1].srcna * kr, 9)
+    // the hole itself answers `na` — the vendor plots nothing there
+    expect(Number.isNaN(spec.step(st, 0, NaN, 10, spec.alpha(10))), 'the hole answers na').toBe(true)
+    // ⭐ ...and the STATE IS UNTOUCHED, which is the whole ruling
+    expect(st[0], 'the state is held across the hole').toBe(before)
+    // the very next finite bar is one normal step from the pre-hole state
+    const k = spec.alpha(10)
+    expect(spec.step(st, 0, 110, 10, k)).toBeCloseTo(before * (1 - k) + 110 * k, 12)
   })
 
+  it('⭐⭐ AND IT REPRODUCES THE VENDOR ACROSS ALL FOUR CAPTURED HOLES', () => {
+    // ⛔ NOT JUST THE FIRST BAR AFTER A HOLE (§12): the state BEFORE, the `na` AT
+    // the hole, the value immediately after, and the absence of any restart
+    // warm-up are each asserted, on the vendor's own numbers, for BOTH members.
+    const h = obs.vendor.naHole
+    const holes = h.map((r, i) => (r.srcna === null ? i : -1)).filter((i) => i >= 0)
+    expect(holes.length, 'the fixture must contain a hole').toBeGreaterThan(0)
+    for (const at of holes) {
+      expect(h[at].ena, 'the vendor emits nothing AT the hole').toBeNull()
+      expect(h[at - 1].ena, 'state existed before the hole').not.toBeNull()
+      expect(h[at + 1].ena, 'and a number arrives on the VERY NEXT bar').not.toBeNull()
+      for (const [fn, key, k] of [['ema', 'ena', 2 / 11], ['rma', 'rna', 1 / 10]]) {
+        const spec = CARRIED[fn]
+        const st = new Float64Array(spec.cells)
+        st[0] = h[at - 1][key]; st[1] = 10; st[2] = 0
+        expect(Number.isNaN(spec.step(st, 0, NaN, 10, k)), `${fn}: the hole is na`).toBe(true)
+        expect(spec.step(st, 0, h[at + 1].srcna, 10, k), `${fn} after the hole`)
+          .toBeCloseTo(h[at + 1][key], 9)
+      }
+    }
+  })
+
+  it('⛔ A WINDOW DOES NOT HOLD — the two families differ, and we match ONE of them', () => {
+    // ⭐⭐ MEASURED IN THE SAME CAPTURE. `ta.sma` answers on EVERY na bar (133 of
+    // 133) with the mean of the last 10 FINITE source values, while `ta.ema`
+    // answers on NONE of them. A window SKIPS an `na`; a recurrence WITHHOLDS its
+    // answer but keeps its state. Applying one rule to both would be wrong twice.
+    //
+    // ⛔⛔ WE STILL DO NEITHER FOR WINDOWS: `rolling` propagates the NaN. That is
+    // `divergences.json::finite-window-propagates-na-instead-of-skipping-it`,
+    // CONFIRMED and awaiting its own owner ruling — twelve members across two
+    // lanes is a wave, not a footnote. This rail asserts the VENDOR's asymmetry
+    // so the finding cannot be lost, and deliberately does not assert our windows.
+    const w = readObs('na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08.json')
+    const c = w.vendor.wholeCapture
+    expect(c.emaFiniteOnNaBar, 'the vendor emits no ema on an na bar').toBe(0)
+    expect(c.smaFiniteOnNaBar, 'but it DOES emit an sma on every one').toBe(c.naBars)
+    expect(c.smaEqualsMeanOfLast10FiniteValues.mismatches).toBe(0)
+    // and our own window still propagates — stated, not hidden
+    const got = runPine(`${head}var x = 0.0
+x := bar_index % 3 == 0 ? na : close
+plot(ta.sma(x, 10))
+`)
+    const naBars = got.out.filter((v) => Number.isNaN(v)).length
+    expect(naBars, 'OURS still blanks far more bars than the vendor does').toBeGreaterThan(N / 3)
+  })
   it('⭐ call-site independence, on the vendor\'s own numbers', () => {
     const o2 = readObs('recurrent-callsite-identity-and-event-history-spy-1d-2026-09-08.json')
     for (const r of o2.vendor.rows) {
@@ -450,26 +489,34 @@ describe('⭐⭐⭐ VENDOR — what TradingView actually does (2026-09-08)', () 
   })
 })
 
-describe('⭐⭐ §49 — the refactor itself is behaviour-preserving', () => {
-  /** The ORIGINAL loop, transcribed before the factoring. ⛔ An independent
-   *  longhand, not a call into the thing under test — comparing `smoothCol` to
-   *  itself would pass for any implementation. */
-  function originalSmooth(series, n, k) {
+describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intentionally moved', () => {
+  /** The loop as it stood BEFORE 2F-2C, transcribed. ⛔ An independent longhand,
+   *  not a call into the thing under test. It RESETS on a non-finite value, which
+   *  is the behaviour the owner ruled wrong on 2026-09-08. */
+  function preCorrectionSmooth(series, n, k) {
     const out = new Float64Array(series.length).fill(NaN)
-    let prev = NaN
-    let count = 0
-    let sum = 0
+    let prev = NaN; let count = 0; let sum = 0
     for (let i = 0; i < series.length; i += 1) {
       const v = series[i]
       if (!Number.isFinite(v)) { prev = NaN; count = 0; sum = 0; continue }
       if (Number.isNaN(prev)) {
-        sum += v
-        count += 1
+        sum += v; count += 1
         if (count === n) { prev = sum / n; out[i] = prev }
-      } else {
-        prev = prev * (1 - k) + v * k
-        out[i] = prev
-      }
+      } else { prev = prev * (1 - k) + v * k; out[i] = prev }
+    }
+    return out
+  }
+  /** The same loop with the ONE ruled change: a non-finite value HOLDS. */
+  function holdSmooth(series, n, k) {
+    const out = new Float64Array(series.length).fill(NaN)
+    let prev = NaN; let count = 0; let sum = 0
+    for (let i = 0; i < series.length; i += 1) {
+      const v = series[i]
+      if (!Number.isFinite(v)) continue
+      if (Number.isNaN(prev)) {
+        sum += v; count += 1
+        if (count === n) { prev = sum / n; out[i] = prev }
+      } else { prev = prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
   }
@@ -481,41 +528,76 @@ describe('⭐⭐ §49 — the refactor itself is behaviour-preserving', () => {
     const k = spec.alpha(n)
     return Array.from(series, (v) => spec.step(st, 0, v, n, k))
   }
+  const eq = (got, want, label) => {
+    expect(got).toHaveLength(want.length)
+    for (let i = 0; i < want.length; i += 1) {
+      if (Number.isNaN(want[i])) expect(Number.isNaN(got[i]), `${label} bar ${i}`).toBe(true)
+      else expect(got[i], `${label} bar ${i}`).toBe(want[i])   // ⛔ EXACT, not close
+    }
+  }
 
-  const CASES = {
+  // Series with NO non-finite value: the 2F-2C factoring must still be provably
+  // behaviour-preserving against the ORIGINAL loop — the correction did not touch
+  // this path, and saying so is what keeps the two claims separable.
+  const CLEAN = {
     plain: Array.from({ length: 60 }, (_, i) => 100 + Math.sin(i / 3) * 10),
+    'shorter than n': [1, 2, 3],
+    negatives: Array.from({ length: 40 }, (_, i) => -100 + i * 3),
+  }
+  // Series WITH a hole: these are the ones the ruling moved.
+  const GAPPY = {
     'holes in the middle': Array.from({ length: 60 }, (_, i) => (i === 25 || i === 26 ? NaN : 100 + i)),
     'hole before the seed': Array.from({ length: 60 }, (_, i) => (i === 2 ? NaN : 100 + i)),
     'all na': Array.from({ length: 20 }, () => NaN),
-    'shorter than n': [1, 2, 3],
-    'infinity': Array.from({ length: 30 }, (_, i) => (i === 10 ? Infinity : 50 + i)),
-    'negatives': Array.from({ length: 40 }, (_, i) => -100 + i * 3),
+    infinity: Array.from({ length: 30 }, (_, i) => (i === 10 ? Infinity : 50 + i)),
   }
 
   for (const fn of MEMBERS) {
-    for (const [label, data] of Object.entries(CASES)) {
+    for (const [label, data] of Object.entries(CLEAN)) {
       for (const n of [1, 4, 14]) {
-        it(`⭐ ${fn} n=${n} — ${label}: old === new`, () => {
-          const k = CARRIED[fn].alpha(n)
-          const want = originalSmooth(data, n, k)
-          const got = viaTable(data, n, fn)
-          expect(got).toHaveLength(want.length)
-          for (let i = 0; i < want.length; i += 1) {
-            if (Number.isNaN(want[i])) expect(Number.isNaN(got[i]), `bar ${i}`).toBe(true)
-            else expect(got[i], `bar ${i}`).toBe(want[i])   // ⛔ EXACT, not close
-          }
+        it(`⭐ ${fn} n=${n} — ${label}: UNCHANGED by the correction`, () => {
+          eq(viaTable(data, n, fn), preCorrectionSmooth(data, n, CARRIED[fn].alpha(n)), label)
+        })
+      }
+    }
+    for (const [label, data] of Object.entries(GAPPY)) {
+      for (const n of [4, 14]) {
+        it(`⚰️ ${fn} n=${n} — ${label}: MOVED, old → vendor-correct`, () => {
+          // ⭐ THE SEMANTIC MIGRATION, AS AN EXECUTABLE RECORD (§47). The shipped
+          // path must equal HOLD exactly...
+          eq(viaTable(data, n, fn), holdSmooth(data, n, CARRIED[fn].alpha(n)), `${label} hold`)
         })
       }
     }
   }
 
-  it('⛔ NON-VACUITY — the longhand really can disagree', () => {
-    // If `originalSmooth` were accidentally equivalent to anything, this suite
-    // would prove nothing. A deliberately wrong alpha must break it.
-    const data = CASES.plain
-    const want = originalSmooth(data, 4, CARRIED.ema.alpha(4))
-    const wrong = originalSmooth(data, 4, CARRIED.rma.alpha(4))
-    expect(want[30]).not.toBe(wrong[30])
+  it('⛔ NON-VACUITY — the two longhands really do disagree on a gappy series', () => {
+    // If they agreed, every 'MOVED' case above would be proving nothing. The
+    // difference is the defect: a mid-series hole cost the OLD rule its whole
+    // warm-up, so it answers on far fewer bars.
+    const data = GAPPY['holes in the middle']
+    const old = preCorrectionSmooth(data, 4, CARRIED.ema.alpha(4))
+    const now = holdSmooth(data, 4, CARRIED.ema.alpha(4))
+    const fin = (a) => Array.from(a).filter(Number.isFinite).length
+    expect(fin(now), 'HOLD must answer on strictly more bars').toBeGreaterThan(fin(old))
+    // ⭐ THE EXACT MECHANISM, not a remembered number. 60 bars, n=4, holes at 25
+    // and 26. Both seed at bar 3 and answer 3..24. HOLD then resumes at 27 (33
+    // more bars); RESET throws the warm-up away and cannot answer again until it
+    // has 4 fresh finite values, i.e. bar 30 (30 more bars). The cost of a hole
+    // under the old rule was therefore n-1 = 3 further bars, every time.
+    expect(fin(old), 'RESET: 22 + 30').toBe(52)
+    expect(fin(now), 'HOLD: 22 + 33').toBe(55)
+    expect(fin(now) - fin(old), 'one hole run costs n-1 extra bars under RESET').toBe(3)
+  })
+
+  it('⛔ and a left-edge hole is IDENTICAL under both rules — which is why the corpus did not move', () => {
+    // ⭐ THE MEASURED BLAST RADIUS, EXPLAINED IN ONE CASE. Before the first finite
+    // value there is no state to hold, so a composed warm-up (`ema(sma(close,20),9)`)
+    // answers the same either way. 0 of 82 corpus scripts changed for exactly this
+    // reason; the rules differ only for a hole AFTER state exists.
+    const leftEdge = Array.from({ length: 40 }, (_, i) => (i < 5 ? NaN : 100 + i))
+    eq(holdSmooth(leftEdge, 4, CARRIED.ema.alpha(4)),
+       preCorrectionSmooth(leftEdge, 4, CARRIED.ema.alpha(4)), 'left edge')
   })
 })
 
@@ -532,13 +614,12 @@ describe('⛔⛔ THE CARRIED CLASSIFIER — exercised, not restated', () => {
   })
 
   it('⛔ A NAMESPACED REWRITE REFUSES — the `ta.highestbars` lesson, pre-paid', () => {
-    // ⚠️ UNREACHABLE WITH THE SHIPPED TABLES: no `CARRIED` member is rewritten
-    // by `PINE_NAMESPACED_TREE`, so this guard changes no answer today and a
-    // mutation run WOULD report it surviving. That is the `histPresent`
-    // situation — except the guard is not dead ceremony, it is the exact defect
-    // 2F-2B shipped and had to fix. So it is made REACHABLE instead of argued
-    // for: a synthetic tree names a carried member the way `ta.highestbars`
-    // names a window member.
+    // ⚠️ UNREACHABLE WITH THE SHIPPED TABLES: no `CARRIED` member is rewritten by
+    // `PINE_NAMESPACED_TREE`, so this guard changes no answer today and a mutation
+    // run WOULD report it surviving. It is not dead ceremony — it is the exact
+    // defect 2F-2B shipped and had to fix — so it is made REACHABLE rather than
+    // argued for: a synthetic tree names a carried member the way
+    // `ta.highestbars` names a window member.
     const tree = { 'ta.ema': (a) => op('u-', [call('ema', a)]) }
     expect(carriedTarget('ta.ema', tree), 'a rewritten member must refuse, not reach the bare entry')
       .toBeNull()
@@ -548,8 +629,6 @@ describe('⛔⛔ THE CARRIED CLASSIFIER — exercised, not restated', () => {
   })
 
   it('⛔ membership belongs to the TABLE, and a synthetic one proves the lookup is live', () => {
-    // With `sma` injected as a carried member the classifier admits it; against
-    // the real table it does not. A hard-coded name list would fail both ways.
     expect(carriedTarget('ta.sma', {}, { sma: {} })).toEqual({ table: 'sma' })
     expect(carriedTarget('ta.sma')).toBeNull()
     // ...but the CLOSED TABLE still gates it: a name it never declares is out

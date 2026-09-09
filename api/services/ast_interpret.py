@@ -815,11 +815,26 @@ def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     See ``closedTable.json::_functions_smoothing`` for why the ALPHA is what is
     shared and the period is not.
 
-    ⚠️ THE SEED IS A DECISION AND IT MATCHES BOTH THE NATIVE LANE AND
-    ``interpret.js::emaCol``. A NaN in the input RESTARTS the seed — the warmup of
-    a composed series (``ema(sma(close,20), 9)``) is exactly that case, and an EMA
-    that carried its state across a hole would be reporting an average of bars it
-    never saw.
+    ⭐⭐⭐ A NaN IN THE INPUT HOLDS THE STATE. VENDOR-PINNED 2026-09-08.
+
+    TradingView keeps the smoother unchanged across an ``na`` bar, emits ``na``
+    AT that bar, and takes ONE normal step on the next finite bar. Measured on
+    four holes for both members (err 0 or 1.1e-13) and again on a 400-bar capture
+    where 0 of 133 na bars carried a value while every finite bar did.
+
+    ⚰⚰ THIS DOCSTRING SAID THE OPPOSITE -- "A NaN in the input RESTARTS the
+    seed ... an EMA that carried its state across a hole would be reporting an
+    average of bars it never saw." Coherent, and not Pine. Owner ruling
+    2026-09-08: vendor truth wins, and cross-lane agreement is worth nothing when
+    the shared authority is wrong. ``interpret.js::smoothStep`` carries the same
+    correction; these two lanes MUST move together or the screener and the chart
+    disagree about one number.
+
+    ⚠️ THE SEED IS STILL A DECISION AND IS *NOT* VENDOR-OBSERVED. Every capture
+    begins deep in real history where the smoother already carries state, so no
+    fixture has seen the first emitted value. It matches the native lane and
+    TradingView's published prose -- prose evidence, not a screen read.
+
     """
     out = _nan_col(len(series))
     prev = NAN
@@ -828,7 +843,7 @@ def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     for i in range(len(series)):
         v = series[i]
         if not math.isfinite(v):
-            prev, count, total = NAN, 0, 0.0
+            # HOLD: state untouched, this bar answers `na`.
             continue
         if math.isnan(prev):
             total += v

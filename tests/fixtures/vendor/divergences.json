@@ -184,6 +184,26 @@
     "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
    ],
    "refutedBy": "Implemented to match the measured vendor rule in 2F-2C; kept as the record of which model was excluded and by what evidence."
+  },
+  {
+   "id": "finite-window-propagates-na-instead-of-skipping-it",
+   "shape": "seeded",
+   "status": "confirmed",
+   "confidence": "measured",
+   "ours": "`rolling` emits NaN for a window containing ANY NaN, and `interpret.js`'s header states the rule out loud: \"any NaN INSIDE a window makes that window's output NaN\". So over a gappy source our `sma`/`wma`/`stdev`/`highest`/... go blank on the hole AND for the `n-1` bars that still contain it.",
+   "theirs": "MEASURED 2026-09-08. `ta.sma(gappy, 10)` answers on EVERY bar, including the `na` bars, and its value is the mean of the last 10 FINITE values of the source - reaching back over as many BARS as that requires. 370 matches, 0 mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars. An `na` is SKIPPED, never propagated and never treated as zero.",
+   "why_it_matters": "It is the SAME class of defect as `nan-restarts-the-smoother` but wider: it reaches all twelve `FINITE_WINDOW` members in BOTH lanes, and it is reachable from any conditional source (`cond ? x : na`), any `valuewhen`, any pivot - all ordinary Pine. ⛔ AND THE TWO FAMILIES DIFFER FROM EACH OTHER: a window SKIPS an na and still answers; a recurrence WITHHOLDS its answer for that bar but keeps its state. One rule cannot be applied to both.",
+   "code": "interpret.js::rolling + every FINITE_WINDOW reducer; api/services/ast_interpret.py::_rolling",
+   "probe": {
+    "case": "`ta.sma(bar_index % 3 == 0 ? na : close, 10)` on SPY 1D",
+    "under_ours": "blank on the na bar and on the following 9 bars - the source's 267 finite bars yield far fewer outputs",
+    "under_theirs": "a value on all 400 bars, equal to the mean of the last 10 finite source values",
+    "discriminates": "the COUNT of answered bars (133 vs 0 on na bars) before any value is compared, and then the value itself"
+   },
+   "observation_ids": [
+    "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08"
+   ],
+   "_owner_ruling_required": "⛔⛔ NOT FIXED IN 2F-2C-REMEDIATION, AND DELIBERATELY SO. The owner ruled explicitly on the EMA/RMA na divergence after reviewing its evidence; this one was DISCOVERED during that remediation and is materially larger - twelve members, two lanes, and it changes the shipped chart for every gappy source. It is recorded with the same standard of evidence and awaits the same explicit ruling rather than being folded in silently. The endzone rule (\"no known wrong values\") says it must be fixed; the change-control rule (§10) says a shipped semantic gets a ruling first."
   }
  ]
 }

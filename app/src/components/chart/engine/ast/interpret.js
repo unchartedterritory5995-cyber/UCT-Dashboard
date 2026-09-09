@@ -871,15 +871,29 @@ function smoothInit(st, o) { st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0 }
 /** One bar of a smoother. Returns the value to emit (NaN while warming). */
 function smoothStep(st, o, v, n, k) {
   if (!Number.isFinite(v)) {
-    // ⚰️ VENDOR-MEASURED 2026-09-08 AND WE ARE ON THE WRONG SIDE OF IT.
-    // TradingView HOLDS this state across an `na` bar and takes one normal step
-    // on the next finite bar; we reset. See
-    // `divergences.json::nan-restarts-the-smoother`, now `confirmed` with an
-    // observation. It is NOT changed here on purpose: `smoothCol` feeds every
-    // shipped chart, so flipping it is an owner ruling and not a runtime wave's
-    // to make. ⭐ THE POINT OF THE FACTORING IS THAT THE FIX IS ONE LINE IN ONE
-    // PLACE — both lanes inherit whatever this rule becomes.
-    smoothInit(st, o)
+    // ⭐⭐⭐ HOLD. VENDOR-PINNED 2026-09-08, AND WE USED TO RESET HERE.
+    //
+    // TradingView keeps the smoother's state UNCHANGED across an `na` bar,
+    // emits `na` AT that bar, and takes ONE normal step on the next finite bar.
+    // Measured on four holes for both members, reproduced to 0 or 1.1e-13, and
+    // again on a 400-bar capture where 0 of 133 na bars carried a value while
+    // every finite bar did. Fixture:
+    // `na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08`.
+    //
+    // ⚰⚰ WHAT WAS HERE BEFORE, AND WHY IT WAS WRONG. We reset `prev/count/sum`,
+    // arguing that "an EMA that carried its state across a hole would report an
+    // average over bars it never saw". That argument is coherent and it is not
+    // Pine. The cost was not theoretical: `ta.ema(close > open ? close : na, 10)`
+    // — an entirely ordinary conditional source — answered on 90 of 300 bars
+    // instead of ~291, because every hole threw away the warm-up as well as the
+    // state. Owner ruling 2026-09-08: vendor truth wins, cross-lane agreement is
+    // worth nothing when the shared authority is wrong.
+    //
+    // ⛔ THE COUNTERPART RULE IS DIFFERENT AND LIVES ELSEWHERE. A FINITE WINDOW
+    // does not hold — it SKIPS the `na` and still answers. We do not do that
+    // either; see `divergences.json::finite-window-propagates-na-instead-of-
+    // skipping-it`, which is confirmed and awaiting its own ruling. Do not
+    // 'unify' the two families: TradingView does not.
     return NaN
   }
   if (Number.isNaN(st[o])) {
