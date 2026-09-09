@@ -277,6 +277,45 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09) ───────────────────────
+  //
+  // ⛔⛔ THESE ARE ORPHANS ON PURPOSE AND FOR A DATED REASON, WHICH IS THE ONLY
+  // KIND THIS REGISTER ACCEPTS. Phases 2A-2F built ONE JS Pine runtime — a
+  // lowering pass, an IR, a VM and a bar loop — and its consumer is the PLOTTED
+  // PANE, which is step 6 of the current build and lands behind a feature flag.
+  // Until that mount exists there is no route a member can navigate to that
+  // reaches any of them, and this rail is right to say so.
+  //
+  // ⚠️ THE HAZARD IS NAMED RATHER THAN WAVED THROUGH: `lesson_built_tested_green_
+  // and_unreachable` is this repo's own, and these modules have their own green
+  // suites, which is exactly the state that reads as shipped. A component test
+  // is structurally blind to a severed wire; the wire is not severed here, it
+  // has not been laid.
+  //
+  // ⛔ THIS ENTRY EXPIRES AT THE PANE BUILD. When step 6 mounts the runtime,
+  // DELETE this block in the same commit — do not let it become the parking
+  // space the comment above warns about. If the pane build is abandoned, these
+  // files go with it.
+  'app/src/components/chart/engine/runtime/ir.js':
+    'PINE RUNTIME (C4 Phase 2) — the instruction set. Mounted by the plotted '
+    + 'pane at step 6, behind a flag. Delete this entry when the pane lands.',
+  'app/src/components/chart/engine/runtime/vm.js':
+    'PINE RUNTIME (C4 Phase 2) — the bar loop. Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/lower.js':
+    'PINE RUNTIME (C4 Phase 2) — source -> IR. Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/lowerIr.js':
+    'PINE RUNTIME (C4 Phase 2) — the lowering pass. Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/program.js':
+    'PINE RUNTIME (C4 Phase 2) — the program artifact. Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/limits.js':
+    'PINE RUNTIME (C4 Phase 2) — the runtime budget. Same mount, same expiry.',
+  'app/src/components/chart/engine/ast/pineRuntimeFrontend.js':
+    'PINE RUNTIME (C4 Phase 2) — the version-aware front end that decides which '
+    + 'lane a script takes. Same mount, same expiry.',
+  'app/src/components/chart/engine/ast/oosHarness.js':
+    'OUT-OF-SAMPLE HARNESS — an instrument, not a product surface: it runs the '
+    + 'corpus against both lanes and is invoked by tooling and tests only. It '
+    + 'has no member route by design and is NOT waiting on the pane.',
   // ── THE DASHBOARD COCKPIT RETIREMENT (2026-08-30) ────────────────────────
   //
   // `/dashboard` became four zones with declared heights, and eight preview

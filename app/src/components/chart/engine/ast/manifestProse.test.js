@@ -22,7 +22,23 @@ function sources() {
         const p = path.join(dir, e.name)
         if (e.isDirectory()) { stack.push(p); continue }
         if (!/\.(js|jsx|py)$/.test(e.name)) continue
-        if (e.name.includes('.test.') || e.name.endsWith('_test.py')) continue
+        // ⛔⛔ BOTH PYTEST CONVENTIONS, AND THE PREFIX ONE IS THE ONE THIS REPO
+        // ACTUALLY USES. This excluded `*.test.*` and `*_test.py` only, so the
+        // SEVENTEEN `test_*.py` modules that live inside `api/` beside the code
+        // they test were being read as product source. One of them
+        // (`api/services/test_fmp_client.py`) patches `fc._session` — a
+        // `requests.Session` attribute with nothing to do with this manifest —
+        // and the regex below matched it, so the rail reported `_session` as a
+        // manifest key the product READS and would be stripped.
+        // ⚠️ IT FAILED IN BOTH DIRECTIONS AT ONCE, which is why it is worth the
+        // comment: the same false hit would also let a KEEP entry be justified
+        // by nothing but a test file, and "the keep list has no passengers"
+        // would agree. A false read admits prose to the bundle AND excuses it.
+        // ⚰️ Surfaced by the 688-commit master merge on 2026-09-09: the file is
+        // master's, the rail is this branch's, and neither side was wrong on its
+        // own — which is the whole argument for merging weekly instead of once.
+        if (e.name.includes('.test.')) continue
+        if (/^test_.*\.py$/.test(e.name) || e.name.endsWith('_test.py')) continue
         if (e.name === 'manifestProse.js') continue
         try { out.push(fs.readFileSync(p, 'utf8')) } catch (err) { /* unreadable */ }
       }
