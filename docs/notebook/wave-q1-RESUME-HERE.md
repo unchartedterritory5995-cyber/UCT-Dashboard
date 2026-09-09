@@ -355,7 +355,7 @@ comm -12 <(git diff --name-only $BASE..origin/master | sort -u) \
 #       NoteEditorPage.jsx · outboxDrain.js · baseline.js · useDurableNote.js
 #       · recoverLocalState.js · useOutboxDrain.js
 
-cd app && npx vitest run src/pages/journal-2-0   # gate: 230 files / 2388 tests green
+cd app && npx vitest run src/pages/journal-2-0   # gate: 231 files / 2391 tests green
 cd .. && python -m pytest tests/test_note_updated_at_is_always_a_baseline.py -q
 
 # 2. Ship. `master` IS production.
@@ -406,12 +406,28 @@ something to debug in front of members.
 
 ## (d) The §15 canary script
 
-⛔ **The numbered §15 script is not in this repo.** It lived in the activation
-directive. What follows is **reconstructed** from
-`wave-q1-activation-canary-red.md` (which records step 9 as *reload / tab
-reopen*, in the order `open → edit → reload → recover`) and from the certified
-Chrome 152 path. **Check it against your own directive before running it** — the
-value of the canary is that it is run identically to last time.
+⛔⛔ **THE ORIGINAL §15 SCRIPT DOES NOT EXIST ANYWHERE REACHABLE. SEARCHED
+2026-09-09, AND THE SEARCH IS RECORDED SO NOBODY REPEATS IT:**
+
+- `git log -S "§15" --all -- docs/` → only the Wave Q docs that *cite* it
+- `git log -S "canary" --all -- docs/` → same set, plus Wave P (a different wave)
+- every `§15` in-repo is a **different numbering scheme**:
+  `competitive-primary-platform-phase-zero.md` §15 is *"Save-to-Notebook Across
+  UCT"*, and `wave-q0-architecture.md:614` cites *"the §15 non-negotiables"* —
+  neither is a canary script
+- memory: four files mention `§15`, all citations, none a script
+- `tools/wave_p_activation_canary.py` is **Wave P** (OCR, one synthetic
+  document) — not this
+- ⭐ The whole `§N` numbering in the Wave Q docs cites **the owner's activation
+  directive**, which is not in the repo, not in memory and not in git history.
+  The only surviving fragment of §15 is one sentence in
+  `wave-q1-activation-canary-red.md`: *"Step 9 of the §15 happy path is reload /
+  tab reopen"* and *"§15's ordering — open → edit → reload → recover"*.
+
+**So what follows is RECONSTRUCTED** from that fragment plus the certified
+Chrome 152 path. ⛔ **Check it against your own directive before running it** —
+the value of a canary is that it is run identically to last time, and this
+version cannot prove that it is.
 
 Preconditions: production, signed in, Chrome. The offline layer is off by
 default, so opt this browser in exactly as certification did:
@@ -486,7 +502,7 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 | | status |
 |---|---|
 | The canary defect is reproduced, fixed, mutation-proved | ✅ `4fef130d9` |
-| `journal-2-0` suite green | ✅ **230 files / 2388 tests** (was 227/2365) |
+| `journal-2-0` suite green | ✅ **231 files / 2391 tests** |
 | The `??`-vs-truthy baseline defect fixed + railed | ✅ one authority, mutation-proved |
 | Backend baseline guarantee railed + mutation-proved | ✅ 14 tests, 2 mutations |
 | Full frontend suite green | ❌ **8 files red — all inherited, see `inherited-red-ledger.md`** |
@@ -495,7 +511,7 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 | Mutations re-run post-merge | ✅ 4/4 red, controls green, restored |
 | Service worker untouched | ✅ |
 | `baseUpdatedAt: null` **explained** | ❌ **NOT closed** — see below |
-| A blocked entry is surfaced to the member | ❌ **it is not** — silent for a note you are not looking at |
+| The drain cannot run at all with the flag off | ✅ **traced from the flag to the call, and railed** — see the flag-flip gate |
 
 **My recommendation: DEPLOY THE FIX. Do not flip the flag yet.**
 
@@ -515,11 +531,66 @@ deploy, and no for the flag.** The reasoning, so you can disagree with it:
   state, and that is the machinery an unexplained null could ride. It should
   wait for a clean §15 canary **on the deployed fix**.
 
-⛔ **One thing I would want you to see before the flag, not before the deploy:**
-a blocked entry is currently invisible to the member unless they happen to have
-that note open. The words are safe, the hold is recoverable by editing the note
-again — but nothing says so. If the flag goes on, that is the gap I would close
-next.
+⛔ **The "a blocked entry is invisible" finding is NOT on this list**, because
+it cannot happen while the flag is off — see the separate flag-flip gate below,
+where it is the first item.
+
+---
+
+# THE FLAG-FLIP GATE — a SEPARATE list, and not the deploy's
+
+⛔ **These are not deploy blockers.** With `OFFLINE_DEFAULT_ON = false` the drain
+cannot execute at all, so every item here is dormant until the flag flips.
+
+## Why they are separable — traced from the flag to the drain call
+
+```
+NotebookTab.jsx:74        useOutboxDrain({ accountId, excludeNoteId })   ← the ONLY mount site
+  └ useOutboxDrain.js:89  supported = offlineEnabled() && offlineStorageAvailable()
+                                       && accountId && enabled
+      └ offlineFlag.js:63 offlineEnabled(): key '1'→true · key '0'→false
+                          · UNSET → return OFFLINE_DEFAULT_ON   ← production: false
+  ⇒ supported === false, and then THREE independent refusals:
+      · the leadership effect      `if (!supported) { setRole(null); return }`  → no lock claimed
+      · drainNow                   `if (!supported || roleRef.current !== LEADER) return null`
+      · the trigger effect         `if (!supported) return undefined`  → no listener, no interval
+```
+
+⭐ **`drainOutbox()` has exactly ONE caller in the whole app** — inside
+`drainNow`, behind that gate. There is no second path to it.
+
+⛔ **The rail that existed did NOT cover production's actual state.** §21 sets
+the key to `'0'`; production leaves it **unset**, which is a *different branch*
+of `offlineEnabled()` (`return OFFLINE_DEFAULT_ON`). §21b now covers the unset
+case — no lock claimed, nothing sent, `drainNow()` called directly still refuses
+— with a control that drains on opt-in, and mutation-proved: flip the shipped
+default to `true` and **exactly the two new rails go red while §21 stays green**,
+which is what proves they test different lines.
+
+## The list
+
+| | status |
+|---|---|
+| A blocked entry is surfaced to the member | ❌ **it is not** — see below |
+| `baseUpdatedAt: null` explained | ❌ not closed (harmless — the drain refuses it) |
+| A fresh §15 canary on the deployed fix | ⛔ not run |
+| Seven-day observation window armed | ⛔ not started (`wave-q1-observation-window.md`) |
+
+### The blocked-entry finding, in full (measured, `blockedEntryIsVisible.test.jsx`)
+
+| question | answer |
+|---|---|
+| Are the member's words intact? | ✅ every word, on disk; the record stays `dirty: 1`; the outbox keeps the full patch |
+| Is the block recorded? | ✅ `permanent: true` + a readable `lastError` naming the missing baseline |
+| What does the save indicator show? | ✅ **on the open note, honestly** — "Reconnecting…" plus "Saved on this device/in this browser · waiting to sync". Asserted as rendered TEXT, not state. |
+| Do later writes for that note still drain? | ✅ **a later edit UN-BLOCKS it.** The outbox is keyed `note:<id>`, so a fresh durable write replaces the entry and the replacement carries no `permanent` flag. A hold, not a dead end. |
+| Does it wedge other notes? | ✅ no — another note still sends (`blocked: 1, sent: 1`) |
+| Does it retry itself? | ❌ no, by design — that is the point of the refusal |
+| **Is it surfaced anywhere else?** | ⛔⛔ **NO.** `summarize()` has ZERO consumers in the app and `BLOCKED` appears in no component. For a note the member is not looking at, the hold is **completely silent.** |
+
+⛔ **That last row is the one to close before the flag.** The words are safe and
+the hold is recoverable — but only by a member who happens to edit that note
+again, for a reason nothing on screen ever gives them.
 
 ---
 
@@ -547,6 +618,25 @@ next.
   artifact (`/api/health` uptime reset), never by the source default.
 
 ---
+
+## Cleanup owed
+
+- ⚠️ **`.worktrees/master-baseline` — ~3,900 files, needs a manual delete.**
+  A scratch worktree checked out at `184a7e77b` to run the eight inherited-red
+  files directly against the new master. The run was **abandoned as invalid** (a
+  fresh worktree has no `node_modules`, and the junction recipe still left Vite
+  resolving its temp config from the parent repo → `ERR_MODULE_NOT_FOUND`, a
+  **startup error, not a test result**). Git's registry is pruned and
+  `git status` is clean, but something holds a file handle so `rmdir /s /q`
+  fails. It is **gitignored** (`.gitignore:3`) and cannot reach a commit or a
+  deploy. Delete it once whatever holds it exits:
+
+  ```
+  cmd /c "rmdir /s /q C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees"
+  ```
+
+  ⛔ Do NOT `git worktree remove` it — that is already done; only the directory
+  remains.
 
 ## Quick orientation for a fresh session
 

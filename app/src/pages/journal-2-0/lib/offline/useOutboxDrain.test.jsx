@@ -157,3 +157,60 @@ describe('⛔ §21 — the rollback stops PROCESSING, it does not discard work',
     expect((await getNote(db, 'n1')).dirty).toBe(1)
   })
 })
+
+describe('⛔⛔ §21b — the SHIPPED default, which is a DIFFERENT branch from an opt-out', () => {
+  // ⚰️ The §21 rail above sets the key to '0'. Production does not: the key is
+  // UNSET and `offlineEnabled()` falls through to `return OFFLINE_DEFAULT_ON`.
+  // Those are two different lines, and only one of them was railed —
+  // `project_feature_flag_ledger`'s "OFF-and-unset is indistinguishable from
+  // off-on-purpose", except here they are not even the same code path.
+  //
+  // This is the gate that decides whether "a blocked outbox entry is invisible
+  // to the member" is a DEPLOY problem or a FLAG-FLIP problem. It is the latter
+  // only if the drain provably cannot run while the flag is off.
+
+  it('with the key UNSET, no lock is claimed and nothing is ever sent', async () => {
+    installLocks()
+    localStorage.removeItem(OFFLINE_FLAG_KEY)      // ⛔ production's actual state
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await act(async () => { await settleIdb(6) })
+
+    expect(result.current.supported).toBe(false)
+    expect(result.current.isLeader).toBe(false)
+    expect(result.current.role).toBeNull()
+    expect(send).not.toHaveBeenCalled()
+    expect(held.has('uct.nb.sync.acct1')).toBe(false)
+    // …and the member's queued work is untouched, ready for a re-enable.
+    const left = await listOutbox(db)
+    expect(left).toHaveLength(1)
+    expect((await getNote(db, 'n1')).dirty).toBe(1)
+  })
+
+  it('⭐ CONTROL — the SAME setup drains the moment the browser opts in', async () => {
+    // Without this, the refusal above would pass equally against a drain that
+    // was simply broken.
+    installLocks()
+    localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb(6) })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('⛔ and the drain is not merely idle — `drainNow()` called directly still refuses', async () => {
+    // The triggers could be dormant for many reasons. This calls the drain's own
+    // entry point, so the refusal is proved at the gate rather than upstream
+    // of it.
+    installLocks()
+    localStorage.removeItem(OFFLINE_FLAG_KEY)
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await act(async () => { await settleIdb(4) })
+    let out
+    await act(async () => { out = await result.current.drainNow() })
+    expect(out).toBeNull()
+    expect(send).not.toHaveBeenCalled()
+  })
+})
