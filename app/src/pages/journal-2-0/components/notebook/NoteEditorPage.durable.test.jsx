@@ -237,14 +237,13 @@ describe('no durable store here', () => {
   })
 })
 
-describe('⛔ the §32 certification gate — DARK BY DEFAULT', () => {
-  it('with the flag unset, nothing is written to IndexedDB and the Notebook is unchanged', async () => {
-    // ⚰️ This is what is on `master` today. §32 makes the browser matrix a HARD
-    // certification/merge gate and Safari/iOS is not measured, so the code
-    // ships but does not run: no durable copy, no queue, no leader election.
-    // The rail exists because "shipped dark" is a claim about a RUN, and the
+describe('⛔ the one-line rollback — OFF still means inert', () => {
+  it('with the wave switched off, nothing is written to IndexedDB and the Notebook is unchanged', async () => {
+    // The §32 gate is closed and the wave is ON by default as of 2026-09-09.
+    // This rail now guards the ROLLBACK: an explicit opt-out must still take the
+    // whole layer out of the path. "Reversible" is a claim about a RUN, and the
     // only way to keep it honest is to check the artifact.
-    localStorage.removeItem(OFFLINE_FLAG_KEY)
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')
     __resetNotebookConnections()
     await renderEditor()
     type('typed with the wave switched off')
@@ -259,9 +258,11 @@ describe('⛔ the §32 certification gate — DARK BY DEFAULT', () => {
     expect(screen.queryByText(/Saved on this device/i)).toBeNull()
   })
 
-  it('⭐ and the same keystroke DOES reach the store when the flag is on', async () => {
-    // The control. Without it the rail above would pass just as well against a
-    // durable layer that was broken rather than switched off.
+  it('⭐ and the same keystroke DOES reach the store by DEFAULT', async () => {
+    // The control, and it now also pins the activation itself: with nothing set
+    // at all, the durable layer runs. Without it the rail above would pass just
+    // as well against a layer that was broken rather than switched off.
+    localStorage.removeItem(OFFLINE_FLAG_KEY)
     await renderEditor()
     type('typed with the wave switched on')
     await letTheDurableWindowClose()
@@ -338,7 +339,7 @@ describe('⛔ §21 — switching the wave OFF must never discard queued member w
       baseUpdatedAt: 'T1', permanent: false, queuedAt: 1000,
     })
 
-    localStorage.removeItem(OFFLINE_FLAG_KEY)     // the rollback
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')   // the rollback
     __resetNotebookConnections()
     await renderEditor()
     type('and the member keeps typing with the wave off')

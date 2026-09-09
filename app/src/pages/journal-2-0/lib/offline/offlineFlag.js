@@ -9,11 +9,11 @@
  * better answer, and it is the one the OCR wave used a fortnight ago: merge the
  * code, ship it DARK, and let a measured gate turn it on.
  *
- * ⛔ DEFAULT OFF. With this off, `useDurableNote` and `useOutboxDrain` report
- * `supported: false` and every path in the Notebook behaves exactly as it did
- * before Wave Q1: the synchronous localStorage draft, the ~800ms server PUT,
- * the existing conflict handling. Nothing is written to IndexedDB, nothing is
- * queued, and nothing is drained.
+ * ⛔ WHEN OFF, `useDurableNote` and `useOutboxDrain` report `supported: false`
+ * and every path in the Notebook behaves exactly as it did before Wave Q1: the
+ * synchronous localStorage draft, the ~800ms server PUT, the existing conflict
+ * handling. Nothing is written to IndexedDB, nothing is queued, nothing is
+ * drained — and nothing already stored is touched.
  *
  * ⛔ AND THE OPT-IN IS PER BROWSER, NOT PER DEPLOY. `localStorage` rather than a
  * `VITE_` variable, mirroring `uct.barsPush.enabled`: certification has to run
@@ -25,15 +25,29 @@
  *     localStorage.setItem('uct.j2.offline.enabled', '1')   // this browser only
  *     localStorage.removeItem('uct.j2.offline.enabled')     // back to the default
  *
- * ⛔ TURNING IT ON IS A MEASUREMENT DECISION, NOT A CLEANUP TASK. Flip
- * `OFFLINE_DEFAULT_ON` only when the §32 matrix — Chrome desktop, Safari/iOS,
- * Firefox desktop, fresh profile, private/incognito — has actually been
- * reported. "It works on my machine" is the failure this program has already
- * paid for twice.
+ * ⛔ TURNING IT ON WAS A MEASUREMENT DECISION, NOT A CLEANUP TASK, and the
+ * measurements are in `docs/notebook/wave-q1-browser-certification.md`: Chrome
+ * desktop, a fresh profile, incognito, Firefox, Firefox private, and Safari on
+ * a real iPhone 15 (iOS 17.5.1) and a real iPhone 17 (Safari 26.6). "It works on
+ * my machine" is the failure this program has already paid for twice.
  */
 
-/** ⛔ The certification gate. Do not flip this without the §32 matrix. */
-export const OFFLINE_DEFAULT_ON = false
+/**
+ * ✅ ACTIVATED 2026-09-09, after the §32 matrix came back complete and green on
+ * seven environments including two real iPhones, and with owner approval.
+ *
+ * ⛔ THE ROLLBACK IS THIS ONE LINE, and turning it back to `false` STOPS
+ * PROCESSING — it has never been permission to delete what a member already
+ * wrote. With it off, the editor writes nothing new and leaves any durable copy
+ * and queued intent exactly where they are, and the drain claims no leadership
+ * and sends nothing. Both halves are railed
+ * (`NoteEditorPage.durable.test.jsx` §21, `useOutboxDrain.test.jsx` §21) and
+ * both are mutation-proved. A re-enable picks the queue back up.
+ *
+ * Per-browser opt-out, no deploy needed:
+ *     localStorage.setItem('uct.j2.offline.enabled', '0')
+ */
+export const OFFLINE_DEFAULT_ON = true
 
 export const OFFLINE_FLAG_KEY = 'uct.j2.offline.enabled'
 

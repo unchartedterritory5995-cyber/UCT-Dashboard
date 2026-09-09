@@ -140,7 +140,7 @@ describe('⛔ §21 — the rollback stops PROCESSING, it does not discard work',
     // already wrote" — activation created real durable member state, and a
     // feature disable has no authority over it.
     installLocks()
-    localStorage.removeItem(OFFLINE_FLAG_KEY)
+    localStorage.setItem(OFFLINE_FLAG_KEY, '0')
     const send = vi.fn(async () => ({ updatedAt: 'T2' }))
     const { result } = mount({ send })
     await act(async () => { await settleIdb(6) })
