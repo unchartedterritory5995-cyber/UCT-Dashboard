@@ -484,7 +484,7 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
     try:
         a1_result = perplexity_search.web_search(
             a1_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
-            domain_pack="general",
+            domain_pack="general", cost_surface="catalyst",
         )
         a1_text = (a1_result or {}).get("answer") or ""
         a1_citations = (a1_result or {}).get("citations") or []
@@ -516,7 +516,7 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
         try:
             a2_result = perplexity_search.web_search(
                 a2_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
-                domain_pack="finance",
+                domain_pack="finance", cost_surface="catalyst",
             )
             a2_text = (a2_result or {}).get("answer") or ""
             a2_citations = (a2_result or {}).get("citations") or []
@@ -547,7 +547,7 @@ def _pull_perplexity_discovery() -> dict[str, list[dict]]:
         try:
             f1_result = perplexity_search.web_search(
                 f1_query, max_tokens=1200, system=_DISCOVERY_SYSTEM,
-                domain_pack="general",
+                domain_pack="general", cost_surface="catalyst",
             )
             f1_text = (f1_result or {}).get("answer") or ""
             f1_citations = (f1_result or {}).get("citations") or []

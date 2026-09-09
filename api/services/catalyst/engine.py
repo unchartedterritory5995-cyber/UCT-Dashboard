@@ -67,7 +67,7 @@ def _compute_sector_context(top_n: list[dict]) -> list[dict]:
         try:
             result = perplexity_search.web_search(
                 query, max_tokens=300,
-                domain_pack="finance", recency="day",
+                domain_pack="finance", recency="day", cost_surface="catalyst",
             )
         except Exception:
             logger.exception("[catalyst-engine] sector context for %s failed", sector)
@@ -430,7 +430,7 @@ def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
         try:
             result = perplexity_search.web_search(
                 query, max_tokens=500,
-                domain_pack="finance", recency="day",
+                domain_pack="finance", recency="day", cost_surface="catalyst",
             )
         except Exception:
             logger.exception("[catalyst-engine] perplexity top-3 %s failed", ticker)
@@ -531,7 +531,7 @@ def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) ->
         try:
             result = perplexity_search.web_search(
                 prompt, max_tokens=max_tokens, mode=mode,
-                domain_pack="finance", recency="day",
+                domain_pack="finance", recency="day", cost_surface="catalyst",
             )
         except Exception:
             logger.exception("[catalyst-engine] perplexity deep-context %s failed", ticker)
@@ -603,7 +603,7 @@ def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
         try:
             result = perplexity_search.web_search(
                 query, max_tokens=400,
-                domain_pack="finance", recency="day",
+                domain_pack="finance", recency="day", cost_surface="catalyst",
             )
         except Exception:
             logger.exception("[catalyst-engine] perplexity earnings %s failed", ticker)
@@ -738,7 +738,7 @@ def _enrich_with_perplexity(candidates: list[dict]) -> None:
         try:
             result = perplexity_search.web_search(
                 query, max_tokens=300,
-                domain_pack="finance", recency="day",
+                domain_pack="finance", recency="day", cost_surface="catalyst",
             )
         except Exception:
             logger.exception("[catalyst-engine] perplexity %s failed", ticker)

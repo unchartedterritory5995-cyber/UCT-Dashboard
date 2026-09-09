@@ -214,7 +214,8 @@ def _web_catalysts(sym, company, bars, movers, *, outcome=None):
               "markdown, no commentary.")
     try:
         res = perplexity_search.web_search(query, max_tokens=1600, system=system,
-                                           mode="fast", domain_pack="finance")
+                                           mode="fast", domain_pack="finance",
+                                           cost_surface="news_catalysts")
     except Exception as exc:
         _logger.warning("news_catalysts web catalysts failed for %s: %s", sym, exc)
         return None, None
@@ -337,7 +338,8 @@ def _verify_dates(sym, company, prelim):
              f'first broke — NOT a later date the stock moved or a filing "as of" date). '
              f'Answer with ONLY that date as YYYY-MM-DD. If you cannot determine it, answer NONE.')
         try:
-            res = perplexity_search.web_search(q, max_tokens=120, mode="fast", domain_pack="finance")
+            res = perplexity_search.web_search(q, max_tokens=120, mode="fast", domain_pack="finance",
+                                               cost_surface="news_catalysts")
         except Exception:
             return None
         d = _extract_iso_date(res.get("answer") or "")
@@ -780,7 +782,8 @@ def _recent_catalysts(sym):
         # week of news for the slots (the reason a 3-hour-old policy headline was missed);
         # general web so any source that broke it is reachable.
         res = perplexity_search.web_search(query, max_tokens=1000, system=system, mode="fast",
-                                           recency="day", domain_pack="general")
+                                           recency="day", domain_pack="general",
+                                           cost_surface="news_catalysts")
     except Exception as exc:
         _logger.warning("news_catalysts recent failed for %s: %s", sym, exc)
         return []
