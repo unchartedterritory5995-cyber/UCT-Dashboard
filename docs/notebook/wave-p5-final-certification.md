@@ -2,10 +2,14 @@
 
 ```
 SCOPE          the product a member actually touches, on the device they touch it with
-PRODUCTION OCR OFF · zero member documents processed
-RESIDUAL       P2-LINUX-OCR-VERSION-CERT still open
-STATUS         lane A closed · B/C/D/E/F in progress · G is a STOP
+PRODUCTION OCR OFF · zero member documents processed · J2_OCR_ENABLED unset (read live)
+LINUX CERT     5.3.0 measured · identical recognition to the 5.4.0 reference
+STATUS         A-F closed · G is a STOP and a request
 ```
+
+⛔ **Nothing in this wave is merged and nothing is activated.** §G carries the
+eleven items the merge gate asks for and the activation sequence it should
+follow — it is a request, not a report of something already done.
 
 ## A · The phone, end to end
 
@@ -415,10 +419,136 @@ worth much until `P2-LINUX-OCR-VERSION-CERT` closes and the feature is actually
 on for members. Lane C's numbers are the first half of that; the owner's
 decision is the second.
 
-## F · Closure
+## F · What a member gets, and what they do not
 
-_In progress._
+The consumer view of the whole wave, in member language. ⛔ Every row is
+**built and dark** — the feature is behind `J2_OCR_ENABLED`, which is not set in
+production (read live, not remembered).
 
-## G · The gate
+| A member can… | where | state |
+|---|---|---|
+| upload a scanned PDF and have it read | attachment on a note | built · dark |
+| search a word that exists only inside a scan | Notebook search | built · dark |
+| see that a hit's words were read off an image | search row, document status line | built · dark |
+| read the page's text next to the page | **Scanned text** panel in the viewer | built · dark |
+| select a passage from a scan and save it | Save excerpt | built · dark |
+| have that quote checked against the page | server-side, on save | built · dark |
+| ask a question and get a citation into a scan | Ask, in document and note scope | built · dark |
+| land on the exact page from a citation | viewer, page-targeted | built · dark |
+| attach the quote as thesis evidence, with their own reasoning kept separate | Add evidence | built · dark |
+| still see "Scanned text" on the attached evidence weeks later | thesis evidence row | built · dark (**new in P5**) |
+| do all of the above on a phone | 390×844 | built · dark (**certified in P5**) |
+| have a document that stalled come back on its own | background sweep | built · dark (**new in P5**) |
+| delete it all and have the words actually go | trash → retention sweep | built · dark |
+
+**What a member still cannot do**, stated plainly:
+
+- **Drag-select on the scanned page itself.** There is no text layer and one
+  was deliberately not faked. Selection happens in the Scanned text panel.
+- **See the passage highlighted when they return to a scanned page.** Highlight
+  rectangles come from the pdf.js text layer, and a scan has none. The citation
+  lands on the page; it does not mark the line.
+- **Upload a scan longer than ~145 pages.** The 25 MB attachment cap binds
+  first, well before `_MAX_PAGES = 500`.
+- **Have any of it, today.** Production OCR is off.
+
+## G · The merge gate
 
 ⛔ **STOP.** No merge. No production OCR. No `J2_OCR_ENABLED`. No Wave Q.
+
+### §48 · the eleven
+
+**1 · Full Wave P commit range**
+
+```
+4682abd8a (merge base with origin/master)
+  208041571  Wave P0  · contract, pipeline reconstruction, measured benchmark
+  …
+  41e47515d  Wave P5  · two scans at once, and one of them never came back
+25 commits · branch `notebook-primary-platform` · pushed · NOT merged
+```
+
+**2 · Linux 5.3.0 certification** — `P2-LINUX-OCR-VERSION-CERT` has its
+measurement. Bookworm container (`python:3.12-slim-bookworm`, the base
+`Dockerfile.web` uses), `tesseract 5.3.0` / `tesseract-ocr 5.3.0-2`,
+`eng.traineddata` sha256 `7d4322bd…170b2` — the same file every Wave P number
+was measured against. On the frozen corpus, **every scanned page's CER is
+identical** to 5.4.0, search recall 1.0 → 1.0, financial recall 1.0 → 1.0, and
+the run reports *"No per-page recall or CER moved in the wrong direction."*
+⛔ It certifies **this corpus**; timings across two machines are not compared.
+
+**3 · Mobile (the P4 residual)** — closed. The eleven-step journey runs at
+390×844 and found four defects, three invisible to every unit rail: a sticky
+control pinned off-screen (twice), an evidence picker that could not see the
+passage saved forty seconds earlier, a required journey control under the touch
+floor, and provenance that vanished at the moment it starts to matter.
+⚠️ The finger gesture itself is not driven; §A states exactly what stands in for
+it and what that does and does not prove.
+
+**4 · Performance** — linear to 100 pages (0.373 s/page), two concurrent scans
+in one's wall time (0.189 s/page effective), member search p50 ~11 ms *during*
+OCR, peak RSS **1014 MB** under 2×100 pages, volume 1:1 with the upload. The
+lane's real product was the concurrency defect in §B, now fixed and re-measured.
+
+**5 · Consumer matrix** — §F above.
+
+**6 · Competitive matrix** — §E above, with its sourcing stated before the
+table.
+
+**7 · Regression totals** —
+
+```
+backend  · Wave P set (16 suites: OCR, build isolation, Ask, evidence, thesis, citations)   475 passed
+frontend · journal-2-0 + mobile primitives                        230 files · 2,352 passed
+```
+
+**8 · Mutation totals** — **10 in P5**, each byte-identically restored by
+`tools/mutation_check.py`, plus one bespoke fire-check (a single flipped pixel
+makes the corpus signature refuse and name the page). Earlier waves record their
+own: P1 four, P1.5 two, P3 six; P2 and P4 record mutations without a count.
+
+**9 · Production packaging state** — **unchanged by this wave.**
+`Dockerfile.web` and `railway.web.json` are **byte-identical between
+`origin/master` and this branch**; the web build boundary shipped in P1.5 and
+nothing here touches it. No `railway.json` web start command, no service-level
+start command. `J2_SHARE_LINKS_ENABLED=0` — read live, untouched.
+
+**10 · Exact residuals**
+
+- ⛔ **`J2_OCR_ENABLED` is not set in production.** Read live from the web
+  service, not remembered. Every capability in §F is dark.
+- **Memory.** 1014 MB peak under two concurrent 100-page scans is the one
+  constraint that needs an owner's judgement against everything else on the pod.
+- **The 25 MB attachment cap contradicts `_MAX_PAGES = 500`**, and the smaller
+  limit is silent. A ~145-page scan is the real ceiling.
+- **CPU accounting under-counts OCR ~5×** — the engine is a child process, so
+  the web process's own CPU does not see it.
+- **No highlight on a scanned page** when returning from a citation. Structural
+  (no text layer), stated in §A, not a defect.
+- **The 5.3.0 certification covers the ten-fixture corpus**, not every scan a
+  member will upload.
+- **The lock fix is measured on Windows.** The retry, the containment and the
+  sweep are engine- and OS-independent, but the contention that exposed them was
+  reproduced on this box, not on a Railway pod.
+
+**11 · Recommended activation sequence**
+
+1. **Merge the branch to master.** Packaging is already in production and
+   unchanged, so this deploys code only; every OCR surface stays dark because
+   the flag is unset.
+2. **Watch one ordinary deploy** with the flag still off. The new scheduled
+   sweep self-gates on `get_adapter()`, so it must be a no-op — confirm it is.
+3. **Set `J2_OCR_ENABLED=1` for the OWNER'S ACCOUNT ONLY** if a per-account gate
+   is acceptable; otherwise arm it during a quiet window and upload one scanned
+   document yourself, end to end, on a phone.
+4. **Read the pod's memory** across that first document. The 1014 MB peak was
+   two concurrent 100-page scans on a dev box; the production number is the one
+   that decides whether the semaphore of 2 stays at 2.
+5. **Then open it to members**, and watch `pagesAwaitingOcr` — a document that
+   sits there is the §B defect returning, and the sweep's log line
+   (`re-queued N abandoned document(s)`) is where it will show first.
+6. **Rollback is the flag**, not a deploy: unset `J2_OCR_ENABLED` and every
+   surface goes back to "no text", with nothing already stored lost.
+
+⛔ **Requesting merge / deploy / activation approval. Nothing is merged and
+nothing is activated.**
