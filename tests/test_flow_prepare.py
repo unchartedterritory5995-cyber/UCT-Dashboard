@@ -708,3 +708,42 @@ def test_a_boot_then_REAL_transitions_gives_one_catchup_and_the_rest_steady(monk
     assert [r["version"] for r in fr.prepare_rolls("startup_catchup")] == [base]
     assert ([r["version"] for r in fr.prepare_rolls("steady_state_roll")]
             == seq[1:]), "a detected transition is a roll, not a catch-up"
+
+
+# ── The offset-0 BUCKET path must not regress ────────────────────────────────
+# ⛔ THE PATH THAT WAS ARGUABLY WORKING IS THE ONE THAT CAN REGRESS SILENTLY.
+# The bump fix restructured the classifier into two branches. The mutants that
+# guard it (M1/M4) both target the FALLBACK branch, and every pre-existing
+# bucket-path test relies on the module default rather than PINNING the offset —
+# so a bucket branch broken by a later edit would only be caught indirectly, and
+# a test that leaked a non-zero offset would silently stop testing this path at
+# all. These pin offset 0 explicitly, both directions, with a control.
+
+def test_at_offset_0_a_generation_predating_the_process_is_STILL_a_catchup(monkeypatch):
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 0)
+    old_v = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    # prev_version is deliberately NON-null: at offset 0 the bucket decides, and
+    # the fallback must not get a vote.
+    fr._record_roll(old_v, 8000, False, prev_version=old_v - 1)
+
+    assert fr.prepare_rolls("steady_state_roll") == [], (
+        "the bucket branch stopped deciding at offset 0 — the fallback is "
+        "answering for it, which is exactly the regression this pins")
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+
+
+def test_at_offset_0_a_generation_born_after_startup_is_STILL_steady(monkeypatch):
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 0)
+    new_v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    # prev_version None would mean "catch-up" under the fallback; the bucket
+    # says otherwise and the bucket must win.
+    fr._record_roll(new_v, 7000, False, prev_version=None)
+
+    rows = fr.prepare_rolls("steady_state_roll")
+    assert len(rows) == 1 and rows[0]["version"] == new_v
+    assert fr.prepare_rolls("startup_catchup") == []
+    # ⛔ NOT asserting bucket_bound_s here: this version's bucket STARTS 120 s in
+    # the future, and a future-dated bucket correctly reports None rather than a
+    # negative "latency". The classification is the claim; `steady` despite
+    # prev_version=None is already proof that the BUCKET branch decided, because
+    # the fallback would have said catch-up.
