@@ -88,6 +88,32 @@ def _in(text, stage, verb):
     return [arg for st, v, arg in _instructions(text) if st == stage and v == verb]
 
 
+def _image_cmd(text):
+    """The command the IMAGE runs, as a string.
+
+    ⛔ THIS IS NOW THE ONLY START AUTHORITY FOR WEB. The first canary's container
+    died in under two seconds with no output while a Railway start command was
+    overriding the image; the second removes that override, so the CMD here has
+    to carry the real web command — not an approximation of it.
+    """
+    cmds = [a for st, v, a in _instructions(text) if v == "CMD"]
+    assert cmds, "the image defines no CMD"
+    argv = json.loads(cmds[-1])
+    return argv[-1] if isinstance(argv, list) else str(argv)
+
+
+def _web_branch(start_command):
+    """The `else` branch of the shared start command — what web actually runs."""
+    tail = start_command.rsplit("else ", 1)[-1]
+    return re.sub(r";\s*fi\s*$", "", tail).strip()
+
+
+def _normalise_port(command):
+    """`$PORT` and `${PORT:-8080}` are the same instruction to the same server;
+    the image simply also works when run without Railway."""
+    return command.replace("${PORT:-8080}", "$PORT")
+
+
 @pytest.fixture(scope="module")
 def dockerfile():
     return WEB_DOCKERFILE.read_text(encoding="utf-8")
@@ -192,13 +218,34 @@ class TestTheBoundaryIsSelectedByRepoOwnedConfig:
 
 class TestStartupSemanticsAreNotForked:
     """Changing the BUILD boundary must not create a second source of truth for
-    how the application starts."""
+    how the application starts.
 
-    def test_the_deploy_block_is_identical_to_the_shared_one(
+    ⚰️ THE FIRST CANARY BUILT PERFECTLY AND DIED IN UNDER TWO SECONDS with a
+    Railway start command overriding the image. So web's start command moved
+    INTO the image — but "moved" is the whole point: it must still be the same
+    command, character for character, that every other service runs out of
+    `railway.json`. One authority, in a new place, not a second one."""
+
+    def test_the_web_config_supplies_no_start_command(self, web_railway):
+        assert "startCommand" not in web_railway["deploy"], (
+            "the web config supplies a start command again — the image CMD is "
+            "supposed to be authoritative")
+
+    def test_every_other_deploy_setting_is_identical_to_the_shared_one(
             self, shared_railway, web_railway):
-        assert web_railway["deploy"] == shared_railway["deploy"], (
-            "the web service would start differently from every other service "
-            "reading railway.json — the start command has two authorities now")
+        shared = {k: v for k, v in shared_railway["deploy"].items()
+                  if k != "startCommand"}
+        assert web_railway["deploy"] == shared, (
+            "the web service would deploy differently from every other service "
+            "reading railway.json, beyond the start command it is meant to own")
+
+    def test_the_image_runs_the_shared_web_start_command(
+            self, shared_railway, dockerfile):
+        expected = _web_branch(shared_railway["deploy"]["startCommand"])
+        actual = _normalise_port(_image_cmd(dockerfile))
+        assert actual == expected, (
+            "the image's CMD is not the web branch of the shared start "
+            "command:\n  image:  %s\n  shared: %s" % (actual, expected))
 
     def test_the_health_check_is_unchanged(self, web_railway):
         # ☠️ Never point Railway's healthcheck at /api/ready.
@@ -230,13 +277,13 @@ class TestTheWebImageKeepsTodaysRuntime:
             "the runtime node comes from somewhere other than the build stage — "
             "that is a second node version waiting to drift")
 
-    def test_the_venv_lives_where_the_start_command_expects_it(
-            self, dockerfile, web_railway):
-        # The start command runs a BARE `uvicorn` / `python -m api.…`.
+    def test_the_venv_lives_where_the_start_command_expects_it(self, dockerfile):
+        # The image's CMD runs a BARE `uvicorn`, so the venv has to be on PATH
+        # under exactly the path the nixpacks image uses.
         assert any("/opt/venv/bin" in a for a in _in(dockerfile, "runtime", "ENV")), \
             "/opt/venv/bin is not on PATH in the runtime stage"
         assert any("/opt/venv" in a for a in _in(dockerfile, "runtime", "COPY"))
-        assert "uvicorn api.main:app" in web_railway["deploy"]["startCommand"]
+        assert "uvicorn api.main:app" in _image_cmd(dockerfile)
 
     def test_python_stays_on_the_production_minor(self, dockerfile):
         # Tesseract creates no Python-version dependency, and this slice must
