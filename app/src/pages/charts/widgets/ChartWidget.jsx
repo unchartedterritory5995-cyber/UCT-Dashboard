@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate } from 'react-router-dom'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
-import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import usePreferences from '../../../hooks/usePreferences'
@@ -10,6 +9,8 @@ import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
+import ChartDetailDock, { ChartPanelsButton } from './ChartDetailDock'
+import { normalizeDock } from './chartDock'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
@@ -252,6 +253,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     setGroupSym(activeColor, s)
   }, [activeColor, setGroupSym, persistActiveSettings])
 
+  // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
+  // The three stock-specific widgets, docked into THIS chart instead of floating
+  // as their own always-linked widgets. State rides opts.dock (persisted like
+  // opts.tf); the panels are fed the chart's resolved `sym` directly, so they
+  // mirror the chart exactly. `setDock` accepts a value or an updater fn.
+  const dock = useMemo(() => normalizeDock(opts?.dock), [opts?.dock])
+  const dockRef = useRef(dock)
+  dockRef.current = dock
+  const setDock = useCallback((updater) => {
+    const next = typeof updater === 'function' ? updater(dockRef.current) : updater
+    onOptsChange?.({ ...(opts || {}), dock: next })
+  }, [opts, onOptsChange])
+
   // ── Tab handlers (all go through the pure chartTabs reducer) ──
   const tabList = useMemo(() => chartTabList(opts), [opts])
   const tabColors = useMemo(
@@ -457,6 +471,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   return (
     <>
+      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
       <ChartPane
         ref={paneRef}
         sym={sym}
@@ -572,12 +587,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               )}
             </>
           ),
-          /* After the pane's settings gear, keeping the shipped order:
-             leverage · add-tab · gear · share. */
-          tfBarEnd: <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />,
+          /* Company Intelligence panel toggle — takes the slot Share-to-Floor
+             used to hold (owner decision). One click opens/closes the panel. */
+          tfBarEnd: <ChartPanelsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />,
           overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
         }}
       />
+      </ChartDetailDock>
       {/* ── Chart right-click menu ── */}
       {ctxMenu && (
         <>

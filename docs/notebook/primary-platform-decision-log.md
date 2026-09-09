@@ -2023,6 +2023,388 @@ duplicated here.
 
 ---
 
+## Wave K — semantic retrieval: APPROVED, ACTIVATION BLOCKED ON ZDR (2026-09-07)
+
+**Status, in the owner's own three lines:**
+SEMANTIC RETRIEVAL: **ARCHITECTURALLY APPROVED** · **QUALITY-JUSTIFIED** ·
+**ACTIVATION BLOCKED ON ZERO DATA RETENTION**.
+
+**The quality justification is measured, not asserted.** The Slice 1
+deterministic baseline recalls 6/6 lexical and 1/1 entity probes and **0/7**
+low-lexical-overlap probes. The misses are ordinary member language --
+"margin pressure" against a note that says "gross margin normalization",
+"what could go wrong", "too reliant on a handful of buyers",
+"profitability squeeze", "geopolitical exposure". Naming the ticker does not
+rescue them: `NVDA margin pressure` returns the thesis and a captured price,
+neither of which mentions margins. This is a real hole in the member outcome,
+not polish.
+
+**The activation gate is the exact OpenAI project's retention configuration,
+and it is NOT confirmed.** Measured from the production pod (read-only GETs
+only; no Notebook content, no member text, and no secret was transmitted or
+printed):
+
+| fact | value |
+|---|---|
+| key kind | project-scoped (`sk-proj-`), 164 chars |
+| `GET /v1/models` | 200 — the key is live |
+| `openai-organization` / `openai-project` response headers | **absent** |
+| organization (from `/v1/me`) | **`org-6ljtvy8Dr0srF2ZRiE7vH2Dy`**, title **"Personal"**, `is_default: true` |
+| `GET /v1/organization/projects` | **403 — missing scope `api.management.read`** |
+| `GET /v1/organization/admin_api_keys` | **403 — same missing scope** |
+
+Three things follow, and the distinction between them matters:
+
+1. **ZDR cannot be verified programmatically from here.** The Admin/Management
+   API needs an admin-scoped key the pod does not have, and OpenAI exposes no
+   public endpoint that reports a project's retention posture. This is a
+   capability gap, not evidence either way.
+2. **The evidence available points AGAINST ZDR being already enabled.** The
+   organization is the default **Personal** org. ZDR is an explicitly-enabled
+   arrangement, not a default state; the documented default for
+   `/v1/embeddings` is up to 30 days of abuse-monitoring retention. A default
+   Personal org on standard terms is the shape of an account that has NOT had
+   ZDR turned on.
+3. **Endpoint eligibility is not project configuration.** `/v1/embeddings`
+   being ZDR-*eligible* says nothing about whether ZDR is *enabled here* --
+   exactly the inference the owner prohibited, alongside "the key exists",
+   "voice_embeddings already embeds", and "another project has ZDR".
+
+**Therefore no Notebook content has been sent to `/v1/embeddings`, and none
+will be until the exact project is confirmed ZDR.** Slice 1 is NOT redesigned
+around lexical retrieval and is NOT discarded: the hybrid architecture stands,
+with the semantic leg dark.
+
+**What would satisfy the gate** (owner action, not engineering): confirm in
+the OpenAI dashboard for `org-6ljtvy8Dr0srF2ZRiE7vH2Dy` -- Settings →
+Organization → Data controls -- that Zero Data Retention is enabled for the
+project this key belongs to, or obtain it from OpenAI for that project. An
+admin-scoped key would also let this be re-verified programmatically rather
+than by screenshot, which is the more durable outcome.
+
+**A related pre-existing exposure, surfaced by this check and NOT introduced
+by Wave K:** `voice_embeddings` already sends member-derived content (voice
+memory facts, session summaries, voice-uploaded documents) to this same
+project, ungated, in production. If this org is not ZDR, that content is
+already subject to default retention. That is a live finding about shipped
+behaviour and belongs to the voice workstream, not to Wave K -- recorded here
+because this investigation is what surfaced it.
+
+---
+
+## Wave K closure — Ask Notebook / Ask Document (2026-09-07)
+
+**Standard the wave was held to:** not "we added chat", but *the member can ask
+a question about their own research, UCT answers from their private corpus,
+shows exactly what evidence supports the answer, and refuses to invent one when
+the corpus does not support it.*
+
+### The defect that mattered most, and how late it was found
+
+`fts_match_expr` joins query terms with a space, and FTS5 reads a space as AND.
+That is correct for the member's search box, which is what it was written for.
+It is catastrophic for a QUESTION, because a question is made of words the
+corpus does not contain:
+
+    "what was gross margin in the quarter?"
+      -> '"what" "was" "gross" "margin" "in" "the" "quarter"*'  ->  0 rows
+
+against a document page reading *"Gross margin was 73.5% in the quarter"*.
+**Ask Document, Ask Notebook and Ask Security Research answered "I couldn't
+find that" for essentially every naturally-phrased question.** Only keyword
+queries worked.
+
+⛔ **Why five slices of rails did not catch it.** The Slice 1 evaluation set was
+written with keyword-shaped queries — "gross margin normalization", "customer
+concentration". The inputs were shaped like the implementation, so the
+measurement agreed with itself and reported *lexical 6/6*. It took a REAL MODEL
+answering a REAL question phrased the way a member phrases one. The lesson is
+not "write more rails"; it is that a fixture drawn from the implementation
+cannot measure the implementation
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+`ask_match_expr` now keeps the content words and joins them with OR. It is
+Ask-specific: `fts_match_expr` still belongs to the search box, where AND is
+right and where Wave K was told not to change recall.
+
+### The semantic-recall gap, re-measured
+
+|                | before | after |
+|----------------|--------|-------|
+| overall        | 7/14   | **10/14** |
+| low-overlap    | 0/7    | **3/7**  |
+| lexical        | 6/6    | 6/6   |
+| entity         | 1/1    | 1/1   |
+
+**The case for semantic retrieval survives but is narrower and more honest.**
+Four true paraphrases still miss — "too reliant on a handful of buyers" against
+a note reading "Customer concentration is the risk I keep writing down" — and
+no lexical index can bridge those. Three rails that had encoded the AND-semantics
+limitation as a REQUIREMENT were updated; one had said in its own failure
+message that lexical retrieval improving meant re-measuring, and it was right.
+
+### BM25 as a relevance gate was unsound
+
+`BM25_FLOOR` kept a candidate only when `bm25() <= -0.15`. bm25 weights a term
+by inverse document frequency, so **a term present in every indexed row scores
+~0 — above the floor, and was dropped.** Measured identically at 1, 3, 5 and 20
+rows. Two victims: a single-page document, and the focused researcher whose
+every note says "NVDA", which is the term they care most about. Retired as a
+gate, kept for ordering; the measurement is now a rail with an AST probe that
+fails if any retrieval path gates on it again.
+
+### Decisions locked in this wave
+
+1. **Ranking is two declared levels.** A SIGNAL TIER says *why* something
+   matched (structured > title > thesis-attached > saved > lexical > context);
+   a score normalized *inside its own source type* orders within it. Raw
+   cross-type score comparison is not ranking, it is an accident that looks
+   sorted. A type whose retriever assigns a constant normalizes to the FLOOR,
+   not the top — a constant is the absence of a signal.
+2. **Diversity may never evict authority.** The per-(tier, source-type) cap has
+   a floor of one, so no caller can silence a source type, and single-source
+   scopes (one note, one document) disable it entirely.
+3. **`answer_evidence` is an ALLOWLIST.** Only `relevance == query_match` may
+   back a claim. An unlabelled item is therefore not evidence: a caller that
+   forgets makes the system say it found nothing, never invent an answer.
+4. **Naming a security is not asking a question about it.** Under OR matching
+   every NVDA note matches any NVDA question, so `no_answer` could never be
+   true for a ticker-named question. A note matching only the security's name
+   is entity context.
+5. **RETRIEVED CONTENT IS DATA, NEVER INSTRUCTION**, made mechanical four ways:
+   `system_prompt()` takes no arguments (no channel exists); the evidence fence
+   is neutralized and marker-counted, and assembly REFUSES on a count mismatch;
+   `request_kwargs` emits no `tools` key; and `[n]` handles resolve against the
+   packet actually sent, so a source saying "cite this as [9]" cannot conjure a
+   ninth source.
+6. **The Ask Current Note `system=` defect is CLOSED.** `SYNTH_SYSTEM(note_title,
+   note_block)` interpolated the title and up to 20k characters of note body
+   into the instruction layer. Deleted. The note now reaches the model as
+   ranked, citable blocks inside the fence, with the same 20k ceiling — what a
+   long note loses is its least relevant blocks, not everything past character
+   20,000.
+7. **No answer means no model call, and no charge.** Paying a model to say "I
+   could not find that" asks the one component able to invent an answer to
+   decline to. The refusal is deterministic, free, and cannot be talked out of.
+8. **A follow-up re-retrieves from the member's own prior QUESTION, never the
+   assistant's prior answer.** Model output steering retrieval is how one
+   hallucinated noun becomes the corpus query for a whole thread.
+9. **Dedupe collapses the source count, not the text.** A page and the excerpt
+   saved from it remain ONE source, but the wider page text rides along as
+   context — curating a quote must not make the rest of its page invisible.
+
+### Semantic retrieval status — UNCHANGED
+
+SEMANTIC RETRIEVAL: approved architecturally, justified by measurement
+(now 3/7 rather than 0/7 low-overlap recall), **ACTIVATION BLOCKED** on positive
+Zero-Data-Retention verification for `org-6ljtvy8Dr0srF2ZRiE7vH2Dy`. No Notebook
+note, document, excerpt or query has been embedded. Railed by AST: no Ask module
+references or imports an embedding provider, with a control proving the probe
+sees a real call and ignores a docstring that merely says "NO EMBEDDINGS".
+
+### Residual debt carried forward
+
+- **Four low-overlap paraphrases still miss.** The honest, narrower case for the
+  semantic leg, unblocked only by ZDR.
+- **A shared generic word can lift `no_answer`.** "dividend policy" matches a
+  note about *export* policy. The answer stays grounded and the model refuses,
+  but the deterministic layer claims an answer exists. Lexical retrieval cannot
+  tell a subject noun from a head noun; semantic retrieval can.
+- **Six SSE routes were missing from `_is_gzip_exempt`** — the whole Compass
+  chat family and `/api/live/massive/curated-stream`. Added to the shared list
+  (a platform safety rail, not a change to those subsystems). The rail now
+  DERIVES SSE routes from the live app instead of naming them by hand.
+- **`reachable.test.js` reports 16 orphaned modules** under `pages/community` +
+  `floor2`, from `cc195e888` (The Floor redesign, already on origin/master).
+  Not Wave K's, recorded so nobody re-diagnoses it.
+- **Wave J residual debt remains open and unchanged.**
+
+## Post-Wave-K re-baseline — owner rulings (2026-09-07)
+
+Wave K is parked behind the 8G-B shared-production hold; the waiting window was
+spent on a read-only re-baseline of the remaining Notebook roadmap. Full artifact:
+`docs/notebook/post-wave-k-roadmap-rebaseline.md`, §6 of which carries the rulings
+verbatim and governs where it and the analysis differ. Recorded here because three
+of these outlive the roadmap document.
+
+### 1. A live production surface the planning record believes is dark
+
+`J2_SHARE_LINKS_ENABLED=1` on the `web` service — read from Railway during the
+re-baseline, corroborated by the 2026-09-04 observability audit's actual-prod-value
+column, with the share UI wired in `NoteEditorPage.jsx`. The gap ledger, the build
+plan's activation row and the Phase Zero table all record the surface as OFF, and
+G-080's own preconditions for flipping it — real usage demand, and a §21 legal
+review of shared vendor-data exposure — are recorded nowhere as met.
+
+**Ruling: classify as LIVE CONFIGURATION BUT ACTIVATION AUTHORIZATION / GATE
+EVIDENCE UNVERIFIED.** G-080 is NOT closed by the flag being on — a flag is
+evidence of configuration, not of authorization. The flag is not to be changed
+while the hold is active. After the hold clears: search for durable evidence the
+§21/activation approval occurred; if it exists, reconcile and close/reclassify; **if
+it does not, disable the flag until the review completes.**
+
+⛔ The engineering mitigations — sanitized payload, no user id/tags/folder/ticker,
+static archived widget images instead of live vendor widgets — are relevant risk
+controls and **not substitutes for the missing activation evidence.** The quality of
+a control is not the same fact as permission to ship the thing it protects. This is
+the inverse of the failure `project_feature_flag_ledger` records: not "off and unset
+are indistinguishable", but *the documentation says off while production says on* —
+and the roadmap would have scheduled work to enable something already enabled.
+
+### 2. A post-Wave-K integrity mini-pass, before any new feature wave
+
+Three items, no product features, after Wave K production certification and before
+Wave L:
+
+**G-063 temporal correctness.** `widgetEmbedCore.js` returns `live` for any
+reconstructable embed with no future-relative-to-capture gate, so a Calendar embed
+captured before an event resolves re-renders with the resolved result. The invariant
+being restored: **WHAT THE MEMBER CAPTURED THEN MUST NOT SILENTLY BECOME WHAT IS
+TRUE NOW.** Frozen-at-insert temporal correctness is the differentiator this program
+calls its moat, and this is a hole in it — fixed with the *smallest* correct
+distinction consistent with `financial-temporal-semantics.md`, not a redesign.
+
+**The raw-error class, railed this time.** `TickerResearchWorkspace.jsx` reintroduced
+`alert(...e.message)` in Wave H, one wave after Wave B fixed that defect class.
+Fixing the call sites is half the work; the rail is the other half. **A fix that is
+not railed has a shelf life** — this one lasted a single wave.
+
+**Gap-ledger reconciliation.** The ORIGINAL rows are to be reconciled — not another
+appended section announcing that things shipped. Saved views, templates, Ask
+Notebook and the per-ticker workspace all still read OPEN while being live in code,
+because the house convention is that a wave closing a gap writes its own section
+rather than editing the row. ⛔ **A ledger whose status column is stale is worse than
+no ledger, because it is the artifact consulted for planning.** Preserve dates and
+evidence, add closure references, do not rewrite history.
+
+### 3. OCR and semantic retrieval: one privacy question, two benchmarks
+
+The re-baseline originally called these "the same decision". **Corrected by ruling:**
+they share the external-data/privacy question and are **NOT the same technical
+capability.** Wave M evaluates them under one privacy/compute evaluation with two
+separate benchmarks — a local embedding model (paraphrase recall, false positives,
+index size, RAM/CPU, latency, incremental indexing, pod impact, the real 751-note
+corpus and larger synthetic scale, against the existing low-overlap benchmark as a
+fixed control) and a local OCR engine (scanned-PDF and screenshot accuracy,
+financial-document quality, CPU/RAM, page latency, large-document behavior,
+temp-file lifecycle). A single combined verdict would hide which one failed.
+
+**Benchmark first; do not adopt a model merely because a competitor uses one.**
+Obsidian's plugin proves the shape is viable, not that any particular model suits
+this corpus on this pod. The purpose is to learn whether both gaps can close
+**without expanding private member content to an external processor.**
+
+⛔ Wave K's status is unchanged by any of this: **SEMANTIC RETRIEVAL —
+architecturally approved, quality-justified by measured deterministic recall
+failure, NOT ACTIVATED, blocked on exact-project Zero Data Retention verification.
+No Notebook content has been sent to the embedding endpoint**, and no deployment or
+certification wording may imply otherwise.
+
+### 4. Sequence and the honest cap
+
+Wave L **Capture & Command** (external web capture with G-043 reconsidered now that
+there is a destination worth capturing into; the four remaining internal surfaces —
+Screener, Options Flow, COT, Model Book; command-palette participation; mobile
+capture and PWA foundations). Wave M **Private Recall Foundation**. Wave N **the
+financial review loop**, elevated as the major differentiation candidate and
+required to compose Waves F+G+H+K rather than introduce a parallel object model —
+*UCT brings me back to the investment decision when something I said mattered needs
+reassessment*, never generic todo-list parity. Wave O durability and reach.
+API/extensibility, plugins and multiplayer stay deferred; offline, mobile, security
+and portability remain real parity requirements, deferred rather than dismissed.
+
+**Zero real-member usage evidence.** This ordering is an evidence-informed
+pre-launch judgment, not behavioral validation, and the first genuine cohort may
+reorder it. ⛔ That is a statement about the confidence of the ordering — **it does
+not impose a construction freeze.**
+
+---
+
+## G-080 ruled, and the post-Wave-K integrity mini-pass (2026-09-07)
+
+### G-080 — configuration is not authorization
+
+A bounded, read-only authorization-evidence search (decision log, build plan,
+gap ledger, Phase Zero/One rights findings, git history on the share-link code,
+`docs/feature_flags.json`) found **no affirmative record** that the §21 review
+completed or that public share links were intentionally authorized. Three pieces
+of evidence point the other way:
+
+- the shipping commit `e05e1699b` (2026-08-13): *"shipped DARK … default OFF —
+  nothing reachable … The Share button is admin-only while the owner evaluates"*;
+- Phase Zero §21: the share link *"would need explicit review before ever being
+  enabled"* for a note carrying captured vendor data, because a share-link viewer
+  *"is neither an Authorized User nor an Edge User of UCT"*;
+- the Wave F checkpoint, restating the standing rule as still in force:
+  *"vendor-data … decisions stay gated on Patrick's external legal review. No new
+  rights approval was sought or assumed."*
+
+`docs/feature_flags.json` recorded `status: armed` with an **empty note** — armed,
+with no reason. Per owner ruling the flag was returned to `0`.
+
+⛔ **`railway variables --set` STAGES; it does not restart.** Six health samples
+after the change showed uptime still climbing — the live process was still serving
+share links with the old value. Reporting "disabled" at that moment would have been
+the exact configuration-vs-reality error this whole exercise was about. The
+operational proof required three things together: **A** config truth (`= 0`),
+**B** a process that started after the change (it restarted through another
+workstream's own deploy — Notebook forced nothing), and **C** no competing config
+source (the only reader is `note_shares.py:39`, defaulting `"0"`; nothing in
+`railway.json`, `nixpacks.toml`, a Dockerfile or a committed `.env` sets it).
+
+⛔ **The HTTP response cannot be the proof** and must not be weakened to become
+one: `resolve_shared_note_endpoint` raises the same `404 "Not found"` for a
+disabled flag and for an invalid token. That non-confirming contract is a feature.
+
+**G-080 = IMPLEMENTED · ACTIVATION DISABLED · AUTHORIZATION UNVERIFIED.** The
+implementation was not deleted.
+
+### G-063 — knowability, not string ordering
+
+`calendar` was `reconstructable: true` unconditionally, on the grounds that the
+calendar endpoints are date-parameterized and backfilled. **That sentence is true
+about the endpoints and false about the member.** A day captured before it happened
+re-rendered live, so a note written as a pre-event thesis later displayed the
+result.
+
+The gate asks whether the capture's subject could already have HAPPENED, at the
+only precision available: `date` is `YYYY-MM-DD` and the widget renders one ET
+session, so a day counts as knowable **only once it had fully elapsed at
+`capturedAt`**. Same-day is deliberately not-knowable — nothing in the data model
+can show a capture followed that day's outcomes, and the failure directions are not
+symmetric: a wrong archive costs a re-render, a wrong live rewrites the member's own
+research. Missing or invalid `capturedAt` fails safe. Chart is untouched by design.
+
+### The raw-error class was much larger than the finding that scheduled it
+
+Fixed in the Notebook's own UI (TickerResearchWorkspace, FolderSidebar ×3,
+NotebookTab ×2, HeroImagePicker ×2, plus OpenPositionsTab and TradeJournalTab that
+the rail surfaced) and railed by an AST walk with six controls — never a grep,
+which matches the very comments and docs that describe the pattern. Run over all of
+`journal-2-0/` the rail reports **104 violations across 32 files, 12 of them native
+`alert()`**. Those are recorded as **G-128 with the count** rather than swept into
+this pass or hidden by quietly narrowing the rail.
+
+⛔ **A test required the defect.** `FolderSidebar.test.jsx` asserted
+`alert(serverDetail)`. Its intent — a failed delete must reach the member, never an
+unhandled rejection — was right and was kept; only the mechanism changed. The
+honest cost is recorded in the test: that fixture's server message is genuinely
+useful copy the member now loses, because at the catch site a helpful server string
+and a stack fragment are the same `Error`.
+
+### ⛔ A retraction of my own finding
+
+**G-102 was wrong.** Notebook has participated in the app-wide command palette
+since Wave B: `CommandPalette.jsx` imports `useJ2Favorites`/`useJ2Recents` from
+`journal-2-0`, ships New note / Open Notebook / Search Notebook / Trash, and
+matches note rows. I grepped `journal-2-0/` for a *registration* and found none —
+but the palette **pulls**. The original audit made that mistake and the
+2026-09-07 re-baseline repeated it, which is the same error class the re-baseline
+had just accused the ledger of. Wave L loses "palette participation"; the gap that
+actually remains is a note-level keyboard shortcut set.
+
+---
+
 ## Open Questions Carried Forward
 
 See `primary-platform-master-product-spec.md` §7-8 and the Phase One artifact's own Open Questions section for the full list. Highest-priority, restated here for durability:

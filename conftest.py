@@ -27,6 +27,60 @@ import tempfile
 
 import pytest
 
+#: Sandbox directories this file mints, one PAIR PER PYTEST SESSION.
+SANDBOX_PREFIXES = ("uct_tests_authdb_", "uct_tests_datadir_")
+#: How long a sandbox may outlive its run before it is fair game. Long enough
+#: that a concurrent session -- another agent, another terminal -- is never
+#: touched; short enough that they cannot accumulate for months.
+SANDBOX_TTL_SECONDS = 24 * 3600
+
+
+def _prune_stale_sandboxes() -> None:
+    """⛔⛔ NOBODY WAS EVER DELETING THESE, and it filled the disk.
+
+    Every pytest session mints two directories under TEMP and nothing removes
+    them. The product then WARMS them: a sandboxed run writes bars caches,
+    ticker metadata and ~20 SQLite databases, so a session costs ~200 MB, not
+    a few KB. Measured 2026-09-08: **5,209 directories, 13.14 GB, and the
+    system drive at ZERO bytes free** -- which does not present as "the disk is
+    full". It presents as `notes_quota` refusing every attachment upload with
+    HTTP 400, i.e. TWELVE RED TESTS that read exactly like a product defect in
+    the attachment path and are not one.
+
+    Best-effort by construction: a directory in use by a concurrent session is
+    younger than the TTL, and any failure to remove one is ignored -- reclaiming
+    space must never be able to fail a test run.
+    """
+    import glob
+    import shutil
+    import time
+    now = time.time()
+    for prefix in SANDBOX_PREFIXES:
+        for d in glob.glob(os.path.join(tempfile.gettempdir(), prefix + "*")):
+            try:
+                if now - os.path.getmtime(d) < SANDBOX_TTL_SECONDS:
+                    continue
+                shutil.rmtree(d, ignore_errors=True)
+            except OSError:
+                pass
+
+
+_prune_stale_sandboxes()
+
+# ⛔⛔ THE ATTACHMENT-VOLUME RESERVE IS DERIVED FOR RAILWAY, NOT FOR THIS BOX.
+# `notes_quota` refuses an upload that would leave the attachment volume under
+# `(1 - disk_watchdog.CRIT_PCT/100) x total`. On production's 78 GB volume that
+# is ~7.8 GB. Under pytest the attachment root resolves into the sandbox above,
+# whose volume is the developer's 499 GB SYSTEM DRIVE — so the same formula
+# demands ~50 GB free, and every upload test 400s on any machine that does not
+# have it. Twelve tests in the documents and excerpts routers failed that way
+# for reasons that had nothing to do with the code they cover.
+# ⭐ This is the guard's OWN documented override, and the tests that exercise
+# the DERIVATION delete or monkeypatch it themselves, so pinning it here cannot
+# make them vacuous (`test_notes_quota.py`). Production sets nothing and
+# resolves byte-identically.
+os.environ.setdefault("NOTE_IMPORT_RESERVE_BYTES", str(64 * 1024**2))
+
 ISOLATED_AUTH_DB = os.path.join(
     tempfile.mkdtemp(prefix="uct_tests_authdb_"), "auth.db"
 )

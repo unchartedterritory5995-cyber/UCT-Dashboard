@@ -6,6 +6,11 @@ import useJ2Notes, {
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
 import useDocumentSearch from '../../hooks/useDocumentSearch'
 import useExcerptSearch from '../../hooks/useExcerptSearch'
+import useReviewSearch from '../../hooks/useReviewSearch'
+import { searchResultTitle, searchResultHint, reviewDateText }
+  from '../../lib/searchResultLabel'
+import { outcomeLabel } from '../../lib/reviewOutcomes'
+import { searchResultTarget } from '../../lib/searchNavigation'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import { SkeletonLine } from '../../../../components/Skeleton'
@@ -484,6 +489,10 @@ export default function FolderSidebar({
   const [parentForNew, setParentForNew] = useState(null)
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState(null)
+  // Folder mutations used to fail into a native alert() carrying the raw
+  // exception. One line, both defects the scorecard names; railed in
+  // rawErrorSurface.test.js so it cannot come back.
+  const [folderError, setFolderError] = useState('')
   const [editName, setEditName] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   // Panel mode: the folder tree, or a full-panel note search (Obsidian-style).
@@ -634,6 +643,14 @@ export default function FolderSidebar({
   const { results: excerptResults, isLoading: excerptsSearching } =
     useExcerptSearch(debouncedQuery, { enabled: mode === 'search' })
 
+  // Wave O6: the member's own completed reviews — what they DECIDED about a
+  // thesis, in their words. A FOURTH section for the same reason Evidence is a
+  // third: a conclusion reached after the fact is not the same kind of hit as
+  // the material it was reached from, and ranking them together would bury the
+  // one thing only this member could have written.
+  const { results: reviewResults, isLoading: reviewsSearching } =
+    useReviewSearch(debouncedQuery, { enabled: mode === 'search' })
+
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
   //
@@ -720,11 +737,13 @@ export default function FolderSidebar({
   const submitNew = async (e) => {
     e.preventDefault()
     if (!newName.trim()) return
+    setFolderError('')
     try {
       await create(newName.trim(), parentForNew || undefined)
       cancelAdd()
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] create folder failed', err)
+      setFolderError("Couldn't create that folder. Nothing was changed.")
     }
   }
 
@@ -733,7 +752,8 @@ export default function FolderSidebar({
     try {
       await rename(id, editName.trim())
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] rename folder failed', err)
+      setFolderError("Couldn't rename that folder. It kept its old name.")
     }
     setEditingId(null)
   }
@@ -750,7 +770,8 @@ export default function FolderSidebar({
       await remove(id)
       if (activeFolderId === id) onSelectFolder(null)
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] delete folder failed', err)
+      setFolderError("Couldn't delete that folder. Nothing was removed.")
     }
   }
 
@@ -802,6 +823,10 @@ export default function FolderSidebar({
           </button>
         </div>
       </div>
+
+      {folderError && (
+        <div className={styles.folderError} role="alert">{folderError}</div>
+      )}
 
       {mode === 'search' ? (
         <div className={styles.searchView}>
@@ -966,13 +991,17 @@ export default function FolderSidebar({
                   key={`${d.documentId}-${d.pageNumber}`}
                   type="button"
                   className={styles.searchResultRow}
-                  onClick={() => onOpenNote({ id: d.noteId })}
-                  title={`${d.name || 'Document'} — p. ${d.pageNumber}, in "${d.noteTitle}"`}
+                  onClick={() => onOpenNote({ id: d.noteId },
+                                             searchResultTarget(d, { kind: 'page' }))}
+                  title={searchResultHint(d, { kind: 'page' })}
                 >
-                  <UIcon name="document" size={12} gold={false} />
+                  {/* ⛔ The icon follows the KIND too: a captured web source is
+                      not a filed document, and showing the document glyph for
+                      it repeats the same false claim in another channel. */}
+                  <UIcon name={d.sourceKind === 'web' ? 'link' : 'document'} size={12} gold={false} />
                   <span className={styles.searchResultBody}>
                     <span className={styles.searchResultTitle}>
-                      {d.name || 'Document'} · p.{d.pageNumber}
+                      {searchResultTitle(d, { kind: 'page' })}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
                   </span>
@@ -997,15 +1026,54 @@ export default function FolderSidebar({
                   key={e.excerptId}
                   type="button"
                   className={styles.searchResultRow}
-                  onClick={() => onOpenNote({ id: e.noteId })}
-                  title={`${e.documentName || 'Document'} — p. ${e.pageNumber}, in "${e.noteTitle}"`}
+                  onClick={() => onOpenNote({ id: e.noteId },
+                                             searchResultTarget(e, { kind: 'excerpt' }))}
+                  title={searchResultHint(e, { kind: 'excerpt' })}
                 >
                   <UIcon name="quote" size={12} gold={false} />
                   <span className={styles.searchResultBody}>
                     <span className={styles.searchResultTitle}>
-                      {e.documentName || 'Document'} · p.{e.pageNumber}
+                      {searchResultTitle(e, { kind: 'excerpt' })}
                     </span>
                     <span className={styles.searchResultSnippet}>{renderSnippetMarks(e.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Wave O6: Thesis reviews — the member's own conclusions. Fourth and
+              last, each section still its own list. ⛔ The row says "Thesis
+              review" and carries the outcome the member chose: a result that
+              rendered only their prose would make "I was wrong about this" and
+              "no change" look like the same finding. */}
+          {trimmedQuery && (reviewsSearching || reviewResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {reviewsSearching
+                  ? 'Searching your reviews…'
+                  : `${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!reviewsSearching && reviewResults.map((r) => (
+                <button
+                  key={r.reviewId}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: r.noteId },
+                                             searchResultTarget(r, { kind: 'review' }))}
+                  title={searchResultHint(r, { kind: 'review' })}
+                >
+                  <UIcon name="clock" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {searchResultTitle(r, { kind: 'review' })}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(r.snippet)}</span>
+                    {/* The decision itself, never inferred from the prose. */}
+                    <span className={styles.searchResultMeta}>
+                      {[outcomeLabel(r.outcome), reviewDateText(r.completedAt)]
+                        .filter(Boolean).join(' · ')}
+                    </span>
                   </span>
                 </button>
               ))}

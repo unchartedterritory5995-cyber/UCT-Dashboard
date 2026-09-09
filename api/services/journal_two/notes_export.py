@@ -290,14 +290,29 @@ def _make_note_link_aware_resolver(
             if not excerpt_id:
                 return None
             row = conn.execute(
-                "SELECT e.captured_text, e.page_number, e.annotation, d.name"
+                "SELECT e.captured_text, e.page_number, e.annotation, d.name,"
+                " d.capture_type, d.source_url"
                 " FROM j2_note_excerpts e JOIN j2_note_documents d ON d.id = e.document_id"
                 " WHERE e.id = ? AND e.user_id = ?",
                 (excerpt_id, user_id),
             ).fetchone()
             if row is None:
                 return None  # source document/excerpt no longer resolves -- omit, never fabricate
-            citation = f"{row['name'] or 'Document'}, p.{row['page_number']}"
+            name = row["name"] or "Document"
+            keys = row.keys()
+            ctype = row["capture_type"] if "capture_type" in keys else None
+            if ctype in ("web_passage", "web_reference"):
+                # ⛔ A WEB capture is NOT an attached file and has no article
+                # pagination. Exporting it as "Name, p.2" would claim both. The
+                # export carries what is actually true: the source, the fact
+                # that this is one captured passage, and the URL the member can
+                # open to read the rest themselves.
+                url = (row["source_url"] if "source_url" in keys else None) or ""
+                citation = f"{name} — captured passage {row['page_number']}"
+                if url:
+                    citation = f"{citation} — {url}"
+            else:
+                citation = f"{name}, p.{row['page_number']}"
             return row["captured_text"], citation, row["annotation"]
         if not url or not url.startswith(_NOTE_LINK_MARKER):
             return base_resolver(url) if base_resolver else None
@@ -739,6 +754,39 @@ def _front_matter(
             lines.append(f"    target: {_yaml_scalar(item['targetLabel'])}")
             if item.get("caption"):
                 lines.append(f"    note: {_yaml_scalar(item['caption'])}")
+            # ⛔ WAVE N §11. Three separate fields, never merged: what the
+            # SOURCE said, what the MEMBER wrote about it, and how much of the
+            # source we actually hold. `source_url` appears only for a web
+            # capture -- an attachment's location is meaningless outside this
+            # account, and printing one would imply a file that did not travel.
+            if item.get("source_url"):
+                lines.append(f"    source_url: {_yaml_scalar(item['source_url'])}")
+            if item.get("coverage"):
+                lines.append(f"    coverage: {item['coverage']}")
+            if item.get("passage"):
+                lines.append(f"    passage: {_yaml_scalar(item['passage'])}")
+            if item.get("passage_note"):
+                lines.append(f"    passage_note: {_yaml_scalar(item['passage_note'])}")
+    # ⛔ WAVE O §46 — the decision history travels. Each entry is what the
+    # member decided and when; the thesis versions are referenced by id, never
+    # inlined, so the export stays the smallest truthful record.
+    reviews = extra.get("thesis_reviews") or []
+    if reviews:
+        lines.append("thesis_reviews:")
+        for rv in reviews:
+            lines.append(f"  - completed: {rv['completedAt']}")
+            if rv.get("outcome"):
+                lines.append(f"    outcome: {rv['outcome']}")
+            if rv.get("reviewReason"):
+                lines.append(f"    reason: {rv['reviewReason']}")
+            if rv.get("memberNote"):
+                lines.append(f"    member_note: {_yaml_scalar(rv['memberNote'])}")
+            if rv.get("nextReviewAt"):
+                lines.append(f"    next_review: {rv['nextReviewAt']}")
+            if rv.get("thesisVersionBefore"):
+                lines.append(f"    thesis_version_before: {rv['thesisVersionBefore']}")
+            if rv.get("thesisVersionAfter"):
+                lines.append(f"    thesis_version_after: {rv['thesisVersionAfter']}")
     import_source = row["import_source"] if "import_source" in row.keys() else None
     if import_source:
         lines.append(f"import_source: {_yaml_scalar(import_source)}")
@@ -917,6 +965,74 @@ def _resolve_facts_by_note(
     return out
 
 
+from api.services.journal_two import web_capture as wc
+from api.services.journal_two import ask_evidence as ev_envelope
+
+
+def _export_domain(url: str | None) -> str:
+    """Host only — a citation line, never a member's tracking parameters."""
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(raw).hostname or "").removeprefix("www.")
+    except Exception:  # noqa: BLE001 - a malformed url costs the domain, nothing else
+        return ""
+
+
+def _resolve_reviews_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, Any]]]:
+    """Wave O §46 — COMPLETED review history, keyed by thesis note.
+
+    ⛔⛔ A MEMBER MUST NOT LOSE YEARS OF DECISION HISTORY BY LEAVING UCT. This
+    is the record of when they reconsidered a position and what they concluded
+    — the most irreplaceable thing the Notebook holds, because unlike a note or
+    a capture it exists nowhere else and cannot be reconstructed.
+
+    ⛔ COMPLETED ONLY. A draft is work in progress, not a decision the member
+    made; exporting one would put words in their mouth in the artefact they
+    keep forever.
+
+    ⛔ AND NOTHING EXTERNAL IS DUPLICATED (§46/§24). Evidence is referenced by
+    the counts and stances the review was taken against — never by copying
+    source text, which would smuggle third-party article content into an export
+    the member may republish.
+    """
+    if not note_ids:
+        return {}
+    ph = ",".join("?" for _ in note_ids)
+    try:
+        rows = conn.execute(
+            f"SELECT note_id, completed_at, review_reason, outcome, member_note,"
+            f" next_review_at, prior_version_id, resulting_version_id"
+            f" FROM j2_thesis_reviews"
+            f" WHERE user_id = ? AND note_id IN ({ph}) AND status = 'completed'"
+            f" ORDER BY note_id, completed_at ASC",
+            (user_id, *note_ids),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # A database that predates the table has no reviews, not an error —
+        # the same narrow tolerance the capture columns get.
+        return {}
+    out: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        out.setdefault(r["note_id"], []).append({
+            "completedAt": r["completed_at"],
+            "reviewReason": r["review_reason"],
+            "outcome": r["outcome"],
+            # ⛔ NAMED AS THE MEMBER'S OWN WRITING (§26). In an export that may
+            # be read by anything, "note" would be indistinguishable from a
+            # source's words.
+            "memberNote": r["member_note"],
+            "nextReviewAt": r["next_review_at"],
+            "thesisVersionBefore": r["prior_version_id"],
+            "thesisVersionAfter": r["resulting_version_id"],
+        })
+    return out
+
+
 def _resolve_thesis_evidence_by_note(
     conn: sqlite3.Connection, user_id: str, note_ids: list[str],
 ) -> dict[str, list[dict[str, str]]]:
@@ -961,16 +1077,62 @@ def _resolve_thesis_evidence_by_note(
             fact_labels[r["id"]] = f"{r['ticker']} {fdef.label if fdef else r['fact_type']}"
     # Wave J: "{Document Name} p.{N}" -- the page-is-the-citation-unit
     # convention (checkpoint decision 12), never an internal excerpt id.
+    #
+    # ⛔⛔ WAVE N: THAT CONVENTION IS TRUE ONLY FOR A REAL PAGINATED DOCUMENT.
+    # `target_type='document_excerpt'` is the RELATIONAL NAMESPACE, not the
+    # source semantics -- Wave N made a captured web passage attachable under
+    # the same type, and its `page_number` is a CAPTURE ORDINAL. Labelling it
+    # here produced "Reuters: NVDA margins, p.2" in the export: Wave M's `p.N`
+    # defect surviving into the one artefact that leaves UCT entirely and lands
+    # in the member's permanent archive.
+    #
+    # `source_kind` has disambiguated this since Wave L; export simply never
+    # asked. Found by the §1 downstream consumer audit.
     excerpt_labels: dict[str, str] = {}
+    excerpt_detail: dict[str, dict[str, Any]] = {}
     if excerpt_targets:
         ph = ",".join("?" for _ in excerpt_targets)
         for r in conn.execute(
-            f"SELECT e.id, e.page_number, d.name FROM j2_note_excerpts e"
+            f"SELECT e.id, e.page_number, e.captured_text, e.annotation,"
+            f" d.name, d.source_kind, d.source_url, d.capture_type"
+            f" FROM j2_note_excerpts e"
             f" JOIN j2_note_documents d ON d.id = e.document_id"
             f" WHERE e.user_id = ? AND e.id IN ({ph})",
             (user_id, *excerpt_targets),
         ).fetchall():
-            excerpt_labels[r["id"]] = f"{r['name'] or 'Document'}, p.{r['page_number']}"
+            name = r["name"] or "Document"
+            is_web = r["source_kind"] == wc.SOURCE_KIND_WEB
+            if is_web:
+                # Provenance without fabricated pagination: what it is, what it
+                # came from, and where -- never "full article", never a page.
+                domain = _export_domain(r["source_url"])
+                excerpt_labels[r["id"]] = (
+                    f"Captured passage, {name} ({domain})" if domain
+                    else f"Captured passage, {name}")
+            else:
+                excerpt_labels[r["id"]] = f"{name}, p.{r['page_number']}"
+            # ⛔⛔ WAVE N §11 — A LABEL IS NOT THE EVIDENCE. The export carried
+            # "Captured passage, Reuters: NVDA margins (reuters.com)" and
+            # nothing else, so the artefact the member keeps forever could not
+            # say WHAT the source actually said, what the member made of it, or
+            # where to read the rest. A capture is never embedded in the note
+            # body, so unlike a Wave J excerpt there is no blockquote elsewhere
+            # in the file to fall back on -- the front matter is the only place
+            # this exists.
+            # ⛔ SOURCE, MEMBER NOTE AND THE EDGE'S CAPTION STAY THREE FIELDS
+            # (§7). `note` is why this bears on the thesis; `passage_note` is
+            # what the member wrote about the passage itself; `passage` is the
+            # publisher's words. Merging any two of them is how a member's
+            # opinion becomes a quotation.
+            excerpt_detail[r["id"]] = {
+                "passage": r["captured_text"] or "",
+                "passage_note": r["annotation"] or None,
+                "source_url": (r["source_url"] or None) if is_web else None,
+                # The corpus boundary travels with the evidence, exactly as it
+                # does through Ask: one clipped paragraph must not read as the
+                # whole article on the way out either.
+                "coverage": ev_envelope.coverage_for_row(dict(r)),
+            }
 
     out: dict[str, list[dict[str, str]]] = {}
     for r in rows:
@@ -982,9 +1144,11 @@ def _resolve_thesis_evidence_by_note(
             label = fact_labels.get(r["target_id"])
         if label is None:
             continue  # target no longer resolves (e.g. deleted since) -- omit rather than show a dangling id
-        out.setdefault(r["note_id"], []).append({
-            "stance": r["stance"], "targetLabel": label, "caption": r["caption"] or None,
-        })
+        item = {"stance": r["stance"], "targetLabel": label,
+                "caption": r["caption"] or None}
+        if r["target_type"] == "document_excerpt":
+            item.update(excerpt_detail.get(r["target_id"]) or {})
+        out.setdefault(r["note_id"], []).append(item)
     return out
 
 
@@ -1074,6 +1238,7 @@ def _write_notes_archive(
     )
     facts_by_note = _resolve_facts_by_note(conn, user_id, [r["id"] for r in rows])
     evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [r["id"] for r in rows])
+    reviews_by_note = _resolve_reviews_by_note(conn, user_id, [r["id"] for r in rows])
     note_paths = _compute_note_export_paths(rows, folders)
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
@@ -1154,6 +1319,7 @@ def _write_notes_archive(
             "properties": properties_by_note.get(row["id"], []),
             "financial_facts": facts_by_note.get(row["id"], []),
             "thesis_evidence": evidence_by_note.get(row["id"], []),
+            "thesis_reviews": reviews_by_note.get(row["id"], []),
         }
         zf.writestr(
             f"{path}.md",
@@ -1303,6 +1469,7 @@ def build_single_note_export(
         )
         facts_by_note = _resolve_facts_by_note(conn, user_id, [note_id])
         evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [note_id])
+        reviews_by_note = _resolve_reviews_by_note(conn, user_id, [note_id])
 
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -1351,6 +1518,7 @@ def build_single_note_export(
             "properties": properties_by_note.get(note_id, []),
             "financial_facts": facts_by_note.get(note_id, []),
             "thesis_evidence": evidence_by_note.get(note_id, []),
+            "thesis_reviews": reviews_by_note.get(note_id, []),
         }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
 

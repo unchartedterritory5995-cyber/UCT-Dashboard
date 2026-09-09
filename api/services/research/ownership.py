@@ -190,6 +190,12 @@ def _short(info):
     }
 
 
+# Market-wide "which 13F quarter is filed" hint. Not per symbol: the answer
+# is the same for everyone and moves only when a new 13F window opens.
+_TF_QUARTER_HINT_KEY = "research_ownership_13f_quarter"
+_TF_QUARTER_HINT_TTL = 6 * 3600
+
+
 def _recent_quarters(today=None):
     """Candidate (year, quarter) pairs newest-first, covering the current quarter
     plus the prior three. 13F filings lag ~45 days, so the newest one WITH data
@@ -216,10 +222,27 @@ def _thirteen_f(symbol):
     quarter = None
     summ = None
     meta = None
-    for year, q in _recent_quarters():
+    # ── cost fix (2026-09-07) ────────────────────────────────────────────────
+    # 13F filings lag ~45 days, so the newest one or two candidate quarters
+    # reliably return nothing and this loop burned 3-4 provider calls per
+    # SYMBOL discovering a fact that is identical for every symbol in the
+    # market. Which quarter is currently filed changes four times a year.
+    # Remember it and try that first; the full scan still runs behind it, so a
+    # stale or wrong hint costs nothing but the ordinary walk.
+    candidates = _recent_quarters()
+    hint = cache.get(_TF_QUARTER_HINT_KEY)
+    if hint:
+        try:
+            hy, hq = int(hint[0]), int(hint[1])
+            if (hy, hq) in candidates:
+                candidates = [(hy, hq)] + [c for c in candidates if c != (hy, hq)]
+        except Exception:
+            pass
+    for year, q in candidates:
         row, m = _fmp_row_meta(fmp_client.get_institutional_ownership_summary, symbol, year=year, quarter=q)
         if row:
             quarter, summ, meta = (year, q), row, m
+            cache.set(_TF_QUARTER_HINT_KEY, (year, q), _TF_QUARTER_HINT_TTL)
             break
     if not summ:
         return None

@@ -185,7 +185,11 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "payout_ratio_pct": _round_pct(info.get("payoutRatio")),
         # Ownership (free from the same .info call — feeds ratings sponsorship percentile)
         "held_pct_institutions": _round_pct(info.get("heldPercentInstitutions")),
+        "held_pct_insiders": _round_pct(info.get("heldPercentInsiders")),
         # Price action context
+        # Last price — lets the panel compute "% off the 52-week high" without a
+        # second quote round-trip (the stock-brief stats carry no price field).
+        "price": _round(info.get("currentPrice") or info.get("regularMarketPrice")),
         "fifty_two_week_high": _round(info.get("fiftyTwoWeekHigh")),
         "fifty_two_week_low": _round(info.get("fiftyTwoWeekLow")),
         "fifty_day_avg": _round(info.get("fiftyDayAverage")),

@@ -7,7 +7,7 @@
  * ECharts instances inside don't render (and don't cost layout) until opened.
  */
 
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import styles from './CollapsibleSection.module.css'
 
 const KEY_PREFIX = 'uct.j2.analytics.section.'
@@ -29,10 +29,24 @@ export default function CollapsibleSection({
   title,
   meta = null,
   defaultOpen = false,
+  /** ⭐ Wave O6: a navigation that lands INSIDE this section must open it.
+   *  Children are unmounted while collapsed, so a deep link to something in
+   *  here would otherwise resolve to nothing at all — silently, which reads
+   *  exactly like "search only opens the note".
+   *
+   *  ⛔ IT DOES NOT PERSIST. The stored value is the member's own preference
+   *  for this section; being sent here once is not them changing their mind
+   *  about whether it should be open by default. Any change of a truthy value
+   *  reopens, so a second result in the same section re-triggers. */
+  openSignal = null,
   children,
 }) {
   const [open, setOpen] = useState(() => readInitial(id, defaultOpen))
   const regionId = useId()
+
+  useEffect(() => {
+    if (openSignal) setOpen(true)
+  }, [openSignal])
 
   const toggle = useCallback(() => {
     setOpen((prev) => {

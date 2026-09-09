@@ -282,3 +282,70 @@ describe('viewBox tracks the measured container width', () => {
     expect(last.cx).toBeLessThan(604)
   })
 })
+
+describe('printed values never collide with the axis', () => {
+  // A full-scale DOWN bar is the worst case: its number sits below the bar and
+  // the quarter labels sit below that. Before VALUE_PAD the number landed at
+  // y=128 with the labels at y=127 — "−16%" printed on top of "Q1 '25".
+  const rows = [
+    { quarter: "Q4 '24", reaction_pct: 15 },
+    { quarter: "Q1 '25", reaction_pct: -16 },
+  ]
+
+  it('leaves the full-scale down value clear of the label row', () => {
+    const geo = reactionGeometry(rows, { width: 320, height: 132, valuePad: 14 })
+    const down = geo.bars.find(b => b.dir < 0)
+    const valueBaseline = down.dotY + 7          // matches the render
+    const FONT = 9.5
+    // descender of the value must sit above the ascender of the label
+    expect(valueBaseline + FONT * 0.25).toBeLessThan(geo.labelY - FONT * 0.75)
+  })
+
+  it('keeps the full-scale up value inside the viewBox', () => {
+    const geo = reactionGeometry(rows, { width: 320, height: 132, valuePad: 14 })
+    const up = geo.bars.find(b => b.dir > 0)
+    expect(up.dotY - 1 - 9.5).toBeGreaterThan(0)
+  })
+
+  it('reserves nothing when values are not shown', () => {
+    const withPad = reactionGeometry(rows, { width: 320, height: 132, valuePad: 14 })
+    const without = reactionGeometry(rows, { width: 320, height: 132 })
+    const tallest = (g) => Math.max(...g.bars.map(b => b.h))
+    expect(tallest(without)).toBeGreaterThan(tallest(withPad))
+  })
+
+  it('keeps the baseline centred in the remaining plot area', () => {
+    const geo = reactionGeometry(rows, { width: 320, height: 132, valuePad: 14 })
+    const maxUp = Math.max(...geo.bars.filter(b => b.dir > 0).map(b => b.h))
+    const maxDown = Math.max(...geo.bars.filter(b => b.dir < 0).map(b => b.h))
+    // same scale both sides -> a 15 and a 16 should be within a pixel of equal
+    expect(Math.abs(maxUp / 15 - maxDown / 16)).toBeLessThan(0.05)
+  })
+})
+
+describe('showValues renders the move and nothing else', () => {
+  const rows = [
+    { quarter: "Q4 '24", reaction_pct: 15, surprise_pct: 8 },   // beat, rose
+    { quarter: "Q1 '25", reaction_pct: -16, surprise_pct: 12 }, // beat, FELL -> would star
+  ]
+
+  it('prints each move', () => {
+    render(<ReactionBars quarters={rows} label="" showValues />)
+    expect(screen.getAllByTestId('rk-reaction-value')).toHaveLength(2)
+    expect(screen.getByText('+15%')).toBeInTheDocument()
+    expect(screen.getByText('−16%')).toBeInTheDocument()
+  })
+
+  it('shows no beat/miss dots and no divergence stars', () => {
+    render(<ReactionBars quarters={rows} label="" showValues />)
+    expect(screen.queryAllByTestId('rk-reaction-dot')).toHaveLength(0)
+    expect(screen.queryAllByTestId('rk-reaction-star')).toHaveLength(0)
+  })
+
+  it('the wider modal still gets both channels', () => {
+    render(<ReactionBars quarters={rows} label="" />)
+    expect(screen.queryAllByTestId('rk-reaction-value')).toHaveLength(0)
+    expect(screen.getAllByTestId('rk-reaction-dot').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('rk-reaction-star').length).toBeGreaterThan(0)
+  })
+})

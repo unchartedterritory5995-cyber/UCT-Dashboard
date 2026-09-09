@@ -23,6 +23,7 @@ import uuid
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.web_capture import capture_columns
 
 _MAX_QUOTE_CONTEXT_CHARS = 200
 
@@ -48,6 +49,18 @@ def _row_to_excerpt(row: sqlite3.Row) -> dict[str, Any]:
         # citation line only needs it on the list read).
         "documentName": row["document_name"] if "document_name" in keys else None,
         "attachmentUrl": row["attachment_url"] if "attachment_url" in keys else None,
+        # ⛔⛔ WAVE N §1/§9. `attachment_url` on a captured web source is
+        # `web:<sha256>` — an IDENTITY string, not a file — and the thesis
+        # evidence click path treated its mere presence as "there is a document
+        # to open", so revisiting a captured Reuters paragraph opened a
+        # FULLSCREEN PDF VIEWER over a non-URL, with working-looking "Open in
+        # new tab" and "Download" controls. Wave M already decided the truthful
+        # depth for a web hit (`searchNavigation.navigationDepth` → 'note',
+        # "there is no viewer to scroll"); this read simply never carried the
+        # column that decision needs. API SERIALIZATION IS A CONSUMER.
+        "sourceKind": row["source_kind"] if "source_kind" in keys else None,
+        "sourceUrl": row["source_url"] if "source_url" in keys else None,
+        "captureType": row["capture_type"] if "capture_type" in keys else None,
         "pageNumber": row["page_number"],
         "capturedText": row["captured_text"],
         "quotePrefix": row["quote_prefix"],
@@ -131,6 +144,7 @@ def get_excerpt(user_id: str, excerpt_id: str, conn: sqlite3.Connection | None =
     try:
         row = conn.execute(
             "SELECT e.*, d.name AS document_name, d.attachment_url AS attachment_url"
+            f"{capture_columns(conn)}"
             " FROM j2_note_excerpts e JOIN j2_note_documents d ON d.id = e.document_id"
             " WHERE e.id = ? AND e.user_id = ?",
             (excerpt_id, user_id),
@@ -152,7 +166,9 @@ def list_note_excerpts(user_id: str, note_id: str, conn: sqlite3.Connection | No
     conn = conn or get_connection()
     try:
         rows = conn.execute(
-            "SELECT e.*, d.name AS document_name FROM j2_note_excerpt_refs r"
+            "SELECT e.*, d.name AS document_name"
+            f"{capture_columns(conn)}"
+            " FROM j2_note_excerpt_refs r"
             " JOIN j2_note_excerpts e ON e.id = r.excerpt_id AND e.user_id = r.user_id"
             " JOIN j2_note_documents d ON d.id = e.document_id"
             " WHERE r.note_id = ? AND r.user_id = ?"

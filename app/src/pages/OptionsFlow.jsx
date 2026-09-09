@@ -13,10 +13,44 @@ const DEFER_TAPE = import.meta.env.VITE_FLOW_DEFER_TAPE === "1";
 // because TOP 10 needs all_trades (1,312.2) + all_directional (601.2) and only
 // server-side TOP 10 (3b) removes those. Independent of DEFER_TAPE.
 const USE_PARTS = import.meta.env.VITE_FLOW_PARTS === "1";
+// 3b: let the SERVER compute TOP 10 FLOW PICKS and stop shipping the raw rows.
+// `all_directional` (601 KB gz) + `all_trades` (1,312 KB gz) sat on first paint
+// for ONE reader — a ten-row table. The derived product measures 195 KB gz on
+// prod. ⛔ OFF => byte-identical fetch behaviour; that is the rollback path.
+// ⛔ Requires USE_PARTS: the product travels over the parts transport.
+// 🟢 LIVE on Railway web since 2026-09-08. ⛔ BUILD-time, like the two flags
+// above: `railway redeploy` reuses the image and would silently change nothing —
+// rollback means unsetting the var AND rebuilding.
+const SERVER_TOPPICKS = import.meta.env.VITE_FLOW_SERVER_TOPPICKS === "1";
+// Search deep-dive: fetch the DERIVED per-ticker product instead of the raw
+// uncapped tape. `/api/flow/ticker/AMD` ships 3,651 KB gz / 20,252 KB decoded
+// and the browser then runs the FULL processFlowData over it in the worker — to
+// render ~17 rows. Same defect class as TOP 10 before 3b.
+//
+// Measured on prod 2026-09-08, live tape: the product is 136 KB gz for AMD (27x
+// smaller) and a warm hit answers in 178-337 ms flat, whatever the ticker's
+// size. But a COLD miss is 10,787 ms — worse than the legacy path's 4,232 ms —
+// so the client races a 2.5 s deadline and falls back rather than ever waiting
+// on a build. The abandoned build still installs its cache entry, so the first
+// search for a ticker warms it for every later one.
+//
+// ⛔ OFF => byte-identical fetch behaviour; that is the rollback path.
+// ⛔ BUILD-time, like the flags above: rollback means unsetting the var AND
+// rebuilding — `railway redeploy` reuses the image and would change nothing.
+const SERVER_SEARCH = import.meta.env.VITE_FLOW_SERVER_SEARCH === "1";
+// Shared + frozen: a per-call `[]` would let one consumer mutate a fallback
+// and make "not loaded yet" look like a real, empty answer somewhere else.
+const EMPTY_ROWS = Object.freeze([]);
+// Distinct from every possible data version, including null/undefined.
+const ASKED_NONE = Symbol("no-interaction-fetch-yet");
 
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey, shouldFetchTape, PREHYDRATE_FALLBACK_MS } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
-import { fetchPartsBundle } from "./optionsFlow/flowParts";
+import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS, INTERACTION_PARTS } from "./optionsFlow/flowParts";
+import { topPicksUsable, topPickVariant, reviveTopPickVariant } from "./optionsFlow/flowTopPicksProduct";
+import { fetchSearchProduct } from "./optionsFlow/flowSearchFetch";
+import { traceDataset, markFirstContent } from "./optionsFlow/flowKeyTrace";
+import { applyErOverlay } from "./optionsFlow/flowSearchProduct";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
   P,
@@ -32,6 +66,7 @@ import {
   KNOWN_ETF_TICKERS,
   STOCK_OVERRIDE_TICKERS,
   isETFSymbol,
+  makeIsETF,
   filterByCap,
   buildTopPickCandidates,
   chartsBuildStats,
@@ -609,6 +644,7 @@ export default function OptionsFlowDashboard() {
   // that depend on `isETF` recompute and the full ~18k list takes effect.
   // If the fetch fails, we silently keep the hardcoded fallback.
   const [remoteETFSet, setRemoteETFSet] = useState(null);
+  const [etfGeneration, setEtfGeneration] = useState(null);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/ticker-types/etf-index-symbols")
@@ -618,29 +654,33 @@ export default function OptionsFlowDashboard() {
         const s = new Set();
         for (const sym of data.symbols) s.add(String(sym||"").toUpperCase());
         setRemoteETFSet(s);
+        // 3b: the CANONICAL generation, derived by the server from the very
+        // rows it just returned (api/main.py: etf_index_snapshot). It is the
+        // client half of the TOP 10 generation gate — without it a served
+        // product can never be accepted, which is the safe direction.
+        if (typeof data.generation === "string" && data.generation) setEtfGeneration(data.generation);
+        else setEtfGeneration("");
       })
-      .catch(() => {});
+      // ⛔ RESOLVE to the empty string, do not leave it null. `null` means
+      // "still deciding" to the 3b fallback below, so a permanently failed ETF
+      // fetch would hang TOP 10 forever — whereas today a failed fetch just
+      // falls back to the hardcoded set and the page renders. "" is a RESOLVED
+      // unknown: topPicksUsable rejects it, so the raw-row fallback fires.
+      .catch(() => { if (!cancelled) setEtfGeneration(""); });
     return () => { cancelled = true; };
   }, []);
   // Effective ETF check — hardcoded fallback set UNION remote-fetched set.
   // Component-scope so it closes over remoteETFSet and forces memos that
   // depend on it to recompute when the fetch resolves.
-  const isETF = useCallback((sym, stocketf) => {
-    const upper = (sym||"").toUpperCase();
-    // Whitelist wins over ALL other classifications, including Massive's
-    // ticker_types remote data and the trade's own stocketf column. Some
-    // stocks get misclassified as ETF/INDEX by external data providers
-    // (SPCX is a known example — SpaceX-tracking company that trades like
-    // a regular equity but was tagged ETF upstream). Without this override,
-    // legitimate stock flow gets filtered off the Stocks tab and never
-    // reaches scoring or watchlist.
-    if (STOCK_OVERRIDE_TICKERS.has(upper)) return false;
-    const st = (stocketf||"").toUpperCase();
-    if (st === "ETF" || st === "INDEX") return true;
-    if (KNOWN_ETF_TICKERS.has(upper)) return true;
-    if (remoteETFSet && remoteETFSet.has(upper)) return true;
-    return false;
-  }, [remoteETFSet]);
+  // ⛔ THE PREDICATE ITSELF LIVES IN flowCompute (makeIsETF) — it was inline
+  // here until 3b. The server must classify with the SAME rule, because
+  // classification decides which universe a ticker belongs to and therefore
+  // which TOP 10 a member sees; two copies of those five lines would be a
+  // second authority over the product's own membership, and the divergence
+  // would be silent because both sides would still produce a ten-row table.
+  // Still memoised on remoteETFSet so the memos that depend on it recompute
+  // when the fetch resolves.
+  const isETF = useMemo(() => makeIsETF(remoteETFSet), [remoteETFSet]);
   const [top5Filter, setTop5Filter] = useState("Both"); // Both|Calls|Puts
   const [top5Detail, setTop5Detail] = useState(null); // expanded pick sym
 
@@ -762,7 +802,7 @@ export default function OptionsFlowDashboard() {
   const removeLeader = (sym) => saveLeaders(leaders.filter(s=>s!==sym));
   const autoPopulateLeaders = () => {
     if (!FD || !FD.TICKER_DB) return;
-    const scored = FD.TICKER_DB.filter(tk => {
+    const scored = tickerDb.filter(tk => {
       if (tk.b + tk.r <= 0 || tk.s.length > 5) return false;
       if (capFilter !== "All" && capBand(tk.mktcap) !== capFilter) return false;
       return true;
@@ -1171,7 +1211,20 @@ export default function OptionsFlowDashboard() {
       setSearchStatus("error");
       if (searchRetry < 8) retryTimer = setTimeout(() => { if (!cancelled) setSearchRetry(n => n + 1); }, 4000);
     };
-    fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
+    // ⛔ ONE CONTRACT, TWO TRANSPORTS. Both land the SAME shape through `_land`,
+    // so the sticky/last-good behaviour, the deploy-blip guard and the render are
+    // identical either way. The flag changes how the deep dive is FETCHED, never
+    // what the page does with it, and rolling it back cannot strand a code path.
+    const _land = (_data) => {
+      if (cancelled) return;
+      if (_data) _lastUncappedRef.current[sym] = _data;   // cache last-good uncapped
+      // Sticky (2026-07-25): keep the last good uncapped data if a re-fetch
+      // yields nothing, so the Search view never collapses back to the capped
+      // bulk feed. This is what caused the "6 rows flash then drop to 2" flicker.
+      setSearchFull(prev => (_data || !(prev && prev.sym === sym && prev.data)) ? { sym, data: _data } : prev);
+      setSearchStatus("ok");
+    };
+    const _legacyTape = () => fetch(`/api/flow/ticker/${encodeURIComponent(sym)}?source=${src}`, { cache: "no-store" })
       .then(r => (r.ok ? r.text() : null))
       .then(async text => {
         if (cancelled) return;
@@ -1188,7 +1241,14 @@ export default function OptionsFlowDashboard() {
         // applies the SELECTED day range; this effect just supplies full history.
         // Parsed + aggregated in the WORKER: a busy symbol's uncapped feed is
         // ~64k rows, which froze the UI for about a second on every Search click.
-        const _res = await computeCsv(text, erSoonArr);
+        // ⛔ COMPUTED WITH NO EARNINGS SET, DELIBERATELY. `er` is re-applied as a
+        // render-time overlay (see `searchUncapped`), which is what lets this
+        // effect stop depending on erSoonArr. Proven deep-equal on the real tape
+        // by searchErIndependence.test.js: processFlowData(rows, null) + the
+        // client's own set === processFlowData(rows, set), on the projection
+        // Search reads. Both transports now agree on this, so the served product
+        // and the legacy fallback are the same shape.
+        const _res = await computeCsv(text, null);
         if (cancelled) return;
         const _data = _res.D;
         if (_data) _lastUncappedRef.current[sym] = _data;   // cache last-good uncapped
@@ -1197,12 +1257,120 @@ export default function OptionsFlowDashboard() {
         // bulk feed. This is what caused the "6 rows flash then drop to 2" flicker
         // — the erSoonSet-triggered re-fetch (calendar loads ~1s after search)
         // occasionally returned empty and nulled searchFull.data → fell back to bulk.
-        setSearchFull(prev => (_data || !(prev && prev.sym === sym && prev.data)) ? { sym, data: _data } : prev);
-        setSearchStatus("ok");
+        _land(_data);
       })
       .catch(_fail);
+
+    // ⛔ A COLD MISS MUST NEVER REACH THE MEMBER. fetchSearchProduct races a
+    // 2.5 s deadline (a warm hit is 178-337 ms; a cold AMD build is 10,787 ms,
+    // worse than this fallback's own 4,232 ms). A decline for ANY reason —
+    // busy, timeout, stale schema, an identity that does not match — lands here
+    // on the legacy path, which stays semantically identical. The abandoned
+    // build still installs its cache entry, so this member's slow search is
+    // what makes the next one fast.
+    (async () => {
+      if (SERVER_SEARCH) {
+        const got = await fetchSearchProduct(sym, src);
+        if (cancelled) return;
+        if (got.ok) { _land(got.product); return; }
+        console.log(`[perf] search product declined (${got.reason}) — falling back to the tape`);
+      }
+      if (!cancelled) _legacyTape();
+    })();
+
     return () => { cancelled = true; if (retryTimer) clearTimeout(retryTimer); };
-  }, [selectedTicker, dataMode, erSoonArr, searchRetry]);
+    // ⛔ erSoonArr is DELIBERATELY NOT A DEPENDENCY. It arrives from /api/calendar
+    // about a second after a search, and while it was listed here its landing
+    // re-ran this whole effect — re-fetching and re-deriving ~20 MB to change one
+    // boolean field. `er` is now a render-time overlay; see `searchUncapped`.
+  }, [selectedTicker, dataMode, searchRetry]);
+
+  // The Search deep-dive dataset, with the member's earnings set applied.
+  //
+  // ⛔ THE OVERLAY LIVES HERE SO THE FETCH DOES NOT DEPEND ON IT. Both transports
+  // derive with `erSoon = null` — that is what makes the served product
+  // user-independent and therefore cacheable at all — and `er` is re-applied at
+  // render as a copy-on-overlay. `applyErOverlay` rebuilds every object it
+  // touches: the base product is shared (it is a cached response another read may
+  // already hold), and mutating it would leak one member's earnings flags into
+  // another member's view.
+  //
+  // ⛔ Memoised on the SET, not on the array. A new array identity each render
+  // would rebuild TICKER_DB and all_directional on every keystroke.
+  const searchUncapped = useMemo(() => {
+    const sym = selectedTicker && selectedTicker.s;
+    if (!sym) return null;
+    const base = (searchFull && searchFull.sym === sym && searchFull.data)
+      ? searchFull.data
+      : (_lastUncappedRef.current[sym] || null);   // last-good, never collapse to bulk
+    return applyErOverlay(base, erSoonSet);
+  }, [selectedTicker, searchFull, erSoonSet]);
+
+  // Mark the moment the page has a real dataset, so the key trace can split
+  // reads into "needed for first paint" and "needed after it". The PAGE says
+  // when, not a timer — a fixed cutoff would classify keys by network luck.
+  useEffect(() => { if (D) markFirstContent(); }, [D]);
+
+  // ── Pull the interaction-only keys the moment first paint is done ─────────
+  //
+  // TICKER_DB + CONV are ~77% of what the bootstrap used to carry and NOTHING on
+  // the render path reads either (every consumer is a button handler, a
+  // selection-gated branch, or a non-default tab). They are fetched here so the
+  // page paints without them and they are almost always present by the time a
+  // member can click.
+  //
+  // ⛔ `useEffect` IS THE EARLIEST POINT THAT DOES NOT BLOCK PAINT — no timer,
+  // no idle callback, no arbitrary delay. React runs it after the commit that
+  // rendered the data.
+  //
+  // ⛔ KEYED ON THE VERSION, NOT A ONE-SHOT BOOLEAN. A one-shot ref would never
+  // refetch after a version roll replaced `D` with a fresh bootstrap, and the
+  // page would sit permanently without its interaction data. Asking again for
+  // the SAME version is what must not happen, and this is what prevents it.
+  // ⛔ A SENTINEL, NOT `null`. `dataVersionRef.current` is null until
+  // /api/flow/version answers, so a ref initialised to null compares EQUAL to it
+  // on the first run and the "already asked for this version" guard returns
+  // before ever fetching — permanently, because nothing else resets it. Verified
+  // on production: first paint dropped to bootstrap + TOP_PICKS exactly as
+  // designed and the deferred request NEVER fired. A value no version can equal
+  // is the only initialiser that cannot collide.
+  const _interactionAskedFor = useRef(ASKED_NONE);
+  const _interactionTries = useRef(0);
+  const [interactionFetchFailed, setInteractionFetchFailed] = useState(false);
+  useEffect(() => {
+    if (!USE_PARTS || !D) return;
+    if (D.TICKER_DB !== undefined && D.CONV !== undefined) return;  // already here
+    const ver = dataVersionRef.current;
+    if (_interactionAskedFor.current === ver) return;
+    if (_interactionTries.current >= 3) return;      // bounded, never a retry loop
+    _interactionAskedFor.current = ver;
+    _interactionTries.current += 1;
+    let cancelled = false;
+    const t0 = performance.now();
+    fetchPartsBundle(csvFile, dateFilter, ver,
+                     { deadlineMs: 20000, parts: INTERACTION_PARTS })
+      .then(res => {
+        if (cancelled) return;
+        if (!res || !res.D) {
+          // ⛔ A FAILURE MUST BE RETRYABLE. Clearing the version lets the next
+          // render try again (bounded above); leaving it set would strand the
+          // page without interaction data for the life of the mount.
+          _interactionAskedFor.current = null;
+          setInteractionFetchFailed(true);
+          return;
+        }
+        console.log(`[perf] interaction parts ready in ${Math.round(performance.now() - t0)}ms`);
+        setInteractionFetchFailed(false);
+        // Merge, never replace — `D` already holds bootstrap and possibly more.
+        setD(prev => (prev ? traceDataset({ ...(prev.__raw || prev), ...res.D }) : prev));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        _interactionAskedFor.current = null;
+        setInteractionFetchFailed(true);
+      });
+    return () => { cancelled = true; };
+  }, [D, csvFile, dateFilter]);
 
   // Auto-set dateFilter when data loads
   useEffect(() => {
@@ -1266,7 +1434,7 @@ export default function OptionsFlowDashboard() {
       _processedOnce.current = true;
       _processedViewKey.current = snapshotKey(csvFile) + "|"
         + processedKey(dateFilter, dateFrom, dateTo);
-      setD(res.D);
+      setD(traceDataset(res.D));
     };
 
     // Coalesce the INITIAL load into ONE pass. The live delta-merge splices
@@ -1455,7 +1623,8 @@ export default function OptionsFlowDashboard() {
       // what the page does with it, and rolling it back cannot strand a code path.
       (USE_PARTS
         ? fetchPartsBundle(csvFile, dateFilter, dataVersionRef.current,
-                           { deadlineMs: PREHYDRATE_FALLBACK_MS })
+                           { deadlineMs: PREHYDRATE_FALLBACK_MS,
+                             parts: SERVER_TOPPICKS ? SERVER_TOPPICKS_PARTS : undefined })
         : fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current)
       ).then(pre => {
         if (cancelled) return;
@@ -1469,7 +1638,7 @@ export default function OptionsFlowDashboard() {
         console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
           + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
         _prehydrated.current = true;   // the budget firstPassWaitMs spends
-        setD(pre.D);
+        setD(traceDataset(pre.D));
         // ── the date-range picker's calendar ────────────────────────────────
         // `availableDates` is normally derived by PARSING THE TAPE. Defer that
         // download and it stays empty — and the picker gates itself off on
@@ -1681,10 +1850,66 @@ export default function OptionsFlowDashboard() {
   // Cap-filtered view: recompute charts using only the selected cap band's
   // clean_confirmed. Also honors the current tab (Stocks vs Indexes) so that
   // SECTORS/THEMES/SBLC-etc bins on Market Read exclude the wrong universe.
+  // ── 3b: the server's TOP 10, or nothing ──────────────────────────────────
+  // ⛔ THE GATE IS PERMANENT, NOT A MIGRATION SWITCH. The server classified
+  // with ITS replica; this browser has its own fetched set. Classification
+  // decides which universe a ticker is in, so two classifications can produce
+  // two different TOP 10 lists from one tape — silently, in a table members
+  // trade on. `topPicksUsable` demands an exact non-empty string match and
+  // treats two unknowns as disagreement.
+  const servedTopPicks = useMemo(() => {
+    if (!SERVER_TOPPICKS) return null;
+    const product = D && D.TOP_PICKS;
+    if (!topPicksUsable(product, etfGeneration)) return null;
+    const v = topPickVariant(product, dataMode, capFilter);
+    // Revived, not used raw: `daysSince`/`freshLabel` are the only clock-derived
+    // fields on a candidate and the server stamped them at BUILD time.
+    return v ? reviveTopPickVariant(v) : null;
+  }, [D, etfGeneration, dataMode, capFilter]);
+
+  // ── 3b: the PERMANENT fallback ───────────────────────────────────────────
+  // The server product was declined, absent or malformed, so this page needs
+  // the raw rows after all. Fetched HERE rather than on first paint, and only
+  // the two arrays TOP 10 reads.
+  //
+  // ⛔ FEATURE-SCOPED, NOT "load the tape once the page settles". A blanket
+  // deferred fetch would simply move 1.9 MB from first paint to second, and a
+  // member who never triggers this path would still pay for it.
+  //
+  // ⛔ `etfGeneration === null` means STILL DECIDING and must not trigger the
+  // fetch — the ETF request is ~200 ms and racing it would fetch 1.9 MB the
+  // gate was about to make unnecessary. The ETF effect resolves it to "" on
+  // failure, so this can never wait forever.
+  const _rawPartsAsked = useRef(false);
+  useEffect(() => {
+    if (!SERVER_TOPPICKS) return;
+    if (!D || D.all_directional) return;      // nothing missing
+    if (servedTopPicks) return;               // the product answered
+    if (D.TOP_PICKS && etfGeneration === null) return;  // generation still in flight
+    if (_rawPartsAsked.current) return;
+    _rawPartsAsked.current = true;
+    let cancelled = false;
+    fetchPartsBundle(csvFile, dateFilter, dataVersionRef.current,
+                     { deadlineMs: 20000, parts: TOP_PICK_RAW_PARTS })
+      .then(res => {
+        if (cancelled || !res || !res.D) return;
+        // Merge, never replace: `D` already holds bootstrap and possibly more.
+        // `.__raw` unwraps the trace Proxy first: spreading it would read every
+        // key and the trace would claim first paint needs the whole dataset.
+        setD(prev => (prev ? traceDataset({ ...(prev.__raw || prev), ...res.D }) : prev));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [D, servedTopPicks, etfGeneration, csvFile, dateFilter]);
+
   const FD = useMemo(() => {
+    // ⛔ FD IS TRACED SEPARATELY. The last branch returns a PLAIN copy of D, and
+    // once that happens every downstream `FD.x` read is invisible to the trace
+    // on D — which is why an earlier run reported TICKER_DB "read" with ZERO
+    // rows touched. That was an instrument artifact, not a finding.
     if (!D) return null;
     const needsTabFilter = dataMode === "stocks" || dataMode === "index";
-    if (capFilter === "All" && !needsTabFilter) return D;
+    if (capFilter === "All" && !needsTabFilter) return traceDataset(D, 'FD');
 
     let cc = D.clean_confirmed;
     if (needsTabFilter) {
@@ -1716,11 +1941,35 @@ export default function OptionsFlowDashboard() {
     // reclassifies a symbol the length changes and we rebuild — which is the
     // whole reason the filter runs client-side. Removing the filter fails 8
     // tests; skipping a provably-redundant rebuild fails none.
-    if (cc.length === D.clean_confirmed.length) return D;
+    if (cc.length === D.clean_confirmed.length) return traceDataset(D, 'FD');
 
     const charts = buildCharts(cc);
-    return { ...D, ...charts };
+    // ⛔ `.__raw` FIRST, OR THE TRACE LIES. Spreading the traced dataset reads
+    // EVERY key, which marked the whole bootstrap as "read at first paint" while
+    // nothing had consumed a single row. `__raw` is undefined when tracing is
+    // off, so production behaviour is byte-identical.
+    return traceDataset({ ...(D.__raw || D), ...charts }, 'FD');
   }, [D, capFilter, dataMode, isETF]);
+
+  // ── TICKER_DB / CONV are INTERACTION-ONLY and arrive just after first paint ──
+  //
+  // ⛔ ONE GUARDED ACCESSOR, NOT A GUARD PER CALL SITE. Sixteen places called
+  // `tickerDb.find(...)` / `tickerDb.find(...)`, and only two checked the
+  // array was there. Adding fifteen guards by hand is fifteen chances to miss
+  // one; a single accessor cannot be forgotten at a new call site.
+  //
+  // ⛔ `FD.TICKER_DB` AND `D.TICKER_DB` ARE THE SAME ARRAY BY CONSTRUCTION. The
+  // FD memo only ever replaces `clean_confirmed` and the chart bundles
+  // (`{...D, ...charts}`), so collapsing both onto one accessor is exact, not an
+  // approximation.
+  //
+  // ⛔ EMPTY MEANS "NOT LOADED", NEVER "NO ROWS" — and it is a FROZEN shared
+  // constant so nothing can mutate a fallback into looking like real data.
+  // Consumers that already say `if (!tk) return null` therefore render their
+  // existing empty state instead of crashing, and re-render correctly the
+  // moment the real rows land.
+  const tickerDb = (FD && FD.TICKER_DB) || (D && D.TICKER_DB) || EMPTY_ROWS;
+  const tickerDbReady = !!((FD && FD.TICKER_DB) || (D && D.TICKER_DB));
 
   useEffect(() => {
     if (D) setPerf(D.PERF_INIT.map(p => ({ ...p, now:0 })));
@@ -3105,7 +3354,7 @@ export default function OptionsFlowDashboard() {
             return (b.time||"").localeCompare(a.time||"");
           }) : [];
           if (strikeTrades.length===0) return null;
-          const tk = D ? FD.TICKER_DB.find(t=>t.s===sym) : null;
+          const tk = tickerDb.find(t=>t.s===sym);   // guarded accessor: no `D ?` needed
           const clusterInfo = tk ? tk.c.find(c => c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp) : null;
           return (
             <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
@@ -3150,7 +3399,7 @@ export default function OptionsFlowDashboard() {
         })()}
         {/* ── Ticker Top Flow ────────────────────────────────── */}
         {(()=>{
-          const tk = D ? FD.TICKER_DB.find(t=>t.s===sym) : null;
+          const tk = tickerDb.find(t=>t.s===sym);   // guarded accessor: no `D ?` needed
           if (!tk) return null;
           // Other clusters for this ticker (exclude current contract)
           const otherClusters = (tk.c||[]).filter(c => !(c.CP===cp && Math.abs(c.K-K)<0.01 && c.E===exp));
@@ -5361,7 +5610,7 @@ export default function OptionsFlowDashboard() {
                         </div>
                         {/* Ticker mode dropdown */}
                         {FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && (()=>{
-                          const tk = D.TICKER_DB.find(t=>t.s===s.name);
+                          const tk = tickerDb.find(t=>t.s===s.name);
                           if (!tk) return null;
                           const topTrades = (tk.t||[]).slice(0,6);
                           const clusters = (tk.c||[]).slice(0,4);
@@ -5459,7 +5708,7 @@ export default function OptionsFlowDashboard() {
                             ) : (
                               // Inline ticker drilldown — clusters + top trades for the clicked ticker
                               (()=>{
-                                const tk = D.TICKER_DB.find(t=>t.s===selectedItem._drilldownTicker);
+                                const tk = tickerDb.find(t=>t.s===selectedItem._drilldownTicker);
                                 if (!tk) return (
                                   <div style={{ padding:"6px 4px" }}>
                                     <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
@@ -5616,7 +5865,7 @@ export default function OptionsFlowDashboard() {
                             ) : (
                               // Inline ticker drilldown
                               (()=>{
-                                const tk = D.TICKER_DB.find(t=>t.s===selectedItem._drilldownTicker);
+                                const tk = tickerDb.find(t=>t.s===selectedItem._drilldownTicker);
                                 if (!tk) return (
                                   <div style={{ padding:"6px 4px" }}>
                                     <button onClick={e=>{e.stopPropagation();setSelectedItem({_secKey:hk});}}
@@ -5709,17 +5958,28 @@ export default function OptionsFlowDashboard() {
             {selectedItem && renderDetailPanel(selectedItem.sym, selectedItem.cp, selectedItem.K, selectedItem.exp, ()=>setSelectedItem(null))}
 
             {/* TOP 10 FLOW PICKS */}
-            {D && D.all_directional && (()=>{
+            {D && (D.all_directional || servedTopPicks) && (()=>{
               // TOP 10 FLOW PICKS candidates now come from flowCompute — the same
               // computation, lifted VERBATIM (see buildTopPickCandidates) so it can
               // eventually run once on the server instead of once per member. This
               // block is the only first-paint reader of D.all_directional and
               // D.all_trades, which together are ~16.4 MB of the aggregate payload.
-              const { candidates, standoutCandidates, ad } = buildTopPickCandidates(
-                D.all_directional, D.all_trades,
-                { dataMode, capFilter, isEtfFn: isETF, includeStandout: top5Filter === "Standout" },
-              );
-              if (!ad.length) return null;
+              // 3b: prefer the server's product; compute locally when it is
+              // declined AND the raw rows are present. `ad` was only ever read
+              // for `ad.length`, so the served form carries `adCount` instead
+              // of re-shipping a filtered copy of all_directional.
+              const _local = servedTopPicks ? null
+                : (D.all_directional
+                    ? buildTopPickCandidates(
+                        D.all_directional, D.all_trades,
+                        { dataMode, capFilter, isEtfFn: isETF, includeStandout: top5Filter === "Standout" })
+                    : null);
+              const _picksSrc = servedTopPicks || _local;
+              if (!_picksSrc) return null;
+              const candidates = _picksSrc.candidates;
+              const standoutCandidates = _picksSrc.standoutCandidates;
+              const _adCount = servedTopPicks ? servedTopPicks.adCount : _local.ad.length;
+              if (!_adCount) return null;
               // Apply call/put filter: Calls = BULL picks, Puts = BEAR picks
               const filtered = top5Filter==="Standout" ? standoutCandidates
                 : top5Filter==="Both" ? candidates
@@ -6368,7 +6628,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:10, textAlign:"center", cursor:"pointer" }}
                           title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
-                          onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
+                          onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(tickerDb.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
                           <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
                           {cSide==="bid" && <span style={{ fontSize:10, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
                           <span style={{ color:P.wh, fontWeight:700, marginLeft:4 }}>${c.K}</span>
@@ -6989,7 +7249,7 @@ export default function OptionsFlowDashboard() {
           const leaderData = leaders.map(sym => {
             const agg = ccByTicker[sym];
             if (!agg || (agg.bull + agg.bear) <= 0) {
-              const tk = FD.TICKER_DB.find(t=>t.s===sym);
+              const tk = tickerDb.find(t=>t.s===sym);
               const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
               return { sym, found:!!tk, bull:0, bear:0, net:0, trades:0, cap:tk?capBand(tk.mktcap):"", er:agg?.er||tk?.er||false,
                 topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
@@ -7002,7 +7262,7 @@ export default function OptionsFlowDashboard() {
             const r5Total = agg.r5Bull + agg.r5Bear;
             const r5BullPct = r5Total > 0 ? agg.r5Bull / r5Total : 0.5;
             const trend = Math.round((r5BullPct - overallBullPct) * 100);
-            const tk = FD.TICKER_DB.find(t=>t.s===sym);
+            const tk = tickerDb.find(t=>t.s===sym);
             const topC = tk ? ((tk.c||[]).length>0 ? tk.c[0] : (tk.t||[]).length>0 ? tk.t[0] : null) : null;
             return { sym, found:true, bull, bear, net, wNet, trades:agg.n, cap:tk?capBand(tk.mktcap):"", er:agg.er, trend,
               topContract:topC ? { cp:topC.CP||topC.cp, K:topC.K||topC.strike, exp:topC.E||topC.exp,
@@ -7098,7 +7358,7 @@ export default function OptionsFlowDashboard() {
                     const cap = d.cap && d.cap !== "Unknown" ? d.cap : "";
                     return (
                       <tr key={d.sym} style={{ borderBottom:"1px solid "+P.bd+"15", cursor:"pointer" }}
-                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
+                        onClick={()=>{ setSearch(d.sym); setSelectedTicker(tickerDb.find(t=>t.s===d.sym)||null); setTab("Search"); }}>
                         <td style={{ padding:"8px 14px", fontWeight:900, color:P.wh, fontSize:13 }}>
                           {d.sym}
                           
@@ -7158,7 +7418,7 @@ export default function OptionsFlowDashboard() {
             <Card>
               <div style={{ position:"relative" }}>
               <input type="text" value={search}
-                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(D.TICKER_DB.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); setOiConfirmError(null); }}
+                onChange={e=>{ const v=e.target.value.toUpperCase(); setSearch(v); setSelectedTicker(tickerDb.find(t=>t.s===v)||null); setSearchDte("All"); setSearchGroup(null); setOiConfirmMap({}); setOiConfirmMeta(null); setOiConfirmedOnly(false); setOiConfirmError(null); }}
                 placeholder="Search ticker, theme, or sector..."
                 style={{ width:"100%", padding:"10px 40px 10px 16px", borderRadius:8, fontSize:13, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }}
               />
@@ -7197,7 +7457,7 @@ export default function OptionsFlowDashboard() {
                 const qUpper = search.toUpperCase();
                 const tickerMatches = D.ALL_SYMS.filter(s=>s.startsWith(qUpper)).slice(0,8);
                 const themeMatches = Object.keys(THEMES_DEF).filter(t=>t.toLowerCase().includes(q)).slice(0,4);
-                const allSectors = [...new Set(D.TICKER_DB.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
+                const allSectors = [...new Set(tickerDb.map(t=>t.sector).filter(s=>s&&s!=="None"&&s!=="Unknown"))];
                 const sectorMatches = allSectors.filter(s=>s.toLowerCase().includes(q)).slice(0,4);
                 const hasResults = tickerMatches.length > 0 || themeMatches.length > 0 || sectorMatches.length > 0;
                 if (!hasResults) return null;
@@ -7207,8 +7467,8 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Tickers</div>
                       <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
                         {tickerMatches.map(s=>(
-                          <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===s)||null); setSearchGroup(null); }}
-                            style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:D.TICKER_DB.find(t=>t.s===s)?P.wh:P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                          <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(tickerDb.find(t=>t.s===s)||null); setSearchGroup(null); }}
+                            style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:tickerDb.find(t=>t.s===s)?P.wh:P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                             {s}
                           </button>
                         ))}
@@ -7229,7 +7489,7 @@ export default function OptionsFlowDashboard() {
                       <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Sectors</div>
                       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
                         {sectorMatches.map(s=>{
-                          const sectorTickers = D.TICKER_DB.filter(t=>t.sector===s).map(t=>t.s);
+                          const sectorTickers = tickerDb.filter(t=>t.sector===s).map(t=>t.s);
                           return (
                             <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(null); setSearchGroup({type:"sector",name:s,tickers:sectorTickers}); }}
                               style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:"#6ba3be", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
@@ -7345,7 +7605,7 @@ export default function OptionsFlowDashboard() {
                       if(tc){ if(tc.cp==="C") tcC=tcSide==="ask"?P.bu:"#ff9800"; else tcC=tcSide==="ask"?P.be:"#29b6f6"; }
                       return (
                         <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"44", cursor:"pointer" }}
-                          onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
+                          onClick={()=>{ setSearch(r.sym); setSelectedTicker(tickerDb.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
                           <td style={{ padding:"6px 5px", textAlign:"center" }}>
                             <span style={{ fontWeight:900, color:P.wh, fontSize:12 }}>{r.sym}</span>
                             {r.er && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
@@ -7744,7 +8004,7 @@ export default function OptionsFlowDashboard() {
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
                               {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI &amp; Prices</>}
                             </button>
-                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
+                            <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(tickerDb.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
                               style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer",
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt }}>
                               Open in Search →
@@ -7812,9 +8072,9 @@ export default function OptionsFlowDashboard() {
               // small-caps whose low-premium prints were cut from the bulk feed
               // still show their full totals. Falls back to the capped TICKER_DB
               // entry while the fetch is in flight or if it returned nothing.
-              const _uncapped = (searchFull && searchFull.sym === selectedTicker.s && searchFull.data)
-                ? searchFull.data
-                : (_lastUncappedRef.current[selectedTicker.s] || null);   // last-good, never collapse to bulk
+              // Resolved + er-overlaid above (`searchUncapped`), so this render reads
+              // one value rather than re-deriving the fallback chain inline.
+              const _uncapped = searchUncapped;
               // DEPLOY-BLIP GUARD (2026-09-06): /api/flow/ticker is proxied to the
               // flow-worker, which returns 502 while it restarts (a deploy). With no
               // dataset the cards below zero out to a false "NEUTRAL / $0 / 0 total"

@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
   buildExtensions, uploadInlineImage, uploadNoteAttachment,
@@ -8,6 +8,9 @@ import {
 } from '../../lib/tiptap'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
+import CapturedSourceSheet from './CapturedSourceSheet'
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
+         reviewTargetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
@@ -27,7 +30,8 @@ import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
-import NoteAskPanel from './NoteAskPanel'
+import AskPanel from './AskPanel'
+import { PRECISE_STATES } from '../../lib/askCitation'
 import NoteFindBar from './NoteFindBar'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -722,8 +726,66 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // currently-open note, e.g. from a thesis-evidence row referencing an
   // excerpt captured in a different note).
   const [previewDoc, setPreviewDoc] = useState(null)
+  // Wave N §9 — a captured web passage is revisited AS a captured passage,
+  // never as a document. See CapturedSourceSheet for what that means.
+  const [capturedSource, setCapturedSource] = useState(null)
   const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
   const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
+
+  // ⭐ WAVE M — SEARCH LANDS ON THE OBJECT IT NAMED. A search hit that reads
+  // "NVDA 10-Q · p.47" carries `?doc=&page=` alongside `?note=`, and this opens
+  // the SAME `previewDoc` shape Wave J's click-to-source above already uses —
+  // one document-navigation contract, reached from either door.
+  //
+  // ⛔ It waits for `noteDocuments`: the target names a document id, and the
+  // preview needs that document's href. Firing before the list resolves would
+  // silently drop the deep link and look exactly like "search only opens the
+  // note", which is the defect this closes.
+  //
+  // ⛔ AND IT CLEARS THE PARAMS ONCE CONSUMED, so a refresh, a Back, or simply
+  // closing the sheet does not reopen it — the same once-only discipline the
+  // mobile share handoff needed.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navTarget = targetFromParams(searchParams)
+  const navTargetKey = navTarget
+    ? `${navTarget.documentId}:${navTarget.page || ''}:${navTarget.excerptId || ''}`
+    : null
+  const consumedTargetRef = useRef(null)
+  useEffect(() => {
+    if (!navTarget || !noteDocuments?.length) return
+    if (consumedTargetRef.current === navTargetKey) return
+    const doc = noteDocuments.find((d) => d.id === navTarget.documentId)
+    if (!doc) return
+    consumedTargetRef.current = navTargetKey
+    const localExcerpt = navTarget.excerptId
+      ? noteExcerpts.find((e) => e.id === navTarget.excerptId) || null
+      : null
+    setPreviewDoc({
+      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
+      page: navTarget.page || undefined,
+      emphasizeExcerptId: navTarget.excerptId || undefined,
+      emphasizeExcerpt: localExcerpt,
+    })
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const k of ['doc', 'page', 'excerpt']) next.delete(k)
+      return next
+    }, { replace: true })
+  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams])
+
+  // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
+  // document, so it deliberately does not go through `targetFromParams` /
+  // `previewDoc` above — that path opens a viewer, and a viewer handed a
+  // review would have nothing to render. The anchor is passed down to the
+  // review panel, which owns the only place a review can truthfully be shown.
+  const reviewAnchor = reviewTargetFromParams(searchParams)
+  const clearReviewParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('review')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
@@ -823,6 +885,44 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // combined backend endpoint already does both atomically, so this is
   // just the client-side mirror (insert the returned excerptId) plus the
   // upload-failure toast idiom every other capture path in this file uses.
+  /**
+   * Land on a cited passage -- or honestly decline to.
+   *
+   * The panel has already re-read the text at the destination in the LIVE
+   * doc (unsaved edits included). A state outside PRECISE_STATES means the
+   * passage moved, was duplicated, or is gone.
+   *
+   * NEVER JUMP TO AN UNVERIFIED POSITION. A failed precise citation is
+   * preferable to a confident mis-navigation: landing on the wrong paragraph
+   * looks exactly like landing on the right one.
+   */
+  const jumpToCitation = useCallback((source, resolved) => {
+    // ⭐ O6 §4: a cited REVIEW is not a passage in the note body — it lives
+    // in the review panel's history, and it may belong to a different note
+    // entirely (Ask My Notebook and Ask Security Research both span theses).
+    // So it routes through the SAME `?note=` contract Search uses rather than
+    // through the editor, and lands on the review itself.
+    // ⛔ A citation that cannot name both the note and the review navigates
+    // NOWHERE, rather than opening a note and leaving the member to hunt.
+    if (source?.navigation?.kind === 'review') {
+      const nid = source.navigation.note_id
+      const rid = source.navigation.review_id
+      if (!nid || !rid) return
+      setSearchParams(
+        (prev) => applyTargetToParams(prev, { noteId: nid, reviewId: rid, depth: 'review' }),
+        { replace: false },
+      )
+      return
+    }
+    const ed = editorRef.current
+    if (!ed || source?.navigation?.kind !== 'note') return
+    if (!resolved || !PRECISE_STATES.has(resolved.state)) return
+    ed.chain().focus()
+      .setTextSelection({ from: resolved.from, to: resolved.to })
+      .scrollIntoView()
+      .run()
+  }, [setSearchParams])
+
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
     if (!ed) return
@@ -893,11 +993,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (!res.ok) return
       const { excerpt } = await res.json()
       if (!excerpt?.attachmentUrl) return
-      setPreviewDoc({
-        href: excerpt.attachmentUrl, name: excerpt.documentName,
-        documentId: excerpt.documentId, page: excerpt.pageNumber,
-        emphasizeExcerptId: excerpt.id, emphasizeExcerpt: excerpt,
-      })
+      // ⛔⛔ WAVE N §9. `attachmentUrl` alone does NOT mean "there is a document
+      // to open": a captured web source carries `web:<sha256>`, an IDENTITY
+      // string, not a file. This used to hand that straight to
+      // DocumentPreviewSheet, so revisiting a captured Reuters paragraph opened
+      // a FULLSCREEN PDF VIEWER over a non-URL, with "Open in new tab" and
+      // "Download" controls that could not work — a fake document viewer, which
+      // §9 forbids by name.
+      // ⭐ THE DECISION ALREADY EXISTS AND SEARCH ALREADY OBEYS IT. Wave M's
+      // depth rule answers 'note' for a web capture ("there is no viewer to
+      // scroll"); `excerptRevisitTarget` is that same rule for one excerpt, so
+      // these two surfaces cannot disagree about one object.
+      const target = excerptRevisitTarget(excerpt)
+      if (!target) return
+      if (target.kind === 'captured_source') {
+        // The deepest TRUTHFUL destination: the passage itself and where it
+        // came from. We hold one paragraph; only the publisher has the rest.
+        setCapturedSource(excerpt)
+        return
+      }
+      setPreviewDoc({ ...target, emphasizeExcerpt: excerpt })
     } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
   }
 
@@ -1289,6 +1404,27 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         excerpts={previewExcerpts}
         onSaveExcerpt={handleSaveExcerpt}
         emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+        documentId={previewDoc?.documentId}
+      />
+      <CapturedSourceSheet
+        open={!!capturedSource}
+        excerpt={capturedSource}
+        onClose={() => setCapturedSource(null)}
+        onOpenOwningNote={
+          capturedSource && capturedSource.noteId !== noteId
+            ? () => {
+                // ⛔ The app's ONE routing idiom for a note — the same `?note=`
+                // param NotebookTab owns and Search writes through
+                // `applyTargetToParams`. Never a second route shape.
+                const nid = capturedSource.noteId
+                setCapturedSource(null)
+                setSearchParams((prev) => {
+                  const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
+                  return next
+                })
+              }
+            : null
+        }
       />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
@@ -1319,7 +1455,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
           </button>
           <NoteLinkedTradeChips noteId={noteId} />
-          <NoteAskPanel noteId={noteId} getEditorDom={() => editorRef.current?.view?.dom} />
+          <AskPanel
+            scope="note"
+            target={noteId}
+            /* The LIVE doc, unsaved edits included -- it is where the member
+               would actually land, so it is what a citation must verify
+               against. */
+            getEditorDoc={() => editorRef.current?.state?.doc}
+            onNavigate={jumpToCitation}
+          />
           <button
             type="button"
             className={styles.chromeBtn}
@@ -1617,7 +1761,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't
             being used as a thesis. */}
-        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource} />
+        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
+                       anchorReviewId={reviewAnchor?.reviewId || null}
+                       onReviewAnchorConsumed={clearReviewParam} />
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

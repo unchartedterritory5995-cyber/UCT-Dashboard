@@ -1,0 +1,1266 @@
+/* Purpose-built panels for the Chart Detail Dock. NOT the standalone widgets —
+   these are chrome-free (no logo, ticker, company name, gear, or notebook door:
+   the chart already names the stock) and laid out for the docked context.
+   Everything themes off app tokens + the chart's own up/down colors so the dock
+   reads as one surface with the chart. */
+
+:root {
+  /* FILL tier — candle bodies, news rails, surprise bars, pins. Large solid
+     shapes, so the chart's own saturated values are right here. */
+  --dock-up: var(--chart-up, #26a869);
+  --dock-down: var(--chart-down, #e5484d);
+  /* TEXT tier — the same hues lifted for 11px glyphs. Measured against the
+     chart's own price readout (rgb(47,175,104) ≈ 143 luminance at weight 700):
+     the FILL green renders at ~136 and the fill red at only ~106, so directional
+     numbers came out DIMMER than the neutral values beside them at ~238 — which
+     is exactly the "faint / visually dead" read. These sit at ~166 / ~134 and
+     carry weight 700 like the chart's readout. Saturated, not neon.
+     ⛔ Don't use these as fills, and don't use the fill tier for text. */
+  --dock-up-text: #3fc885;
+  --dock-down-text: #f1696e;
+}
+
+.pos { color: var(--dock-up-text, #3fc885); font-weight: 700; }
+.neg { color: var(--dock-down-text, #f1696e); font-weight: 700; }
+.muted { color: var(--text-muted, #8b8574); }
+
+/* brief highlight when search navigates to a metric */
+.rowFlash { animation: rowFlash 1.7s ease; border-radius: 4px; }
+@keyframes rowFlash {
+  0% { background: var(--accent, #c9a84c); }
+  12% { background: rgba(201, 168, 76, 0.34); }
+  100% { background: transparent; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PROFILE — dense scrollable DATA WINDOW (right dock)
+   ───────────────────────────────────────────────────────────────────────── */
+.profile {
+  /* ── Overview text roles → UCT's OWN tokens ──────────────────────────────
+     Overview must read as the same product as Financials / Earnings / Valuation,
+     so it uses their tokens rather than a private scale.
+
+     How those panels actually work (the .fin, .v and .earn blocks below): ONE
+     inherited colour for normal content — `.finLabel` and `.finVal` are plain
+     var(--text) — with hierarchy carried by WEIGHT and ALIGNMENT. --text-bright
+     marks emphasis (`.finRowH`), and --text-muted is spent only on genuinely
+     secondary content (dates, derived margins, filing periods).
+
+     Overview previously ran a bespoke scale that put normal metric labels at
+     ~169 luminance while the Financials labels beside them sat at 239. That gap
+     — not the values — is what made this tab look faded.
+        --text-bright 247 · --text 239 · --text-muted 202 · --accent 187
+     ⛔ Hierarchy is WEIGHT and STRUCTURE. Low contrast is for MISSING data and
+     true metadata only — never for ordinary financial information.            */
+  --t-name: var(--text-bright, #f8f7f3);  /* 247 company identity — the one
+                                             emphasis tier, as .finRowH uses */
+  /* Values sit on --text, NOT --text-bright: Financials (.finVal) and Valuation
+     (.vCur) both keep values at 239 and separate them from their labels with
+     WEIGHT and right-alignment alone. Pushing Overview's values to 247 made it
+     the brightest tab in the set — a new inconsistency in the other direction. */
+  --t-value: var(--text, #f0efea);        /* 239 primary white — weight 600/700 */
+  --t-body: var(--text, #f0efea);         /* 239 description / story prose */
+  --t-label: var(--text, #f0efea);        /* 239 clean secondary white — labels */
+  --t-meta: var(--text-muted, #cfcac0);   /* 202 sector, timestamps, fact labels */
+  --t-group: var(--accent, #dcbb5e);      /* 187 section headings stay gold */
+  --t-dim: #6f6a5c;                       /* 106 MISSING only (matches .finFoot) */
+  --t-gold-hi: #f0d488; /* gold hover lift */
+
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* a little more horizontal breathing room, and extra on the right so content
+     never crowds the scrollbar */
+  padding: 11px 15px 22px 14px;
+  font-size: 12px;
+  color: var(--text, #d8d2c2);
+  scrollbar-width: thin;
+}
+.profile::-webkit-scrollbar { width: 8px; }
+.profile::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+/* ── Overview typographic system ─────────────────────────────────────────────
+   Hierarchy comes from type + space, not containers:
+   L1 company identity · L2 story · L3 gold section head · L4 primary metric ·
+   L5 metric label · L6 metadata · L7 gold actions (used sparingly).          */
+
+/* ⚠️ Explicit colour scale — do NOT swap these back to var(--text-muted).
+   In this theme --text-muted resolves to ~rgb(207,202,192), which is BRIGHTER
+   than a secondary value: using it for labels inverted the hierarchy (labels
+   louder than the numbers they describe) and flattened the whole panel into one
+   ~180-215 band. These literals give values > labels > metadata a real spread. */
+.section { margin-top: 16px; }
+/* A visual layer boundary (orientation | financial evidence | ownership).
+   Trimmed from 21+16: with the Company section folded into the identity block
+   there is one fewer layer break, and 37px of pure chrome above the panel's
+   most valuable content was not earning its place. Still a clear breath. */
+.layerBreak { margin-top: 17px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,0.075); }
+
+/* L3 — the single gold head per block (Fundamentals / Price / Ownership) */
+.secHead {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+  padding-bottom: 4px; margin-bottom: 9px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+/* (the L6 quiet sub-head died with the dedicated "Company" section — those facts
+   are now inline identity metadata, see .idFacts) */
+
+/* metric sub-groups (inside Fundamentals) — muted labels + no per-row rules, so
+   the four groups read as ONE system instead of four cloned sections */
+/* Four distinct groups: an inset hairline + real top spacing separates each,
+   so Fundamentals reads as four categories rather than one long list — without
+   cards, boxes or background fills. */
+/* 14+11 → 12+9: with five groups the inter-group chrome alone was 100px. The
+   hairline is what separates the groups, so 4px each buys back a whole metric
+   row without the groups reading as merged. */
+.mGroup { margin-top: 12px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,0.055); }
+.mGroupFirst { margin-top: 0; padding-top: 0; border-top: 0; }
+.mGroupLabel {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--t-group); margin-bottom: 5px;
+}
+.mGrid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+.mRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2.5px 0; min-width: 0; }
+/* label — subordinate to its value, but comfortably readable */
+.mKey { font-size: 11px; color: var(--t-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* EVERY real value gets the same brightness; emphasis is weight only */
+.mVal { font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; color: var(--t-value); font-weight: 600; }
+.mValP { font-weight: 700; }
+/* the ONLY dim content: missing data */
+.mValEmpty { color: var(--t-dim); font-weight: 500; }
+/* Semantic colour must beat the base value colour regardless of source order —
+   `.mVal` is declared after `.pos`/`.neg`, so at equal specificity it would win
+   and silently kill every green/red. These compound rules (0,2,0) settle it. */
+.mVal.pos { color: var(--dock-up-text, #3fc885); font-weight: 700; }
+.mVal.neg { color: var(--dock-down-text, #f1696e); font-weight: 700; }
+
+/* L7 — the only gold action treatment */
+.moreLink { appearance: none; border: 0; background: transparent; color: var(--accent, #c9a84c); font-size: 10.5px; font-weight: 600; padding: 6px 0 0; cursor: pointer; }
+.moreLink:hover { text-decoration: underline; }
+.link { color: var(--accent, #c9a84c); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+.generating { display: flex; align-items: center; gap: 8px; color: var(--text-muted, #8b8574); padding: 6px 0; font-size: 11px; }
+.spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid rgba(201,168,76,0.25); border-top-color: var(--accent, #c9a84c);
+  animation: dockspin 0.8s linear infinite;
+}
+@keyframes dockspin { to { transform: rotate(360deg); } }
+
+/* ── L1 · Intelligence header — the orientation layer ─────────────────────── */
+.ih { padding: 2px 0 0; }
+/* margin-bottom 7 → 10: the identity unit is now two lines tall, so it needs a
+   slightly clearer step down to the description than a lone name did. */
+.ihTop { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+/* name + classification stack beside the logo as one block */
+.ihId { min-width: 0; }
+.ihName {
+  font-size: 15.5px; font-weight: 700; line-height: 1.2; letter-spacing: 0.1px;
+  color: var(--t-name); min-width: 0;
+}
+.ihDesc { margin: 0; font-size: 11.5px; line-height: 1.58; color: var(--t-body); }
+/* "More" belongs to the description — inline at the end of the text, not a
+   floating gold row between the description and the metadata. */
+.moreInline {
+  appearance: none; border: 0; background: transparent; padding: 0; margin-left: 6px;
+  /* Muting this to #a08a45 to "reduce gold" left the only interactive control in
+     the block at ~138 luminance — dimmer than the static labels around it, so it
+     read as disabled. It sits at the label tier (~168) and brightens on hover. */
+  font: inherit; font-weight: 600; color: var(--accent, #c9a84c); cursor: pointer;
+}
+.moreInline:hover { color: var(--t-gold-hi); text-decoration: underline; }
+/* Sector/industry — a SUBTITLE to the company name, not a standalone line.
+   margin-top 9 → 3 because it now belongs to the name directly above it rather
+   than being separated from a paragraph. Treatment is unchanged: restrained
+   secondary text at --t-meta (202), clearly readable and clearly subordinate
+   to the 15.5px name, with no gold and no heading weight. */
+.ihMeta {
+  margin-top: 3px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--t-meta);
+  /* wraps rather than truncating — it now sits in a narrower column beside the
+     logo, and a long classification ("Communication Services · Internet Content
+     & Information") must stay readable, not disappear behind an ellipsis */
+  line-height: 1.35;
+}
+
+/* ── L2 · The Story — the one signature block. A thin gold rail is its whole
+      visual identity: no card, no background wash, no icon. ─────────────────── */
+.story {
+  /* Name → description → sector reads as ONE identity block (7px / 9px internal
+     rhythm); this larger step is the boundary between that block and the
+     narrative. It is the only place the top needed more air, not less. */
+  margin-top: 18px;
+  padding: 2px 0 3px 14px;
+  /* the rail IS the Story's whole visual identity — softened so it reads as a
+     refined accent rather than a highlighter stripe */
+  border-left: 2px solid rgba(201, 168, 76, 0.55);
+}
+.storyHead { display: flex; align-items: baseline; gap: 9px; margin-bottom: 6px; }
+.storyTitle {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+}
+.storyFresh { font-size: 9px; color: var(--t-meta); letter-spacing: 0.2px; }
+/* leading trimmed 1.68 → 1.60; still comfortable prose, and it is LEADING, not
+   font size or colour — the Story reads exactly as before, just less airy */
+.storyBody { margin: 0; font-size: 12px; line-height: 1.6; color: var(--t-body); }
+.storyMuted { margin: 0; font-size: 11px; line-height: 1.58; color: var(--t-meta); }
+
+/* ── Company facts — INLINE identity metadata ──────────────────────────────
+   Tier-3 context: genuinely useful, but it must cost very little vertical
+   space. As a dedicated 2-column section these six answers burned ~197px of the
+   first viewport (a sub-head, three label-over-value rows, plus a layer break
+   and its divider) — enough to push Growth and Price & Performance below the
+   fold. Wrapped inline pairs give the same answers for ~50px.
+   ⚠️ The saving is STRUCTURAL. The values keep the full --t-value brightness and
+   11.5px size; nothing here was shrunk or dimmed to buy the space. */
+/* Expanded company profile (behind `More`). One label/value pair per row on a
+   shared label column, so it reads as a profile rather than a metadata sentence.
+   This state is user-requested, so it may spend vertical space the default view
+   may not — but it still aligns: label column `auto`, values on one edge. */
+.idFacts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px; row-gap: 2px;
+  align-items: baseline;
+  margin-top: 10px; min-width: 0;
+}
+.idFactK {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--t-meta); white-space: nowrap;
+}
+/* an ANSWER — the same strong primary white as any other value in the panel */
+.idFactV {
+  min-width: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--t-value);
+  /* every row is a single non-wrapping line, so tight leading costs no
+     readability — it keeps the aligned grid inside the old inline block's
+     vertical budget instead of buying alignment with first-viewport space */
+  line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NEWS — a financial wire, not a table.
+   Financials / Earnings / Ownership are grids of numbers; news is
+   chronological prose. Shared vocabulary comes from the gold section head,
+   the underlined segmented control and the inline accordion — NOT from
+   columns. Density target: several headlines visible at 360px without
+   scrolling, while the headline still reads as the strongest thing on screen.
+   ───────────────────────────────────────────────────────────────────────── */
+.nw {
+  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  color: var(--text, #d8d2c2);
+  /* ⛔ Do NOT declare a container here. `.dockBody` already establishes
+     `container-name: dock`, and every other tab (.profile/.fin/.et/.ow)
+     relies on it. Re-declaring one made .nw a NESTED container, and
+     `container-type: inline-size` implies `contain: layout`, which opens a
+     new formatting context — that broke `height: 100%` against the dock's
+     flex column and clipped the feed under the header. */
+}
+
+/* ── search ───────────────────────────────────────────────────────────── */
+.nwBar { flex: 0 0 auto; padding: 8px 10px 6px; }
+.nwSearchWrap {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--divider, rgba(255,255,255,0.10));
+  border-radius: 5px; padding: 4px 7px;
+  background: rgba(255,255,255,0.022);
+  color: var(--text-muted, #8b8574);
+  transition: border-color .12s ease;
+}
+.nwSearchWrap:focus-within { border-color: rgba(201,168,76,0.55); }
+.nwSearch {
+  flex: 1; min-width: 0; appearance: none; border: 0; background: transparent;
+  color: var(--text-bright, #f8f7f3); font-size: 11px; font-family: inherit;
+  padding: 0; outline: none;
+}
+.nwSearch::placeholder { color: var(--text-muted, #8b8574); }
+.nwSearch::-webkit-search-cancel-button { display: none; }
+.nwClear {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: var(--text-muted, #8b8574); display: inline-flex; padding: 0;
+}
+.nwClear:hover { color: var(--text-bright, #f8f7f3); }
+
+/* ── ALL | BULLISH | BEARISH — the Financials/Earnings segmented control ── */
+.nwSeg {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 1px;
+  padding: 0 10px 7px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.nwSearchNote {
+  flex: 0 0 auto; display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 10px 5px; font-size: 10px; color: var(--text-muted, #cfcac0);
+}
+.nwClearLink {
+  appearance: none; border: 0; background: transparent; padding: 0;
+  color: var(--accent, #c9a84c); font-size: 10px; font-weight: 600; cursor: pointer;
+}
+.nwClearLink:hover { text-decoration: underline; }
+
+/* ── the feed ─────────────────────────────────────────────────────────── */
+.nwFeed {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding-bottom: 10px; scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.nwFeed::-webkit-scrollbar { width: 8px; }
+.nwFeed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+/* Date separator — the SAME gold uppercase head Earnings and Ownership use
+   for their sections, so chronology reads as this tab's structural layer. */
+.nwDate {
+  position: sticky; top: 0; z-index: 2;
+  padding: 9px 10px 4px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+  background: var(--widget-canvas, var(--bg, #0e0f0d));
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.nwGroup + .nwGroup .nwDate { margin-top: 2px; }
+
+.nwItem { border-bottom: 1px solid rgba(255,255,255,0.045); }
+.nwItem:last-child { border-bottom: 0; }
+.nwItemOpen { background: rgba(201,168,76,0.055); }
+
+/* The row is a BUTTON: the whole thing is the expand affordance, which is
+   how Financials, Earnings and Ownership already behave. */
+.nwRow {
+  appearance: none; border: 0; background: transparent; width: 100%;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px;
+  align-items: start; text-align: left; cursor: pointer;
+  padding: 8px 10px 9px; font-family: inherit;
+}
+.nwRow:hover { background: rgba(255,255,255,0.028); }
+.nwItemOpen .nwRow:hover { background: transparent; }
+.nwRow:focus-visible {
+  outline: 1px solid rgba(201,168,76,0.7); outline-offset: -2px;
+}
+.nwMain { min-width: 0; }
+
+/* SOURCE · TIME — secondary to the headline but BRIGHT, never faint grey. */
+.nwMeta {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  margin-bottom: 3px; font-size: 9.5px; line-height: 1.4;
+  color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums;
+}
+.nwSrc { font-weight: 700; color: var(--text-bright, #f0efea); letter-spacing: 0.1px; }
+/* Source trust, said subtly (§12). The date separators already own this
+   panel's gold; a second gold on the very next line competed with them for
+   the same glance. Brightness alone marks a primary source — a rule or badge
+   here read as a stray artifact beside the empty time slot, and "SEC · 8-K"
+   already says what it is. */
+.nwSrc_primary { color: var(--text-bright, #f8f7f3); }
+.nwSrc_social { font-weight: 600; }
+.nwDot { color: var(--text-muted, #6f6a5c); }
+.nwTime { color: var(--text-muted, #cfcac0); }
+
+.nwBreaking {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--accent, #c9a84c); border: 1px solid rgba(201,168,76,0.45);
+  border-radius: 3px; padding: 0 3px; line-height: 1.5;
+}
+/* Sentiment: a single small glyph. Never a filled card, never a score. */
+.nwSent { font-size: 9px; font-weight: 700; line-height: 1; }
+.nwSent.up { color: var(--dock-up-text, #3fc885); }
+.nwSent.down { color: var(--dock-down-text, #f1696e); }
+
+/* HEADLINE — the strongest thing in the row. */
+.nwHead {
+  font-size: 12px; font-weight: 700; line-height: 1.32;
+  color: var(--text-bright, #f8f7f3);
+  overflow-wrap: anywhere;
+}
+/* Description — a readable tier below, NOT dead grey. */
+.nwDesc {
+  margin-top: 3px; font-size: 10.5px; line-height: 1.45;
+  color: var(--text-muted, #cfcac0);
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Media stays small: it improves a story, it does not decorate the panel. */
+.nwThumb {
+  width: 52px; height: 38px; object-fit: cover; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+  align-self: start;
+}
+.nwPlay {
+  width: 22px; height: 22px; border-radius: 50%; align-self: start;
+  border: 1px solid rgba(255,255,255,0.16); color: var(--text-muted, #cfcac0);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ── expanded ─────────────────────────────────────────────────────────── */
+.nwExp { padding: 0 10px 11px; font-size: 11px; }
+.nwExpText {
+  color: var(--text, #e9e7df); line-height: 1.5; margin-bottom: 9px;
+  font-size: 11px;
+}
+.nwFacts {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px;
+  align-items: baseline; margin-bottom: 9px;
+}
+.nwFactK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0); white-space: nowrap;
+}
+.nwFactV { font-size: 10.5px; color: var(--text-bright, #f8f7f3); min-width: 0; overflow-wrap: anywhere; }
+.nwFactV.up { color: var(--dock-up-text, #3fc885); }
+.nwFactV.down { color: var(--dock-down-text, #f1696e); }
+
+.nwEmbed {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 9px;
+  padding: 5px 9px; border-radius: 4px; text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-bright, #f8f7f3); font-size: 10.5px; font-weight: 600;
+}
+.nwEmbed:hover { border-color: rgba(201,168,76,0.5); color: var(--accent, #c9a84c); }
+
+.nwRelated { margin-bottom: 9px; }
+.nwRelHead {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c); margin-bottom: 4px;
+}
+.nwRelItem {
+  display: flex; gap: 7px; padding: 2px 0; text-decoration: none;
+  font-size: 10px; line-height: 1.4;
+}
+.nwRelSrc { flex: 0 0 auto; font-weight: 700; color: var(--text-bright, #f0efea); }
+.nwRelTitle {
+  min-width: 0; color: var(--text-muted, #cfcac0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nwRelItem:hover .nwRelTitle { color: var(--text-bright, #f8f7f3); }
+
+.nwOpen {
+  display: inline-flex; align-items: center; gap: 5px; text-decoration: none;
+  color: var(--accent, #c9a84c); font-size: 10.5px; font-weight: 600;
+}
+.nwOpen:hover { text-decoration: underline; }
+
+/* ── states ───────────────────────────────────────────────────────────── */
+.nwEmpty { padding: 20px 12px 16px; }
+.nwEmptyTitle {
+  font-size: 11.5px; font-weight: 600; color: var(--text-bright, #f8f7f3);
+  line-height: 1.45; margin-bottom: 4px;
+}
+.nwEmptyHint { font-size: 10.5px; color: var(--text-muted, #cfcac0); line-height: 1.5; }
+.nwEnd {
+  padding: 12px 10px 6px; text-align: center;
+  font-size: 9.5px; color: var(--text-muted, #8b8574);
+}
+.nwRetry {
+  appearance: none; border: 0; background: transparent; padding: 0 0 0 6px;
+  color: var(--accent, #c9a84c); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.nwRetry:hover { text-decoration: underline; }
+
+.nwSkel { padding: 4px 10px; }
+.nwSkelRow { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.045); }
+.nwSkelMeta, .nwSkelHead {
+  height: 8px; border-radius: 3px; background: rgba(255,255,255,0.055);
+  animation: nwPulse 1.5s ease-in-out infinite;
+}
+.nwSkelMeta { width: 34%; margin-bottom: 7px; }
+.nwSkelHead { width: 92%; height: 10px; margin-bottom: 5px; }
+@keyframes nwPulse { 0%,100% { opacity: .45 } 50% { opacity: .85 } }
+@media (prefers-reduced-motion: reduce) {
+  .nwSkelMeta, .nwSkelHead { animation: none; }
+}
+
+/* ── responsive (§39) ─────────────────────────────────────────────────────
+   Container queries, so the panel responds to ITS width, not the viewport's.
+   These sit AFTER the base rules on purpose: equal specificity means source
+   order decides, and putting them first silently disabled every override. */
+@container dock (max-width: 339px) {
+  .nwBar { padding: 7px 8px 5px; }
+  .nwSeg { padding: 0 8px 6px; }
+  .nwRow { padding: 7px 8px 8px; gap: 7px; }
+  .nwDate { padding: 8px 8px 4px; }
+  .nwExp { padding: 0 8px 10px; }
+  .nwHead { font-size: 11.5px; }
+  .nwThumb { display: none; }        /* headline wins the width at 300px */
+  .nwFacts { grid-template-columns: 1fr; gap: 1px; }
+  .nwFactK { margin-top: 5px; }
+}
+@container dock (min-width: 470px) {
+  .nwRow { padding: 9px 12px 10px; }
+  .nwDate { padding: 10px 12px 5px; }
+  .nwBar { padding: 9px 12px 6px; }
+  .nwSeg { padding: 0 12px 8px; }
+  .nwExp { padding: 0 12px 12px; }
+  .nwHead { font-size: 12.5px; }
+  .nwDesc { font-size: 11px; }
+  .nwThumb { width: 64px; height: 46px; }
+}
+@container dock (min-width: 560px) {
+  .nwThumb { width: 76px; height: 54px; }
+  /* Keep the reading measure controlled — a wide panel must not turn the
+     feed into full-width banners. */
+  .nwMain { max-width: 62ch; }
+  .nwExpText { max-width: 68ch; }
+}
+@container dock (min-width: 700px) {
+  .nwThumb { width: 88px; height: 62px; }
+  .nwHead { font-size: 13px; }
+}
+
+.emptyState { padding: 16px 12px; color: var(--text-muted, #8b8574); font-size: 12px; line-height: 1.5; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FUNDAMENTALS (bottom dock) — thin strip, LEFT tab rail + card strip
+   ───────────────────────────────────────────────────────────────────────── */
+.fund { height: 100%; min-height: 0; display: flex; color: var(--text, #d8d2c2); position: relative; }
+
+/* left vertical rail of tabs — so the tabs never eat a full-width row */
+.fundRail {
+  flex: 0 0 auto; width: 84px;
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 4px; border-right: 1px solid var(--divider, rgba(255,255,255,0.08));
+  background: var(--panel-2, rgba(255,255,255,0.015));
+}
+.fundTab {
+  appearance: none; border: 0; background: transparent; text-align: left;
+  color: var(--text-muted, #8b8574);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  padding: 4px 7px; border-radius: 5px; cursor: pointer; white-space: nowrap;
+}
+.fundTab:hover { color: var(--text, #d8d2c2); background: rgba(255,255,255,0.04); }
+.fundTabOn { color: var(--accent, #c9a84c); background: var(--accent-weak, rgba(201,168,76,0.14)); }
+
+.fundClose {
+  position: absolute; top: 4px; right: 4px; z-index: 3;
+  appearance: none; border: 0; background: transparent;
+  color: var(--text-muted, #8b8574); cursor: pointer;
+  width: 20px; height: 20px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.fundClose:hover { background: rgba(255,255,255,0.08); color: var(--text, #d8d2c2); }
+
+/* quarter/annual card row — horizontal scroll, thin */
+.cardRow {
+  flex: 1; min-height: 0; min-width: 0;
+  display: flex; align-items: stretch;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+}
+.cardRow::-webkit-scrollbar { height: 7px; }
+.cardRow::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 4px; }
+
+.qCard {
+  flex: 0 0 auto; min-width: 148px;
+  padding: 7px 13px; border-left: 1px solid var(--divider, rgba(255,255,255,0.07));
+  display: flex; flex-direction: column; justify-content: center; gap: 3px;
+}
+.qCard:first-child { border-left: 0; }
+.qNext { background: rgba(201,168,76,0.035); }
+.qHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 1px; }
+.qLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: var(--text, #e0dac8); }
+.qDate { font-size: 9.5px; color: var(--text-muted, #7d7768); font-variant-numeric: tabular-nums; }
+.qLine { font-size: 11px; line-height: 1.35; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.qMetric { color: var(--text-muted, #8b8574); display: inline-block; width: 26px; }
+.qEst { color: var(--text-muted, #7d7768); font-size: 9.5px; }
+.qSlash { color: var(--text-muted, #6f6a5c); margin: 0 1px; }
+.qPct { margin-left: 5px; font-weight: 600; }
+
+/* analyst/ownership fill the (auto-taller) strip and scroll */
+.fundPanelHost { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+
+.fundHint { flex: 1; padding: 12px; color: var(--text-muted, #8b8574); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RESPONSIVE — panels reflow to the dock's own width (container queries).
+   Wide → more side-by-side. Narrow → stack / drop the least-essential column.
+   ───────────────────────────────────────────────────────────────────────── */
+/* Overview metric grid: 1col (narrow) · 2col (default) · 3col (wide) */
+@container dock (max-width: 340px) {
+  .mGrid, .ownFlow { grid-template-columns: 1fr; }
+  .ihName { font-size: 14.5px; }
+}
+@container dock (min-width: 470px) {
+  /* wide enough for two profile pairs per row without truncating a value */
+  .idFacts { grid-template-columns: repeat(2, auto minmax(0, 1fr)); }
+}
+@container dock (min-width: 540px) {
+  .mGrid { grid-template-columns: 1fr 1fr 1fr; }
+  /* keep prose at a readable measure instead of stretching across the panel */
+  .ihDesc, .storyBody, .storyMuted { max-width: 62ch; }
+}
+/* Financials + Valuation: drop the least-essential column when very narrow.
+   Readability of Metric / Value / YoY is never traded away — the sparkline goes
+   first because it is the only decorative-ish element in the row. */
+@container dock (max-width: 320px) {
+  .spark, .sparkEmpty, .finHeadTrend { display: none; }
+}
+/* Financials: give the value column more room before spending width on history.
+   The sparkline deliberately does NOT grow — at 72px it started reading as a
+   mini chart competing with the numbers (§11). */
+@container dock (min-width: 480px) {
+  .finVal, .finHeadVal { width: 84px; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FINANCIALS tab
+   ───────────────────────────────────────────────────────────────────────── */
+.fin { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #d8d2c2); }
+.finBar { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 6px 10px 5px; }
+.finSeg { display: inline-flex; gap: 1px; }
+.finPeriods { display: inline-flex; gap: 1px; }
+.finSpacer { flex: 1; }
+/* statement selector — understated text tabs (subordinate to the data) */
+.finSegBtn {
+  appearance: none; border: 0; background: transparent; position: relative;
+  color: var(--text-muted, #8b8574); font-size: 11px; font-weight: 600;
+  padding: 2px 7px; cursor: pointer;
+}
+.finSegBtn:hover { color: var(--text, #d8d2c2); }
+.finSegOn { color: var(--text-bright, #eee7d4); }
+.finSegOn::after { content: ''; position: absolute; left: 6px; right: 6px; bottom: -5px; height: 2px; background: var(--accent, #c9a84c); border-radius: 2px; }
+/* period selector — tiny secondary toggles */
+.finPeriodBtn {
+  appearance: none; border: 0; background: transparent;
+  color: var(--text-muted, #8b8574); font-size: 9.5px; font-weight: 600; letter-spacing: 0.2px;
+  padding: 2px 5px; border-radius: 4px; cursor: pointer;
+}
+.finPeriodBtn:hover { color: var(--text, #d8d2c2); }
+.finPeriodOn { background: var(--accent-weak, rgba(201,168,76,0.16)); color: var(--accent, #c9a84c); }
+
+.finHead {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px; font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768); border-bottom: 1px solid var(--divider, rgba(255,255,255,0.08));
+}
+.finHeadMetric { flex: 1; }
+.finHeadTrend { width: 46px; text-align: center; }
+.finHeadVal { width: 66px; text-align: right; }
+.finHeadYoy { width: 42px; text-align: right; }
+
+.finBody { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 0 8px; scrollbar-width: thin; }
+.finBody::-webkit-scrollbar { width: 8px; }
+.finBody::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+.finRow {
+  display: flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.finRow:hover { background: rgba(255,255,255,0.03); }
+/* Key metrics: weight + a whisper of ground, never a zebra stripe. */
+.finRowH { background: rgba(255,255,255,0.022); }
+.finRowH .finLabel { font-weight: 700; color: var(--text-bright, #f8f7f3); }
+.finRowH .finVal { font-weight: 700; }
+/* Derived margins read as annotations ON the row above, not as peers. They are
+   the ONE place --text-muted is right here: they restate a computed ratio. */
+.finRowM .finLabel { padding-left: 12px; font-style: italic; color: var(--text-muted, #cfcac0); }
+.finRowM .finVal { color: var(--text-muted, #cfcac0); }
+.finRowOpen { background: rgba(201,168,76,0.07); }
+.finLabel { flex: 1; min-width: 0; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spark { width: 46px; height: 15px; flex: 0 0 auto; display: inline-flex; align-items: center; }
+/* Placeholder keeps every value column on one edge whether or not the row has a
+   sparkline — the old `margin-left: 54px` fix-up drifted out of sync with the
+   sparkline width at wide panel sizes. */
+.sparkEmpty { width: 46px; height: 15px; flex: 0 0 auto; }
+.finVal { width: 66px; flex: 0 0 auto; text-align: right; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.finYoy { width: 42px; flex: 0 0 auto; text-align: right; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Prior-period columns — only rendered wide (see the container queries). */
+.finPrev {
+  width: 62px; flex: 0 0 auto; text-align: right;
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-muted, #cfcac0);
+}
+
+/* ── section headings — the gold structural layer, matching Overview ──────── */
+.finSection {
+  padding: 11px 12px 4px; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--accent, #c9a84c);
+}
+.finRow + .finSection { margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.05); }
+
+/* ── expanded row: how has this metric evolved? ───────────────────────────── */
+.finExpand {
+  padding: 7px 12px 9px 12px;
+  background: rgba(0,0,0,0.22);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.finCagr {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;
+  padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.finCagrK { font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted, #cfcac0); }
+.finCagrV { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.finHist { display: flex; flex-direction: column; gap: 2px; }
+.finHistRow { display: flex; align-items: baseline; gap: 10px; font-size: 10.5px; }
+.finHistP { width: 60px; flex: 0 0 auto; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; }
+.finHistV { flex: 1; text-align: right; color: var(--text, #f0efea); font-weight: 600; font-variant-numeric: tabular-nums; }
+.finHistC { width: 46px; flex: 0 0 auto; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted, #cfcac0); }
+
+/* ── loading skeleton — restrained, same rhythm as the rows it replaces ───── */
+.finSkeleton { padding: 2px 12px; }
+.finSkelRow {
+  height: 12px; margin: 9px 0; border-radius: 3px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+  background-size: 200% 100%;
+  animation: finShimmer 1.4s ease-in-out infinite;
+}
+.finSkelRow:nth-child(3n) { width: 78%; }
+.finSkelRow:nth-child(3n+1) { width: 92%; }
+@keyframes finShimmer { 0% { background-position: 140% 0; } 100% { background-position: -40% 0; } }
+
+.finNote { padding: 7px 12px; font-size: 10.5px; line-height: 1.45; color: var(--text-muted, #cfcac0); }
+
+/* ── data & methodology — provenance on demand, not developer text ────────── */
+.finMethodBtn {
+  appearance: none; border: 0; background: transparent; display: block;
+  margin: 10px 12px 4px; padding: 0;
+  color: var(--accent, #c9a84c); font-size: 10.5px; font-weight: 600; cursor: pointer;
+}
+.finMethodBtn:hover { text-decoration: underline; }
+.finMethod { padding: 2px 12px 14px; }
+.finMethodP { margin: 0 0 7px; font-size: 10.5px; line-height: 1.55; color: var(--text-muted, #cfcac0); }
+.finMethodP b { color: var(--text, #f0efea); font-weight: 700; }
+
+/* provenance facts — the same aligned label/value grid language as Overview */
+.finProvGrid {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px; row-gap: 2px; align-items: baseline;
+  margin: 2px 0 9px;
+}
+.finProvK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0); white-space: nowrap;
+}
+.finProvV { font-size: 10.5px; line-height: 1.4; color: var(--text, #f0efea); }
+
+/* source documents — real filings, not decoration */
+.finDocsHead {
+  margin: 10px 0 5px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--accent, #c9a84c);
+}
+.finDocs { display: flex; flex-direction: column; gap: 1px; }
+.finDoc {
+  display: flex; align-items: baseline; gap: 8px; padding: 4px 6px;
+  margin: 0 -6px; border-radius: 5px; text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.finDoc:hover { background: rgba(255,255,255,0.05); }
+.finDocForm {
+  flex: 0 0 auto; width: 54px; font-size: 10px; font-weight: 700;
+  color: var(--accent, #c9a84c); font-variant-numeric: tabular-nums;
+}
+.finDocLabel { flex: 1; min-width: 0; font-size: 11px; color: var(--text, #f0efea); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.finDocDate { flex: 0 0 auto; font-size: 10px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums; }
+.finDocAll {
+  display: block; margin-top: 7px; font-size: 10.5px; font-weight: 600;
+  color: var(--accent, #c9a84c); text-decoration: none;
+}
+.finDocAll:hover { text-decoration: underline; }
+/* CAGR that exists as a concept but is mathematically undefined here */
+.finCagrNM { font-size: 11px; font-weight: 700; color: var(--text-muted, #cfcac0); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   EARNINGS tab — a true financial table, sibling to Financials
+
+   ONE grid definition. `--et-cols` is declared on .etTable and consumed by BOTH
+   .etHead and .etRow, so the header can never drift out of alignment with the
+   rows it labels — which is the failure the previous stacked-block version had
+   built in (it picked a column count per row, from the panel width AND from
+   whether the row was an estimate). The container queries move that one custom
+   property; nothing else changes shape, and no JS measures anything.
+   ───────────────────────────────────────────────────────────────────────── */
+.earn { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text, #f0efea); }
+
+/* ── the table ───────────────────────────────────────────────────────────── */
+.etTable {
+  /* period · EPS · EPS YoY · Sales · Sales YoY.
+     The two LEVEL columns flex; the three fixed columns keep every growth
+     figure on one right edge as the panel resizes. A fractional growth column
+     would let +1.4K% and +9% settle at different edges, which is the precise
+     alignment failure this redesign exists to remove. */
+  --et-cols: 62px minmax(0, 1fr) 52px minmax(0, 1fr) 52px;
+  --et-gap: 8px;
+  --et-pad: 12px;
+  flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0;
+}
+.etHead,
+.etRow {
+  display: grid;
+  grid-template-columns: var(--et-cols);
+  column-gap: var(--et-gap);
+  align-items: baseline;
+}
+.etHead {
+  flex: 0 0 auto;
+  padding: 4px var(--et-pad) 5px;
+  font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+}
+.etHeadR { text-align: right; white-space: nowrap; }
+.etHeadShort { display: none; }
+
+.etBody {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 0 0 10px; scrollbar-width: thin;
+}
+.etBody::-webkit-scrollbar { width: 8px; }
+.etBody::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+
+.etRow {
+  padding: 5px var(--et-pad);
+  /* 0.035 -> 0.03, matching .finRow exactly: with the strip gone the rules were
+     the loudest chrome left on the page, and the two tabs should share one
+     hairline weight. */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.etRow:hover { background: rgba(255, 255, 255, 0.03); }
+.etRow:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: -1px; }
+/* An estimate row has no actual-vs-estimate story to open into. */
+.etRowStatic { cursor: default; }
+.etRowStatic:hover { background: transparent; }
+.etRowOpen { background: rgba(201, 168, 76, 0.07); }
+
+/* PERIOD — the row's identity, so it carries the one emphasis tier. */
+.etPeriod {
+  display: inline-flex; align-items: baseline; gap: 5px; min-width: 0;
+  font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* Both period forms ship; the container query below picks one. */
+.etPeriodShort { display: none; }
+
+/* An estimate is IMPORTANT, not disabled: the mark says "not reported yet" and
+   every value beside it keeps full brightness. */
+.etEst {
+  flex: 0 0 auto; font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+  padding: 0 3px; border-radius: 3px;
+  color: var(--accent, #c9a84c); border: 1px solid rgba(201, 168, 76, 0.45);
+}
+
+/* LEVELS — real reported financials, kept at the panel's primary value tier.
+   Growth outranks them by WEIGHT, COLOUR and COLUMN POSITION, never by dimming
+   the levels into metadata: the Overview rewrite established that low contrast
+   is for MISSING data only, and $24.67 is not missing. */
+.etVal {
+  text-align: right; font-size: 11px; font-weight: 600;
+  color: var(--text, #f0efea); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* A reported LOSS reads red, as it does in Financials. Compounded because
+   `.etVal` sets a colour and is declared after `.neg` — at equal specificity the
+   later rule wins, so the plain class silently did nothing and Rivian's entire
+   EPS column rendered neutral. The same trap `.mVal.pos` solves in Overview. */
+.etVal.neg { color: var(--dock-down-text, #f1696e); }
+
+/* GROWTH — the payload of this table, so it takes the weight and the colour. */
+.etGrowth {
+  text-align: right; font-size: 11.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* A state, not a rate ("Profitable" / "To loss") — no figures to align, and a
+   size below the percentages so a word never outshouts the numbers around it. */
+.etSemantic { font-size: 10px; font-variant-numeric: normal; letter-spacing: 0.1px; }
+.etEmpty { color: var(--t-dim, #6f6a5c); font-weight: 500; }
+/* ≥100%: gold IS the signal. Two gold cells on one row already say EPS and
+   sales both cleared it, so nothing repeats that in a badge. */
+.etGold { color: var(--accent, #c9a84c); }
+/* Compound so semantic colour beats the base .etGrowth colour regardless of
+   source order — the same specificity trap .mVal.pos solves in Overview. */
+.etGrowth.pos { color: var(--dock-up-text, #3fc885); }
+.etGrowth.neg { color: var(--dock-down-text, #f1696e); }
+
+/* ── sections — the gold structural layer, matching Financials ───────────── */
+.etSection {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  padding: 10px var(--et-pad) 5px;
+}
+.etSectionTitle {
+  flex: 1 1 auto;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+}
+/* The next report date, riding on the ESTIMATES head. Deliberately NOT gold:
+   gold is the heading's, and a second gold on the same line would compete for
+   the same glance. Label uppercase-muted, value in the panel's value tier — so
+   it reads as a fact, not a second heading. */
+.etSectionMeta { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.etSectionMetaK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etSectionMetaV {
+  font-size: 10.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums;
+}
+.etRow + .etSection { margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+/* A caveat that belongs to the whole section, said ONCE rather than repeated on
+   every row it applies to. Sentence case and un-tracked, so it reads as prose
+   beside the uppercase gold head rather than as a second heading. */
+.etSectionNote {
+  flex: 1 0 100%; margin-top: 1px;
+  font-size: 9.5px; font-weight: 400; letter-spacing: 0; text-transform: none;
+  line-height: 1.4; color: var(--text-muted, #cfcac0);
+}
+
+/* ── deeper history — subtle, not a call to action ───────────────────────── */
+.etMore {
+  appearance: none; border: 0; background: transparent; display: block;
+  /* Bottom margin matters: flush against the next section head it read as that
+     section's caption rather than as the table's own control. */
+  margin: 8px var(--et-pad) 12px; padding: 0;
+  color: var(--text-muted, #cfcac0); font-size: 10.5px; font-weight: 600; cursor: pointer;
+}
+.etMore:hover { color: var(--accent, #c9a84c); text-decoration: underline; }
+
+/* ── Earnings Quality — label/value pairs, NOT a card grid ───────────────────
+   Two columns where there is room, one where there is not. Deliberately shares
+   the row rhythm and the hairline of the table above it, so it reads as the
+   same document continuing rather than a widget bolted underneath. */
+.etQuality {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 22px;
+  padding: 0 var(--et-pad, 12px) 2px;
+}
+.etQRow {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+/* The block should end on its content, not on a rule hanging under the last
+   pair — in one column that is the final row, in two it is the last of each. */
+.etQRow:last-child { border-bottom: 0; }
+.etQKey {
+  flex: 1; min-width: 0;
+  font-size: 11px; color: var(--text, #f0efea);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.etQSpark { flex: 0 0 auto; display: inline-flex; align-items: center; opacity: 0.9; }
+.etQVal {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text, #f0efea); white-space: nowrap;
+}
+/* Direction is carried by the arrow AND the colour; the arrow is what survives
+   for a reader who cannot separate the two hues. */
+.etQArrow { margin-left: 3px; font-size: 10px; }
+.etQVal.pos { color: var(--dock-up-text, #3fc885); }
+.etQVal.neg { color: var(--dock-down-text, #f1696e); }
+
+/* ── row expansion — a COMPARISON, not a restatement of the row above ────── */
+.etDetail {
+  padding: 9px var(--et-pad) 11px;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.etCompare { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.etCompareTitle {
+  flex: 0 0 52px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--accent, #c9a84c);
+}
+.etCompareBody {
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
+}
+.etCompareCell { display: inline-flex; align-items: baseline; gap: 5px; }
+.etCompareK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etCompareV {
+  font-size: 11.5px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums;
+}
+.etSurprise { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.etSurprise.pos { color: var(--dock-up-text, #3fc885); }
+.etSurprise.neg { color: var(--dock-down-text, #f1696e); }
+
+.etFacts {
+  display: flex; flex-wrap: wrap; gap: 3px 16px;
+  margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.etFact { display: inline-flex; align-items: baseline; gap: 5px; }
+.etFactK {
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.etFactV {
+  font-size: 11px; font-weight: 600; color: var(--text, #f0efea);
+  font-variant-numeric: tabular-nums;
+}
+
+.etNote { margin: 8px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-muted, #cfcac0); }
+.etPrimaryDoc {
+  display: inline-block; margin: 10px 0 6px;
+  font-size: 11px; font-weight: 700; color: var(--accent, #c9a84c); text-decoration: none;
+}
+.etPrimaryDoc:hover { text-decoration: underline; }
+
+/* ── Earnings responsive ──────────────────────────────────────────────────
+   ⚠️ These MUST stay after the .et* rules above. A container query carries no
+   extra specificity, so at equal specificity SOURCE ORDER decides: parked up
+   in the shared RESPONSIVE section they lost to `.etPeriodShort{display:none}`
+   and the period column rendered EMPTY at 300px. Caught in visual QA. */
+/* Earnings: the five columns NEVER drop. Every one of them is load-bearing —
+   unlike Financials, whose row is label-dominant and can shed a sparkline — and
+   the arithmetic says they fit: at 300px (the dock's own minimum) the widest
+   realistic content plus gaps and gutters comes to ~294px. So width buys
+   BREATHING ROOM, not extra columns: one custom property moves, and the header
+   moves with the rows because both read it. */
+@container dock (max-width: 339px) {
+  .etTable {
+    --et-cols: 52px minmax(0, 1fr) 46px minmax(0, 1fr) 46px;
+    --et-gap: 6px;
+    --et-pad: 10px;
+  }
+  /* Drop the century: "FY26 Q3" still reads unambiguously and is what buys the
+     five columns their room at the narrowest usable width. */
+  .etPeriodFull, .etHeadFull { display: none; }
+  .etPeriodShort, .etHeadShort { display: inline; }
+  .etCompareTitle { flex-basis: 44px; }
+}
+/* Above ~470px the slack has to go SOMEWHERE, and letting the two level columns
+   take it (they were plain 1fr) tore the row apart: at 560px there was ~120px of
+   air between "FY2026 Q3" and "$24.67", so the eye lost the connection between a
+   period and its own numbers. Capping the levels keeps the numeric block tight
+   and hands the remainder to the PERIOD column instead — which is exactly how
+   Financials spends its width, and keeps the two tabs reading as siblings. */
+@container dock (min-width: 470px) {
+  .etTable {
+    --et-cols: minmax(76px, 1fr) minmax(0, 92px) 60px minmax(0, 92px) 60px;
+    --et-gap: 10px;
+    --et-pad: 14px;
+  }
+  .etRow { padding-top: 6px; padding-bottom: 6px; }
+  /* Seven quality facts stacked one-per-line is a long thin column of air at
+     this width; two-up halves the height without shrinking anything. */
+  .etQuality { grid-template-columns: 1fr 1fr; }
+}
+@container dock (min-width: 620px) {
+  .etTable {
+    --et-cols: minmax(88px, 1fr) minmax(0, 104px) 68px minmax(0, 104px) 68px;
+    --et-gap: 12px;
+    /* Wider side padding at this size soaks up slack symmetrically instead of
+       letting all of it pile into one gap. */
+    --et-pad: 22px;
+  }
+  .etCompareTitle { flex-basis: 64px; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   OWNERSHIP tab — same geometry language as Financials and Earnings.
+   ───────────────────────────────────────────────────────────────────────── */
+.own {
+  height: 100%; min-height: 0; display: flex; flex-direction: column;
+  color: var(--text, #f0efea);
+  --et-pad: 12px;
+  --et-gap: 8px;
+}
+
+/* ── snapshot strip: how much of the company is spoken for, on one line ──
+   Named .owStrip, not .etStrip: Earnings' strip was REMOVED in the editing
+   pass, so reusing that class name silently produced unstyled body text. This
+   block owns its own vocabulary. */
+/* Four measures of the same thing — how much of the company is spoken for — so
+   they get equal COLUMNS rather than being strung along a line. Inline
+   label-then-value read as four unrelated fragments of text at the top of the
+   tab; stacked in a grid the values line up on one baseline and the strip reads
+   as one instrument. */
+.owStrip {
+  flex: 0 0 auto;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--et-gap); row-gap: 8px;
+  padding: 9px var(--et-pad) 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.owStripItem { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.owStripK {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owStripV {
+  font-size: 13px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+
+/* ── the 13F position-flow line: four counts that are one fact ──────────── */
+/* TWO SIDES, not four numbers. Four equal-weight counts made the reader do the
+   grouping; the side total leads, its parts follow quietly, and the comparison
+   the section exists to support is between two figures. */
+.owFlow {
+  display: grid; grid-template-columns: 1fr 1fr;
+  column-gap: var(--et-gap); row-gap: 6px;
+  padding: 7px var(--et-pad) 4px;
+}
+.owFlowSide {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline;
+  column-gap: 6px; row-gap: 1px; min-width: 0;
+}
+.owFlowK {
+  grid-column: 1 / -1;
+  font-size: 8px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0);
+}
+.owFlowN { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* The parts are the breakdown, so they sit a tier below the total. */
+.owFlowParts {
+  min-width: 0; font-size: 9px; color: var(--text-muted, #cfcac0);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* A delta riding beside the value it modifies. */
+/* A delta rides beside the value it modifies and stays SMALLER than it — the
+   value is the fact, the change is the annotation. */
+.owDelta { margin-left: 5px; font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ── holders table — ONE grid definition read by the header and the rows,
+      exactly as .etTable does, so the header cannot drift. ──────────────── */
+.owHead,
+.owRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px 74px;
+  column-gap: var(--et-gap);
+  align-items: baseline;
+}
+.owHead2,
+.owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 74px; }
+.owHead {
+  padding: 4px var(--et-pad) 5px;
+  font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+}
+.owR { text-align: right; }
+.owRow {
+  padding: 5px var(--et-pad);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.owRow:hover { background: rgba(255, 255, 255, 0.03); }
+.owRow:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: -1px; }
+/* A fund name is the row's identity, so it takes the emphasis tier — but it is
+   also the only thing here that can be arbitrarily long, hence the ellipsis. */
+.owName {
+  min-width: 0; font-size: 11px; font-weight: 700; color: var(--text-bright, #f8f7f3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owShares {
+  text-align: right; font-size: 11px; font-weight: 600;
+  color: var(--text, #f0efea); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* A WORD, not a percentage: a 13F supports "Increased", never "bought 4.2%". */
+.owChange { text-align: right; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.owDetail {
+  padding: 7px var(--et-pad) 9px;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ── insider transactions ───────────────────────────────────────────────── */
+.owInsHead,
+.owInsRow {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 62px 62px;
+  column-gap: var(--et-gap);
+  align-items: baseline;
+}
+.owInsHead {
+  padding: 6px var(--et-pad) 5px;
+  font-size: 8.5px; letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--text-muted, #7d7768);
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+}
+.owInsRow { padding: 5px var(--et-pad); border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+.owInsDate {
+  font-size: 10px; color: var(--text-muted, #cfcac0);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.owInsName { min-width: 0; display: flex; flex-direction: column; }
+.owInsWho {
+  font-size: 11px; font-weight: 600; color: var(--text-bright, #f8f7f3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owInsRole {
+  font-size: 8.5px; color: var(--text-muted, #cfcac0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.owInsShares {
+  text-align: right; font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.owInsVal {
+  text-align: right; font-size: 11px; font-weight: 600; color: var(--text, #f0efea);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ── responsive: the holder NAME is the column that must never be sacrificed,
+      so width is taken from the numeric columns first. ───────────────────── */
+@container dock (max-width: 339px) {
+  .own { --et-pad: 10px; --et-gap: 6px; }
+  .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 54px 62px; }
+  .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 62px; }
+  .owInsHead, .owInsRow { grid-template-columns: 40px minmax(0, 1fr) 54px 54px; }
+  /* Four columns of 60px turns every value into an ellipsis; 2x2 keeps them
+     whole and costs one row. */
+  .owStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .owStripV { font-size: 12px; }
+}
+@container dock (min-width: 470px) {
+  .own { --et-pad: 14px; --et-gap: 10px; }
+  .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 78px 88px; }
+  .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 88px; }
+  .owInsHead, .owInsRow { grid-template-columns: 56px minmax(0, 1fr) 78px 78px; }
+  .owRow, .owInsRow { padding-top: 6px; padding-bottom: 6px; }
+}
+@container dock (min-width: 620px) {
+  .own { --et-pad: 16px; --et-gap: 12px; }
+  .owHead, .owRow { grid-template-columns: minmax(0, 1fr) 90px 100px; }
+  .owHead2, .owTable2 .owRow { grid-template-columns: minmax(0, 1fr) 100px; }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PROTOTYPES (design study) — delete with prototypes.js if not approved.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* ── Overview · Business trend ──────────────────────────────────────────── */
+.btStrip { margin-top: 7px; }
+.btLabel {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--text-muted, #cfcac0); margin-bottom: 3px;
+}
+.btBars { display: grid; column-gap: 3px; height: 34px; }
+.btCol { min-width: 0; height: 34px; }
+.btSvg { width: 100%; height: 34px; display: block; }
+/* Reported = filled. Estimate = outline, never a fill: a projected year must
+   not be able to pass for a measured one at a glance. */
+.btPos { fill: var(--dock-up-text, #3fc885); }
+.btNeg { fill: var(--dock-down-text, #f1696e); }
+.btEst { fill: none; stroke: var(--accent, #c9a84c); stroke-width: 1; }
+.btZero { stroke: rgba(255, 255, 255, 0.16); stroke-width: 0.5; }
+.btAxis { display: grid; column-gap: 3px; margin-top: 4px; }
+/* Names only the two endpoints — enough to fix the strip's direction without
+   repeating the year list that sits directly beneath it. */
+.btEnds {
+  display: flex; justify-content: space-between; margin-top: 3px;
+  font-size: 8.5px; color: var(--text-muted, #cfcac0); font-variant-numeric: tabular-nums;
+}
+.btYear {
+  font-size: 8.5px; text-align: center; color: var(--text-muted, #cfcac0);
+  font-variant-numeric: tabular-nums; overflow: hidden;
+}
+.btYearEst { color: var(--accent, #c9a84c); }
+.btNote { margin-top: 6px; font-size: 9.5px; color: var(--text-muted, #cfcac0); }
+
+/* ── Financials · expanded metric trend ─────────────────────────────────── */
+.fmTrend {
+  margin: 2px 0 8px; padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Earnings · reaction ────────────────────────────────────────────────── */
+.erChart { padding: 2px var(--et-pad, 12px) 0; }
+.erNote {
+  margin: 2px 0 0; padding: 0 var(--et-pad, 12px);
+  font-size: 9.5px; line-height: 1.45; color: var(--text-muted, #cfcac0);
+}

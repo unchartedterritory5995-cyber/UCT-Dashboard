@@ -1,0 +1,437 @@
+{
+ "simple": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Hello world."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Hello world.",
+  "contentSize": 14,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 13,
+    "text": "Hello world."
+   }
+  ]
+ },
+ "markBoundary": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Management expects "
+      },
+      {
+       "type": "text",
+       "text": "gross margins",
+       "marks": [
+        {
+         "type": "bold"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": " to normalize lower."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Management expects gross margins to normalize lower.",
+  "contentSize": 54,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 20,
+    "text": "Management expects "
+   },
+   {
+    "pm_start": 20,
+    "pm_end": 33,
+    "text": "gross margins"
+   },
+   {
+    "pm_start": 33,
+    "pm_end": 53,
+    "text": " to normalize lower."
+   }
+  ]
+ },
+ "adjacentMarks": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "a"
+      },
+      {
+       "type": "text",
+       "text": "b",
+       "marks": [
+        {
+         "type": "bold"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": "c",
+       "marks": [
+        {
+         "type": "italic"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": "d",
+       "marks": [
+        {
+         "type": "bold"
+        },
+        {
+         "type": "italic"
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": "e"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "abcde",
+  "contentSize": 7,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 2,
+    "text": "a"
+   },
+   {
+    "pm_start": 2,
+    "pm_end": 3,
+    "text": "b"
+   },
+   {
+    "pm_start": 3,
+    "pm_end": 4,
+    "text": "c"
+   },
+   {
+    "pm_start": 4,
+    "pm_end": 5,
+    "text": "d"
+   },
+   {
+    "pm_start": 5,
+    "pm_end": 6,
+    "text": "e"
+   }
+  ]
+ },
+ "twoParas": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "First para."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Second para."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "First para.\nSecond para.",
+  "contentSize": 27,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 12,
+    "text": "First para."
+   },
+   {
+    "pm_start": 14,
+    "pm_end": 26,
+    "text": "Second para."
+   }
+  ]
+ },
+ "headingAndPara": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "heading",
+     "attrs": {
+      "level": 2
+     },
+     "content": [
+      {
+       "type": "text",
+       "text": "NVDA Thesis"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Margins normalize."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "NVDA Thesis\nMargins normalize.",
+  "contentSize": 33,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 12,
+    "text": "NVDA Thesis"
+   },
+   {
+    "pm_start": 14,
+    "pm_end": 32,
+    "text": "Margins normalize."
+   }
+  ]
+ },
+ "nestedList": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Risks:"
+      }
+     ]
+    },
+    {
+     "type": "bulletList",
+     "content": [
+      {
+       "type": "listItem",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "China exposure"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "listItem",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Customer concentration"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Risks:\nChina exposure\nCustomer concentration",
+  "contentSize": 54,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Risks:"
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 25,
+    "text": "China exposure"
+   },
+   {
+    "pm_start": 29,
+    "pm_end": 51,
+    "text": "Customer concentration"
+   }
+  ]
+ },
+ "blockquote": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "blockquote",
+     "content": [
+      {
+       "type": "paragraph",
+       "content": [
+        {
+         "type": "text",
+         "text": "Quoted claim."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Quoted claim.\nAfter.",
+  "contentSize": 25,
+  "textSpans": [
+   {
+    "pm_start": 2,
+    "pm_end": 15,
+    "text": "Quoted claim."
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 24,
+    "text": "After."
+   }
+  ]
+ },
+ "linkAcross": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "see "
+      },
+      {
+       "type": "text",
+       "text": "the filing",
+       "marks": [
+        {
+         "type": "link",
+         "attrs": {
+          "href": "https://x"
+         }
+        }
+       ]
+      },
+      {
+       "type": "text",
+       "text": " for detail"
+      }
+     ]
+    }
+   ]
+  },
+  "text": "see the filing for detail",
+  "contentSize": 27,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 5,
+    "text": "see "
+   },
+   {
+    "pm_start": 5,
+    "pm_end": 15,
+    "text": "the filing"
+   },
+   {
+    "pm_start": 15,
+    "pm_end": 26,
+    "text": " for detail"
+   }
+  ]
+ },
+ "duplicatePhrase": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Revenue was strong."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Revenue guidance was raised."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Revenue was strong.\nRevenue guidance was raised.",
+  "contentSize": 51,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 20,
+    "text": "Revenue was strong."
+   },
+   {
+    "pm_start": 22,
+    "pm_end": 50,
+    "text": "Revenue guidance was raised."
+   }
+  ]
+ }
+}

@@ -1,0 +1,110 @@
+/* Wave N §9. Quiet by design — this is a record of what we hold, not a reader.
+   Tokens only, so it follows the app's theme like every other notebook
+   surface. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 620px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border, #232932);
+}
+.identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #e8eaed);
+  overflow-wrap: anywhere;
+}
+.domain {
+  font-size: 11px;
+  color: var(--color-text-muted, #8b939e);
+  margin-top: 2px;
+}
+.close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted, #8b939e);
+  /* Touch tier: the close control is the one a thumb reaches for first. */
+  min-width: var(--tap-min, 44px);
+  min-height: var(--tap-min, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #8b939e);
+}
+/* ⛔ The quotation is VISUALLY a quotation. A member must never mistake a
+   publisher's sentence for their own — the capture dialog makes the same
+   distinction when the passage is saved, and this is where they read it back. */
+.quote {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--color-accent, #c9a84c);
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-primary, #e8eaed);
+  overflow-wrap: anywhere;
+}
+.coverage {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted, #8b939e);
+}
+.annotation {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary, #c3c9d1);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  min-height: var(--tap-min, 44px);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-secondary, #c3c9d1);
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.action:hover {
+  border-color: var(--color-accent, #c9a84c);
+  color: var(--color-text-primary, #e8eaed);
+}

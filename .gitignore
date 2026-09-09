@@ -32,6 +32,16 @@ app/public/dev-login.html
 # Mobile audit screenshots (local only)
 tools/mobile_audit_out/
 tools/review_feed_probe_out/
+tools/wave_l_e2e_out/
+tools/wave_n_e2e_out/
+tools/wave_n_perf_out/
+tools/wave_n_mobile_out/
+tools/wave_o_mobile_out/
+tools/wave_o_perf_out/
+tools/wave_o_e2e_out/
+tools/wave_o6_e2e_out/
+tools/wave_o6_mobile_out/
+tools/wave_o6_perf_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/
@@ -84,3 +94,18 @@ tools/ui_stress_out_run*.log
 # readdirSync+readFileSync, and a file that appears and vanishes mid-walk killed
 # whole test files with ENOENT at module scope. Per-run, deleted in a `finally`.
 /app/.mutations/
+
+# ── Company Panel: local review + audit artifacts (never deploy) ────────────
+# Seeded local stores, probe output, the visual-QA harness and the QA vite
+# override. All are development-only and some are large.
+_local_news/
+_probe_out/
+app/newsqa.html
+app/src/newsqa.jsx
+app/vite.qa.config.js
+tools/capture_phone_out/
+tools/capture_extension_out/
+tools/share_phone_out/
+tools/wave_l_e2e_out/
+tools/semantic_benchmark_out/
+tools/prod_asset_proof_out/

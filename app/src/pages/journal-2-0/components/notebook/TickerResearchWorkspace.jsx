@@ -4,6 +4,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -60,16 +61,26 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   const [creating, setCreating] = useState(false)
   const [showPastTheses, setShowPastTheses] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  const [actionError, setActionError] = useState('')
 
   const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
 
+  // ⛔ These two used to be `alert(\`Could not create note: ${e.message}\`)`.
+  // Two defects in one line: a raw provider/backend exception rendered to a
+  // member (Wave B removed that class elsewhere; Wave H reintroduced it here),
+  // and a native `alert()` — the modal the scorecard already names as the
+  // trust-eroding pattern. The copy now says what happened and what is still
+  // true of the member's data, in the house idiom, and the exception goes to
+  // the console where an engineer can read it.
   const handleNewNote = async () => {
     setCreating(true)
+    setActionError('')
     try {
       const note = await createNoteViaApi({ ticker: symbol })
       openNote(note)
     } catch (e) {
-      alert(`Could not create note: ${e.message || e}`)
+      console.error('[research] create note failed', e)
+      setActionError("Couldn't create that note. Nothing was saved — try again.")
     } finally {
       setCreating(false)
     }
@@ -77,11 +88,13 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
 
   const handleNewThesis = async () => {
     setCreating(true)
+    setActionError('')
     try {
       const note = await createNoteFromTemplateViaApi('thesis', { ticker: symbol })
       openNote(note)
     } catch (e) {
-      alert(`Could not create thesis: ${e.message || e}`)
+      console.error('[research] create thesis failed', e)
+      setActionError("Couldn't start that thesis. Nothing was saved — try again.")
     } finally {
       setCreating(false)
     }
@@ -104,6 +117,10 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
         </button>
       )}
 
+      {actionError && (
+        <div className={styles.actionError} role="alert">{actionError}</div>
+      )}
+
       <div className={styles.header}>
         <div>
           <h2 className={styles.symbol}>{identity.symbol}</h2>
@@ -111,6 +128,11 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
           <div className={styles.subtitle}>My Research</div>
         </div>
         <div className={styles.headerActions}>
+          {/* The scope is PRESELECTED. The member is already inside NVDA
+              Research, so they should not have to type "NVDA" or configure a
+              filter to ask about it. */}
+          <AskPanel scope="security" target={identity.symbol}
+                    onOpenNote={onOpenNote} />
           <button type="button" className="btn btn-ghost btn-sm" onClick={handleNewNote} disabled={creating}>
             <UIcon name="plus" size={13} gold={false} /> New note
           </button>
@@ -235,6 +257,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
         href={previewDoc?.href}
         name={previewDoc?.name}
         onClose={() => setPreviewDoc(null)}
+        documentId={previewDoc?.documentId}
       />
     </div>
   )

@@ -317,7 +317,7 @@ complexity, low initial frequency, or dependent on real usage — never a dumpin
 | G-083 | Read-only offline cache of recently-viewed notes. |
 | G-044/G-084 | Mobile capture / share-sheet (real usage data should prioritize this, not assumption). |
 | G-093/G-094 (extend) | Any bidirectional sync work, if member demand surfaces. |
-| G-080 (activation) | Flip `J2_SHARE_LINKS_ENABLED` on — policy decision once real demand exists, not an engineering gap. |
+| G-080 (activation) | ⛔ **SUPERSEDED 2026-09-07 — do not read this row as pending work.** The flag was found already `1` in production with no durable record of the §21/activation approval, and was returned to `0` by owner ruling. Re-enabling now requires affirmative evidence the review completed, not merely demand. See the gap ledger's G-080 row and the decision log's G-080 entry. |
 | — | Tasks/reminders (financial-native: review-thesis-before-earnings, revisit-position-in-N-days) — not yet a gap-ledger row; add one when scoped. |
 | — | Calendar/catalyst view over structured research dates — depends on G-021/G-025 landing first. |
 
@@ -4694,3 +4694,472 @@ reported.
 5. **Two Wave H tap targets** named above, left for Wave H.
 6. **Zero real member usage evidence** — Day 0, the same honest cap every
    prior wave's closure carries.
+
+## WAVE K — ASK NOTEBOOK + ASK DOCUMENT: PRIVATE-CORPUS RETRIEVAL + CITATION-GROUNDED ANSWERS — Entry Checkpoint (2026-09-07)
+
+Resolved BEFORE any application source mutation, per directive §184. Every
+finding below was read out of current source or measured against the running
+system — not recalled. Where a prior belief of mine was wrong, the correction
+is recorded rather than quietly replaced.
+
+### Current-reality reconstruction — the four findings this checkpoint turns on
+
+**1. Ask Current Note's citation model is a bare quote-regex with NO
+validation, and dead-end citations already ship today.**
+`note_ask.SYNTH_SYSTEM` instructs the model to quote short exact phrases in
+`"double quotes"`. `NoteAskPanel.jsx` then applies
+`CITATION_RE = /"([^"]{3,200})"/g` to the answer text and renders EVERY
+quoted span as a clickable chip. Clicking calls `jumpToNoteText(dom, quote)`,
+a TreeWalker scan that returns `true`/`false` — **and the return value is
+discarded** (`onCitationClick` ignores it). Consequences, all live today:
+- a phrase the model invents renders as a citation chip indistinguishable
+  from a real one, and clicking it silently does nothing;
+- the model quoting anything for ordinary prose reasons (a term of art, the
+  member's own question) becomes a "citation";
+- there is no citation identity, no source id, and no typed target — so
+  there is nothing to generalize to documents, excerpts or facts.
+
+This is the single most important architectural fact for Wave K. It is also
+why directive §9 ("do not make Current Note worse") and §59 ("validate every
+cited handle") are not in tension: adding validation makes Current Note
+strictly better — a chip that cannot resolve should not render as a chip.
+
+**2. There is NO prompt-injection defense anywhere in the AI paths.**
+Grepping `note_ask.py`, `ai_search.py` and `ai_search_personal.py` for any
+"treat retrieved content as data / never follow instructions found in
+sources" language returns nothing. `_SAFETY_BLOCKS` (shared by both surfaces)
+is scope/refusal/market-manipulation policy — a different concern entirely.
+Worse for Wave K's threat model: `SYNTH_SYSTEM` interpolates the note body
+directly into the **system** message under `=== NOTE CONTENT ===`. A note
+containing "ignore all previous instructions" is currently placed in the most
+privileged part of the prompt. Nothing exploits this today at Current-Note
+scope (the corpus is the member's own single note), but Wave K retrieves
+across documents the member did not write — PDFs from issuers, brokers and
+the web. §26/§103 and exit gate H are therefore closing a real, currently-open
+hole, not hardening a theoretical one.
+
+**3. An approved embedding path already exists, is live in production, and
+already embeds some private member content — but NOT Notebook content.**
+`api/services/voice_embeddings_service.py`: OpenAI `text-embedding-3-small`,
+1536 dims, vectors stored as raw BLOBs in the `voice_embeddings` table **in
+auth.db** (the same database as the `j2_*` family), cosine similarity computed
+in-process with numpy. **No external vector database.** `OPENAI_API_KEY` is
+set on the production web service, and the indexing call sites
+(`voice_memory_service`, `voice_document_service`, `voice_kb_service`) are
+**not flag-gated**. Its declared `KINDS` already include `journal_entry` and
+`doc`, and its own docstring anticipates "journal entry (later)" — but **no
+call site indexes Notebook content today**.
+The precise consequence for §33: extending semantic retrieval to the Notebook
+corpus would **not** be choosing a new vendor, a new model, or a new storage
+architecture — all three already exist and are approved. It WOULD be widening
+*which* member data reaches that vendor, from voice-assistant context to the
+member's entire private research corpus. That is a real scope decision and it
+is surfaced here rather than made silently. It is also, per §31, not a
+decision Wave K should make before benchmarking deterministic retrieval.
+
+**4. Purge asymmetry — and a correction to my own first reading.**
+I initially grepped the purge modules for `voice_embeddings`, found nothing,
+and provisionally concluded that embeddings survive account deletion. **That
+was wrong, and the mechanism is why:** `auth.py::_cascade_delete_user`
+discovers referencing tables **at runtime via `PRAGMA foreign_key_list`** and
+deletes from every table declaring an FK to `users(id)`. It names no tables,
+so a name-grep structurally cannot find it. `voice_embeddings` declares
+`user_id TEXT NOT NULL REFERENCES users(id)` and **is** purged.
+The design consequence is sharp and load-bearing for Wave K:
+- a new index/vector table that declares `user_id … REFERENCES users(id)`
+  gets account-deletion coverage **structurally, for free**;
+- the `j2_*` family does **not** — no `j2_*` table declares that FK (recorded
+  in that same docstring, found during Phase One research), which is exactly
+  why `journal_two/account_purge.py` maintains a hand-written list and why
+  Wave J had to add its two tables to it by hand.
+⚠️ Do not confuse `j2_note_embeds` (widget/chart EMBED nodes, already in the
+j2 purge list) with vector EMBEDDINGS. Different things, one letter apart.
+
+### Ownership / architecture decisions (checkpoint items 1–63)
+
+**1–4. Ask Current Note architecture / model / rate-cost / citation model.**
+Backend `api/services/note_ask.py` + `POST /notes/{id}/ask/stream`; frontend
+`NoteAskPanel.jsx` mounted once, in `NoteEditorPage.jsx`. Model
+`claude-sonnet-5` (`NOTE_ASK_SYNTH_MODEL`), 700 max tokens, 45s timeout,
+`thinking={"type":"disabled"}`, **no `temperature` kwarg** (Sonnet tier 400s
+on it — a LOCKED constraint mirrored from `ai_search_personal`). Cost gate:
+`reserve_ask`/`refund_ask`, 40 calls/user/ET-day
+(`NOTE_ASK_SYNTH_PERUSER_CAP`), $25/day global hard cap, ~$0.02/call
+estimate, in-process locks. Note body capped at 20,000 chars. Citation model
+as described in finding 1. **Wave K reuses this provider, these controls and
+this streaming shape; it does not add an AI vendor.**
+
+**5–8. Scope model and UX entries.** Four scopes, each reusing ONE panel
+component rather than four AI applications: `note` (exists), `document` (new,
+from `DocumentPreviewSheet`), `entity` (new, from `TickerResearchWorkspace`),
+`notebook` (new, from Research Home + command palette). Scope is displayed
+next to the input and is derived from the mount context, so the default is
+always the surface the member is already looking at (§70–71). There is
+currently **no Ask entry in the command palette** — that is new surface, not
+a regression.
+
+**9–12. Corpus, current/historical boundary, temporal policy, coverage.**
+Corpus = CURRENT state only: note bodies/titles/subtitles, Wave E properties,
+Wave D links, Wave G thesis evidence (both stances) + changelog, Wave F facts,
+Wave I document page text, Wave J excerpts + annotations. Wave C note history
+is **excluded by default** (§13). Temporal questions (§14, §66): Wave K ships
+**no** historical-state answering — the honest position, because resolving
+"before earnings" requires a trustworthy event date this checkpoint cannot
+source. The system will say it cannot determine the cutoff rather than
+retrieve current notes and speak in past tense. Coverage model uses Wave I's
+existing four states verbatim: `pending` · `ready` · `no_text` ·
+`processing_failed`.
+
+**13. OCR / no_text coverage policy.** No approved in-pod OCR path exists;
+none is activated here, and no external OCR vendor is chosen (§3, §30).
+Wave K's obligation is honesty, not capability: when a scope's candidate set
+contains documents in `no_text`/`processing_failed`/`pending`, the answer
+surfaces that those sources were not searched. **The claim "I searched your
+Notebook" must never be made over a corpus with unsearched members.**
+
+**14. Excerpt anchor integrity rail (§18–19) — SLICE 0, before retrieval
+code.** Read-only. For every `j2_note_excerpts` row: owner exists, note and
+document exist and are not trashed, page exists, `captured_text` non-empty,
+and the stored quote selector re-resolves against the current extracted page
+text unambiguously. Classifies into resolvable / degraded / unresolved /
+missing-source / trashed-source. **Never rewrites member research.** Reports
+counts and ids only — never excerpt text (§19). A degraded anchor may still
+cite the excerpt as evidence but must not claim exact source navigation.
+
+**15–23. Citation type model.** One envelope, typed payload (§21):
+`{type, source_id, label, location, snippet, navigation_target,
+evidence_version}` with `type ∈ note | document | excerpt | fact |
+thesis_change`. Trade/position citation (§81) is **deferred** — it inflates
+scope and the authoritative read path is not straightforward from the
+Notebook side. Document citations reuse Wave J's anchor infrastructure and
+are expected to be the strongest type in the product (§78). Excerpt citations
+show the underlying document + page prominently, marked as saved evidence
+(§79). Fact citations carry captured value + captured time + owning note, and
+never present NOW as THEN (§15, §80).
+
+**24–31. Retrieval architecture.** Deterministic-first, per §31. Existing
+primitives are substantial and all tenant-scoped and trash-excluding already:
+`j2_notes_fts` (+ `fts_match_expr`, the shared injection-safe MATCH builder),
+`j2_note_document_pages_fts` (Wave I), `j2_note_excerpts_fts` (Wave J),
+Wave E properties, Wave F structured facts, Wave G evidence, and Wave H
+entity membership. **Wave H membership is already exactly what §11/§44
+require** — `resolve_research_symbols()` resolves through `entity_master`
+and expands to the alias set, then membership is `note.ticker ∈ symbols OR
+EXISTS(embed.symbol ∈ symbols) OR EXISTS(mention.symbol ∈ symbols)`. That is
+canonical entity membership, not a substring filter, and Ask Security
+Research reuses it directly with **no new retrieval semantics**.
+Structured questions ("which theses need review?") answer from Wave E
+deterministically without spending retrieval tokens (§46, §170).
+
+**26–28, 32–36. Semantic retrieval decision — DEFERRED to a measured
+decision inside the wave, not pre-committed.** Per §31 the lexical + entity +
+structured layer is benchmarked first against the §116 evaluation corpus. If
+paraphrase recall ("margin pressure" → "gross margin normalization") is
+materially deficient, the hybrid path is available at low architectural cost
+(finding 3) — but adding it widens what member data reaches OpenAI, and that
+widening is reported before it ships, never assumed. If it is not justified
+by measurement, semantic retrieval is recorded as explicit next-step debt and
+the member outcome ships on deterministic retrieval (§33's own instruction).
+Any vector table declares `user_id … REFERENCES users(id)` so purge is
+structural (finding 4), records `model` + content fingerprint (§36), and is
+rebuildable from authoritative sources (§35).
+
+**33–37. Grounding, injection defense, no-answer, partial coverage.**
+Retrieved content moves OUT of the system message into clearly-delimited
+quoted evidence blocks, with an explicit contract that evidence is data and
+never instruction (closing finding 2). The model receives **opaque citation
+handles** and every emitted handle is validated against the retrieved
+evidence set before render; unknown handles are stripped and, if a
+substantive claim loses its only support, the answer fails closed rather than
+rendering an unsupported claim (§59). No-answer is a first-class result, not
+an error surface (§24, §100). Partial coverage is stated only when material
+(§101).
+
+**38–45. Persistence, lifecycle, export.** No chat-history database (§72) —
+Notebook is the durable research object; interaction stays ephemeral, matching
+current behavior. Follow-ups re-retrieve and re-ground every turn; a prior
+answer is never evidence (§73). Index updates ride existing note/document/
+excerpt write paths and **must not** make a note save fail (§86) — index
+state degrades to stale/pending. Trash excluded, restore re-includes, purge
+removes (§28, §88–89). Derived indexes are never exported (§90).
+
+**46–55. Privacy, telemetry, limits, responsive, a11y, performance.**
+Existing Wave 2 privacy discipline is preserved: question and answer text are
+never logged (§91, §151). Telemetry records scope, source counts, success —
+never content (§92). Rate/cost extends `reserve_ask`'s existing model rather
+than inventing a second one (§55, §93). Mobile/tablet/a11y per §95–98.
+Performance targets are set from measurement in-wave, retrieval separated
+from time-to-first-token (§160).
+
+**55. Mobile-audit anti-vacuity hardening (§131) — SLICE 0.** Wave J proved
+three ways `tools/mobile_audit.py` reports green against the wrong target:
+Git Bash rewriting `/journal` into `C:/Program Files/Git/journal`; a
+comma-separated `--routes` list swallowed as one literal by an `nargs="*"`
+argument; and a resulting 404 page still reporting `overflowX=0, small=0`.
+The harness will record the final URL, assert the path is the expected route,
+assert the surface is not a not-found shell, assert an authenticated Notebook
+marker exists, and **fail the audit as INVALID** when it cannot prove it
+reached the page. An invalid audit is never a PASS.
+
+**56. Test baseline (§133).** Inherited and NOT to be attributed to Wave K:
+backend `test_obsidian_parity_fixtures.py::test_regeneration_is_byte_identical_to_the_committed_fixtures`
+(proven failing at `83256f01e`); frontend 8 failures across 7 files
+(`ImportBox.thinkscript`, `manifestProse`, `pine.blindCorpus`,
+`reachable.test.js`, `pollingSites.rail`, `ThemeTrackerPage.chartmount`,
+`jsonFetcher`). **Obsidian fixtures will not be regenerated during Wave K.**
+
+**57–58. Competitor matrix + financial differentiation test.** Scoped to the
+§138 questions only. The differentiation proof is §181's workflow, run in a
+real browser against a real model.
+
+**59–60. Migration / rollback.** All schema additive. Rollback = the index is
+derived and droppable; the Ask surfaces are additive; Ask Current Note's
+existing path stays functional throughout.
+
+**61–63. Slices / test matrix / production plan.** Per §185, with Slice 0
+(evidence-integrity rails) genuinely first.
+
+### No MATERIAL privacy/retrieval/citation contradiction found
+
+The three open gaps found — unvalidated citations, absent injection defense,
+and Notebook content not yet embedded — are all **inside Wave K's declared
+scope to close**, not contradictions of it. The one genuine decision that
+belongs to the owner rather than to this wave (widening which member data
+reaches the embedding vendor) is deferred behind a measurement, per §31/§33,
+and will be reported before it ships.
+
+Proceeding to Slice 0.
+
+### WAVE K CLOSURE (2026-09-07)
+
+Written after an unplanned session loss between the last slice commit and this
+record. The recovery found the worktree byte-clean and every slice committed —
+nothing was lost — but the reconstruction is worth one line of process record:
+**git and the filesystem were authoritative, and they were six commits ahead of
+the last conversational checkpoint.** The branch was then pushed to its own
+remote before any further work, because 23 commits existing only on one machine
+is a risk no wave should carry through a second session.
+
+#### What shipped
+
+One research assistant, four scopes — `note`, `document`, `security`, `notebook` —
+over a single pipeline: retrieve (per scope) → rank + budget → fenced prompt →
+stream → resolve citations. Everything scope-specific lives in one `_SCOPES`
+table; everything else is shared, so there are not four chat applications and
+cannot become four. `NoteAskPanel` was deleted rather than left beside the new
+panel, and a closed-contract rail fails if it returns.
+
+#### Test evidence
+
+- Frontend, `src/pages/journal-2-0/`: **1863 passing across 193 files**, zero
+  failures — including the flake Wave J recorded (`ImportWizard` "audit B1"),
+  which did not reappear.
+- Backend Notebook family (25 suites — the six Ask modules plus every
+  `journal_two` router, citation text, excerpt-anchor audit, sandbox guard, and
+  the shared SSE-gzip rail): **519 passing.**
+- Of those, the Wave-K-specific suites alone: **317 passing across 10 files.**
+- Ask frontend specifically: **76 passing across 4 files** (`AskPanel`,
+  `AskCitationContract.closed`, `AskSurface.markup`, `askCitation.parity`).
+- **17 mutation checks, every one a byte-identical restore** via
+  `tools/mutation_check.py` — 16 recorded in the slice commits (six on retrieval
+  and the note-block budget, four on the concurrency/refund lifecycle, six on
+  the OR-matching fix, the retired bm25 gate and the entity-context boundary)
+  and one added at closure against the frontend citation contract, which had
+  none: making an unknown `[n]` handle render as a citation anyway turns the
+  invented-citation case RED. That rail is the wave's most member-visible claim
+  and it had never been watched to fail.
+
+⛔ **A wrapper's exit code is not a suite's exit code.** The first two closure
+regression runs reported success while pytest had errored on a mistyped path and
+then died against an empty `$TMPDIR`; the `0` came from the `tail` at the end of
+the pipeline. Both were re-run capturing pytest's own status. This is the same
+lesson the program has already paid for once
+(`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`) and it cost two
+runs here purely because the shape is so easy to re-create.
+
+#### Process miss, recorded rather than quietly fixed
+
+**Wave K's entry checkpoint carried no competitor comparison.** §70-72 makes a
+small, task-specific competitor-experience matrix mandatory for every major
+pre-launch wave, from Wave B forward; Wave J did one, Wave K did not, and no
+gate caught it — the wave built for four workflows without first writing down
+what the incumbent's user expects from each. The matrix has now been written
+at closure (see the gap ledger's Wave K section: four workflows, Notion AI /
+Evernote AI Assistant / Obsidian's plugin ecosystem, current-sourced
+2026-09-07). It happens to *support* the wave's design decisions rather than
+challenge them — the explicit member-visible scope reads as an advantage
+precisely where Evernote decides context for the member — but that is luck, not
+process. Doing it at entry is the point. **A future wave's entry checkpoint
+should treat the competitor matrix as a gate item, not a section.**
+
+One finding from it belongs in front of the owner: **Obsidian's most-used AI
+plugin does vault-wide semantic search with a LOCAL embedding model** — no API
+key, no cloud egress. That is the capability the semantic leg is blocked on,
+obtained without needing a retention promise from any vendor. Recorded as an
+option to evaluate, not adopted; the choice is the owner's and the evaluation is
+real work (model, index size, CPU cost on the web pod).
+
+#### Residual debt, explicit
+
+1. **Four low-overlap paraphrases still miss** (3/7 low-overlap after the
+   AND→OR fix, up from 0/7). No lexical index can bridge them. The semantic leg
+   stays DARK: **no Notebook note, document, excerpt or query has been
+   embedded**, activation blocked on positive ZDR verification for
+   `org-6ljtvy8Dr0srF2ZRiE7vH2Dy`, railed by an AST probe with a control.
+2. **A shared generic word can lift `no_answer`** — "dividend policy" matches a
+   note about *export* policy. The answer stays grounded and the model refuses;
+   the deterministic layer is the part that overclaims.
+3. **`reachable.test.js` reports 16 orphaned modules** under `pages/community` +
+   `floor2` from `cc195e888`, already on origin/master. Not Wave K's, recorded
+   so nobody re-diagnoses it.
+4. **Voice retention risk is untouched and still open** — `voice_embeddings`
+   already sends member-derived Voice content to the same OpenAI project whose
+   ZDR posture blocks Wave K. That belongs to the Voice workstream; Wave K
+   preserved the record and mutated nothing.
+5. **Wave J residual debt remains open and unchanged** (OCR / G-121 above all).
+6. **Zero real member usage evidence** — Day 0, the same honest cap every prior
+   wave's closure carries.
+
+#### Remaining to certify
+
+Isolated-worktree merge, production deploy, production verification by artifact,
+and the certification report. The readiness scorecard's AI row is deliberately
+held at **5**, not 6, until that production verification exists — the ladder's 6
+means production-verified, and writing it before the deploy would be exactly the
+kind of rounding-up that artifact exists to resist.
+
+
+#### WAVE K RELEASE — EXECUTED (2026-09-07)
+
+The 8G-B shared-production hold was **explicitly cleared by the owner**, and the
+parked checkpoint was resumed from step 1 rather than trusting any of its stored
+proofs. That mattered: master had moved five commits, so the parked merge-tree
+result had expired exactly as the checkpoint warned. Re-run against current master:
+still zero conflicts.
+
+**Deployed:** `550283e02`, a merge of `notebook-primary-platform` into master,
+pushed fast-forward (`9c6078503..550283e02`), no force. Merged in the isolated
+worktree `_wavek-master-merge-temp`; the `broker_sync` invariant was checked after
+the merge AND again immediately before the push (`grep -c broker_sync api/main.py`
+= 10, floor 7).
+
+**Production verification** — full point-by-point record in
+`docs/notebook/wave-k-production-certification.md`. The load-bearing ones:
+
+- **Fresh process:** uptime 779s → 56s, then monotonic across ten samples; RSS fell
+  1564.7 MB → 1158.5 MB.
+- **The Ask routes are real, mounted, auth-gated application routes.** Read the
+  transition, not the endpoint: `POST /api/j2/ask/stream` answered **405 before the
+  deploy and 401 after**. 405 is this app's SPA-catch-all signature — the same tell
+  that exposed the `broker_sync` unmount — and a nonexistent route still answers 405
+  on POST and 200 `text/html` on GET, so the probe demonstrably distinguishes.
+- **The Ask UI is in the shipped bundle**, in `DocumentPreviewSheet-3ViUeKcD.js`
+  (Vite names the shared chunk after one of `AskPanel`'s importers).
+
+⛔ **The first bundle sweep returned ZERO markers and was wrong.** It swept
+`index-BPpk_v_Y.js` — the pre-deploy bundle — because `index.html` had been fetched
+while the old pod was still serving. The current entry is `index-JF_32lGS.js`. A
+stale artifact reads exactly like a missing feature, and the only thing that
+separated them was checking the entry hash. **Cache-bust the index and compare the
+entry hash before believing any bundle grep.**
+
+**Not certified, and stated plainly:** no production Ask round-trip with a real
+member session. Every production check is an unauthenticated probe — routes real,
+gated, UI shipped. That a member's question returns a grounded, cited answer is
+proven in the fail-closed sandbox (Slice 8a, real model) and a real browser
+(Slice 8b), not in production. It is the one SANDBOX↔PROD gap in this wave.
+
+**One pre-existing failure carried forward, not ours:**
+`optionsFlow/flowParts.test.js` fails on the merged tree, and `git diff
+origin/master HEAD` over the OptionsFlow paths is empty — no frontend file outside
+`journal-2-0/` differs from master at all, so it fails identically on master. It
+belongs to the live OptionsFlow perf-migration workstream on partner-owned files
+and was left untouched.
+
+**Next:** the post-Wave-K integrity mini-pass (G-063 temporal gate · raw-error rail
+· gap-ledger reconciliation), then Wave L. Not started.
+
+#### WAVE K RELEASE CHECKPOINT — PARKED (owner ruling, 2026-09-07)
+
+**Owner ruling: DO NOT DEPLOY WHILE THE 8G-B SHARED-PRODUCTION HOLD REMAINS
+ACTIVE.** Stopping before merge/deploy was confirmed correct. State classified in
+the owner's own evidence language, which is not to be weakened:
+
+    IMPLEMENTATION COMPLETE
+    TARGETED + BROAD REGRESSION COMPLETE
+    CLOSURE DOCUMENTATION COMPLETE
+    FEATURE BRANCH PUSHED
+    PRE-DEPLOY RELEASE READINESS PROVEN
+    PRODUCTION RELEASE INTENTIONALLY BLOCKED BY 8G-B SHARED-SERVICE HOLD
+
+    NOT YET:
+    PRODUCTION MERGED
+    PRODUCTION DEPLOYED
+    PRODUCTION VERIFIED
+    FULLY PRODUCTION-CERTIFIED
+
+Checkpoint: branch `notebook-primary-platform` at `58a1828fe`, tree clean, pushed
+to its own remote, 21 commits ahead of `origin/master` (`9e72492d2` at the time of
+parking).
+
+⛔ **The merge-tree proof is pre-deploy evidence, NOT permission to merge later.**
+It was taken against one specific master and expires the moment master moves. It
+must be re-run against CURRENT master before any merge.
+
+**While parked, do NOT:** merge, deploy, restart the shared web service, poll
+8G-B, repeatedly re-run regressions, perform speculative cleanup, begin Wave L, or
+make unrelated improvements. The tree is clean and the work is preserved; that is
+the whole job until the hold is explicitly cleared.
+
+**When — and only when — the 8G-B hold is EXPLICITLY cleared**, resume from this
+checkpoint and run these nineteen steps in order:
+
+1. `git fetch origin`
+2. inspect current `origin/master` drift since this checkpoint
+3. verify branch/tree remain clean
+4. confirm no new Notebook-affecting concurrent commit changes the assumptions
+5. re-run merge-tree/reconciliation against CURRENT master
+6. resolve only genuine current conflicts
+7. use the established isolated temporary-worktree merge procedure
+8. no force push
+9. merge Wave K
+10. deploy through the normal production path
+11. verify fresh-process health
+12. verify Wave K backend routes are auth-gated application routes, not SPA
+    fallthrough
+13. verify the actual shipped frontend chunks contain the Wave K Ask / citation /
+    scope UI
+14. verify Ask Current Note remains on the new safe prompt/citation contract
+15. verify Wave I/J document routes remain healthy
+16. re-check the locked `broker_sync` invariant
+17. perform the appropriate bounded production smoke verification without
+    disturbing other workstreams
+18. update any final deployment evidence required by the closure record
+19. deliver the complete 99-point Wave K certification report
+
+Do not re-run the entire development program unless current master drift or
+production verification exposes a real contradiction.
+
+**At final certification, this wording is preserved exactly:**
+
+> SEMANTIC RETRIEVAL
+> = architecturally approved
+> = quality-justified by measured deterministic recall failure
+> = NOT ACTIVATED
+> = blocked on exact-project Zero Data Retention verification.
+>
+> No Notebook content has been sent to the embedding endpoint.
+
+No deployment or certification wording may imply otherwise.
+
+**Inherited / discovered debt, preserved explicitly:** exact-project ZDR remains
+unverified; the semantic leg remains dark; the local-embedding architecture is a
+legitimate future option discovered from competitor research and was NOT adopted
+in Wave K; Voice embedding retention posture is a separate cross-workstream risk
+outside Notebook ownership; the competitor-task-matrix omission was a process
+defect discovered and corrected at closure; all other already-recorded residual
+debt stands unchanged.
+
+**Stop condition:** after final Wave K production certification, STOP. Wave L does
+not begin — the remaining Notebook roadmap is re-baselined by the owner after
+reviewing the fully deployed Wave K product.

@@ -217,6 +217,18 @@
   border-radius: 2px;
   padding: 0 1px;
 }
+/* Wave O6: the decision line on a thesis-review result -- the outcome the
+   member chose and when. Distinct from .searchResultSnippet above because it
+   is NOT an excerpt of their prose: it is the structured record beside it, and
+   styling the two identically would read as more of the same sentence. */
+.searchResultMeta {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #dcbb5e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Wave 4 Slice 2: the tag/ticker-only match explanation -- shown ONLY when
    there is no snippet to render (never both at once). */
 .searchResultReason {
@@ -439,4 +451,16 @@
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
   }
+}
+
+/* A failed folder mutation, said in the member's language — replaces a native
+   alert() that carried the raw exception (railed: rawErrorSurface.test.js). */
+.folderError {
+  margin: 6px 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-danger-border, rgba(248, 113, 113, 0.35));
+  border-radius: 6px;
+  background: var(--color-danger-bg, rgba(248, 113, 113, 0.08));
+  font-size: 12px;
+  line-height: 1.4;
 }

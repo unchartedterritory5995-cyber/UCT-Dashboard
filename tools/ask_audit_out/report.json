@@ -1,0 +1,60 @@
+[
+ {
+  "found": true,
+  "panelRight": 390,
+  "panelLeft": 0,
+  "viewportW": 390,
+  "docOverflow": 0,
+  "small": [],
+  "inputFontPx": 16,
+  "inputAccessibleName": "Your question about This note",
+  "scopeText": "Asking: This note",
+  "focusIsInput": true,
+  "viewport": "phone390"
+ },
+ {
+  "found": true,
+  "panelRight": 770,
+  "panelLeft": 50,
+  "viewportW": 820,
+  "docOverflow": 0,
+  "small": [],
+  "inputFontPx": 16,
+  "inputAccessibleName": "Your question about This note",
+  "scopeText": "Asking: This note",
+  "focusIsInput": true,
+  "viewport": "tablet820"
+ },
+ {
+  "found": true,
+  "panelRight": 766,
+  "panelLeft": 366,
+  "viewportW": 1440,
+  "docOverflow": 0,
+  "small": [
+   {
+    "tag": "button",
+    "name": "Close Ask",
+    "w": 21,
+    "h": 20
+   },
+   {
+    "tag": "input",
+    "name": "",
+    "w": 324,
+    "h": 30
+   },
+   {
+    "tag": "button",
+    "name": "Ask",
+    "w": 48,
+    "h": 30
+   }
+  ],
+  "inputFontPx": 13,
+  "inputAccessibleName": "Your question about This note",
+  "scopeText": "Asking: This note",
+  "focusIsInput": true,
+  "viewport": "desktop"
+ }
+]

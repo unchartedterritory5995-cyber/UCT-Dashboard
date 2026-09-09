@@ -67,6 +67,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import capture_auth as capture_auth_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -1806,6 +1807,96 @@ def register_screener_jobs(scheduler):
     return True
 
 
+def register_company_news_jobs(scheduler):
+    """Register Company Panel news ingestion.
+
+    CENTRAL AND GLOBAL, never per-user. FMP's `-latest` endpoints return the
+    whole market in one request and the ingestor fans out by symbol, so this
+    is ~1 request every few minutes for every member we have. If the global
+    endpoints turn out to be unavailable the adapter falls back to bounded,
+    scheduled iteration over the active universe — still central, still
+    independent of user count.
+
+    ⛔ Opening a company's News tab must never reach a provider. Nothing on
+    the read path calls into these jobs.
+
+    Off by default so a deploy cannot start ingesting before it is wanted:
+    set COMPANY_NEWS_INGEST_ENABLED=1. Returns True if jobs were registered.
+    """
+    if os.environ.get("COMPANY_NEWS_INGEST_ENABLED", "") not in ("1", "true", "yes"):
+        return False
+
+    from datetime import timedelta
+
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    def _poll():
+        try:
+            from api.services.news import ingest
+            res = ingest.run_fmp_cycle()
+            print(f"[news] fmp cycle mode={res.get('mode')} "
+                  f"items={res.get('items')} req={res.get('requests')}")
+        except Exception as e:
+            print(f"[news] fmp cycle error: {e}")
+
+    def _per_company():
+        """SEC + the local tweet store, ROTATING across the whole universe.
+
+        Both are free and per-company: sec_news.fetch is one HTTP request per
+        ticker (the submissions document is cached per CIK and filtered in
+        memory) and the tweet store is already on disk, so this adds no metered
+        cost.
+
+        ⛔ It must ROTATE. This used to poll a fixed head of the list every
+        cycle, so the same handful of symbols were refreshed forever and a
+        ticker outside it -- LITE, for one -- could never receive a filing no
+        matter how long the service ran. The offset persists in the store, so
+        the sweep resumes where it left off across restarts.
+        """
+        try:
+            from api.services.news import ingest
+            syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
+            if syms:
+                ingest.run_sec_cycle(syms)
+                ingest.run_x_cycle(syms)
+        except Exception as e:
+            print(f"[news] per-company cycle error: {e}")
+
+    def _prune():
+        try:
+            from api.services.news import store as news_store
+            print(f"[news] retention sweep: {news_store.prune()}")
+        except Exception as e:
+            print(f"[news] prune error: {e}")
+
+    poll_min = int(os.environ.get("COMPANY_NEWS_POLL_MINUTES", "5"))
+    # Free lane, so this is a COVERAGE knob, not a cost one: 150 symbols every
+    # 20 min walks a ~3,700-name universe in about 8 hours. Kept separate from
+    # NEWS_FALLBACK_SYMBOLS, which bounds the METERED FMP fallback.
+    SEC_SYMS = int(os.environ.get("NEWS_SEC_SYMBOLS_PER_CYCLE", "150"))
+    # ⛔ Both jobs get an explicit early `next_run_time`. An IntervalTrigger
+    # schedules its FIRST run one full interval AFTER the scheduler starts, and
+    # every deploy restarts the scheduler -- so on a day with frequent deploys
+    # the 20-minute per-company sweep NEVER FIRED ONCE. Its rotation cursor sat
+    # at None while the 5-minute FMP job (which survives by being shorter than
+    # the gap between deploys) made it look like ingestion was healthy.
+    # Staggered so a boot does not run both sweeps at the same moment.
+    _soon = datetime.now(_ET) + timedelta(minutes=1)
+    scheduler.add_job(_poll, trigger=IntervalTrigger(minutes=poll_min),
+                      id="company_news_fmp", max_instances=1,
+                      replace_existing=True, coalesce=True,
+                      next_run_time=_soon)
+    scheduler.add_job(_per_company, trigger=IntervalTrigger(minutes=20),
+                      id="company_news_percompany", max_instances=1,
+                      replace_existing=True, coalesce=True,
+                      next_run_time=_soon + timedelta(minutes=2))
+    scheduler.add_job(_prune, trigger=CronTrigger(hour=4, minute=20, timezone=_ET),
+                      id="company_news_prune", max_instances=1,
+                      replace_existing=True)
+    return True
+
+
 def register_signature_sweep_job(scheduler):
     """Register the nightly closed-bar UCT Signature sweep (20:05 ET weekdays).
 
@@ -2456,6 +2547,21 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ⛔ Keep the Web Share Target's query out of OUR access log. The share
+    # arrives as GET /journal/share?title=…&text=…&url=…, and `text` carries
+    # member-selected prose, not just a public link.
+    # ⛔ IT MUST BE INSTALLED HERE, NOT AT IMPORT: uvicorn applies its own
+    # logging config during startup and rebuilds those loggers, silently
+    # discarding a filter added earlier (measured). This does NOT reach
+    # Railway's edge, which sees the URL before we do — see the module.
+    try:
+        from api import logging_redaction
+        logging_redaction.install()
+        print("[startup] access-log redaction armed for "
+              f"{sorted(logging_redaction.REDACTED_QUERY_PATHS)}")
+    except Exception as e:
+        print(f"[startup] access-log redaction failed to install (non-fatal): {e}")
+
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
     try:
         import anyio
@@ -5388,6 +5494,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] signature sweep registration error: {e}")
 
+        # -- Company Panel news ingestion (central, global, off by default) --
+        try:
+            if register_company_news_jobs(_scheduler):
+                print("[startup] company news ingestion scheduled")
+        except Exception as e:
+            print(f"[scheduler] company news registration error: {e}")
+
         # -- Nightly split back-adjustment sweep (`61f3b33b`) ----------------
         # ⛔ THE HALF THAT WAS MISSING. The repair shipped with a serve-path
         # hand-off and a manual tool and NO schedule, so nothing healed the
@@ -6906,7 +7019,15 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
-        or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # Ask Current Note token stream
+        or path == "/api/j2/ask/stream"                  # unified Ask token stream
+        or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
+        # Compass chat SSE family (cancel/confirm/*_onboarding/stream all
+        # return text/event-stream) and the curated flow tail. Both were
+        # MISSING until the rail below started deriving SSE routes from the
+        # app instead of trusting a hand-typed list -- the same defect class
+        # this repo keeps paying for.
+        or (path.startswith("/api/j2/accounts/") and "/coach/chat/" in path)
+        or path == "/api/live/massive/curated-stream"
         or path == "/api/j2/notes/export"        # already-DEFLATE zip, streamed
         or path.startswith("/assets/")
         or path.startswith("/fonts/")   # .woff2 is already compressed
@@ -7123,6 +7244,12 @@ app.include_router(movers.router)
 app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
+# ── Company Panel News. The read route touches the persistent company_news
+# store ONLY and never contacts a provider; ingestion is the scheduled job
+# registered in the lifespan below.
+from api.routers import company_news as company_news_router
+app.include_router(company_news_router.router)
+app.include_router(company_news_router.ops_router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)
@@ -7251,6 +7378,10 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+# Browser Capture authorization handshake + the two scoped extension
+# surfaces. Separate path space from POST /api/j2/capture, so no route
+# shadows another; mounted beside it so the family reads as one.
+app.include_router(capture_auth_router.router)
 app.include_router(community_router.router)
 app.include_router(dashboard_signposts_router.router)
 app.include_router(market_calendar_router.router)  # public: NYSE full closures, derived from bars_fetch

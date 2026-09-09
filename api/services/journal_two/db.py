@@ -970,6 +970,57 @@ CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_note
 CREATE INDEX IF NOT EXISTS idx_j2_thesis_evidence_user
     ON j2_thesis_evidence(user_id, note_id);
 
+-- ── Wave O: THESIS REVIEWS ─────────────────────────────────────────────────
+-- ⛔⛔ WHY THIS NEEDS STORAGE WHEN THE CHANGELOG DOES NOT. Wave G's thesis
+-- changelog is a COMPUTED READ with no write path: every event it shows traces
+-- back to a row some other system already had to write (a version, an evidence
+-- edge, a fact, a trade link). A REVIEW is the one thing in this domain that
+-- leaves no other trace — "the member deliberately reconsidered this thesis and
+-- decided it still holds" is not derivable from anything, because deciding NOT
+-- to change something writes nothing anywhere. That is the whole reason this
+-- table exists, and it is also why §22's "do not merge the two histories" is
+-- satisfied structurally rather than by discipline: the changelog CANNOT absorb
+-- a review, because it only surfaces what it can derive.
+--
+-- ⛔ KEYED ON THE THESIS NOTE, NEVER THE TICKER. A thesis IS a note here, and
+-- `ticker_research` already returns activeTheses AND pastTheses for one symbol —
+-- so a security legitimately owns several theses and a ticker cannot identify
+-- which one was reviewed (directive §37).
+--
+-- ⛔ VERSION REFERENCES, NOT COPIES. `j2_note_versions` rows are immutable and
+-- carry ids, so a completed review can point at exactly what the thesis said
+-- then without freezing a copy of it here (§24's "smallest truthful historical
+-- record"). Nothing external is duplicated: no article text, no source body.
+CREATE TABLE IF NOT EXISTS j2_thesis_reviews (
+    id                   TEXT PRIMARY KEY,
+    user_id              TEXT NOT NULL,
+    note_id              TEXT NOT NULL,   -- the THESIS note under review
+    status               TEXT NOT NULL,   -- 'draft' | 'completed'
+    review_reason        TEXT,            -- why this review happened
+    outcome              TEXT,            -- no_change|revised|invalidated|deferred
+    member_note          TEXT,            -- the member's OWN writing (§26)
+    prior_version_id     TEXT,            -- j2_note_versions.id when review opened
+    resulting_version_id TEXT,            -- j2_note_versions.id if the thesis changed
+    next_review_at       TEXT,            -- ISO date the member chose, if any
+    created_at           TEXT NOT NULL,
+    completed_at         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_reviews_note
+    ON j2_thesis_reviews(note_id, status, completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_j2_thesis_reviews_user
+    ON j2_thesis_reviews(user_id, note_id);
+-- ⛔ ONE OPEN DRAFT PER THESIS (§38: no duplicate review obligations minted on
+-- every render). Enforced by the DATABASE, not by a service that remembers to
+-- check — SQLite treats NULLs as distinct, so this constrains drafts only and
+-- leaves completed history free to accumulate.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_j2_thesis_reviews_one_draft
+    ON j2_thesis_reviews(user_id, note_id) WHERE status = 'draft';
+
+-- A review dies with the thesis it belongs to, exactly like its evidence.
+CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_reviews_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_thesis_reviews WHERE note_id = old.id;
+END;
+
 CREATE TRIGGER IF NOT EXISTS j2_notes_thesis_evidence_ad AFTER DELETE ON j2_notes BEGIN
     DELETE FROM j2_thesis_evidence WHERE note_id = old.id;
 END;
@@ -1695,6 +1746,29 @@ _PHASE_2_ALTERS = [
     # instead of an ordinary edit. Stamped ONLY by restore_note_version's
     # existing force=True capture path -- NULL for every other version.
     "ALTER TABLE j2_note_versions ADD COLUMN restored_from_version_id TEXT",
+    # Wave L (Capture Everywhere): a captured web source is a DOCUMENT, so it
+    # reuses pages/excerpts/thesis-evidence/Ask rather than opening a parallel
+    # store (entry checkpoint §2). Two columns, no table rebuild:
+    #   source_kind — 'attachment' (every pre-Wave-L row) | 'web'
+    #   source_url  — the human-meaningful page URL, for 'web' rows only
+    # ⛔ `attachment_url` STAYS the note-scoped IDENTITY column and NEVER holds
+    # a page URL. `document_extraction._resolve_pdf_bytes` regex-parses it to
+    # read bytes off disk, and note_shares rewrites attachment URLs for share
+    # links — a real URL in that column would reach both. A web row's identity
+    # is the opaque `web:<sha256>` token from web_capture.web_document_identity,
+    # which the anchored ^/api/j2/notes/attachments/… regex cannot match, so the
+    # PDF path declines it instead of touching the filesystem.
+    "ALTER TABLE j2_note_documents ADD COLUMN source_kind TEXT NOT NULL DEFAULT 'attachment'",
+    "ALTER TABLE j2_note_documents ADD COLUMN source_url TEXT",
+    # ⛔ COVERAGE MUST STAY TRUTHFUL (Wave L §1). `source_kind` answers "is this
+    # a filesystem attachment?" — a WRITE-PATH question. `capture_type` answers
+    # "what do I actually hold?" — a RETRIEVAL question, and the two have
+    # different consumers. A web_passage row holds ONE passage the member chose;
+    # it must never let a reader infer the article was read or searched.
+    #   pdf_full_text — every pre-Wave-L row: extracted text of the whole PDF
+    #   web_reference — title + URL + domain only. No body text at all.
+    #   web_passage   — the passages the member selected, and nothing else.
+    "ALTER TABLE j2_note_documents ADD COLUMN capture_type TEXT NOT NULL DEFAULT 'pdf_full_text'",
 ]
 
 
@@ -1702,6 +1776,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     """Create Journal 2.0 tables if missing. Safe to call repeatedly.
     Never modifies the existing Journal tables."""
     conn.executescript(_J2_SCHEMA)
+
+    # Slice 3 Browser Capture credential tables. The DDL lives WITH the module
+    # that owns the credential rather than being copied into _J2_SCHEMA -- a
+    # security-relevant table definition sitting a thousand lines from the code
+    # that reads it is how a column quietly stops meaning what it says.
+    from api.services.journal_two.capture_auth import ensure_capture_auth_schema
+    ensure_capture_auth_schema(conn)
 
     # Phase 2 ALTER additions: idempotent via try/except since SQLite
     # doesn't have IF NOT EXISTS for ADD COLUMN.

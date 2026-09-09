@@ -31,11 +31,15 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from api.middleware.auth_middleware import (
     get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
 )
+# Slice 3: the ONE route below that an external door may reach opts into this by
+# name. `get_current_user` above is untouched -- see api/middleware/capture_scope.
+from api.middleware.capture_scope import require_capture_scope
 
 logger = logging.getLogger(__name__)
 from api.services.journal_two import (
     accounts as accounts_service,
     analytics as analytics_service,
+    capture_auth,
     calendar as calendar_service,
     coach as coach_service,
     coach_chat as coach_chat_service,
@@ -2176,6 +2180,117 @@ def get_thesis_summary_endpoint(note_id: str, user: dict = Depends(get_current_u
     return {"evidence": evidence, "changelog": changelog}
 
 
+# ── Wave O: thesis reviews ──────────────────────────────────────────────────
+from api.services.journal_two import (review_search, thesis_review_changes,
+                                     thesis_reviews)
+
+
+@router.post("/notes/{note_id}/reviews")
+def open_thesis_review_endpoint(
+    note_id: str, body: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Start or RESUME the one open review draft for this thesis.
+
+    ⛔ Idempotent on purpose (§38): a surface may call this when the member
+    opens the review panel, and a review obligation must not accumulate every
+    time somebody looks at the page. The service returns the existing draft.
+    """
+    try:
+        review = thesis_reviews.open_review(
+            user["id"], note_id,
+            reason=(body or {}).get("reason") or thesis_reviews.REASON_MANUAL)
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.get("/reviews/search")
+def search_reviews_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave O6 -- find a completed review by what the member wrote in it.
+
+    ⛔ DECLARED BEFORE THE `/reviews/{review_id}` ROUTES ON PURPOSE. There is
+    no `GET /reviews/{id}` today, so nothing shadows this yet -- and the day
+    somebody adds one, a literal path declared after a parameterised sibling
+    is matched as an id and this endpoint 404s with every test still green
+    (the exact shape of the breadth `/live/drill` incident).
+
+    ⛔ A FOURTH SECTION, NEVER A FOURTH SCORE -- see review_search.py. The
+    caller renders these beside Notes / Documents / Evidence; nothing blends
+    them into another list's ranking.
+    """
+    rows = review_search.search_reviews(user["id"], q, limit=limit)
+    return {"results": [{
+        "reviewId": r["review_id"], "noteId": r["note_id"],
+        "noteTitle": r["note_title"], "ticker": r["ticker"],
+        "snippet": r["snippet"],
+        # The outcome the member chose and when they chose it. A review result
+        # that showed only prose would make "I was wrong about this" and "no
+        # change" look like the same kind of finding.
+        "outcome": r["outcome"], "completedAt": r["completed_at"],
+        "reviewReason": r["review_reason"],
+    } for r in rows]}
+
+
+@router.patch("/reviews/{review_id}")
+def save_thesis_review_draft_endpoint(
+    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Autosave the member's work. ⛔ Never completes it (§34)."""
+    try:
+        review = thesis_reviews.save_draft(
+            user["id"], review_id,
+            member_note=body.get("memberNote"), outcome=body.get("outcome"),
+            next_review_at=body.get("nextReviewAt"))
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.post("/reviews/{review_id}/complete")
+def complete_thesis_review_endpoint(
+    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Record what the member decided.
+
+    ⛔⛔ THIS DOES NOT TOUCH THE THESIS (§4/§9). If the member revised it, they
+    did that through the canonical note/property path before completing, and
+    the service records which version it landed on. There is deliberately no
+    `thesisStatus` field on this request body: a review form that could set a
+    thesis status would make UCT the author of an investment judgement.
+    """
+    try:
+        review = thesis_reviews.complete(
+            user["id"], review_id, outcome=body.get("outcome"),
+            member_note=body.get("memberNote"),
+            next_review_at=body.get("nextReviewAt"))
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.get("/notes/{note_id}/reviews")
+def list_thesis_reviews_endpoint(
+    note_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """This thesis's review history, plus the deterministic what-changed block.
+
+    ONE aggregated read, mirroring `thesis-summary`'s own shape — the review
+    panel needs history and the diff together, and two round trips would let
+    them disagree about which review is the anchor.
+    """
+    if notes_service.get_note(user["id"], note_id) is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "reviews": thesis_reviews.list_reviews(user["id"], note_id),
+        "attention": thesis_review_changes.review_attention(user["id"], note_id),
+    }
+
+
 # ── Wave H (Research Home + Ticker Research Workspace) ──────────────────────
 from api.services.journal_two import notebook_home, ticker_research
 
@@ -2315,7 +2430,7 @@ def get_note_endpoint(
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
-    """Paid gate for Ask Current Note — an LLM-synthesis call on the firm's
+    """Paid gate for every Notebook Ask scope — an LLM-synthesis call on the firm's
     key, same shape as every other AI-cost route in this codebase.
 
     Defined HERE, never imported from a sibling router — each router owns
@@ -2325,8 +2440,173 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     which enforces a distinct detail string per definer)."""
     if not is_paid_user(user):
         raise HTTPException(status_code=402,
-                            detail="Ask Current Note requires a paid plan")
+                            detail="Notebook Ask requires a paid plan")
     return user
+
+
+# ── Wave K Slice 6: one Ask pipeline, four scopes ───────────────────────────
+# Wave 2 shipped Ask Current Note as its own endpoint with its own prompt
+# builder. Slices 2/4 added document and security retrieval. This is the single
+# handler all of them now run through, so the prompt boundary, the citation
+# contract, the refusal, the coverage notice and the rate limit have ONE
+# implementation and cannot drift per scope.
+
+_ASK_MAX_QUERY = 2000
+
+
+async def _ask_stream(user: dict, scope: str, target: str | None,
+                      payload: dict[str, Any]):
+    """Retrieve, then either refuse deterministically or stream an answer.
+
+    SSE events, in order:
+      sources -> {scope, scopeLabel, sources[], coverageNotice, noAnswer}
+      delta   -> {text}            (repeated)
+      final   -> {answer, cited[], invalidCitations[]}
+      error   -> {detail}
+
+    `sources` is FIRST on purpose: the member sees which scope was searched
+    and what was found before any prose arrives, and the client can validate
+    every [n] handle the moment it appears instead of after the fact.
+    """
+    import time
+    from api.services import note_ask
+    from api.services.journal_two import ask_service as asvc
+
+    query = (payload.get("query") or "").strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="Empty question.")
+    if len(query) > _ASK_MAX_QUERY:
+        raise HTTPException(status_code=422, detail="Question too long.")
+    history = payload.get("history")
+    if not isinstance(history, list):
+        history = None
+
+    user_id = user["id"]
+    t0 = time.time()
+    try:
+        prepared = asvc.prepare(user_id, scope, target, query, history=history)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    # ⛔ 404 BEFORE ANYTHING ELSE, AND WITHOUT SAYING WHY. A target the member
+    # does not own is indistinguishable from one that does not exist -- the
+    # error must not become an existence oracle for another member's rows.
+    cov = prepared.get("coverage") or {}
+    if scope in (asvc.NOTE, asvc.DOCUMENT) and cov.get("exists") is False:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    head = {
+        "type": "sources", "scope": prepared["scope"],
+        "scopeLabel": prepared["scope_label"], "sources": prepared["sources"],
+        "coverageNotice": prepared["coverage_notice"],
+        "independentSources": prepared["independent_sources"],
+        "noAnswer": prepared["no_answer"],
+    }
+
+    # ⛔ NO ANSWER MEANS NO MODEL CALL, AND NO CHARGE. Paying a model to say "I
+    # could not find that" asks the one component able to invent an answer to
+    # decline to. The refusal is deterministic, so it cannot be talked out of;
+    # it is also free, so a question the corpus cannot answer does not burn the
+    # member's daily allowance. Context sources still ride along in `head`.
+    if prepared["no_answer"]:
+        def refuse():
+            yield f"data: {json.dumps(head)}\n\n"
+            text = prepared["refusal"]
+            if prepared["coverage_notice"]:
+                text += " " + prepared["coverage_notice"]
+            yield f"data: {json.dumps({'type': 'delta', 'text': text})}\n\n"
+            yield f"data: {json.dumps({'type': 'final', 'answer': text, 'cited': [], 'invalidCitations': []})}\n\n"
+            notes_service._log_notebook_event(
+                user_id, "notebook_ask_used",
+                asvc.telemetry(scope, prepared, started=t0, settled=True,
+                               answered=False))
+        return StreamingResponse(
+            refuse(), media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    if not note_ask.reserve_ask(user_id):
+        raise HTTPException(
+            status_code=429,
+            detail="You've hit today's Ask limit — it resets at midnight ET.",
+        )
+    # The daily cap bounds spend over a day; this bounds what one member can
+    # hold open at once. Claimed AFTER the reservation so the failure path has
+    # exactly one thing to undo.
+    if not note_ask.begin_stream(user_id):
+        note_ask.refund_ask(user_id)
+        raise HTTPException(
+            status_code=429,
+            detail="You already have an answer in progress — wait for it to finish.",
+        )
+
+    kwargs = asvc.request(prepared, query, model=asvc.model_name(),
+                          max_tokens=asvc.max_tokens(), history=history)
+
+    async def gen():
+        settled = False
+        text = ""
+        buffered = ""
+        yield f"data: {json.dumps(head)}\n\n"
+        try:
+            async for delta in asvc.synthesize(kwargs):
+                if not delta:
+                    continue
+                text += delta
+                buffered += delta
+                # Never emit a half-written citation handle: "[1" would render
+                # as a bracket and then flicker into a chip a chunk later.
+                safe, buffered = asvc.hold_back(buffered)
+                if safe:
+                    yield f"data: {json.dumps({'type': 'delta', 'text': safe})}\n\n"
+            if buffered:
+                yield f"data: {json.dumps({'type': 'delta', 'text': buffered})}\n\n"
+            settled = True
+        except Exception:
+            # ⛔ NO QUESTION, ANSWER OR SOURCE TEXT IN THE LOG. The scope and
+            # the failure are enough to operate on.
+            logger.exception(f"[ask] synthesis failed scope={scope}")
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
+        finally:
+            # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
+            # cancellation all land here; a leaked slot locks the member out
+            # until the process restarts.
+            note_ask.end_stream(user_id)
+            if not settled or not text.strip():
+                note_ask.refund_ask(user_id)
+            resolved = asvc.resolve_answer(text, prepared)
+            notes_service._log_notebook_event(
+                user_id, "notebook_ask_used",
+                asvc.telemetry(scope, prepared, started=t0, settled=settled,
+                               answered=bool(text.strip()), resolved=resolved))
+        yield ("data: " + json.dumps({
+            "type": "final", "answer": text,
+            "cited": resolved["cited"],
+            "invalidCitations": resolved["invalid"],
+        }) + "\n\n")
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@router.post("/ask/stream")
+async def ask_stream(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(require_paid),
+):
+    """The unified Ask endpoint. `scope` is one of note | document | security
+    | notebook; `target` is the note id, document id or ticker it needs.
+
+    This path MUST stay in main.py's `_is_gzip_exempt` — GZip buffers the whole
+    stream and no tokens would ever reach the client.
+    """
+    from api.services.journal_two import ask_service as asvc
+    payload = payload or {}
+    scope = (payload.get("scope") or asvc.NOTEBOOK).strip()
+    if scope not in asvc.SCOPES:
+        raise HTTPException(status_code=422, detail="Unknown scope.")
+    target = payload.get("target")
+    return await _ask_stream(user, scope, target, payload)
 
 
 @router.post("/notes/{note_id}/ask/stream")
@@ -2335,86 +2615,13 @@ async def ask_current_note_stream(
     payload: dict[str, Any] | None = None,
     user: dict = Depends(require_paid),
 ):
-    """Wave 2, P0-5 — Ask Current Note: bounded-context Q&A over ONE
-    already-authorized note. SSE: `data: {"type":"delta","text":...}` per
-    token, then `data: {"type":"final","answer":...}`.
-
-    Tenant isolation is structural: `get_note()`'s ownership check is the
-    only gate needed, because context is exactly one already-owned note —
-    no cross-row retrieval exists to leak (architecture spec §8.1).
-
-    Reserve BEFORE the stream opens (bills even if the client disconnects
-    mid-stream, mirroring ai_search.py's `/stream`); refund on an empty or
-    failed synthesis so a failed question doesn't burn the member's daily cap.
-
-    This path MUST stay in main.py's `_is_gzip_exempt` — GZip buffers the
-    whole stream and no tokens would ever reach the client.
+    """Ask Current Note — kept at its Wave 2 URL so a browser still holding the
+    previous bundle keeps working, but running the SAME safe pipeline as every
+    other scope. Retire the path a deploy cycle after the last caller ships,
+    never in the same commit as it.
     """
-    import time
-    from api.services import note_ask
-
-    payload = payload or {}
-    query = (payload.get("query") or "").strip()
-    if not query:
-        raise HTTPException(status_code=422, detail="Empty question.")
-    if len(query) > 2000:
-        raise HTTPException(status_code=422, detail="Question too long.")
-
-    user_id = user["id"]
-    note = notes_service.get_note(user_id, note_id)
-    if note is None:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    if not note_ask.reserve_ask(user_id):
-        raise HTTPException(
-            status_code=429,
-            detail="You've hit today's Ask Current Note limit — it resets at midnight ET.",
-        )
-
-    history = payload.get("history")
-    if not isinstance(history, list):
-        history = None
-    note_title = note.get("title") or ""
-    note_block = note_ask.assemble_note_block(note.get("bodyPlain"))
-    t0 = time.time()
-
-    async def gen():
-        settled = False
-        text = ""
-        try:
-            async for delta in note_ask.synthesize(query, note_title, note_block, history):
-                if delta:
-                    text += delta
-                    yield f"data: {json.dumps({'type': 'delta', 'text': delta})}\n\n"
-            settled = True
-        except Exception:
-            logger.exception(f"[note_ask] synthesis failed note_id={note_id}")
-            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
-        finally:
-            if not settled or not text.strip():
-                note_ask.refund_ask(user_id)
-            # Never log note content or the answer body — query text, note id,
-            # model, latency, cost only (spec §8.1 observability requirement).
-            logger.info(
-                f"[note_ask] note_id={note_id} query={query!r} "
-                f"model={note_ask._SYNTH_MODEL} elapsed_ms={(time.time() - t0) * 1000:.0f} "
-                f"cost_est={note_ask._APPROX_COST}"
-            )
-            # Stage A validation signal (decision log "Stage A→B gate" entry)
-            # — a durable, timestamped, aggregate-only record distinct from
-            # the process-log line above (which is not queryable and not
-            # user-scoped for the validation report).
-            notes_service._log_notebook_event(
-                user_id, "notebook_ask_current_note_used",
-                {"settled": settled, "hadAnswer": bool(text.strip())},
-            )
-        yield f"data: {json.dumps({'type': 'final', 'answer': text})}\n\n"
-
-    return StreamingResponse(
-        gen(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    from api.services.journal_two import ask_service as asvc
+    return await _ask_stream(user, asvc.NOTE, note_id, payload or {})
 
 
 @router.post("/notes")
@@ -2629,11 +2836,73 @@ def search_note_documents_endpoint(
         "documentId": r["document_id"], "pageNumber": r["page_number"],
         "snippet": r["snippet"], "noteId": r["note_id"], "noteTitle": r["note_title"],
         "name": r["name"], "attachmentUrl": r["attachment_url"],
+        # ⛔ WAVE M: the surface cannot tell the truth about a hit it cannot
+        # identify. `sourceKind` is "attachment" (a real paginated document) or
+        # "web" (a captured source, whose pageNumber is a CAPTURE ORDINAL and
+        # must never be rendered as a page).
+        "sourceKind": r["source_kind"] or "attachment",
+        "sourceUrl": r["source_url"],
     } for r in rows]}
 
 
 # ── Wave J: excerpts / highlights / annotations ──────────────────────────────
-from api.services.journal_two import note_excerpts, excerpt_search
+from api.services.journal_two import note_excerpts
+from api.services.journal_two import web_capture, web_capture_store, excerpt_search
+
+
+# ⛔ THE ONE CAPTURE DOOR (Wave L Slice 2 §1). Every entry point — palette,
+# hotkey, note, research workspace, the four in-app surfaces, and later the
+# browser extension and the mobile share target — arrives HERE. Doors choose
+# DEFAULTS; they do not own capture semantics.
+#
+# Nothing a client sends can move the boundaries: the rights tier is validated
+# server-side (`web_capture.assert_permitted_tier`), the canonical identity and
+# domain are DERIVED from the URL rather than accepted from the caller, coverage
+# is computed from what was actually stored, and tenant isolation runs before any
+# lookup or reuse. A door that wanted looser rules would have to change this
+# function, which is exactly the property Slice 2 exists to create.
+@router.post("/capture")
+def capture_endpoint(
+    payload: dict[str, Any],
+    principal: dict = Depends(require_capture_scope(capture_auth.SCOPE_CAPTURE_WRITE)),
+) -> dict[str, Any]:
+    """Capture one web source into a note. ONE canonical path for every door.
+
+    ⭐ Slice 3 widened WHO may knock, never WHAT happens next. The principal is
+    either a normal web session or a scoped Browser Capture credential, and in
+    both cases it resolves to exactly one `id` that the caller did not supply.
+    Everything below this line — rights tier, provenance, coverage, duplicate
+    detection, tenant isolation — is byte-identical for every door, which is
+    what makes the extension a door rather than a second backend.
+    """
+    note_id = payload.get("noteId")
+    if not note_id or not isinstance(note_id, str):
+        raise HTTPException(status_code=400, detail="noteId is required")
+    try:
+        result = web_capture_store.capture_web_source(principal["id"], note_id, payload)
+    except web_capture.CaptureRightsError as e:
+        # 422, not 400: the request was well-formed and was REFUSED on rights.
+        # A door must be able to tell "you sent nonsense" from "we are not
+        # permitted to store that", because only the second is a product answer.
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except web_capture.CaptureValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except web_capture_store.CaptureStoreError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    doc = result["document"]
+    return {
+        "documentId": doc["id"],
+        "noteId": doc["note_id"],
+        "captureType": doc["capture_type"],
+        "coverage": doc["coverage"],
+        "sourceUrl": doc["source_url"],
+        "title": doc["name"],
+        "passageIndex": result["page_number"],
+        "excerptId": (result["excerpt"] or {}).get("id"),
+        # ⭐ The door needs this to say "Already saved" rather than "Saved" — see
+        # Slice 2 §11. The UI must never compute duplicate-ness itself.
+        "deduped": result["deduped"],
+    }
 
 
 @router.post("/notes/{note_id}/excerpts")
@@ -2669,6 +2938,25 @@ def create_excerpt_endpoint(
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
     return {"excerpt": excerpt}
+
+
+@router.get("/notes/{note_id}/evidence-candidates")
+def list_evidence_candidates_endpoint(
+    note_id: str, q: str | None = None, limit: int = 50,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave N — research this note OWNS that could serve as thesis evidence.
+
+    ⛔ DELIBERATELY NOT `/excerpts`. That endpoint answers "which excerpts are
+    embedded in this note's BODY" (it joins the `j2_note_excerpt_refs` sidecar
+    that `notes.py` rebuilds from `documentExcerpt` nodes) — a real question the
+    editor needs, and the reason a captured web passage was invisible to the
+    evidence picker: a capture never embeds such a node. Attachability is a
+    different question, answered by OWNERSHIP.
+    """
+    from api.services.journal_two import evidence_candidates
+    return {"candidates": evidence_candidates.list_candidates(
+        user["id"], note_id, q=q, limit=limit)}
 
 
 @router.get("/notes/{note_id}/excerpts")
@@ -2718,6 +3006,9 @@ def search_excerpts_endpoint(
         "noteTitle": r["note_title"], "documentId": r["document_id"],
         "documentName": r["document_name"], "pageNumber": r["page_number"],
         "annotation": r["annotation"],
+        # Same contract as the document-page results above.
+        "sourceKind": r["source_kind"] or "attachment",
+        "sourceUrl": r["source_url"],
     } for r in rows]}
 
 

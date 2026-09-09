@@ -120,9 +120,88 @@ PROBE_JS = r"""
     // context's intent and retries/invalidates instead of reporting phantoms.
     pointerCoarse: matchMedia('(pointer: coarse)').matches,
     touchPoints: navigator.maxTouchPoints,
+    // ⛔ REACHED-PAGE FACTS. Wave J shipped an audit that reported
+    // "overflowX=0 small=0" for /journal three times while actually
+    // measuring a 404 page, because the ROUTE never survived the shell (see
+    // _validate_route). A clean number from the wrong page is worse than no
+    // number, so the runner cross-checks these against what it ASKED for.
+    href: location.href,
+    pathname: location.pathname,
+    // The SPA catch-all renders pages/NotFound.jsx ("404" + "Page not
+    // found"). Matched on the copy rather than a test id because that file
+    // has no stable hook and this must not silently stop working if one is
+    // added later — a false "not 404" is the failure direction that matters.
+    notFound: /Page not found/i.test(document.body.innerText || ''),
+    // Did the SPA mount anything at all? A blank shell (chunk 404, auth
+    // bounce mid-render) also measures as a clean zero.
+    rootChildren: (document.getElementById('root') || {}).childElementCount || 0,
+    bodyTextLen: (document.body.innerText || '').trim().length,
   };
 }
 """
+
+
+def validate_route(route):
+    """Reject a route that cannot possibly be an app path, BEFORE browsing.
+
+    ⛔ WAVE J SHIPPED THREE CLEAN AUDITS OF PAGES THAT WERE NOT THE TARGET.
+    Two of them died right here, in the argument, and the third was the
+    consequence:
+
+      1. Git Bash / MSYS rewrote `--routes /journal` into
+         `C:/Program Files/Git/journal` before Python ever saw it. The tool
+         dutifully browsed `<base>C:/Program Files/Git/journal`.
+      2. `--routes /journal,/journal/notebook` is ONE element to an
+         `nargs="*"` argument, so the literal string `/journal,/journal/notebook`
+         was requested as a single path.
+      3. Both landed on the SPA catch-all, which has no horizontal overflow
+         and no small tap targets, and were reported as `ok  overflowX=0
+         small=0`.
+
+    A vacuous PASS is worse than a failure: it is a claim of safety that was
+    never measured. Returns an error string, or None when the route is
+    plausible. This is a PURE function so it can be tested without a browser.
+    """
+    if not isinstance(route, str) or not route.strip():
+        return "empty route"
+    r = route.strip()
+    if not r.startswith("/"):
+        return (f"route must start with '/' (got {r!r}) — on Git Bash/MSYS a "
+                f"leading-slash argument is rewritten to a Windows path; use "
+                f"MSYS_NO_PATHCONV=1, PowerShell, or '//journal'")
+    if re.match(r"^/[A-Za-z]:[\\/]", r) or "\\" in r:
+        return (f"route looks like a filesystem path, not a URL path ({r!r}) — "
+                f"shell path rewriting")
+    if "," in r:
+        return (f"route contains a comma ({r!r}) — --routes takes SPACE-separated "
+                f"values; a comma-separated list is read as one literal route")
+    if r.startswith("//"):
+        return f"route has a protocol-relative prefix ({r!r})"
+    return None
+
+
+def check_reached(route, probe):
+    """Cross-check what we MEASURED against what we ASKED for.
+
+    Returns an error string, or None when the probe plausibly describes the
+    requested page. Pure, for the same reason as validate_route.
+    """
+    if not probe:
+        return "no probe data"
+    expected = route.split("?", 1)[0].split("#", 1)[0].rstrip("/") or "/"
+    actual = (probe.get("pathname") or "").rstrip("/") or "/"
+    if probe.get("notFound"):
+        return f"landed on the 404 surface (final path {actual!r})"
+    if actual != expected:
+        # A redirect away is not necessarily a bug in the app, but it IS a bug
+        # in the audit: the numbers describe a different page than the row
+        # claims. Report the final URL so the reader can tell which.
+        return f"route not reached: asked {expected!r}, measured {actual!r}"
+    if probe.get("rootChildren", 0) < 1:
+        return "SPA shell never mounted (#root has no children)"
+    if probe.get("bodyTextLen", 0) < 20:
+        return f"page rendered essentially nothing (bodyTextLen={probe.get('bodyTextLen')})"
+    return None
 
 
 _INTRO_SEL = '[role="dialog"][aria-label="Welcome"]'
@@ -217,6 +296,18 @@ def main():
     else:
         routes = PUBLIC_ROUTES
 
+    # Fail on a malformed route BEFORE launching a browser — the two Wave J
+    # vacuous passes were both decided here, in the argument, long before any
+    # page loaded. Exiting non-zero with the reason is the whole point: the
+    # old behaviour was to browse the nonsense and report it clean.
+    route_errors = [(r, validate_route(r)) for r in routes]
+    route_errors = [(r, e) for r, e in route_errors if e]
+    if route_errors:
+        print("REFUSING TO RUN — malformed --routes:")
+        for r, e in route_errors:
+            print(f"  {r!r}: {e}")
+        return 2
+
     OUT_DIR.mkdir(exist_ok=True)
     report = {"base": base, "results": []}
 
@@ -300,6 +391,14 @@ def main():
                                 "pointer emulation lost — coarse=false in a "
                                 "touch context; findings describe the desktop UI"
                             )
+                    # Did we actually land on the page this row claims? This
+                    # is the check whose absence let Wave J report three clean
+                    # audits of a 404. It runs AFTER the pointer-emulation
+                    # guard because both invalidate the same row, and the
+                    # reached-page failure is the more fundamental one.
+                    reach_err = check_reached(route, probe)
+                    if reach_err and not entry.get("measurementInvalid"):
+                        entry["measurementInvalid"] = reach_err
                     shot = OUT_DIR / vp_name / f"{slug(route)}.png"
                     page.screenshot(path=str(shot), full_page=True)
                     entry.update(probe)
@@ -349,12 +448,19 @@ def main():
     n_over = sum(1 for r in report["results"] if r.get("overflowX", 0) > 2)
     n_invalid = sum(1 for r in report["results"] if r.get("measurementInvalid"))
     invalid_note = (
-        f" ⚠ {n_invalid} INVALID measurement(s) — pointer emulation lost; "
-        f"re-run those routes before trusting their numbers."
+        f" !! {n_invalid} INVALID measurement(s) -- each row's reason is in report.md; "
+        f"those rows measured SOMETHING ELSE and are not results."
         if n_invalid else ""
     )
     print(f"\nDone. {n_over} page/viewport combos with horizontal overflow."
           f"{invalid_note} Report + screenshots in {OUT_DIR}")
+
+    # AN INVALID AUDIT IS NOT A PASS (directive 131). Wave J read
+    # "Done. 0 page/viewport combos with horizontal overflow" off a run
+    # that had measured a 404 three times. Exit non-zero so a caller --
+    # a human skimming, or CI -- cannot mistake an unmeasured page for a
+    # clean one.
+    return 1 if n_invalid else 0
 
 
 def _write_md(report):
@@ -384,4 +490,4 @@ def _write_md(report):
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

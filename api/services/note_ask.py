@@ -1,35 +1,44 @@
-"""Ask Current Note (Wave 2, P0-5) — bounded-context Q&A over ONE already-
-authorized note.
+"""Ask Current Note — the RESERVATION LEDGER for the Ask surface.
 
-POST /api/j2/notes/{note_id}/ask/stream (see api/routers/journal_two.py)
+Cost caps and daily per-member limits for every Ask scope, plus the provider
+client. Nothing here builds a prompt.
 
-Copies `ai_search_personal.py`'s `assemble() -> SYNTH_SYSTEM() -> synthesize()`
-shape verbatim (per architecture spec §8.1) — same reserve/refund cost-cap
-idiom, same streaming-synthesis idiom. Two deliberate differences:
+⛔ SLICE 6 REMOVED THIS MODULE'S PROMPT BUILDER, AND THAT WAS THE POINT.
+It used to copy `ai_search_personal.py`'s `assemble() -> SYNTH_SYSTEM() ->
+synthesize()` shape, which meant `SYNTH_SYSTEM(note_title, note_block)`
+interpolated the member's note title and up to 20,000 characters of note body
+straight into `system=`. Member content sat in the instruction layer, so a
+sentence inside a PDF a member had pasted into a note was read as a peer of
+the rules it addressed -- the defect measured in
+tests/test_note_ask_prompt_boundary.py. Every Ask scope now builds prompts
+through api/services/journal_two/ask_prompt.py, whose system-prompt builder
+takes no arguments at all, and the note reaches the model as ranked, citable
+blocks inside the evidence fence.
 
-  - NO Freshness Firewall. `ai_search_personal.py`'s system prompt says "the
-    LIVE DESK figures are authoritative — never override a live number with a
-    stale personal one." Notebook needs the OPPOSITE contract: a note's stated
-    fact is a historical claim (what the member believed/wrote at the time),
-    and the model must never silently "correct" it against anything newer.
-  - Context is the single note's own `bodyPlain` — nothing else. No live
-    desk data, no web draft, no other note. Tenant isolation is therefore
-    structural: `get_note(user_id, note_id)` is the only gate needed, because
-    there is no cross-row retrieval to leak (architecture spec §8.1).
+The two contracts that were RIGHT are preserved upstream, not deleted:
+  - NO Freshness Firewall. A note's stated fact is a historical claim; the
+    model must never silently "correct" it against anything newer. This now
+    lives in ask_prompt's HISTORICAL CLAIMS rule, where it covers every scope.
+  - Tenant isolation is structural -- ownership is checked before retrieval,
+    and every retrieval query carries `user_id`.
 
-Own reserve/refund counters — deliberately NOT shared with
+Own reserve/refund counters, deliberately NOT shared with
 `ai_search_personal`'s budget (a different feature, a different spend to cap).
+Env names are unchanged (NOTE_ASK_SYNTH_*) so migrating the prompt path could
+not quietly move a deployed knob.
 """
+
 from __future__ import annotations
 
 import os
 import threading
 from typing import Optional
 
-# Longest note content handed to the model. Generous for a single note (this
-# is the ONLY context, not a supplement to a web draft) while still bounding
-# token cost against a pathological giant note.
-_NOTE_BODY_CAP = 20000
+# The note-context ceiling moved to ask_retrieval.NOTE_SCOPE_MAX_CHARS when
+# Slice 6 replaced the 20k system-message blob with ranked, citable blocks.
+# Same number, so the model still sees as much of a note as it ever did --
+# what changed is that the LEAST relevant blocks are what a long note loses,
+# instead of everything past character 20,000.
 
 _SYNTH_MODEL = os.environ.get("NOTE_ASK_SYNTH_MODEL", "claude-sonnet-5")
 _SYNTH_MAX_TOKENS = int(os.environ.get("NOTE_ASK_SYNTH_MAX_TOKENS", "700"))
@@ -38,10 +47,22 @@ _SYNTH_PERUSER_CAP = int(os.environ.get("NOTE_ASK_SYNTH_PERUSER_CAP", "40"))
 _SYNTH_GLOBAL_HARD = float(os.environ.get("NOTE_ASK_SYNTH_COST_HARD", "25"))
 _APPROX_COST = 0.02  # rough per-call USD estimate, used ONLY for the cost gate
 
+# Concurrent streams per member. The daily cap bounds SPEND over a day; this
+# bounds what one member can hold open at an INSTANT, which is a different
+# resource: every open Ask stream pins a slot on the single shared event loop
+# for as long as the model is generating.
+#
+# PER-PROCESS, like every other guard in this pod (sync._locks,
+# recent_orders._last_poll, the notification dedups). Correct today because
+# the web pod is ONE uvicorn process; the first thing to revisit if it ever
+# goes multi-instance, where a second replica silently doubles this.
+_MAX_CONCURRENT = int(os.environ.get("NOTE_ASK_MAX_CONCURRENT", "2"))
+
 _synth_lock = threading.Lock()
 _synth_day = ""
 _synth_by_user: dict = {}
 _synth_spend = 0.0
+_inflight: dict = {}
 
 
 def _et_day():
@@ -82,14 +103,6 @@ def refund_ask(user_id) -> None:
         _synth_spend = max(0.0, _synth_spend - _APPROX_COST)
 
 
-def assemble_note_block(body_plain: Optional[str]) -> str:
-    """The note's own plain-text content, capped. This IS the context —
-    unlike ai_search_personal's supplementary personal block, there is
-    nothing else in this prompt."""
-    text = (body_plain or "").strip()
-    return text[:_NOTE_BODY_CAP]
-
-
 def _async_client():
     import anthropic
     from api.services import llm_timeouts
@@ -100,47 +113,32 @@ def _async_client():
     )
 
 
-def SYNTH_SYSTEM(note_title: str, note_block: str) -> str:
-    from api.routers.ai_search import _SAFETY_BLOCKS
-    return (
-        "You are answering a question about ONE specific private note a UCT "
-        "member wrote in their own Notebook.\n\n" + _SAFETY_BLOCKS + "\n\n"
-        "GROUNDING — the only rule that matters here: answer using ONLY the "
-        "NOTE CONTENT below. If the note does not address the question, say so "
-        "plainly (e.g. \"this note doesn't mention that\") rather than guessing "
-        "or filling the gap from general knowledge. Never invent a fact, price, "
-        "date, or figure that is not written in the note.\n\n"
-        "HISTORICAL-CLAIM CONTRACT (the opposite of a live-data assistant): the "
-        "note's content is a historical claim — what the member believed or "
-        "observed at the time they wrote it. Do NOT silently \"correct\" a "
-        "stated fact against anything you know happened since, and do not "
-        "append live/current data the note itself doesn't contain. If useful, "
-        "you may note that something may be dated, but never override it.\n\n"
-        "CITATION FORMAT: when you state something the note says, quote the "
-        "exact short phrase from the note in \"double quotes\" so the member "
-        "can see it came from their own writing. Keep quotes short (a phrase, "
-        "not a paragraph) and verbatim — do not paraphrase inside quote marks.\n\n"
-        f"=== NOTE TITLE ===\n{note_title or '(untitled)'}\n\n"
-        f"=== NOTE CONTENT (private; this member's own writing) ===\n{note_block}"
-    )
+def begin_stream(user_id) -> bool:
+    """Claim one concurrent slot. False means the member already has enough
+    open, which is a 429 -- not an error, and not a reason to charge them."""
+    with _synth_lock:
+        n = _inflight.get(user_id, 0)
+        if n >= _MAX_CONCURRENT:
+            return False
+        _inflight[user_id] = n + 1
+        return True
 
 
-async def synthesize(query: str, note_title: str, note_block: str, history):
-    """Streams token deltas from a note-scoped Anthropic call. LOCKED config:
-    no `temperature` kwarg (Sonnet tier 400s on it), thinking disabled,
-    explicit timeout — mirrors ai_search_personal.synthesize."""
-    system = SYNTH_SYSTEM(note_title, note_block)
-    msgs = []
-    for h in (history or [])[-3:]:
-        if isinstance(h, dict) and h.get("q") and h.get("a"):
-            msgs.append({"role": "user", "content": str(h["q"])[:300]})
-            msgs.append({"role": "assistant", "content": str(h["a"])[:1200]})
-    msgs.append({"role": "user", "content": query})
-    client = _async_client()
-    async with client.messages.stream(
-        model=_SYNTH_MODEL, max_tokens=_SYNTH_MAX_TOKENS, system=system,
-        messages=msgs, thinking={"type": "disabled"},
-        timeout=_SYNTH_TIMEOUT,     # NO temperature (Sonnet tier 400s)
-    ) as stream:
-        async for delta in stream.text_stream:
-            yield delta
+def end_stream(user_id) -> None:
+    """Release the slot.
+
+    MUST be called from a `finally` -- a stream that ends by disconnect,
+    exception or cancellation still has to give the slot back, or a member
+    locks themselves out until the process restarts.
+    """
+    with _synth_lock:
+        n = _inflight.get(user_id, 0)
+        if n <= 1:
+            _inflight.pop(user_id, None)
+        else:
+            _inflight[user_id] = n - 1
+
+
+def inflight(user_id) -> int:
+    with _synth_lock:
+        return _inflight.get(user_id, 0)

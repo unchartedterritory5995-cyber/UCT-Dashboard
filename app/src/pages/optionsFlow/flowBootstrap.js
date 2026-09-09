@@ -22,9 +22,26 @@
 //   ALL_SYMS           -                 NO - Search tab only (7078, 7087)
 //   UOA_TRADES         -                 NO - zero references in the entire page
 //   darkPool           -                 NO - zero references in the entire page
-//   TICKER_DB          2.13 MB /  1,026  yes
+//   TICKER_DB          2.13 MB /  1,026  NO - CORRECTED 2026-09-08, see below
 //   clean_confirmed    1.10 MB /  2,840  yes (the client re-filters it by cap)
-//   CONV               0.61 MB /  1,098  yes (pre-tab hooks)
+//   CONV               0.61 MB /  1,098  NO - CORRECTED 2026-09-08, see below
+//
+// ⛔⛔ THE TWO `yes` ROWS ABOVE WERE WRONG, AND THEY WERE THE TWO BIGGEST.
+// Note that every other row carries its REASON ("Tracker/Watchlist tabs only",
+// "Search tab only") while those two said only "yes" and "pre-tab hooks". A
+// call-site derivation on 2026-09-08 found no such hook exists:
+//
+//   TICKER_DB  every consumer is `autoPopulateLeaders` (a BUTTON handler), a
+//              Market Read branch gated on `selectedItem` / `_drilldownTicker`
+//              (a CLICK), or a non-default tab (Top Flow / Leaderboard /
+//              Leaders / Search). NO useMemo/useEffect reads it at all.
+//   CONV       every consumer is `wlPopulate` / `wlPopulateUnusual` (button
+//              onClick) or the Scanner Suggestions JSX -- all inside the
+//              WATCHLIST tab. NO useMemo/useEffect reads it at all.
+//
+// Together they are ~77% of the bootstrap and are INTERACTION-ONLY. They are
+// still fetched, still complete, still identical -- immediately AFTER first
+// paint instead of before it.
 //   charts/totals      small             yes
 //
 // So ~16.4 MB of the payload is shipped to first paint to compute ONE 10-row
@@ -59,7 +76,23 @@ export const DEFERRED_KEYS = Object.freeze([
   'ALL_SYMS',
   'UOA_TRADES',
   'darkPool',
+  // Interaction-only, and ~77% of what the bootstrap used to weigh. See the
+  // corrected audit rows above for the call-site evidence.
+  'TICKER_DB',
+  'CONV',
 ])
+
+/**
+ * The deferred keys the page fetches immediately AFTER first paint, rather than
+ * on a surface's first use.
+ *
+ * ⛔ THESE TWO ARE DIFFERENT FROM THE REST. The other deferred keys are big and
+ * belong to one surface, so they are fetched when that surface opens. These are
+ * reachable from an IMMEDIATE interaction on the default tab — clicking a
+ * sector or a ticker on Market Read — so waiting for the click would trade a
+ * fast paint for a slow first click. They are pulled the moment paint is done.
+ */
+export const INTERACTION_KEYS = Object.freeze(['TICKER_DB', 'CONV'])
 
 const DEFERRED = new Set(DEFERRED_KEYS)
 
@@ -92,12 +125,15 @@ export function splitAggregate(D) {
  */
 export const DEFERRED_KEYS_BY_SURFACE = Object.freeze({
   // "TOP 10 FLOW PICKS" is the ONLY first-paint reader, and it reads both.
-  marketRead: Object.freeze(['all_directional', 'all_trades']),
-  leaderboard: Object.freeze(['all_directional', 'all_trades']),
-  topFlow: Object.freeze(['all_trades']),
-  search: Object.freeze(['all_directional', 'ALL_SYMS']),
+  // TICKER_DB appears on every surface with a ticker drilldown or picker; CONV
+  // only on Watchlist. Listed for accuracy — in practice both arrive with the
+  // post-paint INTERACTION_KEYS fetch long before any of these surfaces opens.
+  marketRead: Object.freeze(['all_directional', 'all_trades', 'TICKER_DB']),
+  leaderboard: Object.freeze(['all_directional', 'all_trades', 'TICKER_DB']),
+  topFlow: Object.freeze(['all_trades', 'TICKER_DB']),
+  search: Object.freeze(['all_directional', 'ALL_SYMS', 'TICKER_DB']),
   tracker: Object.freeze(['WATCH']),
-  watchlist: Object.freeze(['WATCH', 'all_directional']),
+  watchlist: Object.freeze(['WATCH', 'all_directional', 'CONV', 'TICKER_DB']),
 })
 
 /**
@@ -142,7 +178,25 @@ export function partsFrom(D) {
 /** Every part name this contract can produce. `bootstrap` first, then the rest. */
 export const PART_NAMES = Object.freeze(['bootstrap', ...DEFERRED_KEYS])
 
+/**
+ * Parts that are DERIVED from `D` rather than carved out of it.
+ *
+ * ⛔ DELIBERATELY NOT IN `PART_NAMES`. That list is a PARTITION: bootstrap
+ * plus the deferred keys reconstitute `D` exactly, key for key, and
+ * `flowBootstrap.test.js` asserts it. `TOP_PICKS` is a product computed FROM
+ * `D` (see flowTopPicksProduct.js), so folding it in would quietly turn the
+ * losslessness property into a falsehood while every test still passed — the
+ * recombination would carry a key `processFlowData` never returned.
+ *
+ * They travel over the same parts transport, so a caller may REQUEST them;
+ * they just are not part of the split.
+ */
+export const DERIVED_PART_NAMES = Object.freeze(['TOP_PICKS'])
+
+/** Everything the server may serve over the parts transport. */
+export const SERVED_PART_NAMES = Object.freeze([...PART_NAMES, ...DERIVED_PART_NAMES])
+
 /** True when `name` is a part a caller may legitimately ask for. */
 export function isPartName(name) {
-  return PART_NAMES.includes(name)
+  return SERVED_PART_NAMES.includes(name)
 }

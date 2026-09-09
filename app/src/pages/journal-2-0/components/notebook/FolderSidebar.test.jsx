@@ -66,6 +66,13 @@ vi.mock('../../hooks/useExcerptSearch', () => ({
   default: (...args) => useExcerptSearchMock(...args),
 }))
 
+// Wave O6: thesis-review search — a FOURTH hook/section. Same default-empty
+// convention, so every pre-existing search test is unaffected by its arrival.
+const useReviewSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useReviewSearch', () => ({
+  default: (...args) => useReviewSearchMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
@@ -75,6 +82,8 @@ beforeEach(() => {
   useDocumentSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useExcerptSearchMock.mockReset()
   useExcerptSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useReviewSearchMock.mockReset()
+  useReviewSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
   useJ2NoteFolderCountsMock.mockReset()
   useJ2NoteFolderCountsMock.mockImplementation(() => ({
     counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
@@ -370,8 +379,22 @@ describe('folder delete error surfacing', () => {
     removeMock.mockReset()
   })
 
-  it('alerts with the server-provided detail when deleting a folder fails, instead of an unhandled rejection', async () => {
-    const detail = 'cannot delete: a folder named \'Setups\' already exists at the destination — rename it first'
+  // ⛔ THIS TEST USED TO REQUIRE THE DEFECT. It asserted
+  // `alert(detail)` — a native alert carrying the raw exception — which is
+  // exactly the class the integrity mini-pass removed (see
+  // rawErrorSurface.test.js). The INTENT it was written for is right and is
+  // kept verbatim: a failed delete must reach the member, never vanish into an
+  // unhandled rejection. Only the mechanism changed.
+  //
+  // ⚠️ Honest trade-off, recorded rather than hidden: this fixture's server
+  // detail ("...rename it first") is genuinely useful copy, and the member no
+  // longer sees it. At the catch site a helpful server message and a stack
+  // fragment are the same `Error`, so nothing here can tell them apart. Making
+  // that distinction possible — an API layer that marks member-safe server
+  // details — is a real follow-up, not something to fake by letting every
+  // exception through.
+  it('surfaces a failed delete to the member WITHOUT rendering the raw exception', async () => {
+    const detail = "cannot delete: a folder named 'Setups' already exists at the destination — rename it first"
     removeMock.mockRejectedValueOnce(new Error(detail))
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
 
@@ -380,11 +403,16 @@ describe('folder delete error surfacing', () => {
 
     const journalButton = screen.getByText('Journal').closest('button')
     fireEvent.click(within(journalButton).getByTitle('Delete folder'))
-    // Wave B: native confirm() replaced with ConfirmModal -- confirm the
-    // dialog before the mutation fires.
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(detail))
+    // The member is told, in an alert REGION (not a native modal).
+    const alertRegion = await screen.findByRole('alert')
+    expect(alertRegion).toHaveTextContent(/couldn't delete that folder/i)
+    // ...and the raw exception is nowhere on screen.
+    expect(alertRegion).not.toHaveTextContent(/rename it first/i)
+    expect(document.body.textContent).not.toContain(detail)
+    // ...and no native alert() was used.
+    expect(alertSpy).not.toHaveBeenCalled()
     expect(removeMock).toHaveBeenCalledWith('c')
   })
 })
@@ -893,7 +921,12 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     expect(screen.getByText('margin').tagName).toBe('MARK')
   })
 
-  it('clicking a document result opens its OWNING NOTE (v1 scope — the member reaches the PDF preview from there)', () => {
+  // ⚰️ THIS TEST USED TO ASSERT THE v1 LIMITATION. Wave I deliberately scoped
+  // navigation to "open the owning note; the member finds the PDF from there",
+  // and the test recorded that as a requirement. Wave M closed the gap, so the
+  // INTENT is kept — clicking a document hit opens the right note — and the
+  // MECHANISM is updated: it now also carries the page the result named.
+  it('clicking a document result opens its owning note AND targets the page it named', () => {
     useDocumentSearchMock.mockReturnValue({
       results: [{
         documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
@@ -908,7 +941,10 @@ describe('search panel — Wave I document (PDF page) search, sectioned separate
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
     settle()
     fireEvent.click(screen.getByText('deck.pdf · p.3'))
-    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n1' })
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' },
+      expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 3, depth: 'page' }),
+    )
   })
 
   it('shows an honest "Searching documents…" state while a document query is in flight', () => {
@@ -994,7 +1030,8 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
   })
 
-  it('clicking an excerpt result opens its owning note', () => {
+  // Same v1→Wave M transition as the document test above.
+  it('clicking an excerpt result opens its owning note AND targets the excerpt', () => {
     useExcerptSearchMock.mockReturnValue({
       results: [{
         excerptId: 'e1', noteId: 'n7', noteTitle: 'NVDA thesis', documentId: 'd1',
@@ -1010,7 +1047,10 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
     settle()
     fireEvent.click(screen.getByText('deck.pdf · p.4'))
-    expect(onOpenNote).toHaveBeenCalledWith({ id: 'n7' })
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n7' },
+      expect.objectContaining({ noteId: 'n7', excerptId: 'e1', depth: 'excerpt' }),
+    )
   })
 
   it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
@@ -1021,6 +1061,92 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
     settle()
     expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
+  })
+})
+
+// ── Wave O6: Thesis reviews, the fourth search section ──────────────────────
+//
+// ⚰️ THE DEFECT. Search could find everything the member had READ and nothing
+// they had CONCLUDED. A member who wrote "I was wrong about the datacenter
+// buildout" in a review and searched "datacenter" three months later got
+// notes, pages and excerpts — never their own judgement.
+describe('search — thesis reviews section', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  const REVIEW = {
+    reviewId: 'rv1', noteId: 'n7', noteTitle: 'NVDA thesis', ticker: 'NVDA',
+    outcome: 'invalidated', completedAt: '2026-03-20T00:00:00+00:00',
+    reviewReason: 'manual', snippet: 'the <mark>datacenter</mark> call was wrong',
+  }
+
+  it('renders the members own reviews as their OWN section, not merged into another', () => {
+    // ⛔ FOUR LISTS, FOUR COUNTS. Blending a conclusion into the notes list
+    // would rank the one thing only this member could have written against
+    // whatever bm25 thought of a PDF page.
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.getByText('1 thesis review')).toBeInTheDocument()
+    expect(screen.getByText('Thesis review · NVDA thesis')).toBeInTheDocument()
+  })
+
+  it('⛔ shows the DECISION beside the prose, in the members own vocabulary', () => {
+    // "I was wrong about this" and "no change" must not look like the same
+    // kind of finding — and 'deferred' must read as it does in the panel where
+    // the member chose it.
+    useReviewSearchMock.mockReturnValue({
+      results: [{ ...REVIEW, outcome: 'deferred' }], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.getByText(/Need more work/)).toBeInTheDocument()
+  })
+
+  it('clicking a review result opens its thesis AND targets the review itself', () => {
+    // ⛔ §4 — the Wave M lesson, one section later: a result that names a thing
+    // and navigates somewhere else is half a retrieval system.
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    fireEvent.click(screen.getByText('Thesis review · NVDA thesis'))
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n7' },
+      expect.objectContaining({ noteId: 'n7', reviewId: 'rv1', depth: 'review' }),
+    )
+  })
+
+  it('shows an honest "Searching your reviews…" state while the query is in flight', () => {
+    useReviewSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching your reviews…')).toBeInTheDocument()
+  })
+
+  it('a search with no review hits grows no empty block', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.queryByText(/thesis review/i)).not.toBeInTheDocument()
   })
 })
 
@@ -1133,5 +1259,103 @@ describe('Saved Views sidebar section (Wave E)', () => {
     fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
     expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
     expect(screen.getByText('Saved Views')).toBeInTheDocument()
+  })
+})
+
+describe('⛔⛔ a search hit says what it IS (Wave M §8)', () => {
+  // ⚰️ THE DEFECT, measured on the running product 2026-09-08. A captured web
+  // source is stored as a document whose passages are page rows, so the SECOND
+  // passage clipped from one Reuters article has page_number 2 — and both
+  // sections rendered "· p.2". There is no page 2. There is no page 1. It is a
+  // web article the member quoted twice, and a page number asserts a paginated
+  // document exists behind it.
+  const webPage = {
+    documentId: 'd1', pageNumber: 2, snippet: 'customer <mark>concentration</mark> rose',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+  const pdfPage = {
+    documentId: 'd2', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+
+  const openSearch = () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'),
+                     { target: { value: 'concentration' } })
+  }
+
+  it('a captured web passage is NOT rendered as a page', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [webPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Captured passage/i)).toBeInTheDocument()
+    expect(screen.getByText(/reuters\.com/i)).toBeInTheDocument()
+  })
+
+  it('⭐ CONTROL: a real document still shows its page', () => {
+    // Without this, the assertion above would pass on a sidebar that stopped
+    // rendering page numbers for everything.
+    useDocumentSearchMock.mockReturnValue({ results: [pdfPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeInTheDocument()
+  })
+
+  it('a saved excerpt from a web capture reads as a saved passage, not p.N', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{ excerptId: 'e1', snippet: 'x', noteId: 'n1', noteTitle: 'NVDA research',
+                  documentId: 'd1', documentName: 'Reuters: NVDA margins', pageNumber: 2,
+                  sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda' }],
+      isLoading: false, error: null,
+    })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Saved passage/i)).toBeInTheDocument()
+  })
+})
+
+describe('⛔⛔ clicking a search hit goes to the OBJECT it named (Wave M §4/§6)', () => {
+  // ⛔ §6: proving the row CARRIES documentId/pageNumber is not the test. The
+  // member action has to arrive somewhere. These assert what `onOpenNote`
+  // actually receives, and the mutation that reverts it to a bare note open is
+  // what proves they can fail.
+  const pdfPage = {
+    documentId: 'd1', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+  const webPage = {
+    documentId: 'd2', pageNumber: 2, snippet: 'customer <mark>concentration</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+
+  const openAndClick = (results, query) => {
+    const onOpenNote = vi.fn()
+    useDocumentSearchMock.mockReturnValue({ results, isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'), { target: { value: query } })
+    fireEvent.click(screen.getByText(new RegExp(query, 'i')).closest('button'))
+    return onOpenNote
+  }
+
+  it('a PDF page hit navigates to that PAGE, not just the note', () => {
+    const onOpenNote = openAndClick([pdfPage], 'margin')
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' },
+      expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 47, depth: 'page' }),
+    )
+  })
+
+  it('⛔ a WEB capture navigates to the note and claims no page', () => {
+    const onOpenNote = openAndClick([webPage], 'concentration')
+    const target = onOpenNote.mock.calls[0][1]
+    expect(target).toEqual({ noteId: 'n1', depth: 'note' })
+    expect(target.page).toBeUndefined()
   })
 })

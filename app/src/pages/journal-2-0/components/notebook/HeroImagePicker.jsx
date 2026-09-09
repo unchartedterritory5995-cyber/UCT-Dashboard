@@ -32,7 +32,8 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
       const body = await res.json()
       onChange(body.heroImageUrl)
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('[notebook] hero upload failed', e)
+      setError("Couldn't upload that image. Your note is unchanged.")
     } finally {
       setUploading(false)
     }
@@ -47,7 +48,8 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
       if (!res.ok) throw new Error(`${res.status}`)
       onChange(null)
     } catch (e) {
-      setError(String(e.message || e))
+      console.error('[notebook] hero remove failed', e)
+      setError("Couldn't remove that image. Your note is unchanged.")
     } finally {
       setUploading(false)
     }

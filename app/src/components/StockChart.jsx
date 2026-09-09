@@ -497,7 +497,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale } from '../utils/marketSession'
+import { isDailyTailStaleForPaint, isDailyTodayCloseProvisionalForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -586,10 +586,20 @@ function _releaseBarsSlot() {
 // Test/observability hook.
 export function _barsFetchStats() { return { active: _barsFetchActive, waiting: _barsFetchWaiters.length, max: _barsFetchMax() } }
 
-const fetcher = async (url) => {
+const fetcher = async (url, extSignal) => {
   await _acquireBarsSlot()
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), 25000)
+  // Switch-abort (rapid ticker scan): the caller aborts `extSignal` when the chart
+  // leaves this ticker, so a stale fetch frees its HTTP connection + slot at once
+  // instead of holding it for the full 25s timeout. Tagged distinct from the timeout
+  // (via `canceled` in the catch below) so the retry handler DROPS a switch-abort
+  // (a ticker we left) but still retries a genuine timeout. No extSignal → unchanged.
+  let _onExt = null
+  if (extSignal) {
+    if (extSignal.aborted) ctl.abort()
+    else { _onExt = () => ctl.abort(); extSignal.addEventListener('abort', _onExt, { once: true }) }
+  }
   try {
     const r = await fetch(url, { signal: ctl.signal })
     if (!r.ok) {
@@ -610,8 +620,17 @@ const fetcher = async (url) => {
       throw err
     }
     return await r.json()
+  } catch (e) {
+    // A switch-abort surfaces as a fetch AbortError; re-tag it `canceled` so
+    // barsSwrOnErrorRetry drops it (never retry a ticker we've already left). A 25s
+    // timeout abort (extSignal not aborted) is left untagged → its retry is unchanged.
+    if (e && e.name === 'AbortError' && extSignal && extSignal.aborted) {
+      const ce = new Error('switch-aborted'); ce.canceled = true; throw ce
+    }
+    throw e
   } finally {
     clearTimeout(timer)
+    if (_onExt && extSignal) { try { extSignal.removeEventListener('abort', _onExt) } catch { /* ignore */ } }
     _releaseBarsSlot()             // ALWAYS release — even on error/abort — so the gate can't deadlock
   }
 }
@@ -624,6 +643,10 @@ const fetcher = async (url) => {
 // bars selector falls back to idbBars — user sees last-known data, not blank.
 // 4xx skip retry: real client errors.
 const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) => {
+  // Switch-abort: the user scanned past this ticker → the fetch was cancelled on
+  // purpose. Never retry (the key is gone); retrying would re-dispatch the very
+  // work the abort just freed. A genuine 25s timeout is NOT tagged → still retries.
+  if (error?.canceled) return
   const status = error?.status
   if (status && status >= 400 && status < 500) return
   // A cold "warming" 503 means the server is fetching this ticker off the request
@@ -1104,7 +1127,7 @@ if (typeof window !== 'undefined') {
 // tf-buckets between the loaded last bar and NOW, alignment-agnostic (floor((now-lastT)/tfSec)),
 // bounded (a very stale cache / overnight gap must not over-reserve). Dark: 0 off-gate/opt-out →
 // every anchor expression is byte-identical. Ramp = the constant; window.__uctIntradayLoadAnchor.
-export const INTRADAY_LOAD_ANCHOR_PCT = 0
+export const INTRADAY_LOAD_ANCHOR_PCT = 100
 export function _intradayLoadAnchorEnabled() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayLoadAnchor.enabled') : null
@@ -1121,6 +1144,105 @@ if (typeof window !== 'undefined') {
     try {
       if (on) localStorage.setItem('uct.intradayLoadAnchor.enabled', '1')
       else localStorage.removeItem('uct.intradayLoadAnchor.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Rapid ticker-scan fetch cancellation (dark canary) ──────────────────────
+// SWR does not abort an in-flight request when its key changes, and the shared bars
+// `fetcher` self-aborts only on a 25s timeout — so scanning tickers fast (type-to-
+// search + Enter, ~10 in 10s) leaves EVERY prior ticker's bars-family fetch (primary
+// /api/bars + markers + hist + deep) running to completion, each pinning one of the
+// browser's ~6 HTTP connections and one of the 16 bars-fetch slots until it lands.
+// The visible ticker's fetch queues behind them, and the stale responses' JSON parse
+// + SWR re-render churn of this giant component competes with the crosshair's per-
+// frame work → the reported scan lag. FIX (per instance): register in-flight bars-
+// family fetches, tag each by the SYMBOL it was dispatched for, and abort any tagged
+// to a ticker the chart has since left — freeing the connection + slot at once. SWR
+// discards an aborted stale-key response (no error UI, no retry; barsSwrOnErrorRetry
+// skips `canceled`). Dark: at PCT=0/opt-out `instFetcher` calls `fetcher` with no
+// signal → byte-identical. Ramp = the constant; window.__uctSwitchAbort forces on.
+export const SWITCH_ABORT_PCT = 100
+export function _switchAbortEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.switchAbort.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.switchAbort.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.switchAbort.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < SWITCH_ABORT_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctSwitchAbort = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.switchAbort.enabled', '1')
+      else localStorage.removeItem('uct.switchAbort.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Live-priced developing-bar seed (dark canary) ───────────────────────────
+// The load-anchor above reserves TODAY's slot so the frame doesn't shift, but it paints
+// it as an EMPTY whitespace point → on a cold daily open today's candle is "visibly not
+// there" until the real bar lands, and shows no live price. When this is on, the seed is
+// upgraded to a REAL developing candle built from the LIVE-price store (the same global
+// snapshot + isSaneLivePrice gate Writer D uses), so today's candle is VISIBLE at the tape
+// on first paint whenever the price is already known (watchlist/movers/revisit). Read
+// imperatively (no memo dep on livePrices → no per-tick churn); self-cancels the instant
+// the real today bar lands. Falls back to the whitespace slot when no sane live price is
+// known yet (a freshly-typed cold ticker → reserve-only until data arrives, no wrong price).
+// Dark: at PCT=0/opt-out the seed is the whitespace point exactly as today → byte-identical.
+export const SEED_LIVE_PCT = 100
+export function _seedLiveEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.seedLive.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.seedLive.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.seedLive.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < SEED_LIVE_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctSeedLive = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.seedLive.enabled', '1')
+      else localStorage.removeItem('uct.seedLive.enabled')
+    } catch { /* ignore */ }
+  }
+}
+
+// ── Switch-anchor developing-slot reserve (dark canary) ─────────────────────
+// THE cold-daily "chart shifts back one bar on load" root cause (traced live, 2026-09-08):
+// the primary ChartWidget runs keepPresentOnSymbolChange=false, so a symbol switch frames
+// through updateChart's `rangeDescribesOldExtent`/else branches — which pin to present but
+// do NOT add the developing-bar reserve — while the settling-guard re-assert DOES reserve.
+// The initial frame lands 1 bar short and the guard then slides it +1 the instant today's
+// bar commits. Fix: apply the SAME `_intradayLoadReserve` in those switch branches so the
+// initial frame already matches the final one → no +1, ever. Rides `_intradayLoadReserve`
+// (which is itself 0 unless the load-anchor is on AND today is a not-yet-present session),
+// so it self-cancels the moment today is present. Dark: at PCT=0/opt-out the added term is
+// 0 → byte-identical. Ramp = the constant; window.__uctSwitchReserve(true) forces on.
+export const SWITCH_RESERVE_PCT = 100
+export function _switchReserveEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.switchReserve.enabled') : null
+    if (ls === '1') return true
+    if (ls === '0') return false
+    let b = localStorage.getItem('uct.switchReserve.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.switchReserve.bucket', b) }
+    const n = parseInt(b, 10)
+    return (Number.isFinite(n) ? n : 100) < SWITCH_RESERVE_PCT
+  } catch { return false }
+}
+if (typeof window !== 'undefined') {
+  window.__uctSwitchReserve = (on) => {
+    try {
+      if (on) localStorage.setItem('uct.switchReserve.enabled', '1')
+      else localStorage.removeItem('uct.switchReserve.enabled')
     } catch { /* ignore */ }
   }
 }
@@ -1148,17 +1270,29 @@ export function _intradayLoadReserve(bars, tf) {
   }
   if (tf === 'D' || tf === 'W' || tf === 'M') {
     if (typeof lt !== 'string' || lt.length < 10) return 0
-    // Only reserve when a developing-period bar is actually expected — i.e. today (ET) is a
-    // weekday. On weekends there's no session pending, so no late bar will land; reserving
-    // would just open a phantom right gap that never fills. (Weekday holidays — rare — still
-    // reserve, a harmless ≤1-bar gap in the future pad.)
-    let dow = 6
-    try { dow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay() } catch { return 0 }
-    if (dow === 0 || dow === 6) return 0
+    // Only reserve when a developing-period bar is actually expected today — a trading session
+    // (weekday, not an NYSE holiday). On a weekend/holiday no late bar lands, so reserving would
+    // just open a phantom right gap that never fills.
+    if (!isTradingSessionTodayET()) return 0
     const ps = _etPeriodStartISO(tf)
     return (ps && lt < ps) ? 1 : 0
   }
   return 0
+}
+
+// The ISO date of the CURRENT developing bar for a D/W/M tf (today / this week's Friday / first
+// of this month) — the SAME `t` the real developing bar will carry (computeBarTime), or null when
+// today is not a trading session (nothing is seeded on a weekend/holiday). Used to seed a
+// whitespace slot in the CANDLE SERIES that the real developing bar then REPLACES, so LWC's
+// shiftVisibleRangeOnNewBar never fires (a replacement is not a new bar) — the final piece that
+// stops the "today's candle opens on tomorrow, then snaps back" slide.
+export function _developingBarISO(tf) {
+  if (!(tf === 'D' || tf === 'W' || tf === 'M')) return null
+  if (!isTradingSessionTodayET()) return null
+  try {
+    const iso = computeBarTime(tf, Date.now() / 1000)
+    return (typeof iso === 'string' && iso.length >= 10) ? iso : null
+  } catch { return null }
 }
 
 // ── Intraday correct-first-paint (Phase 3' Part 2, dark canary) ─────────────
@@ -1295,6 +1429,8 @@ function buildFutureWhitespace(lastLwcTime, tf, minCount, targetSlot = null) {
       cur += 86400000
       const dow = new Date(cur).getUTCDay()
       if (dow === 0 || dow === 6) continue                 // daily: business days only, to match the bars
+      if (isHolidayISO(fmt(cur))) continue                 // ...and skip NYSE full holidays (no bar exists on a
+                                                           // closed weekday like Labor Day → no phantom axis slot)
     }
     const slot = fmt(cur)
     if (slot <= base) continue
@@ -2413,11 +2549,42 @@ export default function StockChart({
 
   // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
   const markersEnabled = cs.markers?.earnings || cs.markers?.splits || cs.markers?.dividends
+  // ── Rapid ticker-scan fetch cancellation (see _switchAbortEnabled) ──────────
+  // Per-instance in-flight registry for the bars-family SWRs below. `instFetcher`
+  // wraps the shared `fetcher`, tags each fetch by the symbol active at dispatch, and
+  // the effect aborts any tagged to a ticker this chart has since left. Scoped to THIS
+  // instance so a grid/watchlist chart never aborts another chart's live fetch. Off-
+  // gate `instFetcher(url)` === `fetcher(url)` (no signal) → byte-identical.
+  const inflightAbortRef = useRef(null)
+  if (inflightAbortRef.current === null) inflightAbortRef.current = new Set()
+  const activeSymRef = useRef(sym)
+  activeSymRef.current = sym
+  const instFetcher = useCallback((url) => {
+    if (!_switchAbortEnabled()) return fetcher(url)
+    const ctl = new AbortController()
+    const entry = { ctl, sym: activeSymRef.current }
+    inflightAbortRef.current.add(entry)
+    return fetcher(url, ctl.signal).finally(() => { inflightAbortRef.current.delete(entry) })
+  }, [])
+  useEffect(() => {
+    if (!_switchAbortEnabled()) return
+    const cur = sym
+    for (const e of Array.from(inflightAbortRef.current)) {
+      if (e.sym !== cur) { try { e.ctl.abort() } catch { /* ignore */ } inflightAbortRef.current.delete(e) }
+    }
+  }, [sym])
+  useEffect(() => () => {
+    try {
+      for (const e of Array.from(inflightAbortRef.current || [])) { try { e.ctl.abort() } catch { /* ignore */ } }
+      inflightAbortRef.current?.clear()
+    } catch { /* ignore */ }
+  }, [])
+
   const { data: markersData } = useSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
     markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
-    fetcher,
+    instFetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
       revalidateOnFocus: false,
@@ -5169,7 +5336,7 @@ export default function StockChart({
   const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
   const { data, error, mutate, isValidating } = useSWR(
     swrUrl,
-    fetcher,
+    instFetcher,
     {
       dedupingInterval: dedupMs,
       revalidateOnFocus: false,
@@ -5188,7 +5355,7 @@ export default function StockChart({
   // Static within the session (sealed bars don't change intraday), so no refreshInterval —
   // the primary /api/bars tail SWR above owns freshness + the live bar. Fires only on a deep
   // pan (histUrl is null on first paint), and is edge-served (never hits the origin on a HIT).
-  const { data: histData } = useSWR(histUrl, fetcher, {
+  const { data: histData } = useSWR(histUrl, instFetcher, {
     dedupingInterval: 60_000,
     revalidateOnFocus: false,
     refreshInterval: 0,
@@ -5205,7 +5372,7 @@ export default function StockChart({
   const customSwrUrl = _isCustomTf
     ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}`
     : null
-  const { data: customBaseData } = useSWR(customSwrUrl, fetcher, {
+  const { data: customBaseData } = useSWR(customSwrUrl, instFetcher, {
     dedupingInterval: dedupMs,
     revalidateOnFocus: false,
     refreshInterval: _customBaseIntraday ? 30_000 : 300_000,
@@ -5227,7 +5394,7 @@ export default function StockChart({
   const compareSwrUrl = compareSymbol
     ? `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${resolvedTf}&bars=${barCount}`
     : null
-  const { data: compareData } = useSWR(compareSwrUrl, fetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
+  const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
 
   // ── Phase 3' Part 3: intraday deep-backfill (OFF the critical path) ──
   // First paint is the shallow tail SWR above (instant, cold-safe). Once the sym/tf has been stable
@@ -5243,7 +5410,7 @@ export default function StockChart({
   const _intradayDeepUrl = _intradayDeepFire
     ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${INTRADAY_DEFAULT_BARS}`
     : null
-  const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, fetcher, {
+  const { data: _intradayDeepData } = useSWR(_intradayDeepUrl, instFetcher, {
     dedupingInterval: 60_000,
     revalidateOnFocus: false,
     refreshInterval: 0,          // one-shot deep pull; the tail SWR owns freshness + the live bar
@@ -6845,9 +7012,41 @@ export default function StockChart({
         const wickCol = userCandleColors ? (isUp ? (cs.candles.upWick || bodyCol) : (cs.candles.downWick || bodyCol)) : bodyCol
         arr[i] = { ...c, color: bodyCol, borderColor: borCol, wickColor: wickCol }
       }
+      // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
+      // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
+      // paint the stale provisional ends at the last SEALED period; today's real bar then appends
+      // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
+      // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
+      // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
+      if (_intradayLoadAnchorEnabled() && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
+        const _dev = _developingBarISO(resolvedTf)
+        const _lastRaw = displayBars[displayBars.length - 1]?.t
+        if (_dev && typeof _lastRaw === 'string' && _lastRaw < _dev) {
+          // Default: an empty whitespace slot (reserve only). When _seedLiveEnabled(), upgrade
+          // to a REAL candle at the live price so today is VISIBLE at the tape on first paint.
+          // Same store + sane-price source as Writer D; whitespace fallback when no sane price.
+          let _pt = null
+          if (_seedLiveEnabled()) {
+            try {
+              const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
+              const _px = _snap ? _effLivePrice(_snap) : null
+              if (_px && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
+                const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
+                const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
+                const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
+                _pt = { time: adjustTime(_dev), open: _o, high: _h, low: _l, close: _px }
+              }
+            } catch { /* fall back to whitespace */ }
+          }
+          arr.push(_pt || { time: adjustTime(_dev) })
+        }
+      }
       return arr
     },
-    [displayBars, adjustTime, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick]
+    // NOTE: livePrices is deliberately NOT a dep — the seed reads the live-price store
+    // imperatively (fresh at eval), and the live writers own prices that arrive later; a
+    // livePrices dep would re-run this O(n) memo every tick (churn) even when dark.
+    [displayBars, adjustTime, sym, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
@@ -6856,7 +7055,14 @@ export default function StockChart({
   const onDrawnBarCountRef = useRef(onDrawnBarCount)
   onDrawnBarCountRef.current = onDrawnBarCount
   useEffect(() => {
-    try { onDrawnBarCountRef.current?.(ohlcData.length) } catch { /* a reporting callback must never break the chart */ }
+    // Count only REAL drawn candles. The load-anchor whitespace seed appends a
+    // trailing whitespace point (the developing-bar slot that makes today's bar a
+    // replacement, not a new bar → no left-shift) — it is an empty axis slot, not
+    // a drawn bar, so exclude any trailing whitespace from the reported count.
+    // (Left as a tail-only adjustment: the seed only ever appends one.)
+    let _drawn = ohlcData.length
+    while (_drawn > 0 && isWhitespacePoint(ohlcData[_drawn - 1])) _drawn--
+    try { onDrawnBarCountRef.current?.(_drawn) } catch { /* a reporting callback must never break the chart */ }
   }, [ohlcData])
   // MarketSurge-style swing high/low pivots — recompute only when the data,
   // sensitivity, or timeframe changes (not per render or live tick). Forming
@@ -10483,14 +10689,22 @@ export default function StockChart({
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
           const barsFromRight = oldBarCount - oldRange.to
-          to = newBarCount - barsFromRight
+          // Reserve the developing bar's slot so THIS initial switch frame matches the
+          // settling-guard re-assert (which reserves too). Without it the frame lands 1
+          // bar short and the guard slides it +1 when today's bar commits — the cold-daily
+          // "shifts back one on load" bug (keepPresent=false path). Self-cancels to 0 once
+          // today is present; 0 off-gate → byte-identical.
+          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(filteredBars, resolvedTf) : 0
+          to = newBarCount - barsFromRight + _swRsv
           from = to - width
         } else {
           // Captured range already re-mapped to the NEW series (see
           // rangeDescribesOldExtent) — bars-from-right vs the stale old count
-          // would throw the view off the data. Keep the remapped range.
-          to = oldRange.to
-          from = oldRange.from
+          // would throw the view off the data. Keep the remapped range, shifted to
+          // reserve the developing bar's slot (same reason + self-cancel as above).
+          const _swRsv = _switchReserveEnabled() ? _intradayLoadReserve(filteredBars, resolvedTf) : 0
+          to = oldRange.to + _swRsv
+          from = oldRange.from + _swRsv
         }
         if (width > 0 && Number.isFinite(from) && Number.isFinite(to) && to > 1 && from < newBarCount) {
           try {

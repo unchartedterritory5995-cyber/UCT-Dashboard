@@ -63,11 +63,18 @@ _DIRECT_USER_TABLES = (
     "j2_fact_observations",
     "j2_note_fact_refs",
     "j2_thesis_evidence",
+    # Wave O — the member's own record of when they reconsidered a thesis.
+    "j2_thesis_reviews",
     "j2_note_documents",
     "j2_note_document_pages",
     "j2_note_excerpts",
     "j2_note_excerpt_refs",
     "j2_capture_inbox",
+    # Browser Capture credentials (Slice 3). Deleting an account must destroy
+    # every credential minted for it -- a live token whose member no longer
+    # exists is the worst kind of orphan.
+    "j2_capture_tokens",
+    "j2_capture_auth_codes",
     "j2_public_profiles",
     "j2_note_shares",
     # Note connectors / Obsidian sync
