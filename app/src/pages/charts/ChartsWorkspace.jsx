@@ -7,6 +7,8 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+import LayoutDock from './LayoutDock'
+import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -1777,8 +1779,13 @@ export default function ChartsWorkspace() {
     // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
     // that otherwise survives — reset it so a dragged pane snaps back to the default.
     setPref('charts_vol_pane_pct', '')
-    // UCT Default is the frozen default, not a saved template → no active template.
-    setPref('charts_active_template', 'null')
+    // UCT Default is the frozen default, not a saved template — but the Layout
+    // Dock still has to light it up as the open layout, and 'null' is what a BLANK
+    // board (New Layout) writes, so the two would be indistinguishable. A sentinel
+    // id names it without inventing a row. Safe for every existing reader:
+    // handleSaveLayout's `list.some(t => t.id === active.id)` can never match it,
+    // and handleDeleteTemplate compares against numeric row ids.
+    setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
     setOpenMenuOpen(false)
     flashSaved()
   }, [setPref, setChartsTheme, flashSaved, prefs.theme])
@@ -2059,6 +2066,65 @@ export default function ChartsWorkspace() {
   // the entire reason the phone had no layout door.
   const wsGlobalLayouts = globalLayouts.filter(t => t.layout?.kind !== 'multichart')
   const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
+
+  // ── Layout Dock ────────────────────────────────────────────────────────
+  // The fast path between saved layouts, rendered at the bottom of the frame.
+  // Entries are the frozen UCT Default plus every workspace-kind layout in the
+  // same order the Open Layout menu lists them — multichart rows stay out for
+  // the same reason they do there (their {widgets:[]} shape applies as a blank
+  // board). Defined here, above the mobile return, only because wsGlobal/wsMy
+  // are; the dock itself renders in the desktop branch alone.
+  const dockEntries = useMemo(() => ([
+    { id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' },
+    ...wsGlobalLayouts.map(t => ({ id: t.id, name: t.name, scope: 'global' })),
+    ...wsMyLayouts.map(t => ({ id: t.id, name: t.name, scope: 'user' })),
+  ]), [wsGlobalLayouts, wsMyLayouts])
+
+  const dockActiveTpl = useMemo(
+    () => parsePref(prefs?.charts_active_template, null),
+    [prefs?.charts_active_template],
+  )
+  const dockActiveId = dockActiveTpl?.id ?? null
+
+  // Does the board differ from what is STORED for the open layout?
+  //
+  // ⭐ ARRANGEMENT ONLY (id/type/x/y/w/h + cols). The appearance blobs that ride
+  // along in a template — chart settings, watchlist columns, per-widget opts —
+  // are rewritten by normal use and by theme resolution, so comparing them would
+  // light the dot on a board nobody touched. A false dirty is the one failure
+  // that would make people hate this: it fires the switch-away confirm on every
+  // switch, and the confirm is the thing protecting the board.
+  const dockDirty = useMemo(() => {
+    if (!dockActiveId || dockActiveId === UCT_DEFAULT_ID) return false
+    const tpl = globalLayouts.find(t => t.id === dockActiveId) || myLayouts.find(t => t.id === dockActiveId)
+    if (!tpl?.layout?.widgets) return false
+    return arrangementSig(layout) !== arrangementSig(parseLayout(tpl.layout) || tpl.layout)
+  }, [dockActiveId, globalLayouts, myLayouts, layout])
+
+  // A prebuilt (global-scope) layout is not writable by a member, so the confirm
+  // must not offer to save into it.
+  const dockCanSave = (dockActiveTpl?.scope || 'user') !== 'global' || isAdmin
+
+  // Same contract as Open Layout: opening a workspace layout leaves grid mode.
+  const handleDockOpen = useCallback((entry) => {
+    if (gridMode) mc.exitGrid()
+    if (entry.id === UCT_DEFAULT_ID) { applyUctDefault(); return }
+    const tpl = globalLayouts.find(t => t.id === entry.id) || myLayouts.find(t => t.id === entry.id)
+    if (tpl) applyTemplate(tpl)
+  }, [gridMode, mc, applyUctDefault, applyTemplate, globalLayouts, myLayouts])
+
+  // ＋ — blank the board, then save it under the typed name, so the layout
+  // exists and is the active one the moment you press Enter. You build it from
+  // there and save again through Layouts ▾ (the dot lands in Phase 2).
+  const handleDockCreate = useCallback(async (name) => {
+    handleNewLayout()
+    try {
+      const saved = await saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user' })
+      if (saved?.id != null) {
+        setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || name, scope: saved.scope || 'user' }))
+      }
+    } catch { /* surfaced by SWR revalidate */ }
+  }, [handleNewLayout, saveLayout, setPref])
 
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
@@ -2513,6 +2579,22 @@ export default function ChartsWorkspace() {
             />
           )}
         </main>
+
+        {/* The Layout Dock closes the frame the header opens. It is a flex
+            sibling of <main>, so the ResizeObserver on .workspaceBody re-tiles
+            the grid for its 29px on its own — no layout math changes. Desktop
+            only by construction: the phone returns above this. */}
+        <LayoutDock
+          entries={dockEntries}
+          activeId={dockActiveId}
+          loading={templatesLoading}
+          merged={merged}
+          dirty={dockDirty}
+          canSave={dockCanSave}
+          onOpen={handleDockOpen}
+          onCreate={handleDockCreate}
+          onSave={handleSaveLayout}
+        />
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and

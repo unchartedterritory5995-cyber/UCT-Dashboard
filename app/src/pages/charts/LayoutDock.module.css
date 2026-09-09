@@ -1,0 +1,271 @@
+/* app/src/pages/charts/LayoutDock.module.css
+   The Layout Dock — see LayoutDock.jsx for the model.
+
+   Design rules this file exists to hold:
+   • It is FRAME, not a third toolbar. 28px (shorter than the 33px header, level
+     with the 26px chart-tab strip) on --bg-surface, the same plane as the header
+     and the nav rail, so the workspace is bracketed by one continuous colour.
+     ⛔ Not --bg-elevated: it is one step brighter and reads as a mismatched panel
+     where it meets the rail — the same trap .workspaceHeader documents.
+   • Items are BARE TEXT. No chip, no border, no fill, no per-item ✕. That is what
+     keeps the bar quiet at 20 layouts where a tab bar becomes a wall of boxes.
+   • Type is .chartTab's exact spec (11px / 600 / 0.3px) so it is unmistakably the
+     same product; the SHAPE is deliberately different so it can never be mistaken
+     for a chart tab.
+   • Gold, not green: green already means "which page am I on" in the nav rail.
+     Gold means "which workspace am I in". Two accents, two jobs. */
+
+.dock {
+  height: 28px;
+  flex-shrink: 0;
+  background: var(--bg-surface, #0d1218);
+  border-top: 1px solid var(--border, #1f2937);
+  display: flex;
+  align-items: stretch;
+  /* 6px left so the first item's 11px inner padding lands its TEXT on 16px —
+     the same left edge as the "Charts" title in the header above. */
+  padding: 0 10px 0 6px;
+  position: relative;
+}
+
+/* Merged mode already draws its own bottom seam (.workspaceBodyMerged::after);
+   the dock's border would sit directly under it and read as a 2px rule.
+   Driven by a prop, not a sibling selector: .workspaceBodyMerged lives in a
+   different CSS module, so its class name is hashed and unreachable from here. */
+.dockMerged { border-top: none; }
+
+.strip {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Width oracle for the overflow fit — laid out, never painted, never hit. */
+.mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  height: 0;
+  overflow: hidden;
+}
+
+.item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-muted, #8c8674);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 148px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The active/hover cap sits ON the dock's top edge, fusing with the frame rather
+   than floating on it — the board reads as hanging from its own name. */
+.item::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: transparent;
+}
+
+/* :not(.itemActive) is LOAD-BEARING, not tidiness: `.item:hover` (0,2,0) outranks
+   `.itemActive` (0,1,0), so an unscoped hover repainted the OPEN layout in the
+   hover colour and swapped its gold cap for the grey ghost — hovering the active
+   item made it look inactive. */
+.item:not(.itemActive):hover { color: var(--text-bright, #e0dac8); }
+/* A grey ghost of the gold cap, so hover teaches where the active mark lands. */
+.item:not(.itemActive):hover::before { background: var(--border-accent, #2a2a2a); }
+
+.itemActive { color: var(--accent, #c9a84c); }
+.itemActive::before { background: var(--accent, #c9a84c); }
+.itemActive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.11), rgba(201, 168, 76, 0) 82%);
+}
+
+.item:focus-visible {
+  outline: 1px solid var(--accent, #c9a84c);
+  outline-offset: -2px;
+}
+
+.itemCreating { cursor: default; }
+
+.nameInput {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--accent, #c9a84c);
+  border-radius: 3px;
+  color: var(--text, #e5e7eb);
+  font: inherit;
+  font-size: 11px;
+  padding: 0 4px;
+  width: 116px;
+  outline: none;
+}
+
+/* Fixed right cluster: ⋯ and ＋ never move, whatever the bar is holding, so the
+   two controls stay muscle-memory targets. */
+.right {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+.right::before {
+  content: '';
+  display: block;
+  width: 1px;
+  margin: 7px 6px;
+  background: var(--border, #1f2937);
+}
+
+.ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted, #6d6759);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+.ctl:hover { color: var(--accent, #c9a84c); }
+.ctl:focus-visible {
+  outline: 1px solid var(--accent, #c9a84c);
+  outline-offset: -2px;
+}
+.count { font-size: 10px; }
+
+/* ── ⋯ browser ──────────────────────────────────────────────────────────────
+   On the theme-invariant --menu-* palette every popup menu in the workspace
+   wears (tokens.css) — a menu is app chrome, so it must not follow the canvas. */
+.browse {
+  position: absolute;
+  bottom: 30px;
+  right: 8px;
+  width: 232px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 4px;
+  box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
+  padding: 5px 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.browseSection {
+  padding: 7px 12px 3px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #6b6b6b);
+}
+
+.browseRow {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--menu-text, #ededed);
+}
+.browseRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); color: var(--menu-accent, #c9a84c); }
+
+.browseEmpty {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--menu-text-faint, #6b6b6b);
+}
+
+/* ── unsaved changes ────────────────────────────────────────────────────────
+   A 4px dot, on the ACTIVE item only, that is also the save button. No toast,
+   no banner, no dialog — the state is visible where you are already looking and
+   one click from resolved. */
+.unsaved {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent, #c9a84c);
+  flex-shrink: 0;
+  opacity: 0.9;
+  cursor: pointer;
+}
+.unsaved:hover { opacity: 1; box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18); }
+.unsaved:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: 2px; }
+
+/* The switch-away confirm. An inline strip riding above the dock, never a modal:
+   it interrupts one gesture, not the workspace. */
+.confirm {
+  position: absolute;
+  bottom: 30px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--menu-bg, #0e0e10);
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  border-radius: 4px;
+  box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
+  font-size: 11.5px;
+  color: var(--menu-text, #ededed);
+  z-index: 101;
+  white-space: nowrap;
+}
+.confirmMsg b { color: var(--accent, #c9a84c); font-weight: 600; }
+.confirmNote { color: var(--menu-text-dim, #8a8a8f); font-size: 11px; }
+
+.confirmPrimary,
+.confirmBtn {
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 9px;
+  line-height: 1.35;
+}
+.confirmPrimary {
+  background: var(--accent, #c9a84c);
+  border-color: var(--accent, #c9a84c);
+  color: #0b0f14;
+  font-weight: 600;
+}
+.confirmPrimary:hover { filter: brightness(1.08); }
+.confirmBtn { background: transparent; color: var(--menu-text, #ededed); }
+.confirmBtn:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }

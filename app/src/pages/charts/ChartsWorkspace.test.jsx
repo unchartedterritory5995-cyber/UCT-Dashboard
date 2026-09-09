@@ -1,4 +1,4 @@
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import fs from 'node:fs'
@@ -101,11 +101,20 @@ function toolbarDropdownTriggers() {
   return [...header.querySelectorAll('button')].filter(b => b.parentElement?.parentElement === header)
 }
 
+/** Scoped to the <header>: the Layout Dock at the bottom of the workspace offers
+ *  the same layout names as the Open Layout menu, so a document-wide search would
+ *  return whichever happened to render first. */
+function headerButton(name) {
+  const header = document.querySelector('header')
+  if (!header) return null
+  return within(header).queryAllByRole('button', { name })[0] || null
+}
+
 /** The toolbar button matching `name`, opening menus as needed. Null if nothing offers it. */
 function toolbarButton(name) {
   // queryAll (not query) so a duplicate label reports as a normal miss/hit rather
   // than throwing out of the search.
-  const found = () => screen.queryAllByRole('button', { name })[0] || null
+  const found = () => headerButton(name)
   if (found()) return found()
   for (const trigger of toolbarDropdownTriggers()) {
     // A trigger TOGGLES, and a previous search may have left some menu open, so
@@ -224,7 +233,7 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
-  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  act(() => { headerButton(/^UCT Default$/).click() })
   // Frozen arrangement is on the board.
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
   expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
@@ -293,7 +302,7 @@ test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not 
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
-  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  act(() => { headerButton(/^UCT Default$/).click() })
   const parsed = persistedChartSettings()
   // Still the frozen capture in every respect it was actually a capture of.
   expect(parsed.header.titleMode).toBe('both')
@@ -417,7 +426,7 @@ test('opening a My-layouts template restores its saved chart settings (not leake
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
-  act(() => { screen.getByRole('button', { name: /^My Setup$/ }).click() })
+  act(() => { headerButton(/^My Setup$/).click() })
   // Arrangement applied.
   expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
   // Saved chart settings restored.
@@ -491,7 +500,7 @@ test('confirming delete of the OPEN layout deletes it and falls back to UCT Defa
   const layoutCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_workspace_layout')
   expect(JSON.parse(layoutCall[1]).widgets.some(w => w.type === 'chart')).toBe(true)
   const activeCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_active_template')
-  expect(activeCall[1]).toBe('null')
+  expect(JSON.parse(activeCall[1])).toEqual({ id: 'uct-default', name: 'UCT Default', scope: 'global' })
 })
 
 test('first visit prefers a prebuilt template named "chart" over the starter fallback', () => {
@@ -691,7 +700,7 @@ test('a popped-out layout is not disturbed by opening a different layout on the 
 
     // Load a fresh layout into the now-blank main tab.
     clickToolbar(/open layout/i)
-    act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+    act(() => { headerButton(/^UCT Default$/).click() })
 
     // Main has its own board again...
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
