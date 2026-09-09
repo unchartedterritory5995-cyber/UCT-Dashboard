@@ -1,0 +1,608 @@
+//@version=6
+// Uncharted Territory
+// AtTheAsk
+// ============================================================================
+// UNCHARTED VOLUME
+// ============================================================================
+// A streamlined volume indicator built around four core features:
+//
+//   1. Range table  — ATR/ADR + today's range used + ATRx extension from 50SMA
+//   2. Volume table — today's volume + multiplier vs average
+//   3. Color grading — two-tone effect on bars exceeding the average (the gray
+//                      "shoulders" you see capping the colored portion)
+//   4. HV candles   — HVE (Highest Volume Ever) and HV1 (Highest Volume in 1 year)
+//                     detection with cluster de-duplication so consecutive HV days
+//                     produce a single label on the strongest bar
+//
+// Performance notes:
+//   - HV detection runs only on daily charts (the only timeframe where the
+//     "highest volume ever" concept is meaningful for these signals)
+//   - Range/volume tables render only on the last bar (`barstate.islast`)
+//   - The pane is hidden entirely on no-volume / ratio symbols
+// ============================================================================
+
+indicator('Uncharted Volume', format = format.volume, shorttitle = 'UT Vol', overlay = false, max_labels_count = 500)
+
+// ============================================================================
+// 1. INPUTS
+// ============================================================================
+// Most inputs are hidden from the status line (`display = display.none`) to
+// keep the chart header clean. The few exceptions (bullish, bearish, neutral,
+// color_vs_prev_close) stay visible so users can quickly see the active color
+// scheme without opening settings.
+
+// --- Volume Moving Averages ---
+// Length used for the average-volume line and the volume table multiplier.
+// Daily applies to all timeframes EXCEPT weekly; weekly charts use lenWeekly.
+grp_calc = "Volume Moving Averages"
+lenDaily  = input.int(50, 'Daily Length',  minval = 1, group = grp_calc, tooltip = 'Length for Daily Volume Moving Average', display = display.none)
+lenWeekly = input.int(50, 'Weekly Length', minval = 1, group = grp_calc, tooltip = 'Length for Weekly Volume Moving Average', display = display.none)
+
+// HV1 lookback is fixed at 252 trading days (~1 calendar year on US markets).
+// Hardcoded because there is no meaningful reason to tune this.
+lookbackDays = 252
+
+// --- Range Calculations ---
+// ATR includes overnight gaps (uses true range); ADR is intraday only.
+// Active traders typically prefer ATR for swing context, ADR for day-trading.
+grp_range = "Range Calculations"
+rangeType = input.string('ATR', 'Range Type', options = ['ATR', 'ADR'], group = grp_range, display = display.none,
+     tooltip = 'ATR = Average True Range (includes gaps)\nADR = Average Daily Range (high - low only)')
+rangeLength = input.int(14, 'Range Length', minval = 1, group = grp_range, display = display.none,
+     tooltip = 'Number of periods to calculate average range')
+// RMA matches the traditional Wilder ATR formula. SMA/EMA/WMA are alternatives
+// for users who want a more or less responsive measure.
+rangeMethod = input.string('RMA', 'Calculation Method', options = ['RMA', 'SMA', 'EMA', 'WMA'], group = grp_range, display = display.none,
+     tooltip = 'Method for smoothing the range calculation\nRMA = Wilder\'s smoothing\nSMA = Simple\nEMA = Exponential\nWMA = Weighted')
+// Percentage = "85%" of typical range used today. Ratio = "0.85x". Same data, two readings.
+rangeDisplayType = input.string('Percentage', 'Range Display Format', options = ['Percentage', 'Ratio'], group = grp_range, display = display.none,
+     tooltip = 'Percentage = % (e.g., 85%)\nRatio = multiplier (e.g., 0.85x)')
+
+// Moving average used as the baseline for the ATRx/ADRx extension metric.
+// Common choices: 50 SMA (institutional baseline), 21 EMA (swing), 200 SMA (long-term trend).
+atrExtMaType = input.string('SMA', 'ATR Ext MA Type', options = ['SMA', 'EMA'], group = grp_range, display = display.none,
+     tooltip = 'Moving average type used for the ATRx/ADRx extension calculation.\nSMA = Simple, EMA = Exponential (more responsive).')
+atrExtMaLength = input.int(50, 'ATR Ext MA Length', minval = 1, group = grp_range, display = display.none,
+     tooltip = 'Period of the moving average used as the baseline for ATRx/ADRx.')
+
+// --- Visuals ---
+grp_vis = "Visuals"
+// Histogram = thin line per bar (cleaner on dense charts).
+// Columns   = traditional filled bars.
+vol_display_style = input.string('Histogram', 'Volume Display Style', options = ['Columns', 'Histogram'], group = grp_vis, display = display.none,
+     tooltip = 'Columns = Traditional bars\nHistogram = Line-based')
+histogram_linewidth = input.int(3, 'Histogram Line Width', minval = 1, maxval = 10, group = grp_vis, display = display.none,
+     tooltip = 'Width of histogram lines (Histogram style only)')
+// High-volume bar colors. Bullish = vol exceeded avg AND price closed up;
+// Bearish = vol exceeded avg AND price closed down.
+bullish = input.color(color.green, 'Bullish', group = grp_vis, tooltip = 'High vol + Up close')
+bearish = input.color(color.red,   'Bearish', group = grp_vis, tooltip = 'High vol + Down close')
+// "Up close" can be measured against the previous close (overnight + intraday)
+// or just the current bar's open (intraday only). Most traders prefer the former.
+color_vs_prev_close = input.bool(true, 'Color based on previous close', group = grp_vis,
+     tooltip = 'ON = vs previous close\nOFF = vs current open')
+// Color of the lower portion of every bar (the "below-average" zone). Also used
+// as the color-grading overlay color on bars that exceed average.
+neutral = input.color(color.gray, 'Avg Vol Bar', group = grp_vis, tooltip = 'Color for vol at or below average')
+
+// Avg-volume reference line. "Area" shades the area below the line which makes
+// high-volume excursions visually pop. "Line" is a thin reference line only.
+avg_style = input.string('Area', 'Avg Line Style', options = ['Line', 'Area'], group = grp_vis, display = display.none,
+     tooltip = 'Line: single reference line at avg\nArea: shaded area below avg line')
+avg_transp = input.int(90, 'Avg Vol Line Opacity', minval = 0, maxval = 100, group = grp_vis, display = display.none,
+     tooltip = '0=Opaque, 100=Invisible')
+
+// --- High Volume Candles ---
+// HVE = highest volume in ALL recorded history for this symbol.
+// HV1 = highest volume in the last ~1 year (252 trading days).
+// HVE is strictly stronger than HV1 — when both could fire, HVE wins.
+grp_hv = "High Volume Candles"
+label_size = input.string('Normal', 'HV Label Size', options = ['Small', 'Normal', 'Large'], group = grp_hv, display = display.none,
+     tooltip = 'Text size of the HVE/HV1 labels plotted on the volume bars.')
+highlight_color_hve = input.color(color.new(color.yellow, 0),           'HVE Label',    group = grp_hv, display = display.none, tooltip = 'Highest Volume Ever label')
+highlight_color_hv1 = input.color(color.new(color.rgb(0, 200, 255), 0), 'HV1 Label',    group = grp_hv, display = display.none, tooltip = 'Highest Volume in 1 year label')
+// Bar color used while the HV candle itself is rendering (different from label color).
+hve_candle_color    = input.color(color.new(color.orange, 0),           'High Vol Bar', group = grp_hv, display = display.none, tooltip = 'Bar color during HVE/HV1 events')
+// When ON, only the most recent HV label remains on chart — older HV labels
+// are deleted as new ones appear. Reduces clutter on long-running charts.
+show_only_latest_hv_label = input.bool(true, 'Show Only Latest HV Label', group = grp_hv, display = display.none,
+     tooltip = 'When ON, only the most recent HV label remains visible.')
+
+// --- Data Table Settings ---
+grp_table = "Data Table Settings"
+table_text_size_input = input.string("Normal", "Table Label Size", options = ["Tiny", "Small", "Normal", "Large"], group = grp_table, display = display.none,
+     tooltip = "Text size applied to all cells in both the Range table and the Volume table.")
+show_atr_table    = input.bool(true,  'Show Range Table',  group = grp_table, display = display.none,
+     tooltip = 'Master toggle for the Range table (ATR/ADR + Range Used + ATRx + DCR). Turn OFF to hide the entire table.')
+// Toggles the "| Range: 79.06%" cell in the Range table. Sub-toggle of
+// Show Range Table — has no effect when the parent table is hidden.
+show_range_used   = input.bool(true,  'Show Range Used', group = grp_table, display = display.none,
+     tooltip = 'Toggles the Range Used (% or x of typical range) cell in the Range table.')
+// ATRx = how many ATRs above/below the baseline MA price currently sits.
+// Useful for gauging extension — a stock that's 8+ ATRs from its baseline MA
+// is statistically stretched. Baseline MA is configured separately (type + length).
+show_atr_ext_from_sma   = input.bool(true,  'Show ATR extension from MA', group = grp_table, display = display.none,
+     tooltip = 'Adds ATRx/ADRx multiple showing how far price is from the baseline moving average (configured in Range Calculations) in ATR/ADR units.')
+// DCR (Daily Closing Range) = (close - low) / (high - low). Where in the day's
+// range did price close? 1.0 = at high (strong), 0.0 = at low (weak), 0.5 = mid.
+show_dcr_in_range_table = input.bool(false, 'Show DCR in Range Table', group = grp_table, display = display.none,
+     tooltip = 'Appends Daily Closing Range to the Range table. DCR = (close - low) / (high - low). 1.0 = closed at high (strong), 0.0 = closed at low (weak).')
+show_volume_table = input.bool(true,  'Show Volume Table', group = grp_table, display = display.none,
+     tooltip = 'Master toggle for the Volume table (current volume + multiplier vs average). Turn OFF to hide the entire table.')
+// Optional second cell in the volume table showing the raw average volume number.
+show_avg_volume = input.bool(false, 'Show Avg Vol', group = grp_table, display = display.none,
+     tooltip = 'Adds a second cell to the Volume table showing the raw average volume number (e.g. "| AVol : 35.29M").')
+
+volTablePosition = input.string('Top Right', 'Volume Table Pos', options = ['Top Left', 'Top Center', 'Top Right'], group = grp_table, display = display.none,
+     tooltip = 'Default position of the Volume table on the chart. Auto-overridden to Top Center when a recent HV event is detected (see Vol Table Lookback).')
+atrTablePosition = input.string('Top Left',  'Range Table Pos',  options = ['Top Left', 'Top Center', 'Top Right'], group = grp_table, display = display.none,
+     tooltip = 'Default position of the Range table on the chart.')
+// When an HVE/HV1 event happened within the last N daily bars, the Volume table
+// auto-centers (overrides volTablePosition) to draw attention to the moment.
+// Set higher to keep the table centered longer after the event.
+volTableLookback = input.int(50, 'Vol Table Lookback', minval = 1, group = grp_table, display = display.none,
+     tooltip = 'Centers the Volume table if HVE/HV1 occurred within the last N days')
+
+// ============================================================================
+// 2. HELPERS
+// ============================================================================
+
+// Maps the user-facing position string to Pine's `position.*` enum.
+f_getTablePos(_pos) =>
+    _pos == 'Top Left'   ? position.top_left :
+     _pos == 'Top Center' ? position.top_center :
+     _pos == 'Top Right'  ? position.top_right : position.bottom_right
+
+// Picks the most readable volume unit for a given magnitude.
+// Returns a tuple: (suffix string, divisor). E.g. 12_500_000 → ('M', 1e6).
+// Used throughout for consistent volume formatting in tables and HV labels.
+f_getVolumeUnit(_vol) =>
+    absVol = math.abs(_vol)
+    if absVol >= 1e9
+        ['B', 1e9]
+    else if absVol >= 1e6
+        ['M', 1e6]
+    else if absVol >= 1e3
+        ['K', 1e3]
+    else
+        ['', 1.0]
+
+// Formats a volume number using the unit/divisor from f_getVolumeUnit().
+// Always shows two decimals so columns line up visually.
+f_formatVolume(_vol, _unit, _divisor) =>
+    str.tostring(_vol / _divisor, '0.00') + _unit
+
+// Daily data bundle, fetched in a single request.security() call.
+//
+// PERF NOTE: this function runs INSIDE request.security on every daily bar.
+// Pine Script evaluates every `ta.*` series function appearing in any code
+// path on every bar to maintain its history — even branches the ternary
+// doesn't pick. The previous version used a generic `f_calcRange` helper
+// with a ternary that listed all four smoothing methods, which silently
+// instantiated rma+sma+ema+wma series even when only one was selected.
+// The if/else chain below ensures only the chosen method's series exists.
+//
+// We also gate the ATRx baseline MA (`_atrExtMa`) behind `show_atr_ext_from_sma`
+// so the series isn't instantiated when ATRx is hidden. Same pattern as
+// _rangeRaw — only the selected MA type is created.
+f_getDailyData() =>
+    _src = rangeType == 'ATR' ? ta.tr(true) : high - low
+    float _rangeRaw = na
+    if rangeMethod == 'RMA'
+        _rangeRaw := ta.rma(_src, rangeLength)
+    else if rangeMethod == 'SMA'
+        _rangeRaw := ta.sma(_src, rangeLength)
+    else if rangeMethod == 'EMA'
+        _rangeRaw := ta.ema(_src, rangeLength)
+    else
+        _rangeRaw := ta.wma(_src, rangeLength)
+    _volAvg = ta.sma(volume, lenDaily)
+    // ATRx baseline MA — only the selected type is instantiated for perf.
+    float _atrExtMa = na
+    if show_atr_ext_from_sma
+        if atrExtMaType == 'EMA'
+            _atrExtMa := ta.ema(close, atrExtMaLength)
+        else
+            _atrExtMa := ta.sma(close, atrExtMaLength)
+    _prevClose = close[1]
+    [volume, high, low, close, _volAvg, _rangeRaw, _atrExtMa, _prevClose]
+
+// ============================================================================
+// 3. SETUP & DATA REQUEST
+// ============================================================================
+
+v         = volume
+isDaily   = timeframe.isdaily
+isWeekly  = timeframe.isweekly
+isMonthly = timeframe.ismonthly
+
+// Skip-all detection: hide the entire pane on symbols where this indicator
+// is meaningless.
+//   - isRatioSymbol = pair charts like BTCUSD/QQQ — volume is undefined
+isRatioSymbol = str.contains(syminfo.ticker, "/") or str.contains(syminfo.tickerid, "/")
+// Accumulate volume availability instead of classifying each zero-volume bar
+// as a no-volume symbol. Calculations remain continuous through zero bars.
+hasVolumeData = ta.cum(nz(v)) > 0
+skipAll       = isRatioSymbol or not hasVolumeData
+
+// Avg vol on the chart timeframe — used by:
+//   1. Bar coloring (above-avg → bullish/bearish color)
+//   2. Color grading overlay (the gray "cap" on top of bars exceeding avg)
+//   3. The avg vol reference line/area
+// On weekly charts use lenWeekly; everything else uses lenDaily.
+avgv = ta.sma(v, isWeekly ? lenWeekly : lenDaily)
+
+// Daily data used by the tables and daily-only HV engine.
+var float volD             = na
+var float highD            = na
+var float lowD             = na
+var float closeD           = na
+var float avgVolD          = na
+var float selectedRangeRaw = na
+var float atrExtMaD        = na
+var float prevCloseD       = na
+
+// Avoid a same-timeframe request on the indicator's primary (daily) timeframe.
+// Other chart timeframes use one tuple request for the complete daily bundle.
+if not isRatioSymbol
+    if isDaily
+        [a, b, c, d, e, f, g, h] = f_getDailyData()
+        volD             := a
+        highD            := b
+        lowD             := c
+        closeD           := d
+        avgVolD          := e
+        selectedRangeRaw := f
+        atrExtMaD        := g
+        prevCloseD       := h
+    else
+        [a, b, c, d, e, f, g, h] = request.security(syminfo.tickerid, 'D', f_getDailyData(), lookahead = barmerge.lookahead_off)
+        volD             := a
+        highD            := b
+        lowD             := c
+        closeD           := d
+        avgVolD          := e
+        selectedRangeRaw := f
+        atrExtMaD        := g
+        prevCloseD       := h
+
+// DCR (Daily Closing Range) — computed only when shown. A zero-range day
+// returns na because the close's position within a flat range is undefined.
+dcr = (show_atr_table and show_dcr_in_range_table and not skipAll and highD != lowD)
+     ? (closeD - lowD) / (highD - lowD)
+     : na
+
+// ============================================================================
+// 4. HVE / HV1 DETECTION (Daily only)
+// ============================================================================
+// HV detection is daily-only by design. "Highest volume ever" is meaningful as
+// a daily concept — weekly/intraday HV signals are noisier and less actionable.
+
+// Running max of all prior daily volumes. Persists across bars via `var`.
+// We compare against volD[1] (the PRIOR completed daily bar) so that an
+// in-progress today's bar doesn't pre-trigger HVE before its close.
+var float priorMaxAllTimeDaily = na
+
+triggerHVE_Daily = false
+triggerHV1_Daily = false
+
+if not skipAll and isDaily
+    // Update running max from the previously completed daily bar.
+    if not na(volD[1])
+        priorMaxAllTimeDaily := na(priorMaxAllTimeDaily) ? volD[1] : math.max(priorMaxAllTimeDaily, volD[1])
+    // Highest daily volume in the last 252 trading days (~1 year).
+    priorMax1YDaily = ta.highest(volD[1], lookbackDays)
+    // HVE: today's volume meets or exceeds the all-time prior max.
+    triggerHVE_Daily := barstate.isconfirmed and not na(priorMaxAllTimeDaily) and volD >= priorMaxAllTimeDaily
+    // HV1: today's volume meets the 1-year max but isn't already an HVE
+    // (HVE is strictly stronger; we don't double-flag).
+    triggerHV1_Daily := barstate.isconfirmed and not na(priorMax1YDaily) and volD >= priorMax1YDaily and not triggerHVE_Daily
+
+isHVEvent = triggerHVE_Daily or triggerHV1_Daily
+
+// Track the bar_index of the most recent HV event. Used by the volume table
+// auto-centering logic — when this event is within volTableLookback bars of
+// the current bar, the volume table centers itself (computed at render time).
+var int lastHVBarIdx = na
+if isHVEvent
+    lastHVBarIdx := bar_index
+
+// ============================================================================
+// 5. BAR COLOR
+// ============================================================================
+// Coloring priority (highest → lowest):
+//   1. HV event       → orange (or whatever hve_candle_color is set to)
+//   2. Above-avg vol  → bullish/bearish based on close direction
+//   3. Otherwise      → neutral gray
+//
+// The above-avg branch picks bullish vs bearish based on user preference:
+// either close vs previous close (default) or close vs current open.
+
+vcolornew = neutral
+if isHVEvent
+    vcolornew := hve_candle_color
+else if not na(avgv) and v > avgv
+    vcolornew := (color_vs_prev_close ? close > close[1] : close > open) ? bullish : bearish
+
+// ============================================================================
+// 6. PLOTS
+// ============================================================================
+
+volPlotStyle = vol_display_style == 'Histogram' ? plot.style_histogram : plot.style_columns
+plotStyle    = avg_style == 'Area' ? plot.style_area : plot.style_line
+
+// Main volume bars — colored per the priority above.
+plot(skipAll ? na : v, 'Volume', style = volPlotStyle, color = vcolornew, linewidth = histogram_linewidth)
+
+// Color grading: stacks a neutral-colored bar from 0..avgv on top of any bar
+// that exceeds the average. This creates the two-tone "shoulder" effect where
+// the bar appears colored only ABOVE the average line — visually emphasizing
+// the excess volume. Hidden from the price scale to avoid double-listing.
+plot(v > avgv ? avgv : na,
+     'Avg Vol Columns', style = volPlotStyle, color = neutral, linewidth = histogram_linewidth, display = display.all - display.price_scale)
+
+// Average-volume reference line/area, drawn over the volume bars.
+plot(skipAll ? na : avgv, 'Avg Vol Line', color = color.new(color.white, avg_transp), style = plotStyle)
+
+// Invisible padding plot — adds 25% headroom above the tallest bar so HV
+// labels rendered with `style = label.style_none` don't get clipped against
+// the top of the pane. Color is fully transparent (transparency = 100).
+plot(skipAll ? na : math.max(v, avgv) * 1.25, 'Scale Padding', color = color.new(color.white, 100), linewidth = 1)
+
+// ============================================================================
+// 7. HV LABEL CLUSTERING
+// ============================================================================
+// Problem: a strong volume event often spans multiple consecutive days — e.g.
+// an earnings beat may produce 3 days where each is "highest in 1 year" at
+// the moment of measurement. Without de-duplication, we'd plant an HV1 label
+// on every one of those bars, cluttering the chart.
+//
+// Solution: track an active "cluster" while consecutive HV bars fire. Keep
+// only the strongest bar in the cluster (highest volume; HVE wins ties over
+// HV1). When the cluster ends (a non-HV bar appears), emit ONE label on the
+// winner. On the live bar we also flush the in-progress winner so today's HV
+// shows up immediately rather than waiting for tomorrow's non-HV close.
+
+labelSizeEnum =
+     label_size == 'Small' ? size.small :
+     label_size == 'Large' ? size.large :
+     size.normal
+
+// Cluster state — all `var` so it persists across bars.
+//   hvActive — are we currently inside an HV run?
+//   hvVol    — the winning bar's volume
+//   hvPct    — the winning bar's % above average (for label text)
+//   hvBar    — the winning bar's bar_index (where to plant the label)
+//   hvIsHVE  — true if winner is an HVE, false if HV1 (drives label color)
+//   hvLabel  — handle to the most recent label, used for "show only latest" deletion
+var bool   hvActive = false
+var float  hvVol    = na
+var float  hvPct    = na
+var int    hvBar    = na
+var bool   hvIsHVE  = false
+var label  hvLabel  = na
+var label  hvPreviewLabel = na
+
+// Builds the actual label object. Two-line format: "HVE•20.28M\n+204%".
+// Background is transparent (style = label.style_none + transparent color),
+// so only the text shows. textcolor differentiates HVE (yellow) vs HV1 (cyan).
+f_makeHVLabel(_bar, _vol, _pct, _isHVE) =>
+    [u, d] = f_getVolumeUnit(_vol)
+    pctPrefix = na(_pct) ? "" : _pct >= 0 ? "+" : ""
+    txt = (_isHVE ? "HVE" : "HV1") + "•" + f_formatVolume(_vol, u, d) +
+         (na(_pct) ? "" : "\n" + pctPrefix + str.tostring(_pct, "#") + "%")
+    label.new(_bar, _vol, txt,
+         xloc = xloc.bar_index, yloc = yloc.price, style = label.style_none,
+         color = color.new(color.white, 100), textcolor = _isHVE ? highlight_color_hve : highlight_color_hv1,
+         size = labelSizeEnum)
+
+if not skipAll and isDaily and barstate.isconfirmed
+    if isHVEvent
+        // % above average — used in the second line of the label.
+        pctNow = avgv > 0 ? (v / avgv - 1) * 100 : na
+        // We replace the cluster winner if any of these hold:
+        //   (a) cluster is brand new       → trivially set initial winner
+        //   (b) new bar's volume is higher → strictly stronger
+        //   (c) ties on volume but the new bar is HVE while current is HV1
+        //       → upgrade since HVE is the stronger classification
+        replace = not hvActive or v > hvVol or (v == hvVol and triggerHVE_Daily and not hvIsHVE)
+        if replace
+            hvActive := true
+            hvVol    := v
+            hvPct    := pctNow
+            hvBar    := bar_index
+            hvIsHVE  := triggerHVE_Daily
+    else if hvActive
+        // Non-HV bar after an active cluster → cluster ended, emit the winner.
+        // Delete the previous label first if "show only latest" is on.
+        if not na(hvPreviewLabel)
+            label.delete(hvPreviewLabel)
+            hvPreviewLabel := na
+        if show_only_latest_hv_label and not na(hvLabel)
+            label.delete(hvLabel)
+        hvLabel  := f_makeHVLabel(hvBar, hvVol, hvPct, hvIsHVE)
+        hvActive := false
+
+// Live flush — if the cluster is still active on the current bar (today is HV
+// and tomorrow hasn't happened yet), plant a label for the in-progress winner
+// so the user can see it without waiting for the run to end.
+if barstate.islast and hvActive
+    if not na(hvPreviewLabel)
+        label.delete(hvPreviewLabel)
+    hvPreviewLabel := f_makeHVLabel(hvBar, hvVol, hvPct, hvIsHVE)
+
+// Single alert for HVE OR HV1 events. Set up an alert in TradingView and use
+// {{ticker}} in the message to expand to the symbol on fire.
+alertcondition(isHVEvent, title = 'HVE Trigger', message = 'Highest Volume on {{ticker}}')
+
+// ============================================================================
+// 8. TABLES (last bar only)
+// ============================================================================
+// All table work is gated to barstate.islast — strings, color ternaries, and
+// table cell updates only run on the realtime bar, not on historical bars.
+
+tableTextSize =
+     table_text_size_input == "Tiny"  ? size.tiny  :
+     table_text_size_input == "Small" ? size.small :
+     table_text_size_input == "Large" ? size.large :
+     size.normal
+
+if barstate.islast and not skipAll
+
+    // ------------------------------------------------------------------------
+    // VOLUME TABLE
+    // ------------------------------------------------------------------------
+    if show_volume_table
+        // Display volume matches the chart timeframe: weekly chart shows weekly
+        // volume, monthly shows monthly, everything else shows daily.
+        // Weekly/monthly charts already contain their native volume, so no
+        // additional security request is needed. Other charts show daily data.
+        volDisplay    = (isWeekly or isMonthly) ? v    : volD
+        avgVolDisplay = (isWeekly or isMonthly) ? avgv : avgVolD
+
+        // Auto-pick a unit (K/M/B) based on magnitude for readable formatting.
+        [tableUnit, tableDivisor] = f_getVolumeUnit(volDisplay)
+
+        // Volume multiplier vs average. Guarded against avgVol=0 (new symbols).
+        volMult = avgVolDisplay > 0 ? volDisplay / avgVolDisplay : na
+
+        // Color thresholds:
+        //   < 1.0x (below avg)   → white (quiet, no alert)
+        //   1.0x–1.5x            → yellow (elevated)
+        //   > 1.5x               → red (heavy volume)
+        // White is the default so quiet readings don't add visual noise.
+        volMultColor = na(volMult) or volMult < 1    ? color.white :
+             volMult <= 1.5 ? color.yellow :
+             color.red
+
+        // Hide the "(0.99x)" suffix entirely if the multiplier isn't computable
+        // (e.g. brand-new symbol with no avg-vol history). Prevents "(NaNx)".
+        volMultText = na(volMult) ? '' : ' (' + str.tostring(volMult, '0.00') + 'x)'
+
+        // var keeps the same table object across realtime ticks (efficient).
+        // set_position is called every render to honor user input changes mid-session.
+        // Auto-center: when an HV event occurred within the last volTableLookback
+        // daily bars, override to Top Center to draw the eye to the table.
+        hasRecentHV = not na(lastHVBarIdx) and (bar_index - lastHVBarIdx) <= volTableLookback
+        volPosName = hasRecentHV ? 'Top Center' : volTablePosition
+        volPos = f_getTablePos(volPosName)
+        var table volTable = table.new(volPos, show_avg_volume ? 2 : 1, 1)
+        table.set_position(volTable, volPos)
+
+        // Combined cell text. Trailing space prevents the closing ")" from
+        // being clipped against the price scale on Top Right positioning.
+        volCellText = na(volDisplay) ? '' : 'Vol : ' + f_formatVolume(volDisplay, tableUnit, tableDivisor) + volMultText + ' '
+
+        // Single-cell rendering: the whole "Vol : 41M (1.20x)" string is one
+        // unit of text and changes color together based on volMultColor.
+        table.cell(volTable, 0, 0, volCellText,
+             text_color = volMultColor, text_size = tableTextSize, text_halign = text.align_left)
+        if show_avg_volume
+            avgVolCellText = na(avgVolDisplay) ? '' : '| AVol : ' + f_formatVolume(avgVolDisplay, tableUnit, tableDivisor) + ' '
+            table.cell(volTable, 1, 0, avgVolCellText,
+                 text_color = color.white, text_size = tableTextSize, text_halign = text.align_left)
+
+    // ------------------------------------------------------------------------
+    // RANGE TABLE — ATR/ADR + Range Used + ATRx + optional DCR
+    // ------------------------------------------------------------------------
+    if show_atr_table
+        // Today's actual range. ATR uses true range (includes the gap from
+        // yesterday's close); ADR uses just today's high - low.
+        todayRange = rangeType == 'ATR'
+             ? math.max(highD, prevCloseD) - math.min(lowD, prevCloseD)
+             : highD - lowD
+        // Typical range expressed as % of price (e.g. ATR is 2.5% of price).
+        rangePct  = selectedRangeRaw / closeD * 100
+        // How much of the typical range was used today (e.g. 80% of normal).
+        usedPct   = todayRange / selectedRangeRaw * 100
+        usedRatio = todayRange / selectedRangeRaw
+        rangeLbl  = rangeType == 'ATR' ? 'ATR' : 'ADR'
+        multLbl   = rangeType == 'ATR' ? 'ATRx' : 'ADRx'
+
+        // Color thresholds for "Range Used":
+        //   < 70%   → green (quiet day, room to run)
+        //   70-100% → yellow (typical activity)
+        //   > 100%  → red (expanded range, exhausted)
+        rangeUsedColor = na(usedPct) ? color.gray :
+             usedPct < 70   ? color.green :
+             usedPct <= 100 ? color.yellow :
+             color.red
+
+        atrPos = f_getTablePos(atrTablePosition)
+        var table atrTable = table.new(atrPos, 4, 1)
+        table.set_position(atrTable, atrPos)
+
+        // Hide cell entirely (empty string) if data isn't ready, instead of
+        // showing "NaN" or "n/a" clutter. Same idea as the volume multiplier.
+        rangeText = na(selectedRangeRaw) ? '' :
+             rangeLbl + ' : $' + str.tostring(selectedRangeRaw, '#.##') + ' (' + str.tostring(rangePct, '#.##') + '%)'
+        usedText  = (not show_range_used or na(usedPct)) ? '' :
+             rangeDisplayType == 'Percentage'
+                 ? '| Range: ' + str.tostring(usedPct, '#.##') + '%'
+                 : '| Range: ' + str.tostring(usedRatio, '#.##') + 'x'
+
+        // ATRx / ADRx — measures price extension from the baseline MA in
+        // units of typical range. E.g. ATRx of 5 means price is 5 ATRs away
+        // from the configured MA (default: 50 SMA).
+        // Color thresholds: ≤7 white (normal), ≤10 yellow (stretched), >10 red (extreme).
+        // Hidden when prerequisites aren't ready (new symbols without enough history).
+        string atrMultText  = ''
+        color  atrMultColor = color.white
+        if show_atr_ext_from_sma and not na(atrExtMaD) and atrExtMaD != 0 and not na(rangePct) and rangePct != 0
+            atrMult = ((closeD - atrExtMaD) / atrExtMaD * 100) / rangePct
+            absMult = math.abs(atrMult)
+            atrMultColor := absMult <= 7 ? color.white : absMult <= 10 ? color.yellow : color.red
+            atrMultText  := '| ' + multLbl + ': ' + str.tostring(atrMult, '0.00')
+
+        // DCR — only built when the user opts in. Color reflects close strength:
+        //   > 0.65 → green (closed near high, bullish strength)
+        //   < 0.35 → red (closed near low, bearish weakness)
+        //   else   → yellow (mid-range close)
+        string dcrText  = ""
+        color  dcrColor = color.gray
+        if show_dcr_in_range_table
+            dcrText  := '| DCR: ' + str.tostring(dcr, '#.##')
+            dcrColor := na(dcr)    ? color.gray :
+                 dcr > 0.65 ? color.green :
+                 dcr < 0.35 ? color.red :
+                 color.yellow
+
+        // Render the four cells in order. Empty strings render as blank cells
+        // (no visible separator from neighbors), keeping the row clean when
+        // data is missing.
+        table.cell(atrTable, 0, 0, rangeText,    text_color = color.white,    text_size = tableTextSize)
+        table.cell(atrTable, 1, 0, usedText,     text_color = rangeUsedColor, text_size = tableTextSize)
+        table.cell(atrTable, 2, 0, atrMultText,  text_color = atrMultColor,   text_size = tableTextSize)
+        table.cell(atrTable, 3, 0, dcrText,      text_color = dcrColor,       text_size = tableTextSize)
+
+// ============================================================================
+// SPDX-License-Identifier: MPL-2.0
+//
+// Copyright (c) 2026 AtTheAsk (Uncharted Territory).
+//
+// This Source Code Form is subject to the terms of the Mozilla Public License,
+// v. 2.0. If a copy of the MPL was not distributed with this file, You can
+// obtain one at https://mozilla.org/MPL/2.0/.
+//
+// ---------------------------------------------------------------------------
+// WHY THIS BLOCK IS AT THE FOOT AND NOT THE HEAD
+// ---------------------------------------------------------------------------
+// Two constraints collide at the top of a Pine file and only this placement
+// satisfies both:
+//
+//   1. `//@version=6` MUST be the first line. Pine's compiler directive is
+//      positional; pushed down by a licence header the script would be read as
+//      an older dialect, and a fixture that no longer round-trips to TradingView
+//      is worse than one with an unconventional licence position.
+//
+//   2. LINE NUMBERS MUST NOT MOVE. This file is the authority for every
+//      "line N" reference in `docs/pine/linemap-*.md` and in the owner's own
+//      instructions — the tuple `request.security` is line 259 and must stay
+//      line 259. A prepended header shifts every reference in the project by
+//      its own height, silently.
+//
+// So the body above is BYTE-IDENTICAL to the script as its author wrote it, and
+// `manifest.json` records the hash of that body separately from the hash of this
+// whole file, so a re-attached revision is detectable while this block is not
+// mistaken for one.
+// ============================================================================

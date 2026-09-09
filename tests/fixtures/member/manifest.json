@@ -1,0 +1,29 @@
+{
+  "_": "⭐⭐ THE MEMBER'S OWN SCRIPTS, ON DISK, SO NOTHING IN THIS PROJECT DEPENDS ON A CONVERSATION ATTACHMENT AGAIN. These were attached twice and lost twice — an attachment lives in the transcript, and a transcript is compacted. Every 'line N' reference in the linemaps, in the tuple `request.security` work and in the owner's instructions resolves against THESE files and nothing else.",
+  "_two_hashes_and_why": "⛔ `body_sha256` COVERS THE SCRIPT AS ITS AUTHOR WROTE IT — the file MINUS the licence block this project appends. That is the one that answers 'is this the same revision the owner sent?', and it stays stable when we edit our own footer. `file_sha256` covers the whole file and answers 'has anything on disk been edited at all?'. One hash could not tell a re-attached revision apart from a footer tweak, and those are very different events.",
+  "_line_numbers_are_load_bearing": "⚠️ THE BODY IS BYTE-IDENTICAL AND THE LICENCE IS APPENDED, NOT PREPENDED. `//@version=6` is positional in Pine and must stay on line 1, and every 'line N' reference in this project must keep pointing at the same statement. Both are satisfied only by a trailing block. `body_lines` is where the author's text ends; anything after it is ours.",
+  "scripts": [
+    {
+      "path": "tests/fixtures/member/uncharted-volume.pine",
+      "author": "AtTheAsk (Uncharted Territory)",
+      "licence": "MPL-2.0",
+      "pine_version": "6",
+      "captured_from": "owner attachment, conversation of 2026-09-08",
+      "committed": "2026-09-09",
+      "body_lines": 576,
+      "body_sha256": "2142366f83025db96d158719cb0050f1b17ac4121e2b91feaf70b08f113337ac",
+      "file_sha256": "306415b2dda8d8f4b95be314e17e2616defaab260610728e164e15e4c9fa7f65"
+    },
+    {
+      "path": "tests/fixtures/member/uncharted-clouds.pine",
+      "author": "AtTheAsk (Uncharted Territory)",
+      "licence": "MPL-2.0",
+      "pine_version": "6",
+      "captured_from": "owner attachment, conversation of 2026-09-08",
+      "committed": "2026-09-09",
+      "body_lines": 137,
+      "body_sha256": "c4eda4b36d857c6b373be4d88fde66aae6e8206c4814c8c101bb0e4ec9fa3472",
+      "file_sha256": "92ec396864828ad26f6e8c30999415842a9a64f7fcf85b8e829f58b091df4f57"
+    }
+  ]
+}
