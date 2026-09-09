@@ -44,6 +44,9 @@ export default function useHubMode(modeConfig) {
 
   useEffect(() => {
     if (!modeConfig) return undefined
+    // The config is contract-checked by `registerHubMode` itself (HubContext), which is the
+    // single registration authority AND is actually mounted — a check here would be a second
+    // copy that a page calling `registerHubMode` directly would skip. See the note there.
     return registerHubMode(modeConfig)
   }, [registerHubMode, modeConfig])
 }

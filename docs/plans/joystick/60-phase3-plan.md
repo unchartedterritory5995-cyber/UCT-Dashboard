@@ -50,6 +50,37 @@ the only section whose surface a concurrent branch can move.
 
 ---
 
+## 1b. A1 — drift scouts run BEFORE their section, and replace the Wave 0 lines
+
+Three Wave 0 bindings have already been measured as moved or gone (3.3a, 3.5a, 3.6a below). A
+scout is not a formality before those sections; **it is the thing that decides what they bind
+to**, and a section brief written from a Wave 0 line that no longer resolves is a brief for code
+that does not exist.
+
+| Scout | Runs | The state Wave 0 named |
+|---|---|---|
+| **3.3a** Screener | **now**, inside Task 0's wave | `Screener.jsx`'s `activeTab` |
+| **3.5a** Chart | start of **Increment 3** | `setGroupSymbol`, a comparison write, `scrollPosition` |
+| **3.6a** Catalysts | start of **Increment 3** | `CatalystTable.jsx`'s `sortKey` / `tagFilter` |
+
+**Every scout is a READ-ONLY agent** — no edits, no git, report only. (Incident #4 in this
+project's memory is a fork told exactly that which implemented a feature and committed it anyway;
+verify `git status` and `git log` after every dispatch regardless of the brief.)
+
+**Each scout answers ONE question, in these words: did the state MOVE, or was it DELETED?**
+
+- **Moved** → report the new home as `file:line`, and the section binds there.
+- **Deleted** → the section binds to **what the page actually uses now**, reported as `file:line`.
+  ⛔ It does **not** bind to a reconstruction of the old state, and it does not ask for the old
+  state to be re-added so the hub can drive it. The hub is a shortcut over a page, not a reason
+  for the page to grow a control surface it had already discarded.
+
+⭐ **The scout's report REPLACES the Wave 0 line in this document** — the stale line is struck,
+not left beside the new one. Two readings of one binding is how the Wave 0 lines came to be
+trusted six weeks after they stopped being true.
+
+---
+
 ## 2. The sections
 
 Every `file:line` below was **read from source during this planning pass**, not carried from
@@ -167,11 +198,27 @@ step confirming the hub mounts and navigates there — **no registration hook is
 
 | Increment | Contents | Gate |
 |---|---|---|
-| **2** | Phase 2a + 3.1 Wire + 3.2 Breadth + 3.3 Screener + 3.4 Journal | unit + contract + rails green; device steps written; rebase; **one squash commit**; PR; owner merges |
+| **2** | Phase 2a + 3.1 Wire + 3.2 Breadth + 3.3 Screener + 3.4 Journal | unit + contract + rails green; **no new failures vs the measured baseline**; **the two A5 end-to-end gates below**; device steps written; **one squash commit**; PR; owner merges |
 | **3** | 3.5 Chart + 3.6 Catalysts + 3.7 Notebook + 3.8 Home + 3.9 Flow (verify) | same |
 
-Each increment: rebase onto master, one squash commit, PR with device results linked, owner
-merges. **Nothing self-deploys.**
+Each increment: one squash commit, PR with device results linked, owner merges. **Nothing
+self-deploys.** (Rebase only per the CLAUDE.md rule — master touched a file this branch touches,
+or more than five commits behind; otherwise merge clean.)
+
+### A5 — two gates Increment 2 does not pass without
+
+Both exist because component tests are structurally blind to a severed wire — the defect class
+that produced "8 features built, tested, green, and connected to nothing" in the 2026-08-08 audit.
+
+1. **Plan-trade sheet, end to end.** Screener **"Plan trade"** → the confirm sheet → `POST
+   /api/hub/planned-trades` → **the row comes back in `GET`**. One test, the whole path, mocking
+   nothing on it. Phase 2a's 14 tests prove the backend; this proves a member can reach it.
+2. **Journal scrub, contract-tested against a fake j2 client.** Asserts **exactly one `PUT`**, its
+   body carries **`stopPrice` and no other field**, and a release *without* confirm sends nothing.
+   ⭐ The "no other field" half is the load-bearing one: `PUT /api/j2/positions/{id}` is a partial
+   update over `_UPDATABLE_FIELDS`, so an extra key the hub did not mean to send would silently
+   overwrite a field the member set somewhere else, and every assertion about the stop would still
+   pass.
 
 ---
 
@@ -188,6 +235,13 @@ coarse relative to its spread, and a $4,000 stock gets 400,000 steps across its 
 proves wrong in use, the fix is a real tick table, not a scaling hack — and it belongs beside
 the price formatter, not in the hub.
 
+> **A2 (owner, accepted).** `0.01` everywhere is accepted **as a stated simplification**, and the
+> eventual fix is recorded as **D-31 — "a real tick table beside the price formatter"**. ⛔ It is
+> never a hub-side scaling hack: a second opinion about what a price step means, living in a
+> gesture handler, is the second-authority defect this project keeps re-finding, and it would be
+> invisible because a wrong step still produces a plausible number.
+> **The scrub readout and the sheet's numeric field are both 2dp.**
+
 **The live readout.** Chip shows `` `stop ${price} → ${r}R` `` throughout the drag, recomputed
 per step from `calculations.trade_r_multiple` — the same module Phase 2a derives `r_value`
 from. ⛔ Not a local formula: a second R authority is exactly the defect Phase 2a's
@@ -198,6 +252,31 @@ from. ⛔ Not a local formula: a second R authority is exactly the defect Phase 
 `api/services/journal_two/positions.py:300`, which reads `stopPrice` at `:172` and writes at
 `:200`). ⛔ **The existing path, unchanged** — no new endpoint, so the hub cannot become a
 second way to write a stop.
+
+**A3 — the sheet refuses a stop that flips the side, and the backend agrees.**
+
+A scrub is unbounded in principle: drag far enough and a Long's stop crosses its entry, which
+does not mean "a very wide stop", it means the position is no longer the trade it was. The
+confirm sheet refuses to commit one, in plain English rather than a validation code:
+
+> **Long** — *"A stop at 181.40 is above your entry of 178.10. For a long position the stop goes
+> below the entry — that is what makes it a stop."*
+> **Short** — *"A stop at 174.90 is below your entry of 178.10. For a short position the stop
+> goes above the entry."*
+
+⭐ **VERIFIED, not assumed: the backend rejects the same thing on the same path.**
+`api/services/journal_two/positions.py:344-355` re-validates on the MERGED patch —
+`Long → stopPrice < entryPrice`, `Short → stopPrice > entryPrice` — whenever `stopPrice` or
+`side` is in the patch, raising `PositionValidationError`. So the sheet's refusal is a courtesy
+that saves a round trip, **not** the only thing standing between a member and a corrupt row.
+No `requests.md` entry is needed; A3's "if not, file it as a j2 defect" branch does not fire.
+
+⚠️ One bound on that claim, recorded rather than acted on: the backend's side check is guarded by
+`sp is not None and sp > 0`, so a `stopPrice` of exactly **0** skips it — a Short could be sent
+`stopPrice: 0`, which is below its entry. `0` is plausibly the deliberate "no stop" sentinel
+(`j2_positions.stop_price` is NOT NULL and broker imports store placeholders), so this is the j2
+owner's call, not ours. **The hub cannot reach it**: the scrub starts from an existing stop and
+moves in cents, and the sheet refuses a side flip before it can arrive at zero.
 
 **Accessibility — the sheet is the equal path, not the fallback.** The confirm sheet carries
 **− / + steppers** and a **numeric input**, both operating on the same value the scrub produced.
@@ -211,6 +290,27 @@ gesture committing directly.
 with the shown price. Contract: the scrub payload matches `ScrubPayload` including `commit`.
 Device: scrub 10 steps, chip tracks every step, confirm writes once, and the sheet's stepper
 reaches the identical value.
+
+---
+
+## 4b. A4 — the PREVIEW_MODES membership rail runs BOTH directions
+
+`PREVIEW_MODES` decides, per section, whether the fan a member sees is the navigation-only
+projection or the full Phase 3 fan. A hand-typed Set beside a registry of ten modes is the
+enumeration defect this repo keeps paying for — and it has **already fired once here**:
+`calendar` was missing from the first draft, so `fanFor` returned its full five-action fan into a
+preview sold as navigation-only. Caught by `validatePreview`, not by review.
+
+The rail asserts both directions, because each fails differently:
+
+| Direction | Assertion | The failure it catches |
+|---|---|---|
+| **In the set** | every mode in `PREVIEW_MODES` has a fan `validatePreview` accepts (navigate / Voice / Home only — no `run`, no `confirm`) | a section left in preview whose fan quietly grew a real action; the member fires a gesture the preview promised was inert |
+| **NOT in the set** | every mode absent from `PREVIEW_MODES` has a full fan `validateRegistry` accepts | a section flipped out of preview before its fan was finished — it ships a half-built fan, and the *absence* of a mode is silent by construction |
+
+⛔ **Membership is derived from `modes`, never typed.** The rail enumerates the registry and
+partitions it; a mode added tomorrow lands in one bucket or the other on the day it lands. A
+mode nobody classified must fail the rail, not default to either side.
 
 ---
 
@@ -292,11 +392,41 @@ files appear in `git status`. That is what separated "the hub added this" from "
 here" on every row above; a `git status`-based argument would have missed all four, because none
 of the four offending files were in this branch's working set.
 
-### After this branch merges
+### ✅ MEASURED AT THE MERGE SHA — this is the gate reference for Increment 2
 
-Rows 3 and 6 go green. Row 5 stays red on its optionsFlow half alone. Row 7 loses its hub entry
-at Task 0. **Expected post-merge baseline: 8 files.** Re-measure at the merge SHA before Wave A
-gates on it; do not carry this table forward as if it were still true.
+**`d3bf38f44` (PR #101 squash) — 1161 files · 16789 tests · 8 files / 9 tests failing.**
+Detached worktree, `node_modules` junctioned, full `npx vitest run`. The prediction was 8; the
+measurement is 8, and the measurement is what the gate uses.
+
+| # | Test file | Owner |
+|---|---|---|
+| 1 | `__tests__/sourcesAreText.test.js` | optionsFlow (`wiring.guard.test.js`, two `0x08` bytes) |
+| 2 | `components/chart/builder/ImportBox.thinkscript.test.jsx` | indicators |
+| 3 | `components/chart/engine/ast/manifestProse.test.js` | indicators |
+| 4 | `components/chart/engine/ast/pine.blindCorpus.test.js` | indicators |
+| 5 | `components/screener/reachable.test.js` | mixed — **incl. `hub/contracts.js`, which Task 0 removes** |
+| 6 | `hooks/pollingSites.rail.test.js` | floor2 / watchlists |
+| 7 | `pages/ThemeTrackerPage.chartmount.test.jsx` (2 tests) | charts |
+| 8 | `styles/tapFloor.test.js` | notebook |
+
+**What changed from the 75ca5c2ed baseline of 10, and why — each one accounted for:**
+- `styles/tokens.reachable.test.js` — **fixed by us** (`--color-text-muted`).
+- `research/EarningsResearchModal.themeIsland.test.js` — **fixed by us** (the three `--hub-*`
+  tokens PR #100 never pinned), and now railed by `styles/themeIslands.test.js`.
+- `journal-2-0/rawErrorSurface.test.js` — was never in the 75ca5c2ed baseline; master had already
+  fixed it. It is not in this one either.
+- `chart/engine/__tests__/enumerationSites.test.js` — **passed this run**, confirming the earlier
+  15 s failure was load, not breakage. Still never banked.
+
+⛔ **Every Increment 2 wave compares against THESE EIGHT FILES and this SHA. Nothing is carried
+forward.** A ninth file, or a second failing test inside one of the eight, is a new failure and
+fails the gate — and a timeout is re-run in isolation before it is called anything at all.
+
+⚠️ **The branch base is not the baseline SHA.** `feat/joystick-increment-2` is cut from
+`origin/master` @ `32afb1fd8`, which is three commits past `d3bf38f44` (Wave Q1 steps 5–10 and
+15). Any failure those commits introduce would read as "new" against this baseline and be
+misattributed to the hub. Before the Wave A gate, re-measure at the branch's actual merge-base
+and record the delta; the delta IS the other workstreams' contribution, and it is not ours.
 
 ### Two rules this measurement earned
 

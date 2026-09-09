@@ -18,6 +18,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useRef, useE
 import { useLocation } from 'react-router-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { modesById } from './registry'
+import { validateSectionConfig } from './contracts'
 import { routeToModeId, isSectionRoute } from './hubRoutes'
 
 /**
@@ -148,6 +149,21 @@ export function HubProvider({ children }) {
   // `registerHubMode`.
   const [pageModeConfig, setPageModeConfig] = useState(null)
   const registerHubMode = useCallback((config) => {
+    // ⛔ THE CONTRACT IS CHECKED HERE, AT THE MOUNTED BOUNDARY — not in `useHubMode`.
+    //
+    // Two reasons, and the second is the one that decided it:
+    //   1. This is the single registration authority. `useHubMode` is a thin wrapper; a page
+    //      could call `registerHubMode` directly and would then skip a check living in the hook.
+    //   2. REACHABILITY. `contracts.js` sat on the repo's unreachable-module list, and wiring the
+    //      validator into `useHubMode` did NOT fix that — `useHubMode` is itself unmounted until
+    //      Phase 3 (it is in `reachable.test.js`'s AWAITING_A_DECISION), so the import chain ran
+    //      from one unreachable module to another. A validator nothing can reach is a comment
+    //      with extra steps. `HubContext` is mounted in `Layout.jsx`, so from here the contract
+    //      is genuinely part of the running app.
+    //
+    // Registration only — this runs when a page mounts or its config identity changes, never per
+    // render. DEV throws, production logs; see contracts.js.
+    validateSectionConfig(config, 'registerHubMode')
     setPageModeConfig(config)
     return () => {
       // Identity guard: only clear the slot if WE are still the registered

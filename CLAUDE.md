@@ -1128,6 +1128,21 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
+## Active feature branches
+
+| Branch | Base | What it carries |
+|---|---|---|
+| `feat/joystick-increment-2` | `origin/master` @ `32afb1fd8` | Joystick hub **Phase 3 / Increment 2** — Task 0 `contracts.js` (runtime validators + contract tests), then Wave A (Morning Wire + Breadth integrators, Screener drift scout). Worktree `C:\Users\Patrick\uct-worktrees\joystick-hub`. |
+
+⚰️ `feat/joystick-hub` is **merged and closed** (PR #101 → `d3bf38f44`, live in production). Keep
+the branch for history; do not add to it.
+
+⛔ **Increment 2 gates on "no NEW failures relative to a measured baseline", never on a green
+suite** — the repo is not green and this branch cannot make it so. The baseline is re-measured in
+a detached worktree at a named SHA and recorded in `docs/plans/joystick/60-phase3-plan.md`; a
+timeout is never banked as permitted breakage, and provenance is `git show <sha>:<file>`, never
+`git status`. Both rules and the method are in this file above.
+
 ## Worktree Directory
 
 Worktrees live in `.worktrees/` (project-local, gitignored).

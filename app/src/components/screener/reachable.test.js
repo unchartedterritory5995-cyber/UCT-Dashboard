@@ -301,6 +301,24 @@ const AWAITING_A_DECISION = {
     'JOYSTICK HUB PHASE 1 — the one shared list cursor. Unmounted by design '
     + 'until Phase 3 binds it to a section list; see the banner in its own '
     + 'header. Delete this entry the commit that wires it.',
+  // ── JOYSTICK HUB, PHASE 3 TASK 0 (2026-09-09) ────────────────────────────
+  //
+  // The confirm sheet is Phase 3's ONLY write path, built in Task 0 so the
+  // contract tests can drive it before any integrator is dispatched. It is
+  // mounted by a SECTION, and no section is wired yet — Wave A (Morning Wire,
+  // Breadth) and 3.4 (Journal scrub, Plan-trade) are its first callers.
+  //
+  // ⚠️ REMOVAL CONDITION: the first section that opens a confirm sheet deletes
+  // this entry in the same commit. It is contract-tested today
+  // (`phase3Contracts.test.jsx` renders it and asserts the payload's rendered
+  // TEXT plus the once-only onConfirm), which is why it is declared here rather
+  // than left looking shipped — a component reached only by its own test is
+  // exactly the shape this rail exists to catch.
+  'app/src/hub/HubConfirmSheet.jsx':
+    'JOYSTICK HUB PHASE 3 TASK 0 — the confirm sheet, the only Phase 3 write '
+    + 'path. Built ahead of the integrators so the contract is testable before '
+    + 'dispatch; its first caller is the first section that proposes a write. '
+    + 'Delete this entry the commit that wires it.',
   // ── THE DASHBOARD COCKPIT RETIREMENT (2026-08-30) ────────────────────────
   //
   // `/dashboard` became four zones with declared heights, and eight preview
