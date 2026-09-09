@@ -236,7 +236,15 @@ Rows, not a word — the same discipline the UDF table below applies to `UDF ✅
 | DISTINCT CALL-SITE HISTORY | ✅ | `historyBase` per site; **mutation-proven** — sharing one ring turns a rail red |
 | CONDITIONAL UDF HISTORY | ✅ | **VENDOR-PINNED v5+v6**: chart-bar indexed, HOLDS across skipped bars |
 | LOOP-INVOKED CALL-SITE HISTORY | ⬜ | the held cell commits the LAST invocation of a bar — the natural reading, **not vendor-pinned** (S6.5) |
-| FINITE WINDOW OVER RUNTIME SERIES | ✅ | **2F-2B** — 12 members, ONE authority (`interpret.js::FINITE_WINDOW`), no synthetic column |
+| FINITE WINDOW OVER RUNTIME SERIES | 🟡 | **2F-2B** + the 2026-09-08 `na` correction. 12 members, ONE authority, no synthetic column. 🟡 because **four of the twelve** still carry an unverified `na` policy |
+| WINDOW `na` — SKIP (`sma`, `stdev`, `sum`, `median`) | ✅ | vendor 380 ok / 0 bad; both lanes + runtime; per-member observation ring, bounded at n |
+| WINDOW `na` — PROPAGATE (`dev`) | ✅ | vendor 210 ok / 0 bad; already correct, now declared rather than assumed |
+| WINDOW `na` — RESTART (`highest`, `lowest`) | ✅ | vendor 346 ok / 0 bad |
+| WINDOW `na` — `wma` | ⬜ | ⛔ UNRESOLVED: five hypotheses, none fits. Left on the old policy |
+| WINDOW `na` — `highestbars`/`lowestbars` | ⬜ | answer ON the na bar where `highest` does not — a fourth shape, undetermined |
+| WINDOW `na` — `rising`/`falling` | ⬜ | NOT DETERMINED: the probe read them through a ternary that masks `na` |
+| WINDOW `na` — SERIES-START WARM-UP | ⬜ | never observed; the `i < n-1` gate is unchanged for that reason |
+| WINDOW IN A SKIPPED UDF | 🟡 | ⚠️ `skip` is invocation-indexed, `propagate` chart-bar indexed. **INFERRED from the recurrent ruling, not measured** — probe named in PART Z, Z5 |
 | RECURRENT OVER RUNTIME SERIES | ⬜ | **2F-2C**; own initialisation, not a ring |
 | CUMULATIVE OVER RUNTIME SERIES | ⬜ | `cum` is not in the closed table at all — a TABLE gap, not a runtime one |
 | REALTIME / FORMING-BAR HISTORY | ⬜ | the commit counter is the only thing it needs to touch (§27) |

@@ -513,9 +513,56 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
 // that window's output NaN.
 
 /** Rolling reduction over a full window. NaN before bar `n-1`. */
-function rolling(series, n, reduce) {
+/** ⭐⭐⭐ HOW A WINDOW TREATS AN `na` IS A PER-MEMBER FACT, NOT A FAMILY ONE.
+ *
+ *  ⛔⛔ MEASURED 2026-09-08, AND THE FAMILY SPLITS THREE WAYS. Generalising any
+ *  one member's rule to the other eleven would have been wrong for at least
+ *  three of them — which is why the ruling that authorised this fix forbade
+ *  exactly that. Fixture:
+ *  `finite-window-na-policy-by-member-spy-1d-2026-09-08`.
+ *
+ *    SKIP      — the last `n` FINITE observations, however many BARS that spans.
+ *                `sma`, `stdev`, `sum`, `median`: 380 ok / 0 bad, and they answer
+ *                on the `na` bar itself (133 of 133).
+ *    PROPAGATE — a clean `n`-BAR window; any `na` inside it makes the answer
+ *                `na`. `dev`: 210 ok / 0 bad, blank for exactly `n-1` bars after
+ *                a hole. ⭐ This is what every member used to do.
+ *    RESTART   — the window BEGINS AGAIN after a hole: reduce over the
+ *                contiguous finite run ending at this bar, capped at `n`.
+ *                `highest`, `lowest`: 346 ok / 0 bad — one bar after a hole
+ *                `highest === lowest === ` the lone observation.
+ *
+ *  ⚠️ THE SERIES-START WARM-UP IS DELIBERATELY UNCHANGED. Every capture begins
+ *  deep in real history, so no fixture has seen what a window does on bar 0 of a
+ *  symbol. `RESTART` answers with a PARTIAL run after a hole because that IS
+ *  observed; the `i < n - 1` gate at the start of the series is not, so it stays.
+ *  Two rules that look like one, and only one of them has evidence.
+ */
+const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart' })
+
+/** The operand list for bar `i` under one policy, or `null` when unanswerable. */
+function windowOperands(series, n, i, policy) {
+  if (policy === NA.PROPAGATE) return { lo: i - n + 1, hi: i, buf: series }
+  if (policy === NA.RESTART) {
+    let lo = i
+    while (lo > i - n + 1 && lo > 0 && Number.isFinite(series[lo - 1])) lo -= 1
+    if (!Number.isFinite(series[i])) return null
+    return { lo, hi: i, buf: series }
+  }
+  // SKIP — the last `n` FINITE values, gathered oldest-first into a dense buffer.
+  const buf = new Float64Array(n)
+  let k = n
+  for (let j = i; j >= 0 && k > 0; j -= 1) if (Number.isFinite(series[j])) buf[--k] = series[j]
+  if (k > 0) return null                       // fewer than `n` finite values exist yet
+  return { lo: 0, hi: n - 1, buf }
+}
+
+function rolling(series, n, reduce, policy = NA.PROPAGATE) {
   const out = nan(series.length)
-  for (let i = n - 1; i < series.length; i++) out[i] = reduce(series, i - n + 1, i)
+  for (let i = n - 1; i < series.length; i++) {
+    const w = windowOperands(series, n, i, policy)
+    if (w) out[i] = reduce(w.buf, w.lo, w.hi)
+  }
   return out
 }
 
@@ -1213,18 +1260,18 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  *          bar loop cannot answer them at the current bar at all.
  */
 export const FINITE_WINDOW = Object.freeze({
-  sma: { reduce: windowMean, span: (n) => n },
-  wma: { reduce: windowWeightedMean, span: (n) => n },
-  stdev: { reduce: windowStdev, span: (n) => n },
-  sum: { reduce: windowSum, span: (n) => n },
-  dev: { reduce: windowMeanAbsDev, span: (n) => n },
-  median: { reduce: windowMedian, span: (n) => n },
-  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n },
-  lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n },
-  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n },
-  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n },
-  rising: { reduce: windowRisingMonotone, span: (n) => n + 1 },
-  falling: { reduce: windowFallingMonotone, span: (n) => n + 1 },
+  sma: { reduce: windowMean, span: (n) => n, na: NA.SKIP },
+  wma: { reduce: windowWeightedMean, span: (n) => n, na: NA.PROPAGATE },
+  stdev: { reduce: windowStdev, span: (n) => n, na: NA.SKIP },
+  sum: { reduce: windowSum, span: (n) => n, na: NA.SKIP },
+  dev: { reduce: windowMeanAbsDev, span: (n) => n, na: NA.PROPAGATE },
+  median: { reduce: windowMedian, span: (n) => n, na: NA.SKIP },
+  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART },
+  lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART },
+  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.PROPAGATE },
+  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.PROPAGATE },
+  rising: { reduce: windowRisingMonotone, span: (n) => n + 1, na: NA.PROPAGATE },
+  falling: { reduce: windowFallingMonotone, span: (n) => n + 1, na: NA.PROPAGATE },
 })
 
 /** ⭐ THE COLUMNAR LANE'S ENTRY FOR A FINITE-WINDOW MEMBER, BUILT FROM THE TABLE
@@ -1232,7 +1279,7 @@ export const FINITE_WINDOW = Object.freeze({
  *  pass and the runtime bridge cannot drift, because neither owns the reducer or
  *  the span — the table does. */
 const windowFn = (name) => (series, n) =>
-  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce)
+  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce, FINITE_WINDOW[name].na)
 
 /** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
  *

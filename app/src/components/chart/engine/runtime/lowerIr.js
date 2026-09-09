@@ -236,6 +236,7 @@ export function lowerIrProgram(ir) {
       // ⭐ 2F-2C — how many carried instances ONE invocation of this function
       // owns. Per FUNCTION; the SITE supplies the base, exactly as for history.
       carriedCount: fn.carriedCount || 0,
+      windowCount: fn.windowCount || 0,
       effects: fn.effects || null,
       at: fn.at || null,
     }
@@ -254,7 +255,7 @@ export function lowerIrProgram(ir) {
     carried: (ir.carried || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({
       fn: c.fn, persistBase: c.persistBase, historyBase: c.historyBase || 0,
-      carriedBase: c.carriedBase || 0, at: c.at || null,
+      carriedBase: c.carriedBase || 0, windowBase: c.windowBase || 0, at: c.at || null,
     })),
     // ⭐ CARRIED THROUGH, NOT RE-DERIVED. The front end's static demand analysis
     // decided which values bear history and how deep; this only copies it, so the

@@ -191,7 +191,7 @@
    "status": "confirmed",
    "confidence": "measured",
    "ours": "`rolling` emits NaN for a window containing ANY NaN, and `interpret.js`'s header states the rule out loud: \"any NaN INSIDE a window makes that window's output NaN\". So over a gappy source our `sma`/`wma`/`stdev`/`highest`/... go blank on the hole AND for the `n-1` bars that still contain it.",
-   "theirs": "MEASURED 2026-09-08. `ta.sma(gappy, 10)` answers on EVERY bar, including the `na` bars, and its value is the mean of the last 10 FINITE values of the source - reaching back over as many BARS as that requires. 370 matches, 0 mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars. An `na` is SKIPPED, never propagated and never treated as zero.",
+   "theirs": "MEASURED 2026-09-08. `ta.sma(gappy, 10)` answers on EVERY bar, including the `na` bars, and its value is the mean of the last 10 FINITE values of the source - reaching back over as many BARS as that requires. 370 matches, 0 mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars. An `na` is SKIPPED, never propagated and never treated as zero. ⛔ AND THE FAMILY DOES NOT SHARE ONE RULE — measured 2026-09-08 across all twelve members: sma/stdev/sum/median SKIP (last n FINITE observations, answering on the na bar); dev PROPAGATES (clean n-BAR window); highest/lowest RESTART (the window begins again after a hole). wma fits none of five hypotheses and is UNRESOLVED; highestbars/lowestbars answer ON the na bar, a fourth shape; rising/falling were not determined by the probe.",
    "why_it_matters": "It is the SAME class of defect as `nan-restarts-the-smoother` but wider: it reaches all twelve `FINITE_WINDOW` members in BOTH lanes, and it is reachable from any conditional source (`cond ? x : na`), any `valuewhen`, any pivot - all ordinary Pine. ⛔ AND THE TWO FAMILIES DIFFER FROM EACH OTHER: a window SKIPS an na and still answers; a recurrence WITHHOLDS its answer for that bar but keeps its state. One rule cannot be applied to both.",
    "code": "interpret.js::rolling + every FINITE_WINDOW reducer; api/services/ast_interpret.py::_rolling",
    "probe": {
@@ -201,9 +201,10 @@
     "discriminates": "the COUNT of answered bars (133 vs 0 on na bars) before any value is compared, and then the value itself"
    },
    "observation_ids": [
-    "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08"
+    "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08",
+    "finite-window-na-policy-by-member-spy-1d-2026-09-08"
    ],
-   "_owner_ruling_required": "⛔⛔ NOT FIXED IN 2F-2C-REMEDIATION, AND DELIBERATELY SO. The owner ruled explicitly on the EMA/RMA na divergence after reviewing its evidence; this one was DISCOVERED during that remediation and is materially larger - twelve members, two lanes, and it changes the shipped chart for every gappy source. It is recorded with the same standard of evidence and awaits the same explicit ruling rather than being folded in silently. The endzone rule (\"no known wrong values\") says it must be fixed; the change-control rule (§10) says a shipped semantic gets a ruling first."
+   "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured."
   }
  ]
 }

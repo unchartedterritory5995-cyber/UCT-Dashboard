@@ -153,12 +153,16 @@ describe('⭐⭐ the source can be any runtime series, at any scope', () => {
   it('⭐⭐⭐ TWO call sites keep separate windows', () => {
     const src = `${head}f(v) =>\n    ta.sma(v, 3)\nplot(f(close))\nplot(f(open * 10))\n`
     const { outs, program } = runPine(src)
-    // ⭐ ONE WINDOW PLAN, TWO CALL SITES — the same rule as the compiled body
-    // and `persistBase`. The plan holds a FRAME-RELATIVE `historySlot` and a
-    // span; the SITE supplies `historyBase`, so two invocations read two
-    // different rings through one entry. The scratch buffer is filled and
-    // reduced inside a single opcode, so it can never span two sites.
-    expect(program.windows).toHaveLength(1)
+    // ⚰️ THIS ASSERTED **ONE** PLAN FOR TWO SITES, AND IT WAS RIGHT UNTIL THE NA
+    // POLICIES LANDED. 2F-2B could share a plan entry because the window's only
+    // per-bar storage was a scratch buffer — filled and reduced inside one
+    // opcode, so it could never span two sites. The measured `skip` policy needs
+    // a ring of the last n FINITE observations, which is STATE; two call sites
+    // sharing one would interleave two series into a single window. So windows
+    // are now materialised per site, like `persistBase`, `historyBase` and
+    // `carriedBase` before them — the fourth use of that addressing.
+    expect(program.windows).toHaveLength(2)
+    expect(program.callSites[0].windowBase).not.toBe(program.callSites[1].windowBase)
     expect(program.callSites).toHaveLength(2)
     expect(program.callSites[0].historyBase).not.toBe(program.callSites[1].historyBase)
     sameSeries(outs[0], pureLane('ta.sma(close, 3)'), 'site 0')
@@ -175,30 +179,44 @@ describe('⭐⭐ the source can be any runtime series, at any scope', () => {
 })
 
 describe('⭐⭐ cross-feature seams — windows are not an island', () => {
-  it('⭐⭐ SKIPPED call site + window uses the HELD series (P7.2 × 2F-2B)', () => {
-    // ⛔ THE DISCRIMINATING CASE. The vendor pinned that a skipped call site's
-    // series HOLDS. So a window over it averages the held values — NOT the last
-    // three EXECUTIONS, which is what invocation-indexed history would give.
+  it('⚠️ SKIPPED call site + window — INFERRED, NOT MEASURED (see the note)', () => {
+    // ⛔⛔ THE NA POLICIES MADE THIS CASE AMBIGUOUS AND IT IS NOW OPEN EVIDENCE.
+    //
+    // A `propagate` window reads the committed ring, which P7.2 vendor-pinned as
+    // CHART-BAR indexed and HOLDING across a skipped call. A `skip` window reads
+    // its own observation ring, which can only be appended when the opcode RUNS
+    // — i.e. invocation-indexed, exactly like the carried state whose skipped-UDF
+    // behaviour WAS vendor-pinned (`recurrent-na-and-skipped-callsite`).
+    //
+    // So the two policies now index differently for a window inside a
+    // conditionally-executed UDF, and NOTHING MEASURES WHICH IS RIGHT. The
+    // implementation follows the nearest evidence — a builtin inside a skipped
+    // UDF does not advance — but that is an INFERENCE from the recurrent family,
+    // not an observation of the window family. Recorded in the gap register; a
+    // probe is named there. This case asserts what the code does so the choice is
+    // visible, and is labelled so nobody reads it as vendor-pinned.
     const src = `${head}f(v) =>\n    ta.sma(v, 3)\ngo = bar_index % 2 == 0\nfloat p = na\nif go\n    p := f(bar_index)\nplot(p)\nplot(go ? 1 : 0)\n`
     const { outs } = runPine(src)
     const [p, D] = outs
-    // series held per chart bar: bar i holds the last even bar_index
-    const held = []
-    let last = NaN
-    for (let i = 0; i < N; i += 1) { if (i % 2 === 0) last = i; held.push(last) }
-    for (let i = 0; i < N; i += 1) {
-      if (D[i] !== 1) { expect(Number.isNaN(p[i]), `bar ${i} no call`).toBe(true); continue }
-      if (i < 2) { expect(Number.isNaN(p[i]), `bar ${i} warm-up`).toBe(true); continue }
-      const want = (held[i] + held[i - 1] + held[i - 2]) / 3
-      expect(p[i], `bar ${i}`).toBeCloseTo(want, 9)
+    // ⭐ `sma` is a SKIP member, so its observation ring appends only on the bars
+    // where the call actually runs: the answer is the mean of the last three
+    // EXECUTED invocations, not of a held chart-bar series.
+    const executed = []
+    for (let i = 0; i < N; i += 1) if (D[i] === 1) executed.push(i)
+    let seen = 0
+    for (const i of executed) {
+      seen += 1
+      if (seen < 3) { expect(Number.isNaN(p[i]), `bar ${i} warm-up`).toBe(true); continue }
+      const last3 = executed.slice(seen - 3, seen)
+      expect(p[i], `bar ${i}`).toBeCloseTo((last3[0] + last3[1] + last3[2]) / 3, 9)
     }
-    // ⛔ NON-VACUITY: invocation-indexed history would average the last three
-    // EXECUTIONS (i, i-2, i-4) and differ from the held answer.
-    const i = 10
-    expect((held[i] + held[i - 1] + held[i - 2]) / 3)
-      .not.toBeCloseTo((i + (i - 2) + (i - 4)) / 3, 6)
+    // ⛔ NON-VACUITY: a chart-bar-indexed reading gives a DIFFERENT number, so
+    // this fixture can tell the two models apart — which is exactly why the
+    // choice needed recording rather than assuming.
+    const k = executed[10]
+    const held = [k, k - 1, k - 2].map((b) => (b % 2 === 0 ? b : b - 1))
+    expect((held[0] + held[1] + held[2]) / 3).not.toBeCloseTo(p[k], 6)
   })
-
   it('⭐ else-if → state → window (P7.4 × 2F-2B)', () => {
     const src = `${head}var s = 0.0\nif close > 110\n    s := 2\nelse if close > 100\n    s := 1\nelse\n    s := 0\nplot(ta.sma(s, 3))\n`
     const { out } = runPine(src)
@@ -226,6 +244,58 @@ describe('⭐⭐ cross-feature seams — windows are not an island', () => {
   })
 })
 
+describe('⭐⭐ the NA POLICIES, over a GAPPY RUNTIME SERIES (2026-09-08 ruling)', () => {
+  // ⛔ THESE CASES EXIST BECAUSE THREE MUTATIONS SURVIVED WITHOUT THEM. Once
+  // `sma` moved to the `skip` policy it stopped reading the history ring, so
+  // every rail that used `sma` also stopped covering the ring — the run
+  // boundary, the per-site base and the ring depth all went untested at once. A
+  // suite can lose coverage by a change that breaks nothing.
+  const gappy = `var x = 0.0\nx := bar_index % 7 == 0 and bar_index > 4 ? na : close\n`
+
+  it('⭐⭐ RESTART — `highest` begins again after a hole, and stops AT it', () => {
+    const { outs } = runPine(`${head}${gappy}plot(ta.highest(x, 5))\nplot(ta.lowest(x, 5))\n`)
+    const [hi, lo] = outs
+    const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))
+    for (let i = 6; i < N; i += 1) {
+      if (Number.isNaN(src[i])) { expect(Number.isNaN(hi[i]), `bar ${i} is the hole`).toBe(true); continue }
+      let start = i
+      while (start > i - 4 && start > 0 && Number.isFinite(src[start - 1])) start -= 1
+      const run = src.slice(start, i + 1)
+      expect(hi[i], `bar ${i}`).toBeCloseTo(Math.max(...run), 10)
+      expect(lo[i], `bar ${i}`).toBeCloseTo(Math.min(...run), 10)
+    }
+    // ⛔ NON-VACUITY: reducing across the hole would give a different answer.
+    const after = 7 + 1
+    expect(hi[after]).toBeCloseTo(src[after], 10)
+    expect(hi[after]).not.toBeCloseTo(Math.max(...src.slice(after - 4, after + 1).filter(Number.isFinite)), 6)
+  })
+
+  it('⭐ SKIP — `sma` answers ON the hole, over the last 5 finite values', () => {
+    const { out } = runPine(`${head}${gappy}plot(ta.sma(x, 5))\n`)
+    const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))
+    for (let i = 12; i < N; i += 1) {
+      const f = []
+      for (let k = i; k >= 0 && f.length < 5; k -= 1) if (Number.isFinite(src[k])) f.push(src[k])
+      if (f.length < 5) continue
+      expect(out[i], `bar ${i}`).toBeCloseTo(f.reduce((a, b) => a + b, 0) / 5, 9)
+    }
+    const hole = 14
+    expect(Number.isNaN(src[hole])).toBe(true)
+    expect(Number.isFinite(out[hole]), 'skip answers ON the hole').toBe(true)
+  })
+
+  it('⭐⭐ a PROPAGATE member still uses the committed RING, per call site', () => {
+    // `wma` stayed on `propagate`, so it is what now exercises `historyBase` and
+    // the ring depth that `sma` used to cover.
+    const src = `${head}f(v) =>\n    ta.wma(v, 4)\nplot(f(close))\nplot(f(open * 3))\n`
+    const { outs, program } = runPine(src)
+    expect(program.history.length, 'one ring per call site').toBe(2)
+    for (const h of program.history) expect(h.depth, 'depth is span - 1').toBe(3)
+    expect(program.callSites[0].historyBase).not.toBe(program.callSites[1].historyBase)
+    sameSeries(outs[0], pureLane('ta.wma(close, 4)'), 'wma site 0')
+    sameSeries(outs[1], pureLane('ta.wma(open * 3, 4)'), 'wma site 1')
+  })
+})
 describe('⭐ length semantics and resources', () => {
   it('⭐ an INPUT-DERIVED length folds, freezing the default as `pine.js` does', () => {
     const src = `${head}n = input.int(5, "Len")\nvar x = 0.0\nx := close\nplot(ta.sma(x, n))\n`
@@ -278,8 +348,13 @@ describe('⭐ length semantics and resources', () => {
 
   it('⛔ WINDOW_CELLS is charged, and stops by name', () => {
     const { budget } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`)
-    // 5 cells a bar, once the warm-up has passed
-    expect(budget.counts.WINDOW_CELLS).toBe(5 * (N - 4))
+    // ⚰️ THIS WAS `5 * (N - 4)` — cells charged only past the warm-up, because a
+    // `propagate` window returns before charging while the ring is short. `sma`
+    // is a SKIP member now: its observation ring is fed on EVERY bar (that is how
+    // it finds the last n finite values), so it charges from bar 0. The number
+    // moved because the work moved, which is what a cost counter is for.
+    expect(FINITE_WINDOW.sma.na, 'this count belongs to the skip policy').toBe('skip')
+    expect(budget.counts.WINDOW_CELLS).toBe(5 * N)
     let err = null
     try { runPine(`${head}var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n`, {}, { WINDOW_CELLS: 20 }) } catch (e) { err = e }
     expect(err).toBeInstanceOf(RuntimeLimitError)

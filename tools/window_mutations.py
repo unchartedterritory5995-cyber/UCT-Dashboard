@@ -21,7 +21,7 @@ CRLF = chr(13) + chr(10)
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 ENG = APP / "src/components/chart/engine"
-SUITE = "src/components/chart/engine/runtime/__tests__/finiteWindow.test.js"
+SUITE = "src/components/chart/engine/__tests__/finiteWindowNa.test.js src/components/chart/engine/runtime/__tests__/finiteWindow.test.js"
 
 VM = ENG / "runtime/vm.js"
 FE = ENG / "ast/pineRuntimeFrontend.js"
@@ -30,6 +30,32 @@ LOWER = ENG / "runtime/lowerIr.js"
 
 # (label, file, find, replace, why it must be caught)
 MUTATIONS = [
+    # ── §13: the NA policies are the 2026-09-08 ruling; reverting any of them
+    # must turn the rail red, permanently. Three policies, three mutations.
+    ("sma reverted to PROPAGATE on na", IN,
+     "  sma: { reduce: windowMean, span: (n) => n, na: NA.SKIP },",
+     "  sma: { reduce: windowMean, span: (n) => n, na: NA.PROPAGATE },",
+     "sma would blank across a hole again - the confirmed shipped divergence"),
+    ("highest reverted to PROPAGATE on na", IN,
+     "  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART },",
+     "  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.PROPAGATE },",
+     "highest would stop restarting after a hole"),
+    ("the whole family generalised to SKIP", IN,
+     "  dev: { reduce: windowMeanAbsDev, span: (n) => n, na: NA.PROPAGATE },",
+     "  dev: { reduce: windowMeanAbsDev, span: (n) => n, na: NA.SKIP },",
+     "the exact over-generalisation the evidence forbids"),
+    ("skip loses its observation ring", VM,
+     "              if (winObsN[wi] < span) winObsN[wi] += 1",
+     "              winObsN[wi] = span",
+     "a skip window would answer before it has n finite observations"),
+    ("restart ignores the run boundary", VM,
+     "            while (lo > 0 && Number.isFinite(buf[lo - 1])) lo -= 1",
+     "            lo = 0",
+     "restart would reduce across the hole it is supposed to stop at"),
+    ("window state shared across call sites", VM,
+     "          const wi = windowBase + a",
+     "          const wi = a",
+     "two call sites would interleave two series into one observation ring"),
     ("warmup off-by-one", VM,
      "if (committed < span - 1) { stack[sp++] = NaN; break }",
      "if (committed < span - 2) { stack[sp++] = NaN; break }",
@@ -65,10 +91,13 @@ MUTATIONS = [
      + "      || !Number.isInteger(canonical.value) || canonical.value < 0) {",
      "if (!canonical) {",
      "a runtime-derived length would size a ring it cannot bound"),
-    ("WINDOW_CELLS not charged", VM,
-     "budget.charge('WINDOW_CELLS', span)",
-     "",
-     "a program whose windows are enormous would run long instead of stopping by name"),
+    # ⛔ TWO CHARGE SITES NOW - the `skip` path has its own. The anchor names
+    # the skip one by its indentation; propagate/restart is covered by the `wma`
+    # cases and skip by the `sma` ones.
+    ("WINDOW_CELLS not charged (skip path)", VM,
+     "            budget.charge('WINDOW_CELLS', span)" + CRLF + "            stack[sp++] = winObsN[wi] < span",
+     "            stack[sp++] = winObsN[wi] < span",
+     "a runaway skip window would run long instead of stopping by name"),
     ("ring one bar too shallow", FE,
      "if (owner !== null) fnHistorySlotFor(owner, varSlot, span - 1, at)",
      "if (owner !== null) fnHistorySlotFor(owner, varSlot, span - 2, at)",
@@ -77,9 +106,13 @@ MUTATIONS = [
      "buf[span - 1] = live",
      "buf[span - 1] = buf[span - 1]",
      "every window would be one bar stale — the classic off-by-one"),
-    ("source-must-be-a-name dropped", FE,
-     "if (!srcNode || srcNode.type !== 'name') {",
-     "if (false) {",
+    ("source-must-be-a-name dropped (window)", FE,
+     "          // ⛔ THE SOURCE MUST BE A NAME. A window needs a COMMITTED SERIES, and" + CRLF
+     + "          // only a variable has one — `sma(x + 1, 5)` needs its own series exactly" + CRLF
+     + "          // as `(x + 1)[1]` does, and is refused by the same name." + CRLF
+     + "          const srcNode = given[0]" + CRLF
+     + "          if (!srcNode || srcNode.type !== 'name') {",
+     "          const srcNode = given[0]" + CRLF + "          if (false) {",
      "`sma(x + 1, 5)` has no committed series; admitting it computes something else"),
     ("WINDOW lowers without pushing its source", LOWER,
      "        expr(e.source)\r\n        emit(OP.WINDOW, e.site)",
@@ -99,7 +132,7 @@ MUTATIONS = [
 
 def run_suite():
     r = subprocess.run(
-        ["npx", "vitest", "run", SUITE, "--reporter=dot"],
+        ["npx", "vitest", "run", *SUITE.split(), "--reporter=dot"],
         cwd=APP, capture_output=True, shell=True,
     )
     # ⛔ BYTES, THEN DECODE WITH `replace`. `text=True` decodes as cp1252 on

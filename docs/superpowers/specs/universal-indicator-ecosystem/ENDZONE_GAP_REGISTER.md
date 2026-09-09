@@ -2598,7 +2598,7 @@ wave to do so.
 |---|---|---|
 | **Y4.1** | ✅ CLOSED | EMA/RMA `na` = HOLD, corrected in BOTH lanes, blast radius measured, rails inverted, mutation permanent. |
 | **Y4.2** | ✅ CLOSED | `ta.change(source)` executes by authoritative lowering. |
-| **Y4.3** | ⛔ **OWNER RULING** | `finite-window-propagates-na-instead-of-skipping-it` — confirmed, twelve members, two lanes (PART X, X5). |
+| **Y4.3** | ✅ CLOSED by ruling | The finite-window `na` divergence — owner ruled 2026-09-08. Audited all twelve; the family turned out to hold THREE policies, six members corrected, four undetermined and one unresolved. **PART Z**. |
 | **Y4.4** | ⛔ **OWNER RULING** | Event history needs an unbounded, fetch-dependent table entry. Re-opening `_no_offset` is assigned by the manifest to two owners together. |
 | **Y4.5** | RUNTIME / MEMBERS | Six recurrent composites (`rsi` 27, `atr` 55, `adx`, `plusDI`, `minusDI`, `macd` 5) share ONE architecture-neutral path: factor the shipped implementation into `{init, step}`. The obvious next increment. |
 | **Y4.6** | RUNTIME / MEMBERS | Six cumulatives need bar TIME or SESSION semantics in the runtime — a genuinely different dependency, not carried state. |
@@ -2606,3 +2606,110 @@ wave to do so.
 | **Y4.8** | RUNTIME / OFFSET-ONE | `crossOver`/`crossUnder` need an authoritative step; the operator lowering is not faithful on NaN. |
 | **Y4.9** | TABLE | `ta.change(source, length)` — a one-argument table entry against a two-argument Pine overload. |
 | **Y4.10** | REALTIME | Still explicitly open and untested (V10.7). |
+
+
+## PART Z — THE FINITE-WINDOW `na` AUDIT AND CORRECTION (2026-09-08)
+
+### Z1 — ⭐⭐⭐ THE FAMILY DOES NOT SHARE ONE RULE
+
+The ruling forbade generalising `sma`'s rule to the other eleven. **It was right,
+and by a wide margin.** Two probes over deliberately gappy sources, twelve members
+at once, identity proven from the chart model:
+
+| policy | members | evidence |
+|---|---|---|
+| **SKIP** — the last `n` FINITE observations, however many BARS that spans; answers **on** the `na` bar | `sma`, `stdev`, `sum`, `median` | 380 ok / 0 bad; 133 of 133 `na` bars carried a value |
+| **PROPAGATE** — a clean `n`-BAR window | `dev` | 210 ok / 0 bad; blank for exactly `n−1` bars after a hole |
+| **RESTART** — the window begins again after a hole | `highest`, `lowest` | 346 ok / 0 bad; one bar after a hole `highest === lowest ===` the lone observation |
+
+⛔ **Generalising `sma`'s rule would have been wrong for at least three members.**
+Generalising *any* member's rule would have been wrong for others.
+
+### Z2 — What was NOT settled, recorded rather than guessed
+
+| member | state | why |
+|---|---|---|
+| `wma` | ⛔ **UNRESOLVED** | Five hypotheses tried (last-n-finite, clean window, drop-na-keep-weights, restart, na-as-zero). None fits. At bar 8130 — one bar past a hole — it reads 589.386… while the only observation since is 594.2, so it is neither restarting nor reducing over the lone value. **Left on `propagate`.** |
+| `highestbars`, `lowestbars` | ⛔ **UNDETERMINED** | They answer **on** the `na` bar (36 of 36) where `highest` answers on none — a shape that is neither SKIP nor RESTART. **Left on `propagate`.** |
+| `rising`, `falling` | ⛔ **NOT DETERMINED** | Read through `x ? 1 : 0`, which cannot separate `na` from false. A probe limitation, stated in the fixture's own provenance. **Left on `propagate`.** |
+| SEED / WARM-UP, all members | ⬜ NOT OBSERVED | Every capture begins deep in real history. |
+
+⭐ **A vendor-measured divergence between two of our own members.** `highest`
+blanks at the hole, `highestbars` answers there. A Python rail asserted they
+*must* blank together — that invariant was OURS and Pine contradicts it. Rewritten
+to assert the difference, with the old equality kept as an exclusion.
+
+### Z3 — The correction
+
+**Policy is declared per member in `FINITE_WINDOW`** (JS) and `WINDOW_NA` (Python),
+and `rolling` takes it as an argument in both lanes. The runtime reads the policy
+**from `FINITE_WINDOW` itself** — not from a field copied into the artifact — so
+the two lanes cannot disagree about what an `na` means.
+
+⭐⭐ **THE RESOURCE ANSWER TO §8/§9: bounded, not unbounded.** A SKIP window needs
+the last `n` *finite observations*, which may lie further back than `n` bars — so
+it keeps **its own ring of exactly `n` cells**, appended only when a finite value
+arrives. The gap between observations can be arbitrary; the storage cannot. **No
+unbounded per-symbol history design is required.**
+
+⛔ **WINDOWS ARE NOW MATERIALISED PER CALL SITE** — the fourth use of the
+`persistBase` / `historyBase` / `carriedBase` addressing. 2F-2B could share one
+plan entry across sites because a window's only storage was a *transient* scratch
+buffer; an observation ring is STATE, and two sites sharing one would interleave
+two series into a single window.
+
+### Z4 — Both lanes moved together (§11/§13)
+
+- `interpret.js` and `api/services/ast_interpret.py` corrected in the same change.
+- `tools/ast_conformance.py --check`: **MATCHES, 150 ASTs × 579 bars**.
+- Runtime vs columnar on a **gappy** source, all eight measurable members:
+  **0 diverging bars** (it was 25 of 40 immediately after the columnar fix — that
+  intermediate state is what proved the runtime had to move too).
+- Python: 143 tests pass.
+
+### Z5 — ⚠️ A NEW AMBIGUITY THE CORRECTION CREATED, and it is open evidence
+
+A `propagate` window reads the committed ring, which P7.2 vendor-pinned as
+**chart-bar indexed and HOLDING** across a skipped call. A `skip` window reads its
+own observation ring, which can only be appended when the opcode **runs** —
+**invocation-indexed**, like the carried state whose skipped-UDF behaviour *was*
+vendor-pinned.
+
+⛔ **So the two policies now index differently for a window inside a
+conditionally-executed UDF, and nothing measures which is right.** The
+implementation follows the nearest evidence (a builtin inside a skipped UDF does
+not advance) but that is an **INFERENCE from the recurrent family, not an
+observation of the window family**. The 2F-2B rail for this case is relabelled
+`INFERRED, NOT MEASURED` and asserts what the code does so the choice is visible.
+
+**Probe that would settle it:** one UDF containing `ta.sma(v, 3)`, called on
+alternate bars, beside `ta.sma(close, 3)` called every bar — the same shape that
+settled the recurrent question.
+
+### Z6 — Performance, re-measured (§10)
+
+| sites | span | bars | ms (before → after) | cells |
+|---:|---:|---:|---|---:|
+| 1 | 20 | 5,000 | 5.62 → **7.40** | 100,000 |
+| 10 | 20 | 5,000 | 37.09 → **47.95** | 1,000,000 |
+| 40 | 20 | 5,000 | 142.40 → **185.41** | 4,000,000 |
+
+~1.3× — a SKIP window feeds its ring on **every** bar (that is how it finds the
+last `n` finite values), where the old code returned before charging during
+warm-up. The cell counts moved because the work moved.
+
+⭐ **Span is still nearly flat**: 40× the span costs **1.17×** the time (was 1.3×).
+5,000-symbol scan: typical **6.16 s**, heavy **216.8 s** — the heavy figure is
+unchanged in character and **remains an open performance gap**.
+
+### Z7 — NEW AND CARRIED GAPS
+
+| id | family | statement |
+|---|---|---|
+| **Z7.1** | ✅ CLOSED | `sma`, `stdev`, `sum`, `median` → SKIP; `highest`, `lowest` → RESTART. Both lanes, runtime included. 19/19 mutations killed, incl. one per policy and one for the over-generalisation. |
+| **Z7.2** | ⛔ **VENDOR, UNRESOLVED** | `wma` — five hypotheses, none fits. A member of a corrected family whose rule we do not know. |
+| **Z7.3** | ⛔ VENDOR, UNDETERMINED | `highestbars`/`lowestbars` answer ON the `na` bar; `rising`/`falling` were masked by the probe's ternary. Four members still on the pre-existing policy. |
+| **Z7.4** | ⚠️ **INFERRED, NOT MEASURED** | Skipped-UDF indexing now differs between `skip` (invocation) and `propagate` (chart-bar) windows. Probe named in Z5. |
+| **Z7.5** | VENDOR, UNOBSERVED | Series-start warm-up for every window member. `RESTART` answers with a partial run after a hole because that IS observed; the `i < n-1` gate at the start of a series stays because it is not. |
+| **Z7.6** | RECURRENT COMPOSITES | `rsi`, `atr`, `adx`, `plusDI`, `minusDI`, `macd` bind separate shipped implementations, were byte-identical through both corrections, and are **unaudited** for `na`. Named audit targets (§2/§40). |
+| **Z7.7** | PERFORMANCE | 216.8 s heavy 5,000-symbol scan. Open. |

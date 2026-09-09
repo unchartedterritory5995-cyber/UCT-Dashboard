@@ -508,12 +508,79 @@ def _isnan(x: float) -> bool:
 # ⭐ NaN IS A WARMUP, NOT A ZERO, AND IT PROPAGATES. A fabricated 0 during a
 # 199-bar warmup is a number a user could arm an alert on.
 
+#: ⭐⭐⭐ HOW A WINDOW TREATS AN ``na`` IS A PER-MEMBER FACT, NOT A FAMILY ONE.
+#:
+#: ⛔⛔ MEASURED ON TRADINGVIEW 2026-09-08 AND THE FAMILY SPLITS THREE WAYS.
+#: Generalising one member's rule to the other eleven would have been wrong for at
+#: least three of them. Fixture:
+#: ``tests/fixtures/vendor/runtime/finite-window-na-policy-by-member-spy-1d-2026-09-08.json``.
+#: JS twin: ``interpret.js``'s ``NA`` / ``windowOperands`` / ``FINITE_WINDOW[*].na``.
+#: These two lanes are kept equivalent by ``tools/ast_conformance.py``, so they
+#: MUST move together (§11).
+NA_SKIP = "skip"
+NA_PROPAGATE = "propagate"
+NA_RESTART = "restart"
+
+#: The na policy of every finite-window member, by TABLE name.
+#:   SKIP      -- the last ``n`` FINITE observations, however many BARS that spans;
+#:                answers on the ``na`` bar itself (vendor: 133 of 133).
+#:   PROPAGATE -- a clean ``n``-BAR window; blank for exactly ``n-1`` bars after a hole.
+#:   RESTART   -- the window begins again after a hole, so one bar later
+#:                ``highest == lowest ==`` the lone observation.
+WINDOW_NA: Dict[str, str] = {
+    "sma": NA_SKIP, "stdev": NA_SKIP, "sum": NA_SKIP, "median": NA_SKIP,
+    "highest": NA_RESTART, "lowest": NA_RESTART,
+    # ⚠️ UNRESOLVED or NOT DETERMINED by the capture -- left on the pre-existing
+    # policy rather than guessed. ``wma`` matched none of five hypotheses;
+    # ``rising``/``falling`` were read through a ternary that cannot separate
+    # ``na`` from false; ``highestbars``/``lowestbars`` answered ON the na bar,
+    # which is a shape neither SKIP nor RESTART describes.
+    "wma": NA_PROPAGATE, "dev": NA_PROPAGATE,
+    "highestbars": NA_PROPAGATE, "lowestbars": NA_PROPAGATE,
+    "rising": NA_PROPAGATE, "falling": NA_PROPAGATE,
+}
+
+
+def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
+    """The operand list for bar ``i`` under one policy, or ``None`` if unanswerable."""
+    if policy == NA_PROPAGATE:
+        return series, i - n + 1, i
+    if policy == NA_RESTART:
+        if not math.isfinite(series[i]):
+            return None
+        lo = i
+        while lo > i - n + 1 and lo > 0 and math.isfinite(series[lo - 1]):
+            lo -= 1
+        return series, lo, i
+    buf: List[float] = []
+    j = i
+    while j >= 0 and len(buf) < n:
+        if math.isfinite(series[j]):
+            buf.append(series[j])
+        j -= 1
+    if len(buf) < n:
+        return None
+    buf.reverse()
+    return buf, 0, n - 1
+
+
 def _rolling(series: Sequence[float], n: int,
-             reduce: Callable[[Sequence[float], int, int], float]) -> List[float]:
-    """Rolling reduction over a full window. NaN before bar ``n-1``."""
+             reduce: Callable[[Sequence[float], int, int], float],
+             policy: str = NA_PROPAGATE) -> List[float]:
+    """Rolling reduction over a full window. NaN before bar ``n-1``.
+
+    ⚠️ THE SERIES-START WARM-UP IS UNCHANGED AND DELIBERATELY SO. Every vendor
+    capture begins deep in real history, so what Pine does on bar 0 of a symbol
+    has never been observed. ``RESTART`` answers with a PARTIAL run after a hole
+    because that IS observed; the ``i < n - 1`` gate at the start of the series is
+    not, so it stays.
+    """
     out = _nan_col(len(series))
     for i in range(n - 1, len(series)):
-        out[i] = reduce(series, i - n + 1, i)
+        w = _window_operands(series, n, i, policy)
+        if w is not None:
+            buf, lo, hi = w
+            out[i] = reduce(buf, lo, hi)
     return out
 
 
@@ -1457,12 +1524,14 @@ def _donchian(h, l, n, index):  # noqa: E741
 #: cannot evaluate — which is the exact shape of the bug B5 fixed, where an alert
 #: naming a JS-only indicator could be STORED and could never FIRE.
 FN: Dict[str, Callable[..., List[float]]] = {
-    "sma": lambda series, n: _rolling(series, n, _window_mean),
+    "sma": lambda series, n: _rolling(series, n, _window_mean, WINDOW_NA["sma"]),
     "ema": lambda series, n: _ema_col(series, n),
     "highest": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b)),
+        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b),
+        WINDOW_NA["highest"]),
     "lowest": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
+        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b),
+        WINDOW_NA["lowest"]),
     # ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME OBJECT SHAPE THE
     # VALUE FORMS PASS -- `_window_arg_extreme` asks `_window_extreme` for the
     # value and only then names the bar, so the pair cannot disagree about one
@@ -1480,8 +1549,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
         series, left, right, lambda v, w: v > w),
     "pivotlow": lambda series, left, right: _pivot_col(
         series, left, right, lambda v, w: v < w),
-    "stdev": lambda series, n: _rolling(series, n, _window_stdev),
-    "sum": lambda series, n: _rolling(series, n, _window_sum),
+    "stdev": lambda series, n: _rolling(series, n, _window_stdev, WINDOW_NA["stdev"]),
+    "sum": lambda series, n: _rolling(series, n, _window_sum, WINDOW_NA["sum"]),
     "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
     # ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
     # TradingView capture. See ``closedTable.json``'s
@@ -1492,7 +1561,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # BATCH 1 -- resolved 2026-09-06 by real TradingView capture (independent
     # proof, not assumed symmetry). JS twin: ``interpret.js``'s ``FN.falling``.
     "falling": lambda series, n: _rolling(series, n + 1, _window_falling_monotone),
-    "median": lambda series, n: _rolling(series, n, _window_median),
+    "median": lambda series, n: _rolling(series, n, _window_median, WINDOW_NA["median"]),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
     ],

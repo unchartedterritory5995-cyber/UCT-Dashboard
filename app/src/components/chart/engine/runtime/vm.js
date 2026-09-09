@@ -193,6 +193,18 @@ export function execute(program, ctx, limits) {
     budget.peak('CARRIED_INSTANCES', carPlan.length)
     budget.peak('CARRIED_CELLS', carCells)
   }
+  // ⭐⭐⭐ THE NA POLICY IS READ FROM `FINITE_WINDOW`, NOT STORED IN THE ARTIFACT.
+  // The columnar lane reaches the same field for the same member, so the two
+  // cannot disagree about what an `na` means — which is the whole reason the
+  // policy lives in the table rather than beside each driver.
+  const winNa = winPlan.map((w) => FINITE_WINDOW[w.fn].na)
+  // ⛔ `skip` NEEDS THE LAST n FINITE OBSERVATIONS, AND THEY MAY LIE FURTHER
+  // BACK THAN n BARS. The history ring is `span - 1` deep and cannot answer
+  // that, so a skip window keeps its OWN ring of finite values — exactly n
+  // cells, appended only when a finite value arrives. Bounded by construction:
+  // the gap between observations can be arbitrary, the STORAGE cannot.
+  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span) : null))
+  const winObsN = new Int32Array(winPlan.length)
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
@@ -226,6 +238,7 @@ export function execute(program, ctx, limits) {
   const frPersistBase = new Int32Array(depthLimit + 1)
   const frHistoryBase = new Int32Array(depthLimit + 1)
   const frCarriedBase = new Int32Array(depthLimit + 1)
+  const frWindowBase = new Int32Array(depthLimit + 1)
   const frFn = new Int32Array(depthLimit + 1)
 
   for (let bar = 0; bar < ctx.bars; bar += 1) {
@@ -242,6 +255,7 @@ export function execute(program, ctx, limits) {
     let persistBase = 0
     let historyBase = 0
     let carriedBase = 0
+    let windowBase = 0
     for (;;) {
       const base = pc * 3
       const op = code[base]
@@ -354,6 +368,8 @@ export function execute(program, ctx, limits) {
           historyBase = site.historyBase
           frCarriedBase[depth - 1] = carriedBase
           carriedBase = site.carriedBase
+          frWindowBase[depth - 1] = windowBase
+          windowBase = site.windowBase
           pc = fn.entry
           break
         }
@@ -375,34 +391,59 @@ export function execute(program, ctx, limits) {
           break
         }
         case OP.WINDOW: {
-          const w = winPlan[a]
+          // ⭐⭐ FRAME-RELATIVE, like every other per-site store. `windowBase` is
+          // what keeps two call sites of one function from sharing an
+          // observation ring — the fourth time this addressing has been needed.
+          const wi = windowBase + a
+          const w = winPlan[wi]
           const span = w.span
           const live = stack[--sp]
-          // ⛔⛔ WARM-UP IS `rolling`'S OWN RULE, NOT A NEW ONE. It starts at
-          // `i = n - 1`, so a window is unanswerable until the series has n bars.
-          // Inventing a runtime warm-up here is exactly how the two lanes would
-          // begin disagreeing about the first valid bar.
+          const policy = winNa[wi]
+
+          if (policy === 'skip') {
+            // ⭐ THE MEASURED RULE: the last `span` FINITE observations, however
+            // many BARS that spans, answering even ON the `na` bar.
+            const obs = winObs[wi]
+            if (Number.isFinite(live)) {
+              for (let k = 0; k < span - 1; k += 1) obs[k] = obs[k + 1]
+              obs[span - 1] = live
+              if (winObsN[wi] < span) winObsN[wi] += 1
+            }
+            budget.charge('WINDOW_CELLS', span)
+            stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, 0, span - 1)
+            break
+          }
+
+          // ⛔ `propagate` AND `restart` BOTH READ THE COMMITTED RING, so they
+          // keep 2F-2B's warm-up rule: `rolling` starts at bar n-1 and so does
+          // this. What differs is only WHERE the window begins.
           if (committed < span - 1) { stack[sp++] = NaN; break }
-          const buf = winBuf[a]
+          const buf = winBuf[wi]
           buf[span - 1] = live
-          // ⚠️ A SPAN OF 1 READS NO HISTORY AT ALL — and therefore has no ring to
-          // look up. Reaching for one would dereference an entry the front end
-          // correctly never allocated.
           if (span > 1) {
             const hi = historyBase + w.historySlot
             const plan = histPlan[hi]
             const off = histOffset[hi]
             const depth = plan.depth
-            // bar order: the oldest committed bar first, the live bar last
             for (let k = 1; k < span; k += 1) {
               buf[span - 1 - k] = hist[off + ((committed - k) % depth)]
             }
           }
           budget.charge('WINDOW_CELLS', span)
-          stack[sp++] = winReduce[a](buf, 0, span - 1)
+          if (policy === 'restart') {
+            // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
+            // finite (the vendor blanks ON the hole); the run then reaches back
+            // only as far as the last non-finite value.
+            if (!Number.isFinite(live)) { stack[sp++] = NaN; break }
+            let lo = span - 1
+            while (lo > 0 && Number.isFinite(buf[lo - 1])) lo -= 1
+            stack[sp++] = winReduce[wi](buf, lo, span - 1)
+            break
+          }
+          stack[sp++] = winReduce[wi](buf, 0, span - 1)
           break
         }
-        case OP.CARRIED: {
+                case OP.CARRIED: {
           // ⭐⭐ THE INSTANCE IS FRAME-RELATIVE. `a` addresses the compiled body;
           // `carriedBase` says WHOSE state that body is stepping on this
           // invocation. Two call sites of one function therefore keep two
@@ -443,6 +484,7 @@ export function execute(program, ctx, limits) {
           persistBase = frPersistBase[depth]
           historyBase = frHistoryBase[depth]
           carriedBase = frCarriedBase[depth]
+          windowBase = frWindowBase[depth]
           stack[sp++] = value
           break
         }

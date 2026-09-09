@@ -89,9 +89,12 @@ describe('⭐ finite windows — cost in bars, sites and span', () => {
         expect(r.windows).toBe(sites)
       }
     }
-    // exact arithmetic, not a timing: every bar past the warm-up reads `span`
+    // ⚰️ EXACT ARITHMETIC, AND IT MOVED WITH THE NA POLICIES. This read
+    // `20 * (5000 - 19)` — cells charged only past the warm-up. `sma` is a SKIP
+    // member now and feeds its observation ring on EVERY bar, so it charges from
+    // bar 0. The count follows the work, which is the point of a cost counter.
     const one = report.runs.find((r) => r.sites === 1 && r.bars === 5000)
-    expect(one.cells).toBe(20 * (5000 - 19))
+    expect(one.cells).toBe(20 * 5000)
   })
 
   it('⭐ LINEAR IN BARS — 16.7× the bars must not cost 100× the time', () => {
@@ -107,7 +110,7 @@ describe('⭐ finite windows — cost in bars, sites and span', () => {
   it('⭐ LINEAR IN SPAN — the window is read, never rebuilt', () => {
     const spans = [5, 20, 100, 200].map((span) => ({ span, ...timeRun(1, span, 2000) }))
     report.runs.push(...spans.map((s) => ({ sites: 1, bars: 2000, ...s })))
-    for (const s of spans) expect(s.cells).toBe(s.span * (2000 - s.span + 1))
+    for (const s of spans) expect(s.cells).toBe(s.span * 2000)
     const ratio = spans[3].ms / Math.max(spans[0].ms, 0.02)
     expect(ratio, `40× the span cost ${ratio.toFixed(1)}×`).toBeLessThan(200)
   })

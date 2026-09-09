@@ -692,18 +692,38 @@ def test_highestbars_agrees_with_highest_about_WHICH_bar_it_names():
     assert checked > 200, checked
 
 
-def test_a_NaN_anywhere_in_the_window_blanks_the_offset_exactly_as_it_blanks_the_VALUE():
-    """⛔ THE SAME RULE `windowExtreme` ALREADY STATES: *"NaN does not lose a
-    comparison"*. A hole in the window means the extreme is UNKNOWN, so naming a
-    bar for it would be a confident wrong answer — and it must blank on exactly
-    the bars `highest` blanks on, or the two disagree about one window again."""
+def test_highestbars_and_highest_NO_LONGER_blank_together_and_the_vendor_is_why():
+    """⚰⚰ THIS TEST ASSERTED THEY BLANK ON EXACTLY THE SAME BARS, and TradingView
+    says they do not.
+
+    Measured 2026-09-08 over a gappy source: on the 36 ``na`` bars of a 400-bar
+    capture ``ta.highest`` answered on **0** of them while ``ta.highestbars``
+    answered on **all 36**. The vendor's own pair disagrees about one window --
+    so the invariant this test defended was OURS, not Pine's.
+
+    ⭐ WHAT CHANGED HERE: ``highest``/``lowest`` moved to the measured RESTART
+    policy (346 ok / 0 bad), which blanks only ON the hole. ``highestbars``/
+    ``lowestbars`` are NOT DETERMINED -- answering on an na bar is neither SKIP
+    nor RESTART -- so they stay on the pre-existing policy rather than being
+    guessed into place. The pair therefore blanks differently, and that is the
+    honest state of the evidence rather than a defect.
+
+    ⛔ The ORIGINAL coherence assertion is kept below as an EXCLUSION: it must
+    now FAIL, or the correction never landed.
+    """
     src = CALL("sma", SER("high"), NUM(30))     # a 29-bar hole at the front
     off = run(CALL("highestbars", src, NUM(5)))
     top = run(CALL("highest", src, NUM(5)))
     blank_off = [i for i in range(len(BARS)) if at(off, i) is None]
     blank_top = [i for i in range(len(BARS)) if at(top, i) is None]
-    assert blank_off == blank_top, (blank_off[:8], blank_top[:8])
+    # the offset form still blanks across the whole dirty window ...
     assert len(blank_off) >= 33, blank_off
+    # ... while the value form now recovers as soon as the run restarts.
+    assert len(blank_top) < len(blank_off), (len(blank_top), len(blank_off))
+    # ⛔ THE EXCLUSION: they used to be equal. If they are equal again, either
+    # `highest` lost its RESTART policy or `highestbars` acquired one without
+    # evidence -- both are regressions this line exists to catch.
+    assert blank_off != blank_top, "the pair must NOT blank together any more"
 
 
 # ─────────────────────────────────────────────────────────────────────────── #

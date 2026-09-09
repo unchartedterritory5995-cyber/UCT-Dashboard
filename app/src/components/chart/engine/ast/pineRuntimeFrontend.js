@@ -418,6 +418,7 @@ export function buildRuntimeIr(source, opts = {}) {
   const history = []
   const historyByVarSlot = new Map()
   // ⭐ 2F-2B — one entry per finite-window CALL SITE in the source.
+  const windowsMain = []
   const windows = []
   const carriedMain = []
   const carried = []
@@ -950,8 +951,23 @@ export function buildRuntimeIr(source, opts = {}) {
           const histIndex = span > 1
             ? (owner !== null ? functions[owner].historyByVarSlot.get(varSlot) : historyByVarSlot.get(varSlot))
             : 0
-          windows.push({ fn: win.table, name: `${node.name}(${srcNode.name},${n})`, historySlot: histIndex, span })
-          const call = windowCall(windows.length - 1, read(varSlot))
+          // ⭐⭐ A WINDOW IS NOW MATERIALISED PER CALL SITE, like history and
+          // carried state before it. 2F-2B could share one plan entry across
+          // sites because the scratch buffer was TRANSIENT — filled and reduced
+          // inside one opcode. The measured `skip` policy needs a ring of the
+          // last `n` FINITE observations, which is STATE, and state that two
+          // call sites shared would interleave two series into one window.
+          const entry = { fn: win.table, name: `${node.name}(${srcNode.name},${n})`, historySlot: histIndex, span }
+          let widx
+          if (owner !== null) {
+            const list = functions[owner].windowLocals || (functions[owner].windowLocals = [])
+            widx = list.length
+            list.push(entry)
+          } else {
+            widx = windowsMain.length
+            windowsMain.push(entry)
+          }
+          const call = windowCall(widx, read(varSlot))
           // ⛔ THE SIGN IS APPLIED HERE, ON THE WAY OUT, because that is where
           // `pine.js` applies it — `u-` wrapping the bare call, not a second
           // reducer with a flipped comparison. One reducer, one negation node.
@@ -1391,6 +1407,24 @@ export function buildRuntimeIr(source, opts = {}) {
       delete fn.historyLocals
       delete fn.historyByVarSlot
     }
+    // ⭐⭐ WINDOWS, MATERIALISED PER CALL SITE (2F-2B-REMEDIATION). Same shape
+    // as the two blocks that follow; `windowBase` is what stops two call sites
+    // of one body from sharing an observation ring.
+    {
+      let wbase = windowsMain.length
+      for (const w of windowsMain) windows.push({ ...w, site: null })
+      for (let i = 0; i < callSites.length; i += 1) {
+        const cs = callSites[i]
+        const locals = functions[cs.fn].windowLocals || []
+        cs.windowBase = wbase
+        for (const w of locals) windows.push({ ...w, site: i })
+        wbase += locals.length
+      }
+      for (const fn of functions) {
+        fn.windowCount = (fn.windowLocals || []).length
+        delete fn.windowLocals
+      }
+    }
     // ⭐⭐ 2F-2C — THE SAME MATERIALISATION, ONE LIFETIME OVER. Main-program
     // instances occupy the bottom; each call site then takes a block sized to
     // its function's carried instances. `carriedBase` is what makes two call
@@ -1438,6 +1472,7 @@ export function buildRuntimeIr(source, opts = {}) {
         effects: f.effects, at: f.at,
         historyCount: f.historyCount || 0, historySlots: f.historySlots || [],
         carriedCount: f.carriedCount || 0,
+        windowCount: f.windowCount || 0,
       })),
       callSites,
       history,
