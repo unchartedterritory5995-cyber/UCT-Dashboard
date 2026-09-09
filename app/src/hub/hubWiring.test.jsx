@@ -283,8 +283,17 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     // Non-vacuity: if this ever empties, Direction 2 is asserting nothing.
     expect(shipped.length, 'no mode has left the preview — direction 2 is vacuous').toBeGreaterThan(0)
     for (const id of shipped) {
-      const full = fanFor(modes.find((m) => m.id === id))
-      expect(full.length, `${id} left the preview with a fan of ${full.length}`).toBeGreaterThan(2)
+      const mode = modes.find((m) => m.id === id)
+      // ⚰️ THIS ASSERTED `full.length > 2`, AND THAT WAS MY INVENTION, NOT THE CONTRACT.
+      // Breadth ships a fan of exactly [Voice, Home] — its two other actions were removed as
+      // unimplemented (B2) — and it is still correctly OUT of the preview, because what Breadth
+      // ships is its tab GESTURES (tap / double-tap / scrub), which `fanFor` does not touch. The
+      // flip is what lets its chip read the true "tap: next tab" instead of "Preview — more
+      // coming". A section is allowed to ship real gestures and no fan actions.
+      //
+      // What actually matters is that a shipped mode gets its REGISTRY fan rather than the preview
+      // projection — that is the thing that would silently revert.
+      expect(fanFor(mode), `${id} is still receiving a preview projection`).toEqual(mode.fan)
     }
   })
 

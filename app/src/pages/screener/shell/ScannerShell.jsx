@@ -243,11 +243,11 @@ export default function ScannerShell({ embedded = false }) {
             )}
           </div>
         ) : isPhone ? (
-          <ResultCards ref={hub.resultsRef}
+          <ResultCards ref={hub.resultsRef} itemProps={hub.cursor.itemProps}
             rows={displayRows} columns={visibleColumns} livePrices={prices}
             hasMore={hasMore} onLoadMore={s.loadMore} isLoading={isLoading} />
         ) : (
-          <VirtualResults ref={hub.resultsRef}
+          <VirtualResults ref={hub.resultsRef} itemProps={hub.cursor.itemProps}
             rows={displayRows} columns={visibleColumns} sort={s.sort}
             onSort={s.setSort} livePrices={prices}
             density={density} view={s.view} hasMore={hasMore}

@@ -269,6 +269,28 @@ function HubShell({ setToastMsg }) {
       .filter((a) => (a.requires ?? []).some((r) => have[r] === false))
       .map((a) => a.id)
   }, [fan, symbol, selectedPosition])
+  /**
+   * ⛔ WHY A DISABLED BUBBLE IS DISABLED, IN THE MEMBER'S WORDS.
+   *
+   * `disabledIds` dimmed the bubble and `HubActionsButton` has always accepted a `disabledReason`
+   * prop — and NOTHING EVER PASSED ONE. So a disabled action was a grey circle with no
+   * explanation, on a control whose whole spec says (§2e) an unmet requirement must teach the
+   * member what to select first rather than hide the action.
+   *
+   * The spec's own words are the reason this is not cosmetic: hiding teaches the action does not
+   * exist; dimming WITHOUT a reason teaches that it is broken.
+   */
+  const reasonFor = useCallback((action) => {
+    const needs = action?.requires ?? []
+    if (needs.includes('symbol') && !symbol) return 'Pick a stock first'
+    if (needs.includes('position') && !selectedPosition) return 'Pick a position first'
+    return null
+  }, [symbol, selectedPosition])
+
+  // The chip narrates the same reason while a disabled bubble is the drag TARGET, so a member who
+  // never opens the sheet still learns why the gesture will do nothing.
+  const targetReason = state.target?.action ? reasonFor(state.target.action) : null
+
   const targetColor = state.target?.action?.color ?? null
 
   return (
@@ -343,8 +365,9 @@ function HubShell({ setToastMsg }) {
         // Preview chip hint (Phase 2.5): the mode name still leads, but the hint says what
         // this build IS rather than what tap does — most taps do nothing until Phase 3.
         // Per-mode: a section that has shipped its real fan shows its real hint again.
-        tapHint={isPreviewMode(activeModeConfig?.id)
-          ? 'Preview — more coming' : activeModeConfig?.tapHint}
+        tapHint={targetReason
+          || (isPreviewMode(activeModeConfig?.id)
+            ? 'Preview — more coming' : activeModeConfig?.tapHint)}
         scrubbing={state.scrubbing}
         // ⛔ WAS HARD-CODED `null`, WHICH MADE EVERY SECTION'S `readout()` DEAD CODE.
         //
@@ -374,6 +397,7 @@ function HubShell({ setToastMsg }) {
         actions={fan}
         mirrored={mirrored}
         disabledIds={disabledIds}
+        disabledReason={reasonFor}
         onAction={runAction}
         onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
       />

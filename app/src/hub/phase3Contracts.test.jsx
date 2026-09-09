@@ -172,6 +172,45 @@ describe('the confirm sheet — the only Phase 3 write path', () => {
     expect(payload.onConfirm).toHaveBeenCalledWith({ stop: 178.12 })
   })
 
+  it('⛔ B1: a REUSED sheet fires again — the latch is per-sheet, not per-mount', () => {
+    // Every other test in this file mounts a FRESH component with a payload in hand. The product
+    // does the opposite: `HubRoot` mounts one sheet permanently and swaps `payload` in and out. So
+    // the whole suite was blind to a latch that survived the close — the first confirm of a session
+    // worked and every one after it hit the early return, never calling onConfirm AND never calling
+    // onClose, leaving the sheet open with a dead button until a reload.
+    const first = basePayload()
+    const onClose = vi.fn()
+    const { rerender } = render(<HubConfirmSheet payload={first} onClose={onClose} />)
+    fireEvent.click(screen.getByTestId('hub-confirm-primary'))
+    expect(first.onConfirm).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    // The sheet closes (payload -> null) and a SECOND action opens it, same mounted component.
+    rerender(<HubConfirmSheet payload={null} onClose={onClose} />)
+    const second = basePayload({ primaryLabel: 'Set stop 179.00' })
+    rerender(<HubConfirmSheet payload={second} onClose={onClose} />)
+
+    fireEvent.click(screen.getByTestId('hub-confirm-primary'))
+    expect(second.onConfirm, 'the second confirm never fired — the latch outlived its sheet')
+      .toHaveBeenCalledTimes(1)
+    // …and still exactly once for the new sheet.
+    fireEvent.click(screen.getByTestId('hub-confirm-primary'))
+    expect(second.onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('⛔ B1: a REUSED sheet seeds its field values from the NEW payload', () => {
+    // The same defect in the state initialiser: `useState`'s lazy init ran once, at mount, when
+    // payload was null — so `values` was {} forever and a payload with `fields` rendered
+    // value={undefined}. That is the structural cause of R-14, not just its symptom.
+    const onClose = vi.fn()
+    const { rerender } = render(<HubConfirmSheet payload={null} onClose={onClose} />)
+    const withFields = basePayload({
+      fields: [{ name: 'stop', type: 'number', value: 178.10, step: 0.01 }],
+    })
+    rerender(<HubConfirmSheet payload={withFields} onClose={onClose} />)
+    expect(screen.getByTestId('hub-confirm-field-stop').value).toBe('178.1')
+  })
+
   it('renders nothing at all with no payload', () => {
     const { container } = render(<HubConfirmSheet payload={null} onClose={() => {}} />)
     expect(container.textContent).toBe('')

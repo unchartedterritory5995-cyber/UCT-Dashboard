@@ -192,22 +192,18 @@ export const modes = [
     // Found by the 3.2 integrator, corrected here because registry.js is Director-owned.
     tapHint: 'tap: next tab',
     fan: [
-      {
-        id: 'breadth.sizeRule',
-        label: 'Size rule',
-        icon: 'scale',
-        ring: 0,
-        color: '--hub-mode-breadth',
-        kind: 'run',
-      },
-      {
-        id: 'breadth.snapshot',
-        label: 'Snapshot',
-        icon: 'camera',
-        ring: 0,
-        color: '--hub-mode-breadth',
-        kind: 'run',
-      },
+      // ⚰️ `breadth.sizeRule` AND `breadth.snapshot` ARE REMOVED, NOT DEFERRED (B2).
+      //
+      // Both were `kind: 'run'` with NO `run` handler and no `requires`, so they rendered
+      // ALWAYS-ENABLED and did nothing: `HubRoot` does `Promise.resolve(action.run?.(ctx))`,
+      // which on `undefined` resolves silently — no throw, no warn, no toast. The member drags to
+      // "Snapshot", the fan closes, nothing happens. Invisible while `breadth` sat in
+      // PREVIEW_MODES (the projection hid them); live the moment it left.
+      //
+      // Dropped rather than shipped inert, on the R-13 precedent set when the Screener's "Scans"
+      // had no seam. A bubble that answers a deliberate gesture with silence teaches the member
+      // the product is broken — worse than an absent action, which at least tells the truth. They
+      // come back with their handlers, in their own increment.
       voice('breadth'),
       home('breadth'),
     ],

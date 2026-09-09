@@ -1448,6 +1448,26 @@ it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
 
+### ⛔ A test run without a totals line is not a run (Testing)
+
+> **Assert the totals line before reading the exit code.**
+
+Owner ruling, 2026-09-09. A full-suite run was launched with an invalid `--minWorkers` flag; vitest
+died at argument parsing having executed nothing, and the background-task wrapper reported
+**exit 0**. Nothing in the status distinguished "17,000 tests passed" from "the runner never
+started". It was caught only because the log had no `Test Files` / `Tests` line in it — had that
+been trusted, a green gate would have been reported for a suite that never ran
+(`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
+
+**Corollary — a CHUNKED run must be diffed against the full test-file list before its total is
+quoted.** The same gate was later split by directory to survive host memory pressure, and the chunk
+list covered 1,016 of 1,178 files — missing a known baseline row. A partial suite fails in the
+flattering direction: fewer files run, fewer failures found. Count the files, not just the passes:
+
+```sh
+find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
+```
+
 ### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
 
 > **A contract is verified against the runtime call site, never against a harness that restates

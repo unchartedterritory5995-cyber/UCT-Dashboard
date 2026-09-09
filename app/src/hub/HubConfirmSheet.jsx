@@ -28,10 +28,33 @@ export default function HubConfirmSheet({ payload, onClose }) {
   // Cheap: once per open, not per keystroke.
   if (payload) validateConfirmPayload(payload, 'HubConfirmSheet')
 
+  // ⛔ THE LATCH AND THE FIELD VALUES ARE PER-SHEET, NOT PER-MOUNT — and they were not.
+  //
+  // `HubRoot` mounts this component ONCE and permanently, passing `payload` in and out. The
+  // original `useRef(false)` therefore latched for the LIFETIME OF THE PAGE: the first confirm
+  // anywhere in the session set it, and every later confirm hit the early return — never calling
+  // `onConfirm`, and never calling `onClose` either, so the sheet sat open with a dead primary
+  // button until a full reload. On /journal/trades that is Move stop, Breakeven and Close sharing
+  // one use between them.
+  //
+  // `useState`'s lazy initialiser had the same shape: it ran once, at mount, when `payload` was
+  // `null` — so `values` was `{}` forever and any payload with `fields` rendered `value={undefined}`.
+  // That is the real cause of R-14: the "EQUAL path" steppers were structurally dead, not merely
+  // unwired.
+  //
+  // ⭐ EVERY TEST WAS BLIND TO BOTH, because each mounts a fresh component with a payload already
+  // in hand — the harness reproducing a shape the product does not use. Found by the Architecture
+  // lead, and it is the same failure this file's own header describes.
   const firedRef = useRef(false)
-  const [values, setValues] = useState(() => (
-    Object.fromEntries((payload?.fields ?? []).map((f) => [f.name, f.value]))
-  ))
+  const [seeded, setSeeded] = useState(null)
+  const [values, setValues] = useState({})
+  if (payload !== seeded) {
+    // React's documented "adjust state when a prop changes" pattern — a render-phase set on this
+    // component only, which React re-runs immediately without committing the stale pass.
+    setSeeded(payload)
+    setValues(Object.fromEntries((payload?.fields ?? []).map((f) => [f.name, f.value])))
+    firedRef.current = false
+  }
 
   const confirm = useCallback(() => {
     // The once-only latch. A ref, not state: state needs a render to reach a callback, and the
