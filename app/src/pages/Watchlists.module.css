@@ -970,6 +970,52 @@
   margin-bottom: 8px;
 }
 
+/* Watchlist Intelligence V1 — the row Attention badge + its facts popover. */
+.attnBadge {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; background: none; border: none; cursor: pointer;
+  color: var(--gold, #c9a84c);
+  padding: 0;
+}
+.attnBadge:hover { opacity: 0.8; }
+.attnPopover {
+  position: fixed;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  min-width: 260px;
+  max-width: 340px;
+  box-shadow: var(--shadow-popover);
+  z-index: 10000;
+}
+.attnFactList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.attnFact {
+  border-left: 2px solid var(--gold, #c9a84c);
+  padding-left: 8px;
+}
+.attnFactLabel {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.attnFactMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.attnEmpty {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .alertForm {
   display: flex;
   gap: 6px;
@@ -1505,6 +1551,32 @@
   .leftPanel { max-height: 38vh; }
   .chartPeriodBtn { padding: 3px 7px; font-size: 9px; }
 }
+
+/* ── An EMBEDDED host keeps its own box on phones ──
+   The two blocks above are the STANDALONE page's phone layout: `/watchlists`
+   stacks the list OVER a chart, so `.leftPanel` is capped (45vh, then 38vh) to
+   leave the chart room below it, and `.page` drops to `overflow: visible` so the
+   stacked column can grow the page scroll.
+
+   Neither is true of an embedded host. There the list IS the whole widget and
+   the chart is a SEPARATE surface (its own widget on /charts, the other pane
+   behind the drill's List/Chart toggle), so the cap left the list squeezed into
+   a 262px window with ~46% of a 390px phone screen blank below it. Measured in
+   the breadth drill at 390x844: pane 785px tall, list body 262px.
+   Every render site is such a host — BreadthDrillList, WatchlistWidget,
+   ScannerResults, PeriodSortResults, EtfHoldingsResults.
+
+   Two specificity facts make this block correct, and both are load-bearing:
+   - `.pageEmbedded` and `.page` are BOTH (0,1,0), so the responsive block above
+     wins on SOURCE ORDER alone. ⛔ These overrides must stay BELOW it — moving
+     them up silently restores `overflow: visible` on the widget.
+   - `.pageEmbedded > .leftPanel` is (0,2,0) and outranks the bare `.leftPanel`
+     inside the media queries, so `max-height` is settled at EVERY breakpoint
+     without restating one. ⛔ Do not "fix" this by adding a phone breakpoint
+     here — a cap re-stated per width is how the 768/480 pair drifted from the
+     canonical 640/1024 tiers in the first place. */
+.pageEmbedded { overflow: hidden; }
+.pageEmbedded > .leftPanel { max-height: none; border-bottom: none; }
 
 /* ── Live tick flash ── quick bold (+ green/red bg tint on the % column) each
    time a cell's value updates, mirroring the Theme Tracker's ReturnCell. The tint

@@ -1,0 +1,76 @@
+/* Two-pane board. The 6px gap + padding mirror ChartsWorkspace's `.popoutBody`
+   so a drill board and a popped-out charts board read as the same surface. */
+.board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 6px;
+  gap: 0;
+  background: var(--bg, #101012);
+  overflow: hidden;
+}
+
+/* Each pane is a plain flex box; the WIDGET inside brings its own border, radius
+   and canvas from ChartsWorkspace.module.css — nothing here restyles it. */
+.pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.paneGrow { flex: 1 1 auto; }
+
+/* 6px hit area, 2px visible rule on hover — matching the grid's margin so the
+   seam sits where a /charts widget gap would. */
+.divider {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  position: relative;
+  touch-action: none;
+}
+.divider::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.divider:hover::after { background: rgba(220, 187, 94, 0.35); }
+.dividerActive::after { background: var(--ut-gold, #dcbb5e); }
+
+/* Both widgets ejected — say why the board is empty rather than showing a void. */
+.allPopped {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted, #8f8b83);
+  text-align: center;
+  padding: 24px;
+}
+
+/* Touch: a 6px seam is under the 44px floor, so widen the grab zone on coarse
+   pointers without moving the visible rule. */
+@media (max-width: 1024px) {
+  .divider { flex-basis: 16px; }
+  .divider::after { inset: 0 7px; }
+}
+
+/* PHONE — one widget at a time.
+   A side-by-side board at 390px gives the list ~330px and the chart ~60px, which
+   is not a small version of the feature, it is a broken one. /charts already
+   answers this the same way: MobileWorkspace shows ONE widget, not a shrunken
+   grid. The toggle lives in the modal's title bar; `data-pane` selects which
+   pane survives. Driven entirely in CSS so first paint is correct — a JS
+   breakpoint read is stale in a fixed mobile viewport. */
+@media (max-width: 640px) {
+  .board { padding: 4px; }
+  .divider { display: none; }
+  /* The inline width the split drag sets must lose to the phone layout. */
+  .pane { width: auto !important; flex: 1 1 auto !important; min-width: 0; }
+  .board[data-pane='list'] .paneChart { display: none; }
+  .board[data-pane='chart'] .paneList { display: none; }
+}

@@ -128,6 +128,62 @@ describe('ImportWizard wire', () => {
     await waitFor(() => expect(screen.getByText(/imported/i)).toBeInTheDocument())
   })
 
+  it('yields per note via MessageChannel, never a chained setTimeout', async () => {
+    // TWO defects live at this line, both measured on 2026-09-05.
+    //
+    // 1. The loop used to yield every 10 notes. `htmlToNote` is a
+    //    synchronous main-thread block (~3.5s for a 534 KB note, because
+    //    sanitizeHtml uses DOMParser and TipTap's generateJSON also parses
+    //    through the DOM), so a notebook whose last five notes were large
+    //    ran ~17s with no repaint and no counter movement. The certification
+    //    watched the line sit at "70/75" on an unresponsive tab.
+    //
+    // 2. Fixing that with a per-note `setTimeout` yield made it WORSE for
+    //    anyone who switches tabs: Chrome intensively throttles CHAINED
+    //    timers in a hidden tab to one per minute, which turned a
+    //    backgrounded 15-note import into 246 seconds. A single
+    //    `setTimeout(0)` still returns in ~0ms, so a spot check misses it.
+    //
+    // `MessageChannel` is not on the timer budget, so it yields without
+    // being clamped. Counting the ports proves both properties at once:
+    // one yield per note, and not through a timer.
+    const files = Array.from({ length: 12 }, (_, i) =>
+      new File([`# Note ${i}`], `note-${i}.md`, { type: 'text/markdown' }))
+
+    const RealMessageChannel = globalThis.MessageChannel
+    let channels = 0
+    vi.stubGlobal('MessageChannel', class extends RealMessageChannel {
+      constructor() { super(); channels += 1 }
+    })
+    const realSetTimeout = globalThis.setTimeout
+    let timerYields = 0
+    vi.stubGlobal('setTimeout', (fn, delay, ...rest) => {
+      if (delay === undefined || delay === 0) timerYields += 1
+      return realSetTimeout(fn, delay, ...rest)
+    })
+
+    try {
+      render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+      fireEvent.change(screen.getByTestId('import-file-input'), { target: { files } })
+      await waitFor(() => expect(screen.getByText(/12 notes/i)).toBeInTheDocument())
+
+      const chBefore = channels
+      const timerBefore = timerYields
+      fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+      await waitFor(() =>
+        expect(vi.mocked(fetch).mock.calls.map((c) => c[0]))
+          .toContain('/api/j2/notes/import/confirm'))
+
+      // one yield per note (+ the final progress paint)
+      expect(channels - chBefore).toBeGreaterThanOrEqual(12)
+      // ⛔ and NOT via chained timers, which a hidden tab clamps to 1/min
+      expect(timerYields - timerBefore).toBeLessThan(12)
+    } finally {
+      vi.stubGlobal('MessageChannel', RealMessageChannel)
+      vi.stubGlobal('setTimeout', realSetTimeout)
+    }
+  })
+
   it('snapshots a LIVE FileList before clearing input.value (real-browser file-picker regression)', async () => {
     // Real Chromium: choosing a file, then clearing input.value (done so
     // re-picking the same file still fires onChange), truncates the live

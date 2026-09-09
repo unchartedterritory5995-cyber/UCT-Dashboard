@@ -19,22 +19,34 @@ Spec §5, audit §4.3.
 import csv
 import io
 import json
+import logging
+import hmac
+import os
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user, get_current_user_with_plan, is_paid_user, require_admin,
+)
+# Slice 3: the ONE route below that an external door may reach opts into this by
+# name. `get_current_user` above is untouched -- see api/middleware/capture_scope.
+from api.middleware.capture_scope import require_capture_scope
+
+logger = logging.getLogger(__name__)
 from api.services.journal_two import (
     accounts as accounts_service,
     analytics as analytics_service,
+    capture_auth,
     calendar as calendar_service,
     coach as coach_service,
     coach_chat as coach_chat_service,
     community as community_service,
     csv_import as csv_import_service,
     discipline as discipline_service,
+    note_trade_links,
     nudges as nudges_service,
     options as options_service,
     playbook_stats as playbook_stats_service,
@@ -43,6 +55,7 @@ from api.services.journal_two import (
     regime_backfill,
     settings as settings_service,
     setup_stats as setup_stats_service,
+    trade_refs as trade_refs_service,
     trades as trades_service,
     trading_day_backfill,
     verdict_scorecard as verdict_scorecard_service,
@@ -58,6 +71,15 @@ router = APIRouter(prefix="/api/j2", tags=["journal-2-0"])
 _J2_TELEMETRY_EVENTS = {
     "trade_page_open", "import_preset_used", "verdict_embed_run",
     "scope_applied", "surface_visit", "screenshot_added", "reflection_saved",
+    # Stage A member-validation instrumentation (decision-log "Stage A→B
+    # gate" entry, 2026-09-06) — aggregate usage signal only, never note
+    # content. notebook_tab_visit covers first/repeat Notebook visits (the
+    # validation report derives "first" vs "repeat" from created_at, not a
+    # separate event type); notebook_capture_saved fires once per genuine
+    # Save-to-Notebook action from the ONE function every capture door
+    # funnels through (sendToJournal.js::sendCaptureToJournal), covering all
+    # three destinations (current note / new note / inbox) uniformly.
+    "notebook_tab_visit", "notebook_capture_saved",
 }
 
 
@@ -132,6 +154,34 @@ def _most_recent_closed_monday() -> str:
     return monday.isoformat()
 
 
+# ── Stage A member-validation report (ADMIN) ──────────────────────────────
+# decision-log "Stage A→B gate" entry, 2026-09-06 — the quantitative half of
+# the plan's own required Beta Member-Validation gate (§5). Aggregate-only;
+# never a note body, search query, or Ask Current Note question.
+
+@router.get("/notebook-validation-report")
+def notebook_validation_report(request: Request) -> dict[str, Any]:
+    # Dual-gated: a real admin session (browser use), OR the PUSH_SECRET
+    # bearer (mirrors api/routers/desk_zoom_webhook.py's sessions-status
+    # pattern) so this read-only aggregate report can be curled from ops
+    # tooling without a production login -- there is no admin/canary
+    # credential available to any session (decision-log, 2026-09-05: no
+    # legitimate production test-login path exists, and the user's explicit
+    # instruction is never to request credentials or weaken auth to get one).
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    # Constant-time: `==` short-circuits at the first differing byte and leaks
+    # a prefix by timing. The `expected` guard stays first and deliberately is
+    # not constant-time — whether a secret is configured is a deployment fact.
+    if not (expected and hmac.compare_digest(auth, f"Bearer {expected}")):
+        from api.services.auth_service import validate_session
+        user = validate_session(request.cookies.get("uct_session"))
+        if not user or user.get("role") != "admin":
+            raise HTTPException(status_code=401, detail="Not authenticated")
+    from api.services.journal_two import stage_a_validation
+    return stage_a_validation.compute_report()
+
+
 # ── Compass health (ADMIN — see the handler for why "no-auth" was wrong) ─────
 
 @router.get("/compass-health")
@@ -199,6 +249,76 @@ def list_positions(
             user["id"], account_id=account_id,
         ),
     }
+
+
+@router.get("/positions/attention")
+def positions_attention(
+    account_id: str | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Deterministic per-symbol attention facts for the caller's currently-held
+    open positions (Portfolio/Position Intelligence Convergence V1, Part B).
+
+    Reuses `watchlist_intelligence.get_intelligence_for_symbols()` VERBATIM —
+    no new intelligence engine, no reimplemented fact resolution. Registered
+    ABOVE `/positions/{position_id}` so "attention" is never swallowed as a
+    position id.
+
+    Response: {SYM: {status, notable, facts, context}} — the exact shape
+    `get_intelligence_for_symbols` returns, unmodified. Empty positions list
+    (or an account with no open positions) returns {} (200), not an error.
+
+    Never 500s: if resolving the live-price `changes`/`price_observed_at`
+    dicts fails for any reason, degrades to calling
+    `get_intelligence_for_symbols(symbols)` with both `None` (every fact but
+    price_move still resolves) rather than failing the whole endpoint —
+    mirrors the "never raises" precedent already documented for
+    `portfolio_heat.py`. `price_observed_at` (Seam 8, 2026-09-07) threads
+    each symbol's vendor observation timestamp through from the SAME `live`
+    payload already fetched for `changes` — zero additional request.
+
+    Known, accepted limitation (not fixed here): a manually-entered dual-class
+    ticker (e.g. "BRK.B") may not match facts keyed by the broker-normalized
+    hyphenated form ("BRK-B"), or vice versa. Only the existing manual-entry
+    convention (`.strip().upper()`) is applied — no new normalization rule.
+    """
+    positions = positions_service.list_open_positions(user["id"], account_id=account_id)
+    symbols = list(dict.fromkeys(
+        (p.get("symbol") or "").strip().upper()
+        for p in positions
+        if (p.get("symbol") or "").strip()
+    ))
+    if not symbols:
+        return {}
+
+    changes: dict[str, float] | None = None
+    price_observed_at: dict[str, float] | None = None
+    try:
+        from api.routers.live_prices import get_live_prices
+        live = get_live_prices(tickers=",".join(symbols))
+        if isinstance(live, dict):
+            changes = {
+                sym: v["change_pct"]
+                for sym, v in live.items()
+                if isinstance(v, dict) and v.get("change_pct") is not None
+            }
+            # Seam 8 (2026-09-07): the same live-price payload already
+            # carries each symbol's vendor observation timestamp (see
+            # live_prices.py's own `observed_at` field) -- threaded through
+            # so price_move facts get a real evidence date instead of None.
+            # Zero new request: this reuses the exact `live` dict fetched
+            # above for `changes`.
+            price_observed_at = {
+                sym: v["observed_at"]
+                for sym, v in live.items()
+                if isinstance(v, dict) and v.get("observed_at") is not None
+            }
+    except Exception:
+        changes = None  # degrade gracefully — facts resolve minus price_move
+        price_observed_at = None
+
+    from api.services.watchlist_intelligence import get_intelligence_for_symbols
+    return get_intelligence_for_symbols(symbols, changes, price_observed_at)
 
 
 @router.get("/positions/{position_id}")
@@ -485,6 +605,22 @@ def get_trade_detail(
     out = trades_service.get_trade_detail(user["id"], trade_id)
     if out is None:
         raise HTTPException(status_code=404, detail="Trade not found")
+    return out
+
+
+@router.get("/trade-evidence")
+def get_trade_evidence(
+    tradeRef: str = Query(..., description="A stable tradeRef, e.g. from a note's captured chart"),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Phase 4D-4C.2 — resolves an explicit tradeRef (captured from TradeDrawer
+    into a note) back to its authoritative trade/option-strategy evidence.
+    404 when the ref doesn't resolve to anything live for this user (a stale
+    or foreign ref — never a partial/guessed object). See
+    trade_refs.resolve_trade_ref_evidence for the assetType-tagged shape."""
+    out = trade_refs_service.resolve_trade_ref_evidence(user["id"], tradeRef)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Trade evidence not found")
     return out
 
 
@@ -1372,6 +1508,51 @@ def get_current_regime_route(
 # ── Notebook (replaces Playbook 2026-05-26) ─────────────────────────────────
 from api.services.journal_two import notes as notes_service
 from api.services.journal_two.notes import NoteValidationError
+from api.services.journal_two import note_properties
+
+
+def _parse_search_date(value: str | None, param_name: str) -> str | None:
+    """Wave 4 Slice 1: `dateFrom`/`dateTo` must be `YYYY-MM-DD` or the
+    request is honestly rejected (400) at the boundary — never silently
+    ignored (which would look like "the filter did nothing") and never
+    allowed to reach SQLite unvalidated (a malformed string can still
+    string-compare against `created_at` without raising, just wrongly)."""
+    if not value:
+        return None
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{param_name} must be YYYY-MM-DD")
+    return value
+
+
+def _parse_property_filter_param(raw: str | None) -> list[dict[str, Any]] | None:
+    """`propertyFilter` arrives as a JSON-encoded array in a GET query param
+    (matching every other structured Wave E query param). A malformed value
+    is REJECTED (400), never silently ignored — the same "never a raw client
+    query clause" discipline as every value inside it (directive §14/§89;
+    per-condition type validation happens deeper, in property_filter_sql)."""
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="propertyFilter must be valid JSON")
+    if not isinstance(parsed, list):
+        raise HTTPException(status_code=400, detail="propertyFilter must be a JSON array")
+    return parsed
+
+
+def _parse_property_sort_param(raw: str | None) -> dict[str, Any] | None:
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="propertySort must be valid JSON")
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail="propertySort must be a JSON object")
+    return parsed
 
 
 @router.get("/notes")
@@ -1385,22 +1566,84 @@ def list_notes_endpoint(
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
+    deleted: bool = False,
+    dateFrom: str | None = None,
+    dateTo: str | None = None,
+    sector: str | None = None,
+    theme: str | None = None,
+    savedViewId: str | None = None,
+    propertyFilter: str | None = None,
+    propertySort: str | None = None,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    rows = notes_service.list_notes(
-        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-        embed_symbol=embed_symbol, embed_widget=embed_widget,
-        sort=sort, limit=limit, offset=offset,
+    """`deleted=true` (Wave 0 trash view): the mirror-image question — only
+    soft-deleted notes, everything else about the filter set unchanged.
+    There is deliberately no "both" mode; every call asks one question or
+    the other (see `_notes_filter_sql`'s own docstring).
+
+    Wave 4 (Search Evolution I): `dateFrom`/`dateTo` bound `created_at`
+    ("Note created" in the UI — see the design doc for why that's the
+    Stage 1 default, not "Updated"). `sector`/`theme` resolve to the
+    member's own bounded mentioned-symbol vocabulary (never a full-market
+    scan) via `notes_service.resolve_sector_theme_symbols` — computed ONCE
+    here and passed to both `list_notes` and `count_notes` as `symbol_in`
+    so a symbol-set resolution can never drift between the page and its
+    total, same discipline as every other filter in this endpoint.
+
+    Wave E: `savedViewId` ALWAYS wins over any client-supplied
+    `propertyFilter`/`propertySort` in the SAME request — the server
+    resolves the saved view's OWN stored spec, never trusting whatever the
+    client sent alongside the id (directive §87's "never trust
+    client-supplied raw query clauses for saved views"). This is the one
+    place that distinction is enforced; every other call site (the plain
+    ad-hoc filter path) is unaffected."""
+    date_from = _parse_search_date(dateFrom, "dateFrom")
+    date_to = _parse_search_date(dateTo, "dateTo")
+    symbol_in = notes_service.resolve_sector_theme_symbols(
+        user["id"], sector=sector, theme=theme,
     )
-    # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
-    # never the length of `rows` — a migrated library of thousands of notes must
-    # see its real count, not "however many fit on this page". Built from the
-    # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
-    # so the two can never disagree about which notes match.
-    total = notes_service.count_notes(
-        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-        embed_symbol=embed_symbol, embed_widget=embed_widget,
-    )
+    property_filter = None
+    property_sort = None
+    # A saved view's stored spec was valid when saved; a property it
+    # referenced can be deleted afterward. Resolving it non-strict means a
+    # dangling clause degrades to "no longer applies" instead of 400ing the
+    # view permanently (checkpoint §9 property deletion/recovery) -- a live,
+    # client-supplied filter stays strict, since an unknown property there is
+    # a real mistake in the request being made right now.
+    property_filter_strict = True
+    if savedViewId:
+        view = note_properties.get_saved_view(user["id"], savedViewId, conn=None)
+        if view is None:
+            raise HTTPException(status_code=404, detail="Saved view not found")
+        spec = view["spec"] or {}
+        property_filter = spec.get("propertyFilter")
+        property_sort = spec.get("propertySort")
+        property_filter_strict = False
+    else:
+        property_filter = _parse_property_filter_param(propertyFilter)
+        property_sort = _parse_property_sort_param(propertySort)
+    try:
+        rows = notes_service.list_notes(
+            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget,
+            sort=sort, limit=limit, offset=offset, deleted=deleted,
+            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            property_filter=property_filter, property_sort=property_sort,
+            property_filter_strict=property_filter_strict,
+        )
+        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+        # never the length of `rows` — a migrated library of thousands of notes must
+        # see its real count, not "however many fit on this page". Built from the
+        # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
+        # so the two can never disagree about which notes match.
+        total = notes_service.count_notes(
+            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
+            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
+            property_filter=property_filter, property_filter_strict=property_filter_strict,
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
@@ -1419,6 +1662,23 @@ def note_backlinks_endpoint(
     return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
 
 
+@router.get("/notes/link-targets")
+def note_link_targets_endpoint(
+    ids: str = "",
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave D — batch-resolves `noteLink` target ids to their CURRENT title +
+    trashed/active status, for the noteLink node view (one request per note
+    being VIEWED, not per link inside it — directive §37/§65). `ids` is a
+    comma-separated list, same convention as every other CSV query param in
+    this router.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}` — same route-order
+    reason as `/notes/backlinks`/`/notes/tags` immediately above/below."""
+    id_list = [i.strip() for i in ids.split(",") if i.strip()]
+    return {"targets": notes_service.resolve_note_link_targets(user["id"], id_list)}
+
+
 @router.get("/notes/tags")
 def note_tag_counts_endpoint(
     user: dict = Depends(get_current_user),
@@ -1432,6 +1692,89 @@ def note_tag_counts_endpoint(
     `/notes/backlinks` immediately above: FastAPI matches in declaration
     order and that route would otherwise swallow "tags" as a note id."""
     return {"tags": notes_service.tag_counts(user["id"])}
+
+
+@router.get("/notes/folder-counts")
+def note_folder_counts_endpoint(
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 0 (P0-2, folder-sidebar correctness): the TRUE whole-library
+    note count per folder + Unfiled, in one request — see
+    `notes_service.folder_note_counts`'s own docstring for the defect this
+    replaces.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks` and `/notes/tags` immediately above."""
+    return notes_service.folder_note_counts(user["id"])
+
+
+@router.get("/notes/by-folders")
+def notes_by_folders_endpoint(
+    ids: str,
+    limit: int = 200,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 0 (P0-2): the actual notes for the sidebar tree's inline leaf
+    rows, scoped to exactly the (in practice: currently-expanded) folders
+    the client asks for — see `notes_service.notes_for_folders`'s own
+    docstring. `ids` is a comma-separated folder-id list; an empty/blank
+    request returns an empty map rather than erroring, so a client that
+    calls this with no folders expanded gets a harmless no-op.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as the
+    other whole-library reads above."""
+    folder_ids = [i for i in (ids or "").split(",") if i]
+    return {"byFolder": notes_service.notes_for_folders(user["id"], folder_ids, limit_per_folder=limit)}
+
+
+@router.get("/notes/by-trade-ref")
+def notes_by_trade_ref_endpoint(
+    tradeRef: str,
+    tradeRefType: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 3 (Thesis-Trade Link): "notes linked to THIS trade/strategy" —
+    the reverse of `note_trade_ref_resolve_endpoint`. `tradeRefType` is
+    mandatory (per note_trade_links.py: a bare tradeRef is not globally
+    unique across j2_trades/j2_option_strategies, so the caller — already
+    viewing one specific trade or strategy — always knows which).
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks`/`/notes/tags`/`/notes/folder-counts`/`/notes/by-folders`
+    immediately above."""
+    if not note_trade_links.is_valid_trade_ref_type(tradeRefType):
+        raise HTTPException(status_code=422, detail="invalid tradeRefType")
+    return {"notes": notes_service.get_notes_linked_to_trade(user["id"], tradeRef, tradeRefType)}
+
+
+@router.get("/notes/favorites")
+def list_favorites_endpoint(
+    limit: int = notes_service.FAVORITES_DEFAULT_LIMIT,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave B: the sidebar's Favorites section + the command palette's
+    "Open Favorite" entries share this one read.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/backlinks`/`/notes/tags`/`/notes/folder-counts`/`/notes/by-folders`/
+    `/notes/by-trade-ref` above — FastAPI matches in declaration order and
+    that route would otherwise swallow "favorites" as a note id."""
+    return {"notes": notes_service.list_favorites(user["id"], limit=limit)}
+
+
+@router.get("/notes/recents")
+def list_recents_endpoint(
+    limit: int = notes_service.RECENTS_DEFAULT_LIMIT,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave B: the sidebar's Recents section + the command palette's "Open
+    Recent" entries share this one read. System-derived — no write endpoint
+    to reorder or curate; see `POST /notes/{note_id}/opened` for the only way
+    a note enters this list.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`, same reason as
+    `/notes/favorites` immediately above."""
+    return {"notes": notes_service.list_recents(user["id"], limit=limit)}
 
 
 @router.post("/notes/{note_id}/embeds")
@@ -1450,6 +1793,40 @@ def append_note_embed_endpoint(
     return {"note": note}
 
 
+@router.get("/notes/{note_id}/trade-ref/resolve")
+def note_trade_ref_resolve_endpoint(
+    note_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 3 (Thesis-Trade Link): resolve every trade/strategy this note's
+    embeds reference, so the frontend knows exactly where "linked trade"
+    should navigate (or that a legacy reference is ambiguous/unresolved —
+    never guessed). `get_note`'s ownership check IS the tenant gate here;
+    `resolve_trade_ref` independently re-checks ownership again per link
+    (the reference itself is never treated as authorization)."""
+    note = notes_service.get_note(user["id"], note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    conn = notes_service.get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT trade_ref, trade_ref_type FROM j2_note_embeds"
+            " WHERE note_id = ? AND trade_ref IS NOT NULL",
+            (note_id,),
+        ).fetchall()
+        links = [
+            {
+                "tradeRef": r["trade_ref"],
+                "tradeRefType": r["trade_ref_type"],
+                "resolution": note_trade_links.resolve_trade_ref(
+                    conn, user["id"], r["trade_ref"], r["trade_ref_type"]),
+            }
+            for r in rows
+        ]
+    finally:
+        conn.close()
+    return {"links": links}
+
+
 @router.post("/notes/attachments/gc")
 def attachment_gc_endpoint(
     dry_run: bool = True,
@@ -1463,6 +1840,482 @@ def attachment_gc_endpoint(
     return attachment_gc.sweep_orphaned_attachments(
         dry_run=dry_run, min_age_hours=max(1.0, min_age_hours),
     )
+
+
+@router.post("/notes/{note_id}/favorite")
+def add_favorite_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        notes_service.add_favorite(user["id"], note_id)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"isFavorite": True}
+
+
+@router.delete("/notes/{note_id}/favorite")
+def remove_favorite_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    notes_service.remove_favorite(user["id"], note_id)
+    return {"isFavorite": False}
+
+
+@router.post("/notes/{note_id}/opened")
+def note_opened_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Wave B Recents beacon — fired by the frontend when a note finishes
+    loading in the editor. Deliberately never 404s on a missing/foreign note
+    id and never surfaces a failure: this is a best-effort recency signal,
+    not a correctness-bearing write, and must never be able to break opening
+    a note. A note the caller doesn't own simply won't appear in their own
+    Recents (list_recents joins on user_id), so there is no cross-tenant leak
+    even though this endpoint itself doesn't verify ownership up front."""
+    try:
+        notes_service.record_note_opened(user["id"], note_id)
+    except Exception:  # noqa: BLE001 — recency tracking must never break note viewing
+        pass
+    return {"ok": True}
+
+
+# ── Wave C: Version History ─────────────────────────────────────────────────
+
+@router.get("/notes/{note_id}/versions")
+def list_note_versions_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """History LIST — title/subtitle/timestamp only, never the full body (a
+    note that has accumulated years of checkpoints must not ship its whole
+    history's content over the wire just to render a timeline)."""
+    return {"versions": notes_service.list_note_versions(user["id"], note_id)}
+
+
+@router.get("/notes/{note_id}/versions/{version_id}")
+def get_note_version_endpoint(
+    note_id: str, version_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Full single-version content, for the read-only preview and the diff
+    view. get_note_version itself scopes on BOTH user_id AND note_id — a
+    version id guessed against the wrong note, or a foreign user's real
+    version id, both 404 identically (never a 403 that would confirm
+    existence)."""
+    version = notes_service.get_note_version(user["id"], note_id, version_id)
+    if version is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"version": version}
+
+
+@router.post("/notes/{note_id}/versions/{version_id}/restore")
+def restore_note_version_endpoint(
+    note_id: str, version_id: str, payload: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Same optimistic-lock contract as the plain note PUT (§9 of the Wave C
+    entry checkpoint — restore is not a bespoke write path): an optional
+    `baseUpdatedAt` makes this a compare-and-set, so a stale restore attempt
+    (the note changed since the history panel loaded) 409s instead of
+    silently clobbering newer content."""
+    base = (payload or {}).get("baseUpdatedAt")
+    try:
+        n = notes_service.restore_note_version(
+            user["id"], note_id, version_id,
+            expected_updated_at=base if isinstance(base, str) and base else None,
+        )
+    except notes_service.NoteConflictError:
+        raise HTTPException(status_code=409, detail="note changed — refresh and retry")
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
+
+
+@router.get("/notes/{note_id}/export")
+def export_single_note_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> Response:
+    """Wave C single-note export (directive §46-58, gap ledger G-091) — the
+    export a member reaches for when they want to leave with ONE note, not
+    the "download my whole notebook" dialog. See
+    notes_export.build_single_note_export for why this is a bare `.md` when
+    the note has no attachments and a `.zip` only when it does, and why an
+    in-memory build is safe here (bounded by one note, unlike the whole-
+    notebook export's tempfile+semaphore path just above)."""
+    from api.services.journal_two.notes_export import build_single_note_export
+
+    built = build_single_note_export(user["id"], note_id)
+    if built is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    content, filename, media_type = built
+    return Response(
+        content=content, media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/notes/{note_id}/backlinks")
+def note_note_backlinks_endpoint(
+    note_id: str, limit: int = 50, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave D — "which of my other notes link TO this one?" Deliberately does
+    NOT 404 for a note this user doesn't own or that doesn't exist — it
+    simply returns an empty result (get_note_backlinks itself short-circuits
+    on an empty/foreign note_id), matching this being a read ABOUT the note,
+    not a fetch OF it; the note detail endpoint is what enforces existence/
+    ownership for the page itself."""
+    return notes_service.get_note_backlinks(user["id"], note_id, limit=limit)
+
+
+# ── Wave E — Structured Research Properties / Saved Views ───────────────────
+
+@router.get("/notes/{note_id}/properties")
+def note_properties_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """The full resolved property list for ONE note (every def, that note's
+    value or its live-derived value) -- what the Properties section renders.
+    404s for a note this user doesn't own/that doesn't exist (unlike
+    backlinks above, this IS a fetch OF the note's own data, not a read
+    about it)."""
+    note = notes_service.get_note(user["id"], note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        resolved = note_properties.resolve_note_properties(user["id"], note, conn)
+    finally:
+        conn.close()
+    return {"properties": resolved}
+
+
+@router.get("/property-defs")
+def list_property_defs_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"propertyDefs": note_properties.list_property_defs(user["id"])}
+
+
+@router.post("/property-defs")
+def create_property_def_endpoint(body: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        d = note_properties.create_property_def(
+            user["id"], body.get("name"), body.get("type"), options=body.get("options"),
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"propertyDef": d}
+
+
+@router.put("/property-defs/{property_id}")
+def update_property_def_endpoint(
+    property_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        d = note_properties.update_property_def(
+            user["id"], property_id, name=body.get("name"), options=body.get("options"),
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if d is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"propertyDef": d}
+
+
+@router.delete("/property-defs/{property_id}")
+def delete_property_def_endpoint(property_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        ok = note_properties.delete_property_def(user["id"], property_id)
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@router.get("/saved-views")
+def list_saved_views_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"savedViews": note_properties.list_saved_views(user["id"])}
+
+
+@router.post("/saved-views")
+def create_saved_view_endpoint(body: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        v = note_properties.create_saved_view(
+            user["id"], body.get("name"), body.get("viewType", "list"), body.get("spec") or {},
+        )
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"savedView": v}
+
+
+@router.put("/saved-views/{view_id}")
+def update_saved_view_endpoint(
+    view_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        v = note_properties.update_saved_view(user["id"], view_id, name=body.get("name"), spec=body.get("spec"))
+    except note_properties.PropertyValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if v is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"savedView": v}
+
+
+@router.delete("/saved-views/{view_id}")
+def delete_saved_view_endpoint(view_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    ok = note_properties.delete_saved_view(user["id"], view_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+# ── Wave F (Financial Fact / Snapshot Ledger) ───────────────────────────────
+from api.services.journal_two import note_facts, fact_current_value
+
+
+@router.post("/notes/{note_id}/facts")
+def create_note_fact_endpoint(
+    note_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        fact = note_facts.create_fact_observation(
+            user["id"], note_id,
+            ticker=body.get("ticker"), fact_type=body.get("factType"),
+            value=body.get("value"), observed_at=body.get("observedAt"),
+            caption=body.get("caption"), idempotency_key=body.get("idempotencyKey"),
+            period=body.get("period"), source_ref=body.get("sourceRef"),
+        )
+    except note_facts.FactValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"fact": fact}
+
+
+@router.get("/notes/{note_id}/facts")
+def list_note_facts_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """Every fact this note references, resolved + batch current-value lookup
+    (checkpoint decision 21/24/39) -- one call per note-open, never one call
+    per fact."""
+    facts = note_facts.list_note_facts(user["id"], note_id)
+    current = fact_current_value.resolve_current_values(facts)
+    for f in facts:
+        if f["id"] in current:
+            f["current"] = current[f["id"]]
+    return {"facts": facts}
+
+
+@router.post("/notes/{note_id}/facts/{fact_id}/insert")
+def insert_note_fact_endpoint(
+    note_id: str, fact_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The server half of a capture from OUTSIDE the note editor (e.g.
+    TickerPopup's "Save to Notebook" door): place an already-created fact's
+    financialFact node into a note's body. The fact must already exist
+    against this same note_id (checkpoint decision 30)."""
+    try:
+        note = notes_service.append_financial_fact(user["id"], note_id, fact_id)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+    return {"note": note}
+
+
+@router.put("/facts/{fact_id}")
+def update_note_fact_endpoint(
+    fact_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    fact = note_facts.update_fact_caption(user["id"], fact_id, body.get("caption"))
+    if fact is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"fact": fact}
+
+
+@router.delete("/facts/{fact_id}")
+def delete_note_fact_endpoint(fact_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    ok = note_facts.delete_fact_observation(user["id"], fact_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+# ── Wave G (Thesis Intelligence + Thesis Changelog) ─────────────────────────
+from api.services.journal_two import thesis_evidence, thesis_changelog
+
+
+@router.post("/notes/{note_id}/evidence")
+def add_thesis_evidence_endpoint(
+    note_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    try:
+        evidence = thesis_evidence.add_evidence(
+            user["id"], note_id,
+            target_type=body.get("targetType"), target_id=body.get("targetId"),
+            stance=body.get("stance"), caption=body.get("caption"),
+        )
+    except thesis_evidence.ThesisEvidenceValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"evidence": evidence}
+
+
+@router.get("/notes/{note_id}/evidence")
+def list_thesis_evidence_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"evidence": thesis_evidence.list_note_evidence(user["id"], note_id)}
+
+
+@router.delete("/evidence/{evidence_id}")
+def remove_thesis_evidence_endpoint(evidence_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    removed = thesis_evidence.remove_evidence(user["id"], evidence_id)
+    if removed is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"evidence": removed}
+
+
+# Bounded slice of the changelog surfaced by the aggregated summary below --
+# a full research history is available via a future "load more"; the
+# summary itself must never do an unbounded read on every note open
+# (checkpoint decision 37).
+_THESIS_SUMMARY_CHANGELOG_LIMIT = 30
+
+
+@router.get("/notes/{note_id}/thesis-summary")
+def get_thesis_summary_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """ONE aggregated read for the thesis surfaces on a note -- evidence +
+    a bounded recent-changelog slice + linked trade/position resolution --
+    batched in a single request (checkpoint decision 37), mirroring Wave F's
+    own batched current-value-resolution pattern and Wave E's saved-view
+    resolution. 404 only if the note itself doesn't resolve for this user;
+    an empty thesis (no evidence/changelog yet) returns empty lists, not an
+    error (checkpoint decision 31)."""
+    note = notes_service.get_note(user["id"], note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    evidence = thesis_evidence.list_note_evidence(user["id"], note_id)
+    changelog = thesis_changelog.get_thesis_changelog(user["id"], note_id)[:_THESIS_SUMMARY_CHANGELOG_LIMIT]
+    return {"evidence": evidence, "changelog": changelog}
+
+
+# ── Wave O: thesis reviews ──────────────────────────────────────────────────
+from api.services.journal_two import (review_search, thesis_review_changes,
+                                     thesis_reviews)
+
+
+@router.post("/notes/{note_id}/reviews")
+def open_thesis_review_endpoint(
+    note_id: str, body: dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Start or RESUME the one open review draft for this thesis.
+
+    ⛔ Idempotent on purpose (§38): a surface may call this when the member
+    opens the review panel, and a review obligation must not accumulate every
+    time somebody looks at the page. The service returns the existing draft.
+    """
+    try:
+        review = thesis_reviews.open_review(
+            user["id"], note_id,
+            reason=(body or {}).get("reason") or thesis_reviews.REASON_MANUAL)
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.get("/reviews/search")
+def search_reviews_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave O6 -- find a completed review by what the member wrote in it.
+
+    ⛔ DECLARED BEFORE THE `/reviews/{review_id}` ROUTES ON PURPOSE. There is
+    no `GET /reviews/{id}` today, so nothing shadows this yet -- and the day
+    somebody adds one, a literal path declared after a parameterised sibling
+    is matched as an id and this endpoint 404s with every test still green
+    (the exact shape of the breadth `/live/drill` incident).
+
+    ⛔ A FOURTH SECTION, NEVER A FOURTH SCORE -- see review_search.py. The
+    caller renders these beside Notes / Documents / Evidence; nothing blends
+    them into another list's ranking.
+    """
+    rows = review_search.search_reviews(user["id"], q, limit=limit)
+    return {"results": [{
+        "reviewId": r["review_id"], "noteId": r["note_id"],
+        "noteTitle": r["note_title"], "ticker": r["ticker"],
+        "snippet": r["snippet"],
+        # The outcome the member chose and when they chose it. A review result
+        # that showed only prose would make "I was wrong about this" and "no
+        # change" look like the same kind of finding.
+        "outcome": r["outcome"], "completedAt": r["completed_at"],
+        "reviewReason": r["review_reason"],
+    } for r in rows]}
+
+
+@router.patch("/reviews/{review_id}")
+def save_thesis_review_draft_endpoint(
+    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Autosave the member's work. ⛔ Never completes it (§34)."""
+    try:
+        review = thesis_reviews.save_draft(
+            user["id"], review_id,
+            member_note=body.get("memberNote"), outcome=body.get("outcome"),
+            next_review_at=body.get("nextReviewAt"))
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.post("/reviews/{review_id}/complete")
+def complete_thesis_review_endpoint(
+    review_id: str, body: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Record what the member decided.
+
+    ⛔⛔ THIS DOES NOT TOUCH THE THESIS (§4/§9). If the member revised it, they
+    did that through the canonical note/property path before completing, and
+    the service records which version it landed on. There is deliberately no
+    `thesisStatus` field on this request body: a review form that could set a
+    thesis status would make UCT the author of an investment judgement.
+    """
+    try:
+        review = thesis_reviews.complete(
+            user["id"], review_id, outcome=body.get("outcome"),
+            member_note=body.get("memberNote"),
+            next_review_at=body.get("nextReviewAt"))
+    except thesis_reviews.ThesisReviewError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"review": review}
+
+
+@router.get("/notes/{note_id}/reviews")
+def list_thesis_reviews_endpoint(
+    note_id: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """This thesis's review history, plus the deterministic what-changed block.
+
+    ONE aggregated read, mirroring `thesis-summary`'s own shape — the review
+    panel needs history and the diff together, and two round trips would let
+    them disagree about which review is the anchor.
+    """
+    if notes_service.get_note(user["id"], note_id) is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "reviews": thesis_reviews.list_reviews(user["id"], note_id),
+        "attention": thesis_review_changes.review_attention(user["id"], note_id),
+    }
+
+
+# ── Wave H (Research Home + Ticker Research Workspace) ──────────────────────
+from api.services.journal_two import notebook_home, ticker_research
+
+
+@router.get("/notebook/home")
+def get_notebook_home_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """ONE aggregated read for Research Home (checkpoint decision 14) --
+    Continue Working / Favorites / Active Theses / Open-Position Research /
+    Needs Review, each bounded and independently best-effort. Never errors
+    on an empty account -- every section degrades to an empty list."""
+    return notebook_home.get_notebook_home(user["id"])
+
+
+@router.get("/notes/research/{symbol}/summary")
+def get_ticker_research_summary_endpoint(
+    symbol: str, user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The Ticker Research Workspace's ONE aggregated read (checkpoint
+    decision 15) -- entity identity, bounded notes/theses/facts, and a
+    trade/position COUNT summary (never an execution ledger). Always 200s
+    (even for a symbol with zero research -- the honest empty-workspace
+    state, checkpoint decision 13's ticker-workspace analog) since a
+    ticker workspace has no "not found" state of its own: it is a dynamic
+    view, not a record that can fail to exist."""
+    return ticker_research.get_ticker_research_summary(user["id"], symbol)
 
 
 # ── Note share links (post-v1; screener-share idiom: token IS the credential).
@@ -1576,6 +2429,201 @@ def get_note_endpoint(
     return {"note": n}
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for every Notebook Ask scope — an LLM-synthesis call on the firm's
+    key, same shape as every other AI-cost route in this codebase.
+
+    Defined HERE, never imported from a sibling router — each router owns
+    its own 402 sentence so "which surface refused me" is readable off the
+    message (see api/routers/ai_search.py:39's docstring; railed by
+    tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…,
+    which enforces a distinct detail string per definer)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Notebook Ask requires a paid plan")
+    return user
+
+
+# ── Wave K Slice 6: one Ask pipeline, four scopes ───────────────────────────
+# Wave 2 shipped Ask Current Note as its own endpoint with its own prompt
+# builder. Slices 2/4 added document and security retrieval. This is the single
+# handler all of them now run through, so the prompt boundary, the citation
+# contract, the refusal, the coverage notice and the rate limit have ONE
+# implementation and cannot drift per scope.
+
+_ASK_MAX_QUERY = 2000
+
+
+async def _ask_stream(user: dict, scope: str, target: str | None,
+                      payload: dict[str, Any]):
+    """Retrieve, then either refuse deterministically or stream an answer.
+
+    SSE events, in order:
+      sources -> {scope, scopeLabel, sources[], coverageNotice, noAnswer}
+      delta   -> {text}            (repeated)
+      final   -> {answer, cited[], invalidCitations[]}
+      error   -> {detail}
+
+    `sources` is FIRST on purpose: the member sees which scope was searched
+    and what was found before any prose arrives, and the client can validate
+    every [n] handle the moment it appears instead of after the fact.
+    """
+    import time
+    from api.services import note_ask
+    from api.services.journal_two import ask_service as asvc
+
+    query = (payload.get("query") or "").strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="Empty question.")
+    if len(query) > _ASK_MAX_QUERY:
+        raise HTTPException(status_code=422, detail="Question too long.")
+    history = payload.get("history")
+    if not isinstance(history, list):
+        history = None
+
+    user_id = user["id"]
+    t0 = time.time()
+    try:
+        prepared = asvc.prepare(user_id, scope, target, query, history=history)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    # ⛔ 404 BEFORE ANYTHING ELSE, AND WITHOUT SAYING WHY. A target the member
+    # does not own is indistinguishable from one that does not exist -- the
+    # error must not become an existence oracle for another member's rows.
+    cov = prepared.get("coverage") or {}
+    if scope in (asvc.NOTE, asvc.DOCUMENT) and cov.get("exists") is False:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    head = {
+        "type": "sources", "scope": prepared["scope"],
+        "scopeLabel": prepared["scope_label"], "sources": prepared["sources"],
+        "coverageNotice": prepared["coverage_notice"],
+        "independentSources": prepared["independent_sources"],
+        "noAnswer": prepared["no_answer"],
+    }
+
+    # ⛔ NO ANSWER MEANS NO MODEL CALL, AND NO CHARGE. Paying a model to say "I
+    # could not find that" asks the one component able to invent an answer to
+    # decline to. The refusal is deterministic, so it cannot be talked out of;
+    # it is also free, so a question the corpus cannot answer does not burn the
+    # member's daily allowance. Context sources still ride along in `head`.
+    if prepared["no_answer"]:
+        def refuse():
+            yield f"data: {json.dumps(head)}\n\n"
+            text = prepared["refusal"]
+            if prepared["coverage_notice"]:
+                text += " " + prepared["coverage_notice"]
+            yield f"data: {json.dumps({'type': 'delta', 'text': text})}\n\n"
+            yield f"data: {json.dumps({'type': 'final', 'answer': text, 'cited': [], 'invalidCitations': []})}\n\n"
+            notes_service._log_notebook_event(
+                user_id, "notebook_ask_used",
+                asvc.telemetry(scope, prepared, started=t0, settled=True,
+                               answered=False))
+        return StreamingResponse(
+            refuse(), media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    if not note_ask.reserve_ask(user_id):
+        raise HTTPException(
+            status_code=429,
+            detail="You've hit today's Ask limit — it resets at midnight ET.",
+        )
+    # The daily cap bounds spend over a day; this bounds what one member can
+    # hold open at once. Claimed AFTER the reservation so the failure path has
+    # exactly one thing to undo.
+    if not note_ask.begin_stream(user_id):
+        note_ask.refund_ask(user_id)
+        raise HTTPException(
+            status_code=429,
+            detail="You already have an answer in progress — wait for it to finish.",
+        )
+
+    kwargs = asvc.request(prepared, query, model=asvc.model_name(),
+                          max_tokens=asvc.max_tokens(), history=history)
+
+    async def gen():
+        settled = False
+        text = ""
+        buffered = ""
+        yield f"data: {json.dumps(head)}\n\n"
+        try:
+            async for delta in asvc.synthesize(kwargs):
+                if not delta:
+                    continue
+                text += delta
+                buffered += delta
+                # Never emit a half-written citation handle: "[1" would render
+                # as a bracket and then flicker into a chip a chunk later.
+                safe, buffered = asvc.hold_back(buffered)
+                if safe:
+                    yield f"data: {json.dumps({'type': 'delta', 'text': safe})}\n\n"
+            if buffered:
+                yield f"data: {json.dumps({'type': 'delta', 'text': buffered})}\n\n"
+            settled = True
+        except Exception:
+            # ⛔ NO QUESTION, ANSWER OR SOURCE TEXT IN THE LOG. The scope and
+            # the failure are enough to operate on.
+            logger.exception(f"[ask] synthesis failed scope={scope}")
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
+        finally:
+            # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
+            # cancellation all land here; a leaked slot locks the member out
+            # until the process restarts.
+            note_ask.end_stream(user_id)
+            if not settled or not text.strip():
+                note_ask.refund_ask(user_id)
+            resolved = asvc.resolve_answer(text, prepared)
+            notes_service._log_notebook_event(
+                user_id, "notebook_ask_used",
+                asvc.telemetry(scope, prepared, started=t0, settled=settled,
+                               answered=bool(text.strip()), resolved=resolved))
+        yield ("data: " + json.dumps({
+            "type": "final", "answer": text,
+            "cited": resolved["cited"],
+            "invalidCitations": resolved["invalid"],
+        }) + "\n\n")
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@router.post("/ask/stream")
+async def ask_stream(
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(require_paid),
+):
+    """The unified Ask endpoint. `scope` is one of note | document | security
+    | notebook; `target` is the note id, document id or ticker it needs.
+
+    This path MUST stay in main.py's `_is_gzip_exempt` — GZip buffers the whole
+    stream and no tokens would ever reach the client.
+    """
+    from api.services.journal_two import ask_service as asvc
+    payload = payload or {}
+    scope = (payload.get("scope") or asvc.NOTEBOOK).strip()
+    if scope not in asvc.SCOPES:
+        raise HTTPException(status_code=422, detail="Unknown scope.")
+    target = payload.get("target")
+    return await _ask_stream(user, scope, target, payload)
+
+
+@router.post("/notes/{note_id}/ask/stream")
+async def ask_current_note_stream(
+    note_id: str,
+    payload: dict[str, Any] | None = None,
+    user: dict = Depends(require_paid),
+):
+    """Ask Current Note — kept at its Wave 2 URL so a browser still holding the
+    previous bundle keeps working, but running the SAME safe pipeline as every
+    other scope. Retire the path a deploy cycle after the last caller ships,
+    never in the same commit as it.
+    """
+    from api.services.journal_two import ask_service as asvc
+    return await _ask_stream(user, asvc.NOTE, note_id, payload or {})
+
+
 @router.post("/notes")
 def create_note_endpoint(
     payload: dict[str, Any] | None = None,
@@ -1618,10 +2666,27 @@ def delete_note_endpoint(
     note_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    """Wave 0 trash: soft delete. The note moves to the trash (restorable
+    via POST .../restore for TRASH_RETENTION_DAYS) rather than being
+    destroyed immediately — see notes_service.delete_note."""
     ok = notes_service.delete_note(user["id"], note_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True}
+
+
+@router.post("/notes/{note_id}/restore")
+def restore_note_endpoint(
+    note_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave 0 trash: undo a soft delete. 404 covers every case the caller
+    can't act on differently anyway (already restored, already hard-purged,
+    not this member's note, never existed)."""
+    n = notes_service.restore_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": n}
 
 
 @router.post("/notes/{note_id}/images")
@@ -1683,12 +2748,23 @@ async def upload_note_attachment_endpoint(
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
+    content_type = file.content_type
     try:
         att = await notes_service.save_note_attachment(
             user["id"], note_id, file,
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave I: a PDF attachment gets a document row + async page-aware text
+    # extraction, queued AFTER the upload itself already succeeded — never
+    # blocking this response, and a failed/slow extraction can never make
+    # the underlying attachment (which is already saved) look broken.
+    if content_type == "application/pdf":
+        from api.services.journal_two import document_extraction
+        doc = document_extraction.create_document(
+            user["id"], note_id, att["url"], att.get("name"),
+        )
+        document_extraction.queue_extraction(doc["id"])
     return att
 
 
@@ -1706,6 +2782,234 @@ def serve_note_attachment(
     if path is None:
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(str(path))
+
+
+# ── Wave I: document processing status + page-aware search ──────────────────
+from api.services.journal_two import document_extraction, document_search
+
+
+@router.get("/notes/{note_id}/documents")
+def list_note_documents_endpoint(
+    note_id: str,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Every PDF attachment this note carries, with its extraction status —
+    lets the editor show "Processing…"/"Text couldn't be processed" honestly
+    without polling per-attachment. Always 200s: a note with zero PDFs
+    returns an empty list, never a 404 (a document row is a dynamic
+    processing artifact, not something that can be "not found")."""
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, attachment_url, name, status, page_count, created_at, processed_at "
+            "FROM j2_note_documents WHERE user_id = ? AND note_id = ? ORDER BY created_at",
+            (user["id"], note_id),
+        ).fetchall()
+        # camelCase, matching every other Notebook response shape
+        # (heroImageUrl/bodyJson/createdAt/...) — a raw dict(row) would leak
+        # snake_case SQL column names into the one JSON shape in this file
+        # that didn't go through a service-layer dict-builder.
+        return {"documents": [{
+            "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
+            "status": r["status"], "pageCount": r["page_count"],
+            "createdAt": r["created_at"], "processedAt": r["processed_at"],
+        } for r in rows]}
+    finally:
+        conn.close()
+
+
+@router.get("/notes/documents/search")
+def search_note_documents_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Page-aware lexical search over this member's extracted PDF text —
+    tenant-scoped, sectioned separately from note search (never blended
+    into one score with j2_notes_fts results; see document_search.py)."""
+    rows = document_search.search_document_pages(user["id"], q, limit=limit)
+    return {"results": [{
+        "documentId": r["document_id"], "pageNumber": r["page_number"],
+        "snippet": r["snippet"], "noteId": r["note_id"], "noteTitle": r["note_title"],
+        "name": r["name"], "attachmentUrl": r["attachment_url"],
+        # ⛔ WAVE M: the surface cannot tell the truth about a hit it cannot
+        # identify. `sourceKind` is "attachment" (a real paginated document) or
+        # "web" (a captured source, whose pageNumber is a CAPTURE ORDINAL and
+        # must never be rendered as a page).
+        "sourceKind": r["source_kind"] or "attachment",
+        "sourceUrl": r["source_url"],
+    } for r in rows]}
+
+
+# ── Wave J: excerpts / highlights / annotations ──────────────────────────────
+from api.services.journal_two import note_excerpts
+from api.services.journal_two import web_capture, web_capture_store, excerpt_search
+
+
+# ⛔ THE ONE CAPTURE DOOR (Wave L Slice 2 §1). Every entry point — palette,
+# hotkey, note, research workspace, the four in-app surfaces, and later the
+# browser extension and the mobile share target — arrives HERE. Doors choose
+# DEFAULTS; they do not own capture semantics.
+#
+# Nothing a client sends can move the boundaries: the rights tier is validated
+# server-side (`web_capture.assert_permitted_tier`), the canonical identity and
+# domain are DERIVED from the URL rather than accepted from the caller, coverage
+# is computed from what was actually stored, and tenant isolation runs before any
+# lookup or reuse. A door that wanted looser rules would have to change this
+# function, which is exactly the property Slice 2 exists to create.
+@router.post("/capture")
+def capture_endpoint(
+    payload: dict[str, Any],
+    principal: dict = Depends(require_capture_scope(capture_auth.SCOPE_CAPTURE_WRITE)),
+) -> dict[str, Any]:
+    """Capture one web source into a note. ONE canonical path for every door.
+
+    ⭐ Slice 3 widened WHO may knock, never WHAT happens next. The principal is
+    either a normal web session or a scoped Browser Capture credential, and in
+    both cases it resolves to exactly one `id` that the caller did not supply.
+    Everything below this line — rights tier, provenance, coverage, duplicate
+    detection, tenant isolation — is byte-identical for every door, which is
+    what makes the extension a door rather than a second backend.
+    """
+    note_id = payload.get("noteId")
+    if not note_id or not isinstance(note_id, str):
+        raise HTTPException(status_code=400, detail="noteId is required")
+    try:
+        result = web_capture_store.capture_web_source(principal["id"], note_id, payload)
+    except web_capture.CaptureRightsError as e:
+        # 422, not 400: the request was well-formed and was REFUSED on rights.
+        # A door must be able to tell "you sent nonsense" from "we are not
+        # permitted to store that", because only the second is a product answer.
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except web_capture.CaptureValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except web_capture_store.CaptureStoreError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    doc = result["document"]
+    return {
+        "documentId": doc["id"],
+        "noteId": doc["note_id"],
+        "captureType": doc["capture_type"],
+        "coverage": doc["coverage"],
+        "sourceUrl": doc["source_url"],
+        "title": doc["name"],
+        "passageIndex": result["page_number"],
+        "excerptId": (result["excerpt"] or {}).get("id"),
+        # ⭐ The door needs this to say "Already saved" rather than "Saved" — see
+        # Slice 2 §11. The UI must never compute duplicate-ness itself.
+        "deduped": result["deduped"],
+    }
+
+
+@router.post("/notes/{note_id}/excerpts")
+def create_excerpt_endpoint(
+    note_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Create one saved excerpt AND place its node in the destination note's
+    body in a single call -- the low-friction "select text -> Save excerpt"
+    flow never requires the client to separately open/edit the destination
+    note (checkpoint decision 20/21/22)."""
+    document_id = payload.get("documentId")
+    page_number = payload.get("pageNumber")
+    captured_text = payload.get("capturedText")
+    if not document_id or not isinstance(document_id, str):
+        raise HTTPException(status_code=400, detail="documentId is required")
+    try:
+        excerpt = note_excerpts.create_excerpt(
+            user["id"], note_id,
+            document_id=document_id,
+            page_number=page_number,
+            captured_text=captured_text,
+            quote_prefix=payload.get("quotePrefix"),
+            quote_suffix=payload.get("quoteSuffix"),
+            char_start=payload.get("charStart"),
+            char_end=payload.get("charEnd"),
+            annotation=payload.get("annotation"),
+        )
+    except note_excerpts.ExcerptValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
+    if note is None:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"excerpt": excerpt}
+
+
+@router.get("/notes/{note_id}/evidence-candidates")
+def list_evidence_candidates_endpoint(
+    note_id: str, q: str | None = None, limit: int = 50,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave N — research this note OWNS that could serve as thesis evidence.
+
+    ⛔ DELIBERATELY NOT `/excerpts`. That endpoint answers "which excerpts are
+    embedded in this note's BODY" (it joins the `j2_note_excerpt_refs` sidecar
+    that `notes.py` rebuilds from `documentExcerpt` nodes) — a real question the
+    editor needs, and the reason a captured web passage was invisible to the
+    evidence picker: a capture never embeds such a node. Attachability is a
+    different question, answered by OWNERSHIP.
+    """
+    from api.services.journal_two import evidence_candidates
+    return {"candidates": evidence_candidates.list_candidates(
+        user["id"], note_id, q=q, limit=limit)}
+
+
+@router.get("/notes/{note_id}/excerpts")
+def list_note_excerpts_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"excerpts": note_excerpts.list_note_excerpts(user["id"], note_id)}
+
+
+@router.get("/excerpts/{excerpt_id}")
+def get_excerpt_endpoint(excerpt_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """A single excerpt, carrying its source document's attachment URL --
+    lets a thesis-evidence row (which only carries a bare `document_excerpt`
+    target id, possibly from a note whose body never inserted this excerpt
+    as a node) open the exact source page directly, with no second
+    document lookup."""
+    excerpt = note_excerpts.get_excerpt(user["id"], excerpt_id)
+    if excerpt is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"excerpt": excerpt}
+
+
+@router.patch("/excerpts/{excerpt_id}")
+def update_excerpt_endpoint(
+    excerpt_id: str,
+    payload: dict[str, Any],
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """The one editable field -- the annotation ("why this matters"), never
+    the captured source text itself (checkpoint decision 14/74)."""
+    updated = note_excerpts.update_excerpt_annotation(user["id"], excerpt_id, payload.get("annotation"))
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"excerpt": updated}
+
+
+@router.get("/notes/excerpts/search")
+def search_excerpts_endpoint(
+    q: str = "",
+    limit: int = 20,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Excerpt/annotation lexical search -- tenant-scoped, sectioned
+    separately from both note search and document-page search (never
+    blended into one score; see excerpt_search.py)."""
+    rows = excerpt_search.search_excerpts(user["id"], q, limit=limit)
+    return {"results": [{
+        "excerptId": r["excerpt_id"], "snippet": r["snippet"], "noteId": r["note_id"],
+        "noteTitle": r["note_title"], "documentId": r["document_id"],
+        "documentName": r["document_name"], "pageNumber": r["page_number"],
+        "annotation": r["annotation"],
+        # Same contract as the document-page results above.
+        "sourceKind": r["source_kind"] or "attachment",
+        "sourceUrl": r["source_url"],
+    } for r in rows]}
 
 
 @router.get("/note-folders")

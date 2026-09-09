@@ -7,6 +7,7 @@ import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
@@ -169,6 +170,8 @@ export default function FundamentalsWidget({
   const { data: snap } = useFundamentalSnapshot(frozen ? null : sym)
   const company = frozen?.company || (snap?.name && snap.name !== sym ? snap.name : null)
   const [journalMsg, setJournalMsg] = useJournalToast()
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
   // View choice persists per-widget through the workspace layout save path
   // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
   const view = ['annual', 'quarterly', 'analyst', 'ownership'].includes(opts?.view) ? opts.view : 'quarterly'
@@ -268,23 +271,48 @@ export default function FundamentalsWidget({
             door + gear each pulling auto split the free space and the door
             drifted mid-header — the door keeps the auto, the gear (below)
             drops to a 2px gap whenever the door renders. */}
-        {journalDoor && !readOnly && !isPanelView && (hasAnnual || hasQ) && (
-          <button
-            type="button"
-            className={styles.gearBtn}
-            onClick={async () => {
-              setJournalMsg('sending…')
-              setJournalMsg(await sendCaptureToJournal('fundamentals', {
-                symbol: sym, view: effectiveView, company,
-                settings: fwSettings,
-                data: { annual: data?.annual || [], quarterly: data?.quarterly || [] },
-              }, { label: `${sym} fundamentals` }))
-            }}
-            title="Send these financials to Journal"
-            aria-label="Send these financials to Journal"
-          ><UIcon name="journal" size={13} /></button>
-        )}
+        {journalDoor && !readOnly && !isPanelView && (hasAnnual || hasQ) && (() => {
+          // Freeze exactly what the widget shows right now — shared by the
+          // one-click default send AND the destination-picker.
+          const buildFundamentalsCapture = () => ({
+            symbol: sym, view: effectiveView, company,
+            settings: fwSettings,
+            data: { annual: data?.annual || [], quarterly: data?.quarterly || [] },
+          })
+          return (
+            <>
+              <button
+                type="button"
+                className={styles.gearBtn}
+                onClick={async () => {
+                  setJournalMsg('sending…')
+                  setJournalMsg(await sendCaptureToJournal('fundamentals', buildFundamentalsCapture(), { label: `${sym} fundamentals` }))
+                }}
+                title="Send these financials to Journal"
+                aria-label="Send these financials to Journal"
+              ><UIcon name="journal" size={13} /></button>
+              <button
+                type="button"
+                className={styles.gearBtn}
+                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildFundamentalsCapture() })}
+                title="Send to Journal — choose where"
+                aria-label="Send to Journal — choose where"
+              ><UIcon name="chevronDown" size={13} /></button>
+            </>
+          )
+        })()}
         <JournalToast msg={journalMsg} />
+        {captureMenu && (
+          <CaptureMenu
+            open
+            onClose={() => setCaptureMenu(null)}
+            anchor={captureMenu.anchor}
+            widgetId="fundamentals"
+            capture={captureMenu.capture}
+            label={`${sym} fundamentals`}
+            onSent={setJournalMsg}
+          />
+        )}
         {/* ⚙ Fundamentals settings — writes the GLOBAL pref; never inside an embed. */}
         {!readOnly && (
         <button

@@ -1,0 +1,1364 @@
+"""Wave K Slice 1 — deterministic private-corpus retrieval.
+
+NO LLM. NO EMBEDDINGS. This is the baseline the semantic decision must be
+measured against (§14/§31): "what does deterministic retrieval actually miss?"
+cannot be answered by a system that quietly leans on a model to paper over
+weak recall.
+
+Everything here composes primitives that already shipped and are already
+tenant-scoped and trash-excluding:
+
+    j2_notes_fts                 note title/body            (Wave A)
+    j2_note_document_pages_fts   document page text         (Wave I)
+    j2_note_excerpts_fts         saved excerpts + annotation(Wave J)
+    entity_master + Wave H       canonical ticker membership(Wave H)
+    j2_note_properties           structured thesis state    (Wave E)
+    j2_thesis_evidence           supports/opposes edges     (Wave G)
+    j2_fact_observations         captured financial facts   (Wave F)
+
+⛔ TENANT SCOPING IS INSIDE EVERY QUERY (§26). Nothing here retrieves broadly
+and filters afterwards -- every SQL statement carries `user_id = ?`, so a
+cross-tenant row is never a candidate, never ranked, and never reaches
+synthesis. The rails assert this per source type.
+
+PRODUCTION SHAPE DRIVES PRIORITY (§24). Measured 2026-09-07: 751 live notes,
+0 document pages, 0 excerpts. Notes are the day-one surface. Document and
+excerpt retrieval are additive and must not slow the note path -- each source
+is queried independently and only when its scope asks for it, so an empty
+document corpus costs nothing.
+"""
+from __future__ import annotations
+
+import re
+import sqlite3
+from typing import Any
+
+from api.services.auth_db import get_connection
+from api.services.journal_two import ask_evidence as ev
+from api.services.journal_two import ask_ranking as rk
+from api.services.journal_two import note_citation_text as nct
+from api.services.journal_two import review_search
+from api.services.journal_two.notes_search import fts_match_expr
+
+# Ask Current Note showed up to this many characters of the note before Wave K
+# (note_ask._NOTE_BODY_CAP). Kept, so migrating the scope onto typed evidence
+# cannot quietly shrink what the model can see -- only reorder what survives.
+NOTE_SCOPE_MAX_CHARS = 20000
+
+# ⛔⛔ HOW MUCH REVIEW HISTORY A SCOPE MAY RETRIEVE BY CHRONOLOGY (O6 §9).
+# Inside ONE thesis the member's review history IS the subject, so the whole
+# of it (bounded) is fair game -- "how has my thinking changed" is a question
+# about the sequence. Across many theses it is not: the last two reviews of
+# every thesis a member owns is a floor, and a floor is how an unrelated
+# question ends up answered with the member's research.
+NOTE_SCOPE_REVIEW_HISTORY = 12
+SCOPED_REVIEW_HISTORY = 2
+
+# ── Query intents (§19). Small and inspectable; NOT an agent planner. ────────
+INTENT_STRUCTURED = "structured_research_query"
+INTENT_ENTITY = "security_research"
+INTENT_GENERAL = "general_notebook"
+INTENT_HISTORICAL = "historical_intent_unsupported"
+
+# Whether an evidence object ANSWERS the question or merely surrounds it.
+# Re-exported from the envelope module so there is ONE authority for the
+# spelling; ranking reads the same constants.
+QUERY_MATCH = ev.QUERY_MATCH
+ENTITY_CONTEXT = ev.ENTITY_CONTEXT
+
+# ⛔ RETIRED AS A GATE, KEPT AS A NUMBER FOR THE RAIL THAT EXPLAINS WHY.
+#
+# bm25() was used as an absolute relevance floor: keep a row only when its
+# score is below -0.15. Measured during the Slice 8 real-model E2E, that is
+# unsound, and not because of tuning.
+#
+# BM25 weights a term by inverse document frequency. When a term appears in
+# EVERY indexed row, its idf collapses and the score comes back at -0.0000 --
+# above the floor, so the row is DROPPED. Measured across corpora of 1, 2, 3,
+# 5 and 20 rows: identical result every time. Two consequences, both bad:
+#
+#   - a single-page document, or a member with few notes, has every term in
+#     every row, so their matches score ~0 and were silently discarded;
+#   - for a focused researcher the term common to their WHOLE corpus ("NVDA")
+#     is the term they care most about, and it is exactly the one idf zeroes.
+#
+# Precision does not need an absolute threshold. It comes from two things that
+# are corpus-size independent: query stopwords are removed before matching, so
+# a hit is always on a content word, and the evidence budget bounds how much
+# reaches an answer. bm25 still ORDERS candidates, which is what it is good at.
+BM25_FLOOR = -0.15  # retained: tests/test_ask_retrieval.py measures the misfire
+
+_HISTORICAL_MARKERS = (
+    "before earnings", "back then", "at the time", "used to think",
+    "did i believe", "did i think", "previously believed", "last quarter i",
+    "what did i believe", "originally",
+)
+_STRUCTURED_MARKERS = (
+    "need review", "needs review", "due for review", "which theses",
+    "how many theses", "active theses", "list my theses",
+)
+
+
+def classify_intent(query: str) -> str:
+    """Route deterministically. Historical intent is DETECTED, not served --
+    the point is to stop current-state evidence being narrated as historical
+    truth (§19). Wave K does not answer historical-state questions."""
+    q = (query or "").lower()
+    if any(m in q for m in _HISTORICAL_MARKERS):
+        return INTENT_HISTORICAL
+    if any(m in q for m in _STRUCTURED_MARKERS):
+        return INTENT_STRUCTURED
+    return INTENT_GENERAL
+
+
+# Conservative ticker shapes: an explicit $CASHTAG, or an UPPERCASE token.
+# Lowercase prose is never a ticker candidate -- MY, THE, FOR, ON, IT and
+# RISK are all real listed symbols, and this repo already carries the
+# lesson that a symbol universe does not settle a ticker match.
+_SYMBOL_RE = re.compile(r"\$[A-Za-z][A-Za-z.\-]{0,5}|\b[A-Z][A-Z.\-]{1,5}\b")
+
+_STOPWORD_TICKERS = frozenset({
+    "WHAT", "MY", "THE", "IS", "ARE", "DO", "I", "HAVE", "ABOUT", "FOR",
+    "AND", "OR", "NOT", "WHY", "HOW", "WHICH", "THAT", "THIS", "IT", "ON",
+    "IN", "OF", "TO", "A", "AN", "ME", "SAY", "SAID", "RISK", "RISKS",
+    "NOTE", "NOTES", "PDF", "AI", "US", "CEO", "CFO", "Q1", "Q2", "Q3", "Q4",
+})
+
+
+def candidate_symbols(query: str) -> list[str]:
+    """Symbols a member could plausibly have MEANT, from the query text alone.
+
+    Deliberately conservative: an explicit `$CASHTAG`, or a token the member
+    typed in UPPERCASE. Lowercase prose words are never treated as tickers --
+    "my", "the", "risk" and "for" are all real listed symbols, and the repo has
+    a standing lesson that a symbol universe does not settle a ticker match.
+    """
+    out, seen = [], set()
+    for raw in _SYMBOL_RE.findall(query or ""):
+        sym = raw.lstrip("$").upper()
+        if sym in _STOPWORD_TICKERS or sym in seen:
+            continue
+        seen.add(sym)
+        out.append(sym)
+    return out
+
+
+def resolve_entity(conn, user_id: str, query: str) -> dict[str, Any] | None:
+    """Canonical entity for an entity-scoped question.
+
+    ⛔ THE MEMBER'S OWN CORPUS IS THE CANDIDATE SET, and that ordering is the
+    whole point. My first version called `entity_master.resolve()` on every
+    word-like token in the query, which reaches yfinance OVER THE NETWORK per
+    token -- the evaluation run fired ~40 live 404s for words like CUSTOM,
+    CONCEN, TRATIO and PRESSU. That is a latency disaster on the request path
+    and it sends fragments of a member's private question to an external
+    quote provider for no retrieval benefit whatsoever.
+
+    Now: extract conservative candidates, intersect with the tickers that
+    actually appear in THIS member's notes (one cheap local query), and only
+    then ask entity_master to expand aliases. A symbol the member has never
+    written about cannot help retrieve their research, so there is nothing to
+    resolve.
+    """
+    cands = candidate_symbols(query)
+    if not cands:
+        return None
+    ph = ",".join("?" * len(cands))
+    rows = conn.execute(
+        f"SELECT DISTINCT ticker FROM j2_notes WHERE user_id = ?"
+        f" AND deleted_at IS NULL AND ticker IN ({ph})",
+        (user_id, *cands),
+    ).fetchall()
+    owned = [r[0] for r in rows if r[0]]
+    if not owned:
+        return None
+    symbol = next((c for c in cands if c in owned), owned[0])
+    try:
+        from api.services.journal_two.ticker_research import resolve_research_symbols
+        return resolve_research_symbols(symbol)
+    except Exception:  # noqa: BLE001 -- entity_master hiccup must never block
+        return {"symbol": symbol, "entityId": None, "displayName": None,
+                "symbols": [symbol]}
+
+
+# ── Per-source retrieval ─────────────────────────────────────────────────────
+
+def _notes(conn, user_id: str, expr: str, limit: int,
+           note_ids: list[str] | None = None) -> list[dict[str, Any]]:
+    """Candidate notes via FTS, then the passage LOCATED inside each.
+
+    Two representations, each doing its own job (Slice 1 finding): FTS over
+    `body_plain` finds the note; `note_citation_text` locates the passage in
+    the member-visible canonical text and yields ProseMirror positions.
+    """
+    sql = (
+        "SELECT f.note_id AS id, n.user_id, n.title, n.ticker, n.body_json,"
+        " bm25(j2_notes_fts) AS score"
+        " FROM j2_notes_fts f JOIN j2_notes n ON n.id = f.note_id"
+        " WHERE j2_notes_fts MATCH ? AND f.user_id = ? AND n.deleted_at IS NULL"
+    )
+    params: list[Any] = [expr, user_id]
+    if note_ids is not None:
+        if not note_ids:
+            return []
+        sql += f" AND n.id IN ({','.join('?' * len(note_ids))})"
+        params.extend(note_ids)
+    sql += " ORDER BY score LIMIT ?"
+    params.append(limit)
+
+    out: list[dict[str, Any]] = []
+    for r in conn.execute(sql, params).fetchall():
+        row = dict(r)
+        doc = _json(row.get("body_json"))
+        snippet, location, validity = _best_note_passage(doc, expr)
+        out.append(ev.from_note(row, snippet=snippet, location=location,
+                                citation_validity=validity, score=-row["score"]))
+    return out
+
+
+def _best_note_passage(doc, expr: str):
+    """Pick a passage to cite and give it a real ProseMirror location.
+
+    Falls back honestly: if no query term can be located in the canonical
+    text, the citation opens the note WITHOUT claiming a passage (§21) rather
+    than pointing at a guess.
+    """
+    flat = nct.flatten(doc)
+    text = flat["text"]
+    if not text:
+        return "", None, ev.CITE_NOTE_ONLY
+    terms = [t for t in _terms(expr) if len(t) > 2]
+    for term in terms:
+        idx = text.lower().find(term.lower())
+        if idx < 0:
+            continue
+        start = max(0, idx - 90)
+        end = min(len(text), idx + len(term) + 150)
+        snippet = text[start:end].strip()
+        rng = nct.pm_range(idx, idx + len(term), flat["spans"])
+        if rng:
+            return snippet, {**rng, "fingerprint": nct.fingerprint(doc),
+                             "snippet_start": idx, "snippet_end": idx + len(term)}, ev.CITE_EXACT
+    return text[:200].strip(), None, ev.CITE_NOTE_ONLY
+
+
+# Words that cannot decide whether a passage ANSWERS a question. Kept small
+# and English-only on purpose: this is not stemming or stopword removal for
+# retrieval (FTS already does its own), it exists so the no-answer decision
+# is not satisfied by "about" appearing somewhere in a note.
+_QUERY_STOPWORDS = frozenset({
+    "the", "and", "for", "was", "were", "what", "when", "where", "which",
+    "who", "why", "how", "did", "does", "do", "have", "has", "had", "about",
+    "with", "from", "that", "this", "these", "those", "there", "here", "into",
+    "say", "said", "tell", "any", "all", "are", "you", "your", "our", "his",
+    "her", "its", "their", "them", "they", "not", "but", "can", "could",
+    "would", "should", "will", "shall", "may", "might", "must", "get", "got",
+})
+
+
+def _terms(expr: str) -> list[str]:
+    """Bare words out of an FTS MATCH expression.
+
+    ⛔ THE TRAILING `*` IS PART OF THE SYNTAX, NOT THE WORD. `fts_match_expr`
+    ends with a prefix-match operator -- `"what" "did" "about" "margins"*` --
+    so stripping only quotes left the LAST term as `margins"*`, which matches
+    nothing. That term is the one the member most likely cared about (it is the
+    word they were still typing), and every consumer of this helper was
+    affected: `_best_note_passage` fell through to anchoring a citation on
+    whichever stopword happened to appear first in the note.
+    """
+    out = []
+    for raw in (expr or "").replace(" OR ", " ").replace(" AND ", " ").split():
+        word = raw.strip().rstrip("*").strip('"').strip()
+        if word:
+            out.append(word)
+    return out
+
+
+def _content_terms(query: str) -> list[str]:
+    """The words a passage must contain to count as ANSWERING the question."""
+    return [t for t in _terms(fts_match_expr(query) or "")
+            if len(t) > 2 and t.lower() not in _QUERY_STOPWORDS]
+
+
+def _substantive_terms(query: str, entity: dict[str, Any] | None) -> list[str]:
+    """The content words that are NOT just the security's own name.
+
+    ⛔ NAMING A SECURITY IS NOT ASKING A QUESTION ABOUT IT. Every note the
+    member wrote about NVDA contains "NVDA", so under OR matching any question
+    that names the ticker matches all of them -- and `no_answer` could never
+    be True for a ticker-named question, which is exactly the failure §20
+    forbids: handing synthesis a pile of context and calling it an answer.
+    "NVDA margin pressure" is answered by a note about margins; it is only
+    CONTEXTUALISED by a note that merely says NVDA.
+    """
+    if not entity:
+        return _content_terms(query)
+    names = {str(sym).upper() for sym in (entity.get("symbols") or [])}
+    names.add(str(entity.get("symbol") or "").upper())
+    display = str(entity.get("displayName") or "")
+    names.update(w.upper() for w in display.split() if len(w) > 2)
+    return [t for t in _content_terms(query) if t.upper() not in names]
+
+
+def _answers_the_question(item: dict[str, Any], substantive: list[str]) -> bool:
+    """Did this evidence match on something other than the security's name?"""
+    if not substantive:
+        # The whole question WAS the security name ("NVDA"). Then the
+        # member's research about it is a legitimate answer.
+        return True
+    hay = f"{item.get('label') or ''} {item.get('text') or ''}".lower()
+    return any(t.lower() in hay for t in substantive)
+
+
+def ask_match_expr(query: str) -> str | None:
+    """The FTS expression for a QUESTION, which is not the same thing as the
+    expression for a search box.
+
+    ⛔ FOUND BY THE SLICE 8 REAL-MODEL E2E, AND IT WAS SEVERE.
+    `fts_match_expr` joins terms with a space, and FTS5 reads a space as AND.
+    That is right for the search box it was written for -- you type "gross
+    margin" and want rows containing both. It is catastrophic for a question,
+    because a question is made of words the corpus does not contain:
+
+        "what was gross margin in the quarter?"
+          -> '"what" "was" "gross" "margin" "in" "the" "quarter"*'
+          -> 0 rows, against a page that literally reads
+             "Gross margin was 73.5% in the quarter"
+
+    So Ask Document, Ask Notebook and Ask Security Research answered "I
+    couldn't find that" for essentially every naturally-phrased question, and
+    only keyword queries worked. The Slice 1 eval set did not catch it because
+    its queries were written keyword-shaped -- the inputs were shaped like the
+    implementation, so the measurement agreed with itself
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+    The fix keeps the CONTENT words and joins them with OR. Precision does not
+    come from demanding every token; it comes from BM25_FLOOR, which is what
+    the floor was always for. A term the member typed but never wrote about
+    simply contributes nothing instead of vetoing the whole query.
+
+    ⛔ NOT a change to `fts_match_expr`. That helper belongs to the member's
+    search box, where AND is correct and where changing recall would change a
+    surface Wave K was told not to touch.
+    """
+    words = _content_terms(query)
+    if not words:
+        # A question made only of stopwords ("what about it?") has nothing to
+        # retrieve on. Returning None makes the caller refuse rather than
+        # matching the entire corpus on "the".
+        return None
+    return " OR ".join(f'"{w}"' for w in words)
+
+
+def _document_pages(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
+    from api.services.journal_two.document_search import search_document_pages
+    out = []
+    for r in search_document_pages(user_id, q, limit=limit, conn=conn):
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.5))
+    return out
+
+
+def _excerpts(conn, user_id: str, q: str, limit: int) -> list[dict[str, Any]]:
+    """Saved excerpts. NOTE the key mapping: excerpt_search returns
+    `excerpt_id`/`document_name` (its own SQL aliases), not `id`/`name` --
+    reading them wrong raised KeyError on every document-bearing query."""
+    from api.services.journal_two.excerpt_search import search_excerpts
+    out = []
+    for r in search_excerpts(user_id, q, limit=limit, conn=conn):
+        row = dict(r)
+        mapped = {
+            "id": row.get("excerpt_id"),
+            "user_id": user_id,
+            "document_id": row.get("document_id"),
+            "page_number": row.get("page_number"),
+            "document_name": row.get("document_name"),
+            "captured_text": row.get("snippet") or "",
+            "annotation": row.get("annotation"),
+            "quote_prefix": None,
+            "quote_suffix": None,
+            # ⛔ WAVE N. This dict is a HAND-BUILT PROJECTION of the search row,
+            # so anything it forgets is invisible to the evidence envelope even
+            # when the query selected it. Dropping the capture kind here made
+            # every captured web passage in the corpus-wide scope label itself
+            # "· p.1" and declare document-complete coverage.
+            "capture_type": row.get("capture_type"),
+            "source_kind": row.get("source_kind"),
+        }
+        # anchor_ok=False until the Wave J anchor audit has vouched for it:
+        # an unverified anchor must not be presented as precise (§21).
+        out.append(ev.from_excerpt(mapped, anchor_ok=False, score=0.7))
+    return out
+
+
+def _facts(conn, user_id: str, entity: dict[str, Any] | None,
+           limit: int) -> list[dict[str, Any]]:
+    """Facts are retrieved STRUCTURALLY, never by vectorising a number (§43)."""
+    if not entity:
+        return []
+    symbols = entity.get("symbols") or []
+    if not symbols:
+        return []
+    ph = ",".join("?" * len(symbols))
+    rows = conn.execute(
+        "SELECT * FROM j2_fact_observations"
+        " WHERE user_id = ?"
+        f" AND (entity_id = ? OR ticker IN ({ph}))"
+        " ORDER BY observed_at DESC LIMIT ?",
+        (user_id, entity.get("entityId"), *symbols, limit),
+    ).fetchall()
+    return [ev.from_fact(dict(r), score=0.8) for r in rows]
+
+
+def _has_column(conn, table: str, column: str) -> bool:
+    """⛔⛔ ASK THE SCHEMA, NEVER CATCH "no such column".
+
+    Wave M shipped a query that selected a column some databases do not have
+    and left 28 Ask tests red; the fix then, and the rule since, is that a
+    `no such column` error cannot distinguish "this schema predates the
+    feature" from "somebody deleted a column" — so the question gets asked
+    directly. This is the same mechanism `web_capture.capture_columns` uses,
+    for the same reason.
+    """
+    try:
+        return any(r[1] == column
+                   for r in conn.execute(f"PRAGMA table_info({table})").fetchall())
+    except sqlite3.OperationalError:
+        return False
+
+
+def _thesis_states(conn, user_id: str, note_ids: list[str] | None,
+                   limit: int) -> list[dict[str, Any]]:
+    """Authoritative thesis state from Wave E properties + Wave G edges.
+
+    ⛔ A database with no `properties_json` has no thesis state, which is a
+    correct answer rather than an error — several Ask suites build a minimal
+    schema of exactly the tables and columns they exercise, and O6 made this
+    reachable from the NOTE scope where it never used to run.
+    """
+    if not _has_column(conn, "j2_notes", "properties_json"):
+        return []
+    sql = ("SELECT id, user_id, title, ticker, properties_json FROM j2_notes"
+           " WHERE user_id = ? AND deleted_at IS NULL"
+           " AND properties_json IS NOT NULL AND properties_json != '{}'")
+    params: list[Any] = [user_id]
+    if note_ids:
+        sql += f" AND id IN ({','.join('?' * len(note_ids))})"
+        params.extend(note_ids)
+    sql += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(limit)
+
+    out = []
+    for r in conn.execute(sql, params).fetchall():
+        row = dict(r)
+        props = _json(row.get("properties_json")) or {}
+        if not props.get("builtin:thesis_status"):
+            continue
+        counts = {"supports": 0, "opposes": 0}
+        for e in conn.execute(
+            "SELECT stance, COUNT(*) c FROM j2_thesis_evidence"
+            " WHERE user_id = ? AND note_id = ? AND removed_at IS NULL GROUP BY stance",
+            (user_id, row["id"]),
+        ).fetchall():
+            counts[e["stance"]] = e["c"]
+        out.append(ev.from_thesis_state(row, properties=props,
+                                        evidence_counts=counts, score=0.9))
+    return out
+
+
+def _thesis_edge_evidence(conn, user_id: str, thesis_note_ids: list[str],
+                          by_source: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Apply supports/opposes stance to evidence already retrieved.
+
+    The stance is a property of the EDGE. This never fabricates a new source:
+    it only marks an object we already found, which is what keeps lineage
+    honest when the same excerpt is also a page hit.
+    """
+    if not thesis_note_ids:
+        return []
+    ph = ",".join("?" * len(thesis_note_ids))
+    rows = conn.execute(
+        f"SELECT * FROM j2_thesis_evidence WHERE user_id = ? AND note_id IN ({ph})"
+        " AND removed_at IS NULL", (user_id, *thesis_note_ids),
+    ).fetchall()
+    out = []
+    for r in rows:
+        base = by_source.get(f"{r['target_type']}:{r['target_id']}")
+        if base is None:
+            continue
+        out.append(ev.with_stance(base, r["stance"], r["caption"], r["note_id"]))
+    return out
+
+
+def _json(raw):
+    import json
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+# ── Corpus coverage (§23) ────────────────────────────────────────────────────
+
+def coverage(conn, user_id: str) -> dict[str, Any]:
+    """What COULD have been searched. Lets synthesis say when coverage is
+    incomplete instead of implying it searched everything (§29/§30)."""
+    def one(sql, *p):
+        r = conn.execute(sql, p).fetchone()
+        return (r[0] if r else 0) or 0
+    docs = {}
+    for r in conn.execute(
+        "SELECT status, COUNT(*) c FROM j2_note_documents WHERE user_id = ? GROUP BY status",
+        (user_id,),
+    ).fetchall():
+        docs[r["status"]] = r["c"]
+    return {
+        "notes_searchable": one(
+            "SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", user_id),
+        "document_pages_searchable": one(
+            "SELECT COUNT(*) FROM j2_note_document_pages WHERE user_id = ?", user_id),
+        "excerpts_searchable": one(
+            "SELECT COUNT(*) FROM j2_note_excerpts WHERE user_id = ?", user_id),
+        "documents_by_status": docs,
+        # The honesty fields: sources that exist but could NOT be searched.
+        "documents_not_searchable": (docs.get("no_text", 0)
+                                     + docs.get("processing_failed", 0)
+                                     + docs.get("pending", 0)),
+    }
+
+
+# ── Entry point ──────────────────────────────────────────────────────────────
+
+def retrieve(user_id: str, query: str, *, limit: int = 8,
+             conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Deterministic private-corpus retrieval.
+
+    Returns ``{"intent", "entity", "evidence", "coverage",
+    "independent_sources", "no_answer"}``. `no_answer` is a first-class
+    RESULT, not an error: forcing top-k for every question is how a system
+    starts citing weak brushes as evidence (§20).
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        intent = classify_intent(query)
+        entity = resolve_entity(conn, user_id, query)
+        cov = coverage(conn, user_id)
+
+        if intent == INTENT_HISTORICAL:
+            # Detected and refused, deliberately. Answering from current notes
+            # in the past tense is the specific failure §14 forbids.
+            return {"intent": intent, "entity": entity, "evidence": [],
+                    "coverage": cov, "independent_sources": 0, "no_answer": True,
+                    "no_answer_reason": "historical_state_unsupported"}
+
+        member_note_ids = None
+        if entity:
+            member_note_ids = _entity_note_ids(conn, user_id, entity)
+
+        items: list[dict[str, Any]] = []
+        if intent == INTENT_STRUCTURED:
+            items += _thesis_states(conn, user_id, member_note_ids, limit)
+            for i in items:
+                i["relevance"] = QUERY_MATCH
+        else:
+            expr = ask_match_expr(query)
+            if expr:
+                items += _notes(conn, user_id, expr, limit, member_note_ids)
+                items += _document_pages(conn, user_id, query, limit)
+                items += _excerpts(conn, user_id, query, limit)
+                # ⭐ O6: the member's completed reviews are part of the
+                # corpus they are asking. Chronology joins ONLY once the
+                # question has narrowed to a security -- see the constants
+                # above for why "the latest review of everything" is a floor,
+                # not an answer.
+                items += _reviews_for_notes(
+                    conn, user_id, member_note_ids, query, limit,
+                    per_thesis=SCOPED_REVIEW_HISTORY if entity else 0)
+            # ⛔ Thesis state and facts are CONTEXT, not a floor. Adding them
+            # unconditionally made "zebra husbandry techniques" return the
+            # member's thesis as evidence -- the exact §20 failure of forcing
+            # top-k when the corpus has no answer. They join only when the
+            # question actually reached this research: either the text search
+            # found something, or a security the member writes about was named.
+            # ⛔ PER ITEM, NOT UNIFORMLY. A note that matched only because it
+            # says "NVDA" is context about the security, not an answer to the
+            # question asked about it.
+            substantive = _substantive_terms(query, entity)
+            for i in items:
+                i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                                  else ENTITY_CONTEXT)
+            if items or entity:
+                ctx = (_thesis_states(conn, user_id, member_note_ids, 3)
+                       + _facts(conn, user_id, entity, 5))
+                for i in ctx:
+                    i["relevance"] = ENTITY_CONTEXT
+                items += ctx
+
+        by_source = {f"{i['source_type']}:{i['source_id']}": i for i in items}
+        thesis_ids = [i["source_id"] for i in items if i["source_type"] == ev.THESIS_STATE]
+        items += _thesis_edge_evidence(conn, user_id, thesis_ids, by_source)
+
+        # ⛔ RANKING AND THE BUDGET ARE ONE STEP, IN ask_ranking. The old
+        # sort here compared a bm25 magnitude against hand-picked constants
+        # (0.5 / 0.7 / 0.8 / 0.9) that were never on the same axis. See that
+        # module for why a tier decides WHY something matched and a score
+        # only ever orders items INSIDE their own source type.
+        pk = rk.packet(items, query, max_items=limit)
+        merged = pk["evidence"]
+        # ⛔ NO-ANSWER IS DECIDED BY QUERY MATCHES, NOT BY LIST LENGTH.
+        # Measured while characterizing the recall gap: "NVDA margin pressure"
+        # resolved the entity and returned the member's thesis state and a
+        # price fact -- neither of which says anything about margins -- with
+        # no_answer=False. Synthesis would have been handed context and told
+        # it was an answer. Entity context is still RETURNED (it is genuinely
+        # useful: "I couldn't find that; here is your current NVDA thesis")
+        # but it cannot satisfy the question on its own.
+        matched = pk["answer_evidence"]
+        return {
+            "intent": intent, "entity": entity, "evidence": merged, "coverage": cov,
+            "independent_sources": pk["independent_sources"],
+            "query_matches": len(matched),
+            "no_answer": pk["no_answer"],
+            "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def _entity_note_ids(conn, user_id: str, entity: dict[str, Any]) -> list[str]:
+    """Wave H membership, reused verbatim: ticker field OR embed OR mention
+    over the resolved ALIAS set. Not a substring filter (§11)."""
+    symbols = entity.get("symbols") or []
+    if not symbols:
+        return []
+    ph = ",".join("?" * len(symbols))
+    rows = conn.execute(
+        "SELECT DISTINCT n.id FROM j2_notes n"
+        " WHERE n.user_id = ? AND n.deleted_at IS NULL"
+        f" AND (n.ticker IN ({ph})"
+        f" OR EXISTS (SELECT 1 FROM j2_note_embeds e WHERE e.note_id = n.id"
+        f"            AND e.user_id = n.user_id AND e.symbol IN ({ph}))"
+        f" OR EXISTS (SELECT 1 FROM j2_note_mentions m WHERE m.note_id = n.id"
+        f"            AND m.user_id = n.user_id AND m.symbol IN ({ph})))",
+        (user_id, *symbols, *symbols, *symbols),
+    ).fetchall()
+    return [r["id"] for r in rows]
+
+
+# ── Slice 2: Ask Document ────────────────────────────────────────────────────
+
+DOC_STATUS_SEARCHABLE = "ready"
+
+
+def _anchor_ok(conn, user_id: str, excerpt_row: dict) -> bool:
+    """Is this excerpt's stored anchor good enough to promise EXACT navigation?
+
+    ⛔ Never manufacture a valid anchor (§8). Slice 0 already wrote the
+    classifier that answers this honestly, against the CURRENT extracted page
+    text, so this reuses it rather than assuming -- a degraded anchor keeps
+    page-level navigation and says so.
+    """
+    from tools.notebook_excerpt_anchor_audit import NOT_NAVIGABLE, classify
+    page = conn.execute(
+        "SELECT text FROM j2_note_document_pages"
+        " WHERE document_id = ? AND page_number = ? AND user_id = ?",
+        (excerpt_row.get("document_id"), excerpt_row.get("page_number"), user_id),
+    ).fetchone()
+    verdict, _ = classify(excerpt_row, page["text"] if page is not None else None)
+    return verdict not in NOT_NAVIGABLE
+
+
+def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
+                           limit: int) -> list[dict[str, Any]]:
+    """Page hits WITHIN one document. Tenant scoping stays inside the query."""
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    rows = conn.execute(
+        "SELECT p.document_id AS document_id, p.page_number AS page_number,"
+        " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+        " bm25(j2_note_document_pages_fts) AS score,"
+        " d.name AS name, d.note_id AS note_id"
+        f"{_capture_cols(conn)}"
+        " FROM j2_note_document_pages_fts p"
+        " JOIN j2_note_documents d ON d.id = p.document_id"
+        " JOIN j2_notes n ON n.id = d.note_id"
+        " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
+        " AND p.document_id = ? AND n.deleted_at IS NULL"
+        " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
+        (expr, user_id, document_id, limit),
+    ).fetchall()
+    out = []
+    for r in rows:
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
+                                         score=0.6))
+    return out
+
+
+def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
+                     limit: int) -> list[dict[str, Any]]:
+    """Saved excerpts WITHIN one document, each anchor-verified."""
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    rows = conn.execute(
+        "SELECT e.* , d.name AS document_name"
+        f"{_capture_cols(conn)}"
+        " FROM j2_note_excerpts_fts f"
+        " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
+        " JOIN j2_note_documents d ON d.id = e.document_id"
+        " JOIN j2_notes n ON n.id = e.note_id"
+        " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
+        " AND e.document_id = ? AND n.deleted_at IS NULL"
+        " ORDER BY bm25(j2_note_excerpts_fts) LIMIT ?",
+        (expr, user_id, document_id, limit),
+    ).fetchall()
+    out = []
+    for r in rows:
+        row = dict(r)
+        out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
+                                   score=0.8))
+    return out
+
+
+# ⛔⛔ WAVE N §1. `passage_label` and `coverage_for` decide whether a row is a
+# captured web passage or a page of a real document — and BOTH read columns no
+# Ask query selected, so every branch they own was unreachable and a captured
+# Reuters paragraph reached the model as "· p.1, document_complete".
+# `web_capture.capture_columns` is the ONE place that names those columns and
+# the one place that asks whether this schema HAS them; a second copy here is
+# precisely the divergence that produced the defect.
+def _capture_cols(conn) -> str:
+    from api.services.journal_two.web_capture import capture_columns
+    return capture_columns(conn)
+
+
+# ── Wave O6: completed thesis reviews as retrievable member history ─────────
+
+def _review_history(conn, user_id: str, note_ids: list[str] | None,
+                    *, per_thesis: int | None, q: str | None,
+                    limit: int) -> list[dict[str, Any]]:
+    """Completed reviews, each carrying its place in ITS OWN thesis's history.
+
+    ⛔ COMPLETED ONLY. A draft is work in progress, not something the member
+    decided -- answering from one would put words in their mouth.
+
+    ⛔⛔ THE WINDOW IS COMPUTED BEFORE THE TEXT FILTER, ON PURPOSE. If the
+    LIKE clauses ran inside the subquery, `ordinal` would be the row's position
+    among the reviews that happen to share vocabulary with the question -- so a
+    two-year-old review would be labelled "your most recent" the moment it was
+    the only one matching. The ordinal has to mean what a member means by it,
+    which is a position in the whole history, so the filter is applied outside.
+
+    `note_ids=None` means "any thesis this member owns" -- the corpus-wide
+    scope. Tenancy is asserted on BOTH the review and its note: a review row is
+    only ever reachable through a note the same member owns.
+    """
+    sub = ("SELECT r.id AS id, r.user_id AS user_id, r.note_id AS note_id,"
+           " r.outcome AS outcome, r.member_note AS member_note,"
+           " r.review_reason AS review_reason, r.completed_at AS completed_at,"
+           " r.next_review_at AS next_review_at,"
+           " r.prior_version_id AS prior_version_id,"
+           " r.resulting_version_id AS resulting_version_id,"
+           " n.title AS thesis_title, n.ticker AS ticker,"
+           " ROW_NUMBER() OVER (PARTITION BY r.note_id"
+           "   ORDER BY r.completed_at DESC, r.id DESC) AS ordinal,"
+           " COUNT(*) OVER (PARTITION BY r.note_id) AS total"
+           " FROM j2_thesis_reviews r"
+           " JOIN j2_notes n ON n.id = r.note_id"
+           " WHERE r.user_id = ? AND n.user_id = ?"
+           " AND r.status = 'completed' AND n.deleted_at IS NULL")
+    params: list[Any] = [user_id, user_id]
+    if note_ids is not None:
+        if not note_ids:
+            return []
+        sub += f" AND r.note_id IN ({','.join('?' * len(note_ids))})"
+        params += list(note_ids)
+
+    sql = f"SELECT * FROM ({sub}) WHERE 1 = 1"
+    if per_thesis is not None:
+        sql += " AND ordinal <= ?"
+        params.append(per_thesis)
+    if q and q.strip():
+        # ⛔ ONE DEFINITION OF MATCHING, TWO TERM SETS -- deliberately.
+        # `review_search.member_note_clause` owns what "this review matches"
+        # MEANS so Search and Ask cannot drift apart on it. What differs is the
+        # input: a typed search query is all content words, a QUESTION is
+        # mostly stopwords, and feeding "what did I decide about margins" to
+        # the search box's tokeniser would demand a review containing "what".
+        clause, clause_params = review_search.member_note_clause(
+            _content_terms(q))
+        sql += clause
+        params += clause_params
+    # ⛔ `id` BREAKS THE TIE, not chance. Two reviews completed in the same
+    # second must order the same way on every run, or "last" is a coin flip.
+    sql += " ORDER BY completed_at DESC, id DESC LIMIT ?"
+    params.append(limit)
+    try:
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+    except sqlite3.OperationalError as e:
+        if not review_search.is_missing_review_table(e):
+            raise
+        return []
+
+
+def _reviews_for_notes(conn, user_id: str, note_ids: list[str] | None, q: str,
+                       limit: int, *, per_thesis: int) -> list[dict[str, Any]]:
+    """⛔⛔ TWO RETRIEVALS, DELIBERATELY (§9).
+
+    A question like "what did I decide in my last review?" is a STRUCTURED
+    TEMPORAL REQUEST, not a text match. Hoping lexical top-k happens to surface
+    the newest row is exactly the "let the model infer which is latest from
+    unordered chunks" failure the directive forbids -- and it fails silently the
+    moment an older review shares more vocabulary with the question.
+
+    So the newest `per_thesis` completed reviews are retrieved by CHRONOLOGY,
+    unconditionally, and text matches are added alongside them. Chronology is
+    scored above text so ranking cannot bury the answer to "last".
+
+    ⛔ `per_thesis` IS THE SCOPE'S ANSWER, NOT A CONSTANT. Inside one thesis,
+    the member's whole review history is the subject and all of it is fair to
+    retrieve. Across a notebook of theses it is not: "the last two reviews of
+    every thesis you own" is a floor, and a floor is what makes an unrelated
+    question return the member's research as though it were an answer.
+    """
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(rows: list[dict[str, Any]], score: float) -> None:
+        for r in rows:
+            if r["id"] in seen:
+                continue
+            seen.add(r["id"])
+            out.append(ev.from_thesis_review(
+                r, thesis_title=r.get("thesis_title"), ticker=r.get("ticker"),
+                ordinal=r.get("ordinal"), total=r.get("total"), score=score))
+
+    if per_thesis > 0:
+        n = len(note_ids) if note_ids is not None else 1
+        add(_review_history(conn, user_id, note_ids, per_thesis=per_thesis,
+                            q=None, limit=max(limit, per_thesis * n)), 0.95)
+    add(_review_history(conn, user_id, note_ids, per_thesis=None,
+                        q=q, limit=limit), 0.75)
+    return out
+
+
+def _no_capture_tables(exc: sqlite3.OperationalError) -> bool:
+    """Is this "that table does not exist" rather than a real failure?
+
+    ⛔ NARROW ON PURPOSE. A note can be asked about in a database that predates
+    the capture tables (several Ask suites build a minimal schema of exactly the
+    tables they exercise), and "there are no captured pages" is the correct
+    answer there — not a 500. But swallowing every OperationalError would turn a
+    genuine corruption or a locked database into a confident "nothing captured",
+    which is the failure mode `lesson_a_swallowed_error_becomes_a_confident_finding`
+    names. So only a missing-table error is absorbed; everything else re-raises.
+    """
+    msg = str(exc).lower()
+    return msg.startswith("no such table") and "j2_note_" in msg
+
+
+def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
+                            limit: int) -> list[dict[str, Any]]:
+    """Page hits inside any document ATTACHED TO ONE NOTE.
+
+    ⛔⛔ WHY THIS EXISTS (Wave L Slice 5, 2026-09-08). `retrieve_note` read the
+    note's `body_json` and nothing else. That was complete when a note's only
+    content WAS its body — but Wave L made captures land in a note as documents
+    and excerpts, so "Ask Current Note" on a note whose content is three
+    captured passages answered **"This note doesn't have any text yet."** The
+    material was stored, indexed, and reachable from the NOTEBOOK scope (which
+    reported "6 document pages, 6 saved excerpts" searched) — just not from the
+    one scope a member reaches by asking about the note they are looking at.
+    A new content type was added to notes without extending the note retriever.
+
+    ⭐ Same SQL shape and the SAME evidence builders as `_document_pages_scoped`,
+    filtered on `d.note_id` instead of `p.document_id`, so citation, lineage and
+    tenant scoping cannot diverge between the two scopes.
+    """
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    try:
+        rows = conn.execute(
+            "SELECT p.document_id AS document_id, p.page_number AS page_number,"
+            " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+            " bm25(j2_note_document_pages_fts) AS score,"
+            " d.name AS name, d.note_id AS note_id"
+            f"{_capture_cols(conn)}"
+            " FROM j2_note_document_pages_fts p"
+            " JOIN j2_note_documents d ON d.id = p.document_id"
+            " JOIN j2_notes n ON n.id = d.note_id"
+            " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
+            " AND d.note_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
+            (expr, user_id, note_id, limit),
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        if not _no_capture_tables(e):
+            raise
+        return []
+    out = []
+    for r in rows:
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "",
+                                         score=0.6))
+    return out
+
+
+def _excerpts_in_note(conn, user_id: str, note_id: str, q: str,
+                      limit: int) -> list[dict[str, Any]]:
+    """Saved excerpts belonging to ONE NOTE, each anchor-verified.
+
+    ⛔ Keyed on `e.note_id`, NOT on the `j2_note_excerpt_refs` sidecar. That
+    sidecar is derived from `documentExcerpt` nodes in the note BODY, so a
+    captured passage — which is never embedded in the body — has no ref and
+    would be invisible here for the same reason it is absent from
+    `list_note_excerpts`. Ownership is the right question for Ask.
+    """
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    try:
+        rows = conn.execute(
+            "SELECT e.* , d.name AS document_name"
+            f"{_capture_cols(conn)}"
+            " FROM j2_note_excerpts_fts f"
+            " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
+            " JOIN j2_note_documents d ON d.id = e.document_id"
+            " JOIN j2_notes n ON n.id = e.note_id"
+            " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
+            " AND e.note_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY bm25(j2_note_excerpts_fts) LIMIT ?",
+            (expr, user_id, note_id, limit),
+        ).fetchall()
+    except sqlite3.OperationalError as e:
+        if not _no_capture_tables(e):
+            raise
+        return []
+    out = []
+    for r in rows:
+        row = dict(r)
+        out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
+                                   score=0.8))
+    return out
+
+
+def note_attachment_counts(conn, user_id: str, note_id: str) -> dict[str, int]:
+    """How much CAPTURED material this note holds, regardless of the query.
+
+    ⛔ Coverage must be answerable even when nothing matched, or the refusal
+    lies: "this note has no text yet" and "this note has three captured
+    passages, none of which mention that" are different sentences and only one
+    of them was true.
+    """
+    try:
+        pages = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_document_pages p"
+            " JOIN j2_note_documents d ON d.id = p.document_id"
+            " WHERE d.note_id = ? AND p.user_id = ?", (note_id, user_id)).fetchone()[0]
+        excerpts = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_excerpts WHERE note_id = ? AND user_id = ?",
+            (note_id, user_id)).fetchone()[0]
+    except sqlite3.OperationalError as e:
+        if not _no_capture_tables(e):
+            raise
+        return {"pages": 0, "excerpts": 0}
+    return {"pages": int(pages), "excerpts": int(excerpts)}
+
+
+def document_coverage(conn, user_id: str, document_id: str) -> dict[str, Any]:
+    """Can this document be answered from at all? (§29/§30)
+
+    A scanned or still-processing document must never be implied to have been
+    searched -- the answer has to be able to say it was not.
+    """
+    d = conn.execute(
+        "SELECT d.id, d.name, d.status FROM j2_note_documents d"
+        " WHERE d.id = ? AND d.user_id = ?", (document_id, user_id)).fetchone()
+    if d is None:
+        return {"exists": False, "searchable": False, "status": None,
+                "pages_indexed": 0}
+    pages = conn.execute(
+        "SELECT COUNT(*) c FROM j2_note_document_pages"
+        " WHERE document_id = ? AND user_id = ?", (document_id, user_id)).fetchone()["c"]
+    status = d["status"]
+    return {"exists": True, "name": d["name"], "status": status,
+            "pages_indexed": pages,
+            "searchable": status == DOC_STATUS_SEARCHABLE and pages > 0}
+
+
+def retrieve_document(user_id: str, document_id: str, query: str, *,
+                      limit: int = 6,
+                      conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Ask THIS document (§10). Scoped to one document, never the corpus.
+
+    Reuses Wave J wholesale: document/page identity, the excerpt anchor, and
+    the anchor-integrity classifier. Nothing about citation location is
+    redesigned here -- a page citation from Ask Document is the same object the
+    Notebook already knows how to open.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        cov = document_coverage(conn, user_id, document_id)
+        if not cov["exists"]:
+            # Tenant isolation and "no such document" are deliberately the
+            # SAME answer: a foreign document id must not be distinguishable
+            # from a missing one.
+            return {"document": None, "evidence": [], "coverage": cov,
+                    "no_answer": True, "no_answer_reason": "document_not_found",
+                    "query_matches": 0, "independent_sources": 0}
+        if not cov["searchable"]:
+            return {"document": document_id, "evidence": [], "coverage": cov,
+                    "no_answer": True,
+                    "no_answer_reason": f"document_not_searchable:{cov['status']}",
+                    "query_matches": 0, "independent_sources": 0}
+
+        items = (_document_pages_scoped(conn, user_id, document_id, query, limit)
+                 + _excerpts_scoped(conn, user_id, document_id, query, limit))
+        # Inside ONE document there is no security name to discount: every
+        # page that matched is a page of the document the member is reading.
+        for i in items:
+            i["relevance"] = QUERY_MATCH
+        # Same reasoning as the note scope: inside ONE document there is
+        # nothing for a diversity cap to protect, and capping pages would hide
+        # matches from the very document the member is reading.
+        pk = rk.packet(items, query, max_items=limit, max_per_type=limit)
+        merged, matched = pk["evidence"], pk["answer_evidence"]
+        return {
+            "document": document_id, "evidence": merged, "coverage": cov,
+            "query_matches": len(matched),
+            "independent_sources": pk["independent_sources"],
+            "no_answer": pk["no_answer"],
+            "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Slice 6: Ask Current Note ────────────────────────────────────────────────
+# Wave 2 shipped this scope by pasting up to 20k characters of note body into
+# the SYSTEM message. That is the prompt-boundary defect Slice 5 measured, and
+# it also made precise citation impossible: there was no addressable unit to
+# cite, so the model was asked to quote a phrase and the panel scraped its
+# output with a regex.
+#
+# ⛔ THE FIX IS NOT "RETRIEVE LESS". One note is small enough to show whole,
+# and narrowing to matching passages would cost real recall on exactly the
+# questions this scope is good at ("what did I conclude here?"). So the note
+# is still presented in full -- but as BLOCKS, each already carrying its own
+# ProseMirror range. Ranking decides which blocks survive the character
+# budget, so what gets dropped is the least relevant text rather than
+# whatever happened to be past character 20,000.
+
+_MIN_BLOCK_CHARS = 2
+
+
+def _note_blocks(doc, q: str) -> list[dict[str, Any]]:
+    """The note, split into citable units at canonical block boundaries.
+
+    Each block gets a real pm_range, so every citation this scope can produce
+    is verifiable before it navigates. Blocks that mention a query term score
+    higher and therefore survive truncation first; the rest are still sent, in
+    document order, because the member asked about THIS note.
+    """
+    flat = nct.flatten(doc)
+    text = flat["text"]
+    if not text:
+        return []
+    fp = nct.fingerprint(doc)
+    terms = [t.lower() for t in _content_terms(q)]
+
+    out: list[dict[str, Any]] = []
+    cursor = 0
+    for raw in text.split(nct.BLOCK_SEPARATOR):
+        start, end = cursor, cursor + len(raw)
+        cursor = end + len(nct.BLOCK_SEPARATOR)
+        body = raw.strip()
+        if len(body) < _MIN_BLOCK_CHARS:
+            continue
+        rng = nct.pm_range(start, end, flat["spans"])
+        if rng is None:
+            continue
+        low = body.lower()
+        hits = sum(1 for t in terms if t in low)
+        out.append({
+            "text": body, "hits": hits,
+            "location": {**rng, "fingerprint": fp,
+                         "snippet_start": start, "snippet_end": end},
+        })
+    return out
+
+
+def retrieve_note(user_id: str, note_id: str, query: str, *, limit: int = 40,
+                  conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Ask Current Note, on the same typed-evidence contract as every scope.
+
+    ⛔ NO-ANSWER IS STILL POSSIBLE HERE. A note that does not discuss what was
+    asked must produce "this note does not mention that", and the honest
+    signal for it is whether any block matched -- not whether the note has
+    text. Blocks are still all returned as evidence so the model can read the
+    whole note; `query_matches` is what decides the refusal.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT id, user_id, title, ticker, body_json FROM j2_notes"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            # Tenant scoping is structural: a note the member does not own is
+            # indistinguishable from one that does not exist.
+            return {"note": note_id, "evidence": [], "coverage": {"exists": False},
+                    "query_matches": 0, "independent_sources": 0,
+                    "no_answer": True, "no_answer_reason": "note_not_found"}
+        row = dict(row)
+        doc = _json(row.get("body_json"))
+        blocks = _note_blocks(doc, query)
+        matched = sum(1 for b in blocks if b["hits"])
+
+        # ⛔ NO PRE-RANK TRUNCATION. Slicing blocks in DOCUMENT order before
+        # ranking would reintroduce exactly the Wave 2 failure this scope
+        # exists to fix: the relevant paragraph at the end of a long note gets
+        # cut before anything has judged it. Every block becomes a candidate;
+        # the budget decides what survives, by relevance.
+        items = []
+        for i, b in enumerate(blocks):
+            e = ev.from_note(row, snippet=b["text"], location=b["location"],
+                             citation_validity=ev.CITE_EXACT,
+                             score=float(b["hits"]))
+            # Each block is its own citable passage, so identity must be per
+            # block -- otherwise lineage dedupe would collapse the note to one
+            # row and the member could only ever be sent to one place in it.
+            e["source_id"] = f"{row['id']}#b{i}"
+            e["lineage_key"] = f"note:{row['id']}#b{i}"
+            e["relevance"] = QUERY_MATCH if b["hits"] else ENTITY_CONTEXT
+            items.append(e)
+
+        # ⭐ WAVE L: a note's content is no longer only its body. Captured
+        # documents and excerpts belong to this note and are answerable from
+        # it — see `_document_pages_in_note` for the defect this closes.
+        attach = note_attachment_counts(conn, user_id, note_id)
+        captured = (_document_pages_in_note(conn, user_id, note_id, query, limit)
+                    + _excerpts_in_note(conn, user_id, note_id, query, limit))
+        # ⛔ TAGGED BY THE SAME JUDGE THE NOTEBOOK SCOPE USES. An item with no
+        # `relevance` never becomes answer evidence, so retrieving captured
+        # material and leaving it untagged produced the *second* version of this
+        # defect: the passage was returned as a source, and the answer still
+        # said "I couldn't find that in this note." Reusing
+        # `_answers_the_question` keeps one definition of "this actually answers
+        # the question" across scopes.
+        # `_substantive_terms` takes an ENTITY dict (it reads `symbols`), not a
+        # bare ticker — passing the string raised inside the request and turned
+        # a retrieval improvement into a 500. The note's own ticker is the
+        # security whose NAME must not count as answering a question about it.
+        entity = {"symbols": [row["ticker"]]} if row.get("ticker") else None
+        substantive = _substantive_terms(query, entity)
+        for i in captured:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+        items.extend(captured)
+
+        # ⭐ O6: this thesis's own completed reviews -- what the member
+        # decided, in their words, in order. Retrieved by chronology as well
+        # as by text because "what did I conclude last time" is a temporal
+        # question, and judged by the SAME relevance test as everything else
+        # so a review can never become an answer to a question it does not
+        # address.
+        reviews = _reviews_for_notes(conn, user_id, [note_id], query, limit,
+                                     per_thesis=NOTE_SCOPE_REVIEW_HISTORY)
+        for i in reviews:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+        items.extend(reviews)
+
+        # ⭐⛔ O6 §16: THE CURRENT STATE, RETRIEVED BESIDE THE HISTORICAL ONES.
+        # This scope had no "now" object at all before O6, which was harmless
+        # while everything in it was current. It stopped being harmless the
+        # moment past DECISIONS joined the packet: a thesis with a thin body
+        # and an old `invalidated` review could be answered entirely from a
+        # judgement the member has since reversed. Retrieved whenever the note
+        # actually has a thesis state, so "what do I think now" always has an
+        # authority that is not a dated opinion.
+        state = _thesis_states(conn, user_id, [note_id], 1)
+        for i in state:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+        items.extend(state)
+
+        cov = {"exists": True, "blocks": len(blocks), "matched_blocks": matched,
+               # ⛔ `has_text` drives the member-facing "this note doesn't have
+               # any text yet" notice. A note holding only captured passages
+               # HAS text — it just is not in the body — and saying otherwise
+               # was the visible half of this defect.
+               "has_text": bool(blocks) or attach["pages"] > 0 or attach["excerpts"] > 0,
+               "captured_pages": attach["pages"],
+               "captured_excerpts": attach["excerpts"]}
+        # ⛔ NO PER-TYPE CAP IN A SINGLE-SOURCE SCOPE. The diversity cap exists
+        # so one document cannot crowd out the member's own note in a
+        # corpus-wide answer. Here every candidate IS the same note by
+        # construction, so the default cap of 4 would silently reduce any note
+        # to four paragraphs.
+        pk = rk.packet(items, query, max_items=limit,
+                       max_chars=NOTE_SCOPE_MAX_CHARS, max_per_type=limit)
+        answers = pk["answer_evidence"]
+        return {
+            "note": note_id, "title": row.get("title") or "",
+            "evidence": pk["evidence"], "coverage": cov,
+            "query_matches": len(answers),
+            "independent_sources": pk["independent_sources"],
+            "no_answer": pk["no_answer"],
+            "no_answer_reason": None if answers else "not_in_this_note",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Slice 4: Ask Security Research ───────────────────────────────────────────
+
+def retrieve_entity_research(user_id: str, symbol: str, query: str, *,
+                             limit: int = 8,
+                             conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """Ask THIS security's research (§11). The scope is PRESELECTED.
+
+    The member is already inside NVDA Research, so they should not have to type
+    "NVDA" -- and critically, the scope must not be a substring filter. This
+    reuses Wave H's canonical membership verbatim: resolve the symbol through
+    entity_master, expand aliases, then match on the note's own ticker OR a
+    chart embed OR a prose mention. A note that only ever says "$NVDA" in a
+    sentence is in scope; an AMD note that happens to mention margins is not.
+
+    Unlike the corpus-wide entry point this does NOT sniff the query for a
+    ticker -- the caller already knows the security, so there is no reason to probe.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        try:
+            from api.services.journal_two.ticker_research import resolve_research_symbols
+            entity = resolve_research_symbols(symbol)
+        except Exception:  # noqa: BLE001
+            entity = {"symbol": symbol, "entityId": None, "displayName": None,
+                      "symbols": [symbol]}
+
+        note_ids = _entity_note_ids(conn, user_id, entity)
+        cov = coverage(conn, user_id)
+        cov["notes_in_scope"] = len(note_ids)
+
+        if not note_ids:
+            return {"entity": entity, "evidence": [], "coverage": cov,
+                    "query_matches": 0, "independent_sources": 0,
+                    "no_answer": True, "no_answer_reason": "no_research_on_this_security"}
+
+        items: list[dict[str, Any]] = []
+        expr = ask_match_expr(query)
+        if expr:
+            items += _notes(conn, user_id, expr, limit, note_ids)
+            # Documents and excerpts belonging to THIS security's notes only.
+            items += _entity_documents(conn, user_id, note_ids, query, limit)
+        # ⛔ THE SCOPE IS ALREADY THE SECURITY. A note matching only because
+        # it says "NVDA" tells the member nothing they did not know by being
+        # here -- it is context about this security, not an answer.
+        # ⭐ O6: this security's review history, scoped by the SAME note
+        # membership as every other item here. A question about NVDA cannot
+        # reach an AAPL review because an AAPL review's note is not in
+        # `note_ids` -- the constraint is structural, not a filter applied
+        # afterwards (§10).
+        items += _reviews_for_notes(conn, user_id, note_ids, query, limit,
+                                    per_thesis=SCOPED_REVIEW_HISTORY)
+        substantive = _substantive_terms(query, entity)
+        for i in items:
+            i["relevance"] = (QUERY_MATCH if _answers_the_question(i, substantive)
+                              else ENTITY_CONTEXT)
+
+        ctx = (_thesis_states(conn, user_id, note_ids, 3)
+               + _facts(conn, user_id, entity, 5))
+        for i in ctx:
+            i["relevance"] = ENTITY_CONTEXT
+        items += ctx
+
+        by_source = {f"{i['source_type']}:{i['source_id']}": i for i in items}
+        thesis_ids = [i["source_id"] for i in items if i["source_type"] == ev.THESIS_STATE]
+        items += _thesis_edge_evidence(conn, user_id, thesis_ids, by_source)
+
+        pk = rk.packet(items, query, max_items=limit)
+        merged, matched = pk["evidence"], pk["answer_evidence"]
+        return {
+            "entity": entity, "evidence": merged, "coverage": cov,
+            "query_matches": len(matched),
+            "independent_sources": pk["independent_sources"],
+            "no_answer": pk["no_answer"],
+            "no_answer_reason": None if matched else "no_supporting_evidence",
+            "evidence_chars": pk["chars"], "dropped": pk["dropped"],
+        }
+    finally:
+        if owned:
+            conn.close()
+
+
+def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
+                      limit: int) -> list[dict[str, Any]]:
+    """Pages and saved excerpts from documents attached to THIS security's
+    notes. Scoped by note membership, so an unrelated security's filing cannot
+    leak in on a shared phrase."""
+    if not note_ids:
+        return []
+    expr = ask_match_expr(q)
+    if expr is None:
+        return []
+    ph = ",".join("?" * len(note_ids))
+    out: list[dict[str, Any]] = []
+    for r in conn.execute(
+        "SELECT p.document_id AS document_id, p.page_number AS page_number,"
+        " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
+        " bm25(j2_note_document_pages_fts) AS score,"
+        " d.name AS name"
+        f"{_capture_cols(conn)}"
+        " FROM j2_note_document_pages_fts p"
+        " JOIN j2_note_documents d ON d.id = p.document_id"
+        " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
+        f" AND d.note_id IN ({ph})"
+        " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
+        (expr, user_id, *note_ids, limit),
+    ).fetchall():
+        row = dict(r)
+        row["user_id"] = user_id
+        out.append(ev.from_document_page(row, snippet=row.get("snippet") or "", score=0.6))
+    for r in conn.execute(
+        "SELECT e.*, d.name AS document_name"
+        f"{_capture_cols(conn)}"
+        " FROM j2_note_excerpts_fts f"
+        " JOIN j2_note_excerpts e ON e.id = f.excerpt_id"
+        " JOIN j2_note_documents d ON d.id = e.document_id"
+        " WHERE j2_note_excerpts_fts MATCH ? AND f.user_id = ?"
+        f" AND e.note_id IN ({ph})"
+        " ORDER BY bm25(j2_note_excerpts_fts) LIMIT ?",
+        (expr, user_id, *note_ids, limit),
+    ).fetchall():
+        row = dict(r)
+        out.append(ev.from_excerpt(row, anchor_ok=_anchor_ok(conn, user_id, row),
+                                   score=0.8))
+    return out

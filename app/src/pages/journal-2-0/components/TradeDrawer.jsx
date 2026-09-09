@@ -9,15 +9,127 @@
  * Hosts the "Tell me about this trade" Compass review surface.
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useTradeReview from '../hooks/useTradeReview'
 import TradeReviewCard from './TradeReviewCard'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
+import CaptureMenu from './CaptureMenu'
+import LinkedNotesPanel from './notebook/LinkedNotesPanel'
 import UIcon from '../../../components/ui/UIcon'
+import SymbolSearch from '../../../components/chart/SymbolSearch'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
-import { money, moneySigned, percent, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
+import { money, moneySigned, percent, rMultiple as fmtR, dateShort, withResearchReturnParam } from '../../../lib/journal-2-0'
 import { useIsPaid } from '../../../context/AuthContext'
+import { useJournalToast, JournalToast } from '../lib/useJournalToast'
+
+// A trade has no live chart mounted here — frame the capture around the
+// holding period itself (±5 sessions) so "save this trade's chart" shows
+// the setup, not whatever the market is doing today.
+const DAY_SECONDS = 86400
+function tradeChartWindow(trade) {
+  const entry = trade?.entryDate ? Date.parse(trade.entryDate) : NaN
+  const exit = trade?.exitDate ? Date.parse(trade.exitDate) : NaN
+  if (!Number.isFinite(entry)) return {}
+  const fromMs = entry - 5 * DAY_SECONDS * 1000
+  const toMs = (Number.isFinite(exit) ? exit : entry) + 5 * DAY_SECONDS * 1000
+  return { from: Math.floor(fromMs / 1000), to: Math.floor(toMs / 1000) }
+}
+
+const _menuItemStyle = {
+  display: 'flex', alignItems: 'center', width: '100%',
+  padding: '7px 12px', background: 'none', border: 'none',
+  color: 'var(--text-bright)', fontSize: 12, textAlign: 'left', cursor: 'pointer',
+}
+
+/**
+ * Compact header trigger — Full Research / Ask AI / Compare for this trade's
+ * symbol, opening a small local dropdown rather than three more icon buttons
+ * beside Save-to-Notebook/Close. Same canonical /research/:sym contracts as
+ * TickerPopup's goToResearch/goToAskAi/goToCompare (~TickerPopup.jsx:84-91);
+ * Compare reveals the same "+ Compare" SymbolSearch picker TickerPopup uses.
+ */
+function TradeResearchTrigger({ symbol, tradeId }) {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) close() }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  if (!symbol) return null
+
+  const close = () => { setOpen(false); setShowCompare(false) }
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): `trade:{id}` always
+  // resolves to the canonical /journal-2-0/trade/{id} detail page on the way
+  // back -- the drawer itself has no route of its own to reopen, but that page
+  // shows the same trade regardless of whether it was opened via drawer or page.
+  const goToResearch = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}`, 'trade', tradeId)); close()
+  }
+  const goToAskAi = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}?section=ai`, 'trade', tradeId)); close()
+  }
+  const goToCompare = (comparator) => {
+    navigate(withResearchReturnParam(
+      `/research/${symbol}/compare/${comparator.toUpperCase()}`, 'trade', tradeId,
+    ))
+    close()
+  }
+
+  return (
+    <span ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Research actions"
+        title="Full Research / Ask AI / Compare"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{
+          background: 'transparent', border: 'none',
+          color: 'var(--text-muted)', cursor: 'pointer',
+          lineHeight: 1, padding: '2px 6px', display: 'flex', alignItems: 'center',
+        }}
+      >
+        <UIcon name="book" size={16} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: 'absolute', top: '100%', right: 0, zIndex: 20, minWidth: 190,
+            background: 'var(--bg-surface, #161b22)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '6px 0', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          <button type="button" style={_menuItemStyle} onClick={goToResearch}>
+            <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+          </button>
+          <button type="button" style={_menuItemStyle} onClick={goToAskAi}>
+            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {symbol}
+          </button>
+          {!showCompare ? (
+            <button type="button" style={_menuItemStyle} onClick={() => setShowCompare(true)}>
+              <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {symbol} with...
+            </button>
+          ) : (
+            <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <SymbolSearch sym={symbol} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
 
 const _excFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -28,6 +140,8 @@ const _excFetcher = (url) =>
 export default function TradeDrawer({ trade, accountId, onClose }) {
   const isPhone = useIsPhone()
   const isPaid = useIsPaid()
+  const [captureMenu, setCaptureMenu] = useState(null)
+  const [journalMsg, setJournalMsg] = useJournalToast()
   // Option strategies: their excursion keys on id:<strategy id> and is served
   // by /strategies/{id}/excursion. Contract tier only ('option_daily') gets
   // surfaced — 'underlying'/'insufficient' rows add nothing to this compact
@@ -122,19 +236,47 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
               </span>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close drawer"
-            style={{
-              background: 'transparent', border: 'none',
-              color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer',
-              lineHeight: 1, padding: '2px 6px',
-            }}
-          >
-            <UIcon name="x" size={20} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              type="button"
+              onClick={(e) => setCaptureMenu({
+                anchor: { x: e.clientX, y: e.clientY },
+                capture: { symbol: trade.symbol, tf: 'D', ...tradeChartWindow(trade) },
+              })}
+              aria-label="Save to Notebook"
+              title="Save to Notebook"
+              style={{
+                background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', cursor: 'pointer',
+                lineHeight: 1, padding: '2px 6px', display: 'flex', alignItems: 'center',
+              }}
+            >
+              <UIcon name="journal" size={16} />
+            </button>
+            <TradeResearchTrigger symbol={trade.symbol} tradeId={trade.id} />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close drawer"
+              style={{
+                background: 'transparent', border: 'none',
+                color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer',
+                lineHeight: 1, padding: '2px 6px',
+              }}
+            >
+              <UIcon name="x" size={20} />
+            </button>
+          </div>
         </div>
+
+        {trade.id != null && (
+          <div style={{ padding: '0 18px' }}>
+            <LinkedNotesPanel
+              tradeRef={String(trade.id)}
+              tradeRefType={trade.isOption ? 'option_strategy' : 'equity_trade'}
+            />
+          </div>
+        )}
 
         {/* Trade detail grid */}
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
@@ -240,8 +382,26 @@ export default function TradeDrawer({ trade, accountId, onClose }) {
             />
           </div>
           </>)}
+          <JournalToast msg={journalMsg} />
         </div>
       </aside>
+      <CaptureMenu
+        open={!!captureMenu}
+        onClose={() => setCaptureMenu(null)}
+        anchor={captureMenu?.anchor}
+        widgetId="chart"
+        capture={captureMenu?.capture || { symbol: trade.symbol }}
+        label={trade.symbol}
+        // Notebook relation uses the typed DB row id (Wave 3 contract,
+        // note_trade_links.py) -- do NOT substitute trade.tradeRef here,
+        // that is the separate stable broker/annotation-reference scheme
+        // (trade_refs.py, id:/ext: prefixed) used by screenshots/adherence/
+        // broker-orphan-reattachment. The two share the word "trade ref"
+        // and nothing else -- see the decision log's disambiguation entry.
+        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        tradeRefType={trade.id != null ? (trade.isOption ? 'option_strategy' : 'equity_trade') : undefined}
+        onSent={setJournalMsg}
+      />
     </>
   )
 }

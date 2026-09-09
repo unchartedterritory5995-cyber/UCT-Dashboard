@@ -16,6 +16,16 @@ vi.mock('../../hooks/useTickerTweets', () => ({ default: () => ({ data: [] }) })
 // so stubbing it here still covers the pane's inner chart.
 vi.mock('../StockChart', () => ({ default: () => <div data-testid="stock-chart" /> }))
 vi.mock('../voice/CompassAssistButton', () => ({ default: ({ label }) => <button>{label}</button> }))
+// The canonical SymbolSearch component has its own dedicated coverage
+// elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
+// action can be exercised without its real dropdown/fetch machinery. The
+// stub deliberately hands back a LOWERCASE comparator so these tests pin
+// the sheet's own uppercasing, not SymbolSearch's.
+vi.mock('../chart/SymbolSearch', () => ({
+  default: ({ sym, onSymbolChange, displayLabel }) => (
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+  ),
+}))
 
 import { TickerHubProvider, useTickerHub } from './TickerHubContext'
 import TickerHubSheet from './TickerHubSheet'
@@ -23,6 +33,11 @@ import TickerHubSheet from './TickerHubSheet'
 function Opener() {
   const { openTicker } = useTickerHub()
   return <button onClick={() => openTicker('AAPL')}>open AAPL</button>
+}
+
+function OpenBrk() {
+  const { openTicker } = useTickerHub()
+  return <button onClick={() => openTicker('BRK-B')}>open BRK-B</button>
 }
 
 function Harness() {
@@ -49,6 +64,8 @@ test('opens with header, action buttons, TF chips and Compass', async () => {
   expect(screen.getByText('Alert')).toBeInTheDocument()
   expect(screen.getByText('Flag')).toBeInTheDocument()
   expect(screen.getByText('Journal')).toBeInTheDocument()
+  expect(screen.getByText('Research')).toBeInTheDocument()
+  expect(screen.getByText('Ask AI')).toBeInTheDocument()
   // ChartPane (the TF row's new home) is a lazy chunk, heavier than bare
   // StockChart was — under full-suite parallel load the Suspense fallback can
   // still be up when the default 1000ms findBy timeout fires, so give it real
@@ -71,4 +88,56 @@ test('Alert action reveals an inline alert form', () => {
   fireEvent.click(screen.getByText('Alert'))
   expect(screen.getByPlaceholderText('$ price')).toBeInTheDocument()
   expect(screen.getByText('Set')).toBeInTheDocument()
+})
+
+test('Research action navigates to the canonical /research/:sym route', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Research'))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL')
+})
+
+test('Ask AI action navigates to the same route with ?section=ai, never a second AI surface', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Ask AI'))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
+})
+
+test('Compare action reveals the "+ Compare" symbol picker', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Compare'))
+  expect(screen.getByRole('button', { name: '+ Compare' })).toBeInTheDocument()
+})
+
+test('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Compare'))
+  expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'AAPL')
+})
+
+test('picking a comparator navigates to the exact canonical compare route (uppercased) and closes the sheet', () => {
+  render(<Harness />)
+  fireEvent.click(screen.getByText('open AAPL'))
+  fireEvent.click(screen.getByText('Compare'))
+  fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT')
+  // Sheet closes after navigating — same go() helper Research/Ask AI use.
+  expect(screen.queryByText('AAPL')).toBeNull()
+})
+
+test('a class-share symbol (BRK-B) reaches Research in its canonical hyphen form, unconverted', () => {
+  render(
+    <MemoryRouter>
+      <TickerHubProvider>
+        <OpenBrk />
+        <TickerHubSheet />
+      </TickerHubProvider>
+    </MemoryRouter>,
+  )
+  fireEvent.click(screen.getByText('open BRK-B'))
+  fireEvent.click(screen.getByText('Research'))
+  expect(navigateMock).toHaveBeenCalledWith('/research/BRK-B')
 })

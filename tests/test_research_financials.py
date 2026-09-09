@@ -4,6 +4,8 @@ import pytest
 
 from api.services.research import financials as fin
 from api.services.cache import cache
+from api.services.entity_master import schema, store
+from api.services.entity_master import api as em_api
 
 
 def _income_df(cols_values):
@@ -168,6 +170,57 @@ class TestGetFinancials:
         )
         assert out["quarterly"] == []
         assert ttl == fin._CACHE_TTL
+
+
+class TestEntityResolution:
+    """S3 vertical slice (owner authorization, 2026-09-03): get_financials
+    reports Entity Master's resolution, additively -- no D1 data-source
+    change on this tab this pass (see module docstring), so there is no
+    vendor_symbol handoff to verify here, only that resolution happens and
+    never blocks the existing fetch path."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_entity_master(self, tmp_path, monkeypatch):
+        db_path = str(tmp_path / "em_default.db")
+        monkeypatch.setattr(schema, "DB_PATH", db_path)
+        store._local.conns = {}
+        store._ALIAS_CACHE.clear()
+        store._CACHE_LOADED = False
+        schema.init_db(db_path=db_path)
+        yield
+        store._local.conns = {}
+        store._ALIAS_CACHE.clear()
+        store._CACHE_LOADED = False
+        cache.invalidate("research_fin::SEEDED")
+        cache.invalidate("research_fin::UNKNOWNTICKER")
+
+    def _fund_ok(self):
+        return {
+            "total_cash": "$50.0B", "total_debt": "$100.0B", "debt_to_equity": 1.5,
+            "current_ratio": 1.1, "free_cash_flow": "$90.0B",
+            "roe_pct": 120.0, "roa_pct": 25.0, "gross_margin_pct": 40.0,
+            "operating_margin_pct": 30.0, "profit_margin_pct": 25.0,
+        }
+
+    def test_get_financials_reports_entity_resolution(self, monkeypatch):
+        eid = em_api.apply_event(
+            "new_entity", {"entity_type": "equity", "initial_alias": "SEEDED",
+                          "initial_alias_valid_from": "2020-01-01"},
+            dedup_key="test:seeded", source="admin_manual",
+        ).entity_id
+        df = _income_df([("2024-12-31", {"Total Revenue": 1000.0})])
+        monkeypatch.setattr(fin, "_fetch_income", lambda sym, q: (df, True))
+        monkeypatch.setattr(fin, "get_fundamentals", lambda sym: self._fund_ok())
+        out = fin.get_financials("seeded")
+        assert out["entity"] == {"status": "resolved", "entityId": eid}
+
+    def test_an_unknown_symbol_does_not_block_the_existing_fetch_path(self, monkeypatch):
+        df = _income_df([("2024-12-31", {"Total Revenue": 1000.0})])
+        monkeypatch.setattr(fin, "_fetch_income", lambda sym, q: (df, True))
+        monkeypatch.setattr(fin, "get_fundamentals", lambda sym: self._fund_ok())
+        out = fin.get_financials("unknownticker")
+        assert out["entity"] == {"status": "not_found", "entityId": None}
+        assert out["annual"]  # unchanged: the rest of the page still works
 
 
 class TestRoute:

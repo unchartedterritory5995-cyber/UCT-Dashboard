@@ -20,6 +20,11 @@ to delete, copy, or extract without touching anything else in this repo.
 
 ### What the owner must do to publish it
 
+**See `RELEASE.md` in this directory for the exact, ordered, copy-pasteable
+commands and values** (repo name, tag, release assets, submission URL, and
+the directory-listing fields) — this section is the narrative version, that
+file is the checklist to actually run.
+
 1. **Create a new, standalone public GitHub repository.** Suggested name:
    **`obsidian-uct-notebook-sync`** (matches the `id` in `manifest.json`,
    `uct-notebook-sync`, prefixed with `obsidian-` per the community
@@ -37,17 +42,20 @@ to delete, copy, or extract without touching anything else in this repo.
    publishing identity should differ from what's here.
 5. **Cut a GitHub Release** whose tag exactly matches `manifest.json`'s
    `version` (e.g. tag `0.1.0` for version `"0.1.0"`), and attach `main.js`,
-   `manifest.json`, and (if one exists) `styles.css` as binary release
+   `manifest.json`, and `styles.css` as binary release
    assets — Obsidian's installer downloads these three files directly from
    the release, not from the repo's source tree.
-6. **Submit to the community directory**: sign in at
-   [obsidian.md](https://obsidian.md) / the in-app "Browse community
-   plugins" flow, or follow the current submission process at
-   <https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin> (fetched
-   2026-09-02 — re-check it before submitting; Obsidian's own process is the
-   authority, not this paragraph). It currently amounts to: publish the repo,
-   cut the release, then add the plugin via the community plugin directory
-   site linked to your GitHub account.
+6. **Submit to the community directory** at
+   [community.obsidian.md](https://community.obsidian.md) (re-verified
+   2026-09-04 against <https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin>
+   and <https://obsidian.md/blog/future-of-plugins/> — re-check both before
+   submitting; Obsidian's own process is the authority, not this paragraph).
+   As of that date this is a **self-service developer dashboard**, not a pull
+   request: sign in with your Obsidian account, link your GitHub account,
+   choose the repo from Step 1, and "add your plugin to the directory."
+   Review is automated and the docs describe results "typically within a
+   few minutes," publishing to the in-app directory "within 24 hours" once
+   approved. See `RELEASE.md` for the exact fields.
 7. **Arm `NOTE_SYNC_OBSIDIAN_ENABLED` on the server** once (and only once)
    the plugin is actually installable by a member — see
    `docs/feature_flags.json`'s entry for the exact three-part arming
@@ -96,6 +104,30 @@ to delete, copy, or extract without touching anything else in this repo.
   uses Node's `crypto` module directly for hashing and vault-id generation,
   which Obsidian's mobile (Capacitor) runtime does not provide to plugins.
 - **No infinite retry of a too-large note.** See below.
+- **A rename is not tracked as a rename.** Every note's server-side identity
+  is derived from its `vault_path` (there is no stable per-note id this
+  plugin can read from the vault and forward). Renaming or moving a file
+  therefore looks, to the server, exactly like the old path disappearing
+  (garbage-collected out of `data.files` here, then delete-detected
+  server-side after a couple of missed passes) and a genuinely new path
+  appearing (pushed as a brand-new note). Content is never lost — the old
+  server-side copy survives until delete-detection catches up, and the new
+  path syncs immediately — but a member who has already started editing that
+  note inside the Notebook should expect the rename to surface as two
+  notes for a short window, not an in-place rename. Fixing this needs a
+  stable note id on the wire, which is a two-repo (plugin + server) change
+  and out of scope for this release.
+- **No retry/backoff on a transient failure.** A network blip or a 5xx mid-run
+  fails the whole sync (see `sync-manager.ts`'s auth-failure section for the
+  one exception — a 401 clears the token deliberately, rather than retrying
+  a dead credential). Nothing is lost: notes already durably staged by an
+  earlier batch in the same run are simply re-pushed next time (the server
+  no-ops an unchanged `content_hash`), and no manifest is ever sent for a
+  run that didn't finish pushing every batch — so a mid-run failure can
+  never mark a real note deleted. Recovery today is a member clicking "Sync
+  now" again. An automatic retry (with backoff) is the natural v1.1 on top
+  of this, deliberately deferred for the same reason as background sync:
+  keeping this first release small enough to review honestly.
 
 ## Too-large notes — the one failure mode that must never be silent
 
@@ -145,6 +177,10 @@ src/
   vault-source.ts        ObsidianVaultSource — thin adapter over app.vault.
   settings.ts          The settings tab UI.
   main.ts             Plugin entry point; wires everything above together.
+styles.css            The one class settings.ts needs (a themed error color)
+                      — per Obsidian's guidelines, a CSS class instead of an
+                      inline style. Everything else uses Obsidian's own
+                      built-in Setting/`setting-item-description` styling.
 test/
   hashing.test.ts, batching.test.ts, sync-plan.test.ts   Pure-function unit tests.
   sync-manager.test.ts    Stubbed-transport, stubbed-vault integration tests

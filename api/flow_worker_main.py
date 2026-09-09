@@ -13,6 +13,112 @@ flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
 flow module (reached via live_massive_router's /confluence-flow, imports weekly_flow)
 but is NOT yet watched, so a lone edit to it won't deploy until then (touch a watched
 file meanwhile, as this note does).
+⚠️ TODO (2026-09-04): SAME for `oi_massive_snapshots.py` and `oi_morning.py` — both are
+flow-worker cards (07:00 ET capture + 08:00 ET OI Update post) but NEITHER is watched,
+so an edit to them alone won't deploy. This header edit is the trigger for the
+2026-09-04 oi_massive full-chain baseline fix (store the whole fetched chain + prune +
+per-contract prior ΔOI, so the card stops reading total OI as an overnight build).
+(2026-09-04 follow-up, same trigger:) pin the card's flow window to the session the ΔOI
+measures + fetch CARRY% volume for that session, so premium/volume/ΔOI align at any run
+hour and carry lands ≤100% instead of 3292%.
+(2026-09-04 follow-up #2:) sanity-gate ΔOI ≤ session volume — a build can't exceed what
+traded, so a prior=0 artifact (no captured baseline) is dropped from the board.
+(2026-09-04 follow-up #3:) CARRY% now fills for NEW rows too (was blanked when no
+prior-day baseline) — carry = ΔOI/volume is meaningful for a new position, gate bounds it.
+(2026-09-07, same trigger:) the Options Flow aggregate now emits `stats.availableDates`
+(app/src/pages/optionsFlow/flowFactsEntry.js -> app/dist/flow-facts.cjs, which THIS service
+runs). The date-range picker renders only when that calendar is non-empty, and the page
+derives it by parsing the 16 MB tape — so deferring the tape off the cold path made the
+control disappear. The bundle is a build artifact of app/**, which is NOT on this service's
+watch list, so an app-only push would leave flow-worker serving the OLD bundle and the
+picker still missing. This header edit is that deploy trigger. Shipped 18:0x ET on Labor
+Day with the market closed, so the consumer bounce gaps no live prints.
+(2026-09-07 later, same trigger:) 3b. The bundle can now emit a `TOP_PICKS` part
+— the TOP 10 FLOW PICKS product for all eight dataMode x capFilter variants, computed
+by the SAME flowCompute.buildTopPickCandidates the browser runs and stamped with the
+optionsflow_etf_replica content digest. It exists so first paint stops shipping
+`all_directional` (601 KB gz) + `all_trades` (1,312 KB gz) — 1.9 MB of raw rows whose
+only first-paint reader is a TEN ROW table. flow_aggregate.build_parts stages the
+replica to a temp file and passes --etf-file; NO replica means NO part and the client
+stays on its existing path. Same bundle-is-not-watched reason as above: this header
+edit is the deploy trigger. Market closed (Labor Day), so the bounce gaps no prints.
+(2026-09-08 correction, worth more than the entry above:) THIS TRIGGER WORKS, AND
+IT IS SLOW. An agent watching the running process concluded "the api/** watch path
+did not fire" from counters read DURING the build window, and was about to force a
+manual `railway up` on the OPRA consumer to fix a problem that did not exist. Push
+-> container start measured ~4-7 minutes (push landed 02:4x UTC, `Starting Container`
+at 02:51:55). ⛔ The process counters (`/api/flow/aggregate-health` ->
+stats_process_local) are the honest restart signal — they RESET — but only once the
+new container is up. WAIT for them rather than concluding from one early read; a
+manual deploy of this service is not free, and "the trigger is broken" is a much more
+expensive belief than "the trigger is slow".
+(2026-09-08, same trigger:) TOP_PICKS now DROPS the per-candidate `contracts` map
+before serving. Measured on prod: that map was 67% of the part (4,370 entries across
+the eight variants); gzip 90 -> 38 KB. The TOP 10 renderer reads `topC` and the
+`topCDisplay*` scalars and never `candidate.contracts`. The strip is RECURSIVE
+(standout `_moreStrikes` holds other candidate objects whose `topC` the renderer does
+read) and applies to the SERVED product only, so a generation decline still falls back
+to a byte-identical local computation. Bundle change => this header edit is the
+flow-worker deploy trigger.
+(2026-09-08, Search:) new `GET /api/flow/ticker-product/{sym}` — the Search
+deep-dive as a DERIVED product ({all_directional, TICKER_DB}) instead of the raw
+uncapped ticker tape. Measured on prod for AMD, the raw path is 3,651 KB gz /
+20,252 KB decoded / 4,232 ms, and the browser then runs the FULL processFlowData
+over it in the worker to render ~17 rows. This runs the SAME bundle
+(`flow-facts search`) over the SAME uncapped feed with erSoon=null, and caches by
+(ticker, source, version). ⛔ erSoon is NOT in the key — it changes only the `er`
+flag, which the client re-applies as a copy-on-overlay; that is what makes the
+product user-independent and cacheable at all. Nothing calls it yet. Bundle
+change => this header edit is the deploy trigger.
+(2026-09-08, first-paint preparer + an honest warm verdict:) flow-worker now
+builds the parts for the view the page opens on the MOMENT the tape version
+rolls, instead of leaving the first member after every roll to trigger a cold
+build (~16.4 s measured live), give up at the client's 3 s deadline and fall back
+to the 3.7 MB raw tape. Same `get_cached_or_build_part` a member request calls,
+same key, same CSV provider, same non-blocking single-flight lock -- so it yields
+to real requests and the product is byte-identical. Version-triggered, which
+self-gates it to market hours: one version was observed holding 5 h 07 m on a
+quiet tape and the thread did nothing at all. Runtime flag FLOW_PREPARE_ENABLED.
+⛔ AND THE REASON THIS HEADER EDIT EXISTS: `api/services/flow_aggregate.py` is
+NOT on this service's watch list (the list above is specific `api/*.py` files),
+so the health fix that ships with it -- `warm` must grade the PARTS transport
+members actually take, not the whole-D cache beside it -- would have sat
+undeployed forever. Observed on prod before the fix: {"warm": true, "parts":
+{"enabled": true, "entries": []}}, i.e. the health check calling the fast path
+ready while the path every member takes was stone cold. Same trap as the
+app/**-built bundle above, one directory deeper: a change confined to
+api/services/ deploys ONLY when something watched moves with it.
+(2026-09-08, TICKER_DB + CONV leave first paint:) `splitAggregate` now defers
+both, so `part=bootstrap` drops from ~333 KB gz to a fraction of it. Neither key
+has a single first-paint reader: every TICKER_DB consumer is a button handler, a
+`selectedItem`-gated Market Read branch, or a non-default tab, and every CONV
+consumer is `wlPopulate`/`wlPopulateUnusual` or Scanner Suggestions inside the
+Watchlist tab -- NO useMemo/useEffect reads either one. The client pulls both
+immediately AFTER paint and nothing is removed, summarised or reshaped.
+⛔ THIS HEADER EDIT IS THE DEPLOY TRIGGER, AND WITHOUT IT THE SLICE IS INERT.
+The split lives in `app/dist/flow-facts.cjs`, built from `app/**`, and the
+mirrored allowlist lives in `api/services/flow_aggregate.py` -- NEITHER path is
+on this service's watch list. Pushing them alone changes precisely nothing while
+every test stays green: flow-worker would keep serving the OLD bundle and the
+old, fat bootstrap. Same trap as the availableDates and TOP_PICKS entries above.
+(2026-09-08 follow-up:) that endpoint now records STAGES as they begin and
+flushes them on every exit path. The first cold-miss attempt died at the proxy's
+120 s read timeout and left NO log line at all, because logging was success-only,
+so "which stage consumed 120 s" was unanswerable. It is also SINGLE-FLIGHT now
+(global, non-blocking, decline-with-503) — one derivation runs a node process
+over a ticker's COMPLETE uncapped history, and a retrying caller could
+otherwise stack a second and a third on one shared pod. A caller that gives up
+does NOT cancel the build: the work is useful warming, and request lifetime must
+not decide product lifecycle.
+(2026-09-08 evidence pass:) added a TEMPORARY admin-gated read-only diagnostic
+GET /api/flow/_diag/search-capacity (cardinality, per-ticker row-count
+distribution, exact freshness-probe cost + its query plan, and an opt-in
+rows->derivation curve), plus stage decomposition on the aggregate parts build.
+⛔ CORRECTION TO CARRY: the aggregate build is ~3.5-6.4 s of intrinsic work,
+NOT 20.4 s. The 20.4 s was CLIENT-OBSERVED TTFB and included decline/retry,
+sequential different-key builds and proxy overhead. Two separate targets: shrink
+the ~6 s, and remove the amplification. The diagnostic is REMOVABLE once the
+lifecycle design is settled.
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is
@@ -314,6 +420,21 @@ def _start_flow_schedulers():
             log.warning("flat-files scheduling failed: %s", e)
 
         try:
+            # First-paint preparer: build the parts for the view the page opens
+            # on the moment the tape version rolls, so no member ever pays the
+            # ~3.5-7.4s cold build. Self-gated on FLOW_PREPARE_ENABLED and on
+            # the parts transport being on. Same build a member request runs.
+            from api import flow_router as _flow_router
+            if _flow_router.start_background_prepare():
+                log.info("[startup] flow first-paint preparer started "
+                         "(version-triggered; FLOW_PREPARE_ENABLED=0 to disable)")
+            else:
+                log.info("[startup] flow first-paint preparer NOT started "
+                         "(set FLOW_PREPARE_ENABLED=1 with parts enabled)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow preparer start failed: %s", e)
+
+        try:
             # Confluence flow-leg cache warmer — keeps (large|mid_small)×(30d|5d)
             # warm so the web join's internal call is instant (a cold 30d compute
             # is ~120s and was timing out the join -> 0-row board).
@@ -349,6 +470,19 @@ def _start_flow_schedulers():
                              ", ".join(res["days_removed"]))
             except Exception as e:  # noqa: BLE001
                 log.warning("[scheduler] Flow DB prune error: %s", e)
+
+        # ── Options Flow ETF classification replica ─────────────────────
+        # NO SCHEDULER HERE, DELIBERATELY. flow-worker RECEIVES pushes from web
+        # (POST /api/flow/etf-replica/install); it does not pull. The pull design
+        # was deployed and disproved: Railway private networking is IPv6 and web
+        # runs `uvicorn --host 0.0.0.0` (IPv4 only), so web is unreachable from
+        # here — connections were REFUSED on 8080/8000/80 over both families.
+        # Web is the sole canonical writer AND the sender; this pod only installs
+        # what it is handed, after verifying the digest itself.
+        #
+        # ⛔ This replica is NOT ticker_types. That table still drives
+        # massive_processor.is_index_source() and live OPRA routing, and is
+        # untouched. Do not converge them without an explicit owner decision.
 
         try:
             from apscheduler.triggers.cron import CronTrigger
@@ -453,6 +587,28 @@ def _start_flow_schedulers():
                 log.info("[startup] Alpha Gold EOD summary cron registered (16:05 ET weekdays)")
             else:
                 log.info("[startup] Alpha Gold EOD summary disabled (ALPHA_GOLD_EOD_ENABLED != 1)")
+
+            # ── Cream of the Crop EOD (2026-09-05): the day's highest-conviction
+            # AGGREGATE builds, curation-free — the blind spot Top Flow (single prints)
+            # and the hand-curated Watchlist both had. Registered DARK: scheduled_cream_
+            # eod self-gates on CREAM_EOD_ENABLED, so it builds + posts NOTHING until
+            # armed. 16:10 ET, 5 min after Alpha Gold so the two don't race the tape.
+            # ⚠ SAME DEPLOY GOTCHA as alpha_gold_eod: api/cream_card.py is NOT in the
+            # flow-worker watch paths — edits to it must piggyback on THIS file (or
+            # live_massive_router.py, where compute_cream lives).
+            # ARMED live 2026-09-06 (CREAM_EOD_ENABLED=1, old ALPHA_GOLD_EOD off);
+            # 2026-09-06: dropped the redundant content line — the post is image-only
+            # now (bot name already reads "UCT Intelligence · Top Flow").
+            from apscheduler.triggers.cron import CronTrigger as _CRCron
+            from api import cream_card as _cream
+            sched.add_job(_cream.scheduled_cream_eod,
+                          trigger=_CRCron(day_of_week="mon-fri", hour=16, minute=10,
+                                          timezone=ZoneInfo("America/New_York")),
+                          id="cream_eod", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] Cream of the Crop EOD cron registered (16:10 ET weekdays; "
+                     "dark until CREAM_EOD_ENABLED=1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Alpha Gold EOD scheduling failed: %s", e)
 

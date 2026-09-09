@@ -5,7 +5,7 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import useJ2DayDetail from '../../hooks/useJ2DayDetail'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
@@ -15,7 +15,8 @@ import DayReflection from './DayReflection'
 import DayAttachments from './DayAttachments'
 import DayRulesChecklist from './DayRulesChecklist'
 import OptionStrategiesSection from '../options/OptionStrategiesSection'
-import { buildStrategyLabel } from '../../lib/optionCalcs'
+import TradeDrawer from '../TradeDrawer'
+import { buildStrategyLabel, optionClosedToRow } from '../../lib/optionCalcs'
 import {
   fmtSignedDollar,
   fmtSignedPct,
@@ -71,6 +72,8 @@ function formatLongDate(date) {
 
 export default function DayDetailPage() {
   const { date } = useParams()
+  const navigate = useNavigate()
+  const [drawerTrade, setDrawerTrade] = useState(null)
   const { accountId, account } = useJ2SelectedAccount()
   const isBroker =
     !!account && account.balanceSource && account.balanceSource !== 'manual'
@@ -124,12 +127,17 @@ export default function DayDetailPage() {
 
           <DayMetricsRow metrics={metrics} />
 
-          <DayTradesTable trades={trades} isLoading={isLoading} />
+          <DayTradesTable
+            trades={trades}
+            isLoading={isLoading}
+            onRowAction={(t) => navigate(`/journal-2-0/trade/${t.id}`)}
+          />
 
           {strategies?.closed?.length > 0 && (
             <OptionStrategiesSection
               strategies={strategies.closed}
               variant="closed"
+              onSelect={(s) => setDrawerTrade(optionClosedToRow(s))}
             />
           )}
 
@@ -178,6 +186,12 @@ export default function DayDetailPage() {
           />
         </main>
       </div>
+
+      <TradeDrawer
+        trade={drawerTrade}
+        accountId={accountId}
+        onClose={() => setDrawerTrade(null)}
+      />
     </div>
   )
 }
@@ -316,7 +330,7 @@ function TradesOnDay({ trades }) {
   )
 }
 
-function DayTradesTable({ trades, isLoading }) {
+function DayTradesTable({ trades, isLoading, onRowAction }) {
   if (isLoading && (!trades || trades.length === 0)) {
     return <p className={styles.hint}>Loading trades…</p>
   }
@@ -347,7 +361,16 @@ function DayTradesTable({ trades, isLoading }) {
         </thead>
         <tbody>
           {trades.map((t) => (
-            <tr key={t.id}>
+            <tr
+              key={t.id}
+              className={onRowAction ? styles.rowClickable : undefined}
+              role={onRowAction ? 'button' : undefined}
+              tabIndex={onRowAction ? 0 : undefined}
+              onClick={onRowAction ? () => onRowAction(t) : undefined}
+              onKeyDown={onRowAction ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowAction(t) }
+              } : undefined}
+            >
               <td><strong>{t.symbol}</strong></td>
               <td>
                 <span className={`${styles.sideBadge} ${t.side === 'Long' ? styles.sideLong : styles.sideShort}`}>

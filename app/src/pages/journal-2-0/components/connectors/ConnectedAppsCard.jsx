@@ -11,6 +11,10 @@
  *   - configured, !connected                           -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for oauth providers)
  *   - FOLDER_PICKER_PROVIDERS, connected, sources.length===0 -> "Choose folder" CTA (amber, NOT the green Connected badge) -> DropboxFolderPicker
  *   - connected, sources.length>0                       -> "Connected · N source(s)" + a SourceRow per source
+ *   - a source with status==='broken'                   -> that SourceRow additionally shows "Reconnect",
+ *     which re-opens THIS provider's connect flow (openConnect(p)) so the member can heal it without
+ *     disconnecting first — the backend upserts over broken credentials on a fresh connect (see
+ *     SourceRow.jsx's own comment on `onReconnect`).
  *
  * `FOLDER_PICKER_PROVIDERS` (dropbox, onedrive) is the small, shared
  * allow-set that decides both the "needs a folder" CTA gate below AND which
@@ -297,6 +301,7 @@ export default function ConnectedAppsCard() {
                         onSync={handleSync}
                         onTogglePause={handleTogglePause}
                         onDisconnect={handleDisconnect}
+                        onReconnect={() => openConnect(p)}
                       />
                     ))}
                   </div>

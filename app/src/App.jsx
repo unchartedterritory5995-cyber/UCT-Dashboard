@@ -35,6 +35,7 @@ import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // the button hand-typed `/formulas/shared/${token}` and NO route answered it, so
 // every link a member sent resolved to the catch-all 404 below.
 import { SHARED_FORMULA_ROUTE, FORMULA_LIBRARY_PATH } from './pages/formulas/formulaShareLink'
+import { createRoutePrefetcher, attachRoutePrefetch } from './routePrefetch'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -66,6 +67,12 @@ const Subscribe = lazy(() => import('./pages/Subscribe'))
 const Dashboard = lazyPage('/dashboard', () => import('./pages/Dashboard'))
 const MorningWire = lazyPage('/morning-wire', () => import('./pages/MorningWire'))
 const ResearchPage = lazyPage('/research', () => import('./pages/research/ResearchPage'))
+// Plain lazy(), not lazyPage() -- lazyPage's `path` is a Map KEY used to
+// prefetch the CURRENT boot route's chunk; reusing '/research' here would
+// silently overwrite ResearchPage's own prefetch entry. Per lazyPage's own
+// comment, omitting the accelerator is always safe (chunk just starts after
+// auth like any other unregistered route).
+const ResearchComparePage = lazy(() => import('./pages/research/ResearchComparePage'))
 const UCT20 = lazyPage('/uct-20', () => import('./pages/UCT20'))
 const Breadth = lazyPage('/breadth', () => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
@@ -103,6 +110,7 @@ const TodaySurface = lazy(() => import('./pages/journal-2-0/surfaces/TodaySurfac
 const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurface'))
 const CalendarSurface = lazy(() => import('./pages/journal-2-0/surfaces/CalendarSurface'))
 const NotebookSurface = lazy(() => import('./pages/journal-2-0/surfaces/NotebookSurface'))
+const TickerResearchSurface = lazy(() => import('./pages/journal-2-0/surfaces/TickerResearchSurface'))
 const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
 const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
@@ -110,8 +118,13 @@ const CommunitySurface = lazy(() => import('./pages/journal-2-0/surfaces/Communi
 const AccountsSurface = lazy(() => import('./pages/journal-2-0/surfaces/AccountsSurface'))
 // LOCAL REDESIGN PROTOTYPE — /community points at the new Floor design.
 // To revert: swap back to './pages/community/CommunityPage'. Old page untouched.
-const Community = lazy(() => import('./pages/community/CommunityRedesign'))
+const Community = lazyPage('/community', () => import('./pages/community/CommunityRedesign'))
 const J2DayDetailPage = lazy(() => import('./pages/journal-2-0/components/calendar/DayDetailPage'))
+// Wave L Slice 3: the first-party Browser Capture authorization page. A real
+// route, because chrome.identity.launchWebAuthFlow navigates to it top-level
+// -- which is exactly why the SameSite=Lax session cookie is present.
+const CaptureConnectPage = lazy(() => import('./pages/journal-2-0/components/notebook/CaptureConnectPage'))
+const ShareTargetPage = lazy(() => import('./pages/journal-2-0/components/notebook/ShareTargetPage'))
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
@@ -126,16 +139,21 @@ const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsW
 // this against lazy()'s own import, an unregistered path warms nothing, and a
 // failed prefetch is swallowed here so lazyWithRetry still owns the real load
 // (its stale-chunk reload must fire on the RENDER path, not on this warm).
-try {
-  const here = window.location.pathname
-  let best = null
-  for (const key of pageImporters.keys()) {
-    if (here === key || here.startsWith(key + '/')) {
-      if (!best || key.length > best.length) best = key
-    }
-  }
-  if (best) { const p = pageImporters.get(best)(); if (p && p.catch) p.catch(() => {}) }
-} catch { /* never let a prefetch break boot */ }
+// Warm the CURRENT route's chunk, and warm the NEXT one on pointer/focus/touch
+// intent so a click finds the module already resolved and the route-level
+// <Suspense> below never blanks the shell. See routePrefetch.js for the
+// measurements and the why.
+const routePrefetcher = createRoutePrefetcher(pageImporters, {
+  getConnection: () => (typeof navigator !== 'undefined' ? navigator.connection : null),
+})
+// Deferred one microtask, NOT called inline: `lazyPage` registers a route as its
+// `const` executes, so an inline call here would only ever see the routes declared
+// ABOVE this line and silently skip the rest (/support sits ~60 lines below). A
+// microtask runs after the whole module body, so every registration is in no
+// matter where the next one is added, and it still fires long before React mounts
+// or auth answers.
+Promise.resolve().then(() => routePrefetcher.prefetch(window.location.pathname))
+if (typeof document !== 'undefined') attachRoutePrefetch(document, routePrefetcher)
 const ChartRender = lazy(() => import('./pages/ChartRender'))
 const DiscordActivity = lazy(() => import('./pages/DiscordActivity'))
 const CatalystsRender = lazy(() => import('./pages/CatalystsRender'))
@@ -153,7 +171,7 @@ const MoversRender = lazy(() => import('./pages/MoversRender'))
 const BuzzRender = lazy(() => import('./pages/BuzzRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
-const Support = lazy(() => import('./pages/Support'))
+const Support = lazyPage('/support', () => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
 const ChartHealth = lazy(() => import('./pages/admin/ChartHealth'))
@@ -163,6 +181,7 @@ const PatternReview = lazy(() => import('./pages/admin/PatternReview'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Methodology = lazy(() => import('./pages/Methodology'))
+const ProvenanceDemo = lazy(() => import('./pages/ProvenanceDemo'))
 const Compare = lazy(() => import('./pages/Compare'))
 const BrokersPage = lazy(() => import('./pages/BrokersPage'))
 const Pricing = lazy(() => import('./pages/Pricing'))
@@ -292,6 +311,23 @@ export default function App() {
           // Pre-launch, "/" is the COMING SOON holding page — same reasoning as
           // the marketing routes above: social traffic must not wait 9 seconds.
           ...(COMING_SOON ? ['/'] : []),
+          // ⛔ THE TWO FIRST-PARTY INTERSTITIALS, for the same reason and more
+          // sharply. Both are reached from OUTSIDE the app shell to do exactly
+          // one thing, and both are full page loads, so the intro plays over
+          // them every time:
+          //   /journal/share          a phone share sheet, mid-capture. The
+          //                           whole objective is "into the right
+          //                           research context IN SECONDS"; a 9.3s
+          //                           brand film in front of it is the feature
+          //                           failing, not branding.
+          //   /journal/capture-connect the extension handshake, which opens in
+          //                           a small `launchWebAuthFlow` OS window.
+          // ⚰️ FOUND BY LOOKING AT THE SCREENSHOT (2026-09-08). The Slice 4
+          // phone audit reported ZERO findings against this page while the
+          // intro covered all 390px of it — every DOM measurement was correct
+          // and the door was unusable. A probe that reads the DOM cannot see
+          // occlusion; `share_target_phone_audit.py` now checks it explicitly.
+          '/journal/share', '/journal/capture-connect',
         ].includes(window.location.pathname) && (
           <IntroAnimation />
         )}
@@ -325,6 +361,27 @@ export default function App() {
                 in-app logo even while logged in (unlike "/", which redirects
                 authenticated users to their home). */}
             <Route path="/landing" element={<PreLaunchGate><Landing /></PreLaunchGate>} />
+            {/* ⛔ OUTSIDE <AuthGuard/> DELIBERATELY, and it is not a hole.
+                AuthGuard redirects an unauthenticated visitor to /login with no
+                way back, which for the Browser Capture handshake means the
+                authorization window becomes a dead end for exactly the member
+                most likely to hit it: one who just installed the extension. So
+                the PAGE owns the signed-out case and sends them to /login?next=,
+                and the authority stays where it belongs — the POST it makes is
+                session-authenticated server-side and 401s without one, so this
+                route can mint nothing on its own. */}
+            <Route path="/journal/capture-connect" element={<CaptureConnectPage />} />
+            {/* ⛔ OUTSIDE <AuthGuard/> for the SAME reason as the line above, and
+                it is not a hole either. This is where the phone share sheet
+                lands (manifest.json `share_target`, method GET). AuthGuard's
+                bounce to /login keeps no record of the destination, so a member
+                whose session lapsed — the likeliest case on a phone — would
+                share an article, sign in, and arrive with the article gone.
+                The page owns its signed-out case and carries the payload across
+                sign-in; it mints nothing, and the capture write that follows is
+                the same session-authenticated POST that 401s without a cookie.
+                Rails: `journal-2-0/shareTarget.contract.test.js`. */}
+            <Route path="/journal/share" element={<ShareTargetPage />} />
             <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
             <Route path="/signup" element={<PreLaunchGate><Signup /></PreLaunchGate>} />
             <Route path="/subscribe" element={<PreLaunchGate><Subscribe /></PreLaunchGate>} />
@@ -335,6 +392,13 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/methodology" element={<Methodology />} />
+            {/* S8 Step 2 capability demo — live D1 -> S8 provenance/freshness
+                wiring, reachable directly by URL. Deliberately NOT in
+                NavBar/MobileNav or FREE_PAGES — where it belongs in the real
+                Terminal UI is a product decision this pass does not make.
+                Public/no-gate, same class as /methodology: reads only
+                public market quote data via /api/provenance/quote. */}
+            <Route path="/provenance-demo" element={<ProvenanceDemo />} />
             {/* Public marketing comparison page (UCT vs. TradeZella/TraderSync/
                 Tradervue). Not in FREE_PAGES — that gates logged-in nav; this is
                 a fully public page reachable while logged out or in. */}
@@ -441,6 +505,7 @@ export default function App() {
                 <Route path="/watchlists" element={<LegacyRedirect />} />
                 <Route path="/multi-chart" element={<LegacyRedirect />} />
                 <Route path="/research/:sym" element={<ResearchPage />} />
+                <Route path="/research/:sym/compare/:comparator" element={<ResearchComparePage />} />
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
@@ -528,6 +593,11 @@ export default function App() {
                   <Route path="trades" element={<TradesSurface />} />
                   <Route path="calendar" element={<CalendarSurface />} />
                   <Route path="notebook" element={<NotebookSurface />} />
+                  {/* Wave H: the Ticker Research Workspace's own canonical
+                      route (checkpoint decision 8) -- a focused, single-
+                      purpose page, deliberately NOT nested inside
+                      NotebookTab's own three-pane shell. */}
+                  <Route path="notebook/research/:symbol" element={<TickerResearchSurface />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />

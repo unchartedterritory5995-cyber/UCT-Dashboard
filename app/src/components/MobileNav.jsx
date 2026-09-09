@@ -43,7 +43,7 @@ function titleFor(pathname) {
   return match ? ROUTE_TITLES[match] : 'UCT'
 }
 
-export default function MobileNav({ onMenu }) {
+export default function MobileNav({ onMenu, onOpenPalette }) {
   const [moversOpen, setMoversOpen] = useState(false)
   const location = useLocation()
   const keyboardOpen = useKeyboardVisible()
@@ -68,6 +68,13 @@ export default function MobileNav({ onMenu }) {
         </button>
         <span className={styles.pageTitle}>{pageTitle}</span>
         <div className={styles.topBarRight}>
+          <button
+            className={styles.moversBtn}
+            onClick={() => onOpenPalette?.()}
+            aria-label="Search"
+          >
+            <UIcon name="search" size={20} />
+          </button>
           <button
             className={styles.moversBtn}
             onClick={() => setMoversOpen(true)}

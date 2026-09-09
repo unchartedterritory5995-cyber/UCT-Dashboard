@@ -1,0 +1,97 @@
+.wrap {
+  display: block;
+  margin: 10px 0;
+}
+
+.card {
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 8px;
+  background: var(--color-bg-elevated, #12151b);
+  padding: 10px 12px;
+  max-width: 480px;
+  font-size: 13px;
+}
+
+.unavailable {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted, #8a8f98);
+  font-style: italic;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.quoteText {
+  flex: 1;
+  color: var(--color-text-primary, #e8eaed);
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #8a8f98);
+  cursor: pointer;
+  padding: 2px;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.removeBtn:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--color-text-primary, #e8eaed);
+}
+
+.citation {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #8a8f98);
+  font-size: 11px;
+  cursor: pointer;
+}
+.citation:hover {
+  color: #dcbb5e;
+}
+
+.annotation {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border, #232932);
+  color: var(--color-text-secondary, #b8bcc4);
+  font-size: 12px;
+}
+
+.muted {
+  color: var(--color-text-muted, #8a8f98);
+  font-weight: 400;
+  font-size: 12px;
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .card {
+    max-width: 100%;
+  }
+}
+
+/* TOUCH tier is <=1024px (phone AND tablet), not <=640px -- the tap-target
+   floor lives here, separate from the phone-only layout block above. */
+@media (max-width: 1024px) {
+  .citation,
+  .removeBtn {
+    min-height: var(--tap-min, 44px);
+  }
+}

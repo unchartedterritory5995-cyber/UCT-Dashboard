@@ -13,6 +13,13 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('[ErrorBoundary]', error, info.componentStack)
+    // Optional hook so a caller can act on the error (e.g. recover from a
+    // stale chunk by reloading) without every boundary knowing how.
+    try {
+      this.props.onError?.(error, info)
+    } catch (e) {
+      console.error('[ErrorBoundary] onError threw', e)
+    }
   }
 
   render() {

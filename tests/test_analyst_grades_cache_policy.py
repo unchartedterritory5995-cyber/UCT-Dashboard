@@ -50,7 +50,13 @@ def _legs(monkeypatch, *, consensus=None, target=None, actions=None, trend=None,
         return fn
     monkeypatch.setattr(ag, "_consensus", mk("consensus", consensus))
     monkeypatch.setattr(ag, "_price_target", mk("target", target))
-    monkeypatch.setattr(ag, "_recent_actions", mk("actions", actions or []))
+    # _recent_actions' real contract is {"items": [...], "_meta": ...} as of
+    # 2026-09-03 -- a bare list here crashes get_analyst_grades()'s
+    # `actions.get("items")` check the moment consensus/price_target are
+    # both falsy (exactly the "genuine no coverage" case this file exists
+    # to pin), so the mock must match the real shape.
+    monkeypatch.setattr(ag, "_recent_actions",
+                        mk("actions", {"items": actions or [], "_meta": None}))
     monkeypatch.setattr(ag, "_trend", mk("trend", trend or []))
 
 
@@ -60,7 +66,7 @@ class TestMissTtl:
         Refetching it every 5 min would be pure waste."""
         _legs(monkeypatch)
         assert ag.get_analyst_grades("TEST") is None
-        assert spy["value"] == {"_miss": True}
+        assert spy["value"] == {"_miss": True, "_outage": False}
         assert spy["ttl"] == ag._TTL == 6 * 3600
 
     def test_an_outage_miss_self_heals_in_five_minutes(self, monkeypatch, spy):

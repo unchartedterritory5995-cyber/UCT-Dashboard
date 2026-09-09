@@ -75,6 +75,39 @@ def try_record_alert(user_id: str, ticker: str, market_date: str) -> bool:
 
 # ── Collect reporters for a market date ──────────────────────────────────────
 
+def _fmp_reporters_for_date_with_status(market_date: str) -> tuple[set[str], bool]:
+    """Same leg as `_fmp_reporters_for_date`, but also reports whether the
+    attempt completed trustworthily (S9, 2026-09-06). `ok=True` means either
+    a clean parse (empty or non-empty) or the leg being simply unconfigured
+    (no FMP_API_KEY) -- neither is a "failure" worth degrading a caller's
+    status over. `ok=False` means a real fetch attempt did not complete
+    trustworthily (raised, non-2xx, or a malformed body)."""
+    import os
+    key = os.environ.get("FMP_API_KEY", "")
+    if not key:
+        return set(), True
+    try:
+        import requests
+        resp = requests.get(
+            "https://financialmodelingprep.com/stable/earnings-calendar",
+            params={"from": market_date, "to": market_date, "apikey": key},
+            timeout=10,
+        )
+        if not resp.ok:
+            return set(), False
+        data = resp.json()
+    except Exception as e:
+        _logger.debug("[cal-alerts] FMP fallback failed: %s", e)
+        return set(), False
+    if not isinstance(data, list):
+        return set(), False
+    return {
+        (row.get("symbol") or "").strip().upper()
+        for row in data
+        if isinstance(row, dict) and row.get("symbol")
+    }, True
+
+
 def _fmp_reporters_for_date(market_date: str) -> set[str]:
     """FMP `stable/earnings-calendar` breadth leg — ONE call scoped to the
     single `market_date` (never a multi-day range: a wider FMP calendar call
@@ -85,42 +118,21 @@ def _fmp_reporters_for_date(market_date: str) -> set[str]:
     (this function has no concept of session, so it never decides bmo/amc —
     callers only need the raw reporting set for a watchlist intersection).
     Never raises; returns empty set on failure or missing key."""
-    import os
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        return set()
-    try:
-        import requests
-        resp = requests.get(
-            "https://financialmodelingprep.com/stable/earnings-calendar",
-            params={"from": market_date, "to": market_date, "apikey": key},
-            timeout=10,
-        )
-        if not resp.ok:
-            return set()
-        data = resp.json()
-    except Exception as e:
-        _logger.debug("[cal-alerts] FMP fallback failed: %s", e)
-        return set()
-    if not isinstance(data, list):
-        return set()
-    return {
-        (row.get("symbol") or "").strip().upper()
-        for row in data
-        if isinstance(row, dict) and row.get("symbol")
-    }
+    return _fmp_reporters_for_date_with_status(market_date)[0]
 
 
-def _get_reporters_for_date(market_date: str) -> set[str]:
-    """Return the set of ticker symbols reporting on market_date.
-
-    Pulls from the weekly calendar cache (calendar_weekly) — built by the
-    /api/calendar endpoint — then falls back to a live Finnhub fetch, then to
-    an FMP breadth leg so a Finnhub throttle/429 does not silently zero out
-    the alert run for the day. Never raises; returns empty set on total
-    failure.
-    """
+def _get_reporters_for_date_with_status(market_date: str) -> tuple[set[str], bool]:
+    """Same 3-leg fallback as `_get_reporters_for_date`, but also reports
+    whether every leg it needed to consult actually completed trustworthily
+    (S9, 2026-09-06). `ok=False` the instant ANY leg's own fetch attempt
+    raised, returned a non-2xx response, or a malformed body -- even if a
+    LATER leg still produced a clean, usable answer (a leg blipping and the
+    call still resolving is still worth a caller knowing about, since the
+    aggregate answer for this date was not confirmed by every leg that ran).
+    `ok=True` means every leg that ran either produced a clean answer or was
+    simply unconfigured (e.g. no FMP_API_KEY) -- never an actual failure."""
     result: set[str] = set()
+    ok = True
     try:
         from api.services.cache import cache
         cal = cache.get("calendar_weekly") or {}
@@ -132,9 +144,10 @@ def _get_reporters_for_date(market_date: str) -> set[str]:
                 if sym:
                     result.add(sym)
         if result:
-            return result
+            return result, True
     except Exception as e:
         _logger.debug("[cal-alerts] cache path failed: %s", e)
+        ok = False
 
     # Fallback: Finnhub direct fetch — routed through the shared
     # finnhub_client.fh_get (2026-08-05) so it shares the process-wide token
@@ -150,14 +163,28 @@ def _get_reporters_for_date(market_date: str) -> set[str]:
                     result.add(sym)
     except Exception as e:
         _logger.debug("[cal-alerts] Finnhub fallback failed: %s", e)
+        ok = False
 
     if result:
-        return result
+        return result, ok
 
     # Both the cache and Finnhub came back empty (a genuinely quiet day looks
     # identical to a throttled one from here) — FMP breadth leg so a Finnhub
     # 429 does not silently drop the whole day's alerts.
-    return _fmp_reporters_for_date(market_date)
+    fmp_result, fmp_ok = _fmp_reporters_for_date_with_status(market_date)
+    return fmp_result, ok and fmp_ok
+
+
+def _get_reporters_for_date(market_date: str) -> set[str]:
+    """Return the set of ticker symbols reporting on market_date.
+
+    Pulls from the weekly calendar cache (calendar_weekly) — built by the
+    /api/calendar endpoint — then falls back to a live Finnhub fetch, then to
+    an FMP breadth leg so a Finnhub throttle/429 does not silently zero out
+    the alert run for the day. Never raises; returns empty set on total
+    failure.
+    """
+    return _get_reporters_for_date_with_status(market_date)[0]
 
 
 # ── Collect all users + their My-Stocks sets ─────────────────────────────────

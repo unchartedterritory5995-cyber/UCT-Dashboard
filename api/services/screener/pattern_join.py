@@ -134,6 +134,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import time
 
 _ACTIVE_STATUSES = ("forming", "ready", "triggered")
@@ -428,11 +429,16 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
     touching that function or anything it feeds (snapshot_builder.py,
     screener_rows, the live nightly cron, or any member-facing output).
 
-    NOT called by snapshot_builder.py or any scheduled job. Its only caller
-    is the Package-8C shadow-parity test, which compares this function's
-    output against read_pattern_fields()'s real output for the same
-    targets to prove the canonical read adds evidence without changing
-    detector-level facts (identity, direction, best-detection selection).
+    NOT called by snapshot_builder.py or any scheduled job — the shared,
+    universe-wide `screener_rows` snapshot every user's scan reads is still
+    built exclusively from `read_pattern_fields`, unconditionally, for
+    everyone. It IS called from live application code now, gated
+    (`PATTERN_CANONICAL_SCANNER_PILOT_ENABLED=1` + admin + PEG match): see
+    `apply_canonical_pilot_overlay` below. Its own shadow-parity test still
+    compares this function's output against `read_pattern_fields()`'s real
+    output for the same targets to prove the canonical read adds evidence
+    without changing detector-level facts (identity, direction,
+    best-detection selection).
 
     Additive over read_pattern_fields's own SELECT: eligibility_json (the
     one new column this package added), plus geometry_json/quality_json/
@@ -446,21 +452,59 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
         build_scanner_summary, reconstruct_persisted_evidence,
     )
 
+    # Phase 8 Package 8G-B Performance Closure (2026-09-05): scoped to
+    # `targets` in SQL, not just in the final Python loop. Measured root
+    # cause of the live pilot's ~2.1s admin request (vs ~0.1s legacy):
+    # this query previously carried NO ticker filter at all -- it fetched
+    # and Python-filtered the ENTIRE active-detections table (56,239 rows
+    # measured live) on every call, regardless of whether 1 or 9 targets
+    # were requested (instrumented: 1-ticker call 754.90ms, 9-ticker call
+    # 727.79ms -- statistically identical, proving candidate count was
+    # never the driver). That was tolerable for this function's original
+    # design as an occasional Package-8C shadow-parity comparison tool,
+    # but wrong once Package 8G-B started calling it on the live,
+    # per-request admin scanner path. Filtering by `sym` here changes
+    # nothing about WHICH of the matched rows get selected for a given
+    # target below -- it only stops fetching rows for tickers nobody asked
+    # about.
+    target_syms = sorted({str(t).upper() for t in targets if t})
+    if not target_syms:
+        return {}
+
     cutoff = int(time.time()) - _WINDOW_SECS
     placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
     cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
+    sym_ph = ",".join("?" * len(target_syms))
+    # Phase 8 Package 8G-B Residual Performance Closure (2026-09-05):
+    # `INDEXED BY idx_pd_sym_tf`, forced. Measured root cause of the live
+    # pilot's remaining ~400-700ms admin cost (after the prior ticker-scoping
+    # fix, which was structurally correct but did not control which index
+    # SQLite's planner used): the planner was choosing idx_pd_status
+    # (`status IN (...)`) over idx_pd_sym_tf for this exact WHERE shape --
+    # sym IN (4 items) AND tf='D' AND status IN (3 items) AND detected_at >= ?
+    # AND category NOT IN (...) -- visiting ~57,000 status-matching rows
+    # table-wide and filtering the rest in place, instead of seeking the
+    # ~80-110 rows per requested ticker idx_pd_sym_tf would return directly.
+    # Forcing the index measured 350x faster on real production data (a
+    # 4-ticker call: ~400ms unforced vs ~1.2ms forced) with an identical row
+    # count returned. idx_pd_sym_tf is created unconditionally in this
+    # module's own schema init (pattern_db.py's `_SCHEMA`, `CREATE INDEX IF
+    # NOT EXISTS`) alongside the table itself, so it always exists wherever
+    # pattern_detections does -- no schema/index migration, no new index.
     sql = f"""
         SELECT sym, pattern_id, direction, confidence, levels_json, detected_at,
                status, geometry_json, quality_json, narrative_json, eligibility_json
-        FROM pattern_detections
+        FROM pattern_detections INDEXED BY idx_pd_sym_tf
         WHERE tf = 'D'
           AND status IN ({placeholders})
           AND detected_at >= ?
           AND (category IS NULL OR category NOT IN ({cat_ph}))
+          AND sym IN ({sym_ph})
     """
     with contextlib.closing(pattern_db.get_connection()) as conn:
         rows = conn.execute(
-            sql, (*_ACTIVE_STATUSES, cutoff, *_SCREENER_EXCLUDED_CATEGORIES)).fetchall()
+            sql, (*_ACTIVE_STATUSES, cutoff, *_SCREENER_EXCLUDED_CATEGORIES,
+                  *target_syms)).fetchall()
 
     by_ticker: dict = {}
     for r in rows:
@@ -515,6 +559,87 @@ def read_pattern_fields_canonical_shadow(targets) -> dict:
 
         out[tu] = build_scanner_summary(reconstructed)
     return out
+
+
+# ─── Phase 8 Package 8G-B — PEG-only admin/pilot canonical scanner authority ──
+#
+# The ONLY family this pilot may ever touch. A hardcoded constant, not an env
+# var: an env var can be fat-fingered ("power_earnings_gap,high_tight_flag")
+# without a code review; widening this set is a deliberate code change for a
+# future package. HTF has no real live canonical write observed yet (Package
+# 8G-A) and stays on the legacy path unconditionally regardless of any other
+# input to this function.
+_PILOT_SUPPORTED_FAMILIES = frozenset({"power_earnings_gap"})
+
+
+def _pilot_authorized(user) -> bool:
+    """Same admin-role convention `require_admin` already enforces
+    (`user.get("role") == "admin"`) — no parallel auth system."""
+    return bool(user) and user.get("role") == "admin"
+
+
+def apply_canonical_pilot_overlay(rows: list, user: dict) -> list:
+    """Phase 8 Package 8G-B. Additive-only, admin/pilot + PEG-only overlay on
+    top of the REAL served `/api/screener/scan` rows (`query.run_scan`'s
+    `out_rows`, sourced from `screener_rows` — the legacy, universe-wide,
+    unconditional snapshot `read_pattern_fields` builds).
+
+    This function NEVER mutates an existing key on any row — it only ever
+    ADDS a new `pattern_canonical_pilot` key to a row that (a) the caller is
+    authorized for (admin/pilot), (b) already legacy-matched
+    `power_earnings_gap` in its `pattern_engine_ids`, and (c) has a real,
+    reconstructible canonical summary whose OWN `pattern_id` is genuinely
+    `power_earnings_gap` (never inferred from the legacy match alone — a
+    ticker's canonical "best" detection can differ from what tagged it in
+    the legacy list). No existing column (`pattern_engine_conf` included —
+    that field's legacy meaning, `max confidence across all active
+    detectors`, is NOT comparable to a single detection's canonical
+    `confidence`; see the frozen note above `compare_pattern_shadow`) is
+    ever touched, so ordinary users and HTF rows are structurally unaffected
+    by construction, not merely by convention.
+
+    Fail-safe: the master flag, the authorization check, and the whole
+    canonical lookup are wrapped so that ANY failure (flag off, unauthorized
+    caller, empty match set, or an exception reconstructing a summary)
+    returns `rows` completely unchanged — mirroring the write-side adapter's
+    own fail-safe design (Package 8F).
+    """
+    if os.environ.get("PATTERN_CANONICAL_SCANNER_PILOT_ENABLED") != "1":
+        return rows
+    if not _pilot_authorized(user):
+        return rows
+    if not rows:
+        return rows
+
+    peg_token = f"{MATCH_SEP}power_earnings_gap{MATCH_SEP}"
+    candidates = [
+        r for r in rows
+        if peg_token in (r.get("pattern_engine_ids") or "")
+    ]
+    if not candidates:
+        return rows
+
+    try:
+        tickers = [r["ticker"] for r in candidates if r.get("ticker")]
+        canonical_by_ticker = read_pattern_fields_canonical_shadow(tickers)
+    except Exception:
+        # Canonical read failure -> safe fallback: every row stays exactly
+        # as the legacy snapshot served it.
+        return rows
+
+    for r in candidates:
+        tu = str(r.get("ticker") or "").upper()
+        summary = canonical_by_ticker.get(tu)
+        if summary is None:
+            continue
+        if summary.get("pattern_id") not in _PILOT_SUPPORTED_FAMILIES:
+            # The ticker's canonical "best" detection isn't PEG (e.g. a
+            # higher-confidence HTF/other detection won the "best" rule) --
+            # this pilot only ever attaches a PEG summary, never any other
+            # family's, so leave the row untouched.
+            continue
+        r["pattern_canonical_pilot"] = summary
+    return rows
 
 
 # ─── Phase 8 Package 8F — bounded shadow-observation comparison ────────────

@@ -6,9 +6,11 @@
  * Short Interest is intentionally omitted (no data source).
  */
 import { useMemo, useState, lazy, Suspense } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import CompanyLogo from '../../../../components/CompanyLogo'
+import UIcon from '../../../../components/ui/UIcon'
+import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import useFundamentalSnapshot from '../../../../hooks/useFundamentalSnapshot'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
 import useBrokerMarkPreference from '../../../../hooks/useBrokerMarkPreference'
@@ -16,10 +18,12 @@ import useEarningsTable from '../../../../hooks/useEarningsTable'
 import useJ2Positions from '../../hooks/useJ2Positions'
 import useJ2Trades from '../../hooks/useJ2Trades'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
+import useJ2PositionsAttention from '../../hooks/useJ2PositionsAttention'
 import useAnimatedNumber from '../../../../hooks/useAnimatedNumber'
 import { yourPositionModel, statsModel, analystModel } from '../../lib/positionDetail'
-import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
+import { money, moneySigned, percent, withResearchReturnParam } from '../../../../lib/journal-2-0'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
 import AboutSection from './AboutSection'
 import StatsSection from './StatsSection'
 import NewsSection from './NewsSection'
@@ -68,10 +72,32 @@ export function combinePositions(rows) {
   return [...bySide.values()]
 }
 
+/**
+ * P1-19 fix — raw (pre-combinePositions) j2_positions.id list per side, for
+ * the given symbol. The thesis-trade link attaches to a RAW position id, but
+ * combinePositions() above merges same-side rows into one display block and
+ * keeps only the first row's id -- so a member who scaled into a side across
+ * two "Add Position" calls (two distinct ids, possibly two distinct thesis
+ * notes) would silently lose one link if the linked-notes lookup read off
+ * the merged model instead of this.
+ */
+export function idsBySide(rows, sym) {
+  const map = new Map()
+  for (const p of rows || []) {
+    if (p.symbol !== sym || p.id == null) continue
+    const arr = map.get(p.side) || []
+    if (!arr.includes(p.id)) arr.push(p.id)
+    map.set(p.side, arr)
+  }
+  return map
+}
+
 export default function PositionDetailPage() {
   const { sym: rawSym } = useParams()
   const sym = (rawSym || '').toUpperCase().trim()
+  const navigate = useNavigate()
   const [tf, setTf] = useState('D')
+  const [showCompare, setShowCompare] = useState(false)
 
   const { data: snapshot } = useFundamentalSnapshot(sym)
   const { prices } = useRealtimePrices(sym ? [sym] : [])
@@ -104,6 +130,17 @@ export default function PositionDetailPage() {
   const { positions } = useJ2Positions()
   const { trades } = useJ2Trades()
   const { account: selectedAccount, accounts } = useJ2SelectedAccount()
+  // Same batch endpoint + hook PortfolioAttentionBanner uses on Open Positions
+  // (Attention Signal Propagation V1) — reused verbatim, never a new
+  // single-symbol call. Entry is simply absent for a symbol with no open
+  // position (or while data hasn't loaded), which this page's existing
+  // null-safe convention already renders as "section hidden." A total fetch
+  // FAILURE is a distinct case (S8 / Attention Freshness Propagation V1) —
+  // previously indistinguishable from "no position"/"still loading," so a
+  // real outage silently looked like nothing to show.
+  const { attention, error: attentionError } = useJ2PositionsAttention()
+  const attentionEntry = attention[sym]
+  const attentionFacts = attentionEntry?.facts || []
 
   const todayIso = useMemo(
     () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
@@ -113,6 +150,9 @@ export default function PositionDetailPage() {
     () => combinePositions(positions.filter((p) => p.symbol === sym)),
     [positions, sym],
   )
+  // See idsBySide's own docstring (P1-19 fix) for why this reads the raw,
+  // pre-merge position list rather than symPositions/positionModels.
+  const rawIdsBySide = useMemo(() => idsBySide(positions, sym), [positions, sym])
   const symTrades = useMemo(
     () => trades.filter((t) => t.symbol === sym),
     [trades, sym],
@@ -149,6 +189,19 @@ export default function PositionDetailPage() {
     : null
   const up = (changePct ?? 0) >= 0
 
+  // Cross-links into the canonical /research/:sym surface — same contracts
+  // TickerPopup's goToResearch/goToAskAi/goToCompare use (~TickerPopup.jsx:84-91).
+  // This page already shows much of what /research/:sym shows; these are
+  // deliberate deep links to that canonical page, not new information.
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): tag the outbound
+  // navigation with where it came from so ResearchPage.jsx can render a way
+  // back other than browser Back.
+  const goToResearch = () => navigate(withResearchReturnParam(`/research/${sym}`, 'position', sym))
+  const goToAskAi = () => navigate(withResearchReturnParam(`/research/${sym}?section=ai`, 'position', sym))
+  const goToCompare = (comparator) => navigate(
+    withResearchReturnParam(`/research/${sym}/compare/${comparator.toUpperCase()}`, 'position', sym),
+  )
+
   if (!sym) {
     return (
       <div className={styles.page}>
@@ -184,6 +237,76 @@ export default function PositionDetailPage() {
         </div>
       </header>
 
+      <div className={styles.actionsRow}>
+        <button type="button" className={styles.actionBtn} onClick={goToResearch}>
+          <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+        </button>
+        <button type="button" className={styles.actionBtn} onClick={goToAskAi}>
+          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI
+        </button>
+        {!showCompare ? (
+          <button type="button" className={styles.actionBtn} onClick={() => setShowCompare(true)}>
+            <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare
+          </button>
+        ) : (
+          <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+        )}
+      </div>
+
+      {attentionError && (
+        <div className={styles.attentionCard} data-testid="position-attention-unavailable">
+          <div className={styles.attentionHeader}>
+            <UIcon name="sparkle" size={12} />
+            <span>Attention</span>
+          </div>
+          <div className={styles.attentionNoFacts}>Could not check for updates</div>
+        </div>
+      )}
+      {!attentionError && attentionEntry && (
+        <div
+          className={`${styles.attentionCard} ${attentionEntry.notable ? styles.attentionCardNotable : ''}`}
+          data-testid="position-attention"
+        >
+          <div className={styles.attentionHeader}>
+            <UIcon name="sparkle" size={12} />
+            <span>Attention</span>
+            {attentionEntry.notable && (
+              <span className={styles.attentionDot} title="Notable" aria-label={`${sym} notable`} />
+            )}
+            {attentionEntry.status && attentionEntry.status !== 'ok' && (
+              <span className={styles.attentionStatusPill} title={`Data ${attentionEntry.status}`}>
+                {attentionEntry.status}
+              </span>
+            )}
+          </div>
+          {attentionFacts.length > 0 ? (
+            <ul className={styles.attentionFactList}>
+              {attentionFacts.map((f, i) => (
+                <li key={`${f.kind}-${i}`} className={styles.attentionFact}>
+                  {f.label}
+                  {/* Evidence timestamp from the fact itself — never a
+                      rendered "now"/client clock. */}
+                  {f.as_of && <span className={styles.attentionFactDate}> · {f.as_of}</span>}
+                  {/* Source/freshness — same fields Watchlists.jsx's
+                      AttentionFacts popover already renders; this hook
+                      fetched them unmodified from the identical backend
+                      shape, they were just never displayed here before. */}
+                  {(f.source || (f.freshness && f.freshness !== 'unknown')) && (
+                    <span className={styles.attentionFactMeta}>
+                      {' · '}
+                      {f.source || 'unknown source'}
+                      {f.freshness && f.freshness !== 'unknown' ? ` · ${f.freshness}` : ''}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className={styles.attentionNoFacts}>Nothing notable</div>
+          )}
+        </div>
+      )}
+
       <div className={styles.chartCard}>
         <div className={styles.chartWrap}>
           {/* ChartPane is the SAME chart /charts renders — identity row, session
@@ -209,7 +332,12 @@ export default function PositionDetailPage() {
         <section className={styles.section} aria-label="Your position">
           <h2 className={styles.sectionTitle}>Your Position</h2>
           {positionModels.map((m) => (
-            <YourPositionGrid key={m.side} model={m} />
+            <div key={m.side}>
+              <YourPositionGrid model={m} />
+              {(rawIdsBySide.get(m.side) || []).map((id) => (
+                <LinkedNotesPanel key={id} tradeRef={String(id)} tradeRefType="position" />
+              ))}
+            </div>
           ))}
         </section>
       )}
@@ -219,7 +347,19 @@ export default function PositionDetailPage() {
       <NewsSection items={newsData?.news} />
       <AnalystSection model={analyst} priceTarget={grades?.price_target} composite={snapshot?.composite} />
       <EarningsSection quarterly={earningsTable?.quarterly} />
-      <HistorySection trades={symTrades} positions={symPositions} />
+      <HistorySection
+        trades={symTrades}
+        positions={symPositions}
+        onRowAction={(action, trade) => {
+          if (action !== 'open') return
+          // symTrades is filtered from useJ2Trades(), whose backend route
+          // (GET /api/j2/trades) queries j2_trades only -- it never unions
+          // in option strategies (unlike TradeJournalTab.jsx, which
+          // separately fetches + unions closedStrategies) -- so every row
+          // reaching here is a real equity j2_trades.id, always navigable.
+          navigate(`/journal-2-0/trade/${trade.id}`)
+        }}
+      />
     </div>
   )
 }

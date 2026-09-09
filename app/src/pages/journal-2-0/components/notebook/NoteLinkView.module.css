@@ -1,0 +1,40 @@
+.wrap {
+  display: inline;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  padding: 0 1px;
+  margin: 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--ut-gold, #d4af37);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+.chip:hover:not(:disabled) {
+  border-bottom-color: currentColor;
+}
+.chip:disabled {
+  cursor: default;
+}
+.chipUnavailable {
+  color: var(--text-muted, #888);
+  font-style: italic;
+}
+.chipTrashed {
+  color: var(--text-muted, #999);
+}
+.badge {
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+  border-radius: 3px;
+  padding: 1px 4px;
+}

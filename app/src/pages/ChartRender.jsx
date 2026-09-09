@@ -265,6 +265,15 @@ export default function ChartRender() {
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
   const hidePriceLine = priceLineParam === '0' || priceLineParam === 'false'
+  // ?dpzones=<base64url JSON> — dark-pool zones computed SERVER-SIDE (render_house_chart
+  // → darkpool_db.get_ticker_zones) and embedded, so the overlay needs no client fetch
+  // and no auth (the /api/darkpool/zones endpoint is flow-user-gated and the headless
+  // page has no session). Same shape StockChart's darkPoolBars prop expects; present in
+  // the HTML at first paint, so no readiness race with the pixel-settle gate.
+  const dpZones = useMemo(() => {
+    const z = decodeB64UrlJson(sp.get('dpzones'))
+    return Array.isArray(z) ? z : []
+  }, [sp])
   //   ?stats=<base64url JSON>  a compact price-action / volume strip under the
   //            header (Discord /chart). The NUMBERS are computed server-side
   //            (api/services/discord_chart_render.compute_stats — one authority);
@@ -464,6 +473,17 @@ export default function ChartRender() {
   // are (sym, tf) tuples, and widening that plumbing to carry presentation data
   // would put newsletter-formatting concerns inside the renderer's call
   // signature. The page already knows how to ask for its own facts.
+  //
+  // ⚠️ MUST fetch the PAGE'S OWN `tf` — this used to be hardcoded `tf=D`
+  // regardless of what was actually being rendered, so a Weekly or Hourly
+  // render showed the DAILY last price/change in its header while the chart
+  // below it plotted a different timeframe entirely. Harmless when nothing
+  // moved between fetches; on a live/extended-hours render (price still
+  // ticking) it produced a header that agreed with neither its own chart nor
+  // the OTHER timeframes in the same batch (QQQ D/W/60 one Friday: header read
+  // $717.95 / $718.96 / $718.96 while each chart's own last-price line read
+  // 717.95 / 717.71 / 719.06). D/W share the historical daily bar count either
+  // way; only W/60 actually changed behavior.
   const [meta, setMeta] = useState({ company: '', price: null, chg: null })
   useEffect(() => {
     if (!sym) return undefined
@@ -490,7 +510,7 @@ export default function ChartRender() {
       want.company ? Promise.resolve(null) : fetch(`/api/ticker-meta/${encodeURIComponent(sym)}`).then((r) => (r.ok ? r.json() : null)),
       (want.price != null && want.chg != null)
         ? Promise.resolve(null)
-        : fetch(`/api/bars/${encodeURIComponent(sym)}?tf=D&bars=2`).then((r) => (r.ok ? r.json() : null)),
+        : fetch(`/api/bars/${encodeURIComponent(sym)}?tf=${encodeURIComponent(tf)}&bars=2`).then((r) => (r.ok ? r.json() : null)),
     ]).then(([m, b]) => {
       if (!alive) return
       const bars = b?.value?.bars || b?.value || []
@@ -506,7 +526,7 @@ export default function ChartRender() {
       })
     })
     return () => { alive = false }
-  }, [sym, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
+  }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
 
   // ── Signal readiness — PIXEL STABILITY, not a stopwatch ────────────────────
   //
@@ -857,6 +877,7 @@ export default function ChartRender() {
             // the same treatment the footer's wall-clock stamp already gets, and
             // NOT a tolerance: that case must still be 0 on every run.
             hidePriceLine={hidePriceLine}
+            darkPoolBars={dpZones.length ? dpZones : null}
             volumeSeparatePane
             alwaysShowLegend
             liveUpdates={false}

@@ -53,7 +53,9 @@ from api.services.screener import (
     filters as scr_filters,
     snapshot_db as scr_db,
     saved_screens as scr_saved,
+    contention_trace_temp as scr_ctrace,
 )
+import time as _ctrace_time
 from api.middleware.auth_middleware import (
     get_current_user_with_plan,
     is_paid_user,
@@ -229,15 +231,22 @@ def screener_count(spec: ScanSpec, user=Depends(require_paid)):
 
 @router.post("/api/screener/scan")
 def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
+    # TEMPORARY (2026-09-05) -- natural-load contention attribution. See
+    # api/services/screener/contention_trace_temp.py. Remove this timing +
+    # the record() call once the observation window is done.
+    _ctrace_t0 = _ctrace_time.perf_counter()
     try:
         # ⛔ THE USER ID COMES FROM THE DEPENDENCY, NOT THE BODY. `{key:"list"}`
         # resolves a member's own watchlists, flags and colour tags; reading the
         # id off the client-supplied spec would let any member screen any other
         # member's lists.
         return scr_query.run_scan(spec.model_dump(),
-                                  user_id=(user or {}).get("id"))
+                                  user_id=(user or {}).get("id"), user=user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        _ctrace_total_ms = (_ctrace_time.perf_counter() - _ctrace_t0) * 1000
+        scr_ctrace.record(_ctrace_total_ms, scr_ctrace.pop_stages())
 
 
 @router.get("/api/screener/snapshot-status")

@@ -540,6 +540,50 @@ async def test_delete_detection_needs_two_consecutive_full_misses(source, provid
     assert notes_svc.get_note("u1", c_note_id) is not None
 
 
+async def test_a_sever_is_persisted_to_the_sync_log_row_the_card_reads(source, provider):
+    """The connectors card does NOT read a sync's return value -- it reads the
+    newest `j2_note_sync_log` row (`routers/note_sync.py::_latest_sync_counts`).
+    So a pass whose response says `sourceDeleted: 1` while the log row says 0
+    is invisible to the member, which is exactly how deletions used to land:
+    `_finish_log` wrote created/updated/skipped/media/conflicts and silently
+    dropped the sever count. Asserts the number reaches the row, not just the
+    response -- and that a pass which severs NOTHING writes 0, so the column
+    can never read as "stale last time something was deleted"."""
+    provider.refs = [
+        RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="b", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="c", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {"a": _rn("a", "A"), "b": _rn("b", "B"), "c": _rn("c", "C")}
+    await engine.sync_source(source["id"], full=True)
+
+    def _newest_log_source_deleted() -> int:
+        conn = auth_db.get_connection()
+        try:
+            row = conn.execute(
+                "SELECT source_deleted FROM j2_note_sync_log "
+                "WHERE source_id = ? ORDER BY id DESC LIMIT 1",
+                (source["id"],),
+            ).fetchone()
+        finally:
+            conn.close()
+        return row["source_deleted"] or 0
+
+    # A pass that severs nothing writes 0 -- not NULL, not the previous value.
+    assert _newest_log_source_deleted() == 0
+
+    provider.refs = provider.refs[:2]              # "c" goes missing
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["sourceDeleted"] == 0                # first miss: no sever yet
+    assert _newest_log_source_deleted() == 0
+
+    r3 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r3["sourceDeleted"] == 1                # second miss: severed
+    # ⛔ THE POINT: the same 1 must be readable from the log row, because that
+    # row -- not r3 -- is what the member's connectors card renders.
+    assert _newest_log_source_deleted() == 1
+
+
 async def test_delete_detection_refuses_when_enumeration_returns_under_half(source, provider):
     provider.refs = [
         RemoteRef(remote_id=str(i), updated_at="2026-08-01T00:00:00+00:00") for i in range(4)
@@ -1892,4 +1936,52 @@ async def test_a_healthy_pass_still_records_ok_and_clears_a_stale_error(source, 
     assert not row["lastSyncError"], (
         "a healthy sync left the previous failure's reason on the row -- the "
         "member keeps reading a stale error for a source that is now fine"
+    )
+
+
+# ── A1's PARTIAL sibling: mixed batch, real import_confirm failure ──────────
+# `test_a_pass_that_stores_nothing_persists_warning_and_why` above proves the
+# TOTAL-loss shape (0 of N landed -> status must not read "ok"). Nothing in
+# this suite exercised the MIXED shape through a REAL `import_confirm`
+# rejection (as opposed to an engine-level `raise_on_fetch_*` mock): one note
+# lands, one is genuinely too large for `notes_svc._validate_body_json`'s
+# >1MB backstop and is isolated into `import_confirm`'s own `failed` bucket
+# (session-audit.md A1/A2's per-note SAVEPOINT). Two separate Rule-3
+# properties had never been proven together at the engine level: the healthy
+# sibling must not be poisoned, AND the cursor -- computed from `refs`, not
+# from what actually landed -- must not advance past the note that never
+# stored, even though it is chronologically the NEWER of the two.
+
+async def test_a_real_oversized_note_is_isolated_and_holds_the_cursor_back(source, provider):
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Fits Fine", updated_at="2026-08-01T00:00:00+00:00"),
+        "p2": _rn(
+            "p2", "Too Big", text="x" * 2_000_000,
+            updated_at="2026-08-02T00:00:00+00:00",
+        ),
+    }
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["created"] == 1, "the healthy note must land despite its oversized sibling"
+    assert any("could not be stored" in f for f in result["failures"])
+
+    titles = {n["title"] for n in notes_svc.list_notes("u1")}
+    assert titles == {"Fits Fine"}, (
+        "the oversized note landed (should never happen), or it took its "
+        "healthy sibling down with it (the pre-SAVEPOINT 'whole batch rolls "
+        "back' defect)"
+    )
+
+    row = engine.connections.get_source_by_id(source["id"])
+    assert row["cursor"] is None, (
+        "the cursor advanced past a note that never landed -- p2's "
+        "updated_at is the newer of the two, so a naive max(refs) cursor "
+        "would skip past it forever: a plain re-push of unchanged remote "
+        "content is a no-op (no new hash, no new timestamp), so nothing "
+        "would ever ask for p2 again"
     )

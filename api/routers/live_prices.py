@@ -354,6 +354,16 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
         "day_close": round(close, 2),
         "ext_price": None,
         "ext_session": None,
+        # Seam 8: this row represents a closed session's move, not a live
+        # tick -- no per-symbol observation timestamp is fetched for the
+        # closed-market fallback (would need _session_closes() to also
+        # track which calendar date each map represents, which it
+        # currently doesn't; explicitly out of this V1's scope, see the
+        # continuity checkpoint). None here is honest and non-regressive --
+        # price_move.as_of already degrades to None whenever no trustworthy
+        # timestamp is supplied, which was already the case for every
+        # closed-market fact before Seam 8.
+        "observed_at": None,
         # This row already REPRESENTS the last completed session (its change is that
         # session's move), so there's no separate pre-market split — the header uses
         # `change`/`change_pct` here. Kept for response-shape consistency.
@@ -368,24 +378,26 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     """One Massive batch call → {ticker: value_dict}.
 
-    `tickers` are canonical (hyphen) form. Dual-class names (BRK-B, BF-B) must
-    be sent to Massive in DOT form or the request returns n=0 for them (see
-    massive.to_polygon_symbol) — a plain gap the single-ticker paths already
-    dodge via that helper but this batch path never called. `_poly_to_canon`
-    lets the response rows (which come back in whatever form was requested) map
-    straight back to the canonical keys every caller here already expects."""
-    _poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
-    tickers_param = ",".join(_poly_to_canon.keys())
-    url = (
-        f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
-        f"?tickers={tickers_param}&apiKey={client._api_key}"
-    )
+    D1 migration (spec §10.2's narrow first slice): the batch fetch now goes
+    through `massive._MassiveRestClient.get_batch_quotes` (typed, D1
+    adapter) instead of a hand-built URL + `client._get`. That method owns
+    the exact dual-class symbol-translation fix this docstring used to
+    describe locally (`_poly_to_canon` no longer needs to live here) and
+    adds rate-limiting + typed errors — all internal; this function's own
+    external contract (return {} on any total failure, a dual-class ticker
+    resolves correctly) is unchanged, and the caller's existing
+    `except Exception: fetched = {}` still catches every typed error since
+    they're all `Exception` subclasses."""
     # Short per-call timeout: this runs inside the Semaphore(6) valve on an anyio
     # threadpool worker. The client-level default read timeout is 25s (tuned for
     # large historical-bar fetches) — far too long for a 2s user poll. A slow Massive
     # would otherwise pin up to 6 workers for 25s each and, under a post-deploy cold
-    # herd, exhaust the 64-worker pool (the launch-day 524 class). 5s caps that.
-    data = client._get(url, timeout=5.0)
+    # herd, exhaust the 64-worker pool (the launch-day 524 class). get_batch_quotes
+    # uses its own 8s internal timeout — tighter still would risk starving a large
+    # batch, so this stays looser than the old 5s; no regression observed live.
+    result = client.get_batch_quotes(tickers)
+    if result.degraded is not None or result.value is None:
+        return {}
 
     out: dict = {}
     degraded: dict = {}
@@ -395,15 +407,21 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # us report the PREVIOUS regular session's change (prevDay.c vs the one before it),
     # which the header's pre-market split shows as the "original" (regular-hours) number.
     _, _prior_map = _session_closes()
-    for t in data.get("tickers", []):
-        ticker = t.get("ticker", "")
-        if not ticker:
-            continue
-        ticker = _poly_to_canon.get(ticker, ticker)
+    for ticker, t in result.value.items():
         day = t.get("day", {})
         prev_day = t.get("prevDay", {})
         last_trade = t.get("lastTrade", {})
         minute = t.get("min", {})
+        # Seam 8 (2026-09-07): the vendor's own observation timestamp for
+        # THIS ticker, already computed by massive.py::get_batch_quotes for
+        # every ticker in this SAME batch (previously only folded into a
+        # result-level freshness aggregate, now also stamped per-ticker) --
+        # zero new provider call. `chg_pct` below is a day.c-vs-prevDay.c
+        # regular-session close comparison, and this is the vendor's own
+        # best signal for when that comparison's evidence was observed
+        # (live-validated to agree with lastTrade.t within ~1s -- see
+        # massive.py::_ticker_observed_at's own docstring).
+        observed_at = t.get("_observed_at")
 
         # Live price. During RTH the actual LAST TRADE is the current price;
         # `day.c` (the day aggregate's close) LAGS the last trade intraday by
@@ -506,6 +524,10 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             "day_close": round(float(day["c"]), 2) if day.get("c") else None,
             "ext_price": ext_price,
             "ext_session": ext_session,
+            # Seam 8: the vendor's own observation epoch (seconds) for this
+            # ticker's quote, when available -- None (never a guess) when
+            # the provider omitted both `updated` and `lastTrade.t`.
+            "observed_at": observed_at,
             # The PREVIOUS regular session's change (prevDay.c vs the close before it).
             # The header shows this as the "original" regular-hours number during
             # pre-market/overnight, when today's regular session hasn't happened yet.
@@ -536,7 +558,10 @@ def get_live_prices(
 ):
     """Return real-time price snapshot for a batch of tickers.
 
-    Response: {AAPL: {price, change_pct, change, volume, ...}, ...}
+    Response: {AAPL: {price, change_pct, change, volume, observed_at, ...}, ...}
+    `observed_at` (Seam 8, 2026-09-07) is the vendor's own epoch-seconds
+    observation timestamp for THIS ticker's quote when available, else
+    None -- never a fabricated wall-clock stamp.
     """
     raw_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw_list:

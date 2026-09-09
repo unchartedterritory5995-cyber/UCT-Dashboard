@@ -27,7 +27,18 @@ _URL = re.compile(r"https?://\S+|www\.\S+")
 # ⛔ The `$` needs a LEFT boundary. Without the lookbehind, "a$b" and an
 # email or price glued to a letter book a cashtag -- which mattered little
 # while the universe gated this tier, and matters now that it does not.
-_CASHTAG = re.compile(r"(?<![A-Za-z0-9])\$([A-Za-z]{1,6}(?:\.[A-Za-z]{1,2})?)\b")
+#
+# ⛔ Class-share suffix accepts BOTH separators. `cap_universe.json` (and
+# every consumer that joins against it — buzz_universe.symbols(), the
+# Notebook entity layer) stores class shares HYPHENATED (BRK-B, CRD-A) —
+# confirmed by reading the file, not assumed. A member types either
+# convention ($BRK-B or $BRK.B); this only had `.` wired, so $BRK-B matched
+# just the `BRK` prefix (the `-` failed the old dot-only suffix, then \b
+# happily succeeded at the B-adjacent boundary) — silently the WRONG,
+# truncated ticker for every hyphen-typed class share. `extract()` below
+# canonicalizes the captured separator to hyphen so both forms produce one
+# consistent symbol.
+_CASHTAG = re.compile(r"(?<![A-Za-z0-9])\$([A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?)\b")
 _WORD = re.compile(r"\b[A-Za-z][A-Za-z.]{0,5}\b")
 
 
@@ -65,7 +76,9 @@ def extract(text: str | None) -> list[tuple[str, str]]:
     # The shape is still the gate: `_CASHTAG` requires $ + 1-6 letters, so
     # "$5", "$1.20" and "$" alone match nothing.
     for m in _CASHTAG.finditer(text):
-        _strongest(found, m.group(1).upper(), "cashtag")
+        # Canonicalize the class-share separator to hyphen (cap_universe.json's
+        # own convention) regardless of which one the member typed.
+        _strongest(found, m.group(1).upper().replace(".", "-"), "cashtag")
 
     # Tier 2 -- company aliases. Longest first so "rocket lab" wins over "lab".
     low = text.lower()

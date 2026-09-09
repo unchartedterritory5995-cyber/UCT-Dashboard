@@ -828,10 +828,11 @@ def admin_reset_password_by_id(user_id: str, user: dict = Depends(get_current_us
 
 
 def _cascade_delete_user(conn, user_id: str) -> None:
-    """Delete a user and EVERY row referencing them, across all tables.
+    """Delete a user and EVERY row referencing them, across all tables that
+    declare an actual foreign key to users(id).
 
     The auth.db has grown to 38+ tables with a foreign key to users(id)
-    (voice_*, journal/j2_*, ticker_tags, watchlist_alerts, trading_accounts,
+    (voice_*, ticker_tags, watchlist_alerts, trading_accounts,
     referrals.referred_user_id, …). Because every connection runs with
     PRAGMA foreign_keys=ON, a single leftover child row (even one ticker tag)
     makes the final `DELETE FROM users` raise "FOREIGN KEY constraint failed"
@@ -846,8 +847,16 @@ def _cascade_delete_user(conn, user_id: str) -> None:
     grandchildren that FK to tickets/watchlists rather than to users directly
     are swept afterward.
 
-    Call the broker-sync GDPR purge BEFORE this (it does an external SnapTrade
-    revoke that needs the rows present); this then clears whatever remains.
+    ⛔ This does NOT reach `journal_two`'s j2_* tables (found 2026-09-05,
+    Notebook Primary-Platform Phase One research, independently re-verified
+    by executing the schema and this exact PRAGMA walk): none of the 60+
+    j2_* tables declare a foreign key to users(id), so this mechanism
+    structurally cannot see them — a prior version of this docstring
+    incorrectly claimed "journal/j2_*" was covered here. That whole table
+    family (notes, trades, positions, verdicts, chat history, broker sync,
+    attachments) is purged separately by
+    `journal_two.account_purge.purge_user_data`, called at both use sites
+    below BEFORE this function, alongside the existing broker-only purge.
     """
     conn.commit()  # close any implicit txn so the PRAGMA actually takes effect
     conn.execute("PRAGMA foreign_keys=OFF")
@@ -897,8 +906,28 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
             _broker_service.purge_on_account_deletion(user_id, conn)
         except Exception as _e:
             print(f"[admin-delete] broker purge failed (non-fatal): {_e}")
+        # Journal 2.0 / Notebook cascade (GDPR/CCPA): none of the j2_* tables
+        # carry a foreign key to users(id), so _cascade_delete_user's generic
+        # PRAGMA walk below can never reach them on its own — see its docstring.
+        # Non-fatal (best-effort, like the broker purge above) so a purge
+        # error can't leave the account itself undeletable — but the result
+        # is surfaced in the response, never silently swallowed.
+        j2_purge_report: dict | None = None
+        try:
+            from api.services.journal_two import account_purge as _j2_purge
+            j2_purge_report = _j2_purge.purge_user_data(user_id, conn)
+            if not j2_purge_report["ok"]:
+                print(f"[admin-delete] journal_two purge had errors: {j2_purge_report['errors']}")
+        except Exception as _e:
+            print(f"[admin-delete] journal_two purge failed (non-fatal): {_e}")
+            j2_purge_report = {"ok": False, "errors": [str(_e)]}
         _cascade_delete_user(conn, user_id)
-        return {"ok": True, "user_id": user_id, "deleted": True}
+        return {
+            "ok": True,
+            "user_id": user_id,
+            "deleted": True,
+            "journal_two_purge": j2_purge_report,
+        }
     finally:
         conn.close()
 
@@ -950,8 +979,25 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
             _broker_service.purge_on_account_deletion(target_id, conn)
         except Exception as _e:
             print(f"[delete-user] broker purge failed (non-fatal): {_e}")
+        # Journal 2.0 / Notebook cascade (GDPR/CCPA): none of the j2_* tables
+        # carry a foreign key to users(id) — see _cascade_delete_user's
+        # docstring. Non-fatal, but surfaced in the response, never swallowed.
+        j2_purge_report: dict | None = None
+        try:
+            from api.services.journal_two import account_purge as _j2_purge
+            j2_purge_report = _j2_purge.purge_user_data(target_id, conn)
+            if not j2_purge_report["ok"]:
+                print(f"[delete-user] journal_two purge had errors: {j2_purge_report['errors']}")
+        except Exception as _e:
+            print(f"[delete-user] journal_two purge failed (non-fatal): {_e}")
+            j2_purge_report = {"ok": False, "errors": [str(_e)]}
         _cascade_delete_user(conn, target_id)
-        return {"ok": True, "email": req.email, "deleted": True}
+        return {
+            "ok": True,
+            "email": req.email,
+            "deleted": True,
+            "journal_two_purge": j2_purge_report,
+        }
     finally:
         conn.close()
 

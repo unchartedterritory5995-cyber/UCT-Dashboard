@@ -24,7 +24,7 @@ import time
 
 import pytest
 
-from api.services import insider
+from api.services import fmp_client, insider, provider_errors
 from api.services.cache import cache
 
 
@@ -35,6 +35,42 @@ def _ttl_remaining(key: str) -> float:
 
 def _forbid_call(*_a, **_k):
     raise AssertionError("unexpected network call — the other provider should have satisfied this")
+
+
+# D1 migration note: `insider._fmp_get_insider` was deleted — insider.py now
+# calls `fmp_client.get_insider_trading` (a ProviderResult-returning
+# function that raises typed exceptions on failure, not a None-returning
+# helper). Every test below that used to monkeypatch `insider.
+# _fmp_get_insider` now monkeypatches `fmp_client.get_insider_trading`
+# directly (patched on the `fmp_client` module itself, which
+# `insider._fetch_insider_raw`'s local `from api.services import
+# fmp_client` resolves at call time — so patching the module attribute is
+# sufficient, no patch-target-not-found issue).
+
+def _fmp_success(rows: list[dict]):
+    """A fake `fmp_client.get_insider_trading` that returns a successful
+    ProviderResult carrying `rows` — mirrors the old `lambda tk: rows`."""
+    def _fn(ticker):
+        return provider_errors.ProviderResult(
+            value=rows,
+            provenance=provider_errors.ProvenanceRecord(vendor="fmp", source_activity="fmp_client.get_insider_trading"),
+            licensing_class="R",
+        )
+    return _fn
+
+
+def _fmp_not_found(ticker):
+    """Mirrors the old `lambda tk: []` (FMP answered, genuinely nothing) —
+    the real adapter raises FMPNotFound for an empty-list response
+    (spec §9.5); insider.py's own except-clause maps this back to
+    `(rows=[], fetched_ok=True)`, so this is a behavior-preserving mock."""
+    raise fmp_client.FMPNotFound("no insider filings", vendor="fmp")
+
+
+def _fmp_total_failure(ticker):
+    """Mirrors the old `lambda tk: None` (FMP failed outright) — any
+    non-NotFound ProviderError falls through to the Finnhub fallback."""
+    raise fmp_client.FMPTransient("simulated FMP outage", vendor="fmp")
 
 
 @pytest.fixture(autouse=True)
@@ -71,12 +107,12 @@ def _fmp_row(**overrides) -> dict:
 class TestFmpFieldMapping:
     def test_fmp_row_maps_to_expected_shape(self, monkeypatch):
         cache.invalidate("insider_ZTST1")
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: [_fmp_row(
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_success([_fmp_row(
             reportingName="Jane Doe", typeOfOwner="officer: Chief Financial Officer",
             transactionType="S-Sale", acquisitionOrDisposition="D",
             securitiesTransacted=1000, price=50.0,
             transactionDate="2026-07-30", filingDate="2026-08-01",
-        )])
+        )]))
         monkeypatch.setattr(insider, "fh_get", _forbid_call)
 
         txns = insider.get_insider_activity("ZTST1")
@@ -95,7 +131,7 @@ class TestFmpFieldMapping:
     def test_fmp_row_missing_typeOfOwner_falls_back_to_placeholder(self, monkeypatch):
         cache.invalidate("insider_ZTST1B")
         row = _fmp_row(typeOfOwner=None)
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: [row])
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_success([row]))
         monkeypatch.setattr(insider, "fh_get", _forbid_call)
 
         txns = insider.get_insider_activity("ZTST1B")
@@ -191,7 +227,7 @@ class TestSignDerivation:
         bad.pop("acquisitionOrDisposition")
         good = _fmp_row(transactionType="S-Sale", acquisitionOrDisposition="D",
                          transactionDate="2026-07-29")
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: [bad, good])
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_success([bad, good]))
         monkeypatch.setattr(insider, "fh_get", _forbid_call)
 
         txns = insider.get_insider_activity("ZTST2")
@@ -205,7 +241,7 @@ class TestSignDerivation:
 class TestC18PerTickerCacheCompleteness:
     def test_both_providers_fail_gets_short_ttl_and_still_serves_empty(self, monkeypatch):
         cache.invalidate("insider_ZTST3")
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: None)
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_total_failure)
         monkeypatch.setattr(insider, "fh_get", lambda *a, **k: None)
 
         txns = insider.get_insider_activity("ZTST3")
@@ -221,7 +257,7 @@ class TestC18PerTickerCacheCompleteness:
         (cache_policy.py's documented distinction: a legitimately-empty
         COMPLETE value is not a failed fetch)."""
         cache.invalidate("insider_ZTST4")
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: [])
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_not_found)
         monkeypatch.setattr(insider, "fh_get", _forbid_call)
 
         txns = insider.get_insider_activity("ZTST4")
@@ -232,7 +268,7 @@ class TestC18PerTickerCacheCompleteness:
 
     def test_fmp_fails_finnhub_fallback_succeeds_gets_full_ttl(self, monkeypatch):
         cache.invalidate("insider_ZTST5")
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: None)
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_total_failure)
         monkeypatch.setattr(insider, "fh_get", lambda *a, **k: {"data": [
             {"name": "John Fallback", "share": 500, "transactionPrice": 10.0,
              "transactionCode": "P", "transactionDate": "2026-07-20",
@@ -253,7 +289,7 @@ class TestC18PerTickerCacheCompleteness:
         ttl_ok, on ANY total-failure path -- distinct from the "genuinely
         empty" control above."""
         cache.invalidate("insider_ZTST6")
-        monkeypatch.setattr(insider, "_fmp_get_insider", lambda tk: None)
+        monkeypatch.setattr(fmp_client, "get_insider_trading", _fmp_total_failure)
         monkeypatch.setattr(insider, "fh_get", lambda *a, **k: None)
 
         insider.get_insider_activity("ZTST6")

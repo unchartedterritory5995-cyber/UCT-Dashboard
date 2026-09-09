@@ -40,8 +40,15 @@ def enabled() -> bool:
 
 
 def _owned(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:
+    # Wave 0 trash: a soft-deleted note must not be shareable — creating a
+    # new share link for a note already in the trash would be surprising,
+    # and `resolve_share` (below) already stops SERVING an existing share
+    # the moment its note is deleted, via `notes_service.get_note`'s own
+    # default `deleted_at IS NULL` filter — this closes the symmetric gap
+    # on the creation side.
     row = conn.execute(
-        "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ?", (note_id, user_id)
+        "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+        (note_id, user_id),
     ).fetchone()
     return row is not None
 

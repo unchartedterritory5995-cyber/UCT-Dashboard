@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import FolderSidebar, { buildFolderTree } from './FolderSidebar'
+import FolderSidebar, { buildFolderTree, renderSnippetMarks, matchReasonFor } from './FolderSidebar'
 
 const removeMock = vi.fn()
 
@@ -21,8 +21,25 @@ vi.mock('../../hooks/useJ2NoteFolders', () => ({
 // SQL-truncated page). Mocked so every test controls exactly what "the
 // server" returns and can inspect what FolderSidebar actually asked for.
 const useJ2NotesMock = vi.fn(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
+// P0-2 fix: the honest per-folder counts. Default mimics "still loading"
+// (`counts: undefined`) so most tests exercise the page-derived fallback,
+// same convention as the other hooks below — tests proving the fix itself
+// override this explicitly with real (loaded) counts.
+const useJ2NoteFolderCountsMock = vi.fn(() => ({
+  counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
+}))
+const useJ2NotesByFoldersMock = vi.fn(() => ({ byFolder: {}, isLoading: false, error: null, refresh: vi.fn() }))
+// Wave B: Favorites/Recents. Default empty (isLoading: false) so the
+// populated-conditional sections stay absent unless a test opts in — mirrors
+// every other "still loading vs. genuinely empty" default above.
+const useJ2FavoritesMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+const useJ2RecentsMock = vi.fn(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
 vi.mock('../../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
+  useJ2NoteFolderCounts: (...args) => useJ2NoteFolderCountsMock(...args),
+  useJ2NotesByFolders: (...args) => useJ2NotesByFoldersMock(...args),
+  useJ2Favorites: (...args) => useJ2FavoritesMock(...args),
+  useJ2Recents: (...args) => useJ2RecentsMock(...args),
 }))
 
 // The tag cloud's honest, whole-library counts (final-review C5). Default
@@ -34,11 +51,49 @@ vi.mock('../../hooks/useJ2NoteTags', () => ({
   default: (...args) => useJ2NoteTagsMock(...args),
 }))
 
+// Wave I: document (PDF page) search — a separate hook/section from note
+// search above. Default (no results) so existing search tests, which never
+// exercise this new section, stay unaffected.
+const useDocumentSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useDocumentSearch', () => ({
+  default: (...args) => useDocumentSearchMock(...args),
+}))
+
+// Wave J: saved-excerpt (evidence) search — a THIRD hook/section, separate
+// again from both of the above. Same default-empty convention.
+const useExcerptSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useExcerptSearch', () => ({
+  default: (...args) => useExcerptSearchMock(...args),
+}))
+
+// Wave O6: thesis-review search — a FOURTH hook/section. Same default-empty
+// convention, so every pre-existing search test is unaffected by its arrival.
+const useReviewSearchMock = vi.fn(() => ({ results: [], isLoading: false, error: null }))
+vi.mock('../../hooks/useReviewSearch', () => ({
+  default: (...args) => useReviewSearchMock(...args),
+}))
+
 beforeEach(() => {
   useJ2NotesMock.mockReset()
   useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
   useJ2NoteTagsMock.mockReset()
   useJ2NoteTagsMock.mockImplementation(() => ({ tagCounts: [], isLoading: false, error: null }))
+  useDocumentSearchMock.mockReset()
+  useDocumentSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useExcerptSearchMock.mockReset()
+  useExcerptSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useReviewSearchMock.mockReset()
+  useReviewSearchMock.mockImplementation(() => ({ results: [], isLoading: false, error: null }))
+  useJ2NoteFolderCountsMock.mockReset()
+  useJ2NoteFolderCountsMock.mockImplementation(() => ({
+    counts: undefined, unfiled: undefined, total: undefined, isLoading: true, error: null, refresh: vi.fn(),
+  }))
+  useJ2NotesByFoldersMock.mockReset()
+  useJ2NotesByFoldersMock.mockImplementation(() => ({ byFolder: {}, isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2FavoritesMock.mockReset()
+  useJ2FavoritesMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
+  useJ2RecentsMock.mockReset()
+  useJ2RecentsMock.mockImplementation(() => ({ notes: [], isLoading: false, error: null, refresh: vi.fn() }))
 })
 
 describe('folder tree', () => {
@@ -144,17 +199,20 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
     expect(afterDebounce.q).toBe('sndk')
   })
 
-  it('shows "Searching…" while the debounce is pending — never a bare "no results" moment', () => {
+  it('shows a Searching skeleton while the debounce is pending — never a bare "no results" moment', () => {
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     typeQuery('sndk')
     // Debounce hasn't fired yet — nothing resolved, so this must read as
-    // "still working", not as an answer of zero.
-    expect(screen.getByRole('status').textContent).toBe('Searching…')
+    // "still working", not as an answer of zero. Wave B: the text hint was
+    // replaced with a skeleton-row placeholder (G-106 adoption) — the
+    // accessible name on the status role carries the same "Searching…"
+    // signal a screen reader announces.
+    expect(screen.getByRole('status')).toHaveAccessibleName('Searching…')
     expect(screen.queryByText(/No notes match/)).not.toBeInTheDocument()
   })
 
-  it('shows "Searching…" while the server request itself is in flight, after the debounce settles', () => {
+  it('shows a Searching skeleton while the server request itself is in flight, after the debounce settles', () => {
     useJ2NotesMock.mockImplementation((opts) => ({
       notes: [],
       isLoading: Boolean(opts?.enabled),
@@ -165,7 +223,7 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
                           activeTag={null} onSelectTag={() => {}} />)
     typeQuery('sndk')
     settle()
-    expect(screen.getByRole('status').textContent).toBe('Searching…')
+    expect(screen.getByRole('status')).toHaveAccessibleName('Searching…')
     expect(screen.queryByText(/No notes match/)).not.toBeInTheDocument()
   })
 
@@ -321,10 +379,23 @@ describe('folder delete error surfacing', () => {
     removeMock.mockReset()
   })
 
-  it('alerts with the server-provided detail when deleting a folder fails, instead of an unhandled rejection', async () => {
-    const detail = 'cannot delete: a folder named \'Setups\' already exists at the destination — rename it first'
+  // ⛔ THIS TEST USED TO REQUIRE THE DEFECT. It asserted
+  // `alert(detail)` — a native alert carrying the raw exception — which is
+  // exactly the class the integrity mini-pass removed (see
+  // rawErrorSurface.test.js). The INTENT it was written for is right and is
+  // kept verbatim: a failed delete must reach the member, never vanish into an
+  // unhandled rejection. Only the mechanism changed.
+  //
+  // ⚠️ Honest trade-off, recorded rather than hidden: this fixture's server
+  // detail ("...rename it first") is genuinely useful copy, and the member no
+  // longer sees it. At the catch site a helpful server message and a stack
+  // fragment are the same `Error`, so nothing here can tell them apart. Making
+  // that distinction possible — an API layer that marks member-safe server
+  // details — is a real follow-up, not something to fake by letting every
+  // exception through.
+  it('surfaces a failed delete to the member WITHOUT rendering the raw exception', async () => {
+    const detail = "cannot delete: a folder named 'Setups' already exists at the destination — rename it first"
     removeMock.mockRejectedValueOnce(new Error(detail))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
 
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
@@ -332,9 +403,58 @@ describe('folder delete error surfacing', () => {
 
     const journalButton = screen.getByText('Journal').closest('button')
     fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(detail))
+    // The member is told, in an alert REGION (not a native modal).
+    const alertRegion = await screen.findByRole('alert')
+    expect(alertRegion).toHaveTextContent(/couldn't delete that folder/i)
+    // ...and the raw exception is nowhere on screen.
+    expect(alertRegion).not.toHaveTextContent(/rename it first/i)
+    expect(document.body.textContent).not.toContain(detail)
+    // ...and no native alert() was used.
+    expect(alertSpy).not.toHaveBeenCalled()
     expect(removeMock).toHaveBeenCalledWith('c')
+  })
+})
+
+describe('folder delete uses ConfirmModal, not native confirm() (Wave B, G-103)', () => {
+  beforeEach(() => {
+    removeMock.mockReset()
+  })
+
+  it('does not call remove() until the modal is confirmed, and cancel leaves the folder intact', async () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+
+    expect(screen.getByText('Delete folder "Journal"?')).toBeInTheDocument()
+    expect(removeMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByText('Delete folder "Journal"?')).not.toBeInTheDocument()
+    expect(removeMock).not.toHaveBeenCalled()
+  })
+
+  it('confirming the modal calls remove() with the folder id', async () => {
+    removeMock.mockResolvedValueOnce(undefined)
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('c'))
+  })
+
+  it('Escape closes the modal without deleting', async () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    expect(screen.getByText('Delete folder "Journal"?')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByText('Delete folder "Journal"?')).not.toBeInTheDocument()
+    expect(removeMock).not.toHaveBeenCalled()
   })
 })
 
@@ -500,5 +620,742 @@ describe('tag counts read the whole library, not the loaded page (final-review C
     const betaRow = screen.getByText('#beta').closest('button')
     expect(within(alphaRow).getByText('2')).toBeInTheDocument()
     expect(within(betaRow).getByText('1')).toBeInTheDocument()
+  })
+})
+
+describe('P0-2: honest per-folder counts, not derived from one capped page', () => {
+  // The bug: a folder's disclosure arrow used to come from grouping `notes`
+  // (one page, sorted by title across the WHOLE library) by folderId. A
+  // folder whose notes all sorted past that page's cutoff rendered with NO
+  // arrow — independent of that folder's own real size. 'c' (Journal) here
+  // stands in for exactly that: the loaded page carries ZERO notes for it,
+  // but the honest server count says it holds 150.
+  it('shows a disclosure arrow for a folder with real notes even when none of them are on the loaded page', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: { c: 150 }, unfiled: 0, total: 150, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    // Would NOT be in the document against the old page-derived logic — the
+    // loaded page (`notes={[]}`) has nothing for folder 'c'.
+    expect(screen.getByLabelText('Expand Journal')).toBeInTheDocument()
+  })
+
+  it('a folder truly empty per the honest server count gets no arrow, even if it once appeared on a stale loaded page', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: {}, unfiled: 0, total: 0, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    // A stale page still lists a note under 'c' (e.g. it was just deleted
+    // and the page hasn't refetched yet) — the honest, loaded count (absent
+    // key = 0) must win once it has actually arrived.
+    render(<FolderSidebar notes={[{ id: 'n1', title: 'Stale', folderId: 'c', tags: [] }]}
+                          activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.queryByLabelText('Expand Journal')).not.toBeInTheDocument()
+  })
+
+  it('while the honest counts are still loading, falls back to the page-derived guess (no arrow flicker to "wrong" first)', () => {
+    // Default mock (beforeEach): counts: undefined, isLoading: true.
+    render(<FolderSidebar notes={[{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }]}
+                          activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByLabelText('Expand Journal')).toBeInTheDocument()
+  })
+
+  it('expanding a folder renders its real per-folder note list, not the one capped page', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: { c: 2 }, unfiled: 0, total: 2, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    useJ2NotesByFoldersMock.mockImplementation(() => ({
+      byFolder: { c: [
+        { id: 'real1', title: 'Real Note One' },
+        { id: 'real2', title: 'Real Note Two' },
+      ] },
+      isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onOpenNote = vi.fn()
+    // The loaded page carries a DIFFERENT note for 'c' — proves the honest
+    // per-folder fetch wins over it once expanded, not merely alongside it.
+    render(<FolderSidebar notes={[{ id: 'stale1', title: 'Stale Page Note', folderId: 'c', tags: [] }]}
+                          activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    expect(screen.getByText('Real Note One')).toBeInTheDocument()
+    expect(screen.getByText('Real Note Two')).toBeInTheDocument()
+    expect(screen.queryByText('Stale Page Note')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Real Note One'))
+    expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'real1' }))
+  })
+
+  it('asks for exactly the expanded folder ids, sorted (stable cache key regardless of click order)', () => {
+    useJ2NoteFolderCountsMock.mockImplementation(() => ({
+      counts: { a: 1, c: 1 }, unfiled: 0, total: 2, isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Expand Journal')) // 'c'
+    fireEvent.click(screen.getByLabelText('Expand Trading'))  // 'a'
+    const lastCall = useJ2NotesByFoldersMock.mock.calls.at(-1)
+    expect(lastCall[0]).toEqual(['a', 'c'])
+  })
+})
+
+describe('Wave 0 trash: a "Trash" entry in the sidebar', () => {
+  it('renders a Trash row with the honest server count and routes selection through the __trash__ sentinel', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.deleted) return { notes: [], isLoading: false, isValidating: false, error: null, total: 7 }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    const onSelectFolder = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={onSelectFolder}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const trashRow = screen.getByText('Trash').closest('button')
+    expect(within(trashRow).getByText('7')).toBeInTheDocument()
+    fireEvent.click(trashRow)
+    expect(onSelectFolder).toHaveBeenCalledWith('__trash__')
+  })
+
+  it('shows no count badge while the trash total is still unknown, rather than a false zero', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.deleted) return { notes: [], isLoading: true, isValidating: true, error: null, total: undefined }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const trashRow = screen.getByText('Trash').closest('button')
+    expect(within(trashRow).queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('highlights the Trash row as active when it is the selected view', () => {
+    render(<FolderSidebar notes={[]} activeFolderId="__trash__" onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    const trashRow = screen.getByText('Trash').closest('button')
+    expect(trashRow.className).toMatch(/rowActive/)
+  })
+})
+
+// ── Wave 4 (Search Evolution I) — date/sector/theme filters, relevance
+// sort, and query-aware snippet rendering. ──────────────────────────────────
+
+describe('renderSnippetMarks (Wave 4 Slice 2)', () => {
+  it('splits a snippet() string into text + <mark> React children, never dangerouslySetInnerHTML', () => {
+    render(<div data-testid="out">{renderSnippetMarks('the <mark>capex</mark> thesis')}</div>)
+    const out = screen.getByTestId('out')
+    expect(out.querySelector('mark').textContent).toBe('capex')
+    expect(out.textContent).toBe('the capex thesis')
+  })
+
+  it('returns null for an empty/absent snippet', () => {
+    expect(renderSnippetMarks('')).toBeNull()
+    expect(renderSnippetMarks(undefined)).toBeNull()
+  })
+
+  it('a member\'s own literal "<" or ">" text renders as plain text, never as markup', () => {
+    // No <mark> delimiters at all here -- the whole string is untrusted
+    // member content and must render verbatim, as text.
+    render(<div data-testid="out">{renderSnippetMarks('if x < y and y > 0')}</div>)
+    expect(screen.getByTestId('out').textContent).toBe('if x < y and y > 0')
+    expect(screen.getByTestId('out').querySelector('script')).toBeNull()
+  })
+})
+
+describe('matchReasonFor (Wave 4 Slice 2)', () => {
+  it('explains an exact ticker match, stripping a leading cashtag like the backend fix does', () => {
+    expect(matchReasonFor({ ticker: 'NVDA', tags: [] }, '$NVDA')).toBe('Matched ticker: NVDA')
+    expect(matchReasonFor({ ticker: 'NVDA', tags: [] }, 'NVDA')).toBe('Matched ticker: NVDA')
+  })
+
+  it('explains an exact tag match', () => {
+    expect(matchReasonFor({ ticker: null, tags: ['thesis'] }, 'thesis')).toBe('Matched tag: thesis')
+  })
+
+  it('returns null when neither ticker nor tag matches (an FTS-only match)', () => {
+    expect(matchReasonFor({ ticker: 'AMD', tags: ['other'] }, 'NVDA')).toBeNull()
+  })
+
+  it('returns null for an empty query', () => {
+    expect(matchReasonFor({ ticker: 'NVDA', tags: [] }, '')).toBeNull()
+  })
+})
+
+describe('search panel — Wave 4 date/sector/theme filters', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('filters are collapsed by default -- a plain search never shows them', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText('Note created from')).not.toBeInTheDocument()
+  })
+
+  it('the filter toggle reveals date/sector/theme inputs', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(screen.getByText('Note created from')).toBeInTheDocument()
+    expect(screen.getByText('Sector')).toBeInTheDocument()
+    expect(screen.getByText('Theme')).toBeInTheDocument()
+  })
+
+  it('setting a date filter alone (no typed query) enables the search fetch with dateFrom/dateTo and no q', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    // Select the date-from input by its wrapping label text.
+    const fromInput = screen.getByText('Note created from').parentElement.querySelector('input')
+    fireEvent.change(fromInput, { target: { value: '2026-03-01' } })
+    settle()
+    const call = useJ2NotesMock.mock.calls.filter(([opts]) => opts && 'dateFrom' in opts).at(-1)[0]
+    expect(call.enabled).toBe(true)
+    expect(call.dateFrom).toBe('2026-03-01')
+    expect(call.q).toBeUndefined()
+  })
+
+  it('the search fetch requests sort="relevance"', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'nvda' } })
+    settle()
+    const call = useJ2NotesMock.mock.calls.filter(([opts]) => opts?.q === 'nvda').at(-1)[0]
+    expect(call.sort).toBe('relevance')
+  })
+
+  it('Clear filters resets all four fields and is only shown while a filter is active', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.click(screen.getByLabelText('Search filters'))
+    expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+    const sectorInput = screen.getByPlaceholderText('e.g. Technology')
+    fireEvent.change(sectorInput, { target: { value: 'Technology' } })
+    expect(screen.getByText('Clear filters')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Clear filters'))
+    expect(screen.getByPlaceholderText('e.g. Technology')).toHaveValue('')
+    expect(screen.queryByText('Clear filters')).not.toBeInTheDocument()
+  })
+
+  it('a result with a body snippet renders the highlighted excerpt, never the old naive 120-char slice', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.q === 'capex') {
+        return {
+          notes: [{ id: 'n1', title: 'Thesis', bodySnippet: 'accelerating <mark>capex</mark> spend', ticker: null, tags: [] }],
+          isLoading: false, isValidating: false, error: null, total: 1,
+        }
+      }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'capex' } })
+    settle()
+    expect(screen.getByText('capex').tagName).toBe('MARK')
+  })
+
+  it('a tag/ticker-only match (no snippet) shows the "why matched" label instead of a blank excerpt', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.q === 'NVDA') {
+        return {
+          notes: [{ id: 'n1', title: 'Position note', ticker: 'NVDA', tags: [] }],
+          isLoading: false, isValidating: false, error: null, total: 1,
+        }
+      }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'NVDA' } })
+    settle()
+    expect(screen.getByText('Matched ticker: NVDA')).toBeInTheDocument()
+  })
+})
+
+describe('search panel — Wave I document (PDF page) search, sectioned separately from notes', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('renders zero document results with no query typed', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText(/document page/)).not.toBeInTheDocument()
+  })
+
+  it('a matching document page renders its own snippet, page number, and owning note title — separately from note results', () => {
+    useDocumentSearchMock.mockImplementation((q) => {
+      if (q === 'margin') {
+        return {
+          results: [{
+            documentId: 'd1', pageNumber: 17, noteId: 'n1', noteTitle: 'NVDA 10-K notes',
+            name: 'investor-deck.pdf', attachmentUrl: '/x.pdf',
+            snippet: 'gross <mark>margin</mark> expanded',
+          }],
+          isLoading: false, error: null,
+        }
+      }
+      return { results: [], isLoading: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margin' } })
+    settle()
+    expect(screen.getByText('1 document page')).toBeInTheDocument()
+    expect(screen.getByText('investor-deck.pdf · p.17')).toBeInTheDocument()
+    expect(screen.getByText('margin').tagName).toBe('MARK')
+  })
+
+  // ⚰️ THIS TEST USED TO ASSERT THE v1 LIMITATION. Wave I deliberately scoped
+  // navigation to "open the owning note; the member finds the PDF from there",
+  // and the test recorded that as a requirement. Wave M closed the gap, so the
+  // INTENT is kept — clicking a document hit opens the right note — and the
+  // MECHANISM is updated: it now also carries the page the result named.
+  it('clicking a document result opens its owning note AND targets the page it named', () => {
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 3, noteId: 'n1', noteTitle: 'NVDA notes',
+        name: 'deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    fireEvent.click(screen.getByText('deck.pdf · p.3'))
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' },
+      expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 3, depth: 'page' }),
+    )
+  })
+
+  it('shows an honest "Searching documents…" state while a document query is in flight', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching documents…')).toBeInTheDocument()
+  })
+})
+
+// ── Wave J: saved-excerpt (Evidence) search — the third result section.
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('FolderSidebar — Wave J saved-excerpt search', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  it('renders no evidence section with no query typed', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    expect(screen.queryByText(/saved excerpt/)).not.toBeInTheDocument()
+  })
+
+  it('a matching excerpt renders its own snippet, source document and page', () => {
+    useExcerptSearchMock.mockImplementation((q) => {
+      if (q !== 'margins') return { results: [], isLoading: false, error: null }
+      return {
+        results: [{
+          excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis',
+          documentId: 'd1', documentName: 'q3-deck.pdf', pageNumber: 2,
+          annotation: 'the guidance walk-down',
+          snippet: 'gross <mark>margins</mark> to normalize lower',
+        }],
+        isLoading: false, error: null,
+      }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margins' } })
+    settle()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+    expect(screen.getByText('margins').tagName).toBe('MARK')
+  })
+
+  it('keeps excerpts in their OWN section rather than merging them into the document results', () => {
+    // The whole point of three sections: a curated passage and a raw page
+    // hit must not be ranked against each other (excerpt_search.py says the
+    // same thing on the backend). Both lists present, both counted apart.
+    useDocumentSearchMock.mockReturnValue({
+      results: [{
+        documentId: 'd1', pageNumber: 9, noteId: 'n1', noteTitle: 'NVDA thesis',
+        name: 'q3-deck.pdf', attachmentUrl: '/x.pdf', snippet: 'a page <mark>hit</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA thesis', documentId: 'd1',
+        documentName: 'q3-deck.pdf', pageNumber: 2, annotation: null,
+        snippet: 'a kept <mark>hit</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'hit' } })
+    settle()
+    expect(screen.getByText('1 document page')).toBeInTheDocument()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.9')).toBeInTheDocument()
+    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+  })
+
+  // Same v1→Wave M transition as the document test above.
+  it('clicking an excerpt result opens its owning note AND targets the excerpt', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{
+        excerptId: 'e1', noteId: 'n7', noteTitle: 'NVDA thesis', documentId: 'd1',
+        documentName: 'deck.pdf', pageNumber: 4, annotation: null,
+        snippet: 'a <mark>match</mark>',
+      }],
+      isLoading: false, error: null,
+    })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'match' } })
+    settle()
+    fireEvent.click(screen.getByText('deck.pdf · p.4'))
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n7' },
+      expect.objectContaining({ noteId: 'n7', excerptId: 'e1', depth: 'excerpt' }),
+    )
+  })
+
+  it('shows an honest "Searching evidence…" state while an excerpt query is in flight', () => {
+    useExcerptSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching evidence…')).toBeInTheDocument()
+  })
+})
+
+// ── Wave O6: Thesis reviews, the fourth search section ──────────────────────
+//
+// ⚰️ THE DEFECT. Search could find everything the member had READ and nothing
+// they had CONCLUDED. A member who wrote "I was wrong about the datacenter
+// buildout" in a review and searched "datacenter" three months later got
+// notes, pages and excerpts — never their own judgement.
+describe('search — thesis reviews section', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function openSearch() {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+  }
+
+  const REVIEW = {
+    reviewId: 'rv1', noteId: 'n7', noteTitle: 'NVDA thesis', ticker: 'NVDA',
+    outcome: 'invalidated', completedAt: '2026-03-20T00:00:00+00:00',
+    reviewReason: 'manual', snippet: 'the <mark>datacenter</mark> call was wrong',
+  }
+
+  it('renders the members own reviews as their OWN section, not merged into another', () => {
+    // ⛔ FOUR LISTS, FOUR COUNTS. Blending a conclusion into the notes list
+    // would rank the one thing only this member could have written against
+    // whatever bm25 thought of a PDF page.
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.getByText('1 thesis review')).toBeInTheDocument()
+    expect(screen.getByText('Thesis review · NVDA thesis')).toBeInTheDocument()
+  })
+
+  it('⛔ shows the DECISION beside the prose, in the members own vocabulary', () => {
+    // "I was wrong about this" and "no change" must not look like the same
+    // kind of finding — and 'deferred' must read as it does in the panel where
+    // the member chose it.
+    useReviewSearchMock.mockReturnValue({
+      results: [{ ...REVIEW, outcome: 'deferred' }], isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    expect(screen.getByText(/Need more work/)).toBeInTheDocument()
+  })
+
+  it('clicking a review result opens its thesis AND targets the review itself', () => {
+    // ⛔ §4 — the Wave M lesson, one section later: a result that names a thing
+    // and navigates somewhere else is half a retrieval system.
+    useReviewSearchMock.mockReturnValue({ results: [REVIEW], isLoading: false, error: null })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'datacenter' } })
+    settle()
+    fireEvent.click(screen.getByText('Thesis review · NVDA thesis'))
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n7' },
+      expect.objectContaining({ noteId: 'n7', reviewId: 'rv1', depth: 'review' }),
+    )
+  })
+
+  it('shows an honest "Searching your reviews…" state while the query is in flight', () => {
+    useReviewSearchMock.mockReturnValue({ results: [], isLoading: true, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.getByText('Searching your reviews…')).toBeInTheDocument()
+  })
+
+  it('a search with no review hits grows no empty block', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    openSearch()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'x' } })
+    settle()
+    expect(screen.queryByText(/thesis review/i)).not.toBeInTheDocument()
+  })
+})
+
+// ── Wave B (High-Frequency Notebook UX) — Favorites + Recents sidebar
+// sections. Both populated-conditional: absent from the DOM entirely with
+// zero items. ────────────────────────────────────────────────────────────
+
+describe('Favorites + Recents sidebar sections (Wave B)', () => {
+  it('renders neither section when both lists are empty (populated-conditional)', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.queryByText('Favorites')).not.toBeInTheDocument()
+    expect(screen.queryByText('Recents')).not.toBeInTheDocument()
+  })
+
+  it('renders a Favorites section with its notes and opens one on click', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    expect(screen.getByText('Favorites')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Favorited Thesis'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'f1', title: 'Favorited Thesis' })
+  })
+
+  it('renders a Recents section with its notes and opens one on click', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: 'Recently Opened' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    expect(screen.getByText('Recents')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Recently Opened'))
+    expect(onOpenNote).toHaveBeenCalledWith({ id: 'r1', title: 'Recently Opened' })
+  })
+
+  it('collapsing a section hides its rows without removing the section header', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Favorited Thesis')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Collapse Favorites'))
+    expect(screen.queryByText('Favorited Thesis')).not.toBeInTheDocument()
+    expect(screen.getByText('Favorites')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Expand Favorites'))
+    expect(screen.getByText('Favorited Thesis')).toBeInTheDocument()
+  })
+
+  it('highlights the active note row inside Favorites/Recents', () => {
+    useJ2FavoritesMock.mockImplementation(() => ({
+      notes: [{ id: 'f1', title: 'Favorited Thesis' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} activeNoteId="f1" />)
+    const row = screen.getByText('Favorited Thesis').closest('button')
+    expect(row.className).toMatch(/rowActive/)
+  })
+
+  it('an untitled favorited/recent note falls back to "Untitled"', () => {
+    useJ2RecentsMock.mockImplementation(() => ({
+      notes: [{ id: 'r1', title: '' }], isLoading: false, error: null, refresh: vi.fn(),
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('Untitled')).toBeInTheDocument()
+  })
+})
+
+// ── Wave E — Saved Views sidebar section. A plain prop (not its own hook,
+// unlike Favorites/Recents above) since NotebookTab owns the useJ2SavedViews
+// call and needs the same data for the toolbar/table-view wiring. Same
+// populated-conditional shape. ──────────────────────────────────────────────
+
+describe('Saved Views sidebar section (Wave E)', () => {
+  it('renders nothing at zero saved views (populated-conditional)', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[]} />)
+    expect(screen.queryByText('Saved Views')).not.toBeInTheDocument()
+  })
+
+  it('renders a Saved Views section and activating one calls onSelectView', () => {
+    const onSelectView = vi.fn()
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'table' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          savedViews={[view]} onSelectView={onSelectView} />)
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Active Theses'))
+    expect(onSelectView).toHaveBeenCalledWith(view)
+  })
+
+  it('highlights the active saved view', () => {
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}}
+                          savedViews={[view]} activeViewId="v1" />)
+    const row = screen.getByText('Active Theses').closest('button')
+    expect(row.className).toMatch(/rowActive/)
+  })
+
+  it('collapsing Saved Views hides its rows without removing the header', () => {
+    const view = { id: 'v1', name: 'Active Theses', viewType: 'list' }
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} savedViews={[view]} />)
+    fireEvent.click(screen.getByLabelText('Collapse Saved Views'))
+    expect(screen.queryByText('Active Theses')).not.toBeInTheDocument()
+    expect(screen.getByText('Saved Views')).toBeInTheDocument()
+  })
+})
+
+describe('⛔⛔ a search hit says what it IS (Wave M §8)', () => {
+  // ⚰️ THE DEFECT, measured on the running product 2026-09-08. A captured web
+  // source is stored as a document whose passages are page rows, so the SECOND
+  // passage clipped from one Reuters article has page_number 2 — and both
+  // sections rendered "· p.2". There is no page 2. There is no page 1. It is a
+  // web article the member quoted twice, and a page number asserts a paginated
+  // document exists behind it.
+  const webPage = {
+    documentId: 'd1', pageNumber: 2, snippet: 'customer <mark>concentration</mark> rose',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+  const pdfPage = {
+    documentId: 'd2', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+
+  const openSearch = () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'),
+                     { target: { value: 'concentration' } })
+  }
+
+  it('a captured web passage is NOT rendered as a page', () => {
+    useDocumentSearchMock.mockReturnValue({ results: [webPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Captured passage/i)).toBeInTheDocument()
+    expect(screen.getByText(/reuters\.com/i)).toBeInTheDocument()
+  })
+
+  it('⭐ CONTROL: a real document still shows its page', () => {
+    // Without this, the assertion above would pass on a sidebar that stopped
+    // rendering page numbers for everything.
+    useDocumentSearchMock.mockReturnValue({ results: [pdfPage], isLoading: false, error: null })
+    openSearch()
+    expect(screen.getByText(/NVDA 10-Q · p\.47/)).toBeInTheDocument()
+  })
+
+  it('a saved excerpt from a web capture reads as a saved passage, not p.N', () => {
+    useExcerptSearchMock.mockReturnValue({
+      results: [{ excerptId: 'e1', snippet: 'x', noteId: 'n1', noteTitle: 'NVDA research',
+                  documentId: 'd1', documentName: 'Reuters: NVDA margins', pageNumber: 2,
+                  sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda' }],
+      isLoading: false, error: null,
+    })
+    openSearch()
+    expect(screen.queryByText(/p\.2/)).toBeNull()
+    expect(screen.getByText(/Saved passage/i)).toBeInTheDocument()
+  })
+})
+
+describe('⛔⛔ clicking a search hit goes to the OBJECT it named (Wave M §4/§6)', () => {
+  // ⛔ §6: proving the row CARRIES documentId/pageNumber is not the test. The
+  // member action has to arrive somewhere. These assert what `onOpenNote`
+  // actually receives, and the mutation that reverts it to a bare note open is
+  // what proves they can fail.
+  const pdfPage = {
+    documentId: 'd1', pageNumber: 47, snippet: 'gross <mark>margin</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'NVDA 10-Q',
+    sourceKind: 'attachment', sourceUrl: null,
+  }
+  const webPage = {
+    documentId: 'd2', pageNumber: 2, snippet: 'customer <mark>concentration</mark>',
+    noteId: 'n1', noteTitle: 'NVDA research', name: 'Reuters: NVDA margins',
+    sourceKind: 'web', sourceUrl: 'https://www.reuters.com/markets/nvda',
+  }
+
+  const openAndClick = (results, query) => {
+    const onOpenNote = vi.fn()
+    useDocumentSearchMock.mockReturnValue({ results, isLoading: false, error: null })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText('Search notes…'), { target: { value: query } })
+    fireEvent.click(screen.getByText(new RegExp(query, 'i')).closest('button'))
+    return onOpenNote
+  }
+
+  it('a PDF page hit navigates to that PAGE, not just the note', () => {
+    const onOpenNote = openAndClick([pdfPage], 'margin')
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' },
+      expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 47, depth: 'page' }),
+    )
+  })
+
+  it('⛔ a WEB capture navigates to the note and claims no page', () => {
+    const onOpenNote = openAndClick([webPage], 'concentration')
+    const target = onOpenNote.mock.calls[0][1]
+    expect(target).toEqual({ noteId: 'n1', depth: 'note' })
+    expect(target.page).toBeUndefined()
   })
 })

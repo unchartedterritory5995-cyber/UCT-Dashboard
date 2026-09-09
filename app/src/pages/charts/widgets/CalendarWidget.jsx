@@ -13,6 +13,7 @@ import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import usePreferences from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import useTickerMeta from '../../../hooks/useTickerMeta'
@@ -304,12 +305,18 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   // chart context menu's exact wire: last-active note → inbox fallback).
   // Hidden inside a journal embed (journalDoor={false}) — circular there. ──
   const [journalMsg, setJournalMsg] = useJournalToast()
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
+  // Freeze exactly what the widget shows right now — shared by the one-click
+  // default send AND the destination-picker, so both paths capture the
+  // identical payload rather than re-deriving it a second time at Send.
+  const buildDayCapture = useCallback(() => ({
+    date: selected, econStars, selectedSym, tbdOpen, settings,
+  }), [selected, econStars, selectedSym, tbdOpen, settings])
   const sendDayToJournal = useCallback(async () => {
     setJournalMsg('sending…')
-    setJournalMsg(await sendCaptureToJournal('calendar', {
-      date: selected, econStars, selectedSym, tbdOpen, settings,
-    }, { label: `UCT Terminal ${selected}` }))
-  }, [selected, econStars, selectedSym, tbdOpen, settings])
+    setJournalMsg(await sendCaptureToJournal('calendar', buildDayCapture(), { label: `UCT Terminal ${selected}` }))
+  }, [buildDayCapture, selected])
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
   // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──
@@ -402,14 +409,35 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
         </span>
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, 1))} aria-label="Next day">›</button>
         {journalDoor && (
-          <button
-            type="button"
-            className={styles.gearBtn}
-            style={{ right: 34 }}
-            onClick={sendDayToJournal}
-            title="Send this day to Journal"
-            aria-label="Send this day to Journal"
-          ><UIcon name="journal" size={13} /></button>
+          <>
+            <button
+              type="button"
+              className={styles.gearBtn}
+              style={{ right: 34 }}
+              onClick={sendDayToJournal}
+              title="Send this day to Journal"
+              aria-label="Send this day to Journal"
+            ><UIcon name="journal" size={13} /></button>
+            <button
+              type="button"
+              className={styles.gearBtn}
+              style={{ right: 56 }}
+              onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildDayCapture() })}
+              title="Send to Journal — choose where"
+              aria-label="Send to Journal — choose where"
+            ><UIcon name="chevronDown" size={13} /></button>
+          </>
+        )}
+        {captureMenu && (
+          <CaptureMenu
+            open
+            onClose={() => setCaptureMenu(null)}
+            anchor={captureMenu.anchor}
+            widgetId="calendar"
+            capture={captureMenu.capture}
+            label={`UCT Terminal ${selected}`}
+            onSent={setJournalMsg}
+          />
         )}
         <button
           ref={settingsBtnRef}

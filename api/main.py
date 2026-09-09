@@ -67,6 +67,7 @@ from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
+from api.routers import capture_auth as capture_auth_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -90,6 +91,11 @@ from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
 from api.routers import provider_coverage as provider_coverage_router
+from api.routers import fmp_adapter_status as fmp_adapter_status_router
+from api.routers import massive_adapter_status as massive_adapter_status_router
+from api.routers import provenance_quote as provenance_quote_router
+from api.routers import provenance_bar as provenance_bar_router
+from api.routers import alert_taxonomy as alert_taxonomy_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -114,6 +120,7 @@ from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
+from api.routers import media_evidence_bridge as media_evidence_bridge_router
 from api.routers import dashboard_signposts as dashboard_signposts_router
 from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
@@ -1829,6 +1836,153 @@ def register_screener_jobs(scheduler):
     return True
 
 
+def register_company_news_jobs(scheduler):
+    """Register Company Panel news ingestion.
+
+    CENTRAL AND GLOBAL, never per-user. FMP's `-latest` endpoints return the
+    whole market in one request and the ingestor fans out by symbol, so this
+    is ~1 request every few minutes for every member we have. If the global
+    endpoints turn out to be unavailable the adapter falls back to bounded,
+    scheduled iteration over the active universe — still central, still
+    independent of user count.
+
+    ⛔ Opening a company's News tab must never reach a provider. Nothing on
+    the read path calls into these jobs.
+
+    Off by default so a deploy cannot start ingesting before it is wanted:
+    set COMPANY_NEWS_INGEST_ENABLED=1. Returns True if jobs were registered.
+    """
+    if os.environ.get("COMPANY_NEWS_INGEST_ENABLED", "") not in ("1", "true", "yes"):
+        return False
+
+    from datetime import timedelta
+
+    from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    def _poll():
+        try:
+            from api.services.news import ingest
+            res = ingest.run_fmp_cycle()
+            print(f"[news] fmp cycle mode={res.get('mode')} "
+                  f"items={res.get('items')} req={res.get('requests')}")
+        except Exception as e:
+            print(f"[news] fmp cycle error: {e}")
+
+    def _per_company():
+        """SEC + the local tweet store, ROTATING across the whole universe.
+
+        Both are free and per-company: sec_news.fetch is one HTTP request per
+        ticker (the submissions document is cached per CIK and filtered in
+        memory) and the tweet store is already on disk, so this adds no metered
+        cost.
+
+        ⛔ It must ROTATE. This used to poll a fixed head of the list every
+        cycle, so the same handful of symbols were refreshed forever and a
+        ticker outside it -- LITE, for one -- could never receive a filing no
+        matter how long the service ran. The offset persists in the store, so
+        the sweep resumes where it left off across restarts.
+        """
+        try:
+            from api.services.news import ingest
+            syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
+            if syms:
+                ingest.run_sec_cycle(syms)
+                ingest.run_x_cycle(syms)
+        except Exception as e:
+            print(f"[news] per-company cycle error: {e}")
+
+    def _prune():
+        try:
+            from api.services.news import store as news_store
+            print(f"[news] retention sweep: {news_store.prune()}")
+        except Exception as e:
+            print(f"[news] prune error: {e}")
+
+    poll_min = int(os.environ.get("COMPANY_NEWS_POLL_MINUTES", "5"))
+    # Free lane, so this is a COVERAGE knob, not a cost one: 150 symbols every
+    # 20 min walks a ~3,700-name universe in about 8 hours. Kept separate from
+    # NEWS_FALLBACK_SYMBOLS, which bounds the METERED FMP fallback.
+    SEC_SYMS = int(os.environ.get("NEWS_SEC_SYMBOLS_PER_CYCLE", "150"))
+    # ⛔ Both jobs get an explicit early `next_run_time`. An IntervalTrigger
+    # schedules its FIRST run one full interval AFTER the scheduler starts, and
+    # every deploy restarts the scheduler -- so on a day with frequent deploys
+    # the 20-minute per-company sweep NEVER FIRED ONCE. Its rotation cursor sat
+    # at None while the 5-minute FMP job (which survives by being shorter than
+    # the gap between deploys) made it look like ingestion was healthy.
+    # Staggered so a boot does not run both sweeps at the same moment.
+    _soon = datetime.now(_ET) + timedelta(minutes=1)
+    scheduler.add_job(_poll, trigger=IntervalTrigger(minutes=poll_min),
+                      id="company_news_fmp", max_instances=1,
+                      replace_existing=True, coalesce=True,
+                      next_run_time=_soon)
+    scheduler.add_job(_per_company, trigger=IntervalTrigger(minutes=20),
+                      id="company_news_percompany", max_instances=1,
+                      replace_existing=True, coalesce=True,
+                      next_run_time=_soon + timedelta(minutes=2))
+    scheduler.add_job(_prune, trigger=CronTrigger(hour=4, minute=20, timezone=_ET),
+                      id="company_news_prune", max_instances=1,
+                      replace_existing=True)
+    return True
+
+
+def register_panel_prewarm_job(scheduler):
+    """Keep the Company Panel warm for the whole universe.
+
+    Measured cold-vs-warm on /api/earnings-intel: 4.5-7.5s cold, 0.12-0.15s
+    warm. The member only ever pays on the FIRST view of a symbol, so this
+    moves that cost onto a schedule. Everything it warms persists to the
+    snapshot store on /data, so a redeploy does not throw it away.
+
+    ⛔ Off by default (PANEL_PREWARM_ENABLED=1). It walks providers on the WEB
+    pod, and bulk warming has OOM'd this pod before, so it takes a small bounded
+    slice per cycle and holds nothing between symbols.
+    """
+    if os.environ.get("PANEL_PREWARM_ENABLED", "") not in ("1", "true", "yes"):
+        return False
+
+    from datetime import timedelta
+
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    every = int(os.environ.get("PANEL_PREWARM_MINUTES", "10"))
+
+    def _sweep():
+        # ⛔ OUT OF PROCESS, deliberately. Warming inside the web process grew
+        # RSS ~13 MB per symbol with no plateau (measured over 100 symbols) —
+        # roughly 48 GB across a 3,742-name universe against a 32 GB container.
+        # A subprocess hands that memory back to the OS when it exits, and the
+        # work still lands: the warmed surfaces persist to the snapshot store on
+        # /data, which this process reads on the next request.
+        import subprocess
+        import sys
+        batch = os.environ.get("PANEL_PREWARM_BATCH", "40")
+        try:
+            r = subprocess.run(
+                [sys.executable, "-m", "api.services.panel_prewarm", batch],
+                capture_output=True, text=True, timeout=600,
+                cwd="/app", env={**os.environ, "PYTHONPATH": "/app"})
+            out = (r.stdout or "").strip().splitlines()
+            print(f"[panel-prewarm] {out[-1] if out else '(no output)'}")
+            if r.returncode != 0:
+                print(f"[panel-prewarm] exit {r.returncode}: {(r.stderr or '')[-300:]}")
+        except subprocess.TimeoutExpired:
+            # Killed rather than left running: the next cycle resumes from the
+            # persisted cursor, so a stuck run costs one batch, not the sweep.
+            print("[panel-prewarm] timed out after 600s — killed, will resume")
+        except Exception as e:
+            print(f"[panel-prewarm] error: {e}")
+
+    scheduler.add_job(
+        _sweep, trigger=IntervalTrigger(minutes=every),
+        id="panel_prewarm", max_instances=1, replace_existing=True, coalesce=True,
+        # Explicit first run, for the same reason the news jobs carry one: an
+        # IntervalTrigger's first fire is one full interval after the scheduler
+        # starts, and a deploy cadence faster than that starves the job forever.
+        next_run_time=datetime.now(_ET) + timedelta(minutes=4))
+    return True
+
+
 def register_signature_sweep_job(scheduler):
     """Register the nightly closed-bar UCT Signature sweep (20:05 ET weekdays).
 
@@ -2479,6 +2633,21 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ⛔ Keep the Web Share Target's query out of OUR access log. The share
+    # arrives as GET /journal/share?title=…&text=…&url=…, and `text` carries
+    # member-selected prose, not just a public link.
+    # ⛔ IT MUST BE INSTALLED HERE, NOT AT IMPORT: uvicorn applies its own
+    # logging config during startup and rebuilds those loggers, silently
+    # discarding a filter added earlier (measured). This does NOT reach
+    # Railway's edge, which sees the URL before we do — see the module.
+    try:
+        from api import logging_redaction
+        logging_redaction.install()
+        print("[startup] access-log redaction armed for "
+              f"{sorted(logging_redaction.REDACTED_QUERY_PATHS)}")
+    except Exception as e:
+        print(f"[startup] access-log redaction failed to install (non-fatal): {e}")
+
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
     try:
         import anyio
@@ -2740,6 +2909,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception(f"community store init failed: {e}")
 
+    # S7 first slice: initialize alert_taxonomy.db + register the
+    # document-arrival trigger type on EVERY replica (unconditional,
+    # independent of the scheduler-lock-gated sweep job below) so any
+    # replica can serve the registration API even when it does not own the
+    # scheduler. Idempotent upsert -- safe on every boot.
+    try:
+        from api.services.alert_taxonomy import db as _at_db
+        from api.services.alert_taxonomy import document_arrival as _at_doc_arrival
+        _at_db.init_db()
+        _at_doc_arrival.register()
+        logging.getLogger(__name__).info("alert_taxonomy: document-arrival trigger type registered")
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"alert_taxonomy init failed: {e}")
+
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
     # `if not ingest_enabled(): return` guard and only when this process holds
@@ -2860,6 +3043,18 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception(
             "[startup] awareness regime_snapshots schema init failed"
+        )
+
+    # Alert Durability V1 (2026-09-06): the user_alerts table backing
+    # api/services/alert_durability.py. Cheap + idempotent; initialized
+    # unconditionally at boot, same posture as the two schema inits above.
+    try:
+        from api.services import alert_durability as _alert_durability
+        _alert_durability.init_schema()
+        logging.getLogger(__name__).info("[startup] alert_durability schema ready")
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] alert_durability schema init failed"
         )
 
     try:
@@ -4408,6 +4603,19 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] scheduler memory instrumentation failed (non-fatal): {e}")
 
+        # TEMPORARY (2026-09-05) -- natural-load contention attribution for
+        # the screener scan endpoint. Same wrap-add_job technique as the
+        # memory probe above, tracking which job IDs are actually executing
+        # when a slow scan request is logged. See
+        # api/services/screener/contention_trace_temp.py. Remove this block
+        # + its two other call sites once the observation window is done.
+        if os.environ.get("CONTENTION_TRACE_ENABLED", "1") == "1":
+            try:
+                from api.services.screener import contention_trace_temp as _ctrace
+                _ctrace.instrument_scheduler(_scheduler)
+            except Exception as e:
+                print(f"[startup] contention trace instrumentation failed (non-fatal): {e}")
+
         # -- Compass automation master switch ------------------------------
         # Pauses ALL automated (scheduled) Compass + voice LLM interactions
         # to prevent accidental token burn. Manual / on-demand Compass
@@ -4954,8 +5162,32 @@ async def lifespan(app: FastAPI):
                     ticker_types.refresh_class_sets()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ticker_types] daily sync failed: %s", _e)
+                # Event-driven replication: a completed canonical sync is exactly
+                # when flow-worker's Options Flow replica becomes stale.
+                # ⛔ Deliberately AFTER the except: a replication failure must
+                # never make the canonical sync look failed. Replication is
+                # subordinate to serving members.
+                try:
+                    from api.services import optionsflow_etf_push
+                    optionsflow_etf_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[of-etf-push] post-sync reconcile failed: %s", _e)
             _scheduler.add_job(_ticker_types_sync, trigger=CronTrigger(hour=5, minute=30, timezone=_ET),
                                id="ticker_types_daily_sync", max_instances=1, replace_existing=True)
+
+            # Self-healing cadence. Without it, a flow-worker outage at 05:30
+            # would leave the replica stale until the NEXT day's sync — which is
+            # the shape of the 55-day freeze this whole workstream exists to end.
+            # A matching generation costs a status probe and transfers nothing.
+            def _of_etf_reconcile():
+                try:
+                    from api.services import optionsflow_etf_push
+                    optionsflow_etf_push.reconcile()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[of-etf-push] reconcile raised: %s", _e)
+            _scheduler.add_job(_of_etf_reconcile, "interval", minutes=30,
+                               id="optionsflow_etf_replica_reconcile",
+                               max_instances=1, coalesce=True, replace_existing=True)
 
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
@@ -5347,6 +5579,15 @@ async def lifespan(app: FastAPI):
             print("[startup] signature sweep scheduled (weekdays 20:05 ET)")
         except Exception as e:
             print(f"[scheduler] signature sweep registration error: {e}")
+
+        # -- Company Panel news ingestion (central, global, off by default) --
+        try:
+            if register_company_news_jobs(_scheduler):
+                print("[startup] company news ingestion scheduled")
+            if register_panel_prewarm_job(_scheduler):
+                print("[startup] company panel prewarm scheduled")
+        except Exception as e:
+            print(f"[scheduler] company news registration error: {e}")
 
         # -- Nightly split back-adjustment sweep (`61f3b33b`) ----------------
         # ⛔ THE HALF THAT WAS MISSING. The repair shipped with a serve-path
@@ -6071,6 +6312,34 @@ async def lifespan(app: FastAPI):
                            id="awareness_engine_scan",
                            max_instances=1, replace_existing=True)
 
+        # S7 first slice (owner authorization, 2026-09-03) -- document-arrival,
+        # the only genuinely new S7 scheduler entry (every other trigger type
+        # rides an existing cycle and is explicitly out of scope this pass).
+        # Independent of COMPASS_AUTOMATION_ENABLED -- alerts are not a
+        # Compass/voice automation feature, so this is a standalone flag gate,
+        # not routed through _add_compass_job.
+        if os.environ.get("ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED", "0") == "1":
+            def _document_arrival_sweep_job():
+                try:
+                    from api.services.alert_taxonomy.document_arrival import run_document_arrival_sweep
+                    result = run_document_arrival_sweep()
+                    print(f"[alert_taxonomy] document-arrival sweep: "
+                          f"checked={result['checked']} fired={result['fired']} "
+                          f"errors={len(result['errors'])}")
+                except Exception as e:
+                    print(f"[alert_taxonomy] document-arrival sweep failed: {e}")
+
+            _scheduler.add_job(
+                _document_arrival_sweep_job,
+                trigger=CronTrigger(minute="*/20", timezone=_ET),
+                id="alert_taxonomy_document_arrival",
+                max_instances=1, replace_existing=True,
+            )
+            print("[startup] S7 document-arrival alerts ENABLED (every 20 min)")
+        else:
+            print("[startup] S7 document-arrival alerts PAUSED "
+                  "(set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)")
+
         def _compass_daily_focus_run():
             try:
                 from api.services.voice_daily_focus import run_for_all_enabled_users
@@ -6691,6 +6960,17 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 attachment GC registered (03:40 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] j2 attachment GC registration failed (non-fatal): {e}")
+        # Wave 0 (Notebook Primary-Platform trust foundation) — trash's
+        # retention-window sweep. Ships ON by default (see the function's
+        # own docstring for why this is the one exception to the
+        # dark-by-default convention above); 03:20 ET, before the 03:40
+        # attachment GC.
+        try:
+            from api.services.journal_two import notes as _j2_notes
+            if _j2_notes.register_trash_purge_job(_scheduler):
+                print("[startup] j2 trash purge registered (03:20 ET daily)")
+        except Exception as e:
+            print(f"[startup] j2 trash purge registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -6827,6 +7107,15 @@ def _is_gzip_exempt(path: str) -> bool:
         or path.startswith("/api/live/massive/stream")  # flow SSE
         or path == "/api/community/chat/stream"          # Floor live-chat SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
+        or path == "/api/j2/ask/stream"                  # unified Ask token stream
+        or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
+        # Compass chat SSE family (cancel/confirm/*_onboarding/stream all
+        # return text/event-stream) and the curated flow tail. Both were
+        # MISSING until the rail below started deriving SSE routes from the
+        # app instead of trusting a hand-typed list -- the same defect class
+        # this repo keeps paying for.
+        or (path.startswith("/api/j2/accounts/") and "/coach/chat/" in path)
+        or path == "/api/live/massive/curated-stream"
         or path == "/api/j2/notes/export"        # already-DEFLATE zip, streamed
         or path.startswith("/assets/")
         or path.startswith("/fonts/")   # .woff2 is already compressed
@@ -7043,6 +7332,12 @@ app.include_router(movers.router)
 app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
+# ── Company Panel News. The read route touches the persistent company_news
+# store ONLY and never contacts a provider; ingestion is the scheduled job
+# registered in the lifespan below.
+from api.routers import company_news as company_news_router
+app.include_router(company_news_router.router)
+app.include_router(company_news_router.ops_router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)
@@ -7130,6 +7425,8 @@ app.include_router(bars_router.router)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router)
 app.include_router(theme_performance_router.router)
+from api.routers import theme_sets as theme_sets_router  # per-user custom theme sets
+app.include_router(theme_sets_router.router)
 app.include_router(groups_router.router)
 app.include_router(sector_strength_router.router)
 # Flow read-proxy (P5 cutover): registered BEFORE every local flow-family
@@ -7169,6 +7466,10 @@ app.include_router(avatar_router.router)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
+# Browser Capture authorization handshake + the two scoped extension
+# surfaces. Separate path space from POST /api/j2/capture, so no route
+# shadows another; mounted beside it so the family reads as one.
+app.include_router(capture_auth_router.router)
 app.include_router(community_router.router)
 app.include_router(dashboard_signposts_router.router)
 app.include_router(market_calendar_router.router)  # public: NYSE full closures, derived from bars_fetch
@@ -7232,6 +7533,11 @@ app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
 app.include_router(provider_coverage_router.router)  # /api/admin/provider-coverage — Task 22/23
+app.include_router(fmp_adapter_status_router.router)  # /api/admin/fmp-adapter-status — D1 §7.3
+app.include_router(massive_adapter_status_router.router)  # /api/admin/massive-adapter-status — D1 §7.3
+app.include_router(provenance_quote_router.router)  # /api/provenance/quote — S8 Step 2 live D1 wiring
+app.include_router(provenance_bar_router.router)  # /api/provenance/bar — S8 <Cited> narrow interim form
+app.include_router(alert_taxonomy_router.router)  # /api/alerts/taxonomy/* — S7 document-arrival first slice
 app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
@@ -7259,6 +7565,7 @@ app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
 app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/connectors/* -- unconditional; per-provider config checked in-endpoint
 app.include_router(desk_zoom_webhook_router.router)
+app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 
 
@@ -8417,6 +8724,38 @@ async def _ticker_types_stats():
 # last_synced -- clients can key off that if they need to force-refresh.
 _ETF_INDEX_SYMBOLS_CACHE = {"payload": None, "cached_at": None}
 
+@app.get("/api/ticker-types/replica-push-status")
+async def _ticker_types_replica_push_status():
+    """Sender-side replication telemetry (web). The receiver reports separately at
+    /api/flow/etf-replica-status.
+
+    ⛔ This concerns the Options-Flow-only replica, NOT live OPRA routing.
+    """
+    from fastapi.responses import JSONResponse
+    from api.services import optionsflow_etf_push
+    return JSONResponse(optionsflow_etf_push.status())
+
+
+@app.get("/api/ticker-types/generation")
+async def _ticker_types_generation():
+    """The classification snapshot's CONTENT identity — a few dozen bytes.
+
+    Exists so a consumer (flow-worker's replica, or the browser deciding whether
+    to trust server-computed picks) can compare generations WITHOUT pulling
+    ~19,483 symbols. Putting that download in front of first paint just to answer
+    "are we on the same snapshot?" would trade one latency problem for another.
+    """
+    from fastapi.responses import JSONResponse
+    from api.ticker_types import classification_generation
+    try:
+        g = classification_generation()
+        resp = JSONResponse({"ok": True, **g})
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
+    except Exception as e:
+        return {"ok": False, "error": str(e), "generation": None}
+
+
 @app.get("/api/ticker-types/etf-index-symbols")
 async def _ticker_types_etf_index_symbols():
     """Return every ticker classified as ETF or INDEX (bulk).
@@ -8436,31 +8775,26 @@ async def _ticker_types_etf_index_symbols():
             resp.headers["Cache-Control"] = "public, max-age=300"
             return resp
 
-        from api.ticker_types import DB_PATH, ensure_schema
-        conn = sqlite3.connect(DB_PATH, timeout=10)
-        try:
-            ensure_schema(conn)
-            cur = conn.execute("""
-                SELECT ticker FROM ticker_types
-                WHERE asset_type IN ('ETF', 'INDEX')
-                ORDER BY ticker
-            """)
-            symbols = [r[0] for r in cur.fetchall()]
-            cur = conn.execute("SELECT MAX(last_synced) FROM ticker_types")
-            last_synced = cur.fetchone()[0]
-            payload = {
-                "ok": True,
-                "symbols": symbols,
-                "count": len(symbols),
-                "last_synced": last_synced,
-            }
-            _ETF_INDEX_SYMBOLS_CACHE["payload"] = payload
-            _ETF_INDEX_SYMBOLS_CACHE["cached_at"] = now
-            resp = JSONResponse(payload)
-            resp.headers["Cache-Control"] = "public, max-age=300"
-            return resp
-        finally:
-            conn.close()
+        # ⛔ ONE READ for the rows AND their identity. Fetching them separately
+        # allows: generation G observed -> sync runs -> rows of G+1 downloaded ->
+        # replica stamped G. A replica that believes it holds G while holding G+1
+        # is worse than one that knows it is stale, because the mismatch rail can
+        # no longer see it. `etf_index_snapshot` derives the digest from the very
+        # rows it returns.
+        from api.ticker_types import etf_index_snapshot
+        snap = etf_index_snapshot()
+        payload = {
+            "ok": True,
+            "symbols": snap["symbols"],
+            "count": snap["count"],
+            "last_synced": snap["last_synced"],
+            "generation": snap["generation"],
+        }
+        _ETF_INDEX_SYMBOLS_CACHE["payload"] = payload
+        _ETF_INDEX_SYMBOLS_CACHE["cached_at"] = now
+        resp = JSONResponse(payload)
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -9433,7 +9767,14 @@ if os.path.exists(DIST):
             headers={"Cache-Control": "no-store"},
         )
 
-    @app.get("/{full_path:path}")
+    # HEAD as well as GET: a server that answers GET on a resource is supposed
+    # to answer HEAD on it too, and registering only GET made EVERY page URL --
+    # including the site root -- reply 405 to a HEAD probe. That is what link
+    # checkers, uptime monitors and Obsidian's plugin-directory reachability
+    # check all use, so `authorUrl: https://uctintelligence.com` was reported
+    # as "not reachable" while the same URL served 200 to every GET. Starlette
+    # runs the same handler for both; h11 drops the body on a HEAD response.
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def spa_fallback(full_path: str):
         return FileResponse(
             os.path.join(DIST, "index.html"),

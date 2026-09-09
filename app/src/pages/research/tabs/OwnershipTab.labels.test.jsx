@@ -12,13 +12,16 @@ import { render, screen } from '@testing-library/react'
 
 const data = {
   sym: 'ATROB',
+  entity: { status: 'resolved', entityId: 'em_atrob' },
   institutional: { pct_held: 71.85, holders: [] },
-  short: { shares_short: 1e5, short_pct_float: 0.4, days_to_cover: 1.1, float_shares: 19093178, shares_outstanding: 35851963 },
+  short: { shares_short: 1e5, short_pct_float: 0.4, days_to_cover: 1.1 },
+  share_counts: { float_shares: 19093178, shares_outstanding: 35851963, _meta: null },
   insider: [],
   thirteen_f: {
     quarter: '2026Q2',
     summary: { ownership_pct: 0.4693, investors_holding: 8, total_invested: 13633685 },
     holders: [],
+    _meta: null,
   },
 }
 

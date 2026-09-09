@@ -1,0 +1,69 @@
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 12px auto;
+  padding: 7px 10px;
+  background: var(--color-surface, #1a1d24);
+  border: 1px solid var(--color-border, #2a2f3a);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  color: var(--color-text-muted, #98a0aa);
+}
+
+.input {
+  width: 200px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-primary, #e8eaed);
+}
+.input::placeholder { color: var(--color-text-muted, #98a0aa); }
+
+.count {
+  flex: 0 0 auto;
+  min-width: 40px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted, #98a0aa);
+  text-align: center;
+}
+
+.navBtn,
+.closeBtn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+}
+.navBtn:hover:not(:disabled),
+.closeBtn:hover {
+  background: var(--color-surface-hover, #232833);
+  color: var(--color-text-primary, #e8eaed);
+}
+.navBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Touch-target sizing at the codebase's TOUCH tier (<=1024px, NOT <=640px --
+   a floor restored only at 640 leaves tablet's 641-1024px range broken; see
+   CLAUDE.md's "Responsive / Mobile System" section). Phone-only STACKING
+   layout stays a separate, narrower 640px rule below. */
+@media (max-width: 1024px) {
+  .navBtn, .closeBtn { min-height: var(--tap-min, 44px); min-width: var(--tap-min, 44px); }
+}
+@media (max-width: 640px) {
+  .bar { width: 100%; margin-left: 0; }
+  .input { width: 100%; min-width: 0; flex: 1 1 auto; }
+}

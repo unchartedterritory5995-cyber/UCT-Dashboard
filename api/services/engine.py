@@ -329,58 +329,60 @@ def _fetch_quarterly_history(sym: str) -> list:
             reverse=True,
         )
 
-    import requests as _r
-    fmp_key = os.environ.get("FMP_API_KEY", "")
-    if fmp_key:
-        try:
-            # FMP stable/earnings is the current supported endpoint.
-            # v3/earnings-surprises and v3/historical/earning_calendar are
-            # legacy as of Aug 31 2025 — return 403 on new subscriptions.
-            url = (
-                f"https://financialmodelingprep.com/stable/earnings"
-                f"?symbol={sym.upper()}&limit=20&apikey={fmp_key}"
-            )
-            resp = _r.get(url, timeout=8).json()
-            if isinstance(resp, list) and resp:
-                out = []
-                for item in resp:
-                    try:
-                        actual = item.get("epsActual")
-                        estimated = item.get("epsEstimated")
-                        date_str = item.get("date")
-                        # Skip future earnings (epsActual is null) — only past quarters
-                        if actual is None or estimated is None or not date_str:
-                            continue
-                        actual_f = float(actual)
-                        est_f = float(estimated)
-                        surprise = actual_f - est_f
-                        surprise_pct = (surprise / abs(est_f) * 100) if est_f else 0.0
-                        out.append({
-                            "reportedDate":       date_str,
-                            "fiscalDateEnding":   date_str,
-                            "reportedEPS":        str(actual_f),
-                            "estimatedEPS":       str(est_f),
-                            "surprise":           f"{surprise:.4f}",
-                            "surprisePercentage": f"{surprise_pct:.2f}",
-                            "reportTime":         "",  # FMP doesn't expose pre/post
-                        })
-                        # NOTE: no cap here. Capping mid-loop, in FMP's raw
-                        # response order, BEFORE the sort below let a
-                        # shuffled/non-monotonic provider order silently keep
-                        # the wrong 12 rows — e.g. probed with 20 oldest-first
-                        # rows (2010->2029), a mid-loop `if len(out)>=12: break`
-                        # returned 2021-01-01 as index 0 and never reached the
-                        # true newest quarter at all, even though `_newest_first`
-                        # then sorted THOSE 12 correctly (P2 T9 review round 2,
-                        # IMPORTANT #2 — the ORDER guarantee held, the SET
-                        # guarantee didn't). `limit=20` in the URL already
-                        # bounds this loop; cap AFTER sorting instead.
-                    except (TypeError, ValueError):
-                        continue
-                if out:
-                    return _newest_first(out)[:12]
-        except Exception as e:
-            _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
+    from api.services import fmp_client
+    try:
+        # FMP stable/earnings is the current supported endpoint.
+        # v3/earnings-surprises and v3/historical/earning_calendar are
+        # legacy as of Aug 31 2025 — return 403 on new subscriptions.
+        result = fmp_client.get_earnings(sym, limit=20)
+    except fmp_client.FMPNotConfigured:
+        return []
+    except fmp_client.FMPNotFound:
+        return []
+    except Exception as e:
+        _logger.warning("FMP quarterly history failed for %s: %s", sym, e)
+        return []
+    if result.degraded is not None:
+        return []
+    resp = result.value
+    if isinstance(resp, list) and resp:
+        out = []
+        for item in resp:
+            try:
+                actual = item.get("epsActual")
+                estimated = item.get("epsEstimated")
+                date_str = item.get("date")
+                # Skip future earnings (epsActual is null) — only past quarters
+                if actual is None or estimated is None or not date_str:
+                    continue
+                actual_f = float(actual)
+                est_f = float(estimated)
+                surprise = actual_f - est_f
+                surprise_pct = (surprise / abs(est_f) * 100) if est_f else 0.0
+                out.append({
+                    "reportedDate":       date_str,
+                    "fiscalDateEnding":   date_str,
+                    "reportedEPS":        str(actual_f),
+                    "estimatedEPS":       str(est_f),
+                    "surprise":           f"{surprise:.4f}",
+                    "surprisePercentage": f"{surprise_pct:.2f}",
+                    "reportTime":         "",  # FMP doesn't expose pre/post
+                })
+                # NOTE: no cap here. Capping mid-loop, in FMP's raw
+                # response order, BEFORE the sort below let a
+                # shuffled/non-monotonic provider order silently keep
+                # the wrong 12 rows — e.g. probed with 20 oldest-first
+                # rows (2010->2029), a mid-loop `if len(out)>=12: break`
+                # returned 2021-01-01 as index 0 and never reached the
+                # true newest quarter at all, even though `_newest_first`
+                # then sorted THOSE 12 correctly (P2 T9 review round 2,
+                # IMPORTANT #2 — the ORDER guarantee held, the SET
+                # guarantee didn't). `limit=20` in the URL already
+                # bounds this loop; cap AFTER sorting instead.
+            except (TypeError, ValueError):
+                continue
+        if out:
+            return _newest_first(out)[:12]
 
     return []
 
@@ -879,22 +881,19 @@ def _fmp_calendar_actuals_for_day(day_iso: str) -> dict:
     carries no session field, so adding one would fabricate a session the
     same way coercing `tbd` into `amc` would). Returns {} on failure/missing
     key; never raises."""
-    fmp_key = os.environ.get("FMP_API_KEY", "")
-    if not fmp_key:
-        return {}
-    import requests as _r
+    from api.services import fmp_client
     try:
-        resp = _r.get(
-            "https://financialmodelingprep.com/stable/earnings-calendar",
-            params={"from": day_iso, "to": day_iso, "apikey": fmp_key},
-            timeout=8,
-        )
-        if not resp.ok:
-            return {}
-        data = resp.json()
+        result = fmp_client.get_earnings_calendar(day_iso, day_iso)
+    except fmp_client.FMPNotConfigured:
+        return {}
+    except fmp_client.FMPNotFound:
+        return {}
     except Exception as e:
         _logger.warning("get_earnings: FMP calendar fetch failed for %s: %s", day_iso, e)
         return {}
+    if result.degraded is not None:
+        return {}
+    data = result.value
     if not isinstance(data, list):
         return {}
     out = {}

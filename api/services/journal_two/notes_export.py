@@ -257,6 +257,88 @@ def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
     return resolve
 
 
+_NOTE_LINK_MARKER = "internal-note-link://"
+_DOCUMENT_EXCERPT_MARKER = "document-excerpt://"
+
+
+def _make_note_link_aware_resolver(
+    user_id: str, conn: sqlite3.Connection, base_resolver, note_paths: dict[str, str] | None = None,
+):
+    """Wraps `base_resolver` (an attachment resolver) so the SAME resolver
+    parameter `_block`'s `noteLink` case calls also answers
+    `internal-note-link://<id>` markers -- see that case's own comment for
+    why this rides the existing single-resolver plumbing instead of a
+    second parameter threaded through 13 call sites. Wave J extends the
+    SAME plumbing for `document-excerpt://<id>` markers (directive §60-61 --
+    excerpt export is "a major requirement"): rather than a fourth resolver
+    parameter, one more marker prefix on the same mechanism.
+
+    `note_paths`, when given, maps note id -> the RELATIVE .md path that
+    note was (or will be) written to IN THIS SAME EXPORT (directive §57:
+    full export resolves a link to another bundled note as a real relative
+    path). Without it (the single-note-export case, directive §56), a
+    resolved target renders as an honest, clearly-internal reference URL
+    that does NOT pretend the target file is present in this archive.
+
+    Returns `(title, href) | None` for a note-link marker; delegates
+    everything else to `base_resolver` unchanged."""
+    note_paths = note_paths or {}
+
+    def resolve(url: str | None):
+        if url and url.startswith(_DOCUMENT_EXCERPT_MARKER):
+            excerpt_id = url[len(_DOCUMENT_EXCERPT_MARKER):]
+            if not excerpt_id:
+                return None
+            row = conn.execute(
+                "SELECT e.captured_text, e.page_number, e.annotation, d.name,"
+                " d.capture_type, d.source_url"
+                " FROM j2_note_excerpts e JOIN j2_note_documents d ON d.id = e.document_id"
+                " WHERE e.id = ? AND e.user_id = ?",
+                (excerpt_id, user_id),
+            ).fetchone()
+            if row is None:
+                return None  # source document/excerpt no longer resolves -- omit, never fabricate
+            name = row["name"] or "Document"
+            keys = row.keys()
+            ctype = row["capture_type"] if "capture_type" in keys else None
+            if ctype in ("web_passage", "web_reference"):
+                # ⛔ A WEB capture is NOT an attached file and has no article
+                # pagination. Exporting it as "Name, p.2" would claim both. The
+                # export carries what is actually true: the source, the fact
+                # that this is one captured passage, and the URL the member can
+                # open to read the rest themselves.
+                url = (row["source_url"] if "source_url" in keys else None) or ""
+                citation = f"{name} — captured passage {row['page_number']}"
+                if url:
+                    citation = f"{citation} — {url}"
+            else:
+                citation = f"{name}, p.{row['page_number']}"
+            return row["captured_text"], citation, row["annotation"]
+        if not url or not url.startswith(_NOTE_LINK_MARKER):
+            return base_resolver(url) if base_resolver else None
+        note_id = url[len(_NOTE_LINK_MARKER):]
+        if not note_id:
+            return None
+        row = conn.execute(
+            "SELECT title, deleted_at FROM j2_notes WHERE id = ? AND user_id = ?",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None  # foreign tenant or genuinely nonexistent -- identical, never distinguished
+        title = row["title"] or "Untitled"
+        if note_id in note_paths:
+            # note_paths stores the BARE path (no extension) -- matching
+            # what _compute_note_export_paths hands the main loop, which
+            # appends ".md" itself right before zf.writestr(). The actual
+            # file inside the archive is `f"{path}.md"`; the link must match.
+            return title, f"{note_paths[note_id]}.md"
+        # Not bundled in this export -- an honest, clearly-internal
+        # reference, never a fabricated local file path.
+        return title, f"uct-note:///notebook?note={note_id}"
+
+    return resolve
+
+
 def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
     for mark in node.get("marks") or []:
@@ -392,6 +474,42 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # `or` chain here would swallow a real 0-second timestamp as if it
         # were absent, per fix round 1 finding 3).
         return f"[{_fmt_time(attrs.get('seconds'))}]"
+    if ntype == "noteLink":
+        # Wave D. Reuses the SAME `resolver` parameter every other reference
+        # type here already threads through -- rather than adding a second
+        # resolver parameter to every _block/_inline call site (13 of them),
+        # the note's target id rides through as a distinguishable marker
+        # scheme (`internal-note-link://<id>`) that the CALLER's combined
+        # resolver (see `_note_link_aware_resolver` below) recognizes and
+        # answers from note-lookup state, falling through to the real
+        # attachment resolver for every ordinary URL. `resolver` returning
+        # None here means "target not resolvable" (foreign/nonexistent/no
+        # resolver at all) -- rendered as plain, honest text, never a
+        # dangling markdown link to nowhere.
+        note_id = attrs.get("noteId") or ""
+        resolved = resolver(f"internal-note-link://{note_id}") if resolver and note_id else None
+        if resolved is None:
+            return "*[linked note]*"
+        title, href = resolved
+        return f"[{title}]({href})"
+    if ntype == "documentExcerpt":
+        # Wave J. Resolves via the SAME resolver parameter noteLink uses
+        # (document-excerpt://<id> marker, see
+        # _make_note_link_aware_resolver) -- a portable, human-readable
+        # blockquote + citation line, directive §61's own example shape
+        # ("> selected source text -- Document, p.17"), never an opaque
+        # UCT-only reference (directive §27).
+        excerpt_id = attrs.get("excerptId") or ""
+        resolved = resolver(f"{_DOCUMENT_EXCERPT_MARKER}{excerpt_id}") if resolver and excerpt_id else None
+        if resolved is None:
+            return "*[excerpt source no longer available]*"
+        quote, citation, annotation = resolved
+        lines = [f"> {ln}" for ln in quote.split("\n")]
+        lines.append(f"> — {citation}")
+        if annotation:
+            lines.append("")
+            lines.append(f"*{annotation}*")
+        return "\n".join(lines)
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
@@ -550,11 +668,14 @@ def _yaml_scalar(value: str, *, flow: bool = False) -> str:
     return f'"{escaped}"'
 
 
-def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
+def _front_matter(
+    row: sqlite3.Row, hero_local: str | None = None, *, extra: dict[str, Any] | None = None,
+) -> str:
     try:
         tags = json.loads(row["tags"] or "[]")
     except (ValueError, TypeError):
         tags = []
+    extra = extra or {}
     lines = ["---", f"title: {_yaml_scalar(row['title'] or 'Untitled')}"]
     # subtitle (authored text) and hero_image_url (the note's headline visual)
     # are real j2_notes columns -- dropping them from the archive is silent
@@ -573,10 +694,462 @@ def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
         # URL, or unresolved -- already reported in EXPORT_ISSUES.txt) the
         # original value is kept so the front matter never goes blank.
         lines.append(f"hero_image: {_yaml_scalar(hero_local or row['hero_image_url'])}")
+    # Wave C completeness fixes (directive §46-58, gap ledger G-091/G-092) --
+    # every field below is OMITTED entirely rather than emitted blank/false,
+    # matching every other optional field above: a member reading the raw
+    # front matter should never see a field that means nothing for this note.
+    if extra.get("favorite"):
+        lines.append("favorite: true")
+    tickers = extra.get("related_tickers") or []
+    if tickers:
+        lines.append(
+            "related_tickers: [" + ", ".join(_yaml_scalar(t, flow=True) for t in tickers) + "]"
+        )
+    # Human-readable only -- resolve_trade_ref's raw internal id is NEVER
+    # written here (directive §51: "not bare DB IDs, and don't leak private
+    # broker/internal identifiers unnecessarily"). An unresolved/ambiguous
+    # reference is silently omitted rather than shown as a broken link --
+    # showing nothing is more honest than showing an opaque id a reader
+    # cannot act on outside this account.
+    linked_trades = extra.get("linked_trades") or []
+    if linked_trades:
+        lines.append(
+            "linked_trades: [" + ", ".join(_yaml_scalar(t, flow=True) for t in linked_trades) + "]"
+        )
+    # Wave E: user-set property values only, one line per property, already
+    # resolved to "Name: Value" strings by _resolve_note_related_data (never
+    # a raw property_id/option_id -- same "not bare DB ids" discipline as
+    # linked_trades above). financial_derived properties are NOT repeated
+    # here -- they already have their own dedicated fields (ticker/
+    # related_tickers/linked_trades) above.
+    properties = extra.get("properties") or []
+    if properties:
+        lines.append("properties:")
+        for item in properties:
+            lines.append(f"  {_yaml_scalar(item['name'])}: {_yaml_scalar(item['value'])}")
+    # Wave F: every captured financial fact, IMMUTABLE-observation values
+    # only (never a live current-value lookup -- an export is a durable
+    # artifact, directive §82). One block per fact so ticker/label/value/
+    # observed-at/caption all survive, not flattened into one opaque line.
+    facts = extra.get("financial_facts") or []
+    if facts:
+        lines.append("financial_facts:")
+        for item in facts:
+            lines.append(f"  - ticker: {_yaml_scalar(item['ticker'])}")
+            lines.append(f"    fact: {_yaml_scalar(item['label'])}")
+            lines.append(f"    value: {_yaml_scalar(item['value'])}")
+            lines.append(f"    observed: {item['observedAt']}")
+            if item.get("caption"):
+                lines.append(f"    note: {_yaml_scalar(item['caption'])}")
+    # Wave G: thesis evidence -- live links only (removed_at IS NOT NULL rows
+    # are excluded by _resolve_thesis_evidence_by_note itself, same "export
+    # the current, durable state" posture as everything else in this front
+    # matter). Target resolved to a human-readable label, never a bare id
+    # (same discipline as linked_trades above).
+    evidence = extra.get("thesis_evidence") or []
+    if evidence:
+        lines.append("thesis_evidence:")
+        for item in evidence:
+            lines.append(f"  - stance: {item['stance']}")
+            lines.append(f"    target: {_yaml_scalar(item['targetLabel'])}")
+            if item.get("caption"):
+                lines.append(f"    note: {_yaml_scalar(item['caption'])}")
+            # ⛔ WAVE N §11. Three separate fields, never merged: what the
+            # SOURCE said, what the MEMBER wrote about it, and how much of the
+            # source we actually hold. `source_url` appears only for a web
+            # capture -- an attachment's location is meaningless outside this
+            # account, and printing one would imply a file that did not travel.
+            if item.get("source_url"):
+                lines.append(f"    source_url: {_yaml_scalar(item['source_url'])}")
+            if item.get("coverage"):
+                lines.append(f"    coverage: {item['coverage']}")
+            if item.get("passage"):
+                lines.append(f"    passage: {_yaml_scalar(item['passage'])}")
+            if item.get("passage_note"):
+                lines.append(f"    passage_note: {_yaml_scalar(item['passage_note'])}")
+    # ⛔ WAVE O §46 — the decision history travels. Each entry is what the
+    # member decided and when; the thesis versions are referenced by id, never
+    # inlined, so the export stays the smallest truthful record.
+    reviews = extra.get("thesis_reviews") or []
+    if reviews:
+        lines.append("thesis_reviews:")
+        for rv in reviews:
+            lines.append(f"  - completed: {rv['completedAt']}")
+            if rv.get("outcome"):
+                lines.append(f"    outcome: {rv['outcome']}")
+            if rv.get("reviewReason"):
+                lines.append(f"    reason: {rv['reviewReason']}")
+            if rv.get("memberNote"):
+                lines.append(f"    member_note: {_yaml_scalar(rv['memberNote'])}")
+            if rv.get("nextReviewAt"):
+                lines.append(f"    next_review: {rv['nextReviewAt']}")
+            if rv.get("thesisVersionBefore"):
+                lines.append(f"    thesis_version_before: {rv['thesisVersionBefore']}")
+            if rv.get("thesisVersionAfter"):
+                lines.append(f"    thesis_version_after: {rv['thesisVersionAfter']}")
+    import_source = row["import_source"] if "import_source" in row.keys() else None
+    if import_source:
+        lines.append(f"import_source: {_yaml_scalar(import_source)}")
+        imported_at = row["imported_at"] if "imported_at" in row.keys() else None
+        if imported_at:
+            lines.append(f"imported_at: {imported_at}")
     lines.append(f"created: {row['created_at']}")
     lines.append(f"updated: {row['updated_at']}")
     lines.append("---")
     return "\n".join(lines)
+
+
+_TRADE_REF_KIND_LABEL = {
+    "equity_trade": "equity trade",
+    "option_strategy": "option strategy",
+    "position": "open position",
+}
+
+
+def _format_property_value(prop_def: dict[str, Any], value: Any) -> str | None:
+    """Human-readable rendering for ONE user-set property value -- resolves
+    a select/multi_select option id to its LABEL (never the raw id), never
+    the raw internal property_id either (same "not bare DB ids" discipline
+    as linked_trades above). Returns None for a value that no longer
+    resolves (e.g. an option that was since removed from the definition) --
+    omitted rather than shown as a broken/opaque reference."""
+    if value is None:
+        return None
+    t = prop_def["type"]
+    if t == "checkbox":
+        return "Yes" if value else "No"
+    if t in ("text", "url", "date", "number"):
+        return str(value)
+    options_by_id = {o["id"]: o["label"] for o in (prop_def.get("options") or [])}
+    if t == "select":
+        return options_by_id.get(value)
+    if t == "multi_select":
+        labels = [options_by_id[v] for v in value if v in options_by_id]
+        return ", ".join(labels) if labels else None
+    return None
+
+
+def _resolve_note_related_data(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> tuple[set[str], dict[str, list[str]], dict[str, list[str]], dict[str, list[dict[str, str]]]]:
+    """One-shot, whole-export prefetch (mirrors the existing `folders` dict's
+    own "fetch once for every note" shape just above) for the three Wave C
+    export-completeness fixes PLUS Wave E's user-set properties: favorites,
+    related tickers (embeds + prose mentions), human-readable linked-trade
+    summaries, and human-readable "Name: Value" property lines. Returns
+    `(favorite_note_ids, tickers_by_note, linked_trades_by_note, properties_by_note)`.
+
+    Only USER-SET property values are rendered here -- financial_derived
+    ones (Ticker/Sector/Industry/Theme/Trade) already have their own
+    dedicated front-matter fields above (ticker/related_tickers/
+    linked_trades), so re-emitting them under a generic "properties" line
+    would duplicate the same fact under two different labels.
+
+    Trade-ref resolution still costs one `resolve_trade_ref` call per
+    trade-linked embed (that function re-verifies tenant ownership per call,
+    so it cannot be batched) -- bounded by however many trade-linked embeds
+    the account has, not by note count, and export is a rare member-initiated
+    action, not a hot path."""
+    from api.services.journal_two.note_trade_links import resolve_trade_ref
+    from api.services.journal_two.note_properties import list_property_defs
+
+    if not note_ids:
+        return set(), {}, {}, {}
+
+    favorites = {
+        r["note_id"] for r in conn.execute(
+            "SELECT note_id FROM j2_note_favorites WHERE user_id = ?", (user_id,))
+    }
+
+    tickers_by_note: dict[str, set[str]] = {}
+    for r in conn.execute(
+        "SELECT note_id, symbol FROM j2_note_mentions WHERE user_id = ?", (user_id,)
+    ):
+        if r["symbol"]:
+            tickers_by_note.setdefault(r["note_id"], set()).add(r["symbol"])
+    embed_rows = conn.execute(
+        "SELECT note_id, symbol, trade_ref, trade_ref_type FROM j2_note_embeds"
+        " WHERE user_id = ?", (user_id,),
+    ).fetchall()
+    for r in embed_rows:
+        if r["symbol"]:
+            tickers_by_note.setdefault(r["note_id"], set()).add(r["symbol"])
+
+    linked_trades_by_note: dict[str, list[str]] = {}
+    seen_refs: dict[tuple[str, str | None], str | None] = {}
+    for r in embed_rows:
+        trade_ref = r["trade_ref"]
+        if not trade_ref:
+            continue
+        key = (trade_ref, r["trade_ref_type"])
+        if key not in seen_refs:
+            resolved = resolve_trade_ref(conn, user_id, trade_ref, r["trade_ref_type"])
+            label = None
+            if resolved.get("kind") in _TRADE_REF_KIND_LABEL:
+                kind_label = _TRADE_REF_KIND_LABEL[resolved["kind"]]
+                symbol = resolved.get("symbol")
+                label = f"{symbol} ({kind_label})" if symbol else kind_label
+            seen_refs[key] = label
+        label = seen_refs[key]
+        if label:
+            bucket = linked_trades_by_note.setdefault(r["note_id"], [])
+            if label not in bucket:
+                bucket.append(label)
+
+    tickers_out = {nid: sorted(syms) for nid, syms in tickers_by_note.items()}
+
+    properties_by_note: dict[str, list[str]] = {}
+    defs_by_id = {d["id"]: d for d in list_property_defs(user_id, conn=conn) if d["source"] == "user_set"}
+    if defs_by_id:
+        for r in conn.execute("SELECT id, properties_json FROM j2_notes WHERE user_id = ?", (user_id,)):
+            if not r["properties_json"]:
+                continue
+            try:
+                values = json.loads(r["properties_json"])
+            except (ValueError, TypeError):
+                continue
+            items = []
+            for pid, val in (values or {}).items():
+                prop_def = defs_by_id.get(pid)
+                if prop_def is None:
+                    continue  # a deleted/unknown property's stray value is skipped, never shown as raw id
+                formatted = _format_property_value(prop_def, val)
+                if formatted is not None:
+                    items.append({"name": prop_def["name"], "value": formatted})
+            if items:
+                properties_by_note[r["id"]] = items
+
+    return favorites, tickers_out, linked_trades_by_note, properties_by_note
+
+
+def _format_fact_value(value: Any, unit: str) -> str:
+    if unit in ("usd_per_share", "usd") and isinstance(value, (int, float)):
+        return f"${value:.2f}"
+    if unit == "percent" and isinstance(value, (int, float)):
+        return f"{value:.2f}%"
+    return str(value)
+
+
+def _resolve_facts_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, str]]]:
+    """Wave F — one-shot, whole-export prefetch of every captured financial
+    fact, keyed by note (facts are note-owned, checkpoint decision 24, so a
+    plain `note_id IN (...)` batch query is exact and complete -- no join to
+    a sidecar needed the way properties needs `j2_note_properties`). Only the
+    IMMUTABLE observation is exported (never a live current-value lookup --
+    an export is a durable artifact, not a live view, and directive §82
+    requires the archived meaning to survive without a network call)."""
+    if not note_ids:
+        return {}
+    from api.services.journal_two import fact_registry
+    placeholders = ",".join("?" for _ in note_ids)
+    rows = conn.execute(
+        f"SELECT note_id, ticker, fact_type, value_number, value_text, unit,"
+        f" observed_at, caption FROM j2_fact_observations"
+        f" WHERE user_id = ? AND note_id IN ({placeholders}) ORDER BY note_id, observed_at",
+        (user_id, *note_ids),
+    ).fetchall()
+    out: dict[str, list[dict[str, str]]] = {}
+    for r in rows:
+        value = r["value_number"] if r["value_number"] is not None else r["value_text"]
+        fdef = fact_registry.get_fact_type(r["fact_type"])
+        label = fdef.label if fdef else r["fact_type"]
+        out.setdefault(r["note_id"], []).append({
+            "ticker": r["ticker"],
+            "label": label,
+            "value": _format_fact_value(value, r["unit"]),
+            "observedAt": r["observed_at"],
+            "caption": r["caption"] or None,
+        })
+    return out
+
+
+from api.services.journal_two import web_capture as wc
+from api.services.journal_two import ask_evidence as ev_envelope
+
+
+def _export_domain(url: str | None) -> str:
+    """Host only — a citation line, never a member's tracking parameters."""
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(raw).hostname or "").removeprefix("www.")
+    except Exception:  # noqa: BLE001 - a malformed url costs the domain, nothing else
+        return ""
+
+
+def _resolve_reviews_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, Any]]]:
+    """Wave O §46 — COMPLETED review history, keyed by thesis note.
+
+    ⛔⛔ A MEMBER MUST NOT LOSE YEARS OF DECISION HISTORY BY LEAVING UCT. This
+    is the record of when they reconsidered a position and what they concluded
+    — the most irreplaceable thing the Notebook holds, because unlike a note or
+    a capture it exists nowhere else and cannot be reconstructed.
+
+    ⛔ COMPLETED ONLY. A draft is work in progress, not a decision the member
+    made; exporting one would put words in their mouth in the artefact they
+    keep forever.
+
+    ⛔ AND NOTHING EXTERNAL IS DUPLICATED (§46/§24). Evidence is referenced by
+    the counts and stances the review was taken against — never by copying
+    source text, which would smuggle third-party article content into an export
+    the member may republish.
+    """
+    if not note_ids:
+        return {}
+    ph = ",".join("?" for _ in note_ids)
+    try:
+        rows = conn.execute(
+            f"SELECT note_id, completed_at, review_reason, outcome, member_note,"
+            f" next_review_at, prior_version_id, resulting_version_id"
+            f" FROM j2_thesis_reviews"
+            f" WHERE user_id = ? AND note_id IN ({ph}) AND status = 'completed'"
+            f" ORDER BY note_id, completed_at ASC",
+            (user_id, *note_ids),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # A database that predates the table has no reviews, not an error —
+        # the same narrow tolerance the capture columns get.
+        return {}
+    out: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        out.setdefault(r["note_id"], []).append({
+            "completedAt": r["completed_at"],
+            "reviewReason": r["review_reason"],
+            "outcome": r["outcome"],
+            # ⛔ NAMED AS THE MEMBER'S OWN WRITING (§26). In an export that may
+            # be read by anything, "note" would be indistinguishable from a
+            # source's words.
+            "memberNote": r["member_note"],
+            "nextReviewAt": r["next_review_at"],
+            "thesisVersionBefore": r["prior_version_id"],
+            "thesisVersionAfter": r["resulting_version_id"],
+        })
+    return out
+
+
+def _resolve_thesis_evidence_by_note(
+    conn: sqlite3.Connection, user_id: str, note_ids: list[str],
+) -> dict[str, list[dict[str, str]]]:
+    """Wave G — one-shot, whole-export prefetch of every LIVE evidence link
+    (removed_at IS NULL), keyed by the thesis note (evidence is note-owned,
+    checkpoint decision 34, mirroring _resolve_facts_by_note's own note-
+    owned batch-query shape exactly). Each target is resolved to a human
+    label at export time -- a raw note/fact id would be meaningless outside
+    this account (same "not bare DB ids" discipline `linked_trades` already
+    follows)."""
+    if not note_ids:
+        return {}
+    placeholders = ",".join("?" for _ in note_ids)
+    rows = conn.execute(
+        f"SELECT note_id, target_type, target_id, stance, caption FROM j2_thesis_evidence"
+        f" WHERE user_id = ? AND note_id IN ({placeholders}) AND removed_at IS NULL"
+        f" ORDER BY note_id, created_at",
+        (user_id, *note_ids),
+    ).fetchall()
+    if not rows:
+        return {}
+    from api.services.journal_two import fact_registry
+    note_targets = [r["target_id"] for r in rows if r["target_type"] == "note"]
+    fact_targets = [r["target_id"] for r in rows if r["target_type"] == "fact"]
+    excerpt_targets = [r["target_id"] for r in rows if r["target_type"] == "document_excerpt"]
+    note_titles: dict[str, str] = {}
+    if note_targets:
+        ph = ",".join("?" for _ in note_targets)
+        for r in conn.execute(
+            f"SELECT id, title FROM j2_notes WHERE user_id = ? AND id IN ({ph})",
+            (user_id, *note_targets),
+        ).fetchall():
+            note_titles[r["id"]] = r["title"] or "Untitled"
+    fact_labels: dict[str, str] = {}
+    if fact_targets:
+        ph = ",".join("?" for _ in fact_targets)
+        for r in conn.execute(
+            f"SELECT id, ticker, fact_type FROM j2_fact_observations WHERE user_id = ? AND id IN ({ph})",
+            (user_id, *fact_targets),
+        ).fetchall():
+            fdef = fact_registry.get_fact_type(r["fact_type"])
+            fact_labels[r["id"]] = f"{r['ticker']} {fdef.label if fdef else r['fact_type']}"
+    # Wave J: "{Document Name} p.{N}" -- the page-is-the-citation-unit
+    # convention (checkpoint decision 12), never an internal excerpt id.
+    #
+    # ⛔⛔ WAVE N: THAT CONVENTION IS TRUE ONLY FOR A REAL PAGINATED DOCUMENT.
+    # `target_type='document_excerpt'` is the RELATIONAL NAMESPACE, not the
+    # source semantics -- Wave N made a captured web passage attachable under
+    # the same type, and its `page_number` is a CAPTURE ORDINAL. Labelling it
+    # here produced "Reuters: NVDA margins, p.2" in the export: Wave M's `p.N`
+    # defect surviving into the one artefact that leaves UCT entirely and lands
+    # in the member's permanent archive.
+    #
+    # `source_kind` has disambiguated this since Wave L; export simply never
+    # asked. Found by the §1 downstream consumer audit.
+    excerpt_labels: dict[str, str] = {}
+    excerpt_detail: dict[str, dict[str, Any]] = {}
+    if excerpt_targets:
+        ph = ",".join("?" for _ in excerpt_targets)
+        for r in conn.execute(
+            f"SELECT e.id, e.page_number, e.captured_text, e.annotation,"
+            f" d.name, d.source_kind, d.source_url, d.capture_type"
+            f" FROM j2_note_excerpts e"
+            f" JOIN j2_note_documents d ON d.id = e.document_id"
+            f" WHERE e.user_id = ? AND e.id IN ({ph})",
+            (user_id, *excerpt_targets),
+        ).fetchall():
+            name = r["name"] or "Document"
+            is_web = r["source_kind"] == wc.SOURCE_KIND_WEB
+            if is_web:
+                # Provenance without fabricated pagination: what it is, what it
+                # came from, and where -- never "full article", never a page.
+                domain = _export_domain(r["source_url"])
+                excerpt_labels[r["id"]] = (
+                    f"Captured passage, {name} ({domain})" if domain
+                    else f"Captured passage, {name}")
+            else:
+                excerpt_labels[r["id"]] = f"{name}, p.{r['page_number']}"
+            # ⛔⛔ WAVE N §11 — A LABEL IS NOT THE EVIDENCE. The export carried
+            # "Captured passage, Reuters: NVDA margins (reuters.com)" and
+            # nothing else, so the artefact the member keeps forever could not
+            # say WHAT the source actually said, what the member made of it, or
+            # where to read the rest. A capture is never embedded in the note
+            # body, so unlike a Wave J excerpt there is no blockquote elsewhere
+            # in the file to fall back on -- the front matter is the only place
+            # this exists.
+            # ⛔ SOURCE, MEMBER NOTE AND THE EDGE'S CAPTION STAY THREE FIELDS
+            # (§7). `note` is why this bears on the thesis; `passage_note` is
+            # what the member wrote about the passage itself; `passage` is the
+            # publisher's words. Merging any two of them is how a member's
+            # opinion becomes a quotation.
+            excerpt_detail[r["id"]] = {
+                "passage": r["captured_text"] or "",
+                "passage_note": r["annotation"] or None,
+                "source_url": (r["source_url"] or None) if is_web else None,
+                # The corpus boundary travels with the evidence, exactly as it
+                # does through Ask: one clipped paragraph must not read as the
+                # whole article on the way out either.
+                "coverage": ev_envelope.coverage_for_row(dict(r)),
+            }
+
+    out: dict[str, list[dict[str, str]]] = {}
+    for r in rows:
+        if r["target_type"] == "note":
+            label = note_titles.get(r["target_id"])
+        elif r["target_type"] == "document_excerpt":
+            label = excerpt_labels.get(r["target_id"])
+        else:
+            label = fact_labels.get(r["target_id"])
+        if label is None:
+            continue  # target no longer resolves (e.g. deleted since) -- omit rather than show a dangling id
+        item = {"stance": r["stance"], "targetLabel": label,
+                "caption": r["caption"] or None}
+        if r["target_type"] == "document_excerpt":
+            item.update(excerpt_detail.get(r["target_id"]) or {})
+        out.setdefault(r["note_id"], []).append(item)
+    return out
 
 
 #
@@ -603,6 +1176,31 @@ _EXPORT_MANIFEST_NAME = "UCT_NOTEBOOK_EXPORT.json"
 _EXPORT_MANIFEST_VERSION = 1
 
 
+def _compute_note_export_paths(
+    rows: list[sqlite3.Row], folders: dict[str, tuple[str, str]],
+) -> dict[str, str]:
+    """Pre-pass (Wave D): the zip-relative path (no `.md` extension) every
+    note in `rows` WILL be written to, computed identically to -- and now
+    the single source of truth for -- what the main per-note loop below
+    used to compute inline. Needed as its own pass because a `noteLink`
+    resolver must know note B's final export path while still walking note
+    A's body, which can come BEFORE B in iteration order; collision
+    disambiguation (`used`) is inherently order-dependent, so this pass
+    iterates in the SAME order (`rows`' own `updated_at DESC`) the archive
+    is written in, guaranteeing byte-identical results either way."""
+    used: set[str] = set()
+    paths: dict[str, str] = {}
+    for row in rows:
+        folder = _folder_path(row["folder_id"], folders)
+        base = _safe_name(row["title"], row["id"])
+        path = f"{folder}/{base}" if folder else base
+        if f"{path}.md" in used:
+            path = f"{path}-{row['id'][:8]}"
+        used.add(f"{path}.md")
+        paths[row["id"]] = path
+    return paths
+
+
 def _write_notes_archive(
     zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
 ) -> None:
@@ -622,11 +1220,26 @@ def _write_notes_archive(
             "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
             (user_id,))
     }
+    # Wave 0 trash: an export mirrors the member's ACTIVE notebook, not the
+    # trash — a soft-deleted note excluded here matches what they currently
+    # see everywhere else (list, search, tags, backlinks). The 30-day
+    # retention window is the safety net for "I want it back", not the
+    # export.
     rows = conn.execute(
         "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
-        " hero_image_url, created_at, updated_at FROM j2_notes"
-        " WHERE user_id = ? ORDER BY updated_at DESC", (user_id,),
+        " hero_image_url, created_at, updated_at, import_source, import_key,"
+        " imported_at FROM j2_notes"
+        " WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
+        (user_id,),
     ).fetchall()
+
+    favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
+        conn, user_id, [r["id"] for r in rows],
+    )
+    facts_by_note = _resolve_facts_by_note(conn, user_id, [r["id"] for r in rows])
+    evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [r["id"] for r in rows])
+    reviews_by_note = _resolve_reviews_by_note(conn, user_id, [r["id"] for r in rows])
+    note_paths = _compute_note_export_paths(rows, folders)
 
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
         "product": "uct-notebook-export",
@@ -635,7 +1248,6 @@ def _write_notes_archive(
         "note_count": len(rows),
     }))
 
-    used: set[str] = set()
     failures: list[tuple[str, str]] = []
     # ONE dict shared across every note: dedup (a file ten notes reference is
     # copied into the zip once), a running byte total against the shared cap,
@@ -657,9 +1269,10 @@ def _write_notes_archive(
         # changes below (only the leaf filename might, on a title
         # collision), so this is stable to compute early.
         folder = _folder_path(row["folder_id"], folders)
-        resolver = _make_attachment_resolver(
+        attachment_resolver = _make_attachment_resolver(
             user_id, folder, row["id"], note_title, attach_state,
         )
+        resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver, note_paths)
         try:
             body = tiptap_to_markdown(doc, attachment_resolver=resolver)
         except Exception as exc:  # noqa: BLE001 -- deliberately broad.
@@ -692,15 +1305,25 @@ def _write_notes_archive(
                     row["hero_image_url"],
                     (note_title, "hero image could not be bundled"),
                 )
-        base = _safe_name(row["title"], row["id"])
-        path = f"{folder}/{base}" if folder else base
-        # Two notes may share a title; the id keeps them distinct.
-        if f"{path}.md" in used:
-            path = f"{path}-{row['id'][:8]}"
-        used.add(f"{path}.md")
+        # Precomputed by _compute_note_export_paths above (title-collision
+        # disambiguation included) -- the noteLink resolver already needed
+        # every note's path before this loop started, so this loop now just
+        # looks its OWN path up rather than recomputing it a second time.
+        path = note_paths[row["id"]]
+        extra = {
+            "favorite": row["id"] in favorites,
+            "related_tickers": [
+                t for t in tickers_by_note.get(row["id"], []) if t != row["ticker"]
+            ],
+            "linked_trades": linked_trades_by_note.get(row["id"], []),
+            "properties": properties_by_note.get(row["id"], []),
+            "financial_facts": facts_by_note.get(row["id"], []),
+            "thesis_evidence": evidence_by_note.get(row["id"], []),
+            "thesis_reviews": reviews_by_note.get(row["id"], []),
+        }
         zf.writestr(
             f"{path}.md",
-            f"{_front_matter(row, hero_local)}\n\n{body}\n",
+            f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n",
         )
 
     issue_lines: list[str] = []
@@ -797,6 +1420,131 @@ def build_export_zip_to_tempfile(
             raise
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return tmp_path, f"uct-notebook-export-{stamp}.zip"
+    finally:
+        if owned:
+            conn.close()
+
+
+def build_single_note_export(
+    user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+) -> tuple[bytes, str, str] | None:
+    """ONE note as portable markdown -- the trust/portability feature for a
+    member who wants to leave with a single note, not their whole notebook
+    (directive §46-58, gap ledger G-091). Returns `(content_bytes, filename,
+    media_type)`, or `None` if the note doesn't exist / isn't this user's /
+    is in Trash (same "active notebook only" scope as the full export).
+
+    Reuses the exact per-note markdown-building + attachment-resolution +
+    front-matter logic the full export already uses (`tiptap_to_markdown`,
+    `_make_attachment_resolver`, `_front_matter`) rather than a second
+    implementation that could silently drift from it. A single note is
+    bounded in size (one note's content + its own attachments, capped by the
+    same `_attachment_cap_bytes()` the full export uses), so this builds
+    in-memory -- it doesn't need the tempfile+semaphore machinery the
+    whole-notebook export needs for OOM safety on a single-replica pod.
+
+    Returns a bare `.md` file when the note has no bundleable attachments
+    (matching what a member exporting one simple note expects -- a note
+    already IS a portable markdown file, no zip needed); a `.zip`
+    (note.md + attachments/) when it has at least one. Both paths share this
+    one function, branching only on whether anything was written into
+    `attach_state["written"]`."""
+    from api.services.auth_db import get_connection
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
+            " hero_image_url, created_at, updated_at, import_source, import_key,"
+            " imported_at FROM j2_notes"
+            " WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+
+        favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
+            conn, user_id, [note_id],
+        )
+        facts_by_note = _resolve_facts_by_note(conn, user_id, [note_id])
+        evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [note_id])
+        reviews_by_note = _resolve_reviews_by_note(conn, user_id, [note_id])
+
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (ValueError, TypeError):
+            doc = {}
+        note_title = row["title"] or "Untitled"
+
+        buf = io.BytesIO()
+        zf = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED)
+        # Zip-root note -- folder='' so `_make_attachment_resolver`'s relative
+        # links point at a top-level `attachments/` tree in THIS archive, not
+        # the multi-note folder-nested layout the full export uses.
+        attach_state: dict[str, Any] = {
+            "zf": zf, "written": set(), "failed": set(), "issues": {},
+            "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+        }
+        attachment_resolver = _make_attachment_resolver(user_id, "", note_id, note_title, attach_state)
+        # No `note_paths` here -- a single-note export never bundles its
+        # linked targets, so every noteLink resolves to the honest
+        # "not bundled" reference form (directive §56), never a fabricated
+        # local path.
+        resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver)
+        try:
+            body = tiptap_to_markdown(doc, attachment_resolver=resolver)
+        except Exception:  # noqa: BLE001 -- same broad shield as the full export.
+            body = (
+                "> ⚠ This note's content could not be converted for export. "
+                "The original note is unaffected in the app -- contact "
+                "support if this repeats."
+            )
+        hero_local = None
+        if row["hero_image_url"]:
+            try:
+                hero_local = resolver(row["hero_image_url"])
+            except Exception:  # noqa: BLE001 -- same broad shield as the full export.
+                attach_state["issues"].setdefault(
+                    row["hero_image_url"], (note_title, "hero image could not be bundled"),
+                )
+
+        extra = {
+            "favorite": note_id in favorites,
+            "related_tickers": [
+                t for t in tickers_by_note.get(note_id, []) if t != row["ticker"]
+            ],
+            "linked_trades": linked_trades_by_note.get(note_id, []),
+            "properties": properties_by_note.get(note_id, []),
+            "financial_facts": facts_by_note.get(note_id, []),
+            "thesis_evidence": evidence_by_note.get(note_id, []),
+            "thesis_reviews": reviews_by_note.get(note_id, []),
+        }
+        md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
+
+        if attach_state["issues"]:
+            issue_lines = [
+                "The following attachments could not be bundled into this "
+                "export. The note text above still links to them by their "
+                "original in-app address, which stops working once the "
+                "account is no longer active.",
+                "",
+            ]
+            issue_lines += [
+                f"- {url} -- {reason}" for url, (_title, reason) in attach_state["issues"].items()
+            ]
+            zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
+
+        base = _safe_name(row["title"], row["id"])
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        if attach_state["written"]:
+            zf.writestr(f"{base}.md", md_text)
+            zf.close()
+            return buf.getvalue(), f"{base}-{stamp}.zip", "application/zip"
+        # Nothing bundled -- a bare .md is simpler and more directly portable
+        # than a one-entry zip. Discard the never-populated zip buffer.
+        zf.close()
+        return md_text.encode("utf-8"), f"{base}-{stamp}.md", "text/markdown"
     finally:
         if owned:
             conn.close()

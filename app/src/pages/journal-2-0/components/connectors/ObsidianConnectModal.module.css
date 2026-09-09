@@ -93,3 +93,14 @@
 }
 .ghostBtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.05); }
 .ghostBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The install link added 2026-09-04. Defined here rather than relied on from
+   a global: an undefined CSS-module class silently resolves to `undefined`
+   and renders unstyled, which is how a link can look like plain text. */
+.link {
+  color: var(--gold, #d4af37);
+  text-decoration: underline;
+}
+.link:hover {
+  opacity: 0.85;
+}

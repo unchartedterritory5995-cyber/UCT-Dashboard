@@ -1,0 +1,369 @@
+.wrap {
+  margin: 4px 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border, #232932);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.evidenceBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.evidenceList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.evidenceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.stancePill {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.supports {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+}
+.opposes {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
+.evidenceLink {
+  background: none;
+  border: none;
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.evidenceLink:hover {
+  color: #dcbb5e;
+}
+/* The source behind the reason — dimmed so the caption still leads, present
+   so a document_excerpt row is always a real, page-aware citation. */
+.evidenceCitation {
+  color: var(--color-text-muted, #98a0aa);
+}
+/* Wave N §10 — a purged source. Muted and NOT interactive: it is a record of
+   a judgement the member made, not a door to something that still exists.
+   Deliberately not colour-only — the row says "source no longer available" in
+   words and carries a warning glyph. */
+.evidenceGone {
+  color: var(--color-text-muted, #98a0aa);
+  cursor: default;
+}
+.evidenceGone:hover {
+  color: var(--color-text-muted, #98a0aa);
+}
+.evidenceLabel {
+  font-size: 13px;
+  color: var(--color-text-primary, #e8eaed);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.removeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.removeBtn:hover {
+  color: #f87171;
+}
+.addLink {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  padding: 4px 2px;
+  cursor: pointer;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+}
+.addLink:hover {
+  color: #dcbb5e;
+}
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: var(--radius-md, 6px);
+}
+.pickerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.stanceToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border, #232932);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+.stanceBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  padding: 5px 10px;
+  cursor: pointer;
+  min-height: 28px;
+}
+.stanceBtnActive {
+  background: rgba(220, 187, 94, 0.14);
+  color: #dcbb5e;
+}
+.searchInput {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--color-bg, #0a0c0f);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-text-primary, #e8eaed);
+}
+.hint {
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.resultsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.resultItem {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 13px;
+  padding: 6px 8px;
+  min-height: 32px;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+.resultItem:hover {
+  background: rgba(220, 187, 94, 0.1);
+}
+.selectedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-primary, #e8eaed);
+  padding: 4px 0;
+}
+.clearSel {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 11px;
+  cursor: pointer;
+}
+.clearSel:hover {
+  color: #dcbb5e;
+}
+.pickerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.cancelBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  min-height: 30px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.saveBtn {
+  min-height: 30px;
+  background: #dcbb5e;
+  color: #0a0c0f;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.error {
+  font-size: 12px;
+  color: var(--loss, #ef4444);
+}
+.emptyChangelog {
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 4px 0;
+}
+.changelogList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.changelogRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+}
+.changelogDate {
+  flex: 0 0 76px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.changelogText {
+  color: var(--color-text-primary, #e8eaed);
+}
+
+@media (max-width: 640px) {
+  .changelogRow {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .changelogDate {
+    flex: none;
+  }
+}
+
+/* Wave N — an evidence candidate shows three distinct things, and they must
+   stay visually distinct: what it IS, what the SOURCE said, and what the MEMBER
+   wrote about it. Collapsing them into one line is how a member's own opinion
+   ends up attached to a thesis as a publisher's claim. */
+.candidateLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text, #e8eaed);
+}
+.candidateSource {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  font-style: italic;
+  opacity: 0.86;
+  border-left: 2px solid var(--color-accent, #c9a84c);
+  padding-left: 8px;
+}
+.candidateAnnotation {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+.resultItem:disabled { opacity: 0.55; cursor: default; }
+
+
+/* ⛔⛔ WAVE N §13 — THE TOUCH TIER. Measured on a real 390x844 coarse-pointer
+   viewport with the picker OPEN (tools/wave_n_mobile_a11y.py): the trigger was
+   28px, both stance buttons 28px, the type buttons 38px, the caption field
+   32px and the primary "Add evidence" action 30px — every control in the
+   evidence flow under the app's own documented `--tap-min: 44px`. Nothing was
+   occluded and nothing overflowed; the flow was simply built at desktop
+   density and never re-measured on a phone.
+
+   ⭐ TOUCH, not phone. `@media (max-width: 1024px)` is the canonical string
+   from `styles/breakpoints.css` — a tablet has the same thumb, and a floor
+   restored only at 640px leaves tablets broken (the mistake this repo has
+   already made once across 54 stylesheets). Desktop density is untouched. */
+@media (max-width: 1024px) {
+  .addLink,
+  .stanceBtn,
+  .saveBtn,
+  .cancelBtn,
+  .clearSel {
+    min-height: var(--tap-min, 44px);
+  }
+  .searchInput,
+  .resultItem {
+    min-height: var(--tap-min, 44px);
+  }
+  .removeBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* The two toggle groups wrap rather than squeeze once their buttons are
+     thumb-sized — five controls at 44px do not fit across 390px, and a
+     horizontally scrolling toggle row is worse than a second line. */
+  .pickerRow {
+    flex-wrap: wrap;
+  }
+  .stanceBtn {
+    padding: 8px 12px;
+  }
+  /* ⛔ AND THE ATTACHED ROW MUST STILL NAME ITS SOURCE. `nowrap` + ellipsis is
+     right on a wide row; at 390px it cut "Captured passage · Reuters: NVDA
+     margins (reuters.com)" down to "Captured passage · …", which is a
+     citation that cites nothing. Two lines beat a truncated provenance. */
+  .evidenceLink {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.45;
+  }
+  .evidenceRow {
+    align-items: flex-start;
+  }
+}
+
+/* Announcements only — the same shape AskPanel already uses. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -40,7 +40,7 @@ _HISTORICAL_ROWS = [
 # ── _fmp_consensus_snapshot ─────────────────────────────────────────────────
 
 def test_consensus_snapshot_maps_the_five_buckets():
-    with patch.object(ee, "_fmp_get", return_value=_CONSENSUS_ROW):
+    with patch.object(ee, "_fmp_rows", return_value=_CONSENSUS_ROW):
         out = ee._fmp_consensus_snapshot(SYM)
     assert out == {
         "buy": 70, "hold": 32, "sell": 8, "strongBuy": 1, "strongSell": 0,
@@ -50,7 +50,7 @@ def test_consensus_snapshot_maps_the_five_buckets():
 
 def test_consensus_snapshot_preserves_a_genuine_zero_bucket():
     """strongSell=0 above must survive as 0, not be treated as 'missing'."""
-    with patch.object(ee, "_fmp_get", return_value=_CONSENSUS_ROW):
+    with patch.object(ee, "_fmp_rows", return_value=_CONSENSUS_ROW):
         out = ee._fmp_consensus_snapshot(SYM)
     assert out["strongSell"] == 0
     assert out["strongSell"] is not None
@@ -60,22 +60,22 @@ def test_consensus_snapshot_returns_none_on_unusable_row():
     """A resolved row with none of the five bucket keys (e.g. a price-target
     row leaking in from a blanket test double) must not become a fake
     zero-filled consensus."""
-    with patch.object(ee, "_fmp_get", return_value=[{"symbol": SYM}]):
+    with patch.object(ee, "_fmp_rows", return_value=[{"symbol": SYM}]):
         out = ee._fmp_consensus_snapshot(SYM)
     assert out is None
 
 
 def test_consensus_snapshot_returns_none_when_fmp_has_nothing():
-    with patch.object(ee, "_fmp_get", return_value=None):
+    with patch.object(ee, "_fmp_rows", return_value=None):
         assert ee._fmp_consensus_snapshot(SYM) is None
-    with patch.object(ee, "_fmp_get", return_value=[]):
+    with patch.object(ee, "_fmp_rows", return_value=[]):
         assert ee._fmp_consensus_snapshot(SYM) is None
 
 
 # ── _fmp_grades_historical ──────────────────────────────────────────────────
 
 def test_grades_historical_remaps_analystratings_prefix_to_bare_names():
-    with patch.object(ee, "_fmp_get", return_value=_HISTORICAL_ROWS):
+    with patch.object(ee, "_fmp_rows", return_value=_HISTORICAL_ROWS):
         out = ee._fmp_grades_historical(SYM, limit=4)
     assert len(out) == 2
     assert out[0] == {
@@ -88,26 +88,27 @@ def test_grades_historical_remaps_analystratings_prefix_to_bare_names():
 
 def test_grades_historical_skips_a_row_with_no_date():
     rows = [{"analystRatingsBuy": 5}] + _HISTORICAL_ROWS
-    with patch.object(ee, "_fmp_get", return_value=rows):
+    with patch.object(ee, "_fmp_rows", return_value=rows):
         out = ee._fmp_grades_historical(SYM, limit=4)
     assert len(out) == 2  # the dateless row is dropped, not defaulted to ""
 
 
 def test_grades_historical_empty_on_non_list_response():
-    with patch.object(ee, "_fmp_get", return_value=None):
+    with patch.object(ee, "_fmp_rows", return_value=None):
         assert ee._fmp_grades_historical(SYM) == []
-    with patch.object(ee, "_fmp_get", return_value={"Error": "bad symbol"}):
+    with patch.object(ee, "_fmp_rows", return_value={"Error": "bad symbol"}):
         assert ee._fmp_grades_historical(SYM) == []
 
 
 def test_grades_historical_passes_the_limit_param_through():
     captured = {}
 
-    def fake_get(path, params, timeout=10):
-        captured["params"] = dict(params)
+    def fake_rows(ticker, fn, **kwargs):
+        captured["ticker"] = ticker
+        captured["kwargs"] = dict(kwargs)
         return []
 
-    with patch.object(ee, "_fmp_get", side_effect=fake_get):
+    with patch.object(ee, "_fmp_rows", side_effect=fake_rows):
         ee._fmp_grades_historical(SYM, limit=7)
-    assert captured["params"]["limit"] == 7
-    assert captured["params"]["symbol"] == SYM
+    assert captured["kwargs"]["limit"] == 7
+    assert captured["ticker"] == SYM

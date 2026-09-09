@@ -1,0 +1,810 @@
+"""Entity Master test suite — colocated with its service (matches this
+codebase's `api/services/test_grade_ticker.py` precedent, per
+entity-master-spec.md §12).
+
+Every fixture is synthetic. No test touches `cap_universe.json`, `C:\\data`,
+or any production file — every database used here is created fresh under
+pytest's `tmp_path`, never at the real `entity_master.db` / `DATA_DIR` path.
+
+Checkpoints 1 (Schema), 2 (Read primitives), 3 (Write path).
+"""
+import sqlite3
+
+import pytest
+
+from api.services.entity_master import api as em_api
+from api.services.entity_master import schema
+from api.services.entity_master import store
+
+
+@pytest.fixture
+def db_path(tmp_path):
+    return str(tmp_path / "entity_master_test.db")
+
+
+def _table_names(conn: sqlite3.Connection) -> set[str]:
+    rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    return {r[0] for r in rows}
+
+
+def test_init_db_creates_every_table(db_path):
+    conn = schema.init_db(db_path=db_path)
+    names = _table_names(conn)
+    for t in schema.TABLES:
+        assert t in names, f"missing table {t}"
+
+
+def test_init_db_creates_expected_indexes(db_path):
+    conn = schema.init_db(db_path=db_path)
+    idx = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
+    for expected in (
+        "idx_alias_lookup", "idx_alias_entity", "idx_vendor_symbol_lookup",
+        "idx_figi_composite", "idx_relation_entity", "idx_events_entity",
+    ):
+        assert expected in idx, f"missing index {expected}"
+
+
+def test_init_db_is_idempotent(db_path):
+    """Calling init_db() twice must not raise, duplicate tables, or lose rows
+    already written — the "safe to call on every process boot" contract."""
+    conn = schema.init_db(db_path=db_path)
+    now = "2026-09-02T00:00:00Z"
+    conn.execute(
+        "INSERT INTO entities(entity_id, entity_type, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?)",
+        ("ent_TEST0000000000000000000", "equity", now, now),
+    )
+    conn.commit()
+
+    conn2 = schema.init_db(db_path=db_path)  # re-run against the same file
+    row = conn2.execute(
+        "SELECT entity_id FROM entities WHERE entity_id = ?",
+        ("ent_TEST0000000000000000000",),
+    ).fetchone()
+    assert row is not None, "re-running init_db() destroyed existing data"
+    assert conn2.execute("SELECT COUNT(*) FROM entities").fetchone()[0] == 1
+
+
+def test_migrations_ledger_starts_empty_and_records_future_migrations(db_path):
+    conn = schema.init_db(db_path=db_path)
+    # No migrations defined yet at schema introduction.
+    assert conn.execute("SELECT COUNT(*) FROM _migrations").fetchone()[0] == 0
+
+    # Simulate one future migration being added and applied, mirroring
+    # bars_sqlite.py's (name, sql) tuple pattern — verifies the ledger
+    # mechanism itself (not a real migration) without editing schema.py.
+    name, sql = "checkpoint1_smoke_migration", "SELECT 1"
+    already = conn.execute(
+        "SELECT 1 FROM _migrations WHERE name=?", (name,)
+    ).fetchone()
+    assert not already
+    conn.execute(sql)
+    conn.execute(
+        "INSERT INTO _migrations(name, applied_at) VALUES (?, ?)", (name, 0)
+    )
+    conn.commit()
+
+    # Re-init must not re-apply (would violate the PRIMARY KEY on `name`).
+    conn2 = schema.init_db(db_path=db_path)
+    count = conn2.execute(
+        "SELECT COUNT(*) FROM _migrations WHERE name=?", (name,)
+    ).fetchone()[0]
+    assert count == 1
+
+
+def test_entity_relations_check_constraints(db_path):
+    conn = schema.init_db(db_path=db_path)
+    now = "2026-09-02T00:00:00Z"
+    conn.executemany(
+        "INSERT INTO entities(entity_id, entity_type, created_at, updated_at) VALUES (?,?,?,?)",
+        [("ent_A", "equity", now, now), ("ent_B", "equity", now, now)],
+    )
+    conn.commit()
+
+    # Valid relation kind + distinct entities: succeeds.
+    conn.execute(
+        "INSERT INTO entity_relations(entity_id, related_entity_id, kind, valid_from, source, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        ("ent_A", "ent_B", "share_class", "2026-01-01", "seed:test", now),
+    )
+    conn.commit()
+
+    # Invalid kind: rejected by the CHECK constraint.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO entity_relations(entity_id, related_entity_id, kind, valid_from, source, created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            ("ent_A", "ent_B", "bogus_kind", "2026-01-01", "seed:test", now),
+        )
+
+    # Self-relation: rejected by the CHECK constraint.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO entity_relations(entity_id, related_entity_id, kind, valid_from, source, created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            ("ent_A", "ent_A", "successor", "2026-01-01", "seed:test", now),
+        )
+
+
+def test_entity_events_dedup_key_is_unique(db_path):
+    conn = schema.init_db(db_path=db_path)
+    now = "2026-09-02T00:00:00Z"
+    conn.execute(
+        "INSERT INTO entity_events(dedup_key, event_type, payload_json, source, applied_at) "
+        "VALUES (?,?,?,?,?)",
+        ("dedup-1", "new_entity", "{}", "admin_manual", now),
+    )
+    conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO entity_events(dedup_key, event_type, payload_json, source, applied_at) "
+            "VALUES (?,?,?,?,?)",
+            ("dedup-1", "new_entity", "{}", "admin_manual", now),
+        )
+
+
+def test_init_db_never_touches_a_different_file(tmp_path):
+    """A rollback/no-op sanity check: pointing init_db() at path A must never
+    create or write path B."""
+    a = str(tmp_path / "a.db")
+    b = str(tmp_path / "b.db")
+    schema.init_db(db_path=a)
+    import os
+    assert os.path.exists(a)
+    assert not os.path.exists(b)
+
+
+# ─── Checkpoint 2 — Read primitives ────────────────────────────────────────
+# Fixtures are seeded directly at the SQLite layer (apply_event does not
+# exist until Checkpoint 3) — the same approach entity-master-spec.md §12
+# specifies for AC-6 explicitly, and used here for every read-primitive test
+# so Checkpoint 2 is independently testable/reviewable without Checkpoint 3.
+
+_NOW = "2026-09-02T00:00:00Z"
+
+
+def _seed_entity(conn, entity_id, entity_type="equity", lifecycle_state="active", lifecycle_since=None):
+    conn.execute(
+        "INSERT INTO entities(entity_id, entity_type, lifecycle_state, lifecycle_since, created_at, updated_at) "
+        "VALUES (?,?,?,?,?,?)",
+        (entity_id, entity_type, lifecycle_state, lifecycle_since, _NOW, _NOW),
+    )
+
+
+def _seed_alias(conn, entity_id, alias, valid_from, valid_to=None, source="seed:test"):
+    conn.execute(
+        "INSERT INTO entity_aliases(entity_id, alias, valid_from, valid_to, source, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        (entity_id, alias, valid_from, valid_to, source, _NOW),
+    )
+
+
+def test_cold_start_returns_not_found_never_raises(db_path):
+    """AC-7: against a freshly-created, empty database, every primitive
+    returns its documented empty outcome, never an exception."""
+    schema.init_db(db_path=db_path)
+    r = em_api.resolve("NVDA", db_path=db_path)
+    assert r.status == "not_found"
+    assert em_api.aliases("ent_NOPE", db_path=db_path) == []
+    assert em_api.vendor_symbol("ent_NOPE", "massive", db_path=db_path) is None
+    assert em_api.related_to("ent_NOPE", "share_class", db_path=db_path) == []
+
+
+def test_rename_resolves_correctly(db_path):
+    """AC-1: a renamed entity's OLD alias resolves before the cutover, its
+    NEW alias resolves after, and each is the same underlying entity."""
+    conn = schema.init_db(db_path=db_path)
+    _seed_entity(conn, "ent_SQ_BLOCK")
+    _seed_alias(conn, "ent_SQ_BLOCK", "SQ", "2015-11-19", "2021-12-10")
+    _seed_alias(conn, "ent_SQ_BLOCK", "XYZ", "2021-12-10", None)
+    conn.commit()
+    store.rebuild_cache(db_path=db_path)
+
+    before = em_api.resolve("SQ", as_of="2020-01-01", db_path=db_path)
+    assert before.status == "resolved"
+    assert before.entity.entity_id == "ent_SQ_BLOCK"
+
+    after_old = em_api.resolve("SQ", as_of="2022-01-01", db_path=db_path)
+    assert after_old.status == "not_found"
+
+    now = em_api.resolve("XYZ", db_path=db_path)  # as_of=None -> currently open
+    assert now.status == "resolved"
+    assert now.entity.entity_id == "ent_SQ_BLOCK"
+
+
+def test_delisting_marks_never_erases(db_path):
+    """AC-2: a delisted entity's historical resolve still works and
+    aliases() never drops the closed row."""
+    conn = schema.init_db(db_path=db_path)
+    _seed_entity(conn, "ent_LEH", lifecycle_state="delisted", lifecycle_since="2008-09-15")
+    _seed_alias(conn, "ent_LEH", "LEH", "1994-01-01", "2008-09-15")
+    conn.commit()
+    store.rebuild_cache(db_path=db_path)
+
+    historical = em_api.resolve("LEH", as_of="2005-01-01", db_path=db_path)
+    assert historical.status == "resolved"
+    assert historical.entity.lifecycle_state == "delisted"
+
+    full_roster = em_api.aliases("ent_LEH", db_path=db_path)
+    assert len(full_roster) == 1
+    assert full_roster[0].alias == "LEH"
+    assert full_roster[0].valid_to == "2008-09-15"
+
+    current = em_api.resolve("LEH", db_path=db_path)  # as_of=None -> now
+    assert current.status == "not_found"  # closed, no longer open
+
+
+def test_ambiguous_is_distinguishable_and_logged(db_path):
+    """AC-6: two entities holding the same alias open at once (constructed
+    by seeding directly, bypassing apply_event's write-time guard, exactly
+    as the spec names for this test) resolves as "ambiguous", distinct from
+    both a clean resolve and a NotFound."""
+    conn = schema.init_db(db_path=db_path)
+    _seed_entity(conn, "ent_ONE")
+    _seed_entity(conn, "ent_TWO")
+    _seed_alias(conn, "ent_ONE", "DUPE", "2020-01-01", None)
+    _seed_alias(conn, "ent_TWO", "DUPE", "2021-01-01", None)
+    conn.commit()
+    store.rebuild_cache(db_path=db_path)
+
+    r = em_api.resolve("DUPE", db_path=db_path)
+    assert r.status == "ambiguous"
+    assert set(r.candidates) == {"ent_ONE", "ent_TWO"}
+    assert r.entity is None
+
+
+def test_as_of_consistency_across_primitives(db_path):
+    """AC-8: one bitemporal fixture; resolve/aliases/vendor_symbol/
+    related_to all agree at two named points in time."""
+    conn = schema.init_db(db_path=db_path)
+    _seed_entity(conn, "ent_GOOG")
+    _seed_entity(conn, "ent_GOOGL")
+    _seed_alias(conn, "ent_GOOG", "GOOG", "2004-08-19", None)
+    _seed_alias(conn, "ent_GOOGL", "GOOGL", "2014-04-03", None)
+    conn.execute(
+        "INSERT INTO entity_relations(entity_id, related_entity_id, kind, valid_from, source, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        ("ent_GOOG", "ent_GOOGL", "share_class", "2014-04-03", "seed:test", _NOW),
+    )
+    conn.execute(
+        "INSERT INTO entity_vendor_symbols(entity_id, vendor, vendor_symbol, valid_from, valid_to, source, created_at) "
+        "VALUES (?,?,?,?,?,?,?)",
+        ("ent_GOOG", "massive", "GOOG", "2004-08-19", None, "seed:test", _NOW),
+    )
+    conn.commit()
+    store.rebuild_cache(db_path=db_path)
+
+    t1, t2 = "2010-01-01", "2026-01-01"
+    for t in (t1, t2):
+        r = em_api.resolve("GOOG", as_of=t, db_path=db_path)
+        assert r.status == "resolved" and r.entity.entity_id == "ent_GOOG"
+        vs = em_api.vendor_symbol("ent_GOOG", "massive", as_of=t, db_path=db_path)
+        assert vs == "GOOG"
+        rel = em_api.related_to("ent_GOOG", "share_class", db_path=db_path)
+        assert [e.entity_id for e in rel] == ["ent_GOOGL"]
+
+    # GOOGL didn't exist as an alias before 2014-04-03.
+    pre = em_api.resolve("GOOGL", as_of="2010-01-01", db_path=db_path)
+    assert pre.status == "not_found"
+    post = em_api.resolve("GOOGL", as_of="2026-01-01", db_path=db_path)
+    assert post.status == "resolved"
+
+
+def test_vendor_symbol_returns_none_when_unmapped(db_path):
+    """A vendor that has never carried this entity is a valid outcome (per
+    spec §9.2), not an error — None, not an exception."""
+    conn = schema.init_db(db_path=db_path)
+    _seed_entity(conn, "ent_X")
+    conn.commit()
+    assert em_api.vendor_symbol("ent_X", "fmp", db_path=db_path) is None
+
+
+def test_share_class_vs_vendor_notation(db_path):
+    """§4.4's required fixture: two entities (GOOG/GOOGL) linked
+    share_class, plus one BRK-B entity with a derived massive->BRK.B vendor
+    row — related_to and vendor_symbol must not conflate the two cases."""
+    conn = schema.init_db(db_path=db_path)
+    _seed_entity(conn, "ent_GOOG")
+    _seed_entity(conn, "ent_GOOGL")
+    _seed_entity(conn, "ent_BRKB")
+    _seed_alias(conn, "ent_GOOG", "GOOG", "2004-08-19", None)
+    _seed_alias(conn, "ent_GOOGL", "GOOGL", "2014-04-03", None)
+    _seed_alias(conn, "ent_BRKB", "BRK-B", "1996-05-09", None)
+    conn.execute(
+        "INSERT INTO entity_relations(entity_id, related_entity_id, kind, valid_from, source, created_at) "
+        "VALUES (?,?,?,?,?,?)",
+        ("ent_GOOG", "ent_GOOGL", "share_class", "2014-04-03", "seed:test", _NOW),
+    )
+    conn.execute(
+        "INSERT INTO entity_vendor_symbols(entity_id, vendor, vendor_symbol, valid_from, valid_to, source, created_at) "
+        "VALUES (?,?,?,?,?,?,?)",
+        ("ent_BRKB", "massive", "BRK.B", "1996-05-09", None, "seed:test", _NOW),
+    )
+    conn.commit()
+    store.rebuild_cache(db_path=db_path)
+
+    # GOOG/GOOGL: two entities, related, each with its OWN alias (no vendor row needed).
+    rel = em_api.related_to("ent_GOOG", "share_class", db_path=db_path)
+    assert [e.entity_id for e in rel] == ["ent_GOOGL"]
+    assert em_api.vendor_symbol("ent_GOOG", "massive", db_path=db_path) is None
+
+    # BRK-B: ONE entity, one canonical alias, a vendor-notation row (not a relation).
+    assert em_api.related_to("ent_BRKB", "share_class", db_path=db_path) == []
+    assert em_api.vendor_symbol("ent_BRKB", "massive", db_path=db_path) == "BRK.B"
+    from api.services.massive import to_polygon_symbol
+    assert em_api.vendor_symbol("ent_BRKB", "massive", db_path=db_path) == to_polygon_symbol("BRK-B")
+
+
+def test_ac10_existing_consumers_unaffected():
+    """AC-10: importing and calling the existing ticker-identity-adjacent
+    modules behaves exactly as before Entity Master's package existed — a
+    smoke check that S3's mere presence changes nothing about them."""
+    from api.services import cap_universe, delisted_registry
+    from api.services.massive import to_polygon_symbol
+
+    assert to_polygon_symbol("BRK-B") == "BRK.B"
+    assert to_polygon_symbol("AAPL") == "AAPL"
+    assert isinstance(cap_universe.symbols(), frozenset)
+    assert delisted_registry.resolve("__DEFINITELY_NOT_A_REAL_TICKER__") is None
+
+
+def test_ac9_no_cusip_shaped_identifier():
+    """AC-9: static check — no column name or generated id shape references
+    a CUSIP, anywhere in this package's source."""
+    import re
+    from pathlib import Path
+
+    pkg_dir = Path(__file__).parent
+    hits = []
+    for f in pkg_dir.glob("*.py"):
+        if f.name == "test_entity_master.py":
+            continue
+        text = f.read_text(encoding="utf-8")
+        if re.search(r"cusip", text, re.IGNORECASE):
+            hits.append(f.name)
+    assert not hits, f"CUSIP-shaped reference found in: {hits}"
+
+
+# ─── Checkpoint 3 — Write path ─────────────────────────────────────────────
+
+def _new_entity_payload(alias, valid_from="2020-01-01", entity_type="equity"):
+    return {"entity_type": entity_type, "initial_alias": alias, "initial_alias_valid_from": valid_from}
+
+
+def test_new_entity_creates_entity_and_alias(db_path):
+    schema.init_db(db_path=db_path)
+    result = em_api.apply_event(
+        "new_entity", _new_entity_payload("NVDA"), dedup_key="d1", source="admin_manual", db_path=db_path
+    )
+    assert result.accepted
+    assert result.entity_id.startswith("ent_")
+
+    r = em_api.resolve("NVDA", db_path=db_path)
+    assert r.status == "resolved"
+    assert r.entity.entity_id == result.entity_id
+    assert r.entity.lifecycle_state == "active"
+
+
+def test_new_entity_with_figi_populates_entity_figi(db_path):
+    schema.init_db(db_path=db_path)
+    payload = {**_new_entity_payload("AAPL"), "composite_figi": "BBG000B9XRY4", "cik": "0000320193"}
+    result = em_api.apply_event("new_entity", payload, dedup_key="d1", source="admin_manual", db_path=db_path)
+    assert result.accepted
+    conn = store._conn(db_path)
+    row = conn.execute(
+        "SELECT composite_figi FROM entity_figi WHERE entity_id = ?", (result.entity_id,)
+    ).fetchone()
+    assert row == ("BBG000B9XRY4",)
+
+
+def test_alias_collision_rejected_at_write(db_path):
+    """AC-3: attempt an overlapping-alias event; ApplyResult.accepted is
+    False and no row was written (query the table directly, not just the
+    return value)."""
+    schema.init_db(db_path=db_path)
+    r1 = em_api.apply_event(
+        "new_entity", _new_entity_payload("DUPE", "2020-01-01"), "d1", "admin_manual", db_path=db_path
+    )
+    assert r1.accepted
+
+    r2 = em_api.apply_event(
+        "new_entity", _new_entity_payload("DUPE", "2021-01-01"), "d2", "admin_manual", db_path=db_path
+    )
+    assert not r2.accepted
+    assert r1.entity_id in r2.reason
+
+    conn = store._conn(db_path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM entity_aliases WHERE alias = 'DUPE'"
+    ).fetchone()[0]
+    assert count == 1  # the second event's alias row was never written
+
+    entity_count = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    assert entity_count == 1  # the second event's entity row was never written either
+
+    # The rejection itself IS durably recorded, with a named reason.
+    row = conn.execute(
+        "SELECT rejected_reason FROM entity_events WHERE dedup_key = 'd2'"
+    ).fetchone()
+    assert row is not None and row[0] is not None
+
+
+def test_alias_added_and_retired(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("META"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+
+    add = em_api.apply_event(
+        "alias_added",
+        {"entity_id": eid, "alias": "FB2", "valid_from": "2024-01-01"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert add.accepted
+    assert em_api.resolve("FB2", db_path=db_path).status == "resolved"
+
+    retire = em_api.apply_event(
+        "alias_retired",
+        {"entity_id": eid, "alias": "FB2", "valid_to": "2025-01-01"},
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert retire.accepted
+    assert em_api.resolve("FB2", db_path=db_path).status == "not_found"
+    # ... but the closed row is still in the full history (AC-2 for the write path too).
+    roster = em_api.aliases(eid, db_path=db_path)
+    assert any(a.alias == "FB2" and a.valid_to == "2025-01-01" for a in roster)
+
+
+def test_alias_retired_rejects_when_no_open_row(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("XYZ"), "d1", "admin_manual", db_path=db_path
+    )
+    r = em_api.apply_event(
+        "alias_retired",
+        {"entity_id": created.entity_id, "alias": "NOT-OPEN", "valid_to": "2025-01-01"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert not r.accepted
+    assert "no open alias" in r.reason
+
+
+def test_delisted_flips_lifecycle_state(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("LEHX"), "d1", "admin_manual", db_path=db_path
+    )
+    r = em_api.apply_event(
+        "delisted", {"entity_id": created.entity_id, "lifecycle_since": "2008-09-15"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert r.accepted
+    resolved = em_api.resolve("LEHX", db_path=db_path)
+    assert resolved.status == "resolved"  # delisting flips state, doesn't close the alias
+    assert resolved.entity.lifecycle_state == "delisted"
+    assert resolved.entity.lifecycle_since == "2008-09-15"
+
+
+def test_renamed_closes_old_alias_and_opens_new(db_path):
+    """AC-1 via the real write path (not a direct-seed fixture this time)."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("SQ", "2015-11-19"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+
+    r = em_api.apply_event(
+        "renamed",
+        {
+            "entity_id": eid, "old_alias": "SQ", "old_alias_valid_to": "2021-12-10",
+            "new_alias": "XYZ", "new_alias_valid_from": "2021-12-10",
+        },
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert r.accepted
+    assert em_api.resolve("SQ", db_path=db_path).status == "not_found"
+    assert em_api.resolve("SQ", as_of="2020-01-01", db_path=db_path).entity.entity_id == eid
+    assert em_api.resolve("XYZ", db_path=db_path).entity.entity_id == eid
+
+
+def test_renamed_rejects_on_new_alias_collision_and_does_not_touch_old_alias(db_path):
+    schema.init_db(db_path=db_path)
+    a = em_api.apply_event("new_entity", _new_entity_payload("AAA"), "d1", "admin_manual", db_path=db_path)
+    b = em_api.apply_event("new_entity", _new_entity_payload("BBB"), "d2", "admin_manual", db_path=db_path)
+
+    r = em_api.apply_event(
+        "renamed",
+        {
+            "entity_id": a.entity_id, "old_alias": "AAA", "old_alias_valid_to": "2026-01-01",
+            "new_alias": "BBB", "new_alias_valid_from": "2026-01-01",
+        },
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert not r.accepted
+    # The old alias must still be OPEN — a rejected rename must not half-apply.
+    assert em_api.resolve("AAA", db_path=db_path).status == "resolved"
+    assert em_api.resolve("AAA", db_path=db_path).entity.entity_id == a.entity_id
+    assert em_api.resolve("BBB", db_path=db_path).entity.entity_id == b.entity_id
+
+
+def test_relation_added(db_path):
+    schema.init_db(db_path=db_path)
+    goog = em_api.apply_event("new_entity", _new_entity_payload("GOOG"), "d1", "admin_manual", db_path=db_path)
+    googl = em_api.apply_event("new_entity", _new_entity_payload("GOOGL"), "d2", "admin_manual", db_path=db_path)
+
+    r = em_api.apply_event(
+        "relation_added",
+        {"entity_id": goog.entity_id, "related_entity_id": googl.entity_id, "kind": "share_class"},
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert r.accepted
+    rel = em_api.related_to(goog.entity_id, "share_class", db_path=db_path)
+    assert [e.entity_id for e in rel] == [googl.entity_id]
+
+
+def test_relation_added_rejects_self_relation(db_path):
+    schema.init_db(db_path=db_path)
+    a = em_api.apply_event("new_entity", _new_entity_payload("SELFY"), "d1", "admin_manual", db_path=db_path)
+    r = em_api.apply_event(
+        "relation_added",
+        {"entity_id": a.entity_id, "related_entity_id": a.entity_id, "kind": "share_class"},
+        "d2", "admin_manual", db_path=db_path,
+    )
+    assert not r.accepted
+
+
+def test_event_replay_is_idempotent(db_path):
+    """AC-5: apply a (list -> rename -> delist) event sequence twice via the
+    same dedup_keys; assert byte-identical resulting table contents (row
+    counts, no duplicate entity_aliases rows)."""
+    schema.init_db(db_path=db_path)
+
+    def _run_sequence():
+        # Read entity_id off apply_event's own return, not by re-resolving
+        # "BB" each pass — after the first pass renames BB -> CC, "BB" is no
+        # longer an open alias, so a resolve("BB")-based lookup would break
+        # on the second (idempotent-replay) pass even though nothing is wrong.
+        created = em_api.apply_event(
+            "new_entity", _new_entity_payload("BB", "2000-01-01"), "list-1", "admin_manual", db_path=db_path
+        )
+        eid = created.entity_id
+        em_api.apply_event(
+            "renamed",
+            {"entity_id": eid, "old_alias": "BB", "old_alias_valid_to": "2010-01-01",
+             "new_alias": "CC", "new_alias_valid_from": "2010-01-01"},
+            "rename-1", "admin_manual", db_path=db_path,
+        )
+        em_api.apply_event(
+            "delisted", {"entity_id": eid, "lifecycle_since": "2015-01-01"},
+            "delist-1", "admin_manual", db_path=db_path,
+        )
+        return eid
+
+    eid_first = _run_sequence()
+    conn = store._conn(db_path)
+    entities_1 = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    aliases_1 = conn.execute("SELECT COUNT(*) FROM entity_aliases").fetchone()[0]
+    events_1 = conn.execute("SELECT COUNT(*) FROM entity_events").fetchone()[0]
+
+    eid_second = _run_sequence()  # same dedup_keys, applied again
+    entities_2 = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    aliases_2 = conn.execute("SELECT COUNT(*) FROM entity_aliases").fetchone()[0]
+    events_2 = conn.execute("SELECT COUNT(*) FROM entity_events").fetchone()[0]
+
+    assert eid_first == eid_second
+    assert (entities_1, aliases_1, events_1) == (entities_2, aliases_2, events_2)
+
+
+def test_apply_event_never_raises_on_malformed_payload(db_path):
+    schema.init_db(db_path=db_path)
+    r = em_api.apply_event("new_entity", {}, "d1", "admin_manual", db_path=db_path)
+    assert not r.accepted
+    r2 = em_api.apply_event("bogus_event_type", {}, "d2", "admin_manual", db_path=db_path)
+    assert not r2.accepted
+    r3 = em_api.apply_event(
+        "alias_added", {"entity_id": "ent_DOES_NOT_EXIST", "alias": "X", "valid_from": "2020-01-01"},
+        "d3", "admin_manual", db_path=db_path,
+    )
+    assert not r3.accepted
+
+
+def test_set_vendor_symbol_and_figi_are_idempotent(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    conn = store._conn(db_path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM entity_vendor_symbols WHERE entity_id = ?", (eid,)
+    ).fetchone()[0]
+    assert count == 1
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+
+    em_api.set_figi(eid, "BBG000BLNNH6", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+    em_api.set_figi(eid, "BBG000BLNNH6", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+    figi_count = conn.execute(
+        "SELECT COUNT(*) FROM entity_figi WHERE entity_id = ?", (eid,)
+    ).fetchone()[0]
+    assert figi_count == 1
+
+
+def test_bulk_mode_defers_rebuild_until_exit(db_path):
+    """Checkpoint 4 perf fix: within a `store.bulk_mode()` block,
+    apply_event() does NOT rebuild the cache per-call, but every row IS
+    correctly committed to SQLite along the way, and the cache IS fully
+    correct immediately after the block exits (one rebuild, not zero)."""
+    schema.init_db(db_path=db_path)
+
+    with store.bulk_mode(db_path):
+        assert store._BULK_MODE is True
+        a = em_api.apply_event(
+            "new_entity", _new_entity_payload("BULK1"), "bd1", "admin_manual", db_path=db_path
+        )
+        assert a.accepted
+        # Still inside the block: the alias exists in SQLite (apply_event
+        # always commits its own transaction) but the in-memory cache has
+        # not been told about it yet.
+        conn = store._conn(db_path)
+        row = conn.execute("SELECT 1 FROM entity_aliases WHERE alias='BULK1'").fetchone()
+        assert row is not None
+
+    assert store._BULK_MODE is False
+    # Exiting the block performed exactly one rebuild — resolve() now sees it.
+    r = em_api.resolve("BULK1", db_path=db_path)
+    assert r.status == "resolved"
+    assert r.entity.entity_id == a.entity_id
+
+
+def test_bulk_mode_rebuilds_even_if_the_block_raises(db_path):
+    schema.init_db(db_path=db_path)
+    with pytest.raises(RuntimeError):
+        with store.bulk_mode(db_path):
+            em_api.apply_event(
+                "new_entity", _new_entity_payload("BULK2"), "bd2", "admin_manual", db_path=db_path
+            )
+            raise RuntimeError("simulated mid-run failure")
+    assert store._BULK_MODE is False
+    # The cache was still rebuilt on the way out despite the exception, so
+    # whatever DID get committed before the failure is visible afterward.
+    assert em_api.resolve("BULK2", db_path=db_path).status == "resolved"
+
+
+# ─── Checkpoint 5 — Provider mapping ────────────────────────────────────────
+
+def test_vendor_symbol_identical_repeat_is_a_true_noop(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    r1 = em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    assert r1.written and not r1.conflict
+    r2 = em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    assert not r2.written and not r2.conflict
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+
+
+def test_vendor_symbol_conflicting_value_is_rejected_not_silently_applied(db_path):
+    """Checkpoint 5: a genuine conflicting value at the same
+    (entity_id, vendor, valid_from) key must be REJECTED and reported, never
+    silently dropped (the pre-fix behavior) or silently applied."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+
+    r = em_api.set_vendor_symbol(eid, "massive", "WRONG.VALUE", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    assert not r.written
+    assert r.conflict
+    # The original value must survive untouched.
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+    conn = store._conn(db_path)
+    rows = conn.execute(
+        "SELECT vendor_symbol FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
+    ).fetchall()
+    assert rows == [("BRK.B",)]  # never two rows, never the wrong value
+
+
+def test_vendor_symbol_correction_via_new_valid_from_is_allowed(db_path):
+    """A genuine correction is expressed as a NEW valid_from (dating the
+    change), not an overwrite of the old row — this must succeed cleanly."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    r = em_api.set_vendor_symbol(eid, "massive", "BRK.B2", "2026-01-01", "admin_manual", db_path=db_path)
+    assert r.written and not r.conflict
+
+
+def test_figi_change_is_detected_and_applied(db_path):
+    """entity_figi IS a current-snapshot table — a genuine value change
+    legitimately overwrites, but `changed` must correctly flag it."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("AAPL"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    r1 = em_api.set_figi(eid, "BBG000B9XRY4", None, "massive_reference", db_path=db_path)
+    assert r1.written and not r1.changed  # brand new row: written, but not a "change" from a prior value
+
+    r2 = em_api.set_figi(eid, "BBG000B9XRY4", None, "massive_reference", db_path=db_path)
+    assert not r2.written and not r2.changed  # identical repeat
+
+    r3 = em_api.set_figi(eid, "BBG_DIFFERENT_VALUE", None, "massive_reference", db_path=db_path)
+    assert r3.written and r3.changed  # genuine update
+
+    conn = store._conn(db_path)
+    row = conn.execute("SELECT composite_figi FROM entity_figi WHERE entity_id=?", (eid,)).fetchone()
+    assert row == ("BBG_DIFFERENT_VALUE",)
+
+
+def test_provider_mapping_writes_never_touch_canonical_identity(db_path):
+    """Checkpoint 5 "canonical identity stability": repeated vendor/FIGI
+    writes — including a rejected conflict and a genuine change — must
+    never alter entity_id, the entity's alias, or its lifecycle_state."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    before = em_api.resolve("BRK-B", db_path=db_path).entity
+
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_vendor_symbol(eid, "massive", "CONFLICTING", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_figi(eid, "BBG000BLNNH6", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+    em_api.set_figi(eid, "BBG_CHANGED", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+
+    after = em_api.resolve("BRK-B", db_path=db_path).entity
+    assert before == after  # entity_id, entity_type, lifecycle_state, lifecycle_since all unchanged
+    roster = em_api.aliases(eid, db_path=db_path)
+    assert len(roster) == 1 and roster[0].alias == "BRK-B"  # alias history untouched
+
+
+def test_mapping_provenance_is_recorded_and_readable(db_path):
+    """Checkpoint 5 "mapping provenance": the source of a vendor/FIGI row
+    is stored and independently verifiable (not just trusted from memory)."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_figi(eid, "BBG000BLNNH6", None, "massive_reference", db_path=db_path)
+
+    conn = store._conn(db_path)
+    vs_source = conn.execute(
+        "SELECT source FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
+    ).fetchone()
+    figi_source = conn.execute("SELECT source FROM entity_figi WHERE entity_id=?", (eid,)).fetchone()
+    assert vs_source == ("derived:dot_notation",)
+    assert figi_source == ("massive_reference",)
+
+
+def test_fmp_vendor_has_no_mapping_by_design_and_returns_none(db_path):
+    """Checkpoint 5 finding, grounded in `massive.py`'s own docstring
+    ("FMP/yfinance fallbacks keep the canonical hyphen form") and
+    `fmp_bulk.py`'s plain-passthrough symbol handling (no transform):
+    FMP needs NO entity_vendor_symbols row for any entity, because its
+    symbol convention already matches the canonical alias byte-for-byte.
+    vendor_symbol(entity_id, "fmp") legitimately returns None always,
+    a valid outcome (spec §9.2) — this test pins that as intentional,
+    not a gap."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    assert em_api.vendor_symbol(eid, "fmp", db_path=db_path) is None
+    # The canonical alias IS what FMP expects — no derivation needed.
+    roster = em_api.aliases(eid, db_path=db_path)
+    assert roster[0].alias == "BRK-B"

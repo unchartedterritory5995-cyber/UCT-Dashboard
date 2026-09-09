@@ -90,6 +90,8 @@ vi.mock('./charts/ChartsSymContext', () => ({
   ChartsSymContext: { Provider: ({ children }) => children },
   useChartsSym: () => ({ sym: null, setSym: () => {} }),
 }))
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigateMock }))
 
 const Watchlists = (await import('./Watchlists')).default
 
@@ -98,6 +100,7 @@ beforeEach(() => {
   hoisted.prebuilt = []
   mutateMine.mockClear()
   createAlert.mockClear()
+  navigateMock.mockClear()
   localStorage.clear()
   fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }))
   vi.stubGlobal('fetch', fetchMock)
@@ -125,6 +128,42 @@ test('the row menu offers notes and a price alert, not just remove', async () =>
   expect(screen.getByRole('button', { name: /^notes$/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /set price alert/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /remove from watchlist/i })).toBeInTheDocument()
+})
+
+// Entry-point convergence (owner authorization): Watchlists previously had no
+// path into canonical Research at all — confirmed by this same suite's own
+// setup carrying no react-router mock until this addition.
+test('the row menu offers Full Research and canonical Ask AI, routed to /research/:sym', async () => {
+  const user = userEvent.setup()
+  renderOwned()
+
+  await openRowMenu(user, 'AAPL')
+
+  expect(screen.getByRole('button', { name: /full research/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /ask ai about aapl/i })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /full research/i }))
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL')
+})
+
+test('the row menu Ask AI action routes to canonical Research Ask AI, not generic ai-search', async () => {
+  const user = userEvent.setup()
+  renderOwned()
+
+  await openRowMenu(user, 'AAPL')
+  await user.click(screen.getByRole('button', { name: /ask ai about aapl/i }))
+
+  expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
+})
+
+test("a community row still offers no menu at all, so Research/Ask AI aren't reachable through someone else's read-only list either", async () => {
+  const user = userEvent.setup()
+  render(<Watchlists embedded pickList="community:cw1" pickName="Ravi's Board" />)
+
+  await openRowMenu(user, 'TSLA')
+
+  expect(screen.queryByRole('button', { name: /full research/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /ask ai/i })).not.toBeInTheDocument()
 })
 
 test('a note opened from the row menu shows what was saved and persists an edit', async () => {

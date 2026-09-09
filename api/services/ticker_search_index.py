@@ -24,10 +24,51 @@ Design:
 import json
 import logging
 import os
+import re
 import threading
 import time
 
 logger = logging.getLogger(__name__)
+
+# ── Dot/hyphen share-class identity (Seam 16) ───────────────────────────────
+#
+# Massive's own /v3/reference/tickers feed returns class-share tickers in DOT
+# notation ('BRK.B'), but this codebase's canonical form is HYPHEN ('BRK-B')
+# everywhere else (cap_universe.json, FMP, yfinance, Watchlists, Journal --
+# massive.py::to_polygon_symbol()'s own docstring: "storage/cache keys ...
+# keep the canonical hyphen form"). Without re-keying, cap_universe's
+# 'BRK-B' and Massive's own 'BRK.B' union onto TWO DIFFERENT dict keys in
+# `_collect_rows()` for one real instrument -- entity_master_seed.py's
+# `_massive_reference_rows()` already hit and fixed this EXACT defect at
+# Entity Master's own seeding time (Checkpoint 6: "confirmed on real data:
+# 13 of cap_universe's 14 hyphenated symbols had a live Massive dot-form
+# row and were double-entitied this way"). This index independently sources
+# from the same `massive.list_reference_tickers()` feed and never received
+# the same fix, so it still carries the duplicate: a rich, well-named row
+# keyed 'BRK.B' (whose entity_id resolves to None -- Entity Master's alias
+# table only has the hyphen spelling) sitting alongside a blank,
+# cap_universe-sourced 'BRK-B' row that DOES resolve. `_canonical_massive_
+# ticker` mirrors that already-validated re-keying verbatim so the two
+# sources coalesce onto the one canonical key here too, exactly as they
+# already do in Entity Master.
+def _canonical_massive_ticker(raw: str) -> str:
+    return raw.replace(".", "-") if "." in raw else raw
+
+
+# The query-side half: a member typing the literal dot spelling ('BRK.B')
+# must still find the now-single, canonically-hyphenated row. Narrowly
+# scoped to the real share-class shape (a short alpha root, a literal dot,
+# then 1-2 letters -- matching every real example in cap_universe.json:
+# BRK-A/BRK-B, BF-A/BF-B, CRD-A/CRD-B, AKO-A/AKO-B, HEI-A, MOG-A, CWEN-A,
+# UHAL-B, PBR-A, NWAX-U) so an unrelated query containing a period is never
+# silently reinterpreted (Seam 16 authorization's explicit dot/hyphen safety
+# requirement -- this is NOT a blanket "every dot == every hyphen" rule).
+_SHARE_CLASS_DOT_RE = re.compile(r"^([A-Z]{1,5})\.([A-Z]{1,2})$")
+
+
+def _share_class_alias(q: str) -> str | None:
+    m = _SHARE_CLASS_DOT_RE.match(q)
+    return f"{m.group(1)}-{m.group(2)}" if m else None
 
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 _SNAP_PATH = os.environ.get(
@@ -75,14 +116,27 @@ def _priority(row: dict) -> int:
 # ── Build ────────────────────────────────────────────────────────────────────
 def _collect_rows() -> list[dict]:
     """Pull the reference universe from Massive + merge our own extras. Returns a
-    deduped list of {sym, name, type, exch}. Best-effort; partial data is fine."""
+    deduped list of {sym, name, type, exch, entity_id, ...}. Best-effort; partial
+    data is fine.
+
+    Entity Master compatibility integration (Checkpoint 6, entity-master-spec.md
+    §2.2): ADDITIVE ONLY. Every row keeps exactly the same {sym, name, type, exch}
+    shape it always had, plus new fields appended — never removed, renamed, or
+    reordered. `search()`'s ranking algorithm (below) is untouched. A caller that
+    ignores the new fields behaves exactly as before this change."""
     from api.services import massive
     from api import ticker_types
 
     out: dict[str, dict] = {}
 
-    def _put(sym, name, asset_type, exch, *, overwrite_ok=True):
-        sym = (sym or "").strip().upper()
+    def _put(sym, name, asset_type, exch, *, overwrite_ok=True, ref: dict | None = None):
+        # Seam 16: re-key any dot-containing ticker (Massive's own class-
+        # share spelling) to this codebase's canonical hyphen form BEFORE it
+        # becomes a dict key -- a no-op for every already-hyphenated or
+        # plain ticker (cap_universe's own rows never contain a literal
+        # "."), so this affects only the two Massive-sourced call sites in
+        # practice. See `_canonical_massive_ticker`'s own docstring for why.
+        sym = _canonical_massive_ticker((sym or "").strip().upper())
         if not sym:
             return
         prev = out.get(sym)
@@ -90,11 +144,20 @@ def _collect_rows() -> list[dict]:
             # keep the better-typed / named existing row
             if prev.get("name") and not name:
                 return
+        ref = ref or {}
         out[sym] = {
             "sym": sym,
             "name": (name or "").strip(),
             "type": _TYPE_LABEL.get(asset_type, "stock"),
             "exch": exch or (prev or {}).get("exch", ""),
+            # Retained (spec §2.2), not yet exposed through search()'s public
+            # row shape below — available for a future consumer (S4, an
+            # entity-detail endpoint) without a second Massive fetch.
+            "composite_figi": ref.get("composite_figi") or (prev or {}).get("composite_figi"),
+            "share_class_figi": ref.get("share_class_figi") or (prev or {}).get("share_class_figi"),
+            "cik": ref.get("cik") or (prev or {}).get("cik"),
+            "list_date": ref.get("list_date") or (prev or {}).get("list_date"),
+            "delisted_utc": ref.get("delisted_utc") or (prev or {}).get("delisted_utc"),
         }
 
     # 1) Stocks + ETFs (market='stocks': CS/ETF/ETN/ADRC/…)
@@ -104,7 +167,7 @@ def _collect_rows() -> list[dict]:
             if not sym or sym.startswith("I:"):
                 continue
             at = ticker_types.normalize_type((r.get("type") or ""), "stocks")
-            _put(sym, r.get("name"), at, _friendly_exchange(r.get("primary_exchange")))
+            _put(sym, r.get("name"), at, _friendly_exchange(r.get("primary_exchange")), ref=r)
     except Exception as e:
         logger.warning("[ticker_search_index] stocks fetch failed: %s", e)
 
@@ -116,7 +179,7 @@ def _collect_rows() -> list[dict]:
                 sym = sym[2:]
             if not sym:
                 continue
-            _put(sym, r.get("name"), "INDEX", "Index")
+            _put(sym, r.get("name"), "INDEX", "Index", ref=r)
     except Exception as e:
         logger.warning("[ticker_search_index] indices fetch failed: %s", e)
 
@@ -130,6 +193,27 @@ def _collect_rows() -> list[dict]:
                 _put(sym, "", "STOCK", "")
     except Exception as e:
         logger.warning("[ticker_search_index] cap_universe merge failed: %s", e)
+
+    # 4) entity_id per row (Checkpoint 6) — resolved from Entity Master, NOT a
+    # new Massive call. Best-effort: entity_master.api.resolve() never raises
+    # by its own contract, but this is wrapped anyway to match this file's
+    # existing "a build failure keeps the prior index" discipline — Entity
+    # Master being unseeded, unavailable, or mid-migration must never blank
+    # the search index. `as_of=None` = "now", the cache-backed O(1) path
+    # (spec §8.3), so this costs one cache load + N dict lookups, not N
+    # SQLite queries.
+    try:
+        from api.services.entity_master import api as _em_api
+        for row in out.values():
+            try:
+                r = _em_api.resolve(row["sym"])
+                row["entity_id"] = r.entity.entity_id if r.status == "resolved" else None
+            except Exception:
+                row["entity_id"] = None
+    except Exception as e:
+        logger.warning("[ticker_search_index] entity_id resolution unavailable: %s", e)
+        for row in out.values():
+            row.setdefault("entity_id", None)
 
     return list(out.values())
 
@@ -160,7 +244,7 @@ def build_index() -> int:
             with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump({"built_at": _BUILT_AT,
                            "rows": [{"s": r["sym"], "n": r["name"], "t": r["type"],
-                                     "e": r["exch"]} for r in rows]},
+                                     "e": r["exch"], "eid": r.get("entity_id")} for r in rows]},
                           fh, separators=(",", ":"))
             os.replace(tmp, _SNAP_PATH)
         except Exception as e:
@@ -177,8 +261,12 @@ def _load_snapshot() -> bool:
     try:
         with open(_SNAP_PATH, "r", encoding="utf-8") as fh:
             data = json.load(fh)
+        # `.get("eid")` — a snapshot written before Checkpoint 6 has no "eid"
+        # key at all; every existing snapshot on disk keeps loading exactly
+        # as before, just with entity_id=None until the next rebuild.
         rows = [{"sym": r["s"], "name": r["n"], "name_lc": (r["n"] or "").lower(),
-                 "type": r["t"], "exch": r["e"]} for r in (data.get("rows") or [])]
+                 "type": r["t"], "exch": r["e"], "entity_id": r.get("eid")}
+                for r in (data.get("rows") or [])]
         if not rows:
             return False
         with _LOCK:
@@ -241,12 +329,20 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
     """Rank rows across BOTH symbol and name. Buckets (best first):
        0 exact symbol · 1 symbol prefix · 2 symbol contains · 3 name word-prefix
        · 4 name contains. `types` (a set of 'stock'/'etf'/'index'/…) filters chips.
-    Returns light row dicts {ticker, name, type, exchange}."""
+    Returns light row dicts {ticker, name, type, exchange, entity_id}. `entity_id`
+    is `None` until Entity Master has an entity for this symbol (Checkpoint 6) —
+    additive, safe for any caller that doesn't read it."""
     q = (q or "").strip()
     if not q:
         return []
     ql = q.lower()
     qu = q.upper()
+    # Seam 16: a member who types the literal dot spelling ('BRK.B') must
+    # still find the now-single, canonically-hyphenated row (see
+    # `_share_class_alias`'s own docstring for the narrow scoping rule).
+    # `None` when the query doesn't match the share-class shape at all --
+    # every branch below guards on that before using it.
+    qa = _share_class_alias(qu)
     with _LOCK:
         idx = _INDEX
     scored: list[tuple[int, int, dict]] = []
@@ -255,11 +351,11 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
             continue
         sym = r["sym"]
         rank = None
-        if sym == qu:
+        if sym == qu or (qa and sym == qa):
             rank = 0
-        elif sym.startswith(qu):
+        elif sym.startswith(qu) or (qa and sym.startswith(qa)):
             rank = 1
-        elif qu in sym:
+        elif qu in sym or (qa and qa in sym):
             rank = 2
         else:
             nlc = r["name_lc"]
@@ -274,5 +370,6 @@ def search(q: str, limit: int = 25, types: set | None = None) -> list[dict]:
     out = []
     for _rank, _pri, r in scored[:limit]:
         out.append({"ticker": r["sym"], "name": r["name"] or None,
-                    "type": r["type"], "exchange": r["exch"] or None})
+                    "type": r["type"], "exchange": r["exch"] or None,
+                    "entity_id": r.get("entity_id")})
     return out

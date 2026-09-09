@@ -1,136 +1,98 @@
-"""A PARTIAL intel fetch must not be cached as if it were complete.
+"""A payload without its quarterly series must never be remembered.
 
-`get_earnings_intel` composes three independent Finnhub legs (beat_history,
-consensus, price_target). The negative cache is correctly conservative — it
-only fires when ALL THREE fail. But the positive branch used to store whatever
-it got for `_CACHE_TTL` (6 HOURS), so one transient miss on the /stock/earnings
-leg (while the other two answered) pinned `beat_history: []` on that symbol for
-six hours.
-
-That is not a cosmetic gap downstream: it is the earnings modal's entire
-Earnings History section rendering "No reported quarters yet" for a company
-that has plainly reported. Observed live 2026-08-04 — enrichment returned CAT
-with 4 quarters, then 0 minutes later, while a direct Finnhub call for CAT was
-HTTP 200 with 4 rows. Same class as the market-cap cache poison already
-documented in this repo: never cache a failed fetch as a value.
-
-A partial result is still worth SERVING (dropping it would discard good
-consensus/price-target data) — it just has to expire on the short failure TTL
-so the missing leg self-heals in minutes.
+Production, 8 Sep 2026: a rebuild returned empty `quarters` and `estimates` but
+populated `annual`. `_has_content` accepted that as complete, so it was cached
+at full TTL and written to disk — and the Earnings tab read "No earnings history
+is available for MU" while serving it stale. `annual` is derived from the
+statements document; the quarters need the fiscal calendar and the estimates
+provider, so losing them while annual survives is a REACHABLE state, not a
+theoretical one.
 """
-from unittest.mock import patch
-
 import pytest
 
-from api.services import earnings_estimates as ee
-from api.services import finnhub_client as fhc
-from api.services.cache import cache
+from api.services import earnings_intel as ei
 
-SYM = "PARTIALQ"
-KEY = f"earnings_intel_{SYM}"
-
-_EARNINGS = [
-    {"period": "2026-06-30", "actual": 8.17, "estimate": 6.25,
-     "surprisePercent": 30.7, "quarter": 2, "year": 2026},
-]
-_REC = [{"period": "2026-08-01", "strongBuy": 5, "buy": 10, "hold": 3, "sell": 1, "strongSell": 0}]
-_PT = {"targetHigh": 500.0, "targetLow": 300.0, "targetMean": 420.0,
-       "targetMedian": 415.0, "lastUpdated": "2026-08-01"}
+ANNUAL_ONLY = {"ticker": "MU", "quarters": [], "estimates": [],
+               "annual": {"reported": [{"fiscal_year": 2025, "eps": 7.65}]}}
+FULL = {"ticker": "MU", "quarters": [{"label": "FY2026 Q3"}], "estimates": [],
+        "annual": {"reported": [{"fiscal_year": 2025}]}}
+EMPTY = {"ticker": "MU", "quarters": [], "estimates": [], "annual": {}}
 
 
-class _Resp:
-    def __init__(self, status_code=200, payload=None):
-        self.status_code = status_code
-        self._payload = payload if payload is not None else []
+class TestPartialPayloadContract:
+    def test_annual_only_is_content_but_NOT_quarterly(self):
+        """The exact shape that poisoned the cache."""
+        assert ei._has_content(ANNUAL_ONLY) is True
+        assert ei._has_quarterly(ANNUAL_ONLY) is False
 
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            raise Exception(f"{self.status_code} error")
+    def test_a_real_payload_is_both(self):
+        assert ei._has_content(FULL) is True
+        assert ei._has_quarterly(FULL) is True
 
-    def json(self):
-        return self._payload
+    def test_estimates_alone_still_count_as_quarterly(self):
+        """A pre-IPO//pre-print ticker with only forward estimates is a genuine
+        quarterly payload, not a partial one."""
+        p = {"quarters": [], "estimates": [{"label": "FY2027 Q1"}], "annual": {}}
+        assert ei._has_quarterly(p) is True
 
-
-@pytest.fixture(autouse=True)
-def _reset_state(monkeypatch):
-    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
-    fhc._fh_cooldown_until = 0.0
-    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
-    fhc._fh_bucket_updated = ee._time.monotonic()
-    cache.invalidate(KEY)
-    yield
-    fhc._fh_cooldown_until = 0.0
-    fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
-    fhc._fh_bucket_updated = ee._time.monotonic()
-    cache.invalidate(KEY)
+    def test_empty_is_neither(self):
+        assert ei._has_content(EMPTY) is False
+        assert ei._has_quarterly(EMPTY) is False
 
 
-def _responder(*, earnings_ok=True, rec_ok=True, pt_ok=True):
-    def fake_get(url, params=None, timeout=None):
-        if "/stock/earnings" in url:
-            return _Resp(200, _EARNINGS) if earnings_ok else _Resp(500)
-        if "recommendation" in url:
-            return _Resp(200, _REC) if rec_ok else _Resp(500)
-        if "price-target" in url:
-            return _Resp(200, _PT) if pt_ok else _Resp(500)
-        return _Resp(500)
-    return fake_get
+class TestPersistenceGate:
+    def test_a_partial_build_is_never_written_to_disk(self, monkeypatch):
+        puts, sets = [], []
+        monkeypatch.setattr(ei, "_build", lambda sym: dict(ANNUAL_ONLY))
+        monkeypatch.setattr(ei.cache, "get", lambda k: None)
+        monkeypatch.setattr(ei.cache, "set", lambda k, v, t: sets.append(t))
+        monkeypatch.setattr(ei.snap_store, "get", lambda k, s: None)
+        monkeypatch.setattr(ei.snap_store, "put",
+                            lambda *a, **k: puts.append(a))
 
+        out = ei.get_earnings("MU")
+        assert out["annual"]["reported"], "still returned to the caller"
+        assert puts == [], "a partial build must not be persisted"
+        assert sets and sets[0] <= ei._PARTIAL_TTL, (
+            f"partial build cached for {sets[0]}s; must be brief so it retries")
 
-def _captured_ttl(monkeypatch, responder):
-    """Run get_earnings_intel and return (result, ttl_it_cached_with)."""
-    seen = {}
-    real_set = cache.set
+    def test_a_complete_build_is_persisted(self, monkeypatch):
+        puts = []
+        monkeypatch.setattr(ei, "_build", lambda sym: dict(FULL))
+        monkeypatch.setattr(ei.cache, "get", lambda k: None)
+        monkeypatch.setattr(ei.cache, "set", lambda k, v, t: None)
+        monkeypatch.setattr(ei.snap_store, "get", lambda k, s: None)
+        monkeypatch.setattr(ei.snap_store, "put", lambda *a, **k: puts.append(a))
+        ei.get_earnings("MU")
+        assert len(puts) == 1
 
-    def spy(key, value, ttl=None, **kw):
-        if key == KEY:
-            seen["ttl"] = ttl
-            seen["value"] = value
-        return real_set(key, value, ttl, **kw) if ttl is not None else real_set(key, value, **kw)
+    def test_a_persisted_partial_is_ignored_and_rebuilt(self, monkeypatch):
+        """Entries the OLD permissive check already wrote must not keep being
+        served — otherwise the fix heals nothing until they age out."""
+        built = []
 
-    monkeypatch.setattr(ee.requests, "get", responder)
-    monkeypatch.setattr(cache, "set", spy)
-    result = ee.get_earnings_intel(SYM)
-    return result, seen.get("ttl")
+        def build(sym):
+            built.append(sym)
+            return dict(FULL)
 
+        monkeypatch.setattr(ei, "_build", build)
+        monkeypatch.setattr(ei.cache, "get", lambda k: None)
+        monkeypatch.setattr(ei.cache, "set", lambda k, v, t: None)
+        monkeypatch.setattr(ei.snap_store, "get",
+                            lambda k, s: (dict(ANNUAL_ONLY), 10, 86400))
+        monkeypatch.setattr(ei.snap_store, "put", lambda *a, **k: None)
 
-def test_a_complete_fetch_is_cached_for_the_full_ttl(monkeypatch):
-    result, ttl = _captured_ttl(monkeypatch, _responder())
-    assert len(result["beat_history"]) == 1
-    assert result["consensus"] is not None
-    assert result["price_target"] is not None
-    assert ttl == ee._CACHE_TTL          # 6h is correct ONLY when nothing failed
+        out = ei.get_earnings("MU")
+        assert built == ["MU"], "a stored partial must be treated as a miss"
+        assert out["quarters"], "and replaced with a real build"
 
-
-def test_a_missing_beat_history_leg_is_not_pinned_for_six_hours(monkeypatch):
-    """THE regression: the /stock/earnings leg fails, the other two answer."""
-    result, ttl = _captured_ttl(monkeypatch, _responder(earnings_ok=False))
-    # the good legs are still served — we do not throw away real data
-    assert result is not None
-    assert result["consensus"] is not None
-    assert result["price_target"] is not None
-    # ...but the empty history must expire in minutes, not hours
-    assert result["beat_history"] == []
-    assert ttl == ee._INTEL_FAIL_TTL
-    assert ttl < ee._CACHE_TTL
-
-
-def test_a_missing_consensus_leg_also_shortens_the_ttl(monkeypatch):
-    result, ttl = _captured_ttl(monkeypatch, _responder(rec_ok=False))
-    assert len(result["beat_history"]) == 1      # good leg still served
-    assert result["consensus"] is None
-    assert ttl == ee._INTEL_FAIL_TTL
-
-
-def test_a_missing_price_target_leg_also_shortens_the_ttl(monkeypatch):
-    result, ttl = _captured_ttl(monkeypatch, _responder(pt_ok=False))
-    assert result["price_target"] is None
-    assert ttl == ee._INTEL_FAIL_TTL
-
-
-def test_all_three_failing_still_negative_caches_and_returns_none(monkeypatch):
-    """The pre-existing 429-storm damper must be untouched by this change."""
-    result, ttl = _captured_ttl(
-        monkeypatch, _responder(earnings_ok=False, rec_ok=False, pt_ok=False))
-    assert result is None
-    assert ttl == ee._INTEL_FAIL_TTL
+    def test_a_persisted_complete_payload_is_still_served_from_disk(self, monkeypatch):
+        built = []
+        monkeypatch.setattr(ei, "_build", lambda s: built.append(s) or dict(FULL))
+        monkeypatch.setattr(ei.cache, "get", lambda k: None)
+        monkeypatch.setattr(ei.cache, "set", lambda k, v, t: None)
+        monkeypatch.setattr(ei.snap_store, "get",
+                            lambda k, s: (dict(FULL), 10, 86400))
+        monkeypatch.setattr(ei.snap_store, "put", lambda *a, **k: None)
+        ei.get_earnings("MU")
+        assert built == [], "must not rebuild what is already good"

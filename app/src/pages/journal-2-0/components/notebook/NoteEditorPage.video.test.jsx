@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const NOTE = {
@@ -19,6 +20,8 @@ const NOTE = {
 
 vi.mock('../../hooks/useJ2Notes', () => ({
   useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
+  recordNoteOpened: vi.fn(),
+  setNoteFavorite: vi.fn(),
 }))
 // NoteEditorPage reads useAuth (admin-only Share button) — these tests
 // render it outside the app shell, so stub the provider read.
@@ -33,7 +36,7 @@ afterEach(() => { delete window.YT; vi.clearAllMocks() })
 describe('NoteEditorPage video timestamps', () => {
   it('upgrades a legacy bold [MM:SS] note into a clickable chip', async () => {
     const NoteEditorPage = (await import('./NoteEditorPage')).default
-    render(<NoteEditorPage noteId="n1" onBack={() => {}} />)
+    render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
     const chip = document.querySelector('[data-video-ts]')
     expect(chip).toBeTruthy()
     expect(chip.getAttribute('data-video-ts')).toBe('75')

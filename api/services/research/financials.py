@@ -26,6 +26,7 @@ from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.fundamentals import get_fundamentals
 from api.services.yfinance_pool import run_in_pool
+from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
 
@@ -151,6 +152,13 @@ def get_financials(sym):
     if cached is not None:
         return cached
 
+    # S3 (Entity Master) resolution only, this pass -- no vendor symbol needed
+    # since none of this tab's data flows through D1 yet (see module
+    # docstring: the FMP statement endpoints are an explicitly deferred
+    # enhancement). Reported honestly so the tab can say when a symbol has
+    # no canonical identity yet, without blocking today's existing fetch.
+    entity, _ = resolve_entity(sym)
+
     annual_df, annual_ok = _fetch_income(sym, False)
     quarterly_df, quarterly_ok = _fetch_income(sym, True)
     annual = _income_grid(annual_df, 5, False)
@@ -172,6 +180,7 @@ def get_financials(sym):
 
     out = {
         "sym": sym,
+        "entity": entity,
         "annual": annual,
         "quarterly": quarterly,
         "balance": {

@@ -1,6 +1,48 @@
 import useOwnership from '../hooks/useOwnership'
 import { SeriesChart } from '../../../components/research-kit'
+import Provenance from '../../../components/provenance/Provenance'
+import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
+import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
+import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
+import { computeSessionStale } from '../../../components/provenance/sessionStale'
+import { sessionModel } from '../../../components/dashboard/sessionModel'
+import useMarketOpen from '../../../hooks/useMarketOpen'
 import styles from '../ResearchPage.module.css'
+
+/** S8/S11 vertical slice (2026-09-03 A6/A7 pass): Float/shares-outstanding
+ *  and Form 13F now flow through D1 (fmp_client.get_shares_float /
+ *  get_institutional_ownership_summary / ...holders, via ownership.py) —
+ *  this composes the trust strip onto those two fields specifically. The
+ *  institutional-holders table and short-interest fields below stay
+ *  yfinance-sourced with no D1 envelope (see the plain "Source" notes) —
+ *  same discipline as EstimatesTab's forward/revisions sections. */
+function TrustStrip({ meta, sessionContext }) {
+  if (!meta) return null
+  const availability = mapAvailability({ value: true, degraded: meta.degraded })
+  const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
+  const sessionStale = computeSessionStale(asOfIso)
+  return (
+    <div className={styles.muted} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+      <Provenance
+        value="FMP"
+        availability={availability}
+        provenance={availability === AVAILABLE ? {
+          sourceActivity: meta.sourceActivity,
+          timestamp: asOfIso,
+          tieBreak: meta.tieBreak,
+        } : null}
+      />
+      {availability === AVAILABLE && (
+        <FreshnessBadge
+          freshnessClass={meta.freshnessClass}
+          asOf={asOfIso}
+          sessionState={sessionContext}
+          sessionStale={sessionStale}
+        />
+      )}
+    </div>
+  )
+}
 
 function fmtShares(v) {
   if (v == null) return '—'
@@ -32,6 +74,7 @@ function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
 
 export default function OwnershipTab({ sym }) {
   const { data, isLoading } = useOwnership(sym)
+  const session = useMarketOpen()
 
   if (isLoading) {
     return <div className={styles.soon}><div className={styles.soonInner}><div className={styles.soonSub}>Loading ownership…</div></div></div>
@@ -40,13 +83,22 @@ export default function OwnershipTab({ sym }) {
   const o = data || {}
   const inst = o.institutional || {}
   const sh = o.short || {}
+  const sc = o.share_counts || {}
   const insider = o.insider || []
   const tf = o.thirteen_f || null
   const tfs = tf?.summary || {}
-  const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null && inst.pct_held == null && !tf
+  const sessionContext = sessionModel(session)
+  const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null
+    && inst.pct_held == null && !tf && sc.float_shares == null
 
   return (
     <div className={styles.finWrap}>
+      {o.entity && o.entity.status !== 'resolved' && (
+        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+          Symbol not yet linked to a canonical identity ({o.entity.status}).
+        </div>
+      )}
+
       <div className={styles.grid}>
         <section className={styles.card}>
           <div className={styles.ct}>Institutional ownership</div>
@@ -69,7 +121,7 @@ export default function OwnershipTab({ sym }) {
           {!!inst.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
               <table className={styles.fgrid}>
-                <thead><tr><th>Holder</th><th>Shares</th><th>% Out</th><th>Value</th></tr></thead>
+                <thead><tr><th>Holder</th><th>Shares</th><th>% Out</th><th>Value</th><th>Reported</th></tr></thead>
                 <tbody>
                   {inst.holders.map((h, i) => (
                     <tr key={`${h.holder}-${i}`}>
@@ -77,12 +129,16 @@ export default function OwnershipTab({ sym }) {
                       <td>{fmtShares(h.shares)}</td>
                       <td>{fmtPct(h.pct_out)}</td>
                       <td>{fmtMoney(h.value)}</td>
+                      <td className={styles.muted}>{h.date || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+          {/* Non-D1: no fmp_client adapter carries this today — an honest
+              source label, never a fabricated freshness badge. */}
+          <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>Source: Yahoo Finance</div>
         </section>
 
         <section className={styles.card}>
@@ -90,8 +146,13 @@ export default function OwnershipTab({ sym }) {
           <div className={styles.kv}><span>Short % of float</span><b>{fmtPct(sh.short_pct_float)}</b></div>
           <div className={styles.kv}><span>Days to cover</span><b>{sh.days_to_cover ?? '—'}</b></div>
           <div className={styles.kv}><span>Shares short</span><b>{fmtShares(sh.shares_short)}</b></div>
-          <div className={styles.kv}><span>Float</span><b>{fmtShares(sh.float_shares)}</b></div>
-          <div className={styles.kv}><span>Shares outstanding</span><b>{fmtShares(sh.shares_outstanding)}</b></div>
+          <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>Source: Yahoo Finance</div>
+
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+            <div className={styles.kv}><span>Float</span><b>{fmtShares(sc.float_shares)}</b></div>
+            <div className={styles.kv}><span>Shares outstanding</span><b>{fmtShares(sc.shares_outstanding)}</b></div>
+            <TrustStrip meta={sc._meta} sessionContext={sessionContext} />
+          </div>
         </section>
       </div>
 
@@ -153,6 +214,10 @@ export default function OwnershipTab({ sym }) {
               </table>
             </div>
           )}
+          <TrustStrip meta={tf._meta} sessionContext={sessionContext} />
+          {/* 13F filings lag ~45 days by nature — the freshness badge above
+              reflects D1's provenance, this states the structural lag itself. */}
+          <div className={styles.muted} style={{ fontSize: 11, marginTop: 4 }}>13F filings lag roughly 45 days after quarter-end.</div>
         </section>
       )}
 

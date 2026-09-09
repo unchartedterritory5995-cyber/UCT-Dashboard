@@ -30,12 +30,22 @@
 // the exit code is 2, and NOTHING is written to stdout — so a caller can never
 // mistake a diagnostic for a payload.
 /* global process, Buffer, __FLOW_FACTS_CLI__ */
-import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom } from './flowCompute'
+import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom, makeIsETF } from './flowCompute'
+import { partsFrom } from './flowBootstrap'
+import { buildTopPickProduct } from './flowTopPicksProduct'
+import { buildSearchProduct } from './flowSearchProduct'
+import { readFileSync } from 'node:fs'
 
 export const USAGE = [
   'usage:',
-  '  flow-facts aggregate [--date-filter=Last1] < flow.csv   dataset as JSON',
+  '  flow-facts aggregate [--date-filter=Last1] [--split] < flow.csv   dataset as JSON',
   '  flow-facts stats     < flow.csv   sizing/telemetry only, no row payload',
+  '',
+  '  --split  emit {parts} instead of {D}: `bootstrap` plus ONE part per deferred',
+  '           key. Same computation, same values; only the PARTITION differs, and',
+  '           recombining every part yields the identical object. Per-key parts so',
+  '           a surface fetches what it reads — never most of the tape on the first',
+  '           tab click. See flowBootstrap.js for the consumption audit.',
 ].join('\n')
 
 /**
@@ -69,8 +79,11 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
   // the page renders, and the numbers would change under the reader a couple
   // of seconds after first paint. Filtering here with filterRowsByDate makes
   // the match structural instead of coincidental.
+  // The trading calendar of the FETCHED window, hoisted because it is now also
+  // EMITTED (see stats.availableDates below) rather than only used here.
+  const availableDates = availableDatesFrom(rows)
   const selected = dateFilter
-    ? filterRowsByDate(rows, { dateFilter, availableDates: availableDatesFrom(rows) })
+    ? filterRowsByDate(rows, { dateFilter, availableDates })
     : rows
   if (!selected.length) throw new Error('no rows match dateFilter=' + dateFilter)
 
@@ -91,7 +104,50 @@ export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
       // What the client would otherwise have had to build for itself.
       totalTrades: D ? D.totalTrades : 0,
       confirmedCount: D ? D.confirmedCount : 0,
+      // ⛔ NOT a statistic — a VALUE the page cannot otherwise obtain without
+      // the tape. `availableDates` drives the date-range picker, and the page
+      // derives it by parsing the raw CSV. Defer that download and the picker
+      // gates itself off (`availableDates.length > 0`) and DISAPPEARS — a
+      // control vanishing is exactly the "hide missing data" failure the
+      // deferral is not allowed to buy speed with.
+      //
+      // Emitted from the SAME function over the SAME unfiltered rows the page
+      // would have used, so it is identical by construction rather than by
+      // agreement — no second implementation to drift. It is deliberately the
+      // UNFILTERED calendar: `availableDates` follows the FETCHED window, not
+      // the current selection, which is why /api/flow/dates (every date in the
+      // DB) cannot stand in for it.
+      availableDates,
     },
+  }
+}
+
+/**
+ * Load the ETF/index replica the TOP 10 product must be classified against.
+ *
+ * The file is `{"generation": "<digest>", "symbols": ["SPY", ...]}` written by
+ * the caller from `optionsflow_etf_replica`. A path, not stdin, because stdin
+ * already carries the CSV; a file, not an env var, because the set is ~19.5k
+ * symbols.
+ *
+ * ⛔ RETURNS NULL ON ANY PROBLEM, AND NULL MEANS "DO NOT EMIT THE PRODUCT".
+ * It must never fall back to classifying with the hardcoded set alone: that
+ * would produce a well-formed TOP 10 computed against a DIFFERENT universe than
+ * the browser uses, stamped with a generation that would then match. Declining
+ * to emit leaves the client on its existing path, which is the safe direction.
+ */
+export function loadEtfReplica(path) {
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8'))
+    const gen = raw && raw.generation
+    if (typeof gen !== 'string' || gen === '') return null
+    if (!Array.isArray(raw.symbols)) return null
+    const set = new Set()
+    for (const sym of raw.symbols) set.add(String(sym || '').toUpperCase())
+    if (set.size === 0) return null
+    return { generation: gen, symbols: set }
+  } catch {
+    return null
   }
 }
 
@@ -127,7 +183,7 @@ function routeConsoleToStderr() {
 
 export async function main(argv) {
   const cmd = argv[0]
-  if (cmd !== 'aggregate' && cmd !== 'stats') {
+  if (cmd !== 'aggregate' && cmd !== 'stats' && cmd !== 'search') {
     process.stderr.write(USAGE + '\n')
     process.exitCode = 2
     return
@@ -136,9 +192,97 @@ export async function main(argv) {
   try {
     const flag = argv.find(a => a.startsWith('--date-filter='))
     const dateFilter = flag ? flag.slice('--date-filter='.length) : null
+    const etfFlag = argv.find(a => a.startsWith('--etf-file='))
+    const replica = etfFlag ? loadEtfReplica(etfFlag.slice('--etf-file='.length)) : null
     const csv = await readStdin()
+    if (cmd === 'search') {
+      // The Search deep dive for ONE ticker.
+      //
+      // ⛔ `erSoon` IS NULL, DELIBERATELY. `processFlowData` treats a Set as the
+      // authority and sets `er = set.has(symbol)`; null lets the tape's own
+      // column speak. Computing with null is what makes this product
+      // USER-INDEPENDENT and therefore cacheable — the client re-applies its own
+      // earnings set on arrival (flowSearchProduct.applyErOverlay), which is
+      // deep-equal to having computed it with that set. Proven in
+      // searchErIndependence.test.js, with the wrong-set control.
+      //
+      // ⛔ NO --date-filter HERE. `/api/flow/ticker` has no range parameter: it
+      // returns the ticker's COMPLETE history and the page scopes it at render
+      // time (_scopeAllDirectional). Filtering here would make the product
+      // range-specific, which would both change the answer and silently break
+      // a cache key that legitimately omits range.
+      const rows = parseCSV(csv)
+      const D = rows.length ? processFlowData(rows, null) : null
+      const product = buildSearchProduct(D)
+      process.stdout.write(JSON.stringify({ ok: true, product, rows: rows.length }) + String.fromCharCode(10))
+      return
+    }
     const { D, stats } = aggregateCsv(csv, { dateFilter })
-    const payload = cmd === 'stats' ? { ok: true, stats } : { ok: true, stats, D }
+    // 3b: the TOP 10 product. Built ONLY when a replica was supplied and read
+    // cleanly — see loadEtfReplica. It is emitted as its own part and is
+    // DERIVED, not a partition of D, so partsFrom() keeps its lossless
+    // property: bootstrap + the deferred parts still reconstitute D exactly.
+    const topPicks = replica
+      ? buildTopPickProduct(D, { isEtfFn: makeIsETF(replica.symbols), generation: replica.generation })
+      : null
+    // --split changes only how the SAME result is partitioned for the wire. The
+    // default output stays byte-identical, so the existing endpoint and its
+    // fallback path are untouched by this flag existing.
+    let payload
+    if (cmd === 'stats') {
+      payload = { ok: true, stats }
+    } else if (argv.includes('--split-frames')) {
+      // ⛔ FRAMES, NOT JSON, AND THE REASON IS THE POD.
+      // The caller is a single uvicorn process that has OOM'd on this box before.
+      // Handing it {parts:{...}} would make it json.loads() a 20+ MB document and
+      // materialise a six-figure object graph — transiently, but once per data
+      // version, on the request path of whoever missed the cache. Length-prefixed
+      // frames let it slice each part out as opaque BYTES and gzip them without
+      // ever parsing the arrays. The partition itself is still partsFrom(), so
+      // this is a transport detail and not a second authority on what is deferred.
+      //
+      //   STATS <byteLen>\n<json>\n
+      //   PART <name> <byteLen>\n<json>\n   (repeated, one per part)
+      const parts = partsFrom(D)
+      // ⛔ EMISSION FILTER, NOT A COMPUTATION FILTER. `processFlowData` has
+      // already run and `partsFrom(D)` is unchanged — this only decides which
+      // parts get JSON.stringify'd and written to stdout. Nothing about what is
+      // computed, or what any part CONTAINS, depends on it.
+      //
+      // WHY IT EXISTS, measured on prod during RTH: a full build reports
+      // `spawn+run=32976ms` while node's own accounted work is
+      // parse 1332ms + process 4980ms = ~6.3s. The other ~26s is process
+      // startup plus piping 13.9 MB of CSV in and 23.8 MB of parts OUT. Most of
+      // that output is parts first paint never reads (all_trades, all_directional
+      // and WATCH alone are 2.3 MB gzipped), so a preparer that only needs
+      // `bootstrap` + `TOP_PICKS` warm was paying ~26s of IPC to serialise work
+      // nobody was waiting for — and losing the 60s version race because of it.
+      const onlyFlag = argv.find(a => a.startsWith('--only='))
+      const only = onlyFlag ? new Set(onlyFlag.slice('--only='.length).split(',').filter(Boolean)) : null
+      const wanted = (name) => !only || only.has(name)
+      const chunks = []
+      const frame = (header, body) => {
+        const b = Buffer.from(body, 'utf8')
+        chunks.push(Buffer.from(`${header} ${b.length}\n`, 'utf8'), b, Buffer.from('\n', 'utf8'))
+      }
+      // STATS is always emitted: it is small and the caller's envelope needs it
+      // (availableDates lives there, and a missing calendar hides the date picker).
+      frame('STATS', JSON.stringify(stats))
+      for (const name of Object.keys(parts)) {
+        if (wanted(name)) frame(`PART ${name}`, JSON.stringify(parts[name]))
+      }
+      if (topPicks && wanted('TOP_PICKS')) frame('PART TOP_PICKS', JSON.stringify(topPicks))
+      process.stdout.write(Buffer.concat(chunks))
+      return
+    } else if (argv.includes('--split')) {
+      // One part per deferred key, not one deferred blob — so a surface can be
+      // served exactly what it reads instead of most of the tape on first click.
+      payload = { ok: true, stats, parts: topPicks
+        ? { ...partsFrom(D), TOP_PICKS: topPicks }
+        : partsFrom(D) }
+    } else {
+      payload = { ok: true, stats, D }
+    }
     process.stdout.write(JSON.stringify(payload) + '\n')
   } catch (err) {
     process.stderr.write(String((err && err.message) || err) + '\n')

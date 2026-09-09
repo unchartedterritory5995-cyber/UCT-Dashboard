@@ -1,28 +1,80 @@
 import { useState } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { parseResearchReturnParam, researchReturnTarget, researchReturnLabel } from '../../lib/journal-2-0'
 import useResearchOverview from './hooks/useResearchOverview'
 import ResearchHeader from './ResearchHeader'
 import useRatings from './hooks/useRatings'
 import OverviewTab from './tabs/OverviewTab'
 import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
+import AnalystRatingsTab from './tabs/AnalystRatingsTab'
+import NewsTab from './tabs/NewsTab'
 import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
 import FilingsTab from './tabs/FilingsTab'
+import AskAiTab from './tabs/AskAiTab'
 import PaywallTeaser from './PaywallTeaser'
+import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
+import { notePath } from '../../hooks/useNoteBacklinks'
 import styles from './ResearchPage.module.css'
 
-const TABS = ['Overview', 'Financials', 'Estimates', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings & Events']
+// 2026-09-03 A6/A7 pass: "Filings & Events" corrected to "Filings" — the tab
+// has only ever rendered SEC filings (FilingsTab.jsx), never events/calendar
+// content; the label over-promised functionality that was never built. If a
+// real Events surface is authorized later (A5's Events & Calendar territory,
+// out of this pass's scope), give it its own tab rather than reviving this
+// label — do not read "Events" back into Filings just because the old label
+// implied it once.
+//
+// 2026-09-03 dedicated Analyst Ratings slice (owner-authorized product-home
+// split): "Analyst Ratings" is a NEW tab, not a rename. It owns third-party
+// analyst consensus/price-targets/recent actions -- content that used to be
+// enriched into Estimates (now narrowed to EPS/revenue forecasts only) and
+// that was ALSO independently rendered on a different surface entirely
+// (AnalystPanel.jsx, via TickerPopup/Charts widgets — a live, paid-gated,
+// legacy path deliberately left untouched, retirement deferred). Do not
+// confuse this with the "Ratings" tab, which stays the UCT Composite Rating
+// — a separate, 100% locally-derived product concept.
+//
+// 2026-09-04 News/Intelligence Slice 1 (A8, owner-authorized narrow slice):
+// "News" is a NEW tab, security-scoped only (curated-first per owner
+// decision 1 -- no market-wide/browsable feed here). Placed right after
+// Overview: "what's happening" is the natural first stop before the
+// numbers. The calendar modal's own separate News tab
+// (EarningsResearchModal.jsx's Coverage group) is a COMPATIBILITY BRIDGE,
+// untouched -- this is a second, canonical surface, not a replacement.
+//
+// 2026-09-04 AI-Native Research Assistant Slice 1 (I1 Intelligence Layer,
+// owner-authorized narrow slice): "Ask AI" is the ONE contextual AI door
+// inside this already-canonical security context (OQ-05's provisional
+// answer -- a context layer on an existing surface, not a second AI entry
+// point). It EXPLAINS (news + analyst activity, cited); it does not
+// decide -- see api/services/ticker_explain.py. Placed last, mirroring
+// the calendar modal's own tab ordering (Ask AI is that modal's last
+// group too).
+// 2026-09-07 Wave H (Notebook Research Home + Ticker Research Workspace):
+// "My Research" is a BRIDGE tab, not a re-implementation -- it mounts the
+// exact same `TickerResearchWorkspace` component Notebook's own
+// `/journal/notebook/research/:symbol` route renders (checkpoint decision
+// 6/7). This tab owns MY private research about the security (notes/
+// theses/captured facts/trade-links); every OTHER tab on this page keeps
+// 100% of the market/vendor data -- that boundary is deliberate (checkpoint
+// decision 7/§33's "MY RESEARCH vs MARKET DATA" distinction), not
+// incidental. Placed last, after Ask AI: this page's existing tab order
+// already reads as "the market's view of this company" first, ending on
+// this member's own working context.
+const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
-  overview: 'Overview', financials: 'Financials', estimates: 'Estimates',
+  overview: 'Overview', news: 'News', financials: 'Financials', estimates: 'Estimates',
+  'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
-  filings: 'Filings & Events',
+  filings: 'Filings', ai: 'Ask AI', research: 'My Research',
 }
 
 export default function ResearchPage() {
@@ -33,6 +85,12 @@ export default function ResearchPage() {
   const [active, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
   )
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a member arriving
+  // via Full Research/Ask AI/Compare from a Trade or Position surface
+  // otherwise has no way back except browser Back. Seeded once at mount,
+  // same convention as `section` above -- this is a one-time entry marker,
+  // not live state the tab-switching UI needs to track.
+  const [returnTo] = useState(() => parseResearchReturnParam(searchParams.get('from')))
   const data = useResearchOverview(rawSym)
   const sym = data.sym
   const { data: ratingsData } = useRatings(sym)
@@ -44,6 +102,11 @@ export default function ResearchPage() {
 
   return (
     <div className={styles.page}>
+      {returnTo && (
+        <Link to={researchReturnTarget(returnTo)} className={styles.returnLink}>
+          &larr; {researchReturnLabel(returnTo)}
+        </Link>
+      )}
       <ResearchHeader
         sym={sym}
         meta={data.meta}
@@ -61,12 +124,18 @@ export default function ResearchPage() {
         ))}
       </nav>
       {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
+      {active === 'News' && <NewsTab sym={sym} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
+      {active === 'Analyst Ratings' && <AnalystRatingsTab sym={sym} />}
       {active === 'Ratings' && <RatingsTab sym={sym} />}
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
-      {active === 'Filings & Events' && <FilingsTab sym={sym} />}
+      {active === 'Filings' && <FilingsTab sym={sym} />}
+      {active === 'Ask AI' && <AskAiTab sym={sym} />}
+      {active === 'My Research' && (
+        <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />
+      )}
     </div>
   )
 }

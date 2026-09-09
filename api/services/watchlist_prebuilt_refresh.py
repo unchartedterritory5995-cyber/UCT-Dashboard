@@ -133,9 +133,13 @@ def refresh_prebuilt_lists(apply=True):
 
     # Delisted = curated tickers (across every committed list) that no longer trade. The liquid
     # ranking is derived from grouped-daily, so it's alive by construction and never pruned.
+    # SYNTHETIC pseudo-tickers ($IDX:<slug> thematic indexes, UCTA50/UCTHS breadth symbols)
+    # are excluded: they NEVER appear in grouped-daily, so (committed − alive) would flag every
+    # one as delisted and poison the overlay — emptying the breadth + Thematic Indexes lists
+    # until the seeder deleted them.
     committed = set()
     for l in wp._load_committed():
-        committed.update(t.upper() for t in l["tickers"])
+        committed.update(t.upper() for t in l["tickers"] if not wp._is_synthetic_ticker(t))
     delisted = sorted(committed - alive)
 
     # UCT Index Components — re-fetch constituents from FMP so a name added to / dropped from

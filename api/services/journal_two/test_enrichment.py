@@ -136,3 +136,13 @@ def test_scan_still_finds_a_real_ticker_next_to_ambiguous_words(conn):
     result = enrichment.scan_notes_for_tickers("u1", [n1], conn=conn)
     assert len(result["candidates"]) == 1
     assert result["candidates"][0]["tickers"] == ["DELL"]
+
+
+# ── Wave 0 trash: a trashed note is never offered a ticker-embed suggestion ─
+
+def test_scan_excludes_a_trashed_note_it_is_about_to_be_purged(conn):
+    n1 = _make_note(conn, "u1", "Bought some $NVDA today ahead of earnings.")
+    notes_svc.delete_note("u1", n1, conn=conn)
+    result = enrichment.scan_notes_for_tickers("u1", [n1], conn=conn)
+    assert result["candidates"] == []
+    assert result["scanned"] == 0

@@ -70,6 +70,19 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
       const result = await mintConnectCode('obsidian')
       setCode(result.connectCode)
       setExpiresInSeconds(result.expiresInSeconds)
+      // The very next thing the member must do with this code is paste it
+      // into Obsidian, so put it on the clipboard now rather than making
+      // them press Copy first. This runs inside the button's own click
+      // handler, so it still has the user gesture the Clipboard API needs.
+      // Best-effort only: on denial the code stays visible and the Copy
+      // button below is unchanged, so nothing depends on this succeeding.
+      try {
+        await navigator.clipboard.writeText(result.connectCode)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch {
+        /* clipboard unavailable — Copy button remains the fallback */
+      }
     } catch (err) {
       setErrorDetail(err?.detail || err?.message || 'Could not generate a connect code. Try again.')
     } finally {
@@ -109,10 +122,32 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
             Notebook. It does not upload attachments or images stored in your
             vault, and nothing is ever written back to your vault.
           </p>
+          {/* ⛔ This modal told members to paste a code "into the plugin"
+              without ever saying where to GET the plugin — the instruction
+              assumed a thing the member had no way to find. The plugin is now
+              published (0.1.0, 2026-09-04), so name it and link it. Until it
+              clears Obsidian's community-directory review the honest route is
+              the GitHub release, and saying so beats letting a member search
+              the in-app browser for something that is not listed there yet. */}
           <p className={styles.helpText}>
-            Generate a code below, then paste it into the plugin's connect
-            screen inside {label}. The code works once and expires quickly,
-            so have {label} open before you generate it.
+            First install the plugin. Search{' '}
+            <strong>UCT Notebook Sync</strong> in {label}&rsquo;s Community
+            plugins, or — while it is awaiting review there —{' '}
+            <a
+              href="https://github.com/unchartedterritory5995-cyber/obsidian-uct-notebook-sync/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.link}
+            >
+              download the latest release
+            </a>{' '}
+            and unzip it into your vault&rsquo;s{' '}
+            <code>.obsidian/plugins/</code> folder.
+          </p>
+          <p className={styles.helpText}>
+            Then generate a code below and paste it into the plugin&rsquo;s
+            connect screen inside {label}. The code works once and expires
+            quickly, so have {label} open before you generate it.
           </p>
 
           <label className={styles.consentCheck}>
@@ -160,7 +195,10 @@ export default function ObsidianConnectModal({ open, providerLabel, mintConnectC
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
-          <p className={styles.helpText}>Expires in {expiresLabel}.</p>
+          <p className={styles.helpText}>
+            {copied ? 'Copied to your clipboard — paste it into Obsidian. ' : ''}
+            Expires in {expiresLabel}.
+          </p>
 
           <div className={styles.row}>
             <button type="button" className="btn btn-primary" onClick={handleClose}>

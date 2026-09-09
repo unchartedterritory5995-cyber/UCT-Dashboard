@@ -51,6 +51,12 @@ export default function RatingsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
+      {r.entity && r.entity.status !== 'resolved' && (
+        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+          Symbol not yet linked to a canonical identity ({r.entity.status}).
+        </div>
+      )}
+
       <section className={styles.card}>
         <div className={styles.compHero}>
           <div className={styles.compNum} style={{ color: scoreColor(r.composite) }}>{r.composite ?? '—'}</div>
@@ -95,7 +101,16 @@ export default function RatingsTab({ sym }) {
         </section>
       )}
 
-      {r.method && <div className={styles.fnote}>{r.method}</div>}
+      {r.method && (
+        <div className={styles.fnote}>
+          {r.method}
+          {/* UCT-derived, never a provider badge — this composite draws on
+              fundamentals + ownership (periodic, filing-based) + price
+              history (near-daily); the price leg's own last-bar date is the
+              one concrete as-of currently available. */}
+          {r.price_as_of && <span> · price data as of {r.price_as_of}</span>}
+        </div>
+      )}
     </div>
   )
 }

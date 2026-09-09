@@ -1,0 +1,120 @@
+.wrap {
+  display: block;
+  margin: 10px 0;
+}
+
+.card {
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 8px;
+  background: var(--color-bg-elevated, #12151b);
+  padding: 10px 12px;
+  max-width: 380px;
+  font-size: 13px;
+}
+
+.unavailable {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted, #8a8f98);
+  font-style: italic;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ticker {
+  font-weight: 700;
+  color: var(--color-gold, #c9a84c);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.label {
+  color: var(--color-text-muted, #8a8f98);
+  font-size: 12px;
+  flex: 1;
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #8a8f98);
+  cursor: pointer;
+  padding: 2px;
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.removeBtn:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.06));
+  color: var(--color-text-primary, #e8eaed);
+}
+
+/* Stacked always -- never a 2-column THEN/NOW layout (directive §103):
+   a phone-width card and a desktop-width card are the SAME markup. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.rowLabel {
+  color: var(--color-text-muted, #8a8f98);
+  font-size: 11px;
+  min-width: 64px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.rowValue {
+  color: var(--color-text-primary, #e8eaed);
+  font-weight: 600;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--color-text-muted, #8a8f98);
+  font-weight: 400;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border, #232932);
+}
+
+.captured {
+  color: var(--color-text-muted, #8a8f98);
+  font-size: 11px;
+}
+
+.caption {
+  color: var(--color-text-secondary, #b8bcc4);
+  font-size: 12px;
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .card {
+    max-width: 100%;
+  }
+}

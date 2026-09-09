@@ -12,7 +12,7 @@
 // Per-tab unseen count badge shown on the tab button.
 // Mobile: stacked layout (no horizontal scroll needed).
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import {
@@ -147,6 +147,7 @@ function HubTimingSection({ label, icon, hdClass, entries, seen, markSeen, onSel
 // ── Sub-tab: News ─────────────────────────────────────────────────────────────
 
 function NewsTab({ mineSyms, seen, markSeen }) {
+  const navigate = useNavigate()
   const { data: newsItems } = useSWR('/api/news', newsFetcher, {
     refreshInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
@@ -169,20 +170,39 @@ function NewsTab({ mineSyms, seen, markSeen }) {
       {filtered.map((item, i) => {
         const key = item.url || `news-${i}`
         const unseen = !seen.has(key)
+        // Seam 21 (2026-09-06): News preserves the primary external source
+        // (the <a> below) but had no second door back into the desk's own
+        // Research page. An item can name several tickers -- the first one
+        // that is actually in the member's set is the unambiguous choice;
+        // if it names several of THOSE too, picking the first is a
+        // deliberate, documented simplification, not a silent guess.
+        const tickers = (item.tickers || []).map(t => t.toUpperCase())
+        const mineTicker = tickers.find(t => mineSyms.has(t))
         return (
-          <a
-            key={key}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${styles.hubNewsRow} ${unseen ? styles.hubUnseen : ''}`}
-            onClick={() => markSeen(key)}
-          >
-            {unseen && <span className={styles.unseenDot} aria-label="New" />}
-            <span className={styles.hubNewsSource}>{item.source}</span>
-            <span className={styles.hubNewsHeadline}>{item.headline}</span>
-            <span className={styles.hubNewsTime}>{item.time}</span>
-          </a>
+          <div key={key} className={styles.hubNewsRowWrap}>
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${styles.hubNewsRow} ${unseen ? styles.hubUnseen : ''}`}
+              onClick={() => markSeen(key)}
+            >
+              {unseen && <span className={styles.unseenDot} aria-label="New" />}
+              <span className={styles.hubNewsSource}>{item.source}</span>
+              <span className={styles.hubNewsHeadline}>{item.headline}</span>
+              <span className={styles.hubNewsTime}>{item.time}</span>
+            </a>
+            {mineTicker && (
+              <button
+                type="button"
+                className={styles.hubResearchLink}
+                onClick={() => navigate(`/research/${mineTicker}`)}
+                title={`View ${mineTicker} in Research`}
+              >
+                {mineTicker} in Research →
+              </button>
+            )}
+          </div>
         )
       })}
     </div>
@@ -192,6 +212,7 @@ function NewsTab({ mineSyms, seen, markSeen }) {
 // ── Sub-tab: Calls ────────────────────────────────────────────────────────────
 
 function CallsTab({ mineSyms, seen, markSeen }) {
+  const navigate = useNavigate()
   const { data: calData } = useCalendar()
 
   // Recently-reported stocks from my set (have eps_act)
@@ -224,7 +245,19 @@ function CallsTab({ mineSyms, seen, markSeen }) {
             onClick={() => markSeen(key)}
           >
             {unseen && <span className={styles.unseenDot} aria-label="New" />}
-            <div className={styles.hubCallSym}>{e.sym}</div>
+            <div className={styles.hubCallSymRow}>
+              <div className={styles.hubCallSym}>{e.sym}</div>
+              {/* Seam 21 (2026-09-06): the recap/transcript preserved the
+                  primary source but had no door back into Research. */}
+              <button
+                type="button"
+                className={styles.hubResearchLink}
+                onClick={(ev) => { ev.stopPropagation(); navigate(`/research/${e.sym}`) }}
+                title={`View ${e.sym} in Research`}
+              >
+                View in Research →
+              </button>
+            </div>
             <CallRecapForSym sym={e.sym} />
           </div>
         )
@@ -265,13 +298,28 @@ function FilingsTab({ mineSyms, seen, markSeen }) {
 }
 
 function FilingsForSym({ sym, seen, markSeen }) {
+  const navigate = useNavigate()
   const { data } = useFilings(sym, 5)
   const filings = data?.filings || []
   if (!filings.length) return null
 
   return (
     <div className={styles.hubFilingGroup}>
-      <div className={styles.hubFilingSym}>{sym}</div>
+      <div className={styles.hubFilingSymRow}>
+        <div className={styles.hubFilingSym}>{sym}</div>
+        {/* Seam 21 (2026-09-06): filings preserved the EDGAR source but had
+            no door back into Research -- one companion per sym group is
+            unambiguous, unlike News, since every row here already shares
+            this exact sym. */}
+        <button
+          type="button"
+          className={styles.hubResearchLink}
+          onClick={() => navigate(`/research/${sym}`)}
+          title={`View ${sym} in Research`}
+        >
+          View in Research →
+        </button>
+      </div>
       {filings.map((f, i) => {
         const key = `${sym}:${f.form}:${f.filed}`
         const unseen = !seen.has(key)
@@ -312,16 +360,28 @@ function InsightsTab({ mineSyms }) {
 }
 
 function InsightForSym({ sym }) {
+  const navigate = useNavigate()
   const { data } = useSentiment(sym)
 
+  // Seam 20 (Calendar TickerActions Reuse V2, 2026-09-06): the Insights
+  // tab was the same shape as the pre-fix Wire -- a live, ticker-scoped
+  // row with zero click behavior. Same structurally-simple fix
+  // EventCard.jsx already got: the row itself becomes a real <button>,
+  // native-keyboard-safe by construction, navigating to the same
+  // canonical Research destination.
   return (
-    <div className={styles.hubInsightRow}>
+    <button
+      type="button"
+      className={`${styles.hubInsightRow} ${styles.hubInsightRowBtn}`}
+      onClick={() => navigate(`/research/${sym}`)}
+      title={`View ${sym} in Research`}
+    >
       <div className={styles.hubInsightSym}>{sym}</div>
       {data
         ? <SentimentGaugeDisplay data={data} />
         : <div className={styles.hubCallLoading}>Loading…</div>
       }
-    </div>
+    </button>
   )
 }
 

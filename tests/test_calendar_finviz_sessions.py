@@ -98,7 +98,7 @@ class TestMergeLeg:
         days = {"2026-08-05": {"bmo": [], "amc": [], "tbd": [entry]}}
         from datetime import date
         monkeypatch.setattr(cal, "_fh_get_month", lambda a, b: {"earningsCalendar": []})
-        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: [])
+        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: ([], None))
         cal._backfill_past_days(days, [date(2026, 8, 5), date(2026, 8, 6)],
                                 date(2026, 8, 6), None)
         assert days["2026-08-05"]["tbd"] == []
@@ -113,7 +113,7 @@ class TestMergeLeg:
         days = {"2026-08-05": {"bmo": [entry], "amc": [], "tbd": []}}
         from datetime import date
         monkeypatch.setattr(cal, "_fh_get_month", lambda a, b: {"earningsCalendar": []})
-        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: [])
+        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: ([], None))
         cal._backfill_past_days(days, [date(2026, 8, 5), date(2026, 8, 6)],
                                 date(2026, 8, 6), None)
         # AAA STAYS where Finnhub put it. (BBB also lands in bmo — it is a
@@ -135,7 +135,7 @@ class TestMergeLeg:
         days = {"2026-08-05": self._day()}
         from datetime import date
         monkeypatch.setattr(cal, "_fh_get_month", lambda a, b: {"earningsCalendar": []})
-        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: [])
+        monkeypatch.setattr(cal, "_fmp_range_week", lambda a, b: ([], None))
         added = cal._backfill_past_days(days, [date(2026, 8, 5), date(2026, 8, 6)],
                                         date(2026, 8, 6), None)
         assert added >= 2

@@ -1,0 +1,189 @@
+/* The earnings strip inside the chart widget.
+   Company Panel language on purpose: hairline separators rather than cards,
+   one bright value per metric, colour reserved for the growth figure. */
+
+.strip {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  /* The height is the USER'S now: .stripWrap carries the dragged value and this
+     fills it. Bounds live in chartDock.js (MIN_STRIP_H / MAX_STRIP_FRAC) so the
+     drag and the persisted value cannot disagree about what is allowed. */
+  flex: 1 1 auto;
+  height: 100%;
+  padding: 9px 6px 10px;
+  border-top: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.06));
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
+  overflow: hidden;          /* never a scrollbar inside the chart widget */
+  /* ⛔ THE CHART'S OWN AXIS STACK, character for character — see StockChart's
+     layout.fontFamily. `Instrument Sans Tab` is a tnum-frozen build of the same
+     face that exists because the canvas ignores font-variant-numeric, so the
+     axis bakes tabular figures into the file. The strip sits directly under
+     that axis, so borrowing --font-sans (which omits the Tab face) rendered its
+     digits in a visibly different cut from the dates two pixels above them.
+     The stack is the match; the tabular-nums below stays as the fallback for
+     any glyph outside the Tab face's latin range. */
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', -apple-system,
+               BlinkMacSystemFont, sans-serif;
+}
+
+.cell {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+/* ⛔ The cell got wider; the ROW did not. Without a cap the extra width lands
+   inside the grid — the value column is the only flexible track, so it stretches
+   and leaves a hole between the "EPS" label and its number. Capping the row and
+   centring it turns that width into margin on BOTH sides instead, which is what
+   actually makes the strip stop looking crammed. */
+.head,
+.metric {
+  max-width: 126px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Where actuals stop and estimates begin. A brighter hairline is enough — a
+   badge or a fill would make the forecast read as a separate widget, and the
+   EST chip already names it. */
+.cellFirstEst {
+  border-left-color: rgba(201, 168, 76, 0.34) !important;
+}
+.cell + .cell {
+  border-left: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.06));
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+  white-space: nowrap;
+}
+
+.q {
+  font-size: 10.5px;
+  /* Stepped down with the figures: a heading heavier than the numbers it
+     labels inverts the hierarchy, since the numbers are the point. */
+  font-weight: 560;
+  letter-spacing: 0.2px;
+  color: var(--text-bright, #eee7d4);
+}
+/* A forward period is quieter in the HEADING only — never in its values, which
+   would read as disabled rather than as an estimate. */
+.qEst { color: var(--text-muted, #8b8574); }
+
+/* Secondary, but READABLE: --t-meta at 8px was faint enough to strain against
+   the canvas. One step brighter and half a pixel larger; still quieter than
+   the quarter and well below the values. */
+.date {
+  font-size: 8.5px;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: var(--text-muted, #8b8574);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.est {
+  flex: 0 0 auto;
+  font-size: 7.5px;
+  /* Still the heaviest thing here, and deliberately: 7.5px uppercase inside a
+     bordered chip turns to mush below this. Lowered with everything else so it
+     does not become the loudest element by default. */
+  font-weight: 640;
+  letter-spacing: 0.4px;
+  color: var(--accent, #c9a84c);
+  border: 1px solid rgba(201, 168, 76, 0.42);
+  border-radius: 2px;
+  padding: 0 3px;
+}
+
+/* ⛔ FIXED TRACKS, not flex. With `1fr` on the value and `auto` on the
+   percentage, each cell sized its own columns: the YoY numbers started at a
+   different x in every quarter, so the eye jumped scanning across, and a long
+   value ("$41.46B") or a long word ("Profitable") stole the value's width and
+   pushed it into an ellipsis. Fixed tracks make column positions identical in
+   every cell — which IS the horizontal rhythm — and guarantee the value the
+   room it needs. */
+.metric {
+  display: grid;
+  /* Track widths are the tightest that still fit the WIDEST real content, and
+     they were re-cut once measured: at a 960px column (8 cells) the 40px
+     percentage track left the value only ~35px, so "$11.3B" clipped. Trimming
+     the label and percentage tracks buys the value ~8px and keeps the same
+     number of quarters on screen — the alternative was showing fewer. */
+  /* Tracks sized for 12px figures: the percentage track holds the widest real
+     value ("+1215%") and the label stays small because it IS metadata — only
+     the two figures were promoted. */
+  grid-template-columns: 17px minmax(0, 1fr) 46px;
+  align-items: baseline;
+  gap: 0 4px;
+  line-height: 1.62;
+  white-space: nowrap;
+}
+
+/* Deliberately the SAME token, size and tracking as .date — these two are the
+   same tier of information (the label naming a figure, and the date the figure
+   was reported), so they should read at one brightness. They were a step apart:
+   --t-meta #6f6a5f here against --text-muted #8b8574 on the date. */
+.mKey {
+  font-size: 8.5px;
+  letter-spacing: 0.35px;
+  color: var(--text-muted, #8b8574);
+}
+
+/* Right-aligned so the digits line up down the column as well as across it. */
+.mVal {
+  min-width: 0;
+  text-align: right;
+  font-size: 12px;
+  /* 470, near regular. 700 read as a slab and 550 was still doing too much:
+     at 12px the SIZE carries the emphasis on its own, and the brightness
+     carries the rest. Instrument Sans is a 400-700 VARIABLE face, so this is a
+     real weight rather than a snap back to bold. */
+  font-weight: 470;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright, #eee7d4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Estimates keep full weight; only one step of colour separates them. */
+.mValEst { color: var(--text, #d8d2c2); }
+
+/* ⛔ THE SAME SIZE AS THE VALUE. The growth figure is not secondary metadata —
+   it is half of what a quarter says, and setting it a step smaller made the
+   pair read as unsettled rather than as two figures of equal standing. */
+.mPct {
+  text-align: right;
+  font-size: 12px;
+  /* Matches .mVal in BOTH size and weight — the pair is two figures of equal
+     standing, and colour is what separates them, not heft. */
+  font-weight: 470;
+  font-variant-numeric: tabular-nums;
+}
+/* The word forms ("PROFIT") are not numbers; drop the tabular figures so they
+   are not spaced like a price. */
+.mPctWord {
+  font-size: 9.5px;
+  font-weight: 520;          /* a word needs a touch more than a figure */
+  letter-spacing: 0.2px;
+  font-variant-numeric: normal;
+}
+
+/* The same three tones the Earnings tab uses, from the same growthCell rule. */
+.up   { color: var(--dock-up-text, #3fc885); }
+.down { color: var(--dock-down-text, #f1696e); }
+.gold { color: var(--accent, #c9a84c); }
+.flat { color: var(--t-dim, #5b574e); }
+
+.empty {
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted, #8b8574);
+}

@@ -1,5 +1,6 @@
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { useState } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
 
@@ -56,11 +57,13 @@ function Wrap({ color, initialGroups = { A: null, B: null, C: null, D: null } })
     activeChartRef: { current: null },
   }
   return (
-    <WorkspaceContext.Provider value={value}>
-      <ChartWidget color={color} opts={{}} />
-      <span data-testid="groupA">{groupSyms.A ?? 'null'}</span>
-      <span data-testid="groupB">{groupSyms.B ?? 'null'}</span>
-    </WorkspaceContext.Provider>
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={value}>
+        <ChartWidget color={color} opts={{}} />
+        <span data-testid="groupA">{groupSyms.A ?? 'null'}</span>
+        <span data-testid="groupB">{groupSyms.B ?? 'null'}</span>
+      </WorkspaceContext.Provider>
+    </MemoryRouter>
   )
 }
 

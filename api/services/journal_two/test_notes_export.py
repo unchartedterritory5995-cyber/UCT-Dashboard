@@ -14,7 +14,7 @@ import pytest
 
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.notes_export import (
-    build_export_zip, tiptap_to_markdown,
+    build_export_zip, build_single_note_export, tiptap_to_markdown,
 )
 
 
@@ -844,6 +844,255 @@ def test_title_with_colon_quote_and_newline_round_trips_through_yaml():
         assert parsed["title"] == tricky_title
 
 
+# ── Wave C: single-note export + full-export completeness fixes ────────────
+# Gap ledger G-091 (single-note export did not exist at all) and G-092 (typed
+# trade-link references / import provenance / entity mentions were silently
+# dropped from every export). See docs/notebook/prelaunch-primary-notebook-
+# build-plan.md's Wave C checkpoint §11/§12 for the design record.
+
+
+def _conn():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    return c
+
+
+def test_single_note_export_returns_none_for_a_missing_note():
+    c = _conn()
+    assert build_single_note_export("u1", "does-not-exist", conn=c) is None
+
+
+def test_single_note_export_is_tenant_scoped():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.commit()
+    assert build_single_note_export("u2", "n1", conn=c) is None
+
+
+def test_single_note_export_excludes_a_trashed_note():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.execute("UPDATE j2_notes SET deleted_at = ? WHERE id = ?", ("2026-09-01T00:00:00Z", "n1"))
+    c.commit()
+    assert build_single_note_export("u1", "n1", conn=c) is None
+
+
+def test_single_note_export_with_no_attachments_is_a_bare_markdown_file():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.commit()
+    content, filename, media_type = build_single_note_export("u1", "n1", conn=c)
+    assert filename.endswith(".md")
+    assert media_type == "text/markdown"
+    text = content.decode("utf-8")
+    assert "title: Cup and handle" in text
+    assert "NVDA base" in text
+
+
+def test_single_note_export_with_an_attachment_is_a_zip(attach_root):
+    _plant(attach_root, "u1", "n1", "inline", "abc.png")
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/abc.png")))
+    c.commit()
+    content, filename, media_type = build_single_note_export("u1", "n1", conn=c)
+    assert filename.endswith(".zip")
+    assert media_type == "application/zip"
+    names = zipfile.ZipFile(io.BytesIO(content)).namelist()
+    assert "Cup and handle.md" in names
+    assert "attachments/u1/n1/inline/abc.png" in names
+
+
+def test_single_note_export_shares_the_completeness_fields_with_the_full_export():
+    """One code path, not two -- proves the single-note export doesn't drift
+    from the full export's front-matter completeness fixes below."""
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("NVDA base")))
+    c.execute(
+        "INSERT INTO j2_note_favorites (user_id, note_id, created_at) VALUES (?,?,?)",
+        ("u1", "n1", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    assert "favorite: true" in content.decode("utf-8")
+
+
+def test_favorited_note_carries_favorite_true_in_front_matter():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Not favorited", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_favorites (user_id, note_id, created_at) VALUES (?,?,?)",
+        ("u1", "n1", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "favorite: true" in zf.read("Cup and handle.md").decode("utf-8")
+    assert "favorite:" not in zf.read("Not favorited.md").decode("utf-8")
+
+
+def test_related_tickers_from_mentions_and_embeds_appear_in_front_matter():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+        " VALUES (?,?,?,?)", ("n1", "u1", "TSLA", "2026-09-01T00:00:00Z"),
+    )
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id, symbol)"
+        " VALUES (?,?,?,?,?)", ("n1", "u1", 0, "w1", "AMD"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "related_tickers: [TSLA, AMD]" in body or "related_tickers: [AMD, TSLA]" in body
+
+
+def test_related_tickers_excludes_the_notes_own_primary_ticker():
+    """The note's `ticker` field already gets its own front-matter line --
+    repeating it under related_tickers would be redundant noise."""
+    c = _conn()
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, ticker, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Cup and handle", '{"type":"doc","content":[]}', "",
+         "[]", "NVDA", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.execute(
+        "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+        " VALUES (?,?,?,?)", ("n1", "u1", "NVDA", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "related_tickers:" not in body
+
+
+def test_typed_trade_ref_resolves_to_a_human_readable_linked_trade_line():
+    """The raw trade_ref (an internal uuid) must NEVER appear in the export --
+    only a resolved, human-readable symbol + kind."""
+    from api.services.journal_two.test_note_trade_links import _seed_trade
+
+    c = _conn()
+    _seed_trade(c, "u1", "trade-abc123", symbol="NVDA")
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
+        " trade_ref, trade_ref_type) VALUES (?,?,?,?,?,?)",
+        ("n1", "u1", 0, "w1", "trade-abc123", "equity_trade"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "linked_trades: [NVDA (equity trade)]" in body
+    assert "trade-abc123" not in body
+
+
+def test_unresolved_trade_ref_is_omitted_not_shown_as_a_broken_reference():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(_para("x")))
+    c.execute(
+        "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
+        " trade_ref, trade_ref_type) VALUES (?,?,?,?,?,?)",
+        ("n1", "u1", 0, "w1", "ghost-ref", "equity_trade"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Cup and handle.md").decode("utf-8")
+    assert "linked_trades:" not in body
+    assert "ghost-ref" not in body
+
+
+def test_import_provenance_appears_when_present_and_is_absent_otherwise():
+    c = _conn()
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, import_source, import_key, imported_at, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Imported note", '{"type":"doc","content":[]}', "", "[]",
+         "obsidian", "vault/note.md", "2026-08-01T00:00:00Z",
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    _insert_note(c, "n2", "u1", "Native note", _doc(_para("x")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    imported_body = zf.read("Imported note.md").decode("utf-8")
+    assert "import_source: obsidian" in imported_body
+    assert "imported_at: 2026-08-01T00:00:00Z" in imported_body
+    native_body = zf.read("Native note.md").decode("utf-8")
+    assert "import_source:" not in native_body
+
+
+# ── Wave D: internal note-link export (directive §56/§57) ──────────────────
+
+
+def _link_node(target_id):
+    return {"type": "noteLink", "attrs": {"noteId": target_id}}
+
+
+def test_full_export_renders_a_linked_note_as_a_relative_path_to_its_bundled_file():
+    c = _conn()
+    target = "t1"
+    _insert_note(c, target, "u1", "Target Note", _doc(_para("x")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node(target)))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    body = zf.read("Source.md").decode("utf-8")
+    assert "[Target Note](Target Note.md)" in body
+
+
+def test_full_export_linked_note_path_reflects_a_title_collision_disambiguator():
+    """Two notes named the same thing: the second gets a `-<id prefix>`
+    suffix (existing behavior) -- a link to it must resolve to THAT exact
+    disambiguated path, not the bare title."""
+    c = _conn()
+    _insert_note(c, "dup1", "u1", "Duplicate", _doc(_para("first")))
+    _insert_note(c, "dup2", "u1", "Duplicate", _doc(_para("second")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("dup2")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    dup2_path = next(n for n in names if n.startswith("Duplicate-") and n.endswith(".md"))
+    body = zf.read("Source.md").decode("utf-8")
+    assert f"]({dup2_path})" in body
+
+
+def test_single_note_export_renders_a_linked_note_as_an_honest_not_bundled_reference():
+    c = _conn()
+    _insert_note(c, "t1", "u1", "Target Note", _doc(_para("x")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("t1")))
+    c.commit()
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "[Target Note](uct-note:///notebook?note=t1)" in text
+
+
+def test_export_renders_a_link_to_a_nonexistent_note_as_a_plain_fallback_never_a_dead_link():
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("does-not-exist")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Source.md").decode("utf-8")
+    assert "*[linked note]*" in body
+    assert "](" not in body.split("---", 2)[-1].replace("*[linked note]*", "")
+
+
+def test_export_never_leaks_a_foreign_users_note_title_through_a_crafted_link():
+    c = _conn()
+    _insert_note(c, "foreign", "u2", "Someone Else's Private Thesis", _doc(_para("x")))
+    _insert_note(c, "n1", "u1", "Source", _doc(_link_node("foreign")))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Source.md").decode("utf-8")
+    assert "Someone Else" not in body
+    assert "*[linked note]*" in body
+
+
 def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():
     """The escaping fix must not start quoting every title -- only the ones
     that actually need it, so the huge existing corpus of plain titles keeps
@@ -864,3 +1113,274 @@ def test_ordinary_title_still_renders_bare_no_gratuitous_quoting():
         "Cup and handle breakout.md").decode("utf-8")
     assert "title: Cup and handle breakout" in body
     assert '"' not in body.split("---")[1]  # front matter block, unquoted
+
+
+# ── Wave E: property export (checkpoint §27) ────────────────────────────────
+
+def test_full_export_renders_user_set_properties_as_readable_front_matter():
+    from api.services.journal_two import note_properties as props
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    d = props.create_property_def(
+        "u1", "Thesis Status", "select", options=[{"label": "Active"}], conn=c,
+    )
+    active_id = d["options"][0]["id"]
+    c.execute(
+        "UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+        (f'{{"{d["id"]}": "{active_id}"}}', "n1"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "properties:" in body
+    assert "Thesis Status: Active" in body  # the LABEL, never the raw option id
+    assert active_id not in body
+
+
+def test_export_never_leaks_a_deleted_propertys_stray_value_as_a_raw_id():
+    from api.services.journal_two import note_properties as props
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    d = props.create_property_def("u1", "Scratch", "text", conn=c)
+    c.execute(
+        "UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+        (f'{{"{d["id"]}": "temp note"}}', "n1"),
+    )
+    c.commit()
+    props.delete_property_def("u1", d["id"], conn=c)
+
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "properties:" not in body
+    assert "temp note" not in body
+    assert d["id"] not in body
+
+
+def test_single_note_export_also_renders_properties():
+    from api.services.journal_two import note_properties as props
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    d = props.create_property_def("u1", "Confidence", "text", conn=c)
+    c.execute(
+        "UPDATE j2_notes SET properties_json = ? WHERE id = ?",
+        (f'{{"{d["id"]}": "High"}}', "n1"),
+    )
+    c.commit()
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "Confidence: High" in text
+
+
+def test_export_never_duplicates_financial_derived_properties_under_the_generic_line():
+    """Ticker/Sector/etc. already have their own front-matter fields --
+    properties: must never re-emit them under a second label."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, ticker, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Thesis", '{"type":"doc","content":[]}', "", "[]", "NVDA",
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert body.count("NVDA") == 1  # only the dedicated `ticker:` field
+
+
+# ── Wave F: financial fact export ────────────────────────────────────────────
+
+def test_full_export_renders_a_captured_financial_fact_as_readable_front_matter():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=142.83, conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "financial_facts:" in body
+    assert "ticker: NVDA" in body
+    assert "fact: Price" in body
+    assert "value: $142.83" in body
+
+
+def test_full_export_never_leaks_a_current_value_only_the_immutable_original():
+    """An export is a durable artifact, not a live view (directive §82) --
+    it must never trigger or embed a live current-value lookup."""
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=142.83, conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "current" not in body.lower()
+
+
+def test_full_export_includes_a_fact_caption_when_present():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation(
+        "u1", "n1", ticker="NVDA", fact_type="price", value=142.83,
+        caption="ahead of earnings", conn=c,
+    )
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Thesis.md").decode("utf-8")
+    assert "note: ahead of earnings" in body
+
+
+def test_single_note_export_also_renders_financial_facts():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis", _doc(_para("x")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="user_note", value="My target: 195", conn=c)
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    text = content.decode("utf-8")
+    assert "fact: Note" in text
+    assert "My target: 195" in text
+
+
+def test_a_notes_facts_never_appear_in_another_notes_export():
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis A", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Thesis B", _doc(_para("y")))
+    c.commit()
+    facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=1.0, conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "financial_facts:" not in zf.read("Thesis B.md").decode("utf-8")
+    assert "financial_facts:" in zf.read("Thesis A.md").decode("utf-8")
+
+
+# ── Wave G: thesis evidence export ───────────────────────────────────────────
+
+def test_full_export_renders_thesis_evidence_pointing_at_a_note():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Datacenter capex note", _doc(_para("y")))
+    c.commit()
+    ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", caption="strong capex", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "thesis_evidence:" in body
+    assert "stance: supports" in body
+    assert "target: Datacenter capex note" in body
+    assert "note: strong capex" in body
+
+
+def test_full_export_renders_thesis_evidence_pointing_at_a_fact():
+    from api.services.journal_two import thesis_evidence as ev
+    from api.services.journal_two import note_facts as facts
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    c.commit()
+    fact = facts.create_fact_observation("u1", "n1", ticker="NVDA", fact_type="price", value=142.83, conn=c)
+    ev.add_evidence("u1", "n1", target_type="fact", target_id=fact["id"], stance="opposes", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "stance: opposes" in body
+    assert "target: NVDA Price" in body
+
+
+def test_removed_evidence_never_appears_in_export():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Other note", _doc(_para("y")))
+    c.commit()
+    e = ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", conn=c)
+    ev.remove_evidence("u1", e["id"], conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "thesis_evidence:" not in body
+
+
+def test_single_note_export_also_renders_thesis_evidence():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Other note", _doc(_para("y")))
+    c.commit()
+    ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", conn=c)
+    content, _filename, _media_type = build_single_note_export("u1", "n1", conn=c)
+    assert "thesis_evidence:" in content.decode("utf-8")
+
+
+def test_a_notes_evidence_never_appears_in_another_notes_export():
+    from api.services.journal_two import thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Thesis A", _doc(_para("x")))
+    _insert_note(c, "n2", "u1", "Thesis B", _doc(_para("y")))
+    c.commit()
+    ev.add_evidence("u1", "n1", target_type="note", target_id="n2", stance="supports", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "thesis_evidence:" not in zf.read("Thesis B.md").decode("utf-8")
+    assert "thesis_evidence:" in zf.read("Thesis A.md").decode("utf-8")
+
+
+# ── Wave J: document excerpt export ──────────────────────────────────────────
+
+def test_full_export_renders_a_document_excerpt_as_an_inline_blockquote_with_citation():
+    from api.services.journal_two import note_excerpts, document_extraction
+    c = _conn()
+    _insert_note(c, "n1", "u1", "NVDA Investor Deck Research", _doc(_para("intro")))
+    c.commit()
+    doc = document_extraction.create_document(
+        "u1", "n1", "/api/j2/notes/attachments/u1/n1/file/x.pdf", "NVDA Investor Deck.pdf", conn=c)
+    excerpt = note_excerpts.create_excerpt(
+        "u1", "n1", document_id=doc["id"], page_number=17,
+        captured_text="Management expects gross margins to normalize lower",
+        annotation="Weakens my margin-expansion assumption", conn=c,
+    )
+    from api.services.journal_two import notes as notes_svc
+    notes_svc.append_document_excerpt("u1", "n1", excerpt["id"], conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Investor Deck Research.md").decode("utf-8")
+    assert "> Management expects gross margins to normalize lower" in body
+    assert "> — NVDA Investor Deck.pdf, p.17" in body
+    assert "*Weakens my margin-expansion assumption*" in body
+
+
+def test_full_export_omits_the_excerpt_content_honestly_when_the_source_document_is_gone():
+    from api.services.journal_two import note_excerpts, document_extraction, notes as notes_svc
+    c = _conn()
+    _insert_note(c, "n1", "u1", "Research", _doc(_para("intro")))
+    c.commit()
+    doc = document_extraction.create_document(
+        "u1", "n1", "/api/j2/notes/attachments/u1/n1/file/x.pdf", "Deck.pdf", conn=c)
+    excerpt = note_excerpts.create_excerpt(
+        "u1", "n1", document_id=doc["id"], page_number=1, captured_text="quote", conn=c)
+    notes_svc.append_document_excerpt("u1", "n1", excerpt["id"], conn=c)
+    c.execute("DELETE FROM j2_note_documents WHERE id = ?", (doc["id"],))
+    c.commit()
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("Research.md").decode("utf-8")
+    assert "excerpt source no longer available" in body
+
+
+def test_full_export_lists_document_excerpt_evidence_by_page_citation():
+    from api.services.journal_two import note_excerpts, document_extraction, thesis_evidence as ev
+    c = _conn()
+    _insert_note(c, "thesis", "u1", "NVDA Thesis", _doc(_para("x")))
+    _insert_note(c, "source", "u1", "NVDA Investor Deck Research", _doc(_para("y")))
+    c.commit()
+    doc = document_extraction.create_document(
+        "u1", "source", "/api/j2/notes/attachments/u1/source/file/x.pdf", "Investor Deck.pdf", conn=c)
+    excerpt = note_excerpts.create_excerpt(
+        "u1", "source", document_id=doc["id"], page_number=17, captured_text="margin commentary", conn=c)
+    ev.add_evidence("u1", "thesis", target_type="document_excerpt", target_id=excerpt["id"],
+                     stance="opposes", conn=c)
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("NVDA Thesis.md").decode("utf-8")
+    assert "thesis_evidence:" in body
+    assert "Investor Deck.pdf, p.17" in body

@@ -1,0 +1,12 @@
+/* UCT Notebook Sync — plugin-scoped styles.
+ *
+ * Kept to the one case the settings tab needs a color the built-in
+ * `setting-item-description` class doesn't give it. Per Obsidian's plugin
+ * guidelines ("don't hardcode styles; use CSS classes with Obsidian CSS
+ * variables", "avoid inline style assignments") this lives here instead of
+ * as a `.style.color =` in settings.ts — same `var(--text-error)` value,
+ * just applied as a class instead of an inline style.
+ */
+.uct-notebook-sync-error {
+	color: var(--text-error);
+}

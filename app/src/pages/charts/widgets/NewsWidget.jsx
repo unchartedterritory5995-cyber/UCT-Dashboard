@@ -19,6 +19,7 @@ import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
@@ -108,6 +109,8 @@ export default function NewsWidget({
   const placedTimerRef = useRef(null)
   useEffect(() => () => { if (placedTimerRef.current) clearTimeout(placedTimerRef.current) }, [])
   const [journalMsg, setJournalMsg] = useJournalToast()
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
   const placeOnChart = useCallback((e, rowKey) => {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
@@ -265,21 +268,42 @@ export default function NewsWidget({
             which split the free space and floated the door mid-header — the
             door keeps the auto, the gear drops to a 2px gap when the door
             renders. */}
-        {journalDoor && !readOnly && sym && events?.length > 0 && (
-          <button
-            type="button"
-            className={styles.gearBtn}
-            onClick={async () => {
-              setJournalMsg('sending…')
-              setJournalMsg(await sendCaptureToJournal('news', {
-                symbol: sym, filter, company, settings, events,
-              }, { label: `${sym} news` }))
-            }}
-            title="Send this feed to Journal"
-            aria-label="Send this feed to Journal"
-          ><UIcon name="journal" size={13} /></button>
-        )}
+        {journalDoor && !readOnly && sym && events?.length > 0 && (() => {
+          const buildNewsCapture = () => ({ symbol: sym, filter, company, settings, events })
+          return (
+            <>
+              <button
+                type="button"
+                className={styles.gearBtn}
+                onClick={async () => {
+                  setJournalMsg('sending…')
+                  setJournalMsg(await sendCaptureToJournal('news', buildNewsCapture(), { label: `${sym} news` }))
+                }}
+                title="Send this feed to Journal"
+                aria-label="Send this feed to Journal"
+              ><UIcon name="journal" size={13} /></button>
+              <button
+                type="button"
+                className={styles.gearBtn}
+                onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildNewsCapture() })}
+                title="Send to Journal — choose where"
+                aria-label="Send to Journal — choose where"
+              ><UIcon name="chevronDown" size={13} /></button>
+            </>
+          )
+        })()}
         <JournalToast msg={journalMsg} />
+        {captureMenu && (
+          <CaptureMenu
+            open
+            onClose={() => setCaptureMenu(null)}
+            anchor={captureMenu.anchor}
+            widgetId="news"
+            capture={captureMenu.capture}
+            label={`${sym} news`}
+            onSent={setJournalMsg}
+          />
+        )}
         {!readOnly && (
         <button
           ref={settingsBtnRef}

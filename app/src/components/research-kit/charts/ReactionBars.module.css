@@ -73,3 +73,15 @@
     gap: 2px;
   }
 }
+
+/* The move printed where the outcome dot would sit (showValues). Coloured by
+   direction from the same pair the bars use, so it follows the chart theme in
+   the Company Panel instead of being one more fixed green. */
+.qvalUp, .qvalDown {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.qvalUp { fill: var(--gain); }
+.qvalDown { fill: var(--loss); }

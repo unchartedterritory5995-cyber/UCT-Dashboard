@@ -228,9 +228,19 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
 
   return (
     <div className={styles.section}>
-      {/* Header row: label + Listen TTS + keyword search */}
+      {/* Header row: label + as-of + Listen TTS + keyword search */}
       <div className={styles.headerRow}>
         <span className={styles.sectionLabel}>EARNINGS CALL RECAP</span>
+        {/* Honest as-of, not a D1 provenance badge — a synthesized document,
+            dated by the call it covers and when this recap was written
+            (2026-09-03 A6/A7 pass; both were computed at write time and
+            previously dropped before reaching the response). */}
+        {(recap.quarter || recap.generated_at) && (
+          <span className={styles.sectionLabel} style={{ fontWeight: 400, opacity: 0.7 }}>
+            {recap.quarter}{recap.quarter && recap.generated_at ? ' · ' : ''}
+            {recap.generated_at ? `synthesized ${new Date(recap.generated_at * 1000).toLocaleDateString()}` : ''}
+          </span>
+        )}
         {hasSpeechSynthesis() && (
           <button
             type="button"

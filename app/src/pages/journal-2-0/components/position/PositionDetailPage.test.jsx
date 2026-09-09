@@ -1,7 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { describe, it, expect, vi } from 'vitest'
-import PositionDetailPage, { combinePositions } from './PositionDetailPage'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import PositionDetailPage, { combinePositions, idsBySide } from './PositionDetailPage'
+
+const navigateMock = vi.fn()
+vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => navigateMock }))
 
 // The page now mounts ChartPane (the same chart /charts renders) instead of a
 // bare StockChart. ChartPane is lazy + imports the very same StockChart module,
@@ -16,6 +19,16 @@ vi.mock('../../../../components/CompanyLogo', () => ({
 // reads useAuth() — stub it logged-out so that call doesn't throw "useAuth
 // must be used within AuthProvider" (this file renders without an AuthProvider).
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// The canonical SymbolSearch component has its own dedicated coverage
+// elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
+// action can be exercised without its real dropdown/fetch machinery. The
+// stub deliberately hands back a LOWERCASE comparator so these tests pin
+// this page's own uppercasing, not SymbolSearch's.
+vi.mock('../../../../components/chart/SymbolSearch', () => ({
+  default: ({ sym, onSymbolChange, displayLabel }) => (
+    <button data-sym={sym == null ? '' : String(sym)} onClick={() => onSymbolChange('msft')}>{displayLabel || sym || 'search'}</button>
+  ),
+}))
 vi.mock('../../../../hooks/useFundamentalSnapshot', () => ({
   default: () => ({
     data: {
@@ -70,6 +83,15 @@ vi.mock('../../hooks/useJ2SelectedAccount', () => ({
   }),
 }))
 
+// Attention Signal Propagation V1 — same hook PortfolioAttentionBanner uses,
+// reused verbatim (no new endpoint). Defaults to an empty map so every
+// pre-existing test in this file (none of which cares about Attention) sees
+// no change; the dedicated describe block below overrides per test.
+const mockUseAttention = vi.fn(() => ({ attention: {}, isLoading: false, error: null }))
+vi.mock('../../hooks/useJ2PositionsAttention', () => ({
+  default: () => mockUseAttention(),
+}))
+
 const swrData = {
   '/api/bars/AAPL?tf=D&bars=30': {
     bars: [
@@ -83,6 +105,12 @@ const swrData = {
   '/api/earnings/analyst-grades/AAPL': {
     consensus: { strongBuy: 12, buy: 8, hold: 5, sell: 3, strongSell: 2, total: 30, label: 'Buy' },
     price_target: { consensus: 250 },
+  },
+  // P1-19 fix: LinkedNotesPanel's own useSWR call resolves through this same
+  // mocked 'swr' module -- AAPL's fixture position id is 1 (see
+  // useJ2Positions mock above), so this is the exact key it computes.
+  '/api/j2/notes/by-trade-ref?tradeRef=1&tradeRefType=position': {
+    notes: [{ id: 'n1', title: 'AAPL thesis' }],
   },
 }
 vi.mock('swr', () => ({
@@ -117,6 +145,38 @@ describe('combinePositions', () => {
       { id: 2, side: 'Short', shares: 5, entryPrice: 200, entryDate: '2026-06-01' },
     ])
     expect(rows).toHaveLength(2)
+  })
+})
+
+describe('PositionDetailPage — cross-link actions (Full Research / Ask AI / Compare)', () => {
+  beforeEach(() => {
+    navigateMock.mockClear()
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
+  })
+
+  it('Full Research navigates to the canonical /research/:sym route, tagged with a return-context marker (Seam 12)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /full research/i }))
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?from=position%3AAAPL')
+  })
+
+  it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /ask ai/i }))
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai&from=position%3AAAPL')
+  })
+
+  it('Compare reveals the "+ Compare" picker, and a comparator navigates to the exact canonical compare route (uppercased), tagged with a return-context marker (Seam 12)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Compare' }))
+    expect(navigateMock).toHaveBeenCalledWith('/research/AAPL/compare/MSFT?from=position%3AAAPL')
+  })
+
+  it('the Compare picker receives the real current sym, not null (Identity Normalization Hardening V1)', () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /^compare$/i }))
+    expect(screen.getByRole('button', { name: '+ Compare' })).toHaveAttribute('data-sym', 'AAPL')
   })
 })
 
@@ -158,5 +218,175 @@ describe('PositionDetailPage', () => {
     renderPage()
     expect(screen.getByText(/of 30 analysts rate it Buy/)).toBeInTheDocument()
     expect(screen.getByText('UCT Rating 92')).toBeInTheDocument()
+  })
+})
+
+describe('PositionDetailPage — History click-through (Journal / Trade Lifecycle Convergence V1)', () => {
+  beforeEach(() => {
+    navigateMock.mockClear()
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({}) }))
+  })
+
+  it('clicking the closed AAPL trade row navigates to its real j2_trades.id detail page', () => {
+    renderPage()
+    fireEvent.click(screen.getByText(/90\.00.*95\.00/))
+    expect(navigateMock).toHaveBeenCalledWith('/journal-2-0/trade/t1')
+  })
+
+  it('the OPEN position row is not clickable (no navigation on click)', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('OPEN'))
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
+  it('keyboard Enter on the closed-trade row also navigates', () => {
+    renderPage()
+    const row = screen.getByText(/90\.00.*95\.00/).closest('li')
+    fireEvent.keyDown(row, { key: 'Enter' })
+    expect(navigateMock).toHaveBeenCalledWith('/journal-2-0/trade/t1')
+  })
+})
+
+describe('PositionDetailPage — Attention (Attention Signal Propagation V1)', () => {
+  beforeEach(() => {
+    mockUseAttention.mockReset()
+    mockUseAttention.mockReturnValue({ attention: {}, isLoading: false, error: null })
+  })
+
+  it('renders nothing when the symbol has no open position (attention map has no entry)', () => {
+    // AAPL IS an open position in this file's fixtures, but the batch
+    // endpoint scopes to currently-held symbols — an empty map here models
+    // "not yet loaded" / "no entry for this symbol", and the page's existing
+    // null-safe convention hides the section rather than rendering a
+    // false-empty card.
+    renderPage()
+    expect(screen.queryByTestId('position-attention')).not.toBeInTheDocument()
+  })
+
+  it('renders the same fact vocabulary as PortfolioAttentionBanner when the batch endpoint has an entry for this symbol', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: {
+        AAPL: {
+          status: 'ok',
+          notable: true,
+          facts: [
+            { kind: 'price_move', label: 'Moving +5.2% today', as_of: '2026-09-05', source: 'live price', freshness: 'fresh' },
+          ],
+          context: { composite_rating: 92, rs_rank: 88 },
+        },
+      },
+    })
+    renderPage()
+    const card = screen.getByTestId('position-attention')
+    expect(card).toHaveTextContent('Moving +5.2% today')
+    expect(card).toHaveTextContent('2026-09-05')
+    expect(screen.getByLabelText('AAPL notable')).toBeInTheDocument()
+    // S8 / Attention Freshness Propagation V1 — source/freshness are fetched
+    // by the hook already; this surface previously discarded them before
+    // render even though Watchlists.jsx's identical popover already showed them.
+    expect(card).toHaveTextContent('live price')
+    expect(card).toHaveTextContent('fresh')
+  })
+
+  it('shows "Nothing notable" for a non-notable held symbol, never fabricating a fact', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: { AAPL: { status: 'ok', notable: false, facts: [], context: {} } },
+    })
+    renderPage()
+    const card = screen.getByTestId('position-attention')
+    expect(card).toHaveTextContent('Nothing notable')
+    expect(screen.queryByLabelText('AAPL notable')).not.toBeInTheDocument()
+  })
+
+  it('surfaces a degraded status pill rather than hiding it silently', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: { AAPL: { status: 'partial', notable: false, facts: [], context: {} } },
+    })
+    renderPage()
+    expect(screen.getByTitle('Data partial')).toBeInTheDocument()
+  })
+
+  // S8 / Attention Freshness Propagation V1 — a total fetch failure must NOT
+  // collapse into the same "section hidden" state as "no open position": a
+  // real outage previously read as reassuring silence, indistinguishable from
+  // the symbol simply not being held.
+  it('renders a distinct "could not check" state on a total fetch failure, never silence', () => {
+    mockUseAttention.mockReturnValue({ attention: {}, isLoading: false, error: new Error('500') })
+    renderPage()
+    expect(screen.getByTestId('position-attention-unavailable')).toBeInTheDocument()
+    expect(screen.getByText('Could not check for updates')).toBeInTheDocument()
+    expect(screen.queryByTestId('position-attention')).not.toBeInTheDocument()
+  })
+
+  it('reads a different symbol\'s attention entry on symbol change (no stale prior-symbol card)', () => {
+    mockUseAttention.mockReturnValue({
+      isLoading: false,
+      error: null,
+      attention: {
+        AAPL: { status: 'ok', notable: true, facts: [{ kind: 'price_move', label: 'AAPL moved', as_of: '2026-09-05' }], context: {} },
+        MSFT: { status: 'ok', notable: false, facts: [], context: {} },
+      },
+    })
+    renderPage('MSFT')
+    const card = screen.getByTestId('position-attention')
+    expect(card).toHaveTextContent('Nothing notable')
+    expect(card).not.toHaveTextContent('AAPL moved')
+  })
+})
+
+describe('idsBySide (P1-19 fix)', () => {
+  it('groups raw ids by side for the given symbol only', () => {
+    const map = idsBySide([
+      { id: 1, symbol: 'AAPL', side: 'Long' },
+      { id: 2, symbol: 'AAPL', side: 'Long' },
+      { id: 3, symbol: 'AAPL', side: 'Short' },
+      { id: 4, symbol: 'MSFT', side: 'Long' },
+    ], 'AAPL')
+    expect(map.get('Long')).toEqual([1, 2])
+    expect(map.get('Short')).toEqual([3])
+    expect(map.has('MSFT')).toBe(false)
+  })
+
+  it('never drops a second raw id on the same side (the exact regression this fixes)', () => {
+    // Two separate "Add Position" calls on the same symbol+side -- combinePositions
+    // would merge these into one display block and keep only id 1, which is
+    // exactly why the linked-notes lookup must read this, not that merged model.
+    const map = idsBySide([
+      { id: 1, symbol: 'AAPL', side: 'Long' },
+      { id: 2, symbol: 'AAPL', side: 'Long' },
+    ], 'AAPL')
+    expect(map.get('Long')).toHaveLength(2)
+  })
+
+  it('is empty for a symbol with no positions', () => {
+    const map = idsBySide([{ id: 1, symbol: 'MSFT', side: 'Long' }], 'AAPL')
+    expect(map.size).toBe(0)
+  })
+
+  it('ignores rows with no id', () => {
+    const map = idsBySide([{ id: null, symbol: 'AAPL', side: 'Long' }], 'AAPL')
+    expect(map.size).toBe(0)
+  })
+})
+
+describe('PositionDetailPage — linked research on the open position (P1-19 fix)', () => {
+  it('shows the existing LinkedNotesPanel, reused verbatim, keyed to the raw position id', async () => {
+    renderPage()
+    const panel = await screen.findByTestId('linked-notes-panel')
+    expect(panel).toHaveTextContent('AAPL thesis')
+  })
+
+  it('renders nothing extra for a symbol with no linked research (no forced empty state)', () => {
+    // MSFT's fixture position id is 7; no swrData entry exists for that
+    // tradeRef, so LinkedNotesPanel's own "notes.length === 0 -> null"
+    // behavior (already covered by LinkedNotesPanel.test.jsx) applies here too.
+    renderPage('MSFT')
+    expect(screen.queryByTestId('linked-notes-panel')).not.toBeInTheDocument()
   })
 })

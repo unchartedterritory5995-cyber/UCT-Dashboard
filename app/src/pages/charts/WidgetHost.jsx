@@ -50,7 +50,7 @@ export const WORKSPACE_WIDGETS = {
     props: ({ colorKey, opts, onOptsChange, groupId }) => ({ color: colorKey, opts, onOptsChange, chartId: groupId }),
   },
   watchlist: { component: WatchlistWidget, props: standardProps },
-  themes: { component: ThemesWidget, props: ({ colorKey, opts }) => ({ color: colorKey, opts }) },
+  themes: { component: ThemesWidget, props: ({ colorKey, opts, onOptsChange }) => ({ color: colorKey, opts, onOptsChange }) },
   scanner: { component: ScannerWidget, props: standardProps },
   fundamentals: { component: FundamentalsWidget, props: standardProps },
   breadth: { component: BreadthWidget, props: ({ opts, onOptsChange }) => ({ opts, onOptsChange }) },

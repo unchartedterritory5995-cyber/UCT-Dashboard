@@ -39,6 +39,7 @@ import logging
 import os
 import re
 import shutil
+import tempfile
 import subprocess
 import threading
 import time
@@ -242,7 +243,24 @@ def stats() -> dict:
     return dict(_STATS)
 
 
-def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
+# The view the page OPENS ON: stocks, a 1-day fetch window, the Last1 date
+# selection. ⛔ ONE AUTHORITY. `health()` grades warmth against this view and the
+# background preparer warms this view; if those two ever named it separately, a
+# preparer could report success for a view nobody opens while health honestly
+# said cold, and each would look right on its own.
+# What first paint actually fetches. Everything else -- the deferred keys and
+# the 3b raw fallback pair -- is needed LATER and must not hold paint hostage.
+#
+# ⛔ Measured on prod during RTH: a full build pipes 23.8 MB of parts back and
+# takes ~30s, of which node's own work is ~6.3s. Preparing these two first turns
+# the critical path into a fraction of that, and the rest follows in a second
+# pass, so nothing stops being warm.
+FIRST_PAINT_PARTS = ("bootstrap", "TOP_PICKS")
+
+DEFAULT_VIEW = ("stocks", 1, "Last1")
+
+
+def health(current_version=None, view=DEFAULT_VIEW) -> dict:
     """Is the fast path ACTUALLY available right now?
 
     ⛔ READS THE ARTIFACT, NOT A COUNTER. The verdict is "is there a usable
@@ -270,6 +288,11 @@ def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
         "entries": [{"key": str(k), "version": v[0], "gz_bytes": len(v[1])}
                     for k, v in _CACHE.items()],
         "stats_process_local": stats(),
+        # ⛔ The split is only steerable if its cost is VISIBLE. parts_cache_state
+        # existed but no endpoint served it, so the per-part gzipped sizes — the
+        # whole basis for deciding what belongs on first paint — could not be read
+        # from production at all, only estimated from a one-off local fixture.
+        "parts": parts_cache_state(),
         "reason": None,
     }
     if not out["enabled"]:
@@ -284,15 +307,46 @@ def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
         return out
     out["available"] = True
 
-    cached = _CACHE.get(tuple(view))
-    if cached is None:
-        out["reason"] = "cold"
-    elif current_version is not None and cached[0] != current_version:
-        # A warm entry for a SUPERSEDED version is not warm: the next caller
-        # rebuilds. Reporting it as warm is how a stalled warmer would hide.
-        out["reason"] = f"stale (cached v{cached[0]} vs current v{current_version})"
+    def _grade(entry, label=""):
+        """(warm?, reason) for one cache entry against the current version.
+
+        `label` is a PREFIX, empty for the whole-D path so its long-standing
+        reason strings ("cold", "stale (...)") are unchanged — they are a
+        diagnostic contract, and renaming them to suit a new caller would be a
+        gratuitous break.
+        """
+        if entry is None:
+            return False, f"{label}cold"
+        if current_version is not None and entry[0] != current_version:
+            # A warm entry for a SUPERSEDED version is not warm: the next caller
+            # rebuilds. Reporting it as warm is how a stalled warmer would hide.
+            return False, (f"{label}stale (cached v{entry[0]} vs current "
+                           f"v{current_version})")
+        return True, None
+
+    warm_whole, reason_whole = _grade(_CACHE.get(tuple(view)))
+    out["warm_whole"] = warm_whole
+
+    # ⛔ GRADE THE TRANSPORT MEMBERS ACTUALLY TAKE. This graded ONLY the whole-D
+    # cache, and with the parts transport enabled in production that is not the
+    # path a member's first paint uses. Observed on prod 2026-09-08:
+    #     "warm": true, "parts": {"enabled": true, "entries": []}
+    # — the verdict said the fast path was ready while the path members take was
+    # completely cold, which is exactly the class of defect this function's own
+    # docstring warns about (a health check reading a proxy, not the artifact).
+    #
+    # ⛔ `bootstrap` IS A SUFFICIENT PROBE, by construction rather than by luck:
+    # `get_cached_or_build_part` writes EVERY part from one build in a single
+    # pass, so if bootstrap is present at this version its siblings are too.
+    if parts_enabled():
+        warm_parts, reason_parts = _grade(
+            _PARTS_CACHE.get(tuple(view) + ("bootstrap",)), "parts ")
+        out["warm_parts"] = warm_parts
+        out["warm"] = warm_parts
+        out["reason"] = reason_parts
     else:
-        out["warm"] = True
+        out["warm"] = warm_whole
+        out["reason"] = reason_whole
     return out
 
 
@@ -333,3 +387,321 @@ def alert_if_unavailable(current_version=None, post=None,
         except Exception:  # noqa: BLE001
             log.exception("[flow-agg] health alert post failed")
     return h
+
+
+# ── Per-part builds (the bootstrap architecture) ────────────────────────────
+# `build()` above returns ONE blob containing everything `processFlowData`
+# produced, because that is what the endpoint has always served. A consumption
+# audit of OptionsFlow.jsx on 2026-09-07 found that ~69% of it is not read until
+# the member opens a specific tab, and ~16 MB of it exists on first paint only to
+# compute a single 10-row table. `flowBootstrap.js` owns which keys those are.
+#
+# These helpers build every part in ONE node run and cache them individually, so
+# a surface can be served exactly the parts it reads. Splitting into per-key
+# parts rather than one "deferred" blob is deliberate: a single second payload
+# would just move the cost from startup to the first tab click.
+
+_PARTS_CACHE: "OrderedDict[tuple, tuple]" = OrderedDict()
+_PARTS_CACHE_MAX = int(os.environ.get("FLOW_PARTS_CACHE_MAX", "24"))
+
+
+def parts_enabled() -> bool:
+    """Off by default. The old whole-D path stays authoritative until this is on."""
+    return os.environ.get("FLOW_BOOTSTRAP_ENABLED", "0") == "1"
+
+
+def _read_frames(raw: bytes) -> dict:
+    """Slice the CLI's length-prefixed frames into {name: raw_json_bytes}.
+
+    ⛔ Deliberately does NOT json.loads the part bodies. They are handed straight
+    to gzip as opaque bytes. Parsing them would materialise the very object graph
+    this format exists to avoid on a pod that has OOM'd before.
+
+    A malformed stream yields {} rather than a partial dict — a half-read set of
+    parts would cache a payload missing arrays the page needs, which is worse
+    than falling back to the whole-D path.
+    """
+    out: dict = {}
+    i, n = 0, len(raw)
+    try:
+        while i < n:
+            j = raw.index(b"\n", i)
+            head = raw[i:j].decode("ascii")
+            i = j + 1
+            tok = head.split(" ")
+            if tok[0] == "STATS" and len(tok) == 2:
+                ln = int(tok[1])
+                out["__stats__"] = raw[i:i + ln]
+            elif tok[0] == "PART" and len(tok) == 3:
+                ln = int(tok[2])
+                out[tok[1]] = raw[i:i + ln]
+            else:
+                return {}
+            i += ln + 1          # body + its trailing newline
+    except Exception:
+        return {}
+    return out
+
+
+def envelope_bootstrap(frames: dict, stats: dict) -> dict:
+    """Wrap the bootstrap frame as the SAME {ok, stats, D} envelope whole-D returns.
+
+    ⛔ WITHOUT THIS, `stats.availableDates` DISAPPEARS AND THE DATE PICKER WITH IT.
+    The page derives the date-range picker's calendar from `stats.availableDates`
+    because deriving it otherwise needs the raw tape (Phase A). The whole-D
+    endpoint returns `{ok, stats, D}` so the value rides along; the parts stream
+    emits stats as its OWN frame, so a bootstrap served as a bare D subset drops
+    it and the picker gates itself off — the precise regression Phase A fixed,
+    reintroduced by a change of transport rather than of logic.
+
+    ⛔ BYTE CONCATENATION, NEVER A PARSE. The whole point of length-prefixed
+    frames is that this process never materialises the arrays (the pod has OOM'd
+    on this path before). Only `stats` is parsed, and it is a few scalars plus the
+    date list. `boot` goes in as opaque bytes and comes out unchanged.
+
+    Returns the frames dict with `bootstrap` replaced; other frames untouched.
+    A missing bootstrap frame is returned as-is for the caller to reject.
+    """
+    boot = frames.get("bootstrap")
+    if boot is None:
+        return frames
+    out = dict(frames)
+    out["bootstrap"] = (
+        b'{"ok":true,"stats":'
+        + json.dumps(stats, separators=(",", ":")).encode("utf-8")
+        + b',"D":' + boot + b'}'
+    )
+    return out
+
+
+def _cleanup_etf_file(path: str | None) -> None:
+    """Remove the staged replica file. Never raises — a leftover temp file is a
+    nuisance; an exception here would fail a build that already succeeded."""
+    if not path:
+        return
+    try:
+        os.unlink(path)
+    except Exception:
+        pass
+
+
+def _write_etf_replica_file() -> str | None:
+    """Serialise the installed ETF/index replica for the node bundle.
+
+    Returns a temp-file path, or None when there is nothing trustworthy to pass
+    — in which case the bundle emits no TOP_PICKS part at all.
+
+    ⛔ `optionsflow_etf_replica.symbols()` returns an EMPTY set when no
+    generation is installed, and an empty set is NOT "there are no ETFs" — it
+    is "we cannot classify". Emitting a product from it would classify every
+    ticker as a stock and stamp the result with a generation, which the client
+    would then match and trust.
+    """
+    try:
+        from api.services import optionsflow_etf_replica as _rep
+        gen = (_rep.local_generation() or {}).get("generation")
+        if not gen:
+            return None
+        syms = _rep.symbols()
+        if not syms:
+            return None
+        fd, path = tempfile.mkstemp(prefix="uct-flow-etf-", suffix=".json")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"generation": gen, "symbols": sorted(syms)}, fh)
+        return path
+    except Exception:
+        log.exception("[flow-agg] could not stage the ETF replica; TOP_PICKS will be skipped")
+        return None
+
+
+def build_parts(csv_text: str, date_filter: str | None = None,
+                only: tuple | None = None) -> dict | None:
+    """{part_name: gzipped_json_bytes} plus 'stats', from ONE node run."""
+    if not available():
+        return None
+    df = valid_date_filter(date_filter)
+    argv = [node_bin(), bundle_path(), "aggregate", "--split-frames"]
+    # ⛔ EMISSION FILTER ONLY. processFlowData still runs in full and every part
+    # is still computed; this decides what gets serialised and piped back. See
+    # flowFactsEntry.js for the measurement that motivated it.
+    if only:
+        argv.append("--only=" + ",".join(only))
+    if df:
+        argv.append(f"--date-filter={df}")
+    # 3b: hand the bundle the ETF/index replica so it can compute TOP 10 with
+    # the SAME classifier the browser uses, and stamp the product with the
+    # replica's content digest.
+    #
+    # ⛔ A FILE, NOT STDIN (the CSV owns stdin) AND NOT AN ENV VAR (the set is
+    # ~19.5k symbols).
+    # ⛔ NO REPLICA => NO FILE => the bundle emits no TOP_PICKS part and the
+    # client stays on its existing path. That is the safe direction and it is
+    # why nothing here raises: a classification we cannot vouch for must not
+    # become a well-formed TOP 10 that the client would then accept.
+    etf_path = _write_etf_replica_file()
+    if etf_path:
+        argv.append(f"--etf-file={etf_path}")
+    t0 = time.monotonic()
+    _st = {"csv_kb": len(csv_text) // 1024}
+    # ⛔ try/FINALLY, not a call after the except arms: the timeout and
+    # failed-to-start branches both `return None`, so a cleanup placed after
+    # them leaks the staged replica on exactly the paths that repeat.
+    try:
+        try:
+            proc = subprocess.run(argv, input=csv_text.encode("utf-8"),
+                                  capture_output=True, timeout=BUILD_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            log.warning("[flow-agg] parts build timed out after %.0fs", BUILD_TIMEOUT_S)
+            return None
+        except Exception:
+            log.exception("[flow-agg] parts build failed to start")
+            return None
+    finally:
+        _cleanup_etf_file(etf_path)
+    if proc.returncode != 0:
+        log.warning("[flow-agg] parts build exited %s: %s", proc.returncode,
+                    (proc.stderr or b"")[:300].decode("utf-8", "replace"))
+        return None
+
+    _st["spawn_ms"] = int((time.monotonic() - t0) * 1000)
+    _t_frames = time.monotonic()
+    frames = _read_frames(proc.stdout)
+    _st["frames_ms"] = int((time.monotonic() - _t_frames) * 1000)
+    _st["stdout_kb"] = len(proc.stdout or b"") // 1024
+    if not frames or "bootstrap" not in frames:
+        log.warning("[flow-agg] parts stream unusable (%d bytes, %d frames)",
+                    len(proc.stdout), len(frames))
+        return None
+
+    stats = {}
+    if "__stats__" in frames:
+        try:
+            stats = json.loads(frames.pop("__stats__"))
+        except Exception:
+            stats = {}
+    stats["buildMs"] = int((time.monotonic() - t0) * 1000)
+
+    # ⛔ THE BOOTSTRAP PART CARRIES ITS OWN STATS, OR availableDates DISAPPEARS.
+    # The page derives the date-range picker's calendar from `stats.availableDates`
+    # (Phase A) because deriving it needs the raw tape. The whole-D endpoint
+    # returns {ok, stats, D} so that value rides along; the parts stream emits
+    # stats as its own frame, so a bootstrap served as a bare D subset would drop
+    # it and the picker would gate itself off again — the exact regression Phase A
+    # was fixed for, reintroduced by the transport.
+    #
+    # Wrapping is BYTE CONCATENATION around the opaque bootstrap bytes: the point
+    # of frames is that this process never parses the arrays, and that holds here.
+    # Only `stats` is parsed, and it is a handful of scalars plus the date list.
+    #
+    # The result is the SAME {ok, stats, D} envelope the whole-D path returns, so
+    # the client has one shape to understand rather than two.
+    frames = envelope_bootstrap(frames, stats)
+
+    _t_gz = time.monotonic()
+    gz = {name: gzip.compress(body, compresslevel=6) for name, body in frames.items()}
+    _st["gzip_ms"] = int((time.monotonic() - _t_gz) * 1000)
+    _STATS["builds"] += 1
+    # ⛔ STAGE DECOMPOSITION, not just a total. "the build takes ~6 s" is not an
+    # actionable fact: the question is how much is CSV acquisition, how much is
+    # node startup, how much is the parse, how much is processFlowData itself,
+    # and how much is transport work this process does afterwards. `parseMs` and
+    # `processMs` come from inside the node run; the rest are measured here.
+    # Without this, optimisation is guesswork and "precompute it" becomes an
+    # excuse not to delete redundant work first.
+    log.info(
+        "[flow-agg] parts built in %d ms :: csv=%dKB spawn+run=%dms "
+        "(node parse=%sms process=%sms) frames=%dms stdout=%dKB gzip=%dms :: %s",
+        stats["buildMs"], _st.get("csv_kb", 0), _st.get("spawn_ms", 0),
+        stats.get("parseMs", "?"), stats.get("processMs", "?"),
+        _st.get("frames_ms", 0), _st.get("stdout_kb", 0), _st.get("gzip_ms", 0),
+        ", ".join(f"{k}={len(v)/1024:.0f}KB" for k, v in sorted(gz.items())))
+    return {"parts": gz, "stats": stats}
+
+
+def get_cached_or_build_part(base_key: tuple, version, csv_provider,
+                             date_filter: str | None, part: str,
+                             only: tuple | None = None) -> tuple | None:
+    """(version, gzipped_json) for ONE part, building every part at most once.
+
+    Same single-flight + stale-serve contract as `get_cached_or_build` — and for
+    the same reason: without it every cache miss starts its own subprocess and
+    they pile into the shared threadpool.
+    """
+    ck = base_key + (part,)
+    cached = _PARTS_CACHE.get(ck)
+    if cached and cached[0] == version:
+        _PARTS_CACHE.move_to_end(ck)
+        _STATS["cache_hits"] += 1
+        return cached
+
+    if not _BUILD_LOCK.acquire(blocking=False):
+        _STATS["stale_served" if cached else "declined_busy"] += 1
+        return cached if cached else None
+    try:
+        again = _PARTS_CACHE.get(ck)
+        if again and again[0] == version:
+            return again
+        csv_text = csv_provider()
+        if not csv_text:
+            return None
+        built = build_parts(csv_text, date_filter, only=only)
+        if not built:
+            _STATS["build_failures"] += 1
+            return None
+        for name, blob in built["parts"].items():
+            k2 = base_key + (name,)
+            if k2 not in _PARTS_CACHE and len(_PARTS_CACHE) >= _PARTS_CACHE_MAX:
+                _PARTS_CACHE.popitem(last=False)
+            _PARTS_CACHE[k2] = (version, blob)
+            _PARTS_CACHE.move_to_end(k2)
+        return _PARTS_CACHE.get(ck)
+    finally:
+        _BUILD_LOCK.release()
+
+
+def parts_cache_state() -> dict:
+    return {
+        "enabled": parts_enabled(),
+        "entries": [{"key": list(k), "version": v[0], "gz_bytes": len(v[1])}
+                    for k, v in _PARTS_CACHE.items()],
+        "max": _PARTS_CACHE_MAX,
+    }
+
+# Mirrors PART_NAMES in app/src/pages/optionsFlow/flowBootstrap.js.
+# ⛔ An allowlist, not a passthrough: `part` reaches a cache key and a subprocess
+# argument path, and an unbounded value there is how a query param becomes an
+# injection surface. `tests/test_flow_bootstrap_parts.py` derives this list from
+# the JS module so the two cannot drift.
+PART_NAMES = (
+    "bootstrap",
+    "all_trades",
+    "all_directional",
+    "WATCH",
+    "ALL_SYMS",
+    "UOA_TRADES",
+    "darkPool",
+    # 2026-09-08: interaction-only, ~77% of what bootstrap used to weigh. The
+    # audit rows that kept them on first paint said only "yes" / "pre-tab hooks"
+    # while every other row carried a reason; a call-site derivation found NO
+    # useMemo/useEffect reads either one. See flowBootstrap.js.
+    "TICKER_DB",
+    "CONV",
+)
+
+
+# Parts DERIVED from the dataset rather than carved out of it. Mirrors
+# DERIVED_PART_NAMES in flowBootstrap.js.
+# ⛔ Kept OUT of PART_NAMES on purpose: that tuple is a PARTITION whose
+# members recombine into exactly the object processFlowData returned. TOP_PICKS
+# is computed FROM that object, so folding it in would make the losslessness
+# property quietly false while every test still passed.
+DERIVED_PART_NAMES = (
+    "TOP_PICKS",
+)
+
+# Everything a caller may request over the parts transport.
+SERVED_PART_NAMES = PART_NAMES + DERIVED_PART_NAMES
+
+
+def is_part_name(name: str) -> bool:
+    return name in SERVED_PART_NAMES

@@ -54,6 +54,7 @@ from api.services.fmp_transcripts import (
     list_quarters as list_fmp_quarters,
 )
 from api.services.analyst_grades import get_analyst_grades
+from api.services.research.entity_resolution import resolve_entity
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
@@ -115,6 +116,10 @@ def call_recap_endpoint(
     sym = (ticker or "").upper().strip()
     if not sym:
         return None
+    # 2026-09-03 A6/A7 pass: no vendor= -- the recap/sentiment path has no
+    # single FMP-vs-yfinance leg to remap, it composes a transcript + LLM
+    # synthesis. Never blocks the fetch below on a miss.
+    entity, _ = resolve_entity(sym)
     try:
         recap, recap_status = get_call_recap_with_status(
             sym, quarter=quarter or None)
@@ -166,6 +171,7 @@ def call_recap_endpoint(
                 webcast = None
         return {
             "ticker": sym,
+            "entity": entity,
             "recap": recap,
             "recap_status": recap_status,
             "webcast_url": webcast,
@@ -173,7 +179,7 @@ def call_recap_endpoint(
         }
     except Exception as e:
         _log.warning("[earnings_intel] call-recap failed for %s: %s", sym, e)
-        return {"ticker": sym, "recap": None, "recap_status": "unavailable",
+        return {"ticker": sym, "entity": entity, "recap": None, "recap_status": "unavailable",
                 "webcast_url": None, "rating_changes": []}
 
 
@@ -250,16 +256,24 @@ def transcript_endpoint(
     sym = (ticker or "").upper().strip()
     if not sym:
         return None
+    entity, _ = resolve_entity(sym)
     # FMP first — uncapped on Ultimate, so no quota discipline needed.
     try:
         res = get_fmp_transcript(sym, quarter=quarter or None)
         if res and res.get("segments"):
-            return _with_qa_boundary(res)
+            res = _with_qa_boundary(res)
+            res["source"] = "fmp"
+            res["entity"] = entity
+            return res
     except Exception as e:
         _log.warning("[earnings_intel] fmp transcript failed for %s: %s", sym, e)
     # AlphaVantage fallback (rate-limited) only when FMP came up empty.
     try:
-        return _with_qa_boundary(get_transcript(sym, quarter=quarter or None))
+        res = _with_qa_boundary(get_transcript(sym, quarter=quarter or None))
+        if res:
+            res["source"] = "alphavantage"
+            res["entity"] = entity
+        return res
     except Exception as e:
         _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)
         return None

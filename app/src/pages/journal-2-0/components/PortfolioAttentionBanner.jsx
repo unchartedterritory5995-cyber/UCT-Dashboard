@@ -1,0 +1,114 @@
+/**
+ * Portfolio Attention banner — Journal 2.0 Open Positions (Portfolio/Position
+ * Intelligence Convergence V1, Part B3; click-through added by Attention
+ * Signal Propagation V1).
+ *
+ * Read-only, deterministic. Fetches GET /api/j2/positions/attention (a thin
+ * endpoint that reuses watchlist_intelligence.get_intelligence_for_symbols()
+ * verbatim over the caller's currently-held symbols) and renders its shape
+ * unmodified: per symbol, status / notable / facts / context. No synthesis,
+ * no LLM call, no chat/voice integration — see the endpoint's own docstring.
+ *
+ * Renders nothing when there are no open positions (no empty-state banner
+ * for V1) or while the account has no fetched data yet.
+ *
+ * Each card links to PositionDetailPage (/journal-2-0/position/{sym}), which
+ * calls this same hook directly (useJ2PositionsAttention) and renders the
+ * identical facts for that symbol — so the loop closes: notable here →
+ * click → the same evidence there, no route-state propagation needed.
+ */
+
+import { Link } from 'react-router-dom'
+import useJ2PositionsAttention from '../hooks/useJ2PositionsAttention'
+import UIcon from '../../../components/ui/UIcon'
+import styles from './PortfolioAttentionBanner.module.css'
+
+export default function PortfolioAttentionBanner() {
+  const { attention, isLoading, error } = useJ2PositionsAttention()
+  const symbols = Object.keys(attention || {})
+
+  if (isLoading || (!error && symbols.length === 0)) return null
+
+  // S8 / Attention Freshness Propagation V1 — a total fetch failure previously
+  // collapsed into the same `null` as "no open positions," so a real outage
+  // read as reassuring silence. Distinguish it explicitly (Watchlist's
+  // useWatchlistIntelligence.js already does this per-symbol; this is the
+  // whole-banner analog for a hook that has no data to fall back on at all).
+  if (error) {
+    return (
+      <div className={styles.wrap} role="status" data-testid="portfolio-attention-banner">
+        <div className={styles.header}>
+          <UIcon name="sparkle" size={12} />
+          <span>Portfolio Attention</span>
+        </div>
+        <div className={styles.unavailable}>Could not check for updates</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.wrap} role="status" data-testid="portfolio-attention-banner">
+      <div className={styles.header}>
+        <UIcon name="sparkle" size={12} />
+        <span>Portfolio Attention</span>
+      </div>
+      <div className={styles.grid}>
+        {symbols.map((sym) => {
+          const entry = attention[sym] || {}
+          const facts = entry.facts || []
+          const context = entry.context || {}
+          const hasContext = context.composite_rating != null || context.rs_rank != null
+          return (
+            <Link
+              key={sym}
+              to={`/journal-2-0/position/${encodeURIComponent(sym)}`}
+              className={`${styles.card} ${entry.notable ? styles.cardNotable : ''}`}
+              data-testid={`attention-card-${sym}`}
+            >
+              <div className={styles.symRow}>
+                <span>{sym}</span>
+                {entry.notable && (
+                  <span className={styles.notableDot} title="Notable" aria-label={`${sym} notable`} />
+                )}
+                {entry.status && entry.status !== 'ok' && (
+                  <span className={styles.statusPill} title={`Data ${entry.status}`}>{entry.status}</span>
+                )}
+              </div>
+              {facts.length > 0 ? (
+                <ul className={styles.factList}>
+                  {facts.map((f, i) => (
+                    <li key={`${f.kind}-${i}`} className={styles.fact}>
+                      {f.label}
+                      {/* Evidence timestamp from the fact itself — never a
+                          rendered "now"/client clock. */}
+                      {f.as_of && <span className={styles.factDate}> · {f.as_of}</span>}
+                      {/* Source/freshness — same fields Watchlists.jsx's
+                          AttentionFacts popover already renders; this hook
+                          fetched them unmodified from the identical backend
+                          shape, they were just never displayed here before. */}
+                      {(f.source || (f.freshness && f.freshness !== 'unknown')) && (
+                        <span className={styles.factMeta}>
+                          {' · '}
+                          {f.source || 'unknown source'}
+                          {f.freshness && f.freshness !== 'unknown' ? ` · ${f.freshness}` : ''}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className={styles.noFacts}>Nothing notable</div>
+              )}
+              {hasContext && (
+                <div className={styles.context}>
+                  {context.composite_rating != null && <span>Rating {context.composite_rating}</span>}
+                  {context.rs_rank != null && <span>RS {context.rs_rank}</span>}
+                </div>
+              )}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

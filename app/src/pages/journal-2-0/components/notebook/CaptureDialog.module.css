@@ -1,0 +1,129 @@
+/* The one capture surface. Calm, not celebratory: members may do this dozens of
+   times a day, so nothing here animates, shouts, or takes a victory lap. */
+.backdrop {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.sheet {
+  width: 100%; max-width: 520px;
+  max-height: min(88vh, 760px); overflow-y: auto;
+  background: var(--color-surface, #14161a);
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  padding: 16px 18px 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.heading { margin: 0; font-size: 15px; letter-spacing: 0.2px; }
+.close {
+  background: none; border: none; cursor: pointer; color: inherit;
+  min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Destination is never hidden behind an advanced menu. */
+.destRow {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 8px 10px; margin-bottom: 12px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
+}
+.destLabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.7; }
+.destValue { font-size: 14px; font-weight: 600; }
+
+.label { display: block; font-size: 12px; margin: 10px 0 4px; opacity: 0.85; }
+.input, .textarea {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 10px;
+  /* 16px so iOS does not zoom the viewport on focus. */
+  font-size: 16px; line-height: 1.45;
+  color: inherit;
+  background: var(--color-input-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border-radius: 6px;
+}
+.textarea { resize: vertical; min-height: 44px; }
+
+/* The passage LOOKS like a quotation, so it can never be mistaken for the
+   member's own writing (§2). The distinction is carried by the rule, the indent
+   and the label -- never by colour alone. */
+.quoted {
+  border-left: 3px solid var(--color-accent, #c9a84c);
+  padding-left: 12px;
+  font-style: italic;
+}
+.hint { margin: 4px 0 0; font-size: 11px; opacity: 0.6; }
+
+.refusal, .error, .saved {
+  margin-top: 12px; padding: 9px 11px; border-radius: 6px; font-size: 13px; line-height: 1.45;
+}
+.refusal { border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.08); }
+.refusalText { margin: 0 0 8px; }
+.error { border: 1px solid rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.08); }
+.saved {
+  border: 1px solid rgba(74, 222, 128, 0.35); background: rgba(74, 222, 128, 0.07);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.link { background: none; border: none; cursor: pointer; color: inherit; text-decoration: underline; padding: 0; }
+
+.foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.blockers { font-size: 12px; opacity: 0.7; }
+.actions { display: flex; gap: 8px; }
+
+@media (max-width: 640px) {
+  .backdrop { align-items: flex-end; padding: 0; }
+  .sheet {
+    max-width: none; border-radius: 12px 12px 0 0;
+    max-height: 92vh;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .foot { position: sticky; bottom: 0; background: var(--color-surface, #14161a); padding-top: 10px; }
+  .actions button { min-height: var(--tap-min, 44px); }
+}
+
+.destPicker {
+  flex: 1; min-height: var(--tap-min, 44px);
+  font-size: 16px; padding: 6px 8px; color: inherit;
+  background: var(--color-input-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border-radius: 6px;
+}
+.change {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.75; text-decoration: underline; font-size: 12px;
+  min-height: var(--tap-min, 44px); padding: 0 4px;
+}
+/* The switch between kinds is a visible, deliberate act -- never automatic. */
+.modeSwitch {
+  display: block; margin-top: 12px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  color: inherit; opacity: 0.75; font-size: 12px; text-decoration: underline;
+}
+.offer {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; padding: 7px 10px; font-size: 12px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+  border-radius: 6px;
+}
+
+/* ⛔ Phone-width audit findings, 2026-09-08 (tools/capture_phone_audit.py):
+   the single-line inputs measured 352x41 and the mode-switch links 270x14 and
+   192x14 — all under the 44px touch floor. Found by driving the real dialog at
+   390px, which is the only way to see a control that only exists once a
+   shortcut has opened it.
+   Applied on the canonical TOUCH tier (<=1024), not just phones: a tablet has
+   the same finger. */
+@media (max-width: 1024px) {
+  .input { min-height: var(--tap-min, 44px); }
+  .modeSwitch {
+    min-height: var(--tap-min, 44px);
+    display: flex; align-items: center;
+    width: 100%;
+    text-align: left;
+  }
+  .offer { min-height: var(--tap-min, 44px); }
+  .link { min-height: var(--tap-min, 44px); display: inline-flex; align-items: center; }
+}

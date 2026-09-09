@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
+import { applyTargetToParams } from '../lib/searchNavigation'
+import useJ2SavedViews from '../hooks/useJ2SavedViews'
+import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
+import NotesTableView from '../components/notebook/NotesTableView'
+import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
+import ResearchHome from '../components/notebook/ResearchHome'
 import TemplatePicker from '../components/notebook/TemplatePicker'
 import ImportWizard from '../components/notebook/import/ImportWizard'
 import ExportDialog from '../components/notebook/export/ExportDialog'
@@ -12,7 +19,9 @@ import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
+import { createNoteViaApi } from '../lib/noteCreation'
 import useAppFocus from '../../../hooks/useAppFocus'
+import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import styles from './NotebookTab.module.css'
 
 // Folders panel resize bounds (px).
@@ -32,13 +41,82 @@ function SidebarToggleIcon() {
   )
 }
 
+// Stage A member-validation instrumentation (decision-log "Stage A→B gate"
+// entry, 2026-09-06) — fired once per mount, best-effort, never blocks or
+// throws into the render path. The validation report derives "first" vs.
+// "repeat" visit from this event's own timestamps; no separate event type.
+function _logNotebookVisit() {
+  fetch('/api/j2/telemetry', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'notebook_tab_visit' }),
+  }).catch(() => {})
+}
+
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const noteId = searchParams.get('note')
 
+  useEffect(() => { _logNotebookVisit() }, [])
+
+  // Wave B: reads ?folder= (e.g. __trash__) -- the command palette's "Open
+  // Trash" destination. NOT a lazy one-time initializer: NotebookTab does
+  // NOT remount for a same-route client-side navigation (command palette ->
+  // "Open Trash" while already inside Notebook is exactly this case), so a
+  // `useState(() => ...)` initializer or a `useEffect(..., [])` would only
+  // ever fire on the component's FIRST mount and silently no-op on every
+  // later "Open Trash" click -- caught live (not by any unit test, which
+  // always mounts fresh) because the E2E pass drove the real palette-click
+  // -> same-mounted-tab path. Deliberately NOT a two-way sync afterward
+  // (folder selection stays local component state once read) -- only a
+  // freshly-arriving `folder` param drives it.
   const [folderId, setFolderId] = useState(null)
+  // Restore/create used to fail into a native alert() carrying the raw
+  // exception (railed: rawErrorSurface.test.js).
+  const [actionError, setActionError] = useState('')
+  useEffect(() => {
+    const f = searchParams.get('folder')
+    if (!f) return
+    setFolderId(f)
+    // Strip it immediately -- a stale ?folder= must never re-force the view
+    // back to Trash on an unrelated future navigation (e.g. browser back).
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('folder')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
   const [tag, setTag] = useState(null)
+  // Wave H checkpoint decision 23: the Ticker Research Workspace's "View
+  // all Notes" action lands here via `?ticker=`, reusing this exact
+  // one-time-per-arrival-strip pattern (never a second filtering mechanism
+  // -- this composes with `?view=all` and, per decision 24, with `?q=`).
+  const [tickerFilter, setTickerFilter] = useState(null)
+  useEffect(() => {
+    const t = searchParams.get('ticker')
+    if (!t || searchParams.get('new')) return  // '?new=...&ticker=' is the UNRELATED note-seed deep link, not a filter
+    setTickerFilter(t.toUpperCase())
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('ticker')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
   const [sort, setSort] = useState('updated')
+  // Wave E: an active saved view is mutually exclusive with folder/tag
+  // browsing (same "one selection channel" discipline as folder vs. Trash
+  // above) -- holds the WHOLE view object (not just its id) so viewType/
+  // spec are available without a second lookup. `propertyFilter`/
+  // `propertySort` are the AD-HOC equivalents, used only while no saved
+  // view is active (a table-column-header click or a quick-filter chip).
+  const [activeView, setActiveView] = useState(null)
+  const [viewMode, setViewMode] = useState('list')
+  const [propertyFilter, setPropertyFilter] = useState(null)
+  const [propertySort, setPropertySort] = useState(null)
+  const [saveViewOpen, setSaveViewOpen] = useState(false)
+  const { savedViews, create: createSavedView } = useJ2SavedViews()
+  const { propertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
   const { symbol: focusSymbol } = useAppFocus()
@@ -127,14 +205,38 @@ export default function NotebookTab() {
     return () => { window.removeEventListener('resize', fit); cancelAnimationFrame(raf) }
   }, [])
 
+  // Wave 0 trash: the sidebar's "Trash" row selects this sentinel exactly
+  // like '__unfiled__' already does for Unfiled — no new selection channel.
+  const isTrashView = folderId === '__trash__'
+
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
   // its real count. `hasMore`/`loadMore` back the "Load more" control below:
   // page size stays 100, and a click fetches+appends the next page rather
   // than re-fetching everything already on screen.
+  //
+  // In the trash view, folder/tag filters don't apply (a trashed note keeps
+  // no meaningful folder/tag scoping for this list) and sort forces the
+  // trash-view default (`deleted_at DESC`, i.e. "most recently deleted
+  // first") — `list_notes` only defaults to that when `sort` is unset/
+  // unrecognized, and the toolbar's own sort state ('updated' by default)
+  // IS a recognized key, so it would otherwise silently win over the trash
+  // default.
   const {
     notes, isLoading, error, refresh, total, hasMore, loadMore, isLoadingMore,
-  } = useJ2Notes({ folderId, tag, sort })
+  } = useJ2Notes({
+    folderId: isTrashView ? undefined : folderId,
+    tag: isTrashView ? undefined : tag,
+    ticker: isTrashView ? undefined : tickerFilter,
+    sort: isTrashView ? 'deleted' : sort,
+    deleted: isTrashView,
+    // Wave E: savedViewId wins exclusively (server resolves ITS OWN stored
+    // spec -- directive §87); the ad-hoc propertyFilter/propertySort below
+    // are only ever sent when no saved view is active.
+    savedViewId: !isTrashView ? activeView?.id : undefined,
+    propertyFilter: !isTrashView && !activeView ? propertyFilter : undefined,
+    propertySort: !isTrashView && !activeView ? propertySort : undefined,
+  })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs a note set covering every folder — not the
   // filtered view above (which only holds the selected folder's notes).
@@ -165,17 +267,47 @@ export default function NotebookTab() {
       { revalidate: false },
     )
   }, [mutateAllNotes])
-  const hasActiveFilters = Boolean(folderId || tag)
+  const hasActiveFilters = Boolean(folderId || tag || activeView || propertyFilter || tickerFilter)
+  // Wave H checkpoint decision 32/57: bare-root (no note, no filter, no
+  // explicit ?view=all) renders Research Home instead of the flat All Notes
+  // grid. "All notes" itself stays one click away (the sidebar row), now
+  // via the explicit `view=all` flag rather than being indistinguishable
+  // from Home.
+  const viewAll = searchParams.get('view') === 'all'
+  const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
 
-  const openNote = (note) => {
+  // FolderSidebar owns several of its OWN SWR hooks (the honest Trash count,
+  // per-folder counts, per-expanded-folder note lists) with no handle exposed
+  // up here — `refresh()`/`refreshAll()` above only cover the two lists THIS
+  // component fetches directly. A delete/restore (or any edit that could
+  // change a note's folder) must still invalidate those, or the sidebar's
+  // Trash badge and folder counts go stale until an unrelated revalidation
+  // (e.g. a window focus change) happens to catch them — found via real
+  // browser E2E (Wave 0 verification): the Trash badge stayed "0" after a
+  // delete even though the Trash view itself correctly showed the note.
+  // A key-predicate SWR revalidation (not a FolderSidebar remount, which
+  // would also blow away its expanded-folder/search UI state) targets
+  // exactly those hooks without disturbing anything else.
+  const refreshSidebarCounts = () => {
+    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+  }
+
+  // ⭐ WAVE M: an optional `target` carries the OBJECT the caller actually
+  // named — a document page or a saved excerpt — through the same `?note=`
+  // routing every other opener already uses. Callers that just want the note
+  // pass nothing and behave exactly as before.
+  const openNote = (note, target = null) => {
     setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
+      const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
       // Deep-link params ride along in `prev` when a template create opened
       // this note (setSearchParams' functional prev can be a render stale) —
       // drop them here so the final URL is always clean.
       next.delete('new')
       next.delete('ticker')
+      // Wave H: opening a note leaves the explicit "All notes" grid state —
+      // same "leaving X clears Y" discipline as every other selection below.
+      next.delete('view')
       return next
     }, { replace: false })
   }
@@ -187,6 +319,7 @@ export default function NotebookTab() {
     }, { replace: false })
     refresh()
     refreshAll()
+    refreshSidebarCounts()
   }
 
   // Selecting a folder / tag from the (now always-present) sidebar while a note
@@ -196,12 +329,134 @@ export default function NotebookTab() {
     next.delete('note')
     return next
   }, { replace: false })
-  const handleSelectFolder = (id) => { setFolderId(id); if (noteId) clearNoteParam() }
-  const handleSelectTag = (t) => { setTag(t); if (noteId) clearNoteParam() }
+  // Wave H: `?view=all` is the explicit flag distinguishing "the All Notes
+  // grid, no filter" from bare-root Research Home -- both otherwise look
+  // identical (folderId=null, tag=null, no activeView). Selecting any real
+  // folder/tag/saved-view leaves that explicit-all-notes state.
+  const clearViewAllParam = () => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev)
+    next.delete('view')
+    return next
+  }, { replace: false })
+  const selectAllNotes = () => {
+    setFolderId(null)
+    setTag(null)
+    setActiveView(null)
+    setTickerFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('view', 'all')
+      next.delete('note')
+      return next
+    }, { replace: false })
+  }
+  const handleSelectFolder = (id) => { setFolderId(id); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
+  const handleSelectTag = (t) => { setTag(t); setActiveView(null); setTickerFilter(null); clearViewAllParam(); if (noteId) clearNoteParam() }
+  const handleSelectView = (view) => {
+    // Wave E: mutually exclusive with folder/tag browsing -- same "one
+    // selection channel" discipline as folder vs. Trash above.
+    setFolderId(null)
+    setTag(null)
+    setTickerFilter(null)
+    setPropertyFilter(null)
+    setPropertySort(null)
+    setActiveView(view)
+    setViewMode(view.viewType === 'table' ? 'table' : 'list')
+    clearViewAllParam()
+    if (noteId) clearNoteParam()
+  }
+  const handleQuickFilter = (propertyId, value) => {
+    if (activeView) return // a saved view's spec is server-resolved; ad-hoc filters don't apply on top of it
+    setPropertyFilter([{ propertyId, op: 'eq', value }])
+  }
+  const handlePropertySort = (propertyId) => {
+    if (activeView) return
+    setPropertySort((prev) => ({
+      propertyId,
+      direction: prev?.propertyId === propertyId && prev.direction === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+  const handleSaveCurrentView = async (name) => {
+    // Deliberately property-filter/sort ONLY -- not folder/tag. A saved
+    // view is mutually exclusive with folder/tag browsing (activating one
+    // clears the other, same as Trash vs. folder above), and the server's
+    // savedViewId resolution only ever reads propertyFilter/propertySort
+    // out of a view's spec (directive §87 -- the server resolves its OWN
+    // stored spec, never a client-reconstructed one), so a folder/tag
+    // captured here would silently do nothing on activation. Keep the
+    // spec's actual capability matched to what it actually restores.
+    const spec = { propertyFilter, propertySort }
+    const view = await createSavedView(name, viewMode, spec)
+    setActiveView(view)
+    setSaveViewOpen(false)
+  }
+
+  // Wave G checkpoint §48 — four canonical thesis-relevant starter views,
+  // built entirely from Wave E's existing property-filter mechanism (AND-
+  // only, eq/lte/is_not_empty over USER_SET builtin properties). Two of the
+  // directive's five originally-suggested views turned out infeasible
+  // against that mechanism as designed (builtin:trade_ref is
+  // financial_derived and not filterable at all; "research_type is Long OR
+  // Short" needs an OR the filter deliberately doesn't support) -- rather
+  // than build a second query mechanism just for this, the starter set uses
+  // the four that ARE naturally expressible: Active, High Confidence, Needs
+  // Review, Invalidated. Ordinary saved-view rows once created -- fully
+  // renameable/deletable like any other.
+  const addStarterThesisViews = async () => {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const starters = [
+      { name: 'Active Theses', filter: [{ propertyId: 'builtin:thesis_status', op: 'eq', value: 'active' }] },
+      {
+        name: 'High Confidence',
+        filter: [
+          { propertyId: 'builtin:confidence', op: 'eq', value: 'high' },
+          { propertyId: 'builtin:thesis_status', op: 'eq', value: 'active' },
+        ],
+      },
+      { name: 'Needs Review', filter: [{ propertyId: 'builtin:review_date', op: 'lte', value: todayIso }] },
+      { name: 'Invalidated Theses', filter: [{ propertyId: 'builtin:thesis_status', op: 'eq', value: 'invalidated' }] },
+    ]
+    let last = null
+    for (const s of starters) {
+      try {
+        last = await createSavedView(s.name, 'list', { propertyFilter: s.filter, propertySort: null })
+      } catch { /* one starter failing (e.g. a name collision) shouldn't block the rest */ }
+    }
+    if (last) setActiveView(last)
+  }
+
+  // Wave 0 trash: undo a soft delete. Refreshes both the trash list (the
+  // note leaves it) and the sidebar's unfiltered tree (the note rejoins it).
+  const restoreNote = async (note) => {
+    try {
+      const res = await fetch(`/api/j2/notes/${note.id}/restore`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const body = await res.json()
+      addNoteToTree(body.note)
+      refresh()
+      refreshAll()
+      refreshSidebarCounts()
+      // Trashed -> active is the same target-status flip as trashing itself
+      // (NoteEditorPage's onDeleteConfirm) -- a noteLink chip elsewhere in
+      // this tab may still show the pre-restore "Trashed" state.
+      invalidateNoteLinkTarget(note.id)
+    } catch (e) {
+      console.error('[notebook] restore note failed', e)
+      setActionError("Couldn't restore that note. It's still in the trash.")
+    }
+  }
 
   // Create a note. Blank note passes no title/body; a template seeds both
-  // (plus its preset tags and, when known, the ticker).
-  const createNote = async ({ title = '', bodyJson, tags, ticker } = {}) => {
+  // (plus its preset tags and, when known, the ticker). The actual network
+  // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
+  // Workspace's own New Note/New Thesis actions call the SAME path rather
+  // than a second creation flow -- this wrapper only adds NotebookTab's OWN
+  // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
+  // refresh bookkeeping) on top of it.
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -209,26 +464,15 @@ export default function NotebookTab() {
       // should not make you retype AMD. An explicit ticker always wins; focus
       // only fills the blank.
       const seededTicker = ticker || focusSymbol || null
-      const res = await fetch('/api/j2/notes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          ...(bodyJson ? { bodyJson } : {}),
-          ...(tags && tags.length ? { tags } : {}),
-          ...(seededTicker ? { ticker: seededTicker } : {}),
-          ...(folderId && folderId !== '__unfiled__' ? { folderId } : {}),
-        }),
-      })
-      if (!res.ok) throw new Error(`${res.status}`)
-      const body = await res.json()
+      const safeFolderId = folderId && folderId !== '__unfiled__' && folderId !== '__trash__' ? folderId : undefined
+      const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
       // Instant: put it in the tree now, then reconcile from the server.
-      addNoteToTree(body.note)
+      addNoteToTree(created)
       refreshAll()
-      openNote(body.note)
+      openNote(created)
     } catch (e) {
-      alert(`Could not create note: ${e.message || e}`)
+      console.error('[notebook] create note failed', e)
+      setActionError("Couldn't create that note. Nothing was saved.")
     } finally {
       setCreating(false)
     }
@@ -251,6 +495,7 @@ export default function NotebookTab() {
       bodyJson: tpl.build(ctx),
       tags: tpl.tags,
       ticker: ctx.ticker,
+      properties: tpl.properties,
     })
   }
 
@@ -270,11 +515,14 @@ export default function NotebookTab() {
   // Deep link: /journal/notebook?new=<templateKey>[&ticker=SYM] — Today page, the
   // EOD recap, and TradeDrawer open a pre-seeded template directly (plan §4).
   // Runs once; params are stripped either way so a stale key can't loop.
+  // Wave B: `new=blank` is the one reserved key that isn't a template — it's
+  // the command palette's "New Note" destination, mirroring the sidebar's
+  // own "+ New note" button (a bare createNote() call, no template).
   const newKey = searchParams.get('new')
   useEffect(() => {
     if (!newKey || noteId || creating || deepLinkRan.current) return
     deepLinkRan.current = true
-    const tpl = getTemplate(newKey)
+    const tpl = newKey === 'blank' ? null : getTemplate(newKey)
     const ticker = searchParams.get('ticker')
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -283,6 +531,14 @@ export default function NotebookTab() {
       return next
     }, { replace: true })
     if (tpl) createFromTemplate(tpl, { ticker })
+    else if (newKey === 'blank') {
+      // Same uppercase-and-trim normalization assembleTemplateContext applies
+      // for the template path (templateContext.js) — kept consistent so a
+      // deep-linked ticker behaves identically regardless of which "new
+      // note" door it came through.
+      const normalizedTicker = (ticker || '').trim().toUpperCase() || undefined
+      createNote({ ticker: normalizedTicker })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newKey])
 
@@ -292,6 +548,9 @@ export default function NotebookTab() {
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
     >
+      {actionError && (
+        <div className={styles.actionError} role="alert">{actionError}</div>
+      )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
       {!sidebarOpen && (
@@ -319,6 +578,12 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            savedViews={savedViews}
+            activeViewId={activeView?.id ?? null}
+            onSelectView={handleSelectView}
+            onAddStarterViews={addStarterThesisViews}
+            isHome={isHome}
+            onSelectAllNotes={selectAllNotes}
           />
         </div>
       </div>
@@ -336,26 +601,83 @@ export default function NotebookTab() {
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
           <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
+        ) : isHome ? (
+          // Wave H: bare-root Research Home (checkpoint decision 33/57) --
+          // "All notes" itself is unchanged, one click away via the sidebar.
+          <ResearchHome
+            onOpenNote={openNote}
+            onCreateNote={() => createNote()}
+            onCreateThesis={() => handlePick(getTemplate('thesis'))}
+            onImport={() => setImportOpen(true)}
+            hasAnyNotes={allNotesTotal > 0}
+          />
         ) : (
           <>
         <div className={styles.toolbar}>
-          <select
-            className={styles.sortSelect}
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
-            <option value="updated">Recently updated</option>
-            <option value="created">Recently created</option>
-            <option value="title">Title</option>
-          </select>
-          {(folderId || tag) && (
+          {isTrashView ? (
+            // Trash view sort is fixed (most recently deleted first) — the
+            // toolbar's Recently-updated/Recently-created/Title options are
+            // for the active library, not a meaningful choice here.
+            <span className={styles.trashLabel}>Trash</span>
+          ) : (
+            <select
+              className={styles.sortSelect}
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              <option value="updated">Recently updated</option>
+              <option value="created">Recently created</option>
+              <option value="title">Title</option>
+            </select>
+          )}
+          {tickerFilter && (
+            <span className={styles.tickerFilterChip}>${tickerFilter}</span>
+          )}
+          {(folderId || tag || activeView || propertyFilter || tickerFilter) && (
             <button
               type="button"
               className={styles.clear}
-              onClick={() => { setFolderId(null); setTag(null) }}
+              onClick={() => {
+                setFolderId(null); setTag(null)
+                setActiveView(null); setPropertyFilter(null); setPropertySort(null)
+                setTickerFilter(null)
+              }}
             >
               Clear filter
             </button>
+          )}
+          {!isTrashView && (
+            <div className={styles.viewModeWrap}>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'list' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('list')}
+                disabled={Boolean(activeView)}
+                title="List view"
+              >
+                <UIcon name="rows" size={14} gold={false} />
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewModeBtn} ${viewMode === 'table' ? styles.viewModeActive : ''}`}
+                onClick={() => setViewMode('table')}
+                disabled={Boolean(activeView)}
+                title="Table view"
+              >
+                <UIcon name="columns" size={14} gold={false} />
+              </button>
+              {!activeView && (
+                <button
+                  type="button"
+                  className={styles.saveViewBtn}
+                  onClick={() => setSaveViewOpen(true)}
+                  title="Save this view"
+                >
+                  <UIcon name="plus" size={12} gold={false} />
+                  Save view
+                </button>
+              )}
+            </div>
           )}
           <div className={styles.newWrap}>
             <button
@@ -419,14 +741,28 @@ export default function NotebookTab() {
           onClose={() => setExportOpen(false)}
         />
 
+        <SavedViewEditor
+          open={saveViewOpen}
+          onClose={() => setSaveViewOpen(false)}
+          onSave={handleSaveCurrentView}
+        />
+
         {error && (
-          <div className={styles.error}>
-            Couldn't load notes: {String(error.message || error)}
+          <div className={styles.error} role="alert">
+            Couldn't load your notes — this looks like a connection problem, not lost work.{' '}
+            <button type="button" className="btn btn-ghost" onClick={refresh}>Try again</button>
           </div>
         )}
 
         {isLoading && notes.length === 0 ? (
           <div className={styles.empty}>Loading…</div>
+        ) : notes.length === 0 && isTrashView ? (
+          <div className={styles.empty}>
+            <p>Trash is empty.</p>
+            <p className={styles.emptyHint}>
+              Deleted notes stay here for 30 days before they're gone for good.
+            </p>
+          </div>
         ) : notes.length === 0 ? (
           <div className={styles.empty}>
             <p>Your notebook is empty.</p>
@@ -455,11 +791,29 @@ export default function NotebookTab() {
           </div>
         ) : (
           <>
-            <div className={styles.grid}>
-              {notes.map((n) => (
-                <NoteCard key={n.id} note={n} onOpen={openNote} />
-              ))}
-            </div>
+            {viewMode === 'table' && !isTrashView ? (
+              <NotesTableView
+                notes={notes}
+                propertyDefs={propertyDefs}
+                sort={sort}
+                onSortChange={setSort}
+                propertySort={activeView ? activeView.spec?.propertySort : propertySort}
+                onPropertySortChange={handlePropertySort}
+                onQuickFilter={handleQuickFilter}
+                onOpenNote={openNote}
+              />
+            ) : (
+              <div className={styles.grid}>
+                {notes.map((n) => (
+                  <NoteCard
+                    key={n.id}
+                    note={n}
+                    onOpen={openNote}
+                    onRestore={isTrashView ? restoreNote : undefined}
+                  />
+                ))}
+              </div>
+            )}
             {/* Incremental loading over infinite scroll: simpler, testable,
                 and it never fights the page's own scroll container (`.main`
                 above scrolls internally — a scroll-triggered fetch bound to

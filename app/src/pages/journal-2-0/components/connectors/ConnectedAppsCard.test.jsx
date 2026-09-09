@@ -118,6 +118,33 @@ describe('ConnectedAppsCard — provider matrix', () => {
     expect(screen.getByText('Conflicts')).toBeInTheDocument()
   })
 
+  it('names the source-deleted tag when a sync severed notes', async () => {
+    // A severed note is NOT removed from the Notebook -- the engine appends
+    // `source-deleted` and keeps the body. A bare count would tell the member
+    // something vanished without saying where it went or that it survived, so
+    // the hint (not just the number) is the contract under test.
+    const withRemoved = JSON.parse(JSON.stringify(STATUS_MIXED))
+    withRemoved.providers.roam.sources[0].counts = {
+      notesCreated: 0, notesUpdated: 1, conflicts: 0, sourceDeleted: 3,
+    }
+    mockFetch([['/api/j2/notes/connectors/status', { body: withRemoved }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByText('Removed')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText(/source-deleted/)).toBeInTheDocument()
+    expect(screen.getByText(/Nothing was erased/i)).toBeInTheDocument()
+  })
+
+  it('shows no removal count or hint when nothing was severed', async () => {
+    // The other half of the rail: without this, a component that rendered the
+    // hint unconditionally would still pass the test above.
+    mockFetch([['/api/j2/notes/connectors/status', { body: STATUS_MIXED }]])
+    render(<ConnectedAppsCard />)
+    await screen.findByText('Conflicts')
+    expect(screen.queryByText('Removed')).not.toBeInTheDocument()
+    expect(screen.queryByText(/source-deleted/)).not.toBeInTheDocument()
+  })
+
   it('Sync now fires POST /sources/{id}/sync', async () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: STATUS_MIXED }],
@@ -175,6 +202,20 @@ describe('ConnectedAppsCard — token modal (roam)', () => {
   afterEach(() => {
     window.history.replaceState({}, '', '/settings')
     vi.restoreAllMocks()
+  })
+
+  // Honesty audit, 2026-09-04: the OAuth consent panel and the Obsidian
+  // device modal both disclose "one-way, nothing written back" before the
+  // member connects. The token modal (roam/craft) had no such line — this
+  // pins that it now matches.
+  it('discloses the sync is one-way before the member connects', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: EMPTY_STATUS }]])
+    render(<ConnectedAppsCard />)
+    const roamTile = await screen.findByTestId('connector-tile-roam')
+    fireEvent.click(within(roamTile).getByRole('button', { name: /connect/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/one-way/i)).toBeInTheDocument()
+    expect(within(dialog).getByText(/nothing is ever written back/i)).toBeInTheDocument()
   })
 
   it('POSTs graphName/token/consent:true to the connect endpoint once consent is checked', async () => {
@@ -886,5 +927,86 @@ describe('ConnectedAppsCard — device modal (obsidian, Task 5)', () => {
     mockFetch([['/api/j2/notes/connectors/status', { body: EMPTY_STATUS }]])
     render(<ConnectedAppsCard />)
     expect(await screen.findByTestId('connector-tile-obsidian')).toHaveTextContent('Coming soon')
+  })
+})
+
+describe('ConnectedAppsCard — reconnecting a broken source (member-reachability fix)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const STATUS_BROKEN_ROAM = {
+    providers: {
+      roam: {
+        configured: true,
+        connected: true,
+        sources: [
+          {
+            id: 'src-roam-broken',
+            provider: 'roam',
+            displayName: 'My Trading Graph',
+            remoteId: 'my-trading-graph',
+            syncEnabled: true,
+            status: 'broken',
+            lastSyncAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+            lastSyncStatus: 'error',
+            lastSyncError: 'token expired',
+            counts: { notesCreated: 12, notesUpdated: 3, conflicts: 0 },
+          },
+        ],
+      },
+      craft: { configured: true, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+    },
+  }
+
+  // ⛔ Before this fix, `freshnessLabel` promised "reconnect needed" with no
+  // button anywhere in the tile that could act on it — Sync now just
+  // re-submits the same broken credentials, and the top-level CTA stays the
+  // green "Connected" badge forever once `connected: true`. This test would
+  // fail on the pre-fix component (no "Reconnect" role in the DOM at all).
+  it('a broken source shows a Reconnect control, not just an inert red dot', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: STATUS_BROKEN_ROAM }]])
+    render(<ConnectedAppsCard />)
+
+    const roamTile = await screen.findByTestId('connector-tile-roam')
+    expect(within(roamTile).getByText(/reconnect needed/i)).toBeInTheDocument()
+    expect(within(roamTile).getByRole('button', { name: /^reconnect$/i })).toBeInTheDocument()
+  })
+
+  // The button must actually reach the real recovery path: the SAME
+  // token-modal + `/roam/connect` POST the initial "Connect" button uses,
+  // which the backend upserts over the broken credentials (no Disconnect
+  // required first) — see connections.py's own 'broken' -> 'active' note.
+  it('clicking Reconnect opens the real connect flow and can heal the connector', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: STATUS_BROKEN_ROAM }],
+      ['/api/j2/notes/connectors/roam/connect', { body: {} }],
+    ])
+    render(<ConnectedAppsCard />)
+
+    const roamTile = await screen.findByTestId('connector-tile-roam')
+    fireEvent.click(within(roamTile).getByRole('button', { name: /^reconnect$/i }))
+
+    fireEvent.change(await screen.findByLabelText(/graph name/i), { target: { value: 'my-trading-graph' } })
+    fireEvent.change(screen.getByLabelText(/api token/i), { target: { value: 'fresh-token' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^connect$/i }))
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/roam/connect'))
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ graphName: 'my-trading-graph', token: 'fresh-token', consent: true })
+    })
+  })
+
+  it('a healthy source never shows a Reconnect control', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: STATUS_MIXED }]])
+    render(<ConnectedAppsCard />)
+    const roamTile = await screen.findByTestId('connector-tile-roam')
+    await screen.findByText(/Connected · 1 source/)
+    expect(within(roamTile).queryByRole('button', { name: /^reconnect$/i })).not.toBeInTheDocument()
   })
 })

@@ -172,6 +172,9 @@ def test_todays_daily_bar_stamps_today_and_caches(monkeypatch):
         return {"o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10}
     monkeypatch.setattr(massive._MassiveRestClient, "get_todays_daily_ohlcv", _one)
     monkeypatch.setattr(massive, "_get_client", lambda: object.__new__(massive._MassiveRestClient))
+    # Not testing the calendar gate here (see the weekend/holiday tests below) —
+    # force it open so this test's result never depends on which real day it runs.
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: True)
     from datetime import datetime
     from zoneinfo import ZoneInfo
     today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
@@ -183,3 +186,63 @@ def test_todays_daily_bar_stamps_today_and_caches(monkeypatch):
     massive.todays_daily_bar("AAPL")
     assert calls["n"] == 1, "the developing-bar snapshot must be TTL-cached per ticker"
     cache.invalidate("today_daily_bar_AAPL")
+
+
+# ── the weekend/holiday gate (2026-09-04 fix) ────────────────────────────────
+# 🔴 THE REGRESSION THIS EXISTS FOR: every symbol served a phantom "tomorrow"
+# daily bar — Friday's OHLC verbatim, re-dated onto Saturday — because the
+# provider's snapshot `day` object stayed nonzero for a while after the close
+# instead of resetting to zero, and `day.o > 0` was the ONLY gate.
+
+def test_todays_daily_bar_refuses_a_stale_nonzero_snapshot_on_a_non_trading_day(monkeypatch):
+    from api.services.cache import cache
+    cache.invalidate("today_daily_bar_AAPL")
+    calls = {"n": 0}
+
+    def _stale_but_nonzero(self, tk):
+        calls["n"] += 1
+        # Exactly the observed shape: real-looking OHLCV, just not TODAY's.
+        return {"o": 353.63, "h": 356.83, "l": 337.11, "c": 337.18, "v": 8451583}
+    monkeypatch.setattr(massive._MassiveRestClient, "get_todays_daily_ohlcv", _stale_but_nonzero)
+    monkeypatch.setattr(massive, "_get_client", lambda: object.__new__(massive._MassiveRestClient))
+    monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: False)
+
+    assert massive.todays_daily_bar("AAPL") is None
+    assert calls["n"] == 0, "must refuse BEFORE ever asking the provider for today's snapshot"
+    cache.invalidate("today_daily_bar_AAPL")
+
+
+def test_todays_daily_bar_gate_checks_weekday_and_nyse_holidays(monkeypatch):
+    """The gate itself: Sat/Sun and any date in the NYSE holiday set are
+    refused; an ordinary weekday is not.
+
+    `_today_et_is_a_trading_day` does `from datetime import datetime` INSIDE
+    the function body (a deliberate deferred import, to dodge a circular
+    import with bars_fetch) — that re-reads the `datetime` module's `datetime`
+    attribute on every call, so patching it there (not a `massive.datetime`
+    that doesn't exist) is what actually freezes "now" for this test.
+    """
+    import datetime as _dt_mod
+    import api.services.bars_fetch as bars_fetch
+
+    real_datetime = _dt_mod.datetime
+
+    def _frozen_datetime_class(iso_date):
+        class _Frozen(real_datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return real_datetime.fromisoformat(iso_date).replace(tzinfo=tz)
+        return _Frozen
+
+    # Saturday 2026-09-05
+    monkeypatch.setattr(_dt_mod, "datetime", _frozen_datetime_class("2026-09-05"))
+    assert massive._today_et_is_a_trading_day() is False
+
+    # Labor Day 2026-09-07 (a Monday — weekday check alone would pass it)
+    assert 20260907 in bars_fetch._NYSE_HOLIDAYS_YYYYMMDD
+    monkeypatch.setattr(_dt_mod, "datetime", _frozen_datetime_class("2026-09-07"))
+    assert massive._today_et_is_a_trading_day() is False
+
+    # An ordinary trading Friday
+    monkeypatch.setattr(_dt_mod, "datetime", _frozen_datetime_class("2026-09-04"))
+    assert massive._today_et_is_a_trading_day() is True

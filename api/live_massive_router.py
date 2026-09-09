@@ -84,6 +84,7 @@ def _in_market_hours(now_et: datetime = None) -> bool:
 TIER_PRIORITY = {
     "alpha_leaps": 1,   # aggregate-conviction LEAP position (see _derive_alert_name); shipped 2026-08-11
     "alpha":   1,
+    "ask_accum": 2,     # aggregate ask-build on a quiet name, any DTE (see _derive_alert_name); shipped 2026-09-04
     "size":    2,
     "bullish": 3,
     "bearish": 3,
@@ -284,6 +285,39 @@ DEFAULT_THRESHOLDS = {
     # 180C ~39% OTM, 13mo out) is a leveraged conviction bet, not a lottery; the
     # separate deep-OTM lottery filter still drops the truly-crazy before the tier.
     "alpha_leaps_max_otm_pct": 50.0,
+    # ── UCT Ask Accumulation — aggregate ask-build tier, ANY DTE (2026-09-04) ──
+    # Mirrors Alpha LEAPS' aggregate-ask machinery but WITHOUT the DTE>=180 cap
+    # and at a LOWER floor: a large AGGREGATE ask-side premium across multiple
+    # prints (sweeps + blocks) on ONE (symbol,strike,expiry). The PPTA 35C
+    # 01/15/27 case (~$1.21M across a $484.5K ask BLOCK + three blank-side SWEEPs,
+    # ~133 DTE) fell through every existing net: under the $1M single-print Alpha
+    # floor, under 180 DTE for Alpha LEAPS, and the by-contract accum push was
+    # disabled + floored at $3M. Grades the AGGREGATE, not the single print.
+    #
+    # ⚠️ 2026-09-05 REDESIGN — two fixes after PPTA STILL didn't fire under the
+    #    2026-09-04 build (both verified against flow.db, see git log):
+    #    (1) The ask-premium ledger only summed Side IN (A/AA), but PPTA's build is
+    #        3 BLANK-side sweeps + 1 A block, so the aggregate was only the $484.5K
+    #        block — under the floor. The ledger now counts blank-side SWEEPs as
+    #        presumed-ask (sweep_empty_side_as_ask), matching the single-print path,
+    #        so the aggregate is the true ~$1.21M.
+    #    (2) require_unusual USED to gate to DORMANT names (_is_dormant_ticker) — but
+    #        PPTA alerts almost daily, so it is NOT dormant and was excluded. That
+    #        gate measured the wrong thing: these builds happen on ACTIVE, liquid
+    #        names. Replaced with CONTRACT-level conviction (_ask_accum_conviction):
+    #        session ask VOLUME on the contract vs its OI (ask_accum_min_contract_voi)
+    #        = a position being OPENED, not churn on existing OI. Megacap rolls of a
+    #        big standing position have low contract V/OI and still don't trip it.
+    # Set ask_accum_enabled=False to disable (rows fall back to their single-print
+    # tier). Auto-push rides the separate `ask_accum` toggle in _AUTO_PUSH_CFG.
+    "ask_accum_enabled": True,
+    "ask_accum_min_aggregate_premium": 1_000_000,
+    "ask_accum_max_otm_pct": 50.0,
+    "ask_accum_require_unusual": True,     # apply the contract-conviction guard
+    "ask_accum_min_contract_voi": 1.0,     # session ask vol / contract OI floor (NEW-build test)
+    "ask_accum_max_mktcap": 50_000_000_000,  # PRIMARY noise guard: exclude mega-caps + index
+                                             # options (0/unknown mktcap); 0 disables. Replaced
+                                             # name-dormancy 2026-09-05 (see _ask_accum_qualifies).
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -526,6 +560,25 @@ def _qualifies_curated(alert: dict, thresholds: dict,
     if tier == "algo":
         return False
 
+    # Ask Accumulation AND Alpha LEAPS: own path, evaluated BEFORE the hide_sizeless /
+    # hide_block_only heuristics. Both are AGGREGATE tiers — assigned in
+    # _derive_alert_name ONLY after the contract's SESSION ask aggregate crossed the
+    # floor ($1M / $3M) and passed the near-money + conviction gates — so they are
+    # proven block+SWEEP builds: the lone-block filter must not hide the (often BLOCK)
+    # anchor row, and they are never direction-unconfirmed. Require only a real
+    # direction. Their floor is an ASK-only session aggregate that contract_totals
+    # (all-side, this scan's rows) can't reconstruct, so re-checking a premium floor
+    # here would use the wrong basis and wrongly reject it.
+    #   ⚠️ alpha_leaps was NOT listed here (only ask_accum) until 2026-09-05 — so it
+    #   fell through to the `tier not in (...)` reject below and was DROPPED from the
+    #   Curated feed entirely. Since curated defaults ON, Alpha LEAPS builds (e.g. the
+    #   IREN 65C 3/19/27 $7.07M) were invisible in the default view since the tier
+    #   launched (2026-08-11). ask_accum worked only because it had this own-path.
+    # (Was below hide_block_only until 2026-09-05, which HID the PPTA block anchor
+    # because the contract_types map didn't register its blank-side sweeps.)
+    if tier in ("ask_accum", "alpha_leaps"):
+        return not alert.get("_directionUnconfirmed")
+
     # Optional (2026-07-21): hide direction-unconfirmed "UCT Size" (keep-as-Size)
     # rows from the curated feed. They're big prints whose side we couldn't call —
     # SHOWN by default; the admin can hide them since they're non-directional.
@@ -709,6 +762,56 @@ def _is_dormant_ticker(symbol: str) -> bool:
     return symbol not in _dormant_active_set
 
 
+_LAST_DORMANT_REFRESH = 0.0
+_DORMANT_MAX_AGE_SEC = 18 * 3600      # rebuild if the file is older than ~18h
+_DORMANT_REFRESH_COOLDOWN = 3600     # never spawn more than one rebuild / hour
+
+
+def _maybe_refresh_dormant():
+    """Lazy self-heal for the dormant-ticker precompute (mirrors the COT /
+    fundamentals self-heal idiom). Nothing SCHEDULES `_compute_active_tickers`
+    — it's only wired to an admin endpoint — so without this the file never
+    exists in prod and _is_unusual_classification / the Ask Accumulation
+    dormant gate silently run blind (legacy V/OI mode → dormant names never
+    qualify). If the file is missing or stale, rebuild it ONCE in a daemon
+    thread (a 1-5s FlowDB scan, off the request path), rate-limited by a
+    cooldown. Until it lands, _is_dormant_ticker returns False (conservative —
+    the tier stays quiet rather than spamming), then fires on the next scan."""
+    global _LAST_DORMANT_REFRESH
+    now = time.time()
+    try:
+        fresh = (os.path.exists(_DORMANT_PATH)
+                 and (now - os.path.getmtime(_DORMANT_PATH)) < _DORMANT_MAX_AGE_SEC)
+    except OSError:
+        fresh = False
+    if fresh or (now - _LAST_DORMANT_REFRESH) < _DORMANT_REFRESH_COOLDOWN:
+        return
+    _LAST_DORMANT_REFRESH = now
+
+    def _work():
+        global _dormant_cache, _dormant_active_set, _dormant_loaded_mtime
+        try:
+            # Window ends at the PRIOR trading day so today's own flow can't mark
+            # a dormant name "active" (which would defeat the wake-up signal).
+            _prior = _trading_days_back(2)[-1]
+            data = _compute_active_tickers(lookback_days=30, end_date=_prior)
+            os.makedirs(os.path.dirname(_DORMANT_PATH), exist_ok=True)
+            tmp = _DORMANT_PATH + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f)
+            os.replace(tmp, _DORMANT_PATH)   # atomic swap
+            _dormant_cache = None
+            _dormant_active_set = None
+            _dormant_loaded_mtime = 0
+            _load_dormant_tickers()
+            print(f"[dormant] self-heal rebuilt active set "
+                  f"({data.get('active_count')} active)")
+        except Exception as e:
+            print(f"[dormant] self-heal failed: {e}")
+
+    threading.Thread(target=_work, daemon=True).start()
+
+
 def _trading_days_back(n: int, end_date: date = None) -> list:
     """Return the last N trading days as date objects, ending at `end_date`
     (default: today). Weekends excluded. Holidays NOT excluded (over-includes
@@ -724,11 +827,17 @@ def _trading_days_back(n: int, end_date: date = None) -> list:
     return dates
 
 
-def _compute_active_tickers(lookback_days: int = 30) -> dict:
+def _compute_active_tickers(lookback_days: int = 30, end_date: date = None) -> dict:
     """Scan FlowDB for distinct tickers with at least one classifiable
     MAGENTA/YELLOW alert in the past N trading days. Returns dict matching
-    the JSON file schema. Heavy operation — full DB scan, can take 1-5s."""
-    trading_dates = _trading_days_back(lookback_days)
+    the JSON file schema. Heavy operation — full DB scan, can take 1-5s.
+
+    end_date (2026-09-04): the last trading day the window INCLUDES. Defaults to
+    today (the admin endpoint's behavior). The self-heal passes the PRIOR trading
+    day so "dormant" means "quiet THROUGH YESTERDAY" — otherwise a name's own
+    first prints TODAY put it in the active set and the dormancy gate self-defeats
+    (today's build is exactly what should wake a dormant name)."""
+    trading_dates = _trading_days_back(lookback_days, end_date)
     earliest = trading_dates[-1]
     today = trading_dates[0]
     date_strs = [f"{d.month}/{d.day}/{d.year}" for d in trading_dates]
@@ -1003,6 +1112,28 @@ def _derive_direction(cp: str, side: str, type_: str = "", vol=None, oi=None):
 # day's buying accumulates. Gated by close_detector_enabled (default False);
 # tune sensitivity with close_min_long_frac. See _demote_contaminated_sell.
 
+def _ledger_row_is_ask(r, presume_sweep_ask: bool = True) -> bool:
+    """A ledger row counts toward the ASK-side aggregate if its Side is A/AA, OR —
+    when presume_sweep_ask is on (mirrors thresholds.sweep_empty_side_as_ask) — it
+    is a BLANK-side SWEEP/ISO. The single-print classifier already presumes a blank
+    sweep is buyer-driven (see _derive_direction); before 2026-09-05 that
+    presumption never reached the CONTRACT aggregate, so a build made mostly of
+    blank sweeps (the PPTA 35C case: 3 blank sweeps + 1 A block) summed to only the
+    lone A-block premium and fell under the Ask-Accumulation / Alpha-LEAPS floor.
+    Requires a `Type` column on the row (the ledger query now projects it)."""
+    s = (r["Side"] or "").strip().upper()
+    if s in ("A", "AA"):
+        return True
+    if presume_sweep_ask and not s:
+        try:
+            t = (r["Type"] or "")
+        except (KeyError, IndexError):
+            t = ""
+        t = t.upper().strip().strip("/")
+        return ("SWEEP" in t) or ("ISO" in t)
+    return False
+
+
 def _build_session_long_ledger(rows) -> dict:
     """gross_ask[row_id] = TOTAL ASK-side (long-building) volume on the row's
     contract across the whole session (ORDER-INDEPENDENT) — only A/AA counts;
@@ -1026,14 +1157,17 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
-def _build_session_ask_premium_ledger(rows) -> dict:
-    """ask_prem[row_id] = TOTAL ask-side (A/AA) PREMIUM on the row's contract
-    across the whole session (ORDER-INDEPENDENT). Sibling of
-    _build_session_long_ledger (which sums ask VOLUME) — this sums ask PREMIUM
-    so the classifier can grade an AGGREGATE position: sweeps AND blocks on the
-    SAME (symbol, strike, expiry) that add up to institutional conviction (the
-    Alpha LEAPS tier). Fed the FULL day's sided prints per contract (see
-    _compute_recent). Pure + testable. Contract = (ticker, cp, strike, exp)."""
+def _build_session_ask_premium_ledger(rows, presume_sweep_ask: bool = True) -> dict:
+    """ask_prem[row_id] = TOTAL ask-side PREMIUM on the row's contract across the
+    whole session (ORDER-INDEPENDENT). Sibling of _build_session_long_ledger
+    (which sums ask VOLUME) — this sums ask PREMIUM so the classifier can grade an
+    AGGREGATE position: sweeps AND blocks on the SAME (symbol, strike, expiry) that
+    add up to institutional conviction (the Alpha LEAPS / Ask Accumulation tiers).
+    Ask = A/AA OR a blank-side SWEEP under the sweep_empty_side_as_ask presumption
+    (see _ledger_row_is_ask; 2026-09-05 — this is what lets the PPTA-shaped
+    blank-sweep build reach its true ~$1.2M aggregate instead of just the A-block).
+    Fed the FULL day's sided prints per contract (see _compute_recent). Pure +
+    testable. Contract = (ticker, cp, strike, exp)."""
     totals: dict = {}     # contract_key -> total ask premium
     row_key: dict = {}    # row_id -> contract_key
     for r in rows:
@@ -1042,13 +1176,109 @@ def _build_session_ask_premium_ledger(rows) -> dict:
             continue
         key = (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])
         row_key[rid] = key
-        if (r["Side"] or "").strip().upper() in ("A", "AA"):
+        if _ledger_row_is_ask(r, presume_sweep_ask):
             try:
                 p = float(r["Premium"] or 0)
             except (TypeError, ValueError):
                 p = 0.0
             totals[key] = totals.get(key, 0.0) + p
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
+
+
+def _build_session_ask_volume_ledger(rows, presume_sweep_ask: bool = True) -> dict:
+    """ask_vol[row_id] = TOTAL ask-side VOLUME on the row's contract across the
+    whole session (ORDER-INDEPENDENT). Sibling of _build_session_ask_premium_ledger
+    using the SAME ask definition (A/AA + blank-side sweeps). Feeds the Ask
+    Accumulation contract-level conviction gate (_ask_accum_conviction): session
+    ask volume vs the contract's prior OI = a position being OPENED (a NEW build),
+    which is the noise guard that replaced name-dormancy (2026-09-05). Distinct from
+    _build_session_long_ledger (A/AA only, feeds the close detector) so that gate is
+    left byte-identical. Contract = (ticker, cp, strike, exp)."""
+    totals: dict = {}     # contract_key -> total ask volume
+    row_key: dict = {}    # row_id -> contract_key
+    for r in rows:
+        rid = r["id"]
+        if rid is None:
+            continue
+        key = (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])
+        row_key[rid] = key
+        if _ledger_row_is_ask(r, presume_sweep_ask):
+            try:
+                v = float(r["Volume"] or 0)
+            except (TypeError, ValueError):
+                v = 0.0
+            totals[key] = totals.get(key, 0.0) + v
+    return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
+
+
+def _ask_accum_conviction(oi, agg_ask_volume: float, thresholds: dict) -> bool:
+    """Contract-level NEW-BUILD test — the Ask Accumulation noise guard that
+    REPLACED name-level dormancy (2026-09-05). True when the session's aggregate
+    ASK volume on THIS (symbol, strike, expiry) is large vs the contract's prior
+    OI — i.e. a position being OPENED, not churn/adjustment on a big standing
+    position. Catches conviction on ACTIVE, liquid names (the PPTA case, which the
+    dormancy gate wrongly excluded because PPTA alerts almost daily) while keeping
+    out routine rolls of existing OI on megacaps. A fresh strike (OI 0/unknown)
+    qualifies on a volume floor. Tunable via ask_accum_min_contract_voi."""
+    try:
+        min_voi = float(thresholds.get("ask_accum_min_contract_voi", 1.0))
+    except (TypeError, ValueError):
+        min_voi = 1.0
+    try:
+        oi_n = float(oi or 0)
+    except (TypeError, ValueError):
+        oi_n = 0.0
+    if oi_n > 0:
+        return (agg_ask_volume / oi_n) >= min_voi
+    # OI 0 / unknown → treat as a fresh build if ask volume clears the fresh floor
+    try:
+        fresh_min = float(thresholds.get("fresh_strike_min_volume", 100))
+    except (TypeError, ValueError):
+        fresh_min = 100.0
+    return agg_ask_volume >= fresh_min
+
+
+def _ask_accum_qualifies(side, money_pct, agg_ask_premium: float,
+                         agg_ask_volume: float, oi, mktcap, thresholds: dict,
+                         apply_mktcap: bool = True) -> bool:
+    """The SINGLE definition of "this row is a UCT Ask Accumulation build": an
+    ask-side row on a NON-megacap contract whose SESSION ask aggregate clears the
+    floor, is near-the-money, and shows contract-level NEW-build conviction. Used by
+    BOTH the classifier gates (_derive_alert_name promotion + tier) AND the deep-OTM
+    lottery EXEMPTION in _row_to_alert.
+
+    ⚠️ The market-cap ceiling is the PRIMARY noise guard (replaced name-dormancy
+    2026-09-05). On a mega-cap or INDEX option, a whole session's ask prints on one
+    contract sum past its OI as ROUTINE churn, not conviction — measured on 9/4, the
+    aggregate-V/OI test alone classified 275 contracts of which 258 were mega/index
+    (SPX, NDX, AAPL, NVDA...). A $50B ceiling left 17, PPTA ($2.98B) among them.
+    Dormancy tried to encode the same "quiet name" idea but excluded PPTA (it alerts
+    almost daily); market cap is the criterion PPTA passes. Index options report
+    mktcap 0/unknown and are excluded. Set ask_accum_max_mktcap=0 to disable."""
+    if not thresholds.get("ask_accum_enabled", True):
+        return False
+    if (side or "").strip().upper() not in ("A", "AA"):
+        return False
+    if agg_ask_premium < thresholds.get("ask_accum_min_aggregate_premium", 1_000_000):
+        return False
+    if money_pct is None or abs(money_pct) > thresholds.get("ask_accum_max_otm_pct", 50.0):
+        return False
+    # apply_mktcap=False for the deep-OTM lottery exemption: that filter is about
+    # "is this a retail lottery ticket," which a large aggregate ask build never is
+    # regardless of cap — so a mega-cap deep-OTM Alpha LEAPS build ($3M+) must still
+    # be exempted from the drop even though the ask_accum TIER itself excludes megacaps.
+    _cap_ceil = thresholds.get("ask_accum_max_mktcap", 50_000_000_000)
+    if apply_mktcap and _cap_ceil:
+        try:
+            _mc = float(mktcap or 0)
+        except (TypeError, ValueError):
+            _mc = 0.0
+        if not (0 < _mc < float(_cap_ceil)):   # 0/unknown (index) or >= ceiling → out
+            return False
+    if (thresholds.get("ask_accum_require_unusual", True)
+            and not _ask_accum_conviction(oi, agg_ask_volume, thresholds)):
+        return False
+    return True
 
 
 def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) -> None:
@@ -1087,7 +1317,7 @@ def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) ->
 
 
 def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None,
-                       agg_ask_premium: float = 0.0):
+                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
     """Returns (alertName, tier_key, tier_priority), or None if the row
     is a WHITE color that didn't qualify for premium-override promotion.
 
@@ -1106,6 +1336,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     dte = _parse_int(row["Dte"])
     volume = _parse_int(row["Volume"])
     oi = _parse_int(row["OI"])
+    mktcap = _parse_int(row.get("MktCap"))   # Ask Accumulation mega-cap ceiling
     v_oi = (volume / oi) if oi > 0 else 0
 
     # Distinguish "explicitly zero OI" (real fresh strike) from "unknown
@@ -1180,6 +1411,23 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             if premium >= min_prem and (is_sweep_or_block or not require_sb):
                 # Promote — fall through to MAGENTA branch below.
                 color = "MAGENTA"
+
+    # ─── Ask Accumulation aggregate promotion (2026-09-04) ─────────────────
+    # A quiet-name BUILD usually prints at MODERATE per-print V/OI (each print
+    # WHITE/YELLOW), so no single print is MAGENTA even though the SESSION ask
+    # total is large — the exact PPTA case. The single-print premium_override
+    # above can't catch it ($679.9K < $1M). Promote on the AGGREGATE so the row
+    # reaches the tier branch; the ask_accum check inside re-applies the gates.
+    # Scoped tightly (ask + near-money + over-floor + contract-level NEW-BUILD
+    # conviction) so it never promotes a row that wouldn't become ask_accum.
+    if color != "MAGENTA" and side_is_ask:
+        try:
+            _aa_pth = _load_thresholds()
+        except Exception:
+            _aa_pth = DEFAULT_THRESHOLDS
+        if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
+                                agg_ask_volume, oi, mktcap, _aa_pth):
+            color = "MAGENTA"
 
     if color == "MAGENTA":
         # ─── Alpha LEAPS — aggregate-conviction on a LEAP position ─────────
@@ -1277,6 +1525,25 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                     and not block_disqualifies and not is_weekly):
                 return (f"UCT Alpha Gold {direction}", "alpha", TIER_PRIORITY["alpha"])
             # Any gate failed → fall through to Size / Unusual / Bullish-Bearish
+        # ─── UCT Ask Accumulation — aggregate ask-build + contract conviction ──
+        # Same aggregate-ask basis as Alpha LEAPS (agg_ask_premium = the session's
+        # total ask premium on this contract, blank-side sweeps now included) but
+        # WITHOUT the LEAP DTE cap and at a lower floor. Catches a large ask-side
+        # build the single-print tiers miss because no ONE print clears the Alpha
+        # floor. Noise guard is CONTRACT-LEVEL (require_unusual → _ask_accum_
+        # conviction: session ask volume >> the contract's OI = a NEW build), which
+        # REPLACED name-level dormancy on 2026-09-05 — dormancy excluded active,
+        # liquid names (PPTA alerts almost daily), which is exactly where these
+        # builds happen. Runs AFTER Alpha LEAPS / Alpha Gold decline the row, and
+        # before it falls to LEAPS / Unusual / Size / Bullish-Bearish.
+        try:
+            _aa_th = _load_thresholds()
+        except Exception:
+            _aa_th = DEFAULT_THRESHOLDS
+        if _ask_accum_qualifies(side, money_pct, agg_ask_premium,
+                                agg_ask_volume, oi, mktcap, _aa_th):
+            return (f"UCT Ask Accumulation {direction}", "ask_accum",
+                    TIER_PRIORITY["ask_accum"])
         # LEAPS
         # V/OI gate (added 6/30 evening): LEAPS now requires fresh
         # positioning OR fresh-strike with volume. Long-dated contracts
@@ -1440,7 +1707,8 @@ def _compute_conviction(premium: int, oi: int, volume: int,
 
 
 def _row_to_alert(row: dict, require_direction: bool = True,
-                  agg_ask_premium: float = 0.0) -> dict | None:
+                  agg_ask_premium: float = 0.0,
+                  agg_ask_volume: float = 0.0) -> dict | None:
     """Translate a FlowDB row to the alert shape LiveFlow.jsx expects.
     Returns None if the row should be skipped (e.g., unclassified side).
 
@@ -1632,9 +1900,25 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     # when it is far more likely a tail hedge or a spread leg. Mirror the ITM
     # asymmetry — BLOCK filters at 30% OTM, SWEEP keeps the 40% bar because a
     # sweep that far out still carries urgency.
-    if spot > 0 and dte < 365:
+    # Ask Accumulation EXEMPTION (2026-09-05): a $1M+/high-V/OI near-money ask
+    # BUILD is conviction, not the retail lottery this filter drops. Without the
+    # exemption the deepest PPTA blocker fires here — the 35C 01/15/27 is ~41% OTM
+    # vs spot (past the 30%-BLOCK bar) and is discarded before it can be classified,
+    # even though it is ~$1.21M of session ask on one contract at 3.1x its OI. The
+    # tier's OWN near-money bound (ask_accum_max_otm_pct, vs STRIKE) still applies
+    # inside _ask_accum_qualifies. Only ask-side rows qualify, so genuine lottery
+    # tickets (thin, no aggregate) are untouched.
+    try:
+        _aa_otm_th = _load_thresholds()
+    except Exception:
+        _aa_otm_th = DEFAULT_THRESHOLDS
+    _aa_otm_exempt = _ask_accum_qualifies(side, money_pct, agg_ask_premium,
+                                          agg_ask_volume, oi,
+                                          _parse_int(row.get("MktCap")), _aa_otm_th,
+                                          apply_mktcap=False)
+    if spot > 0 and dte < 365 and not _aa_otm_exempt:
         try:
-            _t_otm = _load_thresholds()
+            _t_otm = _aa_otm_th
             _otm_blk = float(_t_otm.get("deep_otm_pct_block", 30.0) or 30.0)
             _otm_swp = float(_t_otm.get("deep_otm_pct_sweep", 40.0) or 40.0)
         except Exception:
@@ -1701,14 +1985,31 @@ def _row_to_alert(row: dict, require_direction: bool = True,
                   "size", TIER_PRIORITY["size"])
     else:
         result = _derive_alert_name(row, direction, money_pct=money_pct,
-                                    agg_ask_premium=agg_ask_premium)
+                                    agg_ask_premium=agg_ask_premium,
+                                    agg_ask_volume=agg_ask_volume)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
     is_leaps = dte >= 180
 
+    # Aggregate-graded tiers (Ask Accumulation / Alpha LEAPS) represent a BUILD —
+    # sweeps + blocks on ONE contract — not a single print, so grade on the session
+    # ask aggregate (agg_ask_premium) so the grade reflects the whole position and
+    # matches the Watchlist (PPTA graded C on the $484K anchor vs A-tier on the real
+    # $1.21M build). alertPremium (the field) stays the single print so the Market
+    # Read bull/bear math isn't double-counted against the build's constituent prints;
+    # the aggregate is carried separately in aggAskPremium (what the row DISPLAYS).
+    _grade_prem, _grade_vol = premium, volume
+    if tier_key in ("ask_accum", "alpha_leaps"):
+        if agg_ask_premium:
+            _grade_prem = max(premium, int(agg_ask_premium or 0))
+        if agg_ask_volume:
+            # OI-break on the BUILD's session ask volume (7,277 vs 2,321 OI = 3.1x
+            # for PPTA), not the anchor print's, so the grade sees the real position.
+            _grade_vol = max(volume, int(agg_ask_volume or 0))
+
     score, grade = _compute_conviction(
-        premium=premium, oi=oi, volume=volume,
+        premium=_grade_prem, oi=oi, volume=_grade_vol,
         tier_priority=tier_priority, moneyness_label=money_label,
         moneyness_pct=money_pct, is_leaps=is_leaps,
     )
@@ -1735,6 +2036,8 @@ def _row_to_alert(row: dict, require_direction: bool = True,
         "exp": row["ExpirationDate"],
         "dte": dte,
         "alertPremium": float(premium),
+        "aggAskPremium": float(agg_ask_premium or 0),  # session ask premium on this contract, blank-side sweeps incl. (Ask Accumulation / Alpha LEAPS aggregate)
+        "aggAskVolume": float(agg_ask_volume or 0),    # session ask volume on this contract (Ask Accumulation contract-conviction basis)
         "averageFillPrice": price,
         "tradeSize": volume,
         "timestamp": ts,
@@ -2444,18 +2747,28 @@ def _incr_prepare(today: str):
             _alert_cache_day = today
 
 
-def _incr_classify(r):
+def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
     """Cached _row_to_alert. Reuse the classification only when the row is
     byte-unchanged since last seen (hash of its column values); re-classify on any
     change. Returns a COPY so downstream mutation (net-flow demote, _hitCount) can't
-    pollute the cache. `r` is a sqlite3.Row."""
+    pollute the cache. `r` is a sqlite3.Row.
+
+    ⚠️ The per-contract SESSION aggregates (agg_ask_premium/agg_ask_volume, from the
+    ask ledgers) are NOT columns on the row — they accrue across the day as more
+    prints land — so they MUST be part of the cache fingerprint. Without them the
+    Alpha LEAPS / Ask Accumulation tiers (which grade the aggregate, not the print)
+    could never fire in the incremental path, and a row cached as "not a build" early
+    in the session would never reclassify once the aggregate crossed the floor. This
+    was the live-feed blocker that kept the PPTA build off /live-massive even after
+    the ledger fix (incremental_scan is ON in prod)."""
     rid = r["id"]
-    h = hash(tuple(r))
+    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2)))
     ent = _alert_cache.get(rid)
     if ent is not None and ent[0] == h:
         cached = ent[1]
         return dict(cached) if cached is not None else None
-    fresh = _row_to_alert(dict(r))
+    fresh = _row_to_alert(dict(r), agg_ask_premium=agg_ask_premium,
+                          agg_ask_volume=agg_ask_volume)
     _alert_cache[rid] = (h, fresh)
     return dict(fresh) if fresh is not None else None
 
@@ -2478,6 +2791,11 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     grade_threshold = {"A+ 🚀": 4, "A": 3, "B": 2, "C": 1, "D": 0,
                        "A+": 4}  # accept both with and without rocket
     min_threshold = grade_threshold.get(min_grade, 0)
+
+    # Ensure the dormant-ticker precompute exists + is fresh (backgrounded, rate-
+    # limited) so the Unusual + Ask Accumulation dormant gates have real data.
+    # Nothing else schedules it — see _maybe_refresh_dormant.
+    _maybe_refresh_dormant()
 
     conn = sqlite3.connect(DB_PATH, timeout=10)
     try:
@@ -2584,24 +2902,38 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         _close_th = _load_thresholds()
         _close_on = _close_th.get("close_detector_enabled", False)
         _alpha_leaps_on = _close_th.get("alpha_leaps_enabled", True)
-        if _close_on or _alpha_leaps_on:
-            # ONE full-session ask/bid projection feeds BOTH the clean-directional
-            # ledger (ask VOLUME per contract) and the Alpha LEAPS ledger (ask
-            # PREMIUM per contract). Premium is added to the projection for the
-            # latter; the query is otherwise unchanged.
+        # Ask Accumulation reuses the SAME per-contract ask-premium ledger as
+        # Alpha LEAPS, so build it when either tier is on.
+        _ask_accum_on = _close_th.get("ask_accum_enabled", True)
+        if _close_on or _alpha_leaps_on or _ask_accum_on:
+            # ONE full-session ask/bid projection feeds the clean-directional ledger
+            # (ask VOLUME per contract, A/AA only), the Alpha LEAPS / Ask
+            # Accumulation ask-PREMIUM ledger, and the Ask Accumulation ask-VOLUME
+            # ledger. Blank-side SWEEPs are pulled too (Type projected) so the
+            # aggregate reflects the sweep_empty_side_as_ask presumption the
+            # single-print path already applies — the PPTA fix (2026-09-05). The
+            # close detector's long ledger is unaffected: a blank side adds 0 there.
             _lc = conn.execute(f"""
-                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium
+                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
                   FROM flow
                  WHERE {source_clause} AND CreatedDate = ?{sym_clause}
-                   AND Side IN ('A','AA','B','BB')
+                   AND (Side IN ('A','AA','B','BB')
+                        OR (COALESCE(Side,'') = ''
+                            AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
             """, (today, *sym_params))
             _ledger_rows = _lc.fetchall()
+            _presume_sweep_ask = bool(_close_th.get("sweep_empty_side_as_ask", True))
             _gross_before = _build_session_long_ledger(_ledger_rows) if _close_on else {}
-            _ask_prem_ledger = (_build_session_ask_premium_ledger(_ledger_rows)
-                                if _alpha_leaps_on else {})
+            _ask_prem_ledger = (_build_session_ask_premium_ledger(
+                                    _ledger_rows, presume_sweep_ask=_presume_sweep_ask)
+                                if (_alpha_leaps_on or _ask_accum_on) else {})
+            _ask_vol_ledger = (_build_session_ask_volume_ledger(
+                                    _ledger_rows, presume_sweep_ask=_presume_sweep_ask)
+                               if _ask_accum_on else {})
         else:
             _gross_before = {}
             _ask_prem_ledger = {}
+            _ask_vol_ledger = {}
     finally:
         conn.close()
 
@@ -2626,9 +2958,11 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     for _i, r in enumerate(rows):
         if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
             time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
-        a = (_incr_classify(r) if _incremental
-             else _row_to_alert(dict(r),
-                                agg_ask_premium=_ask_prem_ledger.get(r["id"], 0.0)))
+        _r_ap = _ask_prem_ledger.get(r["id"], 0.0)
+        _r_av = _ask_vol_ledger.get(r["id"], 0.0)
+        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av)
+             if _incremental
+             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av))
         if a is None:
             skipped_unclassified += 1
             continue
@@ -3546,10 +3880,22 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
     # `lookback_days` trading days present in the data (default 1 = today).
     # Same-strike/same-exp repeats across days are the strongest accumulation
     # signal — someone building a position with conviction.
-    lookback_days = max(1, min(int(lookback_days or 1), 31))   # range picker: up to 31 (was 5)
-    if lookback_days <= 1:
+    # The market-wide rollup caps the window at 31 days (heavy: up to ~100k rows
+    # through _row_to_alert). A single-ticker scan (only_ticker) is only a few
+    # hundred rows even across all history, so it may look back much further — the
+    # /flow Discord command asks for "all".
+    _lb_cap = 400 if only_ticker else 31
+    lookback_days = max(1, min(int(lookback_days or 1), _lb_cap))   # range picker: up to 31 (was 5); up to 400 for a single ticker
+    if lookback_days <= 1 and not only_ticker:
+        # Market-wide live feed: the 1-day default stays literally today (its
+        # callers already handle an empty out-of-hours read).
         target_dates = [today]
     else:
+        # Resolve the window against the SESSIONS THAT ACTUALLY HAVE DATA, not the
+        # calendar. For a single-ticker /flow with the default window (1 day), this
+        # means the last TRADING day: on a weekend / holiday / long weekend / before
+        # today's tape starts, `/flow TICKER` with no window picked shows the last
+        # working day's flow instead of an empty card.
         _c = sqlite3.connect(DB_PATH, timeout=10)
         try:
             all_dates = [r[0] for r in _c.execute(
@@ -3602,6 +3948,36 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         finally:
             conn.close()
 
+    # Per-(contract, session) ask ledgers so the AGGREGATE tiers (Ask Accumulation /
+    # Alpha LEAPS) classify in the By-Contract view too — mirrors _compute_recent_core.
+    # Built from a SEPARATE full-session query (every sided print incl. blank-side
+    # sweeps) per source+date, keyed by the globally-unique row id, so a contract's
+    # aggregate is per-DAY (not summed across the whole lookback window). Without this
+    # the rollup classified each print in isolation and those tiers — whose signal IS
+    # the aggregate, not any single print — could never appear here (2026-09-05).
+    _ask_prem_led, _ask_vol_led = {}, {}
+    if sources and (thresholds.get("alpha_leaps_enabled", True)
+                    or thresholds.get("ask_accum_enabled", True)):
+        _presume = bool(thresholds.get("sweep_empty_side_as_ask", True))
+        _lconn = sqlite3.connect(DB_PATH, timeout=10)
+        _lconn.row_factory = sqlite3.Row
+        try:
+            for _src in sources:
+                for _dt in target_dates:
+                    _lq = ("SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, "
+                           "Volume, Premium, Type FROM flow WHERE source=? AND CreatedDate=? "
+                           "AND (Side IN ('A','AA','B','BB') OR (COALESCE(Side,'')='' "
+                           "AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))")
+                    _lp = [_src, _dt]
+                    if only_ticker:
+                        _lq += " AND Symbol=?"
+                        _lp.append(only_ticker.strip().upper())
+                    _lrows = _lconn.execute(_lq, _lp).fetchall()
+                    _ask_prem_led.update(_build_session_ask_premium_ledger(_lrows, presume_sweep_ask=_presume))
+                    _ask_vol_led.update(_build_session_ask_volume_ledger(_lrows, presume_sweep_ask=_presume))
+        finally:
+            _lconn.close()
+
     # Group by contract
     contracts: dict = {}
     for r in rows:
@@ -3609,7 +3985,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         # accumulation, even ones the tape drops for unclassifiable side. The
         # rollup's thesis is repetition; direction is derived from the sided
         # subset and shown as bull/bear/mixed with a sided-% for honesty.
-        a = _row_to_alert(dict(r), require_direction=False)
+        a = _row_to_alert(dict(r), require_direction=False,
+                          agg_ask_premium=_ask_prem_led.get(r["id"], 0.0),
+                          agg_ask_volume=_ask_vol_led.get(r["id"], 0.0))
         if a is None:
             continue
         if exclude_algo and a.get("_tierKey") == "algo":
@@ -3626,6 +4004,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                 "spot": a.get("spot"), "dte": a.get("dte"),
                 "moneynessPct": a.get("moneynessPct"), "moneynessLabel": a.get("moneynessLabel"),
                 "total_premium": 0.0, "total_volume": 0,
+                "agg_ask_prem": 0.0, "agg_ask_vol": 0,   # ask-accumulation aggregate (incl. dropped blank sweeps)
                 "bull_premium": 0.0, "bear_premium": 0.0,
                 "sides": {"A": 0, "AA": 0, "B": 0, "BB": 0, "none": 0},
                 "types": set(), "grades": [], "max_oi": 0,
@@ -3641,6 +4020,16 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         vol = a.get("tradeSize") or 0
         g["total_premium"] += prem
         g["total_volume"] += vol
+        # Ask-accumulation aggregate: the session ask premium/volume the ledger
+        # assigns to EVERY print of this contract (blank-side sweeps included, even
+        # ones _row_to_alert drops). A surviving print carries the whole contract's
+        # figure, so MAX recovers the full total (PPTA 35C: $485K block → $1.21M).
+        _aap = a.get("aggAskPremium") or 0.0
+        if _aap > g["agg_ask_prem"]:
+            g["agg_ask_prem"] = _aap
+        _aav = a.get("aggAskVolume") or 0
+        if _aav > g["agg_ask_vol"]:
+            g["agg_ask_vol"] = _aav
         _tk = a.get("_tierKey") or "algo"     # which tier chip this print belongs to
         g["tier_prem"][_tk] = g["tier_prem"].get(_tk, 0.0) + prem
         d = a.get("_direction")
@@ -3768,9 +4157,12 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             _shape_factor *= 1.15
         score = int(qual * g["total_premium"] * (0.5 + 0.5 * consistency)
                     * voi_factor * _shape_factor * (2.0 if dormant else 1.0))
+        _fv = sum((p.get("price") or 0) * (p.get("volume") or 0) for p in g["prints"])
+        _vv = sum((p.get("volume") or 0) for p in g["prints"])
         out.append({
             "ticker": g["ticker"], "cp": g["cp"], "strike": g["strike"], "exp": g["exp"],
             "source": g["source"], "dte": g["dte"],
+            "avg_fill": (round(_fv / _vv, 2) if _vv else None),  # VWAP entry (for P&L)
             "spot": g["spot"], "moneynessPct": g["moneynessPct"], "moneynessLabel": g["moneynessLabel"],
             "hit_count": len(g["prints"]), "qualifying_hits": qual, "floor": floor,
             "days_active": days_active, "first_seen": first_seen,
@@ -3781,6 +4173,7 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
             "is_intraday_burst": is_intraday_burst,
             "total_floor": total_floor,
             "total_premium": round(g["total_premium"]), "total_volume": g["total_volume"],
+            "agg_ask_premium": round(g["agg_ask_prem"]), "agg_ask_volume": g["agg_ask_vol"],
             "bull_premium": round(bull), "bear_premium": round(bear),
             "direction": direction, "consistency": consistency,
             "sided_pct": sided_pct, "sided_premium": round(sided),
@@ -3809,6 +4202,425 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
         "query_date": today, "stock_etf": stock_etf, "min_hits": min_hits,
         "contract_count": len(out), "contracts": out,
     }
+
+
+# ── Cream of the Crop — the day's highest-conviction aggregate builds ────────
+# A curation-free EOD list: rank the AGGREGATE tiers (Alpha LEAPS / Alpha Gold /
+# Ask Accumulation) by the session ask premium the tiers grade on, one row per NAME
+# (its biggest qualifying build), split Bull/Bear. Filters (owner-approved 2026-09-05):
+# single names only (no index options), NO weekly expiries, has-SWEEP (not a
+# block-only spread leg), and FRESH positioning (agg ask V/OI > min_voi; a fresh
+# OI=0 strike passes). Fixes the EOD blind spots the Top Flow card (single prints)
+# and the hand-curated Watchlist both had. Read-only preview here; the Discord card
+# + schedule live in api/cream_card.py (flag-gated, preview-only until armed).
+_CREAM_INDEX_TICKERS = {"SPX", "SPXW", "NDX", "NDXP", "RUT", "VIX", "XSP", "XSPX"}
+_CREAM_TIERS = ("alpha_leaps", "alpha", "ask_accum")
+_cream_cache: dict = {}
+_cream_lock = threading.Lock()
+
+
+def _cream_contract_meta(today: str) -> dict:
+    """Per-contract flags from flow.db for the day: (is_weekly, has_sweep), keyed by
+    (Symbol, CallPut, Strike, ExpirationDate). ONE grouped query, not per-contract."""
+    meta = {}
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    try:
+        for r in conn.execute(
+            "SELECT Symbol, CallPut, Strike, ExpirationDate, "
+            "MAX(CASE WHEN CAST(Weekly AS TEXT)='T' THEN 1 ELSE 0 END), "
+            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "         THEN 1 ELSE 0 END) "
+            "FROM flow WHERE source='stocks' AND CreatedDate=? "
+            "GROUP BY Symbol, CallPut, Strike, ExpirationDate", (today,)):
+            meta[(r[0], r[1], str(r[2]), r[3])] = (bool(r[4]), bool(r[5]))
+    finally:
+        conn.close()
+    return meta
+
+
+def _cream_meta_key(a: dict):
+    st = a.get("strike")
+    try:
+        sk = str(int(st)) if float(st).is_integer() else str(st)
+    except (TypeError, ValueError):
+        sk = str(st)
+    return (a.get("ticker"), "CALL" if a.get("cp") == "C" else "PUT", sk, a.get("exp"))
+
+
+def compute_cream(today: str, top_n=None, min_voi=None,
+                  exclude_weekly=None, exclude_block_only=None) -> dict:
+    """Build the Cream of the Crop for `today` (concrete M/D/YYYY). Returns
+    {date, bull:[...], bear:[...], params} with items in the watchlist_card format
+    (sym, exp, strike, cp, prem, vol, oi, voi, grade). Knobs default from env
+    (CREAM_TOP_N / CREAM_MIN_VOI / CREAM_EXCLUDE_WEEKLY / CREAM_EXCLUDE_BLOCK_ONLY)."""
+    top_n = int(os.getenv("CREAM_TOP_N", "12")) if top_n is None else int(top_n)
+    min_voi = float(os.getenv("CREAM_MIN_VOI", "1.0")) if min_voi is None else float(min_voi)
+    excl_wk = (os.getenv("CREAM_EXCLUDE_WEEKLY", "1") == "1") if exclude_weekly is None else bool(exclude_weekly)
+    excl_bo = (os.getenv("CREAM_EXCLUDE_BLOCK_ONLY", "1") == "1") if exclude_block_only is None else bool(exclude_block_only)
+
+    meta = _cream_contract_meta(today)
+    # ONE scan PER TIER — NOT a single tier=None scan. tier=None returns only the
+    # "latest N" window, which crowds the rare aggregate tiers out (measured 9/4: 5
+    # alpha_leaps vs 61 with a per-tier scan); the tier-scoped fetch is tier-aware
+    # and returns the whole day's rows for that tier.
+    best: dict = {}
+    seen_ids = set()
+    for _tier in _CREAM_TIERS:
+        alerts, _ = _compute_recent_core(today, 100000, "F", "premium", _tier, False)
+        for a in alerts:
+            if a.get("id") in seen_ids:
+                continue
+            seen_ids.add(a.get("id"))
+            if (a.get("source") or "stocks") == "indexes" or a.get("ticker") in _CREAM_INDEX_TICKERS:
+                continue
+            d = a.get("_direction")
+            if d not in ("Bull", "Bear"):
+                continue
+            wk, swp = meta.get(_cream_meta_key(a), (False, True))
+            if excl_wk and wk:
+                continue
+            if excl_bo and not swp:
+                continue
+            oi = a.get("priorOI") or 0
+            av = a.get("aggAskVolume") or 0
+            fresh = (oi <= 0 and av > 0)
+            if not fresh and (oi <= 0 or (av / oi) <= min_voi):
+                continue
+            agg = a.get("aggAskPremium") or a.get("alertPremium") or 0
+            tk = a.get("ticker")
+            cur = best.get(tk)
+            if cur is None or agg > cur["_agg"]:
+                best[tk] = {
+                    "sym": tk, "cp": a.get("cp"), "strike": a.get("strike"),
+                    "exp": a.get("exp"), "prem": float(agg), "vol": int(av),
+                    "oi": int(oi) if oi else 0,
+                    "voi": (None if fresh else round(av / oi, 1)),
+                    "grade": (a.get("grade") or "").replace(" \U0001F680", ""),
+                    "dte": a.get("dte"), "tier": a.get("_tierKey"),
+                    "_dir": d, "_agg": float(agg),
+                }
+    rows = list(best.values())
+    bull = sorted([r for r in rows if r["_dir"] == "Bull"], key=lambda r: -r["_agg"])[:top_n]
+    bear = sorted([r for r in rows if r["_dir"] == "Bear"], key=lambda r: -r["_agg"])[:top_n]
+    # Whole-day directional premium for the net-flow bar (the market read, same
+    # number the old Top Flow card showed) — NOT the sum of just these contracts.
+    try:
+        _ds = _build_day_stats(today)
+        net = {"bull": _ds.get("bull_premium", 0.0), "bear": _ds.get("bear_premium", 0.0)}
+    except Exception:
+        net = None
+    return {"date": today, "bull": bull, "bear": bear, "net": net,
+            "params": {"top_n": top_n, "min_voi": min_voi,
+                       "exclude_weekly": excl_wk, "exclude_block_only": excl_bo}}
+
+
+@router.get("/cream")
+def cream_preview(target_date: str = Query(default=None)):
+    """Read-only Cream of the Crop preview (JSON). The day's highest-conviction
+    aggregate builds, filtered + ranked — no Discord post. See compute_cream."""
+    today = _resolve_date(target_date)
+    ttl = 60 if today == _today_mdyyyy() else _HISTORICAL_TTL
+    return _cached_single_flight(_cream_cache, today, _cream_lock, ttl,
+                                 lambda: compute_cream(today))
+
+
+@router.post("/cream/post")
+def cream_post(target_date: str = Query(default=None),
+               post: bool = Query(default=True, description="false = dry-run (render only, no Discord)"),
+               _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the Cream of the Crop card and (post=true) push it to the
+    configured webhook — which falls back to the Alpha-Gold-EOD / LiveFlow ADMIN
+    webhook, never a public channel. `post=false` = dry-run (render + summary only).
+    force=True is implied so a manual trigger always renders even on an empty day."""
+    from api.cream_card import run_cream_eod
+    return run_cream_eod(target_date=target_date, force=True, post=post)
+
+
+@router.get("/cream/image")
+def cream_image(target_date: str = Query(default=None),
+                mobile: bool = Query(default=False),
+                _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the Cream of the Crop card as a PNG for eyeballing in the
+    browser BEFORE it ever posts to Discord. No post. Returns image/png."""
+    from fastapi.responses import Response
+    from api.watchlist_card import render_watchlist_card
+    today = _resolve_date(target_date)
+    data = compute_cream(today)
+    try:
+        dt = datetime.strptime(today, "%m/%d/%Y").strftime("%B %d, %Y").replace(" 0", " ")
+    except Exception:
+        dt = today
+    png = render_watchlist_card(data["bull"], data["bear"], dt, mobile=mobile,
+                                title="Top Flow", section="FLOW",
+                                net=data.get("net"), show_dte=True,
+                                sec_labels=("Bulls", "Bears"))
+    return Response(content=png, media_type="image/png")
+
+
+# ── Single-ticker flow summary (powers the Discord /flow command) ────────────
+_ticker_flow_cache: dict = {}
+_TICKER_FLOW_TTL = 60
+
+
+def _contract_has_sweep_map(sym: str, dates) -> dict:
+    """Per-contract has-a-sweep flag from RAW flow.db, keyed by (cp_letter,
+    float_strike, exp 'M/D/YYYY'), scoped to `dates`. ⚠️ Read from the raw Type
+    column, NOT the classified `types`: blank-side SWEEPs are frequently dropped by
+    _row_to_alert (verified 2026-09-06 — PPTA 35C 1/15/27 on 9/4: a $680K + $29K
+    sweep beside a $485K block all classified None), so a sweep-backed contract can
+    read as block-only in the aggregate. The raw query sees every sweep."""
+    dates = list(dates or [])
+    if not dates:
+        return {}
+    m: dict = {}
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        ph = ",".join("?" * len(dates))
+        for r in conn.execute(
+            "SELECT CallPut, Strike, ExpirationDate, "
+            "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
+            "         THEN 1 ELSE 0 END) "
+            "FROM flow WHERE Symbol=? AND CreatedDate IN (" + ph + ") "
+            "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates):
+            try:
+                sk = float(r[1])
+            except (TypeError, ValueError):
+                continue
+            cp = "C" if str(r[0]).upper().startswith("C") else "P"
+            m[(cp, sk, str(r[2]).strip())] = bool(r[3])
+    finally:
+        conn.close()
+    return m
+
+
+def _compute_ticker_flow(symbol: str, days: str = "1", source: str = "stocks",
+                         top_n: int = 15) -> dict:
+    """Single-ticker options-flow summary over the last N trading days (or 'all'):
+    the ticker's net bull/bear premium + direction, plus its top contracts by
+    premium. Reuses the By-Contract aggregation (only_ticker) so direction/premium
+    math is identical to the site's Search tab. Uncapped per ticker (small-caps'
+    low-premium prints are kept). Cached 60s. PLAIN function (no FastAPI Query
+    defaults) so in-process callers (the image preview, tests) work too — the
+    /ticker-flow route is a thin wrapper. Powers the Discord /flow command."""
+    top_n = int(top_n or 15)
+    sym = (symbol or "").strip().upper()
+    if not sym:
+        return {"ok": False, "error": "no symbol"}
+    today = _today_mdyyyy()
+    d = str(days or "1").strip().lower()
+    if d in ("all", "0", "max"):
+        lookback, days_label = 400, "all"
+    else:
+        try:
+            lookback = max(1, int(float(d)))
+        except ValueError:
+            lookback = 1
+        days_label = str(lookback)
+    se = "etfs" if source == "etfs" else "stocks"
+    key = (sym, lookback, se, int(top_n))
+    now = time.time()
+    cached = _ticker_flow_cache.get(key)
+    if cached and (now - cached[0]) < _TICKER_FLOW_TTL:
+        return cached[1]
+
+    payload = _build_by_contract(today, se, 1, True, lookback, only_ticker=sym)
+    contracts = payload.get("contracts", [])
+    # Drop BLOCK-ONLY contracts (a negotiated/hedge block with no sweep, no aggressor
+    # side) — they clutter the card with big-premium UNCLEAR rows. Require at least one
+    # SWEEP/ISO print (aggressive positioning), matching the Top Flow card's block-only
+    # filter. Kill switch FLOW_EXCLUDE_BLOCK_ONLY=0. Applied BEFORE net/top so the
+    # net-flow bar and the table reflect the same sweep-backed set.
+    if os.getenv("FLOW_EXCLUDE_BLOCK_ONLY", "1") == "1" and contracts:
+        _win_dates = sorted({dh["date"] for c in contracts
+                             for dh in (c.get("day_hits") or []) if dh.get("date")})
+        _sweep = _contract_has_sweep_map(sym, _win_dates)
+
+        def _has_sweep(c):
+            try:
+                k = ((c.get("cp") or "").upper()[:1], float(c.get("strike")),
+                     str(c.get("exp") or "").strip())
+            except (TypeError, ValueError):
+                k = None
+            if k is not None and k in _sweep:
+                return _sweep[k]
+            return any(("SWEEP" in str(t).upper() or "ISO" in str(t).upper())
+                       for t in (c.get("types") or []))   # fallback if raw lookup missed
+        contracts = [c for c in contracts if _has_sweep(c)]
+    # Drop EXPIRED contracts — an option whose expiration is before today can't be
+    # traded, so a past-dated build is just noise on the card (owner, 2026-09-07).
+    # Filter on the EXPIRATION DATE vs today, NOT the `dte` field (that's the DTE as
+    # of when the flow printed, so an already-expired contract can still show a small
+    # positive dte). Fail-open on an unparseable exp so a live contract is never hidden.
+    _today_key = _parse_mdy(today)
+
+    def _not_expired(c):
+        e = str(c.get("exp") or "").strip()
+        if not e:
+            return True
+        ek = _parse_mdy(e)
+        if ek == (0, 0, 0):
+            return True                      # unparseable → keep (fail open)
+        return ek >= _today_key
+    contracts = [c for c in contracts if _not_expired(c)]
+    # Effective premium/volume = the ASK-ACCUMULATION aggregate when it exceeds the
+    # surviving-prints total (recovers blank-side sweeps the classifier drops) — the
+    # same figure LiveMassive's By-Contract view shows (PPTA 35C: $485K → $1.21M).
+    def _eff_prem(c):
+        return max((c.get("total_premium") or 0), (c.get("agg_ask_premium") or 0))
+
+    def _eff_vol(c):
+        return max((c.get("total_volume") or 0), (c.get("agg_ask_volume") or 0))
+
+    bull = bear = unclassified = 0.0
+    for c in contracts:
+        d, e = (c.get("direction") or ""), _eff_prem(c)
+        if d == "Bull":
+            bull += e
+        elif d == "Bear":
+            bear += e
+        elif d == "Mixed":
+            bull += (c.get("bull_premium") or 0)
+            bear += (c.get("bear_premium") or 0)
+        else:
+            # "Unclear" = real premium with NO clean aggressor side (negotiated
+            # blocks, blank-side prints). We do NOT fabricate a direction from the
+            # C/P — a call block can be a covered write or a spread leg, not a bull
+            # bet (owner call 2026-09-07). It's surfaced as unclassified premium so
+            # the net bar is honest instead of a misleading "$0 NEUTRAL".
+            unclassified += e
+    net_dir = "BULL" if bull > bear else ("BEAR" if bear > bull else "NEUTRAL")
+    top = sorted(contracts, key=lambda c: -_eff_prem(c))[:int(top_n)]
+    spot = next((c.get("spot") for c in contracts if c.get("spot")), None)
+    # Window span from the contracts' active dates.
+    _dates = set()
+    for c in contracts:
+        for dh in (c.get("day_hits") or []):
+            if dh.get("date"):
+                _dates.add(dh["date"])
+    ds = sorted(_dates, key=_parse_mdy)
+    # Live enrichment: ONE Massive chain snapshot → CURRENT mark + LATEST OI per
+    # strike, so the OI column is current (not flow-time) and PERF = entry→now.
+    # Best-effort + flow-worker-safe (stdlib urllib); on any failure the card falls
+    # back to flow-time OI and shows no perf. Only the top-N shown contracts are read.
+    _chain, _canon = {}, (lambda s: str(s or "").strip())
+    try:
+        from api import massive_oi_snapshots as _moi
+        _chain = _moi.fetch_chain_price_oi(sym)
+        _canon = _moi._canon_mdy
+    except Exception:
+        pass
+
+    def _enrich(c):
+        try:
+            k = ((c.get("cp") or "").upper()[:1], float(c.get("strike")),
+                 _canon(str(c.get("exp") or "")))
+        except (TypeError, ValueError):
+            return (None, None)
+        e = _chain.get(k) or {}
+        return (e.get("oi"), e.get("price"))
+
+    def _perf(entry, now):
+        try:
+            entry, now = float(entry), float(now)
+            if entry > 0 and now > 0:
+                return round((now - entry) / entry * 100.0, 1)
+        except (TypeError, ValueError):
+            pass
+        return None
+
+    # OI history for the sparkline: daily OI over the window from the snapshot store
+    # (same universe as flow.db — every carded contract is covered — 90-day retention),
+    # so each row shows the position BUILDING or FADING, far richer than a single delta.
+    _oisnap = None
+    try:
+        from api import oi_snapshots as _oisnap  # noqa: F401
+    except Exception:
+        _oisnap = None
+
+    def _oi_series(c):
+        if _oisnap is None:
+            return None
+        try:
+            k = _oisnap.make_key(sym, c.get("cp"), c.get("strike"), c.get("exp"))
+            h = _oisnap.get_history(k, max(int(lookback) + 5, 10))
+            s = [p["oi"] for p in h if p.get("oi") is not None]
+            return s or None
+        except Exception:  # noqa: BLE001 — sparkline is decoration; never break the card
+            return None
+
+    # Slim each contract to the card-relevant fields (drop prints/day_hits arrays).
+    slim = []
+    for c in top:
+        _loi, _now = _enrich(c)                                   # live chain: fresh OCC OI + price
+        _hist = _oi_series(c) or []                               # daily snapshot history
+        _entry = c.get("avg_fill")
+        # LATEST OI: FRESHEST first. The live chain reflects the current OCC print;
+        # the once-daily snapshot store lags until its 9:30 ET capture and can miss a
+        # build entirely (IREN 65C read 558 from the snapshot vs the real 13,816 live).
+        # Fall back to the snapshot's latest (still OCC-sourced — this is what kept the
+        # ORCL 175C fix from falling to a stale flow-time max_oi), then max_oi last.
+        _oi_val = (_loi if _loi is not None
+                   else (_hist[-1] if _hist else c.get("max_oi")))
+        # Sparkline = snapshot history + the live 'now' point appended, so the line's
+        # endpoint always equals the LATEST OI shown and a just-built OI the snapshot
+        # hasn't captured yet still appears as the final uptick.
+        _series = list(_hist)
+        if _loi is not None and (not _series or _series[-1] != _loi):
+            _series.append(_loi)
+        _series = _series or None
+        _vol_val = _eff_vol(c)                                    # cumulative flow volume
+        slim.append({
+            "ticker": c.get("ticker"), "cp": c.get("cp"), "strike": c.get("strike"),
+            "exp": c.get("exp"), "dte": c.get("dte"),
+            "premium": _eff_prem(c), "volume": _vol_val,
+            "oi": _oi_val,
+            # V/OI reconciled to the DISPLAYED figures (flow volume ÷ latest OI) so the
+            # three columns tie out. The old cum_voi used the OI at flow-time, which on a
+            # newly-opened contract (entry OI ~0) printed absurd ratios (e.g. 2641x) next
+            # to a latest-OI column that had since grown — VOL÷OI looked like ~1x. Now
+            # V/OI ≈ 1 means "most of the current OI came from this flow" (new positioning).
+            "voi": (round(_vol_val / _oi_val, 1) if _oi_val else None),
+            "direction": c.get("direction"),
+            "bull_premium": c.get("bull_premium"), "bear_premium": c.get("bear_premium"),
+            "grade": c.get("grade"), "moneynessPct": c.get("moneynessPct"),
+            "days_active": c.get("days_active"),
+            "first_seen": c.get("first_seen"),   # WHEN the flow came in (first print date)
+            "entry": _entry, "now": _now, "perf": _perf(_entry, _now),
+            "oiSeries": _series,                 # daily OI over the window (sparkline)
+        })
+    result = {
+        "ok": True, "symbol": sym, "source": se, "spot": spot,
+        "net": {"bull": round(bull), "bear": round(bear),
+                "unclassified": round(unclassified), "dir": net_dir},
+        "window": {"start": ds[0] if ds else None, "end": ds[-1] if ds else None,
+                   "active_days": len(ds), "days_requested": days_label},
+        "contract_count": len(contracts), "contracts": slim, "query_date": today,
+    }
+    _ticker_flow_cache[key] = (now, result)
+    return result
+
+
+@router.get("/ticker-flow")
+def ticker_flow(
+    symbol: str = Query(..., description="Underlying ticker, e.g. DPRO."),
+    days: str = Query(default="1", description="Trailing trading-day window ending today: an integer (e.g. 60) or 'all'."),
+    source: str = Query(default="stocks", description="'stocks' (single names) | 'etfs' (index/ETF options)."),
+    top_n: int = Query(default=15, ge=1, le=40, description="Max contracts in the table (net uses ALL qualifying contracts)."),
+):
+    """Single-ticker options-flow summary (see _compute_ticker_flow). Powers /flow."""
+    return _compute_ticker_flow(symbol, days, source, int(top_n))
+
+
+@router.get("/ticker-flow/image")
+def ticker_flow_image(symbol: str = Query(...), days: str = Query(default="1"),
+                      source: str = Query(default="stocks"),
+                      _auth: dict = Depends(require_flow_admin)):
+    """ADMIN: render the single-ticker flow card as a PNG for eyeballing before the
+    Discord /flow command posts it. No post. Returns image/png."""
+    from fastapi.responses import Response
+    from api.flow_ticker_card import render_ticker_flow_card
+    data = _compute_ticker_flow(symbol, days, source)
+    return Response(content=render_ticker_flow_card(data), media_type="image/png")
 
 
 @router.get("/by-contract")
@@ -4161,6 +4973,12 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         voi = round(size / oi, 2) if (oi and oi > 0 and size) else None
         if voi and voi > 1.0:
             badges.append(f"🚀 **OI BREAK** {voi:.1f}x")
+        # Ask Accumulation fires on the print that pushes the contract's SESSION
+        # ask premium over the floor — a single print here can be well under $1M,
+        # so lead with the aggregate build or the card looks under-sized.
+        _agg = alert.get("aggAskPremium") or 0
+        if alert.get("_tierKey") == "ask_accum" and _agg > prem:
+            badges.insert(0, f"🧱 **ASK BUILD {_fmt_money_m(_agg)}**")
         lines.append(_row(
             f"💰 **{_fmt_money_m(prem)}**",
             (f"Fill ${fill:.2f}" if fill else None),
@@ -4393,6 +5211,8 @@ def _pushed_keys(alert_date: str = None) -> set:
 _AUTO_PUSH_CFG = {
     "enabled": False,            # master switch — auto-fire is OFF until turned on
     "alpha_gold": True,          # push Alpha Gold tier
+    "alpha_leaps": True,         # push UCT Alpha LEAPS tier (aggregate ask build on a LEAP; own toggle 2026-09-05)
+    "ask_accum": True,           # push UCT Ask Accumulation tier (aggregate ask build on a quiet name)
     "grade_a": True,             # push grade A / A+
     "size_sweep_enabled": False, # optional: high-premium Size B sweeps
     "size_min_premium": 3_000_000,
@@ -4576,8 +5396,13 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     # ── Single-print tiers ──
     if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
         return True
-    # Alpha LEAPS rides the same auto-push toggle as Alpha Gold (top conviction).
-    if cfg.get("alpha_gold") and (tier == "alpha_leaps" or "alpha leaps" in name):
+    # Alpha LEAPS — own toggle (2026-09-05; was riding alpha_gold). Default on.
+    if cfg.get("alpha_leaps", True) and (tier == "alpha_leaps" or "alpha leaps" in name):
+        return True
+    # UCT Ask Accumulation — aggregate ask build on a quiet name. Its own toggle
+    # (default on); the _qualifies_curated ask_accum path + the min_directional_ratio
+    # net-flow gate + the dormant-name classification guard keep it from spamming.
+    if cfg.get("ask_accum", True) and (tier == "ask_accum" or "ask accumulation" in name):
         return True
     if cfg.get("grade_a") and grade in ("A+", "A"):
         return True
@@ -5265,7 +6090,7 @@ async def set_auto_push_config(request: Request, _auth: dict = Depends(require_f
         raise HTTPException(400, f"Invalid JSON: {e}")
     if not isinstance(body, dict):
         raise HTTPException(400, "expected a JSON object")
-    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
+    for k in ("enabled", "alpha_gold", "alpha_leaps", "ask_accum", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
         if k in body:
             _AUTO_PUSH_CFG[k] = body[k]
     try:
@@ -5302,6 +6127,13 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "alpha_leaps_enabled",               # master gate for the Alpha LEAPS tier
         "alpha_leaps_min_aggregate_premium", # session ask-premium floor per contract ($3M)
         "alpha_leaps_max_otm_pct",           # near-the-money bound (abs moneyness %)
+        # UCT Ask Accumulation — aggregate ask-build tier, any DTE (2026-09-04)
+        "ask_accum_enabled",                 # master gate for the Ask Accumulation tier
+        "ask_accum_min_aggregate_premium",   # session ask-premium floor per contract ($1M)
+        "ask_accum_max_otm_pct",             # near-the-money bound (abs moneyness %)
+        "ask_accum_require_unusual",         # apply the contract-conviction guard (_ask_accum_conviction)
+        "ask_accum_min_contract_voi",        # session ask vol / contract OI floor (NEW-build test)
+        "ask_accum_max_mktcap",              # mega-cap/index ceiling (primary noise guard)
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side

@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
-import useJ2Notes from '../../hooks/useJ2Notes'
+import useJ2Notes, {
+  useJ2NoteFolderCounts, useJ2NotesByFolders, useJ2Favorites, useJ2Recents,
+} from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
+import useDocumentSearch from '../../hooks/useDocumentSearch'
+import useExcerptSearch from '../../hooks/useExcerptSearch'
+import useReviewSearch from '../../hooks/useReviewSearch'
+import { searchResultTitle, searchResultHint, reviewDateText }
+  from '../../lib/searchResultLabel'
+import { outcomeLabel } from '../../lib/reviewOutcomes'
+import { searchResultTarget } from '../../lib/searchNavigation'
 import UIcon from '../../../../components/ui/UIcon'
+import ConfirmModal from '../ConfirmModal'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -45,6 +56,45 @@ export function buildFolderTree(folders) {
   return sortTree(roots)
 }
 
+// Wave 4 Slice 2: turns a snippet()/highlight() string (real text with
+// literal `<mark>`/`</mark>` delimiters SQLite inserted) into safe React
+// children — split-and-render, NEVER dangerouslySetInnerHTML. The member's
+// own note content is untrusted plain text that could itself contain `<`/
+// `>` characters; every non-delimiter chunk below is rendered as a plain
+// string child, which React escapes automatically. The one accepted edge
+// case (a member's own text literally containing the substring "<mark>")
+// would mis-render as a highlight boundary, never as executable markup —
+// a display quirk, not a security issue.
+export function renderSnippetMarks(snippet) {
+  if (!snippet) return null
+  const parts = snippet.split(/(<mark>|<\/mark>)/)
+  const nodes = []
+  let marking = false
+  parts.forEach((part, i) => {
+    if (part === '<mark>') { marking = true; return }
+    if (part === '</mark>') { marking = false; return }
+    if (!part) return
+    nodes.push(marking ? <mark key={i}>{part}</mark> : part)
+  })
+  return nodes
+}
+
+// Wave 4 Slice 2: for a result with NO snippet (a tag/ticker-only match —
+// the non-FTS5 OR-branch in _notes_filter_sql), explain what DID match
+// instead of rendering a blank or misleading body excerpt. Mirrors the
+// same leading-separator strip as the backend's own $NVDA fix so "$NVDA"
+// and "NVDA" explain identically.
+export function matchReasonFor(note, query) {
+  const q = (query || '').trim()
+  if (!q) return null
+  const exactTicker = q.replace(/^[^\w]+/, '').toUpperCase()
+  if (note.ticker && note.ticker === exactTicker) return `Matched ticker: ${note.ticker}`
+  const qLower = q.toLowerCase()
+  const tagHit = (note.tags || []).find((t) => String(t).toLowerCase() === qLower)
+  if (tagHit) return `Matched tag: ${tagHit}`
+  return null
+}
+
 function Chevron({ expanded }) {
   return (
     <svg
@@ -85,6 +135,123 @@ function NoteIcon() {
       <path d="M13.5 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M8.5 12h7M8.5 15.5h7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
+  )
+}
+
+// Wave B: Favorites + Recents sidebar sections. Both populated-conditional
+// (the whole section is absent from the DOM until the member has >=1 note in
+// it — Notion's pattern, the strongest single finding of the competitor
+// research: Evernote's overflow-menu-only entry point and Obsidian's
+// no-native-recents-panel are the two things this deliberately does NOT
+// copy) and both collapsible (local, unpersisted expand state — Recents is
+// system-derived and capped small enough that collapsing rarely matters;
+// Favorites can grow, so the affordance is there for a member who wants it
+// out of the way without leaving the section itself invisible).
+function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
+  const [expanded, setExpanded] = useState(true)
+  if (!notes.length) return null
+  return (
+    <div className={styles.section}>
+      <div className={styles.rowWrap}>
+        <button
+          type="button"
+          className={styles.disclosureBtn}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${label}`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <Chevron expanded={expanded} />
+        </button>
+        <span className={styles.sectionHeaderLabel}>
+          <UIcon name={icon} size={12} gold={false} />
+          {label}
+        </span>
+      </div>
+      {expanded && notes.map((note) => (
+        <div key={note.id} className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
+            onClick={() => onOpenNote(note)}
+            title={note.title?.trim() || 'Untitled'}
+          >
+            <NoteIcon />
+            <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Wave E — Saved Views section. Same populated-conditional/collapsible
+// shape as RecencySection above (checkpoint §20: zero nav clutter at zero
+// saved views), adapted for a view (name + id) instead of a note (title).
+//
+// Wave G checkpoint §48: `onAddStarterViews` (present only once the member
+// has zero saved views of their own) offers the four canonical thesis
+// starter views as ONE click -- ordinary saved-view rows afterward, fully
+// renameable/deletable, never a permanent fixture. It disappears the
+// moment the member has any saved view (their own or the starter set), so
+// nothing here becomes nav clutter for someone who doesn't use thesis
+// properties at all.
+function SavedViewsSection({ views, activeViewId, onSelectView, onAddStarterViews }) {
+  const [expanded, setExpanded] = useState(true)
+  const [addingStarters, setAddingStarters] = useState(false)
+  if (!views.length) {
+    if (!onAddStarterViews) return null
+    return (
+      <div className={styles.section}>
+        <div className={styles.rowWrap}>
+          <button
+            type="button"
+            className={styles.starterViewsBtn}
+            disabled={addingStarters}
+            onClick={async () => {
+              setAddingStarters(true)
+              try { await onAddStarterViews() } finally { setAddingStarters(false) }
+            }}
+          >
+            <UIcon name="sliders" size={12} gold={false} />
+            {addingStarters ? 'Adding…' : 'Add thesis starter views'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className={styles.section}>
+      <div className={styles.rowWrap}>
+        <button
+          type="button"
+          className={styles.disclosureBtn}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} Saved Views`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <Chevron expanded={expanded} />
+        </button>
+        <span className={styles.sectionHeaderLabel}>
+          <UIcon name="sliders" size={12} gold={false} />
+          Saved Views
+        </span>
+      </div>
+      {expanded && views.map((view) => (
+        <div key={view.id} className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
+            onClick={() => onSelectView(view)}
+            title={view.name}
+          >
+            <UIcon name={view.viewType === 'table' ? 'columns' : 'rows'} size={13} gold={false} />
+            <span className={styles.noteTitle}>{view.name}</span>
+          </button>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -140,14 +307,31 @@ function FolderNode({
   onStartAddChild,
   addForm,
   notesByFolder,
+  folderCounts,
+  expandedFolderNotes,
   onOpenNote,
   activeNoteId,
 }) {
-  const folderNotes = notesByFolder.get(node.id) || []
+  const pageNotes = notesByFolder.get(node.id) || []
+  // P0-2 fix: `folderCounts` is the TRUE whole-library per-folder count
+  // (`undefined` while still loading — see useJ2NoteFolderCounts's own
+  // comment). Once it has genuinely loaded, a folder ABSENT from it really
+  // has 0 active notes, so this is authoritative and must win over the
+  // page-derived guess below (which only ever reflects the ONE capped,
+  // alphabetically-sorted page handed down as `notes` — the root cause of a
+  // folder whose notes all sorted past that page's cutoff rendering with no
+  // arrow at all, independent of the folder's own real size).
+  const honestCount = folderCounts ? (folderCounts[node.id] ?? 0) : null
+  // Once a folder is expanded, prefer its real per-folder fetch
+  // (`expandedFolderNotes`, honestly complete up to the server's own cap);
+  // fall back to the page-derived guess only for the brief window between
+  // expanding and that fetch resolving.
+  const folderNotes = expandedFolderNotes[node.id] ?? pageNotes
   // A folder is expandable when it holds subfolders OR notes — so a subfolder
   // that contains only notes still gets a disclosure arrow (matches the folder
   // tree the user asked for).
-  const hasChildren = node.children.length > 0 || folderNotes.length > 0
+  const hasChildren = node.children.length > 0 ||
+    (honestCount !== null ? honestCount > 0 : pageNotes.length > 0)
   const isExpanded = expandedIds.has(node.id)
   const isEditing = editingId === node.id
   const isAddingHere = addForm.parentId === node.id && addForm.active
@@ -225,6 +409,8 @@ function FolderNode({
               onStartAddChild={onStartAddChild}
               addForm={addForm}
               notesByFolder={notesByFolder}
+              folderCounts={folderCounts}
+              expandedFolderNotes={expandedFolderNotes}
               onOpenNote={onOpenNote}
               activeNoteId={activeNoteId}
             />
@@ -281,12 +467,32 @@ export default function FolderSidebar({
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
+  // Wave E: populated-conditional, same convention as Favorites/Recents
+  // above -- renders nothing at zero saved views (checkpoint §20).
+  savedViews = [],
+  activeViewId = null,
+  onSelectView = () => {},
+  onAddStarterViews = null,
+  // Wave H: Research Home is now the bare-root state (checkpoint decision
+  // 32/33) -- both null, same as "All notes" with no filter, so an explicit
+  // flag is needed to keep the "All notes" row's active-highlight honest
+  // rather than lighting up while Home (not the grid) is actually showing.
+  // `onSelectAllNotes`, if supplied, replaces the row's default
+  // onSelectFolder(null)+onSelectTag(null) click (adds the `?view=all` flag
+  // that disambiguates the two states) -- falls back to the pre-Wave-H
+  // behavior when omitted, so an existing caller/test is unaffected.
+  isHome = false,
+  onSelectAllNotes = null,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
   const [parentForNew, setParentForNew] = useState(null)
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState(null)
+  // Folder mutations used to fail into a native alert() carrying the raw
+  // exception. One line, both defects the scorecard names; railed in
+  // rawErrorSurface.test.js so it cannot come back.
+  const [folderError, setFolderError] = useState('')
   const [editName, setEditName] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   // Panel mode: the folder tree, or a full-panel note search (Obsidian-style).
@@ -296,6 +502,16 @@ export default function FolderSidebar({
   const searchInputRef = useRef(null)
   const [tagFilter, setTagFilter] = useState('')
   const [showAllTags, setShowAllTags] = useState(false)
+  // Wave 4 (Search Evolution I): date/sector/theme filters, collapsed
+  // behind a toggle by default -- the design doc's own "don't overcomplicate
+  // Stage 1" instruction. `showFilters` starts false so a member who just
+  // wants to type-and-search never sees them.
+  const [showFilters, setShowFilters] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sectorFilter, setSectorFilter] = useState('')
+  const [themeFilter, setThemeFilter] = useState('')
+  const hasActiveFilters = Boolean(dateFrom || dateTo || sectorFilter || themeFilter)
 
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
@@ -312,6 +528,16 @@ export default function FolderSidebar({
   }, [trimmedQuery])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
+
+  // P0-2 fix: the TRUE whole-library per-folder count, never derived from
+  // the one capped page of `notes` below — see useJ2NoteFolderCounts's own
+  // comment and FolderNode's `honestCount`.
+  const { counts: folderCountsFromServer } = useJ2NoteFolderCounts()
+  // The actual note rows for the tree's leaf rows, scoped to only the
+  // CURRENTLY-EXPANDED folders (never the whole library in one page) —
+  // sorted so re-render order never changes the SWR cache key.
+  const expandedIdsArray = useMemo(() => [...expandedIds].sort(), [expandedIds])
+  const { byFolder: expandedFolderNotes } = useJ2NotesByFolders(expandedIdsArray)
 
   // Group notes under their folder so the tree can render them as leaf rows.
   // Sorted by title for a stable, scannable order.
@@ -337,6 +563,16 @@ export default function FolderSidebar({
   // `total` is read, the single row is discarded).
   const { total: unfiledTotalFromServer } = useJ2Notes({ folderId: '__unfiled__', limit: 1 })
 
+  // Wave 0 trash: same honest-count idiom as Unfiled above, over the
+  // deleted=true view.
+  const { total: trashTotalFromServer } = useJ2Notes({ deleted: true, limit: 1 })
+
+  // Wave B: Favorites + Recents. Both trash-aware server-side (see
+  // notes_service.list_favorites/list_recents) — no client-side filtering
+  // needed here.
+  const { notes: favoriteNotes } = useJ2Favorites()
+  const { notes: recentNotes } = useJ2Recents()
+
   // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
   // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
   // it client-side silently misses anything past that on a migrated library,
@@ -348,7 +584,12 @@ export default function FolderSidebar({
   // fires only while the panel is actually searching — otherwise useJ2Notes's
   // SWR key would be non-null on every render (folder mode included) and
   // fire a redundant `/api/j2/notes` default-list request nobody asked for.
-  const searchEnabled = mode === 'search' && Boolean(debouncedQuery)
+  // Wave 4: a filters-only search (empty query, just a date/sector/theme
+  // bound) is an explicitly supported combination per the design doc's
+  // combined-search contract ("date-range and entity filters both work
+  // standalone") — gating solely on `debouncedQuery` would silently do
+  // nothing the moment a member set a filter without also typing a word.
+  const searchEnabled = mode === 'search' && Boolean(debouncedQuery || hasActiveFilters)
   const {
     notes: serverSearchResults,
     isLoading: searchLoading,
@@ -364,7 +605,20 @@ export default function FolderSidebar({
     hasMore: searchHasMore,
     loadMore: searchLoadMore,
     isLoadingMore: searchIsLoadingMore,
-  } = useJ2Notes({ q: debouncedQuery || undefined, limit: SEARCH_RESULT_LIMIT, enabled: searchEnabled })
+  } = useJ2Notes({
+    q: debouncedQuery || undefined,
+    // Relevance ranking is opt-in server-side (sort="relevance") and only
+    // takes effect when a real `q` is present — requesting it unconditionally
+    // here is safe: a filters-only search (no q) falls back to updated_at
+    // DESC exactly as before.
+    sort: 'relevance',
+    limit: SEARCH_RESULT_LIMIT,
+    enabled: searchEnabled,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    sector: sectorFilter || undefined,
+    theme: themeFilter || undefined,
+  })
 
   // A query "in flight" — either still waiting out the debounce, or the fetch
   // itself hasn't resolved — must never render as "no results". That is the
@@ -372,6 +626,30 @@ export default function FolderSidebar({
   // one layer down: an empty moment mistaken for an empty result.
   const searching = Boolean(trimmedQuery) &&
     (trimmedQuery !== debouncedQuery || (searchEnabled && (searchLoading || searchValidating)))
+
+  // Wave I: page-aware PDF search, sectioned SEPARATELY from note results
+  // above (never blended into one list/score — checkpoint decision,
+  // directive §39-42). Query-only (no date/sector/theme filter support —
+  // those are note-property concepts a PDF page doesn't have).
+  const { results: documentResults, isLoading: documentsSearching } =
+    useDocumentSearch(debouncedQuery, { enabled: mode === 'search' })
+
+  // Wave J: the member's own saved evidence — captured passages and the
+  // annotations written on them. A THIRD section, for the same reason
+  // Documents is a second one: a passage a member deliberately kept is not
+  // the same kind of hit as a page the text happens to appear on, and
+  // ranking them against each other would bury the curated one under the
+  // raw. Query-only, matching Documents above.
+  const { results: excerptResults, isLoading: excerptsSearching } =
+    useExcerptSearch(debouncedQuery, { enabled: mode === 'search' })
+
+  // Wave O6: the member's own completed reviews — what they DECIDED about a
+  // thesis, in their words. A FOURTH section for the same reason Evidence is a
+  // third: a conclusion reached after the fact is not the same kind of hit as
+  // the material it was reached from, and ranking them together would bury the
+  // one thing only this member could have written.
+  const { results: reviewResults, isLoading: reviewsSearching } =
+    useReviewSearch(debouncedQuery, { enabled: mode === 'search' })
 
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
@@ -459,11 +737,13 @@ export default function FolderSidebar({
   const submitNew = async (e) => {
     e.preventDefault()
     if (!newName.trim()) return
+    setFolderError('')
     try {
       await create(newName.trim(), parentForNew || undefined)
       cancelAdd()
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] create folder failed', err)
+      setFolderError("Couldn't create that folder. Nothing was changed.")
     }
   }
 
@@ -472,18 +752,26 @@ export default function FolderSidebar({
     try {
       await rename(id, editName.trim())
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] rename folder failed', err)
+      setFolderError("Couldn't rename that folder. It kept its old name.")
     }
     setEditingId(null)
   }
 
-  const onDelete = async (id, name) => {
-    if (!confirm(`Delete folder "${name}"? Subfolders and notes move up one level.`)) return
+  // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
+  // request opens the modal (holding which folder), confirm performs the
+  // actual mutation.
+  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name } | null
+  const onDeleteRequest = (id, name) => setDeleteTarget({ id, name })
+  const onDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    const { id } = deleteTarget
     try {
       await remove(id)
       if (activeFolderId === id) onSelectFolder(null)
     } catch (err) {
-      alert(String(err.message || err))
+      console.error('[notebook] delete folder failed', err)
+      setFolderError("Couldn't delete that folder. Nothing was removed.")
     }
   }
 
@@ -536,6 +824,10 @@ export default function FolderSidebar({
         </div>
       </div>
 
+      {folderError && (
+        <div className={styles.folderError} role="alert">{folderError}</div>
+      )}
+
       {mode === 'search' ? (
         <div className={styles.searchView}>
           <div className={styles.searchInputWrap}>
@@ -560,12 +852,65 @@ export default function FolderSidebar({
                 aria-label="Clear search"
               >×</button>
             )}
+            {/* Wave 4 Slice 1/3: collapsed by default -- a member who just
+                wants to type-and-search never sees this. */}
+            <button
+              type="button"
+              className={`${styles.searchFilterToggle} ${hasActiveFilters ? styles.searchFilterToggleActive : ''}`}
+              onClick={() => setShowFilters((s) => !s)}
+              aria-expanded={showFilters}
+              aria-label="Search filters"
+              title="Filter by date, sector, or theme"
+            >
+              <UIcon name="sliders" size={13} gold={false} />
+            </button>
           </div>
 
-          {!trimmedQuery ? (
+          {showFilters && (
+            <div className={styles.searchFilters}>
+              <label className={styles.searchFilterField}>
+                <span>Note created from</span>
+                <input type="date" value={dateFrom} max={dateTo || undefined}
+                  onChange={(e) => setDateFrom(e.target.value)} />
+              </label>
+              <label className={styles.searchFilterField}>
+                <span>to</span>
+                <input type="date" value={dateTo} min={dateFrom || undefined}
+                  onChange={(e) => setDateTo(e.target.value)} />
+              </label>
+              <label className={styles.searchFilterField}>
+                <span>Sector</span>
+                <input type="text" value={sectorFilter} placeholder="e.g. Technology"
+                  onChange={(e) => setSectorFilter(e.target.value)} />
+              </label>
+              <label className={styles.searchFilterField}>
+                <span>Theme</span>
+                <input type="text" value={themeFilter} placeholder="e.g. AI Infrastructure"
+                  onChange={(e) => setThemeFilter(e.target.value)} />
+              </label>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className={styles.searchFilterClear}
+                  onClick={() => { setDateFrom(''); setDateTo(''); setSectorFilter(''); setThemeFilter('') }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {!trimmedQuery && !hasActiveFilters ? (
             <div className={styles.searchHint}>Search titles and content by word, or match an exact tag or ticker.</div>
           ) : searching ? (
-            <div className={styles.searchHint} role="status">Searching…</div>
+            <div className={styles.searchResultsSkeleton} role="status" aria-label="Searching…">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className={styles.searchResultSkeletonRow}>
+                  <SkeletonLine width="70%" height={12} />
+                  <SkeletonLine width="90%" height={10} />
+                </div>
+              ))}
+            </div>
           ) : searchError ? (
             <div className={styles.searchEmpty}>Search failed — try again.</div>
           ) : serverSearchResults.length ? (
@@ -581,7 +926,16 @@ export default function FolderSidebar({
               </div>
               {serverSearchResults.map((n) => {
                 const title = n.title?.trim() || 'Untitled'
-                const snippet = (n.bodyPlain || '').trim().slice(0, 120)
+                // Wave 4 Slice 2: a query-aware snippet (highlighted around
+                // the actual match) when the server provided one; a
+                // tag/ticker-only match (no FTS hit) falls back to the
+                // "why matched" label instead of a blank/misleading body
+                // excerpt; a filters-only search (no query at all) shows
+                // neither — the naive first-120-chars slice this replaces
+                // never explained a match either, so this is strictly more
+                // honest, never less.
+                const hasSnippet = Boolean(n.bodySnippet || n.titleSnippet)
+                const reason = !hasSnippet ? matchReasonFor(n, trimmedQuery) : null
                 return (
                   <button
                     key={n.id}
@@ -591,8 +945,14 @@ export default function FolderSidebar({
                   >
                     <NoteIcon />
                     <span className={styles.searchResultBody}>
-                      <span className={styles.searchResultTitle}>{title}</span>
-                      {snippet && <span className={styles.searchResultSnippet}>{snippet}</span>}
+                      <span className={styles.searchResultTitle}>
+                        {n.titleSnippet ? renderSnippetMarks(n.titleSnippet) : title}
+                      </span>
+                      {n.bodySnippet ? (
+                        <span className={styles.searchResultSnippet}>{renderSnippetMarks(n.bodySnippet)}</span>
+                      ) : reason ? (
+                        <span className={styles.searchResultReason}>{reason}</span>
+                      ) : null}
                     </span>
                   </button>
                 )
@@ -610,18 +970,145 @@ export default function FolderSidebar({
               )}
             </div>
           ) : (
-            <div className={styles.searchEmpty}>No notes match “{trimmedQuery}”.</div>
+            <div className={styles.searchEmpty}>
+              {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+            </div>
+          )}
+
+          {/* Wave I: Documents section — a SEPARATE result list from Notes
+              above, never merged into one score. Only renders while there is
+              something to say (a real query in flight, or real results) so
+              an empty/filters-only search doesn't grow an extra empty block. */}
+          {trimmedQuery && (documentsSearching || documentResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {documentsSearching
+                  ? 'Searching documents…'
+                  : `${documentResults.length} document page${documentResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!documentsSearching && documentResults.map((d) => (
+                <button
+                  key={`${d.documentId}-${d.pageNumber}`}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: d.noteId },
+                                             searchResultTarget(d, { kind: 'page' }))}
+                  title={searchResultHint(d, { kind: 'page' })}
+                >
+                  {/* ⛔ The icon follows the KIND too: a captured web source is
+                      not a filed document, and showing the document glyph for
+                      it repeats the same false claim in another channel. */}
+                  <UIcon name={d.sourceKind === 'web' ? 'link' : 'document'} size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {searchResultTitle(d, { kind: 'page' })}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(d.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Wave J: Evidence section — the passages this member chose to
+              keep, plus their annotations. Third and last, after Notes and
+              Documents, each still its own list. Same render-only-when-it-
+              has-something-to-say rule as Documents above. */}
+          {trimmedQuery && (excerptsSearching || excerptResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {excerptsSearching
+                  ? 'Searching evidence…'
+                  : `${excerptResults.length} saved excerpt${excerptResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!excerptsSearching && excerptResults.map((e) => (
+                <button
+                  key={e.excerptId}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: e.noteId },
+                                             searchResultTarget(e, { kind: 'excerpt' }))}
+                  title={searchResultHint(e, { kind: 'excerpt' })}
+                >
+                  <UIcon name="quote" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {searchResultTitle(e, { kind: 'excerpt' })}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(e.snippet)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Wave O6: Thesis reviews — the member's own conclusions. Fourth and
+              last, each section still its own list. ⛔ The row says "Thesis
+              review" and carries the outcome the member chose: a result that
+              rendered only their prose would make "I was wrong about this" and
+              "no change" look like the same finding. */}
+          {trimmedQuery && (reviewsSearching || reviewResults.length > 0) && (
+            <div className={styles.searchResults}>
+              <div className={styles.searchCount}>
+                {reviewsSearching
+                  ? 'Searching your reviews…'
+                  : `${reviewResults.length} thesis review${reviewResults.length === 1 ? '' : 's'}`}
+              </div>
+              {!reviewsSearching && reviewResults.map((r) => (
+                <button
+                  key={r.reviewId}
+                  type="button"
+                  className={styles.searchResultRow}
+                  onClick={() => onOpenNote({ id: r.noteId },
+                                             searchResultTarget(r, { kind: 'review' }))}
+                  title={searchResultHint(r, { kind: 'review' })}
+                >
+                  <UIcon name="clock" size={12} gold={false} />
+                  <span className={styles.searchResultBody}>
+                    <span className={styles.searchResultTitle}>
+                      {searchResultTitle(r, { kind: 'review' })}
+                    </span>
+                    <span className={styles.searchResultSnippet}>{renderSnippetMarks(r.snippet)}</span>
+                    {/* The decision itself, never inferred from the prose. */}
+                    <span className={styles.searchResultMeta}>
+                      {[outcomeLabel(r.outcome), reviewDateText(r.completedAt)]
+                        .filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
       ) : (
         <>
+          <RecencySection
+            label="Favorites"
+            icon="star-fill"
+            notes={favoriteNotes}
+            activeNoteId={activeNoteId}
+            onOpenNote={onOpenNote}
+          />
+          <RecencySection
+            label="Recents"
+            icon="clock"
+            notes={recentNotes}
+            activeNoteId={activeNoteId}
+            onOpenNote={onOpenNote}
+          />
+          <SavedViewsSection
+            views={savedViews}
+            activeViewId={activeViewId}
+            onSelectView={onSelectView}
+            onAddStarterViews={onAddStarterViews}
+          />
           <div className={styles.section}>
             <div className={styles.rowWrap}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
-                className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
-                onClick={() => { onSelectFolder(null); onSelectTag(null) }}
+                className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
+                onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page
@@ -643,6 +1130,23 @@ export default function FolderSidebar({
                 <span className={styles.count}>{unfiledCount}</span>
               </button>
             </div>
+            <div className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.row} ${activeFolderId === '__trash__' ? styles.rowActive : ''}`}
+                onClick={() => { onSelectFolder('__trash__'); onSelectTag(null) }}
+              >
+                <span>Trash</span>
+                {/* No page-derived fallback here (unlike Unfiled) — the
+                    `notes` prop never contains trashed notes at all, so a
+                    client-side count would always read a false 0 while
+                    loading. Show nothing rather than a wrong number. */}
+                {trashTotalFromServer !== undefined && (
+                  <span className={styles.count}>{trashTotalFromServer}</span>
+                )}
+              </button>
+            </div>
             {tree.map((node) => (
               <FolderNode
                 key={node.id}
@@ -658,10 +1162,12 @@ export default function FolderSidebar({
                 setEditingId={setEditingId}
                 setEditName={setEditName}
                 submitRename={submitRename}
-                onDelete={onDelete}
+                onDelete={onDeleteRequest}
                 onStartAddChild={startAddChild}
                 addForm={addForm}
                 notesByFolder={notesByFolder}
+                folderCounts={folderCountsFromServer}
+                expandedFolderNotes={expandedFolderNotes}
                 onOpenNote={onOpenNote}
                 activeNoteId={activeNoteId}
               />
@@ -728,6 +1234,16 @@ export default function FolderSidebar({
             </div>
           )}
         </>
+      )}
+      {deleteTarget && (
+        <ConfirmModal
+          title={`Delete folder "${deleteTarget.name}"?`}
+          body="Subfolders and notes move up one level. This does not delete any notes."
+          confirmLabel="Delete"
+          tone="danger"
+          onConfirm={onDeleteConfirm}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </aside>
   )

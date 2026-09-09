@@ -247,7 +247,8 @@ def test_perplexity_finance_discovery_query_issued_and_extracted(monkeypatch):
     captured = {"queries": []}
 
     def fake_web_search(query, max_tokens=400, system=None, mode="fast",
-                        recency=None, domain_pack="general", domains=None):
+                        recency=None, domain_pack="general", domains=None,
+                        **kwargs):
         captured["queries"].append(query)
         if "swing traders and news traders" in query:
             return {"answer": "$FINX — upgraded by a major bank today.",
@@ -279,7 +280,8 @@ def test_enrich_with_perplexity_prompt_includes_swing_catalysts(monkeypatch):
     captured = {"query": None}
 
     def fake_web_search(query, max_tokens=300, system=None, mode="fast",
-                        recency=None, domain_pack="general", domains=None):
+                        recency=None, domain_pack="general", domains=None,
+                        **kwargs):
         captured["query"] = query
         return {"answer": "Some catalyst.", "citations": ["https://c"]}
 

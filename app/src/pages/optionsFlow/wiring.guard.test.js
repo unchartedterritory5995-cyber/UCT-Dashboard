@@ -154,18 +154,222 @@ describe('Options Flow correctness guard', () => {
       'the cap disclosure is gone — multi-day ranges will silently imply completeness' + FIX).toBe(true)
   })
 
-  it('keeps the mode tabs mounted while flow data loads', () => {
-    // A bare centered spinner strands the user for the whole load with no way to
-    // reach GEX/Dark Pool (which do not need this data) or step back to 1d.
-    // Scope STRICTLY to the loading return. A fixed-size window spills into the
-    // csvError state right below, which has always had its own tab bar — so a
-    // loose slice reads that one's tabs and passes against a file with a bare
-    // spinner. (Verified: it did exactly that against clobber 611ad11a.)
-    const start = CODE.indexOf('if (csvLoading && !D) return')
-    const end = CODE.indexOf('if (csvError', start)
-    expect(start !== -1 && end > start, 'could not locate the loading state').toBe(true)
-    expect(CODE.slice(start, end).includes('Indexes / ETF'),
-      'the loading state dropped its mode tabs — the page becomes a dead end while loading' + FIX).toBe(true)
+  it('NEVER replaces the whole section with a loading screen', () => {
+    // ⛔ THIS RAIL USED TO PROTECT THE LOADING SCREEN ITSELF. It asserted that
+    // `if (csvLoading && !D) return` kept a tab bar, because a bare spinner
+    // stranded the user with no way to reach GEX/Dark Pool or step back to 1d.
+    // The real fix was not a better spinner — it was not having one: both
+    // full-page returns are gone, so the mode toggle, view tabs and ticker
+    // search are mounted from the first commit and the section is usable while
+    // its data is still in flight. Measured on prod, those two returns owned
+    // ~490 ms of the visible wait.
+    for (const gate of ['if (csvLoading && !D) return', 'if ((!D || !FD)']) {
+      expect(CODE.includes(gate),
+        `a full-page loading return is back (${gate}) — the member sees a spinner `
+        + 'instead of the section' + FIX).toBe(false)
+    }
+  })
+
+  // The content gate, located rather than retyped. It has changed shape twice
+  // (`&& D && (<>` -> `(D || !tabNeedsD) && (<>`) and each time a literal here
+  // went stale and took a real invariant offline with it, so find it by the
+  // stable part — the JSX-fragment opener that starts the body — and let the
+  // condition vary.
+  const contentGateIndex = () => {
+    const ret = CODE.indexOf('<div className="of-mroot"')
+    const gate = CODE.indexOf('&& (D || !tabNeedsD) && (<>', ret)
+    return { ret, gate }
+  }
+
+  it('renders the mode toggle without waiting for data', () => {
+    // The toggle must sit OUTSIDE the content gate, or "no full-page return"
+    // would just mean "a blank page" instead.
+    const { ret, gate } = contentGateIndex()
+    expect(ret !== -1 && gate > ret, 'could not locate the render').toBe(true)
+    expect(CODE.slice(ret, gate).includes('Indexes / ETF'),
+      'the mode toggle moved behind the data gate — the page is blank until D' + FIX).toBe(true)
+  })
+
+  it('the pending state offers the REAL view tabs, not a placeholder of them', () => {
+    // One definition, two call sites. A copy would drift from the real tab bar.
+    expect((CODE.match(/\{viewTabsBar\}/g) || []).length,
+      'viewTabsBar is not rendered in both the pending and loaded states' + FIX)
+      .toBeGreaterThanOrEqual(2)
+    expect(CODE.includes('&& !D && !csvError && tabNeedsD && (<>'),
+      'the pending state is gone — the data region has no placeholder' + FIX).toBe(true)
+  })
+
+  it('the market strip is NOT behind the data gate — it has its own fetch', () => {
+    // `marketIndices` comes from fetchMarketData and references neither D nor
+    // FD. It sat inside the content gate, so live index prices that had already
+    // arrived were withheld until the flow parts landed. One definition, two
+    // call sites (pending + loaded) — a second copy would drift.
+    expect((CODE.match(/\{marketPulseStrip\}/g) || []).length,
+      'marketPulseStrip is not rendered in both the pending and loaded states' + FIX)
+      .toBeGreaterThanOrEqual(2)
+    const strip = CODE.indexOf('const marketPulseStrip')
+    const { gate } = contentGateIndex()
+    expect(strip !== -1 && strip < gate,
+      'the market strip moved back inside the data gate' + FIX).toBe(true)
+  })
+
+  it('tabs that never read the flow dataset do not wait for it', () => {
+    // Measured over each tab's own render region: Confluence, Tracker and
+    // Watchlist reference `D.` zero times and Watchlist's only FD uses are
+    // optional-chained. Sealing them behind `D &&` showed a flow-data
+    // placeholder for panels that never needed flow data.
+    expect(CODE.includes('const TABS_WITHOUT_D'),
+      'the D-independent tab list is gone — every tab waits on D again' + FIX).toBe(true)
+    for (const t of ['Confluence', 'Tracker', 'Watchlist']) {
+      expect(new RegExp(`TABS_WITHOUT_D = \\[[^\\]]*"${t}"`).test(CODE),
+        `${t} no longer renders without D` + FIX).toBe(true)
+    }
+  })
+
+  it('feature-tab data is demand-driven, not fetched on mount', () => {
+    // Every consumer of these three lives on Top Flow / Tracker / Watchlist, so
+    // on a default Market Read entry they were a request, a setState and a
+    // render for something nobody could see. They now fetch when a consuming
+    // tab first opens.
+    expect(CODE.includes('const FEATURE_DATA_TABS'),
+      'the demand-driven tab list is gone' + FIX).toBe(true)
+    for (const t of ['Top Flow', 'Tracker', 'Watchlist']) {
+      expect(new RegExp(`FEATURE_DATA_TABS = \\[[^\\]]*"${t}"`).test(CODE),
+        `${t} dropped out of FEATURE_DATA_TABS — its panel will render empty` + FIX).toBe(true)
+    }
+    // The endpoints must not sit in a mount effect (`}, []);`) any more. Find
+    // each fetch and read the dep array of the effect that encloses it.
+    // ⛔ State the invariant DIRECTLY — "no mount effect fetches these" — rather
+    // than "the effect enclosing the first occurrence has deps". Two earlier
+    // shapes of this check were wrong for the same reason: they assumed the
+    // first textual occurrence was the one that moved. `/api/watchlist/dates`
+    // has a SECOND, legitimate call site (a post-save refresh) that is not in
+    // an effect at all, and the bare path also appears in the comment above the
+    // effect. Enumerate the mount effects and look inside them.
+    const mountEffectBodies = []
+    for (let i = 0; ; ) {
+      const at = CODE.indexOf('useEffect(', i)
+      if (at === -1) break
+      let depth = 0
+      let j = at + 'useEffect'.length
+      for (; j < CODE.length; j++) {
+        const c = CODE[j]
+        if (c === '(') depth++
+        else if (c === ')') { depth--; if (depth === 0) break }
+      }
+      const body = CODE.slice(at, j + 1)
+      if (/\}\s*,\s*\[\s*\]\s*\)$/.test(body.trim())) mountEffectBodies.push(body)
+      i = j + 1
+    }
+    // CONTROL: the scanner can see mount effects at all. Without this the loop
+    // below passes trivially the day the bracket matcher breaks.
+    expect(mountEffectBodies.length,
+      'the mount-effect scanner found none — it is not reading this file').toBeGreaterThan(0)
+
+    for (const url of ['/api/live/massive/thresholds', '/api/watchlist/dates', '/api/top-flow/history']) {
+      expect(CODE.includes(`fetch("${url}")`), `${url} is gone entirely`).toBe(true)
+      const onMount = mountEffectBodies.filter(b => b.includes(url))
+      expect(onMount.length,
+        `${url} is fetched from a mount effect again — it loads for a tab nobody opened` + FIX).toBe(0)
+    }
+  })
+
+  it('market data is not held behind a timer — it is first paint now', () => {
+    // The 800 ms deferral was right while the strip lived inside `D &&`. It is
+    // rendered in the pending branch now, so the timer only delayed the first
+    // real data on the page. A stale deferral fails nothing; it is just late.
+    expect(/setTimeout\(\s*fetchMarketData/.test(CODE),
+      'fetchMarketData is behind a timer again — the strip is first-paint content' + FIX).toBe(false)
+  })
+
+  it('the render timeline instrument survives', () => {
+    // "renders before TOP 10" is a claim about a run. Without this the next
+    // person to ask has to re-instrument the page.
+    expect(CODE.includes('window.__flowRenderStats'),
+      'the render counter is gone — render-cascade claims become unfalsifiable' + FIX).toBe(true)
+  })
+
+  it('3b: the server TOP 10 is gated on an EXACT generation match', () => {
+    // The server classified with ITS replica; this browser has its own fetched
+    // set. Two classifications can produce two different TOP 10 lists from one
+    // tape, silently, in a table members trade on.
+    expect(CODE.includes('topPicksUsable('),
+      'the generation gate is gone — a served product would be trusted blind' + FIX).toBe(true)
+    expect(CODE.includes('reviveTopPickVariant('),
+      'served candidates are used raw — daysSince/freshLabel would carry SERVER build time' + FIX).toBe(true)
+  })
+
+  it('3b: a declined product still renders TOP 10 from the raw rows', () => {
+    // The fallback is permanent, not a migration switch.
+    expect(CODE.includes('TOP_PICK_RAW_PARTS'),
+      'the raw-row fallback is gone — a generation mismatch would blank TOP 10' + FIX).toBe(true)
+    expect(/servedTopPicks \|\| _local/.test(CODE),
+      'the local computation is no longer the fallback' + FIX).toBe(true)
+  })
+
+  it('3b: the render gate no longer REQUIRES the raw array', () => {
+    // `{D && D.all_directional && ...}` would blank the table the moment the
+    // part stopped being fetched — the gate has to move with the dependency.
+    expect(CODE.includes('{D && (D.all_directional || servedTopPicks) && (()=>{'),
+      'the TOP 10 render gate still demands all_directional' + FIX).toBe(true)
+  })
+
+  it('3b: the flag defaults OFF and rollback is provable', () => {
+    expect(CODE.includes('VITE_FLOW_SERVER_TOPPICKS === "1"'),
+      'the 3b flag is gone or no longer opt-in' + FIX).toBe(true)
+  })
+
+  it('3b: a failed ETF fetch RESOLVES the generation instead of hanging', () => {
+    // null means "still deciding" to the fallback effect. A permanently failed
+    // ETF request would hang TOP 10 forever, where today it just falls back to
+    // the hardcoded set and renders.
+    expect(/catch\(\(\) => \{ if \(!cancelled\) setEtfGeneration\(""\); \}\)/.test(CODE),
+      'a failed ETF fetch no longer resolves the generation' + FIX).toBe(true)
+  })
+
+  it('3b: nothing in the TOP 10 block reads `.contracts` off a pick', () => {
+    // The served product drops that map (67% of the payload). If a renderer
+    // ever starts reading it, the SERVED path would silently differ from the
+    // LOCAL fallback path — same table, two populations, no error.
+    const start = CODE.indexOf('TOP 10 FLOW PICKS')
+    expect(start, 'could not locate the TOP 10 block').toBeGreaterThan(-1)
+    const block = CODE.slice(start, start + 24000)
+    // CONTROL: the slice really is the TOP 10 renderer.
+    expect(block.includes('topCDisplayPrem'), 'the slice is not the TOP 10 block').toBe(true)
+    const reads = block.match(/(?:p|c|m|pick)\.contracts/g) || []
+    expect(reads,
+      'the TOP 10 renderer now reads `.contracts`, which the served product does not carry' + FIX)
+      .toEqual([])
+  })
+
+  it('FD does not rebuild charts the server already sent', () => {
+    // processFlowData returns clean_confirmed AND buildCharts(clean_confirmed).
+    // When FD's filters drop nothing, rebuilding recomputes a value already in
+    // hand — on the main thread, over every confirmed trade. The length test is
+    // what skips it; flowChartsReuse.test.js proves the equivalence it relies on.
+    //
+    // ⛔ STATED AS THE INVARIANT, NOT RETYPED. This asserted the literal
+    // `if (cc.length === D.clean_confirmed.length) return D;` and went red the
+    // day the return was wrapped for tracing — the guard broke while the
+    // invariant it protects was completely intact. That is the exact failure
+    // this file has already paid for once: a retyped literal takes a real
+    // invariant offline the moment the code changes shape.
+    const test = CODE.indexOf('cc.length === D.clean_confirmed.length')
+    expect(test, 'the length short-circuit is gone — buildCharts now reruns on '
+      + 'every entry, on the main thread, over every confirmed trade' + FIX)
+      .toBeGreaterThan(-1)
+    // It must SHORT-CIRCUIT: a return between the test and the rebuild.
+    const rebuild = CODE.indexOf('buildCharts(', test)
+    const ret = CODE.indexOf('return', test)
+    expect(ret).toBeGreaterThan(-1)
+    expect(ret, 'the length test no longer returns before buildCharts — it is '
+      + 'computed and then discarded, which is the cost it exists to skip' + FIX)
+      .toBeLessThan(rebuild === -1 ? Number.MAX_SAFE_INTEGER : rebuild)
+  })
+
+  it('CONTROL: the guard can still see this file', () => {
+    expect(CODE.length).toBeGreaterThan(100000)
+    expect(CODE.includes('TOP 10 FLOW PICKS')).toBe(true)
   })
 })
 
@@ -214,12 +418,21 @@ describe('prehydration wiring — the server-computed first paint', () => {
     // still resolve after the real result and overwrite it.
     const at = CODE.indexOf('fetchPrehydrate(')
     expect(at, 'fetchPrehydrate call not found' + FIX).toBeGreaterThan(-1)
-    const region = CODE.slice(Math.max(0, at - 400), at + 500)
-    const guards = region.match(/_processedViewKey\.current/g) || []
-    expect(guards.length,
-      'the per-view guard around fetchPrehydrate was weakened — a late '
-      + 'aggregate can now overwrite the authoritative client result' + FIX)
-      .toBeGreaterThanOrEqual(2)
+    // ⛔ NAME THE TWO GUARDS, do not count symbols in a character window.
+    // This counted >=2 occurrences of `_processedViewKey.current` within
+    // [at-400, at+500]. That is a PROXY for "guarded on both sides", and it
+    // broke the moment a comment was added above the call — the code was
+    // correct and the rail went red, which is the failure that teaches people
+    // to delete rails. Assert the two guards themselves instead: each is
+    // pinned where it must be, and neither can drift into the other's slot.
+    const before = CODE.slice(0, at)
+    expect(/_preFired\s*=\s*!silent\s*&&\s*_processedViewKey\.current !== _preViewKey/.test(before),
+      'the pre-await guard is gone — the page would ask the server for a view '
+      + 'its own aggregate has already published' + FIX).toBe(true)
+    const after = CODE.slice(at, at + 1600)
+    expect(/_processedViewKey\.current === _preViewKey/.test(after),
+      'the post-await guard is gone — a slow aggregate can now resolve AFTER '
+      + 'the authoritative client result and overwrite it' + FIX).toBe(true)
     // ...and the client aggregate must actually STAMP the view it published,
     // or the guard above compares against something nothing ever sets.
     // ⛔ `=(?!=)` — an ASSIGNMENT, not a comparison. Written as `\s*=` this
@@ -278,5 +491,161 @@ describe('stale-copy skip — the ORDER is the optimisation', () => {
     const region = CODE.slice(at, at + 700)
     expect(/setBaseNonce\(/.test(region),
       'the stale skip does not trigger a refetch — the page would sit empty' + FIX).toBe(true)
+  })
+})
+
+// ⛔ THE RAIL THIS SECTION EXISTS FOR. Removing `erSoonArr` from the Search
+// fetch effect and re-applying `er` as a render overlay are ONE change: do the
+// first without the second and every `er` flag in the Search deep dive silently
+// goes false, with the whole suite still green (it was — 421/421 — which is why
+// this file gained a section rather than a comment).
+//
+// The invariant is stated directly, and the effect is LOCATED rather than
+// pinned to a line or a retyped literal: a previous guard in this file retyped
+// a gate's source text, the gate changed shape, and a real invariant went
+// offline while reading green.
+describe('Search deep dive: the er overlay and the fetch lifecycle are one change', () => {
+  /** The Search fetch effect's dependency array, found from its own fetch call. */
+  function searchEffectDeps() {
+    const at = CODE.indexOf('/api/flow/ticker/${')
+    if (at < 0) return null
+    const close = CODE.indexOf('}, [', at)
+    if (close < 0) return null
+    const end = CODE.indexOf(']', close)
+    return CODE.slice(close + 4, end)
+  }
+
+  it('CONTROL: the probe can actually read a dependency array', () => {
+    // Without this, every assertion below would pass on a probe that returns
+    // null because the effect moved or the anchor stopped matching.
+    const deps = searchEffectDeps()
+    expect(deps, 'could not locate the Search fetch effect' + FIX).not.toBe(null)
+    expect(deps).toContain('selectedTicker')
+    expect(deps).toContain('dataMode')
+  })
+
+  it('CONTROL: a dep array elsewhere in the file DOES still carry erSoonArr', () => {
+    // Proves the name is greppable in a dep array at all — so the assertion
+    // below is about the Search effect specifically, not about `erSoonArr`
+    // having quietly disappeared from the whole component.
+    expect(/\}, \[[^\]]*erSoonArr[^\]]*\]/.test(CODE),
+      'no dep array anywhere carries erSoonArr — this control is vacuous, and '
+      + 'the assertion below proves nothing' + FIX).toBe(true)
+  })
+
+  it('the Search fetch does NOT depend on erSoonArr', () => {
+    // erSoonArr lands from /api/calendar ~1s after a search. While it was a
+    // dependency, that landing re-ran the effect: re-fetching and re-deriving
+    // ~20 MB of tape to change one boolean field.
+    expect(searchEffectDeps()).not.toContain('erSoonArr')
+  })
+
+  it('...because `er` is re-applied as a render overlay instead', () => {
+    // The other half. Dropping the dep alone loses the member's earnings flags.
+    expect(CODE.includes('applyErOverlay('),
+      'the Search fetch stopped depending on erSoonArr and NOTHING re-applies '
+      + 'the earnings set — every `er` flag in the deep dive is now false' + FIX)
+      .toBe(true)
+    expect(CODE.includes('const searchUncapped'),
+      'the overlay memo is gone' + FIX).toBe(true)
+  })
+
+  it('both transports derive with NO earnings set, so they agree', () => {
+    // A served product is computed with erSoon=null (that is what makes it
+    // user-independent and cacheable). If the legacy fallback still baked the
+    // set in, the two paths would disagree the moment the overlay applied.
+    expect(/computeCsv\(text,\s*null\)/.test(CODE),
+      'the legacy tape path bakes an earnings set into its derivation, so it '
+      + 'disagrees with the served product once the overlay runs' + FIX).toBe(true)
+  })
+
+  it('a declined product falls back to the tape rather than rendering nothing', () => {
+    const at = CODE.indexOf('fetchSearchProduct(')
+    expect(at, 'the server Search product is not wired' + FIX).toBeGreaterThan(-1)
+    const region = CODE.slice(at, at + 400)
+    expect(/_legacyTape\(\)/.test(region),
+      'nothing falls back when the product declines — a busy or cold server '
+      + 'would leave Search empty' + FIX).toBe(true)
+  })
+
+  it('the flag is read the same build-time way as its three siblings', () => {
+    expect(CODE.includes('VITE_FLOW_SERVER_SEARCH === "1"'),
+      'the Search product flag is not a build-time env read' + FIX).toBe(true)
+  })
+})
+
+
+// ⛔⛔ TICKER_DB / CONV ARE INTERACTION-ONLY AND ARRIVE AFTER FIRST PAINT.
+// Sixteen call sites did `D.TICKER_DB.find(...)` / `FD.TICKER_DB.find(...)` and
+// only TWO checked the array existed. Once the key stops arriving in the
+// bootstrap, every unguarded one is a TypeError the member triggers by clicking
+// — and NO first-paint test can catch it, because first paint never touches
+// these keys. That is exactly why this rail is source-level: the defect lives on
+// a path a render test does not walk.
+describe('interaction-only keys: no unguarded member access', () => {
+  /** Direct `.find(`/`.filter(`/`.map(` on the raw key, i.e. no presence check. */
+  const UNGUARDED = /\b(?:D|FD)\.TICKER_DB\.(?:find|filter|map|forEach|some|reduce|sort)\(/g
+
+  it('CONTROL: the probe can see the pattern it hunts', () => {
+    // Prove the regex matches the shape it is meant to catch, so a green result
+    // below cannot be "the probe matches nothing at all".
+    expect('const tk = D.TICKER_DB.find(x=>x)'.match(UNGUARDED)).not.toBe(null)
+    UNGUARDED.lastIndex = 0
+  })
+
+  it('every TICKER_DB consumer goes through the guarded accessor', () => {
+    const hits = CODE.match(UNGUARDED) || []
+    expect(hits,
+      'an unguarded TICKER_DB member call is back. Once the key is deferred this '
+      + 'throws the moment a member clicks a sector or ticker, and no first-paint '
+      + 'test can see it. Use the `tickerDb` accessor.' + FIX).toEqual([])
+  })
+
+  it('the guarded accessor exists and falls back to a FROZEN shared empty', () => {
+    expect(CODE.includes('const tickerDb ='),
+      'the guarded accessor is gone' + FIX).toBe(true)
+    expect(/EMPTY_ROWS\s*=\s*Object\.freeze\(\[\]\)/.test(CODE),
+      'the fallback is not a frozen shared constant — a per-call [] can be '
+      + 'mutated by one consumer and read as real, empty data by another' + FIX)
+      .toBe(true)
+  })
+
+  it('the post-paint fetch is wired, version-keyed, and asks for both keys', () => {
+    expect(CODE.includes('INTERACTION_PARTS'),
+      'nothing fetches the interaction keys after paint' + FIX).toBe(true)
+    // ⛔ Version-keyed, not a one-shot boolean: a one-shot ref would never
+    // refetch after a version roll replaced D, stranding the page without its
+    // interaction data for the life of the mount.
+    expect(CODE.includes('_interactionAskedFor'),
+      'the post-paint fetch is no longer keyed on the data version' + FIX).toBe(true)
+  })
+})
+
+
+// ⛔⛔ THE GUARD THAT SILENTLY DISABLED THE WHOLE SLICE.
+// The post-paint fetch is keyed on the data version so it does not re-ask for a
+// version it already has. Initialised to `null`, that ref compared EQUAL to
+// `dataVersionRef.current` (still null before /api/flow/version answers) on the
+// very first run — so it returned before fetching, permanently, and nothing
+// reset it. Verified on production: first paint dropped to bootstrap +
+// TOP_PICKS exactly as designed and the deferred request NEVER fired. Every
+// test was green; only loading the real page found it.
+describe('the post-paint fetch cannot be disabled by its own guard', () => {
+  it('the version ref is seeded with a sentinel, never null/undefined', () => {
+    const m = /_interactionAskedFor\s*=\s*useRef\(([^)]*)\)/.exec(CODE)
+    expect(m, 'the post-paint fetch lost its version ref' + FIX).not.toBe(null)
+    const seed = m[1].trim()
+    expect(['null', 'undefined', ''],
+      'the version ref is seeded with a value a real version can EQUAL, so the '
+      + '"already asked" guard returns before the first fetch and the deferred '
+      + 'payload never loads' + FIX).not.toContain(seed)
+  })
+
+  it('CONTROL: the sentinel is a value no version can equal', () => {
+    // A string seed would also pass the check above while still colliding with
+    // a string version, so pin the construct rather than merely "not null".
+    expect(/ASKED_NONE\s*=\s*Symbol\(/.test(CODE),
+      'the sentinel is no longer a Symbol — a primitive seed can collide with a '
+      + 'real version value' + FIX).toBe(true)
   })
 })

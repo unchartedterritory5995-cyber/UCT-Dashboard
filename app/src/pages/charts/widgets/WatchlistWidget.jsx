@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useId } from 'react'
+import { useMemo, useCallback, useId, lazy } from 'react'
 import Watchlists from '../../Watchlists'
 import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
@@ -10,6 +10,19 @@ import { useWorkspace } from '../WorkspaceContext'
 // overrides here; everything else falls back to PREBUILT_COL_FALLBACK.
 const PREBUILT_COL_DEFAULTS = {}
 const PREBUILT_COL_FALLBACK = { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] }
+
+// AD-HOC SOURCES. A watchlist widget normally scopes to a SAVED list (`opts.watchKey`).
+// A host can instead hand it membership it computed itself — today that is the breadth
+// drill, whose list is one cell of the breadth monitor and exists only while the modal
+// is open. Lazy so the /charts bundle never pulls breadth code unless such a widget is
+// actually mounted (WidgetHost already provides the Suspense boundary).
+//
+// ⛔ `opts` carries only the SOURCE TAG. The symbols and their per-row meta ride a
+// context, because opts is persisted into a layout blob and a 134-row payload has no
+// business there.
+const SOURCE_WIDGETS = {
+  breadthDrill: lazy(() => import('../../breadth/drill/BreadthDrillList')),
+}
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
@@ -46,6 +59,19 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const persistWlSettings = useCallback((next) => {
     onOptsChange?.({ ...(opts || {}), settings: next })
   }, [opts, onOptsChange])
+
+  // An ad-hoc source wins over both the picker and a saved list: this widget was
+  // placed BY a host that owns its membership, so there is nothing to pick.
+  const SourceList = SOURCE_WIDGETS[opts?.source]
+  if (SourceList) {
+    return (
+      <SourceList
+        color={color}
+        settingsOverride={wlSettingsOverride}
+        onSettingsPersist={persistWlSettings}
+      />
+    )
+  }
 
   // No list chosen yet (freshly added) → show the picker menu instead of the
   // full list view. Once a list is picked, the widget scopes to that single list.

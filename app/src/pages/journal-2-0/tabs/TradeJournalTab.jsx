@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import { useHotkeys } from 'react-hotkeys-hook'
 import useJ2Trades from '../hooks/useJ2Trades'
@@ -32,6 +32,7 @@ import BrokerImportingBanner from '../components/BrokerImportingBanner'
 import useBrokerWarming from '../hooks/useBrokerWarming'
 import { summaryStats } from '../../../lib/journal-2-0'
 import { DEFAULT_PAGE_SIZE } from '../../../lib/journal-2-0/scope'
+import { optionClosedToRow } from '../lib/optionCalcs'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './TradeJournalTab.module.css'
 
@@ -79,49 +80,6 @@ async function jsonFetch(url, method, body) {
     throw new Error(msg)
   }
   return res.json()
-}
-
-// Normalize a CLOSED option strategy into a trade-table row so options sit in
-// the same closed-trades table as shares (Symbol "CRWV Oct 16 $110C", Side
-// "Long Call"). Field shape matches TradesTable/summaryStats exactly
-// (pnlPercent is a fraction, like share trades), so no table changes.
-function optionClosedToRow(s) {
-  const leg = (s.legs && s.legs[0]) || {}
-  const isLong = s.strategyType === 'long_call' || s.strategyType === 'long_put'
-  const isCall = (s.strategyType || '').endsWith('call')
-  let when = ''
-  if (leg.expiration) {
-    const d = new Date(`${leg.expiration}T00:00:00`)
-    if (!Number.isNaN(d.getTime())) {
-      when = `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}`
-    }
-  }
-  let holdDays = null
-  if (s.entryDate && s.closedAt) {
-    const dd = (new Date(s.closedAt) - new Date(s.entryDate)) / 86_400_000
-    if (Number.isFinite(dd)) holdDays = Math.max(0, Math.round(dd))
-  }
-  return {
-    id: s.id,
-    isOption: true,
-    symbol: `${s.underlying}${when ? ` ${when}` : ''} $${leg.strike}${isCall ? 'C' : 'P'}`,
-    side: `${isLong ? 'Long' : 'Short'} ${isCall ? 'Call' : 'Put'}`,
-    result: s.result,
-    shares: leg.qty,                          // contracts
-    entryPrice: leg.entryPrice,               // premium per contract
-    entryDate: s.entryDate,
-    exitPrice: leg.exitPrice,                 // exit premium per contract
-    exitDate: s.closedAt,
-    pnlDollar: s.pnlDollar,
-    pnlDollarNet: s.pnlDollar,                // options P&L is already net of fees
-    fees: (s.fees || 0) + (s.exitFees || 0),
-    pnlPercent: s.pnlPercent,                 // fraction (same as share trades)
-    rMultiple: s.rMultiple,
-    holdDays,
-    setup: s.setup,
-    originalStop: null,
-    source: s.source,
-  }
 }
 
 // The closed-options union is NOT server-scoped (A9 filters SHARES server-side),
@@ -255,6 +213,34 @@ export default function TradeJournalTab({ settings }) {
   // Trade detail drawer
   const [drawerTrade, setDrawerTrade] = useState(null)
 
+  // Wave 3 (Thesis-Trade Link): a note's "linked trade" navigates an option
+  // strategy here via ?j2tab=journal&openTrade=<id> (equity trades have their
+  // own standalone route, /journal-2-0/trade/:id, and don't need this).
+  // allClosedForSummary is the UNPAGED filtered list — more likely to contain
+  // the target than the paged `allClosed` table rows. Consumes the param
+  // once found so re-filtering/re-rendering never re-opens the drawer.
+  // ⛔ MUST filter on `isOption` too, not id alone — j2_trades.id and
+  // j2_option_strategies.id are independent uuid4 namespaces (see
+  // note_trade_links.py), and allClosedForSummary merges rows from BOTH
+  // tables into one array. A bare id match silently opened the wrong
+  // object the day a real collision was tested (this comment is the
+  // regression rail's finding, not a hypothetical).
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const openId = searchParams.get('openTrade')
+    if (!openId) return
+    const row = allClosedForSummary.find((r) => String(r.id) === openId && !!r.isOption)
+    if (row) {
+      setDrawerTrade(row)
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('openTrade')
+        return next
+      }, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, allClosedForSummary])
+
   // Toolbar modals
   const [addOpen, setAddOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
@@ -311,7 +297,8 @@ export default function TradeJournalTab({ settings }) {
       )
     } catch (e) {
       refresh()  // roll back to server truth
-      showToast(`Couldn't update setup: ${String(e.message || e)}`, 'error')
+      console.error('[journal] update setup failed', e)
+      showToast("Couldn't update that setup — it's been rolled back.", 'error')
     }
   }, [mutateTrades, mutate, refresh, showToast])
 

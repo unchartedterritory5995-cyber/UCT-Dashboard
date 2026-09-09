@@ -5,6 +5,11 @@ migration plan, Task 5, first call site).
 Mirrors the structure of test_earnings_intel_price_target_fallback.py (the
 Task 6 precedent this task follows) but drives the CONSENSUS leg specifically
 via the real _fh_get/_fh_take_token path so token-bucket accounting is real.
+
+D1 note: the FMP leg now routes through the shared `fmp_client` adapter
+(`ee.fmp_client`), which fires on its own `requests.Session`
+(`fmp_client._session`) — NOT `ee.requests.get`, which Finnhub's `fh_get`
+still uses. Mock the two separately.
 """
 from unittest.mock import patch
 
@@ -49,11 +54,15 @@ def _reset_state(monkeypatch):
     fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
     fhc._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
+    ee.fmp_client._bucket_tokens = ee.fmp_client._FMP_RATE_LIMIT_PER_MIN
+    ee.fmp_client._bucket_updated = ee._time.monotonic()
+    cache.invalidate("fmp_forbidden_/stable/grades-consensus")
     yield
     fhc._fh_cooldown_until = 0.0
     fhc._fh_bucket_tokens = fhc._FH_RATE_LIMIT_PER_MIN
     fhc._fh_bucket_updated = ee._time.monotonic()
     cache.invalidate(KEY)
+    cache.invalidate("fmp_forbidden_/stable/grades-consensus")
 
 
 def _fh_responder(*, earnings_ok=True, rec_ok=True, pt_ok=True):
@@ -69,29 +78,35 @@ def _fh_responder(*, earnings_ok=True, rec_ok=True, pt_ok=True):
     return fake_get
 
 
+def _fmp_session_responder(rows):
+    """Fake for `ee.fmp_client._session.get` — the FMP leg's own session,
+    separate from `ee.requests.get`."""
+    def fake_get(url, params=None, timeout=None):
+        return _Resp(200, rows)
+    return fake_get
+
+
 def test_fmp_consensus_used_when_available_finnhub_never_called(monkeypatch):
     monkeypatch.setattr(ee.requests, "get", _fh_responder())
     calls = []
 
-    def fake_fmp_get(path, params, timeout=10):
-        calls.append(path)
-        if path == "/stable/grades-consensus":
-            return _FMP_CONSENSUS_ROW
-        return None  # price-target-consensus fallback never needed here (Finnhub pt_ok=True)
+    def fake_fmp_get(url, params=None, timeout=None):
+        calls.append(url)
+        return _Resp(200, _FMP_CONSENSUS_ROW)
 
-    monkeypatch.setattr(ee, "_fmp_get", fake_fmp_get)
+    monkeypatch.setattr(ee.fmp_client._session, "get", fake_fmp_get)
     result = ee.get_earnings_intel(SYM)
 
     assert result["consensus"] == {
         "buy": 40, "hold": 15, "sell": 3, "strongBuy": 2, "strongSell": 1, "period": "",
     }
-    # Finnhub /stock/recommendation must never have been requested.
-    assert "/stable/grades-consensus" in calls
+    # The FMP grades-consensus endpoint must have been hit via the adapter session.
+    assert any("/stable/grades-consensus" in c for c in calls)
 
 
 def test_falls_back_to_finnhub_when_fmp_consensus_unusable(monkeypatch):
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=True))
-    monkeypatch.setattr(ee, "_fmp_get", lambda path, params, timeout=10: None)
+    monkeypatch.setattr(ee.fmp_client._session, "get", _fmp_session_responder([]))
 
     result = ee.get_earnings_intel(SYM)
 
@@ -103,8 +118,7 @@ def test_falls_back_to_finnhub_when_fmp_consensus_unusable(monkeypatch):
 
 def test_fmp_consensus_call_never_consumes_a_finnhub_token(monkeypatch):
     monkeypatch.setattr(ee.requests, "get", _fh_responder())
-    monkeypatch.setattr(ee, "_fmp_get",
-                         lambda path, params, timeout=10: _FMP_CONSENSUS_ROW if path == "/stable/grades-consensus" else None)
+    monkeypatch.setattr(ee.fmp_client._session, "get", _fmp_session_responder(_FMP_CONSENSUS_ROW))
 
     before = fhc._fh_bucket_tokens
     ee.get_earnings_intel(SYM)

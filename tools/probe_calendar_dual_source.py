@@ -49,7 +49,8 @@ def main() -> int:
     fh_pct = (len(fh_session) / len(fh_rows) * 100) if fh_rows else 0.0
 
     # ── 2. FMP alone (production per-day-chunked fetcher) ───────────────
-    fmp_rows = cal._fmp_range_week(ds, ds) or []
+    fmp_rows, _fmp_meta = cal._fmp_range_week(ds, ds)
+    fmp_rows = fmp_rows or []
     fmp_syms = {(r.get("symbol") or "").strip().upper() for r in fmp_rows if r.get("symbol")}
     fmp_us = {s for s in fmp_syms if cal._is_us_symbol(s)}
 

@@ -42,6 +42,13 @@ describe('ShortcutCheatSheet', () => {
     expect(screen.getByText('Add Trade')).toBeInTheDocument()
   })
 
+  it('Wave B: documents the Notebook section (command palette + find-in-note)', () => {
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(screen.getByText('Notebook')).toBeInTheDocument()
+    expect(screen.getByText(/Open command palette/)).toBeInTheDocument()
+    expect(screen.getByText('Find in the current note')).toBeInTheDocument()
+  })
+
   it('renders g-then-<key> keycaps for each navigation chord', () => {
     render(<ShortcutCheatSheet open onClose={vi.fn()} />)
     // Nine two-key nav chords → at least nine leading "g" keycaps + "then" links.

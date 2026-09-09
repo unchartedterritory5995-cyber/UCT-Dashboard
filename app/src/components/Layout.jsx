@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
+import CommandPalette from './CommandPalette'
+import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
 import MoreSheet from './mobile/MoreSheet'
 import { MoreSheetContext } from './mobile/MoreSheetContext'
@@ -83,21 +85,44 @@ export default function Layout({ children }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const openMore = () => setMoreOpen(true)
 
+  // The visible NavBar/MobileNav search triggers (2026-09-03 discoverability
+  // slice) open the SAME palette the Ctrl/Cmd+K hotkey does — CommandPalette
+  // stays self-contained; this is just the imperative handle to reach it.
+  const paletteRef = useRef(null)
+  const openPalette = () => paletteRef.current?.open()
+
   return (
     <TickerHubProvider>
       <MoreSheetContext.Provider value={openMore}>
         <div className={styles.shell}>
           {/* Desktop sidebar — hidden at <=1024px via CSS */}
-          <NavBar />
+          <NavBar onOpenPalette={openPalette} />
           {/* Mobile top bar — shown at <=1024px via CSS. Its top-left menu
               button opens the ONE unified MoreSheet. The bottom tab bar that
               duplicated it route-for-route was removed 2026-09-01 (owner
               call): on touch, the hamburger is the app menu everywhere, and
               the phone chart shell — which hides this top bar — carries its
               own Menu trigger in the symbol strip via MoreSheetContext. */}
-          <MobileNav onMenu={openMore} />
+          <MobileNav onMenu={openMore} onOpenPalette={openPalette} />
           <main className={styles.main}>
-            {children ?? <Outlet />}
+            {/* ⭐ The app's route-level <Suspense> in App.jsx wraps the WHOLE
+                <Routes>, so a section whose chunk is not resolved yet unmounts
+                the ENTIRE shell — this nav, the header, everything — behind the
+                full-screen "Loading page" splash. That is what members feel as
+                the app "reloading" when they switch sections, and it was never
+                specific to one page: measured on prod 2026-09-07, entering
+                /uct-20 held it 878 ms and /options-flow 1,235 ms.
+
+                This boundary sits NEARER the suspending route, so React uses it
+                first and the chrome stays on screen — only the content area
+                swaps, which is what every already-visited section already felt
+                like. Keep it INSIDE <main> for that reason; hoisting it above
+                the nav would restore the old behaviour.
+
+                Rail: components/Layout.routeSuspense.test.jsx. */}
+            <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
+              {children ?? <Outlet />}
+            </Suspense>
           </main>
           {/* Backdrop dim behind the desktop nav while it is hovered-open, so the
               expanded rail reads as a DRAWER over the page (content clearly behind
@@ -107,6 +132,10 @@ export default function Layout({ children }) {
           <FeedbackWidget />
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
+          <CommandPalette ref={paletteRef} />
+          {/* The ONE capture dialog, mounted once app-wide so every door -- palette,
+              hotkey, note, research workspace, surfaces -- opens the same product. */}
+          <CaptureHost />
         </div>
       </MoreSheetContext.Provider>
     </TickerHubProvider>

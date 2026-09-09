@@ -25,6 +25,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -85,12 +86,17 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+// AlertBell mounts inside App.jsx's Router in production (it now uses
+// useNavigate for S7's document-arrival deep-link) — MemoryRouter matches
+// that reality.
 function renderAs(userId) {
   const value = { user: userId ? { id: userId, email: `${userId}@t.test` } : null, loading: false }
   return render(
-    <AuthContext.Provider value={value}>
-      <AlertBell />
-    </AuthContext.Provider>,
+    <MemoryRouter>
+      <AuthContext.Provider value={value}>
+        <AlertBell />
+      </AuthContext.Provider>
+    </MemoryRouter>,
   )
 }
 

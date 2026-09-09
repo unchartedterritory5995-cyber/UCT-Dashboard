@@ -1,4 +1,4 @@
-"""Record — and optionally block — any runtime touch of the shared data root.
+r"""Record — and optionally block — any runtime touch of the shared data root.
 
 ⛔ WHY. `tools/audit_sandbox_env.py` redirects every path the AST census can pin.
 That answers *"is there an env var for this literal?"* — it does NOT answer *"does
@@ -22,6 +22,16 @@ Usage — import it BEFORE the app::
                import uvicorn; uvicorn.run('api.main:app', port=8077)"
 
 Then read `p.report()`, or the JSON at `$UCT_SHARED_ROOT_PROBE_OUT`.
+
+⛔ **`strict=True` (or `UCT_SHARED_ROOT_PROBE_STRICT=1`): REFUSE, not just record.**
+Added for `tools/e2e_sandbox_launcher.py` — a live E2E server has no
+`pytest_sessionfinish` to fail the run afterward, so recording alone would let
+a real touch of `C:\data` complete silently. Strict mode raises
+`SharedDataRootAccessRefused` from inside `_record`, which runs BEFORE the
+wrapped `open`/`sqlite3.connect`/`makedirs`/`mkdir` ever calls the real
+function — the access never happens, not even a read. Non-strict (the
+default) is unchanged: record only, exactly as before, for the audit-mode use
+case where you want visibility without a crash.
 """
 from __future__ import annotations
 
@@ -33,11 +43,21 @@ import sqlite3
 import threading
 import traceback
 
-SHARED_ROOTS = (os.environ.get("UCT_SHARED_ROOT", r"C:\data"),)
+#: Mutable (not a tuple) so tests can point this at a throwaway PROBE directory
+#: — never real C:\data — and watch strict mode actually refuse, the same
+#: technique `conftest.pretend_shared_root` uses for the pytest tripwire.
+SHARED_ROOTS: list[str] = [os.environ.get("UCT_SHARED_ROOT", r"C:\data")]
 _OUT = os.environ.get("UCT_SHARED_ROOT_PROBE_OUT", "")
 _HITS: list[dict] = []
 _LOCK = threading.Lock()
 _INSTALLED = False
+_STRICT = os.environ.get("UCT_SHARED_ROOT_PROBE_STRICT", "0").lower() in ("1", "true", "yes")
+_REAL = {}  # populated by install(); restored by uninstall()
+
+
+class SharedDataRootAccessRefused(RuntimeError):
+    """Strict mode: a runtime touch of the shared data root was refused
+    before the real open/connect/makedirs/mkdir ran."""
 
 
 def _is_shared(path) -> bool:
@@ -69,43 +89,83 @@ def _record(kind: str, path) -> None:
                 os.replace(tmp, _OUT)
             except Exception:
                 pass
+    if _STRICT:
+        # Raised OUTSIDE the lock (above) and BEFORE the caller's wrapper ever
+        # calls the real open/connect/makedirs/mkdir — the access itself never
+        # happens, read or write. This is what makes strict mode "refused
+        # before touching it" rather than "recorded, then touched anyway."
+        raise SharedDataRootAccessRefused(
+            f"[{kind}] {path} refused — this process is running in a "
+            f"fail-closed E2E sandbox (UCT_SHARED_ROOT_PROBE_STRICT=1) and "
+            f"this path resolves inside the shared production data root "
+            f"({SHARED_ROOTS[0]}). Point the owning env var at the sandbox "
+            f"root instead of touching this path."
+        )
 
 
-def install() -> None:
-    """Wrap the few entry points that can reach a file. Idempotent."""
-    global _INSTALLED
+def install(strict: bool | None = None) -> None:
+    """Wrap the few entry points that can reach a file. Idempotent.
+
+    `strict` overrides `UCT_SHARED_ROOT_PROBE_STRICT` for this process when
+    given explicitly; omit it to use the env var (the CLI/launcher default).
+    """
+    global _INSTALLED, _STRICT
+    if strict is not None:
+        _STRICT = bool(strict)
     if _INSTALLED:
         return
     _INSTALLED = True
 
-    real_open, real_connect = builtins.open, sqlite3.connect
-    real_makedirs, real_mkdir = os.makedirs, os.mkdir
+    _REAL.update(open=builtins.open, connect=sqlite3.connect,
+                 makedirs=os.makedirs, mkdir=os.mkdir, io_open=io.open)
 
     def open_(file, *a, **k):
         if _is_shared(file):
             _record("open", file)
-        return real_open(file, *a, **k)
+        return _REAL["open"](file, *a, **k)
 
     def connect_(database, *a, **k):
         if _is_shared(database):
             _record("sqlite3.connect", database)
-        return real_connect(database, *a, **k)
+        return _REAL["connect"](database, *a, **k)
 
     def makedirs_(name, *a, **k):
         if _is_shared(name):
             _record("makedirs", name)
-        return real_makedirs(name, *a, **k)
+        return _REAL["makedirs"](name, *a, **k)
 
     def mkdir_(path, *a, **k):
         if _is_shared(path):
             _record("mkdir", path)
-        return real_mkdir(path, *a, **k)
+        return _REAL["mkdir"](path, *a, **k)
 
     builtins.open = open_
     sqlite3.connect = connect_
     os.makedirs = makedirs_
     os.mkdir = mkdir_
     io.open = open_
+
+
+def uninstall() -> None:
+    """Restore the wrapped entry points. Test-only — a live launcher never
+    calls this (the guard should stay armed for the process lifetime)."""
+    global _INSTALLED
+    if not _INSTALLED:
+        return
+    builtins.open = _REAL["open"]
+    sqlite3.connect = _REAL["connect"]
+    os.makedirs = _REAL["makedirs"]
+    os.mkdir = _REAL["mkdir"]
+    io.open = _REAL["io_open"]
+    _REAL.clear()
+    _INSTALLED = False
+
+
+def reset_hits() -> None:
+    """Clear recorded hits — test-only, so one test's hits don't leak into
+    the next test's assertions."""
+    with _LOCK:
+        _HITS.clear()
 
 
 def hits() -> list[dict]:

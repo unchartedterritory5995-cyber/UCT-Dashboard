@@ -184,6 +184,16 @@
   white-space: nowrap;
 }
 
+.rowClickable {
+  cursor: pointer;
+}
+
+.rowClickable:hover,
+.rowClickable:focus-visible {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+  outline: none;
+}
+
 .tradesList {
   display: flex;
   flex-direction: column;

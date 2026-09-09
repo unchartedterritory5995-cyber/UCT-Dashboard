@@ -14,6 +14,32 @@ from __future__ import annotations
 import pytest
 
 from api.routers import live_prices as lp
+from api.services import provider_errors as _pe
+from api.services.massive import to_polygon_symbol
+
+
+def _batch_quotes_from_get(client, tickers):
+    """D1 note: `_fetch_snapshots` now calls `client.get_batch_quotes(tickers)`
+    rather than building the URL itself and calling `client._get` — see
+    test_live_prices_dual_class.py's matching note. `_fetch_extended_volume`
+    (a distinct, unmigrated capability) still calls `client._get` directly,
+    so `_AggClient`/`_EmptyClient` below need no adapter."""
+    poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
+    tickers_param = ",".join(poly_to_canon.keys())
+    url = (f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+           f"?tickers={tickers_param}&apiKey={client._api_key}")
+    data = client._get(url, timeout=5.0)
+    out = {}
+    for t in data.get("tickers", []):
+        poly_sym = t.get("ticker", "")
+        if not poly_sym:
+            continue
+        out[poly_to_canon.get(poly_sym, poly_sym)] = t
+    return _pe.ProviderResult(
+        value=out,
+        provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="test"),
+        licensing_class="R",
+    )
 
 
 def _closed_ticker(sym: str, prev: dict) -> dict:
@@ -46,6 +72,9 @@ class _ClosedClient:
 
     def _get(self, url, timeout=None):
         return {"tickers": self._tickers, "status": "OK"}
+
+    def get_batch_quotes(self, tickers, *, entity_ids=None):
+        return _batch_quotes_from_get(self, tickers)
 
 
 @pytest.fixture

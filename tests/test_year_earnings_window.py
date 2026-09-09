@@ -39,11 +39,11 @@ def test_all_four_quarters_returned_for_old_year(monkeypatch):
         _fmp_row("2017-02-10", 0.41, 0.39, 800e6, 790e6),   # → Q4 2016
     ]
 
-    def fake_fmp(path, params, timeout=10):
-        assert path == "/stable/earnings"
+    def fake_rows(ticker, fn, **kwargs):
+        assert fn is ee.fmp_client.get_earnings
         return fmp_rows
 
-    monkeypatch.setattr(ee, "_fmp_get", fake_fmp)
+    monkeypatch.setattr(ee, "_fmp_rows", fake_rows)
     rows = ee.get_year_earnings("ZZTESTCLF", 2016)
 
     quarters = [r["quarter"] for r in rows]

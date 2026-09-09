@@ -11,6 +11,7 @@
 //      a sign-out → sign-in on the same tab would carry the previous member's
 //      seen-id set into the next member's session and chime on their first poll.
 import { useState, useRef, useEffect, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { playAlertSound, showBrowserNotification, requestNotificationPermission } from '../utils/alertSound'
 import usePreferences from '../hooks/usePreferences'
@@ -79,6 +80,7 @@ export default function AlertBell() {
   // throwing. Signed out = no poll = no feed = no sound.
   const auth = useContext(AuthContext)
   const userId = auth?.user?.id ?? null
+  const navigate = useNavigate()
 
   // The SWR key carries the identity. Two consequences, both deliberate:
   // a null key means SWR does not fetch at all while signed out, and a
@@ -183,6 +185,19 @@ export default function AlertBell() {
     mutate()
   }
 
+  // S7 first slice (owner authorization, 2026-09-03): deep-link into the
+  // existing research surface when an alert's own data names one — additive,
+  // no new component. Alerts with no research_url keep today's mark-read-only
+  // behavior unchanged.
+  function handleItemClick(a) {
+    if (!a.read) markRead(a.id)
+    const url = a.data?.research_url
+    if (url) {
+      setOpen(false)
+      navigate(url)
+    }
+  }
+
   function handleBellClick() {
     setOpen(o => !o)
     // Request notification permission on first bell click
@@ -247,8 +262,23 @@ export default function AlertBell() {
             {items.map(a => (
               <div
                 key={a.id}
-                className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''}`}
-                onClick={() => !a.read && markRead(a.id)}
+                className={`${styles.item} ${!a.read ? styles.unread : ''} ${styles[SEV_CLASS[a.severity]] || ''} ${a.data?.research_url ? styles.itemLinked : ''}`}
+                onClick={() => handleItemClick(a)}
+                // Seam 5: a bare `<div onClick>` was keyboard-inaccessible —
+                // a member who cannot use a mouse could not open ANY
+                // notification, including the already-live S7 document-
+                // arrival rows. `role="button"` + `tabIndex` + Enter/Space
+                // give it real interactive semantics, matching the same
+                // `handleItemClick` the mouse path already calls.
+                role="button"
+                tabIndex={0}
+                aria-label={`${a.title}${a.message ? `. ${a.message}` : ''}${!a.read ? '. Unread' : ''}`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()  // Space must not also scroll the page
+                    handleItemClick(a)
+                  }
+                }}
               >
                 <span className={styles.itemIcon}><UIcon name={TYPE_ICONS[a.type] || 'bell'} size={16} /></span>
                 <div className={styles.itemBody}>

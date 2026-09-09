@@ -306,3 +306,74 @@ def test_search_deliberately_no_longer_matches_mid_word_substrings():
 
     assert fts == set(), f"expected no FTS matches for a mid-word substring, got {fts}"
     assert like == {"n1"}, "LIKE should still match the substring -- this pins the divergence, not a LIKE regression"
+
+
+# ── Wave 4 prep (2026-09-06 checkpoint items 14/19/20) — pre-written safety,
+# tenant-isolation, and trash-exclusion regression coverage on the CURRENT
+# search path, before any Wave 4 filter is added to the same predicate. The
+# generic operator-neutralization tests above already prove the underlying
+# regex-based stripping is safe in general; these add the SPECIFIC,
+# product-relevant cases the checkpoint named by name (real ticker syntax,
+# not just synthetic operator strings), plus isolation/trash coverage that
+# did not exist for the search path specifically.
+
+def test_fts_match_expr_handles_a_hyphenated_ticker():
+    # BRK-B: hyphen is a separator (like every non-word char), splitting into
+    # two AND'd terms -- never raises, never treated as a MATCH operator.
+    assert fts_match_expr("BRK-B") == '"BRK" "B"*'
+
+
+def test_fts_match_expr_handles_a_cashtag():
+    # $NVDA: the $ is stripped as a separator, matching plain "NVDA".
+    assert fts_match_expr("$NVDA") == '"NVDA"*'
+
+
+def test_fts_match_expr_neutralises_parentheses_and_near_not():
+    assert fts_match_expr("(cup handle)") == '"cup" "handle"*'
+    assert fts_match_expr("cup NEAR handle") == '"cup" "NEAR" "handle"*'
+    assert fts_match_expr("cup NOT handle") == '"cup" "NOT" "handle"*'
+
+
+def test_fts_match_expr_never_raises_on_heavy_punctuation():
+    for q in ["!!!", "***", "a/b\\c", "...", "%%%", "#!@#$%^&*()"]:
+        fts_match_expr(q)  # must not raise -- the return value may legally be None
+
+
+def test_fts_match_expr_handles_very_long_input_without_raising():
+    long_q = " ".join(f"term{i}" for i in range(500))
+    expr = fts_match_expr(long_q)
+    assert expr is not None
+    assert expr.startswith('"term0"')
+    assert expr.endswith('"term499"*')
+
+
+def test_search_never_returns_another_users_note():
+    """Discriminating tenant-isolation test for the SEARCH path specifically
+    (list_notes q= / FTS branch), not just general list/get. A shared,
+    single global j2_notes_fts table (one row per note across ALL users) is
+    exactly the architecture where a missing user_id predicate would leak
+    silently -- see wave4-search-evolution-i-prep.md §1.1."""
+    from api.services.journal_two.notes import list_notes
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1", title="NVDA thesis", body_plain="semiconductor capex")
+    _insert_note(c, "n2", user_id="u2", title="NVDA thesis too", body_plain="semiconductor capex also")
+    u1_results = {r["id"] for r in list_notes("u1", q="semiconductor", conn=c)}
+    u2_results = {r["id"] for r in list_notes("u2", q="semiconductor", conn=c)}
+    assert u1_results == {"n1"}
+    assert u2_results == {"n2"}
+
+
+def test_search_excludes_a_trashed_note_by_default():
+    """Wave 4 adds new filters (date-range, entity) that compose onto the
+    SAME _notes_filter_sql predicate this test exercises -- confirms today's
+    baseline (deleted_at IS NULL is unconditional on the default/deleted=False
+    path) so a future filter addition can never accidentally surface trashed
+    research in normal search results."""
+    from api.services.journal_two.notes import list_notes
+    c = _conn()
+    _insert_note(c, "n1", user_id="u1", title="Active note", body_plain="capex thesis")
+    _insert_note(c, "n2", user_id="u1", title="Trashed note", body_plain="capex thesis")
+    c.execute("UPDATE j2_notes SET deleted_at = '2026-09-01T00:00:00Z' WHERE id = 'n2'")
+    c.commit()
+    results = {r["id"] for r in list_notes("u1", q="capex", conn=c)}
+    assert results == {"n1"}, "a trashed note must never appear in a normal (non-Trash-view) search"

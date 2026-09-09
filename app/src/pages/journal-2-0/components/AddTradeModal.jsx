@@ -25,6 +25,7 @@ import usePreTradeVerdict from '../hooks/usePreTradeVerdict'
 import PreTradeVerdictCard from './PreTradeVerdictCard'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
+import SecuritySymbolInput from './SecuritySymbolInput'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -219,11 +220,9 @@ export default function AddTradeModal({ settings, onSave, onClose, accountName, 
           <div className={styles.grid2}>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Symbol *</span>
-              <input
-                type="text"
+              <SecuritySymbolInput
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
-                className={styles.textInput}
+                onChange={setSymbol}
                 placeholder="e.g. NVDA"
                 autoFocus
               />

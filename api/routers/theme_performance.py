@@ -56,7 +56,8 @@ _COLD_TAIL_CAP = int(os.environ.get("THEME_WARM_CAP", "30"))
 
 
 @router.get("/api/theme-performance")
-def get_theme_performance(refresh: bool = False, _user: dict = Depends(require_paid)):
+def get_theme_performance(refresh: bool = False, set: str | None = None,
+                          user: dict = Depends(require_paid)):
     global _last_theme_warm
     try:
         # Manual footer refresh: bust the 10s live-overlay caches so the response is re-overlaid
@@ -67,6 +68,17 @@ def get_theme_performance(refresh: bool = False, _user: dict = Depends(require_p
             cache.invalidate(svc._OVERLAID_KEY)
             cache.invalidate(svc._LIVE_1D_KEY)
         result = svc.get_theme_performance()
+        # Personal theme set: overlay this user's private diff on a COPY of the shared result.
+        # Never mutates the shared base; owner taxonomy / sizing / watermark are untouched.
+        if set:
+            try:
+                from api.services import theme_sets as ts_svc
+                if ts_svc.enabled():
+                    set_def = ts_svc.get_set(user["id"], set)
+                    if set_def:
+                        result = svc.apply_theme_set(result, set_def)
+            except Exception:
+                pass  # fail-soft: a bad set never breaks the shared tracker
         try:
             now = time.monotonic()
             if (now - _last_theme_warm) >= _THEME_WARM_INTERVAL:

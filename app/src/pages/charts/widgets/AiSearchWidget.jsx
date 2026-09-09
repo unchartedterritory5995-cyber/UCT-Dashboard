@@ -8,6 +8,7 @@ import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, isLegacyBasicLightDefault } from './basicWidgetSettings'
@@ -536,6 +537,8 @@ export default function AiSearchWidget({
   // AiSearchEmbed replays it read-only. Hidden until an answer exists and in
   // readOnly (an embed offering the door is circular). ──
   const [journalMsg, setJournalMsg] = useJournalToast()
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture}.
+  const [captureMenu, setCaptureMenu] = useState(null)
   const gearRef = useRef(null)
   const rootRef = useRef(null)
   const rootStyle = useMemo(() => {
@@ -1037,20 +1040,44 @@ export default function AiSearchWidget({
           themeVars={menuVars}
         />
       )}
-      {chrome && !readOnly && thread.length > 0 && (
-        <button
-          type="button"
-          className={styles.gearBtn}
-          style={{ right: 30 }}
-          onClick={async () => {
-            setJournalMsg('sending…')
-            setJournalMsg(await sendCaptureToJournal('aisearch', { thread: thread.slice(-10), settings: aisSettings },
-              { label: thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer' }))
-          }}
-          title="Send this conversation to Journal"
-          aria-label="Send this conversation to Journal"
-        ><UIcon name="journal" size={13} /></button>
-      )}
+      {chrome && !readOnly && thread.length > 0 && (() => {
+        const buildAiSearchCapture = () => ({ thread: thread.slice(-10), settings: aisSettings })
+        const label = thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer'
+        return (
+          <>
+            <button
+              type="button"
+              className={styles.gearBtn}
+              style={{ right: 30 }}
+              onClick={async () => {
+                setJournalMsg('sending…')
+                setJournalMsg(await sendCaptureToJournal('aisearch', buildAiSearchCapture(), { label }))
+              }}
+              title="Send this conversation to Journal"
+              aria-label="Send this conversation to Journal"
+            ><UIcon name="journal" size={13} /></button>
+            <button
+              type="button"
+              className={styles.gearBtn}
+              style={{ right: 51 }}
+              onClick={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildAiSearchCapture() })}
+              title="Send to Journal — choose where"
+              aria-label="Send to Journal — choose where"
+            ><UIcon name="chevronDown" size={13} /></button>
+            {captureMenu && (
+              <CaptureMenu
+                open
+                onClose={() => setCaptureMenu(null)}
+                anchor={captureMenu.anchor}
+                widgetId="aisearch"
+                capture={captureMenu.capture}
+                label={label}
+                onSent={setJournalMsg}
+              />
+            )}
+          </>
+        )
+      })()}
       <JournalToast msg={journalMsg} style={{ top: 26, right: 6 }} />
       {chrome && (
         <button

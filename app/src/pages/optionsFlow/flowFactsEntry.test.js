@@ -13,9 +13,10 @@
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
-import { aggregateCsv, USAGE } from './flowFactsEntry.js'
-import { parseCSV, processFlowData } from './flowCompute.js'
+import { aggregateCsv, USAGE, loadEtfReplica } from './flowFactsEntry.js'
+import { parseCSV, processFlowData, availableDatesFrom } from './flowCompute.js'
 
 const FIXTURE = path.resolve(process.cwd(), 'src/pages/optionsFlow/__fixtures__/flow-sample.csv')
 
@@ -103,6 +104,66 @@ describe('flowFactsEntry', () => {
       expect(body.includes(forbidden), `entry touches ${forbidden}`).toBe(false)
     }
   })
+
+  // ── stats.availableDates — the date picker's calendar ─────────────────────
+  //
+  // WHY THIS IS EMITTED AT ALL. The page derives `availableDates` by PARSING
+  // THE TAPE, and the date-range picker renders only when
+  // `availableDates.length > 0`. Deferring the tape off the cold path therefore
+  // made the whole control DISAPPEAR — speed bought by hiding a capability.
+  // The server already parsed the same rows, so it emits the same calendar.
+  describe('stats.availableDates', () => {
+    const header = 'CreatedDate,CreatedTime,Symbol,Type,Volume,Price,Side,CallPut,'
+      + 'Strike,Spot,Premium,ExpirationDate,Color,ImpliedVolatility,Dte,ER,'
+      + 'StockEtf,Sector,Uoa,Weekly,MktCap,OI'
+    const row = (date, sym) => `${date},10:00:00 AM,${sym},SWEEP,500,10.5,,CALL,`
+      + `100,95.0,525000,12/31/2026,WHITE,0,7,F,STOCK,Information Technology,F,T,5e10,900`
+
+    it('is exactly what the page would derive from the same rows', () => {
+      // Identity, not agreement: one helper, one input. A second implementation
+      // is what would let the picker and the tape disagree.
+      const { stats } = aggregateCsv(csv)
+      expect(stats.availableDates).toEqual(availableDatesFrom(parseCSV(csv)))
+      expect(stats.availableDates.length).toBeGreaterThan(0)
+    })
+
+    it('is the FETCHED calendar, not the SELECTED one', () => {
+      // ⛔ THE LOAD-BEARING CASE. `availableDates` follows the fetched window —
+      // it is what the picker offers, so it must include days the current
+      // filter excludes. Emitting the post-filter set would be invisible on a
+      // single-date fixture (the shipped one) and would silently shrink the
+      // picker to the one day already on screen, making every other day
+      // unreachable. Three dates in, Last1 selects the newest.
+      const multi = [header, row('7/22/2026', 'AAAA'), row('7/23/2026', 'BBBB'),
+                     row('7/24/2026', 'CCCC')].join('\n') + '\n'
+
+      const { stats } = aggregateCsv(multi, { dateFilter: 'Last1' })
+      expect(stats.availableDates).toEqual(['7/22/2026', '7/23/2026', '7/24/2026'])
+
+      // The control: this fixture DISCRIMINATES. The selection really is
+      // narrower, so a post-filter emit would have produced a different — and
+      // wrong — answer here rather than coincidentally matching.
+      expect(stats.selectedRows).toBe(1)
+      expect(stats.rawRows).toBe(3)
+    })
+
+    it('is chronological, so min/max bound the picker correctly', () => {
+      // The picker reads [0] and [length-1] as its range ends; input order must
+      // not decide them.
+      const shuffled = [header, row('7/24/2026', 'CCCC'), row('7/22/2026', 'AAAA'),
+                        row('7/23/2026', 'BBBB')].join('\n') + '\n'
+      const { stats } = aggregateCsv(shuffled)
+      expect(stats.availableDates).toEqual(['7/22/2026', '7/23/2026', '7/24/2026'])
+    })
+
+    it('survives JSON transport — it crosses a process boundary', () => {
+      // The value reaches the page as JSON over HTTP, not as a live array.
+      const { stats } = aggregateCsv(csv)
+      expect(JSON.parse(JSON.stringify(stats)).availableDates)
+        .toEqual(stats.availableDates)
+    })
+  })
+
 })
 
 // ── the CLI contract: stdout carries ONLY the payload ───────────────────────
@@ -139,5 +200,55 @@ describe('the built CLI', () => {
     expect(res.status).toBe(2)
     expect(res.stdout).toBe('')
     expect(res.stderr).toMatch(/non-empty|0 valid rows/)
+  })
+
+})
+
+// ── 3b: the ETF replica the TOP 10 product is classified against ───────────
+describe('loadEtfReplica fails closed', () => {
+  const tmp = (name, body) => {
+    const p = path.join(os.tmpdir(), `uct-etf-${process.pid}-${name}.json`)
+    fs.writeFileSync(p, body)
+    return p
+  }
+
+  it('reads a well-formed replica', () => {
+    const p = tmp('ok', JSON.stringify({ generation: 'abc123', symbols: ['spy', 'QQQ'] }))
+    const r = loadEtfReplica(p)
+    expect(r).not.toBeNull()
+    expect(r.generation).toBe('abc123')
+    // Upper-cased on the way in, matching what the browser does with the same feed.
+    expect(r.symbols.has('SPY')).toBe(true)
+    expect(r.symbols.has('QQQ')).toBe(true)
+    fs.unlinkSync(p)
+  })
+
+  it('⛔ declines anything it cannot fully trust', () => {
+    // Each of these would otherwise produce a well-formed TOP 10 computed
+    // against a DIFFERENT universe than the browser uses — and stamped with a
+    // generation the client would then accept. Declining leaves the client on
+    // its existing path, which is the safe direction.
+    const cases = {
+      'missing-generation': JSON.stringify({ symbols: ['SPY'] }),
+      'empty-generation': JSON.stringify({ generation: '', symbols: ['SPY'] }),
+      'null-generation': JSON.stringify({ generation: null, symbols: ['SPY'] }),
+      'symbols-not-array': JSON.stringify({ generation: 'g', symbols: { SPY: 1 } }),
+      'symbols-empty': JSON.stringify({ generation: 'g', symbols: [] }),
+      'not-json': 'this is not json',
+    }
+    for (const [name, body] of Object.entries(cases)) {
+      const p = tmp(name, body)
+      expect(loadEtfReplica(p), `${name} should have been declined`).toBeNull()
+      fs.unlinkSync(p)
+    }
+    expect(loadEtfReplica(path.join(os.tmpdir(), 'uct-etf-does-not-exist.json'))).toBeNull()
+  })
+
+  it('CONTROL: the good case above is not passing by accident', () => {
+    // If loadEtfReplica returned null unconditionally, every decline assertion
+    // would pass and the feature would be silently dead.
+    const p = tmp('control', JSON.stringify({ generation: 'g', symbols: ['SPY'] }))
+    expect(loadEtfReplica(p)).not.toBeNull()
+    fs.unlinkSync(p)
   })
 })

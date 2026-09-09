@@ -97,6 +97,11 @@
   padding: 4px 8px;
 }
 
+.compareSection {
+  padding: 6px 14px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
 .alertSection {
   padding: 6px 14px;
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -168,7 +173,8 @@
   border-radius: var(--radius-md);
 }
 .sheetBody .tagSection,
-.sheetBody .alertSection { padding: var(--space-md) 0; }
+.sheetBody .alertSection,
+.sheetBody .compareSection { padding: var(--space-md) 0; }
 .sheetBody .swatches { gap: var(--space-md); }
 .sheetBody .swatch { width: 32px; height: 32px; }
 .sheetBody .tagLabel { font-size: var(--text-sm); margin-bottom: var(--space-sm); }

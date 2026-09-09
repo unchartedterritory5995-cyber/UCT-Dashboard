@@ -6,6 +6,11 @@ const FALLBACK = {
   groupSyms: { A: null, B: null, C: null, D: null },
   setGroupSym: () => {},
   chartsTheme: 'default',   // workspace-wide chart theme ('default' | 'sunrise')
+  // Per-widget canvas maps, read by WidgetHost to publish a widget's own canvas
+  // colour into its subtree. Empty (not undefined) so a host that supplies
+  // neither still gets the default tokens instead of `undefined[type]`.
+  widgetCanvasByType: {},
+  widgetCanvasById: {},
   crosshairBus: { emit: () => {}, subscribe: () => () => {} },
   // request(query) → delivers to any mounted AI Search widget; returns true if one
   // handled it (so the caller can fall back to a temporary popup when false).
@@ -15,6 +20,17 @@ const FALLBACK = {
   // after a hover, only the active widget's document keydown fires, so a TF
   // key no longer retimes every mounted chart / fires N duplicate pref POSTs.
   activeChartRef: null,
+  // Registry of per-chart imperative APIs (getCaptureState etc). ChartWidget
+  // guards with `if (!chartApiById) return undefined`, so null is safe here —
+  // it simply skips registration. ⚠️ A host that wants Send to Journal or
+  // Compare Symbols to WORK must supply a real `{ current: new Map() }`.
+  chartApiById: null,
+  // Ref holding the widgetKey of the active watchlist-ish widget.
+  // ⚠️ Watchlists' guard is `!activeRef || activeRef.current == null || ...`,
+  // so null means "always active" — correct for the standalone /watchlists
+  // page, WRONG for a multi-widget host, where every list would answer every
+  // arrow key and Shift+F. A widget host MUST supply a real ref.
+  activeWatchlistRef: null,
   // Custom-Period Sort: when true, chart widgets enter drag-to-highlight mode; a
   // completed drag calls onPeriodSelected(sym, startYmd, endYmd, pctChange).
   periodSortMode: false,

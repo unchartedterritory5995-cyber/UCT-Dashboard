@@ -109,6 +109,42 @@ function readableError(err) {
   return `Something went wrong while reading your files: ${err?.message || String(err)}`
 }
 
+// Above this converted-HTML size a single note costs seconds on the main
+// thread (measured: ~3.5s for 534 KB). Notes this big get named in the
+// progress line so the pause is attributed rather than mistaken for a hang.
+const LARGE_NOTE_HTML_CHARS = 150_000
+
+// ⛔⛔ NEVER yield with `setTimeout` inside the per-note conversion loop.
+//
+// MEASURED (2026-09-05): Chrome INTENSIVELY THROTTLES chained timers in a
+// hidden tab — a one-off `setTimeout(0)` still returns in ~0ms, which is
+// exactly why a spot check misses this, but a timer chained from the
+// previous timer's callback is clamped to ONE PER MINUTE. Switching the
+// loop from "yield every 10 notes" to "yield every note" therefore turned a
+// backgrounded 15-note import into a 246-SECOND one: 15 updates, ~60,000ms
+// apart. A member who switches tabs while UCT imports is the normal case,
+// not the exotic one.
+//
+// `MessageChannel` posts a macrotask that is NOT part of the timer budget,
+// so it still lets the browser paint and handle input between notes but is
+// not subject to background clamping. This is the same mechanism React's
+// own scheduler uses, and for the same reason. `setTimeout` remains only as
+// a fallback for environments without MessageChannel (jsdom provides it, so
+// the tests exercise the real path).
+function yieldToBrowser() {
+  if (typeof MessageChannel === 'function') {
+    return new Promise((resolve) => {
+      const ch = new MessageChannel()
+      ch.port1.onmessage = () => {
+        ch.port1.close()
+        resolve()
+      }
+      ch.port2.postMessage(0)
+    })
+  }
+  return new Promise((resolve) => setTimeout(resolve))
+}
+
 function phaseLabel(phase) {
   if (phase === 'convert') return 'Converting notes'
   if (phase === 'confirm') return 'Saving notes'
@@ -144,7 +180,10 @@ const NOTE_HEADER_H_TOUCH = 44
 // error boundary — a conversion crash must not take down the Notebook tab
 // ---------------------------------------------------------------------------
 
-class ImportWizardBoundary extends Component {
+// Exported (only) so its P1-1 fallback copy has direct, isolated test
+// coverage without needing to force a real crash through the full wizard's
+// multi-step flow -- ImportWizard itself remains the only intended caller.
+export class ImportWizardBoundary extends Component {
   constructor(props) {
     super(props)
     this.state = { error: null }
@@ -164,8 +203,18 @@ class ImportWizardBoundary extends Component {
         <div className={styles.crash}>
           <UIcon name="warning" size={26} gold={false} className={styles.crashIcon} />
           <p>Something went wrong while importing.</p>
+          {/* P1-1 fix: this used to dump the raw JS exception (e.g. a bare
+              "TypeError: Cannot read properties of…") straight to the
+              member -- an implementation detail, never a useful one, since
+              a React render crash carries no backend-authored detail worth
+              preserving (unlike the save-error paths in NoteEditorPage.jsx).
+              Nothing was deleted by a crash here -- only the conversion UI
+              itself failed -- so the honest, actionable line is the same
+              recovery idiom this wizard already uses for partial imports. */}
           <p className={styles.crashDetail}>
-            {String(this.state.error?.message || this.state.error)}
+            Nothing was deleted. Check your Notebook for what came through,
+            then close this and re-run the import to catch anything that
+            didn't.
           </p>
           <button type="button" className="btn btn-secondary" onClick={this.props.onClose}>
             Close
@@ -648,16 +697,42 @@ export default function ImportWizard({ open, onClose, onImported }) {
         if (cancelled()) return
         let done = 0
         for (const doc of needsBody) {
+          // ⛔ Paint BEFORE converting, and yield EVERY note -- not every 10.
+          //
+          // MEASURED (2026-09-05, 534 KB Evernote note): `htmlToNote` is a
+          // single synchronous 3.5s main-thread block, because both
+          // `sanitizeHtml` (DOMParser) and TipTap's `generateJSON` parse HTML
+          // through the DOM. Batching the yield every 10 notes meant a
+          // notebook whose last five notes were large ran ~17s with no
+          // repaint and no counter movement -- the certification saw the
+          // counter sit at "70/75" while the tab was unresponsive, which a
+          // member reasonably reads as a crash.
+          //
+          // Yielding per note cannot make one large note faster (the DOM is
+          // required, so this cannot move to a Worker without replacing the
+          // HTML parser), but it does two things that matter: the counter
+          // advances for every note, and the browser regains the main thread
+          // between notes instead of only every tenth one. `isLarge` names
+          // the one case where a single note still costs seconds, so the
+          // pause is explained instead of looking like a freeze.
+          const isLarge = (doc.html || '').length > LARGE_NOTE_HTML_CHARS
+          setProgress({
+            phase: 'convert',
+            done,
+            total: needsBody.length,
+            note: doc.title || '',
+            large: isLarge,
+          })
+          await yieldToBrowser()
+          if (cancelled()) return
+
           const { bodyJson, bodyPlain } = htmlToNote(doc.html)
           doc.bodyJson = bodyJson
           doc.bodyPlain = bodyPlain
           done += 1
-          if (done % 10 === 0 || done === needsBody.length) {
-            setProgress({ phase: 'convert', done, total: needsBody.length })
-            await new Promise((r) => setTimeout(r))
-            if (cancelled()) return
-          }
         }
+        setProgress({ phase: 'convert', done, total: needsBody.length })
+        await yieldToBrowser()
         setProgress(null)
       }
 
@@ -1041,6 +1116,22 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   ? `${phaseLabel(progress.phase)} — ${progress.done}/${progress.total}…`
                   : 'Starting import…'}
               </p>
+              {/* Honest, non-fabricated detail: the note actually being
+                  converted, and -- only when it is genuinely large -- why
+                  this one is taking a moment. Never a fake percentage. */}
+              {progress?.phase === 'convert' && progress.note && (
+                <p className={styles.progressDetail}>
+                  {progress.large
+                    ? `“${progress.note}” is a large note — this one can take a moment.`
+                    : `“${progress.note}”`}
+                </p>
+              )}
+              {progress?.phase === 'convert' && progress.large && (
+                <p className={styles.progressDetail}>
+                  Large notes can take a few minutes. You can leave this window
+                  open while UCT finishes.
+                </p>
+              )}
               {progress && progress.total > 0 && (
                 <div className={styles.progressTrack}>
                   <div

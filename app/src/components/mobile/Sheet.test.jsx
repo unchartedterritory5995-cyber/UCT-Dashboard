@@ -46,6 +46,31 @@ test('a titled Sheet still carries its ariaLabel as the dialog name', () => {
   expect(screen.getByRole('dialog', { name: 'Cash flow — ADI' })).toBeInTheDocument()
 })
 
+// Wave I real-browser finding: the panelStyle ternary only special-cased
+// bottom-sheet, so 'fullscreen' fell into the maxWidth branch and got
+// capped to the desktop-modal default (520px) — invisible on the one prior
+// fullscreen caller (MobileSymbolSheet, touch-only, already narrower than
+// 520px) but very visible the first time a fullscreen Sheet mounted on a
+// wide desktop viewport (DocumentPreviewSheet's PDF preview rendered in a
+// ~520px column instead of filling the screen).
+test('a fullscreen Sheet carries no maxWidth cap (would otherwise inherit the modal default)', () => {
+  render(<Sheet open onClose={() => {}} variant="fullscreen" ariaLabel="Full">body</Sheet>)
+  const panel = document.querySelector('[data-sheet-panel]')
+  expect(panel.style.maxWidth).toBe('')
+})
+
+test('a modal Sheet still gets its maxWidth (default 520px) — the fullscreen fix must not remove it elsewhere', () => {
+  render(<Sheet open onClose={() => {}} variant="modal" ariaLabel="Modal">body</Sheet>)
+  const panel = document.querySelector('[data-sheet-panel]')
+  expect(panel.style.maxWidth).toBe('520px')
+})
+
+test('a modal Sheet honors an explicit maxWidth override', () => {
+  render(<Sheet open onClose={() => {}} variant="modal" maxWidth={640} ariaLabel="Modal">body</Sheet>)
+  const panel = document.querySelector('[data-sheet-panel]')
+  expect(panel.style.maxWidth).toBe('640px')
+})
+
 test('only the innermost open Sheet answers Escape', () => {
   // Both listen on document in the capture phase; stopPropagation cannot stop
   // a sibling listener on the same node, and the OUTER one registered first —

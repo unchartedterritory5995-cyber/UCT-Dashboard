@@ -120,6 +120,16 @@
   padding: 40px 12px;
   text-align: center;
 }
+/* Secondary progress line: which note is converting, and why a large one
+   pauses. Muted so it reads as detail under the main progress sentence. */
+.progressDetail {
+  margin: -6px 0 0;
+  max-width: 40ch;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted, #9a9c92);
+}
+
 .spinner {
   width: 30px;
   height: 30px;

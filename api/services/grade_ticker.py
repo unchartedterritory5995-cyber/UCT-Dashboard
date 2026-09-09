@@ -3,9 +3,18 @@
 Composes the already-shipped Compass tools into a decisive, tool-sourced
 GO/HOLD/SKIP verdict for a single ticker. Decisiveness is STRUCTURAL:
 deterministic hard-gates force the verdict, so the calling model can neither
-hedge (the verdict is computed here) nor fabricate (entry/stop/target come
-from the pattern engine, size from brain_service.size_a_trade, regime from the
-classifier). Never raises — returns {ok: False, reason} when the gate can't run.
+hedge (the verdict is computed here) nor fabricate (entry/stop/target would
+come from the pattern engine once a confirmed source exists, size from
+brain_service.size_a_trade, regime from the classifier). Never raises —
+returns {ok: False, reason} when the gate can't run.
+
+Seam 28 (2026-09-06): `_default_patterns_fn` currently returns no detections
+by design (see its own docstring) -- until Pattern Vision reaches LIVE +
+ACCEPTED, every real call resolves through the honest "no clean, tradable
+setup" SKIP branch rather than a decisive GO/HOLD sourced from unconfirmed
+pattern data. This is a deliberate, temporary narrowing, not a regression --
+do not "fix" it by re-pointing at the raw or Pattern-Vision-confirmed feed
+without re-reading that docstring first.
 
 See docs/superpowers/specs/2026-07-02-compass-grade-ticker-verdict-design.md.
 """
@@ -54,12 +63,34 @@ def _default_quote_fn(symbol):
 
 
 def _default_patterns_fn(symbol):
-    from api.services.pattern_engine import memory as _mem
-    try:
-        from api.routers import patterns as _p  # noqa: F401 — loads detector registry
-    except Exception:  # noqa: BLE001
-        pass
-    return _mem.get_active_detections(sym=symbol.upper(), tf="D", min_conf=50)
+    """Seam 28 (2026-09-06): returns no detections, deliberately, until Pattern
+    Vision reaches LIVE + ACCEPTED.
+
+    This used to read `pattern_engine.memory.get_active_detections()` -- the
+    same raw, unconfirmed rule-engine table whose universe-wide page was
+    already retired by the owner (2026-08-26) after Pattern Vision's own
+    Opus-vision judge confirmed only ~16% of its candidates. grade_ticker
+    still narrated that same feed as "deterministic... the firm's computed
+    read" with concrete entry/stop/target/size numbers, on three live,
+    member-reachable surfaces (AI Search's fast + agent lanes, Compass
+    voice+chat) -- the exact defect class already adjudicated once this
+    session as Seam 23, which likewise removed the raw feed rather than
+    merely label it. `ticker_explain.py` had already excluded this same
+    table as "D9-unsafe" for Research's own Ask AI; that judgment was never
+    applied here.
+
+    Do NOT re-point this at Pattern Vision's own confirmed verdicts
+    (`pattern_vision.store.get_confirmed`) either -- Pattern Vision is
+    itself still under its own live, time-boxed acceptance trial (see the
+    continuity checkpoint), and doing so would be exactly the "quietly
+    promote an unaccepted system into a member-facing authority" move Seam
+    23's own adjudication forbids. `grade_ticker` already has a correct,
+    honest fallback for "no usable setup" (the SKIP/no_setup branch below,
+    predating this fix) -- returning no detections here routes every call
+    through that existing honest path instead of a fabricated-confidence
+    one. Re-enable sourcing from confirmed Pattern Vision verdicts only
+    once that classification lands, as its own deliberate follow-up change."""
+    return []
 
 
 def _default_playbook_fn(setup_name):
@@ -108,6 +139,7 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         quote = quote_fn(sym) or {}
     except Exception:  # noqa: BLE001
         quote = {}
+    quote_available = quote.get("last") is not None
     last = float(quote.get("last") or 0)
 
     hard_flags: list[str] = []
@@ -169,7 +201,12 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         pass
 
     stop_pct = round(abs(entry - stop) / entry * 100, 1) if entry else None
-    extended = last > entry * (1 + _EXTENDED_PCT) if (last and entry) else False
+    # Seam 28 (2026-09-06): a failed quote used to silently compute `extended
+    # = False` (via `last=0`) — indistinguishable from a genuinely confirmed
+    # "not extended" read. A live price is the only source that can answer
+    # this question, so "we don't know" is now surfaced honestly instead of
+    # defaulting to the answer that happens to support a GO.
+    extended = last > entry * (1 + _EXTENDED_PCT) if (quote_available and entry) else False
 
     # ── deterministic verdict ───────────────────────────────────────────────
     if band == "RED":
@@ -183,11 +220,14 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
         hard_flags.append("size_unavailable")
     if extended:
         hard_flags.append("extended")
+    if not quote_available:
+        hard_flags.append("quote_unavailable")
 
     if any(f in hard_flags for f in ("regime_red", "no_setup", "grade_below_b",
                                      "risk_over_cap", "size_skip", "size_unavailable")):
         verdict = "SKIP"
-    elif "extended" in hard_flags or band == "ORANGE" or (band == "YELLOW" and grade == "B"):
+    elif any(f in hard_flags for f in ("extended", "quote_unavailable")) \
+            or band == "ORANGE" or (band == "YELLOW" and grade == "B"):
         verdict = "HOLD"
     else:
         verdict = "GO"
@@ -196,7 +236,9 @@ def grade_ticker(symbol, account_size=None, *, regime_fn=None, quote_fn=None,
     basis = (f"{setup} on {sym}, graded {grade}{wr_txt}. Regime {band} — {regime_note} "
              f"Entry {entry}, stop {stop} ({stop_pct}% risk), size {size_pct}% "
              f"for {account_risk_pct}% account risk.")
-    if verdict == "HOLD":
+    if not quote_available:
+        basis += " Live price unavailable — cannot confirm this hasn't already run; treat as HOLD."
+    elif verdict == "HOLD":
         basis += " Tape or extension is the knock — half size or wait for it to firm up."
 
     return _verdict(ok=True, symbol=sym, verdict=verdict, regime=band,

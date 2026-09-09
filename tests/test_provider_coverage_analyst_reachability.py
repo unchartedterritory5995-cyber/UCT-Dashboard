@@ -45,14 +45,13 @@ class TestAnalystGradesAvailable:
         provider answered with 488 rows — that is coverage. Treating it as a
         miss is the false positive."""
         aa = self._aa()
-        monkeypatch.setattr(aa, "_fmp_get",
-                            lambda path, params, timeout=None: [{"date": "2026-06-02",
-                                                                 "gradingCompany": "Arete"}])
+        monkeypatch.setattr(aa, "_fmp_grades_rows",
+                            lambda ticker: [{"date": "2026-06-02", "gradingCompany": "Arete"}])
         assert aa.analyst_grades_available("META") is True
 
     def test_empty_fmp_falls_through_to_finnhub(self, monkeypatch):
         aa = self._aa()
-        monkeypatch.setattr(aa, "_fmp_get", lambda path, params, timeout=None: [])
+        monkeypatch.setattr(aa, "_fmp_grades_rows", lambda ticker: [])
         monkeypatch.setattr(aa, "fh_get",
                             lambda path, params, timeout=None: [{"gradeTime": 1}])
         assert aa.analyst_grades_available("AAPL") is True
@@ -60,14 +59,14 @@ class TestAnalystGradesAvailable:
     def test_both_providers_silent_is_false(self, monkeypatch):
         """The 2026-08-05 incident shape: every call answers with nothing."""
         aa = self._aa()
-        monkeypatch.setattr(aa, "_fmp_get", lambda path, params, timeout=None: None)
+        monkeypatch.setattr(aa, "_fmp_grades_rows", lambda ticker: None)
         monkeypatch.setattr(aa, "fh_get", lambda path, params, timeout=None: None)
         assert aa.analyst_grades_available("AAPL") is False
 
     def test_blank_ticker_is_false_without_calling_a_provider(self, monkeypatch):
         aa = self._aa()
         called = []
-        monkeypatch.setattr(aa, "_fmp_get",
+        monkeypatch.setattr(aa, "_fmp_grades_rows",
                             lambda *a, **kw: called.append(1) or [])
         assert aa.analyst_grades_available("") is False
         assert called == []

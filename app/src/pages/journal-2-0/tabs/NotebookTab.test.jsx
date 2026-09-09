@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 
 // Heavy children + data hook are stubbed — these tests are about the tab's own
 // template-picker wiring (toolbar sheet, empty state, deep link), not the note
@@ -19,10 +19,26 @@ vi.mock('../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
-  default: () => <div data-testid="folder-sidebar" />,
+  // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
+  // trigger the same way ImportWizard's mock exposes "fire onImported",
+  // so trash-view wiring can be driven through the real prop instead of
+  // reaching into NotebookTab's internal state.
+  default: ({ onSelectFolder }) => (
+    <div data-testid="folder-sidebar">
+      <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
+      <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
+    </div>
+  ),
 }))
 vi.mock('../components/notebook/NoteCard', () => ({
-  default: () => <div data-testid="note-card" />,
+  default: ({ note, onRestore }) => (
+    <div data-testid="note-card">
+      {note?.title}
+      {onRestore && (
+        <button type="button" onClick={() => onRestore(note)}>Restore</button>
+      )}
+    </div>
+  ),
 }))
 vi.mock('../components/notebook/NoteEditorPage', () => ({
   default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
@@ -44,6 +60,13 @@ vi.mock('../components/notebook/import/ImportWizard', () => ({
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
   default: () => null,
 }))
+// Wave H: ResearchHome makes its own real SWR fetch -- mocked here the same
+// way every other heavy child in this file is, so these tests stay about
+// the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
+// lives in ResearchHome.test.jsx).
+vi.mock('../components/notebook/ResearchHome', () => ({
+  default: () => <div data-testid="research-home">Research Home</div>,
+}))
 
 import NotebookTab from './NotebookTab'
 
@@ -59,6 +82,12 @@ beforeEach(() => {
     total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false,
   }))
   global.fetch = vi.fn((url, opts) => {
+    // Stage A telemetry (notebook_tab_visit, fired on every mount) is a
+    // fire-and-forget side channel, not part of the flow these tests
+    // exercise — never record it as "the" POST under test.
+    if (String(url) === '/api/j2/telemetry') {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })
+    }
     if (opts?.method === 'POST') {
       lastPostBody = JSON.parse(opts.body)
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'new1' } }) })
@@ -68,7 +97,12 @@ beforeEach(() => {
   })
 })
 
-function renderTab(entry = '/journal') {
+// Wave H: bare-root now renders Research Home (checkpoint decision 33/57).
+// These tests are about the tab's OWN template-picker/grid/toolbar wiring
+// (per the file's own header comment above), not Home -- `?view=all` is the
+// explicit flag that keeps them landing on the grid unchanged. Tests that
+// exercise Home itself live in NotebookTab.researchHome.test.jsx.
+function renderTab(entry = '/journal?view=all') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <NotebookTab />
@@ -77,9 +111,22 @@ function renderTab(entry = '/journal') {
 }
 
 const lastPost = () => {
-  const call = global.fetch.mock.calls.find(([, opts]) => opts?.method === 'POST')
+  const call = global.fetch.mock.calls.find(
+    ([u, opts]) => opts?.method === 'POST' && String(u) !== '/api/j2/telemetry',
+  )
   return call ? { url: String(call[0]) } : null
 }
+
+describe('NotebookTab — Stage A member-validation instrumentation', () => {
+  it('fires notebook_tab_visit telemetry once on mount', async () => {
+    renderTab()
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find(([u]) => String(u) === '/api/j2/telemetry')
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ event: 'notebook_tab_visit' })
+    })
+  })
+})
 
 describe('NotebookTab — template picker', () => {
   it('empty notebook renders the picker inline with all families', () => {
@@ -146,6 +193,50 @@ describe('NotebookTab — template picker', () => {
     // give the effect a tick to run
     await new Promise((r) => setTimeout(r, 50))
     expect(lastPostBody).toBeNull()
+  })
+
+  it('Wave B: ?new=blank auto-creates a plain blank note (the command palette\'s "New Note" destination)', async () => {
+    renderTab('/journal/notebook?new=blank')
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.title).toBe('')
+    expect(lastPostBody.bodyJson).toBeUndefined()
+    expect(lastPostBody.tags).toBeUndefined()
+  })
+
+  it('Wave B: ?new=blank&ticker=NVDA seeds the ticker on the blank note', async () => {
+    renderTab('/journal/notebook?new=blank&ticker=nvda')
+    await waitFor(() => expect(lastPostBody).not.toBeNull())
+    expect(lastPostBody.ticker).toBe('NVDA')
+  })
+})
+
+describe('NotebookTab — Wave H Research Home vs. All Notes grid', () => {
+  it('bare-root (no note/folder/tag/view) renders Research Home, not the grid', () => {
+    renderTab('/journal/notebook')
+    expect(screen.getByTestId('research-home')).toBeInTheDocument()
+    expect(screen.queryByText('Daily & weekly rituals')).not.toBeInTheDocument()
+  })
+
+  it('?view=all renders the All Notes grid/picker, not Research Home', () => {
+    renderTab('/journal/notebook?view=all')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+    expect(screen.getByText('Daily & weekly rituals')).toBeInTheDocument()
+  })
+
+  it('opening a note leaves Research Home for the editor, even from bare-root', () => {
+    renderTab('/journal/notebook?note=n1')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+    expect(screen.getByTestId('note-editor')).toBeInTheDocument()
+  })
+
+  it('a real folder/tag filter leaves Research Home for the grid', () => {
+    renderTab('/journal/notebook?folder=some-folder')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+  })
+
+  it('the trash view is never mistaken for Research Home', () => {
+    renderTab('/journal/notebook?folder=__trash__')
+    expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
   })
 })
 
@@ -242,5 +333,153 @@ describe('NotebookTab — pagination (Task 11: the browse path must survive a mi
     renderTab()
     const btn = screen.getByRole('button', { name: /loading/i })
     expect(btn).toBeDisabled()
+  })
+})
+
+describe('NotebookTab — notes-load error sanitization (P1-1 fix)', () => {
+  function mockMainListError(error) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+  }
+
+  it('never shows the raw fetch error (bare HTTP status)', () => {
+    mockMainListError(new Error('500'))
+    renderTab()
+    expect(screen.queryByText(/500/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Couldn't load your notes/)).toBeInTheDocument()
+  })
+
+  it('offers a retry wired to the hook\'s own refresh -- not reimplemented', () => {
+    mockMainListError(new Error('500'))
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('NotebookTab — Wave 0 trash view', () => {
+  it('selecting Trash from the sidebar fetches the deleted view, not the active folder/tag filters', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+
+    const lastMainCall = useJ2NotesMock.mock.calls
+      .filter(([opts]) => opts?.sort !== 'title')
+      .at(-1)
+    expect(lastMainCall[0]).toEqual(expect.objectContaining({
+      deleted: true, folderId: undefined, tag: undefined, sort: 'deleted',
+    }))
+  })
+
+  it('shows a "Trash is empty" message, not the create-a-note pitch, when the trash view has nothing', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    expect(screen.getByText('Trash is empty.')).toBeInTheDocument()
+    expect(screen.queryByText('Your notebook is empty.')).not.toBeInTheDocument()
+  })
+
+  it('a trashed note renders with a Restore action; clicking it POSTs to the restore endpoint and refreshes', async () => {
+    const trashedNote = { id: 'trashed1', title: 'Old Setup Notes' }
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [trashedNote], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 1, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    // The default global.fetch (beforeEach) assumes every POST carries a
+    // JSON body (it always does `JSON.parse(opts.body)`) — true for note
+    // creation, not for this bodyless restore POST. Override just for this
+    // test so the mock's own shape doesn't masquerade as a production bug.
+    global.fetch = vi.fn((url, opts) => {
+      if (String(url).includes('/restore')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'trashed1', title: 'Old Setup Notes' } }) })
+      }
+      if (opts?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'new1' } }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    expect(screen.getByText('Old Setup Notes')).toBeInTheDocument()
+
+    mockRefresh.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
+
+    await waitFor(() => {
+      const restoreCall = global.fetch.mock.calls.find(([url]) => String(url).includes('/restore'))
+      expect(restoreCall).toBeTruthy()
+      expect(restoreCall[0]).toBe('/api/j2/notes/trashed1/restore')
+      expect(restoreCall[1].method).toBe('POST')
+    })
+    await waitFor(() => expect(mockRefresh).toHaveBeenCalled())
+  })
+
+  it('leaving the trash view (Clear filter) returns to the normal active-notes fetch', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab()
+    fireEvent.click(screen.getByText('go to trash'))
+    expect(screen.getByText('Trash is empty.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }))
+    expect(screen.queryByText('Trash is empty.')).not.toBeInTheDocument()
+  })
+
+  it('Wave B: ?folder=__trash__ deep link opens directly into the Trash view (the command palette\'s "Open Trash" destination)', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    renderTab('/journal/notebook?folder=__trash__')
+    const lastMainCall = useJ2NotesMock.mock.calls
+      .filter(([opts]) => opts?.sort !== 'title')
+      .at(-1)
+    expect(lastMainCall[0]).toEqual(expect.objectContaining({ deleted: true, sort: 'deleted' }))
+  })
+
+  it('Wave B: ?folder=__trash__ ALSO works as a same-route client-side navigation while NotebookTab is already mounted -- the command palette\'s real path (caught live: a lazy useState/one-time useEffect only fires on first mount and silently no-ops here)', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.sort === 'title') {
+        return { notes: [], isLoading: false, error: null, refresh: vi.fn(), mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+      }
+      return { notes: [], isLoading: false, error: null, refresh: mockRefresh, mutate: vi.fn(), total: 0, hasMore: false, loadMore: mockLoadMore, isLoadingMore: false }
+    })
+    function NavTrigger() {
+      const navigate = useNavigate()
+      return <button type="button" onClick={() => navigate('/journal/notebook?folder=__trash__')}>navigate-to-trash</button>
+    }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <NavTrigger />
+        <NotebookTab />
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByText('navigate-to-trash'))
+    const lastMainCall = useJ2NotesMock.mock.calls
+      .filter(([opts]) => opts?.sort !== 'title')
+      .at(-1)
+    expect(lastMainCall[0]).toEqual(expect.objectContaining({ deleted: true, sort: 'deleted' }))
   })
 })

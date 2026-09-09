@@ -41,7 +41,9 @@ def get_watchlist(wl_id: str, user_id: str = None) -> dict | None:
         conn.close()
 
 
-def list_user_watchlists(user_id: str, include_items: bool = True) -> list[dict]:
+def list_user_watchlists(
+    user_id: str, include_items: bool = True, include_prebuilt: bool = True
+) -> list[dict]:
     """The user's lists. `include_items=False` returns metadata + item_count only.
 
     ⚠️ `include_items` defaults to True so every existing caller is byte-identical.
@@ -56,11 +58,29 @@ def list_user_watchlists(user_id: str, include_items: bool = True) -> list[dict]
 
     `item_count` is preserved in BOTH modes and stays derived from the same rows the
     response describes — a slim row must never carry a count the full row wouldn't.
+
+    `include_prebuilt=False` drops the admin-curated INDEX lists. Same defect shape
+    as `include_items`, one level up: the prebuilt lists are owned by the admin
+    account, so they come back as that user's own lists, and on 2026-09-07 they were
+    33 of 34 lists carrying 4,725 of 4,726 items — Russell 2000 alone is 1,872 —
+    against ONE real list holding ONE symbol. Measured on prod that day: 592 KB and
+    28.1 s cold / 6.6 s warm, on the app-shell path of every page, every 60 s.
+
+    ⛔ It is also a CORRECTNESS filter, not only a size one. The surface that reads
+    this to answer "is this ticker on the member's radar?" cannot treat membership in
+    the Russell 2000 as a radar hit — that marks essentially every small-cap. Pass
+    False from any surface asking about the user's OWN attention; keep True where the
+    prebuilt lists are the point (the Watchlists page itself).
     """
     conn = get_connection()
     try:
+        # The prebuilt filter is applied in SQL, not after the fetch: the whole point
+        # is to not carry 4,725 rows' worth of lists into the items join below.
+        prebuilt_clause = "" if include_prebuilt else " AND (is_prebuilt = 0 OR is_prebuilt IS NULL)"
         rows = conn.execute(
-            "SELECT * FROM watchlists WHERE user_id = ? AND (is_flagged_list = 0 OR is_flagged_list IS NULL) ORDER BY updated_at DESC",
+            "SELECT * FROM watchlists WHERE user_id = ? AND (is_flagged_list = 0 OR is_flagged_list IS NULL)"
+            + prebuilt_clause
+            + " ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
         results = [dict(r) for r in rows]

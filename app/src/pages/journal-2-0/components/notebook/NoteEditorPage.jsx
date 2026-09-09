@@ -1,9 +1,21 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
-import { useJ2Note } from '../../hooks/useJ2Notes'
+import {
+  buildExtensions, uploadInlineImage, uploadNoteAttachment,
+  ALLOWED_IMAGE_MIMES, ALLOWED_ATTACHMENT_MIMES,
+} from '../../lib/tiptap'
+import Toast from '../Toast'
+import DocumentPreviewSheet from './DocumentPreviewSheet'
+import CapturedSourceSheet from './CapturedSourceSheet'
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
+         reviewTargetFromParams } from '../../lib/searchNavigation'
+import useNoteDocuments from '../../hooks/useNoteDocuments'
+import useNoteExcerpts from '../../hooks/useNoteExcerpts'
+import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
+import ConfirmModal from '../ConfirmModal'
 import HeroImagePicker from './HeroImagePicker'
 import NoteVideoHero, { getNoteVideoTime } from './NoteVideoHero'
 import { NoteRailLeft, NoteRailRight, seekNoteVideo } from './NoteVideoRails'
@@ -18,6 +30,15 @@ import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
+import AskPanel from './AskPanel'
+import { PRECISE_STATES } from '../../lib/askCitation'
+import NoteFindBar from './NoteFindBar'
+import NoteHistoryPanel from './NoteHistoryPanel'
+import NoteBacklinksSection from './NoteBacklinksSection'
+import PropertiesSection from './PropertiesSection'
+import ThesisSection from './ThesisSection'
+import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
+import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
@@ -34,6 +55,37 @@ const AUTOSAVE_MS = 800
 // After the last entry, retries continue at the cap forever (or until the
 // user edits / closes the tab). 4xx errors bypass retry entirely.
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
+
+// P1-1 fix: `update()` (useJ2Notes.js) throws `new Error(body.detail ||
+// \`${res.status}\`)` -- a REAL backend-authored detail when the API
+// supplied one (preserve it verbatim; it's already meaningful, e.g. a
+// validation message), or just a bare numeric HTTP status code string
+// (e.g. "500") when it didn't -- which means nothing to a member and used
+// to render as-is ("Save failed: 500"). This only ever replaces the bare
+// code, never a real detail.
+function friendlySaveError(e, status, { retrying = false } = {}) {
+  const msg = e?.message
+  if (msg && !/^\d{3}$/.test(msg)) return msg
+  if (!status || status >= 500) {
+    return retrying
+      ? "Couldn't reach the server — your note is unchanged, retrying automatically."
+      : "Couldn't reach the server. Your note is unchanged — please try again."
+  }
+  if (status === 404) return 'This note could not be found.'
+  if (status === 403) return "You don't have permission to edit this note."
+  return 'Could not save. Please try again.'
+}
+
+// Wave 0 (P1-10) local draft safety net: the network autosave is debounced
+// 800ms behind the last keystroke, so a tab closed WHILE still typing (or
+// mid-backoff, offline) can lose everything after the last successful PUT —
+// a page refresh, a crashed tab, or the OS closing the browser never runs
+// React's unmount cleanup. This mirrors the in-progress edit to
+// localStorage on every keystroke (synchronous, local-only, no network),
+// so reopening the SAME note can recover it. Cleared the moment a real
+// network save actually lands — the local copy is a safety net, never a
+// second source of truth for content the server already has.
+const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
 
 // Toolbar Font dropdown — a broad set of common web-safe families (each option
 // previews in its own face). Value is a full CSS font-family stack; '' clears.
@@ -117,6 +169,10 @@ export function CaptureInboxTray({ editor, onPlaced }) {
         // shows what was on screen at CAPTURE, not at placement (review
         // finding). Legacy rows without the field keep the re-seed.
         ...(Array.isArray(cap.annotations) ? { annotations: cap.annotations } : {}),
+        // Wave 1 (P1-1): a comment/trade link typed before banking to the
+        // inbox must still be there once the capture is placed into a note.
+        ...(cap.caption ? { caption: cap.caption } : {}),
+        ...(cap.tradeRef ? { tradeRef: cap.tradeRef, tradeRefType: cap.tradeRefType } : {}),
       }).run()
     if (!ok) return
     placedIdsRef.current.add(cap.id)
@@ -177,12 +233,196 @@ export function CaptureInboxTray({ editor, onPlaced }) {
   )
 }
 
+const _tradeLinksFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { links: [] }))
+
+// Wave 3 (Thesis-Trade Link): renders this note's linked trade/strategy as
+// clickable chips. Resolution comes ENTIRELY from the server
+// (GET /notes/{id}/trade-ref/resolve) -- this component never re-derives or
+// guesses a destination. A link whose resolution.kind is "ambiguous_legacy"
+// or "unresolved" renders as an inert chip (see note_trade_links.py) rather
+// than navigating to a possibly-wrong object.
+export function NoteLinkedTradeChips({ noteId }) {
+  const navigate = useNavigate()
+  const { data } = useSWR(
+    noteId ? `/api/j2/notes/${noteId}/trade-ref/resolve` : null,
+    _tradeLinksFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 15000 },
+  )
+  const links = data?.links || []
+  if (!links.length) return null
+
+  return (
+    <>
+      {links.map((link, i) => {
+        const res = link.resolution || {}
+        const key = `${link.tradeRef}:${link.tradeRefType}:${i}`
+        if (res.kind === 'equity_trade' || res.kind === 'option_strategy') {
+          const label = res.symbol ? `${res.symbol} · trade` : 'Linked trade'
+          const goto = () => {
+            if (res.kind === 'equity_trade') {
+              navigate(`/journal-2-0/trade/${res.id}`)
+            } else {
+              navigate(`/journal?j2tab=journal&openTrade=${res.id}`)
+            }
+          }
+          return (
+            <button
+              key={key}
+              type="button"
+              className={styles.linkedTradeChip}
+              onClick={goto}
+              title={res.kind === 'equity_trade' ? 'Open the linked equity trade' : 'Open the linked option strategy'}
+            >
+              <UIcon name="link" size={12} gold={false} />
+              {label}
+            </button>
+          )
+        }
+        if (res.kind === 'position') {
+          // Still open (never graduated to a closed trade -- see
+          // note_trade_links.py's resolve_trade_ref) -- Open Positions is
+          // the one always-reachable destination; TradeDetailPage doesn't
+          // exist for a position that hasn't closed.
+          const label = res.symbol ? `${res.symbol} · open position` : 'Linked position'
+          return (
+            <button
+              key={key}
+              type="button"
+              className={styles.linkedTradeChip}
+              onClick={() => navigate('/journal?j2tab=positions')}
+              title="Open Positions — this position hasn't closed into a trade yet"
+            >
+              <UIcon name="link" size={12} gold={false} />
+              {label}
+            </button>
+          )
+        }
+        if (res.kind === 'ambiguous_legacy') {
+          return (
+            <span
+              key={key}
+              className={styles.linkedTradeChipMuted}
+              title="This note's linked trade reference predates typed references and matches more than one record -- it can't be safely resolved. The note and its stored reference are unaffected."
+            >
+              Linked trade — ambiguous
+            </span>
+          )
+        }
+        if (res.kind === 'unresolved') {
+          return (
+            <span
+              key={key}
+              className={styles.linkedTradeChipMuted}
+              title="This note's linked trade could not be found (it may have been deleted)."
+            >
+              Linked trade — not found
+            </span>
+          )
+        }
+        return null
+      })}
+    </>
+  )
+}
+
 export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null }) {
-  const { note, isLoading, update, refresh } = useJ2Note(noteId)
+  const { note, isLoading, error: loadError, update, refresh } = useJ2Note(noteId)
+  // Diagnostic only -- never surfaced to the member (see the !note render
+  // branch below for why raw fetch-error text doesn't belong in that UI).
+  useEffect(() => {
+    if (loadError) console.warn('note load failed', loadError)
+  }, [loadError])
   const { folders } = useJ2NoteFolders()
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+
+  // Wave B Recents: fire the "opened" beacon once per real note view (not on
+  // every render, not while it's still loading, not on a failed load). Keyed
+  // on noteId so switching notes without unmounting (NotebookTab reuses this
+  // component across selections) records each one.
+  useEffect(() => {
+    if (noteId && note) recordNoteOpened(noteId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId, Boolean(note)])
+
+  // Wave B Favorites: local + optimistic, reverted on a failed write (§47 —
+  // "restore truthful state" on failure). Re-syncs from the server's own
+  // value whenever a DIFFERENT note's data lands (note.isFavorite for the
+  // note currently open), so switching notes never carries the previous
+  // note's star state onto the new one.
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [favoriteBusy, setFavoriteBusy] = useState(false)
+  useEffect(() => {
+    setIsFavorite(Boolean(note?.isFavorite))
+  }, [noteId, note?.isFavorite])
+  // Wave B: find-in-note. Scoped to this page's own keydown (a React
+  // synthetic handler bubbling from anywhere inside .page below) rather
+  // than a global window listener — the browser's native Ctrl/Cmd+F is
+  // untouched everywhere else in the app, since this handler only exists
+  // while a note is actually mounted.
+  const [findOpen, setFindOpen] = useState(false)
+  const onPageKeyDown = (e) => {
+    const key = e.key.toLowerCase()
+    if ((e.metaKey || e.ctrlKey) && key === 'f') {
+      e.preventDefault()
+      setFindOpen(true)
+    } else if (key === 'escape' && findOpen) {
+      // Only when the find bar's OWN input isn't already handling it (its
+      // handler calls stopPropagation on Escape) -- this is the fallback
+      // for Escape pressed while focus is elsewhere on the page.
+      setFindOpen(false)
+      editor?.commands.noteFindClear()
+    }
+  }
+
+  const onToggleFavorite = async () => {
+    if (favoriteBusy) return
+    const next = !isFavorite
+    setIsFavorite(next) // optimistic
+    setFavoriteBusy(true)
+    try {
+      await setNoteFavorite(noteId, next)
+    } catch {
+      setIsFavorite(!next) // revert -- never diverge silently from the server
+    } finally {
+      setFavoriteBusy(false)
+    }
+  }
+
+  // Wave C: version history / trust panel.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  // Restore is NOT reachable through the normal "note loaded" effects below
+  // (both are gated on `[note?.id]` only -- a restore keeps the same note
+  // id, so they never re-fire). This mirrors exactly what those effects
+  // already do on note-open, so a restore behaves identically to "reopening
+  // the note with fresh content": pushes the restored body into the live
+  // editor, resyncs the title/subtitle inputs, and -- critically -- advances
+  // `lastSavedRef` so the very next autosave tick sees nothing changed
+  // (the server already has this content) instead of racing a stale
+  // baseUpdatedAt into a spurious 409, or re-PUTting content that's already
+  // saved.
+  const onVersionRestored = (restoredNote) => {
+    if (!restoredNote) return
+    const t = restoredNote.title || ''
+    const s = restoredNote.subtitle || ''
+    setTitle(t)
+    titleRef.current = t
+    setSubtitle(s)
+    subtitleRef.current = s
+    lastSavedRef.current = {
+      title: t, subtitle: s,
+      bodyJson: restoredNote.bodyJson,
+      updatedAt: restoredNote.updatedAt || null,
+    }
+    try {
+      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, false)
+    } catch {
+      /* editor view not mounted yet -- next note-open effect will still show it */
+    }
+  }
+
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
   const columnRef = useRef(null)
   const [exportBusy, setExportBusy] = useState(false)
@@ -216,6 +456,39 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const ok = await exportNoteAsPng(columnRef.current, title)
       setChromeMsg(ok ? 'PNG saved' : 'export failed')
+    } catch {
+      setChromeMsg('export failed')
+    } finally {
+      setExportBusy(false)
+    }
+  }
+  // Wave C: portable single-note export (directive §46-58) -- unlike PNG/
+  // Print above, this is a round-trippable .md/.zip a member can bring to
+  // another app, matching the full-notebook export's own format
+  // (build_single_note_export reuses that exact markdown+front-matter code
+  // path). A bare fetch+blob download, not the ExportDialog machinery: one
+  // note is bounded in size, so there's no multi-minute wait to progress-bar.
+  const downloadMarkdown = async () => {
+    if (exportBusy) return
+    setExportBusy(true)
+    setChromeMsg('preparing…')
+    try {
+      const res = await fetch(`/api/j2/notes/${noteId}/export`, { credentials: 'include' })
+      if (!res.ok) throw new Error(String(res.status))
+      const blob = await res.blob()
+      const cd = res.headers.get('content-disposition') || ''
+      const m = /filename="([^"]+)"/.exec(cd)
+      const filename = m ? m[1] : 'note.md'
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+      setChromeMsg('downloaded')
     } catch {
       setChromeMsg('export failed')
     } finally {
@@ -260,6 +533,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
+  const attachFileInputRef = useRef(null)
   const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null, updatedAt: null })
   // One reconcile-and-retry per conflict burst (A15 compare-and-set): a 409
   // means a server-side write (Send-to-Journal append, second tab) landed
@@ -289,23 +563,140 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Local mirrors for fields the user edits inline.
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
+  // Wave 0 (P1-10): mirrored synchronously in the onChange handlers below
+  // (never via a `useEffect` on `title`/`subtitle`) so the local-draft write
+  // always sees the value from THIS event, not a stale one from before
+  // React's setState batching commits — the same staleness `scheduleAutosave`
+  // solves for the network path via the ref-reassignment pattern, one layer
+  // earlier (a draft written from stale state would recover the SECOND-to-
+  // last keystroke, not the last one).
+  const titleRef = useRef('')
+  const subtitleRef = useRef('')
+  // A locally-drafted, never-successfully-saved version of THIS note,
+  // detected on load — offered via the banner below, never auto-applied
+  // (silently preferring a local draft over the server's copy could just as
+  // easily clobber real, already-synced work from another tab/device).
+  const [pendingDraft, setPendingDraft] = useState(null)
+  // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
+  // not state, since it must be checked synchronously before any render.
+  const restoringDraftRef = useRef(false)
 
   useEffect(() => {
     if (note) {
       setTitle(note.title || '')
+      titleRef.current = note.title || ''
       setSubtitle(note.subtitle || '')
+      subtitleRef.current = note.subtitle || ''
       lastSavedRef.current = {
         title: note.title || '',
         subtitle: note.subtitle || '',
         bodyJson: note.bodyJson,
         updatedAt: note.updatedAt || null,
       }
+
+      // Wave 0 (P1-10): a draft this note's own last session never
+      // successfully saved. Only offered when it actually differs from
+      // what the server has — a match means it saved fine (or was never
+      // touched) and is pure noise to surface.
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY(note.id))
+        const draft = raw ? JSON.parse(raw) : null
+        const draftDiffers = draft && (
+          draft.title !== (note.title || '') ||
+          draft.subtitle !== (note.subtitle || '') ||
+          JSON.stringify(draft.bodyJson) !== JSON.stringify(note.bodyJson)
+        )
+        if (draftDiffers) {
+          setPendingDraft(draft)
+        } else {
+          if (raw) localStorage.removeItem(DRAFT_KEY(note.id))
+          setPendingDraft(null)
+        }
+      } catch {
+        setPendingDraft(null)
+      }
     }
   }, [note?.id])
+
+  const saveDraftLocally = () => {
+    if (!noteId || !editorRef.current) return
+    try {
+      localStorage.setItem(DRAFT_KEY(noteId), JSON.stringify({
+        title: titleRef.current, subtitle: subtitleRef.current,
+        bodyJson: editorRef.current.getJSON(), savedAt: Date.now(),
+      }))
+    } catch { /* private mode / storage full — the network autosave is still the primary path */ }
+  }
+  const clearDraftLocally = () => {
+    try { localStorage.removeItem(DRAFT_KEY(noteId)) } catch { /* private mode */ }
+  }
+
+  const restoreDraft = async () => {
+    // Re-entrancy guard: found via real browser E2E that a single click can
+    // fire this handler twice in quick succession (both invocations reading
+    // the SAME still-non-null `pendingDraft` before React commits the first
+    // call's `setPendingDraft(null)`) — two concurrent PUTs to the same note
+    // racing over the network, with the loser's stale patch sometimes
+    // landing last. A restore is a deliberate, one-shot action; the second
+    // invocation is never useful, so it's dropped outright rather than
+    // trusting click de-duplication anywhere upstream.
+    if (restoringDraftRef.current) return
+    if (!pendingDraft || !editorRef.current) return
+    restoringDraftRef.current = true
+    const draftTitle = pendingDraft.title || ''
+    const draftSubtitle = pendingDraft.subtitle || ''
+    const draftBodyJson = pendingDraft.bodyJson
+    setTitle(draftTitle)
+    titleRef.current = draftTitle
+    setSubtitle(draftSubtitle)
+    subtitleRef.current = draftSubtitle
+    // `false` (emitUpdate) suppresses onUpdate — same convention as the
+    // note-load sync effect below.
+    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, false)
+    setPendingDraft(null)
+
+    // Persist directly and immediately, from the local `draft*` values
+    // captured above — NOT via the debounced scheduleAutosave path (a
+    // setTimeout deref'd 800ms later through whichever render's `commitSave`
+    // closure happens to be current then). A restore is a rare, deliberate
+    // action, not a per-keystroke autosave — it doesn't need debouncing, and
+    // going straight to the network keeps this one-shot action off that
+    // shared, timing-sensitive machinery entirely.
+    setSaveStatus('saving')
+    try {
+      const patch = { title: draftTitle, subtitle: draftSubtitle || null }
+      if (draftBodyJson) patch.bodyJson = draftBodyJson
+      if (lastSavedRef.current.updatedAt) patch.baseUpdatedAt = lastSavedRef.current.updatedAt
+      const saved = await update(patch)
+      lastSavedRef.current = {
+        title: draftTitle, subtitle: draftSubtitle,
+        bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
+        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+      }
+      setSaveStatus('saved')
+      setSaveErrorMsg('')
+      clearDraftLocally()
+    } catch (e) {
+      setSaveStatus('error')
+      setSaveErrorMsg(friendlySaveError(e, e?.status))
+    } finally {
+      restoringDraftRef.current = false
+    }
+  }
+  const discardDraft = () => {
+    clearDraftLocally()
+    setPendingDraft(null)
+  }
 
   const scheduleAutosave = () => {
     setSaveStatus('dirty')
     setSaveErrorMsg('')
+    // Wave 0 (P1-10): mirror to localStorage on EVERY edit, synchronously —
+    // not on the 800ms debounce below. A tab closed mid-keystroke (before
+    // the debounce ever fires) must still have a local copy of what was
+    // just typed; gating this on the same timer would leave exactly that
+    // window unprotected, which is the gap this safety net exists to close.
+    saveDraftLocally()
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     // Fresh user edit supersedes any in-flight retry — reset the backoff
     // counter so we don't waste a 30s wait on content the user just changed.
@@ -323,6 +714,78 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // `editor` const is still null — so closing over it directly made paste throw
   // "Cannot read properties of null (reading 'chain')". The ref is always fresh.
   const editorRef = useRef(null)
+  // Wave I: a single toast for both image and file-attachment upload
+  // failures — an alert() blocks the whole tab for the multi-second span a
+  // PDF upload can take, which is a worse experience than the image case
+  // this was copied from.
+  const [uploadToast, setUploadToast] = useState(null)
+  // Wave I: { href, name } of the PDF currently open in the preview Sheet, or
+  // null. Wave J extends it with `documentId` (needed to save an excerpt
+  // against) and `page`/`emphasizeExcerptId` (click-to-source targeting --
+  // the preview may open at an arbitrary document NOT attached to the
+  // currently-open note, e.g. from a thesis-evidence row referencing an
+  // excerpt captured in a different note).
+  const [previewDoc, setPreviewDoc] = useState(null)
+  // Wave N §9 — a captured web passage is revisited AS a captured passage,
+  // never as a document. See CapturedSourceSheet for what that means.
+  const [capturedSource, setCapturedSource] = useState(null)
+  const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
+  const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
+
+  // ⭐ WAVE M — SEARCH LANDS ON THE OBJECT IT NAMED. A search hit that reads
+  // "NVDA 10-Q · p.47" carries `?doc=&page=` alongside `?note=`, and this opens
+  // the SAME `previewDoc` shape Wave J's click-to-source above already uses —
+  // one document-navigation contract, reached from either door.
+  //
+  // ⛔ It waits for `noteDocuments`: the target names a document id, and the
+  // preview needs that document's href. Firing before the list resolves would
+  // silently drop the deep link and look exactly like "search only opens the
+  // note", which is the defect this closes.
+  //
+  // ⛔ AND IT CLEARS THE PARAMS ONCE CONSUMED, so a refresh, a Back, or simply
+  // closing the sheet does not reopen it — the same once-only discipline the
+  // mobile share handoff needed.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navTarget = targetFromParams(searchParams)
+  const navTargetKey = navTarget
+    ? `${navTarget.documentId}:${navTarget.page || ''}:${navTarget.excerptId || ''}`
+    : null
+  const consumedTargetRef = useRef(null)
+  useEffect(() => {
+    if (!navTarget || !noteDocuments?.length) return
+    if (consumedTargetRef.current === navTargetKey) return
+    const doc = noteDocuments.find((d) => d.id === navTarget.documentId)
+    if (!doc) return
+    consumedTargetRef.current = navTargetKey
+    const localExcerpt = navTarget.excerptId
+      ? noteExcerpts.find((e) => e.id === navTarget.excerptId) || null
+      : null
+    setPreviewDoc({
+      href: doc.attachmentUrl, name: doc.name, documentId: doc.id,
+      page: navTarget.page || undefined,
+      emphasizeExcerptId: navTarget.excerptId || undefined,
+      emphasizeExcerpt: localExcerpt,
+    })
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const k of ['doc', 'page', 'excerpt']) next.delete(k)
+      return next
+    }, { replace: true })
+  }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams])
+
+  // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
+  // document, so it deliberately does not go through `targetFromParams` /
+  // `previewDoc` above — that path opens a viewer, and a viewer handed a
+  // review would have nothing to render. The anchor is passed down to the
+  // review panel, which owns the only place a review can truthfully be shown.
+  const reviewAnchor = reviewTargetFromParams(searchParams)
+  const clearReviewParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('review')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
   const handleImageInsert = async (file) => {
     const ed = editorRef.current
     if (!ed || !file) return
@@ -330,9 +793,237 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const { url } = await uploadInlineImage(noteId, file)
       ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
-      alert(`Upload failed: ${e.message || e}`)
+      setUploadToast({ message: `Couldn't upload ${file.name || 'image'}. Your note is unchanged.`, tone: 'error' })
     }
   }
+  // Wave I: the non-image counterpart — the backend endpoint
+  // (POST /notes/{id}/attachments) has existed since before this wave; this
+  // is its first live-editor caller. Inserts a real AttachmentChip node
+  // (already used by every import adapter), never a bare markdown link.
+  const handleAttachmentInsert = async (file) => {
+    const ed = editorRef.current
+    if (!ed || !file) return
+    try {
+      const { url, name, size } = await uploadNoteAttachment(noteId, file)
+      ed.chain().focus().insertContent({
+        type: 'attachmentChip', attrs: { href: url, name, size },
+      }).run()
+      // Wave J, found live in the browser: a PDF uploaded HERE creates its
+      // j2_note_documents row server-side, but `useNoteDocuments` was fetched
+      // at note-open and never revalidates on its own -- so the brand-new
+      // document's id was unresolvable, previewDoc.documentId came back null,
+      // and "Save excerpt" on the PDF a member had JUST attached silently did
+      // nothing until a full page reload. Refresh the list so the id exists
+      // the moment the chip does.
+      refreshDocuments()
+    } catch (e) {
+      setUploadToast({ message: `Couldn't upload ${file.name || 'file'}. Your note is unchanged.`, tone: 'error' })
+    }
+  }
+
+  // Wave I: a PDF AttachmentChip opens the in-context preview Sheet instead
+  // of downloading. A CAPTURE-phase React handler on the editor's own
+  // wrapper, not TipTap's `handleClickOn` — AttachmentChip.renderHTML()
+  // emits a real `download="..."` attribute on the <a> (pre-existing,
+  // relied on by every import adapter for the "just download it" case), and
+  // a native `<a download>` click is handled by the browser ahead of
+  // ProseMirror's own synthetic click routing, so `handleClickOn` never
+  // fired. Capture phase + preventDefault() here runs before that native
+  // download activates.
+  const handleEditorClickCapture = (event) => {
+    // Wave J: a documentExcerpt card's citation button (see ExcerptView.jsx)
+    // -- click-to-source, the directive's own highest-value exit gate.
+    // Reuses this same capture-phase bridge Wave I established for the
+    // attachmentChip case, rather than a second click-handling mechanism.
+    const citation = event.target.closest?.('button[data-type="documentExcerptCitation"]')
+    if (citation) {
+      const documentId = citation.getAttribute('data-document-id')
+      const page = Number(citation.getAttribute('data-page'))
+      const excerptId = citation.getAttribute('data-excerpt-id')
+      const doc = noteDocuments.find((d) => d.id === documentId)
+      const localExcerpt = noteExcerpts.find((e) => e.id === excerptId)
+      if (doc) {
+        setPreviewDoc({
+          href: doc.attachmentUrl, name: doc.name, documentId, page,
+          emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt || null,
+        })
+      } else if (localExcerpt?.attachmentUrl) {
+        // The excerpt's own document isn't one of THIS note's attachments
+        // (an excerpt saved from elsewhere but inserted here) -- the
+        // excerpt row itself already carries everything needed.
+        setPreviewDoc({
+          href: localExcerpt.attachmentUrl, name: localExcerpt.documentName,
+          documentId, page, emphasizeExcerptId: excerptId, emphasizeExcerpt: localExcerpt,
+        })
+      }
+      return
+    }
+
+    // Wave I: a PDF AttachmentChip opens the in-context preview Sheet instead
+    // of downloading. AttachmentChip.renderHTML() emits a real
+    // `download="..."` attribute on the <a> (pre-existing, relied on by
+    // every import adapter for the "just download it" case), and a native
+    // `<a download>` click is handled by the browser ahead of ProseMirror's
+    // own synthetic click routing, so `handleClickOn` never fired. Capture
+    // phase + preventDefault() here runs before that native download
+    // activates.
+    const chip = event.target.closest?.('a[data-type="attachmentChip"]')
+    if (!chip) return
+    const href = chip.getAttribute('href')
+    const name = chip.getAttribute('data-name')
+    if (!/\.pdf$/i.test(name || '') && !/\.pdf$/i.test(href || '')) return
+    event.preventDefault()
+    // Wave J: resolve this attachment's documentId (needed to save an
+    // excerpt against it) from the note's own already-fetched document
+    // list -- the chip's own attrs never carried an id (attachments have
+    // none of their own, per Wave I's filesystem-path identity model).
+    const doc = noteDocuments.find((d) => d.attachmentUrl === href)
+    setPreviewDoc({ href, name, documentId: doc?.id || null })
+  }
+
+  // Wave J: create the excerpt AND insert its node, in that order -- the
+  // combined backend endpoint already does both atomically, so this is
+  // just the client-side mirror (insert the returned excerptId) plus the
+  // upload-failure toast idiom every other capture path in this file uses.
+  /**
+   * Land on a cited passage -- or honestly decline to.
+   *
+   * The panel has already re-read the text at the destination in the LIVE
+   * doc (unsaved edits included). A state outside PRECISE_STATES means the
+   * passage moved, was duplicated, or is gone.
+   *
+   * NEVER JUMP TO AN UNVERIFIED POSITION. A failed precise citation is
+   * preferable to a confident mis-navigation: landing on the wrong paragraph
+   * looks exactly like landing on the right one.
+   */
+  const jumpToCitation = useCallback((source, resolved) => {
+    // ⭐ O6 §4: a cited REVIEW is not a passage in the note body — it lives
+    // in the review panel's history, and it may belong to a different note
+    // entirely (Ask My Notebook and Ask Security Research both span theses).
+    // So it routes through the SAME `?note=` contract Search uses rather than
+    // through the editor, and lands on the review itself.
+    // ⛔ A citation that cannot name both the note and the review navigates
+    // NOWHERE, rather than opening a note and leaving the member to hunt.
+    if (source?.navigation?.kind === 'review') {
+      const nid = source.navigation.note_id
+      const rid = source.navigation.review_id
+      if (!nid || !rid) return
+      setSearchParams(
+        (prev) => applyTargetToParams(prev, { noteId: nid, reviewId: rid, depth: 'review' }),
+        { replace: false },
+      )
+      return
+    }
+    const ed = editorRef.current
+    if (!ed || source?.navigation?.kind !== 'note') return
+    if (!resolved || !PRECISE_STATES.has(resolved.state)) return
+    ed.chain().focus()
+      .setTextSelection({ from: resolved.from, to: resolved.to })
+      .scrollIntoView()
+      .run()
+  }, [setSearchParams])
+
+  const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
+    const ed = editorRef.current
+    if (!ed) return
+    try {
+      // Wave J, found live: previewDoc.documentId is resolved from a list
+      // fetched at note-open, so ANY document created after that (the common
+      // case: attach a PDF, then immediately excerpt it) resolved to null and
+      // this handler returned silently. Re-resolve from the server at save
+      // time rather than trusting the snapshot -- this closes the whole race
+      // class, not just the upload one. A failure past this point surfaces
+      // the toast below; it must never be silent again.
+      let documentId = previewDoc?.documentId
+      if (!documentId && previewDoc?.href) {
+        const fresh = await fetch(`/api/j2/notes/${noteId}/documents`, { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : { documents: [] }))
+        documentId = fresh.documents?.find((d) => d.attachmentUrl === previewDoc.href)?.id || null
+        // Carry the resolution back onto the open preview, or the highlight
+        // overlay (previewExcerpts, keyed on previewDoc.documentId) stays
+        // empty and the excerpt a member just saved renders no mark on the
+        // page it came from until they reopen the document.
+        if (documentId) setPreviewDoc((p) => (p && p.href === previewDoc.href ? { ...p, documentId } : p))
+      }
+      if (!documentId) throw new Error('document not resolvable')
+      const res = await fetch(`/api/j2/notes/${noteId}/excerpts`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentId, pageNumber, capturedText,
+          quotePrefix, quoteSuffix, charStart, charEnd,
+        }),
+      })
+      if (!res.ok) throw new Error('save failed')
+      const { excerpt } = await res.json()
+      // ⛔ insertContentAt(selection.to), NOT insertContent -- found live in
+      // the browser, and it DESTROYED the member's attachment. Clicking a PDF
+      // chip to open the preview leaves ProseMirror holding a NodeSelection
+      // on that chip (it renders with .ProseMirror-selectednode), and
+      // insertContent REPLACES the selection: saving the first excerpt from
+      // a document silently deleted the chip that document was attached by.
+      // Verified against the persisted body afterwards -- the attachmentChip
+      // node was simply gone, leaving [documentExcerpt, paragraph].
+      // Inserting AT the selection's end preserves a selected node and is
+      // identical to the old behaviour for an ordinary caret.
+      //
+      // Same hazard CaptureInboxTray.place() guards above (see its comment).
+      // It resolves differently — falling back to 'end' — because a banked
+      // capture has no anchor in the note; an excerpt does: the chip the
+      // member just clicked. Landing it right after that chip is the point,
+      // and 'end' would be the "dumped off-screen" failure that comment's
+      // own second guard exists to prevent.
+      ed.chain().focus().insertContentAt(ed.state.selection.to, {
+        type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
+      }).run()
+      await refreshExcerpts()
+    } catch (e) {
+      setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
+    }
+  }
+
+  // Wave J: opens the preview Sheet for a document_excerpt evidence row in
+  // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
+  // one open here, so it's resolved via GET /excerpts/{id} (carries the
+  // source document's attachmentUrl directly, no second lookup) rather
+  // than assuming it's among this note's own documents/excerpts.
+  const handleOpenExcerptSource = async (excerptId) => {
+    try {
+      const res = await fetch(`/api/j2/excerpts/${excerptId}`, { credentials: 'include' })
+      if (!res.ok) return
+      const { excerpt } = await res.json()
+      if (!excerpt?.attachmentUrl) return
+      // ⛔⛔ WAVE N §9. `attachmentUrl` alone does NOT mean "there is a document
+      // to open": a captured web source carries `web:<sha256>`, an IDENTITY
+      // string, not a file. This used to hand that straight to
+      // DocumentPreviewSheet, so revisiting a captured Reuters paragraph opened
+      // a FULLSCREEN PDF VIEWER over a non-URL, with "Open in new tab" and
+      // "Download" controls that could not work — a fake document viewer, which
+      // §9 forbids by name.
+      // ⭐ THE DECISION ALREADY EXISTS AND SEARCH ALREADY OBEYS IT. Wave M's
+      // depth rule answers 'note' for a web capture ("there is no viewer to
+      // scroll"); `excerptRevisitTarget` is that same rule for one excerpt, so
+      // these two surfaces cannot disagree about one object.
+      const target = excerptRevisitTarget(excerpt)
+      if (!target) return
+      if (target.kind === 'captured_source') {
+        // The deepest TRUTHFUL destination: the passage itself and where it
+        // came from. We hold one paragraph; only the publisher has the rest.
+        setCapturedSource(excerpt)
+        return
+      }
+      setPreviewDoc({ ...target, emphasizeExcerpt: excerpt })
+    } catch (e) { /* noop -- opening evidence is best-effort, never blocks the thesis view */ }
+  }
+
+  const previewExcerpts = useMemo(() => {
+    if (!previewDoc?.documentId) return []
+    const fromNote = noteExcerpts.filter((e) => e.documentId === previewDoc.documentId)
+    if (previewDoc.emphasizeExcerpt && !fromNote.some((e) => e.id === previewDoc.emphasizeExcerpt.id)) {
+      return [...fromNote, previewDoc.emphasizeExcerpt]
+    }
+    return fromNote
+  }, [noteExcerpts, previewDoc])
 
   const ytId = parseYouTubeId(note?.heroImageUrl)
   // Video notes whose video is a Desk library session get the Desk theater's
@@ -376,10 +1067,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         const items = event.clipboardData?.items
         if (!items) return false
         for (const item of items) {
-          if (item.kind === 'file' && item.type.startsWith('image/')) {
+          if (item.kind !== 'file') continue
+          if (ALLOWED_IMAGE_MIMES.has(item.type)) {
             event.preventDefault()
             const file = item.getAsFile()
             if (file) handleImageInsert(file)
+            return true
+          }
+          if (ALLOWED_ATTACHMENT_MIMES.has(item.type)) {
+            event.preventDefault()
+            const file = item.getAsFile()
+            if (file) handleAttachmentInsert(file)
             return true
           }
         }
@@ -387,9 +1085,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       },
       handleDrop(view, event) {
         const file = event.dataTransfer?.files?.[0]
-        if (file && file.type.startsWith('image/')) {
+        if (!file) return false
+        if (ALLOWED_IMAGE_MIMES.has(file.type)) {
           event.preventDefault()
           handleImageInsert(file)
+          return true
+        }
+        if (ALLOWED_ATTACHMENT_MIMES.has(file.type)) {
+          event.preventDefault()
+          handleAttachmentInsert(file)
           return true
         }
         return false
@@ -524,6 +1228,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       retryAttemptsRef.current = 0
       // The embeds this save just persisted are safe — consume their inbox rows.
       consumePlacedCaptures()
+      // Wave 0 (P1-10): the server now has this content — the local safety
+      // net for it is no longer needed.
+      clearDraftLocally()
     } catch (e) {
       const status = e?.status
       if (status === 409 && !conflictRetriedRef.current) {
@@ -544,7 +1251,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (!retryable) {
         console.error('autosave failed (non-retryable)', e)
         setSaveStatus('error')
-        setSaveErrorMsg(e?.message || `HTTP ${status}`)
+        setSaveErrorMsg(friendlySaveError(e, status))
         retryAttemptsRef.current = 0
         return
       }
@@ -553,7 +1260,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
       setSaveStatus('reconnecting')
-      setSaveErrorMsg(e?.message || (status ? `HTTP ${status}` : 'Network error'))
+      setSaveErrorMsg(friendlySaveError(e, status, { retrying: true }))
       retryTimerRef.current = setTimeout(() => commitSaveRef.current(), delay)
     }
   }
@@ -602,28 +1309,123 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await update({ tags })
   }
 
-  const onDelete = async () => {
-    if (!confirm('Delete this note?')) return
+  // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
+  // request opens the modal, confirm performs the actual mutation. Wave 0
+  // trash: this is a soft delete, restorable from the sidebar's Trash entry
+  // for 30 days, so the copy stays proportional rather than "permanently".
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const onDeleteRequest = () => setConfirmingDelete(true)
+  const onDeleteConfirm = async () => {
     const res = await fetch(`/api/j2/notes/${noteId}`, {
       method: 'DELETE', credentials: 'include',
     })
-    if (res.ok) onBack()
+    if (res.ok) {
+      // This note's target status just flipped active -> trashed -- same
+      // "a noteLink chip elsewhere in this tab is now stale" class as a
+      // rename (Wave D closure pass finding), so the same cache-bust applies.
+      invalidateNoteLinkTarget(noteId)
+      onBack()
+    }
   }
 
-  const ToolButton = ({ active, onClick, label }) => (
+  const ToolButton = ({ active, onClick, label, title }) => (
     <button
       type="button"
       className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
       onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      title={title}
+      aria-label={title}
     >{label}</button>
   )
 
-  if (isLoading || !note) {
-    return <div className={styles.loading}>Loading…</div>
+  if (isLoading) {
+    // Wave B (G-106 adoption): a skeleton approximating the note page's own
+    // layout (title, then body lines) — reduces layout shift vs. a bare
+    // spinner and matches every other high-frequency structural load's
+    // treatment in this wave.
+    return (
+      <div className={styles.loading} role="status" aria-label="Loading…">
+        <SkeletonLine width="45%" height={26} />
+        <div style={{ height: 20 }} />
+        <SkeletonLine width="92%" height={14} />
+        <SkeletonLine width="88%" height={14} />
+        <SkeletonLine width="70%" height={14} />
+      </div>
+    )
+  }
+
+  // P0-2 fix: `error` is real and returned by useJ2Note, but was never
+  // consumed here -- so a failed fetch (transient network blip, a stale
+  // link to a deleted note, anything) left `note` permanently null while
+  // `isLoading` settled false, and the page hung on "Loading…" forever
+  // with no way forward. `noteId` is always truthy for every real mount of
+  // this component (NotebookTab only renders it once a note is selected),
+  // so once loading has settled, `!note` here always means the fetch
+  // failed -- never a normal transient state -- and is the right signal to
+  // branch on (unlike `loadError` alone, which SWR can also set on a LATER
+  // background revalidation failure while a perfectly good `note` from an
+  // earlier successful fetch is still on screen; that case must keep
+  // rendering the note, not this error card).
+  if (!note) {
+    return (
+      <div className={styles.loadError} role="alert">
+        <p>Couldn't load this note.</p>
+        <p className={styles.loadErrorHint}>
+          Nothing here has been changed or lost — this looks like a connection
+          problem, not a save problem.
+        </p>
+        <div className={styles.loadErrorActions}>
+          <button type="button" className="btn btn-primary" onClick={refresh}>
+            Try again
+          </button>
+          {showBack && (
+            <button type="button" className="btn btn-ghost" onClick={onBack}>
+              ← Notebook
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className={styles.page} ref={pageRef}>
+    <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      <Toast
+        message={uploadToast?.message}
+        tone={uploadToast?.tone}
+        onDismiss={() => setUploadToast(null)}
+      />
+      <DocumentPreviewSheet
+        open={!!previewDoc}
+        href={previewDoc?.href}
+        name={previewDoc?.name}
+        page={previewDoc?.page}
+        onClose={() => setPreviewDoc(null)}
+        excerpts={previewExcerpts}
+        onSaveExcerpt={handleSaveExcerpt}
+        emphasizeExcerptId={previewDoc?.emphasizeExcerptId}
+        documentId={previewDoc?.documentId}
+      />
+      <CapturedSourceSheet
+        open={!!capturedSource}
+        excerpt={capturedSource}
+        onClose={() => setCapturedSource(null)}
+        onOpenOwningNote={
+          capturedSource && capturedSource.noteId !== noteId
+            ? () => {
+                // ⛔ The app's ONE routing idiom for a note — the same `?note=`
+                // param NotebookTab owns and Search writes through
+                // `applyTargetToParams`. Never a second route shape.
+                const nid = capturedSource.noteId
+                setCapturedSource(null)
+                setSearchParams((prev) => {
+                  const next = applyTargetToParams(prev, { noteId: nid, depth: 'note' })
+                  return next
+                })
+              }
+            : null
+        }
+      />
       <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
         {showBack && (
@@ -641,6 +1443,37 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </div>
         )}
         <div className={styles.headerControls}>
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={onToggleFavorite}
+            disabled={favoriteBusy}
+            aria-pressed={isFavorite}
+            aria-label={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+            title={isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+          >
+            <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
+          </button>
+          <NoteLinkedTradeChips noteId={noteId} />
+          <AskPanel
+            scope="note"
+            target={noteId}
+            /* The LIVE doc, unsaved edits included -- it is where the member
+               would actually land, so it is what a citation must verify
+               against. */
+            getEditorDoc={() => editorRef.current?.state?.doc}
+            onNavigate={jumpToCitation}
+          />
+          <button
+            type="button"
+            className={styles.chromeBtn}
+            onClick={() => setHistoryOpen(true)}
+            title="See earlier versions of this note and restore one"
+            aria-label="Version history"
+          >
+            <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            History
+          </button>
           {isAdmin && (
             <>
               <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
@@ -679,11 +1512,46 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTagsChange(e.target.value)}
             style={{ width: 200 }}
           />
-          <button type="button" className="btn btn-danger" onClick={onDelete}>
+          <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
             Delete
           </button>
         </div>
       </header>
+
+      {confirmingDelete && (
+        <ConfirmModal
+          title="Delete this note?"
+          body="It moves to Trash and can be restored for 30 days before it's permanently removed."
+          confirmLabel="Delete"
+          tone="danger"
+          onConfirm={onDeleteConfirm}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
+
+      {/* Wave 0 (P1-10): a locally-drafted version of this note from a
+          session that never actually saved it to the server (tab closed,
+          crashed, or offline mid-edit). Offered, never auto-applied — the
+          member decides whether it's worth more than what's on screen. */}
+      {pendingDraft && (
+        <div className={styles.draftBanner} data-export-exclude role="status">
+          <span>
+            Unsaved changes from a previous session were found for this note.
+          </span>
+          <div className={styles.draftBannerActions}>
+            <button
+              type="button"
+              className={`${styles.draftBannerBtn} ${styles.draftBannerBtnPrimary}`}
+              onClick={restoreDraft}
+            >
+              Restore
+            </button>
+            <button type="button" className={styles.draftBannerBtn} onClick={discardDraft}>
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* The editor toolbar ROW (owner ask, chart-parity round): the font/
           formatting cluster and the PNG/Print exports grouped as ONE
@@ -773,6 +1641,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <ToolButton
               onClick={() => fileInputRef.current?.click()}
               label={<UIcon name="document" size={14} />}
+              title="Insert image"
+            />
+            <ToolButton
+              onClick={() => attachFileInputRef.current?.click()}
+              label={<UIcon name="paperclip" size={14} />}
+              title="Attach a file"
             />
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
@@ -800,6 +1674,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <button type="button" className={styles.chromeBtn} onClick={printNote}
               title="Print — or Save as PDF from the print dialog">
               Print
+            </button>
+            {/* Wave C: portable markdown export -- unlike PNG/Print, this
+                round-trips back into this product (or Obsidian/any
+                markdown-aware app), matching the full-notebook export's
+                own format. */}
+            <button type="button" className={styles.chromeBtn} onClick={downloadMarkdown} disabled={exportBusy}
+              title="Download this note as portable Markdown — the same format the full notebook export uses">
+              Markdown
             </button>
           </div>
         </div>
@@ -850,28 +1732,74 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         <input
           className={styles.titleInput}
           value={title}
-          onChange={(e) => { setTitle(e.target.value); scheduleAutosave(); onTitleChange?.(noteId, e.target.value) }}
+          onChange={(e) => {
+            const v = e.target.value
+            setTitle(v)
+            titleRef.current = v
+            scheduleAutosave()
+            onTitleChange?.(noteId, v)
+          }}
           placeholder="Title"
         />
         <input
           className={styles.subtitleInput}
           value={subtitle}
-          onChange={(e) => { setSubtitle(e.target.value); scheduleAutosave() }}
+          onChange={(e) => {
+            const v = e.target.value
+            setSubtitle(v)
+            subtitleRef.current = v
+            scheduleAutosave()
+          }}
           placeholder="Subtitle (optional)"
         />
 
+        {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
+            a note with nothing set renders only a small "+ Add property"
+            link, never a permanent header (progressive disclosure). */}
+        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+
+        {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
+            body (checkpoint §39); renders nothing for a note that isn't
+            being used as a thesis. */}
+        <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
+                       anchorReviewId={reviewAnchor?.reviewId || null}
+                       onReviewAnchorConsumed={clearReviewParam} />
+
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 
-        <EditorContent editor={editor} />
+        {findOpen && (
+          <NoteFindBar editor={editor} onClose={() => { setFindOpen(false); editor?.commands.noteFindClear() }} />
+        )}
+
+        <div onClickCapture={handleEditorClickCapture}>
+          <EditorContent editor={editor} />
+        </div>
+
+        {/* Wave D: "Linked from" backlinks -- renders nothing until this
+            note has at least one real backlink (directive §70/§16). */}
+        <NoteBacklinksSection noteId={noteId} />
 
         <input
           ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/gif,image/webp"
+          aria-label="Upload image"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) handleImageInsert(f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={attachFileInputRef}
+          type="file"
+          accept=".pdf,.txt,.csv,.md,.zip,.mp3,.m4a,.docx,.xlsx"
+          aria-label="Upload file attachment"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleAttachmentInsert(f)
             e.target.value = ''
           }}
         />
@@ -880,6 +1808,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <div className={styles.railRight}><NoteRailRight insights={insights} /></div>
         )}
       </div>
+      <NoteHistoryPanel
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        noteId={noteId}
+        currentNote={note}
+        onRestored={onVersionRestored}
+      />
     </div>
   )
 }

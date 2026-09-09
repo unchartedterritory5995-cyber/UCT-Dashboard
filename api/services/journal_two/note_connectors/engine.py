@@ -243,7 +243,16 @@ def _start_log(user_id: str, source_id: str) -> int:
 
 def _finish_log(
     log_id: int, *, status: str, counts: dict[str, int], error: str | None = None,
+    source_deleted: int = 0,
 ) -> None:
+    """`source_deleted` is passed SEPARATELY from `counts` on purpose: the
+    sever count is produced by delete detection, not by the per-note import
+    loop that owns every key in `counts`, and folding it into that dict would
+    give one value two authors. It is persisted here because
+    `_latest_sync_counts` (routers/note_sync.py) reads the newest log row to
+    build the connectors card's counts -- a deletion that is never written to
+    this row is invisible to the member no matter what the sync response
+    said in the moment."""
     conn = get_connection()
     try:
         conn.execute(
@@ -251,14 +260,14 @@ def _finish_log(
             UPDATE j2_note_sync_log
                SET finished_at = ?, status = ?, error = ?,
                    notes_created = ?, notes_updated = ?, notes_skipped = ?,
-                   media_uploaded = ?, conflicts = ?
+                   media_uploaded = ?, conflicts = ?, source_deleted = ?
              WHERE id = ?
             """,
             (
                 _now_iso(), status, error,
                 int(counts.get("created", 0)), int(counts.get("updated", 0)),
                 int(counts.get("skipped", 0)), int(counts.get("mediaUploaded", 0)),
-                int(counts.get("conflicts", 0)),
+                int(counts.get("conflicts", 0)), int(source_deleted or 0),
                 log_id,
             ),
         )
@@ -594,6 +603,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         _finish_log(
             log_id, status=status, counts=counts,
             error="; ".join(error_parts) if error_parts else None,
+            source_deleted=deleted_count,
         )
 
         return {
@@ -953,9 +963,14 @@ def _bulk_existing_note_meta(
     for i in range(0, len(keys), 500):  # sqlite variable-limit safety
         chunk = keys[i:i + 500]
         placeholders = ",".join("?" * len(chunk))
+        # Wave 0 trash: a soft-deleted note's import_key must read as
+        # "doesn't exist" to the sync engine, same reasoning as
+        # notes.py::import_check — otherwise a background sync would
+        # silently resurrect a note the member deliberately trashed.
         rows = conn.execute(
             f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash "
-            f"FROM j2_notes WHERE user_id = ? AND import_key IN ({placeholders})",
+            f"FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
+            f" AND import_key IN ({placeholders})",
             (user_id, *chunk),
         ).fetchall()
         for row in rows:

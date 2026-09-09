@@ -1,0 +1,202 @@
+// app/src/pages/optionsFlow/flowBootstrap.js
+//
+// ONE AUTHORITY over "what does the first screen actually need?"
+//
+// `/api/flow/aggregate` runs the browser's own `flowCompute` bundle in Node and
+// returns `processFlowData`'s value VERBATIM. That function's contract includes
+// its own raw inputs (`all_trades` is the full filtered row list), so the
+// endpoint was never a summary — it is the whole working set. Measured on prod
+// 2026-09-07: **23.83 MB**, `cf-cache-status: DYNAMIC` (the edge caches it not at
+// all), 8.2 s cold / 306 ms warm.
+//
+// A consumption audit of OptionsFlow.jsx on the same day — every `D.*` / `FD.*`
+// access classified against the tab guards, default tab `Market Read`
+// (lines 4590-5945) — found:
+//
+//   key               size / rows        read on first paint?
+//   ----------------  -----------------  ------------------------------------
+//   all_trades        11.43 MB / 29,514  only to build `contractTotals` for the
+//                                        single "TOP 10 FLOW PICKS" table
+//   all_directional    5.01 MB / 12,893  only to build `tkMap` for that SAME table
+//   WATCH              3.17 MB /  9,499  NO - Tracker/Watchlist tabs only
+//   ALL_SYMS           -                 NO - Search tab only (7078, 7087)
+//   UOA_TRADES         -                 NO - zero references in the entire page
+//   darkPool           -                 NO - zero references in the entire page
+//   TICKER_DB          2.13 MB /  1,026  NO - CORRECTED 2026-09-08, see below
+//   clean_confirmed    1.10 MB /  2,840  yes (the client re-filters it by cap)
+//   CONV               0.61 MB /  1,098  NO - CORRECTED 2026-09-08, see below
+//
+// ⛔⛔ THE TWO `yes` ROWS ABOVE WERE WRONG, AND THEY WERE THE TWO BIGGEST.
+// Note that every other row carries its REASON ("Tracker/Watchlist tabs only",
+// "Search tab only") while those two said only "yes" and "pre-tab hooks". A
+// call-site derivation on 2026-09-08 found no such hook exists:
+//
+//   TICKER_DB  every consumer is `autoPopulateLeaders` (a BUTTON handler), a
+//              Market Read branch gated on `selectedItem` / `_drilldownTicker`
+//              (a CLICK), or a non-default tab (Top Flow / Leaderboard /
+//              Leaders / Search). NO useMemo/useEffect reads it at all.
+//   CONV       every consumer is `wlPopulate` / `wlPopulateUnusual` (button
+//              onClick) or the Scanner Suggestions JSX -- all inside the
+//              WATCHLIST tab. NO useMemo/useEffect reads it at all.
+//
+// Together they are ~77% of the bootstrap and are INTERACTION-ONLY. They are
+// still fetched, still complete, still identical -- immediately AFTER first
+// paint instead of before it.
+//   charts/totals      small             yes
+//
+// So ~16.4 MB of the payload is shipped to first paint to compute ONE 10-row
+// table, and a further ~3.2 MB is shipped for tabs the member has not opened.
+//
+// ⛔ THIS MODULE DOES NOT DECIDE WHAT IS CORRECT — it decides what is DEFERRED.
+// Splitting is lossless by construction: `bootstrap` and `deferred` together
+// reconstitute the exact object `processFlowData` returned, key for key and
+// value for value. Nothing is summarised, rounded, filtered or approximated
+// here. A member who opens a deferred tab gets the identical rows they get
+// today; they simply arrive when that tab is opened instead of before the page
+// has painted. That property is the point, and `flowBootstrap.test.js` asserts
+// it rather than trusting this paragraph.
+
+/**
+ * Keys `processFlowData` returns that the FIRST SCREEN never reads.
+ *
+ * ⛔ Membership here is an evidence claim about `OptionsFlow.jsx`, not a size
+ * judgement. Adding a key because it is big — without tracing that no
+ * first-paint path reads it — is how a fast blank screen gets shipped. Each
+ * entry below is justified in the table above; re-run that classification
+ * before adding another.
+ *
+ * ⛔ `clean_confirmed` is deliberately ABSENT despite being 1.1 MB: `FD`
+ * (OptionsFlow.jsx:1516) re-filters it by cap band and re-runs `buildCharts`
+ * on every load, so removing it would break the cap filter, not just defer it.
+ */
+export const DEFERRED_KEYS = Object.freeze([
+  'all_trades',
+  'all_directional',
+  'WATCH',
+  'ALL_SYMS',
+  'UOA_TRADES',
+  'darkPool',
+  // Interaction-only, and ~77% of what the bootstrap used to weigh. See the
+  // corrected audit rows above for the call-site evidence.
+  'TICKER_DB',
+  'CONV',
+])
+
+/**
+ * The deferred keys the page fetches immediately AFTER first paint, rather than
+ * on a surface's first use.
+ *
+ * ⛔ THESE TWO ARE DIFFERENT FROM THE REST. The other deferred keys are big and
+ * belong to one surface, so they are fetched when that surface opens. These are
+ * reachable from an IMMEDIATE interaction on the default tab — clicking a
+ * sector or a ticker on Market Read — so waiting for the click would trade a
+ * fast paint for a slow first click. They are pulled the moment paint is done.
+ */
+export const INTERACTION_KEYS = Object.freeze(['TICKER_DB', 'CONV'])
+
+const DEFERRED = new Set(DEFERRED_KEYS)
+
+/**
+ * Split one `processFlowData` result into what first paint needs and what can
+ * follow. Lossless: `{...bootstrap, ...deferred}` deep-equals the input.
+ *
+ * Keys absent from `D` are simply absent from both halves — this never invents
+ * an empty array, because a consumer distinguishing "no rows" from "not loaded
+ * yet" must be able to see the difference.
+ */
+export function splitAggregate(D) {
+  if (!D || typeof D !== 'object' || Array.isArray(D)) {
+    return { bootstrap: D, deferred: null }
+  }
+  const bootstrap = {}
+  const deferred = {}
+  for (const k of Object.keys(D)) {
+    if (DEFERRED.has(k)) deferred[k] = D[k]
+    else bootstrap[k] = D[k]
+  }
+  return { bootstrap, deferred }
+}
+
+/**
+ * Which deferred keys a given surface needs, so a tab fetches once for
+ * everything it will read rather than once per array.
+ *
+ * Derived from the same audit. A surface not listed needs nothing deferred.
+ */
+export const DEFERRED_KEYS_BY_SURFACE = Object.freeze({
+  // "TOP 10 FLOW PICKS" is the ONLY first-paint reader, and it reads both.
+  // TICKER_DB appears on every surface with a ticker drilldown or picker; CONV
+  // only on Watchlist. Listed for accuracy — in practice both arrive with the
+  // post-paint INTERACTION_KEYS fetch long before any of these surfaces opens.
+  marketRead: Object.freeze(['all_directional', 'all_trades', 'TICKER_DB']),
+  leaderboard: Object.freeze(['all_directional', 'all_trades', 'TICKER_DB']),
+  topFlow: Object.freeze(['all_trades', 'TICKER_DB']),
+  search: Object.freeze(['all_directional', 'ALL_SYMS', 'TICKER_DB']),
+  tracker: Object.freeze(['WATCH']),
+  watchlist: Object.freeze(['WATCH', 'all_directional', 'CONV', 'TICKER_DB']),
+})
+
+/**
+ * True when `D` is a bootstrap payload still missing keys the surface reads.
+ * Callers use this to decide whether to fetch the deferred half — never to
+ * decide whether to RENDER something reduced.
+ */
+export function needsDeferred(D, surface) {
+  const need = DEFERRED_KEYS_BY_SURFACE[surface]
+  if (!D || !need) return false
+  return need.some((k) => D[k] === undefined)
+}
+
+/** Merge a deferred payload into a bootstrap one, returning a new object. */
+export function mergeDeferred(bootstrap, deferred) {
+  if (!deferred) return bootstrap
+  if (!bootstrap) return deferred
+  return { ...bootstrap, ...deferred }
+}
+
+/**
+ * The transport unit: `bootstrap` plus ONE part per deferred key.
+ *
+ * ⛔ Deliberately NOT `{bootstrap, deferred}`. A single deferred blob would just
+ * move the problem — the member would trade "download the whole tape at startup"
+ * for "download most of the tape on the first tab click". Per-key parts let a
+ * surface request exactly what it reads (see DEFERRED_KEYS_BY_SURFACE): the
+ * Tracker asks for WATCH alone and never receives `all_trades`, and each part
+ * gets its own cacheable URL rather than sharing one that changes whenever any
+ * of its members do.
+ *
+ * A part is absent when `D` never had that key — never an empty array, so a
+ * consumer can still tell "no rows" from "not fetched".
+ */
+export function partsFrom(D) {
+  const { bootstrap, deferred } = splitAggregate(D)
+  const parts = { bootstrap }
+  for (const k of Object.keys(deferred || {})) parts[k] = deferred[k]
+  return parts
+}
+
+/** Every part name this contract can produce. `bootstrap` first, then the rest. */
+export const PART_NAMES = Object.freeze(['bootstrap', ...DEFERRED_KEYS])
+
+/**
+ * Parts that are DERIVED from `D` rather than carved out of it.
+ *
+ * ⛔ DELIBERATELY NOT IN `PART_NAMES`. That list is a PARTITION: bootstrap
+ * plus the deferred keys reconstitute `D` exactly, key for key, and
+ * `flowBootstrap.test.js` asserts it. `TOP_PICKS` is a product computed FROM
+ * `D` (see flowTopPicksProduct.js), so folding it in would quietly turn the
+ * losslessness property into a falsehood while every test still passed — the
+ * recombination would carry a key `processFlowData` never returned.
+ *
+ * They travel over the same parts transport, so a caller may REQUEST them;
+ * they just are not part of the split.
+ */
+export const DERIVED_PART_NAMES = Object.freeze(['TOP_PICKS'])
+
+/** Everything the server may serve over the parts transport. */
+export const SERVED_PART_NAMES = Object.freeze([...PART_NAMES, ...DERIVED_PART_NAMES])
+
+/** True when `name` is a part a caller may legitimately ask for. */
+export function isPartName(name) {
+  return SERVED_PART_NAMES.includes(name)
+}

@@ -156,6 +156,21 @@
   margin: 0;
 }
 
+/* Points a raw "Conflicts" count at how to actually resolve one — a number
+   alone is visible but not reachable (see SourceRow.jsx's comment above). */
+.conflictHint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--warn);
+  margin: 0;
+}
+.conflictHint code {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill, 999px);
+  background: rgba(224, 161, 26, 0.14);
+}
+
 .sourceActions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 .toggle {

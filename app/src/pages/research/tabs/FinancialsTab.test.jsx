@@ -32,4 +32,32 @@ describe('FinancialsTab', () => {
     expect(screen.getByText('$90.0B')).toBeInTheDocument()    // FCF
     expect(screen.getByText('120%')).toBeInTheDocument()      // ROE
   })
+
+  it('shows no entity note when resolution already succeeded (the fixture default)', () => {
+    render(<FinancialsTab sym="AAPL" />)
+    expect(screen.queryByTestId('entity-unresolved-note')).not.toBeInTheDocument()
+  })
+})
+
+describe('FinancialsTab -- S3 continuation (owner authorization, 2026-09-03)', () => {
+  it('renders an honest note when the symbol has not resolved to a canonical entity', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useFinancials', () => ({
+      default: () => ({ data: { ...fin, entity: { status: 'not_found', entityId: null } }, isLoading: false }),
+    }))
+    const { default: FreshFinancialsTab } = await import('./FinancialsTab')
+    render(<FreshFinancialsTab sym="ZZZ" />)
+    expect(screen.getByTestId('entity-unresolved-note')).toHaveTextContent('not_found')
+  })
+
+  it('never renders Provenance/FreshnessBadge on this tab -- no D1-sourced value exists here yet', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useFinancials', () => ({
+      default: () => ({ data: { ...fin, entity: { status: 'resolved', entityId: 'e_aapl' } }, isLoading: false }),
+    }))
+    const { default: FreshFinancialsTab } = await import('./FinancialsTab')
+    render(<FreshFinancialsTab sym="AAPL" />)
+    expect(screen.queryByTestId('provenance-present')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('freshness-badge')).not.toBeInTheDocument()
+  })
 })

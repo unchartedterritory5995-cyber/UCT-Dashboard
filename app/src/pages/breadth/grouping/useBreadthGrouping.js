@@ -3,14 +3,24 @@ import useGroupMeta from './useGroupMeta'
 import { groupItems } from './groupItems'
 
 // Owns the grouping state (List|Grouped + Sector|Industry + collapsed groups),
-// fetches the industry/sector maps, and computes the grouped buckets. Shared by
-// the drill modal AND CustomScan so both surfaces behave identically.
+// fetches the industry/sector maps, and computes the grouped buckets.
+//
+// ⚠️ Its comment used to say "shared by the drill modal AND CustomScan". That was
+// STALE: `CustomScan` appears nowhere in app/src except in comments. The single
+// consumer is `breadth/drill/BreadthDrillList`, which feeds the result to the real
+// watchlist table. Grep for the CONSUMER before believing a comment about sharing.
 //
 //   items         — row objects
 //   opts.tickerOf — row -> ticker  (default r => r.t)
 //   opts.pctOf    — row -> % move  (default r => r.pct)
 const LS_VIEW = 'breadth.group.viewMode'
 const LS_DIM = 'breadth.group.dimension'
+
+// The grouping dimensions, in the order the control offers them. Exported so the
+// control and the persisted-value allow-list read the SAME list — a control
+// offering a dimension the allow-list rejects would silently fall back to
+// 'industry' on the next open, which reads as the setting not sticking.
+export const DIMENSIONS = ['sector', 'industry', 'theme']
 
 // ⛔ MODULE SCOPE, NOT INLINE DEFAULTS. Re-created per render they are a new
 // identity every time, so every memo that legitimately depends on them would
@@ -31,7 +41,7 @@ export default function useBreadthGrouping(items, opts = {}) {
   const pctOf = opts.pctOf || DEFAULT_PCT_OF
 
   const [viewMode, setViewModeState] = useState(() => readLS(LS_VIEW, ['list', 'grouped'], 'list'))
-  const [dimension, setDimensionState] = useState(() => readLS(LS_DIM, ['industry', 'sector'], 'industry'))
+  const [dimension, setDimensionState] = useState(() => readLS(LS_DIM, DIMENSIONS, 'industry'))
   const [collapsedGroups, setCollapsedGroups] = useState(() => new Set())
 
   const setViewMode = useCallback(m => {
@@ -70,7 +80,9 @@ export default function useBreadthGrouping(items, opts = {}) {
   const tickerKey = rows.map(tickerOf).join(',')
   const tickers = useMemo(() => tickerKey.split(',').filter(Boolean), [tickerKey])
   const meta = useGroupMeta(tickers)
-  const labelByTicker = dimension === 'sector' ? meta.sectors : meta.industries
+  const labelByTicker = dimension === 'sector' ? meta.sectors
+    : dimension === 'theme' ? meta.themes
+      : meta.industries
 
   const grouped = useMemo(
     () => (viewMode === 'grouped' ? groupItems(rows, labelByTicker, { tickerOf, pctOf }) : null),

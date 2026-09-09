@@ -52,7 +52,18 @@ _EXAMPLE_CAP = 40
 
 def _referenced_names(conn: sqlite3.Connection, user_id: str) -> set[str]:
     """Every upload filename any of this user's notes (raw body_json text +
-    hero URL) or inbox captures still references."""
+    hero URL) or inbox captures still references.
+
+    ⛔ Wave 0 trash: this query is DELIBERATELY NOT filtered on
+    `deleted_at IS NULL`, unlike almost every other query in the notebook
+    codebase after Wave 0. A soft-deleted note's images must stay
+    "referenced" — and therefore protected from this sweep — for exactly as
+    long as the note itself is restorable; a filtered version here would GC
+    a trashed note's images out from under it, and restoring the note later
+    would show broken pictures. Only a HARD-deleted note (post-purge, no
+    row left at all) should ever stop protecting its images, which is
+    already true by construction once `purge_expired_deleted_notes` really
+    deletes the row."""
     names: set[str] = set()
     for row in conn.execute(
         "SELECT body_json, hero_image_url FROM j2_notes WHERE user_id = ?", (user_id,)
@@ -65,6 +76,19 @@ def _referenced_names(conn: sqlite3.Connection, user_id: str) -> set[str]:
     ):
         if row["fallback_url"]:
             names.update(_REF_RE.findall(row["fallback_url"]))
+    # Wave I: Wave C's own `body_json` SNAPSHOTS (j2_note_versions) must
+    # protect their attachments too, for the same reason the current note
+    # body does — Wave C's contract is "restore never erases history," so a
+    # member who attaches a file, saves (capturing a version), then removes
+    # it from the CURRENT body must still be able to restore that older
+    # version with the attachment intact. Before this fix, only the current
+    # `j2_notes.body_json` was scanned here, so the file would silently GC
+    # out from under any older, still-restorable version 48h later.
+    for row in conn.execute(
+        "SELECT body_json FROM j2_note_versions WHERE user_id = ?", (user_id,)
+    ):
+        if row["body_json"]:
+            names.update(_REF_RE.findall(row["body_json"]))
     return names
 
 

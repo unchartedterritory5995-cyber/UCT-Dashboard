@@ -8,7 +8,7 @@
  * action modals arrive in Phase 4.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   activeStop,
   positionPnlDollar,
@@ -81,6 +81,18 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   // Option rows (merged into the same table as shares): all option-specific
   // values are precomputed on the row (no per-share price formula applies).
   const isOpt = !!position.isOption
+  // Row click-through (Portfolio/Position Intelligence Convergence V1 Part A2):
+  // the whole row opens the SAME TickerPopup the chart-icon button already
+  // opens — reused verbatim (isTouch→Ticker Hub branch, prefetch-on-hover,
+  // long-press props, tag dot, aria-label all included) by programmatically
+  // clicking that button's own DOM node, rather than re-implementing any of
+  // its open logic via TickerPopup's separate controlled-mode API.
+  const chartTriggerWrapRef = useRef(null)
+  const actionsCellRef = useRef(null)
+  const handleRowClick = (e) => {
+    if (actionsCellRef.current?.contains(e.target)) return
+    chartTriggerWrapRef.current?.querySelector('button')?.click()
+  }
   const optAcctPct = (position.optMarketValue != null && accountSize)
     ? position.optMarketValue / accountSize : null
 
@@ -141,10 +153,12 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
           return DASH('Not applicable to options')
         case 'actions':
           return (
-            <div className={styles.actionsCell}>
-              <TickerPopup sym={position.underlying} as="button" className={styles.actionBtn}>
-                <span title="Open underlying chart"><UIcon name="equity" size={14} /></span>
-              </TickerPopup>
+            <div className={styles.actionsCell} ref={actionsCellRef}>
+              <span ref={chartTriggerWrapRef}>
+                <TickerPopup sym={position.underlying} as="button" className={styles.actionBtn}>
+                  <span title="Open underlying chart"><UIcon name="equity" size={14} /></span>
+                </TickerPopup>
+              </span>
               <button
                 type="button"
                 className={styles.actionBtn}
@@ -216,14 +230,16 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
         return noRealStop ? DASH('No stop set') : pnlCell(heatD, money)
       case 'actions':
         return (
-          <div className={styles.actionsCell}>
-            <TickerPopup
-              sym={position.symbol}
-              as="button"
-              className={styles.actionBtn}
-            >
-              <span title="Open full chart (right-click a bar to add)"><UIcon name="equity" size={14} /></span>
-            </TickerPopup>
+          <div className={styles.actionsCell} ref={actionsCellRef}>
+            <span ref={chartTriggerWrapRef}>
+              <TickerPopup
+                sym={position.symbol}
+                as="button"
+                className={styles.actionBtn}
+              >
+                <span title="Chart, Research & Ask AI (right-click a bar to add)"><UIcon name="equity" size={14} /></span>
+              </TickerPopup>
+            </span>
             <button
               type="button"
               className={styles.actionBtn}
@@ -259,7 +275,28 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   }
 
   return (
-    <tr className={styles.row}>
+    <tr
+      className={styles.row}
+      onClick={handleRowClick}
+      // Seam: PositionsTable was a bare `<tr onClick>` -- a keyboard/switch-
+      // control member could not open ANY position on this paid core
+      // surface, a wider blast radius than AlertBell's own pre-fix gap
+      // (Seam 5). Reuses handleRowClick verbatim -- it already guards
+      // against the actions cell via `actionsCellRef`, so the same guard
+      // covers a bubbled Enter from a focused action button inside it.
+      // Deliberately NO role="button" here -- overriding a <tr>'s native
+      // row role breaks table enumeration for real assistive tech (and
+      // for this file's own `getAllByRole('row')` tests), the opposite of
+      // an accessibility fix. tabIndex + onKeyDown alone close the actual
+      // reported gap (no keyboard path to activate the row at all).
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleRowClick(e)
+        }
+      }}
+    >
       {visibleColumns.map((c) => (
         <td
           key={c.key}
@@ -282,6 +319,14 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
   const allowFractional = isFractional(position)
   const active = activeStop(position)
   const noRealStop = hasNoRealStop(position)
+  // Whole-card click-through (mirrors Row()'s — see its comment): reuses the
+  // same TickerPopup trigger button the chart icon already renders.
+  const chartTriggerWrapRef = useRef(null)
+  const cardActionsRef = useRef(null)
+  const handleCardClick = (e) => {
+    if (cardActionsRef.current?.contains(e.target)) return
+    chartTriggerWrapRef.current?.querySelector('button')?.click()
+  }
 
   const pnlD = isOpt ? position.optPnlDollar : (hasPrice ? positionPnlDollar(position, current) : null)
   const pnlP = isOpt ? position.optPnlPercent : (hasPrice ? positionPnlPercent(position, current) : null)
@@ -291,7 +336,20 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
   const pnlCls = pnlD > 0 ? styles.pos : pnlD < 0 ? styles.neg : ''
 
   return (
-    <div className={styles.card} data-testid="position-card">
+    <div
+      className={styles.card}
+      data-testid="position-card"
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      aria-label={`${position.symbol} position — open chart, research, and actions`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick(e)
+        }
+      }}
+    >
       <div className={styles.cardHead}>
         <div className={styles.cardIdent}>
           <span className={styles.cardSym}>{position.symbol}</span>
@@ -318,10 +376,12 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
         {' · '}
         {position.entryEstimated ? 'est.' : (position.entryDate ? dateShort(position.entryDate) : '—')}
       </div>
-      <div className={styles.cardActions}>
-        <TickerPopup sym={isOpt ? position.underlying : position.symbol} as="button" className={styles.cardBtn}>
-          <UIcon name="equity" size={14} />
-        </TickerPopup>
+      <div className={styles.cardActions} ref={cardActionsRef}>
+        <span ref={chartTriggerWrapRef}>
+          <TickerPopup sym={isOpt ? position.underlying : position.symbol} as="button" className={styles.cardBtn}>
+            <UIcon name="equity" size={14} />
+          </TickerPopup>
+        </span>
         {!isOpt && (
           <button type="button" className={styles.cardBtn} disabled={!onEdit}
                   onClick={() => onEdit?.(position)} aria-label={`Edit ${position.symbol}`}>

@@ -1,0 +1,228 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 720px;
+  padding: 4px 2px 40px;
+}
+.loading {
+  padding: 40px 4px;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 13px;
+}
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.backLink:hover {
+  color: #dcbb5e;
+}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border, #232932);
+}
+.symbol {
+  margin: 0;
+  font-size: 22px;
+  color: var(--color-text-primary, #e8eaed);
+}
+.companyName {
+  font-size: 13px;
+  color: var(--color-text-muted, #98a0aa);
+  margin-top: 2px;
+}
+.subtitle {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #dcbb5e;
+  margin-top: 6px;
+}
+.headerActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.empty {
+  padding: 32px 4px;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 13px;
+}
+.emptyHint {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.sectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--color-text-muted, #98a0aa);
+  text-transform: uppercase;
+}
+.collapseToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.viewAll {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+  text-decoration: none;
+}
+.viewAll:hover {
+  color: #dcbb5e;
+}
+
+/* Touch tier (phone + tablet, <=1024px): `.backLink` and `.viewAll` are
+   plain small text links — expand their tap area to the 44px minimum via
+   padding + an equal-and-opposite negative margin, so the hit area grows
+   without shifting visible text size or surrounding layout. */
+@media (max-width: 1024px) {
+  .backLink {
+    min-height: var(--tap-min, 44px);
+    padding: 11px 8px;
+    margin: -11px -8px;
+  }
+  .viewAll {
+    min-height: var(--tap-min, 44px);
+    padding: 12px 8px;
+    margin: -12px -8px;
+  }
+}
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+  text-align: left;
+}
+.row:hover {
+  border-color: rgba(220, 187, 94, 0.4);
+  background: var(--color-surface-hover, #1c2028);
+}
+.rowTitle {
+  font-size: 13.5px;
+  color: var(--color-text-primary, #e8eaed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.rowDate {
+  font-size: 11px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.chip {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+}
+.factValue {
+  font-size: 12px;
+  color: #dcbb5e;
+}
+.tradeSummary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.tradeChip {
+  font-size: 12px;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.tradeChipMuted {
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+  background: rgba(152, 160, 170, 0.1);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  .workspace {
+    padding: 4px 0 32px;
+  }
+  .header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .headerActions {
+    align-self: stretch;
+  }
+  .row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+}
+
+/* A failed action, said in the member's language. Replaces a native alert()
+   carrying a raw exception (see the handlers in TickerResearchWorkspace.jsx). */
+.actionError {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-danger-border, rgba(248, 113, 113, 0.35));
+  border-radius: 6px;
+  background: var(--color-danger-bg, rgba(248, 113, 113, 0.08));
+  color: var(--color-text, inherit);
+  font-size: 13px;
+  line-height: 1.45;
+}

@@ -39,12 +39,9 @@ direction.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-
-import requests
 
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
@@ -56,9 +53,6 @@ _PER_TICKER_TTL = 4 * 3600       # 4 hours — success TTL (FMP or Finnhub)
 _PER_TICKER_FAIL_TTL = 300       # 5 min — BOTH providers failed (C18 fix)
 _FEED_TTL = 3600                 # 1 hour
 _FEED_FAIL_TTL = 300             # 5 min — used when a provider was denied/failed mid-fan-out
-
-_FMP_TIMEOUT = 8                 # own bounded timeout — never routed through
-                                  # finnhub_client's shared token bucket/budget
 
 # Process-lifetime count of per-ticker fetches where BOTH providers failed
 # outright (as opposed to one succeeding with a genuinely empty result).
@@ -86,37 +80,6 @@ def fetch_fail_total() -> int:
     return _fetch_fail_total
 
 
-def _fmp_get_insider(ticker: str) -> list[dict] | None:
-    """Fire the FMP `stable/insider-trading/search` GET for one ticker.
-
-    Returns the raw row list on success — possibly EMPTY; a ticker with
-    zero recent filings is a genuine, COMPLETE result, not a failure — or
-    None on any failure (missing key, timeout, non-200, malformed body).
-
-    Own tiny client (matches the idiom already in
-    api/services/catalyst/analyst_actions.py::_fmp_get) — FMP is a
-    different provider from Finnhub and must never touch
-    finnhub_client's token bucket / cooldown.
-    """
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        return None
-    try:
-        r = requests.get(
-            "https://financialmodelingprep.com/stable/insider-trading/search",
-            params={"symbol": ticker.upper(), "apikey": key},
-            timeout=_FMP_TIMEOUT,
-        )
-        r.raise_for_status()
-        data = r.json()
-    except Exception as exc:
-        _logger.warning("FMP insider-trading/search failed for %s: %s", ticker, exc)
-        return None
-    if not isinstance(data, list):
-        return None
-    return data
-
-
 def _fetch_insider_raw(ticker: str) -> tuple[list[dict], bool]:
     """Fetch raw insider rows for one ticker. FMP primary, Finnhub fallback.
 
@@ -125,10 +88,32 @@ def _fetch_insider_raw(ticker: str) -> tuple[list[dict], bool]:
     genuinely empty row list, which is ``fetched_ok=True`` with
     ``rows=[]``. Drives the C18 cache-completeness fix in
     ``get_insider_activity`` below.
+
+    D1 migration (Provider Abstraction Layer): FMP now goes through
+    `fmp_client.get_insider_trading` — the one FMP adapter module — instead
+    of this file's own direct `requests.get`. `FMPNotFound` is FMP's typed
+    "the vendor answered, there is nothing" signal (spec §9.5) and is
+    treated exactly like the old code's "empty list, fetched_ok=True" case;
+    every OTHER ProviderError (not configured, auth, rate-limited,
+    transient) falls through to the Finnhub fallback, matching the old
+    None-means-try-Finnhub behavior — per spec §19's migration discipline,
+    this is a mechanical `if result is None: <fallback>` -> `try/except`
+    repoint, not a behavior change.
     """
-    fmp_rows = _fmp_get_insider(ticker)
-    if fmp_rows is not None:
-        return fmp_rows, True
+    from api.services import fmp_client
+    from api.services.fmp_client import FMPNotFound
+
+    try:
+        result = fmp_client.get_insider_trading(ticker)
+        if result.degraded is not None:
+            # Cached-forbidden — treat like any other FMP miss, try Finnhub.
+            pass
+        else:
+            return result.value, True
+    except FMPNotFound:
+        return [], True  # genuinely no recent filings — a complete result
+    except Exception as exc:
+        _logger.warning("FMP insider-trading/search failed for %s: %s", ticker, exc)
 
     data = fh_get("/stock/insider-transactions", {"symbol": ticker.upper()}, timeout=15)
     if isinstance(data, dict):

@@ -296,10 +296,19 @@ class TestFetchQuarterlyHistoryOrderGuarantee:
     these tests prove it's now true even when the provider hands back a
     shuffled/non-monotonic order, by mocking the HTTP layer directly rather
     than mocking `_fetch_quarterly_history` itself (every other test in this
-    repo mocks the function as a black box, which cannot exercise this sort)."""
+    repo mocks the function as a black box, which cannot exercise this sort).
+
+    D1 note: `_fetch_quarterly_history` now fetches via the shared
+    `fmp_client` adapter (imported LOCALLY inside the function, matching
+    this file's existing lazy-import style, so `engine.fmp_client` is not a
+    module attribute), which fires on its own `requests.Session`
+    (`fmp_client._session`) rather than the module-level `requests.get` —
+    so the HTTP layer these tests mock is `fmp_client._session.get`,
+    imported directly."""
 
     def test_fmp_response_is_sorted_newest_first_even_when_provider_order_is_shuffled(self, monkeypatch):
         from api.services import engine
+        from api.services import fmp_client
         monkeypatch.setenv("FMP_API_KEY", "test-key")
         # Deliberately NON-monotonic — the same failure shape already proven
         # live for a real provider on this branch (Finnhub /stock/earnings,
@@ -313,10 +322,12 @@ class TestFetchQuarterlyHistoryOrderGuarantee:
         ]
 
         class _FakeResp:
+            status_code = 200
+            def raise_for_status(self): pass
             def json(self):
                 return shuffled
 
-        monkeypatch.setattr("requests.get", lambda *a, **k: _FakeResp())
+        monkeypatch.setattr(fmp_client._session, "get", lambda *a, **k: _FakeResp())
 
         out = engine._fetch_quarterly_history("AAPL")
         dates = [row["reportedDate"] for row in out]
@@ -329,6 +340,7 @@ class TestFetchQuarterlyHistoryOrderGuarantee:
         continue`) -- this pins that filter down explicitly rather than
         relying on it as an untested side effect."""
         from api.services import engine
+        from api.services import fmp_client
         monkeypatch.setenv("FMP_API_KEY", "test-key")
         mixed = [
             {"date": "", "epsActual": 9.0, "epsEstimated": 9.0},
@@ -337,10 +349,12 @@ class TestFetchQuarterlyHistoryOrderGuarantee:
         ]
 
         class _FakeResp:
+            status_code = 200
+            def raise_for_status(self): pass
             def json(self):
                 return mixed
 
-        monkeypatch.setattr("requests.get", lambda *a, **k: _FakeResp())
+        monkeypatch.setattr(fmp_client._session, "get", lambda *a, **k: _FakeResp())
 
         out = engine._fetch_quarterly_history("AAPL")
         dates = [row["reportedDate"] for row in out]
@@ -396,6 +410,7 @@ class TestFetchQuarterlyHistoryCapAfterSort:
 
     def test_cap_keeps_the_12_newest_quarters_even_when_provider_order_is_reversed(self, monkeypatch):
         from api.services import engine
+        from api.services import fmp_client
         monkeypatch.setenv("FMP_API_KEY", "test-key")
         # 20 quarters, OLDEST-first (the reverse of FMP's real live order) --
         # the exact shape that broke the mid-loop `break`.
@@ -406,10 +421,12 @@ class TestFetchQuarterlyHistoryCapAfterSort:
         ]
 
         class _FakeResp:
+            status_code = 200
+            def raise_for_status(self): pass
             def json(self):
                 return oldest_first
 
-        monkeypatch.setattr("requests.get", lambda *a, **k: _FakeResp())
+        monkeypatch.setattr(fmp_client._session, "get", lambda *a, **k: _FakeResp())
 
         out = engine._fetch_quarterly_history("AAPL")
         dates = [row["reportedDate"] for row in out]

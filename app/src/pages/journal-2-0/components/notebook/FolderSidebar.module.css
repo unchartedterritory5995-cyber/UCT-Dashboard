@@ -15,6 +15,19 @@
   color: var(--color-text-muted, #98a0aa);
   padding: 0 8px 6px;
 }
+/* Wave B: Favorites/Recents section header — same weight as .sectionLabel,
+   inline with its leading UIcon, sitting beside a .disclosureBtn instead of
+   standing alone (unlike Tags, these sections collapse). */
+.sectionHeaderLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 3px 0;
+}
 
 /* ── Header toolbar: collapse + Folders/Search mode switch ─────────────────── */
 .sbHeader {
@@ -87,6 +100,62 @@
   line-height: 1;
 }
 .searchClear:hover { color: var(--accent); }
+/* Wave 4 Slice 1/3: filter toggle + panel. Collapsed by default. */
+.searchFilterToggle {
+  position: absolute;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.searchFilterToggle:hover { color: var(--color-text-primary, #e8eaed); }
+.searchFilterToggleActive { color: #dcbb5e; }
+/* .searchInput's right padding makes room for BOTH the clear (×) button and
+   this toggle, whichever combination is visible at once. */
+.searchInput { padding-right: 52px; }
+.searchFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px 4px 4px;
+  border-bottom: 1px solid var(--color-border, #232932);
+  margin-bottom: 4px;
+}
+.searchFilterField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--color-text-muted, #98a0aa);
+}
+.searchFilterField input {
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 6px;
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 12px;
+  padding: 4px 6px;
+  width: 118px;
+}
+.searchFilterField input:focus { outline: none; border-color: #dcbb5e; }
+.searchFilterClear {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-decoration: underline;
+}
+.searchFilterClear:hover { color: var(--color-text-primary, #e8eaed); }
 .searchCount {
   font-size: 10px;
   text-transform: uppercase;
@@ -139,6 +208,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Wave 4 Slice 2: the query-aware match highlight -- the "why this result"
+   explanation itself, per the design doc's own framing. */
+.searchResultSnippet mark, .searchResultTitle mark {
+  background: rgba(220, 187, 94, 0.22);
+  color: #dcbb5e;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+/* Wave O6: the decision line on a thesis-review result -- the outcome the
+   member chose and when. Distinct from .searchResultSnippet above because it
+   is NOT an excerpt of their prose: it is the structured record beside it, and
+   styling the two identically would read as more of the same sentence. */
+.searchResultMeta {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #dcbb5e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Wave 4 Slice 2: the tag/ticker-only match explanation -- shown ONLY when
+   there is no snippet to render (never both at once). */
+.searchResultReason {
+  font-size: 11px;
+  color: #dcbb5e;
+  opacity: 0.85;
 }
 .searchHint, .searchEmpty {
   font-size: 12px;
@@ -234,6 +330,28 @@
   text-align: left;
 }
 .noteRow:hover { background: var(--color-surface-hover, #1c2028); color: var(--color-text-primary, #e8eaed); }
+/* Wave G checkpoint §48 — one-click starter thesis views, shown only while
+   the member has zero saved views of their own. */
+.starterViewsBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  text-align: left;
+}
+.starterViewsBtn:hover { background: var(--color-surface-hover, #1c2028); color: var(--accent); }
+.starterViewsBtn:disabled { opacity: 0.6; cursor: default; }
+/* Wave B: search-results loading skeleton, replacing the plain "Searching…"
+   text on the one high-frequency structural load in this panel. */
+.searchResultsSkeleton { display: flex; flex-direction: column; gap: 12px; padding: 8px 10px; }
+.searchResultSkeletonRow { display: flex; flex-direction: column; gap: 6px; }
 .noteIcon { flex: 0 0 auto; opacity: 0.75; }
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; }
@@ -293,6 +411,16 @@
    LAYOUT (padding, font-size, flex, overflow) deliberately does not
    travel. Rail: app/src/styles/tapFloor.test.js. */
 @media (max-width: 1024px) {
+  /* Named by tools/mobile_audit.py at phone/phone390/tablet: "Hide folders
+     panel", "Show folders" and "Search notes" all measured 28x28. This block
+     already raised every other interactive element in the sidebar to
+     --tap-min; .sbHeaderBtn was simply missed, and its fixed 28px
+     width/height wins over nothing. These three are the Notebook's own
+     panel switch on a phone -- the most-tapped controls in the file. */
+  .sbHeaderBtn {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+  }
   .searchInput {
     min-height: var(--tap-min, 44px);
   }
@@ -323,4 +451,16 @@
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
   }
+}
+
+/* A failed folder mutation, said in the member's language — replaces a native
+   alert() that carried the raw exception (railed: rawErrorSurface.test.js). */
+.folderError {
+  margin: 6px 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-danger-border, rgba(248, 113, 113, 0.35));
+  border-radius: 6px;
+  background: var(--color-danger-bg, rgba(248, 113, 113, 0.08));
+  font-size: 12px;
+  line-height: 1.4;
 }

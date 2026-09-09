@@ -107,7 +107,7 @@ def test_range_week_falls_back_to_fmp_all_tbd():
     ]
     patches = _range_env(None)   # Finnhub down
     with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], \
-         mock.patch.object(cal_mod, "_fmp_range_week", return_value=fmp_rows):
+         mock.patch.object(cal_mod, "_fmp_range_week", return_value=(fmp_rows, None)):
         r = client.get(f"/api/calendar?week={ds}")
     body = r.json()
     assert body["source"] == "range_fmp"

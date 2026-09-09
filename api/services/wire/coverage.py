@@ -107,7 +107,7 @@ def build_coverage(md: str) -> dict:
     except Exception as exc:
         _logger.warning("wire coverage: Finnhub leg failed: %s", exc)
     try:
-        fmp_raw = cal._fmp_range_week(md, md)
+        fmp_raw, _fmp_meta = cal._fmp_range_week(md, md)
     except Exception as exc:
         _logger.warning("wire coverage: FMP leg failed: %s", exc)
 

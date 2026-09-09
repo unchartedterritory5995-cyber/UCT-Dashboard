@@ -274,6 +274,48 @@ def test_a_cashtag_still_beats_the_collision_gate():
     assert "GOLD" in tickers("$GOLD miners")
 
 
+# ── class-share cashtag fix (2026-09-05, Wave 1 P0-3) ────────────────────────
+#
+# `cap_universe.json` stores class shares HYPHENATED (BRK-B, CRD-A, verified by
+# reading the file). Before this fix, `_CASHTAG`'s optional suffix accepted
+# only a dot separator, so a member typing the hyphen form got the WRONG,
+# truncated ticker: "$BRK-B" -> just "BRK" (the `-` failed the dot-only
+# group, then `\b` happily matched right after "BRK" anyway). Both forms must
+# now resolve to the SAME, hyphenated symbol -- discriminating tests for both,
+# so fixing one can never silently regress the other.
+
+def test_hyphen_class_share_resolves_to_the_full_hyphenated_symbol():
+    assert extract("$BRK-B is cheap here") == [("BRK-B", "cashtag")]
+
+
+def test_dot_class_share_still_resolves_correctly_and_canonicalizes_to_hyphen():
+    """Dot already worked before this fix -- pin it stays working, AND now
+    canonicalizes to the same hyphenated form the hyphen input produces, so
+    a downstream join never has to handle two spellings of one ticker."""
+    assert extract("$BRK.B is cheap here") == [("BRK-B", "cashtag")]
+
+
+def test_hyphen_class_share_is_NOT_truncated_to_the_prefix():
+    """The exact regression this fix closes: BRK-B must never be seen as
+    bare 'BRK'."""
+    got = tickers("$BRK-B is cheap here")
+    assert "BRK" not in got
+    assert got == ["BRK-B"]
+
+
+def test_multiple_hyphen_class_shares_in_one_message():
+    assert sorted(tickers("$AKO-A vs $AKO-B")) == ["AKO-A", "AKO-B"]
+
+
+def test_a_hyphenated_word_that_is_not_a_class_share_does_not_over_match():
+    """`$AI-driven` must extract "AI" (the real cashtag) and leave the rest of
+    the hyphenated word alone -- not swallow "AI-DR" or similar garbage. The
+    2-letter-suffix-then-word-boundary shape makes this fail safely: matching
+    "dr" from "driven" hits a live word character right after, so the regex
+    backtracks to no-suffix and still recovers the correct bare cashtag."""
+    assert extract("$AI-driven stocks rally") == [("AI", "cashtag")]
+
+
 @pytest.mark.parametrize("text,want", [
     ("PLTR MDB NOW good", "NOW"),
     ("day 2 on NOW", "NOW"),

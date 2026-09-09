@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
-import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import usePreferences from '../../../hooks/usePreferences'
-import AiSearchWidget from './AiSearchWidget'
 import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
+import ChartDetailDock, { ChartEarningsButton, ChartPanelsButton } from './ChartDetailDock'
+import { normalizeDock } from './chartDock'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
@@ -20,6 +21,7 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
@@ -44,7 +46,8 @@ function lwcTimeToTs(t) {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets } = useWorkspace()
+  const navigate = useNavigate()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -250,6 +253,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     setGroupSym(activeColor, s)
   }, [activeColor, setGroupSym, persistActiveSettings])
 
+  // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
+  // The three stock-specific widgets, docked into THIS chart instead of floating
+  // as their own always-linked widgets. State rides opts.dock (persisted like
+  // opts.tf); the panels are fed the chart's resolved `sym` directly, so they
+  // mirror the chart exactly. `setDock` accepts a value or an updater fn.
+  const dock = useMemo(() => normalizeDock(opts?.dock), [opts?.dock])
+  const dockRef = useRef(dock)
+  dockRef.current = dock
+  const setDock = useCallback((updater) => {
+    const next = typeof updater === 'function' ? updater(dockRef.current) : updater
+    onOptsChange?.({ ...(opts || {}), dock: next })
+  }, [opts, onOptsChange])
+
   // ── Tab handlers (all go through the pure chartTabs reducer) ──
   const tabList = useMemo(() => chartTabList(opts), [opts])
   const tabColors = useMemo(
@@ -285,7 +301,6 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
   const [tplFlyout, setTplFlyout] = useState(false)  // "Chart template" side flyout open
   const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
-  const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
   const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
   const ctxMenuRef = useRef(null)
   // Location-aware in Y too: after the menu renders, measure it and nudge it fully
@@ -399,6 +414,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     setCtxToast(await sendCaptureToJournal('chart', buildJournalCapture()))
   }, [buildJournalCapture, closeCtx])
 
+  // Wave 1 (P1-1): the optional destination + comment picker, a SEPARATE
+  // secondary trigger next to the one-click default above — that default
+  // stays byte-identical. Captures ONCE, at the moment this menu opens, so a
+  // range dragged while the member is still typing a comment can never
+  // freeze a different window than what they saw when they opened it.
+  const [captureMenu, setCaptureMenu] = useState(null) // {anchor, capture}
+  const handleSendToJournalChoose = useCallback(() => {
+    const anchor = { x: ctxMenu?.rawX ?? ctxMenu?.x ?? 0, y: ctxMenu?.rawY ?? ctxMenu?.y ?? 0 }
+    setCaptureMenu({ anchor, capture: buildJournalCapture() })
+    closeCtx()
+  }, [buildJournalCapture, ctxMenu, closeCtx])
+
   // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration
   // every other chart key uses: only the last-hovered chart answers, so one
   // press banks ONE chart into the inbox even with six on the board.
@@ -429,32 +456,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     return () => document.removeEventListener('keydown', onKey)
   }, [activeChartRef, buildJournalCapture])
 
-  const barDateStr = useCallback((t) => {
-    if (typeof t === 'string') return t                 // daily 'YYYY-MM-DD'
-    if (typeof t === 'number' && Number.isFinite(t)) {
-      try { return new Date(t * 1000).toISOString().slice(0, 10) } catch { /* noop */ }
-    }
-    return null
-  }, [])
-
+  // Canonical, grounded Ask AI for this symbol — the same /research/:sym?section=ai
+  // route TickerActions.jsx's "Ask AI about {sym}" already uses (entry-point
+  // convergence). This used to post the bar's date into the general,
+  // non-grounded AI Search widget/popup via aiSearchBus — a security-scoped
+  // "AI search this bar" action must mean the same canonical Ask AI everywhere
+  // in the app, exactly like the earlier TickerActions.jsx fix. No context
+  // beyond the symbol is threaded through: canonical Ask AI has no query
+  // pre-fill mechanism today, and inventing one is out of scope here.
   const handleAiSearch = useCallback(() => {
-    const bar = ctxMenu?.bar
-    const d = barDateStr(bar?.t)
-    if (!d) { closeCtx(); return }
-    const query = `What were the major news headlines and catalysts that moved ${sym} on ${d}? Give the specific % move that day, the driving story, and any analyst actions.`
-    const menuX = ctxMenu.rawX, menuY = ctxMenu.rawY
     closeCtx()
-    // Route to a mounted AI Search widget if one exists, else a transient popup.
-    const delivered = aiSearchBus?.request?.(query)
-    if (!delivered) {
-      const x = Math.max(8, Math.min(menuX, window.innerWidth - 388))
-      const y = Math.max(8, Math.min(menuY, window.innerHeight - 452))
-      setTempAi({ query, x, y })
-    }
-  }, [ctxMenu, sym, barDateStr, aiSearchBus, closeCtx])
+    navigate(`/research/${sym}?section=ai`)
+  }, [sym, navigate, closeCtx])
 
   return (
     <>
+      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
       <ChartPane
         ref={paneRef}
         sym={sym}
@@ -570,12 +587,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               )}
             </>
           ),
-          /* After the pane's settings gear, keeping the shipped order:
-             leverage · add-tab · gear · share. */
-          tfBarEnd: <ShareToFloor card={{ kind: 'chart', ticker: sym, tf }} compact />,
+          /* Company Intelligence panel toggle — takes the slot Share-to-Floor
+             used to hold (owner decision). One click opens/closes the panel. */
+          tfBarEnd: (
+            <>
+              <ChartEarningsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
+              <ChartPanelsButton dock={dock} setDock={setDock} btnClassName={styles.chartSettingsBtn} />
+            </>
+          ),
           overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
         }}
       />
+      </ChartDetailDock>
       {/* ── Chart right-click menu ── */}
       {ctxMenu && (
         <>
@@ -619,6 +642,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 {/* ── Chart actions ── */}
                 <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
+                </button>
+                <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournalChoose}>
+                  <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal (choose where)…
                 </button>
                 <button type="button" className={styles.chartCtxItem} onClick={() => {
                   ctxMenu.resetView?.(); closeCtx()
@@ -692,7 +718,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 )}
                 {ctxMenu.bar && (
                   <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>
-                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />AI search this bar
+                    <UIcon name="compass" size={14} className={styles.chartCtxIcon} />Ask AI about {sym}
                   </button>
                 )}
               </>
@@ -701,18 +727,16 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         </>
       )}
 
-      {/* ── Transient AI popup (only when no AI Search widget is in the layout) ── */}
-      {tempAi && (
-        <>
-          <div className={styles.chartCtxBackdrop} onClick={() => setTempAi(null)} />
-          <div className={styles.tempAiTab} style={{ left: tempAi.x, top: tempAi.y }}>
-            <AiSearchWidget
-              initialQuery={tempAi.query}
-              color={activeColor}
-              onTicker={(tk) => { setGroupSym(activeColor, tk); setTempAi(null) }}
-            />
-          </div>
-        </>
+      {captureMenu && (
+        <CaptureMenu
+          open
+          onClose={() => setCaptureMenu(null)}
+          anchor={captureMenu.anchor}
+          widgetId="chart"
+          capture={captureMenu.capture}
+          label={symRef.current}
+          onSent={(msg) => setCtxToast(msg)}
+        />
       )}
     </>
   )

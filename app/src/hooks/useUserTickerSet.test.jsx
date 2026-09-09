@@ -22,10 +22,10 @@ import { renderHook, cleanup } from '@testing-library/react'
 import useUserTickerSet from './useUserTickerSet'
 
 vi.mock('./useFlagged', () => ({ useFlagged: () => ({ flagged: MOCK.flagged }) }))
-vi.mock('swr', () => ({ default: () => ({ data: MOCK.watchlists }) }))
+vi.mock('swr', () => ({ default: (key) => { MOCK.swrKey = key; return { data: MOCK.watchlists } } }))
 
-const MOCK = { flagged: [], watchlists: [] }
-afterEach(() => { cleanup(); MOCK.flagged = []; MOCK.watchlists = [] })
+const MOCK = { flagged: [], watchlists: [], swrKey: null }
+afterEach(() => { cleanup(); MOCK.flagged = []; MOCK.watchlists = []; MOCK.swrKey = null })
 
 describe('useUserTickerSet survives a shape it did not expect', () => {
   it('⭐ the ordinary case still works', () => {
@@ -54,5 +54,25 @@ describe('useUserTickerSet survives a shape it did not expect', () => {
     const { result } = renderHook(() => useUserTickerSet())
     // The watchlist half still works — one bad source does not cost the other.
     expect([...result.current]).toEqual(['TSLA'])
+  })
+})
+
+
+describe('what it ASKS the server for', () => {
+  // This hook runs inside LogoPrewarm at APP ROOT, so its request is on the shell
+  // path of every page, every 60 s. Measured on prod 2026-09-07 while it asked for
+  // the full list: 33 of 34 lists were admin-curated INDEX lists carrying 4,725 of
+  // 4,726 items (Russell 2000 = 1,872) against ONE real list with ONE symbol —
+  // 592 KB, 28.1 s cold / 6.6 s warm. It is also a correctness filter: membership
+  // in the Russell 2000 is not "on the member's radar".
+  it('⛔ excludes the prebuilt index lists', () => {
+    renderHook(() => useUserTickerSet())
+    expect(MOCK.swrKey).toContain('/api/watchlists')
+    expect(MOCK.swrKey).toContain('include_prebuilt=0')
+  })
+
+  it('CONTROL: the assertion can fail — a bare URL is not accepted', () => {
+    // Proves the check above is not vacuously true of any string.
+    expect('/api/watchlists').not.toContain('include_prebuilt=0')
   })
 })

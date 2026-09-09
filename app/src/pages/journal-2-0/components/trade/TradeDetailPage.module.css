@@ -131,6 +131,47 @@
   color: var(--loss, #ef4444);
 }
 
+/* ── Research trigger (Full Research / Ask AI / Compare) ───────────────
+   One compact button in the already-dense CTA row, opening a small local
+   dropdown instead of three more inline buttons. */
+.researchMenuWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.researchMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 200px;
+  background: var(--surface-1, #101013);
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.researchMenuItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: var(--text, #e8e6e1);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.researchMenuItem:hover { background: rgba(255,255,255,0.06); }
+
+.researchMenuCompare {
+  padding: 6px 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
 .outcomeGrid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

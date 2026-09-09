@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { renderWithProviders, screen } from '../test-utils'
+import { vi } from 'vitest'
+import { renderWithProviders, screen, fireEvent } from '../test-utils'
 import NavBar from './NavBar'
 
 test('free tier: Morning Wire links to its page, everything else is locked to upgrade', () => {
@@ -37,4 +38,22 @@ test('Flow Scoreboard is reachable from the nav, not only from a dashboard tile'
   const here = dirname(fileURLToPath(import.meta.url))
   const src = readFileSync(join(here, 'NavBar.jsx'), 'utf8')
   expect(src).toContain("to: '/flow-scoreboard'")
+})
+
+test('a visible Search trigger (2026-09-03 discoverability slice) calls onOpenPalette on click', () => {
+  const onOpenPalette = vi.fn()
+  renderWithProviders(<NavBar onOpenPalette={onOpenPalette} />)
+  const trigger = screen.getByLabelText('Search — Ctrl+K')
+  expect(trigger).toBeInTheDocument()
+  fireEvent.click(trigger)
+  expect(onOpenPalette).toHaveBeenCalledTimes(1)
+})
+
+test('the Search trigger is a plain button, not a nav route — it never navigates', () => {
+  // Regression guard: this must stay a button that opens the SAME global
+  // palette, never grow its own href/route (that would be a second surface).
+  renderWithProviders(<NavBar onOpenPalette={() => {}} />)
+  const trigger = screen.getByLabelText('Search — Ctrl+K')
+  expect(trigger.tagName).toBe('BUTTON')
+  expect(trigger).not.toHaveAttribute('href')
 })

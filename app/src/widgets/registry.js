@@ -193,7 +193,7 @@ export const WIDGET_REGISTRY = deepFreeze({
   },
   themes: {
     labels: { header: 'Themes', menu: 'Theme Tracker', tab: 'Themes' },
-    defaults: { w: 6, h: 10, minW: 2, minH: 4 },
+    defaults: { w: 6, h: 10, minW: 3, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
@@ -404,6 +404,16 @@ export const WIDGET_REGISTRY = deepFreeze({
     // real widget under the frozen workspace host with the date restored).
     // Residuals accepted: section sort state + live-mcap ordering.
     reconstructable: true,
+    // ⛔ ...but ONLY BACKWARD. The sentence above is true about the ENDPOINTS
+    // and false about the MEMBER. Re-rendering a day the member captured
+    // BEFORE it happened replaces what they were looking at (an expectation:
+    // "NVDA reports Thursday") with what later became true (the actual
+    // result) — inside research they wrote as a pre-event note. `asOfDay`
+    // declares the DAY this capture is ABOUT, so the render path can ask
+    // whether that day's outcomes were knowable when the member captured it.
+    // Day precision is the honest precision: `date` is 'YYYY-MM-DD' and the
+    // widget renders one ET session, so no finer claim is available here.
+    asOfDay: (p) => (typeof p?.date === 'string' ? p.date : null),
     liveCapable: false,
   },
   optionsflow: {
@@ -703,4 +713,20 @@ export function isReconstructable(widgetId, params) {
   const r = w.reconstructable
   if (typeof r === 'boolean') return r
   try { return !!r(params || {}) } catch { return false }
+}
+
+/** The ET DAY ('YYYY-MM-DD') a capture is ABOUT, for widgets that declare one,
+ *  else null. Only widgets whose payload can describe a day that had not yet
+ *  happened at capture time declare `asOfDay` — it is the input to the
+ *  knowability gate in widgetEmbedCore, NOT a general date accessor.
+ *  ⛔ Chart deliberately does not declare it: `from`/`to` are a QUERY RANGE
+ *  over a permanent bar store (a cutoff re-query, per the frozen-at-insert
+ *  contract), not a claim about a day whose outcome could arrive later. */
+export function asOfDayOf(widgetId, params) {
+  const w = WIDGET_REGISTRY[widgetId]
+  if (!w || typeof w.asOfDay !== 'function') return null
+  try {
+    const d = w.asOfDay(params || {})
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? String(d) : null
+  } catch { return null }
 }

@@ -25,7 +25,7 @@ import useTradeReview from '../../hooks/useTradeReview'
 import TradeReviewCard from '../TradeReviewCard'
 import TagChipPicker from '../TagChipPicker'
 import { filtersFromSearchParams } from '../../hooks/useJ2Filters'
-import { money, moneySigned, percent, dateShort } from '../../../../lib/journal-2-0'
+import { money, moneySigned, percent, dateShort, withResearchReturnParam } from '../../../../lib/journal-2-0'
 import { useIsPaid } from '../../../../context/AuthContext'
 import UIcon from '../../../../components/ui/UIcon'
 import { useFeatureFlag } from '../../featureFlags'
@@ -37,7 +37,24 @@ import TradeReplay from './TradeReplay'
 import AdherenceChecklist from './AdherenceChecklist'
 import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
+import CaptureMenu from '../CaptureMenu'
+import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
+import SymbolSearch from '../../../../components/chart/SymbolSearch'
+import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
+
+// A trade has no live-pane range reachable from here — frame the capture
+// around the holding period itself (±5 sessions) so "save this trade" shows
+// the setup, not whatever the market is doing today (Wave 1, P1-1: tradeRef).
+const DAY_SECONDS = 86400
+function tradeChartWindow(trade) {
+  const entry = trade?.entryDate ? Date.parse(trade.entryDate) : NaN
+  const exit = trade?.exitDate ? Date.parse(trade.exitDate) : NaN
+  if (!Number.isFinite(entry)) return {}
+  const fromMs = entry - 5 * DAY_SECONDS * 1000
+  const toMs = (Number.isFinite(exit) ? exit : entry) + 5 * DAY_SECONDS * 1000
+  return { from: Math.floor(fromMs / 1000), to: Math.floor(toMs / 1000) }
+}
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -122,6 +139,124 @@ function ReplayButton({ trade }) {
   )
 }
 
+
+/**
+ * Compact "Research" trigger for the already-dense CTA row — opens a small
+ * local dropdown (Full Research / Ask AI / Compare) rather than three more
+ * inline buttons. Same canonical /research/:sym contracts as TickerPopup's
+ * goToResearch/goToAskAi/goToCompare (~TickerPopup.jsx:84-91); the Compare
+ * item reveals the same "+ Compare" SymbolSearch picker TickerPopup uses.
+ */
+function TradeResearchMenu({ symbol, tradeId }) {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) close() }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  if (!symbol) return null
+
+  const close = () => { setOpen(false); setShowCompare(false) }
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): tag the outbound
+  // navigation with where it came from so ResearchPage.jsx can render a way
+  // back other than browser Back.
+  const goToResearch = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}`, 'trade', tradeId)); close()
+  }
+  const goToAskAi = () => {
+    navigate(withResearchReturnParam(`/research/${symbol}?section=ai`, 'trade', tradeId)); close()
+  }
+  const goToCompare = (comparator) => {
+    navigate(withResearchReturnParam(
+      `/research/${symbol}/compare/${comparator.toUpperCase()}`, 'trade', tradeId,
+    ))
+    close()
+  }
+
+  return (
+    <span ref={wrapRef} className={styles.researchMenuWrap}>
+      <button
+        type="button"
+        className={styles.cardActionBtn}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <UIcon name="book" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+        Research
+      </button>
+      {open && (
+        <div className={styles.researchMenu} role="menu">
+          <button type="button" className={styles.researchMenuItem} onClick={goToResearch}>
+            <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+          </button>
+          <button type="button" className={styles.researchMenuItem} onClick={goToAskAi}>
+            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {symbol}
+          </button>
+          {!showCompare ? (
+            <button type="button" className={styles.researchMenuItem} onClick={() => setShowCompare(true)}>
+              <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {symbol} with...
+            </button>
+          ) : (
+            <div className={styles.researchMenuCompare}>
+              <SymbolSearch sym={symbol} displayLabel="+ Compare" onSymbolChange={goToCompare} />
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
+
+/** Save-to-Notebook door for this trade — same CaptureMenu every widget door
+ *  uses, tagged with `tradeRef` so the note carries a link back to this trade
+ *  (Wave 1, P1-1: completes tradeRef wiring). */
+function SaveToNotebookButton({ trade, tf }) {
+  const [captureMenu, setCaptureMenu] = useState(null)
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  if (!trade?.symbol || !trade?.entryDate) return null
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.cardActionBtn}
+        onClick={(e) => setCaptureMenu({
+          anchor: { x: e.clientX, y: e.clientY },
+          capture: { symbol: trade.symbol, tf: tf || 'D', ...tradeChartWindow(trade) },
+        })}
+      >
+        <UIcon name="journal" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+        Save to Notebook
+      </button>
+      <JournalToast msg={journalMsg} />
+      <CaptureMenu
+        open={!!captureMenu}
+        onClose={() => setCaptureMenu(null)}
+        anchor={captureMenu?.anchor}
+        widgetId="chart"
+        capture={captureMenu?.capture || { symbol: trade.symbol }}
+        label={trade.symbol}
+        // Notebook relation uses the typed DB row id (Wave 3 contract,
+        // note_trade_links.py) -- do NOT substitute trade.tradeRef here,
+        // that is the separate stable broker/annotation-reference scheme
+        // (trade_refs.py, id:/ext: prefixed) used by screenshots/adherence/
+        // broker-orphan-reattachment. This page is equity-only by
+        // construction (fetches /api/j2/trades/{id}), so the type is
+        // known by surface, never inferred from a runtime flag.
+        tradeRef={trade.id != null ? String(trade.id) : undefined}
+        tradeRefType={trade.id != null ? 'equity_trade' : undefined}
+        onSent={setJournalMsg}
+      />
+    </>
+  )
+}
 
 function TradeCardActions({ trade }) {
   const flagOn = useFeatureFlag('tradePng')
@@ -297,6 +432,29 @@ export default function TradeDetailPage() {
     [id, mutate],
   )
 
+  // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a confirmed
+  // data-loss bug — the Notes textarea previously flushed ONLY on blur, so
+  // navigating away (Full Research/Ask AI/Compare, the back link, browser
+  // back) while an edit was uncommitted silently discarded it. Removing a
+  // focused element from the DOM does not reliably fire `blur` first, so
+  // onBlur alone is not a safety net for unmount — this ref-backed cleanup
+  // effect is. The ref (not the raw closed-over values) is required because
+  // a cleanup registered with an empty dependency array only ever sees the
+  // values captured at mount unless read through a ref kept current on every
+  // render. Deliberately scoped to true unmount only — the SEPARATE reseed
+  // effect above (keyed on `trade?.id`) already owns prev/next's per-trade
+  // draft reset and is not touched by this fix.
+  const notesFlushRef = useRef({ draft: '', saved: '', id: null })
+  useEffect(() => {
+    notesFlushRef.current = { draft: notesDraft, saved: trade?.notes || '', id }
+  })
+  useEffect(() => () => {
+    const { draft, saved, id: flushId } = notesFlushRef.current
+    if (flushId && draft !== saved) {
+      patchJson(`/api/j2/trades/${encodeURIComponent(flushId)}`, { notes: draft }).catch(() => {})
+    }
+  }, [])
+
   const backTo = `/journal?j2tab=journal${location.search ? `&${location.search.slice(1)}` : ''}`
 
   if (!id) {
@@ -418,10 +576,16 @@ export default function TradeDetailPage() {
         )}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
           <ReplayButton trade={trade} />
+          <SaveToNotebookButton trade={trade} tf={tf} />
           <TradeCardActions trade={trade} />
           <ShareToFloor card={{ kind: 'trade', tradeId: id }} label="Share to Floor" />
+          <TradeResearchMenu symbol={trade.symbol} tradeId={trade.id} />
         </span>
       </header>
+
+      {trade.id != null && (
+        <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
+      )}
 
       <div className={styles.outcomeGrid}>
         <div className={styles.outcomeCell}>

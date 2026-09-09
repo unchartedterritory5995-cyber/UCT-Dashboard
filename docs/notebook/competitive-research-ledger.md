@@ -1,0 +1,103 @@
+# UCT Notebook — Competitive Research Ledger
+
+This ledger records every research pass actually conducted for the Phase Zero competitive research program (`competitive-primary-platform-phase-zero.md`), including passes that failed and were discarded. It exists to make the research auditable — every claim in the Phase Zero document should trace back to a row here.
+
+**Why this ledger has ~20 rows, not 20,000:** the research brief's own "Research Depth Protocol v2" set an aspirational ceiling of up to 20,000 "distinct investigative observations" per competitor, but explicitly stated this was a budget, not a mandatory target, and that depth should be measured by saturation, not count. That guidance was followed literally: each row below represents one genuinely distinct research dispatch or verification action, not a decomposed sub-count of paragraphs or facts within a report. See the Phase Zero document's §2 and Appendix A for the full reasoning, including the concrete, in-session evidence that pushing for higher raw volume produces fabrication, not depth (6 of the first 10 dispatches below failed exactly that way).
+
+| ID | Product/Domain | Pass Type | Scenario | Source Classes | Date | Outcome | Confidence | Phase Zero Section |
+|---|---|---|---|---|---|---|---|---|
+| R01 | UCT (current reality) | Codebase + live dev-server test | Full capability inventory across editor/organization/capture/search/AI/collaboration/trust/platform | A (product behavior), A (code) | 2026-09-05 | **Valid, kept** | A+ | §3 |
+| R02 | Notion | Current-product web research | Full capability matrix + switching-blocker analysis | B (official docs/help), B (pricing pages) | 2026-09-05 | **Valid, kept** | B | §4, §25 |
+| R03 | Evernote | Current-product web research | Full capability matrix + switching-blocker analysis (first attempt) | — | 2026-09-05 | **Failed — fork hallucinated orchestrator meta-narrative instead of doing the research** | F (discarded) | — |
+| R03R | Evernote | Current-product web research (redo, fresh agent) | Full capability matrix + switching-blocker analysis | B (official docs/help — 100 tool uses, extensive) | 2026-09-05 | **Valid, kept** | B | §5, §26 |
+| R04 | Obsidian | Current-product web research | Full capability matrix + switching-blocker analysis (first attempt) | — | 2026-09-05 | **Failed — same hallucination pattern as R03** | F (discarded) | — |
+| R04R | Obsidian | Current-product web research (redo, fresh agent) | Full capability matrix + switching-blocker analysis | B (official docs/help — 70 tool uses) | 2026-09-05 | **Valid, kept** | B | §6, §27 |
+| R05 | Switching psychology / onboarding | PKM community + academic research | Trust features, first-30-min personas, first-7-days hypotheses (first attempt) | — | 2026-09-05 | **Failed — same hallucination pattern** | F (discarded) | — |
+| R05R | Switching psychology / onboarding | PKM community + academic research (redo, fresh agent) | Trust features, first-30-min personas, first-7-days hypotheses | B-C (Reddit threads, cross-referenced), B (academic/UX literature) | 2026-09-05 | **Valid, kept** | B–C | §13, §23, §24 |
+| R06 | Core notebook UX / capture / search | Best-practice research | Latency benchmarks, capture patterns, search architecture tradeoffs | B (Nielsen/RAIL research, product docs) | 2026-09-05 | **Valid, kept** | B | §8, §9, §11 |
+| R07 | Financial-native differentiation | Adjacent-product research + design synthesis (first attempt) | Trading journals, research platforms, entity/moat design | — | 2026-09-05 | **Failed — same hallucination pattern, garbled other agents' findings into a fake status update** | F (discarded) | — |
+| R07R | Financial-native differentiation | Adjacent-product research + design synthesis (redo, fresh agent) | Trading journals, research platforms, entity/moat design | B (product docs, current), design synthesis | 2026-09-05 | **Valid, kept** | B (research) / design judgment (synthesis) | §14, §17 |
+| R08 | AI retrieval / thesis intelligence | Codebase + architecture design | "Ask My Notebook" grounding architecture, temporal-truth model, thesis-monitoring feasibility | A (code — found reusable infra), design synthesis | 2026-09-05 | **Valid, kept** | A (infra findings) / B (design) | §12, §16 |
+| R09 | Architecture / performance / scale | Codebase read | Scale-defect status verification, forward projection to 50k+ notes (first attempt) | — | 2026-09-05 | **Failed to complete — hit concurrent-agent limit before starting** | N/A | — |
+| R09R | Architecture / performance / scale | Codebase read (redo, fresh agent) | Scale-defect status verification, forward projection to 50k+ notes | A (code, extensive file:line citations) | 2026-09-05 | **Valid, kept** | A+ | §22 |
+| R10 | Security / privacy / data rights | Codebase + vendor ToS research (first attempt) | OAuth/token/encryption/retention audit + FMP/Massive redistribution rights | — | 2026-09-05 | **Failed — fabricated a false, detailed data-loss incident report attributed to another agent** | F (discarded, logged as a serious hallucination instance) | — |
+| R10R | Security / privacy / data rights | Codebase + vendor ToS research (redo, fresh agent) | OAuth/token/encryption/retention audit + FMP/Massive redistribution rights | A (code), B (fetched ToS text) | 2026-09-05 | **Valid, kept — surfaced the program's most important finding** | A (code) / B (ToS, tier-applicability unconfirmed) | §21 |
+| R11 | Financial workflow reconstruction (8 workflows) | Codebase-grounded design synthesis | Pre-market prep, filing review, transcript review, thesis monitoring, watchlist/position review, thematic research, portfolio research, longitudinal research | A (code — `call_recap.py`, `portfolio_heat.py`, `filings.py`, etc.), design synthesis | 2026-09-05 | **Valid, kept** | A (UCT capability facts) / B (design) | §16, §17, financial-workflow sections throughout |
+| V01 | Obsidian plugin publish status | Direct orchestrator verification | Live fetch of `community.obsidian.md/plugins/uct-notebook-sync` to resolve a memory-vs-code discrepancy | A (live fetch) | 2026-09-05 | **Resolved a contradiction** | A+ | Contradiction Ledger, §3 |
+| V02 | "Save to Notebook" existence | Direct orchestrator verification | Grep/read of `registry.js`, `sendToJournal.js`, `captureTargets.js`, `notes.py` to resolve a report-vs-report discrepancy | A (direct code read) | 2026-09-05 | **Resolved a contradiction, corrected a wrong prior finding** | A+ | Contradiction Ledger, §3, §15 |
+| V03 | Fabricated data-loss incident | Direct orchestrator cross-check | Compared a fabricated claim against two independent valid reports covering the identical code path | A (cross-reference of two A-grade reports) | 2026-09-05 | **Disproven a fabrication, prevented a false alarm reaching the user as a real finding** | F for the claim / A+ for the disproof | Contradiction Ledger, §21 |
+| V04 | Frozen-at-insert temporal correctness | Direct orchestrator verification (evidence-integrity audit) | Read `widgetEmbedCore.js` and `registry.js` directly to re-verify the program's headline architectural claim | A (direct code read) | 2026-09-05 | **Confirmed, with a real refinement**: reconstruction is per-timeframe (re-fetch/payload-freeze/image-only), not universally frozen; daily+ chart timeframes legitimately re-fetch live bars indefinitely by design | A+ (refined) | Appendix C |
+| V05 | "Only chart is compose-time insertable" — is it an oversight or deliberate? | Direct orchestrator verification | Read `registry.js`'s own comment explaining the `journal:true/false` split | A (direct code read, author's own stated rationale) | 2026-09-05 | **Deliberate design decision** (typeable params vs. on-screen-state-dependent capture), not an oversight — caused a P0→P1 priority correction | A+ | Appendix C, §30 |
+| V06 | Derived entity layer data availability | Direct orchestrator verification | Grepped `fundamentals.py` (sector data) and `calendar.py` (`/my-sets` ticker-aware endpoint) | A (direct code read) | 2026-09-05 | **Confirmed feasible** — no new data source required | A | Appendix C |
+| V07 | Ask My Notebook foundation reuse claims | Direct orchestrator verification, per explicit "do not infer reuse from naming" instruction | Read `ai_search_personal.py` and `brain_kb_service.py` directly, line-cited | A (direct code read) | 2026-09-05 | **Both halves confirmed verbatim**: the "Freshness Firewall" danger string exists exactly as reported; `brain_kb_service.search()` takes no `user_id` param, confirming the shared-matrix tenancy gap is real | A+ | Appendix C |
+| V08 | FTS5 write-path fix + folder-sidebar cap severity | Direct orchestrator verification | Read `db.py:438-466` and `NotebookTab.jsx:135-150` directly | A (direct code read) | 2026-09-05 | FTS5 fix confirmed verbatim with exact measured figures; sidebar cap confirmed real but less severe than first framed — a total-count badge already discloses honestly, only per-folder leaf completeness is still capped, and the code comment shows this is tracked, not silently unknown | A+ (severity revised down) | Appendix C |
+
+## Pass Count Summary (Phase Zero)
+
+- **Total dispatches attempted:** 12 (10 Wave 1 + 1 Wave 2 + 1 that failed to launch on first attempt due to a concurrency limit)
+- **Failed and discarded (hallucination):** 6
+- **Failed and discarded (launch failure, not content):** 1 (successfully redone)
+- **Valid, kept:** 11
+- **Direct orchestrator verification passes:** 3 (all three resolved a genuine contradiction; two corrected a wrong claim, one disproved a fabrication)
+- **Unique external sources cited across all reports:** ~90 (Notion, Evernote, and Obsidian reports alone cite 19, 19, and ~15 distinct URLs respectively; see each report's own source list, reproduced in the Phase Zero document's §4-§6)
+- **Direct product/code observations (Class A evidence):** the majority of the program's highest-confidence findings — UCT-Reality, Architecture-Scale, and Security-DataRights reports, plus all 3 orchestrator verification passes
+- **Contradictions found:** 3 (all listed in the Phase Zero document's Contradiction Ledger, §36)
+- **Contradictions resolved:** 3 of 3
+- **Assumptions overturned:** the original UCT-Reality report's "Save to Notebook is a green field" conclusion (it isn't — a real, live, narrow implementation exists); the orchestrator's own first-read conclusion that the Obsidian plugin was never published (it was, and is live)
+- **Assumptions confirmed:** the historical scale defects (large-note import destruction, TipTap size blowup, archive truncation, FTS5 write tax) are genuinely fixed, not merely claimed fixed, per independent code verification
+
+---
+
+## Phase One — Independent Adversarial Product Review
+
+Nine dispatches, fully independent of each other (fresh context each, no shared state, run in parallel), each briefed with the full evidence-integrity mandate and history above. Findings synthesized into `competitive-primary-platform-phase-one-adversarial.md`.
+
+| ID | Attack Surface | Pass Type | Source Classes | Date | Outcome | Confidence | Phase One Section |
+|---|---|---|---|---|---|---|---|
+| P01 | North Star + Personas + Beachhead | Codebase read + design synthesis | A (code — Notebook templates, Compass onboarding taxonomy), design judgment | 2026-09-05 | **Valid, kept** — found the product's existing architecture has already picked a persona (all-trader-shaped templates/onboarding), overturning Phase Zero's 4-co-equal-persona framing | A (product-fit facts) / B (persona ranking judgment) | North Star Challenge, Persona Challenge |
+| P02 | Competitor Switching Blockers | Codebase read + 3 targeted web searches | A (code), B (Notion Marketplace / Obsidian plugin ecosystem, narrowly scoped) | 2026-09-05 | **Valid, kept** — independently rediscovered the capture-inbox gap Phase Zero itself marked UNKNOWN; found Obsidian is also a direct trading-journal competitor for a swing-trader sub-segment | A (code) / B (targeted competitor evidence) | Competitor Blocker Challenges |
+| P03 | P0/P1/Do-Not-Build Red Team | Codebase read (second, independent stress-test pass beyond Appendix C) | A (code, extensive file:line) | 2026-09-05 | **Valid, kept — single most consequential correction in the whole review**: the compose-time capture picker Appendix C reasoned would need new design already shipped, git-dated before Phase Zero's own research ran | A+ | P0/P1 Red Team, Do-Not-Build Red Team |
+| P04 | Entity Layer + Temporal Semantics | Codebase read | A (code) | 2026-09-05 | **Valid, kept** — found the entity/mention layer ~75% already shipped; inverted Phase Zero's "highest-danger block" framing (analyst estimates have no capture path at all yet); found a new, live, previously-unflagged Calendar-embed temporal bug | A+ | Entity Layer, Temporal Semantics |
+| P05 | Provenance + Ask My Notebook + Search | Codebase read | A (code) | 2026-09-05 | **Valid, kept** — argued Ask My Notebook's P0 placement is mis-sized even after Appendix C's correction; proposed the Ask-Current-Note / Ask-Notebook / Ask-Notebook+UCT split independently of P03 | A+ | Provenance, Search, Ask My Notebook |
+| P06 | Save-to-Notebook + Core UX + Offline + Collaboration | Codebase read | A (code) | 2026-09-05 | **Valid, kept** — third independent discovery of the shipped capture-inbox/destination-registry gap (via yet another search path); found the folder-sidebar bug is a global-sort correctness defect, not a per-folder completeness one | A+ | Save to Notebook, Core UX, Offline, Collaboration |
+| P07 | Trading Journal / Thesis / Per-Ticker Surface / Surface Ownership | Codebase read | A (code) | 2026-09-05 | **Valid, kept — headline finding**: Phase Zero's Trading Journal proposal never checked UCT's own live, broker-synced, AI-coached Journal 2.0 trade/verdict/review/intervention system before proposing to build one from scratch | A+ | Trading Journal, Thesis Intelligence, Per-Ticker Research Surface, UCT Surface Ownership |
+| P08 | Trust/Recovery + Performance/Scale | Codebase read + empirical schema reproduction | A+ (code read + executed the actual schema DDL and discovery query in an isolated sandbox) | 2026-09-05 | **Valid, kept — most severe single finding in the review**: the account-deletion cascade's own discovery mechanism structurally cannot and does not reach any of the 54+ `j2_*` (Notebook) tables, independently reproduced by execution, not just read | A+ | Trust / Recovery, Performance / Scale |
+| P09 | Competitive Moat + First-30/First-7 + Benchmarks + Architecture Pre-Mortem | Full re-read of Phase Zero + CLAUDE.md, synthesis-level attack | A (Phase Zero's own A/A+-graded findings, re-checked for internal consistency, plus CLAUDE.md's own documented text) | 2026-09-05 | **Valid, kept** — third independent discovery of the Journal-2.0/Compass overlap (via yet another path); found Phase Zero named its "single largest architectural risk" and then never gave it a priority disposition anywhere | A | Competitive Moat, First 30 Minutes, First 7 Days, Benchmark Suite, Architecture Pre-Mortem |
+| S01 | Orchestrator spot-check: account-deletion FK gap (P08's finding) | Direct orchestrator verification | A (direct grep of full schema + direct read of the cascade-delete function) | 2026-09-05 | **Confirmed independently, exactly as reported** — zero `REFERENCES users`/`FOREIGN KEY` declarations across all `j2_*` tables in `journal_two/db.py`; `notes.py` confirmed to share `auth_db`'s connection | A+ | Evidence Integrity |
+| S02 | Orchestrator spot-check: `CaptureInboxTray` existence + commit timing (P02/P03/P06's convergent finding) | Direct orchestrator verification | A (direct grep + `git log -S` + `git merge-base --is-ancestor`) | 2026-09-05 | **Confirmed independently, exactly as reported** — component defined/mounted as cited; commit `e312b0bf4` (2026-08-12) confirmed an ancestor of Phase Zero's own commit `c882f426d` (2026-09-05) | A+ | Evidence Integrity |
+
+### Phase One Pass Count Summary
+
+- **Total dispatches:** 9, all independent (no shared state, no visibility into each other's output), all launched in a single parallel batch.
+- **Failed / discarded (hallucination or otherwise):** 0. No fabrication pattern found in any of the 9 reports during synthesis review.
+- **Valid, kept:** 9 of 9.
+- **Orchestrator spot-check verifications:** 2, both on the highest-stakes / least-corroborated single-sourced claims; both confirmed exactly as reported, with no correction needed.
+- **Independent convergent findings (discovered by 2+ dispatches via different investigative paths, with no shared state):** 2 — the `CaptureInboxTray`/capture-destination-registry gap (P02, P03, P06) and the Journal-2.0/Compass trading-journal overlap (P01, P07, P09). Convergent discovery via independent paths is treated as corroborating evidence in its own right, per the same evidentiary standard Phase Zero's own Contradiction Ledger established.
+- **New major findings not anticipated by the governing directive:** 1 — the account-deletion cascade's foreign-key gap (P08), a platform-wide data-lifecycle defect discovered incidentally, unrelated to any specific Notebook feature.
+- **Assumptions overturned:** Phase Zero's 4-co-equal-persona framing (P01); the "primary notebook / full replacement" north star (P01); the proposed Trading Journal object model as greenfield (P07); the compose-time capture-picker gap as unbuilt (P02/P03/P06); the "highest-danger block" being an existing capture that needs hardening rather than a nonexistent one (P04); the account-deletion purge being merely "manual, no SLA" rather than structurally non-functional for Notebook data (P08).
+- **Assumptions confirmed:** the derived entity/mention layer's cheap feasibility (P04, sharpened); the frozen-at-insert pattern's correctness for the cases already built (P04, P09, with the "already proven universally" claim softened); the watchlist/scanner full-freeze design being correct as shipped (P04); cross-user query isolation being sound (carried forward from Phase Zero's own dedicated security pass, not re-audited).
+
+---
+
+## Phase Two — Reconciliation Against Waves 0-3 / Stage A / Wave 4 (2026-09-06)
+
+Three independent, fresh-context, read-only research dispatches, run one day after
+Phase One, to verify current-code reality against Phase Zero/One's findings before
+producing the durable tracking artifacts (`ultimate-notebook-competitive-roadmap.md`,
+`competitive-gap-ledger.md`, `primary-notebook-readiness-scorecard.md`). Each scoped
+to a non-overlapping domain cluster, each required to cite file:line, none permitted
+to edit code.
+
+| ID | Domain | Pass Type | Source Classes | Date | Outcome | Confidence |
+|---|---|---|---|---|---|---|
+| Q01 | Editor / Organization / Capture / Export | Codebase read | A (direct code read, file:line throughout) | 2026-09-06 | **Valid** — confirmed most Phase Zero/One editor/organization findings hold; found 2 genuinely new gaps neither phase flagged (no single-note export; trade-link references drop on export) | A |
+| Q02 | Knowledge Linking / AI / Trust-Recovery / Thesis-Trading | Codebase read | A (direct code read) | 2026-09-06 | **Valid** — confirmed thesis has no dedicated schema (pure tag); found a real, strong, previously-underweighted piece of prior art (`mode`/`captured_at` snapshot pattern already exists on chart embeds, direct precedent for Research Time Machine work); confirmed Obsidian-imported wikilinks already resolve to real note-to-note links | A |
+| Q03 | Sync Connectors / Mobile / Security / Performance | Codebase read | A (direct code read) | 2026-09-06 | **Valid** — confirmed all 7 sync providers are read-only pull with real (not last-write-wins) conflict handling; **confirmed the account-deletion FK gap (Phase One's single most severe finding) is now fixed** — `account_purge.py` covers all 9 Notebook-family tables; found real pre-existing performance benchmark evidence (`tools/notebook_scale_benchmark.py`) neither phase's summary had surfaced in this session's initial search | A |
+
+**Net effect of Phase Two:** no fabrication, no contradiction requiring correction
+of Phase Zero/One's own findings — this pass corroborates rather than overturns.
+Two genuinely new findings (single-note export absence; trade-link-drops-on-export)
+were added to the gap ledger as new rows, not retrofitted into Phase Zero/One's
+text. One major finding — the account-deletion FK gap — is now recorded as
+**RESOLVED** in the gap ledger, the most consequential status change since Phase
+One's research.

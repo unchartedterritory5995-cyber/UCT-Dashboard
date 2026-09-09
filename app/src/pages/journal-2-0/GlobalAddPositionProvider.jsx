@@ -176,13 +176,17 @@ export default function GlobalAddPositionProvider() {
 
   const handleCreate = useCallback(async (payload) => {
     const acctId = payload.accountId || accountId || accounts[0]?.id || null
-    await postPosition({ ...payload, accountId: acctId })
+    const created = await postPosition({ ...payload, accountId: acctId })
     await mutate('/api/j2/positions')
     const acctName = accounts.find((a) => a.id === acctId)?.name
     setToast({
       message: `Added ${payload.symbol} ${payload.side.toLowerCase()} to ${acctName || 'account'}`,
       tone: 'success',
     })
+    // Wave 3 (Thesis-Trade Link): AddPositionModal's post-create linking step
+    // needs the real persisted position id, which only exists after this
+    // resolves — see AddPositionModal.jsx's handleSave.
+    return created
   }, [mutate, accountId, accounts])
 
   // Nothing to render when logged out or auth still resolving.

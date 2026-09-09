@@ -131,10 +131,10 @@ def test_collect_earnings_window_returns_earliest_date_per_symbol(monkeypatch):
     from api.services.awareness import engine as eng
 
     def fake_reporters(d_str):
-        return {"2026-07-02": {"AAPL"}, "2026-07-03": {"AAPL", "MSFT"}}[d_str]
+        return ({"2026-07-02": {"AAPL"}, "2026-07-03": {"AAPL", "MSFT"}}[d_str], True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     out = eng._collect_earnings_window(date(2026, 7, 2), 1)
     assert out == {"AAPL": "2026-07-02", "MSFT": "2026-07-03"}
@@ -148,10 +148,10 @@ def test_collect_earnings_window_is_memoized(monkeypatch):
 
     def fake_reporters(d_str):
         calls.append(d_str)
-        return {"AAPL"} if d_str == "2026-07-02" else set()
+        return ({"AAPL"} if d_str == "2026-07-02" else set(), True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     r1 = eng._collect_earnings_window(date(2026, 7, 2), 1)
     n_after_first = len(calls)
@@ -165,10 +165,16 @@ def test_collect_earnings_window_is_memoized(monkeypatch):
 # ── window-incomplete result for the full 1h TTL ────────────────────────────
 
 def test_collect_earnings_window_partial_day_failure_uses_short_memo_ttl(monkeypatch):
-    """One day's `_get_reporters_for_date` raises -- the resulting window is
-    missing that day's reporters. Must self-heal in minutes, not sit
-    memoized for a full hour (silencing R5 earnings-proximity awareness for
-    any symbol reporting on the failed day)."""
+    """One day's lookup reports a genuine source failure (ok=False) -- the
+    resulting window is missing that day's reporters. Must self-heal in
+    minutes, not sit memoized for a full hour (silencing R5 earnings-
+    proximity awareness for any symbol reporting on the failed day).
+
+    Uses (set(), False) rather than an actually-raised exception --
+    `_get_reporters_for_date_with_status` reports failure through its
+    return value, never by raising (S10, 2026-09-06). A test that instead
+    made the lookup raise would pass without ever exercising the real
+    production failure mode, exactly the gap this program exists to close."""
     import time as _time
     from api.services.awareness import engine as eng
 
@@ -176,11 +182,11 @@ def test_collect_earnings_window_partial_day_failure_uses_short_memo_ttl(monkeyp
 
     def fake_reporters(d_str):
         if d_str == "2026-07-03":
-            raise RuntimeError("Finnhub down")
-        return {"AAPL"} if d_str == "2026-07-02" else set()
+            return (set(), False)
+        return ({"AAPL"} if d_str == "2026-07-02" else set(), True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     out = eng._collect_earnings_window(date(2026, 7, 2), 1)
     assert out == {"AAPL": "2026-07-02"}  # the day that DID resolve is still served
@@ -201,16 +207,39 @@ def test_collect_earnings_window_all_days_ok_uses_full_hour_memo_ttl(monkeypatch
     eng._reset_earnings_memo()
 
     def fake_reporters(d_str):
-        return {"AAPL"} if d_str == "2026-07-02" else set()
+        return ({"AAPL"} if d_str == "2026-07-02" else set(), True)
 
     monkeypatch.setattr(
-        "api.services.calendar_alerts._get_reporters_for_date", fake_reporters,
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
     )
     eng._collect_earnings_window(date(2026, 7, 2), 1)
 
     key = (date(2026, 7, 2).isoformat(), 1)
     _, _, was_partial = eng._EARNINGS_MEMO[key]
     assert was_partial is False
+    eng._reset_earnings_memo()
+
+
+def test_collect_earnings_window_all_sources_fail_marks_partial_with_empty_window(monkeypatch):
+    """Every day's lookup fails (ok=False everywhere) -- the window comes
+    back empty but MUST still be flagged partial so it retries in minutes,
+    not silently memoized as a genuinely quiet week for a full hour."""
+    from api.services.awareness import engine as eng
+
+    eng._reset_earnings_memo()
+
+    def fake_reporters(d_str):
+        return (set(), False)
+
+    monkeypatch.setattr(
+        "api.services.calendar_alerts._get_reporters_for_date_with_status", fake_reporters,
+    )
+    out = eng._collect_earnings_window(date(2026, 7, 2), 1)
+    assert out == {}
+
+    key = (date(2026, 7, 2).isoformat(), 1)
+    _, _, was_partial = eng._EARNINGS_MEMO[key]
+    assert was_partial is True
     eng._reset_earnings_memo()
 
 
@@ -401,3 +430,192 @@ def test_run_awareness_scan_end_to_end_fires_stop_hit(db_path, monkeypatch):
     assert result["enabled"] is True
     assert result["scanned_users"] == 1
     assert result["fired"] == 1
+
+
+# ── _compute_regime_component -- Seam 10 / Awareness Scan-Abort Hardening V1 ──
+# The regime classifier's own fetch/classify (voice_regime_classifier.py) and
+# the durable regime_snapshots ledger's two raw SQLite calls each had zero
+# exception isolation of their own, and _build_market_scan_ctx had none
+# either -- a single failure anywhere in this chain propagated uncaught out
+# of the ONE pre-loop setup call in run_awareness_scan(), aborting the ENTIRE
+# cycle (stop-watch + earnings-proximity for every user) even though neither
+# of those rules reads regime data at all. These tests prove the isolation:
+# a regime-component failure degrades ONLY R4 (regime-flip), never the other
+# two, and is honestly surfaced (never silently indistinguishable from "no
+# signal this cycle") via a logged warning + a `degraded`/`regime_degraded`
+# flag threaded through to the scan summary.
+
+def test_compute_regime_component_returns_real_values_on_success(db_path, monkeypatch):
+    """Healthy path unchanged -- same values `_build_market_scan_ctx` used to
+    inline directly, now behind the extracted helper."""
+    from api.services.awareness import engine as eng
+
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        lambda: {"regime": "bull_trend", "confidence": 0.8},
+    )
+    out = eng._compute_regime_component()
+    assert out == {"label": "bull_trend", "confidence": 0.8, "prev_label": None,
+                    "degraded": False}
+
+
+def test_compute_regime_component_no_result_is_not_treated_as_a_failure(db_path, monkeypatch):
+    """A classifier that runs cleanly but has nothing to say (label=None,
+    e.g. a genuinely indeterminate read) is NOT the failure this program
+    guards against -- it must not be marked degraded."""
+    from api.services.awareness import engine as eng
+
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        lambda: {"regime": None, "confidence": 0.0},
+    )
+    out = eng._compute_regime_component()
+    assert out["degraded"] is False
+    assert out["label"] is None
+
+
+def test_compute_regime_component_degrades_on_classifier_exception(db_path, monkeypatch, caplog):
+    """The exact recorded Seam 10 failure mode: the classifier itself raises."""
+    import logging
+    from api.services.awareness import engine as eng
+
+    def _boom():
+        raise RuntimeError("provider outage")
+
+    monkeypatch.setattr("api.services.voice_regime_classifier.get_current_regime", _boom)
+    with caplog.at_level(logging.WARNING):
+        out = eng._compute_regime_component()
+
+    assert out == {"label": None, "confidence": 0.5, "prev_label": None, "degraded": True}
+    # Honestly logged, not silently swallowed into an indistinguishable "no signal".
+    assert any("regime component failed" in r.message for r in caplog.records)
+
+
+def test_compute_regime_component_degrades_on_ledger_read_exception(db_path, monkeypatch):
+    """The OTHER half of the recorded seam: regime_snapshots.get_last_label()
+    is a raw SQLite call with no try/except of its own."""
+    from api.services.awareness import engine as eng
+
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        lambda: {"regime": "bull_trend", "confidence": 0.8},
+    )
+    monkeypatch.setattr(
+        "api.services.awareness.regime_snapshots.get_last_label",
+        mock.Mock(side_effect=RuntimeError("db is locked")),
+    )
+    out = eng._compute_regime_component()
+    assert out["degraded"] is True
+    assert out["label"] is None
+
+
+def test_compute_regime_component_degrades_on_ledger_write_exception(db_path, monkeypatch):
+    """record_snapshot() is likewise a raw SQLite call with no guard of its
+    own -- a write failure must degrade the SAME way as a read failure, not
+    surface a half-computed label with no durable record of it."""
+    from api.services.awareness import engine as eng
+
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        lambda: {"regime": "bull_trend", "confidence": 0.8},
+    )
+    monkeypatch.setattr(
+        "api.services.awareness.regime_snapshots.record_snapshot",
+        mock.Mock(side_effect=RuntimeError("db is locked")),
+    )
+    out = eng._compute_regime_component()
+    assert out["degraded"] is True
+    assert out["label"] is None
+
+
+def test_build_market_scan_ctx_regime_failure_does_not_affect_live_prices_or_earnings(
+    db_path, monkeypatch,
+):
+    """The core isolation property: live_prices and earnings_by_symbol are
+    computed independently of the regime component and must be fully intact
+    even when regime fails outright."""
+    from api.services.awareness import engine as eng
+    from api.routers.live_prices import cache as px_cache, _px_key
+
+    px_cache.set(_px_key("NVDA"), {"price": 123.45}, ttl=60)
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        mock.Mock(side_effect=RuntimeError("provider outage")),
+    )
+    monkeypatch.setattr(eng, "_collect_earnings_window",
+                         lambda today, days: {"AAPL": "2026-07-03"})
+
+    user_ctxs = {"u1": {"positions": [{"symbol": "NVDA", "side": "Long",
+                                        "entry_price": 100.0, "stop_price": 90.0,
+                                        "source": None}],
+                         "watch_syms": set()}}
+    ctx = eng._build_market_scan_ctx(user_ctxs)
+
+    assert ctx["live_prices"]["NVDA"] == 123.45
+    assert ctx["earnings_by_symbol"] == {"AAPL": "2026-07-03"}
+    assert ctx["regime"]["degraded"] is True
+    assert ctx["regime"]["label"] is None
+
+
+def test_run_awareness_scan_stop_watch_and_earnings_survive_a_regime_failure(
+    db_path, monkeypatch,
+):
+    """End-to-end proof, through the REAL (unmocked) _build_market_scan_ctx:
+    a hard regime-classifier failure must not cost a member their stop-watch
+    or earnings-proximity insights that cycle. This is the exact defect the
+    program exists to close -- before the fix, this raised out of
+    run_awareness_scan() entirely and fired nothing."""
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_ENGINE_ENABLED", "1")
+    _seed_user("u9", "u9@x.com")
+    _seed_position("u9", "NVDA", "Long", 100.0, 90.0)
+
+    from api.routers.live_prices import cache as px_cache, _px_key
+    px_cache.set(_px_key("NVDA"), {"price": 88.0}, ttl=60)  # below stop -> R1 fires
+
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        mock.Mock(side_effect=RuntimeError("provider outage")),
+    )
+    monkeypatch.setattr(eng, "_collect_earnings_window", lambda today, days: {})
+
+    with mock.patch("api.services.watchlist_alert_service.deliver_alert_payload"):
+        result = eng.run_awareness_scan()
+
+    assert result["enabled"] is True
+    assert result["scanned_users"] == 1
+    assert result["fired"] == 1  # the stop_hit still fired
+    assert result["regime_degraded"] is True  # and the failure is honestly surfaced
+
+
+def test_run_awareness_scan_regime_degraded_false_on_a_healthy_cycle(db_path, monkeypatch):
+    """Control for the above: a normal cycle reports regime_degraded=False,
+    so the new field is a real signal, not a constant."""
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_ENGINE_ENABLED", "1")
+    _seed_user("u10", "u10@x.com")
+
+    monkeypatch.setattr(
+        "api.services.voice_regime_classifier.get_current_regime",
+        lambda: {"regime": "chop", "confidence": 0.5},
+    )
+    monkeypatch.setattr(eng, "_collect_earnings_window", lambda today, days: {})
+
+    result = eng.run_awareness_scan()
+    assert result["regime_degraded"] is False
+
+
+def test_run_awareness_scan_a_bulk_load_failure_still_aborts_honestly(db_path, monkeypatch):
+    """Control for the DIFFERENT failure class this program deliberately did
+    NOT change: _bulk_load_user_contexts() is genuinely required for every
+    rule (there is nothing to iterate without it), so its failure correctly
+    propagates to the scheduler's own existing catch-all rather than being
+    silently absorbed here -- preserving that invariant, not weakening it."""
+    from api.services.awareness import engine as eng
+    monkeypatch.setenv("AWARENESS_ENGINE_ENABLED", "1")
+    monkeypatch.setattr(
+        eng, "_bulk_load_user_contexts",
+        mock.Mock(side_effect=RuntimeError("db is locked")),
+    )
+    with pytest.raises(RuntimeError, match="db is locked"):
+        eng.run_awareness_scan()

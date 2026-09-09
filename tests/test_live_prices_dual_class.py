@@ -2,10 +2,42 @@
 DOT form (see massive.to_polygon_symbol) and translate the response back to the
 app's canonical hyphen form — otherwise Massive returns n=0 for these names and
 they silently vanish from the batch response (verified live: SPY's BRK-B holding
-had no price/% Chg entry at all while every other holding did)."""
+had no price/% Chg entry at all while every other holding did).
+
+D1 note: `_fetch_snapshots` now calls `client.get_batch_quotes(tickers)` (the
+D1 typed adapter method, which owns this exact translation internally) rather
+than building the URL itself and calling `client._get`. The fake client below
+still builds the URL/raw JSON via its own `_get` (so the fixture data stays
+unchanged) but exposes it through a `get_batch_quotes` adapter matching the
+real method's shape — see `_batch_quotes_from_get` in `massive.py`'s own
+D1 test file for the identical pattern."""
 from __future__ import annotations
 
 from api.routers import live_prices as lp
+from api.services import provider_errors as _pe
+from api.services.massive import to_polygon_symbol
+
+
+def _batch_quotes_from_get(client, tickers):
+    """Adapts a fake client's pre-D1 `_get`-based batch fetch into the new
+    `get_batch_quotes` shape, reusing the fake's own canned JSON/URL-recording
+    behavior unchanged."""
+    poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
+    tickers_param = ",".join(poly_to_canon.keys())
+    url = (f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+           f"?tickers={tickers_param}&apiKey={client._api_key}")
+    data = client._get(url, timeout=5.0)
+    out = {}
+    for t in data.get("tickers", []):
+        poly_sym = t.get("ticker", "")
+        if not poly_sym:
+            continue
+        out[poly_to_canon.get(poly_sym, poly_sym)] = t
+    return _pe.ProviderResult(
+        value=out,
+        provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="test"),
+        licensing_class="R",
+    )
 
 
 class _DualClassClient:
@@ -36,6 +68,9 @@ class _DualClassClient:
                 "todaysChange": 2.0,
             },
         ]}
+
+    def get_batch_quotes(self, tickers, *, entity_ids=None):
+        return _batch_quotes_from_get(self, tickers)
 
 
 def test_dual_class_ticker_requested_in_dot_form():

@@ -102,6 +102,11 @@ function normalizeCounts(raw) {
     notesSkipped: pick(c, 'notesSkipped', 'notes_skipped', 0),
     mediaUploaded: pick(c, 'mediaUploaded', 'media_uploaded', 0),
     conflicts: pick(c, 'conflicts', 'conflicts', 0),
+    // Notes SEVERED from their remote this pass (tagged `source-deleted`).
+    // Normalized here like every other count so `SourceRow` can read it
+    // without a `|| 0` fallback -- an older server that predates the field
+    // yields 0, never `undefined`.
+    sourceDeleted: pick(c, 'sourceDeleted', 'source_deleted', 0),
   }
 }
 

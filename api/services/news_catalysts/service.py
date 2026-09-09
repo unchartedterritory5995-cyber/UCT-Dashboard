@@ -56,12 +56,14 @@ _LIVE_TTL = 120
 _RECENT_TTL = 20 * 60        # last-10-days catalyst layer refresh (near-real-time)
 _EST_COST_PER_GEN = 0.02  # ~900 Sonnet out-tokens; for the cost log only
 
-# Single-process generate-once dedupe + daily cap (matches the web pod's one-uvicorn
-# assumption, like modelbook/awareness — see CLAUDE.md single-process invariants).
+# In-flight dedup only (legitimately single-process — prevents two threads
+# in THIS process from generating the same symbol concurrently). The daily
+# CAP used to live here too as plain globals (_gen_day/_gen_count) but that
+# reset on every redeploy; it's now durable via
+# store.reserve_daily_generation_slot (2026-09-09 cost-spike fix). The
+# per-symbol once-a-day dedup was always durable (news_catalyst_meta.catalysts_at).
 _gen_lock = threading.Lock()
 _generating: set[str] = set()
-_gen_day: str | None = None
-_gen_count = 0
 
 
 def _enabled() -> bool:
@@ -214,7 +216,8 @@ def _web_catalysts(sym, company, bars, movers, *, outcome=None):
               "markdown, no commentary.")
     try:
         res = perplexity_search.web_search(query, max_tokens=1600, system=system,
-                                           mode="fast", domain_pack="finance")
+                                           mode="fast", domain_pack="finance",
+                                           cost_surface="news_catalysts")
     except Exception as exc:
         _logger.warning("news_catalysts web catalysts failed for %s: %s", sym, exc)
         return None, None
@@ -337,7 +340,8 @@ def _verify_dates(sym, company, prelim):
              f'first broke — NOT a later date the stock moved or a filing "as of" date). '
              f'Answer with ONLY that date as YYYY-MM-DD. If you cannot determine it, answer NONE.')
         try:
-            res = perplexity_search.web_search(q, max_tokens=120, mode="fast", domain_pack="finance")
+            res = perplexity_search.web_search(q, max_tokens=120, mode="fast", domain_pack="finance",
+                                               cost_surface="news_catalysts")
         except Exception:
             return None
         d = _extract_iso_date(res.get("answer") or "")
@@ -780,7 +784,8 @@ def _recent_catalysts(sym):
         # week of news for the slots (the reason a 3-hour-old policy headline was missed);
         # general web so any source that broke it is reachable.
         res = perplexity_search.web_search(query, max_tokens=1000, system=system, mode="fast",
-                                           recency="day", domain_pack="general")
+                                           recency="day", domain_pack="general",
+                                           cost_surface="news_catalysts")
     except Exception as exc:
         _logger.warning("news_catalysts recent failed for %s: %s", sym, exc)
         return []
@@ -897,17 +902,18 @@ def _combined(sym: str) -> list:
 
 
 def _cost_ok() -> bool:
-    """Per-process daily generation cap (reserve a slot). Returns False when the
-    cap is hit so the widget can't run away with LLM spend."""
-    global _gen_day, _gen_count
-    today = _today_iso()
-    with _gen_lock:
-        if _gen_day != today:
-            _gen_day, _gen_count = today, 0
-        if _DAILY_CAP > 0 and _gen_count >= _DAILY_CAP:
-            return False
-        _gen_count += 1
-        return True
+    """Durable daily generation cap (reserve a slot). Returns False when the
+    cap is hit so the widget can't run away with LLM spend. Backed by
+    store.reserve_daily_generation_slot — survives a redeploy, unlike the
+    in-process counter this replaced (2026-09-09 cost-spike fix)."""
+    try:
+        return store.reserve_daily_generation_slot(_today_iso(), _DAILY_CAP)
+    except Exception:
+        # A broken ledger must fail CLOSED here — this guard's entire job is
+        # cost protection, and the failure mode that caused the original
+        # spike was exactly a guard silently not applying.
+        _logger.warning("news_catalysts daily budget check failed — refusing")
+        return False
 
 
 def _generate_and_store(sym: str) -> None:

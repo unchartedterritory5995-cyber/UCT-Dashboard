@@ -1,0 +1,315 @@
+/* ChartDetailDock — inline Profile / News / Fundamentals panels docked into the
+   Chart widget. The chart (StockChart, autoSize) sits in .dockChartCol as a flex
+   child; opening a dock steals width/height from that column, so the chart reflows
+   automatically with no imperative resize. All chrome themes off app tokens so it
+   follows dark/light like the rest of the workspace. */
+
+.dockRoot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Upper region: chart column + right dock, side by side. */
+.dockUpper {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* The chart lives here. min-0 + flex:1 so autoSize can shrink it when a panel opens.
+   COLUMN, so the earnings strip can sit under the chart and inherit this box's
+   width — which is exactly the chart's plotting width. That is what stops the
+   strip at the Company Panel's edge structurally, rather than by maintaining a
+   matching width somewhere else. */
+.dockChartCol {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The chart itself takes whatever the strip leaves. lightweight-charts is
+   created with autoSize, so it re-lays out from this box with no resize call. */
+.dockChartPane {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+
+/* ── Right dock (Profile | News) ─────────────────────────────────────────── */
+.dockRight {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--divider, rgba(255, 255, 255, 0.09));
+  background: var(--widget-canvas, var(--bg, #0e0f0d));
+  animation: dockSlideIn 160ms ease;
+}
+@keyframes dockSlideIn {
+  from { opacity: 0.3; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Bottom dock (Fundamentals) ──────────────────────────────────────────── */
+.dockBottom {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--divider, rgba(255, 255, 255, 0.09));
+  background: var(--widget-canvas, var(--bg, #0e0f0d));
+}
+
+.dockBody {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  position: relative;   /* anchors the CompanySearch overlay */
+  container-type: inline-size;   /* panels reflow to the panel's own width */
+  container-name: dock;
+}
+.dockIconBtn {
+  appearance: none; border: 0; background: transparent;
+  color: var(--text-muted, #8b8574); cursor: pointer;
+  width: 24px; align-self: center; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.dockIconBtn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #d8d2c2); }
+/* the embedded widget owns its own height:100% root */
+.dockBody > * { flex: 1; min-width: 0; min-height: 0; }
+
+/* ── Thin dock header (switch + close) ───────────────────────────────────── */
+.dockHeader {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.07));
+  background: var(--panel-2, rgba(255, 255, 255, 0.02));
+}
+.dockTitle {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted, #8b8574);
+}
+.dockSpacer { flex: 1; }
+
+/* ── Right-dock header: clean underline tabs (not pills) ──────────────────── */
+.rdHeader {
+  /* height + border matched to the chart's identity/clock row (.chartHeaderTop,
+     34px, --widget-divider) so the two panels' header dividers line up exactly. */
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 2px;
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
+  border-bottom: 1px solid var(--widget-divider, rgba(255, 255, 255, 0.05));
+}
+.rdTabs {
+  display: flex;
+  /* `0 1 auto`, NOT `1`. Growing made the strip swallow every spare pixel in the
+     header and pin the search control to the far right edge, so the gap after
+     "News" widened with the panel instead of matching the gap between tabs.
+     Hug the content; still shrink + scroll when the panel is dragged narrow. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.rdTabs::-webkit-scrollbar { height: 0; }
+.rdTab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #8b8574);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  padding: 0 9px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;   /* vertically center the label in the 34px row */
+}
+.rdTab:hover { color: var(--text, #d8d2c2); }
+.rdTabOn { color: var(--text-bright, #eee7d4); }
+.rdTabOn::after {
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px; bottom: -1px;
+  height: 2px;
+  background: var(--accent, #c9a84c);
+  border-radius: 2px 2px 0 0;
+}
+
+/* Search — a small, clean square control that sits directly after the tabs (no
+   ⌘K text, no close X), spaced exactly like one more tab. */
+.rdSearch {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  /* 9px + .rdTab's own 9px right padding = the same 18px that separates every
+     other pair of tab labels (.rdTab padding: 0 9px). Keep these two in step. */
+  margin: 0 4px 0 9px;
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, #8b8574);
+  cursor: pointer;
+}
+.rdSearch:hover { color: var(--text, #d8d2c2); border-color: rgba(255, 255, 255, 0.22); }
+.rdSearchOn { color: var(--accent, #c9a84c); border-color: var(--accent, #c9a84c); }
+
+/* segmented Profile | News switch */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  overflow: hidden;
+}
+.segBtn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #8b8574);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 3px 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.segBtn:hover { color: var(--text, #d8d2c2); }
+.segBtn + .segBtn { border-left: 1px solid var(--divider, rgba(255, 255, 255, 0.1)); }
+.segBtnActive {
+  background: var(--accent-weak, rgba(201, 168, 76, 0.16));
+  color: var(--accent, #c9a84c);
+}
+
+.dockClose {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #8b8574);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+.dockClose:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #d8d2c2); }
+
+/* ── Drag-resize handles ─────────────────────────────────────────────────── */
+/* Holds the earnings strip at its dragged height and anchors the divider. */
+.stripWrap {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.resizerV {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 6;
+}
+.resizerH {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: row-resize;
+  z-index: 6;
+}
+.resizerV::after,
+.resizerH::after {
+  content: '';
+  position: absolute;
+  background: transparent;
+  transition: background 120ms ease;
+}
+.resizerV::after { left: 3px; top: 0; bottom: 0; width: 1px; }
+.resizerH::after { top: 3px; left: 0; right: 0; height: 1px; }
+.resizerV:hover::after,
+.resizerH:hover::after { background: var(--accent, #c9a84c); }
+
+/* ── "Panels" toggle button + popover (lives in the TF bar) ──────────────── */
+.panelsWrap { position: relative; display: inline-flex; }
+
+.panelsPop {
+  position: fixed;   /* fixed + high z-index so it paints above the chart canvas */
+  z-index: 3000;
+  min-width: 176px;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--menu-bg, var(--panel, #171814));
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.panelsHint {
+  font-size: 9.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted, #8b8574);
+  padding: 3px 8px 5px;
+}
+.panelsRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text, #d8d2c2);
+  font-size: 12px;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.panelsRow:hover { background: rgba(255, 255, 255, 0.06); }
+.panelsRowActive { color: var(--accent, #c9a84c); }
+.panelsRowIcon { flex: 0 0 auto; display: inline-flex; }
+.panelsRowLabel { flex: 1; }
+.panelsCheck { flex: 0 0 auto; opacity: 0.9; }
+
+.panelsBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2999;
+}

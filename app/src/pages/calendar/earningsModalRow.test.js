@@ -77,6 +77,22 @@ describe('toModalRow', () => {
     expect(row.hist_stats).toBeNull()
     expect(row.expected_move).toBeNull()
   })
+
+  // 2026-09-03 A5 modernization, live-caught the SAME way GATE a was: the
+  // backend genuinely returns `entity` on every calendar entry, the embedded
+  // research panels resolve it independently and were unaffected, but this
+  // allow-list dropped it silently on first pass -- the modal's own
+  // entity-unresolved note never fired even though every input was correct.
+  it('carries the canonical entity (S3) through to the modal row', () => {
+    const withEntity = { ...entry, entity: { status: 'not_found', entityId: null } }
+    const row = toModalRow(withEntity)
+    expect(row.entity).toEqual({ status: 'not_found', entityId: null })
+  })
+
+  it('an entry that predates entity resolution degrades to explicit null', () => {
+    const row = toModalRow(entry)
+    expect(row.entity).toBeNull()
+  })
 })
 
 describe('calcSurprise', () => {

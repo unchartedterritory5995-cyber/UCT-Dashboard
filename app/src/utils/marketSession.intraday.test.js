@@ -50,6 +50,19 @@ describe('isIntradayTailStale', () => {
     expect(isIntradayTailStale(undefined, '5')).toBe(true)
     expect(isIntradayTailStale(NaN, '5')).toBe(true)
   })
+
+  // Temporal / Freshness Truth Convergence V1 — this function takes zero direct
+  // edit; it inherits holiday-awareness entirely through expectedLatestDailySessionET().
+  describe('Tuesday 11:00 ET, the day after an NYSE holiday (MLK Mon 2026-01-19) — last closed session is FRIDAY 2026-01-16', () => {
+    beforeEach(() => vi.setSystemTime(new Date('2026-01-20T16:00:00Z'))) // Tue 11:00 EST
+
+    it('FRESH: tail = Friday 15:55 close — the holiday Monday is correctly never the answer', () => {
+      expect(isIntradayTailStale(sec('2026-01-16T20:55:00Z'), '5')).toBe(false)
+    })
+    it('STALE: tail = Thursday (missing the whole Friday session)', () => {
+      expect(isIntradayTailStale(sec('2026-01-15T20:55:00Z'), '5')).toBe(true)
+    })
+  })
 })
 
 // ── Phase 1 (intraday integrity): the SESSION-COMPLETENESS fix, gated ──────────

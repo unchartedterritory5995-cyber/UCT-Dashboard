@@ -32,6 +32,7 @@ from api.services.journal_two import calculations as calc
 from api.services.journal_two.filters import FilterSpec, trades_where
 from api.services.journal_two import regime as regime_service
 from api.services.journal_two.positions import _row_to_position
+from api.services.journal_two.symbol_normalize import normalize_symbol
 from api.services.journal_two.timeutil import (
     ET,
     UTC,
@@ -423,7 +424,7 @@ def _validate_manual_trade_payload(payload: dict[str, Any]) -> dict[str, Any]:
         raise ManualTradeValidationError("fees must be a non-negative number")
 
     return {
-        "symbol": symbol.strip().upper(),
+        "symbol": normalize_symbol(symbol),
         "side": side,
         "shares": float(shares),
         "entryPrice": float(entry_price),
@@ -966,6 +967,10 @@ def _row_to_trade(row: sqlite3.Row) -> dict[str, Any]:
         # Origin tag: 'broker' for auto-imported trades (badge in UI; lets
         # Compass treat them as imports without manual pre-trade intent).
         "source": row["source"] if "source" in keys else None,
+        # Wave 1's capture surfaces (TradeDrawer/TradeDetailPage) source their
+        # tradeRef from THIS field, not a client-recomputed id — the id:/ext:
+        # scheme is a backend-owned identity (trade_ref_for_row).
+        "tradeRef": trade_ref_for_row(row),
         # Market regime at entry ('green'/'amber'/'orange'/'red'). Stamped at
         # create on manual trades; NULL on broker/historical imports (and on the
         # breadth-history backfill for days with no snapshot) → surfaces as None.
@@ -990,7 +995,7 @@ _TRADE_COLS = """id, user_id, position_id, symbol, side, shares,
                        original_stop, setup, notes, pnl_dollar, pnl_percent,
                        r_multiple, hold_days, result, context_at_entry,
                        account_id, fees, created_at, mistake_tags, emotion_tags,
-                       source, regime,
+                       source, external_id, regime,
                        analytics_excluded, analytics_excluded_reason"""
 
 

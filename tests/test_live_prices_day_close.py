@@ -1,8 +1,35 @@
 """`/api/live-prices` payload carries day_close (today's regular-session close,
-null pre-market) — powers the RH-style After-Hours split on the journal hero."""
+null pre-market) — powers the RH-style After-Hours split on the journal hero.
+
+D1 note: `_fetch_snapshots` now calls `client.get_batch_quotes(tickers)`
+rather than building the URL itself and calling `client._get` — see
+`test_live_prices_dual_class.py`'s matching note for the full explanation.
+Each fake client below adapts its own `_get`-canned JSON through the shared
+`_batch_quotes_from_get` helper."""
 from __future__ import annotations
 
 from api.routers import live_prices as lp
+from api.services import provider_errors as _pe
+from api.services.massive import to_polygon_symbol
+
+
+def _batch_quotes_from_get(client, tickers):
+    poly_to_canon = {to_polygon_symbol(t): t for t in tickers}
+    tickers_param = ",".join(poly_to_canon.keys())
+    url = (f"https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+           f"?tickers={tickers_param}&apiKey={client._api_key}")
+    data = client._get(url, timeout=5.0)
+    out = {}
+    for t in data.get("tickers", []):
+        poly_sym = t.get("ticker", "")
+        if not poly_sym:
+            continue
+        out[poly_to_canon.get(poly_sym, poly_sym)] = t
+    return _pe.ProviderResult(
+        value=out,
+        provenance=_pe.ProvenanceRecord(vendor="massive", source_activity="test"),
+        licensing_class="R",
+    )
 
 
 class _FakeClient:
@@ -20,6 +47,9 @@ class _FakeClient:
             "todaysChangePerc": 1.0,
             "todaysChange": 0.1,
         }]}
+
+    def get_batch_quotes(self, tickers, *, entity_ids=None):
+        return _batch_quotes_from_get(self, tickers)
 
 
 def test_day_close_present_when_session_traded():
@@ -51,6 +81,9 @@ class _Client2:
             "todaysChangePerc": 0,
             "todaysChange": 0,
         }]}
+
+    def get_batch_quotes(self, tickers, *, entity_ids=None):
+        return _batch_quotes_from_get(self, tickers)
 
 
 def test_change_pct_recomputed_from_closes_when_zero():
@@ -89,6 +122,9 @@ class _PriceClient:
             "todaysChangePerc": -12.78,
             "todaysChange": -183.62,
         }]}
+
+    def get_batch_quotes(self, tickers, *, entity_ids=None):
+        return _batch_quotes_from_get(self, tickers)
 
 
 def test_regular_session_price_is_last_trade_not_stale_day_close():

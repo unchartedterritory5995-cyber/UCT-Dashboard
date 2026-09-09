@@ -95,19 +95,28 @@ _CHIP_TYPES = {"stock": {"stock"}, "etf": {"etf"}, "index": {"index"}}
 
 def _fallback_symbol_scan(qq: str, limit: int):
     """Symbol-only scan over cap_universe — used only until the rich index has built
-    (best-effort startup window). Names come from the ticker_meta cache."""
+    (best-effort startup window). Names come from the ticker_meta cache.
+
+    Seam 16: cap_universe is already canonically hyphen-spelled end to end,
+    so the only gap here is the SAME query-side one `ticker_search_index.
+    search()` closes -- a member typing the literal dot spelling ('BRK.B')
+    during this narrow startup window should still find the hyphen-spelled
+    row. Reuses that module's own narrowly-scoped alias helper rather than
+    a second, possibly-drifting copy of the regex."""
+    from api.services.ticker_search_index import _share_class_alias
+    qa = _share_class_alias(qq)
     exact, prefix, substring = [], [], []
     for t in _UNIVERSE:
-        if t == qq:
+        if t == qq or (qa and t == qa):
             exact.append(t)
-        elif t.startswith(qq):
+        elif t.startswith(qq) or (qa and t.startswith(qa)):
             prefix.append(t)
-        elif qq in t:
+        elif qq in t or (qa and qa in t):
             substring.append(t)
     out = []
     for t in (exact + prefix + substring)[:limit]:
         out.append({"ticker": t, "name": _name_from_cache(t), "type": "stock",
-                    "exchange": None})
+                    "exchange": None, "entity_id": None})
     return out
 
 
@@ -124,7 +133,13 @@ def ticker_search(
 
     `type` filters by category chip: stock | etf | index | breadth | '' (all).
 
-    Row shape: {"ticker","name"|None,"type","exchange"|None,[breadth|delisted flags]}
+    Row shape: {"ticker","name"|None,"type","exchange"|None,"entity_id"|None,[breadth|delisted flags]}
+
+    `entity_id` (Checkpoint 6, entity-master-spec.md §2.2): populated for live
+    index rows once Entity Master has resolved that symbol; `null` for breadth
+    pseudo-tickers and delisted rows (out of this checkpoint's authorized
+    scope) and while the rich index is still building. Purely additive — a
+    client that ignores this field behaves exactly as before.
     """
     qq = (q or "").strip().upper()
     if not qq:
@@ -161,7 +176,8 @@ def ticker_search(
             b_front, b_back = [], []
             for rec in _breadth_syms.search(qq, limit):
                 row = {"ticker": rec["ticker"], "name": rec["name"], "type": "breadth",
-                       "exchange": "UCT", "breadth": True, "group_label": rec.get("group_label")}
+                       "exchange": "UCT", "entity_id": None,
+                       "breadth": True, "group_label": rec.get("group_label")}
                 (b_front if rec.get("symbol_hit") else b_back).append(row)
             results = b_front + results + b_back
         except Exception:
@@ -176,7 +192,7 @@ def ticker_search(
                     continue
                 results.append({
                     "ticker": rec["ticker"], "name": rec.get("name"),
-                    "type": "delisted", "exchange": None,
+                    "type": "delisted", "exchange": None, "entity_id": None,
                     "delisted": True, "delisted_date": rec.get("delisted_date"),
                 })
         except Exception:

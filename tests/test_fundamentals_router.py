@@ -351,9 +351,10 @@ class TestCachePolicy:
 
 class TestFmpMetricsTrio:
     """Unit tests for `_fmp_metrics_get` itself -- the 3-way FMP fan-out
-    (Task 9). These patch the LOW-LEVEL `_fmp_get` (one FMP GET) rather than
-    `_fmp_metrics_get`, so the real fan-out/merge/bounding code under test
-    actually runs."""
+    (Task 9). D1 migration: these patch `_FMP_METRIC_FNS` (the path -> typed
+    `fmp_client` function map `_one` dispatches through) rather than the
+    retired low-level `_fmp_get`, so the real fan-out/merge/bounding code
+    under test still actually runs."""
 
     def _clear_cache(self, monkeypatch):
         """`_fmp_metrics_get` checks `cache.get` first -- force every call in
@@ -364,6 +365,15 @@ class TestFmpMetricsTrio:
         monkeypatch.setattr(router_mod.cache, "set", lambda *a, **k: None)
         return router_mod
 
+    @staticmethod
+    def _result(value):
+        from api.services import provider_errors as pe
+        return pe.ProviderResult(
+            value=value,
+            provenance=pe.ProvenanceRecord(vendor="fmp", source_activity="test"),
+            licensing_class="R",
+        )
+
     def test_fmp_merges_fields_from_all_three_endpoints(self, monkeypatch):
         """Field mapping for each of the 3 FMP endpoints: quote's yearHigh,
         key-metrics-ttm's currentRatioTTM/grahamNumberTTM, and ratios-ttm's
@@ -372,16 +382,14 @@ class TestFmpMetricsTrio:
         not just `quote`."""
         router_mod = self._clear_cache(monkeypatch)
 
-        def fake_fmp_get(path, params, timeout):
-            if path == "quote":
-                return [{"symbol": "AAPL", "yearHigh": 210.0, "yearLow": 120.0, "marketCap": 3.1e12}]
-            if path == "key-metrics-ttm":
-                return [{"symbol": "AAPL", "currentRatioTTM": 1.5, "grahamNumberTTM": 88.2}]
-            if path == "ratios-ttm":
-                return [{"symbol": "AAPL", "grossProfitMarginTTM": 0.47, "netProfitMarginTTM": 0.25}]
-            raise AssertionError(f"unexpected FMP path {path!r}")
-
-        monkeypatch.setattr(router_mod, "_fmp_get", fake_fmp_get)
+        monkeypatch.setattr(router_mod, "_FMP_METRIC_FNS", {
+            "quote": lambda tk: self._result(
+                [{"symbol": "AAPL", "yearHigh": 210.0, "yearLow": 120.0, "marketCap": 3.1e12}]),
+            "key-metrics-ttm": lambda tk: self._result(
+                [{"symbol": "AAPL", "currentRatioTTM": 1.5, "grahamNumberTTM": 88.2}]),
+            "ratios-ttm": lambda tk: self._result(
+                [{"symbol": "AAPL", "grossProfitMarginTTM": 0.47, "netProfitMarginTTM": 0.25}]),
+        })
         merged = router_mod._fmp_metrics_get("AAPL")
         # quote
         assert merged.get("yearHigh") == 210.0
@@ -411,7 +419,9 @@ class TestFmpMetricsTrio:
                 super().__init__(*a, **kw)
 
         monkeypatch.setattr(router_mod, "ThreadPoolExecutor", SpyExecutor)
-        monkeypatch.setattr(router_mod, "_fmp_get", lambda path, params, timeout: [{"x": 1}])
+        monkeypatch.setattr(router_mod, "_FMP_METRIC_FNS", {
+            path: (lambda tk: self._result([{"x": 1}])) for path in router_mod._FMP_ENDPOINTS
+        })
         router_mod._fmp_metrics_get("AAPL")
         assert captured["max_workers"] == router_mod._FMP_POOL_WORKERS
 
@@ -422,13 +432,17 @@ class TestFmpMetricsTrio:
         an all-or-nothing fan-out."""
         router_mod = self._clear_cache(monkeypatch)
 
-        def fake_fmp_get(path, params, timeout):
-            if path == "quote":
-                time.sleep(0.6)  # far longer than the 0.1s budget below -- never finishes in time
-                return [{"yearHigh": 999.0}]
-            return [{path.replace("-", "_"): True}]
+        def _fn_for(path):
+            def _fn(tk):
+                if path == "quote":
+                    time.sleep(0.6)  # far longer than the 0.1s budget below -- never finishes in time
+                    return self._result([{"yearHigh": 999.0}])
+                return self._result([{path.replace("-", "_"): True}])
+            return _fn
 
-        monkeypatch.setattr(router_mod, "_fmp_get", fake_fmp_get)
+        monkeypatch.setattr(router_mod, "_FMP_METRIC_FNS", {
+            path: _fn_for(path) for path in router_mod._FMP_ENDPOINTS
+        })
         monkeypatch.setattr(router_mod, "_FMP_TOTAL_TIMEOUT", 0.1)
         merged = router_mod._fmp_metrics_get("AAPL")
         assert "yearHigh" not in merged  # the slow quote leg was abandoned
@@ -445,11 +459,13 @@ class TestFmpMetricsTrio:
         router_mod = self._clear_cache(monkeypatch)
         monkeypatch.setattr(router_mod, "_FMP_TOTAL_TIMEOUT", 0.2)
 
-        def hanging_fmp_get(path, params, timeout):
+        def _hanging_fn(tk):
             time.sleep(1.5)  # far longer than the 0.2s budget
-            return [{"yearHigh": 1.0}]
+            return self._result([{"yearHigh": 1.0}])
 
-        monkeypatch.setattr(router_mod, "_fmp_get", hanging_fmp_get)
+        monkeypatch.setattr(router_mod, "_FMP_METRIC_FNS", {
+            path: _hanging_fn for path in router_mod._FMP_ENDPOINTS
+        })
         start = time.monotonic()
         merged = router_mod._fmp_metrics_get("AAPL")
         elapsed = time.monotonic() - start

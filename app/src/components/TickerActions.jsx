@@ -11,6 +11,7 @@ import useTagColors from '../hooks/useTagColors'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from './mobile/Sheet'
 import UIcon from './ui/UIcon'
+import SymbolSearch from './chart/SymbolSearch'
 import styles from './TickerActions.module.css'
 
 export function useTickerActions() {
@@ -85,6 +86,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const [showAddList, setShowAddList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
   // "+ Add to list" used to depend on a `lists` prop that NO call site passed,
   // so every surface in the app rendered "No lists yet". The menu now fetches
   // the user's lists itself when the picker opens; an explicit prop still wins
@@ -109,6 +111,11 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   const { sym, x, y } = menu
   const flagged = isFlagged(sym)
   const currentTag = getTag(sym)
+
+  // Compare entry point — same canonical route + picker TickerPopup's own
+  // "+ Compare" uses (goToCompare, ~TickerPopup.jsx:91). `sym` here is already
+  // uppercased by openMenu, so no second normalization.
+  const goToCompare = (comparator) => { navigate(`/research/${sym}/compare/${comparator.toUpperCase()}`); onClose() }
 
   async function handleAddToList(listId) {
     await fetch(`/api/watchlists/${listId}/items`, {
@@ -146,17 +153,24 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
 
   const body = (
     <>
-      {/* Ask AI — makes AI Search reachable from EVERY ticker surface in the app.
-          Deep-links to the standalone page with a grounded, day-recency question
-          (regime + live quote + catalyst + patterns all fire on the ticker). */}
+      {/* Full Research / Ask AI — the shared door into the canonical /research/:sym
+          environment (ticker_explain.py), matching TickerPopup's goToResearch/
+          goToAskAi exactly. This used to deep-link "Ask AI" to the separate,
+          non-grounded /ai-search page — a security-scoped "Ask AI" action must
+          mean the same canonical Ask AI everywhere in the app (entry-point
+          convergence, owner authorization). /ai-search itself is untouched and
+          still serves its other, non-security-scoped callers. */}
         <button
           className={styles.item}
-          onClick={() => {
-            navigate(`/ai-search?q=${encodeURIComponent(`What's the setup and catalyst on ${sym} right now?`)}`)
-            onClose()
-          }}
+          onClick={() => { navigate(`/research/${sym}`); onClose() }}
         >
-          <UIcon name="compass" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {sym}
+          <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
+        </button>
+        <button
+          className={styles.item}
+          onClick={() => { navigate(`/research/${sym}?section=ai`); onClose() }}
+        >
+          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {sym}
         </button>
 
         {/* Flag */}
@@ -211,6 +225,17 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
                 {creating ? '…' : 'Create'}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Compare — same bespoke-toggle pattern as Add to list / Set alert. */}
+        {!showCompare ? (
+          <button className={styles.item} onClick={() => setShowCompare(true)}>
+            <UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {sym} with...
+          </button>
+        ) : (
+          <div className={styles.compareSection}>
+            <SymbolSearch sym={sym} displayLabel="+ Compare" onSymbolChange={goToCompare} />
           </div>
         )}
 

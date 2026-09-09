@@ -13,6 +13,11 @@ export default function CallsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
+      {recapData?.entity && recapData.entity.status !== 'resolved' && (
+        <div className={styles.muted} style={{ fontSize: 11 }} data-testid="entity-unresolved-note">
+          Symbol not yet linked to a canonical identity ({recapData.entity.status}).
+        </div>
+      )}
       <SentimentGauge ticker={sym} />
       {isLoading && !recap && <div className={styles.fnote}>Loading earnings call recap…</div>}
       {recap && <CallRecapSection recap={recap} audio={audioData} hideSentimentBadge />}

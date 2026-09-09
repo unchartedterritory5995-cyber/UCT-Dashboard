@@ -8,6 +8,19 @@
  * A `DELETE /{provider}` on this repo's contract is provider-scoped (spec
  * §8), so disconnecting any one source disconnects the whole provider; the
  * confirm copy says so when the provider has more than one source.
+ *
+ * `onReconnect` (member-reachability fix, 2026-09-04): `freshnessLabel`
+ * below has always rendered "reconnect needed" for `status === 'broken'`,
+ * but nothing in this row could ever act on it — Sync now just re-runs the
+ * same failing credentials, and the only other control was Disconnect. The
+ * backend already supports healing a broken connector without disconnecting
+ * first (`connections.upsert_connector` / the OAuth callback both flip
+ * `'broken' -> 'active'` on a fresh connect — see
+ * `note_connectors/connections.py`'s own docstring), so the label was
+ * promising a recovery path this row had no button for — the exact
+ * "built, green, and unreachable" shape this codebase keeps re-shipping.
+ * `onReconnect` re-opens the SAME connect flow (token modal / OAuth
+ * consent) the provider tile's initial "Connect" button uses.
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
@@ -17,7 +30,13 @@ import styles from './ConnectedAppsCard.module.css'
 function freshnessTone(source) {
   if (source.status === 'broken' || source.lastSyncStatus === 'error') return 'red'
   if (!source.syncEnabled) return 'amber'
-  if (source.warmingUntil || source.lastSyncStatus === 'warning') return 'amber'
+  // ⛔ `lastSyncError` on its own has to move the dot. The engine records a
+  // PARTIAL failure as status "ok" plus per-note error text — by design, since
+  // the batch really did commit what it could. But that left a source that
+  // failed to store some of the member's notes showing a GREEN dot with the
+  // reason hidden in text below it, which is the green-dot-over-a-failure
+  // shape this surface keeps producing.
+  if (source.warmingUntil || source.lastSyncStatus === 'warning' || source.lastSyncError) return 'amber'
   if (source.lastSyncAt) return 'green'
   return 'amber'
 }
@@ -35,11 +54,29 @@ function freshnessLabel(source) {
       ? `finished with problems ${timeAgo(source.lastSyncAt)}`
       : 'finished with problems'
   }
+  // ⛔ The same argument as the warning branch, for the state that had no
+  // branch at all. A source can be `lastSyncStatus === 'error'` WITHOUT being
+  // `broken` — every transient/rate-limited/unhandled total failure lands
+  // there — and it fell through to "synced 5 minutes ago" while
+  // `freshnessTone` above dotted it RED. The label and the dot contradicted
+  // each other, and the label is the half a member reads.
+  if (source.lastSyncStatus === 'error') {
+    return source.lastSyncAt
+      ? `sync failed ${timeAgo(source.lastSyncAt)}`
+      : 'sync failed'
+  }
+  // A partial failure keeps status "ok" but carries per-note error text; say
+  // so rather than reporting a clean "synced" over notes that did not land.
+  if (source.lastSyncError) {
+    return source.lastSyncAt
+      ? `synced with problems ${timeAgo(source.lastSyncAt)}`
+      : 'synced with problems'
+  }
   if (source.lastSyncAt) return `synced ${timeAgo(source.lastSyncAt)}`
   return 'not synced yet'
 }
 
-export default function SourceRow({ source, providerSourceCount = 1, onSync, onTogglePause, onDisconnect }) {
+export default function SourceRow({ source, providerSourceCount = 1, onSync, onTogglePause, onDisconnect, onReconnect }) {
   const [syncing, setSyncing] = useState(false)
   const [pauseBusy, setPauseBusy] = useState(false)
   const [armed, setArmed] = useState(false)
@@ -52,6 +89,7 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
   // (useNoteConnectors.js) guarantees it, so no `|| {}` fallback here.
   const counts = source.counts
   const conflicts = counts.conflicts || 0
+  const sourceDeleted = counts.sourceDeleted || 0
 
   const handleSync = async () => {
     if (syncing) return
@@ -100,11 +138,44 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
         <Stat label="Created" value={counts.notesCreated} />
         <Stat label="Updated" value={counts.notesUpdated} />
         {conflicts > 0 && <Stat label="Conflicts" value={conflicts} warn />}
+        {sourceDeleted > 0 && <Stat label="Removed" value={sourceDeleted} warn />}
       </div>
+
+      {/* A count with no path to act on it is not reachable, just visible
+          (task brief: reachability, not rendering). A conflict is a real,
+          normal Notebook note — the engine tags BOTH the original and the
+          new version `sync-conflict` (note_connectors/engine.py's own
+          `_reroute_resolved_body_to_sibling`) rather than silently overwriting —
+          so the resolution path already exists (the Notebook's own tag
+          filter), it was just never named here. */}
+      {conflicts > 0 && (
+        <p className={styles.conflictHint}>
+          Conflicting versions are tagged <code>sync-conflict</code> in your
+          Notebook — open the Tags panel to review and keep the one you want.
+        </p>
+      )}
+
+      {/* Same reachability rule as the conflict hint above: a severed note is
+          NOT deleted from the Notebook — the engine only appends the
+          `source-deleted` tag and stops tracking it (engine.py's
+          `_tag_note_source_deleted`), keeping the body intact. Saying so
+          matters twice over: it tells the member their writing survived the
+          remote deletion, and it names the tag that finds it. */}
+      {sourceDeleted > 0 && (
+        <p className={styles.conflictHint}>
+          Removed in the source app — tagged <code>source-deleted</code> in your
+          Notebook. Nothing was erased: open the Tags panel to keep or delete them.
+        </p>
+      )}
 
       {source.lastSyncError && <p className={styles.sourceErr}>{source.lastSyncError}</p>}
 
       <div className={styles.sourceActions}>
+        {source.status === 'broken' && onReconnect && (
+          <button type="button" className="btn btn-primary" onClick={() => onReconnect(source)}>
+            Reconnect
+          </button>
+        )}
         <button type="button" className="btn btn-ghost" disabled={syncing} onClick={handleSync}>
           {syncing ? 'Syncing…' : 'Sync now'}
         </button>

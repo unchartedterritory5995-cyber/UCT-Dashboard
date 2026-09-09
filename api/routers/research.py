@@ -11,9 +11,14 @@ from fastapi import APIRouter, Body, Depends
 from api.middleware.auth_middleware import require_admin, get_current_user
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
+from api.services.research.analyst_ratings import get_analyst_ratings
+from api.services.research.news import get_company_news
 from api.services.research.ownership import get_ownership
+from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
+from api.services.research.comparison import get_comparison
+from api.services.research.comparison_ai_adapter import explain_comparison
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -97,6 +102,53 @@ def research_news(sym: str, limit: int = 20):
         return {"sym": sym, "items": []}
 
 
+@router.get("/api/research/company-news/{sym}")
+def research_company_news(sym: str):
+    """The canonical, S3/D1/S8-wired News tab on /research/:sym (A8 Slice 1,
+    2026-09-04, owner-authorized narrow slice). Deliberately a NEW route,
+    not a rewrite of `/api/research/news/{sym}` above -- that route stays
+    byte-for-byte untouched as a COMPATIBILITY BRIDGE for the calendar
+    modal's NewsSection.jsx, per the readiness review's explicit "do not
+    touch a working legacy consumer" instruction.
+    """
+    try:
+        return get_company_news(sym)
+    except Exception as exc:
+        _logger.warning("research company-news failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "items": [], "_meta": None}
+
+
+@router.post("/api/research/explain/{sym}")
+def research_explain(sym: str, body: dict = Body(...), _user: dict = Depends(get_current_user)):
+    """AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2
+    + Slice 3 (I1, owner-authorized, 2026-09-04) -- the "Ask AI" tab's
+    endpoint. Auth-required: unlike the plain GET research routes, this one
+    makes a real LLM call with real cost (see ticker_explain.py's own
+    narrative_cost_guard use), so an anonymous caller must not be able to
+    reach it.
+
+    Slice 3: `history` is the CLIENT's own rolling array of prior-turn
+    structured state (never server-persisted -- see `ticker_explain.
+    _clean_history`'s docstring for the full entity-isolation/size-cap
+    contract this endpoint delegates to). Passed through as-is; malformed or
+    missing history degrades to plain single-turn behavior, never an error.
+    """
+    question = str((body or {}).get("question") or "")[:500]
+    history = body.get("history") if isinstance((body or {}).get("history"), list) else None
+    try:
+        return explain_recent_activity(sym, question, history=history)
+    except Exception as exc:
+        _logger.warning("ticker explain failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "response_state": "refuse",
+                "summary": "", "key_facts": [], "interpretation": "", "caveat": "",
+                "clarification_question": "", "citations": [],
+                "insufficient_evidence": True,
+                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "model": None, "error": "internal error",
+                "turn_state": {"sym": (sym or "").upper(), "question": question,
+                              "response_state": "refuse", "domains": [], "summary": ""}}
+
+
 @router.get("/api/research/quote/{sym}")
 def research_quote(sym: str):
     """The session line — price, change, OHLC, volume, 52-week range.
@@ -172,7 +224,17 @@ def research_estimates(sym: str):
         return get_estimates(sym)
     except Exception as exc:
         _logger.warning("research estimates failed for %s: %s", sym, exc)
-        return {"sym": (sym or "").upper(), "forward": [], "revisions": [], "rating_changes": []}
+        return {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": []}
+
+
+@router.get("/api/research/analyst-ratings/{sym}")
+def research_analyst_ratings(sym: str):
+    try:
+        return get_analyst_ratings(sym)
+    except Exception as exc:
+        _logger.warning("research analyst ratings failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "entity": None, "consensus": None,
+                "price_target": None, "recent_actions": {"items": [], "_meta": None}}
 
 
 @router.get("/api/research/ownership/{sym}")
@@ -191,6 +253,40 @@ def research_ratings(sym: str):
     except Exception as exc:
         _logger.warning("research ratings failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "composite": None, "components": {}, "checkup": [], "method": None}
+
+
+@router.get("/api/research/compare/{sym}/{comparator}")
+def research_compare(sym: str, comparator: str):
+    """Cross-Security Comparison V1 (owner authorization) -- deterministic
+    side-by-side, no AI. See api/services/research/comparison.py for scope."""
+    try:
+        return get_comparison(sym, comparator)
+    except Exception as exc:
+        _logger.warning("research compare failed for %s vs %s: %s", sym, comparator, exc)
+        return {"error": "comparison temporarily unavailable"}
+
+
+@router.post("/api/research/compare/{sym}/{comparator}/explain")
+def research_compare_explain(sym: str, comparator: str, body: dict = Body(...),
+                             _user: dict = Depends(get_current_user)):
+    """Shared Multi-Security Grounding Architecture V1 (owner authorization,
+    Phase B) -- the comparison page's "Ask AI" panel. Auth-required, same as
+    /api/research/explain/{sym}: this makes a real, separately cost-guarded
+    LLM call (see comparison_ai_adapter.py's own narrative_cost_guard use),
+    so an anonymous caller must not be able to reach it. Single-turn only --
+    see comparison_ai_adapter.py's module docstring for why."""
+    question = str((body or {}).get("question") or "")[:500]
+    try:
+        return explain_comparison(sym, comparator, question)
+    except Exception as exc:
+        _logger.warning("comparison explain failed for %s vs %s: %s", sym, comparator, exc)
+        return {"sym_a": (sym or "").upper(), "sym_b": (comparator or "").upper(),
+                "entity_a": None, "entity_b": None, "response_state": "refuse",
+                "summary": "", "key_facts": [], "interpretation": "", "caveat": "",
+                "clarification_question": "", "citations": [],
+                "insufficient_evidence": True,
+                "insufficient_evidence_reason": "The AI assistant is temporarily unavailable.",
+                "model": None, "error": "internal error"}
 
 
 @router.post("/api/research/snapshot-batch")

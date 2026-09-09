@@ -245,7 +245,14 @@ def _deliver_alert(alert: dict, current_price: float) -> dict:
             f"Alert: {sym} ${current_price:.2f}",
             msg,
             severity="warning",
-            data={"symbol": sym, "target_price": target, "current_price": current_price, "direction": direction},
+            data={
+                "symbol": sym, "target_price": target, "current_price": current_price,
+                "direction": direction,
+                # Alert Return-to-Research Consistency V1 — same reuse of S7's
+                # f"/research/{sym}" convention; `sym` is a real, already-fired
+                # chart-alert ticker (required non-null column at creation).
+                "research_url": f"/research/{sym.upper()}",
+            },
             user_id=alert["user_id"],
             channels=channels,
         )
@@ -381,6 +388,15 @@ def deliver_alert_payload(
     data = {"symbol": sym, "source": source}
     if extra_data:
         data.update(extra_data)
+    # Alert Return-to-Research Consistency V1 — reuse S7's own established
+    # convention (a bare f"/research/{sym}" against the canonical route, no
+    # shared helper to import) so a security-scoped alert isn't a click dead
+    # end. setdefault, never an assignment, so a producer that already supplied
+    # its own research_url via extra_data (document_arrival's own fires) wins
+    # unchanged. "MARKET" excluded — catalyst_digest's own fallback for a
+    # multi-name digest with no single ticker — never a real security.
+    if sym and sym.upper() != "MARKET":
+        data.setdefault("research_url", f"/research/{sym.upper()}")
 
     # The two maps the report is built from. `channels` is handed straight to
     # `add_alert`, which owns two of the three channels and fills its own two

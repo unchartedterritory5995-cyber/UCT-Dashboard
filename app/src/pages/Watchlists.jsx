@@ -27,6 +27,7 @@
 //     mistake already cost one design rework (2026-07-31).
 //
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
 // rAF-debounced rect observer for the scan-list virtualizer. At a very narrow
@@ -56,10 +57,12 @@ import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useThemeIndexQuotes, { themeIndexLabel, themeIndexKey } from '../hooks/useThemeIndexQuotes'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
+import useWatchlistIntelligence from '../hooks/useWatchlistIntelligence'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
+import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { menuThemeVars } from '../utils/dividerColor'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -73,6 +76,7 @@ import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
+import SymbolSearch from '../components/chart/SymbolSearch'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
@@ -117,6 +121,11 @@ const COL_META = {
   grpcount: { def: 60, min: 44 },
   // View Holdings (ETF): the holding's weight in the fund (fed via metaOverride).
   weight: { def: 74, min: 50 },
+  // Volatility + trend-distance. Available to EVERY list; fed via metaOverride by
+  // callers that already compute them (the breadth drill), blank elsewhere.
+  atr: { def: 66, min: 46 }, a50: { def: 76, min: 54 },
+  // Watchlist Intelligence V1: deterministic "why is this active" badge.
+  attention: { def: 84, min: 60 },
 }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
@@ -132,11 +141,15 @@ const COL_LABELS = {
   periodchg: ['% Change', '% Chg'],
   grpcount: ['Stocks', 'Stocks'],
   weight: ['Weight %', 'Wt %'],
+  atr: ['ATR %', 'ATR%'], a50: ['ATR from 50SMA', '50SMA'],
+  attention: ['Attention', 'Attn'],
 }
 const COL_FULL_MINW = {
   sym: 62, name: 140, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40, weight: 56,
+  atr: 44, a50: 96,
+  attention: 60,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
@@ -159,6 +172,9 @@ const EXTRA_COLS = [
   { key: 'perf30d', label: '30-Day Change' },
   { key: 'perf60d', label: '60-Day Change' },
   { key: 'perf90d', label: '90-Day Change' },
+  { key: 'attention', label: 'Attention' },
+  { key: 'atr', label: 'ATR %' },
+  { key: 'a50', label: 'ATR from 50SMA' },
 ]
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
@@ -337,9 +353,10 @@ const WatchRow = React.memo(function WatchRow({
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
-  weight = null,
+  weight = null, atr = null, a50 = null,
+  notable = false, intelStatus = null, intelFacts = null,
   isOwner, wlId,
-  onSelect, onToggleFlag, onIntent, onCtx,
+  onSelect, onToggleFlag, onIntent, onCtx, onAttention,
   // Custom-Period Sort GROUP rows (theme/sector/industry): a group row has no logo/flag,
   // an expand caret + ellipsized name, a stock-count cell, and toggles instead of selecting.
   // Member rows (a group's stocks, shown when expanded) render as normal stock rows, indented.
@@ -450,15 +467,75 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : ''}</span>
     // ETF holding weight % (View Holdings panel; fed via metaOverride).
     if (key === 'weight') return <span key="weight" className={styles.metaCell}>{weight != null ? `${weight.toFixed(2)}%` : '—'}</span>
+    // ATR % — a magnitude, never signed, so it gets a plain cell (not pctCell,
+    // whose green/red tint would imply a direction volatility does not have).
+    if (key === 'atr') return <span key="atr" className={styles.metaCell}>{Number.isFinite(atr) ? `${Number(atr).toFixed(1)}%` : '—'}</span>
+    // Distance from the 50-day in ATR MULTIPLES — signed, so it keeps the
+    // green/red tint the directional columns have.
+    //
+    // ⛔ NOT `pctCell`, and the label is not a %. The collector stores
+    // `(close - sma50) / atr_abs` (`_sma50_atr_map` in breadth_collector.py) — a
+    // MULTIPLE, not a percentage — and this rendered it through the % cell at
+    // `.toFixed(2)`, so a name sitting 8.3 ATRs above its 50-day read as
+    // "+8.30%". Two wrongs in one cell: a unit the number never had, and a
+    // second decimal its 1dp source never carried. It now prints what is
+    // stored, in the unit it is stored, at the precision it is stored — the
+    // same `x` form RVOL uses.
+    if (key === 'a50') return (
+      <FlashCell key="a50" value={a50} tint={tintEnabled} flashEnabled={tintEnabled}
+        className={`${styles.changeCell} ${a50 != null ? (a50 >= 0 ? styles.gain : styles.loss) : ''}`}
+        display={Number.isFinite(a50) ? `${a50 >= 0 ? '+' : ''}${Number(a50).toFixed(1)}x` : '—'} />
+    )
+    // Watchlist Intelligence V1: a bell badge when any deterministic fact fired
+    // (earnings proximity, new filing, analyst action, notable price move) —
+    // opens a popover listing each fact + its evidence date/source/freshness.
+    // "unavailable" (every source failed) renders a distinct muted dash, never
+    // the same blank the "checked, nothing notable" state would show.
+    if (key === 'attention') {
+      if (isGroup) return <span key="attention" className={styles.metaCell} />
+      // S8 / Attention Freshness Propagation V1 — broadened from the literal
+      // 'unavailable' to any non-'ok' status (backend vocabulary: ok/partial/
+      // unavailable). A 'partial' row with nothing notable previously fell
+      // through to the same blank cell as a fully-clean check, silently
+      // dropping the backend's own degradation signal.
+      if (intelStatus && intelStatus !== 'ok' && !notable) {
+        const title = intelStatus === 'unavailable' ? 'Could not check for updates' : `Data ${intelStatus}`
+        return <span key="attention" className={styles.metaCell} title={title} style={{ opacity: 0.4 }}>—</span>
+      }
+      if (!notable) return <span key="attention" className={styles.metaCell} />
+      return (
+        <button
+          key="attention"
+          className={styles.attnBadge}
+          title={intelStatus && intelStatus !== 'ok'
+            ? `${(intelFacts || []).length} thing${(intelFacts || []).length === 1 ? '' : 's'} to know (data ${intelStatus})`
+            : `${(intelFacts || []).length} thing${(intelFacts || []).length === 1 ? '' : 's'} to know`}
+          onClick={e => { e.stopPropagation(); onAttention?.(e, sym, intelFacts || []) }}
+        ><UIcon name="bell" size={13} /></button>
+      )
+    }
     return null
   }
+  const activateRow = () => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))
   return (
     <div
       data-watch-sym={sym}
       className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
-      onClick={() => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))}
+      onClick={activateRow}
       onPointerEnter={() => (isGroup ? undefined : onIntent(sym))}
       onFocus={() => (isGroup ? undefined : onIntent(sym))}
+      // Seam: a bare `<div onClick>` was keyboard-inaccessible -- one of
+      // Watchlists' own primary per-symbol rows, on one of the most-
+      // trafficked surfaces in the app.
+      role="button"
+      tabIndex={0}
+      aria-label={sym}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          activateRow()
+        }
+      }}
     >
       {orderedKeys.map(cellFor)}
     </div>
@@ -532,7 +609,47 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null }) {
+// Watchlist Intelligence V1: the Attention popover's fact list. Each fact carries
+// its own evidence date (never render time) + source + freshness — the honest
+// "why is this active" the row badge summarizes with a single icon.
+function AttentionFacts({ facts }) {
+  const list = facts || []
+  if (!list.length) return <div className={styles.attnEmpty}>Nothing to show.</div>
+  return (
+    <div className={styles.attnFactList}>
+      {list.map((f, i) => (
+        <div key={`${f.kind}-${i}`} className={styles.attnFact}>
+          <div className={styles.attnFactLabel}>{f.label}</div>
+          <div className={styles.attnFactMeta}>
+            {f.as_of ? `As of ${f.as_of}` : 'Date unavailable'} · {f.source || 'unknown source'}
+            {f.freshness && f.freshness !== 'unknown' ? ` · ${f.freshness}` : ''}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Watchlist → Compare: reuses SymbolSearch (no new ticker-search component) to
+// pick the comparator, auto-opened so the popover is immediately usable.
+// `baseSym` (Identity Normalization Hardening V1) is the security being
+// compared FROM -- without it, SymbolSearch's own clean !== sym
+// self-exclusion guard had nothing to compare against, so a member could
+// pick the same symbol as its own comparator.
+function CompareSearch({ onPick, baseSym }) {
+  const searchRef = useRef(null)
+  useEffect(() => { searchRef.current?.openWith('') }, [])
+  return <SymbolSearch ref={searchRef} sym={baseSym} onSymbolChange={onPick} />
+}
+
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
+  // Entry-point convergence (owner authorization): the shared door into canonical
+  // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
+  // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
+  // alert/Remove) rather than the app-wide TickerActionsMenu, so these two
+  // actions are added directly into that existing menu below instead of
+  // introducing a second, competing context-menu system.
+  const navigate = useNavigate()
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -545,11 +662,40 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // expand inline to its member stocks (like Theme Tracker). scanGroups maps name → members[].
   const groupMode = scanMode && scanGroups && typeof scanGroups === 'object'
   const [expandedGroups, setExpandedGroups] = useState(() => new Set())
-  // Accordion: only ONE group's stocks are open at a time — clicking a new group
-  // closes whichever was open (clicking the open group collapses it).
+  // Two group-expansion modes, because two surfaces want opposite things:
+  //   'accordion' (DEFAULT — Custom-Period Sort, Scanner): ONE group open at a
+  //     time. You are drilling into one theme; the others are noise.
+  //   'multi' (the breadth drill): ALL groups open, each independently
+  //     collapsible. Seeing which industries dominate the cohort IS the read —
+  //     an accordion hides exactly the comparison the surface exists to make.
+  // ⛔ The default must stay 'accordion' so every existing caller is unchanged.
+  const multiExpand = groupExpand === 'multi'
   const toggleGroupExpand = useCallback((name) => {
-    setExpandedGroups(prev => (prev.has(name) ? new Set() : new Set([name])))
-  }, [])
+    setExpandedGroups(prev => {
+      if (multiExpand) {
+        const next = new Set(prev)
+        if (next.has(name)) next.delete(name); else next.add(name)
+        return next
+      }
+      return prev.has(name) ? new Set() : new Set([name])
+    })
+  }, [multiExpand])
+  // In 'multi' the groups start OPEN. Seeded off the group names themselves (not
+  // a mount-once effect) so a list whose groups arrive async — or whose grouping
+  // dimension changes from Industry to Sector — opens the NEW set rather than
+  // staying collapsed. Keyed on the joined names so re-seeding happens exactly
+  // when the set of groups actually changes. The key is JSON rather than a
+  // joined string because an industry/sector/theme name can contain any
+  // punctuation ("Farm & Heavy Construction Machinery"), so no separator
+  // character is safe; the SEED reads the object directly.
+  const groupNamesKey = multiExpand && scanGroups ? JSON.stringify(Object.keys(scanGroups).sort()) : ''
+  const seededGroupsRef = useRef(null)
+  useEffect(() => {
+    if (!multiExpand) return
+    if (seededGroupsRef.current === groupNamesKey) return
+    seededGroupsRef.current = groupNamesKey
+    setExpandedGroups(new Set(scanGroups ? Object.keys(scanGroups) : []))
+  }, [multiExpand, groupNamesKey])
   const scanWl = useMemo(
     () => (scanMode
       ? { id: '__scan__', name: pickName || 'Scan',
@@ -866,6 +1012,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym } = useWatchlistAlerts()
   const [alertPopover, setAlertPopover] = useState(null) // { sym, x, y }
+  const [attnPopover, setAttnPopover] = useState(null) // { sym, x, y, facts }
+  const [comparePopover, setComparePopover] = useState(null) // { sym, x, y }
   const [alertPrice, setAlertPrice] = useState('')
   const [alertDir, setAlertDir] = useState('above')
 
@@ -942,7 +1090,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const prices = useMemo(() => {
     void readoutTick   // recompute when a fresh readout arrives
     const idxKeys = idxQuotes ? Object.keys(idxQuotes) : []
-    if (!hasFreshReadouts() && idxKeys.length === 0) return feedPrices
+    // ⛔ THE OVERRIDE MUST BE PART OF THIS BAIL-OUT CONDITION. This fast path
+    // exists so an ordinary watchlist does no work when nothing augments the
+    // feed — but a pinned quote IS something augmenting the feed. Omitting it
+    // here made `quoteOverride` dead code on the ONLY path that normally runs
+    // (no chart readouts, no index rows), and the breadth drill shipped with
+    // Price, Vol and % Chg blank on every row. Caught in the browser, not by a
+    // test: every fixture that exercised the merge happened to have readouts.
+    const hasOverride = !!quoteOverride && Object.keys(quoteOverride).length > 0
+    if (!hasFreshReadouts() && idxKeys.length === 0 && !hasOverride) return feedPrices
     const merged = { ...feedPrices }
     if (hasFreshReadouts()) {
       for (const sym of Object.keys(merged)) {
@@ -964,16 +1120,32 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const v = idxQuotes[k]
       merged[k.toUpperCase()] = { price: v?.price ?? null, change_pct: v?.change_pct ?? null, volume: null }
     }
+    // ⭐ HISTORICAL LISTS: a caller can PIN the quote for rows whose numbers are
+    // not "now". The breadth drill for 2026-09-04 is showing what those stocks did
+    // ON THAT DAY; streaming today's price into that table would silently relabel
+    // history as the present — the same class of defect as a mini-path from
+    // yesterday captioning today's number. Applied LAST so it beats both the live
+    // feed and the chart readout; a live drill passes nothing and streams normally.
+    if (quoteOverride) {
+      for (const s of Object.keys(quoteOverride)) {
+        merged[s] = { ...merged[s], ...quoteOverride[s] }
+      }
+    }
     return merged
-  }, [feedPrices, readoutTick, idxQuotes])
+  }, [feedPrices, readoutTick, idxQuotes, quoteOverride])
   // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
   // The widget has no chrome of its own (it IS this page), so the door lives
   // on each accordion header. Payload freeze (owner-approved): {sym, note,
   // price, chgPct} rows as they stand — lists mutate and delete, so the
   // capture is the only durable record. Rendered read-only by FrozenList.
   const [journalMsg, setJournalMsg] = useJournalToast()
-  const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
-    setJournalMsg('sending…')
+  // Wave 1 (P1-1): the destination+comment picker state; {anchor, capture, label}.
+  // ONE shared state (not per-list) — only one list's picker can be open at once.
+  const [captureMenu, setCaptureMenu] = useState(null)
+  // Freeze exactly what this list shows right now — shared by the one-click
+  // default send AND the destination-picker, so both paths capture the
+  // identical payload rather than re-deriving it a second time at Send.
+  const buildListCapture = useCallback((watchKey, watchName, items) => {
     const rows = items.map((it) => {
       const sym = typeof it === 'string' ? it : it.sym
       const q = prices[sym]
@@ -984,10 +1156,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         ...(Number.isFinite(q?.change_pct) ? { chgPct: q.change_pct } : {}),
       }
     })
-    setJournalMsg(await sendCaptureToJournal('watchlist', {
-      watchKey, watchName, symbols: rows.map((r) => r.sym), rows,
-    }, { label: watchName }))
-  }, [prices, setJournalMsg])
+    return { watchKey, watchName, symbols: rows.map((r) => r.sym), rows }
+  }, [prices])
+  const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
+    setJournalMsg('sending…')
+    setJournalMsg(await sendCaptureToJournal('watchlist', buildListCapture(watchKey, watchName, items), { label: watchName }))
+  }, [buildListCapture, setJournalMsg])
+  const chooseListDestination = useCallback((e, watchKey, watchName, items) => {
+    setCaptureMenu({
+      anchor: { x: e.clientX, y: e.clientY },
+      capture: buildListCapture(watchKey, watchName, items),
+      label: watchName,
+    })
+  }, [buildListCapture])
 
   // UCT breadth pseudo-tickers (UCTA50 etc.) render the compass brand mark instead of
   // a company logo/monogram — they have no company logo.
@@ -1528,6 +1709,36 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // columns ($ chg / % from open·high·low / DCR) read prices[sym] — no meta fetch.
   const extraVisible = orderedKeys.some(k => META_KEYS.has(k))
   const { metaData: rawMetaData } = useWatchlistMeta(extraVisible ? allTickers : [])
+  // Watchlist Intelligence V1 — only fetched when the Attention column is shown.
+  // `changes` is intentionally NOT part of the SWR key (it ticks every ~15s with
+  // the live quote feed; keying on it would refetch the whole batch every tick) —
+  // it rides along as the POST body on whatever cadence the hook already refreshes.
+  const attentionVisible = orderedKeys.includes('attention')
+  const changesForIntel = useMemo(() => {
+    if (!attentionVisible) return {}
+    const out = {}
+    for (const s of allTickers) {
+      const cp = prices[s]?.change_pct
+      if (Number.isFinite(cp)) out[s] = cp
+    }
+    return out
+  }, [attentionVisible, allTickers, prices])
+  // Seam 8 (2026-09-07): the SAME live-price payload changesForIntel already
+  // reads also carries each symbol's vendor observation timestamp
+  // (prices[s].observed_at) -- riding along here gives price_move facts a
+  // real evidence date instead of the honest-but-empty as_of:null they had
+  // before. Not part of useWatchlistIntelligence's SWR key, same reasoning
+  // as changesForIntel itself (see the hook's own comment).
+  const observedAtForIntel = useMemo(() => {
+    if (!attentionVisible) return {}
+    const out = {}
+    for (const s of allTickers) {
+      const oa = prices[s]?.observed_at
+      if (Number.isFinite(oa)) out[s] = oa
+    }
+    return out
+  }, [attentionVisible, allTickers, prices])
+  const { intelData } = useWatchlistIntelligence(attentionVisible ? allTickers : [], changesForIntel, observedAtForIntel)
   // Scan-provided per-symbol fields (e.g. the IPO scan's ipo_date for EVERY result,
   // beyond the meta batch's 100-ticker cap) merge over the batch meta so the column
   // + its sort see every row.
@@ -1661,6 +1872,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       const m = metaData?.[s]
       if (key === 'rvol') {
+        // Prefer a directly-supplied ratio, exactly as the cell does — otherwise
+        // sorting a drill by RVOL would order every row as null while the column
+        // visibly shows values.
+        if (Number.isFinite(m?.rvol)) return m.rvol
         const av = m?.avg_vol_20d, v = q?.volume
         return (Number.isFinite(av) && av > 0 && Number.isFinite(v)) ? (v / av) * 100 : null
       }
@@ -1669,6 +1884,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
       if (key === 'weight') return Number.isFinite(m?.weight) ? m.weight : null
+      if (key === 'atr') return Number.isFinite(m?.atr) ? m.atr : null
+      if (key === 'a50') return Number.isFinite(m?.a50) ? m.a50 : null
+      // Watchlist Intelligence: sort key is a plain (notable ? 1 : 0) — never a
+      // weighted/opaque score. Symbols with no intel data yet (still loading)
+      // sort as not-notable rather than sinking to the bottom via a null.
+      if (key === 'attention') return intelData?.[s]?.notable ? 1 : 0
       return 0
     }
     // Text columns sort alphabetically off the meta / theme batch.
@@ -1696,9 +1917,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (ba && bb) return 0
       if (ba) return 1
       if (bb) return -1
+      if (va === vb) {
+        // Documented, inspectable tiebreak (Attention is a plain 0/1 with lots of
+        // ties) — symbol A→Z regardless of sort direction, never left to
+        // Array.sort's incidental stability/original-order behavior.
+        if (key === 'attention') return String(a).localeCompare(String(b))
+        return 0
+      }
       return mul * (va - vb)
     })
-  }, [colSort, sortBasis, prices, metaData, perfData, themeData])
+  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData])
 
   // Scan mode: the sorted row list, MEMOIZED so a huge (~5,000-row) scan re-sorts only
   // when the data/sort actually changes — NOT on every scroll frame (which updates
@@ -1767,6 +1995,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         key={key}
         className={`${key === 'sym' ? styles.hSym : styles.hCol}${active ? ' ' + styles.hSortActive : ''}`}
         onClick={() => handleColSort(key)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Sort by ${label}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleColSort(key) }
+        }}
         {...headerDragProps(key)}
       >{label}</span>
     )
@@ -1791,7 +2025,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Handlers that read mutable render state reach it through a ref, so the callback identity
   // never changes even as the underlying value does. ──
   const rowStateRef = useRef({})
-  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists }
+  rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists, setAttnPopover }
   const onRowSelect = useCallback((sym) => { clickSelectRef.current = sym; setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
   const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
@@ -1800,6 +2034,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // Community lists aren't yours — no add/remove/notes, so no row menu at all.
     if (!isOwner) return
     rowStateRef.current.setCtxMenu({ x: e.clientX, y: e.clientY, id: wlId, isOwner, sym })
+  }, [])
+  const onRowAttention = useCallback((e, sym, facts) => {
+    rowStateRef.current.setAttnPopover({ x: e.clientX, y: e.clientY, sym, facts })
   }, [])
 
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
@@ -1840,9 +2077,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // RVOL: today's LIVE volume vs the 20-session average (from the meta batch), as a %.
     // Live-updates because q.volume ticks; null until the average has loaded.
     const _avg20 = metaData[sym]?.avg_vol_20d
-    const rvolVal = (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
-      ? (q.volume / _avg20) * 100
-      : null
+    // A caller that ALREADY knows the ratio can supply `rvol` directly via
+    // metaOverride — the breadth drill's payload carries `vr` (relative volume)
+    // but no raw volume, so the derived form below can never resolve for it.
+    // Stored as a PERCENT to match the derived form (the cell divides by 100).
+    const _rvolDirect = metaData[sym]?.rvol
+    const rvolVal = Number.isFinite(_rvolDirect)
+      ? _rvolDirect
+      : (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
+        ? (q.volume / _avg20) * 100
+        : null
     return (
       <WatchRow
         key={sym}
@@ -1870,6 +2114,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         periodchg={perfLive('period')}
         grpcount={metaData[sym]?.group_count ?? null}
         weight={metaData[sym]?.weight ?? null}
+        atr={metaData[sym]?.atr ?? null}
+        a50={metaData[sym]?.a50 ?? null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
@@ -1880,6 +2126,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
         ipoDate={metaData[sym]?.ipo_date ?? null}
+        notable={intelData[sym]?.notable ?? false}
+        intelStatus={intelData[sym]?.status ?? null}
+        intelFacts={intelData[sym]?.facts ?? null}
         isOwner={isOwner}
         wlId={wlId}
         isGroup={isGroup}
@@ -1890,6 +2139,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         onToggleFlag={onRowFlag}
         onIntent={onRowIntent}
         onCtx={onRowCtx}
+        onAttention={onRowAttention}
       />
     )
   }
@@ -1900,7 +2150,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const items = wl.items || []
     return (
       <div key={wl.id} className={styles.wlGroup}>
-        <div className={styles.wlHeader} onClick={() => toggleList(wl.id)}>
+        <div
+          className={styles.wlHeader}
+          onClick={() => toggleList(wl.id)}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label={wl.name}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(wl.id) }
+          }}
+        >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === wl.id ? (
             <input
@@ -1931,12 +2191,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {isOwner && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
               {items.length > 0 && (
-                <button
-                  className={styles.wlActionBtn}
-                  onClick={() => sendListToJournal(wl.id, wl.name, items)}
-                  title={`Send ${wl.name} to Journal (frozen list)`}
-                  aria-label={`Send ${wl.name} to Journal`}
-                ><UIcon name="journal" size={13} /></button>
+                <>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={() => sendListToJournal(wl.id, wl.name, items)}
+                    title={`Send ${wl.name} to Journal (frozen list)`}
+                    aria-label={`Send ${wl.name} to Journal`}
+                  ><UIcon name="journal" size={13} /></button>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={(e) => chooseListDestination(e, wl.id, wl.name, items)}
+                    title="Send to Journal — choose where"
+                    aria-label="Send to Journal — choose where"
+                  ><UIcon name="chevronDown" size={13} /></button>
+                </>
               )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === wl.id ? ' ' + styles.wlActionBtnActive : ''}`}
@@ -2053,7 +2321,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const open = expandedLists.has('flagged')
     return (
       <div className={styles.wlGroup}>
-        <div className={styles.wlHeader} onClick={() => toggleList('flagged')}>
+        <div
+          className={styles.wlHeader}
+          onClick={() => toggleList('flagged')}
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label="Flagged"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList('flagged') }
+          }}
+        >
           <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
           {renamingId === 'flagged' ? (
             <input
@@ -2082,12 +2360,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {user && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
               {flagged.length > 0 && (
-                <button
-                  className={styles.wlActionBtn}
-                  onClick={() => sendListToJournal('flagged', flaggedName || 'Flagged', [...flagged])}
-                  title="Send Flagged to Journal (frozen list)"
-                  aria-label="Send Flagged to Journal"
-                ><UIcon name="journal" size={13} /></button>
+                <>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={() => sendListToJournal('flagged', flaggedName || 'Flagged', [...flagged])}
+                    title="Send Flagged to Journal (frozen list)"
+                    aria-label="Send Flagged to Journal"
+                  ><UIcon name="journal" size={13} /></button>
+                  <button
+                    className={styles.wlActionBtn}
+                    onClick={(e) => chooseListDestination(e, 'flagged', flaggedName || 'Flagged', [...flagged])}
+                    title="Send to Journal — choose where"
+                    aria-label="Send to Journal — choose where"
+                  ><UIcon name="chevronDown" size={13} /></button>
+                </>
               )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === 'flagged' ? ' ' + styles.wlActionBtnActive : ''}`}
@@ -2168,6 +2454,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           so a viewport anchor is the one spot that always reads. Below the
           popup band (8500+). */}
       <JournalToast msg={journalMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+      {captureMenu && (
+        <CaptureMenu
+          open
+          onClose={() => setCaptureMenu(null)}
+          anchor={captureMenu.anchor}
+          widgetId="watchlist"
+          capture={captureMenu.capture}
+          label={captureMenu.label}
+          onSent={setJournalMsg}
+        />
+      )}
       {settingsOpen && (
         <WatchlistSettingsPanel
           settings={wlSettings}
@@ -2321,7 +2618,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 const open = expandedLists.has(`tag:${tc.key}`)
                 return (
                   <div key={tc.key} className={styles.wlGroup}>
-                    <div className={styles.wlHeader} onClick={() => toggleList(`tag:${tc.key}`)}>
+                    <div
+                      className={styles.wlHeader}
+                      onClick={() => toggleList(`tag:${tc.key}`)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      aria-label={tc.label}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(`tag:${tc.key}`) }
+                      }}
+                    >
                       <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
@@ -2329,12 +2636,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                       {isColorShared(tc.key) && <span className={styles.pubBadge}>PUB</span>}
                       <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
                         {syms.length > 0 && (
-                          <button
-                            className={styles.wlActionBtn}
-                            onClick={() => sendListToJournal(`tag:${tc.key}`, tc.label, syms)}
-                            title={`Send ${tc.label} to Journal (frozen list)`}
-                            aria-label={`Send ${tc.label} to Journal`}
-                          ><UIcon name="journal" size={13} /></button>
+                          <>
+                            <button
+                              className={styles.wlActionBtn}
+                              onClick={() => sendListToJournal(`tag:${tc.key}`, tc.label, syms)}
+                              title={`Send ${tc.label} to Journal (frozen list)`}
+                              aria-label={`Send ${tc.label} to Journal`}
+                            ><UIcon name="journal" size={13} /></button>
+                            <button
+                              className={styles.wlActionBtn}
+                              onClick={(e) => chooseListDestination(e, `tag:${tc.key}`, tc.label, syms)}
+                              title="Send to Journal — choose where"
+                              aria-label="Send to Journal — choose where"
+                            ><UIcon name="chevronDown" size={13} /></button>
+                          </>
                         )}
                         <button
                           className={`${styles.wlActionBtn}${isColorShared(tc.key) ? ' ' + styles.wlActionBtnActive : ''}`}
@@ -2383,7 +2698,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 if (!tc) return null
                 return (
                   <div key={tagKey} className={styles.wlGroup}>
-                    <div className={styles.wlHeader} onClick={() => toggleList(tagKey)}>
+                    <div
+                      className={styles.wlHeader}
+                      onClick={() => toggleList(tagKey)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      aria-label={tc.label}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleList(tagKey) }
+                      }}
+                    >
                       <span className={styles.wlCaret}>{open ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: tc.hex, marginRight: 6 }} />
                       <span className={styles.wlName}>{tc.label}</span>
@@ -2608,6 +2933,48 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         </div>
       )}
 
+      {/* ── Watchlist Intelligence: Attention popover ── */}
+      {attnPopover && (
+        isTouch ? (
+          <Sheet open onClose={() => setAttnPopover(null)} variant="bottom-sheet" title={`${attnPopover.sym} — why it's active`}>
+            <div className={styles.ctxSheetBody}>
+              <AttentionFacts facts={attnPopover.facts} />
+            </div>
+          </Sheet>
+        ) : (
+          <div className={styles.ctxBackdrop} onClick={() => setAttnPopover(null)}>
+            <div className={styles.attnPopover} style={{ top: attnPopover.y, left: attnPopover.x }} onClick={e => e.stopPropagation()}>
+              <div className={styles.alertPopTitle}>{attnPopover.sym} — why it's active</div>
+              <AttentionFacts facts={attnPopover.facts} />
+            </div>
+          </div>
+        )
+      )}
+
+      {/* ── Compare popover — reuses SymbolSearch (no new ticker-search component) ── */}
+      {comparePopover && (
+        isTouch ? (
+          <Sheet open onClose={() => setComparePopover(null)} variant="bottom-sheet" title={`Compare ${comparePopover.sym} with…`}>
+            <div className={styles.ctxSheetBody}>
+              <CompareSearch
+                baseSym={comparePopover.sym}
+                onPick={(comparator) => { navigate(`/research/${comparePopover.sym}/compare/${comparator}`); setComparePopover(null) }}
+              />
+            </div>
+          </Sheet>
+        ) : (
+          <div className={styles.ctxBackdrop} onClick={() => setComparePopover(null)}>
+            <div className={styles.attnPopover} style={{ top: comparePopover.y, left: comparePopover.x }} onClick={e => e.stopPropagation()}>
+              <div className={styles.alertPopTitle}>Compare {comparePopover.sym} with…</div>
+              <CompareSearch
+                baseSym={comparePopover.sym}
+                onPick={(comparator) => { navigate(`/research/${comparePopover.sym}/compare/${comparator}`); setComparePopover(null) }}
+              />
+            </div>
+          </div>
+        )
+      )}
+
       {/* ── Context menu ── */}
       {ctxMenu && (() => {
         const ctxBody = ctxMenu.sym ? (
@@ -2618,6 +2985,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           // orphaning notes + alerts app-wide; owner decision 2026-08-01 restored
           // them HERE rather than re-cluttering the row.
           <>
+            <button
+              className={styles.ctxItem}
+              onClick={() => { navigate(`/research/${ctxMenu.sym}`); setCtxMenu(null) }}
+            ><UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research</button>
+            <button
+              className={styles.ctxItem}
+              onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
+            ><UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {ctxMenu.sym}</button>
+            <button
+              className={styles.ctxItem}
+              onClick={() => {
+                setComparePopover({ sym: ctxMenu.sym, x: ctxMenu.x, y: ctxMenu.y })
+                setCtxMenu(null)
+              }}
+            ><UIcon name="columns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Compare {ctxMenu.sym} with…</button>
             {ctxMenu.id !== 'flagged' && (
               <button
                 className={styles.ctxItem}

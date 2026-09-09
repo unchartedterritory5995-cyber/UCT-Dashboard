@@ -111,7 +111,7 @@ def test_fmp_fills_a_week_forexfactory_has_no_feed_for():
         {"time": "8:30 AM", "event": "Non-Farm Payrolls", "estimate": "180K",
          "prior": "150K", "is_fed": False}]}
     with mock.patch.object(cal, "_fetch_ff_events", return_value={}), \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", return_value=(fmp, None)):
         cal._curate_econ_events("2026-08-03", "2026-08-07", days)
     assert [e["event"] for e in days["2026-08-03"]["econ"]] == ["Non-Farm Payrolls"]
 
@@ -138,7 +138,7 @@ def test_fmp_does_not_overwrite_a_day_forexfactory_already_covered():
            d1: [{"time": "10:00 AM", "event": "FMP Only Day", "estimate": None,
                  "prior": None, "is_fed": False}]}
     with mock.patch.object(cal, "_fetch_ff_events", return_value=ff) as ff_mock, \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", return_value=(fmp, None)):
         cal._curate_econ_events(d0, (mon + timedelta(days=4)).isoformat(), days)
     # Non-vacuity: if FF is never consulted this test proves nothing about FF.
     ff_mock.assert_called_once()
@@ -152,7 +152,7 @@ def test_a_fed_speaker_from_fmp_routes_to_the_fed_bucket():
         {"time": "1:00 PM", "event": "Fed Chair Powell Speaks", "estimate": None,
          "prior": None, "is_fed": True}]}
     with mock.patch.object(cal, "_fetch_ff_events", return_value={}), \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", return_value=(fmp, None)):
         cal._curate_econ_events("2026-08-03", "2026-08-07", days)
     assert days["2026-08-03"]["econ"] == []
     assert [e["event"] for e in days["2026-08-03"]["fed"]] == ["Fed Chair Powell Speaks"]
@@ -161,7 +161,7 @@ def test_a_fed_speaker_from_fmp_routes_to_the_fed_bucket():
 def test_both_sources_failing_leaves_the_day_empty_not_broken():
     days = _empty_days("2026-08-03")
     with mock.patch.object(cal, "_fetch_ff_events", side_effect=RuntimeError("ff down")), \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week",
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta",
                     side_effect=RuntimeError("fmp down")):
         cal._curate_econ_events("2026-08-03", "2026-08-07", days)   # must not raise
     assert days["2026-08-03"]["econ"] == []
@@ -179,7 +179,7 @@ def test_fed_speakers_bucket_consistently_even_when_fmp_mislabels_them():
          "prior": None, "is_fed": True},                       # FMP got it right
     ]}
     with mock.patch.object(cal, "_fetch_ff_events", return_value={}), \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", return_value=(fmp, None)):
         cal._curate_econ_events("2026-08-03", "2026-08-07", days)
     assert sorted(e["event"] for e in days["2026-08-05"]["fed"]) == [
         "Fed Barkin Speech", "Fed Cook Speech"]
@@ -194,7 +194,7 @@ def test_a_far_week_skips_forexfactory_but_still_gets_fmp():
     fmp = {"2026-12-14": [{"time": "8:30 AM", "event": "CPI m/m", "estimate": "0.2%",
                            "prior": "0.1%", "is_fed": False}]}
     with mock.patch.object(cal, "_fetch_ff_events") as ff, \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", return_value=(fmp, None)):
         cal._curate_econ_events("2026-12-14", "2026-12-18", days)
     ff.assert_not_called()          # far week -> no wasted faireconomy fetches
     assert [e["event"] for e in days["2026-12-14"]["econ"]] == ["CPI m/m"]
@@ -208,7 +208,7 @@ def test_the_current_week_still_prefers_forexfactory():
     ff = {monday: {"econ": [{"time": "8:30 AM", "event": "FF Event", "estimate": None,
                              "prior": None, "actual": "0.4%", "is_key": True}], "fed": []}}
     with mock.patch.object(cal, "_fetch_ff_events", return_value=ff) as ffm, \
-         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value={}):
+         mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", return_value=({}, None)):
         cal._curate_econ_events(monday, monday, days)
     ffm.assert_called_once()
     assert days[monday]["econ"][0]["actual"] == "0.4%"

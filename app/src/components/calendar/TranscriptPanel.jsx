@@ -280,6 +280,15 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
                   <span className={styles.transcriptQuarter}>{transcript.quarter}</span>
                 ) : null}
 
+                {/* Which provider actually served this document — FMP primary,
+                    AlphaVantage fallback (2026-09-03 A6/A7 pass; previously
+                    computed at the router's fallback boundary and discarded). */}
+                {transcript.source && (
+                  <span className={styles.transcriptQuarter} style={{ opacity: 0.6, textTransform: 'uppercase' }}>
+                    {transcript.source === 'fmp' ? 'FMP' : 'AlphaVantage'}
+                  </span>
+                )}
+
                 {/* Only when the transcript actually states the boundary. Three
                     of seven live calls never say "question-and-answer", so the
                     chip is absent rather than pointing somewhere invented. */}

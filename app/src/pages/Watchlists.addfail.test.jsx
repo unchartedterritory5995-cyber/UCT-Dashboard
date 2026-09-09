@@ -74,6 +74,7 @@ vi.mock('./charts/ChartsSymContext', () => ({
   ChartsSymContext: { Provider: ({ children }) => children },
   useChartsSym: () => ({ sym: null, setSym: () => {} }),
 }))
+vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
 
 const Watchlists = (await import('./Watchlists')).default
 

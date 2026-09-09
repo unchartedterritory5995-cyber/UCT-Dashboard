@@ -1,0 +1,59 @@
+/* app/src/components/provenance/FreshnessBadge.module.css
+   S8 Step 1. Minimal, functional styling -- not a final design pass; the
+   spec's own S10 dependency (shared formatting/presentation primitives,
+   SPEC-S8 §19 Step 2) is where this gets its final visual treatment. */
+
+.wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.tierLabel { font-weight: 600; letter-spacing: 0.3px; }
+
+.tier_real_time .tierLabel { color: var(--color-success, #4ade80); }
+.tier_delayed_15 .tierLabel { color: var(--color-warning); }
+.tier_end_of_day .tierLabel,
+.tier_historical .tierLabel { color: var(--text-muted); }
+.tier_stale .tierLabel { color: var(--color-danger); }
+.tier_unknown .tierLabel { color: var(--text-muted); }
+
+.tierAsOf { color: var(--text-muted); font-weight: 400; }
+
+.sourceStaleNote,
+.sessionStaleNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-danger);
+}
+
+.sessionStaleNote { color: var(--color-warning); }
+
+.session {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.session_open { color: var(--color-success, #4ade80); }
+.session_ext { color: var(--color-warning); }
+.session_closed { color: var(--text-muted); }
+
+.disclosure {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-bright);
+  padding: 2px 6px;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+}

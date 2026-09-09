@@ -185,7 +185,11 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "payout_ratio_pct": _round_pct(info.get("payoutRatio")),
         # Ownership (free from the same .info call — feeds ratings sponsorship percentile)
         "held_pct_institutions": _round_pct(info.get("heldPercentInstitutions")),
+        "held_pct_insiders": _round_pct(info.get("heldPercentInsiders")),
         # Price action context
+        # Last price — lets the panel compute "% off the 52-week high" without a
+        # second quote round-trip (the stock-brief stats carry no price field).
+        "price": _round(info.get("currentPrice") or info.get("regularMarketPrice")),
         "fifty_two_week_high": _round(info.get("fiftyTwoWeekHigh")),
         "fifty_two_week_low": _round(info.get("fiftyTwoWeekLow")),
         "fifty_day_avg": _round(info.get("fiftyDayAverage")),
@@ -282,10 +286,18 @@ def compare_fundamentals(tickers: list[str]) -> dict[str, Any]:
     # so up to 6 tickers resolve concurrently instead of sequentially.
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=min(len(tickers), 6)) as ex:
-        rows = list(ex.map(get_fundamentals, tickers))
-    rows = [r for r in rows if "error" not in r]
+        raw_rows = list(ex.map(get_fundamentals, tickers))
+
+    # A failed ticker (invalid symbol, yfinance miss) must be SURFACED, never
+    # silently dropped — a caller comparing two tickers where one fails must
+    # not receive a "successful" single-ticker response with no signal the
+    # other one is missing (found live during Comparison-V1 Phase A: AAPL vs
+    # an invalid symbol returned {"tickers": ["AAPL"]} with zero indication
+    # the second ticker ever existed in the request).
+    failed = [r["ticker"] for r in raw_rows if isinstance(r, dict) and "error" in r]
+    rows = [r for r in raw_rows if isinstance(r, dict) and "error" not in r]
     if not rows:
-        return {"error": "no fundamentals available for any ticker"}
+        return {"error": "no fundamentals available for any ticker", "failed": failed}
 
     # Compute simple cross-ticker ranges on the most useful comparison metrics
     keys = ["pe_trailing", "pe_forward", "ps", "pb", "profit_margin_pct",
@@ -300,4 +312,4 @@ def compare_fundamentals(tickers: list[str]) -> dict[str, Any]:
             "min": {"ticker": vals[0][0], "value": vals[0][1]},
             "max": {"ticker": vals[-1][0], "value": vals[-1][1]},
         }
-    return {"tickers": [r["ticker"] for r in rows], "rows": rows, "ranges": ranges}
+    return {"tickers": [r["ticker"] for r in rows], "rows": rows, "ranges": ranges, "failed": failed}

@@ -4,12 +4,18 @@ Uses yfinance to build a forward-looking (date >= today) list of
 dividends and splits for a set of symbols.
 
 Normalized output per event:
-  { sym, type: 'dividend' | 'split', date, amount | ratio }
+  { sym, type: 'dividend' | 'split', date, amount | ratio, entity }
 
   dividend: { sym, type='dividend', date (YYYY-MM-DD ex-date), amount (float) }
   split:    { sym, type='split',    date (YYYY-MM-DD),         ratio (str, e.g. '4:1') }
 
 Cached 12 hours per symbol-set key.  Never raises — returns [] on any failure.
+
+2026-09-03 A5 modernization: every event carries a canonical `entity` from
+Entity Master (`resolve_entity`) — never a raw ticker as the row's only
+identity. This module has no FMP leg (yfinance only, per the readiness
+review's explicit finding) — the provider-swap question surfaced in that
+review stays open/deferred, unaffected by this entity-resolution wiring.
 """
 
 from __future__ import annotations
@@ -19,6 +25,7 @@ from datetime import date, timezone, datetime
 from api.services import yf_util
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
+from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
 
@@ -195,6 +202,18 @@ def get_events(syms: list[str]) -> list[dict]:
 
     # Sort by date ascending
     results.sort(key=lambda e: e.get("date") or "")
+
+    # Canonical entity (S3) per symbol -- resolved once per symbol even when
+    # that symbol contributed both a dividend and a split event.
+    _entity_by_sym: dict[str, dict] = {}
+    for event in results:
+        sym = event.get("sym")
+        if not sym:
+            continue
+        if sym not in _entity_by_sym:
+            entity, _effective_sym = resolve_entity(sym)
+            _entity_by_sym[sym] = entity
+        event["entity"] = _entity_by_sym[sym]
 
     # The 25s deadline shed above is correct (bounds the request path against
     # a hung yfinance call) -- but caching the SHED result at the 12h success

@@ -174,7 +174,11 @@ export const STILL_UNCHECKED = [
   'pages/admin/ChartHealth.jsx',
   'pages/admin/PatternAdmin.jsx',
   'pages/admin/PatternReview.jsx',
-  'pages/breadth/grouping/useGroupMeta.js',
+  // ⚰️ `pages/breadth/grouping/useGroupMeta.js` LEFT THIS LIST ON 2026-09-07 —
+  // it now raises on a non-OK response. It was rewritten to chunk the endpoint's
+  // 500-ticker cap, which made a failed-or-truncated slice something the caller
+  // has to tell apart from an empty one. Deleted, not commented out: the list is
+  // only allowed to shrink by DELETION.
   'pages/charts/widgets/BreadthWidget.jsx',
   'pages/modelbook/SetupsView.jsx',
   'pages/modelbook/builder/BuilderView.jsx',

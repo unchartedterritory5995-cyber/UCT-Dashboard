@@ -47,11 +47,8 @@
       "note": ""
     },
     "ALPHA_GOLD_EOD_ENABLED": {
-      "status": "armed",
-      "where": [
-        "(set — service not captured)"
-      ],
-      "note": ""
+      "status": "dark",
+      "note": "Was armed; confirmed OFF (=0) on flow-worker as of 2026-09-06 -- the ledger entry had drifted. Superseded same-day by CREAM_EOD_ENABLED (api/flow_worker_main.py:456-489): Cream of the Crop's aggregate, curation-free EOD read replaced Alpha Gold's single-print summary on the adjacent 16:05/16:10 ET cron slot. The scheduler branch and the alpha_gold_eod.py module are both still present (env-var-only revert, no deploy needed either way), but nothing currently arms it."
     },
     "AUTHDB_BACKUP_ENABLED": {
       "status": "armed",
@@ -537,11 +534,11 @@
       "note": ""
     },
     "NOTE_SYNC_OBSIDIAN_ENABLED": {
-      "status": "dark",
+      "status": "armed",
       "where": [
-        "(set on no service)"
+        "web"
       ],
-      "note": "DELIBERATELY OFF -- AND THE OLD ARMING CONDITION IS VOID. registry.py's obsidian entry (connect_kind='device') stays unconfigured until this is armed. The previous note said 'arm after Wave 3b Task 6 (the mock-plugin live-gate lifecycle test) passes'. That test now passes, so a reader following the old note would arm this and ship a silent data-loss defect to members. It does not gate what matters. The 2026-09-02 adversarial audit (.superpowers/audit/session-audit.md, finding 1) proved end-to-end that ONE ordinary note over the limit makes import_confirm roll back the WHOLE batch: 13 notes staged, 0 landed in the member's notebook, status 'ok', cursor advanced anyway, and the plugin's re-push is a no-op -- so the notes are gone permanently. This is not a security bug, so the Wave 3b security review's gate does not cover it. ARM ONLY WHEN ALL THREE HOLD, each verified against a run and not against a passing suite: (1) per-note failure isolation has landed -- a batch containing one unstorable note stores its siblings and reports the failure per note; (2) a real, published Obsidian plugin exists for members to install (the connect modal already instructs them to use one that does not); (3) a live gate has synced a note of REALISTIC size, which is a PAIR of runs and not one: a note at the TOP of the storable range (~210KB of markdown, just under the derived ceiling) that LANDS, and a note ABOVE the ceiling that is isolated without taking its batch with it. WARNING, this condition originally read '250KB+ of markdown' -- an acceptance number typed before the ceiling was derived, and 250KB is ABOVE that ceiling, so nothing could ever have satisfied it as written: an oversized note is refused BY DESIGN, which is the fix working rather than the gate passing. The measured md->TipTap blowup is 3.4-4.7x, up to ~9x for a many-short-headings shape, so the ceiling is ~212,765 chars = MAX_BODY_JSON_BYTES / 4.7. Nothing anywhere -- unit, parity, or live gate -- had ever imported or synced a note larger than a few KB before 2026-09-02. Note size is the one property that breaks this feature, and it is the one property nothing measures. UPDATE 2026-09-02 (size-rails closeout): (1) landed same day (commit da289747d, per-note SAVEPOINT isolation in import_confirm + engine.py cursor fix) and is covered by realistic-size (not just malformed-body) isolation tests in test_notes_import.py. (3) is now landed too, as a COMMITTED pytest rail (not a scratchpad script like Task 6's) -- test_obsidian_ingest.py::test_a_realistically_large_note_syncs_end_to_end_through_the_real_http_sync_route drives mint/redeem/ingest/sync entirely over the real HTTP routes with a 210,609-char realistic daily-notes/meeting-log body (740,540 bytes converted) that actually lands. (2) is the ONLY remaining blocker -- do not arm until a real published plugin exists."
+      "note": "ARMED 2026-09-04 on service `web` (staged via `railway variables --set --skip-deploys`, activated by a redeploy; verified by /api/health uptime reset and by GET /api/j2/notes/connectors/status reporting obsidian configured=true connectKind='device').\n\nAll three arming conditions from the previous note are satisfied, each against a run rather than a passing suite:\n  (1) per-note failure isolation -- landed 2026-09-02 (da289747d, per-note SAVEPOINT in import_confirm + engine.py cursor fix). RE-PROVEN LIVE on the arming day: a real vault push of 6 files returned pushed=5 with tooLarge=['Oversized Note.md'] -- the oversized note was isolated and its 5 siblings landed, which is precisely the data-loss shape this condition existed to block.\n  (2) THE FORMER SOLE BLOCKER, now satisfied: the plugin is published at https://github.com/unchartedterritory5995-cyber/obsidian-uct-notebook-sync with tagged GitHub Releases (0.1.0, 0.1.1) carrying manifest.json/main.js/styles.css as assets, and ObsidianConnectModal.jsx links members straight to /releases/latest. The community-directory LISTING is still pending review, which is why the modal's copy reads 'or -- while it is awaiting review -- download the latest release': a member can install it today, which is what this condition asked for.\n  (3) realistic-size pair -- landed as a committed rail, test_obsidian_ingest.py::test_a_realistically_large_note_syncs_end_to_end_through_the_real_http_sync_route (210,609-char body, 740,540 bytes converted, lands) plus the oversized-isolation half re-proven live in (1).\n\nProven live end-to-end on the arming day against PRODUCTION, with the real released plugin driving a real vault: connect-code mint -> redeem -> push (5 staged, 1 oversized isolated) -> server sync created=5 in the member's Notebook -> disconnect -> the revoked device token was refused ('Not authenticated', needsReconnect) and could no longer ingest. Test residue was removed afterwards; the connector is left disconnected."
     },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
@@ -739,6 +736,53 @@
         "worker"
       ],
       "note": "Part of the edge-deep-history / instant-charts initiative (specs 2026-08-31 onward); recorded 2026-09-02 after a live read. Arms the after-close daily sweep so the web pod's newer-wins merge cold-populates every empty daily and advances every stale one, and a first view of ANY symbol serves from SQLite instead of shedding a warming 503."
+    },
+    "ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "S7 first slice (owner authorization, 2026-09-03; api/main.py:6090-6116). Registers the 20-min alert_taxonomy_document_arrival cron, which polls SEC EDGAR per-ticker filings (api/services/sec_filings.py) against a watermark and fires document-arrival alerts through the alert-taxonomy predicate/delivery pipeline -- S7's first live trigger type. Independent of COMPASS_AUTOMATION_ENABLED. Live monitoring a real production predicate (NVDA) as of 2026-09-05, waiting on a genuine new filing; see docs/uct-terminal/continuity-checkpoint.md \"CURRENT WAITING ON EXTERNAL EVENT\"."
+    },
+    "BARS_A_CLOSE_GUARD_ENABLED": {
+      "status": "dark",
+      "note": "Off 2026-09-04 (Phase 2b, api/services/bar_broadcaster.py:41-53), not yet armed on any service. Guards a developing intraday bar's close against a momentary ghost/odd-lot T-tick print winning over the next unfiltered A-aggregate close within BARS_A_CLOSE_GUARD_MS (default 2000ms) -- a display-integrity fix, never touches persisted bars. Shipped dark by design so the byte-identical old behavior stays the default while the guard is proven; own test file tests/test_bar_broadcaster_a_close_guard.py. Arm via the env var alone, no deploy needed."
+    },
+    "CREAM_EOD_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Armed live 2026-09-06 (api/flow_worker_main.py:469-489), superseding ALPHA_GOLD_EOD_ENABLED on the adjacent cron slot (16:10 ET weekdays, 5 min after the now-dark Alpha Gold job). The scheduler job registers unconditionally and self-gates on this flag (api/cream_card.py:83) -- off means the job builds and posts nothing. Posts the day's highest-conviction AGGREGATE options-flow builds (curation-free, via live_massive_router.compute_cream) to Discord as an image-only card, filling the blind spot Top Flow (single prints) and the hand-curated Watchlist both had."
+    },
+    "PATTERN_CANONICAL_ADAPT_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Phase 8 Package 8F canonical pattern-engine migration, write-side leg (api/main.py:362-369; spec docs/uct-scanner-intelligence/phase7_canonical_architecture_spec.md). When on, the pattern scan additionally calls canonical_adapter.adapt_high_tight_flag/adapt_power_earnings_gap per detection and populates the new eligibility_json (etc.) columns on pattern_detections. Purely additive/persistence-side -- does not change what the scanner SERVES to any user. Checked per-call, not cached at import. Sibling flags PATTERN_CANONICAL_SCANNER_PILOT_ENABLED (read-side pilot) and PATTERN_CANONICAL_SHADOW_LOG_ENABLED (log-only shadow compare) are the other two independently-gated legs of the same migration; see their own entries."
+    },
+    "PATTERN_CANONICAL_SCANNER_PILOT_ENABLED": {
+      "status": "dark",
+      "note": "Phase 8 Package 8G-B canonical pattern-engine migration, read-side pilot leg (api/services/screener/pattern_join.py:564-628; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on AND the caller is admin AND a row already legacy-matched power_earnings_gap (the only family in the hardcoded _PILOT_SUPPORTED_FAMILIES set -- widening it is a deliberate code change, not an env toggle), attaches an additional pattern_canonical_pilot key sourced from the canonical read; never mutates any existing key, and any failure at any stage falls back to the untouched legacy rows. Actively being performance-tuned against real admin traffic this week (idx_pd_sym_tf index work); own tests tests/test_screener_wave5_pattern_join_pilot.py."
+    },
+    "PATTERN_CANONICAL_SHADOW_LOG_ENABLED": {
+      "status": "dark",
+      "note": "Phase 8 Package 8F canonical pattern-engine migration, shadow-log leg (api/services/screener/snapshot_builder.py:1052-1061; same spec as PATTERN_CANONICAL_ADAPT_ENABLED). Not armed on any service as of 2026-09-06. When on, every snapshot-build cycle additionally calls pattern_join.compare_pattern_shadow and logs the result -- pure observation, never touches pattern_map (the data actually served). Deliberately independent of the write-side flag per a 2026-09-04 design review: \"do not make snapshot_builder.py unconditionally switch to the canonical reader; legacy remains served while canonical is computed/logged beside it.\" Own tests tests/test_snapshot_builder_pattern_shadow.py."
+    },
+    "THEME_SETS_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Brand-new per-user custom Theme Set feature (api/services/theme_sets.py, api/routers/theme_sets.py; last touched 2026-09-05), armed on web as of 2026-09-06. A personal, named diff on top of the shared Theme Tracker taxonomy (hide/add themes, add custom themes/stocks) stored in its own /data/theme_sets.db -- entirely additive, never touches the shared taxonomy or theme_memberships. Off would mean GET /api/theme-sets reports {enabled:false} and all writes refuse. Unrelated to the already-armed THEME_ENGINE_ENABLED (the autonomous Theme Membership Engine that absorbs orphan stocks into the shared taxonomy) despite the naming similarity."
+    },
+    "BROKER_BALANCE_HISTORY_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Not caught by the ledger's own AST scanner -- a genuine blind spot recorded 2026-09-06: read via `import os as _os; _os.getenv(...)`, and api/services/feature_flag_index.py only recognizes the literal base name `os`, so an aliased import is invisible to it (see the debt-ledger entry for the scanner gap itself). Adds ONE extra check to the existing per-account broker fidelity audit (api/services/journal_two/broker/fidelity_audit.py:224-237): calls SnapTrade's BETA get_balance_history endpoint and cross-checks it against our own stored equity snapshots. Read-only (no writes to any balance/position), best-effort (wrapped in try/except, marked skipped+non-fatal on any error) -- SnapTrade's own comment notes the endpoint is 'disabled by default at SnapTrade', so it is often a no-op. Confirmed armed on web 2026-09-06; owner reviewed and chose to keep it armed with this entry as the recorded rationale (Feature-Flag Governance Sweep, owner check-in)."
     }
   }
 }

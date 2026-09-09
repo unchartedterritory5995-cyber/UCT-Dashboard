@@ -143,6 +143,25 @@ def _note(vault_path: str, content_hash: str, body_md: str = "# body") -> dict:
     }
 
 
+
+@pytest.fixture(autouse=True)
+def _no_auto_drain(monkeypatch):
+    """Neutralise the post-`final` auto-drain for this module by default.
+
+    A `final` ingest now kicks off the source's sync immediately, so that
+    connecting a vault means "bring this vault into UCT" rather than "stage
+    it and wait for the :23 tick". Every test BELOW drives staging -> sync
+    step by step and asserts on ITS OWN sync's counts; with the drain live,
+    those counts read 0 because the automatic pass already imported the
+    notes (the notes still land -- only which pass imported them changes).
+    Disabling it here keeps each of those tests measuring the thing it was
+    written to measure. The drain has its own dedicated rail, which opts
+    back in: test_a_final_batch_drains_the_vault_it_belongs_to.
+    """
+    import api.routers.note_sync as ns
+    monkeypatch.setattr(ns, "_start_initial_sync", lambda *_a, **_k: None)
+
+
 # ── auth ──────────────────────────────────────────────────────────────────
 
 def test_an_authenticated_batch_lands_in_staging(client):
@@ -158,6 +177,50 @@ def test_an_authenticated_batch_lands_in_staging(client):
     assert rows[0]["vault_path"] == "Notes/idea.md"
     assert rows[0]["content_hash"] == "h1"
     assert rows[0]["body_md"] == "# Idea"
+
+
+def test_a_final_batch_drains_the_vault_it_belongs_to(client, monkeypatch):
+    """⛔ Pushing a vault is the member's *import my vault* action.
+
+    Before this wiring the plugin pushed the whole vault, the server staged
+    every note, and the staged rows SAT there until the hourly `:23` tick
+    swept them -- a member who had just connected saw an empty Notebook for
+    up to an hour, with nothing running and nothing saying so.
+
+    `final` is the plugin declaring "that was the whole vault", and it is the
+    only safe moment to sweep: draining an INTERMEDIATE batch would import a
+    partially-pushed vault and run delete detection against a manifest that
+    does not exist yet.
+
+    Goes through the REAL redeem so a `j2_note_sources` row exists exactly as
+    it does in production, then drives the real ingest route.
+    """
+    import api.routers.note_sync as ns
+
+    started: list[str] = []
+    monkeypatch.setattr(ns, "_start_initial_sync", started.append)  # overrides _no_auto_drain
+
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-drain", "label": "Drain"})
+    assert r.status_code == 200, r.text
+    token = r.json()["token"]
+    source_id = r.json()["source"]["id"]
+    hdr = {"Authorization": f"Bearer {token}"}
+
+    r = client.post(_URL, headers=hdr,
+                    json={"consent": True, "notes": [_note("a.md", "h1", "# A")]})
+    assert r.status_code == 200, r.text
+    assert started == [], "an intermediate batch drained a partially-pushed vault"
+
+    r = client.post(_URL, headers=hdr, json={
+        "consent": True,
+        "notes": [_note("b.md", "h2", "# B")],
+        "manifest": ["a.md", "b.md"],
+        "final": True,
+    })
+    assert r.status_code == 200, r.text
+    # ⛔ exactly once, and for THIS vault's source -- never another vault's.
+    assert started == [source_id], f"final ingest drained the wrong source(s): {started}"
 
 
 def test_an_unauthenticated_batch_is_refused(client):
