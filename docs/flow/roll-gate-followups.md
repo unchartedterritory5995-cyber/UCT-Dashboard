@@ -1,5 +1,44 @@
 # Options Flow roll gate — follow-ups filed 2026-09-09
 
+---
+
+## E0 — CORRECTION: the market-hours freeze rule is BROADER than "flow-worker"
+
+**Stated wrongly during the 2026-09-09 deploy and corrected the same evening.** The
+freeze was justified narrowly — "a push touching a flow-worker watched file bounces the
+OPRA consumer" — and I repeated that a change to `api/flow_router.py` "deploys
+flow-worker on its own." **It does not.** The `184a7e77b` push rebuilt **four** services.
+
+Derived from Railway's live `serviceManifest.build.watchPatterns`:
+
+| service | watchPatterns | matched by that push |
+|---|---|---|
+| `web` | **`[]` — empty** | **every push**, no filter |
+| `worker` | `/api/**`, `/requirements.txt`, `/railway.json`, `/nixpacks.toml`, `/Procfile`, `/runtime.txt` | `api/flow_router.py` |
+| `bars-api` | `api/**`, `requirements.txt`, `nixpacks.toml`, `railway.json` | `api/flow_router.py` |
+| `flow-worker` | 23 explicit `api/*.py` files incl. `api/flow_router.py` | `api/flow_router.py` |
+| `chart-renderer` | `[]` | none — **not git-connected**, so it never rebuilds from a push |
+
+⛔ **AN EMPTY watchPatterns LIST IS NOT "WATCHES NOTHING" — IT IS "NO FILTER".** `web`
+carries an empty list and therefore redeploys on **any** master push, including one that
+touches only a test file or a doc.
+
+**The accurate freeze rule:** *any* push to master during RTH is a **full-site bounce**,
+not a flow-worker event. It costs:
+
+- **flow-worker** — the OPRA consumer drops for the 4–7 min container start, and that
+  tape gap is **permanent** until the overnight T+1 flat file. This is the expensive one.
+- **web** — `/api/*` blips for roughly a minute. Observed live on 2026-09-09 at
+  18:14 ET: the roll-gate sampler recorded `HTTPError 502: Bad Gateway` on the capture
+  taken mid-swap, then recovered on the next one.
+- **worker**, **bars-api** — restarted; scheduled jobs and chart-data serving cycle.
+
+So "no deploys between 09:30 and 16:00 ET" is not a flow-worker-specific rule and must
+not be relaxed for a change that "doesn't touch flow-worker files." There is no such
+change: `web` rebuilds on all of them.
+
+---
+
 Filed so they stop riding along in deploy messages. **None of these are actioned.**
 Context: `fix/flow-roll-classifier` (`ec0824dc0`, `3e8eea179`, `184a7e77b`) fixed the
 classifier that left `rolls_steady` permanently empty. Today had **two independent
