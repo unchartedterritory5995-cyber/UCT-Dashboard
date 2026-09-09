@@ -695,3 +695,32 @@ non-fast-forward rejection then means "catch up again", never "force".
 
 ⛔ Held per instruction: **not deployed, not pushed, no R5, no feature work**, and
 `_certify-master-pin` retained at `f139ad8ce`.
+
+## R10 · Addendum — master moved again during Phase 4 (NOT chased)
+
+Recorded immediately after the verdict so this document does not overstate itself.
+By the time the gate finished, `origin/master` was **3 commits past the captured
+tip** (`2d8373449`, `9c998f311`, `a37cd5062`). Per the freeze rule they were
+triaged, **not merged** — none is a security, correctness or data-contract
+emergency.
+
+⭐ **But they are not like the other 47, and the next cycle should expect real
+work.** For the first time in this reconciliation they touch files this branch
+owns:
+
+- `app/src/components/StockChart.module.css` — ours too
+- `app/src/pages/screener/shell/VirtualResults.jsx` — ours too
+- `app/src/pages/screener/shell/ResultCards.jsx`
+- `app/src/components/screener/reachable.test.js` — **the rail this document has
+  attributed three times**; its 18-module list may legitimately change
+
+They also land `app/src/hub/**` — a **gated mobile navigation joystick hub**
+(~40 files, `2d8373449`). That is a new mobile surface arriving beside this
+branch's mobile review workflow, and whether the two interact is a product
+question for the owner, not something to resolve inside a merge.
+
+⇒ **`RELEASE_READY = YES` is asserted at tip `068629ed5`, which is the tip this
+cycle certified.** A push at this moment would be rejected as non-fast-forward
+(behind 3). The next catch-up is a genuine reconciliation with overlap, not the
+zero-contact merge this one turned out to be — and it must never be resolved with
+`--force`.
