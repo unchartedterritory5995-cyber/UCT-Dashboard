@@ -1,4 +1,14 @@
-# Line map — Volume
+# Line map — Volume (TradingView's built-in)
+
+⚠️⚠️ **THIS IS THE BUILT-IN, AND IT MAY NOT BE THE PART 2 TARGET.** When this was written the
+reference target "Volume" was assumed to mean `Volume@tv-basicstudies`. It probably means
+**Uncharted Volume** — a published script by AtTheAsk, the same author as Uncharted Clouds, found
+later in the same Indicators dialog. Both are now captured side by side in sets A–D
+(`clouds-volume-*.csv`), and this page is kept because the built-in is a genuinely useful control:
+it is small, independently understood, and it is what produced the colorer finding in §2.
+
+**A line map for Uncharted Volume is not written yet.** Its twelve plots are captured in all four
+sets and are waiting to be read the way `linemap-clouds.md` reads Clouds.
 
 What every part of TradingView's built-in **Volume** study is, and what our renderer has to
 produce for it. Every number and colour below was **read out of a live chart**, not inferred:
@@ -99,9 +109,14 @@ taken from the Pine v6 colour constants. Two independent routes to the same pair
 
 ## 6. What is not captured yet
 
-- **Screenshots** — full-chart, last-40-bar crop, table/label crops. The capture layout carries
-  another session's probe study in the volume pane, so a screenshot of it would not be a clean
-  reference for Volume. Needs a clean layout.
-- **Sets B, C and D** — NVDA 1D, SPY 1W, SPY 4H. Each needs a symbol or timeframe change on the
-  chart; see `tools/visual_conformance/sets.json`.
-- **The palette state** for `vol_color` (§5).
+- **The palette state** for `vol_color` (§5) — the two histogram hues themselves.
+- **A line map for Uncharted Volume**, the probable real target (see the banner at the top). Its
+  twelve plots are captured in all four sets; nobody has read them yet.
+- **Table / label crops.** The full-chart and 40-bar images exist for every set, but neither of
+  these two studies draws a table or a label, so there was nothing to crop. The first script that
+  does will need them.
+
+⚠️ **Uncharted Volume does not appear in the reference images.** Its pane was allocated **zero
+height** on the capture layout, and pane heights cannot be recomputed while the browser tab is
+`visibilityState: "hidden"` — which it was throughout. The numbers are unaffected (they come from
+the model), and re-shooting with the window foregrounded is all that is needed.

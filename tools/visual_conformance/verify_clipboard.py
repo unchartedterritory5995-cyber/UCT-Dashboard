@@ -24,11 +24,13 @@ Usage
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_ROOT = os.path.join(REPO, "tests", "fixtures", "vendor", "reference")
@@ -52,18 +54,44 @@ def fnv1a(s: str) -> int:
 
 
 def read_clipboard() -> str:
-    """Windows clipboard via PowerShell.
+    """Windows clipboard via PowerShell, routed through a UTF-8 FILE.
 
     ⚠️ `-Raw` matters: without it PowerShell returns an array of lines and rejoins
     them with the host's newline, which changes the length AND the hash.
+
+    ⛔⛔ AND THE CLIPBOARD MUST NOT COME BACK OVER STDOUT. PowerShell encodes its
+    console output as cp1252 on this box, so any character outside that set — an
+    em dash in a note field is enough — arrives as a replacement character. The
+    payload is then the SAME LENGTH with DIFFERENT CONTENT, which is precisely the
+    corruption a length check cannot see. This was caught by the hash, on a real
+    capture, after the length matched.
+
+    So PowerShell writes the clipboard to a temp file with an explicit UTF-8
+    encoder and no BOM, and we read the file.
     """
-    out = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard -Raw"],
-        capture_output=True,
-    )
-    if out.returncode != 0:
-        raise SystemExit(f"Get-Clipboard failed: {out.stderr.decode('utf-8', 'replace')[:400]}")
-    return out.stdout.decode("utf-8", "replace")
+    fd, tmp = tempfile.mkstemp(suffix=".clip.txt")
+    os.close(fd)
+    try:
+        ps = (
+            "$t = Get-Clipboard -Raw; "
+            "if ($null -eq $t) { exit 2 }; "
+            f"[System.IO.File]::WriteAllText('{tmp}', $t, (New-Object System.Text.UTF8Encoding $false))"
+        )
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True,
+        )
+        if out.returncode == 2:
+            raise SystemExit("the clipboard is empty")
+        if out.returncode != 0:
+            raise SystemExit(f"Get-Clipboard failed: {out.stderr.decode('utf-8', 'replace')[:400]}")
+        with open(tmp, encoding="utf-8", newline="") as fh:
+            return fh.read()
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 def main() -> int:
@@ -77,6 +105,7 @@ def main() -> int:
     ap.add_argument("--chars", type=int, required=True, help="length the page reported")
     ap.add_argument("--fnv1a", type=int, required=True, help="hash the page reported")
     ap.add_argument("--json", action="store_true", help="payload is JSON: validate and re-indent")
+    ap.add_argument("--png", action="store_true", help="payload is a data:image/png;base64 URL: decode to .png")
     args = ap.parse_args()
 
     if not SLUG.match(args.set_id) or not SLUG.match(args.name):
@@ -101,8 +130,35 @@ def main() -> int:
 
     out_dir = os.path.join(OUT_ROOT, args.set_id)
     os.makedirs(out_dir, exist_ok=True)
-    ext = "json" if args.json else "csv"
+    ext = "png" if args.png else ("json" if args.json else "csv")
     path = os.path.join(out_dir, f"{args.name}.{ext}")
+
+    if args.png:
+        # ⭐ WHY A SCREENSHOT COMES THROUGH HERE AT ALL. The chart tab is often
+        # `visibilityState: "hidden"` (a background or minimised window), and a
+        # hidden tab never paints — TradingView leaves every canvas at its default
+        # 300x150 backing store, so an extension screenshot is BLANK while the
+        # numbers are perfectly fine, because those come from the model. The fix is
+        # `TradingViewApi.takeClientScreenshot()`, which renders explicitly into a
+        # fresh canvas instead of relying on the paint loop. Its data URL then rides
+        # the same hash-verified clipboard transport as everything else.
+        prefix = "data:image/png;base64,"
+        if not text.startswith(prefix):
+            print("MATCHED the hash but is not a data:image/png;base64 URL. Nothing written.")
+            return 1
+        try:
+            blob = base64.b64decode(text[len(prefix):], validate=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"MATCHED the hash but the base64 will not decode: {exc}. Nothing written.")
+            return 1
+        # PNG magic, checked without escapes so this line cannot be mangled again.
+        if blob[1:4] != b"PNG":
+            print("decoded, but the bytes are not a PNG. Nothing written.")
+            return 1
+        with open(path, "wb") as fh:
+            fh.write(blob)
+        print(f"MATCH -> wrote {os.path.relpath(path, REPO)}  ({len(blob):,} bytes PNG)")
+        return 0
 
     if args.json:
         try:

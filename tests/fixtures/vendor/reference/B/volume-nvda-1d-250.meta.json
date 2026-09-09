@@ -1,0 +1,126 @@
+{
+ "capturedAt": "2026-09-09T08:19:09.682Z",
+ "symbol": {
+  "name": "NVDA",
+  "full_name": "NASDAQ:NVDA",
+  "description": "NVIDIA Corporation",
+  "exchange": "NASDAQ",
+  "type": "stock",
+  "pricescale": 100,
+  "timezone": "America/New_York",
+  "session": "0930-1600"
+ },
+ "resolution": "1D",
+ "barCount": 250,
+ "barRange": {
+  "firstIndex": 50,
+  "lastIndex": 299,
+  "firstTime": 1757511000,
+  "lastTime": 1788874200
+ },
+ "layout": {
+  "url": "https://www.tradingview.com/chart/VEeQHWPh/",
+  "title": "NVDA 225.73 \u25bc \u22122.01% UCT Vendor Capture - CMF-ADL-PVT TEMP"
+ },
+ "chartTheme": {
+  "background": "rgba(255, 255, 255, 1)",
+  "vertGridColor": "rgba(46, 46, 46, 0.06)",
+  "horzGridColor": "rgba(46, 46, 46, 0.06)"
+ },
+ "mainSeriesStyle": {
+  "upColor": "#089981",
+  "downColor": "#F23645"
+ },
+ "study": {
+  "id": "Volume@tv-basicstudies",
+  "title": "Vol (false)",
+  "description": "Volume",
+  "plots": [
+   {
+    "id": "vol",
+    "type": "line",
+    "target": null
+   },
+   {
+    "id": "vol_color",
+    "type": "colorer",
+    "target": "vol"
+   },
+   {
+    "id": "vol_ma",
+    "type": "line",
+    "target": null
+   }
+  ],
+  "styles": {
+   "vol": {
+    "histogramBase": 0,
+    "title": "Volume"
+   },
+   "vol_ma": {
+    "histogramBase": 0,
+    "title": "Volume MA"
+   }
+  },
+  "properties": {
+   "inputs": {
+    "col_prev_close": false,
+    "length": 20
+   },
+   "styles": {
+    "vol": {
+     "display": 4294967295,
+     "linestyle": 0,
+     "linewidth": 1,
+     "plottype": 5,
+     "trackPrice": false,
+     "transparency": 50,
+     "visible": true,
+     "color": "#2962ff",
+     "title": "vol"
+    },
+    "vol_ma": {
+     "color": "#2962ff",
+     "display": 0,
+     "linestyle": 0,
+     "linewidth": 1,
+     "plottype": 0,
+     "trackPrice": false,
+     "transparency": 0,
+     "visible": false,
+     "title": "vol_ma"
+    }
+   },
+   "visible": true,
+   "showLegendValues": true,
+   "showLegendInputs": true,
+   "showLabelsOnPriceScale": true,
+   "precision": "default",
+   "intervalsVisibilities": {
+    "ticks": true,
+    "seconds": true,
+    "secondsFrom": 1,
+    "secondsTo": 59,
+    "minutes": true,
+    "minutesFrom": 1,
+    "minutesTo": 59,
+    "hours": true,
+    "hoursFrom": 1,
+    "hoursTo": 24,
+    "days": true,
+    "daysFrom": 1,
+    "daysTo": 366,
+    "weeks": true,
+    "weeksFrom": 1,
+    "weeksTo": 52,
+    "months": true,
+    "monthsFrom": 1,
+    "monthsTo": 12,
+    "ranges": true
+   },
+   "version": 55
+  }
+ },
+ "note": "vol_color is a colorer palette index: 0 = up bar (close >= open), 1 = down bar. Measured, not assumed \u2014 see docs/pine/linemap-volume.md.",
+ "transport": "staged textarea + real ctrl+c gesture, hash-verified on the shell side"
+}

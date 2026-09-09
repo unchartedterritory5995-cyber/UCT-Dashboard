@@ -6,18 +6,36 @@
  ],
  "targets": [
   {
-   "key": "volume",
-   "studyIdPrefix": "Volume@",
-   "what": "TradingView's built-in Volume study",
-   "why": "A histogram with a colorer plot and a hidden moving average — the smallest thing that exercises per-bar colour selection, a non-price pane, and a plot that carries values while not being drawn."
+   "key": "clouds",
+   "studyId": "Script$PUB;d8c2be5638dc419a8732c4341d84c290@tv-scripting",
+   "what": "'Uncharted Clouds', published by AtTheAsk",
+   "inputs": "EMA Close 9 (fast), EMA Close 20 (slow)",
+   "plots": 45,
+   "why": "21 hidden layer plots that exist only as fill anchors, plus two moving averages and 22 colorer plots. The natural stress case for fills, hidden plots and per-band colour.",
+   "lineMap": "docs/pine/linemap-clouds.md"
   },
   {
-   "key": "clouds",
-   "studyIdPrefix": "Script$USER;",
-   "what": "'Uncharted Clouds' — the firm's own Pine script",
-   "why": "Twenty-one hidden layer plots that exist only as fill anchors, plus two moving averages. It is the script that proved lenient `ok:true` was a lie for a hosting caller, so it is the natural stress case for fills, z-order and hidden-plot handling.",
-   "blocked": "Not present on the capture layout. It lives on the owner's own chart; adding it mutates a saved layout, so it is left for an authorised pass."
+   "key": "uncharted_volume",
+   "studyId": "Script$PUB;d292f8caee584486870c23eacad40...@tv-scripting",
+   "what": "'Uncharted Volume', published by AtTheAsk",
+   "plots": 12,
+   "why": "The other firm-authored reference target.",
+   "lineMap": "NOT WRITTEN YET — the 12 plots are captured in all four sets and have not been read."
+  },
+  {
+   "key": "volume_builtin",
+   "studyId": "Volume@tv-basicstudies",
+   "what": "TradingView's built-in Volume",
+   "plots": 3,
+   "why": "A control, not a target. Small and independently understood, which is why it was the one that exposed the inverted colorer index.",
+   "lineMap": "docs/pine/linemap-volume.md"
   }
+ ],
+ "_target_naming": [
+  "The build order names the targets 'Clouds' and 'Volume'. 'Clouds' is unambiguous. 'Volume'",
+  "was first read as the TradingView built-in and is more likely 'Uncharted Volume' — same author",
+  "as Clouds. Rather than guess, ALL THREE are captured side by side in every set, so whichever",
+  "reading is right, the data is already there."
  ],
  "sets": [
   {
@@ -26,10 +44,11 @@
    "resolution": "1D",
    "bars": 250,
    "why": "The baseline. Daily bars, a liquid symbol, enough history that no plot is inside its warmup.",
-   "status": {
-    "volume": "CAPTURED — tests/fixtures/vendor/reference/A/volume-spy-1d-250.{csv,meta.json}, hash-verified",
-    "clouds": "not captured — see targets[].blocked",
-    "screenshots": "not captured — the capture layout carries another session's probe study, so a screenshot of it is not a clean reference for anything"
+   "artifacts": {
+    "values": "clouds-volume-spy-1d-250.csv (67 columns) + .meta.json",
+    "values_builtin_only": "volume-spy-1d-250.csv + .meta.json",
+    "full": "full-spy-1d-250.png",
+    "crop40": "crop40-spy-1d.png"
    }
   },
   {
@@ -38,7 +57,12 @@
    "resolution": "1D",
    "bars": 250,
    "why": "A second symbol at the same timeframe, so a difference between A and B is about the DATA and never about the timeframe.",
-   "status": { "volume": "not captured", "clouds": "not captured" }
+   "artifacts": {
+    "values": "clouds-volume-nvda-1d-250.csv + .meta.json",
+    "values_builtin_only": "volume-nvda-1d-250.csv + .meta.json",
+    "full": "full-nvda-1d-250.png",
+    "crop40": "crop40-nvda-1d.png"
+   }
   },
   {
    "id": "C",
@@ -46,7 +70,13 @@
    "resolution": "1W",
    "bars": 150,
    "why": "Weekly. Changes bar spacing and the time axis without changing the symbol, which is where x-coordinate and label-collision bugs surface.",
-   "status": { "volume": "not captured", "clouds": "not captured" }
+   "artifacts": {
+    "values": "clouds-volume-spy-1w-150.csv + .meta.json",
+    "values_builtin_only": "volume-spy-1w-150.csv + .meta.json",
+    "full": "full-spy-1w-150.png",
+    "crop40": "crop40-spy-1w.png"
+   },
+   "note": "The final weekly bar equals set A's final daily bar exactly. That is correct: 2026-09-07 was Labor Day, so the week beginning then holds a single session so far."
   },
   {
    "id": "D",
@@ -54,7 +84,22 @@
    "resolution": "240",
    "bars": 300,
    "why": "Intraday 4H. Sessions, gaps and a non-continuous time axis — the case where a renderer that assumes evenly spaced bars finally breaks.",
-   "status": { "volume": "not captured", "clouds": "not captured" }
+   "artifacts": {
+    "values": "clouds-volume-spy-4h-300.csv + .meta.json",
+    "values_builtin_only": "volume-spy-4h-300.csv + .meta.json",
+    "full": "full-spy-4h-300.png",
+    "crop40": "crop40-spy-4h.png"
+   },
+   "note": "Five distinct gaps between consecutive bars in one 300-bar window: 14400s (the 4h step), 72000s (overnight), 244800s (a weekend), 331200s (a holiday weekend) and 241200s (a weekend exactly one hour short — a DST transition). This is the set that earns its place."
   }
+ ],
+ "_outstanding": [
+  "Uncharted Volume does not appear in any reference IMAGE. Its pane was allocated zero height on",
+  "the capture layout, and TradingView cannot recompute pane heights while the tab is",
+  "visibilityState:'hidden' — which it was for the whole session. The VALUES are unaffected",
+  "because they are read from the chart model, not from pixels. Re-shoot with the browser window",
+  "foregrounded and the images are complete.",
+  "No table or label crops exist because neither target draws a table or a label.",
+  "The built-in Volume's per-index palette (the two histogram hues) was not captured."
  ]
 }
