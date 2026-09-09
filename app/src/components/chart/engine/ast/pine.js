@@ -919,6 +919,41 @@ export const BUILTIN_CALENDAR_TREE = Object.freeze({
   'dayofweek.saturday': () => cNum(7),
 })
 
+/** ⭐⭐ `timeframe.<predicate>` — A NAMESPACED ALIAS ONTO A COLUMN THE TABLE
+ *  ALREADY DECLARES, which makes it a THIRD kind of dotted name and not a
+ *  variation on the two above.
+ *
+ *  `BUILTIN_CONSTANT_TREE` folds a name to a CONSTANT because of how this engine
+ *  evaluates. `BUILTIN_CALENDAR_TREE` folds one to a CONSTANT because of what a
+ *  calendar is. These fold to NOTHING — they resolve to the clock series the
+ *  manifest already ships, so the value is decided per bar by the engine exactly
+ *  as the bare spelling is. There is no judgement in this map and no new
+ *  capability behind it; the gap was purely that the Pine door never mapped the
+ *  dotted spelling.
+ *
+ *  ⭐ THE MEANING IS THE MANIFEST'S, WORD FOR WORD. `closedTable.json::clock
+ *  .isdaily` reads *"1 when the chart's timeframe is daily, otherwise 0"*, which
+ *  is `timeframe.isdaily`'s definition. Vendor-witnessed on the daily row:
+ *  `isdaily 1 / isweekly 0 / ismonthly 0` on a 1D SPY chart, 2026-09-08.
+ *  ⚠️ THE **TRUE** CASE OF `isweekly`/`ismonthly` IS NOT OBSERVED — the capture
+ *  was taken on a 1D chart. What is witnessed is that the predicates read off the
+ *  chart's own declared timeframe, which this engine already holds; the untested
+ *  half is recorded in the fixture's own `_coverage` block rather than papered
+ *  over here.
+ *
+ *  ⛔ EACH VALUE IS A DECLARED CLOCK NAME AND A RAIL ASSERTS IT, in both
+ *  directions: no alias may point at a column the manifest does not declare, and
+ *  no clock predicate may ship WITHOUT an alias — which is the direction that
+ *  actually rots, because adding `clock.isseconds` and forgetting this map is
+ *  invisible until a member pastes a script.
+ */
+export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
+  'timeframe.isdaily': 'isdaily',
+  'timeframe.isweekly': 'isweekly',
+  'timeframe.ismonthly': 'ismonthly',
+  'timeframe.isintraday': 'isintraday',
+})
+
 /** The look-alikes of the four above — REFUSED, and refused with the reason.
  *
  *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE. "This engine has
@@ -5025,6 +5060,14 @@ export class Resolver {
         return BUILTIN_CONSTANT_TREE[name]()
       }
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
+      // ⭐ THE DOTTED SPELLING OF A COLUMN THIS ENGINE ALREADY HAS. No fold, no
+      // constant — it becomes the same `series` node the bare name does, so both
+      // contracts serve it and both lanes evaluate it identically. This is the
+      // repair `dayofweek.friday` got on 2026-08-27, one namespace over: the bare
+      // lane was swept when the clock landed and the dotted lane was not.
+      if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
+        return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
+      }
       // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
       // shrug — the same precedence `_functions_excluded` takes over the
       // sixty-four-name dump one layer down.
