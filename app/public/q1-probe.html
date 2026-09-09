@@ -443,8 +443,7 @@
       'VC_WITH:' + ((vc.withHandler || {}).upgraded === true ? (vc.withHandler.ms + 'ms') : 'FAIL'),
       'VC_WITHOUT:' + ((vc.withoutHandler || {}).upgraded === false ? 'blocked' : 'upgraded'),
       'CARRY:' + b((r.carryover || {}).found)
-    ].join('  ') + '
-=> ' + (v.classification || '?');
+    ].join('  ') + String.fromCharCode(10) + '=> ' + (v.classification || '?');
   }
 
   function render(result) {
