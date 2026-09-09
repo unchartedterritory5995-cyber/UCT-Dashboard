@@ -11,17 +11,59 @@
       "resolution": "1D",
       "sessionState": "pre-open, 32 minutes before the 09:30 ET open",
       "bars": 400,
-      "cols": ["barTimeET", "isconfirmed", "islast", "ishistory"],
+      "cols": [
+        "barTimeET",
+        "isconfirmed",
+        "islast",
+        "ishistory"
+      ],
       "tail": [
-        ["2026-09-01 09:30:00", 1, 0, 1],
-        ["2026-09-02 09:30:00", 1, 0, 1],
-        ["2026-09-03 09:30:00", 1, 0, 1],
-        ["2026-09-04 09:30:00", 1, 0, 1],
-        ["2026-09-08 09:30:00", 1, 1, 1]
+        [
+          "2026-09-01 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-02 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-03 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-04 09:30:00",
+          1,
+          0,
+          1
+        ],
+        [
+          "2026-09-08 09:30:00",
+          1,
+          1,
+          1
+        ]
       ],
       "alsoSampled": [
-        {"i": 0, "barTimeET": "2025-02-04 09:30:00", "isconfirmed": 1, "islast": 0, "ishistory": 1},
-        {"i": 200, "barTimeET": "2025-11-19 09:30:00", "isconfirmed": 1, "islast": 0, "ishistory": 1}
+        {
+          "i": 0,
+          "barTimeET": "2025-02-04 09:30:00",
+          "isconfirmed": 1,
+          "islast": 0,
+          "ishistory": 1
+        },
+        {
+          "i": 200,
+          "barTimeET": "2025-11-19 09:30:00",
+          "isconfirmed": 1,
+          "islast": 0,
+          "ishistory": 1
+        }
       ],
       "_ruling": "BEFORE THE SESSION OPENS THERE IS NO REALTIME BAR AT ALL. The newest bar is YESTERDAY's (2026-09-08) and it carries isconfirmed=1, islast=1 and ishistory=1 SIMULTANEOUSLY. So `islast` does not imply 'forming', and `ishistory` does not imply 'not the last bar' — a fold that treats either as the other's negation is wrong for the whole pre-open window, which is when a screener actually runs.",
       "_note_no_bar_for_today": "There is no 2026-09-09 bar at 08:58 ET. The daily bar is created at the open, which is what makes the 09:30 transition observable."
@@ -36,5 +78,71 @@
     "str.length(syminfo.tickerid)": 8,
     "_reading": "ticker='SPY' (3). tickerid is 8 = 4+1+3, consistent with 'AMEX:SPY' — an exchange prefix, a colon, then the ticker. The chart model independently reports the symbol string as 'AMEX:SPY'.",
     "_caveat": "INFERRED, NOT ENUMERATED. This says what SPY's tickerid looks like; it does NOT enumerate what TradingView can emit. A bind-time fold over tickerid must be a whitelist of measured prefixes that REFUSES what it has not seen."
+  },
+  "tickerid_shape_five_symbols": {
+    "_what": "Volume line 222's OWN predicates, read across five instrument classes",
+    "_line222": "str.contains(syminfo.ticker, \"/\") or str.contains(syminfo.tickerid, \"/\")",
+    "_how": "The existing UCTPROBE_NS already plots exactly these (N17-N20). Only the SYMBOL was changed; no study was added. Chart restored to AMEX:SPY 1D.",
+    "capturedAtET": "2026-09-09 09:09:14",
+    "cols": [
+      "requested",
+      "resolved",
+      "ticker_slash",
+      "tickerid_slash",
+      "ticker_len",
+      "tickerid_len",
+      "prefix_len_derived"
+    ],
+    "rows": [
+      [
+        "AMEX:SPY",
+        "AMEX:SPY",
+        0,
+        0,
+        3,
+        8,
+        4
+      ],
+      [
+        "NASDAQ:AAPL",
+        "NASDAQ:AAPL",
+        0,
+        0,
+        4,
+        11,
+        6
+      ],
+      [
+        "FX:EURUSD",
+        "FX:EURUSD",
+        0,
+        0,
+        6,
+        9,
+        2
+      ],
+      [
+        "BITSTAMP:BTCUSD",
+        "BITSTAMP:BTCUSD",
+        0,
+        0,
+        6,
+        15,
+        8
+      ],
+      [
+        "SP:SPX",
+        "SP_DLY:SPX",
+        0,
+        0,
+        3,
+        10,
+        6
+      ]
+    ],
+    "_prefix_derivation": "prefix_len = tickerid_len - ticker_len - 1, which recovers AMEX(4), NASDAQ(6), FX(2), BITSTAMP(8), SP_DLY(6) exactly. The colon is confirmed present by the arithmetic closing on every row.",
+    "_ruling_1_no_slash_anywhere": "str.contains(...,'/') is FALSE on all five, INCLUDING forex (EURUSD) and crypto (BTCUSD). So on these feeds Volume line 222 folds to FALSE. ⛔ It does NOT follow that it is always false — other exchanges spell pairs with a separator. The fold must be a whitelist of measured feeds that REFUSES an unmeasured one, never a blanket false.",
+    "_ruling_2_the_vendor_rewrites_the_prefix": "⛔⛔ THE TRAP. 'SP:SPX' was requested and the vendor resolved it to 'SP_DLY:SPX' — confirmed independently by tickerid_len=10 (6+1+3), not merely by the symbol string. So THE TICKERID IS NOT THE TEXT THE MEMBER TYPED. A bind-time fold keyed on an exchange prefix cannot use the requested prefix; it must use the RESOLVED one, which is only knowable at bind time. A whitelist doing exact-prefix comparison against 'SP' would miss; str.contains('SP') happens to still match inside 'SP_DLY' — which is worse, because it makes the wrong design look correct on this one example.",
+    "_caveat": "INFERRED, NOT ENUMERATED. Five symbols on five feeds. This says nothing about what other exchanges emit."
   }
 }
