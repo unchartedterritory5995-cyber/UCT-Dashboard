@@ -1818,6 +1818,35 @@ _PHASE_2_ALTERS = [
     #   web_reference — title + URL + domain only. No body text at all.
     #   web_passage   — the passages the member selected, and nothing else.
     "ALTER TABLE j2_note_documents ADD COLUMN capture_type TEXT NOT NULL DEFAULT 'pdf_full_text'",
+    # ── Phase 2a — joystick hub planned trades ────────────────────────────
+    #
+    # The hub's "plan a trade" surface writes here. It is deliberately NOT a
+    # `j2_` table and NOT part of `_J2_SCHEMA`: a planned trade is a hub
+    # artifact that MAY later become a `j2_positions` row, and folding it into
+    # the Journal's own schema would make "did the member journal this?"
+    # ambiguous. Same DB and same ALTER-list idiom, separate namespace.
+    #
+    # ⛔ NOTHING WRITES HERE YET. Phase 2a is the backend only; no client is
+    # wired to it, which is why there is no `converted` transition in this
+    # release — `status` accepts it so the column never needs a migration when
+    # Phase 3 adds the conversion, and until then only 'planned' and
+    # 'discarded' are reachable.
+    """CREATE TABLE IF NOT EXISTS hub_planned_trades (
+        id           TEXT PRIMARY KEY,
+        user_id      TEXT NOT NULL,
+        symbol       TEXT NOT NULL,
+        entry        NUMERIC NOT NULL,
+        stop         NUMERIC NOT NULL,
+        size         NUMERIC NOT NULL,
+        r_value      NUMERIC,
+        source_mode  TEXT,
+        status       TEXT NOT NULL DEFAULT 'planned'
+                     CHECK (status IN ('planned','converted','discarded')),
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_hub_planned_trades_user_created "
+    "ON hub_planned_trades(user_id, created_at DESC)",
 ]
 
 

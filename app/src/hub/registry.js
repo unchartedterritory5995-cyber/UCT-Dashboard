@@ -492,7 +492,33 @@ export const modesById = Object.fromEntries(modes.map((m) => [m.id, m]));
  * branch and needs every fan above intact, so the preview narrows what is SHOWN rather than
  * deleting what is DEFINED. Flip this to `false` when Phase 3 wires the section actions.
  */
-export const PREVIEW = true;
+/**
+ * Which modes are still showing the PREVIEW fan rather than their real one.
+ *
+ * ⛔ PER-MODE, NOT ONE GLOBAL BOOLEAN. Phase 3 ships section by section (Wire, then Breadth,
+ * then Screener, …), and a single `PREVIEW` flag would force all nine to flip together —
+ * which would mean either shipping unfinished sections or holding finished ones back. Each
+ * section leaves this set in its own increment; the set empties when Phase 3 completes.
+ *
+ * ⭐ A SET OF MODE IDS, so "is this mode still preview?" is one lookup and the remaining work
+ * is readable at a glance rather than inferred from a boolean plus a comment.
+ */
+export const PREVIEW_MODES = new Set([
+  'wire', 'breadth', 'scan', 'chart', 'journal', 'catalysts', 'notebook', 'calendar',
+  'home', 'flow',
+]);
+
+/** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */
+export const PREVIEW = PREVIEW_MODES.size > 0;
+
+/**
+ * ⛔ EVERY MODE MUST BE ACCOUNTED FOR. A mode missing from this set silently returns its FULL
+ * fan — which is how `calendar` shipped a five-action fan into a navigation-only preview on the
+ * first attempt, caught only by `validatePreview`. `registry.test.js` asserts set membership
+ * against `modes` so a mode added later cannot quietly default to "already shipped".
+ */
+/** Is this specific mode still showing its preview fan? */
+export const isPreviewMode = (modeId) => PREVIEW_MODES.has(modeId);
 
 /**
  * Home's preview fan (owner ruling, 2026-09-09).
@@ -533,7 +559,7 @@ const PREVIEW_HOME = [
  */
 export function fanFor(mode) {
   if (!mode) return [];
-  if (!PREVIEW) return mode.fan;
+  if (!isPreviewMode(mode.id)) return mode.fan;
   if (mode.id === HOME_MODE_ID) {
     const byId = Object.fromEntries(mode.fan.map((a) => [a.id, a]));
     return PREVIEW_HOME
@@ -554,9 +580,9 @@ export function fanFor(mode) {
  * @returns {string[]} problems; empty means valid.
  */
 export function validatePreview(list = modes) {
-  if (!PREVIEW) return [];
   const problems = [];
   for (const mode of list) {
+    if (!isPreviewMode(mode.id)) continue;
     for (const action of fanFor(mode)) {
       if (action.kind === 'run' && !action.id.endsWith('.voice')) {
         problems.push(

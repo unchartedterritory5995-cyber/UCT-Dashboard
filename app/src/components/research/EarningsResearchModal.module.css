@@ -58,6 +58,11 @@
    matches the default.) */
 .modal,
 .sheet {
+  /* ⭐ Declares this block an island to `styles/themeIslands.test.js`, which derives the
+     required token set from tokens.css every run and fails BY NAME when a newly themed token
+     is missing here. PR #100 added three --hub-* glass tokens with [data-theme] variants and
+     did not pin them; that is what this marker exists to make impossible to repeat. */
+  --theme-island: earnings-research-modal;
   --bg: #101012;
   --bg-elevated: #1d1f23;
   --bg-hover: #24262b;
@@ -73,6 +78,9 @@
   --glass-surface: rgba(34, 37, 30, 0.55);
   --header-line: rgba(255, 255, 255, 0.11);
   --header-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+  --hub-glass-tint: color-mix(in srgb, var(--text-heading) 8%, transparent);
+  --hub-glass-tint-strong: color-mix(in srgb, var(--text-heading) 20%, transparent);
+  --hub-rim: color-mix(in srgb, var(--text-heading) 18%, transparent);
   --ind-warn: #ff8100;
   --ind-warn-bg: #ff810015;
   --ind-warn-border: #ff810035;
