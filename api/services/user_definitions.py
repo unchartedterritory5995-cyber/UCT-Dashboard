@@ -263,17 +263,55 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+#: Columns added after the first release, as ``(table, column, DDL type + default)``.
+#:
+#: ⛔⛔ SQLite HAS NO `ADD COLUMN IF NOT EXISTS`, so idempotence is this list plus
+#: the `PRAGMA table_info` check in `_migrate`. Running the migration twice must
+#: be a no-op — a deploy re-runs `_init_db` on every boot.
+#:
+#: ⚠️ `requirements` DEFAULTS TO `'[]'` AND THAT BACKFILL IS PROVABLE, NOT
+#: ASSUMED. The only tag that exists is `window_dependent`, set by `ta.cum`, and
+#: `translatePine` refuses `ta.cum` in BOTH modes today — so no stored definition
+#: can carry it and an empty list is the true value for every existing row. If a
+#: future tag is added whose builtin was already callable, that tag needs a
+#: BACKFILL PASS over stored rows, not a default: the safe direction here is more
+#: tags, and a default of `'[]'` would silently under-tag history.
+_ADDED_COLUMNS = (
+    ("user_definitions", "requirements", "TEXT NOT NULL DEFAULT '[]'"),
+)
+
+
+def _migrate(c: sqlite3.Connection) -> list:
+    """Add any column this build expects and an older database lacks.
+
+    Idempotent: reads `PRAGMA table_info` first, so a second run does nothing.
+    Returns the list of `"table.column"` strings it actually added.
+    """
+    added = []
+    for table, column, ddl in _ADDED_COLUMNS:
+        have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+        if not have:
+            continue                      # table not created yet; _SCHEMA makes it
+        if column in have:
+            continue
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        added.append(f"{table}.{column}")
+    return added
+
+
 def _init_db() -> None:
     parent = os.path.dirname(_DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
+        _migrate(c)
         c.commit()
 
 
 def _ensure(c: sqlite3.Connection) -> None:
     c.executescript(_SCHEMA)
+    _migrate(c)
 
 
 # ─── the hash that decides a rev bump ────────────────────────────────────────
