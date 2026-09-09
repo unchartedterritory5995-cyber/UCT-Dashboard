@@ -45,7 +45,42 @@ least sent a baseline.
 
 ---
 
-## Root cause — ⛔ NOT ESTABLISHED, AND I WILL NOT GUESS IT
+## ✅ ROOT CAUSE — ESTABLISHED AND FIXED, 2026-09-09 (`4fef130d9`)
+
+**The trigger is a construction, not a fetch.** TipTap's `onUpdate` is not "the
+member typed"; it is "the document changed", and a document changes with no
+member the moment an editor is built with an EMPTY doc. `{type:'doc',content:[]}`
+violates the schema's `block+`, so ProseMirror appends a repair transaction that
+inserts an empty paragraph — **synchronously, inside `new Editor(...)`**. Measured
+both directions: an editor built with content emits ZERO updates; one built empty
+emits exactly one, and `getJSON()` is then `{doc,[paragraph]}`.
+
+`useEditor` is keyed on `[note?.id]`, so it **rebuilds** when the note arrives —
+and rebuilds **empty** whenever the server's copy of that note is empty. The
+server sends `{doc,content:[]}` (not null) for a blank body, which is exactly a
+note typed into and reloaded before its PUT landed. That rebuild happens inside
+`useEditor`'s own effect, ahead of the effects that mark the note loaded, so
+`scheduleAutosave` ran against pre-load refs.
+
+**Why both earlier reproductions failed, explained rather than excused:** each
+used a note that HAD a body. With a body, the rebuilt editor is constructed with
+real content and emits nothing at all. The empty server copy is the whole
+condition, and neither attempt varied it. A slow fetch on its own also writes
+nothing — tested, and it is not the mechanism.
+
+**Rail:** `NoteEditorPage.slowload.test.jsx`. Fix: a `hydratedRef` gate on
+`scheduleAutosave`, `EMIT_NOTHING` at all four `setContent` sites (the v2
+`emitUpdate` convention is dead in v3 and had been silently emitting), and a
+drain that refuses any baseline-less entry.
+
+⛔ **One field is still NOT explained, and is not claimed:** `baseUpdatedAt:
+null`. The reproduction carries the note's real baseline, and `j2_notes.updated_at`
+is `NOT NULL`, so a loaded note cannot produce a null one. Every other field of
+the artifact matches. The drain-side refusal is what makes that residue harmless.
+
+---
+
+## Root cause — as first recorded: ⛔ NOT ESTABLISHED (superseded above)
 
 I had a mechanism written here and then failed to reproduce it. It is removed
 rather than left standing, because a root cause nobody can demonstrate is a
@@ -97,7 +132,7 @@ own merits.
 
 ---
 
-## The fix, as diagnosed — NOT implemented
+## The fix, as diagnosed — ✅ IMPLEMENTED 2026-09-09 (`4fef130d9`), steps 0-3
 
 ⛔ Recorded, not built. §29 says a red activation stops for a decision.
 

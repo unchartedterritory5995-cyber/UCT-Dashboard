@@ -1,28 +1,77 @@
 # Wave Q1 — RESUME HERE
 
-**Written 2026-09-09 before a machine restart.** Everything below is committed
-and pushed; nothing is held in a session, a browser tab, or a running process.
+**Written 2026-09-09 before a machine restart. UPDATED 2026-09-09 after the
+defect was reproduced and fixed (`4fef130d9`, branch pushed, NOT on master).**
+Everything below is committed; nothing is held in a session, a browser tab, or a
+running process.
 
 ---
 
-## The one decision waiting for you
+## ✅ THE DEFECT IS REPRODUCED AND FIXED — the decision has moved
 
-**Do we flip `OFFLINE_DEFAULT_ON` to `true` now, or fix the empty-snapshot
-defect first?**
+The empty-snapshot defect is no longer a hypothesis. It reproduces
+deterministically, the fix is in, and every rail is mutation-proved. **What is
+still yours is the activation itself.**
 
-The last directive (§18/§24) says activation is blocked *only* on harness
-integrity, and harness integrity is now **green**. But the activation canary that
-went red on 2026-09-09 was a **different** defect, against production, untouched
-by the harness work — and its root cause is still unknown.
+**The trigger, measured.** TipTap's `onUpdate` is not "the member typed" — it is
+"the document changed", and a document changes with no member the moment an
+editor is constructed with an EMPTY doc: `{type:'doc',content:[]}` violates the
+schema's `block+`, so ProseMirror appends a repair transaction inserting an empty
+paragraph, **synchronously, inside `new Editor(...)`**. Measured both ways: an
+editor built with content emits ZERO updates, one built empty emits exactly one,
+and `getJSON()` is then `{doc,[paragraph]}` — the canary's body, exactly.
 
-- **Flip now** → members get offline Notebook editing, and are exposed to a path
-  that can queue a note write with `baseUpdatedAt: null`, i.e. a PUT with **no
-  compare-and-set**. On a note with real prose that replaces it with an empty
-  document.
-- **Fix first** (my recommendation) → build the note-load reproduction, fix, then
-  run the §15 canary again and activate.
+`useEditor` is keyed on `[note?.id]`, so it **rebuilds** when the note arrives —
+and rebuilds **empty** whenever the server's copy of that note is empty. That is
+precisely a note typed into and reloaded before its PUT landed: the server still
+holds `{title:"", subtitle:"", bodyJson:{doc,[]}}`. The rebuild runs inside
+`useEditor`'s own effect, ahead of the effects that mark the note loaded, so the
+autosave path ran with pre-load refs and wrote an empty note to all three layers.
 
-⛔ **I have not flipped it.** Production is dark and verified.
+⛔ **One field is NOT reproduced and is not claimed:** the canary's
+`baseUpdatedAt: null`. The reproduction carries the note's real baseline; every
+other field matches. `j2_notes.updated_at` is `NOT NULL`, so a loaded note cannot
+yield a null baseline — which means the write-up's "scheduled before the note
+finished loading" reading explains the empty CONTENT but not that field. **The
+trigger class is settled. That one field is still open**, and the drain-side
+refusal below is what makes it harmless either way.
+
+**Fixed in `4fef130d9`:**
+
+1. **`hydratedRef` gates `scheduleAutosave`** before it touches the status, the
+   draft, the durable copy or the save timer — the one place that can tell "the
+   document changed because a person changed it" from "…because it was
+   constructed". Also closes the long-standing empty-`localStorage`-draft bug
+   that predates Wave Q1.
+2. **`setContent(body, false)` STOPPED SUPPRESSING `onUpdate` AT TIPTAP v3** and
+   said nothing. In v2 the second argument WAS `emitUpdate`; in v3 it is an
+   options object destructured as `{ emitUpdate = true, … } = {}`, so a bare
+   `false` leaves it **true**. Four call sites carried comments asserting
+   suppression; three of them are where this page puts the CANONICAL copy on
+   screen (note load, draft restore, conflict reconcile), so each had been
+   autosaving content the server had just handed us. All four now pass the named
+   `EMIT_NOTHING`.
+3. **The drain refuses a baseline-less entry** — blocked, not deleted, not
+   retried, the same posture as `permanent`. Defence in depth, and the reason the
+   unexplained `null` above is no longer dangerous.
+
+**Rails:** `NoteEditorPage.slowload.test.jsx` (the reproduction, with a slow
+fetch the test controls) · `setContentEmitsUpdate.test.js` (the TipTap contract
+AND a source sweep) · four new `outboxDrain` rails. Three mutations run, each
+red, controls green.
+
+⛔ **`OFFLINE_DEFAULT_ON` is untouched and still `false`.** Production is dark
+and verified.
+
+## The one decision still waiting for you
+
+**Run the §15 canary again and activate?** The defect that stopped the last
+attempt is fixed and railed; the harness gate is closed; the §32 matrix is green.
+What has NOT happened is a fresh canary against production with the fix
+deployed — and this branch is not on `master`, so nothing has shipped.
+
+Sequence, unchanged from below: deploy the fix (branch → master) → §15 happy path
+→ §15 conflict path → then, separately, the one-line flip.
 
 ---
 
@@ -34,12 +83,15 @@ by the harness work — and its root cause is still unknown.
 | `OFFLINE_DEFAULT_ON` | **`false`** (verified on master and on the deployed artifact) |
 | §32 browser matrix | **complete and green**, incl. Safari on two real iPhones |
 | Activation | attempted 16:05 UTC, **rolled back 16:20 UTC** — canary red |
+| The canary defect | **reproduced, fixed, mutation-proved** (`4fef130d9`) |
+| That fix | **on the branch, NOT on master** — it has not deployed |
 | Harness integrity | **green** — identity, ports, controls, mutation-proved |
 | Q2 | **locked** |
 | Service worker | untouched, and stays untouched |
 
-Last Wave Q commit: **`bd3259aff`**. Branch `notebook-primary-platform`, worktree
-`C:\Users\Patrick\uct-worktrees\notebook-primary-platform`.
+Last Wave Q commit: **`4fef130d9`** (pushed to `origin/notebook-primary-platform`;
+`origin/master` is still at `78ac8016b`). Branch `notebook-primary-platform`,
+worktree `C:\Users\Patrick\uct-worktrees\notebook-primary-platform`.
 
 Production check, any time:
 
@@ -58,7 +110,14 @@ const q = await navigator.locks.query()
 
 ---
 
-## The open defect, in full
+## The open defect, in full — ✅ NOW REPRODUCED AND FIXED (`4fef130d9`)
+
+> Everything below is the state as first written, kept because it is the record
+> of what was known before the reproduction. Read the section at the top for what
+> it turned out to be. The leading hypothesis recorded here — a slow fetch
+> widening the empty-editor window — was **tested and is not the mechanism**: a
+> slow fetch alone writes nothing. The mechanism is the editor REBUILD when the
+> note arrives, and it only fires when the server's copy of that note is empty.
 
 **Symptom.** During the §15 canary, after a reload of a note that had unsynced
 work, all three local layers held an **empty note**, and the outbox queued that
@@ -104,7 +163,13 @@ Full write-up: `wave-q1-activation-canary-red.md`.
 
 ---
 
-## If the answer is "fix it"
+## If the answer is "fix it" — ✅ DONE, steps 1-4 (`4fef130d9`)
+
+> Step 1 (reproduce first) was honoured: `NoteEditorPage.slowload.test.jsx`
+> drives the real page with a note fetch that resolves on a timer the test
+> controls, and the fix landed only after the artifact was on screen. Steps 2, 3
+> and 4 are in. **Step 5 — the §15 canary, then activation — is what remains,
+> and it needs the fix deployed first.**
 
 1. **Reproduce first.** A harness that delays the `useJ2Note` fetch (or a
    Playwright route-interception delaying `GET /api/j2/notes/{id}`) so the
@@ -139,9 +204,19 @@ the seven-day observation in `wave-q1-observation-window.md`.
   to the hub sandbox** (`scripts/hub_sandbox_boot.py`, another workstream) — it
   will not survive the restart, and restarting it is *their* call, not ours.
 - ⛔ **`vitest` must run from `app/`.** Backend tests from the repo root.
-- ⛔ **`reachable.test.js` is RED on master** for 19 modules under
-  `pages/community`, `floor2` and friends — inherited from the `/community`
-  redesign swap. Routed, not ours, and repo-green must not be claimed.
+- ⛔ **EIGHT files fail the full frontend suite on master, and none are ours.**
+  Measured 2026-09-09: `screener/reachable.test.js` (19 modules under
+  `pages/community`, `floor2`) · `__tests__/sourcesAreText.test.js`
+  (`optionsFlow/wiring.guard.test.js`, a `0x08` byte) · `styles/tapFloor.test.js`
+  (`notebook/CaptureDialog.module.css`, last touched by Wave L) ·
+  `hooks/pollingSites.rail.test.js` · `chart/engine/ast/manifestProse.test.js`
+  (`_session`) · `chart/engine/ast/pine.*` · `ThemeTrackerPage.chartmount.test.jsx`
+  · one more under `components/chart/`. **Repo-green must never be claimed.**
+  ⛔ Answer "did my change cause this?" with `git show <sha>:<file>`, never
+  `git status` — the tapFloor offender sits inside `journal-2-0` and is still not
+  ours. `journal-2-0` alone: 227 files / 2365 tests green.
+- ⛔ **A rail can be green alone and red in company.** Both new rail files were
+  re-checked inside the full 1,171-file run, not just on their own.
 - ⛔ Deploys take 5–12 minutes and `master` **is** production. Verify by the
   artifact (`/api/health` uptime reset), never by the source default.
 
