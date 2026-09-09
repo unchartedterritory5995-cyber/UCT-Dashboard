@@ -1803,6 +1803,24 @@ const barAroonDown = (bars, args) => aroonCol(bars, args[0], 'l', false)
  *  ⛔ THE RATIO GOES THROUGH THE SAME SEAM THE OPERATOR PATH USES (IEEE division,
  *  then the finite-or-NaN collapse), so a zero-range bar answers exactly what
  *  `sma((close - open) / (high - low), n)` answers rather than nearly. */
+/** `bop(n)` — the n-bar mean of `(close - open) / (high - low)`.
+ *
+ *  ⛔⛔ IT PROPAGATES AN `na` WHILE `FINITE_WINDOW.sma.na` IS `NA.SKIP`, so the
+ *  declared `bop(n)` and the hand-written `sma((c - o) / (h - l), n)` DIVERGE on
+ *  exactly the bars where `high === low` — a halt, a limit lock, a one-tick
+ *  session. The declared one holes; the composition drops the bar and averages
+ *  the rest.
+ *
+ *  ⛔ THE HOLE IS THE ONE TO KEEP. `1/0` is `+Infinity`, the comparison path
+ *  treats it as a real number above every threshold, and BOP is bounded -1..+1 —
+ *  so `bop(n) > 0` on an uncomputable bar prints this indicator's strongest
+ *  reading. Matching sma's skip would restore that defect, measured: it turned
+ *  two red tests into four.
+ *
+ *  ⚠️ The divergence is narrow and deliberate, and it exists because a vendor
+ *  measurement (sma -> SKIP, 2026-09-08) moved under a composition claim written
+ *  before it. Mirrored in `ast_interpret._fn_bop`, which carries the full note.
+ */
 function barBop(bars, args) {
   const n = args[0]
   const ratio = new Float64Array(bars.length)
@@ -1811,7 +1829,7 @@ function barBop(bars, args) {
     const r = (b.c - b.o) / (b.h - b.l)
     ratio[i] = Number.isFinite(r) ? r : NaN
   }
-  const col = rolling(ratio, n, windowMean)
+  const col = rolling(ratio, n, windowMean)        // NA.PROPAGATE — see above
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
     out[i] = { time: bars[i] ? bars[i].t : i, value: col[i] }

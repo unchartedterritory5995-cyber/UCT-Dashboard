@@ -10,21 +10,33 @@ IS the deploy. There is no staging step between that push and members.
 
 ## 0. The thing to know before anything else
 
-> **This branch is 143 commits ahead of `master` and 97 commits behind it.**
-> Merge base: `12cf5c8d3` (Fri 4 Sep). **Nothing in the indicator ecosystem
-> program has ever been deployed** — not Waves A–C, not C0–C4, not the Pine
-> runtime, not this week's corrections.
+> **Nothing in the indicator ecosystem program has ever been deployed** — not
+> Waves A–C, not C0–C4, not the Pine runtime, not this week's corrections.
+> Merge base with master: `12cf5c8d3` (Fri 4 Sep).
 
-Two consequences, and they are the whole reason this document leads with them:
+**The program ships as ONE UNIT — owner ruling, 2026-09-09.** Cherry-picking a
+subset is off the table, so "deploy the wave" is not an option that exists: the
+smallest thing that can reach master is the whole branch.
 
-1. **"Deploy the wave" is not available as an option.** The smallest thing that
-   can reach master from here is the 143-commit program. If only part of it is
-   wanted, that is a cherry-pick onto a fresh branch off `master`, and it is a
-   separate piece of work with its own testing.
-2. **`master` has moved 97 commits under us** — other sessions' Terminal, Buzz,
-   breadth-drill and flow work. Those must be merged in and the whole suite
-   re-run *before* any push. A merge this size can conflict, and one of the
-   conflicts is known dangerous (see §4).
+⚰️ **A NUMBER IN THIS SECTION WAS WRONG AND THE REASON IS WORTH KEEPING.** It
+first read *"97 commits behind"*, measured against the LOCAL `master` ref — which
+was itself **591 commits behind `origin/master`**. The true divergence at the
+first merge was **144 ahead, 688 behind**. A local branch ref is a snapshot of
+the last fetch, not a fact about the remote; measure against `origin/master`, and
+`git fetch` first.
+
+### Merge debt is paid down continuously, not at the end
+
+Owner ruling, 2026-09-09: **merge `origin/master` into this branch at least once
+a week, and after any large master push**, so the final deploy is a small delta
+rather than hundreds of commits of untested integration. Each merge is its own
+commit carrying a summary of what conflicted and what was resolved. **If a master
+change collides with the engine or the manifest in a way that needs a decision,
+stop and ask** — do not resolve an engine conflict on your own judgement.
+
+| Date | Ahead | Behind | Conflicts | Notes |
+|------|-------|--------|-----------|-------|
+| 2026-09-09 | 144 | 688 | `.gitignore` only | Master never touched `app/src/components/chart/engine/**`, the manifest, `user_definitions.py`, `ast_*`, `scan_definition.py`, `scan_evaluator.py` or the definitions router. Both sides added an ignore block at the same offset; kept both. `api/main.py`, `StockChart.jsx` and `test_exposed_routes_gated.py` auto-merged and were checked by hand (see §4). |
 
 ---
 
@@ -44,10 +56,18 @@ old behaviour was wrong and nothing on screen said so.
 **How far #5 reaches, measured:** no starter scan, no native indicator, no
 screener row and no firm-authored screen calls `highestbars`, `lowestbars` or
 `aroon`. They are grammar surface — reachable only if a member writes one, by
-hand or through a translated Pine/ThinkScript/PCF script. Production holds 5
-live definitions. Whether any of them calls one of these three is a single query
-away, and it reads member definition trees, **so it has not been run.** Say the
-word and it takes a minute.
+hand or through a translated Pine/ThinkScript/PCF script. ✅ **MEASURED ON PRODUCTION, 2026-09-09** (count-only query, authorised by the
+owner; no definition text and no member identifiers were read or returned):
+
+```
+LIVE_TOTAL=5  ARG_EXTREME_HITS=0  UNREADABLE=0
+```
+
+**No live member definition references `highestbars`, `lowestbars` or `aroon`.**
+The denominator is in the output on purpose — a bare `0` cannot be told apart
+from a query that found nothing to look at. So change #5 moves **no number any
+member can currently see**, and the 6–10% figure describes what would move if
+somebody writes one of the three tomorrow.
 
 ---
 
@@ -103,7 +123,9 @@ WAL. Restoring it is a last resort and would discard any definition saved since.
 
 Run in order. Any red stops the deploy.
 
-1. **Merge `master` into the branch** (97 commits) and resolve.
+1. **Merge `origin/master` into the branch** and resolve. ⚠️ `origin/master`,
+   never the local `master` ref — see §0 for the number that got away.
+   With the weekly cadence in §0 this should be a small delta by deploy time.
 2. 🔴 **`grep -c broker_sync api/main.py` must be ≥ 7.** This is the locked
    invariant after *every* master merge — a concurrent commit silently dropped
    the router mount once, and `POST /connect` fell through to the SPA catch-all
@@ -117,6 +139,25 @@ Run in order. Any red stops the deploy.
 
 **Do not run anything heavy on the prod pod.** That has caused a member-visible
 outage twice.
+
+### 🟠 One KNOWN-UNRELATED red — do not read it as a regression
+
+```
+FAILED tests/test_broker_bias_scan.py::TestTheDigestActuallyRuns::test_it_flags_and_names_a_leaning_book
+        AssertionError: a steady lean must be reported
+```
+
+It fails **in isolation**, and this branch has never touched its subject:
+`git log origin/master..HEAD -- tests/test_broker_bias_scan.py
+api/services/journal_two/ api/services/auth_db.py` is **empty**. The test imports
+only `auth_db`, `journal_two.accounts`, `journal_two.db` and
+`journal_two.broker.mirror_check`.
+
+⛔ **It is recorded here so it is not mistaken for merge damage at deploy time**,
+which is exactly what an unexplained red beside a 688-commit merge looks like.
+The owner is raising it with the partner who owns that code (2026-09-09); it is
+**not this branch's to fix**, and fixing it here would touch partner-owned files
+without an ack.
 
 ---
 
@@ -138,10 +179,12 @@ outage twice.
 
 Post as-is. Three sentences, no jargon.
 
-> We fixed a few places where our indicators were handling gaps in price history
-> incorrectly. If a stock had a hole in its data — a halt, a thin session, a late
-> feed — RSI, ATR, MACD and ADX could either stop calculating for the rest of the
-> chart or keep quietly reporting a slightly wrong number from that point on,
-> with nothing on screen to show it. They now carry across the gap and pick up
-> correctly on the other side, and a stock whose price hasn't moved at all is now
-> shown as having no RSI reading in the screener rather than being given one.
+⭐ **THIS IS THE OWNER'S OWN WORDING (2026-09-09), NOT A DRAFT.** It replaced a
+longer one. Do not re-edit it without asking — it is member-facing copy and the
+voice is the owner's to set.
+
+> We fixed how several indicators handle gaps in price history. When a stock had
+> a hole in its data — a halt, a thin session, a late feed — RSI, ATR, MACD and
+> ADX could stop calculating or quietly report a slightly wrong value from that
+> point on. They now carry across the gap correctly. Separately, a stock whose
+> price hasn't moved at all no longer gets an RSI reading in the screener.

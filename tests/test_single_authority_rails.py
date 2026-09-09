@@ -294,19 +294,45 @@ def test_the_zero_movement_rsi_decision_is_made_in_exactly_one_function():
     )
 
 
-def test_rsi_refuses_no_movement_but_still_pins_100_on_an_unbroken_advance():
-    """The two cases are different facts. ⚠️ Exact equality, no `approx`."""
+def test_rsi_matches_the_VENDOR_on_no_movement_and_the_SCREENER_is_where_it_is_refused():
+    """⭐⭐ THE RULING, AS TWO SEPARATE FACTS ABOUT TWO DIFFERENT DOORS.
+
+    ⚰️ THIS TEST USED TO ASSERT THE OPPOSITE, and the reversal is the point. It
+    was named `..._refuses_no_movement_...` and required `None` from
+    `indicator_compute`, defended in that module by *"Pine's `ta.rsi` yields NaN
+    here"* — a claim about the vendor nobody had checked. Measured on TradingView
+    2026-09-08 with `ta.rsi(k, 14)` over a constant source: **100 on every bar**.
+    Pine evaluates `down == 0 ? 100 : up == 0 ? 0 : …`, so the zero-LOSS test
+    fires first. A tested invariant can still be a UCT invention; this one was
+    pinned by a fixture, guarded by an AST rail, mirrored in both lanes, and wrong.
+
+    ⛔ THE EXPOSURE THE OLD RULE EXISTED FOR IS REAL AND STILL GUARDED, one door
+    along. On 2026-08-09 SIM, TMTS, CWEN-A, DRDB and OBA carried `rsi14 = 100.0`
+    with `chg_pct_1d = 0.00`, so an "RSI > 70" screen surfaced five frozen
+    tickers as the most overbought names in the universe. Owner ruling
+    (2026-09-08): match TradingView, move the guard to the screener. So the last
+    two assertions here are not a smaller version of the first three — they are
+    the OTHER half of the ruling, and deleting either half leaves a green suite
+    over a broken decision.
+
+    ⚠️ Exact equality, no `approx`. Ledger: `divergences.json::
+    rsi-zero-movement-reads-na` (status `corrected`).
+    """
     from api.services import indicator_compute
     from api.services.screener import technicals
 
     flat = [10.0] * 60
     rising = [10.0 + i for i in range(60)]
 
-    assert indicator_compute.compute_rsi_raw(flat)[-1] is None
+    # ── the DEFINITION of RSI: the vendor's answer, including its branch ORDER
+    assert indicator_compute.compute_rsi_raw(flat)[-1] == 100.0
     assert indicator_compute.compute_rsi_raw(rising)[-1] == 100.0
-    assert indicator_compute.rsi_from_wilder_averages(0.0, 0.0) is None
+    assert indicator_compute.rsi_from_wilder_averages(0.0, 0.0) == 100.0
     assert indicator_compute.rsi_from_wilder_averages(1.5, 0.0) == 100.0
     assert indicator_compute.rsi_from_wilder_averages(0.0, 2.0) == 0.0
+    # ⛔ THE ORDER IS THE RULE, NOT THE THREE VALUES. `(0, 0)` is the only input
+    # that can tell "zero-loss first" from "zero-gain first" — swap the branches
+    # and the other four still pass.
 
     def bars_from(closes):
         return [{"t": 20250101 + i, "o": c, "h": c, "l": c, "c": c, "v": 1000}
@@ -316,6 +342,18 @@ def test_rsi_refuses_no_movement_but_still_pins_100_on_an_unbroken_advance():
     assert technicals.compute_technicals(bars_from(rising))["rsi14"] == 100.0
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "OPEN OWNER RULING, raised 2026-09-09. The RSI ruling named the SCREENER as "
+    "where the frozen-ticker guard goes, and it went there. But "
+    "`rsi_from_wilder_averages` is the single authority for more consumers than "
+    "the screener, and the pattern-engine divergence detectors are one nobody "
+    "named: `_compute_rsi(flat)[-1]` now returns 100 where it used to return "
+    "None, and None is what this test's own docstring says they refuse on. That "
+    "is the SIM/TMTS/CWEN-A exposure arriving through a different door. ⛔ The "
+    "pattern-engine workstream is OWNER-PAUSED, so no detector is being touched "
+    "here. ⛔ STRICT, AND DELETING THIS TEST IS NOT THE FIX: strict means the "
+    "day somebody makes the detectors refuse a flat window again, this goes RED "
+    "and the ruling gets recorded rather than silently absorbed."))
 def test_a_flat_series_yields_no_rsi_divergence_detection():
     """The detectors read RSI as an oversold/overbought LEVEL. A window in which
     nothing moved has no level, and `None` is what they already refuse on."""

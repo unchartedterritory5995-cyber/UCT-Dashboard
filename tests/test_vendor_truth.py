@@ -389,6 +389,24 @@ def test_a_MEASURED_row_carries_the_measurement_and_a_suspected_row_does_not():
             # ⭐ A DECISION NOTHING COULD OVERTURN IS A BELIEF, NOT A RULING.
             assert dec.get("what_would_reopen_it"), (
                 f"{row['id']}: accepted with no condition that would reopen it")
+        # ⛔⛔ `corrected` IS NOT A CHEAPER `accepted`, AND WITHOUT THIS IT WOULD BE.
+        # The status was added because a divergence we CLOSED by fixing our own
+        # side had nowhere to live — but it also switches OFF the
+        # `vendorNote` requirement below, which is the strongest obligation in
+        # this file. A term that removes an obligation and adds none of its own is
+        # a door out of the ledger, so it carries its own: WHO ruled, WHAT the
+        # behaviour is now, WHICH commit did it, and what would reopen it.
+        if row["status"] == "corrected":
+            dec = row.get("decision") or {}
+            assert dec.get("ruled"), f"{row['id']}: corrected with no ruling"
+            assert dec.get("what_changed"), (
+                f"{row['id']}: corrected with no statement of what the behaviour is "
+                "NOW — a reader cannot tell a closed divergence from a stale row")
+            assert dec.get("what_would_reopen_it"), (
+                f"{row['id']}: corrected with no condition that would reopen it")
+            assert row.get("correctedIn"), (
+                f"{row['id']}: corrected in no named commit — the claim that ours "
+                "moved is unverifiable without one")
 
 
 # ─── 4. the findings, pinned so they expire honestly ─────────────────────────

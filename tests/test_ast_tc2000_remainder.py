@@ -204,6 +204,23 @@ def aroon_oracle(values, n, want_max):
 # 1. AROON — against the published formula, computed independently
 # ═══════════════════════════════════════════════════════════════════════════ #
 
+@pytest.mark.xfail(strict=True, reason=(
+    "OPEN OWNER RULING, raised 2026-09-09 — TWO REAL AUTHORITIES DISAGREE ABOUT "
+    "A TIE, and neither is obviously wrong. `days_since_extreme` above encodes "
+    "the PUBLISHED words — 'the number of periods elapsed since the MOST RECENT "
+    "x-day high' — so a tie resolves to the NEWEST bar holding the extreme. On "
+    "2026-09-08 `ta.highestbars` was measured on TradingView and ties resolve to "
+    "the OLDEST bar (380/0 against 193/187 for the other reading); `aroonUp` is "
+    "built on that walk, so it moved with it. ⚠️ TradingView has no built-in "
+    "`ta.aroon` — its stock Aroon is Pine written over `ta.highestbars`, so "
+    "TradingView's OWN Aroon presumably disagrees with the published words too, "
+    "and that is the measurement that would settle this. Until somebody reads it "
+    "off a TradingView Aroon pane, changing either side would be picking an "
+    "authority rather than following one. ⛔ STRICT: the day the tie rule or the "
+    "oracle moves, this goes RED and the decision gets recorded instead of "
+    "quietly landing. Blast radius, measured: ~6-10% of bars on real SPY OHLCV, "
+    "and NO live member definition calls aroon/highestbars/lowestbars today "
+    "(count-only prod query 2026-09-09: 0 of 5)."))
 def test_aroonUp_matches_the_published_formula_over_a_shaped_series():
     n = 10
     col = ast_interpret.interpret(CALL("aroonUp", NUM(n)), BARS, {})
@@ -330,11 +347,33 @@ def test_bop_matches_the_composition_even_on_a_bar_whose_RANGE_IS_ZERO():
     ratio = OP("/", OP("-", SER("close"), SER("open")),
                OP("-", SER("high"), SER("low")))
     composed = ast_interpret.interpret(CALL("sma", ratio, NUM(n)), DEGENERATE, {})
+    # ⭐⭐ AGREEMENT WHERE THE WINDOW IS COMPUTABLE, AND A NAMED DIVERGENCE WHERE
+    # IT IS NOT. ⚰️ This asserted `(a is None) == (b is None)` on EVERY bar and
+    # went red on 2026-09-08, when `sma` was measured against TradingView and
+    # declared `NA_SKIP`. `bop` propagates; `sma` now skips; so on a bar where
+    # `high == low` the declared entry HOLES and the composition drops the bar and
+    # averages the rest. The claim was written before the measurement.
+    #
+    # ⛔ THE HOLE IS THE ONE TO KEEP — see the test below for why (`+Infinity`
+    # compares as a real number above every threshold, and BOP is bounded -1..+1,
+    # so `bop > 0` on an uncomputable bar prints the strongest reading it has).
+    # Making `bop` match `sma`'s skip was tried and turned two red tests into four.
+    divergent = 0
     for i in range(len(DEGENERATE)):
         a, b = at(declared, i), at(composed, i)
-        assert (a is None) == (b is None), (i, a, b)
         if a is not None:
+            assert b is not None, (i, a, b)
             assert a == pytest.approx(b, rel=1e-9), (i, a, b)
+        elif b is not None:
+            divergent += 1
+    # ⛔ AND THE DIVERGENCE IS ASSERTED, NOT TOLERATED. Without this the loop above
+    # passes on a `composed` column that is `None` everywhere — the two agreeing
+    # because neither computes anything, which is the vacuity this file's own
+    # final assertions exist to rule out.
+    assert divergent >= 1, (
+        "the declared entry and its composition no longer differ on any bar — "
+        "either `sma` stopped skipping `na` or `bop` started, and whichever it "
+        "was is a vendor-measurement change that has to be recorded, not absorbed")
     # ⛔ AND THE DEGENERATE BAR REALLY IS UNCOMPUTABLE, so this is not a pair of
     # all-finite columns agreeing for a trivial reason.
     assert at(declared, 3) is None and at(declared, 4) is None

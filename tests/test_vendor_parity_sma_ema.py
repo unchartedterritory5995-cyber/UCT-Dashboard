@@ -108,9 +108,48 @@ def test_the_true_period_warmup_bars_are_reported_not_silently_dropped(fn_name):
     assert result["any_data_blocked"] is True
 
 
+#: ⛔⛔ A MUTATION MUST BE PLANTED AT THE SEAM THE CODE ACTUALLY RESOLVES, AND
+#: FOR THE WINDOW FAMILY THAT SEAM MOVED ON 2026-09-08.
+#:
+#: These tests used to rebind `ast_interpret._window_mean` /
+#: `_window_weighted_mean` on the module. That worked while every window member
+#: reached its reducer through a late-bound lambda. It stopped working when
+#: `_window_fn` landed: `FN["sma"] = _window_fn("sma", _window_mean)` CAPTURES
+#: the reducer at import, so rebinding the module attribute afterwards changes
+#: nothing the interpreter will ever call.
+#:
+#: ⚠️ AND THE SUITE STAYED GREEN ON THE MUTATION ITSELF — the planted "wrong"
+#: implementation simply never ran, the comparator saw the real maths, and the
+#: verdict came back VERIFIED. Only `assert result["verdict"] != "VENDOR-PARITY
+#: VERIFIED"` caught it, which is exactly why that assertion is written the
+#: awkward way round (`lesson_gate_that_cannot_fail`).
+#:
+#: ⚠️ THE ASYMMETRY IS THE TRAP AND IT IS STILL THERE: `FN["rma"]` is a lambda
+#: that resolves `_rma_col` at CALL time, so the `rma` mutations below still work
+#: unchanged. Two entries in one table with different patchability means "the
+#: mutation harness works here" does not generalise one row over.
+#:
+#: ⭐ SO THE PATCH GOES ON `FN[name]`, REBUILT THROUGH `_window_fn`. That changes
+#: the reducer and NOTHING else — the na policy and the span still come from the
+#: manifest-side tables — so the mutant differs from the real column in exactly
+#: the one respect the test names.
+def _mutate_window(name, reduce):
+    """Context-manager-ish swap of one window member's reducer, at the real seam."""
+    import contextlib
+
+    @contextlib.contextmanager
+    def _swap():
+        orig = ast_interpret.FN[name]
+        ast_interpret.FN[name] = ast_interpret._window_fn(name, reduce)
+        try:
+            yield
+        finally:
+            ast_interpret.FN[name] = orig
+    return _swap()
+
+
 def test_MUTATION_sma_wrong_denominator_disagrees_on_every_steady_state_bar():
     obs = _load(_CASES["sma"])
-    orig = ast_interpret._window_mean
 
     def bad_window_mean(series, lo, hi):
         total = 0.0
@@ -118,11 +157,8 @@ def test_MUTATION_sma_wrong_denominator_disagrees_on_every_steady_state_bar():
             total += series[i]
         return total / (hi - lo + 2)  # wrong: one more than the true window size
 
-    ast_interpret._window_mean = bad_window_mean
-    try:
+    with _mutate_window("sma", bad_window_mean):
         result = compare(obs, warmup_bars=19, tolerance_rel=1e-6)
-    finally:
-        ast_interpret._window_mean = orig
     assert compare(obs, warmup_bars=19, tolerance_rel=1e-6)["verdict"] == "VENDOR-PARITY VERIFIED"
 
     assert result["verdict"] != "VENDOR-PARITY VERIFIED"

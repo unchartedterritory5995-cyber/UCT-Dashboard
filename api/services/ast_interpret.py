@@ -2060,6 +2060,29 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     ``_binary_div`` for IEEE division and the finite-or-NaN collapse ``_to_column``
     applies -- so a zero-range bar answers exactly what
     ``sma((close - open) / (high - low), n)`` answers, rather than nearly.
+
+    ⛔⛔ THE COMPOSITION SENTENCE ABOVE IS TRUE ONLY WHERE THE RATIO IS FINITE,
+    AND SINCE 2026-09-08 THAT IS A REAL CARVE-OUT RATHER THAN A PEDANTIC ONE.
+    This window PROPAGATES an ``na`` (the ``_rolling`` default); ``sma`` was
+    measured against TradingView that day and declared ``NA_SKIP``. So on a bar
+    where ``high == low`` -- a halt, a limit lock, a one-tick session -- the
+    declared ``bop(n)`` answers a HOLE and the hand-written
+    ``sma((close - open) / (high - low), n)`` answers a NUMBER, because it drops
+    the uncomputable bar and averages the rest.
+
+    ⛔ THE HOLE IS THE ONE TO KEEP, AND THE ARGUMENT IS IN
+    ``test_bop_over_a_zero_range_bar_is_a_HOLE_and_not_a_CONFIDENT_EXTREME``:
+    ``1/0`` is ``+Infinity``, ``_cmp`` compares it as a real number larger than
+    every threshold, and BOP is bounded -1..+1 -- so ``bop(n) > 0`` on a bar
+    nobody can compute prints the STRONGEST reading this indicator has. Matching
+    ``sma``'s skip would restore that. Measured, not argued: making this line read
+    ``sma``'s policy turned two red tests into four.
+
+    ⚠️ SO THE TWO SPELLINGS DIVERGE ON EXACTLY THE ``na`` BARS, and that is
+    recorded rather than hidden. It is the narrowest form of the thing
+    ``_functions_excluded`` warns about -- a declared entry that does not equal
+    its own composition -- and it exists because a vendor measurement moved under
+    a composition claim written before it.
     """
     n = int(args[0])
     ratio = []
@@ -2070,7 +2093,7 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
             continue
         ratio.append(_finite_or_nan(
             _binary_div(_number(c) - _number(o), _number(h) - _number(l))))
-    col = _rolling(ratio, n, _window_mean)
+    col = _rolling(ratio, n, _window_mean)          # NA_PROPAGATE — see above
     return [None if math.isnan(v) else v for v in col]
 
 
