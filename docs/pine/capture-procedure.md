@@ -43,6 +43,44 @@ right move, and the fresh pane is equally widget-less. It cost an hour.
 renders. The proof it worked: `TradingViewApi.takeClientScreenshot()` goes from composing an
 873px-wide image to the real full-width one.
 
+### ⛔⛔ …BUT `_adjustSize()` DOES NOT SAVE A CHART THAT *LOADED* HIDDEN (2026-09-09)
+
+The rule above covers a study added to an **already-rendered** chart. It does **not** cover
+opening the chart itself in a hidden tab, and the difference is total:
+
+| | study added while hidden | whole chart loaded while hidden |
+|---|---|---|
+| pane widgets | missing for that study | **missing for everything** |
+| `_adjustSize()` | ✅ rebuilds them | ❌ **legends stay at 0** |
+| screenshot | that pane blank | **every pane blank** |
+
+Measured on 2026-09-09: `document.visibilityState === 'hidden'`, three panes in the model,
+`_adjustSize()` called and returning cleanly, legend nodes **0 before and 0 after**, and a
+screenshot showing three empty boxes. `document.hasFocus()` was `true` the whole time — a
+window can be focused and still occluded or minimised, so **`hasFocus()` is not a substitute
+for `visibilityState`**.
+
+⭐⭐ **AND IT DID NOT MATTER, WHICH IS THE MORE USEFUL HALF.** The hidden-tab defect is a
+**rendering** defect. The model was never affected: `UCTPROBE_NS` held **400 computed rows**
+and `Uncharted Clouds` another 400, with **zero** legend nodes on screen. Every plotted value
+was readable the whole time.
+
+⛔ **So pick the instrument by what the question needs:**
+
+- **A VALUE capture is immune.** Read `study._data._items` — it is populated whether or not a
+  single pixel was ever drawn. Every barstate, fold and containment probe is a value capture.
+- **An IMAGE capture is not.** It needs pane widgets, so it needs a visible tab.
+
+⚠️ **What a hidden tab DOES cost you is adding a study.** `chartWidget.insertStudy(...)`
+returned without throwing and inserted **nothing** — the study never appeared in
+`model().dataSources()`. A creation call that reports success and changes nothing is the
+false-positive this repo keeps paying for, so **verify an insert by re-reading the data
+sources, never by the absence of an exception**.
+
+⛔ **Therefore: read existing studies from a hidden tab freely; add a study only from a visible
+one.** If a probe needs a study that is not already on the chart, the tab must be foregrounded
+first — there is no in-page remedy.
+
 ## Screenshots
 
 - `takeClientScreenshot()` renders **explicitly**, so it works even when the tab is hidden and

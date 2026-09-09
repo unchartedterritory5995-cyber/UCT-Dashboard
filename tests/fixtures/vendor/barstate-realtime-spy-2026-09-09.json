@@ -1,0 +1,40 @@
+{
+  "_what": "barstate.* read off a LIVE TradingView chart across the 2026-09-09 US open",
+  "_instrument": "UCTPROBE_NS study on AMEX:SPY, plot VALUES read from the chart model",
+  "_why_values_not_pixels": "A bool plot carries no numeric value, so every predicate is plotted as `? 1 : 0`. The capture reads study._data._items, never the screen.",
+  "_tab_was_hidden": "document.visibilityState was 'hidden' for this whole capture and the panes rendered NOTHING (0 legend nodes, blank screenshot). The MODEL was unaffected: the study held 400 computed rows throughout. See docs/pine/capture-procedure.md — the hidden-tab defect is a RENDERING defect, and a value capture is immune to it.",
+  "symbol": "AMEX:SPY",
+  "captures": [
+    {
+      "id": "closed-history-at-rest",
+      "capturedAtET": "2026-09-09 08:58:17",
+      "resolution": "1D",
+      "sessionState": "pre-open, 32 minutes before the 09:30 ET open",
+      "bars": 400,
+      "cols": ["barTimeET", "isconfirmed", "islast", "ishistory"],
+      "tail": [
+        ["2026-09-01 09:30:00", 1, 0, 1],
+        ["2026-09-02 09:30:00", 1, 0, 1],
+        ["2026-09-03 09:30:00", 1, 0, 1],
+        ["2026-09-04 09:30:00", 1, 0, 1],
+        ["2026-09-08 09:30:00", 1, 1, 1]
+      ],
+      "alsoSampled": [
+        {"i": 0, "barTimeET": "2025-02-04 09:30:00", "isconfirmed": 1, "islast": 0, "ishistory": 1},
+        {"i": 200, "barTimeET": "2025-11-19 09:30:00", "isconfirmed": 1, "islast": 0, "ishistory": 1}
+      ],
+      "_ruling": "BEFORE THE SESSION OPENS THERE IS NO REALTIME BAR AT ALL. The newest bar is YESTERDAY's (2026-09-08) and it carries isconfirmed=1, islast=1 and ishistory=1 SIMULTANEOUSLY. So `islast` does not imply 'forming', and `ishistory` does not imply 'not the last bar' — a fold that treats either as the other's negation is wrong for the whole pre-open window, which is when a screener actually runs.",
+      "_note_no_bar_for_today": "There is no 2026-09-09 bar at 08:58 ET. The daily bar is created at the open, which is what makes the 09:30 transition observable."
+    }
+  ],
+  "tickerid_shape": {
+    "_from": "the same probe's N17-N20, same capture",
+    "symbol": "AMEX:SPY",
+    "str.contains(syminfo.ticker, '/')": 0,
+    "str.contains(syminfo.tickerid, '/')": 0,
+    "str.length(syminfo.ticker)": 3,
+    "str.length(syminfo.tickerid)": 8,
+    "_reading": "ticker='SPY' (3). tickerid is 8 = 4+1+3, consistent with 'AMEX:SPY' — an exchange prefix, a colon, then the ticker. The chart model independently reports the symbol string as 'AMEX:SPY'.",
+    "_caveat": "INFERRED, NOT ENUMERATED. This says what SPY's tickerid looks like; it does NOT enumerate what TradingView can emit. A bind-time fold over tickerid must be a whitelist of measured prefixes that REFUSES what it has not seen."
+  }
+}
