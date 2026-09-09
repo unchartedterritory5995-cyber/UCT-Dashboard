@@ -277,6 +277,14 @@ export const REFUSALS = Object.freeze({
     + 'number for half the inputs',
   'pine:builtin':
     'this Pine built-in names something the engine grammar does not hold',
+  // ⭐⭐ HOST MODE ONLY. The screener evaluates CLOSED bars, so folding
+  // `barstate.isconfirmed` to true there is exact, not approximate. A chart pane
+  // draws the FORMING bar too, where the same fold is simply wrong — and this
+  // engine has never tested a live bar. So the fold stands for one contract and
+  // is refused for the other, rather than shipping a wrong value on the one bar
+  // a member is actually watching.
+  'pine:live-bar-state':
+    'this Pine built-in answers differently on a forming bar, and a chart pane draws one',
   'pine:function':
     'this Pine function maps to nothing the engine grammar declares',
   'pine:arity':
@@ -3728,6 +3736,12 @@ const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'fl
 export class Resolver {
   constructor(env, table, types, opts = {}) {
     this.env = env
+    /** ⭐⭐ HOST MODE. `true` when the caller is drawing a chart pane rather
+     *  than serving screener columns. The only thing it changes in here is
+     *  whether the closed-bar `barstate.*` folds are allowed — see the
+     *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
+     *  identical, which is the point: two contracts, one reading. */
+    this.strict = opts.strict === true
     /** The member's own script, when the caller passed it — an offer quotes
      *  their text back rather than re-printing a tree, so what lands in the box
      *  is what they wrote. */
@@ -4978,7 +4992,24 @@ export class Resolver {
           + `holds its siblings: ${BUILTIN_REQUEST_DEPENDENT[name]}`,
           locate(node.tok))
       }
-      if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
+      if (own(BUILTIN_CONSTANT_TREE, name)) {
+        // ⛔⛔ THE FOLD IS EXACT FOR ONE CONTRACT AND WRONG FOR THE OTHER.
+        // The map above argues, correctly, that `barstate.isconfirmed` IS true on
+        // every bar this engine evaluates — because the screener evaluates only
+        // CLOSED bars. A chart pane draws the FORMING bar as well, and there the
+        // same constant is false exactly once, on the one bar the member is
+        // watching. Realtime has never been tested here (V10.7 is still open), so
+        // host mode refuses rather than shipping a confident wrong value.
+        // ⭐ NOT `pine:builtin` — that sentence would say the name is unknown, and
+        // it is known; what is unavailable is a live-bar ANSWER for it.
+        if (this.strict) {
+          throw new PineRefusal('pine:live-bar-state',
+            `${REFUSALS['pine:live-bar-state']} — \`${name}\`. The screener folds it `
+            + 'to its closed-bar value; a pane cannot, because it draws the forming bar.',
+            locate(node.tok))
+        }
+        return BUILTIN_CONSTANT_TREE[name]()
+      }
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
       // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
       // shrug — the same precedence `_functions_excluded` takes over the
@@ -8686,7 +8717,8 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes,
-      { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint })
+      { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
+        strict: opts.strict === true })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -8882,7 +8914,8 @@ export function translatePine(source, opts = {}) {
   try {
     objectPass = buildObjectProgram(stmts, source, env, () => {
       const r = new Resolver(env, table, declaredTypes,
-        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null })
+        { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
+          strict: opts.strict === true })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
       // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns
       // `input.int(5, "Offset")` from a welded literal into an identifier the
@@ -8928,8 +8961,43 @@ export function translatePine(source, opts = {}) {
     noContent = refusalValue(guard, REFUSALS[guard], null)
   }
 
+  // ─── ⭐⭐⭐ TWO CALLERS, TWO CONTRACTS, ONE TRANSLATION ────────────────────
+  //
+  // ⛔⛔ `ok` MEANT "SOMETHING SURVIVED", AND FOR ONE CALLER THAT IS A LIE.
+  //
+  // The SCREENER asks *"which columns can you serve me?"* — offering the two it
+  // can out of a script's twenty-three is a useful answer, and the twenty-one it
+  // cannot are listed in `refusals` for the member to read. That is LENIENT mode
+  // and it stays the default, because it is right for that question.
+  //
+  // HOSTING AN INDICATOR asks a different question — *"can you draw this?"* —
+  // and there "two of twenty-three" is a NO. Measured on a real script
+  // (Uncharted Clouds, 2026-09-08): `ok: true`, two moving averages translated,
+  // and all twenty-one plots that make up its cloud came back with a `null`
+  // formula. Every reason was already sitting in `refusals` with a guard, a line
+  // and a column — the information was never lost, only the verdict was wrong.
+  //
+  // ⛔ SO THIS IS ENFORCED IN CODE, NOT IN A CONVENTION A CALLER MUST REMEMBER.
+  // The engine's own doctrine is that a silent mistranslation is worse than a
+  // refusal; a partial success reported as success IS that, in a return value.
+  //
+  // ⭐ A HIDDEN OUTPUT IS NOT A FAILURE and strict mode does not treat it as one.
+  // `display = display.none` is an author's choice — Clouds' layer plots are
+  // hidden ON PURPOSE, they exist only as `fill` anchors — and a passthrough or
+  // constant column is this engine's judgement about SCREENING, not about
+  // drawing. The strict test is therefore "did anything fail to translate",
+  // which is exactly `refusals.length === 0`, not "is everything usable".
+  const strict = opts.strict === true
+  const lenientOk = usable.length > 0 && !blocked
+  const strictOk = resolved.length > 0 && refusals.length === 0 && !blocked
+  const ok = strict ? strictOk : lenientOk
+
   return {
-    ok: usable.length > 0 && !blocked,
+    ok,
+    // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT. A result that travels (into a
+    // saved definition, a log, a test fixture) must not be ambiguous about which
+    // question it answered.
+    mode: strict ? 'host' : 'screener',
     version,
     declaration,
     title,
@@ -8952,7 +9020,11 @@ export function translatePine(source, opts = {}) {
     outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table),
     notes: withExcerpts(notes, lines),
-    refusal: (usable.length > 0 && !blocked) ? null : withExcerpt(refusals[0] || noContent || null, lines),
+    // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
+    // position order carries the guard, line, column and caret excerpt, exactly
+    // as a top-level refusal does — a host caller reads the same shape whether
+    // the script died at the lexer or at its twenty-first plot.
+    refusal: ok ? null : withExcerpt(refusals[0] || noContent || null, lines),
     refusals: withExcerpts(noContent ? [noContent, ...refusals] : refusals, lines),
     // ⭐⭐ TRACK F (DEC-006) — the per-declaration IMMUTABLE metadata this call
     // minted (empty unless `opts.paramManifest` was set). Deliberately

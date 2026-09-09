@@ -100,7 +100,7 @@ decide whether a formula can run at all.
 | `exp(source)` | a number | 0 bars | e raised to `source` |
 | `falling(source, period)` | true or false | whatever `period` asks for | `source` falling for `period` bars |
 | `highest(source, period)` | a number | whatever `period` asks for | the highest `source` of the last `period` bars |
-| `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the most recent bar holding the highest `source` of the last `period` bars |
+| `highestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the highest `source` of the last `period` bars |
 | `hma(source, period)` | a number | 2*arg1 | the `period`-bar Hull average of `source` |
 | `ichimokuChikou(high, low, close, tenkanPeriod, kijunPeriod, senkouBPeriod)` | a number | whatever `senkouBPeriod` asks for | the Ichimoku lagging span of `close` over `high` and `low` at `tenkanPeriod`/`kijunPeriod`/`senkouBPeriod` |
 | `ichimokuKijun(high, low, tenkanPeriod, kijunPeriod, senkouBPeriod)` | a number | whatever `senkouBPeriod` asks for | the Ichimoku base line over `high` and `low` at `tenkanPeriod`/`kijunPeriod`/`senkouBPeriod` |
@@ -111,7 +111,7 @@ decide whether a formula can run at all.
 | `ln(source)` | a number | 0 bars | the natural log of `source` |
 | `log10(source)` | a number | 0 bars | the base-10 log of `source` |
 | `lowest(source, period)` | a number | whatever `period` asks for | the lowest `source` of the last `period` bars |
-| `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the most recent bar holding the lowest `source` of the last `period` bars |
+| `lowestbars(source, period)` | a number | whatever `period` asks for | the number of bars back to the oldest bar holding the lowest `source` of the last `period` bars |
 | `macd(source, fastPeriod, slowPeriod)` | a number | whatever `slowPeriod` asks for | the `fastPeriod`/`slowPeriod` MACD line of `source` |
 | `max(left, right)` | a number | 0 bars | the larger of `left` and `right` |
 | `median(source, period)` | a number | whatever `period` asks for | the `period`-bar median of `source` |

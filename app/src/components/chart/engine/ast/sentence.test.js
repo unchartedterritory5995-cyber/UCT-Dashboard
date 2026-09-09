@@ -232,13 +232,18 @@ const FORMS = [
     name: 'valuewhen',
     parts: ['the value of ', 1, ' on the most recent of the last ', 2,
             ' bars where ', 0, ' was true'] },
+  // ⚰️ THESE READ "most recent" UNTIL 2026-09-08, and the tie-break correction
+  // moved the manifest's words to "oldest". Re-typing them here is the DESIGN
+  // working, not friction: this oracle is hand-typed precisely so a wording
+  // change has to be made twice by a human who agrees with it, instead of being
+  // inherited from the renderer and proving nothing.
   { kind: 'call',
     name: 'highestbars',
-    parts: ['the number of bars back to the most recent bar holding the highest ', 0,
+    parts: ['the number of bars back to the oldest bar holding the highest ', 0,
             ' of the last ', 1, ' bars'] },
   { kind: 'call',
     name: 'lowestbars',
-    parts: ['the number of bars back to the most recent bar holding the lowest ', 0,
+    parts: ['the number of bars back to the oldest bar holding the lowest ', 0,
             ' of the last ', 1, ' bars'] },
   // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
   // row here — deriving them would make the oracle agree with the renderer by

@@ -126,6 +126,11 @@ const EXPECTED_UNEXERCISED = [
   'pine:function-def',
   'pine:history-ref',
   'pine:input-kind',
+  // ⭐ HOST MODE ONLY (2026-09-08). The census runs the corpus through the
+  // LENIENT contract, where `barstate.*` still folds to its closed-bar value —
+  // so no published script reaches this guard here, and that is correct rather
+  // than a gap. `pineStrictMode.test.js` exercises it directly.
+  'pine:live-bar-state',
   'pine:na',
   'pine:named-argument',
   'pine:offset-literal',
