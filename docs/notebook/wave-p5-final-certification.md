@@ -638,6 +638,25 @@ any other account, and refuses if OCR is not armed.
 11/11 · extract+plan 0.12s · OCR 0.48 s/page
 ```
 
+⭐ **Ask's retrieval and citation path was exercised in production too, without
+an LLM call** — the synthesis step writes prose, the retrieval step is what
+carries provenance, and only one of those can be wrong about a source:
+
+```
+retrieve_document(canary user, canary doc, "What was total revenue?")
+  evidence            1 item · source_type document_excerpt
+  label               wave-p-canary-scan.pdf · p.1
+  text                Total revenue was $12.48 billion
+  location            document_id + page_number 1 + quote prefix/suffix
+  navigation          kind=excerpt → excerpt_id + document_id   (a real target, not a rendered string)
+  packet              coverage · independent_sources · no_answer · dropped
+```
+
+⛔ **The synthesis call itself was NOT made in production.** It costs an LLM
+call and would prove the model can write, not that the source is right. Ask's
+end-to-end answer path is certified on the branch (P3); what production adds is
+that the retrieval reaches a real scanned page and cites it truthfully.
+
 ⛔ **Afterwards, exactly one document exists in production**, owned by exactly one
 user, with one OCR job row (`complete`) and one page of origin `ocr`. Nothing is
 `required`, `processing` or `failed`.
