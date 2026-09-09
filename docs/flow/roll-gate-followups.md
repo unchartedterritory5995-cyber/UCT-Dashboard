@@ -140,3 +140,54 @@ fallback to a deliberate cold-path policy — *serve generation N−1 rather tha
 the member to the raw tape.* It trades up to ~60 s of freshness for a ~40× faster load
 in the window that is today the worst member experience on the page. It is
 member-visible, which is why it is an owner call.
+
+---
+
+## E6 — `web` has an EMPTY watchPatterns list (configuration defect)
+
+`web` carries `watchPatterns: []`, and on Railway an empty list means **no filter** —
+so the member-facing service redeploys on **every** master push, including docs-only and
+test-only ones. That is what made `184a7e77b` a four-service bounce, and it is what makes
+the RTH freeze (E0) apply to changes that touch nothing web depends on.
+
+**Fix:** give `web` an explicit list. The other three services are the template —
+`bars-api` uses `api/**`, `requirements.txt`, `nixpacks.toml`, `railway.json`; `worker`
+uses the same with leading slashes plus `/Procfile` and `/runtime.txt`. web additionally
+serves the built frontend, so its list must include the `app/**` sources and lockfiles
+that feed `npm run build`, or a real frontend change would silently NOT deploy — the
+failure mode is worse than the one being fixed. Derive it from web's build command
+rather than copying a sibling.
+
+**Two questions to answer before doing it:**
+1. Does editing `watchPatterns` on Railway itself trigger a redeploy? (Unknown — check
+   before changing it during market hours.)
+2. Is the empty list deliberate — a deploy-everything-always safety choice — rather
+   than an oversight? Confirm with the owner before narrowing it.
+
+⛔ Getting this wrong fails **closed on deploys**: a too-narrow list means a shipped
+change never reaches production while every status badge reads green.
+
+---
+
+## E7 — The two docs commits ship AFTER the close, not before
+
+`5a3754e72` and `22965ec87` are on `fix/flow-roll-classifier` and deliberately NOT on
+master. Per E0, pushing them to master would bounce `web` (empty watchPatterns), so they
+must not be pushed between 09:30 and 16:00 ET **2026-09-10**, however tidy it would feel.
+Plan: merge after the close, together with whatever the gate result implies.
+
+---
+
+## E8 — `_BUILD_LOCK` contention can inflate `observed_s`
+
+`observed_s` runs from the detector's sighting to first-paint publication, so a roll that
+spent time DECLINED — `_BUILD_LOCK.acquire(blocking=False)` failing because a member
+request or the search warm lane held it — carries that wait **inside** the number. There
+is a ~90 s precedent: one pathological ticker (MU, 465,956 rows) exceeded the 60 s derive
+timeout and held the single build lock for ~90 s per attempt, starving every other warm.
+
+So an `observed_s >= 60 s` reading has two possible causes with two different fixes:
+**lock contention** (`declined` climbing across the roll's window) versus **the preparer
+itself losing the race** (`declined` flat). `summary.py` now attributes any roll over
+30 s automatically. If tomorrow's session shows contention, that is the next thing to
+fix and it is **separate from the classifier**.
