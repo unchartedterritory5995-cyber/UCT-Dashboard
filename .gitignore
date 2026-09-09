@@ -41,6 +41,8 @@ tools/wave_o_e2e_out/
 tools/wave_o6_e2e_out/
 tools/wave_o6_mobile_out/
 tools/wave_o6_perf_out/
+tools/wave_p_fixtures_out/
+tools/wave_p0_bench_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/
