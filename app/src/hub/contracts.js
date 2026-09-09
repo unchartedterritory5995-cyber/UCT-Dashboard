@@ -291,9 +291,16 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
 
 /**
  * @typedef {Object} HubConfirmPayload
- * What opens the confirm sheet. ⛔ The sheet is the ONLY way a Phase 3 gesture writes anything —
- * a gesture never commits directly (spec §C2, WCAG 2.5.1), so this shape is the write path's
- * front door.
+ * What opens the confirm sheet. ⚰️ THIS SAID "the sheet is the ONLY way a Phase 3 gesture writes
+ * anything" — corrected under owner ruling B4, 2026-09-09. It is ONE commit surface of several:
+ * the Journal's stop actions commit through `StopConfirmSheet`, Close through
+ * `ClosePositionModal`, and Plan trade through `PlanTradeSheet`. The hub's complete write surface
+ * is enumerated and ENFORCED in `writePaths.test.js` — read the manifest there, not a sentence
+ * here, because a sentence here is what produced the "exactly two write paths" disagreement.
+ * ⚠️ The related claim "a gesture never commits directly (spec §C2, WCAG 2.5.1)" also does not
+ * hold universally: `scan.flag` is a `run` action that toggles and syncs with no confirmation
+ * surface at all (`screenerSection.js:250`). That is defensible — it is a reversible toggle —
+ * but it is an exception to §C2 that nothing had written down. Filed for the owner.
  * @property {string} title
  * @property {string} body                    Plain English. Shown to the member verbatim.
  * @property {string} primaryLabel            The button that performs the write.

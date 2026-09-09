@@ -349,6 +349,35 @@ that produced "8 features built, tested, green, and connected to nothing" in the
    Both doors are contract-tested, mocking nothing on the path.
 2. **Journal scrub, contract-tested against a fake j2 client.** Asserts **exactly one `PUT`**, its
    body carries **`stopPrice` and no other field**, and a release *without* confirm sends nothing.
+
+#### ⛔ The write-path invariant — FOUR paths, and the gate now checks the CALL PATH
+
+⚰️ **Amended by owner ruling B4, 2026-09-09.** Increment 2 was reviewed against an invariant
+reading *"exactly two write paths"*. **No such invariant existed anywhere in this repo** — a
+repo-wide search found only the review finding that referred to it. Nothing stated it and nothing
+checked it, so the disagreement it caused could only ever be settled by hand.
+
+**The accurate statement: the hub has FOUR write paths — two it owns, two it triggers through
+pre-existing app clients.**
+
+| Endpoint | Method | Reached through | Owner |
+|---|---|---|---|
+| `/api/j2/positions/{id}` | `PUT` | `hub/sections/journalSection.js` (body only ever from `stopPatchFor`) | hub |
+| `/api/hub/planned-trades` | `POST` | `hub/plannedTradesClient.js` | hub |
+| `/api/watchlists/flagged/sync` | `POST` | `hooks/useFlagged.js` — Flag, plan §3.3 | pre-existing app client |
+| `/api/watchlist-alerts` | `POST` | `hooks/useWatchlistAlerts.js` — Alert, plan §3.3 | pre-existing app client |
+
+⛔ **A COUNT IS NOT THE INVARIANT — the call path is.** A rogue hub-local client that REPLACES one
+of the two app endpoints rather than adding a fifth keeps the total at four, and every count-based
+gate passes it while the app's own cache invalidation and optimistic insert are silently bypassed.
+So the rail asserts `(endpoint, reached-via-module, owner)` tuples, and the ownership clause —
+app-owned paths must resolve OUTSIDE `app/src/hub/` — is a separate assertion so that when it
+fails it says OWNERSHIP and nothing else.
+
+**Enforced by `app/src/hub/writePaths.test.js`**, which derives layer 1 exhaustively from every
+non-test file under `app/src/hub/**`. ⚠️ Read that file's COVERAGE BOUNDARY header before trusting
+it: layer 2 asserts a declared app-client call site EXISTS, and does not claim those clients can
+write nothing else.
    ⭐ The "no other field" half is the load-bearing one: `PUT /api/j2/positions/{id}` is a partial
    update over `_UPDATABLE_FIELDS`, so an extra key the hub did not mean to send would silently
    overwrite a field the member set somewhere else, and every assertion about the stop would still

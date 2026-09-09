@@ -122,7 +122,7 @@ describe('validators reject the shapes that fail SILENTLY in production', () => 
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('the confirm sheet — the only Phase 3 write path', () => {
+describe('the confirm sheet — renders its payload as text, fires onConfirm exactly once', () => {
   const basePayload = (overrides = {}) => ({
     title: 'Set stop',
     body: 'Set the stop on NVDA to 178.10. This replaces your current stop of 176.00.',
