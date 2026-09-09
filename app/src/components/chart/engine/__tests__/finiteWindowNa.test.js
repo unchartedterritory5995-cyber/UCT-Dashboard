@@ -23,7 +23,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { FINITE_WINDOW, FN } from '../ast/interpret.js'
+import { FINITE_WINDOW, CARRIED, FN } from '../ast/interpret.js'
 
 const OBS = JSON.parse(fs.readFileSync(
   path.resolve(process.cwd(), '../tests/fixtures/vendor/runtime/finite-window-na-policy-by-member-spy-1d-2026-09-08.json'),
@@ -44,7 +44,10 @@ describe('⛔⛔ the policy is declared PER MEMBER, and the table says so', () =
     }
     // ⛔ IF THIS DROPS TO ONE, SOMEBODY HAS GENERALISED. That is the exact move
     // the evidence forbids: at least three members would then be wrong.
-    expect(seen.size, 'the family must still use more than one policy').toBe(3)
+    // ⚰️ THIS READ 3 UNTIL 2026-09-08. `wma` resolving to FORWARD-FILL added a
+    // fourth, which is the same lesson one turn further on — the family did not
+    // merely hold more than one rule, it held more rules than had been NAMED.
+    expect(seen.size, 'the family must still use more than one policy').toBe(4)
   })
 
   it('⭐ the members are on the policies the vendor showed', () => {
@@ -162,33 +165,71 @@ describe('⭐ the series-start warm-up is UNCHANGED, and deliberately so', () =>
   })
 })
 
-describe('⚠️ what the fixture did NOT settle — recorded, not guessed', () => {
-  it('⛔ wma is UNRESOLVED and stays on the old policy', () => {
-    // Five hypotheses were tried against the capture; none explains it. At bar
-    // 8130 wma reads 589.386… while the only observation since the hole is
-    // 594.2, so it is neither restarting nor reducing over the lone value.
-    const h = OBS.vendor.probeB_holes_every_11.hypotheses
-    expect(h._wma).toMatch(/UNRESOLVED/)
-    expect(FINITE_WINDOW.wma.na, 'wma keeps the pre-existing policy until it is known').toBe('propagate')
+describe('⚰️ what PART Z could not settle, and what settled it', () => {
+  // ⛔⛔ THIS BLOCK USED TO ASSERT THE UNRESOLVED STATE ITSELF — that `wma` was
+  // `propagate` "until it is known", that `rising`/`falling` were undetermined,
+  // that `highestbars` answering on the `na` bar was "a shape we do not yet
+  // serve". Those were honest records of ignorance and they are now records of a
+  // WRONG ANSWER, so they are replaced rather than relaxed. The ignorance itself
+  // survives where it belongs: in the superseded fixture's own `_coverage`.
+  //
+  // What settled all three was changing the SOURCE, not the analysis. PART Z
+  // probed real `close`, where five `wma` hypotheses all produced plausible
+  // numbers and none could be excluded. An arithmetic source ((bar_index*37)%101)
+  // makes the answer fall out in one row.
+
+  it('⭐⭐ wma is RESOLVED — forward-fill, and the sixth hypothesis is the one that fits', () => {
+    expect(FINITE_WINDOW.wma.na).toBe('ffill')
+    // One hand-checkable row from the capture: values 58, 95, na, 68 with
+    // weights 1,2,3,4 read 80.5 — which is (58·1 + 95·2 + 95·3 + 68·4)/10, the
+    // hole carrying the previous value FORWARD at its own bar's weight.
+    const src = Float64Array.from([58, 95, NaN, 68])
+    expect(FN.wma(src, 4)[3]).toBeCloseTo(80.5, 12)
   })
 
-  it('⛔ rising/falling were NOT DETERMINED — the probe could not see it', () => {
-    // They were read through `x ? 1 : 0`, which cannot separate `na` from false.
-    expect(OBS.provenance.note).toMatch(/CANNOT distinguish na from false/)
-    expect(FINITE_WINDOW.rising.na).toBe('propagate')
-    expect(FINITE_WINDOW.falling.na).toBe('propagate')
+  it('⭐⭐ wma answers `na` on the bar it is ASKED about, and fills only what it looks BACK at', () => {
+    // ⛔ THE HALF OF THE RULE THAT IS EASY TO LOSE. Forward-filling the current
+    // bar too would answer on every hole; the vendor blanks exactly there, and
+    // all 34 of the first model's failures were that one bar.
+    const src = Float64Array.from([58, 95, 68, NaN])
+    expect(Number.isFinite(FN.wma(src, 4)[3])).toBe(false)
   })
 
-  it('⛔ highestbars/lowestbars answered ON the na bar — a shape we do not yet serve', () => {
-    const b = OBS.vendor.probeB_holes_every_11
-    expect(b.finiteOnNaBar.highestbars).toBe(b.naBars)
-    expect(b.finiteOnNaBar.highest).toBe(0)
-    // ⛔ so they are NOT `restart` like `highest`, and not `skip` either — left on
-    // the old policy with the difference recorded rather than guessed at.
-    expect(FINITE_WINDOW.highestbars.na).toBe('propagate')
+  it('⭐⭐ rising/falling LEFT the window family — the counter is what fits', () => {
+    expect(FINITE_WINDOW.rising, 'rising is no longer a window member').toBeUndefined()
+    expect(FINITE_WINDOW.falling, 'falling is no longer a window member').toBeUndefined()
+    expect(CARRIED.rising).toBeTruthy()
+    expect(CARRIED.falling).toBeTruthy()
+    // ⭐ THE SIGNATURE NO WINDOW CAN PRODUCE, in four bars: the source DROPS
+    // across a hole and `rising` stays true, because the hole held the count and
+    // the bar after it compares against that hole.
+    const src = Float64Array.from([5, 6, 7, NaN, 1, 2])
+    const out = FN.rising(src, 2)
+    expect(out[2], 'a clean 2-step run is true').toBe(1)
+    expect(out[4], 'and 7 -> na -> 1 does not break it').toBe(1)
   })
 
-  it('⭐ the fixture states its own coverage, so a name cannot imply evidence', () => {
+  it('⭐⭐ highestbars/lowestbars: RESTART, and 0 where the VALUE is not computable', () => {
+    expect(FINITE_WINDOW.highestbars.na).toBe('restart')
+    expect(FINITE_WINDOW.lowestbars.na).toBe('restart')
+    expect(FINITE_WINDOW.highestbars.naCurrent).toBe(0)
+    // ⭐ THE ASYMMETRY PART Z MEASURED AND COULD NOT EXPLAIN, now expressed: the
+    // OFFSET is defined on an `na` bar because the window restarted there and
+    // this bar is its only candidate — while the VALUE stays blank.
+    const src = Float64Array.from([10, 11, 12, NaN])
+    expect(FN.highestbars(src, 3)[3]).toBe(0)
+    expect(Number.isFinite(FN.highest(src, 3)[3])).toBe(false)
+  })
+
+  it('⛔ and a TIE goes to the OLDER bar, which is where the corpus actually moved', () => {
+    // 6–10% of bars on real SPY OHLCV change under this rule. It is not a corner
+    // case: repeated highs and lows are ordinary in a real price series.
+    const src = Float64Array.from([10, 20, 20, 15])
+    // internal form is a NON-NEGATIVE distance back; `ta.highestbars` negates it.
+    expect(FN.highestbars(src, 3)[3]).toBe(2)
+  })
+
+  it('⭐ the superseded fixture still states its own coverage', () => {
     expect(OBS._coverage.SEED).toMatch(/NOT OBSERVED/)
     expect(OBS._coverage.WARMUP).toMatch(/NOT OBSERVED/)
     expect(OBS._coverage.NA_CURRENT_INPUT).toBe('OBSERVED')

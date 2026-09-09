@@ -67,6 +67,13 @@ const BARS = Array.from({ length: N }, (_, i) => ({
 const CARRIED_SHAPE = {
   ema: 'smoothCol — prev/count/sum',
   rma: 'smoothCol — prev/count/sum',
+  // ⭐⭐ MOVED HERE FROM `finiteWindow` ON 2026-09-08, AND THE CENSUS IS WHERE
+  // THAT SHOWS. They read like windows over `n + 1` samples and are counters:
+  // no window policy fits the vendor, because two identical windows in the
+  // capture get opposite answers. `monotoneStep` carries count/prev/seen — the
+  // same three-scalar shape as `smoothCol`.
+  rising: 'monotoneStep — count/prev/seen, HOLD on na',
+  falling: 'monotoneStep — count/prev/seen, HOLD on na',
   barssince: 'barsSince — since/run, reset on na',
   valuewhen: 'valueWhen — since/held, reset on na',
   rsi: 'computeRSI — RMA of gains/losses',

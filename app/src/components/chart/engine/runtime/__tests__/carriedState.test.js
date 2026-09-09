@@ -82,6 +82,13 @@ const sameSeries = (got, want, label) => {
 }
 
 const MEMBERS = Object.keys(CARRIED)
+// ⭐⭐ THE SMOOTHERS ARE THE ONES THAT DECLARE A DECAY, and the split is DERIVED
+// rather than typed. `CARRIED` stopped meaning "exponential average" on
+// 2026-09-08 when `rising`/`falling` joined it as counters, and several rails
+// below are about a SMOOTHER's seed and alpha — they have nothing to say about a
+// counter. Deriving the subset means a fifth member lands in the right rails on
+// the day it is added instead of the day somebody remembers to widen a list.
+const SMOOTHERS = MEMBERS.filter((fn) => CARRIED[fn].alpha)
 
 describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§47/§76)', () => {
   for (const fn of MEMBERS) {
@@ -97,9 +104,12 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
   }
 
   it('⛔ NON-VACUITY — the members are distinguishable on this fixture', () => {
+    // ⛔ OVER THE WHOLE SERIES, NOT A SIX-BAR SLICE. `rising` and `falling` are
+    // booleans: on any six consecutive bars they can both read 0, and a window
+    // that narrow would report two genuinely different members as one.
     const seen = MEMBERS.map((fn) =>
-      JSON.stringify(runPine(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 6))\n`).out.slice(10, 16)))
-    expect(new Set(seen).size, 'ema and rma must not agree here').toBe(MEMBERS.length)
+      JSON.stringify(Array.from(runPine(`${head}var x = 0.0\nx := close\nplot(ta.${fn}(x, 6))\n`).out)))
+    expect(new Set(seen).size, 'no two carried members may agree everywhere').toBe(MEMBERS.length)
   })
 
   it('⭐ several lengths, including 1', () => {
@@ -552,7 +562,7 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
     infinity: Array.from({ length: 30 }, (_, i) => (i === 10 ? Infinity : 50 + i)),
   }
 
-  for (const fn of MEMBERS) {
+  for (const fn of SMOOTHERS) {
     for (const [label, data] of Object.entries(CLEAN)) {
       for (const n of [1, 4, 14]) {
         it(`⭐ ${fn} n=${n} — ${label}: UNCHANGED by the correction`, () => {

@@ -9,8 +9,8 @@
     "accum_running_max_is_highest": "1357f3d5073da2081b58d3a289938498a7437eff7d742166acd24a4ec0ce81aa",
     "accum_sticky_flag_ternary": "f052cdad3033f5beb02d91bf454ac082314ee0356c6d8451e6a2916aef2aa496",
     "adx_trend_strength": "47004ec35588b8770725a1e4454d8ad626c72678a40afcfffea8af37330bfe2a",
-    "aroon_down_25": "4f89cd2f5049e759ca758e5d6a02bb8b89d0b5673ee8f18f33cf68462b730482",
-    "aroon_up_25": "97b54dae9c066d894b8c038e71cc4da4934b414c595e2aa228cea57847287586",
+    "aroon_down_25": "ae34d2bffb90f6b38edfc5b3c6ea8a3633753c7cece26bfcf0d4a36e42fe790a",
+    "aroon_up_25": "69d14f135288efabd2b45974a8f2b6ed819d94a6a42e96bae7d8210400ed47f9",
     "atan_of_close": "35e0c0585a54399819ca7f0a6ff5ecda534afb33a73e1a39cd1e6e0d4b309c38",
     "atr_of_hlc": "4dddeefee0023120fd6aaea12111274fbb937a673f6369817419650c26a45b4c",
     "avwap_anchor_before_the_series_is_not_computable": "e15166565e8f122bfe061f1717801c4857ce6a53f1d4874c8029cbda15f6bae0",
@@ -56,7 +56,7 @@
     "exp_overflow": "3d7472a231446fa27716d81eea82d25e33bd6fd0351663c4fbcab647c00a9c4d",
     "falling_close_3": "f06c606a61abe5a8506f01f5bfd8850b993abdee257631af3dd5b81165d0a79d",
     "float_division": "73cda8db44d16b45d6df5cb11e114bd483d3779a53b1f8184e8ca43b6b7a4c2b",
-    "highestbars_the_offset_back_to_the_high": "8424b0cebfbe4437cdc746cbf3c085c0969051f01133f888b57cf234ab926804",
+    "highestbars_the_offset_back_to_the_high": "cd8b09d6be10d38d9093aeaeb79d9943a988a9c6e7ab87629c3b893710d86d10",
     "hma_classic_nine": "2d9a822250fcd73f7d0129777f459c929c8e4e00c26dda348fdf87a7a561676c",
     "hma_composes_over_two_fields": "b9132ae7723ec79c2a73e6820b319312e45dcc8e48d4f7fd4f5deffc05f419e3",
     "hma_period_one_is_the_floor_case": "d480bf1c50bba884006896396e27d0cc417c0847c1b38a0d9fa48bfce4f603fc",
@@ -75,7 +75,7 @@
     "ln_of_zero": "639ed026ca8dd974f5cb547810b23a0aaa6a0af33ee868399d172d3a6be35717",
     "log10_of_close": "955560a2c1f5f463d74439816d45642919070ee7bd134cce0c017c95c160849b",
     "lowest_of_low": "110769cabcfcffbaf3e281923f5fbb88eb494b843ca0a05738b1f87632e709e5",
-    "lowestbars_the_offset_back_to_the_low": "865fb7ecc4f4adfa1a1b511448cd71685ba84cfde754b57984b80f9586c83de5",
+    "lowestbars_the_offset_back_to_the_low": "40f9c4db0a3196c7b1e653ca8dd043ed37e8f521f2b94913f2e312eaec3332a7",
     "macd_line": "197e0548065dc0a5959ed1bd1c6572275da9062084640df6fabc098472ece50a",
     "macd_signal_by_composition": "fa197ebca667ab91d0cb4c27d00e4a0ce32f7c13b59850cc6c1efd493ebb7e7e",
     "median_close_4": "61eedc86bcf22d1717ca0d8d17d945e4ea5a8bf9f48c39eb90b5cd0deb441347",
@@ -326,6 +326,18 @@
       "at_head": "c3c3838addef375185dcf408f2f1899a2a16b8e0",
       "moved": [],
       "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 8 added, 0 removed` with `non-vacuity : 70636 finite of 83376 rows, every case non-empty, 97 table entries covered`; `--check` green afterwards at 144 asts x 579 bars, and `--coverage` reports 97 declared entries ALL COVERED. ⭐ ZERO MOVED IS THE HALF THAT MATTERS: `cumFrom` is the FIRST `reads: \"bars\"` entry that also takes a `series`, so it exercises the call-site seam where a bar reader's non-`int` slots are evaluated to COLUMNS before dispatch — an edit that changed that seam while adding it would have moved `vwap`, `avwap`, `obvN`, `aroonUp`, `aroonDown` and `bop`. None moved, so the seam was already general and this entry only used it. ⭐ THE EIGHT CASES SEPARATE EVERY WAY THE TWO LANES COULD SILENTLY DIFFER, AND EACH ONE HAS A TWIN IT MUST DISAGREE WITH. The anchor boundary is pinned from BOTH sides one second apart (`_anchored_on_the_very_first_bar` totals from bar 0 where `_anchor_before_the_series_is_not_computable` is blank on every bar). The declared reach is pinned by two rows that share a source and an anchor and differ only in it (`_volume_from_a_mid_series_instant` runs to bar 578; `_stops_at_the_window_it_declares` stops at 389), so a lane that ignored the argument cannot pass both. The sticky hole is measured with a FINITE PREFIX (172 exact bars, then 407 blank) rather than an all-NaN column, because only that shape tells stickiness from plain propagation -- and it is the one case a MUTATION run corrected: an earlier draft anchored where the source never recovers, so deleting the stickiness guard in EITHER lane left the digest unmoved. Re-anchored on bar 0, where `ln(105 - close)` holes at 172 and RECOVERS at 193, it catches both. Its `nz` twin is finite over the same bars. ⭐⭐ AND `_the_anchored_obv_the_exclusion_refuses` IS THE ROW THE WHOLE ENTRY EXISTS FOR: `sign(change(close)) * volume` accumulated from an instant is the quantity `_functions_excluded.obv` and `_functions_excluded.cum` both point at, and it measures 251 against the budget where a `lookback: \"session\"` version would have measured 961 against a cap of 960 and been refused — which is the measurement that turned the reach from the session into an argument."
+    },
+    {
+      "added": [],
+      "at_head": "fa671f5477dd0e5a3ec2c9f3adbbc27865bb0261",
+      "moved": [
+        "aroon_down_25",
+        "aroon_up_25",
+        "highestbars_the_offset_back_to_the_high",
+        "lowestbars_the_offset_back_to_the_low"
+      ],
+      "proof": "`--record --force` printed `vs the previous log: 4 MOVED ['aroon_down_25', 'aroon_up_25', 'highestbars_the_offset_back_to_the_high', 'lowestbars_the_offset_back_to_the_low'], 0 added, 0 removed`, and `--check` reported no LANES DISAGREE finding either before or after -- so the two lanes moved TOGETHER to the same new value rather than one of them drifting.",
+      "why": "The arg-extreme TIE-BREAK was corrected from most-recent-wins to OLDEST-wins. Measured on TradingView 2026-09-08 on a two-valued source built to force ties: oldest 380ok/0bad, newest 193ok/187bad, with 244 of the agreeing bars carrying no `na` at all, so it is a tie rule and not an `na` rule in disguise. Re-confirmed identically under //@version=6. `aroon_up`/`aroon_down` move because they are BUILT on `highestbars`/`lowestbars`; they were not touched directly. ⚠️ NOT A CORNER CASE: 6-10% of bars change on real SPY OHLCV at lengths 5 and 25, because repeated highs and lows are ordinary in a real price series. The committed 579-bar corpus holds no tie in `high` or `low`, which is why two lanes agreed on the wrong rule for so long. Fixture: tests/fixtures/vendor/runtime/recurrent-composites-and-window-closure-spy-1d-2026-09-08.json"
     }
   ]
 }

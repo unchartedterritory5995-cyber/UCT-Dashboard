@@ -1,210 +1,291 @@
 {
- "_": "NAMED, DELIBERATE-OR-SUSPECTED DIFFERENCES BETWEEN THIS ENGINE AND A VENDOR. Read tests/fixtures/vendor/README.md first. A row here is what lets `tools/vendor_truth.py` say 'this delta is EXPLAINED' instead of 'this delta is a bug' — so a row that is wrong is worse than no row at all, because it launders a real defect into an expected one.",
- "_status_vocabulary": {
-  "suspected": "DERIVED FROM OUR CODE, NOT YET MEASURED AGAINST THE VENDOR. We can state exactly what WE do, and we have a documented reason to believe the vendor does otherwise — but nobody has read the vendor's number. ⛔ A `suspected` row NEVER explains a delta: `vendor_truth.py` counts a delta matching one as UNEXPLAINED-BUT-ANTICIPATED and still reports it, because an unmeasured belief that silences a measurement is the exact defect this directory exists to prevent.",
-  "confirmed": "MEASURED. An observation in `observations/` exhibits this delta and its `explains` names this row. Only a `confirmed` row may explain a delta.",
-  "refuted": "MEASURED, AND WE MATCH THE VENDOR AFTER ALL. Kept rather than deleted — a retired suspicion is the cheapest thing to re-suspect, and the next reader deserves to know it was checked. Carries `refutedBy`.",
-  "accepted": "CONFIRMED, AND WE ARE KEEPING OUR BEHAVIOUR ON PURPOSE. Requires `decision` — who ruled, when, and why. This is the row type that MUST reach a member: an accepted divergence is a sentence the product owes whoever pasted the script.",
-  "spec-falsified": "MEASURED AGAINST THE VENDOR'S PUBLISHED DEFINITION and found to differ, by `tools/vendor_spec_probes.py`. Stronger than `suspected` (a number was computed, not a belief stated) and weaker than `confirmed` (nobody has read the vendor's SCREEN, and prose can be incomplete). ⛔ It still may not explain a delta in `vendor_truth.py` — the asymmetry is deliberate: a falsified spec probe says we are probably wrong, which is a reason to FIX, never a reason to expect."
- },
- "_probe_rule": "⛔ EVERY ROW CARRIES A `probe` THAT DISCRIMINATES. The probe describes a case whose VALUE DIFFERS under the two conventions, with the two answers named. A row whose probe cannot distinguish the conventions is a description of nothing — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` — and `test_vendor_truth.py` refuses a row that does not carry both answers.",
- "rows": [
-  {
-   "id": "atr-tr-starts-at-bar-1",
-   "shape": "seeded",
-   "status": "accepted",
-   "confidence": "measured",
-   "ours": "True Range is defined from bar 1 — `compute_atr_raw` loops `for i in range(1, n)`, so bar 0 contributes NO TR. The seed is the simple mean of the first `period` TRs (i.e. TR of bars 1..period) and lands on `bars[period]`.",
-   "theirs": "Pine's `ta.atr(length)` is documented as `ta.rma(ta.tr(true), length)`, and `ta.tr(true)` DEFINES bar 0 as `high - low` rather than leaving it `na`. Their TR array therefore starts one bar earlier and contains one value ours does not.",
-   "why_it_matters": "Two differences compose: the seed is the mean of a DIFFERENT SET of true ranges, and it lands one bar EARLIER. Wilder smoothing decays a seed difference rather than erasing it, so the delta is largest at the left edge and shrinks rightward — which means a fixture window chosen too far right will show agreement that is not there. ⚠️ ATR is an input to stops, position sizing and supertrend, so an early-bars delta propagates into a LATCHING difference wherever it feeds a state machine.",
-   "code": "api/services/indicator_compute.py:592-615 (compute_atr_raw); the JS twin is `computeATR`",
-   "probe": {
-    "case": "ATR(14) on the FIRST 20 bars of a series, read at bar 14 and bar 15",
-    "under_ours": "bar 14 is the first non-empty value, and it is mean(TR[1..14])",
-    "under_theirs": "bar 13 is the first non-empty value, and it is mean(TR[0..13]) where TR[0] = high[0] - low[0]",
-    "discriminates": "the two conventions disagree about WHICH BAR first carries a value, which is visible without comparing any float at all — and then about the value itself"
-   },
-   "observation_ids": [],
-   "measured": {
-    "by": "tools/vendor_spec_probes.py::probe_atr, 2026-08-29",
-    "alignment": "our first value lands on bar 14; the published definition's on bar 13 — ONE BAR LATE, on every series, forever",
-    "our_first_value": 2.7735031382965576,
-    "spec_first_value": 2.809217424010843,
-    "worst_abs_delta": 0.006484469714,
-    "shared_bars_compared": 66,
-    "calibration": "⭐ THE SAME RUN AGREED ON THREE OTHER PROBES — `sma(close,20)` to 4.3e-14, `ema(close,10)` to 0, `rma(close,14)` to 9.9e-14. That is what makes this finding credible rather than an artefact: the instrument that reports ATR wrong reports the smoother it is built on RIGHT, so the disagreement is in the true-range half and not in the harness.",
-    "decay": {
-     "bar_14": "0.2333%",
-     "bar_20": "0.1623%",
-     "bar_30": "0.0793%",
-     "bar_80": "0.0022%",
-     "bar_200": "~0%",
-     "bar_299": "4.36e-12 absolute",
-     "note": "the VALUE defect decays; the ALIGNMENT defect (one fewer emitted value) does not."
+  "_": "NAMED, DELIBERATE-OR-SUSPECTED DIFFERENCES BETWEEN THIS ENGINE AND A VENDOR. Read tests/fixtures/vendor/README.md first. A row here is what lets `tools/vendor_truth.py` say 'this delta is EXPLAINED' instead of 'this delta is a bug' — so a row that is wrong is worse than no row at all, because it launders a real defect into an expected one.",
+  "_status_vocabulary": {
+    "suspected": "DERIVED FROM OUR CODE, NOT YET MEASURED AGAINST THE VENDOR. We can state exactly what WE do, and we have a documented reason to believe the vendor does otherwise — but nobody has read the vendor's number. ⛔ A `suspected` row NEVER explains a delta: `vendor_truth.py` counts a delta matching one as UNEXPLAINED-BUT-ANTICIPATED and still reports it, because an unmeasured belief that silences a measurement is the exact defect this directory exists to prevent.",
+    "confirmed": "MEASURED. An observation in `observations/` exhibits this delta and its `explains` names this row. Only a `confirmed` row may explain a delta.",
+    "refuted": "MEASURED, AND WE MATCH THE VENDOR AFTER ALL. Kept rather than deleted — a retired suspicion is the cheapest thing to re-suspect, and the next reader deserves to know it was checked. Carries `refutedBy`.",
+    "accepted": "CONFIRMED, AND WE ARE KEEPING OUR BEHAVIOUR ON PURPOSE. Requires `decision` — who ruled, when, and why. This is the row type that MUST reach a member: an accepted divergence is a sentence the product owes whoever pasted the script.",
+    "spec-falsified": "MEASURED AGAINST THE VENDOR'S PUBLISHED DEFINITION and found to differ, by `tools/vendor_spec_probes.py`. Stronger than `suspected` (a number was computed, not a belief stated) and weaker than `confirmed` (nobody has read the vendor's SCREEN, and prose can be incomplete). ⛔ It still may not explain a delta in `vendor_truth.py` — the asymmetry is deliberate: a falsified spec probe says we are probably wrong, which is a reason to FIX, never a reason to expect."
+  },
+  "_probe_rule": "⛔ EVERY ROW CARRIES A `probe` THAT DISCRIMINATES. The probe describes a case whose VALUE DIFFERS under the two conventions, with the two answers named. A row whose probe cannot distinguish the conventions is a description of nothing — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` — and `test_vendor_truth.py` refuses a row that does not carry both answers.",
+  "rows": [
+    {
+      "id": "atr-tr-starts-at-bar-1",
+      "shape": "seeded",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "True Range is defined from bar 1 — `compute_atr_raw` loops `for i in range(1, n)`, so bar 0 contributes NO TR. The seed is the simple mean of the first `period` TRs (i.e. TR of bars 1..period) and lands on `bars[period]`.",
+      "theirs": "Pine's `ta.atr(length)` is documented as `ta.rma(ta.tr(true), length)`, and `ta.tr(true)` DEFINES bar 0 as `high - low` rather than leaving it `na`. Their TR array therefore starts one bar earlier and contains one value ours does not.",
+      "why_it_matters": "Two differences compose: the seed is the mean of a DIFFERENT SET of true ranges, and it lands one bar EARLIER. Wilder smoothing decays a seed difference rather than erasing it, so the delta is largest at the left edge and shrinks rightward — which means a fixture window chosen too far right will show agreement that is not there. ⚠️ ATR is an input to stops, position sizing and supertrend, so an early-bars delta propagates into a LATCHING difference wherever it feeds a state machine.",
+      "code": "api/services/indicator_compute.py:592-615 (compute_atr_raw); the JS twin is `computeATR`",
+      "probe": {
+        "case": "ATR(14) on the FIRST 20 bars of a series, read at bar 14 and bar 15",
+        "under_ours": "bar 14 is the first non-empty value, and it is mean(TR[1..14])",
+        "under_theirs": "bar 13 is the first non-empty value, and it is mean(TR[0..13]) where TR[0] = high[0] - low[0]",
+        "discriminates": "the two conventions disagree about WHICH BAR first carries a value, which is visible without comparing any float at all — and then about the value itself"
+      },
+      "observation_ids": [],
+      "measured": {
+        "by": "tools/vendor_spec_probes.py::probe_atr, 2026-08-29",
+        "alignment": "our first value lands on bar 14; the published definition's on bar 13 — ONE BAR LATE, on every series, forever",
+        "our_first_value": 2.7735031382965576,
+        "spec_first_value": 2.809217424010843,
+        "worst_abs_delta": 0.006484469714,
+        "shared_bars_compared": 66,
+        "calibration": "⭐ THE SAME RUN AGREED ON THREE OTHER PROBES — `sma(close,20)` to 4.3e-14, `ema(close,10)` to 0, `rma(close,14)` to 9.9e-14. That is what makes this finding credible rather than an artefact: the instrument that reports ATR wrong reports the smoother it is built on RIGHT, so the disagreement is in the true-range half and not in the harness.",
+        "decay": {
+          "bar_14": "0.2333%",
+          "bar_20": "0.1623%",
+          "bar_30": "0.0793%",
+          "bar_80": "0.0022%",
+          "bar_200": "~0%",
+          "bar_299": "4.36e-12 absolute",
+          "note": "the VALUE defect decays; the ALIGNMENT defect (one fewer emitted value) does not."
+        }
+      },
+      "decision": {
+        "ruled": "2026-08-29 — KEEP OURS. Wilder's original stands; we do not move it for this.",
+        "prior_ruling": "⛔⛔ THIS WAS ALREADY ADJUDICATED, and the adjudication is a test: `tests/test_ast_indicators.py::test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED`. It answered a cross-product finding that our ATR 'matches neither Wilder RMA nor SMA-of-TR — a third convention', proved ours IS Wilder's exactly (with the SMA-of-TR alternative computed as a DISAGREEING control), identified this same bar-0 mechanism by name, and warned in its own words: “a cross-product probe must not sample the warm-up — 0.20 vs 0.21 read at bar 15 is two seeds, not two formulas, and reading it as a formula difference is how a correct implementation gets ‘fixed’.”",
+        "what_happened": "⚰️ I DID EXACTLY THAT, and it is recorded rather than quietly reverted. `probe_atr` measured the delta, I changed `compute_atr_raw` and `computeATR` to the published `ta.rma(ta.tr(true), n)` form, the probes went 4/4 green — and the golden fixtures went red by design (`atr_14`, `atr_bands_14_2`, `test_hand_computed_atr`), which is how the prior ruling surfaced. Reverted the same session.",
+        "why_keep_ours": [
+          "OURS IS CORRECT WILDER. This is not a bug being tolerated; it is one valid convention beside another. TradingView's `ta.atr` is Wilder smoothing over a TR series that includes bar 0; ours is Wilder smoothing over a TR series that starts where a true range is actually defined. Neither is wrong about Wilder.",
+          "THE DELTA IS INVISIBLE WHERE IT IS READ. Measured over 300 bars: 0.233% at the seed, 0.079% by bar 30, 0.0022% by bar 80, 4.4e-12 by bar 299. A chart shows thousands of bars; nothing a member looks at differs.",
+          "THE CONSUMERS THAT WOULD MOVE ARE NOT THE PASTE SURFACE. `compute_atr_raw` feeds supertrend, `screener/technicals` (atr_pct, a50), `screener/bar_character`, `alert_series`'s armed member alerts, and the chart overlay. Those want the firm's own convention and have no stake in TradingView parity; changing them to serve the import lane would move live stops, sizing and saved-scan results for a difference of 4e-12 where it is read.",
+          "A SECOND, VENDOR-FAITHFUL `atr` IS THE WORSE ANSWER. Two entries computing 'the ATR' is a second authority over one value — this repo's most repeated defect — and the member could not tell which one their formula got."
+        ],
+        "what_would_reopen_it": "A member reporting a visible mismatch against a TradingView chart; OR a scan surface whose fetch window is short enough that the one missing value matters (measured: on a 16-bar fetch we emit 2 values where the published definition emits 3 — the ALIGNMENT half never decays). Either would change the arithmetic of this decision, not just the mood.",
+        "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1."
+      },
+      "real_vendor_capture_2026_09_06": {
+        "_": "Vendor Parity Tranche 2, Lane A, first batch (RSI+ATR). Does NOT alter `measured` or `decision` above — both remain the original spec-probe-derived evidence, verbatim. This is a SEPARATE, additional confirmation using real captured TradingView data, appended rather than overwritten.",
+        "artifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_rsi_atr_capture_spy.csv (1,328 real SPY Daily bars, 2021-05-24..2026-09-04, full double-precision ta.atr(14)/ta.rsi(close,14) plot values)",
+        "what_it_confirms": "Once past this capture's own seed-convergence lag (empirically measured, last disagreeing bar at index 169 of 1328 — see the observation's `_vendor_parity_warmup_bars_note`), UCT's atr(high,low,close,14) agrees with the real vendor's ta.atr(14) to ~1e-9 relative on 1,148 real, current-market steady-state bars. This directly re-confirms `why_keep_ours`'s 'THE DELTA IS INVISIBLE WHERE IT IS READ' claim with real vendor numbers for the first time (the original 0.23%-decaying-to-4e-12 figures were spec-probe-derived, not vendor-captured).",
+        "what_it_does_not_confirm": "This capture's own window starts in 2021, decades after SPY's real ~1993 inception, so it CANNOT independently re-test the separate ALIGNMENT claim in `what_would_reopen_it` (one fewer emitted value at a symbol's true first-ever bar) — that claim is unchanged, untouched, and not retested here. Also: this capture's early bars (index 14-169) show a much LARGER (~25% relative at bar 14) delta than the adjudicated 0.23%-at-the-seed figure — measured and disclosed as a DIFFERENT effect (this capture's own window-truncation cold-start, confounding the smaller inherent bar-0/TR-definition difference), not a contradiction of the existing ruling. See `docs/superpowers/specs/universal-indicator-ecosystem/VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full decay curve.",
+        "classification": "RULING CONFIRMED (steady-state half) by real vendor runtime; ALIGNMENT half remains UNTESTED by this capture, not reopened."
+      }
+    },
+    {
+      "id": "smoother-seeds-with-sma-of-first-window",
+      "shape": "seeded",
+      "status": "refuted",
+      "confidence": "medium",
+      "ours": "`_smooth_col` accumulates until it has `n` finite values, then seeds `prev = total / n` — the SMA of the first full window — and emits its first value AT that bar. `ema` passes alpha = 2/(n+1), `rma` passes 1/n; both share the seed by construction.",
+      "theirs": "TradingView documents `ta.ema` as seeded from `ta.sma(source, length)`, which we believe MATCHES. Recorded anyway because the belief is documentation-derived and untested, and because the seeding rule is the single highest-leverage unmeasured decision in the engine: an engine seeded with the first close instead of the window SMA produces a curve that converges to ours and is wrong forever at the left edge.",
+      "why_it_matters": "If this is wrong, EVERY `ema`, `rma`, `rsi`, `atr`, `adx` and anything composed from them is wrong at the left edge, and all of them decay toward agreement — so the error is invisible in any fixture window that starts late. This is the divergence most likely to be missed by a careless harness.",
+      "code": "api/services/ast_interpret.py:657-690 (_smooth_col); interpret.js::emaCol",
+      "probe": {
+        "case": "EMA(10) read at the bar where it FIRST becomes non-empty",
+        "under_ours": "the first value equals the arithmetic mean of the first 10 closes, exactly",
+        "under_theirs_if_different": "a first-close seed would make the first emitted value equal `close[0]` smoothed 9 times toward the later closes — a different number, and a different first bar",
+        "discriminates": "the first emitted value is a pure function of the seeding rule, so one float at one bar separates the conventions"
+      },
+      "observation_ids": [],
+      "refutedBy": "tools/vendor_spec_probes.py::probe_ema and ::probe_rma, 2026-08-29. An independent implementation of TradingView's published seeding (SMA of the first `length` values, first value on bar `length - 1`) agrees with ours to 0 and 9.9e-14 respectively, on the same 80-bar series, with matching first bars. ⭐ KEPT RATHER THAN DELETED: this was the highest-leverage unmeasured decision in the engine, and the next reader deserves to know it was checked rather than re-suspect it. ⚠ The check is against their PROSE, not their screen — a real observation could still surprise us."
+    },
+    {
+      "id": "nan-restarts-the-smoother",
+      "shape": "seeded",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "A non-finite input RESETS the smoother — `prev, count, total = NAN, 0, 0.0` — so the series re-seeds after a hole rather than carrying state across it. The docblock argues this: an EMA that carried state across a hole would report an average over bars it never saw.",
+      "theirs": "MEASURED 2026-09-08, AND THEY HOLD. TradingView keeps the smoother's state UNCHANGED across an `na` source bar: the output is `na` AT that bar and the very next finite bar takes ONE normal step from the pre-hole state. Verified on all four `na` holes of a 400-bar SPY 1D capture, for BOTH ta.ema(.,10) and ta.rma(.,10): the hold prediction reproduces the vendor to 0 or 1.1e-13, and the vendor emits a value on the very next bar where our reset requires a further 9 blank bars before re-seeding.",
+      "why_it_matters": "It is reachable from a composed series — `ema(sma(close,20), 9)` has a 19-bar hole by construction, which is the warm-up of the inner window, so EVERY composed smoother in the product meets this rule on its left edge.",
+      "code": "api/services/ast_interpret.py:678-680",
+      "probe": {
+        "case": "EMA(5) over a series with one `na` planted in the middle",
+        "under_ours": "the output is empty for n-1 bars after the hole, then restarts from a fresh window SMA",
+        "under_carry_state": "the output continues on the next finite bar with no gap, from the pre-hole state",
+        "discriminates": "the COUNT of empty bars after the hole (9 vs 0 for n=10), which is countable rather than compared -- and then the resumed VALUE, which pins the mechanism rather than just the gap",
+        "under_theirs": "MEASURED: the output is empty for exactly ONE bar (the hole itself) and resumes immediately at the pre-hole state stepped once by the new value"
+      },
+      "observation_ids": [
+        "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
+      ],
+      "_we_are_wrong": "⛔⛔ THIS IS A SHIPPED-CHART DEFECT, NOT A DESIGN CHOICE. Our smoothers reset on `na`; TradingView holds. It is DELIBERATELY NOT FIXED IN 2F-2C: changing `smoothCol` changes the columnar lane's output on every chart whose source carries a mid-series hole, which is an owner ruling and not a runtime wave's to make unilaterally. The runtime therefore MATCHES THE COLUMNAR LANE (one authority, one divergence, recorded once) rather than matching the vendor while the chart does not. ⚠️ Blast radius is narrower than it looks: before the first finite value there is no state to hold, so a LEFT-EDGE hole (the warm-up of a composed inner window, e.g. `ema(sma(close,20),9)`) answers the same either way. The two rules differ only for a hole AFTER state exists.",
+      "decision_required": "Owner ruling: fix `smoothCol` to hold (vendor-faithful, changes shipped chart output at mid-series holes) or record as `accepted`."
+    },
+    {
+      "id": "mod-takes-the-sign-of-the-dividend",
+      "shape": "stateless",
+      "status": "suspected",
+      "confidence": "low",
+      "ours": "`x - y * trunc(x / y)` in both lanes — truncated division, so the result carries the sign of the DIVIDEND: `mod(-7, 3)` is -1, not 2.",
+      "theirs": "TradingView's own operator page warns that `%` on negatives may differ from other languages, which is a warning rather than a specification. Low confidence in both directions until measured.",
+      "why_it_matters": "Narrow: it is only reachable on a negative dividend, and most indicator arithmetic is on prices. Recorded because it is cheap to check once a chart is open, and because a `%` divergence is the kind that produces an occasional wrong bar rather than a wrong curve — the hardest kind to notice.",
+      "code": "app/src/components/chart/engine/ast/interpret.js:912-915; api/services/ast_interpret.py::_guarded_mod",
+      "probe": {
+        "case": "`mod(close - open, 3)` on a bar where `close < open`",
+        "under_ours": "a NEGATIVE result",
+        "under_floored_division": "a POSITIVE result in [0, 3)",
+        "discriminates": "the SIGN differs, which is visible at a glance and cannot be a rounding artefact"
+      },
+      "observation_ids": []
+    },
+    {
+      "id": "hull-half-window-floors",
+      "shape": "stateless",
+      "status": "confirmed",
+      "confidence": "high",
+      "ours": "`hma(src, n)` uses `floor(n / 2)` for the half-window and `round(sqrt(n))` for the smoothing window, each clamped at 1.",
+      "theirs": "TradingView's `ta.hma` restates Alan Hull's published definition, which is the same `floor(n / 2)`. WE MATCH — this row is `confirmed` as AGREEMENT, and it is here because the agreement was nearly broken by our own refusal advice.",
+      "why_it_matters": "⚰️ `pine.js::fractionalWindowAdvice` told members to write `round(n * 1/2)`, which is 28 where `hma(close, 55)` uses 27 — measured 0.636 apart over 140 bars. A member following our own advice built a different indicator under the same name. Fixed 2026-08-29 (`ba78a1e27`), railed by `pine.windowAdvice.test.js`, which MEASURES the two expansions against `hma` rather than reading the sentence.",
+      "code": "closedTable.json::_functions_hull; interpret.js `Math.max(1, Math.floor(n / 2))`; ast_interpret.py `max(1, int(n) // 2)`",
+      "probe": {
+        "case": "`hma(close, 55)` against its two hand expansions",
+        "under_ours": "identical to `wma(2*wma(close,27) - wma(close,55), 7)` to within 1e-9",
+        "under_round": "differs from `wma(2*wma(close,28) - wma(close,55), 7)` by up to 0.636 on the same series",
+        "discriminates": "measured in `pine.windowAdvice.test.js`, with the second assertion as the control that makes the first mean something"
+      },
+      "observation_ids": []
+    },
+    {
+      "id": "recursive-smoother-cold-start-in-a-finite-capture",
+      "shape": "seeded",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`interpret(ast, bars)` computes a Wilder/RMA-recursive function (e.g. `rsi`, `atr`) using ONLY the bars it is handed. Its first computable value (bar `period`) is seeded from a SIMPLE mean of just the first `period` diffs/true-ranges inside that window -- it has no knowledge of any bar before the window's own start.",
+      "theirs": "TradingView's `ta.rsi`/`ta.atr` run continuously over a symbol's REAL, often decades-long chart history. The real vendor value at any given calendar bar already reflects that entire prior smoothing history, not a fresh seed at whatever date a capture happens to start.",
+      "why_it_matters": "⚠️ THIS IS A CAPTURE-METHODOLOGY ARTIFACT, NOT A FORMULA DISAGREEMENT, and it is exactly the misclassification risk `VENDOR_PARITY_TRANCHE_2_READINESS_REPORT.md` named before any capture was made: comparing UCT's freshly-cold-seeded early bars against a vendor's already-converged value at the SAME calendar date can show a LARGE relative delta (measured up to ~25% at bar 14 of a 1,328-bar real SPY capture) that has nothing to do with the two engines disagreeing about the formula -- both use Wilder recursion identically, and the delta decays as UCT's own recursion catches up. This is a DIFFERENT, larger effect than (and confounds any attempt to isolate) the small, already-adjudicated `atr-tr-starts-at-bar-1` bar-0/TR-definition difference (~0.23% at ITS seed) -- the two must not be conflated. Applies to ANY Wilder/RMA-seeded function captured over a finite real-market window, not just rsi/atr specifically.",
+      "code": "api/services/ast_interpret.py::_fn_rsi/_fn_atr via indicator_compute.compute_rsi_raw/compute_atr_raw; api/services/indicator_compute.py's Wilder seed-then-recur pattern",
+      "probe": {
+        "case": "rsi(close,14) at bar index 14 of a 1,328-bar real SPY Daily capture (2021-05-24..2026-09-04) vs. the real vendor's ta.rsi(close,14) value at that same calendar bar",
+        "under_ours": "68.78150014823609 -- seeded fresh from only the 14 diffs inside this capture window",
+        "under_theirs": "68.16309777289919 -- the real vendor's value, reflecting continuous smoothing since well before this window began",
+        "discriminates": "a ~0.9% delta at bar 14 that shrinks to ~1e-9 (float noise) by bar 180 of the SAME series as UCT's own recursion converges -- a decay curve, not a persistent formula disagreement, and reproduced with near-identical shape/magnitude on atr(high,low,close,14) over the same bars"
+      },
+      "measured": {
+        "by": "tools/vendor_parity_compare.py against tests/fixtures/vendor/observations/{rsi-close14,atr-14}-2026-09-06.json, 2026-09-06",
+        "rsi_last_disagreeing_index": 172,
+        "atr_last_disagreeing_index": 169,
+        "of_bars": 1328,
+        "note": "both converge to <1e-6 relative delta permanently by bar 180; see VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md for the full per-checkpoint decay table"
+      },
+      "observation_ids": [
+        "rsi-close14-2026-09-06",
+        "atr-14-2026-09-06"
+      ]
+    },
+    {
+      "id": "recurrent-state-does-not-step-when-its-call-site-is-skipped",
+      "shape": "seeded",
+      "status": "refuted",
+      "confidence": "measured",
+      "ours": "Before 2F-2C the runtime could not execute a recurrent builtin at all, so there was no behaviour to agree or disagree with. 2F-2C implements the measured rule directly: carried state advances INSIDE the call, so a skipped call site does not step it.",
+      "theirs": "MEASURED 2026-09-08. A recurrent builtin inside a UDF called on only some chart bars steps ONLY on the bars where the call executes. Stepping every chart bar with the held input is EXCLUDED: it would make the conditional result equal an every-bar EMA of the same source, and the vendor's two series differ on every executed bar.",
+      "why_it_matters": "It is the opposite indexing from P7.2's ruling for function-local SERIES HISTORY, which is chart-bar indexed and HOLDS across skipped bars. History holds; recurrence does not advance. Building recurrence on the end-of-bar commit phase -- the obvious reuse of the history machinery -- would silently implement the excluded model.",
+      "code": "runtime/vm.js::OP.CARRIED (steps inside the call, never from the commit phase)",
+      "probe": {
+        "case": "`f(v) => ta.ema(v, 5)` called only on even bars, beside `ta.ema(close, 5)` called every bar",
+        "under_ours": "the conditional series is an EMA of the even-bar subsequence",
+        "under_theirs_if_different": "an every-bar model would make the two series equal on executed bars",
+        "discriminates": "six consecutive executed invocations reproduce to err=0.000e+00 under invocation-stepping, and the two series differ on every one of them"
+      },
+      "observation_ids": [
+        "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
+      ],
+      "refutedBy": "Implemented to match the measured vendor rule in 2F-2C; kept as the record of which model was excluded and by what evidence."
+    },
+    {
+      "id": "finite-window-propagates-na-instead-of-skipping-it",
+      "shape": "seeded",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`rolling` emits NaN for a window containing ANY NaN, and `interpret.js`'s header states the rule out loud: \"any NaN INSIDE a window makes that window's output NaN\". So over a gappy source our `sma`/`wma`/`stdev`/`highest`/... go blank on the hole AND for the `n-1` bars that still contain it.",
+      "theirs": "MEASURED 2026-09-08. `ta.sma(gappy, 10)` answers on EVERY bar, including the `na` bars, and its value is the mean of the last 10 FINITE values of the source - reaching back over as many BARS as that requires. 370 matches, 0 mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars. An `na` is SKIPPED, never propagated and never treated as zero. ⛔ AND THE FAMILY DOES NOT SHARE ONE RULE — measured 2026-09-08 across all twelve members: sma/stdev/sum/median SKIP (last n FINITE observations, answering on the na bar); dev PROPAGATES (clean n-BAR window); highest/lowest RESTART (the window begins again after a hole). wma fits none of five hypotheses and is UNRESOLVED; highestbars/lowestbars answer ON the na bar, a fourth shape; rising/falling were not determined by the probe.",
+      "why_it_matters": "It is the SAME class of defect as `nan-restarts-the-smoother` but wider: it reaches all twelve `FINITE_WINDOW` members in BOTH lanes, and it is reachable from any conditional source (`cond ? x : na`), any `valuewhen`, any pivot - all ordinary Pine. ⛔ AND THE TWO FAMILIES DIFFER FROM EACH OTHER: a window SKIPS an na and still answers; a recurrence WITHHOLDS its answer for that bar but keeps its state. One rule cannot be applied to both.",
+      "code": "interpret.js::rolling + every FINITE_WINDOW reducer; api/services/ast_interpret.py::_rolling",
+      "probe": {
+        "case": "`ta.sma(bar_index % 3 == 0 ? na : close, 10)` on SPY 1D",
+        "under_ours": "blank on the na bar and on the following 9 bars - the source's 267 finite bars yield far fewer outputs",
+        "under_theirs": "a value on all 400 bars, equal to the mean of the last 10 finite source values",
+        "discriminates": "the COUNT of answered bars (133 vs 0 on na bars) before any value is compared, and then the value itself"
+      },
+      "observation_ids": [
+        "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08",
+        "finite-window-na-policy-by-member-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured."
+    },
+    {
+      "id": "recurrent-composites-book-a-zero-or-die-on-na",
+      "shape": "A hole in the source destroys the shipped composites, in three different ways.",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`computeRSI` booked a non-finite diff as gain 0 / loss 0, which decays BOTH Wilder averages and leaves their RATIO unchanged -- so the printed value repeated the previous bar and read exactly like a hold while the state underneath had been scaled down. Every later bar was then wrong and never re-converged (bar 42 read 74.94 against a true 78.97; bar 79 was still off). `computeATR`, `computeMACD` and `computeADX` instead went NaN and STAYED NaN -- NaN is absorbing through their recursions -- so one hole blanked the series from that bar to the end of the chart. And in all four, an `na` inside the SEED window made the seed itself NaN and the output was empty: `finite = 0` over 300 bars. `computeADX` additionally FABRICATED directional movement, booking a confident zero for a bar whose +DM/-DM could not be computed.",
+      "theirs": "TradingView HOLDS. `ta.rsi` is an `rma` of gains and losses and `ta.macd` an `ema` difference, so both inherit the smoother rule pinned on 2026-09-08: `na` at the hole, state unchanged, one normal step on the next finite bar. `ta.rsi` loses TWO bars because `ta.change` reads the hole as its previous value; `ta.macd` loses one. 380 of 380 bars on the na SHAPE, and the values reconstruct to 1.3e-6 with the residual decaying ~2 orders per 60 bars (seed truncation, not a model gap).",
+      "why_it_matters": "These are the four most-used indicators in the product and the RSI form is the dangerous one: it left NO GAP on the chart. A member saw a continuous, plausible line that had been wrong since the last hole, with nothing to indicate it.",
+      "code": "app/src/components/chart/indicators.js::computeRSI/computeATR/computeADX/computeMACD; api/services/indicator_compute.py::compute_rsi_raw",
+      "probe": {
+        "case": "UCTPROBE_COMPOSITE_A: `ta.rsi(gc,14)`, `ta.macd(gc,12,26,9)` and `ta.ema(gc,14)` over `gc = bar_index % 11 == 0 ? na : close`, SPY 1D",
+        "under_ours": "`rsi` answers on EVERY bar including the holes, with a value that repeats the previous bar and is wrong from there on; `macd` is blank from the first hole to the end of the chart. Over 80 bars with holes every 11, `macd`/`atr`/`adx` returned finite=0 -- nothing at all -- because a hole also landed inside the seed.",
+        "under_theirs": "`rsi` is blank on the hole AND on the bar after it, then resumes from the pre-hole state; `macd` is blank on the hole only and resumes on the very next bar. 380 of 380 bars.",
+        "discriminates": "the na SHAPE alone, before any value is compared: our `rsi` never blanks and their `rsi` blanks twice per hole, and our `macd` never recovers while theirs recovers in one bar. The values then confirm it -- reconstructing from the HOLD rule matches to 1.3e-6 with the residual decaying ~2 orders per 60 bars."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false
+    },
+    {
+      "id": "rising-and-falling-are-not-windows",
+      "shape": "`ta.rising`/`ta.falling` were implemented as finite windows and belong to the carried family.",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "A strict-monotone scan over `length + 1` samples with a uniform NaN-anywhere-in-the-window rule -- the residual gap the 2026-09-06 resolution disclosed for both members.",
+      "theirs": "A COUNTER of consecutive strict steps that HOLDS across an `na`, reported as `count >= length`. 375ok/0bad on three independent sources; RESET-on-na scores 287/88; every window policy fails (skip 323/52, forward-fill 291/84, propagate 287/88).",
+      "why_it_matters": "No na policy could ever have fixed this. Two bars of the capture present STRUCTURALLY IDENTICAL windows -- an `na` followed by four strictly rising values -- and TradingView answers TRUE at one and FALSE at the other. The visible signature: the source DROPS from 7 to 1 across a hole and `ta.rising` stays true, because the hole held the count.",
+      "code": "interpret.js::monotoneStep + CARRIED; ast_interpret.py::_monotone_col",
+      "probe": {
+        "case": "UCTPROBE_RISEFALL_C: `ta.rising(vm, 4)` over `vm = bar_index % 11 == 0 ? na : bar_index % 8`, SPY 1D",
+        "under_ours": "a strict-monotone scan of the last 5 samples with NaN-anywhere-blanks: false wherever the window touches a hole, and after the sawtooth wraps.",
+        "under_theirs": "true across the hole even when the source DROPS through it -- 7 at one bar, `na`, then 1, and `rising` is still true -- because the counter was held rather than reset or re-evaluated.",
+        "discriminates": "two bars presenting STRUCTURALLY IDENTICAL windows (an `na` followed by four strictly rising values) that the vendor answers TRUE and FALSE. No window-local model of any na policy can produce both, so the discriminator is the contradiction itself rather than a count."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false
+    },
+    {
+      "id": "argextreme-ties-resolve-to-the-newest-bar",
+      "shape": "`ta.highestbars`/`ta.lowestbars` returned the most recent tied extreme; the vendor returns the oldest.",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`windowArgExtreme` walked BACKWARD from the newest bar and returned the first match -- the smallest distance back. It also used PROPAGATE for `na` and therefore blanked on a hole.",
+      "theirs": "Ties resolve to the OLDEST occurrence (380ok/0bad against 193ok/187bad for newest, 244 of the agreeing bars carrying no `na` at all). The `na` policy is RESTART, and the answer on an `na` bar is 0 rather than blank -- a restarted window has this bar as its only candidate, so the OFFSET is defined where the VALUE is not.",
+      "why_it_matters": "NOT a corner case: 6-10% of bars change on real SPY OHLCV at lengths 5 and 25, because repeated highs and lows are ordinary in a real price series. `aroon` is built on these two and moves with them.",
+      "code": "interpret.js::windowArgExtreme; ast_interpret.py::_window_arg_extreme",
+      "probe": {
+        "case": "UCTPROBE_WINDOW_B: `ta.highestbars(vt, 4)` over a two-valued source `vt = ... ? 10 : 20` built so the extreme appears twice in most windows, SPY 1D",
+        "under_ours": "the offset of the MOST RECENT bar holding the extreme -- the smallest distance back; and blank on an `na` bar.",
+        "under_theirs": "the offset of the OLDEST bar holding it -- the largest distance back; and 0 on an `na` bar.",
+        "discriminates": "a single row is enough: two equal values at offsets 0 and -1 where the vendor returns -1. Across the capture, oldest-wins scores 380ok/0bad and newest-wins 193ok/187bad, with 244 of the agreeing bars carrying no `na` at all -- which separates the TIE rule from the NA rule."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false
+    },
+    {
+      "id": "rsi-zero-movement-reads-na",
+      "shape": "RSI of a source that never moves: this engine answers `na`, TradingView answers 100.",
+      "status": "accepted",
+      "confidence": "measured",
+      "ours": "`avg_loss == 0 AND avg_gain == 0` is refused as not-computable, in BOTH lanes, pinned by a fixture and guarded by an AST single-authority rail.",
+      "theirs": "Pine evaluates `down == 0 ? 100 : up == 0 ? 0 : ...` -- the zero-LOSS test fires FIRST, so 0/0 reads 100. Measured directly with `ta.rsi(k, 14)` over a constant source: 100 on every bar of the capture.",
+      "why_it_matters": "⚠⚠ THIS ONE REVERSES A DELIBERATE PRIOR DECISION AND RE-OPENS A NAMED INCIDENT. The `na` was introduced because on 2026-08-09 SIM, TMTS, CWEN-A, DRDB and OBA carried rsi14 = 100.0 with chg_pct_1d = 0.00, so an \"RSI > 70\" screen surfaced five frozen tickers as the most overbought names in the universe. The old docstring justified the refusal with \"Pine's ta.rsi yields NaN here\" -- a claim about the vendor that was never checked and is FALSE. The correction has been applied (Pine wins over an internal invention), but the exposure is real: the mitigation belongs at the SCREENER, which should not admit a zero-movement / zero-ADR ticker to a momentum screen, rather than in the definition of RSI. Owner ruling requested on where that guard goes.",
+      "code": "indicators.js::computeRSI; indicator_compute.py::rsi_from_wilder_averages",
+      "probe": {
+        "case": "UCTPROBE_COMPOSITE_A plot P17: `float k = 100.0` then `ta.rsi(k, 14)` -- a source that never moves, SPY 1D",
+        "under_ours": "`na` / None -- \"not computable\", because 0/0 is not a number.",
+        "under_theirs": "100.0 on every bar of the capture.",
+        "discriminates": "one plot on a constant source. Pine evaluates `down == 0 ? 100 : up == 0 ? 0 : ...`, so the zero-LOSS test fires first and 0/0 reaches the 100 branch. The companion plots pin the other two corners: a monotonically rising source also reads 100 and a falling one reads 0, both of which we already matched."
+      },
+      "observation_ids": [
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "_owner_ruling_required": false,
+      "_ruling": "RESOLVED by owner ruling 2026-09-08: MATCH TRADINGVIEW. `ta.rsi` of a zero-movement source returns 100 in both lanes (`indicators.js::computeRSI`, `indicator_compute.rsi_from_wilder_averages`), because Pine tests `down == 0` FIRST and we measured 100 directly. The frozen-ticker exposure the old `na` was protecting against is handled where it belongs -- at the SCREENER: `api/services/screener/technicals.py::_rsi` now reports NOT COMPUTABLE for a series that did not move at all across the lookback, so a dead ticker cannot top an 'RSI > 70' scan. ⭐ THE GUARD IS DELIBERATELY NARROWER THAN 'FLAT': `chg_pct_1d` of a frozen ticker stays 0.00, because a change of zero is a TRUE statement about price while an RSI of a flat series is an undefined one. ⚠️ The old rule was defended in-code by the claim *\"Pine's ta.rsi yields NaN here\"* -- a statement about the vendor that was never checked and is false. That is the failure mode this roster exists to catch."
     }
-   },
-   "decision": {
-    "ruled": "2026-08-29 — KEEP OURS. Wilder's original stands; we do not move it for this.",
-    "prior_ruling": "⛔⛔ THIS WAS ALREADY ADJUDICATED, and the adjudication is a test: `tests/test_ast_indicators.py::test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED`. It answered a cross-product finding that our ATR 'matches neither Wilder RMA nor SMA-of-TR — a third convention', proved ours IS Wilder's exactly (with the SMA-of-TR alternative computed as a DISAGREEING control), identified this same bar-0 mechanism by name, and warned in its own words: “a cross-product probe must not sample the warm-up — 0.20 vs 0.21 read at bar 15 is two seeds, not two formulas, and reading it as a formula difference is how a correct implementation gets ‘fixed’.”",
-    "what_happened": "⚰️ I DID EXACTLY THAT, and it is recorded rather than quietly reverted. `probe_atr` measured the delta, I changed `compute_atr_raw` and `computeATR` to the published `ta.rma(ta.tr(true), n)` form, the probes went 4/4 green — and the golden fixtures went red by design (`atr_14`, `atr_bands_14_2`, `test_hand_computed_atr`), which is how the prior ruling surfaced. Reverted the same session.",
-    "why_keep_ours": [
-     "OURS IS CORRECT WILDER. This is not a bug being tolerated; it is one valid convention beside another. TradingView's `ta.atr` is Wilder smoothing over a TR series that includes bar 0; ours is Wilder smoothing over a TR series that starts where a true range is actually defined. Neither is wrong about Wilder.",
-     "THE DELTA IS INVISIBLE WHERE IT IS READ. Measured over 300 bars: 0.233% at the seed, 0.079% by bar 30, 0.0022% by bar 80, 4.4e-12 by bar 299. A chart shows thousands of bars; nothing a member looks at differs.",
-     "THE CONSUMERS THAT WOULD MOVE ARE NOT THE PASTE SURFACE. `compute_atr_raw` feeds supertrend, `screener/technicals` (atr_pct, a50), `screener/bar_character`, `alert_series`'s armed member alerts, and the chart overlay. Those want the firm's own convention and have no stake in TradingView parity; changing them to serve the import lane would move live stops, sizing and saved-scan results for a difference of 4e-12 where it is read.",
-     "A SECOND, VENDOR-FAITHFUL `atr` IS THE WORSE ANSWER. Two entries computing 'the ATR' is a second authority over one value — this repo's most repeated defect — and the member could not tell which one their formula got."
-    ],
-    "what_would_reopen_it": "A member reporting a visible mismatch against a TradingView chart; OR a scan surface whose fetch window is short enough that the one missing value matters (measured: on a 16-bar fetch we emit 2 values where the published definition emits 3 — the ALIGNMENT half never decays). Either would change the arithmetic of this decision, not just the mood.",
-    "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1."
-   },
-   "real_vendor_capture_2026_09_06": {
-    "_": "Vendor Parity Tranche 2, Lane A, first batch (RSI+ATR). Does NOT alter `measured` or `decision` above — both remain the original spec-probe-derived evidence, verbatim. This is a SEPARATE, additional confirmation using real captured TradingView data, appended rather than overwritten.",
-    "artifact": "tests/fixtures/vendor/raw_captures/2026-09-06-tv_rsi_atr_capture_spy.csv (1,328 real SPY Daily bars, 2021-05-24..2026-09-04, full double-precision ta.atr(14)/ta.rsi(close,14) plot values)",
-    "what_it_confirms": "Once past this capture's own seed-convergence lag (empirically measured, last disagreeing bar at index 169 of 1328 — see the observation's `_vendor_parity_warmup_bars_note`), UCT's atr(high,low,close,14) agrees with the real vendor's ta.atr(14) to ~1e-9 relative on 1,148 real, current-market steady-state bars. This directly re-confirms `why_keep_ours`'s 'THE DELTA IS INVISIBLE WHERE IT IS READ' claim with real vendor numbers for the first time (the original 0.23%-decaying-to-4e-12 figures were spec-probe-derived, not vendor-captured).",
-    "what_it_does_not_confirm": "This capture's own window starts in 2021, decades after SPY's real ~1993 inception, so it CANNOT independently re-test the separate ALIGNMENT claim in `what_would_reopen_it` (one fewer emitted value at a symbol's true first-ever bar) — that claim is unchanged, untouched, and not retested here. Also: this capture's early bars (index 14-169) show a much LARGER (~25% relative at bar 14) delta than the adjudicated 0.23%-at-the-seed figure — measured and disclosed as a DIFFERENT effect (this capture's own window-truncation cold-start, confounding the smaller inherent bar-0/TR-definition difference), not a contradiction of the existing ruling. See `docs/superpowers/specs/universal-indicator-ecosystem/VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full decay curve.",
-    "classification": "RULING CONFIRMED (steady-state half) by real vendor runtime; ALIGNMENT half remains UNTESTED by this capture, not reopened."
-   }
-  },
-  {
-   "id": "smoother-seeds-with-sma-of-first-window",
-   "shape": "seeded",
-   "status": "refuted",
-   "confidence": "medium",
-   "ours": "`_smooth_col` accumulates until it has `n` finite values, then seeds `prev = total / n` — the SMA of the first full window — and emits its first value AT that bar. `ema` passes alpha = 2/(n+1), `rma` passes 1/n; both share the seed by construction.",
-   "theirs": "TradingView documents `ta.ema` as seeded from `ta.sma(source, length)`, which we believe MATCHES. Recorded anyway because the belief is documentation-derived and untested, and because the seeding rule is the single highest-leverage unmeasured decision in the engine: an engine seeded with the first close instead of the window SMA produces a curve that converges to ours and is wrong forever at the left edge.",
-   "why_it_matters": "If this is wrong, EVERY `ema`, `rma`, `rsi`, `atr`, `adx` and anything composed from them is wrong at the left edge, and all of them decay toward agreement — so the error is invisible in any fixture window that starts late. This is the divergence most likely to be missed by a careless harness.",
-   "code": "api/services/ast_interpret.py:657-690 (_smooth_col); interpret.js::emaCol",
-   "probe": {
-    "case": "EMA(10) read at the bar where it FIRST becomes non-empty",
-    "under_ours": "the first value equals the arithmetic mean of the first 10 closes, exactly",
-    "under_theirs_if_different": "a first-close seed would make the first emitted value equal `close[0]` smoothed 9 times toward the later closes — a different number, and a different first bar",
-    "discriminates": "the first emitted value is a pure function of the seeding rule, so one float at one bar separates the conventions"
-   },
-   "observation_ids": [],
-   "refutedBy": "tools/vendor_spec_probes.py::probe_ema and ::probe_rma, 2026-08-29. An independent implementation of TradingView's published seeding (SMA of the first `length` values, first value on bar `length - 1`) agrees with ours to 0 and 9.9e-14 respectively, on the same 80-bar series, with matching first bars. ⭐ KEPT RATHER THAN DELETED: this was the highest-leverage unmeasured decision in the engine, and the next reader deserves to know it was checked rather than re-suspect it. ⚠ The check is against their PROSE, not their screen — a real observation could still surprise us."
-  },
-  {
-   "id": "nan-restarts-the-smoother",
-   "shape": "seeded",
-   "status": "confirmed",
-   "confidence": "measured",
-   "ours": "A non-finite input RESETS the smoother — `prev, count, total = NAN, 0, 0.0` — so the series re-seeds after a hole rather than carrying state across it. The docblock argues this: an EMA that carried state across a hole would report an average over bars it never saw.",
-   "theirs": "MEASURED 2026-09-08, AND THEY HOLD. TradingView keeps the smoother's state UNCHANGED across an `na` source bar: the output is `na` AT that bar and the very next finite bar takes ONE normal step from the pre-hole state. Verified on all four `na` holes of a 400-bar SPY 1D capture, for BOTH ta.ema(.,10) and ta.rma(.,10): the hold prediction reproduces the vendor to 0 or 1.1e-13, and the vendor emits a value on the very next bar where our reset requires a further 9 blank bars before re-seeding.",
-   "why_it_matters": "It is reachable from a composed series — `ema(sma(close,20), 9)` has a 19-bar hole by construction, which is the warm-up of the inner window, so EVERY composed smoother in the product meets this rule on its left edge.",
-   "code": "api/services/ast_interpret.py:678-680",
-   "probe": {
-    "case": "EMA(5) over a series with one `na` planted in the middle",
-    "under_ours": "the output is empty for n-1 bars after the hole, then restarts from a fresh window SMA",
-    "under_carry_state": "the output continues on the next finite bar with no gap, from the pre-hole state",
-    "discriminates": "the COUNT of empty bars after the hole (9 vs 0 for n=10), which is countable rather than compared -- and then the resumed VALUE, which pins the mechanism rather than just the gap",
-    "under_theirs": "MEASURED: the output is empty for exactly ONE bar (the hole itself) and resumes immediately at the pre-hole state stepped once by the new value"
-   },
-   "observation_ids": [
-    "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
-   ],
-   "_we_are_wrong": "⛔⛔ THIS IS A SHIPPED-CHART DEFECT, NOT A DESIGN CHOICE. Our smoothers reset on `na`; TradingView holds. It is DELIBERATELY NOT FIXED IN 2F-2C: changing `smoothCol` changes the columnar lane's output on every chart whose source carries a mid-series hole, which is an owner ruling and not a runtime wave's to make unilaterally. The runtime therefore MATCHES THE COLUMNAR LANE (one authority, one divergence, recorded once) rather than matching the vendor while the chart does not. ⚠️ Blast radius is narrower than it looks: before the first finite value there is no state to hold, so a LEFT-EDGE hole (the warm-up of a composed inner window, e.g. `ema(sma(close,20),9)`) answers the same either way. The two rules differ only for a hole AFTER state exists.",
-   "decision_required": "Owner ruling: fix `smoothCol` to hold (vendor-faithful, changes shipped chart output at mid-series holes) or record as `accepted`."
-  },
-  {
-   "id": "mod-takes-the-sign-of-the-dividend",
-   "shape": "stateless",
-   "status": "suspected",
-   "confidence": "low",
-   "ours": "`x - y * trunc(x / y)` in both lanes — truncated division, so the result carries the sign of the DIVIDEND: `mod(-7, 3)` is -1, not 2.",
-   "theirs": "TradingView's own operator page warns that `%` on negatives may differ from other languages, which is a warning rather than a specification. Low confidence in both directions until measured.",
-   "why_it_matters": "Narrow: it is only reachable on a negative dividend, and most indicator arithmetic is on prices. Recorded because it is cheap to check once a chart is open, and because a `%` divergence is the kind that produces an occasional wrong bar rather than a wrong curve — the hardest kind to notice.",
-   "code": "app/src/components/chart/engine/ast/interpret.js:912-915; api/services/ast_interpret.py::_guarded_mod",
-   "probe": {
-    "case": "`mod(close - open, 3)` on a bar where `close < open`",
-    "under_ours": "a NEGATIVE result",
-    "under_floored_division": "a POSITIVE result in [0, 3)",
-    "discriminates": "the SIGN differs, which is visible at a glance and cannot be a rounding artefact"
-   },
-   "observation_ids": []
-  },
-  {
-   "id": "hull-half-window-floors",
-   "shape": "stateless",
-   "status": "confirmed",
-   "confidence": "high",
-   "ours": "`hma(src, n)` uses `floor(n / 2)` for the half-window and `round(sqrt(n))` for the smoothing window, each clamped at 1.",
-   "theirs": "TradingView's `ta.hma` restates Alan Hull's published definition, which is the same `floor(n / 2)`. WE MATCH — this row is `confirmed` as AGREEMENT, and it is here because the agreement was nearly broken by our own refusal advice.",
-   "why_it_matters": "⚰️ `pine.js::fractionalWindowAdvice` told members to write `round(n * 1/2)`, which is 28 where `hma(close, 55)` uses 27 — measured 0.636 apart over 140 bars. A member following our own advice built a different indicator under the same name. Fixed 2026-08-29 (`ba78a1e27`), railed by `pine.windowAdvice.test.js`, which MEASURES the two expansions against `hma` rather than reading the sentence.",
-   "code": "closedTable.json::_functions_hull; interpret.js `Math.max(1, Math.floor(n / 2))`; ast_interpret.py `max(1, int(n) // 2)`",
-   "probe": {
-    "case": "`hma(close, 55)` against its two hand expansions",
-    "under_ours": "identical to `wma(2*wma(close,27) - wma(close,55), 7)` to within 1e-9",
-    "under_round": "differs from `wma(2*wma(close,28) - wma(close,55), 7)` by up to 0.636 on the same series",
-    "discriminates": "measured in `pine.windowAdvice.test.js`, with the second assertion as the control that makes the first mean something"
-   },
-   "observation_ids": []
-  },
-  {
-   "id": "recursive-smoother-cold-start-in-a-finite-capture",
-   "shape": "seeded",
-   "status": "confirmed",
-   "confidence": "measured",
-   "ours": "`interpret(ast, bars)` computes a Wilder/RMA-recursive function (e.g. `rsi`, `atr`) using ONLY the bars it is handed. Its first computable value (bar `period`) is seeded from a SIMPLE mean of just the first `period` diffs/true-ranges inside that window -- it has no knowledge of any bar before the window's own start.",
-   "theirs": "TradingView's `ta.rsi`/`ta.atr` run continuously over a symbol's REAL, often decades-long chart history. The real vendor value at any given calendar bar already reflects that entire prior smoothing history, not a fresh seed at whatever date a capture happens to start.",
-   "why_it_matters": "⚠️ THIS IS A CAPTURE-METHODOLOGY ARTIFACT, NOT A FORMULA DISAGREEMENT, and it is exactly the misclassification risk `VENDOR_PARITY_TRANCHE_2_READINESS_REPORT.md` named before any capture was made: comparing UCT's freshly-cold-seeded early bars against a vendor's already-converged value at the SAME calendar date can show a LARGE relative delta (measured up to ~25% at bar 14 of a 1,328-bar real SPY capture) that has nothing to do with the two engines disagreeing about the formula -- both use Wilder recursion identically, and the delta decays as UCT's own recursion catches up. This is a DIFFERENT, larger effect than (and confounds any attempt to isolate) the small, already-adjudicated `atr-tr-starts-at-bar-1` bar-0/TR-definition difference (~0.23% at ITS seed) -- the two must not be conflated. Applies to ANY Wilder/RMA-seeded function captured over a finite real-market window, not just rsi/atr specifically.",
-   "code": "api/services/ast_interpret.py::_fn_rsi/_fn_atr via indicator_compute.compute_rsi_raw/compute_atr_raw; api/services/indicator_compute.py's Wilder seed-then-recur pattern",
-   "probe": {
-    "case": "rsi(close,14) at bar index 14 of a 1,328-bar real SPY Daily capture (2021-05-24..2026-09-04) vs. the real vendor's ta.rsi(close,14) value at that same calendar bar",
-    "under_ours": "68.78150014823609 -- seeded fresh from only the 14 diffs inside this capture window",
-    "under_theirs": "68.16309777289919 -- the real vendor's value, reflecting continuous smoothing since well before this window began",
-    "discriminates": "a ~0.9% delta at bar 14 that shrinks to ~1e-9 (float noise) by bar 180 of the SAME series as UCT's own recursion converges -- a decay curve, not a persistent formula disagreement, and reproduced with near-identical shape/magnitude on atr(high,low,close,14) over the same bars"
-   },
-   "measured": {
-    "by": "tools/vendor_parity_compare.py against tests/fixtures/vendor/observations/{rsi-close14,atr-14}-2026-09-06.json, 2026-09-06",
-    "rsi_last_disagreeing_index": 172,
-    "atr_last_disagreeing_index": 169,
-    "of_bars": 1328,
-    "note": "both converge to <1e-6 relative delta permanently by bar 180; see VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md for the full per-checkpoint decay table"
-   },
-   "observation_ids": [
-    "rsi-close14-2026-09-06",
-    "atr-14-2026-09-06"
-   ]
-  },
-  {
-   "id": "recurrent-state-does-not-step-when-its-call-site-is-skipped",
-   "shape": "seeded",
-   "status": "refuted",
-   "confidence": "measured",
-   "ours": "Before 2F-2C the runtime could not execute a recurrent builtin at all, so there was no behaviour to agree or disagree with. 2F-2C implements the measured rule directly: carried state advances INSIDE the call, so a skipped call site does not step it.",
-   "theirs": "MEASURED 2026-09-08. A recurrent builtin inside a UDF called on only some chart bars steps ONLY on the bars where the call executes. Stepping every chart bar with the held input is EXCLUDED: it would make the conditional result equal an every-bar EMA of the same source, and the vendor's two series differ on every executed bar.",
-   "why_it_matters": "It is the opposite indexing from P7.2's ruling for function-local SERIES HISTORY, which is chart-bar indexed and HOLDS across skipped bars. History holds; recurrence does not advance. Building recurrence on the end-of-bar commit phase -- the obvious reuse of the history machinery -- would silently implement the excluded model.",
-   "code": "runtime/vm.js::OP.CARRIED (steps inside the call, never from the commit phase)",
-   "probe": {
-    "case": "`f(v) => ta.ema(v, 5)` called only on even bars, beside `ta.ema(close, 5)` called every bar",
-    "under_ours": "the conditional series is an EMA of the even-bar subsequence",
-    "under_theirs_if_different": "an every-bar model would make the two series equal on executed bars",
-    "discriminates": "six consecutive executed invocations reproduce to err=0.000e+00 under invocation-stepping, and the two series differ on every one of them"
-   },
-   "observation_ids": [
-    "recurrent-na-and-skipped-callsite-spy-1d-2026-09-08"
-   ],
-   "refutedBy": "Implemented to match the measured vendor rule in 2F-2C; kept as the record of which model was excluded and by what evidence."
-  },
-  {
-   "id": "finite-window-propagates-na-instead-of-skipping-it",
-   "shape": "seeded",
-   "status": "confirmed",
-   "confidence": "measured",
-   "ours": "`rolling` emits NaN for a window containing ANY NaN, and `interpret.js`'s header states the rule out loud: \"any NaN INSIDE a window makes that window's output NaN\". So over a gappy source our `sma`/`wma`/`stdev`/`highest`/... go blank on the hole AND for the `n-1` bars that still contain it.",
-   "theirs": "MEASURED 2026-09-08. `ta.sma(gappy, 10)` answers on EVERY bar, including the `na` bars, and its value is the mean of the last 10 FINITE values of the source - reaching back over as many BARS as that requires. 370 matches, 0 mismatches, worst delta 0.0 over a 400-bar SPY 1D capture with 133 na bars. An `na` is SKIPPED, never propagated and never treated as zero. ⛔ AND THE FAMILY DOES NOT SHARE ONE RULE — measured 2026-09-08 across all twelve members: sma/stdev/sum/median SKIP (last n FINITE observations, answering on the na bar); dev PROPAGATES (clean n-BAR window); highest/lowest RESTART (the window begins again after a hole). wma fits none of five hypotheses and is UNRESOLVED; highestbars/lowestbars answer ON the na bar, a fourth shape; rising/falling were not determined by the probe.",
-   "why_it_matters": "It is the SAME class of defect as `nan-restarts-the-smoother` but wider: it reaches all twelve `FINITE_WINDOW` members in BOTH lanes, and it is reachable from any conditional source (`cond ? x : na`), any `valuewhen`, any pivot - all ordinary Pine. ⛔ AND THE TWO FAMILIES DIFFER FROM EACH OTHER: a window SKIPS an na and still answers; a recurrence WITHHOLDS its answer for that bar but keeps its state. One rule cannot be applied to both.",
-   "code": "interpret.js::rolling + every FINITE_WINDOW reducer; api/services/ast_interpret.py::_rolling",
-   "probe": {
-    "case": "`ta.sma(bar_index % 3 == 0 ? na : close, 10)` on SPY 1D",
-    "under_ours": "blank on the na bar and on the following 9 bars - the source's 267 finite bars yield far fewer outputs",
-    "under_theirs": "a value on all 400 bars, equal to the mean of the last 10 finite source values",
-    "discriminates": "the COUNT of answered bars (133 vs 0 on na bars) before any value is compared, and then the value itself"
-   },
-   "observation_ids": [
-    "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08",
-    "finite-window-na-policy-by-member-spy-1d-2026-09-08"
-   ],
-   "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured."
-  }
- ]
+  ]
 }

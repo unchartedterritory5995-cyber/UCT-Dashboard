@@ -538,9 +538,15 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
  *  observed; the `i < n - 1` gate at the start of the series is not, so it stays.
  *  Two rules that look like one, and only one of them has evidence.
  */
-const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart' })
+const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart', FFILL: 'ffill' })
 
-/** The operand list for bar `i` under one policy, or `null` when unanswerable. */
+/** The operand list for bar `i` under one policy, or `null` when unanswerable.
+ *
+ *  ⭐ `FFILL` NEVER REACHES HERE. It is a transform of the SERIES, not of the
+ *  window — `rolling` forward-fills once, in O(N), and then asks for a plain
+ *  `PROPAGATE` window over the filled copy. Expressing it as a per-bar operand
+ *  gather would make the cost of one bar depend on how long the preceding gap
+ *  was, which is exactly the unbounded-lookback shape §8/§9 rules out. */
 function windowOperands(series, n, i, policy) {
   if (policy === NA.PROPAGATE) return { lo: i - n + 1, hi: i, buf: series }
   if (policy === NA.RESTART) {
@@ -557,11 +563,35 @@ function windowOperands(series, n, i, policy) {
   return { lo: 0, hi: n - 1, buf }
 }
 
-function rolling(series, n, reduce, policy = NA.PROPAGATE) {
+/** @param {number} [naCurrent] the answer when the CURRENT bar is `na` and the
+ *  policy would otherwise refuse. Only `highestbars`/`lowestbars` declare one:
+ *  the vendor answers 0 there because a restarted window's only candidate is
+ *  this bar, so the OFFSET is defined even though the VALUE is not. Leaving it
+ *  `undefined` keeps every other member blank, which is what they were measured
+ *  doing. */
+function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
   const out = nan(series.length)
+  // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
+  // in its lookback with the last finite value and keeps that bar's WEIGHT —
+  // vendor-pinned 2026-09-08, 380ok/0bad on an arithmetic source.
+  let src = series
+  if (policy === NA.FFILL) {
+    src = new Float64Array(series.length)
+    let carry = NaN
+    for (let i = 0; i < series.length; i++) {
+      if (Number.isFinite(series[i])) carry = series[i]
+      src[i] = carry
+    }
+  }
   for (let i = n - 1; i < series.length; i++) {
-    const w = windowOperands(series, n, i, policy)
+    // ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE FILLED
+    // ONE. `wma` answers `na` when the bar it is being asked about is `na`; it
+    // fills only what it LOOKS BACK at. Reading `src[i]` here would answer on
+    // every hole and lose the half of the rule that says otherwise.
+    if (policy === NA.FFILL && !Number.isFinite(series[i])) continue
+    const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
+    else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
   }
   return out
 }
@@ -610,10 +640,16 @@ function windowExtreme(series, lo, hi, better) {
 function windowArgExtreme(series, lo, hi, better) {
   const best = windowExtreme(series, lo, hi, better)
   if (Number.isNaN(best)) return NaN
-  // ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
-  // one. Bounded by `lo` rather than run open — a walk that could step past the
-  // window would read `undefined` forever and never terminate.
-  for (let i = hi; i >= lo; i--) if (series[i] === best) return hi - i
+  // ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
+  // the OLDER occurrence — the LARGER distance back. Measured 2026-09-08 on a
+  // two-valued source built to force ties: `ties -> OLDEST` is 380ok/0bad and
+  // `ties -> NEWEST` is 193ok/187bad, with 244 of the agreeing bars carrying no
+  // `na` at all, so this is the tie rule and not an `na` rule wearing its coat.
+  // ⚰️ THIS WALKED BACKWARD FROM `hi` UNTIL THEN, returning the most recent
+  // match. Every non-tied window agrees under both walks, which is why a defect
+  // this old survived: `high[highestbars(high,n)] === highest(high,n)` holds
+  // either way, and the corpus has few exact ties in a float series.
+  for (let i = lo; i <= hi; i++) if (series[i] === best) return hi - i
   // ⚠️ UNREACHABLE WHILE `windowExtreme` HOLDS ITS CONTRACT — it only ever
   // returns a member of `series[lo..hi]`. NaN rather than a throw because a
   // broken extreme must not become an escape inside the walker.
@@ -780,53 +816,20 @@ function windowStdev(series, lo, hi) {
   return Math.sqrt(sq / (hi - lo + 1))
 }
 
-/** `ta.rising(src, length)` — STRICT MONOTONE over `length + 1` samples.
- *
- *  ⭐ RESOLVED 2026-09-06 BY A REAL VENDOR CAPTURE, not by the v5/v6 RETURNS
- *  clause (which reads as running-maximum). See `closedTable.json`'s
- *  `_functions_vendor_parity_resolutions.rising_resolution` for the full
- *  evidence chain. `lo..hi` is `length + 1` samples wide by construction —
- *  the caller passes `n + 1` as the `rolling` window size.
- *
- *  ⛔ NaN ANYWHERE IN THE WINDOW MAKES THE ANSWER NaN, matching every other
- *  windowed function in this file (`windowExtreme`'s "NaN does not lose a
- *  comparison" rule, restated here for a different comparison). This is a
- *  KNOWN, DISCLOSED narrowing versus the vendor's own stated na-skipping
- *  window walk — see the resolution note. */
-function windowRisingMonotone(series, lo, hi) {
-  for (let i = lo + 1; i <= hi; i++) {
-    const a = series[i], b = series[i - 1]
-    if (Number.isNaN(a) || Number.isNaN(b)) return NaN
-    if (!(a > b)) return 0
-  }
-  return 1
-}
-
-/** `ta.falling(src, length)` — STRICT MONOTONE DECREASE over `length + 1`
- *  samples, the mirror of `windowRisingMonotone`.
- *
- *  ⭐ NOT ASSUMED SYMMETRIC — INDEPENDENTLY VENDOR-VERIFIED. `ta.falling` is
- *  never captured merely by flipping `rising`'s comparison: TradingView's own
- *  `falling` RETURNS clause carries the identical "any"-vs-"every" ambiguity
- *  `rising` had before its own real vendor capture, so this needed its own
- *  live proof rather than an inherited assumption. Real SPY close was probed
- *  because a synthetic rising-base pattern can never contain a genuine 3-bar
- *  losing streak (see the oracle script's own note) — 15/15 real trading days
- *  match strict-monotone, with one genuinely discriminating row (2026-08-20)
- *  where the running-minimum candidate disagrees. See
- *  `tests/fixtures/vendor/observations/ta-falling-close3-2026-09-06.json` and
- *  `closedTable.json`'s `_functions_vendor_parity_resolutions.falling_resolution`.
- *
- *  ⛔ SAME NaN RULE AS `windowRisingMonotone` — NaN anywhere in the window
- *  makes the answer NaN, matching every other windowed function here. */
-function windowFallingMonotone(series, lo, hi) {
-  for (let i = lo + 1; i <= hi; i++) {
-    const a = series[i], b = series[i - 1]
-    if (Number.isNaN(a) || Number.isNaN(b)) return NaN
-    if (!(a < b)) return 0
-  }
-  return 1
-}
+// ⚰️⚰️ `windowRisingMonotone` AND `windowFallingMonotone` LIVED HERE AND ARE GONE
+// (2026-09-08). They were correct about STRICTNESS and wrong about FAMILY.
+//
+// Their own docstrings disclosed the hole that killed them: *"the vendor's
+// stated na-skipping window walk is not implemented, this table's uniform
+// NaN-anywhere-in-window convention is used instead"*. That disclosure framed
+// the open question as *which na policy does the window use* — and the answer
+// is that there is no window. See `monotoneStep`.
+//
+// ⭐ THE STRICTNESS HALF OF THEIR EVIDENCE SURVIVES AND IS STRONGER NOW. The
+// 2026-09-06 capture proved strict `>` over 15 real trading days with one
+// genuinely discriminating row; the 2026-09-08 capture re-proves it on a source
+// built with flat steps, 380ok/0bad for strict against 0ok/380bad for `>=`.
+// What changed is where the comparison lives, not what it compares.
 
 /** `ta.median(src, length)` — rank-counting, no sort/array ops (keeps
  *  `maxLookback` a pure tree sum, per `closedTable.json`'s own constraint).
@@ -960,6 +963,58 @@ function smoothCol(series, n, k) {
   for (let i = 0; i < series.length; i++) out[i] = smoothStep(st, 0, series[i], n, k)
   return out
 }
+
+// ─── ⭐⭐⭐ `ta.rising` / `ta.falling` ARE NOT WINDOWS ────────────────────────
+//
+// ⛔⛔ THEY LIVED IN `FINITE_WINDOW` UNTIL 2026-09-08 AND THE FAMILY WAS WRONG,
+// not merely the `na` policy inside it. Two probes could not fit ANY window
+// policy — skip, forward-fill and propagate scored 323/52, 291/84 and 287/88 —
+// and the reason is a contradiction no window can hold: bars 41 and 74 of the
+// capture present STRUCTURALLY IDENTICAL windows (an `na` followed by four
+// strictly rising values) and TradingView answers TRUE at one and FALSE at the
+// other. A function whose answer differs on identical windows is reading
+// something outside the window.
+//
+// What it is reading is a COUNTER of consecutive strict steps, and that counter
+// HOLDS across an `na` exactly as `smoothStep` does. The signature is visible in
+// one row of the fixture: the source DROPS from 7 to 1 across a hole and
+// `ta.rising` still reports true, because the hole held the count and the bar
+// after it compares against that hole. 375ok/0bad on three independent sources
+// (two for `rising`, one for `falling`); RESET-on-`na` scores 287/88.
+//
+// ⚠️ THE RETURN IS A DEFINITE 0/1 AND THAT IS NOT AN APPROXIMATION. The same
+// capture proves `not na` is TRUE in Pine and `na ? 1 : 0` is 0, so an `na`
+// bool is INDISTINGUISHABLE from `false` through every boolean operation the
+// language has. There is no observable third state to preserve.
+const MONOTONE_CELLS = 3          // [count, previous value, samples seen]
+
+function monotoneInit(st, o) { st[o] = 0; st[o + 1] = NaN; st[o + 2] = 0 }
+
+/** One bar of a monotone-run counter. `cmp` is the strict comparison. */
+function monotoneStep(st, o, v, n, cmp) {
+  const prev = st[o + 1]
+  st[o + 1] = v                    // the PREVIOUS SAMPLE's value, `na` included
+  st[o + 2] += 1
+  // ⛔ HOLD when either operand is `na` — do not advance, do not reset.
+  if (Number.isFinite(v) && Number.isFinite(prev)) st[o] = cmp(v, prev) ? st[o] + 1 : 0
+  // ⛔⛔ THE WARM-UP GATE LIVES IN THE STATE, NOT IN A DRIVER, and that is
+  // what keeps it on the INVOCATION clock this whole family was vendor-pinned to
+  // (Z5, 280ok/0bad). A gate written as `bar >= n` in the bar loop would be a
+  // CHART-BAR rule, so a `ta.rising` inside a conditionally-called UDF would
+  // start answering at the wrong time — and the columnar lane, which has no
+  // notion of a skipped call, could never see the disagreement.
+  //
+  // ⚠️ WHAT IT GUARDS IS UNOBSERVED. As a window over `n + 1` samples these
+  // blanked the first `n` bars; a bare counter answers `false` there instead.
+  // No capture has ever seen the start of a series, so the correction stops at
+  // the edge of what was measured. Drop this and the CLEAN corpus moves — and
+  // only GAPPY sources should.
+  if (st[o + 2] <= n) return NaN
+  return st[o] >= n ? 1 : 0
+}
+
+const risingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a > b)
+const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
 
 // ⚰️ `emaCol` AND `rmaCol` LIVED HERE AND ARE GONE. They were one-line alpha
 // wrappers over `smoothCol`, and 2F-2C moved the alpha into `CARRIED` so the
@@ -1261,17 +1316,24 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  */
 export const FINITE_WINDOW = Object.freeze({
   sma: { reduce: windowMean, span: (n) => n, na: NA.SKIP },
-  wma: { reduce: windowWeightedMean, span: (n) => n, na: NA.PROPAGATE },
+  wma: { reduce: windowWeightedMean, span: (n) => n, na: NA.FFILL },
   stdev: { reduce: windowStdev, span: (n) => n, na: NA.SKIP },
   sum: { reduce: windowSum, span: (n) => n, na: NA.SKIP },
   dev: { reduce: windowMeanAbsDev, span: (n) => n, na: NA.PROPAGATE },
   median: { reduce: windowMedian, span: (n) => n, na: NA.SKIP },
   highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART },
   lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART },
-  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.PROPAGATE },
-  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.PROPAGATE },
-  rising: { reduce: windowRisingMonotone, span: (n) => n + 1, na: NA.PROPAGATE },
-  falling: { reduce: windowFallingMonotone, span: (n) => n + 1, na: NA.PROPAGATE },
+  // ⭐⭐ SAME WINDOW AS `highest`/`lowest`, ONE EXTRA RULE. `naCurrent: 0` is the
+  // vendor's answer on an `na` bar, where `highest` blanks and these do not —
+  // the restarted window's only candidate is this bar, so the OFFSET is defined
+  // even though the VALUE is not. PART Z measured the difference (36 of 36 vs 0
+  // of 36) and could not explain it; this is the explanation.
+  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  // ⚰️ `rising` AND `falling` LEFT THIS TABLE 2026-09-08. They are carried
+  // counters, not windows — see `monotoneStep`. They are in `CARRIED` now, and
+  // the reason they were ever here is that a strict monotone run LOOKS like a
+  // window over `n + 1` samples right up until an `na` lands in it.
 })
 
 /** ⭐ THE COLUMNAR LANE'S ENTRY FOR A FINITE-WINDOW MEMBER, BUILT FROM THE TABLE
@@ -1279,7 +1341,8 @@ export const FINITE_WINDOW = Object.freeze({
  *  pass and the runtime bridge cannot drift, because neither owns the reducer or
  *  the span — the table does. */
 const windowFn = (name) => (series, n) =>
-  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce, FINITE_WINDOW[name].na)
+  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce,
+    FINITE_WINDOW[name].na, FINITE_WINDOW[name].naCurrent)
 
 /** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
  *
@@ -1310,6 +1373,19 @@ const windowFn = (name) => (series, n) =>
 export const CARRIED = Object.freeze({
   ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
   rma: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 1 / n },
+  // ⭐ NO `alpha`. These two carry a COUNT, not an average, so the fourth
+  // argument their step ignores is the same slot `ema`/`rma` use for a decay —
+  // one signature, two uses, which is what lets one driver serve the table.
+  //
+  // ⛔ `warmup` KEEPS A GATE THE VENDOR HAS NEVER BEEN SEEN THROUGH. As a window
+  // over `n + 1` samples these blanked bars `0..n-1`; a bare counter would answer
+  // `false` there instead. No capture has ever observed the start of a series —
+  // every probe begins deep in real history — so the correction deliberately
+  // stops at the boundary of what was measured and leaves the warm-up exactly
+  // where it was. Without this the CLEAN corpus moves, and the whole point of
+  // this change is that only GAPPY sources should.
+  rising: { cells: MONOTONE_CELLS, init: monotoneInit, step: risingStep },
+  falling: { cells: MONOTONE_CELLS, init: monotoneInit, step: fallingStep },
 })
 
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
@@ -1317,7 +1393,16 @@ export const CARRIED = Object.freeze({
  *  exponential average in this file. */
 const carriedFn = (name) => (series, n) => {
   const spec = CARRIED[name]
-  return smoothCol(series, n, spec.alpha(n))
+  // ⛔ DRIVEN FROM `cells`/`init`/`step`, NOT FROM A SMOOTHER. This used to call
+  // `smoothCol` directly, which silently made "carried" mean "exponential
+  // average" and would have refused `rising`/`falling` a seat at the table they
+  // belong to. The alpha is now just the fourth argument some steps read.
+  const st = new Float64Array(spec.cells)
+  spec.init(st, 0)
+  const k = spec.alpha ? spec.alpha(n) : undefined
+  const out = nan(series.length)
+  for (let i = 0; i < series.length; i++) out[i] = spec.step(st, 0, series[i], n, k)
+  return out
 }
 
 export const FN = Object.freeze({
@@ -1345,10 +1430,12 @@ export const FN = Object.freeze({
   // TradingView capture, not by inferred/documentation evidence. See
   // `closedTable.json`'s `_functions_vendor_parity_resolutions` for the
   // full evidence chain each of these four carries.
-  rising: windowFn('rising'),
-  // ⭐⭐ BATCH 1 — resolved 2026-09-06 by real TradingView capture (independent
-  // proof, not assumed symmetry). See `windowFallingMonotone`'s own docstring.
-  falling: windowFn('falling'),
+  // ⛔ AND RE-RESOLVED 2026-09-08: strictness stood, the FAMILY did not. Both are
+  // carried counters — see `monotoneStep`. Their `na` clause was the disclosed
+  // residual gap in the 2026-09-06 resolution, and closing it moved them out of
+  // `FINITE_WINDOW` entirely.
+  rising: carriedFn('rising'),
+  falling: carriedFn('falling'),
   median: windowFn('median'),
   percentrank: (series, n) => {
     const out = nan(series.length)

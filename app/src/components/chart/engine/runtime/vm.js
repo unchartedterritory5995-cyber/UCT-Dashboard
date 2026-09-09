@@ -183,7 +183,16 @@ export function execute(program, ctx, limits) {
     if (!spec) throw new VmError(`no carried-state implementation for \`${c.fn}\``)
     return spec
   })
-  const carAlpha = carPlan.map((c, i) => carSpec[i].alpha(c.n))
+  // ⭐ `alpha` IS OPTIONAL AND COMES FROM THE TABLE. `ema`/`rma` declare a
+  // decay; `rising`/`falling` carry a COUNT and read nothing from that slot.
+  // This line used to call `.alpha(c.n)` unconditionally, which is exactly how a
+  // second member shape announces itself — with a TypeError rather than a wrong
+  // number, which is the good version of that failure.
+  //
+  // ⛔ THERE IS DELIBERATELY NO WARM-UP GATE HERE. A member that withholds its
+  // first values does it inside its own `step`, from a cell it counts itself, so
+  // the gate rides the INVOCATION clock rather than this loop's chart-bar one.
+  const carAlpha = carPlan.map((c, i) => (carSpec[i].alpha ? carSpec[i].alpha(c.n) : undefined))
   const carOffset = new Int32Array(carPlan.length)
   let carCells = 0
   for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carSpec[i].cells }

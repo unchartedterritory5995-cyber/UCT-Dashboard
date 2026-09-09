@@ -520,6 +520,7 @@ def _isnan(x: float) -> bool:
 NA_SKIP = "skip"
 NA_PROPAGATE = "propagate"
 NA_RESTART = "restart"
+NA_FFILL = "ffill"
 
 #: The na policy of every finite-window member, by TABLE name.
 #:   SKIP      -- the last ``n`` FINITE observations, however many BARS that spans;
@@ -527,18 +528,24 @@ NA_RESTART = "restart"
 #:   PROPAGATE -- a clean ``n``-BAR window; blank for exactly ``n-1`` bars after a hole.
 #:   RESTART   -- the window begins again after a hole, so one bar later
 #:                ``highest == lowest ==`` the lone observation.
+#:   FFILL     -- an ``na`` in the LOOKBACK is replaced by the last finite value
+#:                and keeps its bar-position weight; the answer is ``na`` only
+#:                when the CURRENT bar is ``na``. Vendor-pinned 2026-09-08.
 WINDOW_NA: Dict[str, str] = {
     "sma": NA_SKIP, "stdev": NA_SKIP, "sum": NA_SKIP, "median": NA_SKIP,
     "highest": NA_RESTART, "lowest": NA_RESTART,
-    # ⚠️ UNRESOLVED or NOT DETERMINED by the capture -- left on the pre-existing
-    # policy rather than guessed. ``wma`` matched none of five hypotheses;
-    # ``rising``/``falling`` were read through a ternary that cannot separate
-    # ``na`` from false; ``highestbars``/``lowestbars`` answered ON the na bar,
-    # which is a shape neither SKIP nor RESTART describes.
-    "wma": NA_PROPAGATE, "dev": NA_PROPAGATE,
-    "highestbars": NA_PROPAGATE, "lowestbars": NA_PROPAGATE,
-    "rising": NA_PROPAGATE, "falling": NA_PROPAGATE,
+    "highestbars": NA_RESTART, "lowestbars": NA_RESTART,
+    "wma": NA_FFILL,
+    # ⚠️ STILL NOT DETERMINED. ``dev`` is the one member whose PROPAGATE reading
+    # is positively observed (210ok/0bad, PART Z) rather than a default.
+    "dev": NA_PROPAGATE,
 }
+
+#: The answer when the CURRENT bar is ``na`` and the policy would otherwise
+#: refuse. Only the two arg-extremes declare one: the vendor answers 0 there
+#: because a restarted window's only candidate is this bar, so the OFFSET is
+#: defined even though the VALUE is not.
+WINDOW_NA_CURRENT: Dict[str, float] = {"highestbars": 0.0, "lowestbars": 0.0}
 
 
 def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
@@ -566,7 +573,8 @@ def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
 
 def _rolling(series: Sequence[float], n: int,
              reduce: Callable[[Sequence[float], int, int], float],
-             policy: str = NA_PROPAGATE) -> List[float]:
+             policy: str = NA_PROPAGATE,
+             na_current: Optional[float] = None) -> List[float]:
     """Rolling reduction over a full window. NaN before bar ``n-1``.
 
     ⚠️ THE SERIES-START WARM-UP IS UNCHANGED AND DELIBERATELY SO. Every vendor
@@ -574,14 +582,55 @@ def _rolling(series: Sequence[float], n: int,
     has never been observed. ``RESTART`` answers with a PARTIAL run after a hole
     because that IS observed; the ``i < n - 1`` gate at the start of the series is
     not, so it stays.
+
+    ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE, in O(N). Gathering it
+    per-bar would make one bar's cost depend on how long the preceding gap was.
+    The JS twin is ``interpret.js::rolling``.
     """
     out = _nan_col(len(series))
+    src: Sequence[float] = series
+    if policy == NA_FFILL:
+        filled: List[float] = []
+        carry = NAN
+        for v in series:
+            if math.isfinite(v):
+                carry = v
+            filled.append(carry)
+        src = filled
+    inner = NA_PROPAGATE if policy == NA_FFILL else policy
     for i in range(n - 1, len(series)):
-        w = _window_operands(series, n, i, policy)
+        # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
+        # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
+        # being asked about.
+        if policy == NA_FFILL and not math.isfinite(series[i]):
+            continue
+        w = _window_operands(src, n, i, inner)
         if w is not None:
             buf, lo, hi = w
             out[i] = reduce(buf, lo, hi)
+        elif na_current is not None and not math.isfinite(series[i]):
+            out[i] = na_current
     return out
+
+
+def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
+               span: Optional[Callable[[int], int]] = None):
+    """⛔⛔ EVERY finite-window member goes through here, so a member CANNOT be
+    wired past its own declared policy.
+
+    Until 2026-09-08 the call sites passed ``WINDOW_NA[name]`` one at a time, and
+    six of them simply did not -- ``wma``, ``dev``, ``highestbars``,
+    ``lowestbars``, ``rising`` and ``falling`` called ``_rolling`` with the
+    DEFAULT policy while ``WINDOW_NA`` declared one beside them. They agreed only
+    because the default happened to be the same string, so editing the table
+    would have changed nothing and the edit would have looked applied. That is a
+    second authority over one value, and it is the exact shape this engine has
+    paid for repeatedly.
+    """
+    def fn(series: Sequence[float], n: int) -> List[float]:
+        return _rolling(series, span(n) if span else n, reduce,
+                        WINDOW_NA[name], WINDOW_NA_CURRENT.get(name))
+    return fn
 
 
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
@@ -634,11 +683,15 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
     best = _window_extreme(series, lo, hi, better)
     if math.isnan(best):
         return NAN
-    # ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
-    # one. Bounded by ``lo`` rather than run open -- a walk that could step past
-    # the window would read a negative index (Python wraps; JS yields
-    # ``undefined`` and never terminates).
-    for i in range(hi, lo - 1, -1):
+    # ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
+    # the OLDER occurrence -- the LARGER distance back. Measured 2026-09-08 on a
+    # two-valued source built to force ties: ``ties -> OLDEST`` is 380ok/0bad and
+    # ``ties -> NEWEST`` is 193ok/187bad, 244 of the agreeing bars carrying no
+    # ``na`` at all, so this is a tie rule and not an ``na`` rule in disguise.
+    # ⚰️ THIS WALKED BACKWARD FROM ``hi`` UNTIL THEN. Untied windows agree under
+    # both walks, which is why it survived: the derived-value invariant
+    # ``high[highestbars(high,n)] == highest(high,n)`` holds either way.
+    for i in range(lo, hi + 1):
         if series[i] == best:
             return float(hi - i)
     # ⚠️ UNREACHABLE WHILE ``_window_extreme`` HOLDS ITS CONTRACT -- it only ever
@@ -746,43 +799,15 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     return math.sqrt(sq / (hi - lo + 1))
 
 
-def _window_rising_monotone(series: Sequence[float], lo: int, hi: int) -> float:
-    """``ta.rising(src, length)`` — STRICT MONOTONE over ``length + 1`` samples.
+# ⚰️⚰️ ``_window_rising_monotone`` AND ``_window_falling_monotone`` LIVED HERE
+# AND ARE GONE (2026-09-08). They were right about STRICTNESS and wrong about
+# FAMILY -- see ``_monotone_col``. Their own docstrings disclosed the hole that
+# killed them (*the vendor's stated na-skipping window walk is not
+# implemented*), which framed the open question as WHICH window policy applies;
+# the answer is that there is no window. The strictness half of their evidence
+# survives and is stronger: re-proved 2026-09-08 on a source with flat steps,
+# 380ok/0bad for strict ``>`` against 0ok/380bad for ``>=``.
 
-    Resolved 2026-09-06 by a real vendor capture, not the v5/v6 RETURNS clause
-    (which reads as running-maximum). See ``closedTable.json``'s
-    ``_functions_vendor_parity_resolutions.rising_resolution`` for the full
-    evidence chain. The JS twin is ``interpret.js::windowRisingMonotone`` —
-    same two rules: NaN anywhere in the window makes the answer NaN (matching
-    every other windowed function here, a disclosed narrowing versus the
-    vendor's own stated na-skipping window walk).
-    """
-    for i in range(lo + 1, hi + 1):
-        a, b = series[i], series[i - 1]
-        if _isnan(a) or _isnan(b):
-            return NAN
-        if not (a > b):
-            return 0.0
-    return 1.0
-
-
-def _window_falling_monotone(series: Sequence[float], lo: int, hi: int) -> float:
-    """``ta.falling(src, length)`` — STRICT MONOTONE DECREASE, the mirror of
-    ``_window_rising_monotone``.
-
-    Resolved 2026-09-06 by an INDEPENDENT real vendor capture (not assumed by
-    symmetry with ``rising`` — see ``closedTable.json``'s
-    ``_functions_vendor_parity_resolutions.falling_resolution``). The JS twin
-    is ``interpret.js::windowFallingMonotone`` — same NaN rule: NaN anywhere
-    in the window makes the answer NaN.
-    """
-    for i in range(lo + 1, hi + 1):
-        a, b = series[i], series[i - 1]
-        if _isnan(a) or _isnan(b):
-            return NAN
-        if not (a < b):
-            return 0.0
-    return 1.0
 
 
 def _window_median(series: Sequence[float], lo: int, hi: int) -> float:
@@ -870,6 +895,51 @@ def _bbw_col(series: Sequence[float], n: int, mult: float) -> List[float]:
         if _isnan(s) or _isnan(a) or a == 0:
             continue
         out[i] = (2 * mult * s / a) * 100
+    return out
+
+
+def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
+    """``ta.rising`` / ``ta.falling`` -- a CARRIED COUNTER, not a window.
+
+    ⛔⛔ THESE WERE FINITE-WINDOW MEMBERS UNTIL 2026-09-08 AND THE FAMILY WAS
+    WRONG, not merely the ``na`` policy inside it. No window policy fits: skip,
+    forward-fill and propagate score 323/52, 291/84 and 287/88 against the
+    capture. The reason is a contradiction no window can hold -- two bars of the
+    capture present STRUCTURALLY IDENTICAL windows (an ``na`` followed by four
+    strictly rising values) and TradingView answers TRUE at one and FALSE at the
+    other.
+
+    What it reads is a count of consecutive strict steps that HOLDS across an
+    ``na`` exactly as the smoother does. 375ok/0bad on three independent sources;
+    RESET-on-``na`` scores 287/88. The JS twin is ``interpret.js::monotoneStep``.
+
+    ⚠️ THE RETURN IS A DEFINITE 0/1 AND THAT IS NOT AN APPROXIMATION. The same
+    capture proves ``not na`` is TRUE in Pine and ``na ? 1 : 0`` is 0, so an
+    ``na`` bool is indistinguishable from ``false`` through every boolean
+    operation the language has. There is no observable third state to keep.
+
+    ⛔ THE WARM-UP GATE IS KEPT AND IT GUARDS SOMETHING UNOBSERVED. As a window
+    over ``n + 1`` samples these blanked bars ``0..n-1``; a bare counter answers
+    ``false`` there instead. No capture has ever seen the start of a series, so
+    the correction stops at the edge of what was measured. Without the gate the
+    CLEAN corpus moves, and only GAPPY sources should.
+    """
+    out = _nan_col(len(series))
+    count = 0
+    prev = NAN
+    seen = 0
+    for i, v in enumerate(series):
+        if math.isfinite(v) and math.isfinite(prev):
+            step = (v > prev) if rising else (v < prev)
+            count = count + 1 if step else 0
+        # else: HOLD -- do not advance, do not reset.
+        prev = v
+        seen += 1
+        # The step always runs; only the OUTPUT is withheld during warm-up, and
+        # the gate counts SAMPLES rather than bars so the JS twin can carry the
+        # identical rule in a cell and keep it on the invocation clock.
+        if seen > n:
+            out[i] = 1.0 if count >= n else 0.0
     return out
 
 
@@ -1524,22 +1594,16 @@ def _donchian(h, l, n, index):  # noqa: E741
 #: cannot evaluate — which is the exact shape of the bug B5 fixed, where an alert
 #: naming a JS-only indicator could be STORED and could never FIRE.
 FN: Dict[str, Callable[..., List[float]]] = {
-    "sma": lambda series, n: _rolling(series, n, _window_mean, WINDOW_NA["sma"]),
+    "sma": _window_fn("sma", _window_mean),
     "ema": lambda series, n: _ema_col(series, n),
-    "highest": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b),
-        WINDOW_NA["highest"]),
-    "lowest": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b),
-        WINDOW_NA["lowest"]),
+    "highest": _window_fn("highest", lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b)),
+    "lowest": _window_fn("lowest", lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
     # ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME OBJECT SHAPE THE
     # VALUE FORMS PASS -- `_window_arg_extreme` asks `_window_extreme` for the
     # value and only then names the bar, so the pair cannot disagree about one
     # window and the tie-break is the manifest's ruling rather than this line's.
-    "highestbars": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b)),
-    "lowestbars": lambda series, n: _rolling(
-        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
+    "highestbars": _window_fn("highestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b)),
+    "lowestbars": _window_fn("lowestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
     "barssince": _fn_barssince,
     "valuewhen": _fn_valuewhen,
     # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
@@ -1549,19 +1613,19 @@ FN: Dict[str, Callable[..., List[float]]] = {
         series, left, right, lambda v, w: v > w),
     "pivotlow": lambda series, left, right: _pivot_col(
         series, left, right, lambda v, w: v < w),
-    "stdev": lambda series, n: _rolling(series, n, _window_stdev, WINDOW_NA["stdev"]),
-    "sum": lambda series, n: _rolling(series, n, _window_sum, WINDOW_NA["sum"]),
-    "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
+    "stdev": _window_fn("stdev", _window_stdev),
+    "sum": _window_fn("sum", _window_sum),
+    "dev": _window_fn("dev", _window_mean_abs_dev),
     # ⭐⭐ VENDOR PARITY TRANCHE 2, LANE B — resolved 2026-09-06 by real
     # TradingView capture. See ``closedTable.json``'s
     # ``_functions_vendor_parity_resolutions`` for the full evidence chain
     # each of these four carries. JS twins: ``interpret.js``'s ``FN.rising``/
     # ``FN.median``/``FN.percentrank``/``FN.bbw``.
-    "rising": lambda series, n: _rolling(series, n + 1, _window_rising_monotone),
+    "rising": lambda series, n: _monotone_col(series, n, True),
     # BATCH 1 -- resolved 2026-09-06 by real TradingView capture (independent
     # proof, not assumed symmetry). JS twin: ``interpret.js``'s ``FN.falling``.
-    "falling": lambda series, n: _rolling(series, n + 1, _window_falling_monotone),
-    "median": lambda series, n: _rolling(series, n, _window_median, WINDOW_NA["median"]),
+    "falling": lambda series, n: _monotone_col(series, n, False),
+    "median": _window_fn("median", _window_median),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
     ],
@@ -1593,7 +1657,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "idiv": lambda a, b: _elementwise2(a, b, _guarded_idiv),
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
     "rma": lambda series, n: _rma_col(series, n),
-    "wma": lambda series, n: _rolling(series, n, _window_weighted_mean),
+    "wma": _window_fn("wma", _window_weighted_mean),
     "hma": lambda series, n: _hma_col(series, n),
     "sign": lambda series: [_guarded_sign(v) for v in series],
     "round": lambda series: [_guarded_round(v) for v in series],

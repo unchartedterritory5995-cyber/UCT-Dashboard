@@ -1,0 +1,183 @@
+{
+  "_what": "Four TradingView probes over deliberately gappy sources, read off the chart model on 2026-09-08. They close the recurrent-composite audit (RSI/MACD), resolve the three window members PART Z left UNRESOLVED (wma, highestbars/lowestbars, rising/falling), and settle Z5 (the conditional-UDF window clock).",
+
+  "provenance": {
+    "vendor": "TradingView",
+    "symbol": "SPY",
+    "exchange": "NYSE Arca",
+    "timeframe": "1D",
+    "captured": "2026-09-08",
+    "chart": "https://www.tradingview.com/chart/VEeQHWPh/",
+    "how": "window._exposed_chartWidgetCollection -> activeChartWidget -> model().model().dataSources(); the study located by metaInfo().shortDescription; per-bar rows via data().each(). NEVER the DOM, never a screenshot, never a legend read.",
+    "identity_proof": "Each probe's shortDescription and its plot_N -> title map were read back BEFORE any value was accepted. This caught one stale read: after re-pasting, the chart still carried UCTPROBE_COMPOSITE_A, and the identity check refused the values rather than reporting the previous study's numbers as the new one's.",
+    "bars": "The study data carries 400 bars; the main series carries 300. The first 100 study rows use TradingView's pre-history index offset (-1000100..-1000001) and have no corresponding main-series bar, so every comparison that needs a CLOSE is restricted to the 300-bar overlap and the vendor's own closes are carried in `probeA_slice` beside the plotted values.",
+    "note": "Sources are SYNTHETIC and INVERTIBLE by design ((bar_index*37)%101, bar_index%8, and a two-valued tie source). PART Z's probes used real `close`, where five different wma hypotheses all produced plausible numbers and none could be excluded. An arithmetic source is what made `wma` fall out exactly."
+  },
+
+  "_coverage": {
+    "NA_CURRENT_INPUT": "OBSERVED — 36 holes per 400-bar probe (bar_index % 11 == 0)",
+    "NA_IN_LOOKBACK": "OBSERVED",
+    "RECURRENT_STATE_ACROSS_NA": "OBSERVED (rsi, macd, ema, rising, falling)",
+    "TIE_BEHAVIOUR": "OBSERVED for highestbars/lowestbars (probe B, a two-valued source). NOT observed for highest/lowest, where ties cannot change the returned VALUE.",
+    "STRICTNESS": "OBSERVED for rising (probe C, a source with flat steps) — strict `>`, not `>=`.",
+    "SEED": "NOT OBSERVED — every capture begins deep in real history.",
+    "WARMUP": "NOT OBSERVED — same reason.",
+    "PINE_VERSION": "OBSERVED for both v5 and v6: every rule below reproduces identically (375ok/0bad each) under //@version=6.",
+    "REALTIME": "NOT OBSERVED.",
+    "FALLING_ON_A_RISING_SOURCE": "NOT DISCRIMINATING and recorded as such — on probes A and C `ta.falling` is false on all 380 bars, so those runs prove nothing about it. `falling` is measured on probe D, whose source descends (192 true / 183 false)."
+  },
+
+  "vendor": {
+    "probeA_composites": {
+      "script": "UCTPROBE_COMPOSITE_A (//@version=5), 21 plots, gc = bar_index % 11 == 0 ? na : close",
+      "bars_compared": 380,
+      "findings": {
+        "rsi_is_na_at_the_hole_AND_at_the_next_bar": "380ok/0bad",
+        "macd_is_na_at_the_hole_ONLY": "380ok/0bad",
+        "ema_is_na_at_the_hole_ONLY": "380ok/0bad",
+        "sma_SKIP": "380ok/0bad",
+        "highest_RESTART": "380ok/0bad"
+      },
+      "why_rsi_loses_two_bars_and_macd_one": "ta.rsi is rma-of-ta.change; ta.change(src) is na BOTH on the hole and on the bar after it, because that bar's change reads the hole as its previous value. ta.macd is ema-of-src directly, so only the hole itself is na. The one-bar difference is the signature that distinguishes them and it is exactly what was observed.",
+      "quantitative": {
+        "model": "Reconstructed from the vendor's own closes using the HOLD smoother that 2F-2C-REMEDIATION pinned: rma/ema hold state across na, emit na on the na bar, take ONE normal step on the next finite bar.",
+        "rsi_worst_abs_err_by_band": { "bars_60_120": 1.94e-1, "bars_120_180": 9.69e-3, "bars_180_240": 2.33e-4, "bars_240_300": 1.28e-6 },
+        "macd_worst_abs_err_by_band": { "bars_60_120": 2.39e-1, "bars_120_180": 3.49e-3, "bars_180_240": 5.47e-5, "bars_240_300": 7.93e-7 },
+        "ema_worst_abs_err": 3.004e-8,
+        "shape_mismatches": 0,
+        "reading": "The residual DECAYS by ~2 orders of magnitude per 60 bars. That is the signature of a truncated seed (our reconstruction starts 100 bars later than the vendor's smoother) with an otherwise IDENTICAL recursion — not of a model error, which would not shrink."
+      },
+      "rsi_zero_branches": {
+        "frozen_source_ta_rsi_of_a_constant": 100,
+        "monotonically_rising_source": 100,
+        "monotonically_falling_source": 0,
+        "reading": "Pine evaluates `down == 0 ? 100 : up == 0 ? 0 : ...` — the zero-LOSS test comes FIRST, so a source that never moves at all (both up and down are 0) reads 100, not na."
+      },
+      "ternary_on_an_na_bool": 0,
+      "z5_conditional_udf_window_clock": {
+        "shape": "f(x) => ta.sma(x, 3); var float a = na; if bar_index % 2 == 0 \\n a := f(close); beside plain ta.sma(close, 3) called on every bar.",
+        "INVOCATION_clock": "280ok/0bad",
+        "CHARTBAR_clock": "0ok/280bad",
+        "control": "The every-bar plot matches a plain 3-bar chart-clock sma 280ok/0bad, so the instrument can see the chart-bar answer when it is the right one.",
+        "reading": "A finite window inside a conditionally-executed UDF is INVOCATION-indexed: it does not advance on bars where the UDF is not called. This was PART Z's Z7.4, recorded there as INFERRED, NOT MEASURED. It is now measured, and the inference was correct.",
+        "scope": "Measured with ta.sma, a SKIP-policy member. NOT separately measured for a PROPAGATE or RESTART member."
+      },
+      "probeA_slice": {
+        "columns": ["k", "close", "hole", "rsi_gappy", "rsi_clean", "ema_gappy", "macd_line"],
+        "rows": [
+          [298, 694.46, 0, 65.942492, 67.088105, 670.263795, 2.580818],
+          [299, 699.94, 0, 68.140783, 69.307653, 674.220623, 4.65482],
+          [300, 701.66, 0, 68.821031, 69.9917, 677.879206, 6.363912],
+          [301, 710.14, 1, null, 73.166949, null, null],
+          [302, 708.72, 0, null, 71.796952, 681.991312, 8.193612],
+          [303, 704.08, 0, 64.801364, 67.358693, 684.936471, 9.163621],
+          [304, 711.21, 0, 67.903643, 70.38792, 688.439608, 10.387945],
+          [305, 708.45, 0, 65.497166, 67.766227, 691.10766, 11.008622],
+          [306, 713.94, 0, 67.931683, 70.148024, 694.151972, 11.807401],
+          [307, 715.17, 0, 68.468492, 70.670913, 696.954376, 12.396788],
+          [308, 711.69, 0, 65.145806, 67.090319, 698.919126, 12.439677],
+          [309, 711.58, 0, 65.038366, 66.974808, 700.607242, 12.322742],
+          [310, 718.66, 0, 68.625013, 70.495859, 703.014277, 12.655483],
+          [311, 720.65, 0, 69.569953, 71.418261, 705.365706, 12.930702],
+          [312, 718.01, 1, null, 68.364713, null, null]
+        ],
+        "read_this_slice_as": "k=301 is a hole: rsi, ema and macd are ALL na, while the ungapped control rsi_clean is unaffected. k=302 is one bar later: ema and macd RESUME, rsi is STILL na. k=303: rsi resumes. Two members, two different na widths, from one rule."
+      }
+    },
+
+    "probeB_ties": {
+      "script": "UCTPROBE_WINDOW_B (//@version=5), vt = bar_index % 11 == 0 ? na : (bar_index % 5 < 3 ? 10 : 20)",
+      "highestbars_RESTART_ties_to_OLDEST": "380ok/0bad (244 of them on windows with no na at all)",
+      "highestbars_RESTART_ties_to_NEWEST": "193ok/187bad",
+      "lowestbars_RESTART_ties_to_OLDEST": "380ok/0bad (244 clean)",
+      "lowestbars_RESTART_ties_to_NEWEST": "96ok/284bad",
+      "bool_na_controls": {
+        "literal_true": "(1,0) on 380 bars",
+        "literal_false": "(0,1) on 380 bars",
+        "literal_na": "(0,1) on 380 bars",
+        "reading": "⛔⛔ `not na` is TRUE in Pine, not na. An `na` bool is therefore INDISTINGUISHABLE from `false` through any boolean operation — the ternary collapses it and so does negation. This killed the (r, not r) technique this probe was built to use, and it means a bool-returning builtin has no observable na state at all."
+      },
+      "probeB_slice": {
+        "columns": ["k", "hole", "vt", "highestbars", "lowestbars"],
+        "rows": [
+          [300, 0, 20, -1, -3],
+          [301, 1, null, 0, 0],
+          [302, 0, 10, 0, 0],
+          [303, 0, 10, -1, -1],
+          [304, 0, 20, 0, -2],
+          [305, 0, 20, -1, -3],
+          [306, 0, 10, -2, -3],
+          [307, 0, 10, -3, -1],
+          [308, 0, 10, -3, -2],
+          [309, 0, 20, 0, -3],
+          [310, 0, 20, -1, -3],
+          [311, 0, 10, -2, -3]
+        ],
+        "read_this_slice_as": "k=301 is a hole and BOTH bars-members answer 0 — the offset is defined even where the value is not, because the window restarted and the only candidate is this bar. k=302 answers 0 again (one observation). k=303 is the tie proof in one row: two equal 10s at offsets 0 and -1, and BOTH highestbars and lowestbars return -1, the OLDER one."
+      }
+    },
+
+    "probeC_rising": {
+      "script": "UCTPROBE_RISEFALL_C (//@version=5), vm = bar_index % 11 == 0 ? na : (bar_index % 8)",
+      "states_seen": { "rising_gappy_true": 193, "rising_gappy_false": 187 },
+      "strictness": { "flat_source_STRICT_gt": "380ok/0bad", "flat_source_NONSTRICT_gte": "0ok/380bad" },
+      "window_models_all_fail": { "SKIP": "323ok/52bad", "FORWARD_FILL": "291ok/84bad", "PROPAGATE": "287ok/88bad" },
+      "carried_counter_HOLD_on_na": "375ok/0bad",
+      "carried_counter_RESET_on_na": "287ok/88bad",
+      "the_contradiction_that_forced_it": "Bars 41 and 74 present STRUCTURALLY IDENTICAL windows — an na followed by four strictly rising values — and Pine answers TRUE at 41 and FALSE at 74. No window-local model of any na policy can produce both. ta.rising is therefore not a window at all.",
+      "probeC_slice": {
+        "columns": ["k", "hole", "vm", "rising"],
+        "rows": [
+          [300, 0, 7, 1], [301, 1, null, 1], [302, 0, 1, 1], [303, 0, 2, 1],
+          [304, 0, 3, 1], [305, 0, 4, 1], [306, 0, 5, 1], [307, 0, 6, 1],
+          [308, 0, 7, 1], [309, 0, 0, 0], [310, 0, 1, 0], [311, 0, 2, 0]
+        ],
+        "read_this_slice_as": "⭐⭐ k=302 is the whole finding in one row. The source DROPS from 7 (k=300) to 1, and `ta.rising` still reports TRUE — because the na at k=301 held the counter and k=302's own comparison also involves that na, so it holds again. A window would have to call that a fall. Then k=309 is a genuine non-rise with no na in sight, and the counter resets to 0 exactly as a counter should."
+      }
+    },
+
+    "probeD_falling": {
+      "script": "UCTPROBE_FALLING_D (//@version=5), vd = bar_index % 11 == 0 ? na : (7 - bar_index % 8); ve = ... bar_index % 13",
+      "states_seen": { "falling_vd_true": 192, "falling_vd_false": 183, "rising_ve_true": 263, "rising_ve_false": 112 },
+      "falling_carried_HOLD": "375ok/0bad",
+      "falling_carried_RESET": "287ok/88bad",
+      "rising_on_a_SECOND_independent_source_HOLD": "375ok/0bad",
+      "rising_on_a_SECOND_independent_source_RESET": "256ok/119bad",
+      "why_a_second_source": "The counter model was fitted on probe C. A model fitted and tested on one source is a curve fit; ve has period 13 against holes of period 11, a different alignment entirely, and the same model holds without adjustment.",
+      "probeD_slice": {
+        "columns": ["k", "hole", "vd", "falling"],
+        "rows": [
+          [300, 0, 0, 1], [301, 1, null, 1], [302, 0, 6, 1], [303, 0, 5, 1],
+          [304, 0, 4, 1], [305, 0, 3, 1], [306, 0, 2, 1], [307, 0, 1, 1],
+          [308, 0, 0, 1], [309, 0, 7, 0], [310, 0, 6, 0], [311, 0, 5, 0]
+        ],
+        "read_this_slice_as": "The exact mirror of probe C: at k=302 the source JUMPS UP from 0 to 6 and `ta.falling` still reports TRUE, held across the na at k=301."
+      }
+    },
+
+    "probeV6": {
+      "script": "UCTPROBE_V6 (//@version=6), same sources",
+      "rsi_na_at_hole_and_next": "375ok/0bad",
+      "ema_na_at_hole_only": "375ok/0bad",
+      "wma_ffill_na_at_current": "375ok/0bad",
+      "sma_SKIP": "375ok/0bad",
+      "rising_carried_HOLD": "375ok/0bad",
+      "highestbars_RESTART_ties_oldest": "375ok/0bad",
+      "z5_INVOCATION_clock": "280ok/0bad",
+      "z5_CHARTBAR_clock": "0ok/280bad",
+      "reading": "Every rule below is VERSION-INVARIANT across the two Pine versions this engine accepts. Nothing here needs a per-version branch."
+    }
+  },
+
+  "rules_established": {
+    "ta.rsi": "rma of max(change,0) and -min(change,0); the smoother HOLDS across na, so the output is na on the hole AND on the following bar, then resumes from the pre-hole state. Zero branches: down==0 -> 100 is tested FIRST, then up==0 -> 0.",
+    "ta.macd": "ema(src,fast) - ema(src,slow); the smoother HOLDS, so the output is na on the hole only.",
+    "ta.ema / ta.rma": "HOLD (re-confirmed on a fresh capture; first pinned 2026-09-08 in 2F-2C-REMEDIATION).",
+    "ta.sma / ta.stdev / ta.sum / ta.median": "SKIP — the last n FINITE observations (re-confirmed).",
+    "ta.highest / ta.lowest": "RESTART (re-confirmed).",
+    "ta.wma": "FORWARD-FILL — an na in the lookback is replaced by the last finite value and keeps its bar-position weight; the output is na only when the CURRENT bar is na.",
+    "ta.highestbars / ta.lowestbars": "RESTART, ties resolve to the OLDEST bar, and the answer is 0 on an na bar (the offset is defined where the value is not).",
+    "ta.rising / ta.falling": "NOT A WINDOW. A carried counter of consecutive strict steps that HOLDS across an na, reported as counter >= length. Strict comparison.",
+    "conditional-UDF window clock": "INVOCATION-indexed."
+  }
+}

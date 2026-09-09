@@ -171,21 +171,34 @@ def rsi_from_wilder_averages(avg_gain: float, avg_loss: float) -> MaybeNum:
         answer is exactly **100.0**. That branch is pinned by
         ``tests/fixtures/indicators/rsi_ramp_14.json`` in BOTH lanes and is
         deliberately unchanged.
-      * ``avg_loss == 0`` AND ``avg_gain == 0`` — nothing moved. ``0/0`` is not
-        a number; the honest column entry is the same ``None`` the warm-up pad
-        uses, not the top of the scale. (Pine's ``ta.rsi`` yields NaN here, and
-        ``indicators.js`` leaves its ``NA`` for the same reason.)
+      * ``avg_loss == 0`` AND ``avg_gain == 0`` — nothing moved.
 
-    ⛔ ``None`` IS NOT "NO SIGNAL", IT IS "NOT COMPUTABLE", and the difference is
-    what the whole phase turns on: ``_last_finite`` skips it, so an armed
-    ``rsi > 70`` alert on a frozen ticker now declines to answer instead of
-    answering "yes".
+    ⚰️⚰️ AND THE SECOND CASE WAS DECIDED HERE ON A CLAIM ABOUT PINE THAT WAS
+    NEVER CHECKED. This docstring said *"Pine's ``ta.rsi`` yields NaN here"*.
+    It does not. Measured directly on TradingView 2026-09-08 with
+    ``ta.rsi(k, 14)`` over a constant source: the answer is **100.0** on every
+    bar of the capture. Pine evaluates ``down == 0 ? 100 : up == 0 ? 0 : ...``,
+    so the zero-LOSS test fires FIRST and a series that never moves reads 100.
+
+    ⛔ THAT MAKES THE OLD RULE A UCT INVENTION defended by an unverified vendor
+    claim — the exact shape the program's own standing rule warns about (*a
+    tested invariant can still be a UCT invention*). It was pinned by a fixture,
+    guarded by an AST rail, mirrored in ``indicators.js``, and wrong.
+
+    ⚠️⚠️ THE INCIDENT BEHIND IT WAS REAL AND IS NOT DISMISSED. On 2026-08-09
+    **SIM, TMTS, CWEN-A, DRDB and OBA** all carried ``rsi14 = 100.0`` with
+    ``chg_pct_1d = 0.00``, so an "RSI > 70" screen surfaced five frozen tickers
+    as the most overbought names in the universe. Restoring Pine's answer
+    restores that exposure. **The fix belongs at the screener, not in the
+    definition of RSI**: a zero-movement / zero-ADR ticker should not reach a
+    momentum screen at all, and TradingView users see 100 on those names too.
+    Owner ruling requested — see ``divergences.json::rsi-zero-movement-reads-na``.
     """
     if avg_loss == 0:
-        # Both zero ⇒ 0/0. Not overbought, not oversold — not computable.
-        if avg_gain == 0:
-            return None
+        # ⛔ ORDER MATTERS AND IT IS PINE'S ORDER: zero-loss first, so 0/0 -> 100.
         return 100.0
+    if avg_gain == 0:
+        return 0.0
     return 100.0 - 100.0 / (1 + avg_gain / avg_loss)
 
 
@@ -195,31 +208,47 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     First RSI value lands at index ``period`` (needs ``period`` price diffs
     starting at i=1). Output aligned to input length.
 
-    ⚠️ A ``None`` CAN NOW APPEAR PAST THE WARM-UP PAD. ``rsi_from_wilder_averages``
-    refuses the ``0/0`` bar (a window in which nothing moved at all), so this
-    column's ``None``s mean "not computable here", which is what they have always
-    meant — they are simply no longer confined to a prefix. Callers already index
-    by bar position and already skip ``None``.
+    ⚠️ A ``None`` CAN APPEAR PAST THE WARM-UP PAD, and since 2026-09-08 for one
+    reason rather than two. The ``0/0`` refusal is gone (it was a UCT invention —
+    see ``rsi_from_wilder_averages``); what remains is a HOLE in the input, where
+    this column declines to answer because the vendor does.
+
+    ⭐⭐⭐ A NON-FINITE DIFF HOLDS THE STATE. VENDOR-PINNED 2026-09-08.
+
+    The old loop seeded from the first ``period`` diffs unconditionally and then
+    booked a non-finite diff as gain 0 / loss 0 — which decays BOTH averages and
+    leaves their ratio unchanged, so the printed value repeated the previous bar
+    and read exactly like a hold while the state underneath had been scaled down.
+    Every later bar was then wrong and never re-converged. TradingView instead
+    holds: ``na`` on the hole AND on the bar after it, then one normal step.
     """
     n = len(closes)
     out: List[MaybeNum] = [None] * n
     if period <= 0 or n < period + 1:
         return out
-    avg_gain = 0.0
-    avg_loss = 0.0
-    for i in range(1, period + 1):
-        diff = closes[i] - closes[i - 1]
-        if diff > 0:
-            avg_gain += diff
+    avg_gain: MaybeNum = None
+    avg_loss: MaybeNum = None
+    seen = 0
+    sum_gain = 0.0
+    sum_loss = 0.0
+    for i in range(1, n):
+        a, b = closes[i], closes[i - 1]
+        if a is None or b is None:
+            continue                              # HOLD
+        diff = a - b
+        if not isfinite(diff):
+            continue                              # HOLD
+        gain = diff if diff > 0 else 0.0
+        loss = -diff if diff < 0 else 0.0
+        if avg_gain is None:
+            sum_gain += gain
+            sum_loss += loss
+            seen += 1
+            if seen < period:
+                continue
+            avg_gain = sum_gain / period
+            avg_loss = sum_loss / period
         else:
-            avg_loss -= diff
-    avg_gain /= period
-    avg_loss /= period
-    for i in range(period, n):
-        if i > period:
-            diff = closes[i] - closes[i - 1]
-            gain = diff if diff > 0 else 0.0
-            loss = -diff if diff < 0 else 0.0
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
         out[i] = rsi_from_wilder_averages(avg_gain, avg_loss)

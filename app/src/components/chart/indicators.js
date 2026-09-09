@@ -80,47 +80,97 @@ export function toHeikinAshi(bars) {
   return result
 }
 
+/** Wilder's RSI. ⭐⭐⭐ IT IS AN `rma` OF GAINS AND LOSSES, AND IT INHERITS THE
+ *  `rma` `na` RULE — vendor-pinned 2026-09-08.
+ *
+ *  ⛔⛔ THIS USED TO BOOK A ZERO CHANGE ON AN `na` BAR, and that was the worst of
+ *  the four composite defects because it did not LOOK like a defect. A non-finite
+ *  `diff` failed both `diff > 0` and `diff < 0`, so the bar contributed gain 0 and
+ *  loss 0 — which decays BOTH averages by `(period-1)/period` and leaves their
+ *  RATIO unchanged. The printed value therefore repeated the previous bar and read
+ *  exactly like a hold, while the state underneath had been scaled down. Every
+ *  later bar was then wrong and never re-converged: measured on a 80-bar series
+ *  with one hole, bar 42 read 74.94 against a true 78.97 and bar 79 was still off.
+ *  A member saw a plausible line with no gap and no way to know.
+ *
+ *  ⛔ AND AN `na` INSIDE THE SEED KILLED THE WHOLE SERIES. The seed summed the
+ *  first `period` diffs unconditionally, so one hole there made `avgGain` NaN and
+ *  the recursion never recovered — `finite = 0` over 300 bars.
+ *
+ *  TradingView instead HOLDS: the output is `na` on the hole AND on the bar after
+ *  it (that bar's `ta.change` reads the hole as its previous value), then resumes
+ *  from the pre-hole state. 380 of 380 bars, and the values reconstruct to 1.3e-6
+ *  with the residual decaying geometrically — seed truncation, not a model gap.
+ */
 export function computeRSI(bars, period = 14) {
   if (!bars || bars.length < period + 1) return []
-  let avgGain = 0, avgLoss = 0
-  for (let i = 1; i <= period; i++) {
-    const diff = bars[i].c - bars[i - 1].c
-    if (diff > 0) avgGain += diff; else avgLoss -= diff
-  }
-  avgGain /= period
-  avgLoss /= period
   const result = blank(bars)
-  for (let i = period; i < bars.length; i++) {
-    if (i > period) {
-      const diff = bars[i].c - bars[i - 1].c
-      const gain = diff > 0 ? diff : 0
-      const loss = diff < 0 ? -diff : 0
+  let avgGain = NA, avgLoss = NA, seen = 0, sumGain = 0, sumLoss = 0
+  for (let i = 1; i < bars.length; i++) {
+    const diff = bars[i].c - bars[i - 1].c
+    // ⭐ HOLD. Not a zero observation, not a reset — the state is simply not
+    // advanced, and this bar emits nothing.
+    if (!Number.isFinite(diff)) continue
+    const gain = diff > 0 ? diff : 0
+    const loss = diff < 0 ? -diff : 0
+    if (Number.isNaN(avgGain)) {
+      sumGain += gain; sumLoss += loss; seen += 1
+      if (seen < period) continue
+      avgGain = sumGain / period; avgLoss = sumLoss / period
+    } else {
       avgGain = (avgGain * (period - 1) + gain) / period
       avgLoss = (avgLoss * (period - 1) + loss) / period
     }
-    // ⛔ `avgLoss === 0` IS TWO DIFFERENT FACTS AND ONLY ONE OF THEM IS 100.
-    // With `avgGain > 0` it is a genuine unbroken advance — RS is unbounded and
-    // 100 is the textbook answer (pinned by fixtures/indicators/rsi_ramp_14).
-    // With `avgGain === 0` NOTHING MOVED: 0/0 is not a number, so the point
-    // keeps the `NA` the warm-up pad uses. Reading a frozen ticker as maximally
+    // ⛔⛔ THE ZERO BRANCHES, IN PINE'S ORDER: `down == 0 -> 100` is tested FIRST,
+    // and only then `up == 0 -> 0`. So a source that never moves at all reads
+    // 100, not `na`.
+    //
+    // ⚰️ THIS ENGINE DELIBERATELY ANSWERED `na` THERE, and the reasoning was
+    // sound: "0/0 is not a number", and reading a frozen ticker as maximally
     // overbought put SIM/TMTS/CWEN-A/DRDB/OBA at the top of an "RSI > 70" screen
-    // on 2026-08-09. Python's `indicator_compute.rsi_from_wilder_averages` makes
-    // the identical distinction — these two lanes are compared bar-for-bar
-    // against one golden fixture, so they decide it the same way or not at all.
-    if (avgLoss !== 0) result[i].value = 100 - 100 / (1 + avgGain / avgLoss)
-    else if (avgGain !== 0) result[i].value = 100
+    // on 2026-08-09. It is still a UCT INVENTION. `ta.rsi` of a constant reads
+    // 100 on TradingView, measured directly. The screener's problem is a frozen
+    // ticker reaching a momentum screen at all, and that belongs to the screener
+    // — putting the fix in the definition of RSI made every Pine script this
+    // engine runs disagree with the vendor on the same bar.
+    if (avgLoss === 0) result[i].value = 100
+    else if (avgGain === 0) result[i].value = 0
+    else result[i].value = 100 - 100 / (1 + avgGain / avgLoss)
   }
   return result
 }
 
+/** ⭐⭐ FULL-LENGTH AND BAR-ALIGNED, and it HOLDS on a non-finite input.
+ *
+ *  ⚰️ THIS RETURNED A COMPACTED ARRAY (`out[i]` meaning `values[period-1+i]`),
+ *  which forced `computeMACD` to carry offset arithmetic for the two periods and
+ *  a third for the signal. That arithmetic is what the Fast>Slow defect lived in.
+ *  Aligning here deletes it: two aligned series subtract element-wise, and the
+ *  later-starting one supplies the start bar with no `Math.max` anywhere.
+ *
+ *  ⭐⭐⭐ AND IT HOLDS ON `na`, so a hole costs one bar instead of the series.
+ *  `values.slice(0, period).reduce(...)` used to seed from the first `period`
+ *  entries unconditionally — one `na` among them made the seed NaN and the
+ *  recursion never recovered. Vendor-pinned: `ta.macd` over a gappy source is
+ *  `na` on the hole ONLY and resumes on the very next bar (380 of 380). */
 function _ema(values, period) {
-  if (values.length < period) return []
+  const out = new Array(values.length).fill(NA)
+  if (values.length < period) return out
   const k = 2 / (period + 1)
-  const out = [values.slice(0, period).reduce((s, v) => s + v, 0) / period]
-  for (let i = period; i < values.length; i++) {
-    out.push(out[out.length - 1] * (1 - k) + values[i] * k)
+  let prev = NA, seen = 0, sum = 0
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    if (!Number.isFinite(v)) continue          // HOLD
+    if (Number.isNaN(prev)) {
+      sum += v; seen += 1
+      if (seen < period) continue
+      prev = sum / period
+    } else {
+      prev = prev * (1 - k) + v * k
+    }
+    out[i] = prev
   }
-  return out  // out[i] corresponds to values[period - 1 + i]
+  return out
 }
 
 export function computeMACD(bars, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
@@ -147,36 +197,34 @@ export function computeMACD(bars, fastPeriod = 12, slowPeriod = 26, signalPeriod
   const longPeriod = Math.max(fastPeriod, slowPeriod)
   if (!bars || bars.length < longPeriod + signalPeriod) return { macd: [], signal: [], histogram: [] }
   const closes  = bars.map(b => b.c)
-  const fastEMA = _ema(closes, fastPeriod)  // fastEMA[i] → bars[fastPeriod-1+i]
-  const slowEMA = _ema(closes, slowPeriod)  // slowEMA[i] → bars[slowPeriod-1+i]
-  const fastOffset = longPeriod - fastPeriod
-  const slowOffset = longPeriod - slowPeriod
-  // MACD line: aligned to bars[longPeriod-1+i]
-  const span = Math.min(fastEMA.length - fastOffset, slowEMA.length - slowOffset)
-  const macdValues = []
-  for (let i = 0; i < span; i++) macdValues.push(fastEMA[i + fastOffset] - slowEMA[i + slowOffset])
-  const signalEMA  = _ema(macdValues, signalPeriod)
-  const sigOffset  = signalPeriod - 1
+  const fastEMA = _ema(closes, fastPeriod)   // bar-aligned, NA before its seed
+  const slowEMA = _ema(closes, slowPeriod)
   const macd = blank(bars), signal = blank(bars), histogram = blank(bars)
-  // The MACD LINE exists wherever both EMAs do — from bars[longPeriod-1], which
-  // is `signalPeriod - 1` bars EARLIER than the signal line. This used to be
-  // trimmed to the signal's start, and the golden fixtures caught it: the Python
-  // lane has always emitted the line from bars[slow-1], so the two
-  // implementations disagreed on 8 bars of a default 12/26/9 MACD.
-  // The chart's look is unchanged — StockChart masks the line's head back to the
-  // signal's first bar, which is a deliberate B1 pixel-parity hold, not this
-  // function's business.
-  for (let i = 0; i < macdValues.length; i++) {
-    macd[longPeriod - 1 + i].value = macdValues[i]
+  // ⭐⭐ TWO ALIGNED SERIES SUBTRACT ELEMENT-WISE, and that is the whole
+  // alignment. The later-starting EMA supplies the first computable bar by being
+  // NA before it, so `longPeriod` needs no arithmetic here and the Fast>Slow case
+  // is handled by construction rather than by a `Math.max` somebody has to keep
+  // correct. It also means a HOLE costs exactly the bars it touches: `na` in,
+  // `na` out, and the next finite bar resumes.
+  const macdValues = new Array(bars.length).fill(NA)
+  for (let i = 0; i < bars.length; i++) {
+    const f = fastEMA[i], sl = slowEMA[i]
+    if (Number.isFinite(f) && Number.isFinite(sl)) {
+      macdValues[i] = f - sl
+      macd[i].value = macdValues[i]
+    }
   }
-  for (let i = 0; i < signalEMA.length; i++) {
-    const barIdx = longPeriod - 1 + sigOffset + i
-    signal[barIdx].value = signalEMA[i]
-    // No per-point `color` here any more: the histogram's up/down colour is a
-    // RENDER concern (StockChart derives it from the sign of this value, which
-    // is the same test the old `m >= s` was). Keeping colour out of the data is
-    // what lets B2 express it declaratively as colorMode: 'sign'.
-    histogram[barIdx].value = macdValues[sigOffset + i] - signalEMA[i]
+  // ⭐ THE SIGNAL IS AN EMA OF THE LINE, over the same bar axis. `_ema` skips
+  // the NA head and any hole, so the signal seeds from the first `signalPeriod`
+  // FINITE macd values -- exactly `ta.ema(macd, signal)`.
+  const signalEMA = _ema(macdValues, signalPeriod)
+  for (let i = 0; i < bars.length; i++) {
+    if (!Number.isFinite(signalEMA[i])) continue
+    signal[i].value = signalEMA[i]
+    // No per-point `color` here: the histogram's up/down colour is a RENDER
+    // concern (StockChart derives it from the sign of this value, which is the
+    // same test the old `m >= s` was).
+    if (Number.isFinite(macdValues[i])) histogram[i].value = macdValues[i] - signalEMA[i]
   }
   return { macd, signal, histogram }
 }
@@ -333,26 +381,33 @@ export function computeStochastic(bars, kPeriod = 14, dPeriod = 3) {
   return { k: kValues, d: dValues }
 }
 
+/** Wilder's ATR — an `rma` of true range, and it HOLDS on a non-finite bar.
+ *
+ *  ⛔⛔ A SINGLE HOLE USED TO DESTROY THE ENTIRE REMAINING SERIES. `Math.max` with
+ *  a NaN operand is NaN, so one non-finite TR made `atr` NaN and the recursion
+ *  `(atr*(p-1) + tr)/p` could never return — NaN is absorbing. Measured: 80 bars
+ *  with one hole at bar 40 answered on 26 bars instead of 66, and every bar from
+ *  the hole to the end of the chart was blank. With holes closer together than
+ *  `period` the seed never completed either and the output was empty. */
 export function computeATR(bars, period = 14) {
   if (!bars || bars.length < period + 1) return []
-  // True Range for each bar starting at index 1 (needs previous close).
-  // trs[j] describes bars[j + 1].
-  const trs = []
+  const result = blank(bars)
+  let atr = NA, seen = 0, sum = 0
   for (let i = 1; i < bars.length; i++) {
-    trs.push(Math.max(
+    const tr = Math.max(
       bars[i].h - bars[i].l,
       Math.abs(bars[i].h - bars[i - 1].c),
       Math.abs(bars[i].l - bars[i - 1].c)
-    ))
-  }
-  // Seed with simple average of first `period` TRs, then Wilder's smoothing.
-  // First value lands on bars[period].
-  let atr = trs.slice(0, period).reduce((s, x) => s + x, 0) / period
-  const result = blank(bars)
-  result[period].value = atr
-  for (let i = period; i < trs.length; i++) {
-    atr = (atr * (period - 1) + trs[i]) / period
-    result[i + 1].value = atr
+    )
+    if (!Number.isFinite(tr)) continue          // HOLD
+    if (Number.isNaN(atr)) {
+      sum += tr; seen += 1
+      if (seen < period) continue
+      atr = sum / period
+    } else {
+      atr = (atr * (period - 1) + tr) / period
+    }
+    result[i].value = atr
   }
   return result
 }
@@ -490,56 +545,79 @@ export function computeWilliamsR(bars, period = 14) {
 // ADX = Wilder-smoothed DX over `period`
 // First ADX value lands at bars[2*period - 1].
 
+/** Wilder's ADX / +DI / -DI — three `rma`s over one forward pass, HOLDING on a
+ *  non-finite bar.
+ *
+ *  ⛔⛔ THIS CARRIED THE SAME ABSORBING-NaN DEFECT AS `computeATR` **AND** A
+ *  SECOND ONE THE OTHER THREE DID NOT HAVE: it FABRICATED directional movement.
+ *  `plusDM[i] = (up > down && up > 0) ? up : 0` — with a NaN `up` both
+ *  comparisons are false, so the bar booked a confident ZERO rather than
+ *  refusing. The TR side then went NaN and stayed NaN, so the fabricated zeros
+ *  were invisible: the series was blank from the first hole onward regardless.
+ *  Fix one without the other and the fabrication becomes VISIBLE instead — which
+ *  is why both move here, in one pass.
+ *
+ *  ⭐ ONE PASS, THREE SEEDS. The old shape was three passes over pre-built
+ *  arrays (`plusDM`/`minusDM`/`tr`, then a seed loop over indices `1..period`,
+ *  then a DX smoother seeded over `dxValues[period .. 2*period-1]`). Every one of
+ *  those index ranges assumed each bar contributes exactly one observation, which
+ *  is precisely what a hole breaks. Counting OBSERVATIONS instead of BARS is what
+ *  makes the seeds hole-proof, and it is the same change `computeRSI` and
+ *  `computeATR` needed.
+ *
+ *  ⚠️ REACHABILITY, STATED. Pine's `ta.adx` takes only a length — there is no
+ *  source parameter — and this engine refuses `ta.adx` at the columnar door with
+ *  `pine:role-order` anyway, so no Pine script currently reaches this code with a
+ *  gappy source. It is corrected because it is the NATIVE chart/screener ADX and
+ *  a hole in real OHLCV would have silently blanked it from that bar on, not
+ *  because a fixture caught it. That is a smaller claim than the other three
+ *  carry and it is made deliberately smaller. */
 export function computeADX(bars, period = 14) {
   const empty = { adx: [], plusDI: [], minusDI: [] }
   if (!bars || bars.length < 2 * period) return empty
-  // Step 1: per-bar +DM, -DM, TR (starting at i=1)
-  const plusDM  = new Array(bars.length).fill(0)
-  const minusDM = new Array(bars.length).fill(0)
-  const tr      = new Array(bars.length).fill(0)
+  const plusDI = blank(bars), minusDI = blank(bars), adxOut = blank(bars)
+
+  let sPlus = 0, sMinus = 0, sTR = 0, diSeen = 0, diReady = false
+  let adx = NA, dxSeen = 0, dxSum = 0
+
   for (let i = 1; i < bars.length; i++) {
-    const up   = bars[i].h - bars[i - 1].h
+    const up = bars[i].h - bars[i - 1].h
     const down = bars[i - 1].l - bars[i].l
-    plusDM[i]  = (up > down && up > 0)   ? up   : 0
-    minusDM[i] = (down > up && down > 0) ? down : 0
-    tr[i] = Math.max(
+    const tr = Math.max(
       bars[i].h - bars[i].l,
       Math.abs(bars[i].h - bars[i - 1].c),
       Math.abs(bars[i].l - bars[i - 1].c),
     )
-  }
-  // Step 2: Wilder-smooth +DM, -DM, TR. Seed = sum of first `period` values (indices 1..period).
-  let sPlus = 0, sMinus = 0, sTR = 0
-  for (let i = 1; i <= period; i++) { sPlus += plusDM[i]; sMinus += minusDM[i]; sTR += tr[i] }
-  // After seeding, first +DI/-DI/DX value corresponds to bars[period]. All three
-  // outputs are bar-aligned and the same length now — adx used to be shorter
-  // than the DIs by period-1.
-  const plusDI = blank(bars), minusDI = blank(bars), adxOut = blank(bars)
-  const dxValues = new Array(bars.length).fill(NA)
-  const pushDI = (idx) => {
+    // ⛔ HOLD — and this is the line that stops the fabrication. A bar whose
+    // directional movement cannot be COMPUTED contributes nothing; it does not
+    // contribute a zero.
+    if (!Number.isFinite(up) || !Number.isFinite(down) || !Number.isFinite(tr)) continue
+    const pDM = (up > down && up > 0) ? up : 0
+    const mDM = (down > up && down > 0) ? down : 0
+
+    if (!diReady) {
+      sPlus += pDM; sMinus += mDM; sTR += tr; diSeen += 1
+      if (diSeen < period) continue
+      diReady = true
+    } else {
+      sPlus = sPlus - sPlus / period + pDM
+      sMinus = sMinus - sMinus / period + mDM
+      sTR = sTR - sTR / period + tr
+    }
     const pdi = sTR === 0 ? 0 : 100 * sPlus / sTR
     const mdi = sTR === 0 ? 0 : 100 * sMinus / sTR
+    plusDI[i].value = pdi
+    minusDI[i].value = mdi
     const sum = pdi + mdi
-    plusDI[idx].value  = pdi
-    minusDI[idx].value = mdi
-    dxValues[idx] = sum === 0 ? 0 : 100 * Math.abs(pdi - mdi) / sum
-  }
-  pushDI(period)
-  for (let i = period + 1; i < bars.length; i++) {
-    sPlus  = sPlus  - sPlus  / period + plusDM[i]
-    sMinus = sMinus - sMinus / period + minusDM[i]
-    sTR    = sTR    - sTR    / period + tr[i]
-    pushDI(i)
-  }
-  // Step 3: Wilder-smooth DX over `period` to get ADX. dxValues is defined from
-  // index `period` on, so the seed spans bars[period .. 2*period-1] and the
-  // first ADX value lands on bars[2*period - 1].
-  let adx = 0
-  for (let i = period; i < 2 * period; i++) adx += dxValues[i]
-  adx /= period
-  adxOut[2 * period - 1].value = adx
-  for (let i = 2 * period; i < bars.length; i++) {
-    adx = (adx * (period - 1) + dxValues[i]) / period
+    const dx = sum === 0 ? 0 : 100 * Math.abs(pdi - mdi) / sum
+
+    if (Number.isNaN(adx)) {
+      dxSum += dx; dxSeen += 1
+      if (dxSeen < period) continue
+      adx = dxSum / period
+    } else {
+      adx = (adx * (period - 1) + dx) / period
+    }
     adxOut[i].value = adx
   }
   return { adx: adxOut, plusDI, minusDI }

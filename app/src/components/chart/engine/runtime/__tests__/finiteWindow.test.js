@@ -103,14 +103,23 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§3
     }
   })
 
-  it('⭐ `rising`/`falling` keep their n+1 span — the table owns it, not the call site', () => {
-    // ⛔ `ta.rising(x, n)` compares n+1 BARS to answer about n intervals. Asking
-    // for n bars would be one short on every call; the span lives in
-    // `FINITE_WINDOW` so the two lanes cannot disagree about it.
-    expect(FINITE_WINDOW.rising.span(3)).toBe(4)
+  it('⚰️ `rising`/`falling` are NOT windows any more, and the plan says so', () => {
+    // ⛔⛔ THIS RAIL USED TO ASSERT `FINITE_WINDOW.rising.span(3) === 4` — that
+    // `ta.rising(x, n)` compares n+1 BARS to answer about n intervals. The span
+    // was right and the FAMILY was wrong: on 2026-09-08 TradingView answered
+    // TRUE and FALSE on two structurally identical windows, which no window
+    // policy can do. They are carried counters now.
+    //
+    // ⭐ THE ROUTING IS WHAT THIS CHECKS, because it is the thing that could
+    // silently regress: the frontend picks a family by READING the tables, so
+    // moving a member between them must move its plan entry with no other edit.
+    expect(FINITE_WINDOW.rising, 'rising must not be a window member').toBeUndefined()
     expect(FINITE_WINDOW.sma.span(3)).toBe(3)
     const { program } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.rising(x, 3))\n`)
-    expect(program.windows[0].span).toBe(4)
+    expect(program.windows.length, 'rising must plan no window').toBe(0)
+    expect(program.carried.length, 'rising must plan a carried instance').toBe(1)
+    expect(program.carried[0].fn).toBe('rising')
+    expect(program.carried[0].n).toBe(3)
   })
 })
 

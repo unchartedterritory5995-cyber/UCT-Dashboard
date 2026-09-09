@@ -38,7 +38,7 @@ import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './inter
 import {
   makeIrProgram, SLOT, num, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, call as irCall, builtin as irBuiltin, histSlot,
-  windowCall, carriedCall, carriedCall,
+  windowCall, carriedCall,
 } from '../runtime/ir.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).

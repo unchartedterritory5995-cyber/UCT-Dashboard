@@ -323,14 +323,15 @@ TIE_ROWS = [(1.0, 5.0, 2.0, 1.0, 10),
             (1.0, 1.0, 7.0, 1.0, 10)]
 TIE_BARS = mk_bars(TIE_ROWS)
 
-#: ⭐ THE DECLARED ANSWER — THE MOST RECENT BAR WINS, so the offset is the
-#: SMALLEST one that reaches the extreme. Under the other convention these read
-#: 3 and 4.
+#: ⭐ THE DECLARED ANSWER — THE OLDEST BAR WINS, so the offset is the LARGEST
+#: one that reaches the extreme. ⚰⚰ THIS READ 1 AND 2 UNTIL 2026-09-08, on a
+#: well-argued convention TradingView does not share: measured on a source built
+#: to force ties, oldest-wins is 380ok/0bad and newest-wins is 193ok/187bad.
 TIE_CASES = [
     {"id": "tie_highestbars",
-     "ast": CALL("highestbars", SER("high"), NUM(5)), "want": 1, "other": 3},
+     "ast": CALL("highestbars", SER("high"), NUM(5)), "want": 3, "other": 1},
     {"id": "tie_lowestbars",
-     "ast": CALL("lowestbars", SER("low"), NUM(5)), "want": 2, "other": 4},
+     "ast": CALL("lowestbars", SER("low"), NUM(5)), "want": 4, "other": 2},
 ]
 
 
@@ -341,21 +342,21 @@ def test_the_manifest_DECLARES_the_tie_break_rather_than_leaving_it_to_two_walke
     lane can answer this question privately."""
     note = ast_table.TABLE["_functions_arg_extreme"]
     assert isinstance(note, str) and len(note) > 200
-    assert "most recent" in note.lower(), note
+    assert "oldest" in note.lower(), note
     for name in ("highestbars", "lowestbars"):
         spec = ast_table.TABLE["functions"][name]
         assert spec["yields"] == "num"
-        assert "most recent" in spec["sentence"].lower(), spec["sentence"]
+        assert "oldest" in spec["sentence"].lower(), spec["sentence"]
 
 
-def test_the_tie_break_is_MOST_RECENT_WINS_in_the_python_lane():
+def test_the_tie_break_is_OLDEST_WINS_in_the_python_lane():
     for case in TIE_CASES:
         col = ast_interpret.interpret(case["ast"], TIE_BARS, {})
         assert at(col, 9) == case["want"], (case["id"], at(col, 9))
 
 
 @pytest.mark.skipif(not ac.js_lane_available(), reason="no node / no JS interpreter")
-def test_the_tie_break_is_MOST_RECENT_WINS_in_the_js_lane_too():
+def test_the_tie_break_is_OLDEST_WINS_in_the_js_lane_too():
     """⭐ THE SAME CONSTRUCTED INPUT, THROUGH `interpret.js`. ⛔ NOT a cross-lane
     EQUALITY — two lanes that both picked the oldest bar would agree perfectly and
     both be wrong. This asserts the DECLARED number on each side separately, which
@@ -366,16 +367,20 @@ def test_the_tie_break_is_MOST_RECENT_WINS_in_the_js_lane_too():
 
 
 @pytest.mark.skipif(not ac.js_lane_available(), reason="no node / no JS interpreter")
-def test_a_TOTAL_tie_reads_zero_in_both_lanes_and_that_is_the_flat_series_case():
+def test_a_TOTAL_tie_reads_n_minus_1_in_both_lanes_and_that_is_the_flat_series_case():
     """⭐ THE CHEAPEST TIE THERE IS, and the one a member meets first: a series
-    that does not move. Under "the most recent bar wins" every bar is its own
-    5-bar high, so the column is 0; under the other convention it would be 4, on
-    every bar, forever. A WHOLE COLUMN that differs by the ruling."""
+    that does not move. Every bar of a flat series ties every other, so the whole
+    column IS the tie-break in one number — 4 under oldest-wins, 0 under
+    newest-wins. A WHOLE COLUMN that differs by the ruling.
+
+    ⚰⚰ THIS ASSERTED 0 UNTIL 2026-09-08 and its name said so. A halted or
+    thinly-traded ticker IS a flat series, so this is not a synthetic edge — it
+    is the shape where the old convention was most visibly wrong."""
     ast = CALL("highestbars", SER("high"), NUM(5))
     py = ast_interpret.interpret(ast, FLAT, {})
     js = ac.run_js([{"id": "flat", "ast": ast}], FLAT)["flat"]
-    assert [at(py, i) for i in range(4, 20)] == [0] * 16
-    assert js[4:20] == [0] * 16
+    assert [at(py, i) for i in range(4, 20)] == [4] * 16
+    assert js[4:20] == [4] * 16
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
@@ -549,8 +554,11 @@ def test_the_tie_fixture_really_CONTAINS_a_tie_so_the_cases_above_are_not_vacuou
     for case, series in ((TIE_CASES[0], highs), (TIE_CASES[1], lows)):
         pick = max if series is highs else min
         hits = [j for j, v in enumerate(series) if v == pick(series)]
-        assert 4 - max(hits) == case["want"]
-        assert 4 - min(hits) == case["other"]
+        # ⛔ `min`, NOT `max`: the OLDEST hit has the SMALLEST index into the
+        # window, which is the LARGEST distance back. These two lines swapped on
+        # 2026-09-08 and that swap IS the ruling, stated arithmetically.
+        assert 4 - min(hits) == case["want"]
+        assert 4 - max(hits) == case["other"]
 
 
 def test_the_corpus_DOES_see_the_tie_break_and_here_is_how_much_of_it():
@@ -701,12 +709,18 @@ def test_highestbars_and_highest_NO_LONGER_blank_together_and_the_vendor_is_why(
     answered on **all 36**. The vendor's own pair disagrees about one window --
     so the invariant this test defended was OURS, not Pine's.
 
-    ⭐ WHAT CHANGED HERE: ``highest``/``lowest`` moved to the measured RESTART
-    policy (346 ok / 0 bad), which blanks only ON the hole. ``highestbars``/
-    ``lowestbars`` are NOT DETERMINED -- answering on an na bar is neither SKIP
-    nor RESTART -- so they stay on the pre-existing policy rather than being
-    guessed into place. The pair therefore blanks differently, and that is the
-    honest state of the evidence rather than a defect.
+    ⭐ AND SINCE 2026-09-08 THE SHAPE IS EXPLAINED, not merely recorded. Both
+    members use RESTART; the two arg-extremes additionally declare
+    ``naCurrent = 0``, because a restarted window's only candidate IS this bar, so
+    the OFFSET is defined exactly where the VALUE is not. The earlier pass could
+    measure the asymmetry (36 of 36 against 0 of 36) but not account for it, and
+    left them on ``propagate`` rather than guessing.
+
+    ⚠️ ONE EXTENSION BEYOND THE MEASUREMENT IS MADE HERE AND IS FLAGGED: every
+    observed ``na`` bar was an INTERIOR hole. This source has a 29-bar ``na`` HEAD
+    (``ta.sma(high, 30)``) and the same rule is applied there. No capture has seen
+    the start of a series, so that is a uniform reading of the measured rule
+    rather than a second measurement.
 
     ⛔ The ORIGINAL coherence assertion is kept below as an EXCLUSION: it must
     now FAIL, or the correction never landed.
@@ -716,13 +730,17 @@ def test_highestbars_and_highest_NO_LONGER_blank_together_and_the_vendor_is_why(
     top = run(CALL("highest", src, NUM(5)))
     blank_off = [i for i in range(len(BARS)) if at(off, i) is None]
     blank_top = [i for i in range(len(BARS)) if at(top, i) is None]
-    # the offset form still blanks across the whole dirty window ...
-    assert len(blank_off) >= 33, blank_off
-    # ... while the value form now recovers as soon as the run restarts.
-    assert len(blank_top) < len(blank_off), (len(blank_top), len(blank_off))
+    # ⭐⭐ THE OFFSET FORM BLANKS ON STRICTLY FEWER BARS, and that is now the
+    # vendor's own shape rather than an unexplained asymmetry: `ta.highestbars`
+    # answered on ALL 36 na bars of the capture while `ta.highest` answered on 0.
+    # The window restarts for both; only the OFFSET is still defined there,
+    # because a restarted window has this bar as its only candidate.
+    assert len(blank_off) < len(blank_top), (len(blank_off), len(blank_top))
+    # ... and it blanks ONLY for its own start-of-series warm-up.
+    assert blank_off == [0, 1, 2, 3], blank_off
     # ⛔ THE EXCLUSION: they used to be equal. If they are equal again, either
-    # `highest` lost its RESTART policy or `highestbars` acquired one without
-    # evidence -- both are regressions this line exists to catch.
+    # `highest` lost its RESTART policy or `highestbars` lost its `naCurrent` --
+    # both are regressions this line exists to catch.
     assert blank_off != blank_top, "the pair must NOT blank together any more"
 
 
