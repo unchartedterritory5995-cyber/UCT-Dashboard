@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
-import { SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT } from '../../lib/documentProvenance'
+import { SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT, TEXT_ORIGIN_OCR }
+  from '../../lib/documentProvenance'
 import styles from './ScannedTextPanel.module.css'
 
 /**
@@ -37,44 +38,64 @@ export default function ScannedTextPanel({
   documentId, pageNumber, onTextReady, buildPageText,
 }) {
   const [open, setOpen] = useState(false)
-  const [state, setState] = useState('idle')   // idle | loading | ready | empty | error
+  // ⭐ `empty` is deliberately absent: `text_origin` becomes 'ocr' only on an
+  // ACCEPTED write, so a page this panel renders for always has text. A page
+  // whose OCR the gate rejected keeps `native` and gets no panel at all —
+  // which is exactly §45's "must not offer a transcript as valid source text",
+  // and the attachment status line is where the member is told why.
+  const [state, setState] = useState('idle')   // idle | loading | ready | error
   const [text, setText] = useState('')
+  const [origin, setOrigin] = useState(null)
   const bodyRef = useRef(null)
 
+  // ⛔⛔ THE SERVER DECIDES WHETHER THIS PAGE HAS A TRANSCRIPT WORTH OFFERING.
+  // An earlier version inferred it in the browser from an empty pdf.js text
+  // layer, and that signal proved intermittent in the live product — the panel
+  // appeared on one load and not the next. `text_origin` is a stored fact, so
+  // it cannot race. One small request per page the member actually looks at
+  // (§40), and NOTHING renders for a native page.
   useEffect(() => {
-    // A different page is a different transcript. Collapse rather than show
-    // page 4's words under page 5's image.
-    setOpen(false); setState('idle'); setText('')
-  }, [documentId, pageNumber])
-
-  const load = useCallback(async () => {
-    if (!documentId || !pageNumber) return
+    let cancelled = false
+    setOpen(false); setState('idle'); setText(''); setOrigin(null)
+    if (!documentId || !pageNumber) return undefined
     setState('loading')
-    try {
-      const r = await fetch(
-        `/api/j2/notes/documents/${documentId}/pages/${pageNumber}/text`,
-        { credentials: 'include' },
-      )
-      if (!r.ok) { setState('error'); return }
-      const d = await r.json()
-      setText(d.text || '')
-      // ⛔ "The page exists" and "we read something from it" are different
-      // facts. An unreadable scan gets a sentence, never an empty box that
-      // looks like a transcript still loading.
-      setState(d.available ? 'ready' : 'empty')
-    } catch {
-      setState('error')
-    }
+    fetch(`/api/j2/notes/documents/${documentId}/pages/${pageNumber}/text`,
+          { credentials: 'include' })
+      .then(async (r) => {
+        if (cancelled) return
+        if (!r.ok) { setState('error'); return }
+        const d = await r.json()
+        if (cancelled) return
+        setOrigin(d.textOrigin || null)
+        setText(d.text || '')
+        // ⛔ "The page exists" and "we read something from it" are different
+        // facts. An unreadable scan gets a sentence, never an empty box that
+        // looks like a transcript still loading.
+        setState(d.available ? 'ready' : 'error')
+      })
+      .catch(() => { if (!cancelled) setState('error') })
+    return () => { cancelled = true }
   }, [documentId, pageNumber])
 
   // Register this text with the viewer once it is on screen, so a selection
   // inside it resolves to real offsets in the canonical page text.
+  //
+  // ⛔ `open` IS A DEPENDENCY. The body only exists while the panel is open, so
+  // without it the effect last ran against a null ref and the viewer was never
+  // handed the transcript — a selection would then fall back to searching the
+  // EMPTY page text layer and store no offsets at all. Caught by the rail that
+  // asserts the hand-off actually happens, not by anything visible on screen.
   useEffect(() => {
-    if (state !== 'ready' || !bodyRef.current || !onTextReady) return
+    if (!open || state !== 'ready' || !bodyRef.current || !onTextReady) return
     onTextReady(pageNumber, buildPageText(bodyRef.current))
-  }, [state, text, pageNumber, onTextReady, buildPageText])
+  }, [open, state, text, pageNumber, onTextReady, buildPageText])
 
+  // ⛔ A NATIVE PAGE GETS NOTHING. Its text is selectable on the page itself,
+  // and a "Scanned text" affordance there would be a false claim about where
+  // the words came from.
   if (!documentId || !pageNumber) return null
+  if (state === 'loading' || state === 'error') return null
+  if (origin !== TEXT_ORIGIN_OCR) return null
 
   return (
     <div className={styles.wrap} data-scanned-text-panel={pageNumber}>
@@ -82,7 +103,7 @@ export default function ScannedTextPanel({
         type="button"
         className={styles.toggle}
         aria-expanded={open}
-        onClick={() => { setOpen((v) => { if (!v && state === 'idle') load(); return !v }) }}
+        onClick={() => setOpen((v) => !v)}
       >
         <UIcon name="document" size={12} gold={false} aria-hidden="true" />
         {SCANNED_TEXT_LABEL}
@@ -94,16 +115,6 @@ export default function ScannedTextPanel({
           {/* ⛔ §13/§39 — the disclosure is TEXT, read by a screen reader, and
               it says what to do rather than what happened. */}
           <p className={styles.note}>{SCANNED_TEXT_HINT}</p>
-          {state === 'loading' && <p className={styles.status}>Reading…</p>}
-          {state === 'error' && (
-            <p className={styles.status}>That text could not be loaded.</p>
-          )}
-          {state === 'empty' && (
-            <p className={styles.status}>
-              No text could be read from this page, so there is nothing to
-              quote from it.
-            </p>
-          )}
           {state === 'ready' && (
             <div
               ref={bodyRef}

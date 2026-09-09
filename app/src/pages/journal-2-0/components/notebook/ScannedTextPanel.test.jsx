@@ -13,8 +13,11 @@ function mockTranscript(body, { ok = true } = {}) {
   })
 }
 
-function open() {
-  fireEvent.click(screen.getByRole('button', { name: /scanned text/i }))
+async function open() {
+  // The panel now decides whether to exist from the SERVER's text_origin, so
+  // the toggle appears after that answer arrives.
+  const btn = await screen.findByRole('button', { name: /scanned text/i })
+  fireEvent.click(btn)
 }
 
 beforeEach(() => { vi.restoreAllMocks() })
@@ -25,14 +28,13 @@ describe('it offers the page text only when there is page text', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('is collapsed until asked, and fetches ONE page when opened', async () => {
+  it('is collapsed until asked, and fetches ONE page', async () => {
     mockTranscript({ text: PAGE_TEXT, available: true, textOrigin: 'ocr', pageNumber: 4 })
     render(<ScannedTextPanel documentId="d1" pageNumber={4}
                              onTextReady={() => {}} buildPageText={() => ({})} />)
     expect(screen.queryByText(PAGE_TEXT)).not.toBeInTheDocument()
-    expect(global.fetch).not.toHaveBeenCalled()
 
-    open()
+    await open()
     await screen.findByText(PAGE_TEXT)
     // ⛔ §40 — one page, never the whole document.
     expect(global.fetch).toHaveBeenCalledWith(
@@ -40,23 +42,36 @@ describe('it offers the page text only when there is page text', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
   })
 
-  it('says an unreadable page has nothing to quote, rather than showing an empty box', async () => {
-    // ⛔ §45 — the gate rejected this page's output. An empty transcript would
-    // read as "still loading" and invite the member to wait for nothing.
+  it('offers NOTHING on a page whose OCR was rejected', async () => {
+    // ⛔ §45 — the gate threw that page's output away, so `text_origin` stays
+    // native and there is nothing a member may save as a source quote. The
+    // attachment status line is where they are told why.
     mockTranscript({ text: '', available: false, textOrigin: 'native', pageNumber: 2 })
-    render(<ScannedTextPanel documentId="d1" pageNumber={2}
-                             onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
-    expect(await screen.findByText(/nothing to\s+quote/i)).toBeInTheDocument()
-    expect(screen.queryByRole('region')).not.toBeInTheDocument()
+    const { container } = render(
+      <ScannedTextPanel documentId="d1" pageNumber={2}
+                        onTextReady={() => {}} buildPageText={() => ({})} />)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
   })
 
-  it('says so when the text cannot be loaded', async () => {
+  it('offers NOTHING on a natively extracted page', async () => {
+    // ⛔ Its text is selectable on the page itself; a "Scanned text" affordance
+    // there would be a false claim about where the words came from.
+    mockTranscript({ text: 'native words', available: true, textOrigin: 'native', pageNumber: 3 })
+    const { container } = render(
+      <ScannedTextPanel documentId="d1" pageNumber={3}
+                        onTextReady={() => {}} buildPageText={() => ({})} />)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
+  })
+
+  it('renders nothing when the text cannot be loaded', async () => {
     mockTranscript({}, { ok: false })
-    render(<ScannedTextPanel documentId="d1" pageNumber={1}
-                             onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
-    expect(await screen.findByText(/could not be loaded/i)).toBeInTheDocument()
+    const { container } = render(
+      <ScannedTextPanel documentId="d1" pageNumber={1}
+                        onTextReady={() => {}} buildPageText={() => ({})} />)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await waitFor(() => expect(container).toBeEmptyDOMElement())
   })
 })
 
@@ -65,7 +80,7 @@ describe('the selection path is the viewer\'s existing one', () => {
     mockTranscript({ text: PAGE_TEXT, available: true, textOrigin: 'ocr', pageNumber: 7 })
     render(<ScannedTextPanel documentId="d1" pageNumber={7}
                              onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
+    await open()
     const body = await screen.findByRole('region', { name: /scanned text from page 7/i })
     // ⛔ THE SAME ATTRIBUTE A RENDERED PAGE CARRIES. Without it the viewer's
     // `selectionchange` handler cannot tell which page a selection belongs to,
@@ -79,7 +94,7 @@ describe('the selection path is the viewer\'s existing one', () => {
     mockTranscript({ text: PAGE_TEXT, available: true, textOrigin: 'ocr', pageNumber: 3 })
     render(<ScannedTextPanel documentId="d1" pageNumber={3}
                              onTextReady={onTextReady} buildPageText={buildPageText} />)
-    open()
+    await open()
     await screen.findByText(PAGE_TEXT)
     await waitFor(() => expect(onTextReady).toHaveBeenCalled())
     expect(onTextReady).toHaveBeenCalledWith(3, { fullText: PAGE_TEXT, map: [] })
@@ -90,7 +105,7 @@ describe('the selection path is the viewer\'s existing one', () => {
     const { rerender } = render(
       <ScannedTextPanel documentId="d1" pageNumber={1}
                         onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
+    await open()
     await screen.findByText(PAGE_TEXT)
     rerender(<ScannedTextPanel documentId="d1" pageNumber={2}
                                onTextReady={() => {}} buildPageText={() => ({})} />)
@@ -103,7 +118,7 @@ describe('what it says about itself', () => {
     mockTranscript({ text: PAGE_TEXT, available: true, textOrigin: 'ocr', pageNumber: 1 })
     render(<ScannedTextPanel documentId="d1" pageNumber={1}
                              onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
+    await open()
     expect(await screen.findByText(/check exact figures against the page/i))
       .toBeInTheDocument()
   })
@@ -114,7 +129,7 @@ describe('what it says about itself', () => {
     const { container } = render(
       <ScannedTextPanel documentId="d1" pageNumber={1}
                         onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
+    await open()
     await screen.findByText(PAGE_TEXT)
     const words = container.textContent.toLowerCase()
     for (const banned of ['tesseract', 'ocr', 'transcription', 'text layer']) {
@@ -127,7 +142,7 @@ describe('what it says about itself', () => {
     mockTranscript({ text: PAGE_TEXT, available: true, textOrigin: 'ocr', pageNumber: 5 })
     render(<ScannedTextPanel documentId="d1" pageNumber={5}
                              onTextReady={() => {}} buildPageText={() => ({})} />)
-    open()
+    await open()
     const body = await screen.findByRole('region', { name: /scanned text from page 5/i })
     expect(body.getAttribute('aria-hidden')).toBeNull()
     expect(body.textContent).toContain('$12.48 billion')

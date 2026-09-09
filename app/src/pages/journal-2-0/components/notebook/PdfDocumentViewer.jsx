@@ -211,31 +211,44 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
     setSelectionPopover(null)
   }, [selectionPopover, onSaveExcerpt])
 
-  // ⛔⛔ WAVE P4 — WHICH PAGES HAVE NOTHING TO SELECT. A scanned page renders a
-  // canvas and an EMPTY text layer, so the member can read a figure and cannot
-  // quote it. This is measured from the page pdf.js actually rendered, not
-  // guessed from a status field: it is true exactly when the browser has no
-  // text, which is exactly when the transcript is worth offering.
-  const [pagesWithoutText, setPagesWithoutText] = useState(() => new Set())
+  // Both the page's own text layer and the transcript's text land in the SAME
+  // map, because a selection in either has to resolve to offsets in the page.
   const notePageText = useCallback((pageNumber, info) => {
-    pageTextRef.current.set(pageNumber, info)
-    const empty = !(info?.fullText || '').trim()
-    setPagesWithoutText((prev) => {
-      if (prev.has(pageNumber) === empty) return prev
-      const next = new Set(prev)
-      if (empty) next.add(pageNumber); else next.delete(pageNumber)
-      return next
-    })
-  }, [])
-  // ⛔ The transcript's own text goes to the SAME map so selections resolve —
-  // but it must never clear the "this page has no text layer" fact, or the
-  // panel would vanish the moment it succeeded.
-  const noteTranscriptText = useCallback((pageNumber, info) => {
     pageTextRef.current.set(pageNumber, info)
   }, [])
 
-  const visible = virtualizer.getVirtualItems()
-  const currentPage = visible.length ? visible[0].index + 1 : null
+  // ⚰️ WAVE P4 — WHICH PAGE THE TRANSCRIPT IS FOR, AND IT IS NOT DERIVED FROM
+  // RENDER STATE. The first version read `virtualizer.getVirtualItems()` during
+  // render and marked a page "scanned" when its text layer came back empty.
+  // Both signals proved INTERMITTENT in the live product: the panel appeared on
+  // one load of a page and not on the next, with the text layer measurably
+  // empty both times. A feature that is sometimes invisible is worse than one
+  // that is missing, because nobody can reproduce it.
+  //
+  // ⭐ SO THE PAGE COMES FROM THE SCROLL POSITION — the containers the viewer
+  // already registers — and WHETHER TO OFFER A TRANSCRIPT AT ALL comes from the
+  // SERVER, which knows `text_origin` for certain. No render-timing race can
+  // reach either.
+  const [currentPage, setCurrentPage] = useState(1)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return undefined
+    const pick = () => {
+      let best = null
+      let bestDelta = Infinity
+      for (const [n, node] of pageContainerRef.current.entries()) {
+        if (!node?.isConnected) continue
+        const delta = Math.abs(node.getBoundingClientRect().top
+                               - el.getBoundingClientRect().top)
+        if (delta < bestDelta) { bestDelta = delta; best = n }
+      }
+      if (best != null) setCurrentPage(best)
+    }
+    pick()
+    el.addEventListener('scroll', pick, { passive: true })
+    const t = setInterval(pick, 500)   // covers virtualized mounts after a jump
+    return () => { el.removeEventListener('scroll', pick); clearInterval(t) }
+  }, [pdf, pageCount])
 
   const excerptsByPage = useMemo(() => {
     const m = new Map()
@@ -269,11 +282,11 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
       </div>
       {/* Wave P4 §11/§12 — the derived-text selection aid, for the page on
           screen, and only when that page has no text of its own. */}
-      {documentId && currentPage && pagesWithoutText.has(currentPage) && (
+      {documentId && currentPage && (
         <ScannedTextPanel
           documentId={documentId}
           pageNumber={currentPage}
-          onTextReady={noteTranscriptText}
+          onTextReady={notePageText}
           buildPageText={_buildPageText}
         />
       )}
