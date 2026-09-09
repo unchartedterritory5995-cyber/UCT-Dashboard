@@ -302,3 +302,22 @@ in run 4.
 ⚠️ **CDP `LayerTree` was requested and is UNAVAILABLE** through BrowserStack's hub
 (`debuggerAddress.match is not a function`). No layer-tree evidence is claimed — the finding
 rests on `elementFromPoint`, computed styles and the full ancestor walk, which were sufficient.
+
+### Evidence basis — recorded explicitly (owner ruling)
+
+**The `/charts` finding rests on `elementFromPoint`, computed styles, and the full ancestor
+walk. No layer-tree evidence exists** — CDP `LayerTree` is unavailable through BrowserStack's
+hub (`debuggerAddress.match is not a function`), so the 500 ms transition was never explained at
+the compositing level. It was explained at the *stacking* level, which is sufficient to justify
+the fix but is not the same claim.
+
+⛔ **Because of that gap, the run 4 DEVICE RAIL is the check that matters**, not the source-level
+rail and not this document. It samples `elementFromPoint` at the pad centre on `/charts` at
+**t = 0, 500, 2000, 7000 ms AND after one chart interaction** (a one-finger 100px pan of the
+canvas, then a 500 ms settle), on all four devices.
+
+⭐ The interaction sample exists because of a specific way this could still be wrong: **a pad
+that survives first paint but loses to the canvas once the chart re-composites on interaction
+would pass every check made so far and still fail for real users.** Lightweight Charts
+re-rasterises on pan/zoom, which is exactly the moment a compositing-order defect would
+reappear.
