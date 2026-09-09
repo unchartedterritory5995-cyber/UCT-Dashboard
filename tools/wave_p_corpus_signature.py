@@ -17,6 +17,15 @@ wrapper carries a timestamp) and eleven page images that are byte-identical. A
 file-level check would refuse a corpus that is in fact identical; a check that
 skipped the PDFs entirely would miss a real change to what the engine reads.
 
+⚰️ AND THIS IS NOT HYPOTHETICAL — IT FIRED ON THE FIRST REAL RUN. Regenerating
+the corpus inside the bookworm container moved ALL ELEVEN page images: same
+script, same seeds, different Pillow/FreeType. Without this check the job would
+have produced a "5.3.0 recall number" measured on different pixels, and it
+would have looked exactly like an answer. The corpus the certification runs
+against is therefore FROZEN in `tools/wave_p_cert_corpus/` — the same bytes the
+5.4.0 reference was measured on, which is what isolates the engine as the one
+variable under test.
+
     python tools/wave_p_corpus_signature.py --write     # record (a human act)
     python tools/wave_p_corpus_signature.py             # verify, exit 1 on drift
 
@@ -34,7 +43,9 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_FIXTURES = ROOT / "tools" / "wave_p_fixtures_out"
+# ⛔ THE FROZEN corpus, not the generated one. See the module docstring: a
+# regeneration on another toolchain moved every one of the eleven page images.
+DEFAULT_FIXTURES = ROOT / "tools" / "wave_p_cert_corpus"
 RECORD = ROOT / "tools" / "wave_p_corpus_signature.json"
 
 _BM_PATH = ROOT / "tools" / "wave_p0_ocr_benchmark.py"
