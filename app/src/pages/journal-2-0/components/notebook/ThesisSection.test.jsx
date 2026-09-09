@@ -53,6 +53,58 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
+const ATTACHED_EXCERPT = {
+  id: 'ev1', targetType: 'document_excerpt', targetId: 'ex1', stance: 'opposes',
+  caption: 'EPS is flattered by the buyback.', targetAvailable: true,
+}
+const SCANNED_CANDIDATE = {
+  id: 'ex1', sourceKind: 'attachment', sourceTitle: 'q3-filing-scan.pdf',
+  sourceUrl: null, pageNumber: 1, textOrigin: 'ocr',
+  text: 'Diluted earnings per share were $3.18',
+}
+
+// ⚰️ WAVE P5 — PROVENANCE THAT SURVIVES THE CLICK.
+// §24 put the "Scanned text" chip in the PICKER, so a member knows the words
+// were read off an image BEFORE they stake a thesis on them. Driving the whole
+// journey on a phone showed it vanishing at the moment it starts to matter:
+// the ATTACHED row is what they re-read weeks later beside their own
+// reasoning, and it read exactly like a quotation lifted from a text PDF.
+describe('an attached excerpt keeps saying where its words came from', () => {
+  it('shows the Scanned text chip on the attached evidence row', () => {
+    summaryResult = { evidence: [ATTACHED_EXCERPT], changelog: [], isLoading: false, refresh: vi.fn() }
+    candidatesResult = { candidates: [SCANNED_CANDIDATE], isLoading: false, refresh: vi.fn() }
+    renderIt(THESIS_NOTE_BY_PROPERTY)
+    const row = screen.getByText('EPS is flattered by the buyback.').closest('button')
+    expect(row.textContent).toContain('Scanned text')
+    // ⛔ The member's reasoning and the source claim stay two things — the chip
+    // must not have eaten the citation.
+    expect(row.textContent).toContain('q3-filing-scan.pdf')
+  })
+
+  it('shows NO chip for an ordinary text PDF', () => {
+    // The control. Without it the assertion above passes for a component that
+    // chips everything, which would be a different lie in the same place.
+    summaryResult = { evidence: [ATTACHED_EXCERPT], changelog: [], isLoading: false, refresh: vi.fn() }
+    candidatesResult = {
+      candidates: [{ ...SCANNED_CANDIDATE, textOrigin: 'native' }],
+      isLoading: false, refresh: vi.fn(),
+    }
+    renderIt(THESIS_NOTE_BY_PROPERTY)
+    const row = screen.getByText('EPS is flattered by the buyback.').closest('button')
+    expect(row.textContent).not.toContain('Scanned text')
+  })
+
+  it('shows NO chip when the origin is unknown, rather than implying native', () => {
+    // An excerpt captured into ANOTHER note resolves to no candidate here. It
+    // stays clickable (Wave N), and it must not be dressed as a text PDF.
+    summaryResult = { evidence: [ATTACHED_EXCERPT], changelog: [], isLoading: false, refresh: vi.fn() }
+    candidatesResult = { candidates: [], isLoading: false, refresh: vi.fn() }
+    renderIt(THESIS_NOTE_BY_PROPERTY)
+    const row = screen.getByText('EPS is flattered by the buyback.').closest('button')
+    expect(row.textContent).not.toContain('Scanned text')
+  })
+})
+
 describe('ThesisSection', () => {
   it('renders nothing for an ordinary note (not thesis-shaped)', () => {
     const { container } = renderIt(PLAIN_NOTE)

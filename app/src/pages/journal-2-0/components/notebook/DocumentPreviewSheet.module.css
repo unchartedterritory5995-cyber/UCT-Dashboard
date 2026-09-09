@@ -4,6 +4,25 @@
   padding: 0 !important;
   height: 100%;
 }
+/* ⛔⛔ WAVE P5 — THE SHEET BODY MUST NOT BE THE SCROLLPORT.
+   Sheet's own `.body` is a BLOCK with `overflow-y: auto`, so `.bar` and the
+   viewer stacked inside it and the body scrolled around them. The viewer then
+   had no way to ask for "the space that is LEFT": a percentage height resolves
+   against the body's WHOLE content box, so at 390x844 the viewer measured 810px
+   starting 94px down (under the bar), i.e. its bottom edge sat at y=920 — 78px
+   below a screen that ends at 842. Everything looked right until a STICKY
+   control was added: the Scanned text toggle pinned itself to the bottom of a
+   scrollport that was off-screen, and stayed invisible unless the member
+   happened to scroll the sheet itself.
+
+   A flex COLUMN that does not scroll is the fix: the bar takes its height, the
+   viewer takes the remainder, and anything pinned to the viewer's bottom edge
+   is pinned to an edge a member can see. Padding is unchanged. */
+.body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .bar {
   display: flex;
   align-items: center;

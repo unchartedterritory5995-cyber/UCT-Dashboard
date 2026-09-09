@@ -2813,13 +2813,65 @@ def list_note_documents_endpoint(
         # (heroImageUrl/bodyJson/createdAt/...) — a raw dict(row) would leak
         # snake_case SQL column names into the one JSON shape in this file
         # that didn't go through a service-layer dict-builder.
-        return {"documents": [{
-            "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
-            "status": r["status"], "pageCount": r["page_count"],
-            "createdAt": r["created_at"], "processedAt": r["processed_at"],
-        } for r in rows]}
+        # ⭐ WAVE P1: page-level truth beside the job status (§13/§14/§15).
+        # ⛔ `status` alone cannot answer "can you read this document" —
+        # measured in P0, a mixed PDF holding [492, 0, 781] characters reported
+        # `ready`, and one unreadable page was invisible. These are counts of
+        # pages we actually have text for, so the editor can say "text
+        # available for 2 of 3 pages" instead of implying completion.
+        from api.services.journal_two import document_ocr
+        out = []
+        for r in rows:
+            st = document_ocr.document_text_state(conn, user["id"], r["id"])
+            out.append({
+                "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
+                "status": r["status"], "pageCount": r["page_count"],
+                "createdAt": r["created_at"], "processedAt": r["processed_at"],
+                "pagesTotal": st.get("pages_total", 0),
+                "pagesWithText": st.get("pages_with_text", 0),
+                "pagesFromOcr": st.get("pages_from_ocr", 0),
+                "pagesAwaitingOcr": st.get("pages_awaiting_ocr", 0),
+                # ⛔ WAVE P2 §19: pages claimed by an engine that is no longer
+                # there. Without this the surface can only say "reading…", and
+                # says it forever.
+                "ocrUnavailable": bool(st.get("ocr_unavailable")),
+                "pagesUnreadable": st.get("pages_unreadable", 0),
+                # ⛔ THE FIELD THAT MAY NOT BE ROUNDED UP. "The job finished"
+                # and "we have the whole document" are different facts (§15).
+                "textComplete": bool(st.get("text_complete")),
+            })
+        return {"documents": out}
     finally:
         conn.close()
+
+
+@router.get("/notes/documents/{document_id}/pages/{page_number}/text")
+def document_page_text_endpoint(
+    document_id: str,
+    page_number: int,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Wave P4 — the text UCT read from ONE page, so a member can select it.
+
+    ⛔ A SELECTION AID, NOT THE DOCUMENT. The scanned page stays the source of
+    truth; this is the derived transcript, and the surface that renders it says
+    so (§11/§13).
+
+    ⛔ NON-CONFIRMING (§41). A foreign or missing document answers 404 the same
+    way, so this cannot be used to learn that somebody else's scan exists.
+    """
+    from api.services.journal_two import document_ocr
+    out = document_ocr.page_transcript(user["id"], document_id, page_number)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {
+        "documentId": out["document_id"],
+        "pageNumber": out["page_number"],
+        "name": out["name"],
+        "textOrigin": out["text_origin"],
+        "text": out["text"],
+        "available": out["available"],
+    }
 
 
 @router.get("/notes/documents/search")
@@ -2842,6 +2894,12 @@ def search_note_documents_endpoint(
         # must never be rendered as a page).
         "sourceKind": r["source_kind"] or "attachment",
         "sourceUrl": r["source_url"],
+        # ⛔ WAVE P2 §21: PROVENANCE, NOT IDENTITY. The result is still a
+        # DOCUMENT at a real page — this only says how UCT came to hold that
+        # page's text, so a member reading a figure off a scanned filing knows
+        # to check it against the page itself. It is never a confidence score,
+        # and it never names an engine (§24).
+        "textOrigin": r["text_origin"] or "native",
     } for r in rows]}
 
 

@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { pdfjsLib, loadPdfDocument } from '../../lib/pdfjs'
+import ScannedTextPanel from './ScannedTextPanel'
 import styles from './PdfDocumentViewer.module.css'
 
 const OVERSCAN = 2
@@ -28,7 +29,8 @@ const MAX_PAGE_WIDTH = 960
  * copy of the page's text, never a DOM mutation of the text layer itself.
  */
 const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
-  { href, excerpts = [], onSaveExcerpt, emphasizeExcerptId, initialPage }, ref,
+  { href, excerpts = [], onSaveExcerpt, emphasizeExcerptId, initialPage,
+    documentId = null }, ref,
 ) {
   const scrollRef = useRef(null)
   const [pdf, setPdf] = useState(null)
@@ -209,6 +211,45 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
     setSelectionPopover(null)
   }, [selectionPopover, onSaveExcerpt])
 
+  // Both the page's own text layer and the transcript's text land in the SAME
+  // map, because a selection in either has to resolve to offsets in the page.
+  const notePageText = useCallback((pageNumber, info) => {
+    pageTextRef.current.set(pageNumber, info)
+  }, [])
+
+  // ⚰️ WAVE P4 — WHICH PAGE THE TRANSCRIPT IS FOR, AND IT IS NOT DERIVED FROM
+  // RENDER STATE. The first version read `virtualizer.getVirtualItems()` during
+  // render and marked a page "scanned" when its text layer came back empty.
+  // Both signals proved INTERMITTENT in the live product: the panel appeared on
+  // one load of a page and not on the next, with the text layer measurably
+  // empty both times. A feature that is sometimes invisible is worse than one
+  // that is missing, because nobody can reproduce it.
+  //
+  // ⭐ SO THE PAGE COMES FROM THE SCROLL POSITION — the containers the viewer
+  // already registers — and WHETHER TO OFFER A TRANSCRIPT AT ALL comes from the
+  // SERVER, which knows `text_origin` for certain. No render-timing race can
+  // reach either.
+  const [currentPage, setCurrentPage] = useState(1)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return undefined
+    const pick = () => {
+      let best = null
+      let bestDelta = Infinity
+      for (const [n, node] of pageContainerRef.current.entries()) {
+        if (!node?.isConnected) continue
+        const delta = Math.abs(node.getBoundingClientRect().top
+                               - el.getBoundingClientRect().top)
+        if (delta < bestDelta) { bestDelta = delta; best = n }
+      }
+      if (best != null) setCurrentPage(best)
+    }
+    pick()
+    el.addEventListener('scroll', pick, { passive: true })
+    const t = setInterval(pick, 500)   // covers virtualized mounts after a jump
+    return () => { el.removeEventListener('scroll', pick); clearInterval(t) }
+  }, [pdf, pageCount])
+
   const excerptsByPage = useMemo(() => {
     const m = new Map()
     for (const ex of excerpts) {
@@ -234,11 +275,21 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
             top={vi.start}
             excerptsOnPage={excerptsByPage.get(vi.index + 1) || []}
             emphasized={emphasized}
-            onTextReady={(pageNumber, info) => { pageTextRef.current.set(pageNumber, info) }}
+            onTextReady={notePageText}
             registerContainer={(pageNumber, el) => { pageContainerRef.current.set(pageNumber, el) }}
           />
         ))}
       </div>
+      {/* Wave P4 §11/§12 — the derived-text selection aid, for the page on
+          screen, and only when that page has no text of its own. */}
+      {documentId && currentPage && (
+        <ScannedTextPanel
+          documentId={documentId}
+          pageNumber={currentPage}
+          onTextReady={notePageText}
+          buildPageText={_buildPageText}
+        />
+      )}
       {selectionPopover && (
         <button
           type="button"

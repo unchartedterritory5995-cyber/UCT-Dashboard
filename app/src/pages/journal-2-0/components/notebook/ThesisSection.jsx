@@ -6,6 +6,8 @@ import useThesisSummary from '../../hooks/useThesisSummary'
 import useNoteFacts from '../../hooks/useNoteFacts'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import useEvidenceCandidates from '../../hooks/useEvidenceCandidates'
+import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
+  from '../../lib/documentProvenance'
 import ThesisReviewSection from './ThesisReviewSection'
 // ⛔ Wave M's canonical source-kind labeller. The picker used to format
 // `${documentName} · p.${pageNumber}` itself — a THIRD formatter over one
@@ -99,6 +101,23 @@ function ExcerptEvidenceRow({ evidence, localExcerpt, candidate, onOpen }) {
       {evidence.caption || citation || 'Saved evidence'}
       {evidence.caption && citation && (
         <span className={styles.evidenceCitation}> — {citation}</span>
+      )}
+      {/* ⛔⛔ WAVE P5 — AND IT SAYS SO AFTER THE DECISION TOO.
+          §24 put this chip in the PICKER so a member knows the words were read
+          off an image BEFORE they stake a thesis on them. Driving the journey
+          on a phone showed the chip then vanishing at the moment it starts to
+          matter: the attached row is what they re-read weeks later, next to
+          their own reasoning, and it read exactly like a quotation lifted from
+          a text PDF. Provenance that survives only until the click is the same
+          defect as no provenance.
+          ⛔ Only where the origin is actually KNOWN. `candidate` is this
+          note's own material; an excerpt captured into another note resolves
+          to nothing here, and inventing "native" from a missing answer is the
+          claim this whole wave exists to avoid. */}
+      {candidate && isScannedText(candidate) && (
+        <span className={styles.scannedChip} title={SCANNED_TEXT_HINT}>
+          {SCANNED_TEXT_LABEL}
+        </span>
       )}
     </button>
   )
@@ -408,6 +427,15 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
                         >
                           <span className={styles.candidateLabel}>
                             {label}{c.alreadyAttached ? ' · already attached' : ''}
+                            {/* ⛔ WAVE P4 §24 — the member is choosing what to
+                                stake a thesis on. If these words were READ OFF
+                                AN IMAGE they should know before they attach,
+                                not after. Quiet, and only where it is true. */}
+                            {isScannedText(c) && (
+                              <span className={styles.scannedChip} title={SCANNED_TEXT_HINT}>
+                                {SCANNED_TEXT_LABEL}
+                              </span>
+                            )}
                           </span>
                           {/* ⛔ SOURCE CLAIM AND MEMBER NOTE ARE TWO THINGS, and
                               the picker is where a member decides which they are

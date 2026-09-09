@@ -63,6 +63,27 @@ def test_flow_worker_registers_flow_opt_aggregate(monkeypatch):
         armed_sched.shutdown(wait=False)
 
 
+def test_flow_worker_registers_cream_eod_cron_and_catchup(monkeypatch):
+    """The EOD Top Flow (cream) card is registered UNCONDITIONALLY (dark until
+    CREAM_EOD_ENABLED — the flag is checked at FIRE time inside run_scheduled /
+    catch_up, not at registration), so both the cron and its 60s catch-up must be
+    present whether or not the flag is set. The catch-up is the anti-churn guard:
+    an in-memory cron a restart straddles vanishes with no trace (2026-09-08)."""
+    from api import flow_worker_main
+
+    _quiet_existing(monkeypatch)
+    monkeypatch.setattr("api.massive_flatfiles_worker.register_jobs",
+                        lambda s: False, raising=True)
+    monkeypatch.delenv("CREAM_EOD_ENABLED", raising=False)  # dark
+
+    sched = flow_worker_main._start_flow_schedulers()
+    assert sched is not None
+    assert sched.get_job("cream_eod") is not None
+    assert sched.get_job("cream_eod_catchup") is not None
+    if getattr(sched, "running", False):
+        sched.shutdown(wait=False)
+
+
 def test_worker_mounts_massive_stream_router():
     """The instant-tape SSE route must resolve on flow-worker post-cutover —
     the proxy forwards /api/live/massive/stream here (flow.db + tailer live

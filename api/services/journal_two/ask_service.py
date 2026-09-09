@@ -84,8 +84,14 @@ def _named(result: dict[str, Any]) -> str:
 # deliberately absent (§18): tier, tier_name, norm_score, score, lineage_key
 # and absorbed are how the answer was assembled, not evidence the member
 # asked for, and `user_id` has no business crossing the wire at all.
-_PUBLIC_FIELDS = ("label", "text", "citation", "navigation", "stance",
-                  "payload", "truncated")
+#
+# ⚰️ AND IT USED TO NAME FIELDS THIS FUNCTION DOES NOT EMIT. The tuple listed
+# `text` while the projection sends `snippet`, and omitted `n`, `type` and
+# `location`, which it does send — an allowlist that enforced nothing, beside a
+# comment claiming it was the safety mechanism. It is now the projection's
+# OUTPUT keys, and a rail compares the two, so it can never drift again.
+_PUBLIC_FIELDS = ("n", "type", "label", "citation", "snippet", "navigation",
+                  "location", "stance", "payload", "textOrigin", "truncated")
 _SNIPPET_CAP = 400
 
 
@@ -102,6 +108,12 @@ def public_source(n: int, item: dict[str, Any]) -> dict[str, Any]:
         "location": item.get("location") or {},
         "stance": item.get("stance"),
         "payload": item.get("payload") or {},
+        # ⛔⛔ WAVE P3 §34 — THE FIELD THAT DIES HERE IF NOBODY LOOKS. The
+        # retriever can carry provenance perfectly and the member still never
+        # sees it, because this projection is the last place it can be dropped
+        # and dropping it looks like nothing at all. It is metadata, never a
+        # source, a score or a ranking input.
+        "textOrigin": item.get("text_origin"),
         "truncated": bool(item.get("truncated")),
     }
 

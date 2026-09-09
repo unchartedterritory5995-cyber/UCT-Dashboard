@@ -47,6 +47,19 @@ CREATE TABLE IF NOT EXISTS news_catalyst_cost_log (
   model         TEXT,
   cost_usd      REAL
 );
+
+-- Durable twin of the old in-process _gen_day/_gen_count globals (removed
+-- 2026-09-09). The per-symbol dedup above (news_catalyst_meta.catalysts_at)
+-- was always durable; this AGGREGATE daily reservation was not — a plain
+-- module global that reset to 0 on every redeploy, so the "300 generations/
+-- day" ceiling was really "300 per process lifetime." On a day with many
+-- redeploys (this repo shipped 122 commits in one day under a no-deploy-
+-- freeze policy), that let error-retry storms (a symbol failing and
+-- retrying every 30 min) blow well past the intended daily total.
+CREATE TABLE IF NOT EXISTS news_catalyst_daily_budget (
+  day    TEXT PRIMARY KEY,   -- 'YYYY-MM-DD' (ET)
+  count  INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -213,3 +226,28 @@ def log_cost(symbol: str, model: str, cost_usd: float) -> None:
             (int(time.time()), symbol.upper(), model, cost_usd),
         )
         c.commit()
+
+
+def reserve_daily_generation_slot(day: str, cap: int) -> bool:
+    """Atomically reserve one of today's `cap` generation slots. Returns True
+    (and increments the durable counter) if under cap, False if the cap is
+    already spent. Durable — survives a redeploy, unlike the in-process
+    counter this replaces (2026-09-09 cost-spike fix): see the schema
+    comment above news_catalyst_daily_budget for why that mattered."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT count FROM news_catalyst_daily_budget WHERE day = ?", (day,)
+        ).fetchone()
+        current = int(row["count"]) if row else 0
+        if cap > 0 and current >= cap:
+            return False
+        if row:
+            c.execute(
+                "UPDATE news_catalyst_daily_budget SET count = count + 1 WHERE day = ?",
+                (day,))
+        else:
+            c.execute(
+                "INSERT INTO news_catalyst_daily_budget (day, count) VALUES (?, 1)",
+                (day,))
+        c.commit()
+        return True

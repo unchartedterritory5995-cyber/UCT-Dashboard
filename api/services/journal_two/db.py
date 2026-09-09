@@ -1078,6 +1078,55 @@ CREATE TRIGGER IF NOT EXISTS j2_note_documents_pages_ad AFTER DELETE ON j2_note_
     DELETE FROM j2_note_document_pages WHERE document_id = old.id;
 END;
 
+-- Wave P1: PER-PAGE OCR STATE. One row per page that OCR is responsible for.
+--
+-- ⛔⛔ WHY THIS CANNOT BE DERIVED. Everything else about a page IS derivable:
+-- "needs OCR" is an empty text row on a page the classifier called scanned,
+-- "has OCR text" is `text_origin = 'ocr'`. But **a page whose OCR was
+-- ATTEMPTED AND FAILED is byte-identical to a page nobody has tried yet** --
+-- both are an empty row. Without this table a retry sweep either re-runs
+-- every failure forever or silently stops trying, and §41's "failed page is
+-- clearly unavailable" has nothing to read.
+--
+-- ⭐ It is also where §18's derived-data lineage lives: which engine, which
+-- version, when. Internal only -- §24 keeps engine names out of the member's
+-- vocabulary.
+--
+-- ⛔ `status` is the JOB's state, never the document's readiness. §32: a job
+-- that says `complete` on a page holding no text must not let the document
+-- claim complete. Readiness is derived from the PAGE TEXT, and this table is
+-- only how we know whether trying again is worthwhile.
+--
+-- ⛔ `started_at` is what makes restart recovery possible (§20). A row left
+-- `processing` by a Railway redeploy is indistinguishable from one in flight
+-- WITHOUT a timestamp to age it against; native extraction never needed this
+-- because it finished in milliseconds, and OCR takes seconds per page.
+CREATE TABLE IF NOT EXISTS j2_note_document_ocr_pages (
+    document_id     TEXT NOT NULL,
+    user_id         TEXT NOT NULL,
+    page_number     INTEGER NOT NULL,
+    status          TEXT NOT NULL,          -- required|processing|complete|failed
+    engine          TEXT,
+    engine_version  TEXT,
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    error_class     TEXT,
+    started_at      TEXT,
+    updated_at      TEXT NOT NULL,
+    PRIMARY KEY (document_id, page_number)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_document_ocr_pages_user
+    ON j2_note_document_ocr_pages(user_id);
+CREATE INDEX IF NOT EXISTS idx_j2_note_document_ocr_pages_status
+    ON j2_note_document_ocr_pages(status);
+
+-- ⛔ NO GHOST OCR STATE (§31/§49). Deleting the document takes its OCR job
+-- rows with it, exactly as it already takes its page rows -- otherwise a
+-- purged document leaves behind a record that it was scanned, when, and by
+-- which engine.
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_ocr_pages_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_document_ocr_pages WHERE document_id = old.id;
+END;
+
 -- Standalone (NOT external-content) FTS5 mirror, same reasoning as
 -- j2_notes_fts: the pages table has a composite (document_id, page_number)
 -- key, not a stable single-column rowid, so an external-content table would

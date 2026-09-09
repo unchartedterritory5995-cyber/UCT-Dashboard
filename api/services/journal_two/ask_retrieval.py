@@ -521,8 +521,14 @@ def coverage(conn, user_id: str) -> dict[str, Any]:
     return {
         "notes_searchable": one(
             "SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", user_id),
+        # ⛔⛔ PAGES WITH TEXT, NOT PAGE ROWS. Measured in Wave P0: a mixed
+        # PDF stores three page rows holding [492, 0, 781] characters, and
+        # this counted 3. That number goes straight into the prompt as
+        # "SEARCHED: n document pages", so a page nobody could read was being
+        # reported to the model as searched. A row is not a page we have.
         "document_pages_searchable": one(
-            "SELECT COUNT(*) FROM j2_note_document_pages WHERE user_id = ?", user_id),
+            "SELECT COUNT(*) FROM j2_note_document_pages"
+            " WHERE user_id = ? AND TRIM(text) != ''", user_id),
         "excerpts_searchable": one(
             "SELECT COUNT(*) FROM j2_note_excerpts WHERE user_id = ?", user_id),
         "documents_by_status": docs,
@@ -690,9 +696,11 @@ def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
         " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name, d.note_id AS note_id"
         f"{_capture_cols(conn)}"
+        f"{_PROVENANCE_COL}"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
         " JOIN j2_notes n ON n.id = d.note_id"
+        f"{_PROVENANCE_JOIN}"
         " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
         " AND p.document_id = ? AND n.deleted_at IS NULL"
         " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
@@ -743,6 +751,28 @@ def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
 def _capture_cols(conn) -> str:
     from api.services.journal_two.web_capture import capture_columns
     return capture_columns(conn)
+
+
+# ── Wave P3 §13/§14 · document-page PROVENANCE, in one place ────────────────
+#
+# ⛔⛔ THREE QUERIES RETRIEVE DOCUMENT PAGES FROM THE FTS MIRROR — Ask Document,
+# Current Note and Security Research — and the mirror does not carry
+# `text_origin`. Each of them needs the same join back to the canonical page
+# row, and three hand-copied joins is how one of them silently loses it and
+# starts reporting every scanned page as natively extracted. One fragment,
+# used by all three, so a change reaches every scope or none.
+#
+# ⛔ THE FTS TABLE IS ALIASED `p` IN ALL THREE, so the canonical row takes a
+# different alias. LEFT JOIN on the page's PRIMARY KEY: it may add a fact, and
+# it may never add a result — cardinality is part of search correctness.
+#
+# ⛔ NOT A COLUMN ON THE MIRROR. That table is trigger-owned under a storage
+# contract this wave may not touch, and duplicating provenance there would mean
+# a migration, a reindex and two truths that can drift.
+_PROVENANCE_COL = ", pg.text_origin AS text_origin"
+_PROVENANCE_JOIN = (
+    " LEFT JOIN j2_note_document_pages pg"
+    " ON pg.document_id = p.document_id AND pg.page_number = p.page_number")
 
 
 # ── Wave O6: completed thesis reviews as retrievable member history ─────────
@@ -898,9 +928,11 @@ def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
             " bm25(j2_note_document_pages_fts) AS score,"
             " d.name AS name, d.note_id AS note_id"
             f"{_capture_cols(conn)}"
+            f"{_PROVENANCE_COL}"
             " FROM j2_note_document_pages_fts p"
             " JOIN j2_note_documents d ON d.id = p.document_id"
             " JOIN j2_notes n ON n.id = d.note_id"
+            f"{_PROVENANCE_JOIN}"
             " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
             " AND d.note_id = ? AND n.deleted_at IS NULL"
             " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
@@ -992,13 +1024,27 @@ def document_coverage(conn, user_id: str, document_id: str) -> dict[str, Any]:
     if d is None:
         return {"exists": False, "searchable": False, "status": None,
                 "pages_indexed": 0}
-    pages = conn.execute(
-        "SELECT COUNT(*) c FROM j2_note_document_pages"
-        " WHERE document_id = ? AND user_id = ?", (document_id, user_id)).fetchone()["c"]
+    counts = conn.execute(
+        "SELECT COUNT(*) AS total,"
+        " SUM(CASE WHEN TRIM(text) != '' THEN 1 ELSE 0 END) AS with_text"
+        " FROM j2_note_document_pages WHERE document_id = ? AND user_id = ?",
+        (document_id, user_id)).fetchone()
+    total = counts["total"] or 0
+    with_text = counts["with_text"] or 0
     status = d["status"]
     return {"exists": True, "name": d["name"], "status": status,
-            "pages_indexed": pages,
-            "searchable": status == DOC_STATUS_SEARCHABLE and pages > 0}
+            # ⛔⛔ `pages_indexed` NOW MEANS WHAT ITS NAME SAYS (§13). It counted
+            # ROWS, and a scanned page has a row holding an empty string — so
+            # a three-page document with one unreadable page reported "3
+            # indexed". Redefining rather than renaming is safe here because
+            # this dict has exactly one producer and no consumer outside the
+            # Ask coverage payload; `pages_total` is added beside it so the
+            # gap between "pages we hold" and "pages we can read" is legible
+            # rather than collapsed.
+            "pages_indexed": with_text,
+            "pages_total": total,
+            "text_complete": total > 0 and with_text == total,
+            "searchable": status == DOC_STATUS_SEARCHABLE and with_text > 0}
 
 
 def retrieve_document(user_id: str, document_id: str, query: str, *,
@@ -1335,10 +1381,16 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         "SELECT p.document_id AS document_id, p.page_number AS page_number,"
         " snippet(j2_note_document_pages_fts, 3, '', '', '...', 18) AS snippet,"
         " bm25(j2_note_document_pages_fts) AS score,"
-        " d.name AS name"
+        # ⛔ WAVE P3 §12: THE NOTE THE DOCUMENT LIVES IN. A citation
+        # that cannot name its note cannot be opened from a scope that
+        # spans notes — the member is told where the answer came from
+        # and handed no way to get there.
+        " d.name AS name, d.note_id AS note_id"
         f"{_capture_cols(conn)}"
+        f"{_PROVENANCE_COL}"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
+        f"{_PROVENANCE_JOIN}"
         " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
         f" AND d.note_id IN ({ph})"
         " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",

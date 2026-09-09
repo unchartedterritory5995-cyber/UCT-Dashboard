@@ -47,9 +47,22 @@ def search_document_pages(
             # was never selected, so the surface could not tell the truth.
             f"{capture_columns(conn)}"
             ", n.title AS note_title"
+            # ⛔ WAVE P2 §21: PROVENANCE COMES FROM THE CANONICAL PAGE, NOT THE
+            # INDEX. The member needs to know a hit was READ FROM A SCANNED
+            # PAGE, because exact values there deserve a look at the original.
+            # `text_origin` deliberately is NOT added to the FTS mirror: that
+            # table is written by triggers under a storage contract this wave
+            # may not touch, and a new column there would mean a migration plus
+            # a full reindex to answer a question the canonical row already
+            # holds. LEFT JOIN on the page's PRIMARY KEY, so it can add a fact
+            # but never a row.
+            ", p.text_origin AS text_origin"
             " FROM j2_note_document_pages_fts"
             " JOIN j2_note_documents d ON d.id = j2_note_document_pages_fts.document_id"
             " JOIN j2_notes n ON n.id = d.note_id"
+            " LEFT JOIN j2_note_document_pages p"
+            "        ON p.document_id = j2_note_document_pages_fts.document_id"
+            "       AND p.page_number = j2_note_document_pages_fts.page_number"
             " WHERE j2_note_document_pages_fts MATCH ?"
             " AND j2_note_document_pages_fts.user_id = ?"
             " AND n.deleted_at IS NULL"

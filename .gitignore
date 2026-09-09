@@ -42,6 +42,11 @@ tools/wave_o_e2e_out/
 tools/wave_o6_e2e_out/
 tools/wave_o6_mobile_out/
 tools/wave_o6_perf_out/
+tools/wave_p_fixtures_out/
+tools/wave_p0_bench_out/
+tools/wave_p_holdout_out/
+tools/wave_p15_tesseract_out/
+tools/wave_p_gate_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/
@@ -109,3 +114,13 @@ tools/share_phone_out/
 tools/wave_l_e2e_out/
 tools/semantic_benchmark_out/
 tools/prod_asset_proof_out/
+
+tools/wave_p5_load_out/
+# local-only earnings-strip design harness (never deployed)
+app/stripqa.html
+app/src/stripqa.jsx
+app/vite.strip.config.js
+app/_stripqa/
+app/vite.local.config.js
+app/stripqa2.html
+app/src/stripqa2.jsx

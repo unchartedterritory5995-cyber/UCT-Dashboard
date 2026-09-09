@@ -9,9 +9,10 @@ import {
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
-import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
+import { targetFromParams, applyTargetToParams, excerptRevisitTarget, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
+import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
@@ -37,6 +38,7 @@ import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
 import ThesisSection from './ThesisSection'
+import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
@@ -914,6 +916,26 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       )
       return
     }
+    // ⚰️ WAVE P3 §12 — A CITED DOCUMENT PAGE USED TO GO NOWHERE. This handler
+    // knew about reviews and about the note body, and returned silently for
+    // `kind: 'document'` — so Ask could say "q3-filing.pdf · p.1", the member
+    // could click it, and nothing at all would happen. Search has reached the
+    // page since Wave M; the Ask citation never learned the same contract.
+    // Found by driving the real UI, because every unit rail below asserts the
+    // TARGET and none of them clicks the row in the editor.
+    //
+    // ⛔ THE SAME `?note=&doc=&page=` CONTRACT, never a second route shape —
+    // and never an OCR-specific one: a scanned page opens exactly the way a
+    // native page does, which is what makes the scanned page authoritative.
+    if (source?.navigation?.kind === 'document') {
+      // The decision lives in `searchNavigation`, beside the one Search uses,
+      // so the two can never answer differently about the same document.
+      const target = citationTarget(source, { fallbackNoteId: noteId })
+      if (!target) return
+      setSearchParams((prev) => applyTargetToParams(prev, target),
+                      { replace: false })
+      return
+    }
     const ed = editorRef.current
     if (!ed || source?.navigation?.kind !== 'note') return
     if (!resolved || !PRECISE_STATES.has(resolved.state)) return
@@ -921,7 +943,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       .setTextSelection({ from: resolved.from, to: resolved.to })
       .scrollIntoView()
       .run()
-  }, [setSearchParams])
+  }, [setSearchParams, noteId])
 
   const handleSaveExcerpt = async ({ pageNumber, capturedText, quotePrefix, quoteSuffix, charStart, charEnd }) => {
     const ed = editorRef.current
@@ -977,6 +999,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
       }).run()
       await refreshExcerpts()
+      // ⛔ WAVE P5 — and the EVIDENCE PICKER's list, which is a different
+      // subscription. Without this the passage a member just saved is
+      // absent from Add evidence until they reload the note; the picker
+      // then tells them to "save an excerpt from a PDF in this note
+      // first", about the excerpt they are looking at. Measured on a
+      // phone, end to end, in one sitting.
+      refreshEvidenceCandidates(noteId)
     } catch (e) {
       setUploadToast({ message: "Couldn't save that excerpt. Your note is unchanged.", tone: 'error' })
     }
@@ -1757,6 +1786,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             a note with nothing set renders only a small "+ Add property"
             link, never a permanent header (progressive disclosure). */}
         <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+
+        {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
+            NOTHING when every document's text is complete — the common case
+            gets no chrome. */}
+        <DocumentTextStatus documents={noteDocuments} />
 
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't

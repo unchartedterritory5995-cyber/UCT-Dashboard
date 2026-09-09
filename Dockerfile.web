@@ -1,0 +1,128 @@
+# ⛔⛔ THE WEB SERVICE'S IMAGE — and the ONLY image in this repo that carries OCR.
+#
+# WHY THIS FILE EXISTS. Four services — web, worker, flow-worker and bars-api —
+# are built from the SAME repository root and differ only at start time, by
+# environment variable, inside one shared `railway.json`. Wave P needs Tesseract
+# on web and nowhere else: worker, flow-worker and bars-api cannot perform OCR,
+# do not reach the Notebook database, and must never install a package they will
+# never invoke.
+#
+# ⚰️ THE MECHANISM THIS REPLACES. The first attempt kept web on nixpacks and
+# pointed it at a second config file with a `NIXPACKS_CONFIG_FILE` service
+# variable. The variable REACHED THE CONTAINER and did not select the build:
+# web's build config path is a first-class field of the Railway service manifest
+# (`nixpacksConfigPath`, measured as `/nixpacks.toml`), not something a service
+# env var overrides. The build succeeded, and Tesseract was simply absent.
+#   ⛔ A RUNTIME VARIABLE BEING PRESENT DOES NOT PROVE IT SELECTED THE BUILD
+#   GRAPH. Runtime service scoping ≠ build-config selection.
+#
+# ⭐ THE PRECEDENT. `services/chart_renderer/` already proves this project
+# supports an independently built service whose system dependencies differ —
+# it is `builder: DOCKERFILE` while the rest are nixpacks (and bars-api is
+# railpack: three builders already coexist here). This is the same move for web,
+# with one difference that matters: chart-renderer is a tiny standalone app
+# uploaded from its own directory, while web is built from the repository root
+# and must keep EVERY dependency it has today.
+#
+# ⛔ HOW WEB SELECTS THIS FILE: `railway.web.json` (repo-owned) declares
+# `builder: DOCKERFILE` + `dockerfilePath: Dockerfile.web`, and web's service
+# setting names that file as its config-as-code path. The other three keep
+# reading `railway.json`, which still says NIXPACKS. THE FILE IS NAMED
+# `Dockerfile.web`, NOT `Dockerfile`, on purpose — a root `Dockerfile` is
+# auto-detected, and would be a landmine for any service that ever loses its
+# explicit builder setting.
+#
+# ⛔ PARITY IS THE RISK, NOT SIZE. A build boundary that quietly drops a
+# dependency is worse than no boundary at all, and the drop would not show up
+# for weeks: `node` is invoked at RUNTIME (COT narrative prewarm, Friday 17:05
+# ET) and `ffmpeg` at RUNTIME (Desk background-audio extraction). Measured
+# inventory of the live nixpacks image, 2026-09-08:
+#     python 3.12.7 (venv at /opt/venv, first on PATH)   node v20.18.0
+#     ffmpeg 7.1     git      curl      tar/xz/gzip      tesseract ABSENT
+# Everything above is reproduced below. `tests/test_ocr_build_isolation.py`
+# fails if any of it disappears from this file.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE 1 — the frontend, built the way nixpacks builds it today.
+# ─────────────────────────────────────────────────────────────────────────────
+# ⛔ THE NODE VERSION IS PINNED TO WHAT PRODUCTION RUNS TODAY (v20.18.0), so
+# this slice changes packaging and nothing else. Raising it is a deliberate,
+# separate decision — worth making, since this tag is from 2024-11 and carries
+# no later security patches — but not inside an OCR packaging change.
+FROM node:20.18.0-bookworm-slim AS frontend
+WORKDIR /src
+# The whole tree, because the build reaches outside `app/src`: `npm run build`
+# is `vite build` PLUS two esbuild bundles (`scripts/build-cot-facts.mjs`,
+# `scripts/build-flow-facts.mjs`) whose outputs the BACKEND shells out to.
+COPY . .
+RUN cd app && npm install && NODE_OPTIONS='--max-old-space-size=4096' npm run build
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE 2 — python dependencies, compiled where a compiler is allowed to exist.
+# ─────────────────────────────────────────────────────────────────────────────
+# Everything in requirements.txt ships manylinux wheels for cp312 today, so this
+# stage normally compiles nothing. It exists so that the FIRST package that
+# stops shipping a wheel fails a rebuild instead of failing at 3am — and so the
+# toolchain never reaches the runtime image.
+FROM python:3.12-slim-bookworm AS pydeps
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+# `--copies`, and at /opt/venv, exactly as the nixpacks install phase does it:
+# `railway.json`'s start command runs a BARE `uvicorn` / `python -m api.…`, so
+# the venv must be on PATH under that path or nothing starts.
+RUN python -m venv --copies /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+COPY requirements.txt ./
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE 3 — the runtime image.
+# ─────────────────────────────────────────────────────────────────────────────
+FROM python:3.12-slim-bookworm AS runtime
+ENV PYTHONUNBUFFERED=1 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PATH="/opt/venv/bin:$PATH"
+
+# ⛔ APT, NOT A DOWNLOAD (§9). The language data is a package, so nothing about
+# a boot depends on a third-party fetch succeeding.
+#   tesseract-ocr      the engine + leptonica
+#   tesseract-ocr-eng  English traineddata ONLY — no other language, no training
+#                      toolchain, no -dev headers
+# The four above it are PARITY with the image this replaces, not new appetite.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        git \
+        libstdc++6 \
+        tesseract-ocr \
+        tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
+# ⭐ THE RUNTIME NODE IS THE SAME BINARY THAT BUILT THE FRONTEND — one version,
+# one authority, no second tag to drift. `libstdc++6` above is what it links
+# against; npm is deliberately NOT carried over, because nothing at runtime
+# invokes it (`cot_prewarm` and `flow_aggregate` both exec `node` directly).
+COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
+COPY --from=pydeps /opt/venv /opt/venv
+
+WORKDIR /app
+# The build context is the git tree — `node_modules/`, `.venv/` and `app/dist/`
+# are gitignored and never reach it — so this copies what Railway ships today
+# and cannot silently omit an API module, a migration, a script or an asset.
+COPY . /app
+COPY --from=frontend /src/app/dist /app/app/dist
+
+# ⛔ OCR IS DARK. The engine is INSTALLED, not ENABLED: nothing here sets
+# `J2_OCR_ENABLED`, so `document_ocr_tesseract.install_if_enabled()` wires no
+# adapter and `document_ocr.ocr_available()` stays false. Presence of the binary
+# and activation of the feature are two different facts, and only one of them
+# is in this file.
+#
+# `railway.web.json`'s start command is what actually runs — this CMD is the
+# same web branch of it, so the image is still correct if run without Railway.
+CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 5"]

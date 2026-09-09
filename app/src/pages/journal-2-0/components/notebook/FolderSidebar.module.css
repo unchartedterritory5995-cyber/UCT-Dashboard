@@ -209,6 +209,24 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Wave P2 §21: the scanned-text chip.
+   ⛔ QUIET ON PURPOSE. It is a provenance note, not a warning badge — the hit
+   is a perfectly good result and must not read as degraded. Muted, small,
+   no colour of its own beyond the border, and it never takes width from the
+   title: `flex: 0 0 auto` inside a row whose title already ellipsises. */
+.scannedChip {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  padding: 0 4px;
+  font-size: 9px;
+  line-height: 14px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #98a0aa);
+  border: 1px solid var(--color-border, #2a2f38);
+  border-radius: 3px;
+  vertical-align: 1px;
+}
 /* Wave 4 Slice 2: the query-aware match highlight -- the "why this result"
    explanation itself, per the design doc's own framing. */
 .searchResultSnippet mark, .searchResultTitle mark {

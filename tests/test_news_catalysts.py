@@ -531,3 +531,58 @@ class TestBreakingHelpers:
     def test_wire_accounts_env_override(self, monkeypatch):
         monkeypatch.setenv("NEWS_WIRE_ACCOUNTS", "@Foo, bar")
         assert service._wire_accounts() == {"foo", "bar"}
+
+
+# ── durable daily generation cap (2026-09-09 cost-spike fix) ────────────────
+# _cost_ok() used to be a plain in-process counter (_gen_day/_gen_count) that
+# silently reset to 0 on every redeploy, so a "300/day" cap was really "300
+# per process lifetime." These prove the durable replacement actually holds
+# the line across what would have been a reset before, and that _cost_ok()
+# itself calls through to it (not a parallel, disconnected check).
+class TestDurableDailyBudget:
+    def test_reserve_slot_allows_up_to_the_cap(self):
+        day = "2026-09-09"
+        for _ in range(3):
+            assert store.reserve_daily_generation_slot(day, cap=3) is True
+        assert store.reserve_daily_generation_slot(day, cap=3) is False
+
+    def test_reserve_slot_persists_across_a_simulated_restart(self):
+        """The whole point: a fresh call sequence (standing in for a brand new
+        process after a redeploy) must still see the earlier reservations —
+        unlike the in-process counter, nothing here resets just because
+        nothing is holding a reference to prior state anymore."""
+        day = "2026-09-09"
+        store.reserve_daily_generation_slot(day, cap=2)
+        store.reserve_daily_generation_slot(day, cap=2)
+        # A "new process" has no Python state at all beyond the module import —
+        # calling the durable function again is the entire simulation.
+        assert store.reserve_daily_generation_slot(day, cap=2) is False
+
+    def test_reserve_slot_is_per_day(self):
+        assert store.reserve_daily_generation_slot("2026-09-08", cap=1) is True
+        assert store.reserve_daily_generation_slot("2026-09-08", cap=1) is False
+        # A new day gets its own fresh budget.
+        assert store.reserve_daily_generation_slot("2026-09-09", cap=1) is True
+
+    def test_zero_or_negative_cap_means_unbounded(self):
+        day = "2026-09-09"
+        for _ in range(5):
+            assert store.reserve_daily_generation_slot(day, cap=0) is True
+
+    def test_cost_ok_refuses_once_the_durable_cap_is_spent(self, monkeypatch):
+        monkeypatch.setattr(service, "_DAILY_CAP", 2)
+        monkeypatch.setattr(service, "_today_iso", lambda: "2026-09-09")
+        assert service._cost_ok() is True
+        assert service._cost_ok() is True
+        assert service._cost_ok() is False
+
+    def test_cost_ok_fails_closed_on_a_broken_ledger(self, monkeypatch):
+        """Unlike the global Perplexity request budget (which fails OPEN so a
+        broken ledger can't itself cause an outage), this per-feature spend
+        guard fails CLOSED — its only job is cost protection, and failing
+        open here would silently recreate the exact bug this fix closes."""
+        def _boom(day, cap):
+            raise RuntimeError("db unavailable")
+
+        monkeypatch.setattr(store, "reserve_daily_generation_slot", _boom)
+        assert service._cost_ok() is False

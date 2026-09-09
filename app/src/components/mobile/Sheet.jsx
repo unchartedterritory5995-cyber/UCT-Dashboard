@@ -21,6 +21,15 @@ import styles from './Sheet.module.css'
  *   maxWidth           desktop modal max width (px or css), default 520
  *   ariaLabel          accessible label when no title
  *   className          applied to the panel
+ *   bodyClassName      applied to the scrolling body, beside the default
+ *                      `.body` rules. A caller whose content owns its OWN
+ *                      scrolling (a document viewer with a sticky control,
+ *                      say) needs the body to be a flex COLUMN that does not
+ *                      scroll, so the child can size to the space that is
+ *                      actually left. Without a hook here that caller can
+ *                      only reach for a percentage height, which resolves
+ *                      against the WHOLE body and silently overflows it by
+ *                      the height of whatever sits above.
  *   zIndex             optional: inline-style override for THIS instance's
  *                      backdrop, above the shared --z-modal rung (1000) that
  *                      every other Sheet caller (TickerHubSheet, MoreSheet,
@@ -43,6 +52,7 @@ export default function Sheet({
   maxWidth = 520,
   ariaLabel,
   className = '',
+  bodyClassName = '',
   zIndex,
 }) {
   const isTouch = useIsTouch()
@@ -197,7 +207,7 @@ export default function Sheet({
             <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
           </div>
         )}
-        <div className={styles.body}>{children}</div>
+        <div className={`${styles.body} ${bodyClassName}`}>{children}</div>
         {footer != null && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>,

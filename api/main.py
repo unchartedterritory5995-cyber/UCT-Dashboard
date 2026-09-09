@@ -3016,6 +3016,50 @@ async def lifespan(app: FastAPI):
             "[startup] awareness regime_snapshots schema init failed"
         )
 
+    # Wave P1.5: wire the OCR engine, or truthfully decline to.
+    #
+    # ⛔ DARK BY DEFAULT. `J2_OCR_ENABLED` gates EXECUTION only — page-truth
+    # readiness, `no_text` semantics and the FTS write invariants are correct
+    # whether it is on or off. With it off, no adapter is installed, nothing is
+    # ever marked "OCR required", and a scanned document keeps saying exactly
+    # what it says today.
+    #
+    # ⭐ The fingerprint line is how a PACKAGING build is verified without
+    # processing a single member document: it reports whether the binary
+    # reached the image and what version it is, and nothing else.
+    try:
+        from api.services.journal_two import document_ocr_tesseract as _j2_ocr
+        _ocr_state = _j2_ocr.install_if_enabled()
+        print(_j2_ocr.startup_fingerprint(), flush=True)
+        if _ocr_state.get("flag") and not _ocr_state.get("active"):
+            logging.getLogger(__name__).warning(
+                "[startup] J2_OCR_ENABLED is set but OCR could not be armed")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] OCR engine probe failed")
+
+    # Wave P1: reclaim OCR pages abandoned by a restart.
+    #
+    # ⛔⛔ NATIVE EXTRACTION NEVER NEEDED THIS AND OCR CANNOT DO WITHOUT IT.
+    # A pypdf pass finished in milliseconds, so a redeploy landing inside one
+    # was a rounding error. OCR takes SECONDS PER PAGE, which puts a Railway
+    # redeploy inside a job routinely — and a page left `processing` with
+    # nothing running would leave the member on "Processing scanned text..."
+    # forever, with no sweep anywhere to notice.
+    #
+    # ⛔ It reclaims by AGE, never on sight, so it cannot steal a page from a
+    # job that is still working on it. Inert by construction while no engine is
+    # wired: with no adapter nothing is ever marked `processing`, so this finds
+    # nothing and costs one indexed query.
+    try:
+        from api.services.journal_two import document_ocr as _doc_ocr
+        _rec = _doc_ocr.recover_stalled()
+        if _rec.get("reclaimed") or _rec.get("exhausted"):
+            logging.getLogger(__name__).info(
+                "[startup] OCR recovery: reclaimed=%s exhausted=%s documents=%s",
+                _rec["reclaimed"], _rec["exhausted"], _rec["documents"])
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] OCR recovery sweep failed")
+
     # Alert Durability V1 (2026-09-06): the user_alerts table backing
     # api/services/alert_durability.py. Cheap + idempotent; initialized
     # unconditionally at boot, same posture as the two schema inits above.
@@ -4625,6 +4669,45 @@ async def lifespan(app: FastAPI):
 
         # -- The Floor: UCT Mentor daily heartbeat (weekday ~9:20 AM ET) -------
         # One 'UCT Mentor' system post into #trading-floor each morning so the
+        # ⚰️⚰️ WAVE P5 — THE OCR RECOVERY SWEEP HAD NO SCHEDULE.
+        #
+        # `recover_stalled()` runs once, in the startup block above, and it only
+        # reclaims pages left `processing`. Two concurrent 100-page scans in the
+        # P5 load run produced the case neither half covers: a locked database
+        # killed one job on its FIRST write, so its hundred pages stayed
+        # `required`, no sweep could see them, and the member's document said
+        # "Processing…" until the next deploy. Which is to say: forever, on a
+        # quiet week.
+        #
+        # ⛔ SELF-GATING, not flag-gated here. `get_adapter()` returns None
+        # unless OCR is actually armed, so this is inert while the feature is
+        # dark — the same posture as the startup recovery beside it, and it
+        # cannot become a job that exists only when a flag was on at boot.
+        try:
+            from api.services.journal_two import document_ocr as _ocr_sweep
+
+            def _ocr_requeue_abandoned() -> None:
+                adapter = _ocr_sweep.get_adapter()
+                if adapter is None:
+                    return
+                out = _ocr_sweep.recover_stalled()
+                if out.get("reclaimed") or out.get("exhausted"):
+                    logging.getLogger(__name__).info(
+                        "[doc-ocr] sweep reclaimed=%s exhausted=%s",
+                        out["reclaimed"], out["exhausted"])
+                again = _ocr_sweep.requeue_awaiting(adapter)
+                if again.get("requeued"):
+                    logging.getLogger(__name__).info(
+                        "[doc-ocr] sweep re-queued %s abandoned document(s)",
+                        again["requeued"])
+
+            _scheduler.add_job(
+                _ocr_requeue_abandoned,
+                CronTrigger(minute="4/10"),
+                id="j2_ocr_recovery_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_ocr_sweep:
+            print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:

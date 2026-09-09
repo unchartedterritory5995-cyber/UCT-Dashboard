@@ -135,6 +135,22 @@ CREATE TABLE IF NOT EXISTS catalyst_learn_state (
   last_note_ts  INTEGER NOT NULL DEFAULT 0,
   last_run_at   INTEGER
 );
+
+-- Durable twin of the old in-memory _DEEP_CONTEXT_DONE dict (removed
+-- 2026-09-09). The reasoning-mode Perplexity pass (sonar-reasoning-pro, the
+-- single most expensive call this engine makes) was meant to fire AT MOST
+-- ONCE per ticker per day, but the guard was a plain module-level dict —
+-- reset on every redeploy. This repo shipped 122 commits in one day under a
+-- no-deploy-freeze policy; each restart re-armed the guard from scratch,
+-- letting the same top tickers re-pay the reasoning cost repeatedly instead
+-- of once. That mechanism is the leading explanation for a real Perplexity
+-- cost spike. This table makes the "once per day" promise actually true.
+CREATE TABLE IF NOT EXISTS catalyst_deep_context_done (
+  market_date TEXT NOT NULL,
+  ticker      TEXT NOT NULL,
+  done_at     INTEGER NOT NULL,
+  PRIMARY KEY (market_date, ticker)
+);
 """
 
 
@@ -177,6 +193,30 @@ def _init_db() -> None:
             except sqlite3.OperationalError as e:
                 if "duplicate column name" not in str(e).lower():
                     raise
+        c.commit()
+
+
+def deep_context_already_done(market_date: str, ticker: str) -> bool:
+    """Has the reasoning-mode Perplexity pass already run for this ticker
+    today? Durable — survives a redeploy, unlike the in-memory dict this
+    replaces (2026-09-09 cost-spike fix)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT 1 FROM catalyst_deep_context_done WHERE market_date = ? AND ticker = ?",
+            (market_date, ticker.upper())).fetchone()
+    return row is not None
+
+
+def mark_deep_context_done(market_date: str, ticker: str) -> None:
+    """Record that today's reasoning-mode pass for `ticker` has been
+    attempted — called regardless of outcome (success, empty, or error), so
+    a ticker that fails once is not retried every refresh tick for the rest
+    of the day."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(
+            "INSERT OR IGNORE INTO catalyst_deep_context_done "
+            "(market_date, ticker, done_at) VALUES (?, ?, ?)",
+            (market_date, ticker.upper(), int(time.time())))
         c.commit()
 
 

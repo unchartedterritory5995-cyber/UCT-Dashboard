@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import {
-  DEFAULT_RIGHT_W, MIN_RIGHT_W, TABSTRIP_FIT_W, COMPANY_TABS, normalizeDock,
+  DEFAULT_RIGHT_W, MIN_RIGHT_W, TABSTRIP_FIT_W, COMPANY_TABS, normalizeDock, DEFAULT_STRIP_H, MIN_STRIP_H, MAX_STRIP_FRAC,
 } from './chartDock'
 
 describe('company panel width', () => {
@@ -74,5 +74,48 @@ describe('company panel header spacing', () => {
   it('does not let the tab strip grow and push search to the far edge', () => {
     // `flex: 1` here made the gap after News widen with the panel.
     expect(block('.rdTabs {')).toMatch(/flex:\s*0\s+1\s+auto/)
+  })
+})
+
+/* The earnings strip's height is the user's, and it persists like every other
+   panel dimension. Bounds live in ONE place so the drag and the stored value
+   cannot disagree about what is allowed. */
+describe('earnings strip height', () => {
+  it('defaults to the height the content settles at', () => {
+    expect(normalizeDock({}).stripH).toBe(DEFAULT_STRIP_H)
+    expect(normalizeDock(null).stripH).toBe(DEFAULT_STRIP_H)
+  })
+
+  it('keeps a height the user dragged to', () => {
+    expect(normalizeDock({ stripH: 118 }).stripH).toBe(118)
+  })
+
+  it('never restores a height below the floor', () => {
+    // A stored value under the floor would render collided rows on next load.
+    expect(normalizeDock({ stripH: 10 }).stripH).toBe(MIN_STRIP_H)
+    expect(normalizeDock({ stripH: 0 }).stripH).toBe(MIN_STRIP_H)
+    expect(normalizeDock({ stripH: -40 }).stripH).toBe(MIN_STRIP_H)
+  })
+
+  it('ignores a non-numeric stored height', () => {
+    for (const bad of ['tall', null, undefined, NaN, {}]) {
+      expect(normalizeDock({ stripH: bad }).stripH).toBe(DEFAULT_STRIP_H)
+    }
+  })
+
+  it('the floor leaves room for the three lines the strip renders', () => {
+    expect(MIN_STRIP_H).toBeGreaterThanOrEqual(56)
+  })
+
+  it('the ceiling keeps the price pane the primary visual', () => {
+    expect(MAX_STRIP_FRAC).toBeGreaterThan(0.2)
+    expect(MAX_STRIP_FRAC).toBeLessThanOrEqual(0.5)
+  })
+
+  it('the strip toggle is independent of its height', () => {
+    // Turning the strip off must not forget how tall the user made it.
+    const off = normalizeDock({ strip: false, stripH: 118 })
+    expect(off.strip).toBe(false)
+    expect(off.stripH).toBe(118)
   })
 })
