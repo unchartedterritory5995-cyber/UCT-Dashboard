@@ -70,17 +70,93 @@ export const KEEP = Object.freeze([
  * @param {object} table the parsed manifest
  * @returns {{table: object, dropped: string[], savedBytes: number}}
  */
+
+/** ⭐⭐⭐ THE `_` KEYS THAT ARE PROSE, LISTED RATHER THAN INFERRED.
+ *
+ *  ⛔⛔ THIS LIST EXISTS SO THE STRIP CAN FAIL LOUD. Until 2026-09-09 the rule
+ *  was *"drop any `_` key not in KEEP"*, and three times a new key the product
+ *  READS was added and would have shipped missing — `_requirement_tags` (the
+ *  containment flag: stripped, every guarded script is ADMITTED),
+ *  `_bind_time_constants` (stripped, no window folds) and one more before them.
+ *  Each was caught by a rail, by hand, after the fact.
+ *
+ *  ⛔ AN ALLOWLIST THAT SILENTLY DISCARDS IS HOW A WHOLE CAPABILITY SHIPS
+ *  MISSING. The rail that catches it is real and stays — but it is a second
+ *  chance, and the first chance should not be *"somebody remembers to run the
+ *  frontend suite"*. With both lists explicit, a key in NEITHER fails the BUILD
+ *  and names itself, so the author registers it in the same commit that adds it.
+ *
+ *  ⚠️ THE COST IS DELIBERATE: adding any top-level `_` key to the manifest now
+ *  breaks the build until it is registered here as data or as prose. That is one
+ *  line of work at the moment of writing, against a capability silently absent
+ *  in production — and the failure is at build time, on the author's machine,
+ *  naming the key.
+ */
+export const DROP = Object.freeze([
+  "_shape",
+  "_canonical",
+  "_no_offset",
+  "_no_offset_reopened_by",
+  "_sentence",
+  "_functions_indicators",
+  "_functions_atr_convention",
+  "_functions_arg_roles",
+  "_functions_warmup",
+  "_functions_na",
+  "_functions_rounding",
+  "_functions_smoothing",
+  "_functions_recurrence",
+  "_functions_bar_readers",
+  "_functions_arg_extreme",
+  "_functions_bounded_state",
+  "_functions_pivots",
+  "_functions_domain",
+  "_functions_hull",
+  "_functions_cumulative",
+  "_functions_vendor_note",
+  "_booleans",
+  "_yields",
+  "_scalars",
+  "_scalars_node",
+  "_scalars_as_of",
+  "_scalars_freshness",
+  "_scalars_totality",
+  "_session",
+  "_functions_math",
+  "_functions_sum_dev",
+  "_benchmarks",
+  "_functions_vendor_parity_resolutions",
+])
+
 export function stripProse(table) {
   const out = {}
   const dropped = []
+  const unregistered = []
   let savedBytes = 0
   for (const [key, value] of Object.entries(table)) {
-    if (key.startsWith('_') && !KEEP.includes(key)) {
+    if (!key.startsWith('_')) { out[key] = value; continue }
+    if (KEEP.includes(key)) { out[key] = value; continue }
+    if (DROP.includes(key)) {
       dropped.push(key)
       savedBytes += Buffer.byteLength(JSON.stringify(value), 'utf8')
       continue
     }
-    out[key] = value
+    unregistered.push(key)
+  }
+  // ⛔⛔ FAIL THE BUILD, NAMING THE KEY. The old behaviour dropped it and said
+  // nothing, so a key the product reads shipped as `undefined` in a browser —
+  // three times. There is no case for tolerating an unknown key here: every one
+  // is either data the runtime reads or prose for engineers, and only the person
+  // adding it knows which.
+  if (unregistered.length) {
+    throw new Error(
+      `closedTable.json has ${unregistered.length} top-level key(s) that `
+      + `manifestProse.js does not classify: ${unregistered.join(', ')}.
+`
+      + 'Add each to KEEP (the running product reads it — stripping it would ship '
+      + 'a capability missing) or to DROP (prose for engineers, safe to strip from '
+      + 'the browser bundle). The file on disk keeps every word either way; this '
+      + 'decides only what the browser is sent.')
   }
   return { table: out, dropped, savedBytes }
 }

@@ -1,0 +1,117 @@
+{
+  "_": "⭐⭐⭐ THE ONE ARTIFACT BOTH LANES ARE HELD TO FOR THE BIND-TIME FOLD. `api/services/ast_bind.py` and `app/src/components/chart/engine/ast/bind.js` each read this file and assert their own answer against it — so a drift in either goes red from that lane's own suite, and neither lane is the oracle for the other. This is the arrangement `tests/fixtures/ast/multi_tree_parity.json` already uses for `treesHash`.",
+  "_why_a_fixture_and_not_a_cross_call": "⛔ A TEST THAT RAN THE JS LANE FROM PYTHON AND COMPARED WOULD BE GREEN WHEN BOTH LANES ARE WRONG TOGETHER. A pinned expectation is a third party: it fails when either lane moves, including when they move in step. It also means the JS suite catches a JS regression without a node subprocess, which is the difference between a rail that runs on every push and one that runs when somebody remembers.",
+  "_the_case_this_exists_for": "`Uncharted Volume` line 233 — `ta.sma(v, isWeekly ? lenWeekly : lenDaily)`. Same saved tree, two bindings, two lengths. A fold that produced one answer for both would be a constant rather than a binding, which is why BOTH timeframe rows are pinned rather than one.",
+  "_refusal_strings_are_pinned_deliberately": "⚠️ THE `refusalContains` FRAGMENTS ARE THE MEMBER-FACING SENTENCE, and they are pinned because the owner ruled the two lanes must produce the SAME reason string, not merely the same verdict. A member who pastes a script into the builder and a sweep that evaluates the saved definition must be told the same thing about the same length. A verdict-only comparison would let one lane say `folded to 2.5 from lenDaily / 2` and the other say `bad window` and call that parity.",
+
+  "cases": [
+    {
+      "id": "volume_line_233_on_a_daily_chart",
+      "why": "The chart is daily, so the ternary takes the else-arm and the window is lenDaily.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "volume"},
+        {"type": "op", "name": "?:", "args": [
+          {"type": "series", "name": "isweekly"},
+          {"type": "series", "name": "lenWeekly"},
+          {"type": "series", "name": "lenDaily"}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 50, "lenWeekly": 10},
+      "foldsTo": 50,
+      "maxLookback": 50
+    },
+    {
+      "id": "volume_line_233_on_a_weekly_chart",
+      "why": "⭐ THE SAME TREE, AND THE ANSWER MUST DIFFER. This is the pair that makes it a BINDING rather than a constant.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "volume"},
+        {"type": "op", "name": "?:", "args": [
+          {"type": "series", "name": "isweekly"},
+          {"type": "series", "name": "lenWeekly"},
+          {"type": "series", "name": "lenDaily"}]}]},
+      "timeframe": {"isdaily": 0, "isweekly": 1, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 50, "lenWeekly": 10},
+      "foldsTo": 10,
+      "maxLookback": 10
+    },
+    {
+      "id": "arithmetic_over_two_inputs",
+      "why": "Arithmetic and a scalar call over bind-time constants. Pins that the closed `_FOLD_CALLS` set agrees across lanes — a name in one and not the other is a script that folds on the pane and refuses in the sweep.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "call", "name": "max", "args": [
+          {"type": "op", "name": "*", "args": [
+            {"type": "series", "name": "lenDaily"}, {"type": "num", "value": 2}]},
+          {"type": "num", "value": 30}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 25},
+      "foldsTo": 50,
+      "maxLookback": 50
+    },
+    {
+      "id": "a_length_that_folds_to_a_fraction",
+      "why": "Rule (a): the fold SUCCEEDS and the answer is not a usable window. Refused by the fold pass itself, quoting the member's own text — only this pass knows what it folded FROM.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "/", "args": [
+          {"type": "series", "name": "lenDaily"}, {"type": "num", "value": 4}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 50},
+      "refusalContains": [
+        "a window must be a whole-number literal",
+        "sma argument 1 folded to 12.5 for this binding",
+        "from `lenDaily / 4`",
+        "a whole number of at least 1"
+      ]
+    },
+    {
+      "id": "a_length_that_folds_to_zero",
+      "why": "Rule (a) again, the other bad value. Zero is the one a member is most likely to reach by accident.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "-", "args": [
+          {"type": "series", "name": "lenDaily"}, {"type": "series", "name": "lenDaily"}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenDaily": 20},
+      "refusalContains": [
+        "sma argument 1 folded to 0 for this binding",
+        "from `lenDaily - lenDaily`"
+      ]
+    },
+    {
+      "id": "a_series_operand_stops_the_fold",
+      "why": "Rule (b): anything reading a BAR leaves the slot exactly as it was — no partial fold — and the window check refuses it downstream by name.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "+", "args": [
+          {"type": "series", "name": "close"}, {"type": "num", "value": 2}]}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {},
+      "leavesUnfolded": true,
+      "notFoldableOperand": "close"
+    },
+    {
+      "id": "an_unfoldable_ARM_stops_it_even_when_this_binding_would_not_take_it",
+      "why": "⭐⭐ THE SUBTLE ONE. On a weekly binding the selector picks `lenWeekly` and the `close` arm is never taken — but folding it anyway would mean the same saved definition folds on one symbol and refuses on the next, which is a refusal the member cannot reproduce. Both arms fold before the selector is read.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "op", "name": "?:", "args": [
+          {"type": "series", "name": "isweekly"},
+          {"type": "series", "name": "lenWeekly"},
+          {"type": "series", "name": "close"}]}]},
+      "timeframe": {"isdaily": 0, "isweekly": 1, "ismonthly": 0, "isintraday": 0},
+      "inputs": {"lenWeekly": 10},
+      "leavesUnfolded": true,
+      "notFoldableOperand": "close"
+    },
+    {
+      "id": "an_already_literal_length_is_untouched",
+      "why": "The control. If the pass rewrote plain literals it would be doing something, and every other case here would pass for the wrong reason.",
+      "tree": {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"}, {"type": "num", "value": 20}]},
+      "timeframe": {"isdaily": 1, "isweekly": 0, "ismonthly": 0, "isintraday": 0},
+      "inputs": {},
+      "foldsTo": 20,
+      "maxLookback": 20
+    }
+  ]
+}

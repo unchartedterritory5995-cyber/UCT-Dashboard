@@ -272,6 +272,18 @@ def render(node: Any) -> str:
     return f"{name}({', '.join(args)})"
 
 
+def _show(value: float) -> str:
+    """A number rendered the way BOTH lanes render it.
+
+    ⛔⛔ THE FIXTURE CAUGHT THIS AND IT IS EXACTLY THE DIVERGENCE THE OWNER RULED
+    AGAINST. Python's ``repr`` of a float prints ``0.0`` where JavaScript prints
+    ``0``, so the same length in the same script produced *"folded to 0.0"* in the
+    sweep and *"folded to 0"* on the pane — two sentences about one number, which
+    is two products. Integral values print without the fractional tail in both.
+    """
+    return str(int(value)) if float(value).is_integer() else str(value)
+
+
 def _assert_usable_window(fn_name: Any, index: int, value: float,
                           source: str = None) -> None:
     if value != value or value in (float("inf"), float("-inf")):
@@ -281,6 +293,6 @@ def _assert_usable_window(fn_name: Any, index: int, value: float,
                 "of at least 1")
     if not float(value).is_integer() or value < 1:
         _refuse("resolve:window",
-                f"— {fn_name} argument {index} folded to {value!r} for this "
+                f"— {fn_name} argument {index} folded to {_show(value)} for this "
                 f"binding, from `{source}`; a length must be a whole number of at "
                 "least 1")
