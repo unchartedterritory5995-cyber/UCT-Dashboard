@@ -37,7 +37,8 @@ CASES = json.loads(io.open(FIXTURE, encoding="utf-8").read())["cases"]
 
 def _consts(case):
     return B.binding_constants(timeframe=case.get("timeframe"),
-                               inputs=case.get("inputs"))
+                               inputs=case.get("inputs"),
+                               symbol=case.get("symbol"))
 
 
 def test_the_fixture_is_not_empty_and_covers_both_outcomes():
@@ -48,6 +49,39 @@ def test_the_fixture_is_not_empty_and_covers_both_outcomes():
     assert any("foldsTo" in c for c in CASES), "no folding case"
     assert any("refusalContains" in c for c in CASES), "no refusal case"
     assert any(c.get("leavesUnfolded") for c in CASES), "no left-alone case"
+    # ⭐ AND THE TEXT HALF, ASSERTED SEPARATELY. Without this the text rows could
+    # all be deleted and every remaining assertion in this file would still pass —
+    # the failure mode a shared fixture is most prone to.
+    assert any("foldScalarTo" in c for c in CASES), "no text-answer case"
+    assert any(c.get("notFoldableOn") for c in CASES), "no unresolvable-field case"
+
+
+@pytest.mark.parametrize("case", [c for c in CASES if "foldScalarTo" in c],
+                         ids=lambda c: c["id"])
+def test_the_python_lane_answers_a_TEXT_question_with_the_PINNED_number(case):
+    got = B.fold_scalar(case["tree"], _consts(case))
+    assert got == case["foldScalarTo"], (
+        f"{case['id']}: answered {got!r}, fixture pins {case['foldScalarTo']!r}")
+    if "maxLookback" in case:
+        # ⛔ AND IT COSTS NO BARS. `syminfo.*` is settled by the BINDING, so a text
+        # question over it reads no bar at all — pinned beside the answer because a
+        # lookback silently guessed at 0 and a lookback that IS 0 look identical
+        # until the day the guess is wrong.
+        assert ai.max_lookback(case["tree"]) == case["maxLookback"]
+
+
+@pytest.mark.parametrize("case", [c for c in CASES if c.get("notFoldableOn")],
+                         ids=lambda c: c["id"])
+def test_an_unresolvable_symbol_scoped_field_STOPS_the_fold_and_names_itself(case):
+    with pytest.raises(B.NotFoldable) as caught:
+        B.fold_scalar(case["tree"], _consts(case))
+    what = caught.value.what
+    assert case["notFoldableOn"] in what, (
+        f"{case['id']}: stopped on {what!r}, expected it to name "
+        f"{case['notFoldableOn']!r}")
+    for fragment in case.get("notFoldableSays") or ():
+        assert fragment in what, (
+            f"{case['id']}: the reason is missing {fragment!r}\n  got: {what}")
 
 
 @pytest.mark.parametrize("case", [c for c in CASES if "foldsTo" in c],

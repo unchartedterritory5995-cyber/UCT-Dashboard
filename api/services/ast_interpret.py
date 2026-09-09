@@ -109,7 +109,33 @@ INF = float("inf")
 #: expression, and that is the whole design: a shape with no slot for an
 #: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
 #: FORWARD reference stays inexpressible in both lanes at once.
-NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
+#: ⭐⭐ AND THE BIND-TIME TEXT TRIO. ``textop`` is a QUESTION about text whose
+#: answer is a NUMBER, so it sits wherever a number sits and every walker prices
+#: it as one; ``str`` and ``symtext`` are the only operands it takes and may
+#: appear NOWHERE ELSE. ⛔ THAT PARENTAGE IS THE WHOLE REASON THE TRIO IS
+#: ADMISSIBLE — text can be ASKED ABOUT and can never be CARRIED, so this lane
+#: gains no second value kind. ``parse.js::assertCanonical`` enforces it on the
+#: persisted tree; here the containment shows up as ``interpret`` having no arm
+#: for any of the three, which is correct: they must be FOLDED before evaluation
+#: (``ast_bind.fold_bound``), and one that reaches the evaluator is a refusal
+#: rather than a silently wrong column.
+NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
+              "str", "symtext", "textop")
+
+#: The subset of ``NODE_TYPES`` that is NOT EVALUABLE — settled by the fold
+#: before anything computes, and refused by ``interpret`` if one ever reaches it.
+#:
+#: ⛔⛔ THIS EXISTS SO THE SPLIT HAS ONE OWNER. Two rails need it and they need it
+#: for opposite reasons: the conformance census (``tools/ast_conformance.py``)
+#: measures NUMERIC agreement between the lanes and cannot carry a node that
+#: never becomes a number, while the node-type rails must still prove every type
+#: is exercised somewhere. Naming the subset once, here, is what stops those two
+#: from disagreeing about which types are which.
+#:
+#: ⚠️ IT IS NOT AN EXEMPTION LIST. A type named here still has to appear in a
+#: committed net -- ``tests/fixtures/ast/bind_fold_parity.json`` -- and both
+#: lanes still have to agree about it there, string for string.
+BIND_TIME_NODE_TYPES = ("str", "symtext", "textop")
 
 
 # --------------------------------------------------------------------------- #
@@ -2581,6 +2607,17 @@ def max_lookback(ast: Any) -> int:
     for node in order:
         kind = node["type"]
         if kind in ("num", "series"):
+            seen[id(node)] = 0
+            continue
+        # ⭐ BIND-TIME TEXT COSTS NOTHING IN BARS, and that is a fact about the
+        # values rather than a convenience: ``syminfo('ticker')`` is settled by
+        # the BINDING, so it reads no bar at all, and a text question over such
+        # operands reads none either. ⛔ ZERO IS NOT A DEFAULT HERE — every other
+        # unhandled type falls through to a refusal below, because a lookback
+        # silently guessed at 0 is the one direction a budget must never fail in:
+        # it hands back numbers computed from bars that were never fetched.
+        # Mirrors ``interpret.js::maxLookback``'s arm.
+        if kind in ("str", "symtext", "textop"):
             seen[id(node)] = 0
             continue
         if kind == "op":

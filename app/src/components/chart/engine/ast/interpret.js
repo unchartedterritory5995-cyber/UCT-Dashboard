@@ -2411,6 +2411,15 @@ export function maxLookback(ast) {
   const seen = new Map()
   for (const node of order) {
     if (node.type === 'num' || node.type === 'series') { seen.set(node, 0); continue }
+    // ⭐ BIND-TIME TEXT COSTS NOTHING IN BARS, and that is a fact about the
+    // values rather than a convenience: `syminfo('ticker')` is settled by the
+    // BINDING, so it reads no bar at all, and a text question over such operands
+    // reads none either. ⛔ ZERO IS NOT A DEFAULT HERE — every other unhandled
+    // type falls through to a refusal below, because a lookback silently
+    // guessed at 0 is the one direction a budget must never fail in: it hands
+    // back numbers computed from bars that were never fetched.
+    if (node.type === 'str' || node.type === 'symtext') { seen.set(node, 0); continue }
+    if (node.type === 'textop') { seen.set(node, 0); continue }
     if (node.type === 'op') {
       let best = 0
       for (const arg of node.args) best = Math.max(best, seen.get(arg))

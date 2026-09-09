@@ -34,6 +34,11 @@ const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8
 
 const CORPUS = readJson('tests/fixtures/ast/corpus.json')
 const ESCAPES = readJson('tests/fixtures/ast/escapes.json')
+/** ⭐ THE SECOND REGRESSION NET. `corpus.json` is the EVALUATED one — eight
+ *  readers walk it and several compute a digest over bars. The bind-time text
+ *  nodes are not evaluable by construction, so they live here instead, and the
+ *  node-type claim below is asserted over the UNION so nothing is exempt. */
+const BIND_PARITY = readJson('tests/fixtures/ast/bind_fold_parity.json')
 
 /** Does the CONFIGURED parser accept this source? Measured, never declared. */
 const parses = (source) => { try { jsep(source); return true } catch { return false } }
@@ -96,8 +101,37 @@ describe('the persisted tree is the contract, and it is jsep-independent', () =>
       for (const t of typesIn(res.ast)) seen.add(t)
       for (const k of keysIn(res.ast)) keys.add(k)
     }
+    // ⭐⭐ AND THE BIND-TIME NODES COME FROM THE OTHER NET, BECAUSE THEY CANNOT
+    // COME FROM THIS ONE. `corpus.json` is the EVALUATED net: eight readers walk
+    // it and several of them compute a digest over `bars`. `str`, `symtext` and
+    // `textop` are not evaluable BY CONSTRUCTION — they must be folded before a
+    // tree is interpreted, and `interpret` refuses one that reaches it — so a row
+    // here would either be skipped by every evaluator (a case that proves
+    // nothing) or force each of them to learn an exception.
+    //
+    // ⛔ THE CLAIM IS UNCHANGED: every node type is exercised by a committed
+    // regression net. What changed is that there are TWO nets and the union is
+    // asserted, so nothing is exempt and a ninth type with no coverage anywhere
+    // still fails here BY NAME.
+    for (const c of BIND_PARITY.cases) for (const t of typesIn(c.tree)) seen.add(t)
+    for (const c of BIND_PARITY.cases) for (const k of keysIn(c.tree)) keys.add(k)
     expect([...seen].sort()).toEqual([...NODE_TYPES].sort())
     expect([...keys].sort()).toEqual(['args', 'name', 'type', 'value'])
+  })
+
+  it('⛔ …and the SECOND net really is carrying its half — not a silent no-op', () => {
+    // A `bind_fold_parity.json` that lost its text rows would make the union
+    // above identical to the corpus alone, and the assertion would then fail —
+    // but it would fail reading "the corpus is missing three types", pointing an
+    // engineer at the wrong file. This names the right one.
+    const fromParity = new Set()
+    for (const c of BIND_PARITY.cases) for (const t of typesIn(c.tree)) fromParity.add(t)
+    for (const t of ['str', 'symtext', 'textop']) {
+      expect(fromParity.has(t),
+        `bind_fold_parity.json no longer exercises \`${t}\`. It is the ONLY net that `
+        + 'can — a bind-time node is not evaluable, so it cannot live in corpus.json.')
+        .toBe(true)
+    }
   })
 
   // ⭐⭐ THE RAIL TASK 2 DECLARED ITSELF BLIND TO, AND HANDED HERE BY NAME.

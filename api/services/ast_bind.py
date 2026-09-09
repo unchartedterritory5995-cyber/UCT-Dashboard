@@ -58,6 +58,25 @@ from typing import Any, Mapping
 
 from api.services.ast_interpret import TABLE, _is_number, _refuse
 
+
+def _load_symbol_scope() -> dict:
+    """``symbolScope.json``, or an empty scope.
+
+    ⚠️ AN EMPTY SCOPE IS THE SAFE FAILURE, AND IT IS NOT SILENT IN EFFECT: with
+    no ``confirmed`` entries the fold refuses every symbol-scoped field by name,
+    which is exactly what it does today. A missing file therefore cannot make
+    this lane ANSWER differently from the other one -- it can only make it refuse
+    more, and the parity fixture is what would catch that.
+    """
+    import json
+    import pathlib
+    p = (pathlib.Path(__file__).resolve().parents[2] / "app" / "src" / "components"
+         / "chart" / "engine" / "ast" / "symbolScope.json")
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
 #: The clock names that are constant for a binding, READ OFF THE MANIFEST.
 #:
 #: ⛔ NEVER A LIST TYPED HERE. ``dayofweek`` and ``isdaily`` sit in the same
@@ -100,6 +119,98 @@ _BINARY = {
 }
 
 
+#: The arithmetic of the text questions, mirroring
+#: ``app/src/components/chart/engine/ast/bind.js::TEXT_PREDICATE_FN`` exactly.
+#:
+#: ⛔ TWO LANES, ONE ARTIFACT: ``tests/fixtures/ast/bind_fold_parity.json`` pins
+#: the answers, because *"do the two lanes agree on emptiness and case"* is
+#: precisely the question a cross-lane divergence hides in. Pine's
+#: ``str.contains`` is case-SENSITIVE and substring-based, and an empty needle is
+#: contained by every string -- true in Python and JavaScript alike, so the
+#: mirror is exact rather than merely close.
+_TEXT_PREDICATE = {
+    "contains": lambda a, b: 1.0 if str(b) in str(a) else 0.0,
+    "startswith": lambda a, b: 1.0 if str(a).startswith(str(b)) else 0.0,
+    "endswith": lambda a, b: 1.0 if str(a).endswith(str(b)) else 0.0,
+    "length": lambda a: float(len(str(a))),
+    "eq": lambda a, b: 1.0 if str(a) == str(b) else 0.0,
+    "ne": lambda a, b: 0.0 if str(a) == str(b) else 1.0,
+}
+
+#: The symbol-scoped vocabulary, READ OFF THE SAME DATA FILE THE JS LANE READS.
+#:
+#: ⛔⛔ ONE FILE, NOT TWO ROSTERS. ``symbolScope.json`` sits beside the manifest
+#: because that is where the manifest lives, and this lane reads it from disk for
+#: the same reason ``ast_interpret`` reads ``closedTable.json``: a second copy of
+#: *which exchange spellings have been witnessed* would be a second authority
+#: over the one question that decides whether a member gets a right answer or an
+#: inverted one.
+_SYMBOL_SCOPE = _load_symbol_scope()
+
+#: ``<our store exchange string>`` -> ``<the string TradingView returns>``, and
+#: ONLY where a capture witnessed it. ``store_to_pine`` beside it in the same
+#: file is a PROPOSAL; reading that here would turn eleven guesses into eleven
+#: shipped answers in a single edit.
+SYMBOL_EXCHANGE_CONFIRMED = {
+    k: str(v["pine"])
+    for k, v in (_SYMBOL_SCOPE.get("confirmed") or {}).items()
+    if not k.startswith("_") and isinstance(v, Mapping)
+    and isinstance(v.get("pine"), str) and isinstance(v.get("witness"), str)
+}
+
+#: The reason the fold quotes when a symbol-scoped field cannot be resolved for
+#: a binding -- read off the manifest so the sentence has one owner.
+_PENDING = {k: v for k, v in (_SYMBOL_SCOPE.get("pending_measurement") or {}).items()
+            if not k.startswith("_")}
+
+
+def symbol_constants(symbol=None) -> dict:
+    """What ONE symbol makes constant: ``syminfo.*``, and nothing else.
+
+    ⭐⭐ ``ticker`` ALWAYS; THE OTHER TWO ONLY ON A WITNESSED EXCHANGE. The plain
+    symbol is the string our own store is keyed by, so there is no vendor
+    question in it. ``tickerid`` and ``exchange`` are TradingView strings a
+    member compares with ``==`` and ``str.contains``, where a
+    plausible-but-unmeasured spelling does not degrade the answer -- it INVERTS
+    it.
+
+    ⛔ THE GATE IS HERE AND NOT AT THE TRANSLATOR DOOR, because confirmation is a
+    property of THE SYMBOL EXCHANGE. A door runs once per script and cannot
+    answer a question whose answer is *"it depends which symbol"*.
+
+    ⚠️ ``tickerid`` IS ASSEMBLED, NOT STORED: Pine spells it ``EXCHANGE:SYMBOL``,
+    so it is exactly as measured as its exchange half and is gated on the same
+    witness.
+    """
+    return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol)
+
+
+def symbol_constants_with(confirmed, symbol=None) -> dict:
+    """``symbol_constants`` with the witness map handed in.
+
+    ⭐⭐ THE PRODUCTION CALL IS THE ONE-LINE SPECIALISATION ABOVE. ``confirmed``
+    is empty today, so every path that reads an exchange is DARK -- and a rail
+    that could only drive the dark path would prove the refusal works while
+    proving nothing about the answer. Taking the map as a parameter lets a test
+    drive the SERVING path with a synthetic witness, so *"these fields refuse"*
+    becomes a statement about the DATA rather than about a code path nobody has
+    ever seen run (``lesson_built_tested_green_and_unreachable``).
+    """
+    out: dict = {}
+    if not isinstance(symbol, Mapping):
+        return out
+    ticker = str(symbol.get("ticker") or "").strip()
+    if not ticker:
+        return out
+    out["syminfo.ticker"] = ticker
+    stored = str(symbol.get("exchange") or "").strip()
+    if stored and confirmed and stored in confirmed:
+        pine = confirmed[stored]
+        out["syminfo.exchange"] = pine
+        out["syminfo.tickerid"] = pine + ":" + ticker
+    return out
+
+
 class NotFoldable(Exception):
     """Raised carrying the OPERAND that stopped the fold, never a generic message."""
 
@@ -118,12 +229,12 @@ def binding_constants(timeframe: Mapping[str, Any] = None,
     binding*, and the pane and the sweep would drift on the one question the
     whole fold rests on.
 
-    ⚠️ ``symbol`` IS ACCEPTED AND CONTRIBUTES NOTHING YET. ``syminfo.*`` is
-    symbol-scoped, is resolved from OUR store rather than from the vendor, and
-    only the fields the store can populate may ship. Until that lands a window
-    mentioning ``syminfo.*`` does not fold and refuses naming the operand -- the
-    correct answer, not a placeholder. The parameter exists so the call sites do
-    not have to move when it does.
+    ⚰️ ``symbol`` USED TO BE ACCEPTED AND CONTRIBUTE NOTHING. It now
+    contributes ``syminfo.*`` through ``symbol_constants`` -- see there for why
+    ``ticker`` resolves for every symbol while ``tickerid`` and ``exchange``
+    wait on a witnessed exchange spelling. The old note said only the fields our
+    store can populate may ship; that is still the rule, and what changed is
+    that one of them can.
     """
     out: dict = {}
     for name in BIND_TIME_CLOCK:
@@ -132,7 +243,43 @@ def binding_constants(timeframe: Mapping[str, Any] = None,
     for name, value in (inputs or {}).items():
         if _is_number(value):
             out[str(name)] = float(value)
+    # ⭐ TEXT AND NUMBERS SHARE ONE MAP, and each reader checks the type it
+    # needs: ``fold_scalar`` accepts only a finite number, ``fold_text`` only a
+    # string. A single map keeps *what is constant for this binding* one
+    # question with one answer, which is the whole reason this function exists
+    # rather than each caller assembling its own.
+    out.update(symbol_constants(symbol))
     return out
+
+
+def fold_text(node, consts) -> str:
+    """One TEXT expression -> a string, or ``NotFoldable`` naming what stopped it.
+
+    ⛔⛔ TEXT LIVES ONLY INSIDE THIS PASS. Nothing here hands a string back to a
+    caller that could put it in a tree: ``fold_scalar`` consumes these through
+    ``_TEXT_PREDICATE`` and returns a NUMBER. That containment is what let the
+    closed table gain ``str.contains`` without gaining a second value system in
+    every walk that prices, lints and evaluates a tree.
+
+    ⭐ AND THE REFUSAL NAMES THE FIELD WITH ITS REASON. A binding whose exchange
+    has no witness stops on ``syminfo.exchange`` carrying the measurement gap --
+    a member told *"the engine grammar does not hold this name"* would rewrite a
+    script that will work unchanged the day a capture lands.
+    """
+    if not isinstance(node, Mapping):
+        raise NotFoldable(repr(node))
+    kind = node.get("type")
+    if kind == "str":
+        return str(node.get("value"))
+    if kind == "symtext":
+        field = str(node.get("name"))
+        key = "syminfo." + field
+        have = consts.get(key)
+        if isinstance(have, str) and have:
+            return have
+        why = _PENDING.get(field)
+        raise NotFoldable(key + " \u2014 " + why if why else key)
+    raise NotFoldable("a " + repr(kind) + " node where text was needed")
 
 
 def fold_scalar(node: Any, consts: Mapping[str, Any]) -> float:
@@ -149,6 +296,20 @@ def fold_scalar(node: Any, consts: Mapping[str, Any]) -> float:
         if name in consts:
             return float(consts[name])
         raise NotFoldable(str(name))
+
+    # ⭐ A TEXT QUESTION WITH A NUMERIC ANSWER. ``str.contains(syminfo.ticker,
+    # "/")`` is 1 or 0 for a binding, and after this line nothing textual remains
+    # in the tree -- which is what lets a window length, a screener column and
+    # the repaint linter all go on seeing only numbers.
+    if kind == "textop":
+        name = node.get("name")
+        fn = _TEXT_PREDICATE.get(name)
+        if fn is None:
+            raise NotFoldable("text predicate " + repr(name))
+        try:
+            return float(fn(*[fold_text(a, consts) for a in (node.get("args") or [])]))
+        except TypeError as exc:
+            raise NotFoldable("text predicate " + repr(name)) from exc
 
     if kind == "op":
         name = node.get("name")
@@ -221,6 +382,21 @@ def fold_bound(ast: Any, consts: Mapping[str, Any] = None) -> Any:
             return node
         if not isinstance(node.get("args"), (list, tuple)):
             return node
+        # ⭐⭐ A ``textop`` FOLDS WHEREVER IT SITS, not only in an int slot -- and
+        # that is not symmetry for its own sake. ``Uncharted Volume`` line 222
+        # feeds its answer to a BOOLEAN (``isRatioSymbol``), never to a window
+        # length, so a pass that only rewrote lengths would leave the node in the
+        # tree and the evaluator would refuse a definition that was perfectly
+        # decidable. Every ``textop`` is bind-time by construction, so folding it
+        # everywhere is the same claim the node type already makes.
+        # ⛔ AND AN UNFOLDABLE ONE IS LEFT EXACTLY AS IT WAS, like every other
+        # operand here: the check downstream then refuses the member's own
+        # expression, naming the field that stopped it.
+        if node.get("type") == "textop":
+            try:
+                return {"type": "num", "value": fold_scalar(node, consts)}
+            except NotFoldable:
+                return node
         slots = int_slots(node.get("name")) if node.get("type") == "call" else []
         args = []
         for i, arg in enumerate(node.get("args") or ()):
@@ -258,7 +434,18 @@ def render(node: Any) -> str:
         return str(int(v)) if isinstance(v, (int, float)) and float(v).is_integer() else str(v)
     if kind == "series":
         return str(node.get("name"))
+    if kind == "str":
+        return chr(34) + str(node.get("value")) + chr(34)
+    if kind == "symtext":
+        return "syminfo." + str(node.get("name"))
     args = [render(a) for a in (node.get("args") or ())]
+    if kind == "textop":
+        name = node.get("name")
+        if name == "eq" and len(args) == 2:
+            return args[0] + " == " + args[1]
+        if name == "ne" and len(args) == 2:
+            return args[0] + " != " + args[1]
+        return "str." + str(name) + "(" + ", ".join(args) + ")"
     name = node.get("name")
     if kind == "op":
         if name == "?:" and len(args) == 3:

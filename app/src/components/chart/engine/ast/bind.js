@@ -30,6 +30,12 @@ import { TABLE, TableRefusal } from './parse.js'
 // exactly what the first cut of this file did.
 import { REFUSALS } from './interpret.js'
 
+// ⭐ THE SYMBOL-SCOPED VOCABULARY AS DATA. Everything in it is a fact about the
+// outside world — our store's exchange spellings on one side, TradingView's on
+// the other — so it is edited without reading code, and the capture that turns
+// `syminfo.exchange` on is a data change rather than a deploy of new logic.
+import SYMBOL_SCOPE from './symbolScope.json'
+
 /** ⛔ THE REFUSAL IS BUILT THE WAY `interpret.js` BUILDS ITS OWN — guard prefix
  *  from `REFUSALS`, then the detail — so a surface branching on `.guard` sees the
  *  same door whether the length was hand-typed or folded, and the Python twin's
@@ -74,6 +80,88 @@ const BINARY = {
   '||': (a, b) => Number(Boolean(a) || Boolean(b)),
 }
 
+/** The arithmetic of the text predicates, in ONE place for this lane.
+ *
+ *  ⛔ `pine.js` IMPORTS THIS RATHER THAN KEEPING A COPY. The translator folds a
+ *  predicate over two LITERALS at translate time and the fold settles the same
+ *  predicate over a symbol at bind time — same question, two moments — and two
+ *  copies of "does an empty needle match" is the second-authority defect this
+ *  repo keeps paying for. `api/services/ast_bind.py` holds the Python mirror,
+ *  and `bind_fold_parity.json` pins both against one artifact.
+ *
+ *  ⭐ PINE'S SEMANTICS, NOT JAVASCRIPT'S CONVENIENCE: `str.contains` is
+ *  case-SENSITIVE and substring-based, and an empty needle is contained by every
+ *  string — which is true in Python and JavaScript alike, so the mirror is exact
+ *  rather than merely close. */
+export const TEXT_PREDICATE_FN = Object.freeze({
+  contains: (a, b) => (String(a).includes(String(b)) ? 1 : 0),
+  startswith: (a, b) => (String(a).startsWith(String(b)) ? 1 : 0),
+  endswith: (a, b) => (String(a).endsWith(String(b)) ? 1 : 0),
+  length: (a) => String(a).length,
+  eq: (a, b) => (String(a) === String(b) ? 1 : 0),
+  ne: (a, b) => (String(a) === String(b) ? 0 : 1),
+})
+
+/** The exchange spellings actually WITNESSED on a TradingView chart:
+ *  `<our store's string>` → `<Pine's string>`.
+ *
+ *  ⛔⛔ THIS IS THE SERVING PATH AND IT READS `confirmed` ONLY.
+ *  `symbolScope.json::store_to_pine` beside it is a PROPOSAL — written down so
+ *  the probe knows what to check and so a reviewer can disagree with a specific
+ *  line — and reading it here would turn eleven guesses into eleven shipped
+ *  answers in a single edit. An entry counts only if it carries a `witness`: an
+ *  entry without one is an assertion wearing a data structure. */
+export const SYMBOL_EXCHANGE_CONFIRMED = Object.freeze(Object.fromEntries(
+  Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.confirmed) || {})
+    .filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object'
+      && typeof v.pine === 'string' && typeof v.witness === 'string')
+    .map(([k, v]) => [k, String(v.pine)]),
+))
+
+/** The reason the fold quotes when a symbol-scoped field cannot be resolved for
+ *  THIS binding — read off the manifest so the sentence has one owner. */
+const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement) || {})
+
+/** What ONE symbol makes constant: `syminfo.*`, and nothing else.
+ *
+ *  ⭐⭐ `ticker` ALWAYS, THE OTHER TWO ONLY ON A WITNESSED EXCHANGE. The plain
+ *  symbol is the string our own store is keyed by, so there is no vendor question
+ *  in it. `tickerid` and `exchange` are TradingView strings a member compares with
+ *  `==` and `str.contains`, where a plausible-but-unmeasured spelling does not
+ *  degrade the answer — it INVERTS it. So they resolve for a symbol whose exchange
+ *  has a capture and refuse, by name and with the reason, for one that does not.
+ *
+ *  ⛔ THE GATE IS HERE AND NOT AT THE DOOR because confirmation is a property of
+ *  THE SYMBOL'S EXCHANGE. A door runs once per script and cannot answer a question
+ *  whose answer is "it depends which symbol".
+ *
+ *  ⚠️ `tickerid` IS ASSEMBLED, NOT STORED: Pine's is `EXCHANGE:SYMBOL`, so it is
+ *  exactly as measured as the exchange half and is gated on the same witness. */
+export function symbolConstantsWith(confirmed, symbol) {
+  const out = {}
+  if (!symbol || typeof symbol !== 'object') return out
+  const ticker = typeof symbol.ticker === 'string' ? symbol.ticker.trim() : ''
+  if (!ticker) return out
+  out['syminfo.ticker'] = ticker
+  const stored = typeof symbol.exchange === 'string' ? symbol.exchange.trim() : ''
+  if (stored && confirmed && Object.prototype.hasOwnProperty.call(confirmed, stored)) {
+    const pine = confirmed[stored]
+    out['syminfo.exchange'] = pine
+    out['syminfo.tickerid'] = `${pine}:${ticker}`
+  }
+  return out
+}
+
+/** ⭐⭐ THE WITNESS MAP IS A PARAMETER, AND THE PRODUCTION CALL IS THE
+ *  ONE-LINE SPECIALISATION. `confirmed` is empty today, so every path that reads
+ *  an exchange is DARK — and a rail that could only drive the dark path would be
+ *  proving the refusal works while proving nothing about the answer. Handing the
+ *  map in lets a test drive the SERVING path with a synthetic witness, so "these
+ *  fields refuse" is a statement about the DATA rather than about a code path
+ *  nobody has ever seen run (`lesson_built_tested_green_and_unreachable`). */
+export const symbolConstants = (symbol) =>
+  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol)
+
 /** Thrown carrying the OPERAND that stopped the fold, never a generic message. */
 export class NotFoldable extends Error {
   constructor(what) {
@@ -88,10 +176,11 @@ export class NotFoldable extends Error {
  *  building this itself would be a second authority over *what is constant for a
  *  binding* — the one question the whole fold rests on.
  *
- *  ⚠️ `symbol` IS ACCEPTED AND CONTRIBUTES NOTHING YET; `syminfo.*` resolves from
- *  our own store and only the fields it can populate may ship. Until then a
- *  window mentioning `syminfo.*` does not fold and refuses naming the operand,
- *  which is the correct answer rather than a placeholder. */
+ *  ⚰️ `symbol` USED TO BE ACCEPTED AND CONTRIBUTE NOTHING. It now contributes
+ *  `syminfo.*` through `symbolConstants` — see there for why `ticker` resolves
+ *  for every symbol while `tickerid` and `exchange` wait on a witnessed exchange
+ *  spelling. The old note said only the fields our store can populate may ship,
+ *  and that is still the rule; what changed is that one of them can. */
 export function bindingConstants({ timeframe, inputs, symbol } = {}) {
   const out = {}
   for (const name of BIND_TIME_CLOCK) {
@@ -102,7 +191,39 @@ export function bindingConstants({ timeframe, inputs, symbol } = {}) {
   for (const [name, value] of Object.entries(inputs || {})) {
     if (typeof value === 'number' && Number.isFinite(value)) out[String(name)] = value
   }
+  // ⭐ TEXT AND NUMBERS SHARE ONE MAP, and each reader checks the type it needs:
+  // `foldScalar` accepts only a finite number, `foldText` only a string. A single
+  // map keeps "what is constant for this binding" a single question with a single
+  // answer, which is the whole reason `bindingConstants` exists rather than each
+  // caller assembling its own.
+  Object.assign(out, symbolConstants(symbol))
   return out
+}
+
+/** One TEXT expression → a string, or `NotFoldable` naming what stopped it.
+ *
+ *  ⛔⛔ TEXT LIVES ONLY INSIDE THIS PASS. Nothing here returns a string to a
+ *  caller that could put it in a tree: `foldScalar` consumes these through
+ *  `TEXT_PREDICATE_FN` and hands back a NUMBER. That containment is the whole
+ *  reason the closed table can gain `str.contains` without gaining a second
+ *  value system in every walk that prices, lints and evaluates a tree.
+ *
+ *  ⭐ AND THE REFUSAL NAMES THE FIELD, NOT THE NODE KIND. A binding whose
+ *  exchange has no witness stops on `syminfo.exchange` with the measurement
+ *  reason the manifest carries — a member reading "the engine grammar does not
+ *  hold this" would rewrite a script that will work unchanged the day a capture
+ *  lands. */
+export function foldText(node, consts) {
+  if (!node || typeof node !== 'object') throw new NotFoldable(String(node))
+  if (node.type === 'str') return String(node.value)
+  if (node.type === 'symtext') {
+    const key = `syminfo.${node.name}`
+    const have = Object.prototype.hasOwnProperty.call(consts, key) ? consts[key] : undefined
+    if (typeof have === 'string' && have !== '') return have
+    const why = PENDING[node.name]
+    throw new NotFoldable(why ? `${key} — ${why}` : key)
+  }
+  throw new NotFoldable(`a '${node.type}' node where text was needed`)
 }
 
 /** One expression → a number, or `NotFoldable` naming what stopped it. */
@@ -115,6 +236,16 @@ export function foldScalar(node, consts) {
   if (kind === 'series') {
     if (Object.prototype.hasOwnProperty.call(consts, node.name)) return Number(consts[node.name])
     throw new NotFoldable(String(node.name))
+  }
+
+  // ⭐ A TEXT QUESTION WITH A NUMERIC ANSWER. `str.contains(syminfo.ticker, "/")`
+  // is 1 or 0 for a binding, and after this line nothing textual remains in the
+  // tree — which is what lets a window length, a screener column and the repaint
+  // linter all go on seeing only numbers.
+  if (kind === 'textop') {
+    const fn = TEXT_PREDICATE_FN[node.name]
+    if (!fn) throw new NotFoldable(`text predicate '${node.name}'`)
+    return Number(fn(...(node.args || []).map((a) => foldText(a, consts))))
   }
 
   if (kind === 'op') {
@@ -162,6 +293,14 @@ export function render(node) {
     return Number.isInteger(Number(node.value)) ? String(Number(node.value)) : String(node.value)
   }
   if (node.type === 'series') return String(node.name)
+  if (node.type === 'str') return JSON.stringify(String(node.value))
+  if (node.type === 'symtext') return `syminfo.${node.name}`
+  if (node.type === 'textop') {
+    const parts = (node.args || []).map(render)
+    if (node.name === 'eq') return `${parts[0]} == ${parts[1]}`
+    if (node.name === 'ne') return `${parts[0]} != ${parts[1]}`
+    return `str.${node.name}(${parts.join(', ')})`
+  }
   const args = (node.args || []).map(render)
   if (node.type === 'op') {
     if (node.name === '?:' && args.length === 3) return `${args[0]} ? ${args[1]} : ${args[2]}`
@@ -194,6 +333,24 @@ function assertUsableWindow(fnName, index, value, source) {
 export function foldBound(ast, consts = {}) {
   const walk = (node) => {
     if (!node || typeof node !== 'object' || !Array.isArray(node.args)) return node
+    // ⭐⭐ A `textop` FOLDS WHEREVER IT SITS, not only in an int slot — and that
+    // is not symmetry for its own sake. `Uncharted Volume` line 222 feeds its
+    // answer to a BOOLEAN (`isRatioSymbol`), never to a window length, so a pass
+    // that only rewrote lengths would leave the node in the tree and the
+    // evaluator would refuse a definition that was perfectly decidable. Every
+    // `textop` is bind-time by construction, so folding it everywhere is the
+    // same claim the node type already makes.
+    // ⛔ AND AN UNFOLDABLE ONE IS LEFT EXACTLY AS IT WAS, like every other
+    // operand here: the check downstream then refuses the member's own
+    // expression, naming the field that stopped it.
+    if (node.type === 'textop') {
+      try {
+        return { type: 'num', value: foldScalar(node, consts) }
+      } catch (err) {
+        if (!(err instanceof NotFoldable)) throw err
+        return node
+      }
+    }
     const slots = node.type === 'call' ? intSlots(node.name) : []
     const args = node.args.map((arg, i) => {
       if (slots.includes(i) && arg && typeof arg === 'object' && arg.type !== 'num') {

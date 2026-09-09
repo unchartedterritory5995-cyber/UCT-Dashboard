@@ -29,7 +29,9 @@ const FIXTURE = path.resolve(
 )
 const CASES = JSON.parse(readFileSync(FIXTURE, 'utf8')).cases
 
-const consts = (c) => bindingConstants({ timeframe: c.timeframe, inputs: c.inputs })
+const consts = (c) => bindingConstants({
+  timeframe: c.timeframe, inputs: c.inputs, symbol: c.symbol,
+})
 
 describe('the fixture is a real population', () => {
   it('⛔ non-vacuity — it carries folds, refusals AND left-alone cases', () => {
@@ -37,7 +39,43 @@ describe('the fixture is a real population', () => {
     expect(CASES.some((c) => c.foldsTo !== undefined)).toBe(true)
     expect(CASES.some((c) => c.refusalContains)).toBe(true)
     expect(CASES.some((c) => c.leavesUnfolded)).toBe(true)
+    // ⭐ AND THE TEXT HALF, ASSERTED SEPARATELY. Without this the text rows could
+    // all be deleted and every remaining assertion below would still pass — the
+    // failure mode a shared fixture is most prone to.
+    expect(CASES.some((c) => c.foldScalarTo !== undefined)).toBe(true)
+    expect(CASES.some((c) => c.notFoldableOn)).toBe(true)
   })
+})
+
+describe('this lane answers a TEXT question with the PINNED number', () => {
+  for (const c of CASES.filter((x) => x.foldScalarTo !== undefined)) {
+    it(`⭐ ${c.id}`, () => {
+      expect(foldScalar(c.tree, consts(c))).toBe(c.foldScalarTo)
+      if (c.maxLookback !== undefined) {
+        // ⛔ AND IT COSTS NO BARS. `syminfo.*` is settled by the BINDING, so a
+        // text question over it reads no bar at all — pinned beside the answer
+        // because a lookback silently guessed at 0 and a lookback that IS 0 look
+        // identical until the day the guess is wrong.
+        expect(maxLookback(c.tree)).toBe(c.maxLookback)
+      }
+    })
+  }
+})
+
+describe('an unresolvable symbol-scoped field STOPS the fold and names itself', () => {
+  for (const c of CASES.filter((x) => x.notFoldableOn)) {
+    it(`⛔ ${c.id}`, () => {
+      let err = null
+      try {
+        foldScalar(c.tree, consts(c))
+      } catch (e) { err = e }
+      expect(err, `${c.id} did not stop at all`).toBeInstanceOf(NotFoldable)
+      expect(err.what).toContain(c.notFoldableOn)
+      for (const fragment of c.notFoldableSays || []) {
+        expect(err.what, `missing ${JSON.stringify(fragment)}`).toContain(fragment)
+      }
+    })
+  }
 })
 
 describe('this lane folds to the PINNED literal', () => {
