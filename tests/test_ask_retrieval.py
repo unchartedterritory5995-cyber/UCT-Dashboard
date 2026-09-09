@@ -84,8 +84,14 @@ def corpus(tmp_path):
         "CREATE TABLE j2_note_mentions (note_id TEXT, user_id TEXT, symbol TEXT);"
         "CREATE TABLE j2_note_documents (id TEXT PRIMARY KEY, user_id TEXT,"
         " note_id TEXT, name TEXT, status TEXT, attachment_url TEXT);"
+        # ⛔ WAVE P3: `text_origin` IS PART OF THE REAL TABLE and the
+        # production Ask queries now read it. A hand-typed fixture schema
+        # that omits a production column cannot exercise the query that
+        # selects it -- the suite would go green against SQL that could
+        # never run. Keep this in step with `db.py`.
         "CREATE TABLE j2_note_document_pages (document_id TEXT, user_id TEXT,"
-        " page_number INTEGER, text TEXT);"
+        " page_number INTEGER, text TEXT,"
+        " text_origin TEXT NOT NULL DEFAULT 'native');"
         "CREATE TABLE j2_note_excerpts (id TEXT PRIMARY KEY, user_id TEXT,"
         " note_id TEXT, document_id TEXT, page_number INTEGER, captured_text TEXT,"
         " quote_prefix TEXT, quote_suffix TEXT, annotation TEXT);"
@@ -120,7 +126,9 @@ def corpus(tmp_path):
                  "('d1',?,'n_thesis','deck.pdf','ready','/x.pdf')", (U,))
     page = ("Management expects gross margins to normalize lower in the "
             "mid-seventies range as mix shifts toward rack-scale systems.")
-    conn.execute("INSERT INTO j2_note_document_pages VALUES ('d1',?,2,?)", (U, page))
+    conn.execute("INSERT INTO j2_note_document_pages"
+                 " (document_id, user_id, page_number, text)"
+                 " VALUES ('d1',?,2,?)", (U, page))
     conn.execute("INSERT INTO j2_note_excerpts VALUES "
                  "('e1',?,'n_thesis','d1',2,?,'expects ',' in the','the guidance walk-down')",
                  (U, "gross margins to normalize lower"))
@@ -565,7 +573,7 @@ class TestAskDocument:
     def test_retrieval_never_leaves_the_named_document(self, corpus):
         corpus.execute("INSERT INTO j2_note_documents VALUES "
                        "('d9',?,'n_thesis','other.pdf','ready','/o.pdf')", (U,))
-        corpus.execute("INSERT INTO j2_note_document_pages VALUES ('d9',?,1,?)",
+        corpus.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text) VALUES ('d9',?,1,?)",
                        (U, "mid-seventies range appears in this other document too."))
         corpus.execute("INSERT INTO j2_note_document_pages_fts VALUES ('d9',?,1,?)",
                        (U, "mid-seventies range appears in this other document too."))

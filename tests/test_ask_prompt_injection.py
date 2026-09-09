@@ -76,7 +76,8 @@ def note_item(text, *, label="NVDA thesis", nid="n1"):
 
 def page_item(text, *, name="deck.pdf", pn=3):
     e = ev.from_document_page(
-        {"document_id": "d1", "page_number": pn, "user_id": "u1", "name": name},
+        {"document_id": "d1", "page_number": pn, "user_id": "u1",
+         "name": name, "text_origin": "native"},
         snippet=text, score=0.5)
     e["relevance"] = ev.QUERY_MATCH
     return e

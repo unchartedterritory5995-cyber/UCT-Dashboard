@@ -34,7 +34,8 @@ def note(nid, score, *, title="Untitled note", text="note body", rel=Q):
 
 def page(doc, pn, *, score=0.5, text="page text", rel=Q):
     e = ev.from_document_page(
-        {"document_id": doc, "page_number": pn, "user_id": "u1", "name": "deck.pdf"},
+        {"document_id": doc, "page_number": pn, "user_id": "u1",
+         "name": "deck.pdf", "text_origin": "native"},
         snippet=text, score=score)
     e["relevance"] = rel
     return e

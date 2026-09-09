@@ -696,9 +696,11 @@ def _document_pages_scoped(conn, user_id: str, document_id: str, q: str,
         " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name, d.note_id AS note_id"
         f"{_capture_cols(conn)}"
+        f"{_PROVENANCE_COL}"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
         " JOIN j2_notes n ON n.id = d.note_id"
+        f"{_PROVENANCE_JOIN}"
         " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
         " AND p.document_id = ? AND n.deleted_at IS NULL"
         " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
@@ -749,6 +751,28 @@ def _excerpts_scoped(conn, user_id: str, document_id: str, q: str,
 def _capture_cols(conn) -> str:
     from api.services.journal_two.web_capture import capture_columns
     return capture_columns(conn)
+
+
+# ── Wave P3 §13/§14 · document-page PROVENANCE, in one place ────────────────
+#
+# ⛔⛔ THREE QUERIES RETRIEVE DOCUMENT PAGES FROM THE FTS MIRROR — Ask Document,
+# Current Note and Security Research — and the mirror does not carry
+# `text_origin`. Each of them needs the same join back to the canonical page
+# row, and three hand-copied joins is how one of them silently loses it and
+# starts reporting every scanned page as natively extracted. One fragment,
+# used by all three, so a change reaches every scope or none.
+#
+# ⛔ THE FTS TABLE IS ALIASED `p` IN ALL THREE, so the canonical row takes a
+# different alias. LEFT JOIN on the page's PRIMARY KEY: it may add a fact, and
+# it may never add a result — cardinality is part of search correctness.
+#
+# ⛔ NOT A COLUMN ON THE MIRROR. That table is trigger-owned under a storage
+# contract this wave may not touch, and duplicating provenance there would mean
+# a migration, a reindex and two truths that can drift.
+_PROVENANCE_COL = ", pg.text_origin AS text_origin"
+_PROVENANCE_JOIN = (
+    " LEFT JOIN j2_note_document_pages pg"
+    " ON pg.document_id = p.document_id AND pg.page_number = p.page_number")
 
 
 # ── Wave O6: completed thesis reviews as retrievable member history ─────────
@@ -904,9 +928,11 @@ def _document_pages_in_note(conn, user_id: str, note_id: str, q: str,
             " bm25(j2_note_document_pages_fts) AS score,"
             " d.name AS name, d.note_id AS note_id"
             f"{_capture_cols(conn)}"
+            f"{_PROVENANCE_COL}"
             " FROM j2_note_document_pages_fts p"
             " JOIN j2_note_documents d ON d.id = p.document_id"
             " JOIN j2_notes n ON n.id = d.note_id"
+            f"{_PROVENANCE_JOIN}"
             " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
             " AND d.note_id = ? AND n.deleted_at IS NULL"
             " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",
@@ -1357,8 +1383,10 @@ def _entity_documents(conn, user_id: str, note_ids: list[str], q: str,
         " bm25(j2_note_document_pages_fts) AS score,"
         " d.name AS name"
         f"{_capture_cols(conn)}"
+        f"{_PROVENANCE_COL}"
         " FROM j2_note_document_pages_fts p"
         " JOIN j2_note_documents d ON d.id = p.document_id"
+        f"{_PROVENANCE_JOIN}"
         " WHERE j2_note_document_pages_fts MATCH ? AND p.user_id = ?"
         f" AND d.note_id IN ({ph})"
         " ORDER BY bm25(j2_note_document_pages_fts) LIMIT ?",

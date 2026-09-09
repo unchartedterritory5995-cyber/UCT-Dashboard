@@ -861,3 +861,313 @@ class TestAClaimNobodyCanServeIsNotProcessing:
         assert doc["textComplete"] is True
         assert doc["pagesFromOcr"] == 1
         assert doc["ocrUnavailable"] is False
+
+
+# ── Wave P3 §13/§14 · Ask must RECEIVE the provenance, from the real query ───
+
+from api.services.journal_two import ask_retrieval as askr  # noqa: E402
+from api.services.journal_two import ask_evidence as ev  # noqa: E402
+
+
+class TestAskReceivesOcrProvenance:
+    """⛔⛔ THE WAVE N DEFECT, WRITTEN DOWN SO IT CANNOT REPEAT: a correct
+    branch existed and the production SQL never selected the field. FOUR
+    separate queries build document-page evidence — Notebook, Ask Document,
+    Current Note and Security Research — so a rail that hand-builds a row
+    certifies nothing. Every assertion below runs the REAL retrieval function
+    against a REAL OCR'd page in the REAL schema."""
+
+    def _ocr_a_page(self, name="deck.pdf"):
+        doc_id, note_id = _attach(_scanned_pdf(), name=name)
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        return doc_id, note_id
+
+    def _pages(self, items, doc_id):
+        return [i for i in items
+                if i["source_type"] == ev.DOCUMENT_PAGE
+                and i["location"].get("document_id") == doc_id]
+
+    def test_ask_document_scope_carries_it(self, env):
+        doc_id, _ = self._ocr_a_page()
+        out = askr.retrieve_document(A, doc_id, SCAN_PHRASE)
+        [page] = self._pages(out["evidence"], doc_id)
+        assert page["text_origin"] == ocr.ORIGIN_OCR
+
+    def test_the_notebook_scope_carries_it(self, env):
+        doc_id, _ = self._ocr_a_page()
+        out = askr.retrieve(A, SCAN_PHRASE)
+        [page] = self._pages(out["evidence"], doc_id)
+        assert page["text_origin"] == ocr.ORIGIN_OCR
+
+    def test_the_current_note_scope_carries_it(self, env):
+        # §27 — Current Note legitimately consumes its own attached document
+        # pages, so it is SUPPORTED and must not silently omit provenance.
+        doc_id, note_id = self._ocr_a_page()
+        out = askr.retrieve_note(A, note_id, SCAN_PHRASE)
+        [page] = self._pages(out["evidence"], doc_id)
+        assert page["text_origin"] == ocr.ORIGIN_OCR
+
+    def test_the_security_research_scope_carries_it(self, env):
+        # §25 — a scanned document reached through the security scope obeys the
+        # SAME scope rules as a native one; OCR widens nothing.
+        note_id = notes_svc.create_note(A, {
+            "title": "NVDA filings", "ticker": "NVDA",
+            "bodyJson": {"type": "doc", "content": [{"type": "paragraph"}]}})["id"]
+        doc_id, _ = _attach(_scanned_pdf(), note_id=note_id, name="nvda.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        out = askr.retrieve_entity_research(A, "NVDA", SCAN_PHRASE)
+        pages = self._pages(out["evidence"], doc_id)
+        assert pages, "the security scope did not reach the scanned page"
+        assert all(p["text_origin"] == ocr.ORIGIN_OCR for p in pages)
+
+    def test_a_native_page_reports_native_through_the_same_path(self, env):
+        # ⛔ THE CONTROL. A field that always says "ocr" is not provenance.
+        _, native_lines = fx.page_clean()
+        term = max((w.strip(".,%$()") for w in " ".join(native_lines).split()
+                    if w.strip(".,%$()").isalpha()), key=len)
+        doc_id, _ = _attach(_native_pdf(), name="native.pdf")
+        out = askr.retrieve_document(A, doc_id, term)
+        pages = self._pages(out["evidence"], doc_id)
+        assert pages, "the native fixture produced no page evidence"
+        assert all(p["text_origin"] == ocr.ORIGIN_NATIVE for p in pages)
+
+    def test_provenance_does_not_change_what_the_evidence_IS(self, env):
+        # §10/§11/§12 — still a DOCUMENT_PAGE, still page-navigable, still the
+        # same lineage. There is no OCR source type and no OCR viewer.
+        doc_id, _ = self._ocr_a_page(name="q3.pdf")
+        out = askr.retrieve_document(A, doc_id, SCAN_PHRASE)
+        [page] = self._pages(out["evidence"], doc_id)
+        assert page["source_type"] == ev.DOCUMENT_PAGE
+        assert page["navigation"] == {"kind": "document", "document_id": doc_id,
+                                      "page_number": 1}
+        assert page["citation_validity"] == ev.CITE_PAGE_ONLY
+        assert page["label"].startswith("q3.pdf")
+        # §29 — the lineage is the PAGE, so an excerpt saved from it collides
+        # with it rather than corroborating it.
+        assert page["lineage_key"] == f"page:{doc_id}#1"
+
+    def test_the_builder_refuses_a_row_that_never_asked_the_column(self, env):
+        # ⛔⛔ THIS IS WHY THE FIELD IS DEMANDED, NOT DEFAULTED. A default would
+        # let a fifth query forget the column and report every scanned page as
+        # natively extracted — silently, and only in production.
+        with pytest.raises(KeyError):
+            ev.from_document_page(
+                {"document_id": "d1", "page_number": 1, "user_id": A,
+                 "name": "x.pdf"}, snippet="x")
+
+
+class TestProvenanceSurvivesToTheStream:
+    """⛔⛔ WAVE P3 §34 — THE CLASSIC NEW-FIELD DEATH. A retriever can carry a
+    field perfectly and the member still never sees it, because the projection
+    to the browser is the last place it can be dropped and dropping it looks
+    like nothing at all. These go through `prepare()`, which IS the first
+    stream event, so the assertion is on what the client actually receives."""
+
+    def test_the_sources_event_carries_the_provenance(self, env):
+        from api.services.journal_two import ask_service
+        doc_id, _ = _attach(_scanned_pdf(), name="deck.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+
+        prepared = ask_service.prepare(A, "document", doc_id, SCAN_PHRASE)
+        pages = [s for s in prepared["sources"]
+                 if (s["navigation"] or {}).get("document_id") == doc_id]
+        assert pages, "the document produced no sources"
+        assert all(s["textOrigin"] == ocr.ORIGIN_OCR for s in pages)
+        # §11 — the citation still reads as the document at its page.
+        assert all(s["label"].startswith("deck.pdf") for s in pages)
+        assert all(s["type"] == "document_page" for s in pages)
+
+    def test_a_native_document_reaches_the_stream_as_native(self, env):
+        from api.services.journal_two import ask_service
+        _, native_lines = fx.page_clean()
+        term = max((w.strip(".,%$()") for w in " ".join(native_lines).split()
+                    if w.strip(".,%$()").isalpha()), key=len)
+        doc_id, _ = _attach(_native_pdf(), name="native.pdf")
+        prepared = ask_service.prepare(A, "document", doc_id, term)
+        pages = [s for s in prepared["sources"]
+                 if (s["navigation"] or {}).get("document_id") == doc_id]
+        assert pages
+        assert all(s["textOrigin"] == ocr.ORIGIN_NATIVE for s in pages)
+
+    def test_the_public_projection_matches_its_own_allowlist(self, env):
+        # ⚰️ THE ALLOWLIST USED TO NAME FIELDS THE PROJECTION DOES NOT EMIT —
+        # documentation of a mechanism that was not running. Derive it, never
+        # restate it.
+        from api.services.journal_two import ask_service as svc
+        keys = set(svc.public_source(1, {"source_type": "note", "label": "x"}))
+        assert keys == set(svc._PUBLIC_FIELDS)
+
+
+class TestPageLevelOriginIsAuthoritative:
+    """§22 — a mixed document is ONE document. Only the page that was actually
+    read off an image carries that provenance; a native page beside it must not
+    inherit a warning it has not earned."""
+
+    def test_only_the_scanned_page_of_a_mixed_document_says_scanned(self, env):
+        doc_id, _ = _attach(_mixed_pdf(), name="mixed.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+
+        c = _conn()
+        origins = {r["page_number"]: r["text_origin"] for r in c.execute(
+            "SELECT page_number, text_origin FROM j2_note_document_pages"
+            " WHERE document_id = ?", (doc_id,)).fetchall()}
+        c.close()
+        assert origins == {1: ocr.ORIGIN_NATIVE, 2: ocr.ORIGIN_OCR,
+                           3: ocr.ORIGIN_NATIVE}
+
+        # …and the same is true of what Ask receives, page by page.
+        from api.services.journal_two import ask_service
+        scanned = ask_service.prepare(A, "document", doc_id, SCAN_PHRASE)
+        pages = [s for s in scanned["sources"]
+                 if (s["navigation"] or {}).get("document_id") == doc_id]
+        assert pages and all(s["textOrigin"] == ocr.ORIGIN_OCR for s in pages)
+        assert all((s["navigation"] or {}).get("page_number") == 2 for s in pages)
+
+
+@pytest.mark.skipif(_TESS_BIN is None,
+                    reason="no tesseract binary on this machine")
+class TestTheUnreadablePageStaysOutOfAsk:
+    """⛔⛔ §18/§19 — THE GATE IS WHAT KEEPS GARBAGE OUT OF THE ANSWER. The
+    engine WILL return text for an unreadable page: 258 characters of noise,
+    measured. If it reached the canonical row it would reach Search, Ask and a
+    citation, and the member would be shown a source that says nothing."""
+
+    def _two_page_doc(self):
+        img_ok, _ = fx.page_clean()
+        img_bad, _ = fx.page_table()          # its own distinctive words
+        pdf = fx._images_to_scanned_pdf([img_ok, fx.degrade_unreadable(img_bad)])
+        return _attach(pdf, name="filing.pdf")
+
+    def test_a_question_only_the_unreadable_page_could_answer_gets_no_answer(
+            self, env, monkeypatch):
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        assert tess.install_if_enabled()["active"] is True
+
+        doc_id, _ = self._two_page_doc()
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, ocr.get_adapter())
+
+        # ⭐ POSITIVE CONTROL FIRST — the readable page DID land, so a miss
+        # below is a real miss and not a broken pipeline.
+        assert document_search.search_document_pages(A, "CONDENSED"), \
+            "the readable page never became searchable"
+
+        # "Automotive" appears only on the page that could not be read.
+        assert document_search.search_document_pages(A, "Automotive") == []
+
+        from api.services.journal_two import ask_service
+        prepared = ask_service.prepare(A, "document", doc_id, "Automotive segment revenue")
+        pages = [s for s in prepared["sources"]
+                 if (s["navigation"] or {}).get("page_number") == 2]
+        assert pages == [], f"the unreadable page reached Ask: {pages!r}"
+
+    def test_the_rejected_page_leaves_no_text_and_no_false_completeness(
+            self, env, monkeypatch):
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        tess.install_if_enabled()
+        doc_id, _ = self._two_page_doc()
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, ocr.get_adapter())
+
+        c = _conn()
+        rows = {r["page_number"]: (r["text"] or "").strip() for r in c.execute(
+            "SELECT page_number, text FROM j2_note_document_pages"
+            " WHERE document_id = ?", (doc_id,)).fetchall()}
+        st = ocr.document_text_state(c, A, doc_id)
+        c.close()
+        assert rows[1], "the readable page stored nothing"
+        assert rows[2] == "", "rejected OCR output was persisted anyway"
+        # ⛔ A document holding one unreadable page is NOT complete.
+        assert st["text_complete"] is False
+        assert st["pages_with_text"] == 1 and st["pages_total"] == 2
+
+
+@pytest.mark.skipif(_TESS_BIN is None,
+                    reason="no tesseract binary on this machine")
+class TestExactFinancialValuesSurviveTheChain:
+    """§20 — the values a member would actually act on. A pipeline that
+    paraphrases a number is worse than one that fails to read it."""
+
+    def test_the_numbers_arrive_verbatim_and_cite_the_right_page(
+            self, env, monkeypatch):
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        tess.install_if_enabled()
+        doc_id, _ = _attach(_scanned_pdf(), name="q3.pdf")
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, ocr.get_adapter())
+
+        c = _conn()
+        text = c.execute("SELECT text FROM j2_note_document_pages"
+                         " WHERE document_id = ? AND page_number = 1",
+                         (doc_id,)).fetchone()["text"]
+        c.close()
+        # ⛔ CHARACTER FOR CHARACTER. Not "about $12.5bn", not 74.3 without the
+        # percent sign — the exact strings the page carries.
+        for value in (fx.LEDGER["revenue"], fx.LEDGER["gross_margin"],
+                      fx.LEDGER["date"]):
+            assert value in text, f"{value!r} did not survive OCR: {text[:200]!r}"
+
+        from api.services.journal_two import ask_service
+        prepared = ask_service.prepare(A, "document", doc_id, "total revenue")
+        [src] = [s for s in prepared["sources"]
+                 if (s["navigation"] or {}).get("document_id") == doc_id]
+        assert src["navigation"]["page_number"] == 1
+        assert src["textOrigin"] == ocr.ORIGIN_OCR
+        assert src["label"].startswith("q3.pdf")
+
+
+class TestOcrCreatesNoSecondSource:
+    """⛔⛔ §29 — OCR IS A REPRESENTATION, NOT A WITNESS. The scanned page is one
+    source. Its OCR text is how UCT reads that source, and an excerpt saved
+    from it is the member keeping part of it. "Three records" must never become
+    "three sources agree" — the Wave K/N/O doctrine, one object class later."""
+
+    def test_the_page_and_an_excerpt_from_it_count_as_one_source(self, env):
+        doc_id, note_id = _attach(_scanned_pdf(), name="deck.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+
+        c = _conn()
+        page_row = dict(c.execute(
+            "SELECT p.document_id, p.page_number, p.text_origin, d.name"
+            " FROM j2_note_document_pages p"
+            " JOIN j2_note_documents d ON d.id = p.document_id"
+            " WHERE p.document_id = ? AND p.page_number = 1",
+            (doc_id,)).fetchone())
+        c.close()
+        page_row["user_id"] = A
+        page = ev.from_document_page(page_row, snippet="revenue rose")
+        excerpt = ev.from_excerpt(
+            {"id": "e1", "user_id": A, "document_id": doc_id, "page_number": 1,
+             "document_name": "deck.pdf", "captured_text": "revenue rose",
+             "quote_prefix": None, "quote_suffix": None, "annotation": None},
+            anchor_ok=True)
+
+        assert page["lineage_key"] == excerpt["lineage_key"]
+        assert ev.independent_source_count([page, excerpt]) == 1
+
+    def test_provenance_alone_never_moves_the_source_count(self, env):
+        # The SAME page counted once whether it was read natively or off an
+        # image: provenance is metadata, not a witness and not a discount.
+        base = {"document_id": "d1", "page_number": 1, "user_id": A,
+                "name": "x.pdf"}
+        native = ev.from_document_page({**base, "text_origin": ocr.ORIGIN_NATIVE},
+                                       snippet="x")
+        scanned = ev.from_document_page({**base, "text_origin": ocr.ORIGIN_OCR},
+                                        snippet="x")
+        assert native["lineage_key"] == scanned["lineage_key"]
+        assert ev.independent_source_count([native]) == 1
+        assert ev.independent_source_count([scanned]) == 1
+        assert scanned["corroborates"] is True
