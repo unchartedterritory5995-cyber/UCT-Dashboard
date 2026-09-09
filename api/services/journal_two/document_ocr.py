@@ -41,6 +41,7 @@ P1 close while the real engine's PACKAGING is still an open question (§37).
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
@@ -102,6 +103,78 @@ _OCR_SEMAPHORE = threading.Semaphore(2)
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+# ── The usability gate (§17-§23) ────────────────────────────────────────────
+#
+# ⚰️ WHY THIS EXISTS. P1 treated any non-empty OCR result as usable text. The
+# Tesseract benchmark disproved it: on a page unreadable by construction the
+# engine emitted 258 characters of noise —
+#
+#   'meee conpenanon COMDENDED CONTA DATED STATEMENTS OF ue ter ented
+#    baptembe 8 2616 oe eres ont 1) Oe ot tee eee Oe ee ma are an 8 ...'
+#
+# Stored, that page would have counted toward `document_complete`, put garbage
+# into Search, and offered garbage as thesis evidence.
+#
+# ⛔⛔ IT DECIDES, IT NEVER CORRECTS (§18). The output is accepted whole or
+# rejected whole. No spell-check, no dictionary, no invented spaces, no
+# rewritten numbers, no expanded tickers. Source fidelity is the point of the
+# whole wave; a gate that "improves" the transcription would destroy it.
+#
+# ⛔ AND IT IS NOT A PROSE TEST (§19). A legitimate financial page is often
+# mostly numbers: `$9,242 $2,856 51% (6%) Q3 2026`. Measured, the noise page
+# had MORE word-like tokens (57) and a HIGHER alphanumeric ratio (0.964) than a
+# real segment table (32, 0.851). Counting "wordish" tokens would have rejected
+# the table and accepted the noise.
+#
+# ⭐ WHAT ACTUALLY SEPARATES THEM IS TOKEN SHAPE. Noise is dominated by
+# two-character fragments (`oe ee ot ma an`); real financial text is made of
+# number-bearing tokens and words of four letters or more. So a token counts as
+# MEANINGFUL if it carries a digit (`$12,913`, `51%`, `Q3`, `2026`) or contains
+# a run of four or more letters (`Automotive`, `SEGMENT`). The ratio of those
+# to all tokens is the signal.
+#
+# Measured on the gate corpus, DESIGN split only (the threshold was chosen
+# here and never adjusted afterwards):
+#     GOOD ratios 0.739 – 0.909      BAD ratios 0.000 – 0.266
+# and then scored ONCE on the unseen CONTROL split:
+#     GOOD 0.690 / 0.770 / 0.786     BAD 0.000 × 3     → 0 errors
+#
+# ⛔ THE COUNT FLOOR IS DELIBERATELY LOW. A sparse but legitimate slide yields
+# 11 meaningful tokens while the noise page yields 17 — so a COUNT threshold
+# separates nothing and would reject real pages. The ratio is the
+# discriminator; the floor only rejects a page with almost nothing on it.
+USABLE_MIN_RATIO = 0.50
+USABLE_MIN_TOKENS = 4
+
+_HAS_DIGIT = re.compile(r"\d")
+_ALPHA_RUN = re.compile(r"[A-Za-z]{4,}")
+_TOKEN_TRIM = ".,;:()[]{}\"'`$%*-\u2013\u2014|/\\"
+
+
+def _is_meaningful(token: str) -> bool:
+    core = token.strip(_TOKEN_TRIM)
+    if not core:
+        return False
+    if _HAS_DIGIT.search(core):
+        return True
+    return bool(_ALPHA_RUN.search(core))
+
+
+def text_is_usable(text: str) -> bool:
+    """Is this OCR output searchable text, or is it noise?
+
+    ⛔ A DECISION, NOT A TRANSFORMATION. Returns a bool and nothing else; the
+    caller either stores the original text unchanged or stores none.
+    """
+    tokens = (text or "").split()
+    if not tokens:
+        return False
+    meaningful = sum(1 for t in tokens if _is_meaningful(t))
+    if meaningful < USABLE_MIN_TOKENS:
+        return False
+    return (meaningful / len(tokens)) >= USABLE_MIN_RATIO
 
 
 # ── The adapter seam (§28) ──────────────────────────────────────────────────
@@ -261,14 +334,21 @@ def _set_page_status(conn, document_id: str, page_number: int, status: str,
                      *, engine: str | None = None,
                      engine_version: str | None = None,
                      error_class: str | None = None,
-                     bump_attempts: bool = False) -> None:
+                     bump_attempts: bool = False,
+                     terminal: bool = False) -> None:
+    """⛔ `terminal` exhausts the retry budget in one step. A page rejected for
+    QUALITY is deterministic: the same bytes through the same engine produce
+    the same noise, so re-running it twice more is pure waste. A transient
+    failure (a killed process, an unreadable source) still gets its retries."""
     conn.execute(
         "UPDATE j2_note_document_ocr_pages SET status = ?,"
         " engine = COALESCE(?, engine), engine_version = COALESCE(?, engine_version),"
-        " error_class = ?, attempts = attempts + ?, updated_at = ?,"
+        " error_class = ?,"
+        " attempts = CASE WHEN ? THEN ? ELSE attempts + ? END, updated_at = ?,"
         " started_at = CASE WHEN ? = 'processing' THEN ? ELSE started_at END"
         " WHERE document_id = ? AND page_number = ?",
-        (status, engine, engine_version, error_class, 1 if bump_attempts else 0,
+        (status, engine, engine_version, error_class,
+         1 if terminal else 0, MAX_ATTEMPTS, 1 if bump_attempts else 0,
          _now(), status, _now(), document_id, page_number))
     conn.commit()
 
@@ -439,6 +519,24 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
                             document_id, n, type(e).__name__)
                 _set_page_status(conn, document_id, n, OCR_FAILED,
                                  error_class=type(e).__name__, bump_attempts=True)
+                failed += 1
+                continue
+
+            # ⛔⛔ THE GATE SITS BEFORE THE WRITE (§27). Rejected output must
+            # never reach `replace_page_text`, because anything that reaches it
+            # reaches the search index one trigger later. Hiding noise at the
+            # UI while it sits in FTS would be the same defect wearing a
+            # different coat.
+            #
+            # ⛔ AND THE REJECTED TEXT IS NOT PERSISTED (§24). Only the reason
+            # is kept. There is no debugging value in a member's unreadable
+            # page that outweighs storing their private content as garbage.
+            if not text_is_usable(text):
+                log.info("[doc-ocr] %s p%s: output rejected as unusable "
+                         "(%s tokens)", document_id, n, len(text.split()))
+                _set_page_status(conn, document_id, n, OCR_FAILED,
+                                 engine=engine, engine_version=version,
+                                 error_class="unusable_output", terminal=True)
                 failed += 1
                 continue
             replace_page_text(conn, document_id=document_id, user_id=user_id,

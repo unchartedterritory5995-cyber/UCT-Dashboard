@@ -469,3 +469,229 @@ class TestTheDocumentStatusDoor:
         [d] = [x for x in r.json()["documents"] if x["id"] == doc_id]
         assert d["textComplete"] is True
         assert d["pagesFromOcr"] == 1
+
+
+# ── §17-§27 · the OCR output usability gate ─────────────────────────────────
+
+# The real noise Tesseract emitted for a page unreadable by construction.
+# ⛔ NOT INVENTED FOR THE TEST — captured from the engine, so the rail is
+# pinned to what actually happens rather than to what garbage looks like in
+# somebody's imagination.
+NOISE = ("meee conpenanon COMDENDED CONTA DATED STATEMENTS OF ue ter ented "
+         "baptembe 8 2616 oe eres ont 1) Oe ot tee eee Oe ee ma are an 8 "
+         "Ceeret ort) 2 ee ape ee ed Pet eae Pew eee ie ee at oe OP oped "
+         "© De eo yee one ee ey tery er oer ett $ «ewe ~~ ere ee re eee eo ee")
+NOISE_TOKEN = "conpenanon"      # appears only in the rejected output
+
+
+def noisy_adapter(_image) -> ocr.OcrPageResult:
+    return ocr.OcrPageResult(text=NOISE, engine=ENGINE,
+                             engine_version=ENGINE_VERSION)
+
+
+class TestUsabilityGate:
+    def test_it_accepts_a_page_that_is_mostly_numbers(self):
+        # ⛔ §19 — the failure a naive prose test would produce. A real segment
+        # table has FEWER word-like tokens and a LOWER alphanumeric ratio than
+        # the noise page; rejecting it would hide genuine research.
+        assert ocr.text_is_usable(
+            "REVENUE BY SEGMENT (in millions) Segment Data Center Gaming Total "
+            "Q3 2026 $9,242 $2,856 $12,913 Change 51% (6%) 32%") is True
+
+    def test_it_accepts_ticker_and_acronym_heavy_text(self):
+        assert ocr.text_is_usable("NVDA EBITDA FCF 10-Q $12.48 74.3% AMD") is True
+
+    def test_it_accepts_a_sparse_but_real_slide(self):
+        # Only 14 tokens — a count-based gate would have rejected this while
+        # accepting the 64-token noise page.
+        assert ocr.text_is_usable(
+            "DATA CENTER MOMENTUM Ql Q2 Q3 Q4E Revenue reached "
+            "$12.48 billion in the quarter.") is True
+
+    def test_it_rejects_the_noise_the_engine_actually_produced(self):
+        assert ocr.text_is_usable(NOISE) is False
+
+    def test_it_rejects_empty_and_near_empty_output(self):
+        assert ocr.text_is_usable("") is False
+        assert ocr.text_is_usable("   ") is False
+        assert ocr.text_is_usable("oe ~") is False
+
+    def test_it_decides_and_never_rewrites(self):
+        # ⛔ §18 — the gate returns a verdict. It has no transform to apply, so
+        # there is nothing it could silently "correct".
+        assert ocr.text_is_usable(NOISE) in (True, False)
+
+
+class TestUnusableOutputNeverBecomesText:
+    def test_the_page_is_not_stored_and_the_document_is_not_complete(self, env):
+        # ⛔ §23 — job execution success is not usable-text success.
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(noisy_adapter)
+        ocr.plan_document(doc_id)
+        res = ocr.ocr_document(doc_id, noisy_adapter)
+        assert res["pages_read"] == 0
+        assert res["pages_failed"] == 1
+
+        c = _conn()
+        row = c.execute("SELECT text, text_origin FROM j2_note_document_pages"
+                        " WHERE document_id = ?", (doc_id,)).fetchone()
+        # ⛔ §24 — the rejected text is NOT persisted. Only the reason is.
+        assert row["text"] == ""
+        assert row["text_origin"] == ocr.ORIGIN_NATIVE
+        state = ocr.document_text_state(c, A, doc_id)
+        assert state["pages_with_text"] == 0
+        assert state["text_complete"] is False
+        assert ocr.derive_document_status(state) == ocr.DOC_NO_TEXT
+        job = c.execute("SELECT status, error_class, attempts FROM"
+                        " j2_note_document_ocr_pages WHERE document_id = ?",
+                        (doc_id,)).fetchone()
+        assert job["status"] == ocr.OCR_FAILED
+        assert job["error_class"] == "unusable_output"
+        c.close()
+
+    def test_the_garbage_never_reaches_SEARCH(self, env):
+        # ⛔⛔ §27 — THE RAIL THAT MATTERS. The gate must sit BEFORE the
+        # FTS-safe write, not in front of the UI. Storing noise and hiding it
+        # at render time would be the same defect wearing a different coat.
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(noisy_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, noisy_adapter)
+        assert document_search.search_document_pages(A, NOISE_TOKEN) == []
+        assert document_search.search_document_pages(A, "baptembe") == []
+
+    def test_a_quality_rejection_does_not_burn_three_identical_retries(self, env):
+        # The same bytes through the same engine produce the same noise, so
+        # retrying is pure waste. Bounded in ONE step, not three.
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(noisy_adapter)
+        ocr.plan_document(doc_id)
+        calls = []
+        def counting(image):
+            calls.append(1)
+            return noisy_adapter(image)
+        ocr.ocr_document(doc_id, counting)
+        ocr.ocr_document(doc_id, counting)   # nothing left to attempt
+        assert len(calls) == 1
+        c = _conn()
+        assert ocr.pages_awaiting_ocr(c, doc_id) == []
+        c.close()
+
+    def test_a_good_page_beside_a_bad_one_still_lands(self, env):
+        # §16/§41 — partial failure isolation survives the gate.
+        doc_id, _ = _attach(_scanned_pdf(pages=2))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter, page_numbers=[1])
+        ocr.ocr_document(doc_id, noisy_adapter, page_numbers=[2])
+        c = _conn()
+        state = ocr.document_text_state(c, A, doc_id)
+        assert state["pages_with_text"] == 1
+        assert state["text_complete"] is False
+        c.close()
+        assert len(document_search.search_document_pages(A, SCAN_PHRASE)) == 1
+        assert document_search.search_document_pages(A, NOISE_TOKEN) == []
+
+
+# ── §29/§30/§35 · the REAL Tesseract adapter ────────────────────────────────
+
+from api.services.journal_two import document_ocr_tesseract as tess  # noqa: E402
+
+_TESS_BIN = tess.binary_path() or (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if pathlib.Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe").exists()
+    else None)
+_TESS_VER = tess.engine_version(_TESS_BIN) if _TESS_BIN else None
+
+
+class TestTheEngineIsDarkByDefault:
+    """⛔ THESE RUN EVERYWHERE, with or without a binary — the half of this
+    story that must never be skipped is that OCR stays OFF unless somebody
+    deliberately turns it on."""
+
+    def test_no_flag_means_no_adapter_even_with_a_binary_present(self, env, monkeypatch):
+        monkeypatch.delenv(tess.FLAG, raising=False)
+        state = tess.install_if_enabled()
+        assert state["flag"] is False
+        assert state["active"] is False
+        assert ocr.ocr_available() is False
+
+    def test_the_flag_alone_cannot_arm_it_without_a_working_binary(self, env, monkeypatch):
+        # ⛔ "Meant to be on but the binary is missing" is a DIFFERENT
+        # operational fact from "off", and only one of them is a defect.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", "/nonexistent/tesseract")
+        monkeypatch.setattr(tess.shutil, "which", lambda _n: None)
+        monkeypatch.setattr(tess.os.path, "exists", lambda _p: False)
+        state = tess.install_if_enabled()
+        assert state["flag"] is True and state["active"] is False
+        assert ocr.ocr_available() is False
+
+    def test_the_fingerprint_reports_capability_and_no_content(self, env):
+        line = tess.startup_fingerprint()
+        assert line.startswith("[startup] j2-ocr:")
+        for field in ("flag=", "binary=", "version=", "active="):
+            assert field in line
+
+
+@pytest.mark.skipif(_TESS_BIN is None,
+                    reason="no tesseract binary on this machine — the real-engine "
+                           "rail cannot run here (the dark-by-default rails above "
+                           "still do)")
+class TestRealTesseractThroughTheWholePipeline:
+    def test_a_scanned_page_becomes_findable_in_SEARCH(self, env, monkeypatch):
+        # ⭐ THE WHOLE CHAIN, REAL ENGINE: upload -> classify -> OCR ->
+        # usability gate -> FTS-safe replacement -> production Search.
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        assert tess.install_if_enabled()["active"] is True
+
+        doc_id, _ = _attach(_scanned_pdf())
+        assert document_search.search_document_pages(A, "CONDENSED") == []
+        ocr.plan_document(doc_id)
+        res = ocr.ocr_document(doc_id, ocr.get_adapter())
+        assert res["pages_read"] == 1, res
+
+        hits = document_search.search_document_pages(A, "CONDENSED")
+        assert len(hits) == 1, "the real engine's text is not searchable"
+        assert hits[0]["document_id"] == doc_id and hits[0]["page_number"] == 1
+        # ⛔ The financial figures a member would search for, verbatim.
+        for term in ("margin", "revenue", "billion"):
+            assert document_search.search_document_pages(A, term), term
+        c = _conn()
+        row = c.execute("SELECT text_origin FROM j2_note_document_pages"
+                        " WHERE document_id = ?", (doc_id,)).fetchone()
+        assert row["text_origin"] == ocr.ORIGIN_OCR
+        assert ocr.document_text_state(c, A, doc_id)["text_complete"] is True
+        c.close()
+
+    def test_the_engine_records_its_own_identity_for_debugging(self, env, monkeypatch):
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        tess.install_if_enabled()
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, ocr.get_adapter())
+        c = _conn()
+        job = c.execute("SELECT engine, engine_version FROM"
+                        " j2_note_document_ocr_pages WHERE document_id = ?",
+                        (doc_id,)).fetchone()
+        assert job["engine"] == "tesseract"
+        assert "tesseract" in (job["engine_version"] or "").lower()
+        c.close()
+
+    def test_a_mixed_document_reaches_complete_only_after_the_scan_is_read(self, env, monkeypatch):
+        monkeypatch.setenv(tess.FLAG, "1")
+        monkeypatch.setenv("TESSERACT_BINARY", _TESS_BIN)
+        tess.install_if_enabled()
+        doc_id, _ = _attach(_mixed_pdf())
+        c = _conn()
+        assert ocr.document_text_state(c, A, doc_id)["text_complete"] is False
+        c.close()
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, ocr.get_adapter())
+        c = _conn()
+        st = ocr.document_text_state(c, A, doc_id)
+        assert st["pages_with_text"] == 3 and st["pages_from_ocr"] == 1
+        assert st["text_complete"] is True
+        c.close()

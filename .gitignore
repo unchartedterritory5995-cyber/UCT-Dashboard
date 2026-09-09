@@ -45,6 +45,7 @@ tools/wave_p_fixtures_out/
 tools/wave_p0_bench_out/
 tools/wave_p_holdout_out/
 tools/wave_p15_tesseract_out/
+tools/wave_p_gate_out/
 
 # Local UI consistency sweep output (screenshots + font probe)
 tools/ui_sweep_out/

@@ -2959,6 +2959,27 @@ async def lifespan(app: FastAPI):
             "[startup] awareness regime_snapshots schema init failed"
         )
 
+    # Wave P1.5: wire the OCR engine, or truthfully decline to.
+    #
+    # ⛔ DARK BY DEFAULT. `J2_OCR_ENABLED` gates EXECUTION only — page-truth
+    # readiness, `no_text` semantics and the FTS write invariants are correct
+    # whether it is on or off. With it off, no adapter is installed, nothing is
+    # ever marked "OCR required", and a scanned document keeps saying exactly
+    # what it says today.
+    #
+    # ⭐ The fingerprint line is how a PACKAGING build is verified without
+    # processing a single member document: it reports whether the binary
+    # reached the image and what version it is, and nothing else.
+    try:
+        from api.services.journal_two import document_ocr_tesseract as _j2_ocr
+        _ocr_state = _j2_ocr.install_if_enabled()
+        print(_j2_ocr.startup_fingerprint(), flush=True)
+        if _ocr_state.get("flag") and not _ocr_state.get("active"):
+            logging.getLogger(__name__).warning(
+                "[startup] J2_OCR_ENABLED is set but OCR could not be armed")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] OCR engine probe failed")
+
     # Wave P1: reclaim OCR pages abandoned by a restart.
     #
     # ⛔⛔ NATIVE EXTRACTION NEVER NEEDED THIS AND OCR CANNOT DO WITHOUT IT.

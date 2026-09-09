@@ -602,16 +602,129 @@ def build_holdout(out_dir: pathlib.Path) -> dict:
     return manifest
 
 
+# ── §21 · THE USABILITY-GATE CORPUS ─────────────────────────────────────────
+#
+# ⚰️ WHY THIS EXISTS. P1 treated any non-empty OCR result as usable text. The
+# Tesseract benchmark disproved that: on a page unreadable by construction it
+# emitted 258 characters of noise. Stored, that page would count toward
+# `document_complete`, put garbage into Search, and offer garbage as evidence.
+#
+# ⛔ A THIRD CORPUS, SEPARATE FROM BOTH THE TUNED SET AND THE SELECTION
+# HOLDOUT. The tuned set shaped configuration and the holdout decided the
+# engine; reusing either to build AND score a predicate would repeat exactly
+# the mistake the holdout was created to avoid.
+#
+# ⛔ AND IT IS SPLIT INTO A DESIGN HALF AND A CONTROL HALF. The predicate is
+# designed against `_design` pages and scored on `_control` pages it has never
+# seen (§21).
+
+
+def _gate_noise(img, *, amount, blur, darken, seed):
+    from PIL import Image, ImageFilter
+    import numpy as np
+    out = degrade_noise(img, amount=amount, seed=seed)
+    if blur:
+        out = out.filter(ImageFilter.GaussianBlur(radius=blur))
+    a = np.asarray(out).astype("float32") * darken + (255 * (1 - darken) * 0.35)
+    return Image.fromarray(a.clip(0, 255).astype("uint8"), mode="L")
+
+
+def _gate_near_blank(seed=3):
+    """A near-blank page with a few scanner artifacts — the case where an
+    engine returns two or three accidental glyphs."""
+    from PIL import Image, ImageDraw
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    img = Image.new("L", (PAGE_W, PAGE_H), 250)
+    d = ImageDraw.Draw(img)
+    for _ in range(14):
+        x, y = rng.integers(100, PAGE_W - 100), rng.integers(100, PAGE_H - 100)
+        d.ellipse([x, y, x + rng.integers(3, 11), y + rng.integers(3, 11)], fill=60)
+    for _ in range(3):
+        y = int(rng.integers(200, PAGE_H - 200))
+        d.line([(80, y), (PAGE_W - 80, y + int(rng.integers(-6, 6)))], fill=150, width=2)
+    return img
+
+
+def _gate_scribbles(seed=11):
+    """Random line noise — structure without language."""
+    from PIL import Image, ImageDraw
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    img = Image.new("L", (PAGE_W, PAGE_H), 248)
+    d = ImageDraw.Draw(img)
+    for _ in range(240):
+        x0, y0 = rng.integers(60, PAGE_W - 60), rng.integers(60, PAGE_H - 60)
+        d.line([(x0, y0), (x0 + rng.integers(-90, 90), y0 + rng.integers(-30, 30))],
+               fill=int(rng.integers(20, 120)), width=int(rng.integers(1, 4)))
+    return img
+
+
+def build_gate_corpus(out_dir: pathlib.Path) -> dict:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest: dict = {"fixtures": {}, "gate_corpus": True}
+
+    clean, clean_t = page_clean()
+    dense, dense_t = page_dense()
+    table, table_t = page_table()
+    slide, slide_t = page_slide()
+    cols, cols_t = page_two_column()
+
+    # GOOD — pages a member must NEVER be told are unreadable. Deliberately
+    # includes the number-heavy, ticker-heavy, table-fragment cases §19 warns
+    # a naive prose test would reject.
+    good = [
+        ("good_clean_design", clean, "clean prose scan", "design"),
+        ("good_dense_design", dense, "dense financial page", "design"),
+        ("good_table_design", table, "table, mostly numbers", "design"),
+        ("good_lowres_design", degrade_noise(degrade_lowres(clean), 0.06),
+         "low-resolution but readable", "design"),
+        ("good_slide_control", slide, "sparse slide, very few words", "control"),
+        ("good_twocol_control", cols, "two columns", "control"),
+        ("good_skew_control", degrade_skew(clean, 2.1), "skewed but readable", "control"),
+    ]
+    # BAD — pages that must be rejected. An engine will still emit SOMETHING
+    # for each of these, which is the whole point.
+    bad = [
+        ("bad_noise_design", _gate_noise(clean, amount=0.85, blur=6, darken=0.35, seed=13),
+         "heavy grain + blur + wash", "design"),
+        ("bad_blur_design", _gate_noise(dense, amount=0.15, blur=11, darken=0.8, seed=5),
+         "extreme blur", "design"),
+        ("bad_nearblank_design", _gate_near_blank(), "near-blank with artifacts", "design"),
+        ("bad_scribbles_control", _gate_scribbles(), "random line noise", "control"),
+        ("bad_noise2_control", _gate_noise(table, amount=0.9, blur=5, darken=0.4, seed=29),
+         "heavy grain over a table", "control"),
+        ("bad_blur2_control", _gate_noise(cols, amount=0.2, blur=13, darken=0.75, seed=41),
+         "extreme blur, two columns", "control"),
+    ]
+
+    for key, img, desc, split in good + bad:
+        (out_dir / f"{key}.pdf").write_bytes(_images_to_scanned_pdf([img]))
+        manifest["fixtures"][key] = {
+            "kind": "scanned_pdf", "pages": 1, "description": desc,
+            "expect_usable": key.startswith("good_"), "split": split,
+            "truth": {"1": []},
+        }
+
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2),
+                                           encoding="utf-8")
+    return manifest
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=None)
     ap.add_argument("--holdout", action="store_true",
                     help="build the INDEPENDENT holdout corpus (§10) instead")
+    ap.add_argument("--gate", action="store_true",
+                    help="build the usability-gate corpus (§21) instead")
     args = ap.parse_args()
-    default = ("wave_p_holdout_out" if args.holdout else "wave_p_fixtures_out")
+    default = ("wave_p_gate_out" if args.gate else
+               "wave_p_holdout_out" if args.holdout else "wave_p_fixtures_out")
     out = pathlib.Path(args.out or (ROOT / "tools" / default))
-    m = build_holdout(out) if args.holdout else build(out)
+    m = (build_gate_corpus(out) if args.gate else
+         build_holdout(out) if args.holdout else build(out))
     args.out = str(out)
     total = 0
     for k, v in m["fixtures"].items():
