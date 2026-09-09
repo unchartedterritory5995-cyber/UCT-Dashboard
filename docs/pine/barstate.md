@@ -182,3 +182,30 @@ expressed by passing no `now` at all rather than by a special case.
   fixture.
 - The pane's data-notes affordance shows the sentence at the top of this page whenever a script
   references `barstate.*`.
+
+---
+
+## Outcome on Uncharted Volume — measured 2026-09-09
+
+The member script has five `barstate.*` sites: `isconfirmed` at **296, 299, 399** and `islast`
+at **429, 450**. All five now translate. They were not "flipped" in a status column — the
+engine serves the names, so they stopped refusing by construction.
+
+| contract | refusals | what remains |
+|---|---:|---|
+| screener (default) | 5 | 4 × `pine:function` **225** `ta.cum` · 1 × `pine:window` **233** `isWeekly` |
+| host / pane (`strict`) | 4 | 3 × `pine:window` **233** `isWeekly` · 1 × `pine:reassign` **250** `:=` |
+
+⭐ **`ta.cum` at 225 refusing for a screen and not for a pane is the ruling working**, not a
+gap: `_functions_cumulative` permits a pane to draw a running total and never a screen.
+
+⚠️ **`pine:reassign` at 250 is NEW, and it is the expected shape rather than a regression.**
+It was always there; translation simply never reached it, because `barstate` refused first.
+Removing a wall reveals the next one, and a refusal count that goes *down* by less than the
+number of walls removed is the normal reading — not evidence the removal failed.
+
+⛔ **`pine:window` at 233 is the bind-time fold and is NOT ours to close** — it is the other
+session's in-flight work. What this wave contributed to it is a measurement rather than a
+patch: the vendor **accepts and runs** a timeframe-conditional length, witnessed on Uncharted
+Volume itself computing on both 1D and 1W, so 233 is a capability gap and not a correctness
+guard. The numeric half (that the folded window is 5 on 1W and 20 on 1D) is still unmeasured.
