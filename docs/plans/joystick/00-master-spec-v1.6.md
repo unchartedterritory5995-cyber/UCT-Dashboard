@@ -390,6 +390,8 @@ type HubAction = {
   requires?: Array<'symbol' | 'position' | 'brokerage'>;
   enabled?: (ctx: HubContext) => boolean;
   flickable?: boolean;    // default true; false = deliberate selection only, never a <120ms flick
+  escalate?: boolean;     // the action leads to a COMMIT surface, so the fire haptic is warn()
+                          // rather than impact(). REQUIRED on kind:'confirm'; legal on 'run'. (B5)
 };
 type HubMode = {
   id: string; label: string; color: string; route?: string;

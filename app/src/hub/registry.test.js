@@ -153,7 +153,7 @@ describe('validateRegistry — confirm actions', () => {
     ran()
     expect(
       validateRegistry([
-        validMode({ fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok' }), voice(), home()] }),
+        validMode({ fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok', escalate: true }), voice(), home()] }),
       ]),
     ).toEqual([])
   })
@@ -203,7 +203,7 @@ describe('validateRegistry — flickable', () => {
     ran()
     expect(
       validateRegistry([validMode({
-        fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok', flickable: false }), voice(), home()],
+        fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok', flickable: false, escalate: true }), voice(), home()],
       })]),
     ).toEqual([])
   })
@@ -213,6 +213,57 @@ describe('validateRegistry — flickable', () => {
     const close = modesById.journal.fan.find((a) => a.id === 'journal.close')
     expect(close.flickable).toBe(false)
     expect(close.kind).toBe('run')
+  })
+})
+
+describe('validateRegistry — escalate (B5)', () => {
+  // ⛔ THE OLD INVARIANT, KEPT AS A RULE. Before B3, "fires warn()" and "kind:'confirm'" were the
+  // same set by accident of implementation (`useJoystick.js` branched on kind). B3 moved the
+  // Journal's three committing actions to 'run' and the haptic set silently shrank by three —
+  // Close included — with every test green. The marker makes the cue declarative; this rule stops
+  // the set shrinking that way again.
+
+  it("rejects kind:'confirm' without escalate:true — a confirm always escalates", () => {
+    ran()
+    expectProblem(
+      validMode({ fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok' }), voice(), home()] }),
+      'requires escalate:true',
+    )
+  })
+
+  it("accepts kind:'confirm' with escalate:true", () => {
+    ran()
+    expect(validateRegistry([validMode({
+      fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok', escalate: true }), voice(), home()],
+    })])).toEqual([])
+  })
+
+  it("ACCEPTS escalate:true on kind:'run' — the inverse rule is deliberately absent, and that is the point", () => {
+    ran()
+    // B3's three actions are exactly this shape. A rule requiring 'confirm' for the marker would
+    // have forced them back into the stacking defect to keep their haptic.
+    expect(validateRegistry([validMode({
+      fan: [outerAction(1, { escalate: true }), voice(), home()],
+    })])).toEqual([])
+  })
+
+  it('the shipped escalate set is the five actions that fired warn() before B3', () => {
+    ran()
+    const escalating = modes.flatMap((m) => m.fan).filter((a) => a.escalate === true).map((a) => a.id)
+    expect(escalating.sort()).toEqual([
+      'chart.alert',
+      'journal.breakeven',
+      'journal.close',
+      'journal.moveStop',
+      'scan.alert',
+    ])
+  })
+
+  it('every kind:"confirm" action in the shipped registry carries the marker', () => {
+    ran()
+    const confirms = modes.flatMap((m) => m.fan).filter((a) => a.kind === 'confirm')
+    expect(confirms.length).toBeGreaterThan(0)   // control: the filter is not vacuous
+    for (const a of confirms) expect(a.escalate, `${a.id}`).toBe(true)
   })
 })
 

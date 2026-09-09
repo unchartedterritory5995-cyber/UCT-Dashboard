@@ -42,6 +42,9 @@
  * @property {'navigate'|'run'|'confirm'|'home'} kind
  * @property {string[]} [requires]
  * @property {boolean}  [flickable]
+ * @property {boolean}  [escalate]  the action leads to a surface asking the member to COMMIT, so
+ *                                  the fire haptic escalates to warn() (`useJoystick.js:188`).
+ *                                  Required on kind:'confirm', legal on kind:'run' — see B5.
  */
 
 /**

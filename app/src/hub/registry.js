@@ -32,6 +32,14 @@
  * @property {Function}[confirmText] (ctx) => string. REQUIRED when kind === 'confirm'.
  * @property {HubRequirement[]} [requires]
  * @property {Function}[enabled]     (ctx) => boolean.
+ * @property {boolean} [escalate]    The action leads to a surface that asks the member to COMMIT
+ *                                   — a confirm sheet, a stop sheet, a close form. The fire haptic
+ *                                   then escalates to `warn()` instead of `impact()`
+ *                                   (`useJoystick.js:188`), which is the only escalation in the
+ *                                   set. ⛔ REQUIRED on kind:'confirm' (a confirm always
+ *                                   escalates) and equally legal on kind:'run', which is the whole
+ *                                   point: B3 moved three committing actions to 'run' and the cue
+ *                                   must not move with them. See B5.
  * @property {boolean} [flickable]   Default true. false = deliberate selection only, never a
  *                                   <120ms flick. Meaningful on kind:'confirm' AND kind:'run' —
  *                                   `useJoystick.js:387` gates on it with no kind check, so it is
@@ -170,6 +178,7 @@ const alert = (mode) => ({
   ring: 0,
   color: `--hub-mode-${mode}`,
   kind: 'confirm',
+  escalate: true,
   requires: ['symbol'],
   confirmText: (ctx) => `Alert on ${ctx?.symbol ?? ''}`.trim(),
 });
@@ -303,6 +312,7 @@ export const modes = [
         ring: 0,
         color: '--hub-mode-journal',
         kind: 'run',
+        escalate: true,
         requires: ['position'],
       },
       {
@@ -314,6 +324,7 @@ export const modes = [
         ring: 0,
         color: '--hub-mode-journal',
         kind: 'run',
+        escalate: true,
         requires: ['position'],
       },
       {
@@ -333,6 +344,7 @@ export const modes = [
         ring: 0,
         color: '--ut-red',
         kind: 'run',
+        escalate: true,
         flickable: false,
         requires: ['position'],
       },
@@ -704,6 +716,14 @@ export function validateRegistry(list = modes, opts = {}) {
 
       if (action.kind === 'confirm' && typeof action.confirmText !== 'function') {
         problems.push(`${action.id}: kind:'confirm' requires a confirmText(ctx) function`);
+      }
+      // ⛔ B5 — THE OLD INVARIANT, KEPT AS A RULE INSTEAD OF LOST. Before B3, "escalate" and
+      // "kind:'confirm'" were the same set by accident of implementation, and B3 silently shrank
+      // the haptic set by three when it moved the Journal's writes to 'run'. A confirm sheet is
+      // by definition a surface asking the member to commit, so it always escalates.
+      // ⚠️ THE INVERSE IS DELIBERATELY ABSENT: `escalate` on a 'run' action is the POINT.
+      if (action.kind === 'confirm' && action.escalate !== true) {
+        problems.push(`${action.id}: kind:'confirm' requires escalate:true — a confirm always escalates`);
       }
       if (action.kind === 'navigate' && !action.to) {
         problems.push(`${action.id}: kind:'navigate' requires a 'to'`);
