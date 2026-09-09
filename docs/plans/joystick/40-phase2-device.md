@@ -759,3 +759,50 @@ the gear icon in the left toolbar exposes the device Settings app.)
 Write **PASS / FAIL / NOTES** per numbered step directly under this checklist, with the device
 and OS version. ⚠️ A step you did not run is **blank**, never a pass — the whole point of this
 section is that the automated rows above cannot speak for it.
+
+---
+
+## Automate minutes — what a full run 4 costs, measured
+
+Pulled from BrowserStack's own API (`/automate/builds.json` → per-build
+`sessions.json`), not estimated from wall-clock:
+
+**53 sessions · 7,217 s · 120.3 minutes consumed to date.** The Free plan's Automate
+allowance is ~100 minutes, which is why run 4 died with `Automate testing time expired`
+after one device.
+
+| device | sessions | mean | longest (= a full-suite pass A) |
+|---|---|---|---|
+| Google Pixel 8 | 26 | 128 s | **1,022 s** ⚠️ see note |
+| iPhone 15 Pro | 15 | 151 s | **520 s** |
+| iPhone SE 3rd gen | 3 | 214 s | **299 s** |
+| Samsung Galaxy S24 | 9 | 109 s | **266 s** |
+
+⚠️ **The Pixel 8's 1,022 s is not a pass-A cost** — it is the run that degraded during the
+port collision and sat retrying against a foreign server. Using it would inflate the estimate
+by roughly a third. The honest pass-A reference is the **iPhone 15 Pro's 520 s**, which is the
+only session that ran the complete step list *including* screenshots and role gating to
+completion.
+
+### Estimate for a full run 4
+
+| | per device | ×4 devices |
+|---|---|---|
+| Pass A (full step list + screenshots + role gating) | ~9 min | 36 min |
+| Pass B (kill switch: mount check only, no gestures) | ~2 min | 8 min |
+| **Subtotal** | | **44 min** |
+| **With 1.5× margin** (retries, session startup, a re-run of one device) | | **≈ 66 minutes** |
+
+**So: ~66 Automate minutes buys a complete, trustworthy run 4.** Add the
+15 Pro sticky/flick trace (§ below, ~5 min) and the edge-guard re-measure (~2 min) and call it
+**≈ 75 minutes**.
+
+### The Live-only alternative, if the plan is not upgraded
+
+Every step in run 4 has a manual equivalent, and BrowserStack **Live** minutes are a separate
+allowance from Automate. `46-preview-production-check.md` is already written as a manual script;
+running pass A and pass B by hand on the four devices is roughly **40–50 minutes of Live time**
+plus the operator's attention. It produces the same PASS/FAIL rows and the same screenshots —
+what it does **not** produce is the 10× repetition, which is the entire point of the
+`10/10 per ring` criterion. ⛔ A hand-run "I tried it a few times and it worked" is not the
+same claim, and must not be recorded in the same table as an automated 10/10.

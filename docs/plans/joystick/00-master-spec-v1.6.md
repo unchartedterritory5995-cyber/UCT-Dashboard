@@ -924,3 +924,34 @@ amendments from Wave 0:
 - The **Mobile-browser specialist** owns the two viewport ⚠️ GAPs (volume-pane exclusion, visualViewport
   behaviour under a collapsing toolbar at the new 68px offset). The **Registry engineer** owns the
   virtualized-cursor question with the Architecture lead.
+
+---
+
+## C1.3 The preview kill switch (v1.6, Phase 2.5)
+
+### Joystick hub preview — `HUB_PREVIEW_ENABLED` (Deploy)
+
+> **`HUB_PREVIEW_ENABLED` unset or `true` → hub eligible; `false` → hub hidden for everyone on
+> next authenticated request. Production sets it `true` deliberately so "on on purpose" is
+> distinguishable from "unset".**
+
+It is a **kill switch**, so the default is ON. The opposite default would make a variable
+someone forgot to set indistinguishable from a deliberate shutdown — the ambiguity
+`project_feature_flag_ledger` exists to prevent.
+
+- Read **at request time** in `api/routers/auth.py::_access_payload`, which signup, login and
+  `/api/auth/me` all share. There is **no feature-flag endpoint in this app** — the flag rides
+  that payload by design, so it needs no new route and is present the moment a session exists.
+- Accepted off values: `0`, `false`, `no`, `off` (case- and whitespace-insensitive). Everything
+  else, including unset, is ON.
+- **Rollback:** set `HUB_PREVIEW_ENABLED=false` in Railway → takes effect on each user's next
+  authenticated request, **no redeploy**. ⚠️ An already-open page keeps its hub until its next
+  `/api/auth/me` — in practice a reload or route change, not a background poll.
+  ⚠️ `railway variables --set` **stages and redeploys**; confirm with
+  `railway variables --service web --kv`.
+- Rails: `tests/test_hub_preview_flag.py` — `test_the_flag_is_read_per_request` (the
+  load-bearing one: a module-level capture passes every other test and makes the no-redeploy
+  rollback a fiction) and `test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed`
+  (pins the literal, not just the behaviour, so the default cannot be changed and the test
+  "fixed" to match).
+
