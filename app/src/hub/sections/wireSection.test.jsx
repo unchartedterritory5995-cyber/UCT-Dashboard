@@ -14,7 +14,16 @@ import { useEffect, useMemo, useRef } from 'react'
 import { validateSectionConfig, validateListAdapter, validateChipReadout } from '../contracts'
 import { modesById, fanFor } from '../registry'
 import { _reset as resetCursors } from '../useHubCursor'
-import useWireSection, { segmentLabelText, readScrubPayload, segmentKeys } from './wireSection'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import useWireSection, { segmentLabelText, segmentKeys } from './wireSection'
+
+/** This module's own source — read for the R-05 shim-removal rail at the bottom of this file. */
+const WIRE_SECTION_SRC = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), 'wireSection.js'),
+  'utf8',
+)
 
 // The three segments a real rundown carries, in the shape MorningWire renders them.
 const SEGMENTS = [
@@ -280,48 +289,129 @@ describe('scrollTo — a cursor that moves off-screen has stopped being a cursor
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('scrub — segment index, from either caller', () => {
-  it('a normalized 0..1 delta lands on the matching segment', () => {
-    const w = mount()
-    act(() => { captured.config.onScrub({ delta: 1, axis: 'y' }) })
-    expect(w.activeSeg()).toBe('picks')
-    act(() => { captured.config.onScrub({ delta: 0, axis: 'y' }) })
-    expect(w.activeSeg()).toBe('tape')
-    act(() => { captured.config.onScrub({ delta: 0.5, axis: 'y' }) })
-    expect(w.activeSeg()).toBe('board')
-  })
+describe('scrub — segment index, CONTEXT FIRST', () => {
+  // Every call below is `onScrub(ctx, scrub)` because that is what the mounted caller does
+  // (`HubRoot.jsx`), what `contracts.js` documents, and what `contractArity.test.js` derives
+  // from the call site. R-05 is closed; the section no longer reads both shapes.
+  const ctx = () => ({ mode: 'wire', symbol: null, timeframe: null, chartRef: { current: null } })
 
-  it('⛔ also works when the payload arrives SECOND, as HubRoot passes it', () => {
-    // `contracts.js` documents `onScrub({delta, axis})`; the mounted `HubRoot.jsx:147` calls
-    // `onScrub(ctx, scrub)`. A section written to one signature is inert under the other, and
-    // an inert scrub throws nothing and logs nothing. Filed as R-05.
+  // ⚰️ THESE TWO USED TO ASSERT `delta` AS AN ABSOLUTE POSITION — `delta: 0` landing on the first
+  // segment, `delta: 0.5` on the middle — and the section called `scrubTo(scrub.delta)` to match.
+  // Both were wrong about the engine. `useJoystick.js:293-297` emits `raw / travelPx` where `raw`
+  // is the distance between THIS pointermove and the LAST one: a per-move STEP. So a real drag
+  // emitted a stream of ~0.05s and the old code slammed the cursor to 5% of the wire on every one.
+  // The gesture "worked" — an index changed, every assertion here passed — it just went somewhere
+  // the member did not ask for. Found by the 3.3 Screener integrator, which hit the same mismatch
+  // and accumulated where this file did not.
+  it('accumulates STEPS within one gesture — delta 0 moves nothing', () => {
     const w = mount()
-    const ctx = { mode: 'wire', symbol: null, timeframe: null, chartRef: { current: null } }
-    act(() => { captured.config.onScrub(ctx, { delta: 1, axis: 'y' }) })
+    act(() => { captured.config.onScrub(ctx(), { delta: 1, axis: 'y' }) })
     expect(w.activeSeg()).toBe('picks')
+    // The load-bearing line: a move that reports no travel must not relocate the cursor.
+    act(() => { captured.config.onScrub(ctx(), { delta: 0, axis: 'y' }) })
+    expect(w.activeSeg()).toBe('picks')
+    act(() => { captured.config.onScrub(ctx(), { delta: -1, axis: 'y' }) })
+    expect(w.activeSeg()).toBe('tape')
   })
 
   it('an overshoot clamps instead of wrapping', () => {
     const w = mount()
-    act(() => { captured.config.onScrub({ delta: 1.8, axis: 'y' }) })
+    act(() => { captured.config.onScrub(ctx(), { delta: 1.8, axis: 'y' }) })
     expect(w.activeSeg()).toBe('picks')
-    act(() => { captured.config.onScrub({ delta: -0.4, axis: 'y' }) })
+    act(() => { captured.config.onScrub(ctx(), { delta: -0.4, axis: 'y' }) })
+    expect(w.activeSeg()).toBe('board')
+    act(() => { captured.config.onScrub(ctx(), { delta: -5, axis: 'y' }) })
     expect(w.activeSeg()).toBe('tape')
+  })
+
+  it('⛔ a NEW gesture re-seeds from where the cursor is, not from zero', () => {
+    // The other half of the same bug, and the one an accumulator introduces if it is naive: a
+    // member who tapped their way to a segment and then began a drag must not be thrown back to
+    // the top by the first step.
+    const w = mount()
+    act(() => { captured.config.onScrub(ctx(), { delta: 1, axis: 'y' }) })
+    act(() => { captured.config.onScrubCommit(ctx()) })
+    expect(w.activeSeg()).toBe('picks')
+
+    // A tiny forward step from the END must stay at the end, not jump to 5% of the list.
+    act(() => { captured.config.onScrub(ctx(), { delta: 0.05, axis: 'y' }) })
+    expect(w.activeSeg()).toBe('picks')
   })
 
   it('onScrubCommit reveals the landed segment even when the index did not move', () => {
     const w = mount()
-    act(() => { captured.config.onScrub({ delta: 0, axis: 'y' }) })
+    act(() => { captured.config.onScrub(ctx(), { delta: 0, axis: 'y' }) })
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
-    act(() => { captured.config.onScrubCommit() })
+    act(() => { captured.config.onScrubCommit(ctx()) })
     expect(w.nodes()[0].scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
   })
 
-  it('readScrubPayload ignores anything that is not a scrub', () => {
-    expect(readScrubPayload({ mode: 'wire' }, { delta: 0.25, axis: 'y' }))
-      .toEqual({ delta: 0.25, axis: 'y' })
-    expect(readScrubPayload({ mode: 'wire' })).toBeNull()
-    expect(readScrubPayload(undefined, null)).toBeNull()
+  it('a one-ARGUMENT call is inert — the section reads the second argument only', () => {
+    // The behavioural half of the shim-removal rail below. If someone re-introduces a
+    // normaliser, this goes red: with the shim, `onScrub({delta:1, axis:'y'})` moved the cursor.
+    const w = mount()
+    expect(w.activeSeg()).toBe('tape')
+    act(() => { captured.config.onScrub({ delta: 1, axis: 'y' }) })
+    expect(w.activeSeg()).toBe('tape')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('R-05 is closed — the scrub-payload shim must not come back', () => {
+  /**
+   * ⛔ A DEFENSIVE READ AGAINST A BUG THAT NO LONGER EXISTS IS ITSELF A DEFECT.
+   *
+   * `readScrubPayload(...args)` existed because `contracts.js` said `onScrub(scrub)` while
+   * `HubRoot.jsx` called `onScrub(ctx, scrub)`. The Director settled it on `(ctx, scrub)` and
+   * `contractArity.test.js` now DERIVES that from the call site, so the disagreement cannot
+   * return silently. The shim can, though — and left standing it teaches the next reader that
+   * the seam is still ambiguous, which is the thing that made two integrators each build one.
+   *
+   * ⭐ THE SOURCE IS READ, NOT THE EXPORT. Asserting `readScrubPayload === undefined` only
+   * catches the shim if it is exported; a private copy inlined in `onScrub` would pass. This
+   * matches the declaration itself, with comments stripped first so the prose above the handler
+   * — which names the deleted helper on purpose — cannot satisfy or trip it
+   * (`contractArity.test.js` learned that one the hard way).
+   */
+  const stripComments = (src) => src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '')
+
+  const CODE = stripComments(WIRE_SECTION_SRC)
+
+  it('declares onScrub with TWO parameters, context first', () => {
+    const m = CODE.match(/const\s+onScrub\s*=\s*useCallback\(\s*\(([^)]*)\)/)
+    expect(m, 'onScrub is no longer declared as `useCallback((…) => …)` — re-read the file').toBeTruthy()
+    const params = m[1].split(',').map((p) => p.trim()).filter(Boolean)
+    expect(params).toEqual(['ctx', 'scrub'])
+  })
+
+  it('has no rest-parameter / payload-sniffing normaliser anywhere in the file', () => {
+    expect(CODE).not.toMatch(/readScrubPayload/)
+    // The shape of the shim, not just its name: a rest-parameter handler, or a loop that
+    // searches the arguments for whichever one carries a numeric `delta`.
+    expect(CODE).not.toMatch(/useCallback\(\s*\(\s*\.\.\./)
+    expect(CODE).not.toMatch(/for\s*\(\s*const\s+\w+\s+of\s+args\s*\)/)
+    expect(CODE).not.toMatch(/\barguments\b/)
+  })
+
+  it('this rail can actually fail — the matchers hit the shim as it was written', () => {
+    // Non-vacuity control (`lesson_gate_that_cannot_fail`): the deleted source, verbatim.
+    const OLD = `
+export function readScrubPayload(...args) {
+  for (const arg of args) {
+    if (arg && typeof arg === 'object' && typeof arg.delta === 'number') return arg
+  }
+  return null
+}
+const onScrub = useCallback((...args) => {
+  const scrub = readScrubPayload(...args)
+}, [scrubTo])
+`
+    expect(OLD).toMatch(/readScrubPayload/)
+    expect(OLD).toMatch(/useCallback\(\s*\(\s*\.\.\./)
+    expect(OLD).toMatch(/for\s*\(\s*const\s+\w+\s+of\s+args\s*\)/)
+    expect(OLD.match(/const\s+onScrub\s*=\s*useCallback\(\s*\(([^)]*)\)/)[1]).toBe('...args')
   })
 })
 
@@ -366,12 +456,19 @@ describe('the JOIN — what HubRoot actually reads off a registered config', () 
     expect(fanFor(captured.config)).toEqual(fanFor(modesById.wire))
   })
 
-  it('CONTROL: a bare HubSectionConfig really does break fanFor', () => {
+  it('CONTROL: a bare HubSectionConfig really does NOT produce a usable fan', () => {
     // Without this the assertion above could pass for the wrong reason — e.g. if `fanFor` had
     // grown its own guard and the spread were no longer load-bearing at all.
+    //
+    // ⚰️ This used to assert `fanFor(bare)` THROWS, which was true only while `wire` was in
+    // PREVIEW_MODES: the preview branch did `mode.fan.filter(...)` and a bare config has no `fan`.
+    // Now that wire has shipped, `fanFor` returns `mode.fan` — `undefined` — without throwing. The
+    // control's point is unchanged and is asserted directly: a bare config yields no fan the UI
+    // can render. Weakening it to "does not throw" would have quietly retired the control.
     const bare = { id: 'wire', onTap: () => {}, readout: () => 'x' }
     expect(() => validateSectionConfig(bare, 'bare')).not.toThrow()
-    expect(() => fanFor(bare)).toThrow()
+    expect(Array.isArray(fanFor(bare)), 'a bare config produced a renderable fan — the spread is '
+      + 'no longer load-bearing and this control is dead').toBe(false)
   })
 
   it('keeps the chip labelled and coloured from the registry', () => {
@@ -382,12 +479,18 @@ describe('the JOIN — what HubRoot actually reads off a registered config', () 
     expect(captured.config.tapHint).toBe(modesById.wire.tapHint)
   })
 
-  it('leaves `wire` in the preview — this wave ships no fan change', () => {
+  it('⭐ wire has SHIPPED — the registered config yields the real fan, not the preview', () => {
     mount()
-    // fanFor's preview projection keys off `mode.id`, so the spread carrying `id: 'wire'`
-    // through is what keeps the preview fan intact with no registry edit.
-    expect(fanFor(captured.config).every((a) => a.kind === 'home' || a.id.endsWith('.voice')))
-      .toBe(true)
+    // ⚰️ This asserted the opposite through Wave A ("leaves `wire` in the preview — this wave
+    // ships no fan change"), which was correct then and became false at the Increment 2 flip.
+    // Inverted rather than deleted: if the spread ever stopped carrying `id: 'wire'`, `fanFor`
+    // would fall back to a preview projection and the section would silently ship [Voice, Home]
+    // again — a shipped feature quietly reverting to its preview is exactly the kind of
+    // regression a green suite hides.
+    const ids = fanFor(captured.config).map((a) => a.id)
+    expect(ids, 'the registered config is still returning a preview fan').toContain('wire.flag')
+    expect(ids.length).toBeGreaterThan(2)
+    expect(fanFor(captured.config)).toEqual(fanFor(modesById.wire))
   })
 })
 

@@ -253,30 +253,47 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
   // the action could be reached and said nothing useful; these prove it CANNOT be reached, on
   // every mode at once, which is the actual product claim being shipped.
 
-  it('EVERY mode is accounted for in PREVIEW_MODES — a missing one ships its full fan', async () => {
-    const { modes, PREVIEW_MODES } = await import('./registry')
+  // ⭐ RESCOPED AT THE INCREMENT 2 FLIP, NOT DELETED. These four asserted the navigation-only
+  // preview across EVERY mode, which was the right claim while every mode was in it. Four modes
+  // (wire, breadth, scan, journal) have now shipped their real fans, so an unchanged assertion
+  // would have to be deleted to go green — and deleting the rail that caught `calendar` shipping a
+  // five-action fan into a navigation-only preview is how the next section ships one unnoticed.
+  //
+  // So each one now runs over the modes STILL in `PREVIEW_MODES`, and the membership rail below
+  // runs in BOTH directions (owner amendment A4): every mode in the set must have a fan
+  // `validatePreview` accepts, and every mode NOT in the set must have a full fan
+  // `validateRegistry` accepts. A mode nobody classified fails, rather than defaulting to either.
 
-    // ⛔ THIS CAUGHT A REAL OMISSION. `calendar` was left out of the first hand-typed set,
-    // and `fanFor` therefore returned its FULL five-action fan into a preview sold as
-    // navigation-only. A mode absent from the set does not fail loudly — it silently behaves
-    // as though Phase 3 had already shipped it.
-    const missing = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id))
-    expect(
-      missing,
-      `these modes are not in PREVIEW_MODES and will show their FULL fan: ${missing.join(', ')}. `
-      + 'Remove a mode from the set only when its Phase 3 section actually ships.',
-    ).toEqual([])
+  it('A4 — membership runs BOTH directions: in the set is preview-clean, out of it is ship-ready', async () => {
+    const { modes, PREVIEW_MODES, fanFor, validatePreview, validateRegistry } = await import('./registry')
 
-    // Non-vacuity: the set must not contain ids that are not modes either.
+    // ⛔ NO MODE MAY BE UNCLASSIFIED. `calendar` was left out of the first hand-typed set and
+    // `fanFor` returned its FULL five-action fan into a preview sold as navigation-only. Absence
+    // is silent by construction — it behaves exactly as though Phase 3 had already shipped.
     const stray = [...PREVIEW_MODES].filter((id) => !modes.some((m) => m.id === id))
     expect(stray, `PREVIEW_MODES names unknown modes: ${stray.join(', ')}`).toEqual([])
+
+    // Direction 1 — still in preview ⇒ navigation-only plus Voice.
+    expect(validatePreview()).toEqual([])
+
+    // Direction 2 — out of preview ⇒ the full registry fan, and it must be valid to ship.
+    expect(validateRegistry()).toEqual([])
+
+    const shipped = modes.filter((m) => !PREVIEW_MODES.has(m.id)).map((m) => m.id)
+    // Non-vacuity: if this ever empties, Direction 2 is asserting nothing.
+    expect(shipped.length, 'no mode has left the preview — direction 2 is vacuous').toBeGreaterThan(0)
+    for (const id of shipped) {
+      const full = fanFor(modes.find((m) => m.id === id))
+      expect(full.length, `${id} left the preview with a fan of ${full.length}`).toBeGreaterThan(2)
+    }
   })
 
-  it('the preview fan contains NO run action except Voice, and no confirm action at all', async () => {
-    const { modes, fanFor, validatePreview } = await import('./registry')
+  it('a mode STILL in the preview contains no run action except Voice, and no confirm at all', async () => {
+    const { modes, PREVIEW_MODES, fanFor } = await import('./registry')
 
     const offenders = []
     for (const mode of modes) {
+      if (!PREVIEW_MODES.has(mode.id)) continue
       for (const action of fanFor(mode)) {
         if (action.kind === 'confirm') offenders.push(`${mode.id}/${action.id} confirm`)
         if (action.kind === 'run' && !action.id.endsWith('.voice')) {
@@ -284,25 +301,24 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
         }
       }
     }
-    expect(offenders, 'the preview is navigation-only plus Voice').toEqual([])
-    expect(validatePreview()).toEqual([])
+    expect(offenders, 'a mode still in the preview is showing a real action').toEqual([])
   })
 
-  it('the actions the toast used to cover are genuinely GONE from their fans', async () => {
+  it('a SHIPPED mode shows the actions the preview used to hide', async () => {
     const { modesById, fanFor } = await import('./registry')
-
-    // Both are still DEFINED in the registry — Phase 3 needs them — and neither is shown.
-    expect(modesById.wire.fan.some((a) => a.id === 'wire.flag')).toBe(true)
-    expect(modesById.scan.fan.some((a) => a.id === 'scan.alert')).toBe(true)
-
-    expect(fanFor(modesById.wire).some((a) => a.id === 'wire.flag')).toBe(false)
-    expect(fanFor(modesById.scan).some((a) => a.id === 'scan.alert')).toBe(false)
+    // ⚰️ The inverse of the old assertion, which proved these were GONE. They are the point now:
+    // if `wire.flag` or `scan.alert` failed to appear after the flip, the increment would ship a
+    // fan that still looks like the preview and nobody would notice from a green suite.
+    expect(fanFor(modesById.wire).some((a) => a.id === 'wire.flag')).toBe(true)
+    expect(fanFor(modesById.scan).some((a) => a.id === 'scan.alert')).toBe(true)
   })
 
-  it('every non-Home preview fan is exactly [Voice, Home]', async () => {
-    const { modes, fanFor, HOME_MODE_ID } = await import('./registry')
+  it('every non-Home mode STILL in the preview is exactly [Voice, Home]', async () => {
+    const { modes, PREVIEW_MODES, fanFor, HOME_MODE_ID } = await import('./registry')
+    let checked = 0
     for (const mode of modes) {
-      if (mode.id === HOME_MODE_ID) continue
+      if (mode.id === HOME_MODE_ID || !PREVIEW_MODES.has(mode.id)) continue
+      checked += 1
       const ids = fanFor(mode).map((a) => a.id)
       expect(ids.length, `${mode.id} preview fan: ${ids.join(', ')}`).toBeLessThanOrEqual(2)
       for (const id of ids) {
@@ -310,6 +326,8 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
           `${mode.id} shows ${id} in the preview`).toBe(true)
       }
     }
+    // Non-vacuity: the six remaining preview modes must actually have been walked.
+    expect(checked, 'no preview mode was checked — this rail is asserting nothing').toBeGreaterThan(0)
   })
 
   it('a hold (no drag) navigates Home to /dashboard', async () => {

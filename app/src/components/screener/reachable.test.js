@@ -288,24 +288,13 @@ const AWAITING_A_DECISION = {
   //
   // `HubConfirmSheet.jsx` below is deliberately NOT removed: no Wave A section proposes a
   // write, so it still has no caller.
-  // ── JOYSTICK HUB, PHASE 3 TASK 0 (2026-09-09) ────────────────────────────
+  // ── JOYSTICK HUB, PHASE 3 TASK 0 → WIRED IN WAVE B (2026-09-09) ─────────
   //
-  // The confirm sheet is Phase 3's ONLY write path, built in Task 0 so the
-  // contract tests can drive it before any integrator is dispatched. It is
-  // mounted by a SECTION, and no section is wired yet — Wave A (Morning Wire,
-  // Breadth) and 3.4 (Journal scrub, Plan-trade) are its first callers.
-  //
-  // ⚠️ REMOVAL CONDITION: the first section that opens a confirm sheet deletes
-  // this entry in the same commit. It is contract-tested today
-  // (`phase3Contracts.test.jsx` renders it and asserts the payload's rendered
-  // TEXT plus the once-only onConfirm), which is why it is declared here rather
-  // than left looking shipped — a component reached only by its own test is
-  // exactly the shape this rail exists to catch.
-  'app/src/hub/HubConfirmSheet.jsx':
-    'JOYSTICK HUB PHASE 3 TASK 0 — the confirm sheet, the only Phase 3 write '
-    + 'path. Built ahead of the integrators so the contract is testable before '
-    + 'dispatch; its first caller is the first section that proposes a write. '
-    + 'Delete this entry the commit that wires it.',
+  // `HubConfirmSheet.jsx` WAS declared here, built in Task 0 ahead of its callers so the
+  // contract was testable before dispatch. Wave B gave it one: `HubRoot.jsx` mounts it and
+  // `runAction` opens it for every `kind: 'confirm'` action (R-09). Entry deleted per its
+  // own stated removal condition — the whole hub is now reachable, and this file's joystick
+  // section is empty by design.
   // ── THE DASHBOARD COCKPIT RETIREMENT (2026-08-30) ────────────────────────
   //
   // `/dashboard` became four zones with declared heights, and eight preview

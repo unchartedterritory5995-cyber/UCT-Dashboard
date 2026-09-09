@@ -156,3 +156,35 @@ describe('the contract HARNESS invokes what the call site does', () => {
     expect(HARNESS).toMatch(/onScrubCommit\?\.\(\s*ctx\s*\)/)
   })
 })
+
+describe('R-09 — HubRoot actually DISPATCHES run and confirm', () => {
+  // ⛔ Until Wave B, `runAction` handled `home`, `navigate` and `*.voice`, and everything else
+  // fell through to a DEV console.warn whose comment asserted it was "unreachable, and that is the
+  // point". True in a navigation-only preview — and it meant that flipping PREVIEW_MODES would
+  // have shipped four dead bubbles per section: the member drags to Flag / Move stop / Breakeven /
+  // Close, the fan closes, nothing happens.
+  //
+  // ⭐ THE COMMENT IS WHY IT SURVIVED. It did not read "not implemented yet"; it read as a
+  // DECISION, so nobody re-checked it against the increment that makes it reachable. Asserted
+  // structurally here because a section's own tests invoke its handlers directly and are
+  // therefore blind to whether the hub ever calls them.
+  const src = stripComments(HUB_ROOT)
+
+  it('dispatches kind: run by calling action.run(ctx)', () => {
+    expect(src, 'HubRoot no longer invokes action.run — every run bubble is dead again')
+      .toMatch(/action\.run\?\.\(\s*ctx\s*\)/)
+  })
+
+  it('dispatches kind: confirm through the sheet, not by writing on the gesture', () => {
+    expect(src).toMatch(/action\.kind === 'confirm'/)
+    expect(src, 'the confirm branch no longer reads confirmText(ctx)').toMatch(/confirmText\?\.\(\s*ctx\s*\)/)
+    expect(src, 'HubConfirmSheet is no longer mounted — confirm actions have nowhere to open')
+      .toMatch(/<HubConfirmSheet/)
+  })
+
+  it('CONTROL: the fall-through warn survives for a genuinely unhandled kind', () => {
+    // Deleting the warn entirely would make a future unknown kind silent, which is the same
+    // failure one step later.
+    expect(src).toMatch(/unhandled kind/)
+  })
+})

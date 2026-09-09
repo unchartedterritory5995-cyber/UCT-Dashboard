@@ -112,27 +112,6 @@ export function segmentLabelText(segNode) {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-/**
- * ⛔ THE SCRUB PAYLOAD ARRIVES IN A DIFFERENT ARGUMENT POSITION FROM THE TWO CALLERS.
- *
- * `contracts.js` documents `onScrub({delta, axis})` — ONE argument — and
- * `phase3Contracts.test.jsx` drives the real engine that way. The MOUNTED app does not:
- * `HubRoot.jsx:147` calls `activeModeConfig?.onScrub?.(ctx, scrub)`, matching the older
- * `registry.js` `HubMode` JSDoc (`onScrub(ctx, delta)`). A section written to either signature
- * alone reads `undefined.delta` under the other, and the scrub silently does nothing — the
- * exact Phase 2 failure `contracts.js` exists to prevent, still live across this seam.
- *
- * Both files are Director-owned, so this normalizes rather than picking a side, and the
- * disagreement is filed as R-05 in `docs/plans/joystick/requests.md`. Delete this the day one
- * signature wins.
- */
-export function readScrubPayload(...args) {
-  for (const arg of args) {
-    if (arg && typeof arg === 'object' && typeof arg.delta === 'number') return arg
-  }
-  return null
-}
-
 /** Are two key lists the same list, in the same order? */
 function sameOrder(a, b) {
   if (a.length !== b.length) return false
@@ -228,16 +207,49 @@ export default function useWireSection({ rootRef, wireDate, html } = {}) {
   const onTap = useCallback(() => { next() }, [next])
   const onDoubleTap = useCallback(() => { prev() }, [prev])
 
-  const onScrub = useCallback((...args) => {
-    const scrub = readScrubPayload(...args)
-    if (!scrub) return
-    scrubTo(scrub.delta)
-  }, [scrubTo])
+  /**
+   * ⛔ CONTEXT FIRST, AND NO NORMALISER. `HubRoot.jsx` calls `onScrub(ctx, scrub)`;
+   * `contracts.js` says the same; `contractArity.test.js` DERIVES that from the call site rather
+   * than restating it, so the three cannot drift apart again.
+   *
+   * ⚰️ This used to run every argument through a `readScrubPayload(...args)` shim that picked
+   * whichever one carried a numeric `delta`, because the typedef and the mounted caller
+   * disagreed (R-05). They no longer do. The shim is deleted rather than left standing: a
+   * defensive read against a bug that no longer exists teaches the next reader that the seam is
+   * still ambiguous, and it is the reason `wireSection.test.jsx` now RAILS the one-argument form
+   * out of this file instead of asserting both call shapes land.
+   */
+  // ⛔ `scrub.delta` IS A PER-MOVE STEP, NOT A POSITION — and this called `scrubTo` as though it
+  // were one. `useJoystick.js:293-297` emits `raw / travelPx` where `raw` is the distance between
+  // THIS pointermove and the LAST one, while `useHubCursor.scrubTo` reads its argument as an
+  // absolute 0..1 position along the list. So a small downward drag emitted ~-0.1 and slammed the
+  // cursor to segment 0; a small upward drag jumped ~10% into the wire. The gesture "worked" —
+  // something moved, an index changed, every structural test passed — it just went somewhere the
+  // member did not ask for.
+  //
+  // ⭐ Found by the 3.3 Screener integrator, which hit the same mismatch and accumulated; this
+  // file did not. The accumulator lives in a ref because a scrub is a stream of steps between one
+  // press and one release, and state would lag a render behind the finger.
+  // ⭐ SEEDED FROM WHERE THE CURSOR ALREADY IS, not from 0. An accumulator that starts at zero on
+  // every gesture would send a member who tapped to segment 5 back to the top the moment they
+  // began a drag — the steps are relative, so the starting point has to be too. `null` means "no
+  // gesture in progress"; `onScrubCommit` clears it.
+  const scrubPosRef = useRef(null)
+  const onScrub = useCallback((ctx, scrub) => {
+    if (!scrub || typeof scrub.delta !== 'number' || !Number.isFinite(scrub.delta)) return
+    if (scrubPosRef.current === null) {
+      scrubPosRef.current = count > 1 ? index / (count - 1) : 0
+    }
+    const next = Math.min(1, Math.max(0, scrubPosRef.current + scrub.delta))
+    scrubPosRef.current = next
+    scrubTo(next)
+  }, [scrubTo, index, count])
 
   // A scrub that lands back on the segment it started from moves no index, so the reveal effect
   // never fires — and the member gets a released gesture that did nothing visible. Commit
   // reveals wherever the cursor actually landed.
   const onScrubCommit = useCallback(() => {
+    scrubPosRef.current = null   // the gesture is over; the next one re-seeds from where we landed
     if (index >= 0) scrollTo(index)
   }, [index, scrollTo])
 

@@ -4,6 +4,350 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## R-16 — `scan.planTrade` is `kind:'confirm'`, so Plan trade opens TWO sheets
+
+**Filed by:** the 3.3 Screener integrator. **Not blocking** (`scan` is still in `PREVIEW_MODES`) —
+**cosmetic but member-visible the day it is not.** **Owner:** Director (`registry.js`).
+
+`registry.js`'s shared `planTrade(mode)` builder sets `kind: 'confirm'` with
+`confirmText: (ctx) => 'Plan ' + ctx.symbol`. Now that R-09 has landed, `HubRoot`'s confirm branch
+opens `HubConfirmSheet` with that text and calls `action.run(ctx)` on the primary button — and the
+Screener's `run` opens `hub/PlanTradeSheet.jsx`. So the member gets:
+
+> a fan bubble → a sheet saying **"Plan AAA"** with one button → a second sheet with the actual
+> entry/stop/size fields and a **Save plan** button.
+
+The first sheet asks the member to confirm something they have not been shown yet. §3.3 of the plan
+already calls this action **`run`** (*"`Plan trade` (`run` — see the ⛔ below)"*), and the sheet it
+opens carries its own confirm step — that IS the WCAG 2.5.1 equal path, with real fields, so the
+generic confirm adds a tap and no safety.
+
+The 3.4 Journal integrator reached the same place from the other side and wired `journal.addTrade`
+(`kind:'run'`) instead, so today the two doors onto ONE sheet have different gesture shapes.
+
+Requested — `app/src/hub/registry.js`, the shared builder:
+
+```diff
+ const planTrade = (mode) => ({
+   id: `${mode}.planTrade`,
+   label: 'Plan trade',
+   icon: 'equity',
+   ring: 0,
+   color: '--hub-mode-journal',
+-  kind: 'confirm',
++  // The sheet it opens IS the confirm step, with real fields and its own Save plan button; a
++  // generic "Plan AAA?" in front of it asks the member to confirm something they have not seen.
++  kind: 'run',
+   requires: ['symbol'],
+-  confirmText: (ctx) => `Plan ${ctx?.symbol ?? ''}`.trim(),
+ })
+```
+
+⚠️ `validateRegistry` requires `confirmText` only on `kind:'confirm'`, so dropping both together is
+the whole change. `screenerSection.js` derives its fan from the registry and attaches `run` to this
+id either way, so it needs no edit when this lands.
+
+---
+
+## R-15 — no results row is painted `data-hub-cursor`, so the Screener cursor is invisible
+
+**Filed by:** the 3.3 Screener integrator. **The cursor moves, scrolls, and names itself on the
+chip — and the member cannot see WHICH ROW it is on.** **Owner:** the screener shell
+(`shell/VirtualResults.jsx`, `shell/ResultCards.jsx`).
+
+`useHubCursor` offers two ways to mark the selected row — `itemProps(i)` (spread onto a React
+element) and `paintCursor(nodes)` (imperative, for DOM the section does not own). **Neither is
+usable from `screenerSection.js`:**
+
+- `itemProps` has to be spread by the component that renders the row, and neither renderer takes a
+  prop that could carry it;
+- `paintCursor` needs the row nodes in the same order as `items`, and both renderers are
+  **virtualized** — about eight rows exist in the DOM at a time, so a node list gathered from
+  outside is neither complete nor index-aligned.
+
+The token already exists (`tokens.css:547`, reused by the Journal's three carriers), so this is a
+prop and one attribute, not a design.
+
+Requested — `app/src/pages/screener/shell/VirtualResults.jsx`:
+
+```diff
+ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort, onSort, livePrices,
+-  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }, ref) {
++  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
+@@
+-              <div role="row" key={row.ticker} className={styles.gridRow}
++              <div role="row" key={row.ticker} className={styles.gridRow}
++                {...(itemProps ? itemProps(vi.index) : null)}
+                 style={{ position: 'absolute', top: vi.start, left: 0, right: 0, height: vi.size }}>
+```
+
+…and the identical two lines in `ResultCards.jsx` on its `styles.card` div. `ScannerShell` then
+passes `itemProps={hub.cursor.itemProps}` beside the `ref` it already passes.
+
+⚠️ **`ChartsGallery` cannot take this** and should not be given a half-version: it is unvirtualized
+and paginates internally at 24 with `page` in private state, so a cursor at index 30 is on a page
+the member is not looking at. Marking it there would put a highlight on a card that is not the one
+the cursor is on. That is R-15's second half and it is a design question, not a diff.
+
+⭐ **Please assert it on RENDERED DOM, not on the cursor's state.** `itemProps` returning the right
+object proves nothing about whether an attribute reached a row — that is exactly the severed wire
+this hub keeps rediscovering.
+
+---
+
+## R-14 — `HubRoot`'s confirm sheet cannot carry a section's FIELDS, so the accessible path is unreachable
+
+**Filed by:** the 3.3 Screener integrator. **Blocks the Screener's `Alert` action from being
+useful.** **Owner:** Director (`HubRoot.jsx`).
+
+R-09's confirm branch builds the sheet payload itself:
+
+```js
+setConfirmPayload({
+  title: action.label,
+  body: action.confirmText?.(ctx) ?? `${action.label}?`,
+  primaryLabel: action.label,
+  onConfirm: () => Promise.resolve(action.run?.(ctx)).catch(…),
+})
+```
+
+That is right for a yes/no write. It cannot express the one thing `HubConfirmSheet` was built for:
+
+> `fields` — *"The EQUAL path, not a fallback: steppers and a numeric input operating on the same
+> value the gesture produced, for a member who cannot perform a fine drag. **This is why the sheet
+> exists at all** rather than the gesture committing."* — `contracts.js`, `HubConfirmPayload`
+
+`HubConfirmSheet` already renders `fields` with ± steppers, a numeric input, min/max/step clamping
+and 2dp rounding. Nothing can reach that code, because `runAction` never asks a section for a
+payload — and `onConfirm` is called as `() => action.run(ctx)`, which drops the `values` the sheet
+hands it.
+
+**What it costs the Screener right now:** `Alert` is `kind:'confirm'` and the member has no way to
+say a price. `screenerSection.js` exports `alertConfirmPayload()` — the correct payload, with the
+price field defaulting to the number the table is showing and the direction derived from it — and
+that payload reaches nobody, so the shipped behaviour is an alert at the current price, which fires
+on the next tick. The section keeps a `run` handler so the action is not inert, but the useful
+version is one branch away.
+
+Requested — `app/src/hub/HubRoot.jsx`, inside the `confirm` branch:
+
+```diff
+     if (action.kind === 'confirm') {
++      // ⭐ A section may supply its OWN payload — the only way `HubConfirmPayload.fields` (the
++      // WCAG 2.5.1 equal path) can reach the sheet. Generic yes/no confirms keep the fallback.
++      const own = action.confirmPayload?.(ctx)
++      if (own) { setConfirmPayload(own); return }
+       setConfirmPayload({
+         title: action.label,
+         body: action.confirmText?.(ctx) ?? `${action.label}?`,
+         primaryLabel: action.label,
+-        onConfirm: () => Promise.resolve(action.run?.(ctx)).catch((err) => {
++        onConfirm: (values) => Promise.resolve(action.run?.(ctx, values)).catch((err) => {
+           setToastMsg(err?.message || 'That did not work. Try again.')
+         }),
+       })
+       return
+     }
+```
+
+⚠️ Whoever applies this owns one contract edit with it: `HubSectionConfig`/`HubAction` should
+document `confirmPayload(ctx) => HubConfirmPayload|null`, and `validateConfirmPayload` should run on
+the section-supplied one (it already runs on render inside `HubConfirmSheet`, so this is belt and
+braces). ⭐ **And please rail it on the RENDERED sheet** — a test that `confirmPayload` was called
+passes with the wire cut.
+
+---
+
+## R-13 — the Screener's scan picker has no open seam, so `scan.scans` ships ABSENT
+
+**Filed by:** the 3.3 Screener integrator. **Not blocking** — the action is absent, not broken.
+**Owner:** the screener shell (`pages/screener/ScreensManager.jsx`).
+
+§3.3's inner ring is `Scans · Why? · Voice · Home`, and `Scans` is specified as *"opens the existing
+scan picker"*. The picker is `ScreensManager`'s "Screens ▾" menu (`ScreensManager.jsx:410`), and its
+open state is **private**:
+
+```js
+const [open, setOpen] = useState(false)
+…
+<button type="button" className="btn btn-primary" onClick={() => setOpen(o => !o)}>Screens ▾</button>
+```
+
+There is no `open`/`onOpenChange` prop, no imperative handle, and no ref. The only way in from
+outside is to find that button by its text and click it, which is a text-matched reach into another
+component's DOM — the kind of coupling that breaks silently the day the label changes.
+
+So `screenerSection.js` **drops `scan.scans` from the fan** rather than shipping a bubble that does
+nothing: *"⛔ AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT"* (`registry.js`). A rail asserts
+the registry declares it and the section does not, so it cannot silently reappear inert.
+
+Requested — the smallest thing that would work, mirroring `VirtualResults`'s existing
+`useImperativeHandle` seam:
+
+```diff
+-export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
++const ScreensManager = forwardRef(function ScreensManager({ currentSpec, onApply, onUseScan }, ref) {
+   const [open, setOpen] = useState(false)
++  // The hub's "Scans" action opens this menu; the button above is the other door onto the same
++  // state, so there is exactly one authority for "is the picker open".
++  useImperativeHandle(ref, () => ({ openPicker: () => setOpen(true) }), [])
+```
+
+`ScannerShell` then passes a ref through to the section, and `buildScanFan` attaches
+`run: () => picker.current?.openPicker()` to the id it already knows. **One line of the section
+changes when this lands** — it is the `case 'scan.scans':` that currently breaks.
+
+⚠️ Please do NOT solve this by having the hub click the button: a control reaching into another
+component's rendered text is a wire that no test can hold still.
+
+---
+
+## R-09 — `HubRoot.runAction` never dispatches `action.run(ctx)`, so every Phase 3 `run` and `confirm` action is inert
+
+**Filed by:** the 3.4 Journal integrator. **Blocks every write action in Phase 3, in every section.**
+**Owner:** Director (`HubRoot.jsx`).
+
+`registry.js`'s own `HubAction` typedef declares the seam:
+
+```js
+ * @property {Function}[run]         (ctx) => void|Promise<void>, for kind:'run'.
+ * @property {Function}[confirmText] (ctx) => string. REQUIRED when kind === 'confirm'.
+```
+
+`HubRoot.jsx`'s `runAction` handles `home`, `navigate`, and exactly one `run` (`*.voice`). Every
+other `run` — and every `confirm` — falls through to a DEV `console.warn` and does nothing:
+
+```js
+    if (action.kind === 'run' && action.id.endsWith('.voice')) { … }
+    // ⛔ UNREACHABLE IN THE PREVIEW, AND THAT IS THE POINT.
+    if (import.meta.env?.DEV) console.warn('[hub] preview reached an unwired action:', action.id)
+```
+
+That comment is true **only while every mode sits in `PREVIEW_MODES`**. The moment a mode leaves
+the preview, its fan ships `run`/`confirm` bubbles that a member can select, that light up, that
+fire — and that do nothing at all. ⛔ **The `PREVIEW_MODES` flip is therefore not a one-line
+registry change**: without this, flipping `journal` ships four dead bubbles (Move stop, Breakeven,
+Close, Add trade) and one dead confirm path.
+
+**Proposed diff** (not applied — `HubRoot.jsx` is Director-owned):
+
+```diff
+   const runAction = useCallback((action) => {
+     if (!action) return
+     if (action.kind === 'home') { goHome(); return }
+     if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
+     if (action.kind === 'run' && action.id.endsWith('.voice')) {
+       voiceConnectRef.current?.('compass')
+       return
+     }
++    // A section attaches its own handler to the registry's action data (see
++    // `sections/journalSection.js`). `confirm` actions open their section's sheet the same way —
++    // the sheet is the write path, so the engine only has to reach the handler.
++    if (typeof action.run === 'function') { action.run(ctx); return }
+     if (import.meta.env?.DEV) {
+       console.warn('[hub] preview reached an unwired action:', action.id)
+     }
+-  }, [goHome, navigate, setToastMsg])
++  }, [goHome, navigate, ctx, setToastMsg])
+```
+
+⚠️ `setToastMsg` is already in that dep array and is no longer read in the body — unrelated, noted
+in passing.
+
+**Meanwhile:** §3.4's fan handlers ARE attached (`journalSection.js` layers `run` onto each
+registry action) and are covered by that section's suite by calling them directly. They are
+unreachable through the engine until this lands, and `journal` stays in `PREVIEW_MODES`, so
+nothing ships half-wired.
+
+---
+
+## R-10 — the Journal fan has no `Plan trade`, and three artifacts name its inner ring differently
+
+**Filed by:** the 3.4 Journal integrator. **Owner:** Director (`registry.js`).
+
+Three documents describe the Journal's inner ring and no two agree:
+
+| Source | Inner ring |
+|---|---|
+| `registry.js` `modes.journal.fan` (the running code) | Add trade · **Note** · Voice · Home |
+| `60-phase3-plan.md` §3.4 | **Set stop** · **Plan trade** · Voice · Home |
+| the 3.4 wave brief | Add trade · **Stats** · Voice · Home |
+
+The outer ring is unanimous (Chart · Move stop · Breakeven · Close) and matches the registry
+exactly, so only the inner ring is in question.
+
+⛔ **The consequence is not cosmetic.** Gate A5 requires *"From the Journal: the same sheet opens
+prefilled from the selected position"*, and **no `journal.planTrade` action exists** for that door
+to hang on. `journalSection.js` therefore wires the Plan-trade sheet to **`journal.addTrade`** —
+the only unclaimed `run` on the fan — and says so in its own header. That is a placement decision
+made by a section about Director-owned data, which is exactly the kind of thing this file exists
+to surface rather than bury.
+
+**Proposed diff** (not applied):
+
+```diff
+       {
+         id: 'journal.addTrade',
+         label: 'Add trade',
+         icon: 'plus',
+         ring: 1,
+         color: '--hub-mode-journal',
+         kind: 'run',
+       },
+-      note('journal', 1),
++      {
++        id: 'journal.planTrade',
++        label: 'Plan trade',
++        icon: 'pin',
++        ring: 1,
++        color: '--hub-mode-journal',
++        kind: 'run',
++        requires: ['position'],
++      },
+```
+
+⚠️ **Also measured, because the brief assumed otherwise:** the registry carries **THREE**
+`requires:['position']` actions on this fan — `journal.moveStop`, `journal.breakeven`,
+`journal.close` — not four. The brief's fourth was Plan trade, which does not exist yet.
+`journalSection.positionRequiredActionIds()` DERIVES the list from the registry rather than typing
+it, so the day the action above lands it is covered without an edit; the section's suite asserts
+the derived list rather than a count.
+
+---
+
+## R-11 — in LIST view, option strategies render through `OptionsBoard`, which carries no cursor carrier
+
+**Filed by:** the 3.4 Journal integrator. **Owner:** Journal 2.0. **Blocking:** no.
+
+§3.4 authorised exactly three carrier lines: `HoldingsList` (the list), `PositionsTable`'s `<tr>`
+(the table) and its phone card. All three now carry `data-hub-pos`.
+
+But `HoldingsList` renders **only equities** — `buildEquityRows` maps `positions`, and the open
+option strategies are handed to a sibling component, `components/OptionsBoard.jsx`. So in the
+DEFAULT (list) view the hub cursor walks equity rows only; option rows enter the cursor in TABLE
+view, where `optionToRow` merges them into the same array.
+
+That is a coverage gap, not a correctness bug — an option row is a row every `requires:'position'`
+action is disabled on anyway — and it is recorded in `journalSection.js`'s header rather than
+worked around. **The ask:** one line on `OptionsBoard`'s row element,
+`data-hub-pos={String(strategy.id)}`, whenever that file's owner is next in it.
+
+---
+
+## R-12 — the phone-card carrier could not go where §3.4 cited it
+
+**Filed by:** the 3.4 Journal integrator. **Owner:** none — informational, recorded so the plan line
+is corrected rather than re-followed.
+
+§3.4 names three carriers: `HoldingsList.jsx:170-175`, `PositionsTable.jsx:278`, `:525-527`. The
+first two are DOM elements and took the attribute directly. **`:525-527` is not a DOM element** —
+it is the `<PhoneCard key={p.id} position={p} …>` call site, and an attribute there becomes a React
+prop that PhoneCard would have to forward. The attribute therefore sits on PhoneCard's own root
+`<div className={styles.card}>` (same file, same phone branch, still one line, still nothing but
+the carrier). No prop was added and no behaviour changed.
+
+---
+
 ## R-07 — `reachable.test.js`: Wave A wired both hooks; their `AWAITING_A_DECISION` entries must go
 
 **Filed by:** the 3.2 Breadth integrator. **Shared with 3.1 Wire** — either wave alone triggers it,
@@ -164,6 +508,31 @@ tolerate a signature nothing should be sending.
 ⚠️ 3.1 has no preference between the two directions and is not relitigating the recommendation
 above — it only asks that the losing signature stop being documented anywhere, so the next
 integrator cannot read the wrong one first.
+
+### ✅ RESOLVED (Director) — and the WIRE shim is deleted
+
+`contracts.js` now documents `(ctx, scrub)`, `HubRoot.jsx` has always called it that way, and
+`contractArity.test.js` DERIVES the argument list from the call site rather than restating it, so
+the three cannot drift apart again.
+
+⭐ **`readScrubPayload` is gone from `hub/sections/wireSection.js`** (3.3 Screener integrator,
+2026-09-09), and `wireSection.test.jsx` now RAILS it out: a behavioural case asserting a
+one-ARGUMENT call is inert, plus a source rail matching the shim's SHAPE (a rest-parameter
+handler, a loop searching `args` for a numeric `delta`, the helper's name, `arguments`) with
+comments stripped and a non-vacuity control that runs those matchers against the deleted source
+verbatim. A defensive read against a bug that no longer exists teaches the next reader the seam is
+still ambiguous — which is how two integrators each came to write one.
+
+⚠️ **`scrubPayloadOf` in `hub/sections/breadthSection.js` is STILL THERE.** That file belongs to
+the 3.2 Breadth integrator; this entry's own request was that BOTH shims go in the fix commit.
+
+⚠️ **Separately, and NOT fixed here: `wireSection.js` treats `scrub.delta` as an absolute
+position.** `useJoystick.js:293-297` emits `delta: (thisMove - lastMove) / travelPx` — a per-move
+STEP — while `useHubCursor.scrubTo(delta)` reads 0..1 as an ABSOLUTE position, so
+`scrubTo(scrub.delta)` makes one small drag jump to the first or last segment and a long one pin
+at an end. `breadthSection.js` and `screenerSection.js` both accumulate the steps in a ref;
+`wireSection.js` does not. Left alone deliberately: the shim deletion was the instructed change,
+and altering the wire's scrub behaviour is a 3.1 decision, not a side effect of a cleanup.
 
 Requested — pick one and make the other match. The cheaper direction is to align the typedef with
 the mounted caller, since `HubRoot` and `registry.js` already agree:

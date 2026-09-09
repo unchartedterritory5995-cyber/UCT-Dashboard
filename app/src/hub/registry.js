@@ -138,16 +138,19 @@ const why = (mode, ring = 0) => ({
   requires: ['symbol'],
 });
 
-/** Plan trade — writes to hub_planned_trades. Never a broker. Confirm sheet, always. */
+/** Plan trade — writes to hub_planned_trades. Never a broker. Opens the Plan-trade sheet. */
 const planTrade = (mode) => ({
   id: `${mode}.planTrade`,
   label: 'Plan trade',
   icon: 'equity',
   ring: 0,
   color: '--hub-mode-journal',
-  kind: 'confirm',
+  // ⛔ `run`, NOT `confirm` (R-16). Since R-09 wired the confirm branch, a `confirm` here opened
+  // HubConfirmSheet AND the section opened the Plan-trade sheet — two sheets stacked on one
+  // gesture. Plan trade IS its own sheet; a generic "Plan NVDA?" confirmation in front of it asks
+  // the member to approve opening a form. The plan said `run` all along (§3.3).
+  kind: 'run',
   requires: ['symbol'],
-  confirmText: (ctx) => `Plan ${ctx?.symbol ?? ''}`.trim(),
 });
 
 /** Alert — at LAST price, not crosshair. crosshairData is private to StockChart (deferred D-03). */
@@ -509,8 +512,14 @@ export const modesById = Object.fromEntries(modes.map((m) => [m.id, m]));
  * is readable at a glance rather than inferred from a boolean plus a comment.
  */
 export const PREVIEW_MODES = new Set([
-  'wire', 'breadth', 'scan', 'chart', 'journal', 'catalysts', 'notebook', 'calendar',
-  'home', 'flow',
+  // ⭐ INCREMENT 2 FLIPPED FOUR TOGETHER: wire, breadth, scan, journal. Together, and not one at a
+  // time, because their fans share actions (Chart it, Flag, Plan trade) and half-finished siblings
+  // would put a bubble in front of an admin that works on one section and dies on the next.
+  //
+  // ⛔ THE REMAINING SIX STAY, and each still returns [Voice, Home] until its own increment.
+  // A mode removed from this set gets its FULL fan the same render — which is how `calendar`
+  // shipped a five-action fan into a navigation-only preview on the first attempt.
+  'chart', 'catalysts', 'notebook', 'calendar', 'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */

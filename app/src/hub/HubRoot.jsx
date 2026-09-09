@@ -10,7 +10,7 @@
 // from this file. If one is missing when a test runs, that test fails on
 // module resolution, not on logic in this file.
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useHubSettings from './useHubSettings'
 import useHubActive, { useHubEligible } from './useHubActive'
@@ -26,6 +26,7 @@ import HubScrim from './HubScrim'
 import HubActionsButton from './HubActionsButton'
 import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
+import HubConfirmSheet from './HubConfirmSheet'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
@@ -71,6 +72,8 @@ function HubShell({ setToastMsg }) {
   } = useHub()
   const navigate = useNavigate()
   const padRef = useRef(null)
+  // The pending `confirm` action's sheet payload, or null. See runAction below (R-09).
+  const [confirmPayload, setConfirmPayload] = useState(null)
 
   const mirrored = settings.handedness === 'left'
   // ⛔ THE PREVIEW PROJECTION, not `mode.fan`. Phase 2.5 ships navigation-only plus Voice, so
@@ -108,16 +111,48 @@ function HubShell({ setToastMsg }) {
       voiceConnectRef.current?.('compass')
       return
     }
-    // ⛔ UNREACHABLE IN THE PREVIEW, AND THAT IS THE POINT. `fanFor` shows only navigate,
-    // Voice and Home, so nothing can reach here; `validatePreview` fails the build if a
-    // `run`/`confirm` action ever appears in a preview fan. The Phase-2 "Phase 3" toast is
-    // deliberately gone — a control that answers a gesture with "not yet" teaches the member
-    // the product is unfinished.
+
+    // ⛔ R-09 — `run` AND `confirm` ARE DISPATCHED HERE, AND UNTIL NOW THEY WERE NOT.
+    //
+    // Everything below used to be a DEV `console.warn` with a comment explaining that it was
+    // unreachable: in the navigation-only preview `fanFor` returned only navigate/Voice/Home, so
+    // nothing could get here. True then. But it meant the Phase 3 work — every Flag, Move stop,
+    // Breakeven, Close, Plan trade — would have landed on a `console.warn`, and flipping
+    // `PREVIEW_MODES` would have shipped four dead bubbles per section: a member drags to the
+    // bubble, the fan closes, and nothing happens. Found by the 3.4 Journal integrator (R-09).
+    //
+    // ⭐ The comment is the reason it survived. It did not say "not implemented"; it asserted
+    // "unreachable, and that is the point", which reads as a decision rather than a gap — so
+    // nobody re-checked it against the increment that makes it reachable.
+    if (action.kind === 'run') {
+      // `run` may be async; a rejection must reach the member rather than an unhandled promise.
+      Promise.resolve(action.run?.(ctx)).catch((err) => {
+        setToastMsg(err?.message || 'That did not work. Try again.')
+      })
+      return
+    }
+
+    if (action.kind === 'confirm') {
+      // ⛔ A `confirm` action NEVER writes on the gesture. It opens the sheet, and the sheet's
+      // primary button performs the write — the same WCAG 2.5.1 equal-path rule the Journal's
+      // stop sheet follows, and the reason `confirmText` is REQUIRED on this kind
+      // (`registry.js:32`). `HubConfirmSheet` latches `onConfirm` so a double-tap fires once.
+      setConfirmPayload({
+        title: action.label,
+        body: action.confirmText?.(ctx) ?? `${action.label}?`,
+        primaryLabel: action.label,
+        onConfirm: () => Promise.resolve(action.run?.(ctx)).catch((err) => {
+          setToastMsg(err?.message || 'That did not work. Try again.')
+        }),
+      })
+      return
+    }
+
     if (import.meta.env?.DEV) {
       // eslint-disable-next-line no-console
-      console.warn('[hub] preview reached an unwired action:', action.id)
+      console.warn('[hub] action with an unhandled kind:', action.id, action.kind)
     }
-  }, [goHome, navigate, setToastMsg])
+  }, [goHome, navigate, ctx, setToastMsg])
 
   // DEVICE-TEST HOOK (Phase 2 device suite). Records which action actually fired
   // so a real-device run can assert the OUTCOME of a gesture without depending on
@@ -344,6 +379,7 @@ function HubShell({ setToastMsg }) {
       />
       {/* No toast here — see HubToastHost. Every message this feature shows is set by an
           action that unmounts this subtree. */}
+      <HubConfirmSheet payload={confirmPayload} onClose={() => setConfirmPayload(null)} />
     </div>
   )
 }
