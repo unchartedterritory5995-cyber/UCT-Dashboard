@@ -20,7 +20,7 @@
    "what": "'Uncharted Volume', published by AtTheAsk",
    "plots": 12,
    "why": "The other firm-authored reference target.",
-   "lineMap": "NOT WRITTEN YET — the 12 plots are captured in all four sets and have not been read."
+   "lineMap": "NOT WRITTEN YET \u2014 the 12 plots are captured in all four sets and have not been read."
   },
   {
    "key": "volume_builtin",
@@ -33,7 +33,7 @@
  ],
  "_target_naming": [
   "The build order names the targets 'Clouds' and 'Volume'. 'Clouds' is unambiguous. 'Volume'",
-  "was first read as the TradingView built-in and is more likely 'Uncharted Volume' — same author",
+  "was first read as the TradingView built-in and is more likely 'Uncharted Volume' \u2014 same author",
   "as Clouds. Rather than guess, ALL THREE are captured side by side in every set, so whichever",
   "reading is right, the data is already there."
  ],
@@ -48,7 +48,8 @@
     "values": "clouds-volume-spy-1d-250.csv (67 columns) + .meta.json",
     "values_builtin_only": "volume-spy-1d-250.csv + .meta.json",
     "full": "full-spy-1d-250.png",
-    "crop40": "crop40-spy-1d.png"
+    "crop40": "crop40-spy-1d.png",
+    "note": "images re-shot at 1835x895 with UT Vol rendering; see README section 4b"
    }
   },
   {
@@ -61,7 +62,8 @@
     "values": "clouds-volume-nvda-1d-250.csv + .meta.json",
     "values_builtin_only": "volume-nvda-1d-250.csv + .meta.json",
     "full": "full-nvda-1d-250.png",
-    "crop40": "crop40-nvda-1d.png"
+    "crop40": "crop40-nvda-1d.png",
+    "note": "images re-shot at 1835x895 with UT Vol rendering; see README section 4b"
    }
   },
   {
@@ -74,7 +76,8 @@
     "values": "clouds-volume-spy-1w-150.csv + .meta.json",
     "values_builtin_only": "volume-spy-1w-150.csv + .meta.json",
     "full": "full-spy-1w-150.png",
-    "crop40": "crop40-spy-1w.png"
+    "crop40": "crop40-spy-1w.png",
+    "note": "images re-shot at 1835x895 with UT Vol rendering; see README section 4b"
    },
    "note": "The final weekly bar equals set A's final daily bar exactly. That is correct: 2026-09-07 was Labor Day, so the week beginning then holds a single session so far."
   },
@@ -83,23 +86,22 @@
    "symbol": "AMEX:SPY",
    "resolution": "240",
    "bars": 300,
-   "why": "Intraday 4H. Sessions, gaps and a non-continuous time axis — the case where a renderer that assumes evenly spaced bars finally breaks.",
+   "why": "Intraday 4H. Sessions, gaps and a non-continuous time axis \u2014 the case where a renderer that assumes evenly spaced bars finally breaks.",
    "artifacts": {
     "values": "clouds-volume-spy-4h-300.csv + .meta.json",
     "values_builtin_only": "volume-spy-4h-300.csv + .meta.json",
     "full": "full-spy-4h-300.png",
-    "crop40": "crop40-spy-4h.png"
+    "crop40": "crop40-spy-4h.png",
+    "note": "images re-shot at 1835x895 with UT Vol rendering; see README section 4b"
    },
-   "note": "Five distinct gaps between consecutive bars in one 300-bar window: 14400s (the 4h step), 72000s (overnight), 244800s (a weekend), 331200s (a holiday weekend) and 241200s (a weekend exactly one hour short — a DST transition). This is the set that earns its place."
+   "note": "Five distinct gaps between consecutive bars in one 300-bar window: 14400s (the 4h step), 72000s (overnight), 244800s (a weekend), 331200s (a holiday weekend) and 241200s (a weekend exactly one hour short \u2014 a DST transition). This is the set that earns its place."
   }
  ],
  "_outstanding": [
-  "Uncharted Volume does not appear in any reference IMAGE. Its pane was allocated zero height on",
-  "the capture layout, and TradingView cannot recompute pane heights while the tab is",
-  "visibilityState:'hidden' — which it was for the whole session. The VALUES are unaffected",
-  "because they are read from the chart model, not from pixels. Re-shoot with the browser window",
-  "foregrounded and the images are complete.",
-  "No table or label crops exist because neither target draws a table or a label.",
-  "The built-in Volume's per-index palette (the two histogram hues) was not captured."
+  "No table or label crops as separate files: neither target draws a Pine table, and UT Vol's",
+  "labels (the cyan 'HV1' annotation, the orange 'Range' readout) are inside the full and crop40",
+  "images already. The first script that draws a real table will need its own crop.",
+  "The built-in Volume's per-index palette (the two histogram hues) was not captured.",
+  "A line map for Uncharted Volume is not written yet \u2014 its 12 plots are captured in all four sets."
  ]
 }

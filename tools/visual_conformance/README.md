@@ -86,6 +86,31 @@ Set A (SPY, 1D, 250 bars, `Volume@tv-basicstudies`) settled four things by measu
    `display = display.none` — hidden is an author's *display* choice, not an absence of data —
    and it is exactly what the Table-view export would not have shown.
 
+## 4b. ⛔⛔ A PANE CAN EXIST IN THE MODEL AND HAVE NO WIDGET
+
+The single hardest bug in this capture, worth more than the images it produced.
+
+**Uncharted Volume rendered nothing** — not a plot, not even a legend — while every
+diagnostic said it was fine: `isFailed:false`, 300 rows of data, a real price range
+`[0, 206616901]`, `visible:true`, and a pane of its own with 240px of height. It was blank on
+the live chart too, so it was not a screenshot artefact.
+
+The cause: **a study added while the tab is `visibilityState:"hidden"` gets a pane in the
+MODEL but no pane WIDGET.** The tell is the legend — `document.querySelectorAll(
+'[data-name="legend-source-title"]')` came back **empty** for it while other panes had one.
+Nothing in the study's own state can show you this, because the study is not what is broken.
+
+Neither `model.fullUpdate()` nor `setPaneHeight()` nor `setStretchFactor()` fixes it: those
+speak to the model, and the model was never wrong. **`chartWidget._adjustSize()` is what
+rebuilds the pane widgets**, after which the panes redistribute by stretch factor and
+everything renders. The proof it worked: `takeClientScreenshot()` went from composing an
+873px-wide image to the real 1835px one.
+
+⚠️ And once the layout is real, **bar spacing must be computed from the actual plot width**
+(`timeScale().width()`), not a constant. A hard-coded 799 against a 1743px plot silently
+showed two years where 250 bars were asked for — the image looks fine and is of the wrong
+thing.
+
 ## 5. Running a capture
 
 1. Open the chart, set the symbol and timeframe for the set (see `sets.json`).
