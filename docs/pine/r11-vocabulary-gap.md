@@ -122,3 +122,85 @@ new machinery.
 4. **`timeframe.*`** — `period`, `in_seconds`, `multiplier` are three names and 37 sites.
 5. **The trivial three** — `math.ceil`, `math.floor`, `math.pi`.
 6. Leave Group C to `pine:module` and the UDT work. It is not vocabulary.
+
+---
+
+# R1.1(c) + (g) — re-census after the hang, and what Group C actually blocks
+
+Measured 2026-09-09 over all 266 committed scripts, in-process, after the
+`pine:timeout` depth bound landed.
+
+## (c) The three-number metric — and how many scripts the hang masked
+
+| | before | after |
+|---|---|---|
+| ok **strict** | 30/266 | **30/266** |
+| ok **lenient** | 45/266 | **45/266** |
+
+⭐ **UNMOVED, AND THAT IS THE CORRECT ANSWER.** The hang masked **zero** scripts.
+`translate_batch.mjs` forks a child per script, so `parabolic-sar__xoeoPMOWGJ.pine`
+could only ever take *itself* down — the process boundary was doing its job, and no
+other script's result was ever hidden behind it.
+
+⛔ **What it did cost was the ability to ask the question at all.** The full census
+now runs in **2.2 seconds in one process**; before, that single file burned 11-35s
+and made an in-process sweep impractical, so every census had to go through the
+fork-per-script runner. The fix bought a fast, honest census — not a higher number,
+and it would have been wrong to expect one: a script that refuses `pine:timeout`
+refused before and refuses now.
+
+## (g) How much is Group C actually holding
+
+| | scripts |
+|---:|---|
+| blocked **solely** by a dotted-name refusal | **31** |
+| blocked by a dotted name **and** something else | 34 |
+| distinct dotted tokens refused | 56 |
+
+Most-refused dotted names, by site count:
+
+`request.security` (69) · `ta.valuewhen` (46) · `strategy.position_size` (40) ·
+`barstate.isconfirmed` (40) · `ta.nvi` (25) · `timeframe.period` (23) ·
+`array.size` (14) · `strategy.exit` (13) · `direction_s.neutral` (12) ·
+`strategy.entry` (11) · `array.get` (11) · `timeframe.in_seconds` (10)
+
+⚠️ **THE 31 IS AN UPPER BOUND, NOT A BACKLOG.** The count asks "is every refusal on
+this script a dotted name?", which lumps together two different problems:
+
+- **a genuine vocabulary gap** — `request.security`, `ta.valuewhen`, `timeframe.period`
+  are real built-ins we simply do not carry. Nothing structural about them.
+- **a genuine Group C shape** — `direction_s.neutral` is a *user type field*, and
+  `zen.toWhole` a *user library namespace*. These are names that must never reach the
+  builtins lookup at all.
+
+Only the second kind is what (g) is about. The first kind is R1.1(f)'s list.
+
+## ⛔⛔ (g) The collision rail cannot fail today — and that is the finding
+
+The directive asks for a rail planting a fake import alias that collides with a real
+builtin (`import x as ta`, then `ta.sma`) plus the reverse UDT case. Measured, today:
+
+| probe | today's answer |
+|---|---|
+| `import someuser/lib/1 as ta` + `ta.sma(close, 20)` | `pine:module` **at the import line** |
+| user `type Cfg { float mintick }` named `syminfo`, then `syminfo.mintick` | `pine:type` naming `syminfo.mintick` |
+| control — real `ta.sma(close, 20)` | ✅ `ok:true` |
+| control — real `syminfo.mintick` | `pine:builtin` (a genuine gap) |
+| `import … as zen` + `zen.toWhole(close)` | `pine:module`, then `pine:builtin` on `zen.toWhole` |
+
+**The alias can never reach the builtins table, because `pine:module` refuses every
+import outright before it gets there.** So the requested rail would go green today —
+**vacuously**, for a reason that has nothing to do with resolution order.
+
+⭐ **So the rail has to be written against the resolution ORDER, not the outcome.** A
+test asserting "`import x as ta` then `ta.sma` does not fold to our `ta.sma`" passes
+now and would keep passing right up until the day imports are supported, then start
+silently permitting the collision — a rail that expires without failing, which is
+`lesson_an_arming_condition_that_names_a_test_expires` wearing new clothes. What it
+must assert instead is that **the alias/UDT scope is consulted and found empty
+BEFORE the builtins lookup runs**, so the ordering is checked even while the outer
+refusal makes the collision unreachable.
+
+⚠️ And the UDT row is the one to keep: `syminfo.mintick` shadowed by a user type
+already refuses `pine:type` rather than being mistaken for the built-in — the right
+outcome, reached by the right route, and worth pinning before that route moves.
