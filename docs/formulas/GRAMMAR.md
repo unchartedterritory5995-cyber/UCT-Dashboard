@@ -44,6 +44,12 @@ says which name and why — it never guesses a meaning.
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
 | `isweekly` | 1 when the chart's timeframe is weekly, otherwise 0 |
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
+| `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
+| `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
+| `isrealtime` | 1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0 (blank when the evaluating instant or the timeframe is not known) |
+| `isconfirmed` | 1 on a bar whose period has finished, otherwise 0 (blank when the evaluating instant or the timeframe is not known) |
+| `ishistory` | 1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0 (blank when the evaluating instant or the timeframe is not known) |
+| `islastconfirmedhistory` | 1 on the newest bar whose period has finished, otherwise 0 (blank when the evaluating instant or the timeframe is not known) |
 
 ## Operators
 

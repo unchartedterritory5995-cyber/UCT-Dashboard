@@ -57,6 +57,14 @@ export const KEEP = Object.freeze([
   // not a wrong number), which is the safe half — and still a whole capability
   // silently absent from the shipped bundle. Third key this rail has caught.
   '_bind_time_constants',
+  // ⛔⛔ READ BY `pine.js`, WHICH DECIDES WHICH `barstate.*` NAMES THE HOST
+  // CONTRACT SERVES AND WHICH ONE IT REFUSES BY NAME. Stripping it empties the
+  // rosters: the six shipped names stop resolving on a pane — a member's script
+  // refuses for a capability that IS built — and `isnew` loses the sentence that
+  // tells its author why per-tick evaluation is a different question. Fourth key
+  // this rail has caught, and the first one it caught by failing the BUILD
+  // instead of by somebody noticing.
+  '_barstate',
 ])
 
 /**

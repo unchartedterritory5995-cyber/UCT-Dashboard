@@ -438,7 +438,15 @@ plot(${body} ? 1 : 0)
   it('⛔ NON-VACUITY: a built-in with no ruling still gets the generic sentence', () => {
     // Without this, a change that appended the mintick paragraph to every
     // built-in refusal would satisfy both cases above.
-    const r = refuse('barstate.islast')
+    // ⚰️ THE SPECIMEN WAS `barstate.islast` AND IT TRANSLATES NOW (owner ruling
+    // 2026-09-09): the newest bar is the newest bar however much history was
+    // requested, so it was never request-dependent and is served as a column on
+    // both contracts. A probe pointed at it stopped testing "a built-in with no
+    // ruling" and started asserting the opposite of the truth.
+    // ⭐ `barstate.isnew` IS THE SPECIMEN NOW, and it is a better one: it is
+    // refused BY NAME with its own sentence, so if the mintick paragraph ever
+    // leaked onto every builtin refusal this would still catch it.
+    const r = refuse('barstate.isnew')
     expect(r.guard).toBe('pine:builtin')
     expect(r.message).not.toContain('minimum price increment')
   })

@@ -19,6 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   translatePine, BUILTIN_CONSTANT_TREE, BUILTIN_REQUEST_DEPENDENT,
+  BUILTIN_BARSTATE_SERIES, BUILTIN_BARSTATE_REFUSED,
 } from './pine.js'
 import { interpret } from './interpret.js'
 
@@ -68,10 +69,36 @@ describe('the four the evaluation model answers', () => {
     // split cannot GROW by accident either — adding a name to either map is a
     // deliberate edit here, which is the point: each one is a judgement about
     // what this engine's evaluation model does and does not decide.
+    // ⚰️ 4 -> 3 WHEN `barstate.isnew` WAS REFUSED (owner ruling 2026-09-09). Its
+    // fold to 1 was a restatement of the question: it is true on the FIRST
+    // EXECUTION of each bar — a fact about how many times the script ran, not
+    // about the bar — and this engine executes a static fetch exactly once, so
+    // every bar was "new" and the constant carried no information.
     expect(RESOLVES.length,
-      `the constant map moved — now [${RESOLVES.join(' | ')}]`).toBe(4)
+      `the constant map moved — now [${RESOLVES.join(' | ')}]`).toBe(3)
+    // ⚰️⚰️ 3 -> 0: THE REQUEST-DEPENDENT MAP IS WITHDRAWN, and its own sentence
+    // is what withdrew it. It said each name "would answer differently for the
+    // same stock on the same day" because the value depends on how many bars
+    // were asked for — true of `isfirst`, and NOT true of `islast`, because the
+    // newest bar is the newest bar however much history was requested. The three
+    // are served as columns now; `isfirst` carries `window_dependent` on the
+    // DEFINITION instead, which is the containment the refusal was standing in
+    // for.
+    // ⛔ AN EMPTY MAP MAKES THE OLD LOOP VACUOUS, so it is gone rather than left
+    // iterating over nothing — the failure this file's own header warns about.
     expect(REFUSES.length,
-      `the request-dependent map moved — now [${REFUSES.join(' | ')}]`).toBe(3)
+      `the request-dependent map moved — now [${REFUSES.join(' | ')}]`).toBe(0)
+    // ⭐ AND THE SPLIT THAT REPLACED IT IS PINNED IN BOTH DIRECTIONS. Six names
+    // served as columns, one refused, and no name in both — the same claim the
+    // old pair made, over the maps that decide it today.
+    expect(Object.keys(BUILTIN_BARSTATE_SERIES).sort()).toEqual([
+      'barstate.isconfirmed', 'barstate.isfirst', 'barstate.ishistory',
+      'barstate.islast', 'barstate.islastconfirmedhistory', 'barstate.isrealtime',
+    ])
+    expect(Object.keys(BUILTIN_BARSTATE_REFUSED)).toEqual(['barstate.isnew'])
+    const claimedTwice = Object.keys(BUILTIN_BARSTATE_SERIES)
+      .filter((n) => n in BUILTIN_BARSTATE_REFUSED)
+    expect(claimedTwice, `served AND refused: [${claimedTwice.join(' | ')}]`).toEqual([])
     // ⛔ AND NO NAME IS IN BOTH. This is the assertion that catches a name being
     // promoted out of "the request decides this" into "the engine decides this".
     const both = RESOLVES.filter((n) => REFUSES.includes(n))
@@ -95,7 +122,12 @@ describe('the four the evaluation model answers', () => {
     // 50 apart on every fixture bar, so a swapped branch is unmissable.
     expect(col(outOf('barstate.isconfirmed ? close : open').ast)[10]).toBe(BARS[10].c)
     expect(col(outOf('barstate.ishistory ? close : open').ast)[10]).toBe(BARS[10].c)
-    expect(col(outOf('barstate.isnew ? close : open').ast)[10]).toBe(BARS[10].c)
+    // ⚰️ `barstate.isnew` WAS A THIRD ROW HERE AND IS NOW REFUSED. Asserted as a
+    // refusal rather than deleted, so the withdrawal is visible in the file that
+    // used to claim the opposite — and so a fold quietly reinstated tomorrow
+    // fails here rather than passing by absence.
+    expect(outOf('barstate.isnew ? close : open').refusal,
+      'barstate.isnew resolved — its fold was withdrawn').toBeTruthy()
     // ⛔ THE ONE THAT INVERTS. Without this, a map that returned 1 for everything
     // would pass every assertion above.
     expect(col(outOf('barstate.isrealtime ? close : open').ast)[10]).toBe(BARS[10].o)

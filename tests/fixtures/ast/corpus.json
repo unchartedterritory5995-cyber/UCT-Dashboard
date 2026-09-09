@@ -4469,6 +4469,144 @@
           }
         ]
       }
+    },
+    {
+      "id": "barstate_islast",
+      "source": "islast + 0",
+      "why": "⭐ THE NEWEST BAR, AND IT IS NOT WINDOW-DEPENDENT. Widen the fetch and the OLDEST bar moves; the newest one is the newest one however much history was asked for. That asymmetry is why `islast` is served on both contracts with no requirement tag while `isfirst` carries one.",
+      "opts": {
+        "tf": "5",
+        "now": 1762304500
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "islast"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_isfirst",
+      "source": "isfirst + 0",
+      "why": "⭐ THE OLDEST BAR, AND IT IS WINDOW-DEPENDENT — which is a CONTAINMENT fact, not an arithmetic one. Both lanes must still agree on the column; what stops it reaching a screener or a sweep is `_requirement_tags.window_dependent`, stamped on the definition.",
+      "opts": {
+        "tf": "5",
+        "now": 1762304500
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "isfirst"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_isrealtime",
+      "source": "isrealtime + 0",
+      "why": "⭐⭐ THE ONE THAT NEEDS A CLOCK. `opts.now` sits 100 seconds into the newest 5-minute bar, so that bar's period has NOT finished and it is the only bar that can be true. ⛔ `now` IS AN INPUT, NEVER A WALL-CLOCK READ: two evaluations of one fetch must agree bar for bar, which a function reading the clock cannot promise. Absent, the column is all-`na` — the same fail-closed contract `tf` has.",
+      "opts": {
+        "tf": "5",
+        "now": 1762304500
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "isrealtime"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_isconfirmed",
+      "source": "isconfirmed + 0",
+      "why": "The complement of `isrealtime` on the same fetch. Pinned separately rather than derived, because a lane that computed one from the other would agree with itself while disagreeing with the vendor.",
+      "opts": {
+        "tf": "5",
+        "now": 1762304500
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "isconfirmed"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_ishistory",
+      "source": "ishistory + 0",
+      "why": "⚠️ AN ALIAS OF `isconfirmed` HERE AND NOT ONE IN PINE. TradingView distinguishes a bar the chart LOADED from one it WATCHED form; this engine evaluates a static fetch, where every closed bar arrived the same way, so the distinction has no referent. Recorded as a divergence rather than hidden — the corpus pins what WE do.",
+      "opts": {
+        "tf": "5",
+        "now": 1762304500
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "ishistory"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "barstate_islastconfirmedhistory",
+      "source": "islastconfirmedhistory + 0",
+      "why": "The newest bar whose period has finished — the bar BEFORE the forming one here. ⛔ It is a different column from `islast` on exactly this fetch, which is the only shape that can tell the two apart: with a closed newest bar they coincide and a lane that confused them would stay green.",
+      "opts": {
+        "tf": "5",
+        "now": 1762304500
+      },
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "series",
+            "name": "islastconfirmedhistory"
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

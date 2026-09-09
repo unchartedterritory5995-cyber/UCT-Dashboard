@@ -306,6 +306,31 @@
         "ruling": "Owner, 2026-09-09 — option (a): leave it, record the finding. The measured exposure is a possible score nudge on a real signal, not a fabricated signal, and the two alternatives both meant editing an OWNER-PAUSED workstream to fix something unproven.",
         "backlog_when_that_workstream_unpauses": "Remove the private RSI copies; point both divergence detectors at the shared guarded helper. The duplicated implementation is the underlying smell — the ruling reached them by inheritance precisely because nobody had to name them."
       }
+    },
+    {
+      "id": "barstate-viewer-dependent-on-vendor",
+      "shape": "viewer-dependent",
+      "status": "accepted",
+      "confidence": "reasoned",
+      "ours": "`barstate.ishistory` is exactly `barstate.isconfirmed`: 1 on every bar whose period has ended. This engine evaluates a STATIC FETCH — one request, one response — so every closed bar arrived the same way and there is nothing in our world that distinguishes them. `barstate.isrealtime` is 1 only on the newest bar and only while its scheduled close is still ahead of the evaluating instant, and that instant is HANDED IN rather than read off the wall clock.",
+      "theirs": "TradingView distinguishes a bar the chart LOADED as history from one it WATCHED form. `barstate.ishistory` is true on bars that were already in the chart when the script started and false on bars the script saw arrive, so two viewers opening the same symbol at different times disagree about the same bar — and a viewer who leaves a chart open sees a bar change its answer without any data changing.",
+      "why_it_matters": "⛔ A SCRIPT THAT BRANCHES ON THE TWO HAS ONE UNREACHABLE BRANCH HERE, AND THE MEMBER CANNOT SEE THAT FROM THE OUTPUT. `if barstate.ishistory … else …` runs the first arm on every bar we evaluate; the second arm is not refused, it simply never fires, which is the failure mode `lesson_an_over_refusal_is_invisible` is the mirror of. ⭐ AND THE DIRECTION IS THE SAFE ONE FOR A SCREEN: the arm that runs is the one the vendor runs on historical bars, which is every bar a scan ever reads. It is the PANE where a member could notice, and the pane's data notes say so.",
+      "what_would_settle_it": "A capture on a live TradingView chart reading `barstate.ishistory` and `barstate.isrealtime` on the newest bar during RTH and again after the close, plus a second reading from a chart opened AFTER those bars formed. The second reading is the one that proves the viewer-dependence rather than assuming it — which is why this row is `reasoned` and not `measured`.",
+      "ours_is_deliberate": "⭐ THIS IS NOT A BUG TO FIX. A viewer-dependent answer is one this engine must not reproduce: two members running the same saved definition on the same symbol would get different columns, and a sweep would disagree with the pane that produced it. The vendor's behaviour makes sense for a chart somebody is watching and does not survive being SAVED.",
+      "code": "app/src/components/chart/indicators.js::computeClock (CLOCK_EXTENT and CLOCK_REALTIME); the Python twin is api/services/indicator_compute.py::compute_clock",
+      "probe": {
+        "case": "`plot(barstate.ishistory ? 1 : 0)` on a chart opened BEFORE a bar forms, read on that bar after it closes — and the same script on a chart opened AFTER it formed, read on the same bar",
+        "under_ours": "1 on both readings. The bar's period has ended, and nothing in a static fetch records who was watching when.",
+        "under_theirs": "0 on the first reading and 1 on the second. The chart that watched the bar form classifies it as realtime-then-confirmed, never as loaded history.",
+        "discriminates": "⭐ THE TWO READINGS ARE OF THE SAME BAR, so no float comparison and no tolerance is involved — the conventions disagree about a BOOLEAN, and one of them disagrees with itself between two viewers. ⛔ A probe that read only one chart could not tell them apart at all: on a chart opened after the fact the vendor answers exactly what we answer."
+      },
+      "decision": {
+        "ruled": "2026-09-09 — KEEP OURS, and the divergence is deliberate. A viewer-dependent answer is one a SAVED definition must not carry: two members running the same script on the same symbol would get different columns, and a sweep would disagree with the pane that produced it.",
+        "what_we_do_instead": "`ishistory` means `isconfirmed` — the bar's period has ended — which is what the vendor's column reduces to for every bar a scan ever reads. The member is told through the manifest's `_barstate.vendorNote`, which reaches the paste box through the same walk `atr`'s note does.",
+        "not_a_backlog_item": "⛔ THERE IS NOTHING TO FIX HERE. Reproducing the vendor would mean recording WHO WAS WATCHING in a saved definition, which is not a property of the market and cannot survive being stored.",
+        "why_keep_ours": "⛔ A VIEWER-DEPENDENT ANSWER CANNOT SURVIVE BEING SAVED. The vendor’s `ishistory` records who was watching when the bar formed; a definition stored in our database is read by a pane, a sweep, an alert and a share link, and none of them was watching anything. Reproducing it would mean two members getting different columns from the same script on the same symbol — the property every consumer in `refused_by` depends on NOT happening. ⭐ AND THE ARM WE RUN IS THE ARM A SCAN WOULD ALWAYS TAKE: every bar a screener reads is historical to the vendor too, so for the contract where this matters most the two agree exactly.",
+        "what_would_reopen_it": "A capture showing the vendor’s `ishistory` is NOT viewer-dependent after all — i.e. two charts opened at different times agreeing about the same bar — would make this an ordinary difference we should simply match. ⚠️ So would a product decision to evaluate a LIVE, streaming series rather than a static fetch: the distinction would then have a referent here, and the column would have to be re-derived rather than aliased."
+      }
     }
   ]
 }

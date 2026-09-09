@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 71 functions and 137 scalars — 241 names, one grammar', () => {
+  it('declares 5 series, 19 clock, 15 operators, 71 functions and 137 scalars — 247 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -457,7 +457,13 @@ describe('the manifest', () => {
     // `series` node, so `NODE_TYPES` is unmoved and every stored `astHash` is
     // unmoved with it; what is new is that `interpret` has an argument it did
     // not have. See the `tableVersion` assertion at the end of this case.
-    expect(Object.keys(TABLE.clock)).toHaveLength(13)
+    // ⚰️ 13 -> 19 (owner ruling 2026-09-09): the six BARSTATE columns —
+    // `islast`, `isfirst`, `isrealtime`, `isconfirmed`, `ishistory` and
+    // `islastconfirmedhistory`. They ride the EXISTING `series` node too, so
+    // `NODE_TYPES` is again unmoved; what `interpret` gained is two more
+    // arguments it did not have — the evaluating instant and the closure set —
+    // both fail-closed exactly as `tf` is.
+    expect(Object.keys(TABLE.clock)).toHaveLength(19)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -613,9 +619,14 @@ describe('the manifest', () => {
     // 97 -> 101 IS VENDOR PARITY TRANCHE 2, LANE B. Scalar half untouched at 137.
     // 101 -> 103 IS VENDOR-BACKED UNSERVED BUILTINS, BATCH 1 (`falling`, `pvtN`).
     // Scalar half untouched at 137.
-    expect(bar.size).toBe(104)
+    // ⚰️ 104 -> 110 IS THE SIX BARSTATE CLOCK COLUMNS (owner ruling
+    // 2026-09-09). They cost the grammar nothing either -- no node type, no
+    // argument kind, no lookback form -- and what they bought is a CONTRACT
+    // SPLIT: the host evaluates them per bar from the clock and the fetch, the
+    // screener keeps its fold. Scalar half untouched at 137.
+    expect(bar.size).toBe(110)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(241)
+    expect(declared.size).toBe(247)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

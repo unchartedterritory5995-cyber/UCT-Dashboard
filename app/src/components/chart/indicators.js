@@ -1167,9 +1167,118 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  manifest's `clock` keys out of this bundle and throws BY NAME on an entry the
  *  bundle has no column for — a declared name quietly seeded NaN would be a
  *  clock that reads "not computable" forever, on every bar, silently. */
+/** The two BARSTATE columns that read only the fetch's EXTENT — which bar this
+ *  is out of how many — and no clock at all.
+ *
+ *  ⭐ THEY ARE OUTSIDE THE UNIT GATE FOR THE SAME REASON `barindex` IS: they
+ *  never touch `t`, so a series stored in `YYYYMMDD` ints gives them no reason
+ *  to doubt themselves. `isfirst` is nonetheless WINDOW-DEPENDENT in the
+ *  requirement-tag sense and `islast` is not — widen the fetch and the oldest
+ *  bar moves while the newest one does not. That distinction is the ruling, and
+ *  it is the reason these two are not one column with a flag. */
+const CLOCK_EXTENT = ['islast', 'isfirst']
+
+/** The four BARSTATE columns that need a CLOCK as well as the fetch: whether
+ *  the newest bar's period has finished yet.
+ *
+ *  ⛔ ALL FOUR FAIL CLOSED TO NaN WITHOUT A `now`, exactly as the four timeframe
+ *  booleans fail closed without a `tf`. A guessed "now" would make `isconfirmed`
+ *  a confident 1 on a bar that is still forming — a wrong answer wearing a right
+ *  one's clothes — and the whole point of these columns is that a member can
+ *  trust the last bar. NaN is "nobody told me", which every consumer of this
+ *  table already renders. */
+const CLOCK_REALTIME = ['isrealtime', 'isconfirmed', 'ishistory',
+  'islastconfirmedhistory']
+
 export const CLOCK_COLUMNS = Object.freeze([
   ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
+  ...CLOCK_EXTENT, ...CLOCK_REALTIME,
 ])
+
+/** Seconds in one bar of an INTRADAY timeframe. Declared, never parsed off the
+ *  code, for the reason `CLOCK_INTRADAY_TFS` states one screen up. */
+const TF_SPAN_SECONDS = { 1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600 }
+
+/** THE INSTANT A BAR'S PERIOD IS SCHEDULED TO END, in unix seconds — or NaN when
+ *  this module cannot say.
+ *
+ *  ⭐ INTRADAY IS EXACT AND NEEDS NO CALENDAR: a 5-minute bar ends 300 seconds
+ *  after it starts whether the market is in its regular session, its pre-market
+ *  or its post-market, so an extended-hours bar in the fetch is handled by the
+ *  same arithmetic as an RTH one. ⚠️ That is a real property of our fetch, not a
+ *  convenience: `bars_fetch` deliberately keeps extended-hours prints and the
+ *  yfinance fallback asks for them (`prepost=True`).
+ *
+ *  ⛔⛔ DAILY AND ABOVE END AT 16:00 NEW YORK, AND THAT IS THE REGULAR SESSION
+ *  CLOSE ONLY. This engine knows NYSE full closures — `_NYSE_HOLIDAYS_YYYYMMDD`
+ *  in `api/services/bars_fetch.py`, one authority, five readers — and it does
+ *  NOT know EARLY CLOSES: that set documents in its own words that 1pm ET
+ *  half-days are "intentionally NOT" included. So on the handful of early-close
+ *  sessions a year, the newest daily bar reads `isrealtime` for up to three
+ *  hours after the market actually stopped trading. The gap is named in
+ *  `docs/pine/barstate.md` and disclosed on the pane; it is NOT silently
+ *  rounded away, because a member watching the last bar is exactly who would be
+ *  misled.
+ *
+ *  ⚠️ AND THE DST CORRECTION IS ONE STEP, NOT A LOOP. ET midnight plus sixteen
+ *  hours lands on 15:00 or 17:00 on the two days a year the offset moves at
+ *  02:00 ET, so the guess is pulled back onto 16:00 by reading its own ET hour.
+ *  Every US offset is a whole number of hours, which is what makes one pass
+ *  exact rather than merely close. */
+function scheduledCloseSeconds(t, tf, holidays) {
+  const span = TF_SPAN_SECONDS[tf]
+  if (span) return t + span
+  if (tf !== 'D' && tf !== 'W' && tf !== 'M') return NA
+  let day = etSixteenHundred(t)
+  if (tf === 'W' || tf === 'M') {
+    // ⭐ A WEEK OR A MONTH ENDS ON ITS LAST TRADING DAY, not on the day its bar
+    // is STAMPED. Our bars are stamped at the period's START, so walking forward
+    // to the end is the whole of the difference between "this week's bar closed"
+    // and "this week's bar closed on Monday afternoon".
+    const p = etClockParts(day)
+    const stepsToFriday = (5 - p.wd + 7) % 7          // wd: 0=Sun … 6=Sat
+    day = etSixteenHundred(day + stepsToFriday * 86400)
+    if (tf === 'M') {
+      // Walk whole weeks to the last Friday that is still inside this month.
+      const month = etClockParts(day).m
+      for (;;) {
+        const next = etSixteenHundred(day + 7 * 86400)
+        if (etClockParts(next).m !== month) break
+        day = next
+      }
+    }
+  }
+  // ⛔⛔ AND THE LAST TRADING DAY IS NOT ALWAYS THAT WEEKDAY. Good Friday closes
+  // the NYSE, so a week ending 2026-04-03 actually ended on the Thursday. The
+  // closure set is `_NYSE_HOLIDAYS_YYYYMMDD` in `api/services/bars_fetch.py` —
+  // ONE authority, five readers, served to the browser by
+  // `GET /api/market-calendar` — and it is passed IN rather than copied here,
+  // because a second list of exchange dates is precisely the defect that router
+  // was written to prevent. ⚠️ ABSENT, THIS WALKS NO DAYS BACK and the newest
+  // weekly bar of a holiday-shortened week reads `isrealtime` for a day longer
+  // than it should. Named in `docs/pine/barstate.md`.
+  if (holidays && holidays.size) {
+    for (let i = 0; i < 7; i++) {
+      const p = etClockParts(day)
+      if (!holidays.has(p.y * 10000 + p.m * 100 + p.d)) break
+      day = etSixteenHundred(day - 86400)
+    }
+  }
+  return day
+}
+
+/** 16:00 New York on the ET calendar day `t` falls in, in unix seconds.
+ *
+ *  ⚠️ THE DST CORRECTION IS ONE STEP, NOT A LOOP. ET midnight plus sixteen hours
+ *  lands on 15:00 or 17:00 on the two days a year the offset moves at 02:00 ET,
+ *  so the guess is pulled onto 16:00 by reading its own ET hour. Every US offset
+ *  is a whole number of hours, which is what makes one pass exact rather than
+ *  merely close. */
+function etSixteenHundred(t) {
+  const p = etClockParts(t)
+  const guess = t - p.h * 3600 - (t % 3600) + 16 * 3600
+  return guess + (16 - etClockParts(guess).h) * 3600
+}
 
 /**
  * The clock columns for a bar series, aligned to `bars`.
@@ -1202,9 +1311,19 @@ export const CLOCK_COLUMNS = Object.freeze([
  * @param {Array}  bars `[{t,o,h,l,c,v}]`, `t` in UNIX SECONDS
  * @param {string} [tf] one of `1 5 15 30 60 D W M`; absent or unknown ⇒ the four
  *                      timeframe booleans are NaN
+ * @param {number} [now] the evaluating instant in UNIX SECONDS. Absent ⇒ the four
+ *                      BARSTATE realtime columns are NaN. ⛔ A PARAMETER RATHER
+ *                      THAN `Date.now()`: two bindings of one fetch must agree
+ *                      bar for bar, and a function that reads the wall clock
+ *                      cannot be asked the same question twice — which is exactly
+ *                      what the stability rails ask it.
+ * @param {Set}    [holidays] NYSE full-closure dates as `YYYYMMDD` numbers, from
+ *                      `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` via
+ *                      `GET /api/market-calendar`. Absent ⇒ a weekly or monthly
+ *                      period is assumed to end on its last WEEKDAY.
  * @returns {object} `{<name>: Float64Array}` — one entry per `CLOCK_COLUMNS`
  */
-export function computeClock(bars, tf) {
+export function computeClock(bars, tf, now, holidays) {
   const length = bars && bars.length ? bars.length : 0
   const cols = {}
   for (const name of CLOCK_COLUMNS) cols[name] = new Float64Array(length)
@@ -1222,6 +1341,52 @@ export function computeClock(bars, tf) {
   // `interpret` so the clock has ONE owner: a second place that knew what bar
   // number a bar is would be a second authority over a value both lanes compare.
   for (let i = 0; i < length; i++) cols.barindex[i] = i
+
+  // ⭐ THE EXTENT PAIR reads no `t`, so it answers above the unit gate — the
+  // same line `barindex` sits on, for the same reason.
+  cols.isfirst[0] = 1
+  cols.islast[length - 1] = 1
+
+  // ⛔⛔ THE REALTIME FOUR FAIL CLOSED, AND THEY FAIL CLOSED FIRST. Without a
+  // `now` or without a timeframe this module cannot say whether the newest bar's
+  // period has finished, and a confident `isconfirmed = 1` on a forming bar is
+  // the one wrong answer these columns exist to prevent.
+  // ⚠️ `now` IS A PARAMETER, NEVER `Date.now()` READ IN HERE. Two bindings of one
+  // fetch must agree bar for bar, and a function that reads the wall clock
+  // cannot be asked the same question twice — which is exactly what the
+  // stability rails ask it.
+  const nowKnown = Number.isFinite(now) && now > VWAP_MIN_INSTANT
+  for (const name of CLOCK_REALTIME) cols[name].fill(NA)
+  if (nowKnown && known) {
+    const newest = bars[length - 1] ? bars[length - 1].t : undefined
+    const close = Number.isFinite(newest) && newest >= VWAP_MIN_INSTANT
+      ? scheduledCloseSeconds(newest, tf, holidays)
+      : NA
+    if (Number.isFinite(close)) {
+      // ⛔ ONLY THE NEWEST BAR CAN BE REALTIME. Every earlier bar's period ended
+      // before the newest one's began, so a per-bar comparison against `now`
+      // would answer the same thing at ten times the cost — and would answer it
+      // DIFFERENTLY on a fetch whose newest bar is stale, which is the case a
+      // member most needs to be told about rather than have smoothed over.
+      const forming = close > now ? 1 : 0
+      for (let i = 0; i < length; i++) {
+        cols.isrealtime[i] = i === length - 1 ? forming : 0
+        cols.isconfirmed[i] = 1 - cols.isrealtime[i]
+        // ⚠️ `ishistory` IS AN ALIAS OF `isconfirmed` HERE AND IS NOT ONE IN
+        // PINE. TradingView distinguishes a bar the chart loaded as history from
+        // one it watched form; this engine evaluates a STATIC FETCH, where every
+        // closed bar arrived the same way, so the distinction has no referent.
+        // The divergence is recorded rather than hidden — see
+        // `divergences.json::barstate-viewer-dependent-on-vendor`.
+        cols.ishistory[i] = cols.isconfirmed[i]
+      }
+      const lastConfirmed = forming ? length - 2 : length - 1
+      if (lastConfirmed >= 0) cols.islastconfirmedhistory[lastConfirmed] = 1
+      for (let i = 0; i < length; i++) {
+        if (i !== lastConfirmed) cols.islastconfirmedhistory[i] = 0
+      }
+    }
+  }
 
   // THE UNIT GATE — before any formatter work, so a refused series costs none.
   let instants = true

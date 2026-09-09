@@ -44,7 +44,11 @@ describe('a vendor note is DERIVED from the manifest, never listed', () => {
       },
     }
     const found = vendorNotesOf(planted)
-    expect(Object.keys(found).sort()).toEqual(['atr', 'sma'])
+    // ⚰️ `barstate` JOINS THEM — the FAMILY note, which travels with the
+    // manifest block rather than with a function entry. Its presence here is the
+    // second half of the same claim: the reader walks BOTH shapes, so planting
+    // one and keeping the other proves neither branch is a hand-list.
+    expect(Object.keys(found).sort()).toEqual(['atr', 'barstate', 'sma'])
     expect(found.sma).toBe('a planted sentence')
     // …and the CONTROL: the shipped table does not contain the plant.
     expect(Object.keys(VENDOR_NOTES)).not.toContain('sma')
@@ -60,12 +64,23 @@ describe('a vendor note is DERIVED from the manifest, never listed', () => {
     // is worse than silence: it implies a difference and names none.
   })
 
-  it('⭐ the shipped roster is exactly what has been MEASURED — one entry', () => {
+  it('⭐ the shipped roster is exactly what has been RULED ON — two entries', () => {
     // ⛔ NOT AN ARBITRARY COUNT. `_functions_vendor_note` states the rule this
     // pins: a note may only be written from a measurement, never as a hedge. An
     // entry gaining a note without a `divergences.json` row behind it is the
     // thing that would teach members to distrust numbers that are in fact exact.
-    expect(Object.keys(VENDOR_NOTES)).toEqual(['atr'])
+    // ⚰️ ONE -> TWO WITH `barstate` (owner ruling 2026-09-09), AND IT IS THE FIRST
+    // NOTE THAT IS NOT A NUMBER. `atr`'s divergence is a measured delta; this one
+    // is a VIEWER-DEPENDENCE — TradingView's `ishistory` answers differently for
+    // two people opening the same chart at different times, and a saved
+    // definition cannot carry who was watching. So the note tells a member which
+    // arm of their branch will run rather than how far off a number is.
+    // ⭐ AND IT IS A FAMILY NOTE, NOT A FUNCTION ONE: `barstate.*` reaches the
+    // evaluator as CLOCK COLUMNS, so the sentence hangs on the manifest block
+    // that owns the family and the tree walk had to learn to see a `series` node.
+    expect(Object.keys(VENDOR_NOTES).sort()).toEqual(['atr', 'barstate'])
+    expect(VENDOR_NOTES.barstate).toMatch(/ishistory/)
+    expect(VENDOR_NOTES.barstate).toMatch(/isconfirmed/)
     expect(VENDOR_NOTES.atr).toMatch(/wilder/i)
     expect(VENDOR_NOTES.atr).toMatch(/ta\.rma\(ta\.tr\(true\), n\)/)
     // The member is given the SIZE of the difference, not just its existence —

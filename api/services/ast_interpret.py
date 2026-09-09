@@ -3377,7 +3377,13 @@ def interpret(ast: Any, bars: List[dict],
     # is what caught it: it interprets `close`, a leaf that reads no clock.
     _assert_clock_wiring()
     if _reads_clock(ast):
-        clock_cols = compute_clock(bars, (opts or {}).get("tf"))
+        # ⭐ now AND THE HOLIDAY SET TRAVEL WITH THE TIMEFRAME, and for the
+        # same reason: they are things the CALLER knows and the bars do not.
+        # Absent, the four BARSTATE realtime columns are None -- the identical
+        # fail-closed contract tf already has, and never a guessed instant.
+        clock_cols = compute_clock(bars, (opts or {}).get("tf"),
+                                   (opts or {}).get("now"),
+                                   (opts or {}).get("holidays"))
         for name in TABLE.get(CLOCK_SECTION) or {}:
             col = clock_cols.get(name)
             if col is None:

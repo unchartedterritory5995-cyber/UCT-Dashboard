@@ -270,7 +270,13 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # type, argument kind, or lookback form.
     # 103 -> 104 (2026-09-09): `cum`, admitted under owner Ruling D with its
     # containment on the DEFINITION (`_requirement_tags`) rather than on the entry.
-    assert len(ast_table.bar_names()) == 104, len(ast_table.bar_names())
+    # ⚰️ 104 -> 110 IS THE SIX BARSTATE CLOCK COLUMNS (owner ruling
+    # 2026-09-09). They ride the existing `series` node and cost the grammar no
+    # node type, no argument kind and no lookback form; what they bought is a
+    # CONTRACT SPLIT, with the host evaluating them per bar and the screener
+    # keeping its fold. The scalar half is untouched, which is the whole reason
+    # these are two assertions and not one total.
+    assert len(ast_table.bar_names()) == 110, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -296,7 +302,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 240 -> 241 (2026-09-09): `cum`. The bar half moved and the scalar half did
     # not, which is what the two assertions above are for; this is their sum and
     # it has to move with them or the pair stops being a partition claim.
-    assert len(declared) == 241, f"the table declares {len(declared)} names, not 241"
+    # 241 -> 247 (2026-09-09): the six BARSTATE clock columns. The bar half moved
+    # and the scalar half did not, which is what the two assertions above are for.
+    assert len(declared) == 247, f"the table declares {len(declared)} names, not 247"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

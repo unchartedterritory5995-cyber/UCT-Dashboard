@@ -24,8 +24,26 @@ import { TABLE } from './parse.js'
 const plot = (expr) => `//@version=6\nindicator("t")\nplot(${expr})\n`
 
 /** Every clock entry whose name reads as a timeframe predicate. */
+/** ⚰️⚰️ THIS WAS A NAME SHAPE — `/^is[a-z]+$/` OVER THE CLOCK — AND A NAME SHAPE
+ *  IS NOT AN AUTHORITY. It was exactly right while `isdaily`, `isweekly`,
+ *  `ismonthly` and `isintraday` were the only `is…` columns the manifest
+ *  declared, and it broke the day six BARSTATE columns landed with the same
+ *  spelling and an entirely different meaning: it demanded a `timeframe.islast`
+ *  alias, which would be a name Pine does not have pointing at a column that is
+ *  not about the timeframe.
+ *
+ *  ⭐ THE MANIFEST ALREADY SPLITS THEM, so the split is READ rather than guessed:
+ *  `_barstate.extent` and `_barstate.realtime` name the barstate family, and what
+ *  is left of the `is…` columns is the timeframe family. A seventh barstate
+ *  column is covered the day it lands; a fifth timeframe predicate still fails
+ *  here for want of an alias, which is the direction this rail exists for. */
+const barstateColumns = () => new Set([
+  ...((TABLE._barstate || {}).extent || []),
+  ...((TABLE._barstate || {}).realtime || []),
+])
+
 const clockPredicates = () => Object.keys(TABLE.clock || {})
-  .filter((n) => /^is[a-z]+$/.test(n))
+  .filter((n) => /^is[a-z]+$/.test(n) && !barstateColumns().has(n))
   .sort()
 
 describe('the alias map points at real columns, in both directions', () => {

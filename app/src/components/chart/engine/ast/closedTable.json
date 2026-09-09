@@ -119,6 +119,36 @@
       "lookback": 0,
       "yields": "bool",
       "sentence": "1 when the chart's timeframe is monthly, otherwise 0"
+    },
+    "islast": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on the newest bar the fetch delivered, otherwise 0"
+    },
+    "isfirst": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on the oldest bar the fetch delivered, otherwise 0"
+    },
+    "isrealtime": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on the newest bar while the instant its period is scheduled to end is still in the future, otherwise 0 (blank when the evaluating instant or the timeframe is not known)"
+    },
+    "isconfirmed": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on a bar whose period has finished, otherwise 0 (blank when the evaluating instant or the timeframe is not known)"
+    },
+    "ishistory": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on a bar this engine loaded as finished history, which for a fetched series is every bar whose period has ended, otherwise 0 (blank when the evaluating instant or the timeframe is not known)"
+    },
+    "islastconfirmedhistory": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on the newest bar whose period has finished, otherwise 0 (blank when the evaluating instant or the timeframe is not known)"
     }
   },
   "operators": {
@@ -3120,7 +3150,7 @@
     "_why_it_exists": "⛔⛔ THIS IS THE GAP `_functions_cumulative` NAMED, AND IT IS WHY THAT RULING CAN NOW BE RELAXED RATHER THAN OVERTURNED. That ruling refused a per-consumer exception on CONTAINMENT: *\"There is no per-entry flag that stops a fetch-dependent column flowing into a saved definition, a nightly sweep, an alert or a shared screen, and at every one of those consumers the defect is INVISIBLE.\"* Every word of that stands. What has changed is that the flag now exists, it lives on the DEFINITION rather than on the table entry, and each consumer named in that sentence refuses it BY NAME. The objection was never to the arithmetic — it was to the leak, and the leak is closed at the layer the leak happens on.",
     "_stamped_not_recomputed": "⭐ STORED ON THE DEFINITION, NEVER RE-DERIVED AT READ TIME — the same rule `user_definitions.py` states for `repaint`, for the same reason: the contract a member saved under and the contract a consumer admitted it under must be ONE fact. ⚠️ BUT THE SAFE DIRECTION IS INVERTED AND THAT MATTERS. A stale `repaint` that is STRICTER than the linter is harmless; a stale `requirements` that is SHORTER than reality ADMITS a script to a consumer that should have refused it. So the re-lint pass heals toward MORE tags and reports the missing direction with the armed consumers named, which is the mirror of what it does for `repaint`.",
     "window_dependent": {
-      "what": "The script's value depends on HOW MUCH HISTORY WAS LOADED, not only on the market. A running total from the first delivered bar is the case: widen the fetch and every value moves by a fixed amount, forever.",
+      "what": "The script's value depends on HOW MUCH HISTORY WAS LOADED, not only on the market. A running total from the first delivered bar is the case: widen the fetch and every value moves by a fixed amount, forever. ⭐ AND IT IS NOT ONLY ABOUT CALLS. `isfirst` is a SERIES with exactly the same property — it names the oldest delivered bar, so widening the fetch moves it — which is why the spec carries a `series` roster beside `calls` and the stamping walk reads both.",
       "calls": [
         "cum"
       ],
@@ -3136,7 +3166,10 @@
       ],
       "why_the_pane_may": "A pane is ONE symbol, ONE fetch, and the member can see where the data starts. Nothing on a pane is compared against another symbol or against yesterday's run, which is the property every consumer in `refused_by` depends on. The pane additionally shows a disclosure badge naming the bar count when the value is DISPLAYED.",
       "vendor": "TradingView seeds `ta.cum` at bar 0 of the whole loaded series — measured 2026-09-08 on SPY 1D, where `ta.cum(1) == bar_index + 1` on all 8,459 bars. Our pipeline delivers ~5,000, a BAR-COUNT ratio of about 1.69. ⚠️ The VOLUME ratio is NOT measured and must not be quoted: older sessions traded differently, and the capture exposes only the last 400 bars. Fixture: tests/fixtures/vendor/runtime/ta-cum-and-context-namespaces-spy-1d-2026-09-08.json",
-      "na_rule": "⭐ `na` before the first finite input; `na` ON an `na` bar; the total HELD across it — it neither advances nor resets — and resumes on the next finite bar. Measured: 7330 -> na -> 7331, and the final value equals the count of finite inputs exactly. NOT 'contributes 0 and keeps drawing', which would paint a value on a bar the vendor leaves blank."
+      "na_rule": "⭐ `na` before the first finite input; `na` ON an `na` bar; the total HELD across it — it neither advances nor resets — and resumes on the next finite bar. Measured: 7330 -> na -> 7331, and the final value equals the count of finite inputs exactly. NOT 'contributes 0 and keeps drawing', which would paint a value on a bar the vendor leaves blank.",
+      "series": [
+        "isfirst"
+      ]
     }
   },
   "_bind_time_constants": {
@@ -3152,5 +3185,29 @@
     "_inputs": "Every `input.*` value is bind-time constant by construction — it is a property of the DEFINITION, fixed before any symbol is chosen — so inputs are foldable without being listed here.",
     "_syminfo": "⚠️ `syminfo.*` IS THE OTHER HALF AND IT IS NOT LISTED YET. It is symbol-scoped rather than timeframe-scoped, it is resolved from OUR symbol store rather than from the vendor, and only the fields the store can actually populate may ship. Until that lands, a window expression mentioning `syminfo.*` does not fold and refuses naming the operand — which is the correct answer, not a placeholder.",
     "_why_there_is_no_bound_lookback_declaration": "⛔⛔ PROPOSED AND DROPPED, 2026-09-09 — RECORDED SO IT IS NOT PROPOSED AGAIN. The obvious-looking design is a fifth `lookback` vocabulary entry, `\"bound\"`, alongside `argN` / a literal / `session` / `series`, meaning *resolved at bind time from a folded expression*. It is unnecessary, and adding it would be worse than unnecessary. ⭐ THE FOLD RUNS BEFORE ANY DECLARATION IS READ. `fold_bound` rewrites the tree, so by the time `_own_lookback` looks at `sma`, `sma` still declares `arg1` and `arg1` IS a literal — the same code path a hand-typed `20` takes, with the same tree sum and the same budget arithmetic. Nothing downstream can tell the two apart, which is the entire mechanism working. ⛔ SO A `\"bound\"` DECLARATION WOULD BE A FORM NOTHING EMITS AND NOTHING REACHES: dead in three readers at once (`ast_interpret`, `ast_lint`, `interpret.js`), untestable except by hand-writing an entry that ships nowhere, and a `lesson_gate_that_cannot_fail` in the making. The vocabulary describes what an ENTRY declares about ITSELF; bind-time folding is a property of a CALL's ARGUMENT, and the two are different subjects that would have shared one word."
+  },
+  "_barstate": {
+    "_": "⭐⭐⭐ WHERE A BAR SITS IN TIME AND IN THE FETCH — Pine's `barstate.*`, served as ordinary CLOCK COLUMNS rather than as constants. ⚰️ THEY WERE FOLDED TO CONSTANTS AND THAT WAS ONLY EVER TRUE FOR ONE CONTRACT. The screener evaluates CLOSED bars, so `barstate.isconfirmed` is genuinely 1 on every bar it will ever see and the fold is exact there. A PANE DRAWS THE FORMING BAR, and on the one bar a member is actually watching the same constant is false. So the host contract computes these per bar from the CLOCK and the FETCH, and the screener keeps its fold with its tests unchanged — one name, two contracts, and each answer true where it is given.",
+    "_the_two_ingredients": "⭐ A BAR'S STATE IS DECIDED BY TWO THINGS AND NEITHER IS THE TAPE. The FETCH says which bar is newest and which is oldest; the CLOCK says whether the newest one's period has finished. Nothing here reads a price, which is why these are clock columns and not functions.",
+    "extent": [
+      "islast",
+      "isfirst"
+    ],
+    "_extent": "⭐⭐ `islast` IS NOT WINDOW-DEPENDENT AND `isfirst` IS, and the asymmetry is the ruling rather than an oversight. Widen the fetch and the OLDEST bar moves — every value keyed on it moves with it, forever — while the NEWEST bar is the newest bar however much history was asked for. So `isfirst` carries `window_dependent` and is pane-only with a disclosure; `islast` is served on both contracts with no tag at all.",
+    "realtime": [
+      "isrealtime",
+      "isconfirmed",
+      "ishistory",
+      "islastconfirmedhistory"
+    ],
+    "_realtime": "⛔ ONLY THE NEWEST BAR CAN BE `isrealtime`. Every earlier bar's period ended before the newest one's began, so a per-bar comparison against the clock would answer the same thing at ten times the cost — and would answer it DIFFERENTLY on a fetch whose newest bar is stale, which is the case a member most needs told rather than smoothed over.",
+    "_ishistory_is_an_ALIAS_here_and_is_not_one_in_pine": "⚠️ TradingView distinguishes a bar the chart LOADED as history from one it WATCHED form. This engine evaluates a STATIC FETCH: every closed bar arrived the same way, in one response, so the distinction has no referent here and `ishistory` is exactly `isconfirmed`. ⛔ RECORDED AS A DIVERGENCE RATHER THAN HIDDEN — `tests/fixtures/vendor/divergences.json::barstate-viewer-dependent-on-vendor` — because a member porting a script that branches on the two would otherwise never learn that one branch is unreachable for us.",
+    "refused": {
+      "isnew": "requires per-tick evaluation. `barstate.isnew` is true on the FIRST execution of each bar, which is a fact about how many times the script ran rather than about the bar. This engine evaluates a static fetch once, so every bar would be `isnew` and the answer would be a restatement of the question."
+    },
+    "_the_calendar_gap": "⛔⛔ EARLY CLOSES ARE NOT KNOWN, AND THIS IS WHERE THAT IS WRITTEN DOWN. Census taken 2026-09-09: NYSE FULL CLOSURES are known — `_NYSE_HOLIDAYS_YYYYMMDD` in `api/services/bars_fetch.py`, one authority, five readers, served to the browser by `GET /api/market-calendar` — and 1pm ET HALF-DAYS are documented in that same set as *\"intentionally NOT\"* included. So a daily bar on an early-close session reads `isrealtime` for up to three hours after trading actually stopped. ⚠️ THE GAP IS SHIPPED NAMED, NOT ROUNDED AWAY: `docs/pine/barstate.md` states it, the pane's data notes surface it, and a pipeline backlog item asks for the half-day set beside the closure set. A member watching the last bar is exactly who would be misled by a silent three hours.",
+    "_extended_hours_do_not_break_it": "⭐ AND THEY WERE CHECKED RATHER THAN ASSUMED. Our fetch CAN contain extended-hours bars — `bars_fetch` keeps those prints deliberately and the yfinance fallback asks for them with `prepost=True` — and an intraday bar's period ends `span` seconds after it starts whether or not the regular session is open, so the arithmetic is the same one. A test asserts it rather than this sentence.",
+    "_a_static_fetch_is_the_scope": "⚠️ THE FLAGS ARE CORRECT AT FETCH TIME AND ARE NOT LIVE. A refetch re-evaluates them; a bar that closes while a pane sits open does not flip until the next fetch. Streaming updates are a later phase and are recorded here so nobody reads the absence as a defect.",
+    "vendorNote": "TradingView's `barstate.ishistory` tells you whether the CHART loaded that bar or watched it form, so two people opening the same symbol at different times get different answers about the same bar. This engine evaluates one static fetch, where every closed bar arrived the same way, so `ishistory` here means exactly `isconfirmed`: the bar's period has ended. A script that branches on the two will always take the historical arm."
   }
 }

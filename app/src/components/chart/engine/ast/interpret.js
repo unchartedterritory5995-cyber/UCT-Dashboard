@@ -2754,7 +2754,12 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // `computeClock` call, the same thirteen columns, the same validation. What is
   // skipped is skipped only when the answer could not have depended on it.
   if (readsClock(ast, TABLE)) {
-    const cols = computeClock(bars, opts ? opts.tf : undefined)
+    // ⭐ `now` AND THE HOLIDAY SET TRAVEL WITH THE TIMEFRAME, and for the same
+    // reason: they are things the CALLER knows and the bars do not. Absent, the
+    // four BARSTATE realtime columns are NaN — the identical fail-closed
+    // contract `tf` already has, and never a guessed instant.
+    const cols = computeClock(bars, opts ? opts.tf : undefined,
+      opts ? opts.now : undefined, opts ? opts.holidays : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]
       if (!col) {

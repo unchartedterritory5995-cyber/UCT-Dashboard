@@ -1446,11 +1446,110 @@ CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
 #: over which of these names a formula may spell; this module is the authority
 #: over what each one MEANS, and ``ast_interpret`` raises by name when the two
 #: disagree.
+#: The two BARSTATE columns that read only the fetch's EXTENT -- which bar this
+#: is out of how many -- and no clock at all.
+#:
+#: ⭐ OUTSIDE THE UNIT GATE, for the same reason ``barindex`` is: they never touch
+#: ``t``, so a series stored in ``YYYYMMDD`` ints gives them no reason to doubt
+#: themselves. ⚠️ ``isfirst`` is WINDOW-DEPENDENT in the requirement-tag sense and
+#: ``islast`` is not -- widen the fetch and the oldest bar moves while the newest
+#: one does not. That asymmetry is the ruling, and it is why these are two
+#: columns rather than one with a flag.
+CLOCK_EXTENT = ("islast", "isfirst")
+
+#: The four BARSTATE columns that need a CLOCK as well as the fetch.
+#:
+#: ⛔ ALL FOUR FAIL CLOSED TO ``None`` WITHOUT A ``now``, exactly as the four
+#: timeframe booleans fail closed without a ``tf``. A guessed "now" would make
+#: ``isconfirmed`` a confident 1 on a bar that is still forming -- a wrong answer
+#: wearing a right one's clothes -- and the whole point of these columns is that
+#: a member can trust the last bar.
+CLOCK_REALTIME = ("isrealtime", "isconfirmed", "ishistory",
+                  "islastconfirmedhistory")
+
 CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
-                                      "isweekly", "ismonthly")
+                                      "isweekly", "ismonthly") \
+    + CLOCK_EXTENT + CLOCK_REALTIME
+
+#: Seconds in one bar of an INTRADAY timeframe. Declared, never parsed off the
+#: code, for the reason ``CLOCK_INTRADAY_TFS`` states one screen up.
+_TF_SPAN_SECONDS = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600}
 
 
-def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[MaybeNum]]:
+def _et_sixteen_hundred(t: float, zone) -> float:
+    """16:00 New York on the ET calendar day ``t`` falls in, in unix seconds."""
+    from datetime import datetime
+    local = datetime.fromtimestamp(t, zone)
+    return local.replace(hour=16, minute=0, second=0, microsecond=0).timestamp()
+
+
+def scheduled_close_seconds(t: float, tf, holidays=None):
+    """THE INSTANT A BAR'S PERIOD IS SCHEDULED TO END, or ``None``.
+
+    Mirrors ``indicators.js::scheduledCloseSeconds`` answer for answer.
+
+    ⭐ INTRADAY IS EXACT AND NEEDS NO CALENDAR: a 5-minute bar ends 300 seconds
+    after it starts whether the market is in its regular session, its pre-market
+    or its post-market, so an extended-hours bar in the fetch is handled by the
+    same arithmetic as an RTH one. ⚠️ That is a real property of our fetch rather
+    than a convenience -- ``bars_fetch`` deliberately keeps extended-hours prints
+    and the yfinance fallback asks for them with ``prepost=True``.
+
+    ⛔⛔ DAILY AND ABOVE END AT 16:00 NEW YORK, WHICH IS THE REGULAR SESSION CLOSE
+    ONLY. This engine knows NYSE full closures (``_NYSE_HOLIDAYS_YYYYMMDD`` in
+    ``api/services/bars_fetch.py`` -- one authority, five readers) and does NOT
+    know EARLY CLOSES: that set says in its own words that 1pm ET half-days are
+    "intentionally NOT" included. So on the handful of early-close sessions a
+    year the newest daily bar reads ``isrealtime`` for up to three hours after
+    trading actually stopped. Named in ``docs/pine/barstate.md`` and disclosed on
+    the pane; never rounded away, because a member watching the last bar is
+    exactly who would be misled.
+    """
+    span = _TF_SPAN_SECONDS.get(tf)
+    if span:
+        return t + span
+    if tf not in ("D", "W", "M"):
+        return None
+    from datetime import datetime, timedelta
+    zone = _et_zone()
+    day = _et_sixteen_hundred(t, zone)
+    if tf in ("W", "M"):
+        # ⭐ A WEEK OR A MONTH ENDS ON ITS LAST TRADING DAY, not on the day its
+        # bar is STAMPED. Our bars are stamped at the period's START, so walking
+        # forward is the whole difference between "this week's bar closed" and
+        # "this week's bar closed on Monday afternoon".
+        local = datetime.fromtimestamp(day, zone)
+        # Python's weekday(): 0=Monday .. 6=Sunday; Friday is 4.
+        day = _et_sixteen_hundred(
+            (local + timedelta(days=(4 - local.weekday()) % 7)).timestamp(), zone)
+        if tf == "M":
+            month = datetime.fromtimestamp(day, zone).month
+            while True:
+                nxt = _et_sixteen_hundred(
+                    (datetime.fromtimestamp(day, zone)
+                     + timedelta(days=7)).timestamp(), zone)
+                if datetime.fromtimestamp(nxt, zone).month != month:
+                    break
+                day = nxt
+    # ⛔⛔ AND THE LAST TRADING DAY IS NOT ALWAYS THAT WEEKDAY. Good Friday closes
+    # the NYSE, so a week ending 2026-04-03 actually ended on the Thursday. The
+    # closure set is passed IN rather than imported here, because this module is
+    # the CLOCK and a second list of exchange dates is the defect
+    # `/api/market-calendar` was written to prevent. ⚠️ ABSENT, this walks no days
+    # back and a holiday-shortened week reads `isrealtime` a day too long.
+    if holidays:
+        for _ in range(7):
+            local = datetime.fromtimestamp(day, zone)
+            if local.year * 10000 + local.month * 100 + local.day not in holidays:
+                break
+            day = _et_sixteen_hundred(
+                (local - timedelta(days=1)).timestamp(), zone)
+    return day
+
+
+def compute_clock(bars: List[dict], tf: Optional[str] = None,
+                  now: Optional[float] = None,
+                  holidays=None) -> Dict[str, List[MaybeNum]]:
     """The clock columns for a bar series, aligned to ``bars``.
 
     Mirrors ``computeClock`` in ``indicators.js``, value for value.
@@ -1497,6 +1596,41 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None) -> Dict[str, List[
     # in ``ast_interpret`` so the clock has ONE owner: a second place that knew
     # what bar number a bar is would be a second authority over a compared value.
     cols["barindex"] = [float(i) for i in range(n)]
+
+    # ⭐ THE EXTENT PAIR reads no ``t``, so it answers above the unit gate -- the
+    # same line ``barindex`` sits on, for the same reason.
+    cols["isfirst"] = [1.0 if i == 0 else 0.0 for i in range(n)]
+    cols["islast"] = [1.0 if i == n - 1 else 0.0 for i in range(n)]
+
+    # ⛔⛔ THE REALTIME FOUR FAIL CLOSED, AND THEY FAIL CLOSED FIRST. Without a
+    # ``now`` or without a timeframe this module cannot say whether the newest
+    # bar's period has finished, and a confident ``isconfirmed = 1`` on a forming
+    # bar is the one wrong answer these columns exist to prevent.
+    # ⚠️ ``now`` IS A PARAMETER, NEVER ``time.time()`` READ IN HERE. Two bindings
+    # of one fetch must agree bar for bar, and a function that reads the wall
+    # clock cannot be asked the same question twice.
+    newest = bars[n - 1].get("t") if isinstance(bars[n - 1], dict) else None
+    if (known and isinstance(now, (int, float)) and not isinstance(now, bool)
+            and now > VWAP_MIN_INSTANT
+            and isinstance(newest, (int, float)) and not isinstance(newest, bool)
+            and newest >= VWAP_MIN_INSTANT):
+        close = scheduled_close_seconds(newest, tf, holidays)
+        if close is not None:
+            # ⛔ ONLY THE NEWEST BAR CAN BE REALTIME. Every earlier bar's period
+            # ended before the newest one's began, so a per-bar comparison
+            # against ``now`` would answer the same thing at ten times the cost
+            # -- and would answer it DIFFERENTLY on a fetch whose newest bar is
+            # stale, which is the case a member most needs told.
+            forming = 1.0 if close > now else 0.0
+            cols["isrealtime"] = [forming if i == n - 1 else 0.0 for i in range(n)]
+            cols["isconfirmed"] = [1.0 - v for v in cols["isrealtime"]]
+            # ⚠️ ``ishistory`` IS AN ALIAS OF ``isconfirmed`` HERE AND IS NOT ONE
+            # IN PINE -- see ``closedTable.json::_barstate`` and the divergence
+            # row ``barstate-viewer-dependent-on-vendor``.
+            cols["ishistory"] = list(cols["isconfirmed"])
+            last_confirmed = n - 2 if forming else n - 1
+            cols["islastconfirmedhistory"] = [
+                1.0 if i == last_confirmed else 0.0 for i in range(n)]
 
     # THE UNIT GATE — before ``_et_zone()``, so a refused series costs no tz
     # lookup, and before any accumulation so the answer is all-or-nothing.

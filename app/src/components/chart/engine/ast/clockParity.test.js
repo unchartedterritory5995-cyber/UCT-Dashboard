@@ -53,7 +53,10 @@ describe('the clock oracle — this lane against the committed fixture', () => {
   })
 
   it('every column matches bar for bar, across the DST change and the weekend', () => {
-    const cols = computeClock(doc.bars, doc.tf)
+    // ⭐ `doc.now` IS PASSED, and the four BARSTATE realtime columns are all-NaN
+    // without it — which is the fail-closed contract, not an omission. See
+    // `_now` in the fixture for why the instant sits inside the newest bar.
+    const cols = computeClock(doc.bars, doc.tf, doc.now)
     for (const name of Object.keys(doc.expected)) {
       same(clean(cols[name]), doc.expected[name], name)
     }

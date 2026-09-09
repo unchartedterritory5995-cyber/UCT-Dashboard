@@ -45,9 +45,18 @@ const refusalOf = (body) => {
 
 describe('a refusal names the authority that actually disagrees', () => {
   it('⭐⭐ a request-dependent built-in is not called unknown — its siblings are held', () => {
-    const msg = refusalOf('plot(barstate.islast ? close : open)')
+    // ⚰️⚰️ THE SPECIMEN WAS `barstate.islast`, AND THE RULING THAT WITHDREW ITS
+    // REFUSAL CAME FROM THIS FILE'S OWN ARGUMENT. The old sentence said the
+    // answer "depends on how many bars were asked for" — true of the OLDEST bar
+    // and false of the NEWEST one, which is the newest bar however much history
+    // was requested. So `islast` is a served column now, and the specimen moved
+    // to the one `barstate.*` name that IS still refused.
+    // ⭐ THE CLAIM IS UNCHANGED AND IS THE WHOLE POINT OF THE FILE: a refusal
+    // whose opening clause is FALSE of the case in front of it sends a member to
+    // the wrong place, however correct its tail.
+    const msg = refusalOf('plot(barstate.isnew ? close : open)')
     expect(msg).toMatch(/holds its siblings/i)
-    expect(msg).toMatch(/depends on how many bars/i)
+    expect(msg).toMatch(/per-tick evaluation/i)
     // ⛔ THE CLAUSE THIS FILE EXISTS TO KEEP OUT.
     expect(msg).not.toMatch(/names something the engine grammar does not hold/i)
   })

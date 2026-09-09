@@ -41,7 +41,19 @@ const col = (name, ctx) => Array.from(computeFor(defFor(name), BARS, {}, ctx).v)
 
 /** The four entries that can only be answered from what the CALLER knows —
  *  derived from the manifest, never typed, so a fifth arrives covered. */
-const TF_FLAGS = Object.keys(TABLE.clock).filter((n) => n.startsWith('is'))
+/** ⚰️⚰️ THIS WAS `startsWith('is')` OVER THE CLOCK, AND A NAME SHAPE IS NOT AN
+ *  AUTHORITY. It was exactly right while the timeframe booleans were the only
+ *  `is…` columns, and it broke the day six BARSTATE columns landed with the same
+ *  spelling and a different meaning — demanding that `islast` blank itself for
+ *  want of a TIMEFRAME it does not read.
+ *  ⭐ THE MANIFEST SPLITS THEM, so the split is READ. A fifth timeframe flag is
+ *  covered the day it lands; a seventh barstate column does not disturb this. */
+const BARSTATE_COLS = new Set([
+  ...((TABLE._barstate || {}).extent || []),
+  ...((TABLE._barstate || {}).realtime || []),
+])
+const TF_FLAGS = Object.keys(TABLE.clock)
+  .filter((n) => n.startsWith('is') && !BARSTATE_COLS.has(n))
 
 describe('the timeframe reaches interpret through computeFor', () => {
   it('⭐ ctx.tf ANSWERS the timeframe booleans — one true, the rest false, per code', () => {

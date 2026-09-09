@@ -420,13 +420,27 @@ def vendor_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, s
     against is a hand-list that happens to be right today.
     """
     m = manifest if manifest is not None else TABLE
-    return {
+    out = {
         name: spec[VENDOR_NOTE]
         for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items()
         if isinstance(spec, Mapping)
         and isinstance(spec.get(VENDOR_NOTE), str)
         and spec[VENDOR_NOTE].strip()
     }
+    # ⭐⭐ AND A NOTE MAY BELONG TO A FAMILY RATHER THAN TO A FUNCTION. The
+    # `barstate.*` divergence is about a group of CLOCK COLUMNS, and there is no
+    # function entry to hang it on — but a member reading one of those columns
+    # needs the sentence exactly as much as one calling `atr` does. The block
+    # that owns the family carries it, keyed by the family name.
+    # ⛔ WITHOUT THIS, `test_vendor_truth.py` IS THE ONLY READER OF AN ACCEPTED
+    # DIVERGENCE — which is the failure that rail exists to catch, arriving in the
+    # rail's own blind spot.
+    for family in ("_barstate",):
+        spec = m.get(family)
+        if (isinstance(spec, Mapping) and isinstance(spec.get(VENDOR_NOTE), str)
+                and spec[VENDOR_NOTE].strip()):
+            out[family.lstrip("_")] = spec[VENDOR_NOTE]
+    return out
 
 
 #: The declaration that says an entry's OTHER ``int`` arguments must fit inside

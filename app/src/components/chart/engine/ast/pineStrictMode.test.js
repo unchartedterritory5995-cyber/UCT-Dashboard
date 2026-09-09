@@ -16,6 +16,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine.js'
+import { interpret } from './interpret.js'
 
 /** The Clouds shape in miniature: two plots that translate, N that cannot.
  *  ⛔ Written out rather than read from the member's file so this rail owns its
@@ -134,42 +135,81 @@ describe('⭐ strict mode does NOT punish a script for being correct', () => {
   })
 })
 
-describe('⛔⛔ `barstate.*` folds on closed bars and is REFUSED for a pane', () => {
+describe('⛔⛔ `barstate.*` folds for the screener and is a COLUMN for a pane', () => {
   // ⭐⭐ THE SECOND PLACE THE TWO CONTRACTS DIVERGE, and the reason is the same
   // one: the screener evaluates CLOSED bars, so folding `barstate.isconfirmed`
   // to true there is EXACT. A chart pane draws the forming bar, where it is
-  // false exactly once — on the one bar the member is watching. Realtime has
-  // never been tested in this engine, so host mode declines rather than
-  // shipping a confident wrong value on that bar.
+  // false exactly once — on the one bar the member is watching.
+  //
+  // ⚰️⚰️ THE HOST USED TO REFUSE `pine:live-bar-state`, AND THAT WAS THE RIGHT
+  // ANSWER TO A MISSING CAPABILITY. Its own sentence said realtime "has never
+  // been tested here", so declining beat shipping a confident wrong value on the
+  // one bar being watched. The capability now exists: `computeClock` decides
+  // these per bar from the CLOCK and the FETCH, with the evaluating instant
+  // handed IN so two bindings of one fetch cannot disagree. A refusal that
+  // outlives its reason is a capability missing for no cause, so it is
+  // withdrawn — and the fold it stood beside is untouched.
   const each = (member) => `//@version=6\nindicator("t")\nplot(barstate.${member} ? close : open)\n`
 
   for (const [member, folded] of [['isconfirmed', 'close'], ['ishistory', 'close'],
-    ['isnew', 'close'], ['isrealtime', 'open']]) {
-    it(`⭐ barstate.${member} — folds to \`${folded}\` for the screener, refuses for a pane`, () => {
+    ['isrealtime', 'open']]) {
+    it(`⭐ barstate.${member} — folds to \`${folded}\` for the screener, a COLUMN for a pane`, () => {
       const l = translatePine(each(member))
       expect(l.ok, 'the screener contract is unchanged').toBe(true)
       expect(l.outputs[0].formula, 'and it still folds to its closed-bar value').toBe(folded)
 
+      // ⭐ THE HOST READS THE COLUMN. Not a fold, not a refusal — the name the
+      // member wrote, resolved to the clock column that answers it per bar.
       const h = translatePine(each(member), { strict: true })
-      expect(h.ok).toBe(false)
-      expect(h.refusal.guard).toBe('pine:live-bar-state')
+      expect(h.ok, h.ok ? '' : h.refusal.message).toBe(true)
+      expect(h.outputs[0].formula).toBe(`${member} ? close : open`)
     })
   }
 
-  it('⛔ the refusal says the name is KNOWN, not missing', () => {
-    // ⚰️ `pine:builtin` would be the wrong sentence here and this file's
-    // neighbour already argued that for `barstate.islast`: "this engine has no
-    // home for that name" is false when the engine holds it and folds it.
-    const h = translatePine(each('isconfirmed'), { strict: true })
-    expect(h.refusal.message).toMatch(/forming bar/)
-    expect(h.refusal.message).not.toMatch(/does not hold/)
+  it('⛔ `barstate.isnew` is REFUSED on BOTH, and the reason is not "unknown"', () => {
+    // ⚰️ IT FOLDED TO 1 FOR THE SCREENER UNTIL 2026-09-09, and the fold was a
+    // restatement of the question: true on the FIRST EXECUTION of each bar is a
+    // fact about how many times the script ran, not about the bar, and a static
+    // fetch runs once. ⚠️ THAT IS A SHIPPED-BEHAVIOUR CHANGE — a screen that
+    // spelled it translated before and refuses now.
+    for (const opts of [{}, { strict: true }]) {
+      const r = translatePine(each('isnew'), opts)
+      expect(r.ok).toBe(false)
+      expect(r.refusal.message).toMatch(/per-tick evaluation/)
+      expect(r.refusal.message).toMatch(/holds its siblings/)
+      expect(r.refusal.message).not.toMatch(/grammar does not hold/)
+    }
   })
 
-  it('⭐ `barstate.islast` is refused by BOTH — it was never a fold', () => {
-    // A request-dependent name, refused for a different and older reason. It
-    // must not quietly become a live-bar refusal.
-    expect(translatePine(each('islast')).refusal.guard).toBe('pine:builtin')
-    expect(translatePine(each('islast'), { strict: true }).refusal.guard).toBe('pine:builtin')
+  it('⭐⭐ `barstate.islast` TRANSLATES on both — the request-dependence was wrong', () => {
+    // ⚰️ IT WAS REFUSED BY BOTH, on the ground that its value "depends on how
+    // many bars were asked for". Half right: widen the fetch and the OLDEST bar
+    // moves, while the NEWEST bar is the newest bar however much history was
+    // requested. `isfirst` really is window-dependent and carries the
+    // containment tag on the DEFINITION instead of a refusal at the grammar.
+    for (const opts of [{}, { strict: true }]) {
+      const r = translatePine(each('islast'), opts)
+      expect(r.ok, r.ok ? '' : r.refusal.message).toBe(true)
+      expect(r.outputs[0].formula).toBe('islast ? close : open')
+    }
+  })
+
+  it('⛔ AND THE PANE IS NOT GUESSING THE CLOCK — no instant, no answer', () => {
+    // The translation is the same either way; what differs is whether the
+    // EVALUATOR was told the time. This is the fail-closed contract, asserted at
+    // the door that actually serves a member rather than only in the clock's own
+    // unit tests.
+    const h = translatePine(each('isconfirmed'), { strict: true })
+    expect(h.ok).toBe(true)
+    const bars = Array.from({ length: 4 }, (_, i) => (
+      { t: 1761811200 + i * 86400, o: 10, h: 11, l: 9, c: 10 + i, v: 5 }))
+    const blind = interpret(h.outputs[0].ast, bars, {}, undefined, undefined, { tf: 'D' })
+    expect([...blind].every(Number.isNaN),
+      'the pane answered a barstate question with no evaluating instant').toBe(true)
+    const told = interpret(h.outputs[0].ast, bars, {}, undefined, undefined,
+      { tf: 'D', now: bars[bars.length - 1].t + 1 })
+    expect([...told].some(Number.isFinite),
+      'the pane refused even WITH an instant — the fail-closed test proves nothing').toBe(true)
   })
 })
 
