@@ -23,6 +23,89 @@ owner's existing paid BrowserStack account, driven by hand through
 
 ## 0. Preconditions — resolve these BEFORE running any block
 
+### 0.0 ⛔ INCIDENT (2026-09-08) — the first sandbox boot wrote to LIVE `C:\data`
+
+**Read this before running the sandbox. It is fixed and verified, but the failure shape
+is the reason every step below insists on evidence rather than assumption.**
+
+The first `hub-sandbox.ps1` boot at 22:04 wrote into the owner's production data while
+reporting a clean startup and a healthy `/api/health`:
+
+| Live file | Written at | What it is |
+|---|---|---|
+| `C:\data\auth.db` | 22:04:46 | 1.01 GB, ~20,640 real members |
+| `C:\data\desk.db` | 22:04:23 | Desk sessions |
+| `C:\data\flow.db-shm` / `-wal` | 22:04:16 | Options flow tape |
+| `C:\data\buzz.db-shm` | 22:04:16 | Ticker-mention board |
+
+**Root cause: `DATA_DIR` is not the authority, and the script set only `DATA_DIR`.**
+There are **72** environment variables naming paths inside the shared root, and they
+resolve *independently*. `api/services/auth_db.py:10` is the whole class in one line:
+
+```python
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
+```
+
+No `DATA_DIR` in it. `/data` is a real directory on this box, so the default resolved to
+`C:\data\auth.db`. **Nothing failed and nothing warned** — which is precisely the hazard
+the script's own header claimed to defend against. The guard it *did* have (refusing
+`-DataDir C:\data`) was real, and irrelevant: the sandbox path was correct and 71 of the
+72 vars ignored it.
+
+A second defect in the same file: the kill-list set **`BARS_PREWARM_DISABLED=1`, a name
+that matches nothing in the codebase** — invented, never verified. The bars seeder is
+gated only by `USE_REMOTE_BARS`, so it ran (`[seeder/t2-D] starting — 3160 jobs`).
+
+#### The fix — derived, not typed
+
+`scripts/hub-sandbox.ps1` now builds the frontend and hands off to
+**`scripts/hub_sandbox_boot.py`**, which:
+
+1. **Derives all 72 pins by AST** from `api/**` via `conftest.shared_data_root_census()`
+   — the same census the pytest suite has used since `e86ad6d5`, with its own rails in
+   `tests/test_shared_data_root_guard.py`. The sandbox and the test suite now cannot
+   drift, and a `/data` literal added tomorrow is pinned the day it lands. ⛔ Restating
+   the list here would recreate the second-authority defect that caused the incident.
+2. **Arms the tripwire.** Importing that conftest wraps `sqlite3.connect`, `open`,
+   `io.open` and `os.makedirs/mkdir/remove/unlink/rename/replace` so any write inside
+   `C:\data` raises *and is recorded*. A redirect alone cannot cover default-argument
+   sites (`def __init__(self, db_path="/data/flow.db")`) — they read no env var, so
+   there is nothing for a pin to move.
+3. **Reports the records.** A daemon thread's raise goes to `threading.excepthook` and
+   vanishes, leaving a server that looks healthy — so the launcher prints a
+   `SHARED-ROOT WRITE BLOCKED` banner with the thread and stack. The record is the
+   guard; the raise is not.
+4. Sets `USE_REMOTE_BARS=1` (the *only* gate on the seeder) and `BARS_PREWARM_ENABLED=0`.
+
+#### Verification — measured, not assumed
+
+Snapshotted all **8,626** files under `C:\data` (path, size, mtime), booted the fixed
+launcher, and re-compared **155 s after boot** so the ~60 s and ~75 s darkpool /
+industry-map / ticker-logos prewarms had all fired:
+
+```
+NEW files     : 0
+CHANGED files : 0
+  C:\data IS STILL UNTOUCHED.
+```
+
+Zero `SharedDataRootWrite` records — the redirect was complete enough that the tripwire
+never had to fire. Positive control that the sandbox is genuinely in use: the launcher
+logged `[auth] Migrated: added email_verified column to users` (a fresh-schema path) and
+`C:\data-hubtest\auth.db` is **2.3 MB**, not the live 1.01 GB.
+
+**Damage assessment on the live files:** `PRAGMA quick_check` = `ok` on `auth.db`,
+`desk.db`, `flow.db`, `buzz.db`. `users` = 20,664 with the newest row dated 2026-09-05,
+three days before the incident, and **0 rows matching `hubtest`** — the writes were
+idempotent schema-init (`CREATE TABLE IF NOT EXISTS` + `ALTER`) and WAL churn, not data
+mutation. No member data was altered.
+
+⚠️ Note for anyone probing live SQLite: opening a WAL database **read-only still rewrites
+its `-shm` index**, so a `mode=ro` probe changes mtimes. Judge a leak by the *main* `.db`
+file, not by `-shm`.
+
+---
+
 ### 0.1 The URL — RESOLVED: local sandbox + BrowserStack Local tunnel
 
 **Decision (owner, Phase 2 gate): device testing runs against a LOCAL sandbox build on the
