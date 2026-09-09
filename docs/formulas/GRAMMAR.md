@@ -68,7 +68,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (70)
+## Functions (71)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -91,6 +91,7 @@ decide whether a formula can run at all.
 | `cos(source)` | a number | 0 bars | the cosine of `source` |
 | `crossOver(left, right)` | true or false | 1 bar | `left` crossing above `right` |
 | `crossUnder(left, right)` | true or false | 1 bar | `left` crossing below `right` |
+| `cum(source)` | a number | series | the running total of `source` over every bar of the loaded history |
 | `cumFrom(source, anchor, windowPeriod)` | a number | whatever `windowPeriod` asks for | the running total of `source` from the first bar at or after epoch `anchor`, for at most `windowPeriod` bars |
 | `dev(source, period)` | a number | whatever `period` asks for | the mean absolute deviation of `source` over the last `period` bars |
 | `donchianLower(high, low, period)` | a number | whatever `period` asks for | the bottom of the `period`-bar Donchian channel over `high` and `low` |

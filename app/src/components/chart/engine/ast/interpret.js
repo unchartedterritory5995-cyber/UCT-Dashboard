@@ -50,6 +50,7 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
+  SERIES_LOOKBACK,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -1314,6 +1315,38 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  *   `pivothigh`/`pivotlow` read `right` bars into the FUTURE — not causal, so a
  *          bar loop cannot answer them at the current bar at all.
  */
+/** `cum(source)` — the running total from bar 0 of the DELIVERED series.
+ *
+ *  ⭐⭐ THE `na` RULE IS THE VENDOR'S AND IT IS THREE FACTS, NOT ONE. Measured on
+ *  TradingView 2026-09-08 (SPY 1D, 8,459 bars):
+ *    1. `na` BEFORE the first finite input — a total of nothing is not 0.
+ *    2. `na` **ON** an `na` bar — the vendor draws no point there.
+ *    3. the total is HELD across it: 7330 -> na -> 7331. It neither advances nor
+ *       resets, and the final value equalled the count of finite inputs EXACTLY
+ *       (7,690 of 8,459), which is what proves a skipped bar contributes nothing.
+ *
+ *  ⛔ (2) IS THE ONE AN IMPLEMENTATION GETS WRONG. The spec this was built from
+ *  said *"na inputs contribute 0 once the series has started"* — true of the
+ *  TOTAL and false of the OUTPUT, and following its literal wording would paint a
+ *  value on a bar TradingView leaves blank. Same HOLD rule already pinned for
+ *  `ta.ema`/`ta.rma`/`ta.rsi`/`ta.macd`, now shown to cover the accumulator too.
+ *
+ *  ⚠️ THE COLUMN IS A FACT ABOUT THE FETCH, WHICH IS WHY IT IS TAGGED. Widen the
+ *  request and every value shifts by one constant. `_requirement_tags.
+ *  window_dependent` is the containment; this function is only the arithmetic.
+ */
+function cumCol(series) {
+  const out = nan(series.length)
+  let total = 0
+  for (let i = 0; i < series.length; i++) {
+    const v = series[i]
+    if (!Number.isFinite(v)) continue      // out[i] stays NaN AND `total` is held
+    total += v
+    out[i] = total
+  }
+  return out
+}
+
 export const FINITE_WINDOW = Object.freeze({
   sma: { reduce: windowMean, span: (n) => n, na: NA.SKIP },
   wma: { reduce: windowWeightedMean, span: (n) => n, na: NA.FFILL },
@@ -1470,6 +1503,7 @@ export const FN = Object.freeze({
   min: (a, b) => elementwise2(a, b, POINTWISE.min),
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
   rma: carriedFn('rma'),
+  cum: cumCol,
   wma: windowFn('wma'),
   // ⭐ HULL — `wma` THREE TIMES, and the two derived windows are computed HERE so
   // the manifest carries one period and the member writes one number. Alan Hull's
@@ -2344,6 +2378,10 @@ export function ownLookback(node, spec) {
   const lb = spec.lookback
   if (typeof lb === 'number') return lb
   if (lb === SESSION_LOOKBACK) return SESSION_MAX_BARS
+  // ⭐ `series` CONTRIBUTES 0 TO THE TREE SUM — see `SERIES_LOOKBACK` in
+  // `parse.js` for why that is the measured warm-up and not a shortcut, and for
+  // where the cost it DOES carry is held instead.
+  if (lb === SERIES_LOOKBACK) return 0
   const m = LOOKBACK_RE.exec(String(lb))
   if (!m) {
     refuse('interpret:node',

@@ -119,6 +119,79 @@ def test_an_UNDECLARED_tag_is_refused_everywhere():
         assert why and "does not declare" in why
 
 
+# ─── the declaration and the tag are two halves of one decision ──────────────
+
+def test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained():
+    """⛔⛔ THE HALF A `lookback: "series"` DECLARATION CANNOT SHIP WITHOUT.
+
+    `series` says THE WINDOW IS THE DELIVERED SERIES — which is exactly the
+    property that makes a column a fact about the REQUEST rather than about the
+    market: widen the fetch and every value moves by one constant. That is the
+    defect `_functions_cumulative` refused `ta.cum` over, and the only reason the
+    refusal could be relaxed is that `_requirement_tags` now contains it.
+
+    ⛔ SO THE TWO ARE ONE DECISION AND THIS ASSERTS IT. A second `series` entry
+    added without a tag would be callable, would resolve to 0 in the budget (which
+    is TRUE — it costs no warm-up), would pass every existing rail, and would flow
+    straight into the screener, the sweep, an alert, a share and a listing. The
+    budget cannot catch it because the budget is not the thing being violated.
+
+    ⚠️ THE CONVERSE IS NOT ASSERTED, ON PURPOSE. A tag may name a call that is not
+    `series`-declared — a future tag might be about something else entirely (a
+    fetch to another symbol, say). One direction is the safety property; the other
+    would be a guess about tags nobody has written.
+    """
+    from api.services import ast_lint
+
+    functions = ast_table.TABLE["functions"]
+    series_declared = sorted(
+        name for name, spec in functions.items()
+        if hasattr(spec, "get") and spec.get("lookback") == ast_lint.SERIES_LOOKBACK)
+
+    # ⛔ NON-VACUITY. With no `series` entry at all the loop below is empty and
+    # this test passes while asserting nothing — the shape this repo names most.
+    assert series_declared, (
+        "no entry declares `lookback: \"series\"` — either the declaration was "
+        "removed (delete this rail with it) or the probe stopped finding it")
+
+    tagged = set()
+    for tag, spec in (ast_table.TABLE.get("_requirement_tags") or {}).items():
+        if tag.startswith("_") or not hasattr(spec, "get"):
+            continue
+        tagged |= set(spec.get("calls") or ())
+
+    missing = [n for n in series_declared if n not in tagged]
+    assert not missing, (
+        f"{missing} declare(s) `lookback: \"series\"` and NO requirement tag names "
+        "them. The declaration says the value depends on how much history was "
+        "loaded; the tag is the only thing that stops that value reaching the "
+        "screener, the sweep, an alert, a share or a listing, where the defect is "
+        "invisible. Add the name to `_requirement_tags.<tag>.calls`.")
+
+
+def test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers():
+    """⭐ THE RAIL ABOVE CHECKS THE WIRING; THIS CHECKS IT DOES SOMETHING.
+
+    A name could be listed in a tag whose `refused_by` is empty, which would
+    satisfy the assertion above and refuse nobody.
+    """
+    from api.services import ast_lint
+    from api.services.user_definitions import consumer_refusal, requirement_tags
+
+    for name, spec in ast_table.TABLE["functions"].items():
+        if not hasattr(spec, "get") or spec.get("lookback") != ast_lint.SERIES_LOOKBACK:
+            continue
+        tags = requirement_tags({"compute": {"ast": _call(name, VOLUME)}})
+        assert tags, f"{name} is series-declared and `requirement_tags` returns nothing"
+        refused = [c for c in ("screener", "sweep", "alert", "share", "listing")
+                   if consumer_refusal(c, tags)]
+        assert refused == ["screener", "sweep", "alert", "share", "listing"], (
+            f"{name} is series-declared but only {refused} refuse it")
+        assert consumer_refusal("pane", tags) is None, (
+            f"{name} is refused by the PANE too — then nothing can draw it and the "
+            "declaration is unreachable, which is worse than not declaring it")
+
+
 def test_the_manifest_amendment_records_WHY_the_split_is_now_allowed():
     """⛔ THE RULING IS AMENDED, NOT OVERTURNED, and the file must say so — a
     future reader who finds `cum` drawable needs the containment argument and its

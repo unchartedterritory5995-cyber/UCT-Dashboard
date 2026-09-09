@@ -4454,6 +4454,21 @@
           }
         ]
       }
+    },
+    {
+      "id": "cum_running_total",
+      "source": "cum(volume)",
+      "why": "⭐⭐ THE RUNNING TOTAL, ADMITTED UNDER OWNER RULING D (2026-09-09) WITH ITS CONTAINMENT ON THE DEFINITION RATHER THAN ON THE ENTRY. `_functions_cumulative` refused a per-consumer exception because *\"there is no per-entry flag that stops a fetch-dependent column flowing into a saved definition, a nightly sweep, an alert or a shared screen\"* — the flag now exists as `_requirement_tags.window_dependent`, stamped at SAVE time by static analysis, and those consumers refuse it BY NAME while the pane accepts it. ⛔ THIS CASE IS THE CROSS-LANE HALF AND IT IS WHY THE ENTRY LANDS ON THE BAR FLOOR: the two lanes must agree bar for bar on a column whose whole character is that it never forgets, so a one-bar disagreement anywhere in the series persists to the end rather than washing out. Nothing else in this corpus has that property. ⚠️ THE `na` RULE IS THE VENDOR'S, MEASURED ON TRADINGVIEW 2026-09-08 (SPY 1D, 8,459 bars): `na` before the first finite input, `na` ON an `na` bar, and the total HELD across it — 7330 -> na -> 7331, with the final value equal to the count of finite inputs exactly. `volume` is finite on every bar of this corpus, so this digest pins the ARITHMETIC and the hold rule is pinned by `interpret.test.js` / `test_ast_interpret.py` on a holed series. ⚠️ ITS DECLARED `lookback` IS `\"series\"`, which resolves to 0 in the budget sum: `ta.cum` answers on bar 0, so it costs no warm-up. What it costs is comparability, which is not a budget question — see `_functions_warmup`.",
+      "ast": {
+        "type": "call",
+        "name": "cum",
+        "args": [
+          {
+            "type": "series",
+            "name": "volume"
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

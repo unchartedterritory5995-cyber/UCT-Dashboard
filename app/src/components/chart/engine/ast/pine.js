@@ -75,7 +75,7 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
-import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES } from './parse.js'
+import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES , hostAdmissible } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
@@ -919,6 +919,41 @@ export const BUILTIN_CALENDAR_TREE = Object.freeze({
   'dayofweek.saturday': () => cNum(7),
 })
 
+/** ⭐⭐ `timeframe.<predicate>` — A NAMESPACED ALIAS ONTO A COLUMN THE TABLE
+ *  ALREADY DECLARES, which makes it a THIRD kind of dotted name and not a
+ *  variation on the two above.
+ *
+ *  `BUILTIN_CONSTANT_TREE` folds a name to a CONSTANT because of how this engine
+ *  evaluates. `BUILTIN_CALENDAR_TREE` folds one to a CONSTANT because of what a
+ *  calendar is. These fold to NOTHING — they resolve to the clock series the
+ *  manifest already ships, so the value is decided per bar by the engine exactly
+ *  as the bare spelling is. There is no judgement in this map and no new
+ *  capability behind it; the gap was purely that the Pine door never mapped the
+ *  dotted spelling.
+ *
+ *  ⭐ THE MEANING IS THE MANIFEST'S, WORD FOR WORD. `closedTable.json::clock
+ *  .isdaily` reads *"1 when the chart's timeframe is daily, otherwise 0"*, which
+ *  is `timeframe.isdaily`'s definition. Vendor-witnessed on the daily row:
+ *  `isdaily 1 / isweekly 0 / ismonthly 0` on a 1D SPY chart, 2026-09-08.
+ *  ⚠️ THE **TRUE** CASE OF `isweekly`/`ismonthly` IS NOT OBSERVED — the capture
+ *  was taken on a 1D chart. What is witnessed is that the predicates read off the
+ *  chart's own declared timeframe, which this engine already holds; the untested
+ *  half is recorded in the fixture's own `_coverage` block rather than papered
+ *  over here.
+ *
+ *  ⛔ EACH VALUE IS A DECLARED CLOCK NAME AND A RAIL ASSERTS IT, in both
+ *  directions: no alias may point at a column the manifest does not declare, and
+ *  no clock predicate may ship WITHOUT an alias — which is the direction that
+ *  actually rots, because adding `clock.isseconds` and forgetting this map is
+ *  invisible until a member pastes a script.
+ */
+export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
+  'timeframe.isdaily': 'isdaily',
+  'timeframe.isweekly': 'isweekly',
+  'timeframe.ismonthly': 'ismonthly',
+  'timeframe.isintraday': 'isintraday',
+})
+
 /** The look-alikes of the four above — REFUSED, and refused with the reason.
  *
  *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE. "This engine has
@@ -1237,6 +1272,12 @@ const BUILTIN_RULED = Object.freeze({
     + 'the edit is yours to make rather than one taken silently on your behalf.',
 })
 
+// ⭐ RE-EXPORTED, NOT REDEFINED. The predicate is pure manifest logic and it
+// lives in `parse.js` — `doorCoverage.js` needs it too and is deliberately
+// decoupled from this module (it takes its doors as parameters). One
+// authority, two importers.
+export { hostAdmissible }
+
 export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
   // here it fell into the generic arm and answered with the WHOLE declared
@@ -1305,6 +1346,14 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // construction. So `cum` still does not translate. What changes is that the
   // door hands back the call that DOES work and leaves the anchor where it
   // belongs: with the member, visible in their own script.
+  // ⭐⭐ AMENDED 2026-09-09 — THIS IS A SCREENER REFUSAL NOW, NOT A UNIVERSAL ONE.
+  // `cum` is DECLARED in the table and HOST mode serves it; the sentence below is
+  // what a member gets when they aim it at a SCREEN, which is still refused and
+  // for the reason it always was. `_functions_cumulative` carries the ruling and
+  // `_requirement_tags.window_dependent` is the mechanism that made the split
+  // safe: the pane accepts it, the screener/sweep/alert/share/listing refuse it
+  // BY NAME, so the fetch-dependent level cannot leak past the one surface that
+  // can hold it honestly.
   cum: 'a running total from the first bar, and `cum` names no anchor — a '
     + 'translator that picked one would be inventing the single number the whole '
     + 'answer turns on, and the value would then change with how many bars the '
@@ -5011,6 +5060,14 @@ export class Resolver {
         return BUILTIN_CONSTANT_TREE[name]()
       }
       if (own(BUILTIN_CALENDAR_TREE, name)) return BUILTIN_CALENDAR_TREE[name]()
+      // ⭐ THE DOTTED SPELLING OF A COLUMN THIS ENGINE ALREADY HAS. No fold, no
+      // constant — it becomes the same `series` node the bare name does, so both
+      // contracts serve it and both lanes evaluate it identically. This is the
+      // repair `dayofweek.friday` got on 2026-08-27, one namespace over: the bare
+      // lane was swept when the clock landed and the dotted lane was not.
+      if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
+        return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
+      }
       // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
       // shrug — the same precedence `_functions_excluded` takes over the
       // sixty-four-name dump one layer down.
@@ -6130,7 +6187,29 @@ export class Resolver {
         + 'engine has to know that number when it builds the formula — write it '
         + 'as a plain whole number', locate(tok))
     }
-    if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
+    // ⛔ THE HOST EXEMPTION IS NARROW BY CONSTRUCTION AND EVERY CLAUSE EARNS ITS
+    // PLACE: `this.strict` (host mode only — a screen never gets it), `key` (the
+    // table really declares the name, so we are not waving through something we
+    // cannot compute), and the manifest-derived set (the ruling covers THIS
+    // name). Drop any one and the exemption stops being the ruling and starts
+    // being a hole.
+    const hostOnly = hostAdmissible(this.table).has(bare)
+    const hostServes = this.strict && key && hostOnly
+    // ⛔⛔ `|| hostOnly` IS LOAD-BEARING AND A CORPUS SCRIPT PROVED IT. The
+    // `pineName !== base || !key` test is a SPELLING carve-out: it lets a member
+    // write a DECLARED table name directly without meeting the refusal aimed at
+    // the Pine construct of the same name. That is right in general and WRONG for
+    // a host-only name, because what makes `cum` unfit for a screen is not how it
+    // was spelled — it is that the value moves with the fetch, whichever door it
+    // came through.
+    // ⚰️ MEASURED: `tests/fixtures/pine/09-on-balance-volume.pine` writes the v3
+    // BARE form `cum(sign(change(src)) * volume)`. The moment `cum` became
+    // declared, `key` resolved, the carve-out fired, and that script — the one
+    // `_functions_cumulative` names BY PATH as the level that "must stay refused"
+    // — started translating for a SCREEN. Caught by the corpus snapshot, not by
+    // review.
+    if (own(PINE_INEXPRESSIBLE, bare) && !hostServes
+        && ((pineName !== base || !key) || hostOnly)) {
       // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
       // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
       // and `time(timeframe, session)`, the session read. The entry describes the

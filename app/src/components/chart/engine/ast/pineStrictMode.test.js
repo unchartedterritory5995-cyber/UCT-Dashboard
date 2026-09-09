@@ -111,9 +111,26 @@ describe('⭐ strict mode does NOT punish a script for being correct', () => {
   it('⛔ NON-VACUITY — strict mode can still say no for the ordinary reasons', () => {
     // If strict only ever differed on partial translations it would be untested
     // against the failures every mode shares.
-    const r = translatePine('//@version=6\nindicator("t")\nplot(ta.cum(volume))\n', { strict: true })
+    //
+    // ⚰️ THE SPECIMEN WAS `ta.cum` UNTIL 2026-09-09, and the swap is the point
+    // rather than housekeeping. Owner Ruling D made `cum` the ONE name host mode
+    // serves that the screener refuses — so the moment it landed, this case was
+    // asserting the opposite of the truth while reading as a general claim about
+    // strictness. A non-vacuity probe pointed at the single EXCEPTION is worse
+    // than none: it goes green again the day somebody breaks the exception.
+    // ⭐ `ta.barssince` is the right shape: Pine's is UNBOUNDED, this table's
+    // `barssince(condition, n)` is a different, bounded function, and no lane
+    // serves the Pine meaning — so BOTH contracts refuse it, which is what
+    // "the failures every mode shares" actually means.
+    const script = '//@version=6\nindicator(\"t\")\nplot(ta.barssince(close > open) ? 1 : 0)\n'
+    const r = translatePine(script, { strict: true })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBeTruthy()
+    // ⛔ AND THE LENIENT CONTRACT REFUSES IT TOO — that is what makes this an
+    // ORDINARY refusal rather than a strictness one, and it is the half that stops
+    // the specimen silently becoming another `cum`.
+    expect(translatePine(script).ok, 'the specimen is mode-specific, not ordinary')
+      .toBe(false)
   })
 })
 

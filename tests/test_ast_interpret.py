@@ -268,7 +268,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # resolved by an INDEPENDENT real vendor capture) and `pvtN` (a bar
     # reader, the structural mirror of `obvN`, window `arg0`). No new node
     # type, argument kind, or lookback form.
-    assert len(ast_table.bar_names()) == 103, len(ast_table.bar_names())
+    # 103 -> 104 (2026-09-09): `cum`, admitted under owner Ruling D with its
+    # containment on the DEFINITION (`_requirement_tags`) rather than on the entry.
+    assert len(ast_table.bar_names()) == 104, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -291,7 +293,10 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # is untouched at 137.
     # 238 -> 240 (2026-09-06): the same `falling`/`pvtN` pair as the bar count
     # above; the scalar half is untouched at 137.
-    assert len(declared) == 240, f"the table declares {len(declared)} names, not 240"
+    # 240 -> 241 (2026-09-09): `cum`. The bar half moved and the scalar half did
+    # not, which is what the two assertions above are for; this is their sum and
+    # it has to move with them or the pair stops being a partition claim.
+    assert len(declared) == 241, f"the table declares {len(declared)} names, not 241"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

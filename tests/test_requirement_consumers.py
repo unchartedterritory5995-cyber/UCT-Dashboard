@@ -24,6 +24,14 @@ can author carries a tag yet. What each consumer READS is the stamp stored at
 save time, so writing that stamp is exactly the input these doors are built to
 refuse. The day `ta.cum` lands on the pane lane these tests keep working
 unchanged, which is the point of stamping rather than re-deriving.
+
+⭐ UPDATE 2026-09-09: `cum` IS DECLARED NOW (owner Ruling D), so the chain CAN be
+driven end to end, and `test_a_REAL_cum_definition_is_stamped_and_refused_END_TO_
+END` at the foot of this file does exactly that. The override cases above are
+KEPT and still earn their place: they are parameterised over whatever the
+manifest declares, so they go on working for the NEXT tag during the window
+before its call is reachable — which is the state the end-to-end case cannot
+reach. Two rails, two populations.
 """
 
 import ast as _ast
@@ -283,6 +291,59 @@ def test_a_tagged_definition_never_reaches_the_PUBLIC_LIBRARY(defs_db, tag):
     _store(tags=[tag])
     with pytest.raises(ud.ShareRefused):
         ud.publish(USER, DEF_ID)
+    assert ud.public_library()["entries"] == []
+
+
+# ═══ the whole chain, on a definition a MEMBER could actually author ═════════
+
+def test_a_REAL_cum_definition_is_stamped_and_refused_END_TO_END(defs_db):
+    """⭐⭐⭐ THE CASE THE HEADER SAID COULD NOT BE DRIVEN YET — IT CAN NOW.
+
+    Every case above writes the tag straight into the column, because when this
+    file was written `translatePine` refused `ta.cum` in BOTH modes and no
+    definition a member could author carried a tag. Owner Ruling D changed that on
+    2026-09-09: `cum` is declared, host mode serves it, and the containment moved
+    to the definition. So the chain can be driven for real, and this is it —
+
+        a formula that calls `cum`
+          -> `save()` stamps `requirements` by STATIC ANALYSIS (nobody typed it)
+          -> the five comparability consumers refuse it BY NAME
+          -> the pane accepts it
+
+    ⛔ IT DOES NOT REPLACE THE OVERRIDE CASES AND MUST NOT. Those are parameterised
+    over whatever the MANIFEST declares, so they keep working for the next tag
+    before its call is reachable — which is the state this one cannot test. Two
+    rails, two populations.
+    """
+    tags = ud._all_declared_tags()
+    assert tags, "the manifest declares no requirement tag"
+
+    doc = _defn("u_0000000000ee")
+    doc["meta"] = {"name": "Cumulative volume", "shortName": "CUMV"}
+    doc["compute"] = {"kind": "ast", "ast": {
+        "type": "call", "name": "cum",
+        "args": [{"type": "series", "name": "volume"}]}}
+    doc["placement"] = {"target": "separate"}
+
+    row = ud.save(USER, "u_0000000000ee", doc)
+    # ⛔ NOBODY WROTE THIS. It is derived from the tree at save time, which is the
+    # entire claim of the containment design.
+    assert row["requirements"] == ["window_dependent"], row["requirements"]
+
+    stored = ud.get(USER, "u_0000000000ee")
+    assert stored["requirements"] == ["window_dependent"]
+
+    for consumer in ("screener", "sweep", "alert", "share", "listing"):
+        assert ud.consumer_refusal(consumer, stored["requirements"]), (
+            f"{consumer} admitted a definition that calls `cum`")
+    assert ud.consumer_refusal("pane", stored["requirements"]) is None
+
+    # ⭐ AND THROUGH THE PRODUCT DOORS, not just the contract function.
+    out = router._stamped(stored)
+    assert out["scannable"] is False
+    assert out["scan_refusal"]["gate"] == "requirements"
+    with pytest.raises(ud.ShareRefused):
+        ud.share(USER, "u_0000000000ee")
     assert ud.public_library()["entries"] == []
 
 

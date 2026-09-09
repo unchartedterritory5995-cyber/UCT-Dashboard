@@ -125,6 +125,19 @@ def test_every_declared_lookback_is_readable_by_the_python_lane(name, spec):
     if lb == ast_interpret.SESSION_LOOKBACK:
         assert ast_lint._resolve_declaration(lb, []) == ast_interpret.SESSION_MAX_BARS
         return
+    # ⭐⭐ THE SECOND NON-MEASURING DECLARATION, AND THIS ARM IS WHAT CAUGHT THE
+    # LINTER MISSING IT. `series` says THE WINDOW IS THE DELIVERED SERIES; all
+    # three readers must agree it is 0 in the budget sum, and the linter is the
+    # one that fails CLOSED when it cannot read a declaration — which here would
+    # mean branding `cum` `repaints`, a wrong badge on a member's pane, on a
+    # column that cannot repaint (bar `i` reads bars `0..i`, all closed).
+    # ⛔ THE TWO SENTINELS ARE ASSERTED EQUAL RATHER THAN IMPORTED FROM ONE PLACE,
+    # because the linter's imports are pinned and it CANNOT import the evaluator.
+    # Two spellings of one word is exactly the drift this file exists to catch.
+    if lb == ast_interpret.SERIES_LOOKBACK:
+        assert ast_lint.SERIES_LOOKBACK == ast_interpret.SERIES_LOOKBACK
+        assert ast_lint._resolve_declaration(lb, []) == 0
+        return
     assert ast_interpret._LOOKBACK_RE.fullmatch(str(lb)), (
         f"{name} declares lookback {lb!r}, which this lane cannot read")
     assert ast_lint._ARG_REF.match(str(lb)), (

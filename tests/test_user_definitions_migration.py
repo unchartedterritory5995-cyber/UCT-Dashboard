@@ -122,16 +122,45 @@ def test_a_FRESH_database_gets_the_column_from_the_schema_not_the_migration(db):
 
 
 def test_the_EMPTY_DEFAULT_IS_TRUE_FOR_HISTORY_and_here_is_why(db):
-    """⛔⛔ THE CLAIM THE BACKFILL RESTS ON, ASSERTED RATHER THAN TRUSTED.
+    """⛔⛔ THE CLAIM THE BACKFILL RESTS ON — AND ITS FIRST PROOF HAS EXPIRED.
 
-    `'[]'` is only correct because no stored definition CAN carry the one tag
-    that exists. That holds while every builtin listed in
-    `_requirement_tags` is refused by the translator. If a future tag names a
-    builtin that already ships, this test fails and whoever added it owes a
-    backfill pass instead of a default.
+    ⚰️ THIS TEST USED TO PROVE THE DEFAULT FROM THE TABLE: no tagged call was
+    DECLARED, so no stored definition could carry a tag, so `'[]'` was true of
+    every pre-existing row. Its own words were *"if a future tag names a builtin
+    that already ships, this test fails and whoever added it owes a backfill pass
+    instead of a default"*. On 2026-09-09 `cum` was declared under owner Ruling D
+    and this went red exactly as designed. That is the rail working.
+
+    ⭐⭐ AND THE ANSWER IS NOT A BACKFILL, WHICH IS WHY THE PROOF IS REPLACED
+    RATHER THAN THE PASS BEING WRITTEN. A backfill exists to repair rows that were
+    stored WITHOUT a tag they should have had. No such row can exist:
+
+      1. `save()` stamps `requirements` on EVERY append, by static analysis, in
+         the same transaction as the row — asserted below, end to end.
+      2. A row written BEFORE `cum` was declared cannot CONTAIN `cum`. `save()`
+         runs `lint_verdict` -> `ast_lint`, which resolves every name against the
+         shipped table; an undeclared name is refused at the door. So history is
+         not under-tagged, it is tag-FREE, and `'[]'` is its true value.
+
+    ⛔ SO THE INVARIANT MOVED FROM "no tagged call is declared" — a fact about the
+    TABLE, which was always going to expire — to "no row is stored unstamped", a
+    fact about the WRITE PATH, which is the thing that actually has to hold. The
+    new proof is strictly stronger: it drives a real `cum` definition through the
+    real `save()`, which the old one could not do because the name did not exist.
+
+    ⚠️ WHAT WOULD STILL OWE A BACKFILL: a tag added to a call that has been
+    callable for a while. Then rows predating the TAG carry `'[]'` and should not,
+    and (2) above does not save you. The direction to check is the tag's age
+    against the call's, not the call against the table.
     """
     from api.services import ast_table
     from api.services.user_definitions import requirement_tags
+
+    # ⛔ THE FIXTURE'S `ud`, NOT A FRESH IMPORT. It is the module with `_DB_PATH`
+    # monkeypatched at the sandbox; importing again here would reach the module's
+    # own default, which on this box resolves under the shared root.
+    _path, ud = db
+    ud._init_db()
 
     tagged = set()
     for spec in (ast_table.TABLE.get("_requirement_tags") or {}).values():
@@ -139,17 +168,42 @@ def test_the_EMPTY_DEFAULT_IS_TRUE_FOR_HISTORY_and_here_is_why(db):
             tagged |= set(spec.get("calls") or ())
     assert tagged, "the manifest must declare at least one tagged call"
 
-    # Every tagged builtin must be absent from the shipped function table — that
-    # is what makes it unreachable from a saved definition today.
-    declared = set(ast_table.TABLE["functions"])
-    leaked = tagged & declared
-    assert not leaked, (
-        f"{sorted(leaked)} is BOTH tagged as needing containment AND callable "
-        "from the shipped table — stored definitions may already contain it, so "
-        "the '[]' default is no longer provably correct and this column needs a "
-        "backfill pass over history")
-
-    # And a definition using one really would be tagged, so the mechanism is live.
+    # ── (1) every append is stamped, driven through the real write path ──────
     name = sorted(tagged)[0]
-    assert requirement_tags(
-        {"compute": {"ast": {"type": "call", "name": name, "args": []}}}) != []
+    tree = {"type": "call", "name": name,
+            "args": [{"type": "series", "name": "volume"}]}
+    doc = {"schemaVersion": 1, "id": "u_0000000000cc", "version": 1,
+           "meta": {"name": "Tagged", "shortName": "TAG"},
+           "compute": {"kind": "ast", "ast": tree},
+           "placement": {"target": "separate"},
+           "plots": [{"key": "value", "style": "line", "role": "primary"}],
+           "inputs": []}
+    row = ud.save("u1", "u_0000000000cc", doc)
+    assert row["requirements"] == [name_tag(ast_table.TABLE, name)], (
+        "save() did not stamp the tag on a definition that calls a tagged name — "
+        "which is the ONLY thing standing between history and an under-tagged row")
+
+    # ⛔ AND THE ROW ON DISK, not just the return value. A stamp computed and not
+    # written is the failure this whole column exists to prevent, and the two are
+    # separate facts.
+    assert ud.get("u1", "u_0000000000cc")["requirements"] == row["requirements"]
+
+    # ── the control: an untagged formula still stamps empty ──────────────────
+    plain = dict(doc, id="u_0000000000dd")
+    plain["compute"] = {"kind": "ast", "ast": {
+        "type": "call", "name": "sma", "args": [
+            {"type": "series", "name": "close"}, {"type": "num", "value": 20}]}}
+    assert ud.save("u1", "u_0000000000dd", plain)["requirements"] == [], (
+        "everything is being tagged — a stamp that fires on every definition "
+        "proves nothing about the one that needs it")
+
+    # ── (2) the mechanism is live at the pure-function level too ─────────────
+    assert requirement_tags({"compute": {"ast": tree}}) != []
+
+
+def name_tag(table, call_name):
+    """The tag a given call sets, read off the manifest."""
+    for tag, spec in (table.get("_requirement_tags") or {}).items():
+        if hasattr(spec, "get") and call_name in (spec.get("calls") or ()):
+            return tag
+    raise AssertionError(f"no tag names {call_name!r}")
