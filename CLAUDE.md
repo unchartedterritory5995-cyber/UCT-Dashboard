@@ -1274,6 +1274,38 @@ gesture step reported "hub-pad not present". Nothing errored. That run is void.
 `hub_sandbox_boot.py` now refuses to boot on a busy port and names the command to find the
 owner — it does **not** kill the other process, which may belong to someone else's work.
 
+### > ⛔⛔ A PORT ASSIGNMENT IS NOT A SERVER IDENTITY. Before any local or tunnelled certification run: verify the port has no listener, verify the server's own identity with a per-run nonce, verify the tunnelled URL returns that SAME nonce, and fail closed on any ambiguity.
+
+**This generalises the rule above, and it exists because the rule above was read as being
+about the number 8077.** On 2026-09-09 port **8099** had FOUR listeners: another
+workstream's hub sandbox on `0.0.0.0:8099` since 00:02, and three Wave Q
+`python -m http.server` processes bound beside it at 09:57 and 10:04. Windows allowed every
+one of those binds without an obvious failure. The probe fetches came back empty, and from
+the outside that is indistinguishable from a browser that cannot run the probe.
+
+⛔ **`bind()` succeeding proves nothing on Windows** — a second listener on `127.0.0.1` is
+permitted while another process holds `0.0.0.0`, and which socket answers a given
+connection is not the binder's to decide. **`connect()` succeeding is proof somebody is
+there**, which is why an ownership check connects rather than binds.
+
+⚰️ And on this box, connecting to an *unbound* loopback port does not get refused — the
+packets are dropped and the connect TIMES OUT. So "nothing is there" and "something is
+slow" are the same observation at the socket layer. **Timing can never establish identity.
+Ask, and recognise the answer.**
+
+The working pattern is `tools/q1_probe_server.py` + `tools/q1_browser_probe_run.py`: a
+nonce minted before anything binds, served at `/__uct_probe_identity`; an OS-assigned port
+(an ephemeral port narrows the odds and settles nothing on its own); a pre-bind connect
+check that raises rather than squatting, and **never kills the incumbent**; a post-bind
+self-verification before the URL is handed to anything; the browser-side page refusing to
+measure at all on a mismatch; and seven distinct outcomes so infrastructure failures never
+collapse into "the browser cannot do it". Run its controls with
+`python tools/q1_browser_probe_run.py --self-check`.
+
+⛔ Also: a local shake-out is **NOT** certification evidence and must not be able to
+overwrite any. Certification runs go against the deployed origin; local runs write
+separately and carry `"certifying": false`.
+
 ### > A results file is claimed (truncated + timestamped) before the session starts; a run that dies leaves an explicit INCOMPLETE, never a stale pass.
 
 Same failure shape as the line below, in file form. Phase 2 device run 2's Pixel 8 threw

@@ -538,13 +538,83 @@
     say('Probe data removed (' + r + ').');
   });
 
+  // ── ⛔ WHICH SERVER IS ANSWERING? ────────────────────────────────────────
+  // ⚰️ Port 8099 once had FOUR listeners, three of them ours and one another
+  // workstream's sandbox. Windows allowed every bind, nothing errored, and the
+  // page a browser loaded was not necessarily the page the harness started.
+  // A PORT IS NOT AN IDENTITY.
+  //
+  // When a harness passes `?expect=<nonce>` it is asserting "I started the
+  // server that should be answering, and this is its name". This page then
+  // REFUSES TO MEASURE ANYTHING until that exact nonce comes back. On a
+  // mismatch it does not fall back, does not render a working-looking probe,
+  // and does not emit partial metrics — because a plausible-looking number from
+  // the wrong server is worse than no number at all.
+  //
+  // With no `?expect=` (production, over https, on the app's own origin) the
+  // origin IS the identity and there is nothing to prove.
+  var EXPECT = null;
+  try { EXPECT = (new URL(location.href)).searchParams.get('expect') } catch (e) {}
+  window.__q1IdentityOk = EXPECT ? null : true;
+
+  async function verifyServerIdentity() {
+    if (!EXPECT) return true;
+    try {
+      var res = await fetch('/__uct_probe_identity', { cache: 'no-store' });
+      var ident = await res.json();
+      var ok = ident && ident.kind === 'wave-q1-browser-probe' && ident.nonce === EXPECT;
+      window.__q1Identity = ident;
+      window.__q1IdentityOk = !!ok;
+      return !!ok;
+    } catch (e) {
+      window.__q1IdentityOk = false;
+      window.__q1IdentityError = String(e && e.message || e);
+      return false;
+    }
+  }
+
+  function refuseOnIdentity() {
+    $('run').disabled = true;
+    $('run').textContent = 'Cannot run';
+    $('send').hidden = true;
+    $('copy').hidden = true;
+    $('wipe').hidden = true;
+    $('summary').hidden = true;
+    say('PROBE SERVER IDENTITY MISMATCH — nothing was measured.');
+    $('out').textContent = JSON.stringify({
+      outcome: 'SERVER_IDENTITY_MISMATCH',
+      expectedNonce: EXPECT,
+      received: window.__q1Identity || null,
+      error: window.__q1IdentityError || null,
+      note: 'This page refused to measure anything. A result from a server the '
+          + 'harness did not start is not evidence about this browser.'
+    }, null, 1);
+    window.__q1Done = true;                    // finished, with a refusal
+    window.__q1Result = { outcome: 'SERVER_IDENTITY_MISMATCH', expectedNonce: EXPECT,
+                          received: window.__q1Identity || null };
+  }
+
   var pending = null;
   try { pending = sessionStorage.getItem(RUN_KEY) } catch (e) {}
-  if (pending) resume(pending);
-  else say('Ready.');
 
-  // Let an automated runner drive it without a synthetic click.
-  window.__q1Run = start;
+  (async function boot() {
+    if (EXPECT) {
+      var ok = await verifyServerIdentity();
+      if (!ok) { refuseOnIdentity(); return }
+    }
+    if (pending) resume(pending);
+    else say(EXPECT ? 'Ready — server identity verified.' : 'Ready.');
+  })();
+
+  // Let an automated runner drive it without a synthetic click. ⛔ Guarded by
+  // the same check: a runner that forgets to look must still not get numbers.
+  window.__q1Run = async function () {
+    if (EXPECT && window.__q1IdentityOk !== true) {
+      var ok = await verifyServerIdentity();
+      if (!ok) { refuseOnIdentity(); return }
+    }
+    return start();
+  };
 })();
 </script>
 </body>

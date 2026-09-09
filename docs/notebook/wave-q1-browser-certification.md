@@ -23,6 +23,28 @@ BrowserStack Live for the two iPhones.
 
 ---
 
+## ⛔ WHAT IS CERTIFYING EVIDENCE, AND WHAT IS NOT
+
+Every row below was measured against **`https://uctintelligence.com`**. That is
+what makes it certification.
+
+⚰️ A separate local server on port 8099 was used only for probe shake-out and
+debugging, and it turned out to be **untrustworthy**: that port already had a
+listener — another workstream's hub sandbox on `0.0.0.0:8099` since 00:02 — and
+Windows allowed three more Wave Q binds beside it without an error. Requests to
+`127.0.0.1:8099` may have been answered by any of them.
+
+**The matrix is unaffected**, because none of it came from that server. But the
+distinction is now enforced in code rather than remembered: a run started with
+`--serve` writes `local-<label>.json` (gitignored) and carries
+`"certifying": false`, so a shake-out can never overwrite a production artifact
+the way it nearly did.
+
+**LOCAL SHAKE-OUT: NON-CERTIFYING. PRODUCTION: CERTIFYING.**
+
+The harness that makes a local or tunnelled run trustworthy at all is described
+in `wave-q1-harness-integrity.md`.
+
 ## The matrix
 
 | Environment | IDB | persistence | quota / headroom | Web Locks | versionchange (with / without handler) | reload durability | tab-close durability | verdict |
