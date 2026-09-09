@@ -5262,8 +5262,35 @@ export class Resolver {
         // every bar this engine evaluates — because the screener evaluates only
         // CLOSED bars. A chart pane draws the FORMING bar as well, and there the
         // same constant is false exactly once, on the one bar the member is
-        // watching. Realtime has never been tested here (V10.7 is still open), so
-        // host mode refuses rather than shipping a confident wrong value.
+        // watching.
+        //
+        // ⭐⭐ REALTIME HAS NOW BEEN MEASURED, and it is worse than "answers
+        // differently on a forming bar" — it repaints. Read off a live chart across
+        // the 2026-09-09 US open; fixture
+        // `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json`.
+        //
+        //   1. THE CURRENT BAR FLIPS AT THE OPEN. Pre-open on SPY 1D the newest bar
+        //      is YESTERDAY'S and carries isconfirmed=1, islast=1 and ishistory=1
+        //      SIMULTANEOUSLY. At 09:30:14 a new bar appears and both isconfirmed
+        //      and ishistory go to 0. So `islast` does not imply "forming" and
+        //      `ishistory` does not imply "not the last bar" — a fold that treats
+        //      either as the other's negation is wrong for the whole pre-open
+        //      window, which is exactly when a screener runs.
+        //
+        //   2. ⛔ A CLOSED BAR IS NOT STABLE. On 1m, 46 seconds AFTER the 09:31 bar
+        //      closed it still read isconfirmed=1, islast=1, ishistory=0, while the
+        //      09:30 bar — which arrived as server-side history — read 1, 0, 1. A
+        //      bar that formed live KEEPS its realtime barstate after closing. So
+        //      these flags on a closed bar are a function of WHEN THE VIEWER
+        //      ARRIVED, not of the bar: two members opening the same script minutes
+        //      apart get different columns for the same historical bar.
+        //
+        // Reason 2 is independent of reason 1 and is the stronger one, because it
+        // makes the value unstable even on the closed bars the screener DOES fold.
+        // ⚠️ Bounded claim: one symbol, one session, ~90s, no vendor recompute seen
+        // in that window. It does not prove a recompute never happens — it proves a
+        // closed bar can carry realtime values well after closing.
+        // So host mode refuses rather than shipping a confident wrong value.
         // ⭐ NOT `pine:builtin` — that sentence would say the name is unknown, and
         // it is known; what is unavailable is a live-bar ANSWER for it.
         if (this.strict) {
