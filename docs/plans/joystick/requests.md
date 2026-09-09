@@ -188,6 +188,39 @@ already does, and needs no `ctx` at all.
 
 ---
 
+## R-08 — `PUT /api/j2/positions/{id}` stop validation has three holes
+
+**Status:** filed, not acted on. Found by the §3.4 citation pass, 2026-09-09, and **verified from
+source by the Director**. A3 requires the hub's confirm sheet to refuse a side-flipping stop AND
+requires the backend to reject the same; it mostly does (`positions.py:343-355`), but three inputs
+get past it. ⛔ **Not ours to fix** — the hub cannot reach any of them, and a hub-side patch would
+be a second authority over j2's own validation.
+
+1. **`stopPrice: 0` skips the side check entirely.** The guard is `if sp is not None and sp > 0`
+   (`positions.py:347`), so zero never reaches the Long/Short comparison, and the only floor is
+   `stopPrice >= 0` (`:340-341`). Worse, the client then reads that zero as **no stop at all** —
+   `calculations.js:103-108`'s `realStop` returns `null` for `s <= 0`. So `{"stopPrice": 0}` is an
+   **undocumented stop-removal path** that no validation names and no UI offers.
+2. **A patch containing `entryPrice` but neither `stopPrice` nor `side` never runs the check.**
+   The outer `if "stopPrice" in updates or "side" in updates` (`:344`) means the entry can be moved
+   across an existing stop, leaving a Long whose stop is above its entry.
+3. **`isinstance(True, int)` is `True` in Python.** `_UPDATABLE_FIELDS["shares"] = (int, float)`
+   (`positions.py:291`), so `{"shares": true}` passes the type gate, passes `shares <= 0`, and
+   writes `shares = 1`.
+
+⚠️ Asymmetry worth knowing: the CREATE path has no `> 0` escape (`positions.py:199-210`), so a
+Short created with `stopPrice: 0` is **rejected** while the same value via PUT is **accepted**.
+
+⛔ **Separately, and the reason the hub's contract test is strict:** `_UPDATABLE_FIELDS` accepts
+**ten** keys including **`symbol`** (`positions.py:286-297`). A stray key on this PUT does not
+merely overwrite a stop — it can **retag the position to a different ticker**, or rewrite the
+member's `shares`/`entryPrice` basis. The existing `EditPositionModal` never sends `stopPrice`
+alone (`EditPositionModal.jsx:77,81-87` always appends `raiseToBreakeven` and `breakevenStop`), so
+the hub's "exactly one PUT carrying only `stopPrice`" is a NEW contract the hub introduces, not one
+the page already honours.
+
+---
+
 ## R-04 — Seven standing suite failures, for their owners
 
 **Status:** filed, not acted on. **Measured on `origin/master` @ `75ca5c2ed`**, 2026-09-09 — a

@@ -1448,6 +1448,29 @@ it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
 
+### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
+
+> **A contract is verified against the runtime call site, never against a harness that restates
+> it. Arity is not a shape; validators do not catch it, derivation rails do.**
+
+Owner ruling, 2026-09-09, after R-05. `HubRoot.jsx` had called `onScrub(ctx, scrub)` since Phase 2.
+The Phase 3 typedef said `onScrub(scrub)` — and the contract test's harness hand-wired the
+one-argument form **to match the typedef**. The contract and its test agreed with each other and
+neither agreed with the product, so a section built against the documented shape would have read
+`ctx.delta === undefined` on a real page with a green suite behind it.
+
+**A runtime validator cannot see this.** `validateSectionConfig` asserts `onScrub` is a *function*,
+and a function of the wrong arity is still a function — JavaScript calls it and drops the context
+into a parameter named `scrub`. Nothing throws, nothing logs; the gesture silently does the wrong
+thing. Two integrators found it independently, from opposite sections, on their first day.
+
+**The rail:** `app/src/hub/contractArity.test.js`. For every callback `contracts.js` documents, it
+READS the argument list from the file that actually calls it (`HubRoot.jsx`, `useJoystick.js`),
+asserts the typedef declares the same, and asserts the harness invokes it the same way.
+Mutation-proved on `onScrub` and `onScrubCommit`. ⭐ It strips comments before matching — its own
+first version matched the prose "passed through to the mode's own onScrub(ctx, delta)" a few lines
+above the real call site, which is the invented-citation defect committed by a machine.
+
 ### ⛔ A citation you cannot quote is struck
 
 > **A plan citation to a document or file must be verified AT WRITE TIME by quoting the cited

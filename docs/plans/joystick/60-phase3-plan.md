@@ -250,6 +250,39 @@ card on a page the member is not looking at. And only the first **300** rows car
 | **Preview exit** | Remove `'journal'`. |
 | **Tests** | §4. |
 
+#### §3.4 bindings — the citation pass, 2026-09-09 (every line quoted from source)
+
+| # | Binding | Verdict |
+|---|---|---|
+| 1 | Rendered list | `useJ2Positions.js:12,28` → **list view is the DEFAULT** (`OpenPositionsTab.jsx:171-177`, localStorage must say `'table'`), post-sort array `equityRows` (`HoldingsList.jsx:69-72`) |
+| 2 | Selected position state | ⚰️ **NO SUCH STATE.** Rows are `<Link>`s (`HoldingsList.jsx:170-175`) or a TickerPopup open (`PositionsTable.jsx:278`). The hub cursor is the only selection |
+| 3 | Stop PUT | `OpenPositionsTab.jsx:213-217` → `journal_two.py:363` → `positions.py:300` |
+| 4 | Default stop | ✅ **`disciplineGuards.prefillStop`** — exported by D-33 |
+| 5 | Sizing | `defaultSizePct`, percent-of-account ONLY; no mode discriminator (`disciplineGuards.js:12-20`) |
+| 6 | R at a candidate stop | ✅ **`calculations.rAtStop`** — added by D-34 |
+| 7 | Side | Stored field (`positions.py:39`); backend guard `positions.py:343-355`, **three holes → R-08** |
+| 8 | Last price | `useRealtimePrices(symbols)` (`OpenPositionsTab.jsx:150-151`), field **`.price`** (`calculations.js:348-357`) |
+
+⛔ **The cursor key is `row.key`, and the two surfaces DISAGREE — the adapter normalises.**
+List rows carry `key: 'e-<uuid>'` and **no `id` field at all** (`holdingsRows.js:28-34`); table rows
+use the bare uuid (`PositionsTable.jsx:527,583` `key={p.id}`). The adapter maps both to ONE shape —
+the bare position id, which is what the PUT needs anyway — and states which surface it came from.
+
+⛔ **Option/strategy rows carry a STRATEGY id** (`OpenPositionsTab.jsx:112-113`), and sending that
+to `PUT /api/j2/positions/{id}` **404s**. The cursor may land on them, but every `requires:'position'`
+action (Move stop, Breakeven, Close, Plan trade) is **disabled** there with the chip reading the
+row's label.
+
+✅ **Close EXISTS, so it stays in the fan** — verified both ends rather than assumed:
+`OpenPositionsTab.jsx:236` (`POST /api/j2/positions/{id}/close`) → `journal_two.py:394`. No
+D-number needed.
+
+⚠️ **Painting `data-hub-cursor` is the Journal's job**, on three carriers:
+`HoldingsList.jsx:170-175` (list), `PositionsTable.jsx:278` (table), `:525-527` (phone). The token
+already exists at `tokens.css:547` — reused, never re-declared.
+
+---
+
 ### 3.5 Chart (`chart`) — route `/charts` — **wired LAST**
 
 | | |

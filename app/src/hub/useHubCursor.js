@@ -6,6 +6,21 @@
 // `AWAITING_A_DECISION` entry that declared it unmounted has been deleted from
 // `components/screener/reachable.test.js` per its own stated removal condition.
 
+// ⭐ WHY A RE-SORT FOLLOWS THE SELECTED ITEM (owner ruling, 2026-09-09).
+//
+// `reconcile` below treats a changed identity two ways: if the previously-selected KEY is still
+// present the cursor follows it; only if the key is gone does it reset to 0. That asymmetry is not
+// a nicety — it is driven by one measured fact about the Screener:
+//
+//   `ScannerShell` lifts the live re-sort (`sortRowsLive`) ABOVE the renderers and passes
+//   `displayRows` to all three, so the rendered order changes on EVERY PRICE TICK while the
+//   member is looking at it.
+//
+// Under the old "any identity change resets to 0" rule that is a cursor sent home several times a
+// minute, while the row the member selected is still on screen — just moved. Meanwhile the case
+// the reset genuinely exists for (a re-scan returning different tickers) is still handled, because
+// there the old key is absent.
+
 import { useCallback, useLayoutEffect, useSyncExternalStore } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
