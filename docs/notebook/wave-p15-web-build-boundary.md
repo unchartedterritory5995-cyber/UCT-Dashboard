@@ -170,13 +170,124 @@ mutation-proven (byte-identical restores):
 swallowed error becoming a confident finding, on the one check that says whether
 OCR is live for members. Unknown is now `FAIL`, with one retry first.
 
-## G · What the single authorized canary must answer
+## G · THE CANARY RAN — the build is proven, the deploy is not
 
-1. did Railway select `Dockerfile.web` (read from the manifest, not from what we set)
-2. did the build succeed, and how long did it take
-3. exact `tesseract --version` and English traineddata present
-4. python still 3.12 · node present · ffmpeg present
-5. web starts, `/api/health` green, fresh-process RSS
-6. no unrelated service rebuilt
-7. the other services carry no Tesseract **package** (not merely "never invoked it")
-8. OCR still dark, zero member documents processed
+```
+BUILD BOUNDARY   ✅ SELECTED  — Railway built Dockerfile.web
+BUILD            ✅ SUCCESS   — image exported and pushed
+DEPLOY           ⛔ FAILED    — the container died ~2s after the volume mounted
+PRODUCTION       ✅ HEALTHY   — automatic rollback to the nixpacks image
+MEMBER IMPACT    none · no member document processed · OCR never enabled
+```
+
+Deployment `a9df2c4c`, commit `476111bf7`, created `03:04:27Z`, failed
+`03:07:49Z`.
+
+### The mechanism works — this is the half the last canary could not reach
+
+Railway's own manifest for that deployment:
+
+```
+builder         DOCKERFILE
+dockerfilePath  Dockerfile.web
+configFile      /railway.web.json
+```
+
+⭐ **The build boundary was EXPLICITLY SELECTED AND PROVEN**, which is precisely
+the property the previous mechanism failed. And the build log proves the
+isolation is real rather than nominal:
+
+| package | version | .deb |
+|---|---|---|
+| `tesseract-ocr` | **5.3.0-2** | 402 kB |
+| `libtesseract5` | 5.3.0-2 | 1279 kB |
+| `liblept5` | 1.82.0-3+b3 | 1050 kB |
+| `tesseract-ocr-eng` (English traineddata) | 1:4.1.0-2 | 1594 kB |
+| `tesseract-ocr-osd` (pulled as a hard dependency) | 1:4.1.0-2 | 2992 kB |
+
+⭐ **≈7.3 MB of compressed Debian packages** — against the ~169 MB of Python
+wheels the rejected engine wanted. That is the packaging cost the whole
+detour existed to measure, and it is now a number.
+
+⛔ **Two honest deltas from the engine that was selected:**
+
+- **Tesseract is 5.3.0 here, not the 5.4.0 the benchmark measured.** Same major
+  line, and the storage contract, job state and usability gate are
+  engine-version-independent by construction — but FTS search recall was
+  measured on 5.4.0. Re-running the gate corpus against 5.3.0 belongs to P2,
+  before any member activation. Do not carry the 5.4.0 recall number over
+  silently.
+- `tesseract-ocr-osd` arrives whether or not it is asked for: it is a hard
+  dependency of `tesseract-ocr` and survives `--no-install-recommends`. English
+  is still the only language *requested*, and OSD is orientation data, not a
+  second language.
+
+Also measured, and both dead as failure hypotheses: `ffmpeg` resolved to Debian
+**5.1.9** (the nix image has 7.1 — recorded, and AAC extraction is well inside
+5.1), and `libgomp1` did land in the runtime image as an ffmpeg dependency.
+
+### ⛔ What is NOT known: why the container died
+
+```
+03:07:47  Mounting volume on: /var/lib/containers/...
+03:07:49  FAILED
+```
+
+That is the **entire** captured runtime log — one line, and it is Railway's own,
+not the application's. `deployment.diagnosis` is `null`. No traceback, no
+"command not found", no healthcheck message. The healthcheck cannot be the
+cause: its timeout is 600s and this died in seconds.
+
+⚠️ **Three hypotheses were checked against the build log and are DEAD:**
+
+- *no `/bin/bash` in the slim image* — bash is Essential in Debian; it is there.
+- *missing `libgomp1`* — installed in the runtime stage via ffmpeg.
+- *the build did not finish* — it did: all three stages ran, `cot-facts.cjs` and
+  `flow-facts.cjs` were written, and the image was exported and pushed
+  (`sha256:a2a6c60d…`).
+
+⛔ **So the cause is undetermined, and per the ruling no second build was spent
+guessing at it.** What is left is the one surface this project has never
+exercised: a Railway **service start command** on a **Dockerfile-built** image.
+`chart-renderer`, the only other Dockerfile service here, sets no start command
+at all — it runs its image's `CMD`. Our image already carries the identical web
+command as its `CMD`, so the next attempt has a concrete, non-speculative shape
+rather than a guess.
+
+### The §17 answers, including the ones that cannot be given
+
+| # | question | answer |
+|---|---|---|
+| 1 | Dockerfile selected? | **yes** — manifest, not inference |
+| 2 | build succeeded? | **yes**, ~1m51s to image export (nixpacks builds the same commit in ~3m50s end-to-end) |
+| 3 | Tesseract version | **5.3.0-2** (from the build log; the binary never ran) |
+| 4 | English traineddata | **yes** — `tesseract-ocr-eng 1:4.1.0-2` |
+| 5 | Python still 3.12? | by construction (`python:3.12-slim-bookworm`); **unverified at runtime** |
+| 6 | web starts? | **no** |
+| 7 | health checks green? | production is green **on the rolled-back nixpacks image** |
+| 8 | fresh-process RSS | **not obtainable** — the process never served |
+| 9 | build duration | ~1m51s to image, 3m22s to the failure |
+| 10 | image/package impact | **≈7.3 MB of OCR .debs**; total image size **NOT EXPOSED by Railway** |
+| 11 | unrelated service rebuilt? | **no** — worker, flow-worker and bars-api all recorded **SKIPPED**; chart-renderer untouched since 2026-09-01 |
+| 12 | non-web Tesseract absence | **proven at package level** — binary absent AND `dpkg -l` matches **0** on all three |
+| 13 | OCR dark? | `J2_OCR_ENABLED=UNSET` in the serving container and unset on all four services; master carries no OCR code |
+| 14 | member documents processed | **zero** |
+
+### State restored
+
+Web's config-as-code path is pointed back at `railway.json` — the same file it
+read before the canary, proven by the pre-canary manifest. Leaving it on
+`railway.web.json` would have made the **next ordinary master push from any
+workstream** build the Dockerfile and fail to ship, silently, while web went on
+serving a stale image. That is a landmine, not a held position.
+
+⚠️ One difference from the exact prior state, recorded rather than smoothed
+over: the pointer is now **explicit** (`railway.json`) where it was previously
+implicit (auto-discovery, which resolved to the same file). The API ignores a
+null for this field, so it cannot be returned to "unset".
+
+Production after: `status ok`, RSS 2639.8 MB (baseline 2727.3), serving Ubuntu +
+nix with no Tesseract. `J2_SHARE_LINKS_ENABLED=0` unchanged, NOTE_SYNC state
+unchanged, broker_sync floor 10 on master, local disk 72.6 GB.
+
+⛔ **P1.5 CANNOT CLOSE.** Stopping here with the evidence, as instructed.
