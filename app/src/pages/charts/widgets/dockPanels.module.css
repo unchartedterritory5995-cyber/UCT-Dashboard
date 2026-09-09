@@ -1264,3 +1264,25 @@
   margin: 2px 0 0; padding: 0 var(--et-pad, 12px);
   font-size: 9.5px; line-height: 1.45; color: var(--text-muted, #cfcac0);
 }
+
+/* A value still in flight. An em dash means "this company does not have this
+   number"; while the request is open we do not know that yet, so a dash there
+   asserts something untrue — ARM rendered a full grid of them purely because
+   the payload had not landed. Sized and aligned like the value it replaces so
+   nothing reflows when the real number arrives. */
+.mValSkel {
+  display: inline-block;
+  width: 34px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--t-dim, #55524a);
+  opacity: 0.28;
+  animation: mValPulse 1.4s ease-in-out infinite;
+}
+@keyframes mValPulse {
+  0%, 100% { opacity: 0.18; }
+  50%      { opacity: 0.38; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mValSkel { animation: none; opacity: 0.26; }
+}

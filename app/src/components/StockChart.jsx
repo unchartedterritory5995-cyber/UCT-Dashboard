@@ -7030,7 +7030,15 @@ export default function StockChart({
             try {
               const _snap = (typeof getLivePriceStoreSnapshot === 'function') ? getLivePriceStoreSnapshot()[sym] : null
               const _px = _snap ? _effLivePrice(_snap) : null
-              if (_px && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
+              // ⛔ REGULAR SESSION ONLY. Outside 9:30-16:00 ET `_effLivePrice` returns the
+              // EXTENDED-hours price (`ext_price` when `ext_session`), but the DAILY candle is
+              // settled at the 4pm close (pre/post-market moves are not part of it). Seeding the
+              // post-market price here painted today's candle at e.g. 40.12 then the fetch's
+              // settled 40.26 corrected it ~0.25s later — the "wrong price then corrects" flash.
+              // In an extended session, skip the live seed → the reserved whitespace slot holds
+              // and the fetch's settled/developing close fills today's candle correctly. During
+              // RTH `ext_session` is false so `_effLivePrice` is the developing regular price.
+              if (_px && !_snap.ext_session && isSaneLivePrice(_px, lastBarRef.current?.close, lastServerCloseRef.current)) {
                 const _o = (_snap.day_open && _snap.day_open > 0) ? _snap.day_open : _px
                 const _h = Math.max((_snap.day_high && _snap.day_high > 0) ? _snap.day_high : _px, _px)
                 const _l = Math.min((_snap.day_low && _snap.day_low > 0) ? _snap.day_low : _px, _px)
