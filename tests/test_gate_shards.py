@@ -265,3 +265,44 @@ def test_run_shard_delegates_to_the_single_capture_seam():
     assert "subprocess.run" not in src, (
         "_run_shard calls subprocess.run directly again — that is a second place for `encoding=` "
         "to be forgotten, which is how this bug shipped the first time")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# THE WRAPPER'S OWN OUTPUT IS NOT DRIFT — and the exemption must stay narrow.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+def test_the_wrappers_own_logs_do_not_count_as_tree_drift(tmp_path, monkeypatch):
+    """`out_dir` lives in the repo, so the shard logs show as untracked and the drift check fired
+    on the tool's own artifacts: "started clean, ended with 1 uncommitted file(s)". The check was
+    right; its SCOPE was wrong. A log the wrapper wrote on purpose is not the source changing."""
+    import gate_shards
+
+    out = gate_shards.REPO / "docs" / "plans" / "joystick" / "gate-runs"
+    states = iter([
+        ("aaa111", []),                                   # clean start
+        ("aaa111", ["?? docs/plans/joystick/gate-runs/"]),  # the wrapper's OWN output
+    ])
+    manifest = run_gate(
+        2, out,
+        tree_state_fn=lambda: next(states),
+        run_shard_fn=lambda i: REAL_ANSI_PASS,
+        file_count_fn=lambda: 392,
+    )
+    assert manifest["tree_head_end"] == "aaa111"
+
+
+def test_the_drift_exemption_does_not_cover_anything_else(tmp_path):
+    """⛔ THE CONTROL. An exemption wide enough to swallow a real source change would disable the
+    check it lives inside — which is worse than the bug it fixes."""
+    import gate_shards
+
+    out = gate_shards.REPO / "docs" / "plans" / "joystick" / "gate-runs"
+    states = iter([
+        ("aaa111", []),
+        ("aaa111", ["?? docs/plans/joystick/gate-runs/", " M app/src/hub/registry.js"]),
+    ])
+    with pytest.raises(GateError) as e:
+        run_gate(2, out, tree_state_fn=lambda: next(states),
+                 run_shard_fn=lambda i: REAL_ANSI_PASS, file_count_fn=lambda: 392)
+    assert "TREE DRIFT" in str(e.value)
+    assert "registry.js" in str(e.value), "the real source change must still void the run"

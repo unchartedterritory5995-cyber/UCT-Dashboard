@@ -206,9 +206,35 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
     """
     run_shard_fn = run_shard_fn or (lambda i: _run_shard(i, shards, out_dir))
 
+    # ⛔ THE WRAPPER'S OWN OUTPUT IS NOT TREE DRIFT, AND THIS COST A SECOND RUN.
+    #
+    # `out_dir` lives inside the repo, so the shard logs this script writes show up in
+    # `git status` as untracked — and the drift check then fired on the tool's own artifacts:
+    # "started clean, ended with 1 uncommitted file(s)", where the file was `gate-runs/` itself.
+    # The check was right and its SCOPE was wrong. Drift means the SOURCE changed underneath the
+    # run; a log the wrapper wrote on purpose is not that.
+    #
+    # ⚠️ Deliberately narrow: only paths under `out_dir` are exempt. Anything else that appears
+    # mid-run still voids the run, which is the whole point of the check.
+    try:
+        out_rel = out_dir.resolve().relative_to(REPO).as_posix()
+    except (ValueError, OSError):
+        out_rel = None
+
+    def _real_dirt(entries: list[str]) -> list[str]:
+        if not out_rel:
+            return entries
+        keep = []
+        for e in entries:
+            path = e[3:].strip().strip('"') if len(e) > 3 else e
+            if not path.startswith(out_rel):
+                keep.append(e)
+        return keep
+
     # ⛔ (d) DIRTY START — refuse BEFORE running anything. A gate runs on committed code only;
     # otherwise the artifact it reports on cannot be recovered by anyone reading the manifest.
     start_head, start_dirty = tree_state_fn()
+    start_dirty = _real_dirt(start_dirty)
     if start_dirty:
         raise GateError(
             "DIRTY TREE: refusing to start. A gate runs on committed code only, so its result can "
@@ -248,10 +274,15 @@ def run_gate(shards: int, out_dir: pathlib.Path, *, tree_state_fn=tree_state,
 
     # ⛔ (c) DRIFT — the tree that finished must be the tree that started.
     end_head, end_dirty = tree_state_fn()
+    end_dirty = _real_dirt(end_dirty)
     if end_head != start_head or end_dirty:
         raise GateError(
+            # ⛔ NAME WHAT DRIFTED. This said "with N uncommitted file(s)" and a count is not a
+            # diagnosis — the reader then has to reconstruct which file moved, which is the same
+            # names-not-counts defect the baseline comparison exists to fix.
             f"TREE DRIFT during the run: started at {start_head} clean, ended at {end_head}"
-            + (f" with {len(end_dirty)} uncommitted file(s)" if end_dirty else "")
+            + (f" with {len(end_dirty)} uncommitted file(s): "
+               + ", ".join(e.strip() for e in end_dirty[:10]) if end_dirty else "")
             + ". The tree it ran against is not the tree it would report on; this run is void."
         )
 
