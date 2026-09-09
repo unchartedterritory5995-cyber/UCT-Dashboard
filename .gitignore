@@ -129,3 +129,4 @@ docs/notebook/wave-q1-probe-results/local-*.json
 # Gate wrapper shard logs — large, per-run, and regenerated every time. The MANIFESTS
 # (.json/.md) beside them are the evidence and stay tracked.
 docs/plans/joystick/gate-runs/*.log
+docs/plans/joystick/gate-runs/INVALID-*.md
