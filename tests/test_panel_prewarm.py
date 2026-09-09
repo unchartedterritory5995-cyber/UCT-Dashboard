@@ -5,6 +5,7 @@ Measured on production 8 Sep 2026 (/api/earnings-intel, end to end):
 Only the FIRST view of a symbol is slow, which is what this removes.
 """
 import json
+import pathlib
 
 import pytest
 
@@ -61,7 +62,7 @@ class TestRotation:
     def test_a_pass_is_bounded(self, state, monkeypatch):
         calls = []
         monkeypatch.setattr(pp, "_universe", lambda: [f"S{i:03d}" for i in range(100)])
-        monkeypatch.setattr(pp, "_surfaces", lambda: _spy(calls))
+        monkeypatch.setattr(pp, "_surfaces", lambda only=None: _spy(calls))
         res = pp.run_prewarm(limit=5)
         assert res["symbols"] == 5
         assert len({s for _, s in calls}) == 5
@@ -69,7 +70,7 @@ class TestRotation:
     def test_the_next_pass_continues_where_the_last_stopped(self, state, monkeypatch):
         calls = []
         monkeypatch.setattr(pp, "_universe", lambda: [f"S{i:03d}" for i in range(10)])
-        monkeypatch.setattr(pp, "_surfaces", lambda: _spy(calls))
+        monkeypatch.setattr(pp, "_surfaces", lambda only=None: _spy(calls))
         pp.run_prewarm(limit=4)
         first = {s for _, s in calls}
         calls.clear()
@@ -82,7 +83,7 @@ class TestRotation:
         keeps the universe warm, not a backfill that finishes."""
         calls = []
         monkeypatch.setattr(pp, "_universe", lambda: ["A", "B", "C"])
-        monkeypatch.setattr(pp, "_surfaces", lambda: _spy(calls))
+        monkeypatch.setattr(pp, "_surfaces", lambda only=None: _spy(calls))
         pp.run_prewarm(limit=2)          # A B
         calls.clear()
         res = pp.run_prewarm(limit=2)    # C A
@@ -91,7 +92,7 @@ class TestRotation:
 
     def test_the_cursor_survives_a_restart(self, state, monkeypatch):
         monkeypatch.setattr(pp, "_universe", lambda: [f"S{i:03d}" for i in range(10)])
-        monkeypatch.setattr(pp, "_surfaces", lambda: _spy([]))
+        monkeypatch.setattr(pp, "_surfaces", lambda only=None: _spy([]))
         pp.run_prewarm(limit=3)
         assert json.loads(state.read_text())["cursor"] == 3
 
@@ -99,7 +100,7 @@ class TestRotation:
         state.write_text("not json")
         calls = []
         monkeypatch.setattr(pp, "_universe", lambda: ["A", "B"])
-        monkeypatch.setattr(pp, "_surfaces", lambda: _spy(calls))
+        monkeypatch.setattr(pp, "_surfaces", lambda only=None: _spy(calls))
         assert pp.run_prewarm(limit=1)["symbols"] == 1
 
     def test_an_empty_universe_is_survivable(self, monkeypatch):
@@ -117,3 +118,40 @@ class TestItIsNotASecondCodePath:
                    "get_earnings", "get_ownership"):
             assert fn in src, f"{fn} is the endpoint's own entry point"
         assert "_build" not in src, "must not call a private builder"
+
+
+class TestMemorySafety:
+    """Warming in the web process grew RSS ~13 MB per symbol with no plateau
+    over 100 symbols — about 48 GB across a 3,742-name universe against a 32 GB
+    container. Measured on production before this was scoped and moved out of
+    process; bulk warming has OOM'd this pod before."""
+
+    def test_only_the_disk_backed_surfaces_are_swept(self):
+        assert pp.DISK_BACKED == ("statements", "earnings_table", "earnings_intel")
+
+    def test_memory_only_surfaces_are_excluded(self):
+        """fundamentals and ownership cache in MEMORY only: warming them in a
+        subprocess achieves nothing, and warming them in-process is the leak."""
+        names = [n for n, _ in pp._surfaces(only=pp.DISK_BACKED)]
+        assert "fundamentals" not in names
+        assert "ownership" not in names
+
+    def test_the_default_sweep_is_scoped(self):
+        import inspect
+        sig = inspect.signature(pp.run_prewarm)
+        assert sig.parameters["surfaces_only"].default == pp.DISK_BACKED
+
+    def test_it_is_runnable_as_a_module(self):
+        """The scheduler shells out to `python -m api.services.panel_prewarm`,
+        so a subprocess entry point has to exist."""
+        src = pathlib.Path("api/services/panel_prewarm.py").read_text(encoding="utf-8")
+        assert '__name__ == "__main__"' in src
+        assert "run_prewarm(limit=n)" in src
+
+    def test_the_scheduler_does_not_warm_in_process(self):
+        src = pathlib.Path("api/main.py").read_text(encoding="utf-8")
+        i = src.index("def register_panel_prewarm_job")
+        block = src[i:i + 3000]
+        assert "subprocess.run" in block, "must shell out"
+        assert "panel_prewarm.run_prewarm()" not in block, "must not warm in-process"
+        assert "timeout=" in block, "a stuck run must be killed, not left running"

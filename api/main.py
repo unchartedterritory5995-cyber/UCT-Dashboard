@@ -1919,12 +1919,28 @@ def register_panel_prewarm_job(scheduler):
     every = int(os.environ.get("PANEL_PREWARM_MINUTES", "10"))
 
     def _sweep():
+        # ⛔ OUT OF PROCESS, deliberately. Warming inside the web process grew
+        # RSS ~13 MB per symbol with no plateau (measured over 100 symbols) —
+        # roughly 48 GB across a 3,742-name universe against a 32 GB container.
+        # A subprocess hands that memory back to the OS when it exits, and the
+        # work still lands: the warmed surfaces persist to the snapshot store on
+        # /data, which this process reads on the next request.
+        import subprocess
+        import sys
+        batch = os.environ.get("PANEL_PREWARM_BATCH", "40")
         try:
-            from api.services import panel_prewarm
-            res = panel_prewarm.run_prewarm()
-            print(f"[panel-prewarm] {res['symbols']} syms cursor={res['cursor']}/"
-                  f"{res['universe']} ok={res['ok']} failed={res['failed']} "
-                  f"{res['elapsed_s']}s slowest={res['slowest']}")
+            r = subprocess.run(
+                [sys.executable, "-m", "api.services.panel_prewarm", batch],
+                capture_output=True, text=True, timeout=600,
+                cwd="/app", env={**os.environ, "PYTHONPATH": "/app"})
+            out = (r.stdout or "").strip().splitlines()
+            print(f"[panel-prewarm] {out[-1] if out else '(no output)'}")
+            if r.returncode != 0:
+                print(f"[panel-prewarm] exit {r.returncode}: {(r.stderr or '')[-300:]}")
+        except subprocess.TimeoutExpired:
+            # Killed rather than left running: the next cycle resumes from the
+            # persisted cursor, so a stuck run costs one batch, not the sweep.
+            print("[panel-prewarm] timed out after 600s — killed, will resume")
         except Exception as e:
             print(f"[panel-prewarm] error: {e}")
 

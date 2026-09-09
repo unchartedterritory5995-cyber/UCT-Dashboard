@@ -40,11 +40,22 @@ STATE_PATH = os.environ.get("PANEL_PREWARM_STATE", "/data/panel_prewarm_state.js
 BATCH = int(os.environ.get("PANEL_PREWARM_BATCH", "40"))
 
 
-def _surfaces() -> list[tuple[str, Callable[[str], Any]]]:
-    """(name, fn) for every payload a Company Panel tab reads.
+# ⛔ ONLY these three persist their result to the snapshot store on /data.
+# `fundamentals` and `institutional_holdings` cache in MEMORY only, which makes
+# them un-prewarmable in the design below and is why they are excluded:
+#   • warming them in-process is what grows RSS — measured at ~13 MB per symbol
+#     with no plateau after 100 symbols, i.e. ~48 GB over a 3,742-name universe
+#     against a 32 GB container. That is an OOM, not a slow warm.
+#   • warming them in a subprocess is pointless: the memory dies with it.
+# Giving those two a disk snapshot is the fix, and it is a separate change.
+DISK_BACKED = ("statements", "earnings_table", "earnings_intel")
+
+
+def _surfaces(only: tuple[str, ...] | None = None) -> list[tuple[str, Callable[[str], Any]]]:
+    """(name, fn) for the payloads a Company Panel tab reads.
 
     Imported lazily and defensively: a module that fails to import must cost its
-    own surface, not the whole prewarm.
+    own surface, not the whole prewarm. `only` narrows to a named subset.
     """
     out: list[tuple[str, Callable[[str], Any]]] = []
 
@@ -64,6 +75,8 @@ def _surfaces() -> list[tuple[str, Callable[[str], Any]]]:
         "api.services.earnings_intel", fromlist=["get_earnings"]).get_earnings)
     add("ownership", lambda: __import__(
         "api.services.institutional_holdings", fromlist=["get_ownership"]).get_ownership)
+    if only:
+        out = [(n, f) for n, f in out if n in only]
     return out
 
 
@@ -115,7 +128,8 @@ def _write_cursor(n: int) -> None:
 
 
 def run_prewarm(symbols: Iterable[str] | None = None, *, limit: int | None = None,
-                rotate: bool = True) -> dict[str, Any]:
+                rotate: bool = True,
+                surfaces_only: tuple[str, ...] | None = DISK_BACKED) -> dict[str, Any]:
     """One bounded pass. With `rotate`, continues where the last pass stopped.
 
     The cursor WRAPS rather than stopping at the end: fundamentals go stale on
@@ -130,7 +144,7 @@ def run_prewarm(symbols: Iterable[str] | None = None, *, limit: int | None = Non
     start = (_read_cursor() % len(syms)) if rotate else 0
     window = [syms[(start + i) % len(syms)] for i in range(n)]
 
-    surfaces = _surfaces()
+    surfaces = _surfaces(only=surfaces_only)
     t0 = time.time()
     ok = failed = 0
     slowest = ("", 0)
@@ -149,3 +163,20 @@ def run_prewarm(symbols: Iterable[str] | None = None, *, limit: int | None = Non
             "ok": ok, "failed": failed, "wrapped": end >= len(syms),
             "elapsed_s": round(time.time() - t0, 1),
             "slowest": {"symbol": slowest[0], "ms": slowest[1]}}
+
+
+# ── run as a SUBPROCESS ─────────────────────────────────────────────────────
+# `python -m api.services.panel_prewarm [limit]`
+#
+# The scheduler shells out to this rather than warming inside the web process.
+# Measured: ~13 MB of RSS per symbol with no plateau, because every payload
+# stays in the process cache. Out of process that memory is handed back to the
+# OS when the run exits, and the WORK still lands — the three surfaces above
+# write to the snapshot store on /data, which the web process reads on the next
+# request. That is what makes a cold symbol fast; the in-memory copy is only a
+# second-level cache the request rebuilds for free.
+if __name__ == "__main__":
+    import sys
+
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else BATCH
+    print(json.dumps(run_prewarm(limit=n)), flush=True)
