@@ -695,3 +695,132 @@ class TestRealTesseractThroughTheWholePipeline:
         assert st["pages_with_text"] == 3 and st["pages_from_ocr"] == 1
         assert st["text_complete"] is True
         c.close()
+
+
+# ── Wave P2 §19/§21/§22 · the member has to be able to SEE the provenance ────
+
+class TestProvenanceReachesTheMember:
+    """⛔ A FACT THE PIPELINE KNOWS AND THE MEMBER NEVER SEES IS NOT A FEATURE.
+    `text_origin` has been correct on the page row since P1; these rails are
+    about it surviving all the way to the surface that is about to have a
+    figure quoted off it."""
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+        from api.main import app
+        from api.routers.journal_two import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: {"id": A}
+        return TestClient(app)
+
+    def test_search_says_the_text_was_read_from_a_scan(self, env):
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        [hit] = document_search.search_document_pages(A, SCAN_PHRASE)
+        assert hit["text_origin"] == ocr.ORIGIN_OCR
+
+    def test_a_natively_extracted_page_is_not_labelled_scanned(self, env):
+        # ⛔ THE NEGATIVE HALF. A label that appears on everything says nothing,
+        # and one that appears on a native page is a false warning.
+        # `page_clean` hands back the page's LINES, not one string.
+        _, native_lines = fx.page_clean()
+        words = [w.strip(".,%$()") for w in " ".join(native_lines).split()]
+        term = max((w for w in words if w.isalpha()), key=len)
+        doc_id, _ = _attach(_native_pdf(), name="native.pdf")
+        hits = [h for h in document_search.search_document_pages(A, term)
+                if h["document_id"] == doc_id]
+        assert hits, f"the native fixture is not searchable for {term!r}"
+        assert all(h["text_origin"] == ocr.ORIGIN_NATIVE for h in hits)
+
+    def test_provenance_adds_a_fact_never_a_row(self, env):
+        # ⛔⛔ THE JOIN IS THE RISK. Reading `text_origin` means joining the
+        # canonical page table back onto an FTS hit; a join on the wrong key
+        # would silently duplicate every result, and the member would see the
+        # same page listed twice with no way to tell which was real.
+        doc_id, _ = _attach(_scanned_pdf(2))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        hits = document_search.search_document_pages(A, SCAN_PHRASE)
+        keys = [(h["document_id"], h["page_number"]) for h in hits]
+        assert sorted(keys) == [(doc_id, 1), (doc_id, 2)]
+        assert len(keys) == len(set(keys)), f"the join duplicated rows: {keys}"
+
+    def test_the_search_payload_carries_provenance(self, env):
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        r = self._client().get(f"/api/j2/notes/documents/search?q={SCAN_PHRASE}")
+        assert r.status_code == 200, r.text
+        [res] = [x for x in r.json()["results"] if x["documentId"] == doc_id]
+        assert res["textOrigin"] == ocr.ORIGIN_OCR
+
+    def test_provenance_does_not_change_what_the_result_IS(self, env):
+        # ⛔ §20: the hit is a DOCUMENT at a real page, not an "OCR object".
+        # Provenance rides along; it never becomes the identity.
+        doc_id, note_id = _attach(_scanned_pdf(), name="filing.pdf")
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.ocr_document(doc_id, fake_adapter)
+        r = self._client().get(f"/api/j2/notes/documents/search?q={SCAN_PHRASE}")
+        [res] = [x for x in r.json()["results"] if x["documentId"] == doc_id]
+        assert res["sourceKind"] == "attachment"
+        assert res["pageNumber"] == 1
+        assert res["name"] == "filing.pdf"
+        assert res["noteId"] == note_id
+        # …and the page is reachable, which is the whole point of §22.
+        assert res["attachmentUrl"]
+
+
+class TestAClaimNobodyCanServeIsNotProcessing:
+    """⚰️ §19 — 'reading scanned text…' must not be forever. Pages are claimed
+    only while an engine exists, but the claim outlives the capability: turn
+    the flag off, rebuild without the binary, and the member is left watching a
+    spinner that can never resolve."""
+
+    def test_claimed_pages_with_no_engine_report_unservable(self, env):
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)             # claims page 1
+        ocr.set_adapter(None)                 # …and the engine goes away
+        c = _conn()
+        st = ocr.document_text_state(c, A, doc_id)
+        c.close()
+        assert st["pages_awaiting_ocr"] == 1
+        assert st["ocr_unavailable"] is True
+
+    def test_the_same_pages_with_an_engine_are_simply_pending(self, env):
+        # ⛔ THE CONTROL. Without it this rail would pass for a version that
+        # always said "unservable", which would replace one lie with another.
+        doc_id, _ = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        c = _conn()
+        st = ocr.document_text_state(c, A, doc_id)
+        c.close()
+        assert st["pages_awaiting_ocr"] == 1
+        assert st["ocr_unavailable"] is False
+
+    def test_a_document_with_nothing_claimed_is_never_unservable(self, env):
+        doc_id, _ = _attach(_native_pdf(), name="native.pdf")
+        c = _conn()
+        st = ocr.document_text_state(c, A, doc_id)
+        c.close()
+        assert st["pages_awaiting_ocr"] == 0
+        assert st["ocr_unavailable"] is False
+
+    def test_the_payload_tells_the_editor_so_it_can_stop_saying_reading(self, env):
+        doc_id, note_id = _attach(_scanned_pdf())
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        ocr.set_adapter(None)
+        from fastapi.testclient import TestClient
+        from api.main import app
+        from api.routers.journal_two import get_current_user
+        app.dependency_overrides[get_current_user] = lambda: {"id": A}
+        r = TestClient(app).get(f"/api/j2/notes/{note_id}/documents")
+        [d] = [x for x in r.json()["documents"] if x["id"] == doc_id]
+        assert d["pagesAwaitingOcr"] == 1
+        assert d["ocrUnavailable"] is True

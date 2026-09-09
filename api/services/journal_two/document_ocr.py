@@ -411,6 +411,15 @@ def document_text_state(conn, user_id: str, document_id: str) -> dict[str, Any]:
         "pages_with_text": with_text,
         "pages_from_ocr": ocr_pages,
         "pages_awaiting_ocr": awaiting,
+        # ⛔⛔ WAVE P2 §19: "READING…" FOREVER IS A LIE. A page is marked
+        # `required` only while an engine exists to serve it — but capability
+        # can go away afterwards (the flag turned off, a rebuild without the
+        # binary, a deploy to a service that never had one). The pages stay
+        # claimed and nothing will ever come for them, so a surface reading
+        # only `pages_awaiting_ocr` shows "reading scanned text…" until the
+        # heat death of the universe. This is the fact that lets the member be
+        # told the truth instead: claimed, and currently unservable.
+        "ocr_unavailable": bool(awaiting > 0 and not ocr_available()),
         # Pages we have tried, or never could try, and still hold nothing for.
         "pages_unreadable": max(0, unreadable),
         # ⛔ THE ONE FIELD THAT MAY NOT BE ROUNDED UP (§15). "The OCR job

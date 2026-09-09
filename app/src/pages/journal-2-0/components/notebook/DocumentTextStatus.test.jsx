@@ -124,3 +124,67 @@ describe('the icons are real', () => {
     }
   })
 })
+
+// ── Wave P2 §19/§21 ─────────────────────────────────────────────────────────
+
+describe('a claim nobody can serve is not "processing"', () => {
+  const claimed = {
+    id: 'd9', name: 'board-pack.pdf', status: 'pending',
+    pagesTotal: 4, pagesWithText: 0, pagesAwaitingOcr: 4, textComplete: false,
+  }
+
+  it('says the scan has not been read, rather than reading forever', () => {
+    // ⚰️ A spinner that can never resolve is a worse lie than "we cannot read
+    // this", because the member keeps waiting for it.
+    const n = documentTextNotice({ ...claimed, ocrUnavailable: true })
+    expect(n.text).toMatch(/has not been read/i)
+    expect(n.text).not.toMatch(/reading/i)
+    expect(n.tone).not.toBe('busy')
+  })
+
+  it('still says "reading" while an engine is actually there', () => {
+    // ⛔ THE CONTROL. Without it, a version that always said "not read" would
+    // pass — replacing one lie with another.
+    const n = documentTextNotice({ ...claimed, ocrUnavailable: false })
+    expect(n.text).toMatch(/reading scanned text/i)
+    expect(n.tone).toBe('busy')
+  })
+
+  it('keeps naming what is already usable when some pages landed first', () => {
+    const n = documentTextNotice({
+      ...claimed, pagesWithText: 1, pagesAwaitingOcr: 3, ocrUnavailable: true,
+    })
+    expect(n.text).toMatch(/1 of 4/)
+    expect(n.text).toMatch(/have not been read/i)
+  })
+})
+
+describe('a complete document still discloses that it was scanned', () => {
+  it('says so, and tells the member to check the page', () => {
+    const n = documentTextNotice({
+      id: 'd10', name: 'exhibit.pdf', status: 'ready',
+      pagesTotal: 2, pagesWithText: 2, pagesFromOcr: 2,
+      pagesAwaitingOcr: 0, textComplete: true,
+    })
+    expect(n).not.toBeNull()
+    expect(n.text).toMatch(/scanned/i)
+    expect(n.text).toMatch(/check exact figures/i)
+  })
+
+  it('stays silent for a complete document that was never scanned', () => {
+    // ⛔ The overwhelmingly common case gets no chrome. A disclosure that
+    // appears on every attachment is furniture, and stops being read.
+    expect(documentTextNotice({
+      id: 'd11', name: 'native.pdf', status: 'ready',
+      pagesTotal: 2, pagesWithText: 2, pagesFromOcr: 0,
+      pagesAwaitingOcr: 0, textComplete: true,
+    })).toBeNull()
+  })
+
+  it('says nothing when the server did not send the scanned-page count', () => {
+    expect(documentTextNotice({
+      id: 'd12', name: 'older-bundle.pdf', status: 'ready',
+      pagesTotal: 2, pagesWithText: 2, pagesAwaitingOcr: 0, textComplete: true,
+    })).toBeNull()
+  })
+})

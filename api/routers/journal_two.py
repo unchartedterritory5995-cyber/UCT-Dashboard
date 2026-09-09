@@ -2831,6 +2831,10 @@ def list_note_documents_endpoint(
                 "pagesWithText": st.get("pages_with_text", 0),
                 "pagesFromOcr": st.get("pages_from_ocr", 0),
                 "pagesAwaitingOcr": st.get("pages_awaiting_ocr", 0),
+                # ⛔ WAVE P2 §19: pages claimed by an engine that is no longer
+                # there. Without this the surface can only say "reading…", and
+                # says it forever.
+                "ocrUnavailable": bool(st.get("ocr_unavailable")),
                 "pagesUnreadable": st.get("pages_unreadable", 0),
                 # ⛔ THE FIELD THAT MAY NOT BE ROUNDED UP. "The job finished"
                 # and "we have the whole document" are different facts (§15).
@@ -2861,6 +2865,12 @@ def search_note_documents_endpoint(
         # must never be rendered as a page).
         "sourceKind": r["source_kind"] or "attachment",
         "sourceUrl": r["source_url"],
+        # ⛔ WAVE P2 §21: PROVENANCE, NOT IDENTITY. The result is still a
+        # DOCUMENT at a real page — this only says how UCT came to hold that
+        # page's text, so a member reading a figure off a scanned filing knows
+        # to check it against the page itself. It is never a confidence score,
+        # and it never names an engine (§24).
+        "textOrigin": r["text_origin"] or "native",
     } for r in rows]}
 
 

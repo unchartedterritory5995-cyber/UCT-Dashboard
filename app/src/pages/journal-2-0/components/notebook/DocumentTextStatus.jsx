@@ -1,4 +1,5 @@
 import UIcon from '../../../../components/ui/UIcon'
+import { scannedPagesNotice } from '../../lib/documentProvenance'
 import styles from './DocumentTextStatus.module.css'
 
 /**
@@ -52,6 +53,20 @@ export function documentTextNotice(doc) {
     return { tone: 'busy', icon: 'clock', name, text: 'is still being read…' }
   }
   if (awaiting > 0) {
+    // ⛔⛔ WAVE P2 §19: "READING…" MUST NOT BE FOREVER. Pages are claimed only
+    // while an engine exists, but capability can vanish afterwards — the flag
+    // turned off, a rebuild without the binary — and the claim outlives it.
+    // A spinner that can never resolve is a worse lie than "we can't read
+    // this", because the member keeps waiting for it.
+    if (doc.ocrUnavailable) {
+      return {
+        tone: 'muted', icon: 'document', name,
+        text: withText > 0
+          ? `— text available for ${withText} of ${total} pages. `
+            + 'The scanned pages have not been read, so Search and Ask cannot use them.'
+          : 'looks like a scan — its text has not been read, so Search and Ask cannot use it.',
+      }
+    }
     // ⛔ Say what is already usable. "Reading…" alone reads as "nothing works
     // yet", which is false the moment one page has landed.
     return {
@@ -61,7 +76,14 @@ export function documentTextNotice(doc) {
         : '— reading scanned text…',
     }
   }
-  if (doc.textComplete) return null
+  if (doc.textComplete) {
+    // ⛔ WAVE P2 §21/§22: A COMPLETE DOCUMENT STILL OWES ONE DISCLOSURE IF ITS
+    // WORDS WERE READ OFF AN IMAGE. The member is about to quote a figure from
+    // text UCT derived, and the scanned page — not this text — is the source of
+    // truth for it. Native documents keep their silence.
+    const scanned = scannedPagesNotice(doc)
+    return scanned ? { tone: 'muted', icon: 'document', name, text: `— ${scanned}` } : null
+  }
   if (withText === 0) {
     return { tone: 'muted', icon: 'document', name,
              text: 'looks like a scan — no readable text yet, so Search and Ask cannot use it.' }
