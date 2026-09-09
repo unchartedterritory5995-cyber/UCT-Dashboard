@@ -365,13 +365,61 @@ def main() -> int:
           }));
         }""", syms)
         page.goto(f"{BASE}/charts", wait_until="domcontentloaded", timeout=90000)
-        page.wait_for_timeout(9000)
+        # ⛔ NEVER A FIXED WAIT HERE. This was `page.wait_for_timeout(9000)`, which
+        # lands INSIDE the ~9.3 s cinematic intro — the SAME defect that made an
+        # earlier proof report `canvases: 0` at a healthy 60 fps, surviving here
+        # because the instrument proof above already passed and nobody re-read the
+        # post-seed path. The proof is not the mount: this navigation remounts the
+        # app and replays the intro. Gate on the artifact, twice — a painted canvas
+        # (_settle_app clicks Skip and polls), then the review session's OWN index
+        # readout, which is the thing we are about to measure.
+        _settle_app(page)
         page.evaluate(PAGE_JS)
+        state = {"sym": None, "idx": None}
+        mount_waited = 0
+        while mount_waited < 30000:
+            try:
+                state = page.evaluate(
+                    "() => ({sym: window.__r5.sym(), idx: window.__r5.idx()})")
+            except Exception:  # noqa: BLE001
+                # A late navigation can discard window.__r5; re-inject rather than
+                # reading a stale absence as "did not mount".
+                try:
+                    page.evaluate(PAGE_JS)
+                except Exception:  # noqa: BLE001
+                    pass
+                state = {"sym": None, "idx": None}
+            if state.get("idx"):
+                break
+            page.wait_for_timeout(1000)
+            mount_waited += 1000
 
-        state = page.evaluate("() => ({sym: window.__r5.sym(), idx: window.__r5.idx()})")
-        print("SESSION:", state, f"({len(syms)} symbols seeded)")
+        print("SESSION:", state, f"({len(syms)} symbols seeded)",
+              f"[mount gate {mount_waited}ms]")
         if not state.get("idx"):
             print("Review session did not mount — aborting rather than measuring the wrong thing.")
+            # ⛔ AN ABORT MUST YIELD A DIAGNOSIS. One sign-in is expensive; ending
+            # here with a bare sentence is what turned five earlier attempts into
+            # "no samples and no reason".
+            try:
+                diag = page.evaluate("""() => ({
+                  url: location.href, title: document.title,
+                  visibility: document.visibilityState, hidden: document.hidden,
+                  shell: document.documentElement.getAttribute('data-mobile-chart-shell'),
+                  canvases: document.querySelectorAll('canvas').length,
+                  hasR5: typeof window.__r5 !== 'undefined',
+                  session: sessionStorage.getItem('uct.review.session') ? 'present' : 'ABSENT',
+                  bodyLen: document.body ? document.body.innerText.length : -1,
+                  head: document.body ? document.body.innerText.slice(0,400) : '',
+                  buttons: [...document.querySelectorAll('button')].map(b=>(b.getAttribute('aria-label')||b.textContent||'').trim()).filter(Boolean).slice(0,20)
+                })""")
+                print("  PAGE AT MOUNT FAILURE:", json.dumps(diag, indent=2))
+                page.screenshot(path="tools/r5_diag_mount.png")
+                import pathlib
+                pathlib.Path("tools/r5_diag_mount_dump.json").write_text(
+                    json.dumps(diag, indent=2), encoding="utf-8")
+            except Exception as e:  # noqa: BLE001
+                print("  mount diag failed:", str(e)[:200])
             (browser or ctx).close()
             return 3
 
