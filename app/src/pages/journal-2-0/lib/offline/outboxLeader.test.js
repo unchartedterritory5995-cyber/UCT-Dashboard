@@ -126,3 +126,53 @@ describe('the change channel is a HINT channel', () => {
     expect(none.subscribe(() => {})()).toBeUndefined()
   })
 })
+
+describe('⚰️ the grant arrives in a LATER TASK — the defect this replaced', () => {
+  it('a callback invoked a task later is still LEADER', async () => {
+    // The first version settled FOLLOWER after two microtasks "in case the
+    // request never answers". Real `navigator.locks.request` calls back in a
+    // later TASK, so that fallback would have beaten every genuine grant: no
+    // tab would ever lead, nothing would ever drain, and every rail here would
+    // still be green — because the fake in this file grants almost
+    // synchronously. A fixture that cannot distinguish is not a rail.
+    const nav = {
+      locks: {
+        request: (name, opts, cb) => new Promise((resolve) => {
+          setTimeout(() => resolve(cb({ name })), 5)
+        }),
+      },
+    }
+    const { role, release } = await claimSyncLeadership('acct1', { nav })
+    expect(role).toBe(LEADER)
+    release()
+  })
+
+  it('a request that never answers settles FOLLOWER — the safe half', async () => {
+    const nav = { locks: { request: () => new Promise(() => {}) } }
+    const { role } = await claimSyncLeadership('acct1', { nav, decideAfterMs: 5 })
+    expect(role).toBe(FOLLOWER)
+    expect(role).not.toBe(LEADER)
+  })
+
+  it('⛔ and a lock granted after that timeout is RELEASED, not silently held', async () => {
+    // Holding a lock we have already told the caller we do not have is a
+    // deadlock for the whole account: no other tab can ever take it, and this
+    // one will not drain either.
+    let heldForever = null
+    const nav = {
+      locks: {
+        request: (name, opts, cb) => new Promise((resolve) => {
+          setTimeout(() => {
+            const ret = cb({ name })
+            heldForever = ret !== undefined
+            resolve()
+          }, 15)
+        }),
+      },
+    }
+    const { role } = await claimSyncLeadership('acct1', { nav, decideAfterMs: 1 })
+    expect(role).toBe(FOLLOWER)
+    await new Promise((r) => setTimeout(r, 40))
+    expect(heldForever).toBe(false)
+  })
+})

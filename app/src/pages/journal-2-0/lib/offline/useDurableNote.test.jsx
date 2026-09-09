@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { createFakeDb, settleIdb, installKeyRange } from './fakeIndexedDb'
+import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
 import { putNoteWithIntent, getNote, listOutbox } from './notebookDb'
 import { useDurableNote, outboxIdFor, __resetNotebookConnections, UNAVAILABLE } from './useDurableNote'
 import { DURABLE, FAILED, PENDING } from './durableWriter'

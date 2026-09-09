@@ -43,7 +43,12 @@ export function webLocksAvailable(nav = globalThis.navigator) {
  *
  * @returns { role, release() }
  */
-export function claimSyncLeadership(accountId, { nav = globalThis.navigator } = {}) {
+export function claimSyncLeadership(accountId, {
+  nav = globalThis.navigator,
+  decideAfterMs = 2000,
+  setTimer = (fn, ms) => setTimeout(fn, ms),
+  clearTimer = (h) => clearTimeout(h),
+} = {}) {
   if (!accountId) throw new Error('outboxLeader: an accountId is required')
   if (!webLocksAvailable(nav)) {
     // ⛔ Degrade to waiting, never to racing.
@@ -54,7 +59,21 @@ export function claimSyncLeadership(accountId, { nav = globalThis.navigator } = 
     let releaseHeld = null
     const held = new Promise((r) => { releaseHeld = r })
     let settled = false
-    const settle = (role) => { if (!settled) { settled = true; resolve({ role, release: () => releaseHeld && releaseHeld() }) } }
+    let timer = null
+    const settle = (role) => {
+      if (settled) return
+      settled = true
+      if (timer !== null) clearTimer(timer)
+      resolve({ role, release: () => releaseHeld && releaseHeld() })
+    }
+
+    // ⛔⛔ A BOUNDED WAIT, NOT A MICROTASK RACE. `navigator.locks.request`
+    // invokes its callback in a LATER TASK — an earlier version of this
+    // settled FOLLOWER after two microtasks, which in a real browser would
+    // have beaten every genuine grant and left the account with no leader at
+    // all: nothing drains, and every check stays green. A tab with no answer
+    // after this long is a follower, which is the safe half.
+    timer = setTimer(() => settle(FOLLOWER), decideAfterMs)
 
     nav.locks.request(name, { ifAvailable: true }, (lock) => {
       if (!lock) {
@@ -64,14 +83,13 @@ export function claimSyncLeadership(accountId, { nav = globalThis.navigator } = 
         settle(FOLLOWER)
         return undefined
       }
+      // ⛔ We already told the caller we are not the leader. Returning here
+      // RELEASES the lock immediately rather than holding one nobody believes
+      // we have — a held-but-disowned lock is a deadlock for the account.
+      if (settled) return undefined
       settle(LEADER)
       return held           // hold the lock until release() is called
     }).catch(() => settle(READ_ONLY_FOR_SYNC))
-
-    // A `request` that neither grants nor rejects promptly should not leave the
-    // caller without a role — a tab with no answer is a follower, which is the
-    // safe half.
-    Promise.resolve().then(() => Promise.resolve()).then(() => settle(FOLLOWER))
   })
 }
 

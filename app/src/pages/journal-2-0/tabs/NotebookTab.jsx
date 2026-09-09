@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -22,6 +22,8 @@ import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
 import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
+import { AuthContext } from '../../../context/AuthContext'
+import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import styles from './NotebookTab.module.css'
 
 // Folders panel resize bounds (px).
@@ -57,6 +59,19 @@ function _logNotebookVisit() {
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
   const noteId = searchParams.get('note')
+
+  // Wave Q1 — the reconnect. Mounted HERE, not in the editor: the queue is
+  // account-wide, and a note edited offline then closed must still reach the
+  // server. ⛔ `excludeNoteId` is the open note, which the editor owns and saves
+  // with its own backoff — two writers on one note is the last-write-wins this
+  // wave forbids. ⛔ And only the Web Locks LEADER drains; every other tab is a
+  // follower that waits rather than a racer that corrupts.
+  // ⛔ Read OPTIONALLY, the same way `useIsPaid` does: `useAuth()` throws
+  // outside a provider, and the drain is an enhancement — no account means no
+  // per-account database and nothing to drain, which is a degradation, not a
+  // reason to take the Notebook down.
+  const auth = useContext(AuthContext)
+  useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
 
   useEffect(() => { _logNotebookVisit() }, [])
 

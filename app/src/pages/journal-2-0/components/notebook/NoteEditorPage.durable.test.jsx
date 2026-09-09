@@ -16,7 +16,7 @@
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/fakeIndexedDb'
+import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/__fixtures__/fakeIndexedDb'
 import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
 import { dbNameFor } from '../../lib/offline/notebookDb'
 

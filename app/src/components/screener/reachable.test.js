@@ -277,21 +277,6 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
-  // ── WAVE Q1 — OFFLINE (2026-09) ───────────────────────────────────
-  //
-  // The single-leader outbox drain. Its three siblings in `lib/offline/`
-  // (`notebookDb`, `durableWriter`, `recoverLocalState`) are reached through
-  // `useDurableNote` → `NoteEditorPage` as of this commit; this one is not,
-  // because nothing drains yet — the durable working copy and its queued
-  // intent land first, the reconnect that spends them is the next step.
-  //
-  // ⚠️ REMOVAL CONDITION, not a parking space: the commit that wires the
-  // reconnect drain calls `claimSyncLeadership` from the app and DELETES THIS
-  // ENTRY. If offline sync is abandoned, delete the file instead — an unwired
-  // leader election is worse than none, because it reads as protection.
-  'app/src/pages/journal-2-0/lib/offline/outboxLeader.js':
-    'WAVE Q1 — single-leader outbox drain, built ahead of the reconnect that '
-    + 'uses it. Delete this entry the commit that calls claimSyncLeadership.',
   // ── JOYSTICK HUB, PHASE 1 (2026-01) ──────────────────────────────────────
   //
   // Two hooks that are BUILT AND TESTED BUT MOUNTED NOWHERE. They are reached

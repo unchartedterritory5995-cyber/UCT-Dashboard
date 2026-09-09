@@ -1,0 +1,129 @@
+/**
+ * Wave Q1 — who is allowed to spend the outbox.
+ *
+ * ⛔ The property under test is a REFUSAL. A follower that "tries anyway" and a
+ * follower that waits look identical in a screenshot and differ only when two
+ * tabs reconnect at once — which is precisely the case nobody reproduces on
+ * purpose. So the rails assert that nothing was sent, and each one carries a
+ * control showing the same setup DOES send when the tab leads.
+ */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
+import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
+import { putNoteWithIntent } from './notebookDb'
+import { useOutboxDrain } from './useOutboxDrain'
+import { LEADER, FOLLOWER, READ_ONLY_FOR_SYNC } from './outboxLeader'
+
+const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
+
+let db
+let held
+
+/** One real lock per name, the shape `claimSyncLeadership` actually calls. */
+function installLocks({ alreadyHeld = false } = {}) {
+  held = new Set(alreadyHeld ? ['uct.nb.sync.acct1'] : [])
+  Object.defineProperty(globalThis.navigator, 'locks', {
+    configurable: true,
+    value: {
+      request: async (name, opts, cb) => {
+        if (opts?.ifAvailable) {
+          if (held.has(name)) return cb(null)
+          held.add(name)
+          return cb({ name })          // held for the life of the returned promise
+        }
+        return new Promise(() => {})   // queued behind the holder — never resolves here
+      },
+    },
+  })
+}
+function removeLocks() {
+  Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: undefined })
+}
+
+beforeEach(async () => {
+  installKeyRange()
+  db = createFakeDb()
+  globalThis.indexedDB = { open: () => { throw new Error('injected in tests') } }
+  await putNoteWithIntent(db, {
+    noteId: 'n1', title: 'queued', subtitle: '', bodyJson: doc('written offline'),
+    baseUpdatedAt: 'T1', generation: 2, sessionId: 's1', localSavedAt: 5, dirty: 1,
+  }, {
+    mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
+    patch: { title: 'queued', subtitle: '', bodyJson: doc('written offline') },
+    baseUpdatedAt: 'T1', generation: 2, queuedAt: 5,
+  })
+})
+afterEach(() => {
+  removeLocks()
+  delete globalThis.indexedDB
+  vi.clearAllMocks()
+})
+
+function mount({ send, ...extra } = {}) {
+  const connect = vi.fn(async () => db)
+  return renderHook(() => useOutboxDrain({
+    accountId: 'acct1', connect, send, fork: vi.fn(), intervalMs: 100000, ...extra,
+  }))
+}
+
+describe('⭐ the control: a leader drains', () => {
+  it('sends the queued work on mount', async () => {
+    installLocks()
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await act(async () => { await settleIdb() })
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(send.mock.calls[0][0].noteId).toBe('n1')
+    await waitFor(() => expect(result.current.pending).toBe(0))
+  })
+})
+
+describe('⛔ and nobody else does', () => {
+  it('a FOLLOWER sends nothing — another tab already leads', async () => {
+    installLocks({ alreadyHeld: true })
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(FOLLOWER))
+    await act(async () => { await settleIdb() })
+    expect(send).not.toHaveBeenCalled()
+    // The work is still there, waiting for whoever leads — not lost, not raced.
+    await waitFor(() => expect(result.current.pending).toBe(1))
+  })
+
+  it('without Web Locks the tab is READ-ONLY FOR SYNC and sends nothing', async () => {
+    removeLocks()
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(READ_ONLY_FOR_SYNC))
+    await act(async () => { await settleIdb() })
+    expect(send).not.toHaveBeenCalled()
+    // ⛔ Degrading to "everyone tries" would reintroduce exactly the
+    // last-write-wins this wave exists to forbid.
+    expect(result.current.isLeader).toBe(false)
+  })
+})
+
+describe('coming back online', () => {
+  it('a leader drains again when the network returns', async () => {
+    installLocks()
+    let offline = true
+    const send = vi.fn(async () => {
+      if (offline) throw new Error('network down')
+      return { updatedAt: 'T2' }
+    })
+    const { result } = mount({ send })
+    await waitFor(() => expect(result.current.role).toBe(LEADER))
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    // The failed send kept the entry.
+    await waitFor(() => expect(result.current.pending).toBe(1))
+
+    offline = false
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+      await settleIdb()
+    })
+    await waitFor(() => expect(result.current.pending).toBe(0))
+    expect(send).toHaveBeenCalledTimes(2)
+  })
+})
