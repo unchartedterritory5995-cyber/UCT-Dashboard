@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createNoteViaApi } from '../noteCreation'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
+import { offlineEnabled } from './offlineFlag'
 import { drainOutbox, summarize } from './outboxDrain'
 import {
   FOLLOWER, LEADER, READ_ONLY_FOR_SYNC, awaitSyncLeadership, claimSyncLeadership,
@@ -82,7 +83,9 @@ export function useOutboxDrain({
   connect = connectNotebookDb,
   intervalMs = RETRY_INTERVAL_MS,
 } = {}) {
-  const supported = Boolean(offlineStorageAvailable() && accountId && enabled)
+  // ⛔ The same gate. Nothing drains — and nothing even claims leadership —
+  // until the §32 matrix has been reported.
+  const supported = Boolean(offlineEnabled() && offlineStorageAvailable() && accountId && enabled)
   const [role, setRole] = useState(null)
   const [pending, setPending] = useState(0)
   // Also a ref: the retry interval must not be torn down and rebuilt (and

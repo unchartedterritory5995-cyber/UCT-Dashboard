@@ -12,11 +12,16 @@ import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeInd
 import { putNoteWithIntent, getNote, listOutbox } from './notebookDb'
 import { useDurableNote, outboxIdFor, __resetNotebookConnections, UNAVAILABLE } from './useDurableNote'
 import { DURABLE, FAILED, PENDING } from './durableWriter'
+import { OFFLINE_FLAG_KEY } from './offlineFlag'
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 const SERVER = { title: 'Thesis', subtitle: '', bodyJson: doc('server'), updatedAt: 'T1' }
 
 beforeEach(() => {
+  // ⛔ Wave Q1 ships DARK: the offline layer is off until the §32 browser
+  // matrix is reported. These rails opt this browser in, the same way
+  // certification does.
+  localStorage.setItem(OFFLINE_FLAG_KEY, '1')
   installKeyRange()
   __resetNotebookConnections()
   // The hook asks the PLATFORM whether a durable store is possible at all;

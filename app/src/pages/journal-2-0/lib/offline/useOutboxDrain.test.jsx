@@ -13,6 +13,7 @@ import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeInd
 import { putNoteWithIntent } from './notebookDb'
 import { useOutboxDrain } from './useOutboxDrain'
 import { LEADER, FOLLOWER, READ_ONLY_FOR_SYNC } from './outboxLeader'
+import { OFFLINE_FLAG_KEY } from './offlineFlag'
 
 const doc = (t) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: t }] }] })
 
@@ -41,6 +42,10 @@ function removeLocks() {
 }
 
 beforeEach(async () => {
+  // ⛔ Wave Q1 ships DARK: the offline layer is off until the §32 browser
+  // matrix is reported. These rails opt this browser in, the same way
+  // certification does.
+  localStorage.setItem(OFFLINE_FLAG_KEY, '1')
   installKeyRange()
   db = createFakeDb()
   globalThis.indexedDB = { open: () => { throw new Error('injected in tests') } }

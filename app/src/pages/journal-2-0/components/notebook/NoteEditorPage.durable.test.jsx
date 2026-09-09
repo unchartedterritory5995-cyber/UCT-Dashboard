@@ -18,6 +18,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/__fixtures__/fakeIndexedDb'
 import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
+import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
 import { dbNameFor } from '../../lib/offline/notebookDb'
 
 Range.prototype.getClientRects = () => []
@@ -45,6 +46,10 @@ let factory
 
 beforeEach(() => {
   localStorage.clear()
+  // ⛔ Wave Q1 ships DARK: the offline layer is off until the §32 browser
+  // matrix is reported. These rails opt this browser in, the same way
+  // certification does.
+  localStorage.setItem(OFFLINE_FLAG_KEY, '1')
   updateMock.mockReset()
   updateMock.mockResolvedValue({ ...NOTE, updatedAt: 'T2' })
   currentUser = { id: 'u42', role: 'member' }
@@ -225,5 +230,38 @@ describe('no durable store here', () => {
     expect(localStorage.getItem('uct.j2.notedraft.n1')).toBeNull()
     // ⛔ And nothing ever claimed this device was holding it.
     expect(screen.queryByText(/Saved on this device/i)).toBeNull()
+  })
+})
+
+describe('⛔ the §32 certification gate — DARK BY DEFAULT', () => {
+  it('with the flag unset, nothing is written to IndexedDB and the Notebook is unchanged', async () => {
+    // ⚰️ This is what is on `master` today. §32 makes the browser matrix a HARD
+    // certification/merge gate and Safari/iOS is not measured, so the code
+    // ships but does not run: no durable copy, no queue, no leader election.
+    // The rail exists because "shipped dark" is a claim about a RUN, and the
+    // only way to keep it honest is to check the artifact.
+    localStorage.removeItem(OFFLINE_FLAG_KEY)
+    __resetNotebookConnections()
+    await renderEditor()
+    type('typed with the wave switched off')
+    await letTheServerSaveFire()
+
+    expect(factory.databases.size).toBe(0)          // not even a database was opened
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1))
+    expect(updateMock.mock.calls[0][0].title).toBe('typed with the wave switched off')
+    // The pre-Q1 behaviour, exactly: the draft is written and then retired by a
+    // successful save.
+    expect(localStorage.getItem('uct.j2.notedraft.n1')).toBeNull()
+    expect(screen.queryByText(/Saved on this device/i)).toBeNull()
+  })
+
+  it('⭐ and the same keystroke DOES reach the store when the flag is on', async () => {
+    // The control. Without it the rail above would pass just as well against a
+    // durable layer that was broken rather than switched off.
+    await renderEditor()
+    type('typed with the wave switched on')
+    await letTheDurableWindowClose()
+    expect(factory.databases.size).toBe(1)
+    expect(store('notes')[0].title).toBe('typed with the wave switched on')
   })
 })

@@ -30,6 +30,7 @@ import {
 import {
   getNote, offlineStorageAvailable, openNotebookDb, putNoteWithIntent,
 } from './notebookDb'
+import { offlineEnabled } from './offlineFlag'
 import { chooseLocalRecovery, newSessionId, sameAuthoredContent } from './recoverLocalState'
 
 /** No durable store here at all (a private window, an old browser). Reported,
@@ -94,7 +95,9 @@ export function useDurableNote({
   debounceMs = DEFAULT_DEBOUNCE_MS,
   connect = connectNotebookDb,
 } = {}) {
-  const supported = Boolean(offlineStorageAvailable() && accountId && noteId)
+  // ⛔ The Q1 certification gate first: with the flag off this whole layer is
+  // inert and the Notebook behaves exactly as it did before Wave Q1.
+  const supported = Boolean(offlineEnabled() && offlineStorageAvailable() && accountId && noteId)
   const [status, setStatus] = useState(supported ? IDLE : UNAVAILABLE)
   const [unsynced, setUnsynced] = useState(false)
   const [error, setError] = useState(null)

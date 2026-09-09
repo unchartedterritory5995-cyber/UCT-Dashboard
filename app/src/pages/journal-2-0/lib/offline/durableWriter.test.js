@@ -112,21 +112,40 @@ describe('⛔ a late completion can never overwrite newer work (§9)', () => {
     expect(w.isDurable()).toBe(true)
   })
 
-  it('a stale resolution cannot drag the committed generation backwards', async () => {
-    // ⭐ The property stated directly: `committed` is a max(), so even a persist
-    // implementation that resolved out of order could not mark older work as
-    // the newest durable state. Browser transaction timing is not an
-    // application-intent guarantee.
+  it('the committed generation only ever moves FORWARD across a run of writes', async () => {
+    // ⚰️ WHAT THIS DOES AND DOES NOT PROVE, because the first version of this
+    // rail was vacuous. It resolved the same job's promise twice and asserted
+    // the number had not moved — but a settled promise ignores a second
+    // resolve, so `persist`'s await never re-fired and the assertion held for
+    // ANY implementation. Mutating `Math.max(committed, gen)` to a plain
+    // assignment left it green.
+    //
+    // The writer keeps exactly ONE write in flight and awaits it, so genuinely
+    // out-of-order completions cannot be produced through this API at all: the
+    // ordering is enforced by SERIALISATION, and the `Math.max` behind it is
+    // belt-and-braces for a persist implementation that someday resolves early.
+    // What is observable — and what this asserts — is that a sequence of writes
+    // leaves `committed` monotonically increasing and equal to the newest
+    // scheduled generation.
     const { persist, calls } = controllablePersist()
     const t = manualTimers()
     const w = createDurableWriter({ persist, ...t })
-    w.schedule({ text: 'A' }); t.fire()
-    calls[0].resolve()
-    await Promise.resolve(); await Promise.resolve()
-    const after = w.committedGeneration()
-    calls[0].resolve()                          // resolve the SAME old job again
-    await Promise.resolve(); await Promise.resolve()
-    expect(w.committedGeneration()).toBe(after)
+    const seen = []
+
+    for (const text of ['A', 'B', 'C']) {
+      w.schedule({ text })
+      t.fire()
+      // eslint-disable-next-line no-await-in-loop
+      calls[calls.length - 1].resolve()
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+      seen.push(w.committedGeneration())
+    }
+
+    expect(seen).toEqual([...seen].sort((a, b) => a - b))
+    expect(new Set(seen).size).toBe(seen.length)      // strictly increasing
+    expect(w.committedGeneration()).toBe(w.latestGeneration())
+    expect(w.isDurable()).toBe(true)
   })
 })
 
