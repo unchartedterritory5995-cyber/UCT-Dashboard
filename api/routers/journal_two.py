@@ -2813,11 +2813,30 @@ def list_note_documents_endpoint(
         # (heroImageUrl/bodyJson/createdAt/...) — a raw dict(row) would leak
         # snake_case SQL column names into the one JSON shape in this file
         # that didn't go through a service-layer dict-builder.
-        return {"documents": [{
-            "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
-            "status": r["status"], "pageCount": r["page_count"],
-            "createdAt": r["created_at"], "processedAt": r["processed_at"],
-        } for r in rows]}
+        # ⭐ WAVE P1: page-level truth beside the job status (§13/§14/§15).
+        # ⛔ `status` alone cannot answer "can you read this document" —
+        # measured in P0, a mixed PDF holding [492, 0, 781] characters reported
+        # `ready`, and one unreadable page was invisible. These are counts of
+        # pages we actually have text for, so the editor can say "text
+        # available for 2 of 3 pages" instead of implying completion.
+        from api.services.journal_two import document_ocr
+        out = []
+        for r in rows:
+            st = document_ocr.document_text_state(conn, user["id"], r["id"])
+            out.append({
+                "id": r["id"], "attachmentUrl": r["attachment_url"], "name": r["name"],
+                "status": r["status"], "pageCount": r["page_count"],
+                "createdAt": r["created_at"], "processedAt": r["processed_at"],
+                "pagesTotal": st.get("pages_total", 0),
+                "pagesWithText": st.get("pages_with_text", 0),
+                "pagesFromOcr": st.get("pages_from_ocr", 0),
+                "pagesAwaitingOcr": st.get("pages_awaiting_ocr", 0),
+                "pagesUnreadable": st.get("pages_unreadable", 0),
+                # ⛔ THE FIELD THAT MAY NOT BE ROUNDED UP. "The job finished"
+                # and "we have the whole document" are different facts (§15).
+                "textComplete": bool(st.get("text_complete")),
+            })
+        return {"documents": out}
     finally:
         conn.close()
 

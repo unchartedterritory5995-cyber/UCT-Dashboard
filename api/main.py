@@ -2959,6 +2959,29 @@ async def lifespan(app: FastAPI):
             "[startup] awareness regime_snapshots schema init failed"
         )
 
+    # Wave P1: reclaim OCR pages abandoned by a restart.
+    #
+    # ⛔⛔ NATIVE EXTRACTION NEVER NEEDED THIS AND OCR CANNOT DO WITHOUT IT.
+    # A pypdf pass finished in milliseconds, so a redeploy landing inside one
+    # was a rounding error. OCR takes SECONDS PER PAGE, which puts a Railway
+    # redeploy inside a job routinely — and a page left `processing` with
+    # nothing running would leave the member on "Processing scanned text..."
+    # forever, with no sweep anywhere to notice.
+    #
+    # ⛔ It reclaims by AGE, never on sight, so it cannot steal a page from a
+    # job that is still working on it. Inert by construction while no engine is
+    # wired: with no adapter nothing is ever marked `processing`, so this finds
+    # nothing and costs one indexed query.
+    try:
+        from api.services.journal_two import document_ocr as _doc_ocr
+        _rec = _doc_ocr.recover_stalled()
+        if _rec.get("reclaimed") or _rec.get("exhausted"):
+            logging.getLogger(__name__).info(
+                "[startup] OCR recovery: reclaimed=%s exhausted=%s documents=%s",
+                _rec["reclaimed"], _rec["exhausted"], _rec["documents"])
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] OCR recovery sweep failed")
+
     # Alert Durability V1 (2026-09-06): the user_alerts table backing
     # api/services/alert_durability.py. Cheap + idempotent; initialized
     # unconditionally at boot, same posture as the two schema inits above.

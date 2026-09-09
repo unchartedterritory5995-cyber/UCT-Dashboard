@@ -521,8 +521,14 @@ def coverage(conn, user_id: str) -> dict[str, Any]:
     return {
         "notes_searchable": one(
             "SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", user_id),
+        # ⛔⛔ PAGES WITH TEXT, NOT PAGE ROWS. Measured in Wave P0: a mixed
+        # PDF stores three page rows holding [492, 0, 781] characters, and
+        # this counted 3. That number goes straight into the prompt as
+        # "SEARCHED: n document pages", so a page nobody could read was being
+        # reported to the model as searched. A row is not a page we have.
         "document_pages_searchable": one(
-            "SELECT COUNT(*) FROM j2_note_document_pages WHERE user_id = ?", user_id),
+            "SELECT COUNT(*) FROM j2_note_document_pages"
+            " WHERE user_id = ? AND TRIM(text) != ''", user_id),
         "excerpts_searchable": one(
             "SELECT COUNT(*) FROM j2_note_excerpts WHERE user_id = ?", user_id),
         "documents_by_status": docs,
@@ -992,13 +998,27 @@ def document_coverage(conn, user_id: str, document_id: str) -> dict[str, Any]:
     if d is None:
         return {"exists": False, "searchable": False, "status": None,
                 "pages_indexed": 0}
-    pages = conn.execute(
-        "SELECT COUNT(*) c FROM j2_note_document_pages"
-        " WHERE document_id = ? AND user_id = ?", (document_id, user_id)).fetchone()["c"]
+    counts = conn.execute(
+        "SELECT COUNT(*) AS total,"
+        " SUM(CASE WHEN TRIM(text) != '' THEN 1 ELSE 0 END) AS with_text"
+        " FROM j2_note_document_pages WHERE document_id = ? AND user_id = ?",
+        (document_id, user_id)).fetchone()
+    total = counts["total"] or 0
+    with_text = counts["with_text"] or 0
     status = d["status"]
     return {"exists": True, "name": d["name"], "status": status,
-            "pages_indexed": pages,
-            "searchable": status == DOC_STATUS_SEARCHABLE and pages > 0}
+            # ⛔⛔ `pages_indexed` NOW MEANS WHAT ITS NAME SAYS (§13). It counted
+            # ROWS, and a scanned page has a row holding an empty string — so
+            # a three-page document with one unreadable page reported "3
+            # indexed". Redefining rather than renaming is safe here because
+            # this dict has exactly one producer and no consumer outside the
+            # Ask coverage payload; `pages_total` is added beside it so the
+            # gap between "pages we hold" and "pages we can read" is legible
+            # rather than collapsed.
+            "pages_indexed": with_text,
+            "pages_total": total,
+            "text_complete": total > 0 and with_text == total,
+            "searchable": status == DOC_STATUS_SEARCHABLE and with_text > 0}
 
 
 def retrieve_document(user_id: str, document_id: str, query: str, *,

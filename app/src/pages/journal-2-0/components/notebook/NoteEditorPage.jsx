@@ -12,6 +12,7 @@ import CapturedSourceSheet from './CapturedSourceSheet'
 import { targetFromParams, applyTargetToParams, excerptRevisitTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
+import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
@@ -1757,6 +1758,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             a note with nothing set renders only a small "+ Add property"
             link, never a permanent header (progressive disclosure). */}
         <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+
+        {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
+            NOTHING when every document's text is complete — the common case
+            gets no chrome. */}
+        <DocumentTextStatus documents={noteDocuments} />
 
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't
