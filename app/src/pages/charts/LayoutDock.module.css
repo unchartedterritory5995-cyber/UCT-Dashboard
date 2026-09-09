@@ -67,7 +67,12 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  color: var(--text-muted, #8c8674);
+  /* Matches the cream the header's Widgets / Layouts / Tools buttons wear, so
+     the dock reads as the same chrome bracketing the workspace rather than a
+     dimmer afterthought. The active state still separates cleanly: it moves to
+     GOLD and gains the cap + wash, which is a hue change, not just a step up in
+     brightness. */
+  color: var(--text-bright, #e0dac8);
   cursor: pointer;
   white-space: nowrap;
   max-width: 148px;
@@ -96,7 +101,7 @@
    `.itemActive` (0,1,0), so an unscoped hover repainted the OPEN layout in the
    hover colour and swapped its gold cap for the grey ghost — hovering the active
    item made it look inactive. */
-.item:not(.itemActive):hover { color: var(--text-bright, #e0dac8); }
+.item:not(.itemActive):hover { color: var(--text-heading, #f0ead8); }
 /* A grey ghost of the gold cap, so hover teaches where the active mark lands. */
 .item:not(.itemActive):hover::before { background: var(--border-accent, #2a2a2a); }
 

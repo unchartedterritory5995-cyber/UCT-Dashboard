@@ -763,3 +763,88 @@ test('?ensure=themes on a brand-new member (no saved layout at all) still yields
   renderWS()
   expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(1)
 })
+
+/** A layout button on the bottom Layout Dock (not the Open-layout menu). */
+function dockButton(name) {
+  const dock = document.querySelector('[role="toolbar"][aria-label="Saved layouts"]')
+  if (!dock) return null
+  return [...dock.querySelectorAll('button')].find(b => b.textContent.trim() === name) || null
+}
+
+// The owner-reported bug: add a widget, switch layouts ~2s later, come back and
+// the widget is gone. The auto-save was DEBOUNCED but never FLUSHED, so leaving
+// the board cancelled the pending write instead of completing it. Every path
+// that replaces the board must flush first — timing must not decide whether an
+// edit survives.
+test('switching away flushes the pending auto-save into the layout you are leaving', () => {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Main Trading', scope: 'user' }),
+  }
+  // STORED for Main Trading is an empty board, so the live board is dirty.
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Main Trading', scope: 'user', layout: { widgets: [], cols: 24 } },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+
+  const target = dockButton('Breadth')
+  expect(target, 'the dock should offer Breadth').toBeTruthy()
+  act(() => { target.click() })
+
+  // Flushed into the layout we LEFT — by name, since upsert is keyed on it —
+  // and carrying the widget that was on screen.
+  expect(mockLayouts.saveLayout).toHaveBeenCalledWith(
+    expect.objectContaining({ name: 'Main Trading' }),
+  )
+  const flushed = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(flushed.layout.widgets.map(w => w.id)).toEqual(['w1'])
+})
+
+// The mirror of the above: a CLEAN board must not be written on every switch.
+test('switching away from an unchanged layout writes nothing', () => {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Main Trading', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Main Trading', scope: 'user', layout: board },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+})
+
+// A prebuilt row is what every member sees — it must never be auto-written.
+test('leaving a prebuilt layout never writes to it, however dirty the board is', () => {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 5, name: 'Firm Board', scope: 'global' }),
+  }
+  mockLayouts = {
+    global: [{ id: 5, name: 'Firm Board', scope: 'global', layout: { widgets: [], cols: 24 } }],
+    mine: [{ id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } }],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+})

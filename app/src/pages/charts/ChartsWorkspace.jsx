@@ -1675,7 +1675,7 @@ export default function ChartsWorkspace() {
   // ── Named layout templates (prebuilt + personal) ──
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
-  const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
+  const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
 
   const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
@@ -1690,6 +1690,13 @@ export default function ChartsWorkspace() {
   const suppressAutoSaveUntilRef = useRef(0)
   const suppressAutoSave = useCallback(() => { suppressAutoSaveUntilRef.current = Date.now() + 1500 }, [])
 
+  // Assigned during render, far below, once handleSaveLayout and the dirty flag
+  // exist. Every path that REPLACES the board calls this first: a debounced save
+  // that has not fired yet must be completed before the board it belongs to is
+  // gone, or the edit is lost. That is exactly what "added a widget, switched two
+  // seconds later, came back and it was missing" was.
+  const flushNamedSaveRef = useRef(null)
+
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -1699,6 +1706,7 @@ export default function ChartsWorkspace() {
   // so any older-shaped template is normalized to the current grid.
   const applyTemplate = useCallback((tpl) => {
     if (!tpl?.layout?.widgets) return
+    flushNamedSaveRef.current?.()
     suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
     // per-user override so nothing from the previously-open layout — theme, chart
@@ -1768,6 +1776,7 @@ export default function ChartsWorkspace() {
   // wiped by re-opening it. Color-group tickers are left as-is (Option A: content
   // loads live/personal, only the shell + settings are frozen).
   const applyUctDefault = useCallback(() => {
+    flushNamedSaveRef.current?.()
     suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
@@ -1830,6 +1839,7 @@ export default function ChartsWorkspace() {
   // so a returning user stays on the blank board until they add a widget or open a
   // saved layout. (Named/saved layouts are untouched — only the working board is.)
   const handleNewLayout = useCallback(() => {
+    flushNamedSaveRef.current?.()
     suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
     setLayout(blank)
@@ -1922,11 +1932,13 @@ export default function ChartsWorkspace() {
   }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
-    try { await deleteLayout(id) } catch { /* surfaced by SWR revalidate */ }
-    // If the layout you just deleted was the one open on screen, fall back to the
-    // UCT Default so you're never left staring at a now-gone layout.
+    // Fall back BEFORE awaiting the delete: if the layout you just deleted was
+    // the one open on screen, waiting for the round-trip left you staring at a
+    // board that no longer has a layout for a beat. deleteLayout removes it from
+    // the bar optimistically, so both halves of the click land together.
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id === id) applyUctDefault()
+    try { await deleteLayout(id) } catch { /* restored by the optimistic rollback */ }
   }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
 
   const [, setAddMenuOpen] = useState(false)  // nested under Widgets ▾
@@ -2122,20 +2134,33 @@ export default function ChartsWorkspace() {
     && dockActiveId !== UCT_DEFAULT_ID
     && (dockActiveTpl?.scope || 'user') !== 'global'
 
-  // Persist the arrangement into the open layout shortly after it settles, so
-  // switching away never loses work and a layout is always where you left it.
-  // dockDirty is the trigger AND the stop condition: the save makes it false,
-  // so this cannot loop. The timer restarts on every edit, which is what turns
-  // a drag into one write instead of one per frame.
+  // Refs assigned during render (the idiom this file already uses for layoutRef):
+  // they let the switch paths above — defined earlier — reach the save without a
+  // circular dependency, and let the debounce below depend on the ARRANGEMENT
+  // rather than on a callback's identity.
+  const namedSaveRef = useRef(null)
+  namedSaveRef.current = handleSaveLayout
+  flushNamedSaveRef.current = () => { if (dockAutoSaves && dockDirty) handleSaveLayout() }
+
+  // Persist the arrangement into the open layout shortly after it settles.
+  //
+  // ⛔ Keyed on the arrangement SIGNATURE, not on handleSaveLayout. That callback
+  // is rebuilt whenever any of half a dozen prefs change, and every rebuild
+  // restarted the timer — so on a busy board the write could be pushed back
+  // indefinitely and a "debounced" save might never land at all. The signature
+  // only moves when the board actually moves, so the timer means what it says.
+  // dockDirty is the trigger AND the stop condition (the save clears it), so
+  // this cannot loop. Switching away no longer depends on this at all — the
+  // flush above covers it.
+  const dirtySig = (dockAutoSaves && dockDirty) ? arrangementSig(layout) : null
   useEffect(() => {
-    if (!dockAutoSaves || !dockDirty) return
-    const wait = Math.max(700, suppressAutoSaveUntilRef.current - Date.now() + 700)
-    const t = setTimeout(() => {
-      if (Date.now() < suppressAutoSaveUntilRef.current) return
-      handleSaveLayout()
-    }, wait)
+    if (!dirtySig) return
+    const t = setTimeout(() => { namedSaveRef.current?.() }, 400)
     return () => clearTimeout(t)
-  }, [dockAutoSaves, dockDirty, handleSaveLayout])
+  }, [dirtySig])
+
+  // Leaving /charts entirely (SPA nav, tab close) is a switch too.
+  useEffect(() => () => { flushNamedSaveRef.current?.() }, [])
 
   // Duplicate — the COPY is made from what is STORED for that layout, not from
   // the board on screen, so duplicating a layout you are not in does what it
@@ -2152,6 +2177,21 @@ export default function ChartsWorkspace() {
       await saveLayout({ name, layout: src.layout, groups: null, scope: 'user' })
     } catch { /* surfaced by SWR revalidate */ }
   }, [globalLayouts, myLayouts, saveLayout])
+
+  // Rename — PATCHes the row in place. The name also lives in
+  // charts_active_template, and handleSaveLayout UPSERTS BY THAT NAME, so a
+  // stale copy there would make the very next auto-save recreate the layout
+  // under its old name — a duplicate, from a rename. Keep the two in step.
+  const handleDockRename = useCallback(async (id, name) => {
+    suppressAutoSave()
+    try {
+      const saved = await renameLayout(id, name)
+      const active = parsePref(prefs?.charts_active_template, null)
+      if (active?.id === id) {
+        setPref('charts_active_template', JSON.stringify({ ...active, name: saved?.name || name }))
+      }
+    } catch { /* rolled back in the hook */ }
+  }, [renameLayout, prefs?.charts_active_template, setPref, suppressAutoSave])
 
   // Delete — reuses the workspace's own handler, so deleting the layout you are
   // IN still falls back to UCT Default rather than leaving you on a ghost.
@@ -2650,6 +2690,7 @@ export default function ChartsWorkspace() {
           onSave={handleSaveLayout}
           onDuplicate={handleDockDuplicate}
           onDelete={handleDockDelete}
+          onRename={handleDockRename}
         />
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders

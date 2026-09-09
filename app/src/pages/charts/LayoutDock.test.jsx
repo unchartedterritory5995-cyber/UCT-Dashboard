@@ -311,3 +311,84 @@ describe('LayoutDock — right-click menu', () => {
     expect(screen.queryByRole('menuitem', { name: 'Delete layout' })).toBeNull()
   })
 })
+
+describe('LayoutDock — rename', () => {
+  const pinned = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
+  const openMenu = (name) => fireEvent.contextMenu(screen.getByRole('button', { name }))
+
+  it('renames in place from the menu', () => {
+    mockPrefs = dockPref(pinned)
+    const onRename = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onRename={onRename} />)
+    openMenu('Main Trading')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename layout' }))
+    const input = screen.getByLabelText('Rename Main Trading')
+    expect(input.value).toBe('Main Trading')
+    fireEvent.change(input, { target: { value: 'Day Trading' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onRename).toHaveBeenCalledWith(1, 'Day Trading')
+  })
+
+  it('Escape leaves the name alone', () => {
+    mockPrefs = dockPref(pinned)
+    const onRename = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onRename={onRename} />)
+    openMenu('Main Trading')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename layout' }))
+    const input = screen.getByLabelText('Rename Main Trading')
+    fireEvent.change(input, { target: { value: 'Nope' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(onRename).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Main Trading' })).toBeTruthy()
+  })
+
+  it('an unchanged name is not a rename', () => {
+    mockPrefs = dockPref(pinned)
+    const onRename = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onRename={onRename} />)
+    openMenu('Main Trading')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename layout' }))
+    fireEvent.keyDown(screen.getByLabelText('Rename Main Trading'), { key: 'Enter' })
+    expect(onRename).not.toHaveBeenCalled()
+  })
+
+  it('is not offered on a prebuilt to a member, nor on UCT Default', () => {
+    const withPrebuilt = [...ENTRIES, { id: 7, name: 'Firm Board', scope: 'global' }]
+    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2, 7], known: [UCT_DEFAULT_ID, 1, 2, 7], hidden: false })
+    render(<LayoutDock entries={withPrebuilt} activeId={1} isAdmin={false} />)
+    openMenu('Firm Board')
+    expect(screen.queryByRole('menuitem', { name: 'Rename layout' })).toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    openMenu('UCT Default')
+    expect(screen.queryByRole('menuitem', { name: 'Rename layout' })).toBeNull()
+  })
+})
+
+describe('LayoutDock — remove from bar', () => {
+  const pinned = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
+  const openMenu = (name) => fireEvent.contextMenu(screen.getByRole('button', { name }))
+
+  // UCT Default is an in-code restore point, not a row, so there is nothing to
+  // delete — but it must not have to occupy a slot forever.
+  it('takes UCT Default off the bar even though it cannot be deleted', () => {
+    mockPrefs = dockPref(pinned)
+    render(<LayoutDock entries={ENTRIES} activeId={1} />)
+    openMenu('UCT Default')
+    expect(screen.queryByRole('menuitem', { name: 'Delete layout' })).toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove from bar' }))
+    expect(setPref).toHaveBeenCalledWith(
+      'charts_layout_dock',
+      JSON.stringify({ pins: [1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
+    )
+  })
+
+  it('an unpinned layout stays reachable from the ⋯ browser', () => {
+    mockPrefs = dockPref({ pins: [1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
+    const onOpen = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
+    expect(screen.queryByRole('button', { name: 'UCT Default' })).toBeNull()
+    fireEvent.click(screen.getByLabelText('All layouts'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'UCT Default' }))
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: UCT_DEFAULT_ID }))
+  })
+})

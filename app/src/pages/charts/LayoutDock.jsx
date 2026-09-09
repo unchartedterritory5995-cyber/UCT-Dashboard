@@ -30,7 +30,7 @@ import styles from './LayoutDock.module.css'
 
 export default function LayoutDock({
   entries, activeId, loading = false, merged = false, isAdmin = false,
-  onOpen, onCreate, onSave, onDuplicate, onDelete,
+  onOpen, onCreate, onSave, onDuplicate, onDelete, onRename,
 }) {
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const stored = useMemo(() => readDockPref(prefs?.[DOCK_PREF]), [prefs])
@@ -166,6 +166,24 @@ export default function LayoutDock({
     return () => clearTimeout(t)
   }, [provisional])
 
+  // ── rename ──────────────────────────────────────────────────────────────
+  // Edited IN PLACE, in the slot the layout already occupies, so you can see the
+  // new name land where you will look for it — same idiom as ＋.
+  const [renaming, setRenaming] = useState(null)      // entry id
+  const [renameDraft, setRenameDraft] = useState('')
+  const renameRef = useRef(null)
+  useEffect(() => { if (renaming != null) renameRef.current?.select() }, [renaming])
+
+  const commitRename = useCallback(() => {
+    const id = renaming
+    const name = renameDraft.trim()
+    const previous = entries.find(e => e.id === id)?.name
+    setRenaming(null)
+    setRenameDraft('')
+    if (!id || !name || name === previous) return
+    onRename?.(id, name)
+  }, [renaming, renameDraft, entries, onRename])
+
   const commitCreate = useCallback(() => {
     const name = draft.trim()
     setCreating(false)
@@ -198,6 +216,17 @@ export default function LayoutDock({
     setMenu(null)
   }, [dock, writeDock])
 
+  // Take a layout OFF the bar without destroying it. This is also the only
+  // "remove" that can apply to UCT Default: the frozen default is an in-code
+  // restore point, not a row, so there is nothing to delete — but it should not
+  // have to occupy a slot forever. `known` remembers the choice, so an unpinned
+  // layout does not quietly reappear on the next load; the ⋯ browser and
+  // Layouts ▾ → Open Layout are how it comes back.
+  const unpin = useCallback((entry) => {
+    writeDock({ ...dock, pins: dock.pins.filter(id => id !== entry.id) })
+    closePopovers()
+  }, [dock, writeDock, closePopovers])
+
   const menuIndex = menu ? dock.pins.indexOf(menu.entry.id) : -1
 
   const renderItem = (entry, isProvisional = false) => {
@@ -207,7 +236,10 @@ export default function LayoutDock({
         key={isProvisional ? '__provisional' : entry.id}
         type="button"
         className={`${styles.item} ${active || isProvisional ? styles.itemActive : ''}`}
-        onClick={() => { if (!isProvisional) open(entry) }}
+        // Primary button only: a right-click that also emits a click (some
+        // automation and a few input devices do) must open the MENU, not switch
+        // the board out from under you.
+        onClick={(e) => { if (!isProvisional && e.button === 0) open(entry) }}
         onContextMenu={(e) => {
           if (isProvisional) return
           e.preventDefault()
@@ -219,7 +251,25 @@ export default function LayoutDock({
         title={entry.name}
         aria-current={active ? 'true' : undefined}
       >
-        <span className={styles.label}>{entry.name}</span>
+        {renaming === entry.id ? (
+          <input
+            ref={renameRef}
+            className={styles.nameInput}
+            value={renameDraft}
+            maxLength={60}
+            aria-label={`Rename ${entry.name}`}
+            onClick={e => e.stopPropagation()}
+            onChange={e => setRenameDraft(e.target.value)}
+            onKeyDown={e => {
+              e.stopPropagation()
+              if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+              else if (e.key === 'Escape') { e.preventDefault(); setRenaming(null); setRenameDraft('') }
+            }}
+            onBlur={commitRename}
+          />
+        ) : (
+          <span className={styles.label}>{entry.name}</span>
+        )}
       </button>
     )
   }
@@ -316,12 +366,22 @@ export default function LayoutDock({
               onClick={() => { onSave?.(); setMenu(null) }}
             >Save layout</button>
           )}
+          {writable(menu.entry) && (
+            <button
+              type="button" role="menuitem" className={styles.menuItem}
+              onClick={() => { setRenameDraft(menu.entry.name); setRenaming(menu.entry.id); setMenu(null) }}
+            >Rename layout</button>
+          )}
           <button
             type="button" role="menuitem" className={styles.menuItem}
             onClick={() => { onDuplicate?.(menu.entry); setMenu(null) }}
           >Duplicate layout</button>
+          <div className={styles.menuDiv} />
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            onClick={() => unpin(menu.entry)}
+          >Remove from bar</button>
           {writable(menu.entry) && (<>
-            <div className={styles.menuDiv} />
             {confirmDelete ? (
               <button
                 type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuDanger}`}
