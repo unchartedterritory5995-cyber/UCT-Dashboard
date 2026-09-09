@@ -1,0 +1,59 @@
+# ⛔⛔ THE WEB SERVICE'S BUILD. Identical to `nixpacks.toml` except for the OCR
+# system packages, which ONLY the Notebook/web service may receive.
+#
+# WHY THIS FILE EXISTS. Four services — web, worker, flow-worker and bars-api —
+# build the SAME image from the root `nixpacks.toml` and differ only at start
+# time by environment variable. (A fifth, chart-renderer, already owns its own
+# Dockerfile and requirements under `services/chart_renderer/`, which is the
+# repository precedent that a service needing distinct system dependencies can
+# own its own build boundary.)
+#
+# Wave P needs Tesseract on web and nowhere else. Putting it in the shared file
+# would install it into three services that cannot perform OCR, do not reach
+# the Notebook database, and will never invoke it.
+#
+# HOW WEB SELECTS THIS FILE: the `NIXPACKS_CONFIG_FILE` service variable, set
+# on the web service only. Nixpacks reads it at build time.
+#
+# ⭐ THE FAILURE DIRECTION IS CLOSED. If that variable is missing, absent, or
+# ignored, web builds from `nixpacks.toml` and simply has no Tesseract — OCR
+# stays unavailable and `document_ocr.ocr_available()` reports false, which the
+# product already handles honestly. Nothing silently ships OCR everywhere.
+#
+# ⛔ KEEP THIS FILE A FAITHFUL COPY. `tests/test_ocr_build_isolation.py` parses
+# both files and fails if they diverge anywhere except the OCR packages named
+# below — because a hand-maintained duplicate is exactly how a worker
+# dependency gets dropped while nobody is looking.
+
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.12"
+
+[phases.setup]
+nixPkgs = ["python312", "nodejs_20", "nodePackages.npm", "ffmpeg"]
+# ⛔ APT, NOT nixPkgs, FOR TESSERACT — and deliberately.
+#
+# The nixpkgs `tesseract` derivation ships ALL language data unless overridden,
+# and `nixPkgs` here takes package NAMES with no way to pass an override. The
+# Debian packages are separable, so English arrives on its own:
+#   tesseract-ocr      the binary + leptonica
+#   tesseract-ocr-eng  English traineddata ONLY
+#
+# ⚠️ The resulting image growth is UNMEASURED. There is no nix/Docker toolchain
+# on the development machine, so the first Railway build is the measurement —
+# that is the entire purpose of the dark packaging canary. No size is asserted
+# anywhere until that build reports one.
+aptPkgs = ["tesseract-ocr", "tesseract-ocr-eng"]
+
+[phases.install]
+cmds = [
+  "python3.12 -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = [
+  "cd app && npm install && NODE_OPTIONS='--max-old-space-size=4096' npm run build"
+]
+
+[start]
+cmd = ". /opt/venv/bin/activate && uvicorn api.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'"

@@ -388,10 +388,24 @@ def catalyst_stats(user=Depends(require_admin)):
         "model": curator.CURATOR_MODEL,
     }
 
+    # Perplexity spend (discovery + enrichment) is tracked on the SHARED
+    # narrative_cost_guard ledger under its own surface, separate from `daily`/
+    # `mtd_*` above (which are the Opus/Haiku SYNTHESIS cost from cost_guard.py
+    # only) — added 2026-09-09 after a cost-spike investigation found catalyst's
+    # Perplexity calls had no cost_surface at all and were silently commingling
+    # into the generic "perplexity_other" bucket on the ai_search admin stats
+    # endpoint, invisible from here.
+    try:
+        from api.services import narrative_cost_guard as _guard
+        perplexity_today_usd = round(_guard.spend_today_usd("pplx:catalyst"), 4)
+    except Exception:
+        perplexity_today_usd = None
+
     return {
         "today": daily,
         "mtd_cost_usd": round(mtd["total_cost_usd"], 4),
         "mtd_call_count": mtd["call_count"],
+        "perplexity_today_usd": perplexity_today_usd,
         "today_rows": len(today_rows),
         "today_ranked": len([r for r in today_rows if r["rank"] is not None]),
         "last_refresh_at": last_refresh_at,

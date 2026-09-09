@@ -219,10 +219,108 @@ def _record_cost(model: str, usage: dict | None, surface: str) -> None:
         pass
 
 # Retry budget for transient upstream failures (429 / 5xx) on the blocking
-# path: ONE retry after a short pause. Bounded so the request path can never
-# stack timeouts; auth errors (4xx other than 429) never retry.
+# path: up to 3 retries (4 attempts total), exponential backoff. Bounded so
+# the request path can never stack unboundedly; auth errors (4xx other than
+# 429) never retry — retrying a bad-request/auth failure just burns budget
+# for a call that will never succeed.
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
-_RETRY_PAUSE_S = 0.6
+_MAX_RETRIES = 3
+_RETRY_BASE_PAUSE_S = 0.5   # attempt 0->1: 0.5s, 1->2: 1s, 2->3: 2s
+
+
+def _retry_pause(attempt: int) -> float:
+    return _RETRY_BASE_PAUSE_S * (2 ** attempt)
+
+
+# ── Daily request budget (2026-09-09, cost-spike hardening) ────────────────
+# 2026-09-08: ~$42 spent in one day (vs. a ~$1-2/day baseline) across catalyst
+# discovery/enrichment, news_catalysts per-symbol fan-out, and ai_search — each
+# individually gated by an on/off flag or its OWN small per-surface $ cap (or
+# nothing at all), never by a shared total. Several of those per-feature guards
+# are also plain in-process counters that silently reset on every redeploy —
+# this repo shipped 122 commits the day of the spike. This is the backstop:
+# ONE global, durable, cross-surface REQUEST count, enforced here so every
+# caller is covered without touching any of the ~15 call sites.
+_DAILY_LIMIT_ENV = "PERPLEXITY_DAILY_LIMIT"
+_DAILY_LIMIT_DEFAULT = 500
+_WARN_FRACTION = 0.8
+_PPLX_SURFACE_PREFIX = "pplx:"
+
+
+def _daily_limit() -> int:
+    try:
+        v = int(os.environ.get(_DAILY_LIMIT_ENV, str(_DAILY_LIMIT_DEFAULT)))
+        return v if v > 0 else _DAILY_LIMIT_DEFAULT
+    except (TypeError, ValueError):
+        return _DAILY_LIMIT_DEFAULT
+
+
+def get_daily_status() -> dict:
+    """Today's (ET) Perplexity call count vs. the configured daily limit —
+    for admin visibility / a future status endpoint. Never raises."""
+    limit = _daily_limit()
+    try:
+        from api.services import narrative_cost_guard
+        count = narrative_cost_guard.calls_today(_PPLX_SURFACE_PREFIX)
+    except Exception:
+        count = 0
+    return {"calls_today": count, "limit": limit,
+            "remaining": max(0, limit - count),
+            "pct": round(count / limit * 100, 1) if limit else 0.0}
+
+
+def _is_pytest_env() -> bool:
+    return "PYTEST_CURRENT_TEST" in os.environ
+
+
+def _check_daily_budget(surface: str) -> str | None:
+    """None if this call may proceed. Otherwise a member-safe error string —
+    the call is refused, never raises. Warns (doesn't block) at 80% of the
+    daily limit; refuses at 100%. Fails OPEN on a telemetry read error (a
+    broken ledger must never itself become an outage).
+
+    Skipped under pytest unless PERPLEXITY_TEST_ENFORCE_BUDGET=1: this is a
+    production anti-runaway-cost guard, not test-suite behavior under test,
+    and every OTHER Perplexity test in this repo already lets
+    web_search()/stream_search() write a real row via _record_cost() — so a
+    full pytest session sharing one sandbox ledger would otherwise accumulate
+    enough pplx:* rows across hundreds of unrelated tests to start refusing
+    calls in LATER tests for a reason that has nothing to do with what they
+    assert. See test_perplexity_budget.py for the dedicated, opted-in tests
+    of this function itself."""
+    if _is_pytest_env() and os.environ.get(
+            "PERPLEXITY_TEST_ENFORCE_BUDGET", "").lower() not in ("1", "true", "yes"):
+        return None
+    try:
+        from api.services import narrative_cost_guard
+        limit = _daily_limit()
+        count = narrative_cost_guard.calls_today(_PPLX_SURFACE_PREFIX)
+    except Exception:
+        return None
+    if count >= limit:
+        _log.warning("perplexity daily budget EXHAUSTED (%d/%d calls today) — "
+                     "refusing call (surface=%s)", count, limit, surface)
+        return f"perplexity daily budget reached ({limit} requests/day)"
+    if count >= int(limit * _WARN_FRACTION):
+        _log.warning("perplexity daily budget at %d%% (%d/%d calls today, surface=%s)",
+                     int(count * 100 / limit), count, limit, surface)
+    return None
+
+
+def _log_call(surface: str, model: str, mode: str, *, ok: bool,
+              cached: bool = False, tokens_in: int = 0, tokens_out: int = 0,
+              error: str = "") -> None:
+    """One structured line per call — model, token counts, and the calling
+    feature (cost_surface / 'trigger source') — so spend-by-feature is
+    grep-able in logs, not just queryable from the cost ledger."""
+    if cached:
+        _log.info("perplexity call surface=%s model=%s mode=%s cached=1", surface, model, mode)
+    elif ok:
+        _log.info("perplexity call surface=%s model=%s mode=%s tokens_in=%d tokens_out=%d",
+                  surface, model, mode, tokens_in, tokens_out)
+    else:
+        _log.warning("perplexity call surface=%s model=%s mode=%s FAILED error=%s",
+                     surface, model, mode, error)
 
 
 def _mask_http_error(e: "requests.RequestException") -> tuple[str, int | None]:
@@ -278,6 +376,7 @@ def web_search(
     history: list | None = None,
     cost_surface: str = "perplexity",
     allow_stale: bool = False,
+    cache_ttl_override: int | None = None,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -296,6 +395,10 @@ def web_search(
         domain_pack: "finance" locks search to curated finance domains;
                      "general" is unrestricted.
         domains: explicit list (overrides domain_pack).
+        cache_ttl_override: replace the mode's default cache TTL (seconds).
+            Existing callers leave this None and keep the tuned per-mode
+            defaults (15/30/60 min); PerplexityClient.ask() passes a flat
+            3600s (60 min) for the (ticker, prompt)-shaped convenience path.
     """
     query = (query or "").strip()
     if not query:
@@ -304,7 +407,7 @@ def web_search(
     resolved_mode = _resolve_mode(mode)
     model = _MODELS[resolved_mode]
     timeout = _TIMEOUTS[resolved_mode]
-    ttl = _CACHE_TTL[resolved_mode]
+    ttl = cache_ttl_override if cache_ttl_override is not None else _CACHE_TTL[resolved_mode]
 
     if domains is None and domain_pack == "finance" and _domain_filter_enabled():
         domains = _FINANCE_DOMAINS
@@ -316,7 +419,13 @@ def web_search(
     if cached is not None:
         out = dict(cached)
         out["cached"] = True
+        _log_call(cost_surface, model, resolved_mode, ok=True, cached=True)
         return out
+
+    budget_error = _check_daily_budget(cost_surface)
+    if budget_error:
+        return {"answer": "", "citations": [], "error": budget_error,
+                "mode": resolved_mode, "model": model}
 
     api_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
     if not api_key:
@@ -338,7 +447,7 @@ def web_search(
 
     t0 = time.time()
     data = None
-    for attempt in (0, 1):
+    for attempt in range(_MAX_RETRIES + 1):
         try:
             r = requests.post(
                 _BASE,
@@ -353,13 +462,14 @@ def web_search(
             data = r.json()
             break
         except requests.Timeout:
-            # One bounded retry before the outage ladder: a single slow upstream
-            # call was costing a whole ask. BOUNDED by the enclosing
-            # `for attempt in (0, 1)`, so this can never spin — an unbounded
-            # retry on a blocking call is the threadpool surface behind the 524.
-            if attempt == 0:
-                time.sleep(0.4)
+            # Bounded by the enclosing `range(_MAX_RETRIES + 1)`, so this can
+            # never spin — an unbounded retry on a blocking call is the
+            # threadpool surface behind the 524. Exponential backoff between
+            # attempts (0.5s, 1s, 2s).
+            if attempt < _MAX_RETRIES:
+                time.sleep(_retry_pause(attempt))
                 continue
+            _log_call(cost_surface, model, resolved_mode, ok=False, error="timeout")
             stale = _serve_shadow(model, domain_pack, query) if (allow_stale and not history) else None
             if stale is not None:
                 return stale
@@ -369,10 +479,13 @@ def web_search(
             # Full detail stays server-side; members get a status-only string.
             _log.warning("perplexity request failed: %s", e)
             msg, status = _mask_http_error(e)
-            if status in _RETRY_STATUSES and attempt == 0:
-                time.sleep(_RETRY_PAUSE_S)
+            # Never retry a definite 4xx (auth/bad-request) — it will never
+            # succeed and just burns daily budget. Only 429/5xx are retryable.
+            if status in _RETRY_STATUSES and attempt < _MAX_RETRIES:
+                time.sleep(_retry_pause(attempt))
                 continue
             _notify_auth_failure(status or 0)
+            _log_call(cost_surface, model, resolved_mode, ok=False, error=msg)
             stale = _serve_shadow(model, domain_pack, query) if (allow_stale and not history) else None
             if stale is not None:
                 return stale
@@ -385,6 +498,7 @@ def web_search(
         answer = _strip_think(data["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError) as e:
         _log.warning("perplexity unexpected response shape: %s", e)
+        _log_call(cost_surface, model, resolved_mode, ok=False, error="unexpected response")
         return {"answer": "", "citations": [], "error": "unexpected response",
                 "mode": resolved_mode, "model": model}
 
@@ -392,6 +506,7 @@ def web_search(
     # completion) must NOT be cached for the full TTL — return an error so the
     # caller can fall back, and don't poison the cache with 30 min of blank.
     if not answer:
+        _log_call(cost_surface, model, resolved_mode, ok=False, error="empty answer")
         return {"answer": "", "citations": [], "error": "empty answer",
                 "mode": resolved_mode, "model": model}
 
@@ -418,6 +533,10 @@ def web_search(
     if not history:   # threaded answers are context-shaped — never shadowed
         _save_shadow(model, domain_pack, query, result)
     _record_cost(model, data.get("usage"), cost_surface)
+    _usage = data.get("usage") or {}
+    _log_call(cost_surface, model, resolved_mode, ok=True,
+             tokens_in=int(_usage.get("prompt_tokens") or 0),
+             tokens_out=int(_usage.get("completion_tokens") or 0))
     return result
 
 
@@ -512,7 +631,13 @@ async def stream_search(
     if cached is not None:
         out = dict(cached)
         out["cached"] = True
+        _log_call(cost_surface, model, resolved_mode, ok=True, cached=True)
         yield {"type": "final", **out}
+        return
+
+    budget_error = _check_daily_budget(cost_surface)
+    if budget_error:
+        yield {"type": "error", "error": budget_error}
         return
 
     api_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
@@ -556,6 +681,8 @@ async def stream_search(
                 if r.status_code != 200:
                     _log.warning("perplexity stream HTTP %s", r.status_code)
                     _notify_auth_failure(r.status_code)
+                    _log_call(cost_surface, model, resolved_mode, ok=False,
+                             error=f"http {r.status_code}")
                     yield {"type": "error", "error": f"request failed ({r.status_code})"}
                     return
                 async for line in r.aiter_lines():
@@ -587,6 +714,7 @@ async def stream_search(
                             yield {"type": "delta", "text": visible}
     except Exception as e:  # timeout / network / protocol — caller falls back
         _log.warning("perplexity stream failed: %s", e)
+        _log_call(cost_surface, model, resolved_mode, ok=False, error="stream failed")
         yield {"type": "error", "error": "stream failed"}
         return
 
@@ -595,6 +723,7 @@ async def stream_search(
         yield {"type": "delta", "text": tail}
     answer = _strip_think("".join(answer_parts))
     if not answer:
+        _log_call(cost_surface, model, resolved_mode, ok=False, error="no answer")
         yield {"type": "error", "error": "no answer"}
         return
 
@@ -619,4 +748,78 @@ async def stream_search(
         _asyncio.get_running_loop().run_in_executor(None, _record_cost, model, usage, cost_surface)
     except Exception:
         _record_cost(model, usage, cost_surface)
+    _u = usage or {}
+    _log_call(cost_surface, model, resolved_mode, ok=True,
+             tokens_in=int(_u.get("prompt_tokens") or 0),
+             tokens_out=int(_u.get("completion_tokens") or 0))
     yield {"type": "final", **result}
+
+
+# ── PerplexityClient — the single wrapper (2026-09-09 cost-spike hardening) ─
+# Every UCT-Dashboard caller already reaches Perplexity exclusively through
+# web_search()/stream_search() above (verified by repo-wide grep for
+# api.perplexity.ai and PERPLEXITY_API_KEY — this module is the only file
+# that constructs a request) — so those functions already ARE the shared
+# client, and the daily-budget gate, retry/backoff, and per-call logging
+# added above apply to every one of the ~15 existing call sites with zero
+# changes to those files. This class is the explicit, documented entry point
+# new code should reach for instead of the bare module functions.
+class PerplexityClient:
+    """Perplexity Sonar client — caching, a bounded exponential-backoff
+    retry, a durable cross-surface daily request budget, and per-call
+    logging are all handled by the module-level functions this wraps.
+
+    `cost_surface` labels every call this instance makes for the daily
+    budget / cost ledger / logs (the "which feature spent this" dimension —
+    e.g. "catalyst", "ai_search", "news_catalysts"). Pick one per feature,
+    not per call.
+    """
+
+    #: Flat cache TTL for the (ticker, prompt)-shaped `ask()` convenience —
+    #: the "TTL 60 min" the cost-spike hardening asked for. Existing callers
+    #: that use web_search()/stream_search() directly are unaffected and keep
+    #: their tuned per-mode TTLs (15/30/60 min).
+    DEFAULT_TTL_SECONDS = 3600
+
+    def __init__(self, cost_surface: str = "perplexity"):
+        self.cost_surface = cost_surface
+
+    def ask(self, prompt: str, *, ticker: str | None = None, mode: str = "fast",
+            max_tokens: int = 400, system: str | None = None,
+            recency: str | None = None, domain_pack: str = "general",
+            related: bool = False, history: list | None = None,
+            allow_stale: bool = False) -> dict[str, Any]:
+        """One request/response call, response-cached ``60 min`` and keyed on
+        ``(ticker, prompt hash)`` — a ``ticker`` folds explicitly into the
+        cache key (on top of the query-text hash every call already keys on,
+        which implicitly partitions by ticker since callers embed it in the
+        prompt). Retried up to 3x with exponential backoff on 429/5xx, never
+        on other 4xx. Refused in-band (``error`` key, never raises) once
+        today's cross-surface Perplexity request budget is spent."""
+        salt = f"tk:{ticker.strip().upper()}" if ticker else ""
+        return web_search(
+            prompt, max_tokens=max_tokens, system=system, mode=mode,
+            recency=recency, domain_pack=domain_pack, related=related,
+            cache_salt=salt, history=history, cost_surface=self.cost_surface,
+            allow_stale=allow_stale, cache_ttl_override=self.DEFAULT_TTL_SECONDS,
+        )
+
+    async def stream(self, prompt: str, *, ticker: str | None = None,
+                     mode: str = "fast", max_tokens: int = 400,
+                     system: str | None = None, recency: str | None = None,
+                     domain_pack: str = "general", related: bool = False,
+                     history: list | None = None) -> AsyncIterator[dict]:
+        """Streaming twin of :meth:`ask` — same cache/retry/budget/logging."""
+        salt = f"tk:{ticker.strip().upper()}" if ticker else ""
+        async for ev in stream_search(
+            prompt, max_tokens=max_tokens, system=system, mode=mode,
+            recency=recency, domain_pack=domain_pack, related=related,
+            cache_salt=salt, history=history, cost_surface=self.cost_surface,
+        ):
+            yield ev
+
+    @staticmethod
+    def daily_status() -> dict:
+        """Today's (ET) Perplexity call count vs. ``PERPLEXITY_DAILY_LIMIT``,
+        summed across every surface/caller — for admin visibility."""
+        return get_daily_status()
