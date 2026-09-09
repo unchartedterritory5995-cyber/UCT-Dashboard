@@ -29,8 +29,18 @@ const at = (deg, dist) => ({
   dy: -Math.sin((deg * Math.PI) / 180) * dist,
 })
 
-const OUTER_DIST = TRAVEL_PX          // fully pushed → outer ring
-const INNER_DIST = TRAVEL_PX * 0.5    // soft push → inner ring
+// ⛔ THE PROBE DISTANCES ARE THE DRAWN RADII, NOT KNOB TRAVEL — AND THAT IS THE FIX.
+//
+// These were `TRAVEL_PX` and `TRAVEL_PX * 0.5`: distances chosen to satisfy the model
+// under test. That is exactly how F-2 shipped green. This suite asked "does a pointer at
+// 12px select the inner ring?" and never "is 12px where the inner ring is DRAWN?" — it
+// is not; the inner bubbles are painted at 96px. A geometry suite that picks its own
+// coordinates cannot discover that the coordinates are wrong.
+//
+// Probing at FAN_RADIUS_INNER / FAN_RADIUS_OUTER makes every assertion below a statement
+// about the fan the user actually sees and aims at.
+const OUTER_DIST = FAN_RADIUS_OUTER   // where ring-0 bubbles are drawn
+const INNER_DIST = FAN_RADIUS_INNER   // where ring-1 bubbles are drawn
 
 describe('wedgeAngles', () => {
   it('puts a lone action at the arc midpoint, not hanging off an end', () => {
@@ -82,10 +92,13 @@ describe('ringForDistance — soft push vs hard push', () => {
 
   it('scales with a user-lowered travel — the split is a RATIO, not a fixed pixel count', () => {
     ran()
-    // A tremor user on travelPx=16: 13px must still be a hard push (13 >= 12.8), and would NOT be
-    // if the split were hard-coded at 0.8 * 24 = 19.2px.
-    expect(ringForDistance(13, 16)).toBe(0)
-    expect(ringForDistance(13, 24)).toBe(1)
+    // A tremor user on travelPx=16: 10px is a hard push (10 >= 8), and at the default
+    // travel=24 the same 10px is still soft (10 < 12).
+    // ⚰️ The probe distances moved from 13 to 10 when RING_SPLIT went 0.8 -> 0.5 (F-2).
+    // The PROPERTY under test is unchanged — one distance, two travels, two rings — and
+    // it is the property, not the pixel count, that this rail exists to hold.
+    expect(ringForDistance(10, 16)).toBe(0)
+    expect(ringForDistance(10, 24)).toBe(1)
   })
 })
 

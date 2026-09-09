@@ -8,11 +8,11 @@ import {
   DOUBLE_TAP_MS,
   FLICK_MS,
   openAtPx,
-  ringSplitPx,
+  FAN_RADIUS_OUTER,
   EDGE_GUARD_PX,
   EDGE_GUARD_TRAVEL_PX,
 } from './constants.js'
-import { resolveTarget, ringForDistance } from './fanGeometry.js'
+import { resolveTarget, ringForPointer } from './fanGeometry.js'
 import haptics from '../components/mobile/haptics.js'
 
 // ⭐ THE HOOK RENDERS NOTHING. It owns one pointer-driven state machine and calls back into the
@@ -78,17 +78,22 @@ function clampToTravel(dx, dy, travelPx) {
 
 /**
  * A flick always resolves against the OUTER ring (spec C1), regardless of how far the finger
- * physically travelled — a 120ms flick rarely reaches `ringSplitPx`, and the vocabulary does not
- * ask it to. Rather than re-deriving wedge/angle selection here (a second authority over the
- * geometry `fanGeometry.resolveTarget` already owns), rescale the release vector to exactly
- * `ringSplitPx` — same direction, so the same angle — and hand it to the real `resolveTarget`.
- * `ringForDistance`'s `>=` then reads it as outer, and every other rule (quadrant, select window,
- * nearest-wedge) runs unmodified.
+ * physically travelled — a 120ms flick rarely reaches the ring threshold, and the vocabulary does
+ * not ask it to. Rather than re-deriving wedge/angle selection here (a second authority over the
+ * geometry `fanGeometry.resolveTarget` already owns), rescale the release vector to the outer
+ * ring's own DRAWN radius — same direction, so the same angle — and hand it to the real
+ * `resolveTarget`. Every other rule (quadrant, select window, nearest-wedge) runs unmodified.
+ *
+ * ⭐ SCALED TO `FAN_RADIUS_OUTER`, NOT `ringSplitPx`. Under reach mode the ring is decided by
+ * proximity to a DRAWN radius, so placing the vector exactly on the outer radius says "outer"
+ * unambiguously and keeps saying it if travel or the split fraction is ever retuned. Scaling to
+ * `ringSplitPx` (12px at default travel) happens to land on outer today only via the legacy
+ * short-push branch — correct by coincidence, which is the kind of thing that quietly inverts.
  */
-function forceOuterRing(dx, dy, travelPx) {
+function forceOuterRing(dx, dy) {
   const dist = Math.hypot(dx, dy)
   if (dist === 0) return null
-  const k = ringSplitPx(travelPx) / dist
+  const k = FAN_RADIUS_OUTER / dist
   return { dx: dx * k, dy: dy * k }
 }
 
@@ -132,6 +137,10 @@ export default function useJoystick({
   const lastRef = useRef(null) // {x, y} — last sample, for per-move scrub deltas
   const maxDistRef = useRef(0) // farthest centre-distance reached this gesture
   const targetRef = useRef(null) // last resolved target, for selection-change haptics
+  // Last ring this gesture settled on. A ref, not state: hysteresis is consulted inside the
+  // pointermove handler and state would lag a render behind the finger, which is exactly the
+  // window a tremor crosses the threshold in.
+  const ringRef = useRef(null)
   const openFiredRef = useRef(false) // the "open" haptic fires once per gesture
   const holdReachedRef = useRef(false)
   const holdTimerRef = useRef(null)
@@ -153,6 +162,7 @@ export default function useJoystick({
     lastRef.current = null
     maxDistRef.current = 0
     targetRef.current = null
+    ringRef.current = null
     openFiredRef.current = false
     holdReachedRef.current = false
     edgeGuardRef.current = { active: false, startX: 0, startY: 0 }
@@ -183,7 +193,9 @@ export default function useJoystick({
 
   /** Ordinary (non-flick) release while the fan was open: fire on a target, else obey stickyFan. */
   function releaseOntoFan(dx, dy) {
-    const resolved = resolveTarget({ dx, dy, actions: fan, travelPx, mirrored })
+    const resolved = resolveTarget({
+      dx, dy, actions: fan, travelPx, mirrored, prevRing: ringRef.current,
+    })
     if (resolved) {
       fireTarget(resolved)
       setState((s) => ({
@@ -237,6 +249,7 @@ export default function useJoystick({
     lastRef.current = { x: e.clientX, y: e.clientY }
     maxDistRef.current = 0
     targetRef.current = null
+    ringRef.current = null
     openFiredRef.current = false
     holdReachedRef.current = false
     phaseRef.current = 'down'
@@ -310,8 +323,12 @@ export default function useJoystick({
         if (hapticsEnabled) haptics.tap()  // fan open -> tap() (owner ruling)
       }
       phaseRef.current = 'pushing'
-      const ring = ringForDistance(dist, travelPx)
-      const resolved = resolveTarget({ dx, dy, actions: fan, travelPx, mirrored })
+      // ONE ring decision per move, computed here and handed to resolveTarget rather
+      // than recomputed there. `prevRing` carries the hysteresis: without a ref the
+      // previous value would come from state and lag a render behind the finger.
+      const ring = ringForPointer(dist, { travelPx, prevRing: ringRef.current })
+      ringRef.current = ring
+      const resolved = resolveTarget({ dx, dy, actions: fan, travelPx, mirrored, ring })
       const prevId = targetRef.current?.action?.id ?? null
       const nextId = resolved?.action?.id ?? null
       if (prevId !== nextId && hapticsEnabled) haptics.tap()
@@ -364,7 +381,7 @@ export default function useJoystick({
     // Flick: a press under FLICK_MS that travelled far enough. Evaluated at release time from the
     // release vector itself, independent of whatever ring the live push-tracking above landed on.
     if (elapsed < FLICK_MS && travelled >= openThreshold) {
-      const outer = forceOuterRing(dx, dy, travelPx)
+      const outer = forceOuterRing(dx, dy)
       const flickTarget = outer ? resolveTarget({ dx: outer.dx, dy: outer.dy, actions: fan, travelPx, mirrored }) : null
 
       if (flickTarget && flickTarget.action.flickable !== false) {

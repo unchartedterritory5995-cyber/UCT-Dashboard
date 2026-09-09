@@ -38,7 +38,24 @@ export default function useHubActive() {
   // jsdom ships none of the three checks below, which is itself meaningful: an unstubbed test
   // environment looks exactly like a browser too old for the hub, and is treated as one.
   if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return false
-  if (!CSS.supports('backdrop-filter', 'blur(1px)')) return false
+  // ⛔ BOTH SPELLINGS, OR THE HUB EXCLUDES EVERY IPHONE.
+  //
+  // Measured on a real device (Phase 2 device run 1, iPhone 15 Pro / iOS 17.3.1):
+  //     CSS.supports('backdrop-filter', 'blur(1px)')          -> FALSE
+  //     CSS.supports('-webkit-backdrop-filter', 'blur(1px)')  -> true
+  // iOS Safari ships the property under the `-webkit-` prefix only. Testing the
+  // unprefixed name alone therefore failed the capability floor on 100% of iOS — for
+  // a control that is MOBILE-ONLY by design — while every other gate (visualViewport,
+  // 393x659, pointer: coarse) passed. `hub-root` count on iOS was 0.
+  //
+  // ⭐ It was invisible locally by construction: jsdom implements neither, so it fails
+  // this check either way and the suite reads that as "correctly treated as an old
+  // browser". A green unit test and a blank iPhone are the same observation here.
+  // `hub.module.css` already declares both properties on every glass surface (verified),
+  // so the CSS half never had this bug — only the JS gate did.
+  const backdrop = CSS.supports('backdrop-filter', 'blur(1px)')
+    || CSS.supports('-webkit-backdrop-filter', 'blur(1px)')
+  if (!backdrop) return false
   if (typeof window.visualViewport === 'undefined') return false
   if (typeof window.matchMedia !== 'function') return false
   // Mobile + touch only. Canonical breakpoint (1024), never a new literal.

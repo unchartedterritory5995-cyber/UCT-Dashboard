@@ -14,6 +14,9 @@ import {
   FAN_RADIUS_OUTER,
   FAN_RADIUS_INNER,
   ringSplitPx,
+  ringDropPx,
+  REACH_PX,
+  reachMidpointPx,
   TRAVEL_PX,
 } from './constants.js'
 
@@ -94,6 +97,36 @@ export const mirrorDeg = (deg) => normalizeDeg(180 - deg)
 export const ringForDistance = (dist, travelPx = TRAVEL_PX) => (dist >= ringSplitPx(travelPx) ? 0 : 1)
 
 /**
+ * Which ring does this POINTER select? The one authority — `ringForDistance` above is
+ * only the short-push half of it.
+ *
+ * ⛔ TWO MODES, AND THE BOUNDARY BETWEEN THEM IS THE WHOLE POINT (spec §C1, "reach mode").
+ *
+ *   r <  REACH_PX : legacy short push. Ring by KNOB TRAVEL, with hysteresis so a tremor
+ *                   across the threshold cannot flip the selection: enter outer at
+ *                   `RING_SPLIT`, fall back to inner only below `RING_SPLIT_DROP`.
+ *   r >= REACH_PX : reach mode. Ring is whichever DRAWN radius the pointer is nearer to,
+ *                   split at `reachMidpointPx()` (123px). `>=` puts the boundary itself
+ *                   on the outer ring.
+ *
+ * Reach mode exists because the old model made the drawn bubbles lie: measured on a real
+ * Pixel 8, dragging to the Journal bubble (ring 1, drawn at 96px) fired Screener, because
+ * anything past 19.2px read as the outer ring. The affordance wins — see `REACH_PX`.
+ *
+ * @param {number}  dist                 pointer distance from the pad centre, px
+ * @param {object} [opts]
+ * @param {number} [opts.travelPx]       user-adjustable travel
+ * @param {0|1|null} [opts.prevRing]     the ring selected on the previous move, for hysteresis
+ * @returns {0|1} 0 = outer, 1 = inner — matching `HubAction.ring`
+ */
+export function ringForPointer(dist, { travelPx = TRAVEL_PX, prevRing = null } = {}) {
+  if (dist >= REACH_PX) return dist >= reachMidpointPx() ? 0 : 1
+  // Already on the outer ring: hold it until the thumb comes decisively back in.
+  if (prevRing === 0) return dist < ringDropPx(travelPx) ? 1 : 0
+  return dist >= ringSplitPx(travelPx) ? 0 : 1
+}
+
+/**
  * Resolve a pointer position to the action it selects, or null.
  *
  * @param {object}   args
@@ -102,11 +135,20 @@ export const ringForDistance = (dist, travelPx = TRAVEL_PX) => (dist >= ringSpli
  * @param {Array}    args.actions      the mode's fan, each `{ring}` — order within a ring is visual order
  * @param {number}  [args.travelPx]    user-adjustable travel
  * @param {boolean} [args.mirrored]    left-handed
+ * @param {0|1|null} [args.prevRing]   previous ring, for reach-mode hysteresis
+ * @param {0|1}     [args.ring]        an already-decided ring. ⭐ Pass this when the caller
+ *   has ALSO computed the ring for its own state (as `useJoystick` does): recomputing it
+ *   here from the same inputs is a second authority over one value, and the two copies
+ *   drift the moment one of them learns about hysteresis and the other does not.
  * @returns {{action: object, index: number, angle: number, ring: 0|1}|null}
  */
-export function resolveTarget({ dx, dy, actions, travelPx = TRAVEL_PX, mirrored = false }) {
+export function resolveTarget({
+  dx, dy, actions, travelPx = TRAVEL_PX, mirrored = false, prevRing = null, ring: ringOverride,
+}) {
   const dist = Math.hypot(dx, dy)
-  const ring = ringForDistance(dist, travelPx)
+  const ring = ringOverride != null
+    ? ringOverride
+    : ringForPointer(dist, { travelPx, prevRing })
   const inRing = (actions || []).filter((a) => a.ring === ring)
   if (inRing.length === 0) return null
 

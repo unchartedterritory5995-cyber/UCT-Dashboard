@@ -312,9 +312,13 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     const angles = wedgeAngles(inner.length)
     const idx = inner.findIndex((a) => a.id === 'wire.home')
     expect(inner[idx].kind).toBe('home')
-    // Strictly between OPEN_AT_PX and the ring split -> resolves to the INNER
-    // ring (see constants.js openAtPx/ringSplitPx).
-    const { dx, dy } = vecAtAngle(15, angles[idx])
+    // ⛔ AIM WHERE THE INNER BUBBLE IS DRAWN (FAN_RADIUS_INNER = 96), not at a knob-travel
+    // distance. This read `15` — "strictly between OPEN_AT_PX and the ring split" — which
+    // described the pre-F-2 model where the ring came from knob travel alone. Under reach
+    // mode a pointer past REACH_PX picks the nearer DRAWN radius, so 96 is what "the user
+    // dragged to the inner ring" now means, and 15 would resolve OUTER.
+    const { FAN_RADIUS_INNER } = await import('./constants')
+    const { dx, dy } = vecAtAngle(FAN_RADIUS_INNER, angles[idx])
 
     const pad = screen.getByTestId('mock-hub-pad')
     // Engaged only now, AFTER the tree has mounted on real timers.

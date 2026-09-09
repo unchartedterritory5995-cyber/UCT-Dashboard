@@ -21,9 +21,68 @@ export const OPEN_AT_PX = 10
 export const OPEN_AT_RATIO = OPEN_AT_PX / TRAVEL_PX
 export const openAtPx = (travelPx = TRAVEL_PX) => travelPx * OPEN_AT_RATIO
 
-/** Fraction of travel past which a push selects the OUTER ring instead of the inner one. */
-export const RING_SPLIT = 0.8
+/**
+ * Fraction of travel past which a SHORT push selects the OUTER ring.
+ *
+ * ⚠️ Only governs pushes shorter than `REACH_PX`. Past that, reach mode owns the
+ * decision and this is not consulted at all — see `REACH_PX` below.
+ *
+ * Lowered 0.8 → 0.5 by the F-2 ruling: with hysteresis added, the entry threshold
+ * can sit at the midpoint of travel without the ring flickering under a thumb that
+ * wobbles across it.
+ */
+export const RING_SPLIT = 0.5
 export const ringSplitPx = (travelPx = TRAVEL_PX) => travelPx * RING_SPLIT
+
+/**
+ * Fraction of travel at which an already-outer push falls BACK to the inner ring.
+ *
+ * ⭐ HYSTERESIS, AND IT IS NOT DECORATION. Without it the ring flips on every pixel
+ * of tremor across a single threshold, which is exactly the population §C2's motor
+ * settings exist for: the selection would change under a thumb that never moved
+ * intentionally. Enter outer at 0.5, drop back only below 0.35.
+ */
+export const RING_SPLIT_DROP = 0.35
+export const ringDropPx = (travelPx = TRAVEL_PX) => travelPx * RING_SPLIT_DROP
+
+/**
+ * Radius past which selection follows the POINTER, not the clamped knob ("reach mode").
+ *
+ * ⛔ THIS CONSTANT EXISTS BECAUSE A MEASUREMENT ON A REAL PHONE CONTRADICTED THE MODEL.
+ * Phase 2 device run 1, Pixel 8: aiming at the Journal bubble fired Screener. The old
+ * rule read the ring off knob travel alone — `24 × 0.8 = 19.2px` — while the bubbles
+ * are DRAWN at 96px and 150px. Selecting an inner-ring action meant releasing inside a
+ * 9.2px annulus, five times closer than the thing the user was aiming at, so Journal,
+ * Notebook and Calendar were effectively unreachable and silently fired a neighbour.
+ *
+ * ⭐ THE AFFORDANCE WINS (owner ruling). Users drag toward the bubble, so past this
+ * radius the ring is whichever DRAWN radius the pointer is nearer to. The knob still
+ * clamps to `TRAVEL_PX` visually — that is a rendering decision and no longer a
+ * selection one.
+ *
+ * = pad radius (42) + 14: far enough out that a thumb resting on the pad is still in
+ * the legacy short-push model, close enough that any deliberate reach leaves it.
+ *
+ * ⛔ TREMOR NOTE — DO NOT "FIX" THE BAND LATER. At `travelPx: 16` the legacy band is
+ * 8 → 5.6px, which looks alarmingly tight in isolation. It is irrelevant: reach mode
+ * takes over past 56px, and a user who has lowered travel is dragging further than
+ * that, not less. Widening the band would only make short pushes ambiguous.
+ */
+export const REACH_PX = 56
+
+/**
+ * In reach mode, the radius that splits inner from outer: the midpoint of the two
+ * drawn radii. DERIVED, never typed — moving a fan radius must move this with it.
+ */
+export const reachMidpointPx = () => (FAN_RADIUS_INNER + FAN_RADIUS_OUTER) / 2
+
+/**
+ * What the chip calls each ring while the user is selecting, so the two rings are
+ * discoverable instead of folklore. Indexed by `HubAction.ring` (0 = outer).
+ * ⚠️ A LABEL CHOICE, not a structural one — flip the two strings and nothing else
+ * changes.
+ */
+export const RING_NAMES = ['Actions', 'Tools']
 
 /** Hold-to-Home. USER-ADJUSTABLE (300–1200). */
 export const HOLD_MS = 500

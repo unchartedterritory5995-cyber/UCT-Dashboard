@@ -12,6 +12,17 @@ import { fanLayout, wedgeAngles, selectWindowFor } from './fanGeometry'
 const BUBBLE_OUTER_PX = 46
 const BUBBLE_INNER_PX = 36
 
+/**
+ * WCAG 2.5.5 minimum for a control you TAP rather than drag to.
+ *
+ * ⭐ Only applies while the fan is STICKY-open. During a drag, selection is by wedge
+ * angle over a whole sector — the bubble's own box is irrelevant and a 36px circle is
+ * a drawing, not a target. The moment the fan sticks open, the same circle becomes a
+ * tappable control, and 36px is under the floor the rest of this app enforces via
+ * `--tap-min`. The visual size does not change; the HIT BOX grows underneath it.
+ */
+const STICKY_HIT_MIN_PX = 44
+
 // How far past the outer bubble ring the wedge backdrop's bounding square
 // reaches, so the glass wash visually extends past the farthest bubble —
 // mirrors the reference prototype's `--arc + 40px` sizing (prototype.html).
@@ -96,13 +107,15 @@ function bubbleStyle({ offset, size, mirrored, colorToken }) {
  * @param {object} props
  * @param {import('./registry').HubAction[]} [props.actions] The current mode's full fan (both rings).
  * @param {boolean} [props.mirrored] Left-handed mode.
+ * @param {boolean} [props.sticky] The fan is sticky-open, so bubbles are tap targets and
+ *   get a >=44px hit box (WCAG 2.5.5) without changing their drawn size.
  * @param {boolean} [props.open] Visual open/closed state. Bubbles are always in the DOM — spec §5:
  *   "the fan still appears, instantly, every bubble at its final position" under reduced motion —
  *   `open` only toggles the wedge backdrop's opacity via CSS.
  * @param {string|null} [props.selectedId] The currently targeted action id (recolours its wedge + bubble).
  * @param {Set<string>|string[]} [props.disabledIds] Action ids whose `requires` is currently unmet.
  */
-export default function HubFan({ actions = [], mirrored = false, open = false, selectedId = null, disabledIds }) {
+export default function HubFan({ actions = [], mirrored = false, open = false, sticky = false, selectedId = null, disabledIds }) {
   const layout = fanLayout(actions, { mirrored })
 
   const slices = [0, 1].flatMap((ring) => {
@@ -157,7 +170,14 @@ export default function HubFan({ actions = [], mirrored = false, open = false, s
             ]
               .filter(Boolean)
               .join(' ')}
-            style={bubbleStyle({ offset, size, mirrored, colorToken: action.color })}
+            style={{
+              ...bubbleStyle({ offset, size, mirrored, colorToken: action.color }),
+              // Grow the hit box only, never the drawing: the circle keeps `size` via
+              // its own background/border, while the box reaches the tap floor.
+              ...(sticky && size < STICKY_HIT_MIN_PX
+                ? { minWidth: `${STICKY_HIT_MIN_PX}px`, minHeight: `${STICKY_HIT_MIN_PX}px` }
+                : null),
+            }}
           >
             <UIcon name={action.icon} size={ring === 1 ? 15 : 18} />
             <span className={styles.bubbleLabel}>{action.label}</span>

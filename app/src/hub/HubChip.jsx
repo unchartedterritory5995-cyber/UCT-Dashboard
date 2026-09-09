@@ -28,7 +28,11 @@ const CHIP_GAP_PX = 10
  * @param {string} props.tapHint What tap does in this mode, e.g. "tap: next result".
  * @param {boolean} [props.scrubbing] True while a hold+drag scrub is live.
  * @param {string|null} [props.scrubReadout] The live scrub value, e.g. "3/41" or a date.
- * @param {boolean} [props.open] Whether the fan is open — hides the chip entirely.
+ * @param {boolean} [props.open] Whether the fan is open. The chip hides — UNLESS `ringName`
+ *   is set, in which case it stays up naming the ring under the thumb.
+ * @param {string|null} [props.ringName] The ring currently being selected ("Actions" / "Tools").
+ *   ⭐ This is the ONLY thing that teaches a user the fan has two rings. Reach mode makes both
+ *   reachable; without a label, the inner ring is still folklore. Set only while selecting.
  * @param {boolean} [props.mirrored] Left-handed mode — sits right of the pad instead of left.
  * @param {string} [props.modeColor] A `--hub-mode-*` token name for the label's colour.
  */
@@ -38,12 +42,16 @@ export default function HubChip({
   scrubbing = false,
   scrubReadout = null,
   open = false,
+  ringName = null,
   mirrored = false,
   modeColor,
 }) {
-  if (open) return null
+  // While selecting, the chip becomes the ring readout instead of disappearing.
+  if (open && !ringName) return null
 
-  const hint = scrubbing ? scrubReadout || 'Scrub' : tapHint
+  const hint = open && ringName
+    ? ringName
+    : (scrubbing ? scrubReadout || 'Scrub' : tapHint)
   const verticalOffset = PAD_PX / 2 - CHIP_HEIGHT_PX / 2
   const sideStyle = mirrored
     ? { left: `${EDGE_OFFSET_PX + PAD_PX + CHIP_GAP_PX}px` }

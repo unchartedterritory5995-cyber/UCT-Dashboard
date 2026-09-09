@@ -25,6 +25,7 @@ import HubChip from './HubChip'
 import HubScrim from './HubScrim'
 import HubActionsButton from './HubActionsButton'
 import { modesById } from './registry'
+import { RING_NAMES } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
 /**
@@ -184,6 +185,7 @@ function HubShell() {
         actions={fan}
         mirrored={mirrored}
         open={state.open}
+        sticky={state.sticky}
         selectedId={selectedId}
         disabledIds={disabledIds}
       />
@@ -206,6 +208,9 @@ function HubShell() {
         scrubbing={state.scrubbing}
         scrubReadout={null}
         open={state.open}
+        // Named only while a ring is actually selected, so the chip does not assert a
+        // ring during a sticky-open fan nobody is touching.
+        ringName={state.dragging && state.ring != null ? RING_NAMES[state.ring] : null}
         mirrored={mirrored}
         modeColor={activeModeConfig?.color}
       />
