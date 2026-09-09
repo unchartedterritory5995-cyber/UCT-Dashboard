@@ -7,8 +7,9 @@ see docs/plans/joystick/00-master-spec-v1.4.md §5's acceptance line ("on a real
 ten consecutive fan selections land on the intended target...") for what this script
 exists to prove.
 
-⛔ **NO RESULTS ARE RECORDED IN THIS FILE.** Every "Result" cell below is blank on
-purpose. Do not fill one in from an emulator, from jsdom, from reading the code, or
+⛔ **RESULTS FROM RUN 1 ARE NOW RECORDED** in the RESULTS section below, gathered from
+real BrowserStack Automate sessions (every claim carries its session id). Every "Result"
+cell in the hand-run script that follows is still blank on purpose. Do not fill one in from an emulator, from jsdom, from reading the code, or
 from guessing what "should" happen — only from actually operating the listed
 BrowserStack device. A cell left blank means "not yet run," which is honest; a cell
 filled in with an assumed answer is not.
@@ -18,6 +19,153 @@ none exists), and none is to be installed — that would be a new dependency thi
 forbids (master spec §2, "No new dependencies"). This script is written for the
 owner's existing paid BrowserStack account, driven by hand through
 `https://live.browserstack.com`.
+
+## RESULTS — run 1, 2026-09-08 (Selenium/Appium via BrowserStack Automate)
+
+**Transport: Selenium, not Playwright.** BrowserStack's real-device cloud is
+Appium/Selenium-backed; Playwright there reaches desktop and *emulated* mobile only, and
+an emulator cannot answer these questions — it has no collapsing Safari toolbar, does not
+apply `env(safe-area-inset-*)` against real hardware, and does not reproduce Android's
+edge-gesture claim. The spec's acceptance line says "on a real phone", so the device list
+chose the transport.
+
+**Data-root integrity: CLEAN for every run below** (53 databases content-hashed before
+boot, at +15 s, at +120 s and after the suite). Logs in `sandbox-runs/`.
+
+Harness: `C:\tools\hub-devicetests\tests\` · orchestrator `scripts/run-phase2.ps1` ·
+raw JSON per device in `C:\tools\hub-devicetests\results\`.
+
+### 🔴 F-1 (BLOCKER) — the hub never mounts on ANY iPhone
+
+**Session:** `4698156a4117c298272974663583bc359eea4e0d` (iPhone 15 Pro, iOS 17.3.1)
+
+`useHubActive()` gates on `CSS.supports('backdrop-filter', 'blur(1px)')`. Measured on the
+device:
+
+| gate | iPhone 15 Pro (iOS 17.3.1) | Pixel 8 (Chrome 149) |
+|---|---|---|
+| `backdrop-filter` (unprefixed) | **`false`** | `true` |
+| `-webkit-backdrop-filter` | `true` | `false` |
+| `visualViewport` | `true` | `true` |
+| `(max-width:1023px) and (pointer:coarse)` | `true` (393×659) | `true` (411×808) |
+
+**Every other gate passes.** iOS Safari implements the property only under the `-webkit-`
+prefix, so the capability floor rejects the entire iOS platform — for a control that is
+**mobile-only by design**. `hub-root` count on iOS: **0**.
+
+⛔ **This also makes the iPhone SE 2022 (iOS 15) check vacuous.** That device's assertion is
+inverted — the hub must *not* mount below the iOS 16 floor — and it "passes" today for the
+wrong reason: the hub is absent because of F-1, not because of the version floor. A test
+that cannot distinguish the two proves neither, so **the iOS 15 floor remains UNVERIFIED**
+and is recorded that way rather than as a pass.
+
+*Not fixed in this run — the gate rule is "if any step fails, do not modify hub code".*
+
+### 🔴 F-2 — the ring boundary is 19.2px; the bubbles are painted at 96px and 150px
+
+**Session:** `538bc4785e17d6bebd1580a9ad51c7debe8426e7` (Pixel 8). Measured, firing three
+Home actions with a continuous drag along each action's own rendered angle:
+
+| aimed at | ring | landed on | |
+|---|---|---|---|
+| `home.scan` | 0 | `/screener` | ✅ |
+| `home.chart` | 0 | `/charts` | ✅ |
+| `home.journal` | **1** | **`/screener`** | ❌ |
+
+The arithmetic behind it:
+
+```
+ringSplitPx = TRAVEL_PX × RING_SPLIT = 24 × 0.8 = 19.2 px
+ringForDistance(d) = d >= 19.2 ? 0 (outer) : 1 (inner)
+
+FAN_RADIUS_INNER = 96 px      <- where ring-1 bubbles are DRAWN
+FAN_RADIUS_OUTER = 150 px     <- where ring-0 bubbles are DRAWN
+```
+
+Selecting an inner-ring action requires releasing inside a **9.2px-wide annulus**
+(`openAtPx` 10 → 19.2), while the bubble the user is aiming at is painted **five times
+farther out**. Drag toward the Journal bubble — the obvious interaction — and you get
+Screener, silently and repeatably.
+
+This is not a crash; the model is coherent (distance = *knob* travel, not fan radius, and
+`fanGeometry.js:4` is explicit that selection is by wedge angle, never by hit-testing a
+bubble). But **the visual affordance and the control model disagree**, and the three
+ring-1 Home actions — Journal, Notebook, Calendar — are the ones that pay for it.
+
+⚠️ **Owner decision, not an engineering one**, which is why it is recorded rather than
+patched: either the ring bands scale to the drawn radii, or the bubbles move to the bands.
+A 9.2px target is also hard to reconcile with the motor-accessibility settings in §C2 —
+the tremor user who *lowers* `travelPx` to 16 gets a band of 6.7 → 12.8px.
+
+### Pixel 8 — Google Pixel 8, Android 14, Chrome 149
+
+**Session:** `36a8370467f33da86116f04f3ad170b85f7691f8`
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| B1 | Hub mounts on a supported device | ✅ PASS | `hub-root` present and displayed |
+| B2 | 10× consecutive — ring 0 (`home.scan`) | ⚠️ see note | fires correctly (probe: → `/screener`); the 10× loop's own assertion is unsound — see H-3 |
+| B3 | 10× consecutive — ring 1 | 🔴 FAIL | F-2: aiming at a ring-1 bubble fires a ring-0 action |
+| B4 | Sticky fan survives jitter ×10 | 🔴 FAIL | **5/10** stayed open |
+| B5 | Flick selects (≥8/10) | ⚠️ UNSOUND | same assertion defect as B2 (H-3) |
+| B6 | Right-edge swipe fires nothing | ✅ PASS | `data-hub-last-action` empty after a 120px inward swipe from x=w−2 |
+| B7 | Hub hides while keyboard is open | ⬜ INCONCLUSIVE | soft keyboard never raised (`visualViewport` 464 vs `innerHeight` 463) — harness could not create the condition |
+| B8 | `/charts` scrim excludes the bottom band | ⬜ INCONCLUSIVE | the fan did not open on `/charts`; the scrim was never tested. Open gesture on that route needs its own investigation |
+| B9 | Actions sheet → Feedback → `/support` | ✅ PASS | reached `http://bs-local.com:8077/support` |
+| B10 | Pad clears bottom chrome ≥68px | ✅ PASS | **92px** below the pad (808px viewport) |
+| B11 | Frame rate during a sustained drag | ✅ PASS | **59.6 fps** (target ≥55, gate floor 45) |
+
+### iPhone 15 Pro — iOS 17.3.1 Safari
+
+**Session:** `4698156a4117c298272974663583bc359eea4e0d`. **All checks BLOCKED by F-1** — the
+hub does not mount, so nothing downstream is measurable. No result is recorded for B2–B11
+on iOS; they are untested, not passed.
+
+### iPhone SE 2022 (iOS 15) · Samsung Galaxy S24 (Android 14)
+
+**NOT RUN.** Deferred deliberately: the SE's only assertion is vacuous while F-1 stands
+(see above), and re-running the S24 before F-1/F-2 are ruled on would spend sessions
+re-measuring a fan whose selection model is under review. Both run in the next pass.
+
+---
+
+## Harness defects found and fixed during this run
+
+Recorded because each one initially presented as a product failure, and reporting any of
+them as such would have been a false finding.
+
+- **H-1 · stale element handles.** The pad element was captured once outside a loop whose
+  every pass ends in a page reload, producing ten `StaleElementReference` throws that read
+  exactly like a broken gesture. Re-found every iteration.
+- **H-2 · a vacuous open-check that scored a false PASS.** "Is the fan open" was
+  `document.querySelectorAll('[data-action-id]').length > 0`. `HubFan`'s own JSDoc says
+  *"Bubbles are always in the DOM … `open` only toggles the wedge backdrop's opacity"* — so
+  that predicate answers *"is the hub mounted"* and is **true whether the fan is open or
+  shut**. It scored sticky-fan **10/10**; the honest signal (`HubScrim`, the only piece
+  that returns `null` when closed) scores it **5/10**. ⭐ The first number was not a
+  measurement, and it was the one that looked good.
+- **H-3 · reading the evidence after it was destroyed.** `data-hub-last-action` is read
+  *after* the gesture, but a `navigate` action replaces the document — so the attribute is
+  `null` on a **successful** fire. The 0/10 results were the assertion failing, not the
+  product: firing `home.scan` and `home.chart` demonstrably lands on `/screener` and
+  `/charts`. **The B2/B5 assertions must key off the resulting URL** (or read the attribute
+  synchronously before navigation) before those rows mean anything. Not yet rewritten.
+- **H-4 · a split gesture delivers no movement.** Opening and aiming in two separate
+  `perform()` calls left `useJoystick` holding the position from the opening push (~42px at
+  45°, outside `QUADRANT_DEG` [60,210]) — so `resolveTarget` returned `null`, nothing fired,
+  and `stickyFan` left the fan open, which is indistinguishable from "the product ignored
+  the selection". One continuous sequence with ten interpolated moves; Appium delivered only
+  **two** `pointermove` events for a single long move.
+- **H-5 · a scripted `focus()` does not raise a soft keyboard.** Mobile browsers require a
+  real gesture. The step now taps the input, and reports INCONCLUSIVE when
+  `visualViewport` shows the keyboard never came up rather than scoring a failure.
+- **H-6 · login died with "unknown server-side error" on iOS.** A successful login redirects
+  off `/login`, destroying the execution context an open `executeAsyncScript` callback
+  belongs to. Reworked to fire-and-poll.
+
+⭐ **INCONCLUSIVE is now a first-class outcome** in the runner, separate from PASS and
+FAIL. Counting a harness limitation as a product failure is how a test defect gets "fixed"
+in product code; counting it as a pass hides an untested claim.
 
 ---
 

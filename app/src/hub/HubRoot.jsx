@@ -98,7 +98,21 @@ function HubShell() {
     setToastMsg('Phase 3')
   }, [goHome, navigate, setToastMsg])
 
-  const fireResolved = useCallback((resolved) => runAction(resolved?.action), [runAction])
+  // DEVICE-TEST HOOK (Phase 2 device suite). Records which action actually fired
+  // so a real-device run can assert the OUTCOME of a gesture without depending on
+  // a navigation that may be async or a toast that auto-dismisses.
+  //
+  // ⭐ Written imperatively on the DOM node, NOT through state, and deliberately:
+  // routing it through `useState` would add a render on every fire, and the thing
+  // this attribute exists to measure is whether ten consecutive fan selections
+  // land on the intended target. An instrument that changes the render behaviour
+  // of the gesture it measures is not an instrument. React never reconciles this
+  // attribute because no JSX prop declares it.
+  const rootRef = useRef(null)
+  const fireResolved = useCallback((resolved) => {
+    rootRef.current?.setAttribute('data-hub-last-action', resolved?.action?.id ?? '')
+    runAction(resolved?.action)
+  }, [runAction])
 
   // `useJoystick` hands `onScrub` `{delta, axis}` (its own JSDoc) — passed
   // through to the mode's own `onScrub(ctx, delta)` (registry.js's HubMode
@@ -150,6 +164,7 @@ function HubShell() {
 
   return (
     <div
+      ref={rootRef}
       data-testid="hub-root"
       hidden={hidden}
       style={{
