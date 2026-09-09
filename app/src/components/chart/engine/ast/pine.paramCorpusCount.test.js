@@ -66,15 +66,31 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // ⭐ Pinned to what this run ACTUALLY measured, not to the old "14/14"
     // report — if this number ever needs to change, change it here with a
     // fresh reproduction, never to silently restore a prior claim.
-    expect(translating.length, 'scripts that translate at all').toBe(14)
-    expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(14)
+    // ⭐ 14/14 → 15/15 ON 2026-09-09, FRESHLY REPRODUCED, and the cause is a
+    // fixture SWAP rather than a translator change: `12-ichimoku-clouds` (CC
+    // BY-NC-ND, could not stay in this repository) was replaced by the clean-room
+    // `12-ichimoku-kinko-hyo`. The old file refused at script level and counted as
+    // 0 here; the new one translates and carries four `input.int` knobs.
+    // ⚠️ SO A TRANSLATOR THAT GOT WORSE COULD STILL SHOW 15 — this pair moves for
+    // corpus reasons as readily as for engine reasons, which is exactly why the
+    // sibling pin below counts parameters and not scripts.
+    expect(translating.length, 'scripts that translate at all').toBe(15)
+    expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(15)
   })
 
   it('reproduces the "29 total adjustable parameters" claim under the distinct-id counting', () => {
     // ⭐ REPRODUCED EXACTLY: the original "29" claim was correct all along
     // under this counting (distinct parameter ids) -- it was unverifiable,
     // not wrong. This is the number that should be quoted as "29".
-    expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(29)
+    // ⚰️ AND "29" IS NOW A HISTORICAL FIGURE, NOT THE CURRENT ONE. On 2026-09-09
+    // the corpus swapped a licence-blocked fixture for a clean-room replacement
+    // (see the pin above) and this reads **31**: the new Ichimoku contributes two
+    // distinct parameter ids to the columns that survive, where its predecessor
+    // contributed none. The claim this case was built to verify was about the
+    // 14-script corpus; it stays reproduced there and superseded here.
+    // ⛔ Do NOT "restore" 29 — that is precisely the silent restoration the pin
+    // above forbids. If it ever reads 29 again, a script left the corpus.
+    expect(totalDistinctParams, 'sum of distinct parameter ids across all 15 scripts').toBe(31)
   })
 
   it('pins the OTHER candidate counting as a separate, much larger, non-"29" metric', () => {
@@ -85,7 +101,12 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // parameter feeding many places in the script. Pinned so a future
     // translator change that silently multiplies locators is still caught,
     // without ever being confused for "the 29 claim".
-    expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(1204)
+    // ⭐ 1204 → 1208 with the clean-room `12-ichimoku-kinko-hyo` swap (see above).
+    // FOUR, against 380 from one script's single parameter — which is the whole
+    // point of keeping this metric beside the distinct-id one: a fixture swap that
+    // moves distinct ids by 2 moves locators by 4, while a translator regression
+    // that multiplies expansion moves this number and not the other.
+    expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 15 scripts').toBe(1208)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {

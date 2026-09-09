@@ -55,12 +55,30 @@ describe('the corpus is real and it is all there', () => {
     expect(Object.keys(SNAPSHOT).sort()).toEqual(FILES)
   })
 
-  it('every fixture is genuine Pine, not something this repo wrote', () => {
+  /** ⭐ ONE FIXTURE IS OURS, BY NAME, AND THAT IS THE POINT OF NAMING IT.
+   *  `12-ichimoku-kinko-hyo` replaced a third-party Ichimoku that had been
+   *  committed here under CC BY-NC-ND 4.0 — a licence forbidding derivatives, so
+   *  it could not stay (owner ruling 2026-09-09). The replacement is clean-room,
+   *  written from the published definition of the system, MPL-2.0, ours.
+   *  ⛔ IT IS LISTED HERE RATHER THAN QUIETLY PASSING THE REGEX. This test's
+   *  claim is that the corpus is what MEMBERS PASTE, not what we can already
+   *  translate; a repo-authored fixture is a thumb on that scale. Keeping the
+   *  exception to exactly one, spelled out, is what stops the corpus drifting
+   *  into a set of things we wrote for ourselves. */
+  const AUTHORED_HERE = ['12-ichimoku-kinko-hyo.pine']
+
+  it('every fixture is genuine Pine, and only the one named file is ours', () => {
+    expect(AUTHORED_HERE.every((f) => FILES.includes(f)), 'the named exception exists').toBe(true)
+    expect(AUTHORED_HERE.length, 'the exception list has not grown').toBe(1)
     for (const f of FILES) {
       const src = read(f)
       expect(src.length, f).toBeGreaterThan(300)
       // A published script names its author or its licence or declares itself.
       expect(/©|Copyright|License|licence|@version|study\(|indicator\(|strategy\(/.test(src), f).toBe(true)
+      // Everything not on the list must carry provenance that is not ours.
+      if (!AUTHORED_HERE.includes(f)) {
+        expect(/Uncharted Territory/.test(src), `${f} must not be repo-authored`).toBe(false)
+      }
     }
   })
 })
@@ -508,7 +526,20 @@ describe('the whole corpus, in one number', () => {
     // how the asymmetry was proven rather than argued: neutralising line 92 alone
     // made the whole script translate, so line 90's identical `time` was never
     // the wall. One policy, three spellings, and `and`/`or` was the one missing.
-    expect(translating).toBe(14)
+    // ⭐ 14 → 15 ON 2026-09-09, AND THIS ONE CAME FROM A LICENCE REMOVAL, NOT A
+    // CAPABILITY. `12-ichimoku-clouds` was third-party under CC BY-NC-ND 4.0 — a
+    // licence forbidding derivatives — so it could not stay in this repository
+    // (owner ruling). Its clean-room replacement `12-ichimoku-kinko-hyo` is ours,
+    // MPL-2.0, written from the published definition of the system.
+    // ⭐⭐ THE REPLACEMENT TRANSLATES WHERE THE ORIGINAL REFUSED, and the reason is
+    // worth keeping: the old file refused at SCRIPT level on `pine:plot-offset`,
+    // so its 23 outputs bought nothing. The new one puts the offset only on the
+    // three plots that genuinely displace — Chikou back, both Senkou spans forward
+    // — leaving Tenkan and Kijun as plain columns. Same wall, three outputs instead
+    // of the whole script. ⚠️ SO THE COVERAGE THIS FIXTURE CARRIED IS NOT LOST:
+    // `perOutputRefusals` still records `pine:plot-offset` ×3, which is what the
+    // "NOTHING is blocked on the bar offset any more" case downstream reads.
+    expect(translating).toBe(15)
     // ⚰️⚰️ 60 → 53 THE SAME DAY, AND THE SEVEN THAT LEFT WERE NEVER THERE.
     // The count went DOWN while a script was ADDED, which is the only reason
     // anybody looked: −8 from `03-rsi-directional-momentum-scanner`, +1 from 15.
@@ -532,7 +563,17 @@ describe('the whole corpus, in one number', () => {
     // two-directional is what forced the question instead of letting 60 stand.
     // If this ever climbs back toward 60 without a named script, suspect the
     // blind spot reopened rather than that coverage grew.
-    expect(columns).toBe(53)
+    // ⭐ 53 → 55 ON 2026-09-09, AND THE NAMED SCRIPT IS `12-ichimoku-kinko-hyo` —
+    // the clean-room replacement for the CC BY-NC-ND file that could not stay in
+    // this repository (see the `translating` pin above). It is +2, not +23: the
+    // removed script offered 23 outputs and ZERO usable columns, because it refused
+    // at script level. The replacement offers 5 and lands exactly two — Tenkan and
+    // Kijun, the pair that carry no `offset`.
+    // ⛔ THIS IS THE CLIMB THE PARAGRAPH ABOVE WARNS ABOUT, so it is answered in its
+    // own terms: the two columns are `(highest(high, 9) + lowest(low, 9)) / 2` and
+    // its 26-bar twin, both of which read bars on every session and neither of which
+    // is a folded-constant phantom. The three displaced plots still refuse.
+    expect(columns).toBe(55)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus
@@ -567,7 +608,15 @@ describe('the whole corpus, in one number', () => {
     // `evaluateFormula` + `canSaveFormula` before being written to the fixture —
     // the regenerator deliberately carries that field through rather than
     // re-deciding it, so a new entry arrives as `null` and must be walked by hand.
-    expect(saveable.length).toBe(14)
+    // ⭐ 14 → 15 with the clean-room `12-ichimoku-kinko-hyo` (see the reason at the
+    // `translating` pin above). Its `downstream` was MEASURED the same way 15's was
+    // — through `evaluateFormula` with `BUILDER_INPUT_SCOPE` — because the
+    // regenerator carries the field rather than deriving it, so a REPLACED filename
+    // is a NEW key and arrives `null`. ⚠️ That is the trap in a rename: the file is
+    // "the same fixture" to a reader and a different row to the writer, and the
+    // `blocked` case above is what catches it — a null downstream lands there, not
+    // silently outside this number. `translating` and `saveable` stay the same set.
+    expect(saveable.length).toBe(15)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }
