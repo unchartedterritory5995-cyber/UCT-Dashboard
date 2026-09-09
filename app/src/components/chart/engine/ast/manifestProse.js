@@ -41,6 +41,14 @@ export const KEEP = Object.freeze([
   '_functions_excluded',        // read by vocabulary.js
   '_scalars_excluded',          // read by vocabulary.js
   '_benchmarks_scannable',      // read by vocabulary.js
+  // ⛔⛔ READ BY `user_definitions.requirement_tags` AND `consumer_refusal`,
+  // which is a CONTAINMENT mechanism — it decides whether a fetch-dependent
+  // script may reach the screener, the sweep, an alert, a share or a listing.
+  // Stripping it does not break those functions, it makes them return NO TAGS,
+  // so every guarded script would be ADMITTED. This rail caught exactly that
+  // on the day the key was added, which is the whole reason the rail derives
+  // the accessed set instead of trusting this list.
+  '_requirement_tags',
 ])
 
 /**

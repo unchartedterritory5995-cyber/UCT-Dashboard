@@ -920,6 +920,123 @@ def lint_verdict(definition: dict) -> dict:
     return {r["plotKey"]: r["mode"] for r in rows}
 
 
+def requirement_tags(definition: dict) -> list:
+    """What this script needs from a consumer, DERIVED FROM THE MANIFEST.
+
+    ⭐⭐⭐ THE CONTAINMENT MECHANISM `_functions_cumulative` ASKED FOR. That ruling
+    refused a per-consumer exception for `ta.cum` because *"there is no per-entry
+    flag that stops a fetch-dependent column flowing into a saved definition, a
+    nightly sweep, an alert or a shared screen, and at every one of those
+    consumers the defect is INVISIBLE"*. This is that flag, and it is on the
+    DEFINITION rather than on the table entry, which is the level the leak
+    actually happens at.
+
+    ⛔ THE NAMES COME FROM `closedTable.json::_requirement_tags`, NEVER FROM A
+    LITERAL HERE. A hard-coded `if 'cum' in ...` would be a second authority over
+    which builtins are fetch-dependent, and the next one added to the manifest
+    would silently not be tagged — the defect being guarded against, in the guard.
+
+    ⚠️ THE SAFE DIRECTION IS THE OPPOSITE OF `repaint`'S. A stale `repaint` that is
+    STRICTER than the linter is harmless. A stale `requirements` that is SHORTER
+    than reality ADMITS a script to a consumer that should have refused it, so a
+    walk that cannot read part of a tree must ADD the tag rather than omit it.
+
+    Returns a sorted list of tag strings, e.g. ``["window_dependent"]``.
+    """
+    from collections.abc import Mapping, Sequence
+    from api.services import ast_table
+    tags_spec = ast_table.TABLE.get("_requirement_tags") or {}
+
+    # ⛔ `Mapping`, NOT `dict`. `ast_table.TABLE` is deeply FROZEN — every nested
+    # object is a `mappingproxy` and every list a tuple — and `mappingproxy` is not
+    # a `dict` subclass. An `isinstance(spec, dict)` filter here reads the manifest,
+    # finds nothing, and returns NO TAGS: it fails OPEN, which for this function
+    # means admitting a fetch-dependent script to the screener. Measured, not
+    # reasoned: it did exactly that on the first run.
+    by_tag = {
+        name: set(spec.get("builtins") or ())
+        for name, spec in tags_spec.items()
+        if isinstance(spec, Mapping) and spec.get("builtins")
+    }
+    if not by_tag:
+        return []
+
+    called: set = set()
+    unreadable = False
+
+    def walk(node):
+        nonlocal unreadable
+        if isinstance(node, Mapping):
+            if node.get("type") == "call":
+                name = node.get("name")
+                if isinstance(name, str):
+                    called.add(name)
+                else:
+                    unreadable = True
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, Sequence) and not isinstance(node, (str, bytes)):
+            for v in node:
+                walk(v)
+
+    try:
+        walk(definition)
+    except RecursionError:
+        # ⛔ FAIL CLOSED. A tree too deep to walk is a tree we cannot clear.
+        unreadable = True
+
+    out = []
+    for tag, builtins in by_tag.items():
+        if unreadable or (called & builtins):
+            out.append(tag)
+    return sorted(out)
+
+
+def consumer_refusal(consumer: str, requirements) -> "str | None":
+    """Why ``consumer`` may not run a definition carrying ``requirements`` — or
+    ``None`` when it may.
+
+    ⭐⭐ ONE AUTHORITY FOR FIVE CONSUMERS. The screener, the nightly sweep, the
+    alert evaluator, a share link and a public listing all ask the same question,
+    and `_functions_cumulative`'s containment argument only holds if they answer
+    it the same way. Five copies of an `if "window_dependent" in tags` would be
+    five chances to drift, and the drift would be INVISIBLE — the consumer that
+    forgot would simply keep working.
+
+    ⛔ THE ROSTER IS THE MANIFEST'S, NOT THIS FUNCTION'S. `refused_by` /
+    `accepted_by` come from `_requirement_tags`, so adding a sixth consumer or a
+    second tag is an edit to data.
+
+    ⚠️ AN UNKNOWN CONSUMER IS REFUSED, NOT ADMITTED. A name absent from both lists
+    is a consumer nobody has ruled on, and admitting it by default is how a leak
+    re-opens quietly.
+    """
+    from collections.abc import Mapping
+    from api.services import ast_table
+    tags_spec = ast_table.TABLE.get("_requirement_tags") or {}
+    have = set(requirements or ())
+    if not have:
+        return None
+
+    for tag in sorted(have):
+        spec = tags_spec.get(tag)
+        if not isinstance(spec, Mapping):
+            # A tag the manifest does not declare. Fail closed: we cannot know
+            # which consumers it is safe for.
+            return (f"this script is tagged `{tag}`, which this engine's manifest "
+                    f"does not declare — it cannot be admitted anywhere until it is")
+        accepted = set(spec.get("accepted_by") or ())
+        refused = set(spec.get("refused_by") or ())
+        if consumer in accepted:
+            continue
+        if consumer in refused or consumer not in accepted:
+            what = spec.get("what") or tag
+            names = ", ".join(sorted(spec.get("builtins") or ()))
+            return (f"this script cannot be used as a {consumer}: it calls "
+                    f"`{names}`, and {what[0].lower() + what[1:]}")
+    return None
+
+
 # ─── ids ─────────────────────────────────────────────────────────────────────
 
 def new_def_id() -> str:
