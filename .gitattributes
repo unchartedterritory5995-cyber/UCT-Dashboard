@@ -27,3 +27,12 @@
 api/services/journal_two/note_connectors/convert/fixtures_in/*.md text eol=lf
 api/services/journal_two/note_connectors/convert/fixtures_in/*.html text eol=lf
 app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text eol=lf
+
+# ⛔⛔ WAVE P5 — THE FROZEN OCR CERTIFICATION CORPUS IS BYTES, NOT TEXT.
+# `core.autocrlf` is true on the dev box and git guessed "text" for the one
+# small mostly-ASCII fixture (`native_text.pdf`, 2.3 KB), which would rewrite
+# its line endings on the next checkout and quietly change the pages the
+# 5.3.0-vs-5.4.0 certification compares. The signature check would catch it —
+# after somebody spent a CI run finding out.
+tools/wave_p_cert_corpus/*.pdf binary
+tools/wave_p_cert_corpus/manifest.json -text
