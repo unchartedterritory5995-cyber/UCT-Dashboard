@@ -9242,6 +9242,23 @@ export default function StockChart({
       // Use liveBarRef if available — it has tick-accurate high/low that survives setData()
       const lb = liveBarRef.current
 
+      // 🔴 THIS RE-TOP CAN TAKE THE WHOLE PAGE DOWN, AND ON 2026-09-09 IT DID.
+      // `last` is `lastBarRef.current`, i.e. what we BELIEVE the series' newest bar
+      // is; the series itself is the only thing that knows. When live breadth went
+      // dark that morning the UCTA* daily serve stopped appending its developing
+      // candle, so the refetch's tail went BACKWARDS (2026-09-09 → 2026-09-08) while
+      // the plotted series kept the newer bar. LWC refuses a backwards `update` by
+      // THROWING ("Cannot update oldest data"), this effect has no catch, and the
+      // throw unwound into React's commit — ErrorBoundary, black /charts, and a crash
+      // loop that survived reloads because the layout re-mounted the same widget.
+      // (`[object Object]` in that message is the tell: breadth bars carry STRING
+      // dates, which LWC reads as BusinessDay.)
+      //
+      // A refused update is not corruption — LWC just declines the write, and the
+      // next poll re-tops correctly. So it must never be fatal. Every sibling writer
+      // already reasons this way (the push re-top just above, the registry tick, the
+      // indicator series); this branch was the one that didn't.
+      try {
       if (decision.kind === 'new') {
         const isDW = !isIntradayTf
         // A NEW bucket must NOT inherit O/H/L from liveBarRef — that's the PREVIOUS
@@ -9286,6 +9303,14 @@ export default function StockChart({
           candleSeriesRef.current.update({ time: last.time, open: last.open, high, low, close: lp })
         } else {
           candleSeriesRef.current.update({ time: last.time, value: lp })
+        }
+      }
+      } catch (e) {
+        // The series tail is ahead of what we hold — leave it standing and let the
+        // next refetch/tick re-top it. Anything else is genuinely unexpected: say so
+        // once, but still don't take the page down with it.
+        if (e?.message && !/oldest data/i.test(e.message)) {
+          console.warn('[StockChart] live re-top update error:', e.message)
         }
       }
     }
