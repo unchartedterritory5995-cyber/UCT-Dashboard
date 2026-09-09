@@ -25,7 +25,9 @@ def test_judge_ticker_confirms_and_stores(tmp_path, monkeypatch):
                         "usage": {"input_tokens": 1000, "output_tokens": 100}})
     out = orch.judge_ticker("NVDA", client=object())
     assert out["judged"] == 1 and out["confirmed"] == 1
-    conf = s.get_confirmed("NVDA")[0]
+    # `today` is pinned: get_confirmed now applies a recency bound and this
+    # fixture's asof_date is 2026-06-19, which would otherwise age out.
+    conf = s.get_confirmed("NVDA", today="2026-06-20")[0]
     assert conf["setup"] == "vcp"
     assert conf["checks"][0]["criterion"] == "tight contractions"  # decoded back to list
     out2 = orch.judge_ticker("NVDA", client=object())

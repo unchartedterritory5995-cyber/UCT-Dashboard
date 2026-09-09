@@ -3,6 +3,7 @@
 Own DB (`/data/pattern_vision.db`) so the existing pattern_detections store is
 untouched. Stores one verdict per (ticker, tf, setup, asof_date) + a cost log.
 """
+import datetime
 import json
 import os
 import sqlite3
@@ -99,10 +100,60 @@ def get_verdict(ticker, tf, setup, asof_date) -> dict | None:
         return _decode(r) if r else None
 
 
-def get_confirmed(ticker, tf="D") -> list[dict]:
+#: How many CALENDAR days of evidence age `get_confirmed` will serve.
+#: Calendar days, not trading sessions, deliberately: the exchange calendar
+#: lives in three separate runtime-local tables (`bars_fetch.py`,
+#: `market_calendar.py`, `liveflow_monitor.py`) and the Seam 7 adjudication
+#: ruled against adding a fourth consumer for precision this bound does not
+#: need. 7 covers a weekend plus a holiday plus a day of bars-ingestion lag.
+#: An exceptional multi-day exchange closure empties the window and serves
+#: NOTHING rather than something stale -- that is the safe direction.
+CONFIRMED_MAX_AGE_DAYS = 7
+
+
+def confirmed_window_floor(today: str | None = None) -> str:
+    """Oldest `asof_date` `get_confirmed` will serve, INCLUSIVE."""
+    d = datetime.date.fromisoformat(today) if today else datetime.date.today()
+    return (d - datetime.timedelta(days=CONFIRMED_MAX_AGE_DAYS)).isoformat()
+
+
+def get_confirmed(ticker, tf="D", today: str | None = None) -> list[dict]:
+    """Confirmed verdicts a consumer may narrate as the CURRENT technical read.
+
+    ⛔ THIS IS NOT "every row with confirmed=1", and the order of the two rules
+    below is load-bearing:
+
+    1. **Latest evidence bar per setup FIRST, confirmed filter second.** A key
+       confirmed on an older bar and REJECTED on a newer one must not be
+       served. Filtering `confirmed=1` first returns the stale confirm and the
+       consumer narrates it as present-tense -- the exact defect this function
+       had, and the same trust-boundary class already adjudicated as Seam
+       23/28. The correlated subquery picks the newest `asof_date` per
+       (ticker, tf, setup); the filter then applies to THAT row only.
+    2. **Recency bound second.** A candidate that stops being detected writes
+       no new row, so nothing else ever retires its last confirm -- without
+       this bound a June verdict is still served today. `judged_at` is NOT
+       usable for this: it records when the judge ran, not which bar it
+       judged, and the two diverge whenever bars ingestion lags.
+
+    `asof_date` is TEXT 'YYYY-MM-DD', so lexicographic MAX() is chronological
+    and `>=` is a valid date comparison. The subquery rides the table's own
+    PRIMARY KEY (ticker, tf, setup, asof_date) autoindex -- no new index.
+
+    `today` is injectable for tests only; production passes nothing.
+    """
+    floor = confirmed_window_floor(today)
     with connect() as c:
-        rows = c.execute("SELECT * FROM pattern_verdicts WHERE ticker=? AND tf=? AND confirmed=1 "
-                         "ORDER BY judged_at DESC", (ticker.upper(), tf)).fetchall()
+        rows = c.execute(
+            "SELECT * FROM pattern_verdicts v "
+            "WHERE v.ticker=? AND v.tf=? "
+            "  AND v.asof_date = (SELECT MAX(v2.asof_date) FROM pattern_verdicts v2 "
+            "                     WHERE v2.ticker=v.ticker AND v2.tf=v.tf "
+            "                       AND v2.setup=v.setup) "
+            "  AND v.confirmed=1 "
+            "  AND v.asof_date >= ? "
+            "ORDER BY v.asof_date DESC, v.setup",
+            (ticker.upper(), tf, floor)).fetchall()
         return [_decode(r) for r in rows]
 
 
