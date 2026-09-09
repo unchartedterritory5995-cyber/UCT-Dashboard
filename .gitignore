@@ -143,3 +143,8 @@ app/_stripqa/
 app/vite.local.config.js
 app/stripqa2.html
 app/src/stripqa2.jsx
+
+# Pine survey local cache — fetched third-party sources + chart snapshots.
+# NEVER committed: licence-gated (see docs/pine/LICENSING.md). Re-fetchable via
+# tools/pine_survey/tvfetch.py.
+tools/pine_survey/cache/
