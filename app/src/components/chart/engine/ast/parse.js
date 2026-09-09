@@ -225,7 +225,13 @@ export const SESSION_MAX_BARS = (() => {
  *  then a refusal AT THE DOOR beats a definition that saves and answers nothing. */
 export const TICKER_SHAPE = /^[A-Z][A-Z0-9.-]{0,9}$/
 
-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live'])
+export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live',
+  // ⭐⭐ THE BIND-TIME TEXT TRIO. `textop` yields a NUMBER and sits wherever a
+  // number sits; `str` and `symtext` are its operands and may appear NOWHERE
+  // ELSE — `assertCanonical` enforces that parentage, so "text is not a value in
+  // this engine" is a structural property of every persisted tree rather than a
+  // convention. See `TEXTOP_ARITY` and `convertTextOperand`.
+  'str', 'symtext', 'textop'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -467,6 +473,20 @@ export const REFUSALS = Object.freeze({
   'canonicalise:timeframe':
     'a higher-timeframe read is tf(<expression>, \'<TF>\') \u2014 two arguments, the second '
     + 'a quoted timeframe',
+  'canonicalise:symtext':
+    "a symbol-scoped name is written `syminfo('<field>')` — one argument, a "
+    + 'plain quoted field name, so which field is read can never be computed at '
+    + 'runtime',
+  'canonicalise:textop':
+    'a text question is written `text_contains(<text>, <text>)` (or startswith / '
+    + 'endswith / eq / ne, and `text_length(<text>)`), and each operand is either '
+    + "a quoted string or a `syminfo('<field>')` — never an expression, because "
+    + 'the answer has to be settled the moment a symbol is chosen',
+  'canonicalise:text-escapes':
+    'text is only ever an OPERAND of a text question. A quoted string or a '
+    + "`syminfo('<field>')` on its own is not a column this engine can compute, "
+    + 'and a tree carrying one outside `text_*(…)` would put a second kind of '
+    + 'value into every walk that prices, lints and evaluates it',
   'canonicalise:node':
     'the parser produced a construct with no canonical form',
 })
@@ -703,6 +723,35 @@ const op = (name, args) => ({ type: 'op', name, args })
 const call = (name, args) => ({ type: 'call', name, args })
 const offset = (value, child) => ({ type: 'offset', value, args: [child] })
 
+/** The text questions this grammar declares, by arity.
+ *
+ *  ⛔ CLOSED AND SMALL, AND EVERY ONE OF THEM CONSUMES TEXT WITHOUT PRODUCING
+ *  IT. That is the property that keeps text out of the value model: a tree can
+ *  ASK about text and get a number back, and there is no spelling that hands
+ *  text to anything else. `str.tostring`, `str.format` and `str.split` are
+ *  absent for that reason rather than for lack of demand. */
+const TEXTOP_ARITY = Object.freeze({
+  contains: 2, startswith: 2, endswith: 2, length: 1, eq: 2, ne: 2,
+})
+
+/** An operand of a text question: a quoted string, or a symbol-scoped field.
+ *
+ *  ⛔ NOT `convert` — and that is the containment, expressed as a different
+ *  function rather than as a rule somebody has to remember. Recursing through
+ *  `convert` here would let `text_contains(sma(close, 5), 'x')` parse, and the
+ *  refusal for that belongs at the door the member typed at, not four passes
+ *  later when a fold tries to read a moving average as a string. */
+function convertTextOperand(node) {
+  if (node && node.type === 'Literal' && typeof node.value === 'string') {
+    return { type: 'str', value: node.value }
+  }
+  if (node && node.type === 'CallExpression' && node.callee
+      && node.callee.name === 'syminfo') {
+    return convert(node)
+  }
+  return refuse('canonicalise:textop')
+}
+
 function convert(node) {
   switch (node.type) {
     case 'Literal': {
@@ -803,6 +852,44 @@ function convert(node) {
         // door they typed at.
         if (!TICKER_SHAPE.test(ticker.value)) return refuse('canonicalise:symbol')
         return { type: 'sym', value: ticker.value, args: [convert(args[1])] }
+      }
+      // ⭐⭐ THE SYMBOL-SCOPED FIELD — `syminfo('ticker')` — and the FIELD IS A
+      // FIELD ON THE NODE for the third time in this switch, for the third
+      // instance of one reason: a shape with no slot for an expression cannot
+      // hold one. `tf` cannot compute its timeframe, `sym` cannot compute its
+      // ticker, and this cannot compute WHICH property of the symbol it reads.
+      // What all three buy is that the value is settled the moment a binding is
+      // chosen, which is what makes the bind-time fold total.
+      if (node.callee && node.callee.name === 'syminfo') {
+        const args = node.arguments || []
+        if (args.length !== 1) return refuse('canonicalise:symtext')
+        const field = args[0]
+        if (!field || field.type !== 'Literal' || typeof field.value !== 'string') {
+          return refuse('canonicalise:symtext')
+        }
+        // ⚠️ WHICH fields are servable is not asked here — the Pine door owns
+        // that roster (`BUILTIN_SYMBOL_SCOPED` / `symbolScope.json::unserved`)
+        // and the FOLD owns whether a given binding can answer. The parser
+        // decides SHAPE only; a field list copied into this file would be the
+        // copy that goes stale, which is the `sym` ticker lesson verbatim.
+        if (!/^[a-z][a-z0-9_]{0,23}$/.test(field.value)) return refuse('canonicalise:symtext')
+        return { type: 'symtext', name: field.value }
+      }
+      // ⭐⭐ A TEXT QUESTION WITH A NUMERIC ANSWER. `text_contains(…)` is 1 or 0
+      // and `text_length(…)` is a count, so a `textop` sits wherever a number
+      // sits and every existing walker prices it as one.
+      //
+      // ⛔ ITS OPERANDS ARE THE ONLY PLACE TEXT MAY APPEAR. A quoted string is
+      // legal HERE and nowhere else — exactly the carve-out `tf` and `sym`
+      // already have for their own literals — so `convert`'s Literal arm still
+      // refuses every other string and the table stays closed.
+      if (node.callee && typeof node.callee.name === 'string'
+          && node.callee.name.startsWith('text_')) {
+        const bare = node.callee.name.slice(5)
+        const want = TEXTOP_ARITY[bare]
+        const args = node.arguments || []
+        if (!want || args.length !== want) return refuse('canonicalise:textop')
+        return { type: 'textop', name: bare, args: args.map(convertTextOperand) }
       }
       return call(node.callee.name, (node.arguments || []).map(convert))
     }
@@ -951,6 +1038,18 @@ export const CANONICAL_KEYS = Object.freeze({
   // by walkers that already exist, so `tf` comes out non-repainting and this comes
   // out `preview-repaints` without anybody threading a flag through the linter.
   tf_live: ['type', 'value', 'args'],
+  // ⚠️ A TEXT LITERAL, AND THE SIBLING OF `num` DOWN TO ITS KEY SET. It carries
+  // no `args` because it has no children and no `name` because the value IS the
+  // node — the same reasoning `num` follows.
+  str: ['type', 'value'],
+  // ⚠️ `name`, NOT `value`, AND THE DIFFERENCE IS REAL: this node does not hold
+  // a string, it NAMES one that a symbol will supply. `series` carries `name`
+  // for the same reason, and reading it as `value` is how somebody eventually
+  // ships a tree whose "ticker" is the literal text `ticker`.
+  symtext: ['type', 'name'],
+  // A question ABOUT text whose answer is a number. Same key set as `call`,
+  // because that is what it is — a closed, declared function over operands.
+  textop: ['type', 'name', 'args'],
 })
 
 /** The tree really is one of the declared shapes, with exactly its own keys.
@@ -963,11 +1062,26 @@ export const CANONICAL_KEYS = Object.freeze({
  *  artifact — a blob that arrived over a wire or out of a database, not
  *  necessarily one this module produced a millisecond ago. */
 export function assertCanonical(ast) {
-  const stack = [ast]
+  // ⭐⭐ THE PARENT TRAVELS WITH THE NODE, and it exists for exactly one rule:
+  // TEXT IS ONLY EVER AN OPERAND. `str` and `symtext` are the two nodes that
+  // are not numbers, and a tree carrying either one anywhere but directly under
+  // a `textop` would put a second kind of value into every walk that prices,
+  // lints and evaluates a tree — which is the cost this engine declined to pay
+  // when it admitted `str.contains`. Checked HERE because `astHash` runs over
+  // the PERSISTED artifact: a tree that arrived over a wire never passed
+  // through `convertTextOperand`, so the door-side containment is not enough.
+  const stack = [{ node: ast, parent: null }]
   while (stack.length) {
-    const node = stack.pop()
+    const { node, parent } = stack.pop()
     if (!node || typeof node !== 'object' || Array.isArray(node)) {
       throw new Error(`astHash: not a canonical node: ${JSON.stringify(node) ?? String(node)}`)
+    }
+    if ((node.type === 'str' || node.type === 'symtext') && parent !== 'textop') {
+      throw new Error(
+        `astHash: a ${node.type} node may only be an operand of a textop — found `
+        + `one under ${parent === null ? 'the root' : `a ${parent}`}. Text is not a `
+        + 'value in this engine; a text question answers with a number and the '
+        + 'text never leaves it.')
     }
     const expected = CANONICAL_KEYS[node.type]
     if (!expected) {
@@ -982,7 +1096,7 @@ export function assertCanonical(ast) {
     }
     if (node.args !== undefined) {
       if (!Array.isArray(node.args)) throw new Error('astHash: `args` must be an array')
-      stack.push(...node.args)
+      for (const child of node.args) stack.push({ node: child, parent: node.type })
     }
   }
   return ast

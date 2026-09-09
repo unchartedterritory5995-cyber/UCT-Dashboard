@@ -2691,7 +2691,13 @@ describe('the refusals', () => {
     // ⚠️ 13 -> 14 with `canonicalise:symbol` (W2b Task 4): `sym('SPY', expr)`
     // is the second call whose parameter is a QUOTED LITERAL rather than an
     // expression, and it refuses at the parse door for the same reason `tf` does.
-    expect(Object.keys(PARSE_REFUSALS).length).toBe(14)
+    // ⚠️ 14 -> 17 with the bind-time text trio: `canonicalise:symtext` (a
+    // symbol-scoped field is `syminfo('<field>')`, its field a QUOTED LITERAL for
+    // the same reason `tf` and `sym` quote theirs), `canonicalise:textop` (a text
+    // question and the two operand shapes it takes), and `canonicalise:text-escapes`
+    // — the one that says text may only ever be an OPERAND. Each is its own
+    // sentence because each sends a member to a different edit.
+    expect(Object.keys(PARSE_REFUSALS).length).toBe(17)
     // ⚠️ 11 -> 12 with `interpret:timeframe` (W2b): a higher-timeframe read can
     // name a code the ladder does not declare, or one at or BELOW the bars it
     // was handed — neither is answerable from those bars, and inventing an
@@ -2712,7 +2718,13 @@ describe('the refusals', () => {
     // REUSED rather than joined by a third: an unsayable ticker is exactly what
     // that guard already publishes, and a new near-duplicate sentence would be
     // the thing the loop below exists to forbid.
-    expect(all.length).toBe(37)
+    // ⚠️ 37 -> 40 with the bind-time text trio, all three on the PARSE door:
+    // `canonicalise:symtext`, `canonicalise:textop` and `canonicalise:text-escapes`.
+    // The interpreter gains none, and that is the design rather than an omission:
+    // a text node must be FOLDED before evaluation, so the interpreter never has
+    // to have an opinion about one — it refuses an unknown node type by the
+    // roster it already publishes.
+    expect(all.length).toBe(40)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

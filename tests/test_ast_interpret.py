@@ -489,6 +489,22 @@ def test_the_node_types_are_DERIVED_from_the_committed_corpus():
     """
     seen = set()
     stack = [c["ast"] for c in load_corpus()["cases"]]
+    # ⭐⭐ AND THE BIND-TIME NODES COME FROM THE OTHER NET, BECAUSE THEY CANNOT
+    # COME FROM THIS ONE. `corpus.json` is the EVALUATED net — every case here is
+    # computed over `bars` and digested. `str`, `symtext` and `textop` are not
+    # evaluable BY CONSTRUCTION: they must be folded (`ast_bind.fold_bound`)
+    # before a tree is interpreted, and `interpret` refuses one that reaches it.
+    # A row for them in the evaluated corpus would either be skipped by every
+    # evaluator (a case that proves nothing) or force each one to learn an
+    # exception.
+    # ⛔ THE CLAIM IS UNCHANGED — every node type is exercised by a committed
+    # regression net that runs in BOTH lanes. What changed is that there are TWO
+    # nets and the union is asserted, so nothing is exempt: a twelfth type with
+    # no coverage anywhere still fails here.
+    parity = json.loads(
+        (pathlib.Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "ast"
+         / "bind_fold_parity.json").read_text(encoding="utf-8"))
+    stack.extend(c["tree"] for c in parity["cases"])
     while stack:
         node = stack.pop()
         if isinstance(node, list):
@@ -501,8 +517,43 @@ def test_the_node_types_are_DERIVED_from_the_committed_corpus():
             if isinstance(value, (dict, list)):
                 stack.append(value)
     assert seen == set(ast_interpret.NODE_TYPES)
+    # ⛔ AND THE SECOND NET IS REALLY CARRYING ITS HALF. Without this, a parity
+    # fixture that lost its text rows would fail the assertion above reading
+    # "the corpus is missing three types" — pointing an engineer at the wrong
+    # file. This names the right one.
+    from_parity = set()
+    probe = [c["tree"] for c in parity["cases"]]
+    while probe:
+        node = probe.pop()
+        if isinstance(node, dict):
+            from_parity.add(node.get("type"))
+            probe.extend(v for v in node.values() if isinstance(v, (dict, list)))
+        elif isinstance(node, list):
+            probe.extend(node)
+    for kind in ("str", "symtext", "textop"):
+        assert kind in from_parity, (
+            f"bind_fold_parity.json no longer exercises {kind!r}. It is the ONLY "
+            "net that can — a bind-time node is not evaluable, so it cannot live "
+            "in corpus.json.")
     import ast_conformance                                    # the instrument agrees
-    assert set(ast_conformance.CANONICAL_NODE_TYPES) == set(ast_interpret.NODE_TYPES)
+    # ⭐ THE INSTRUMENT CARRIES THE EVALUABLE VOCABULARY, WHICH IS THE WHOLE SET
+    # MINUS THE BIND-TIME TRIO — and the trio is READ from the module rather than
+    # typed here, so the two rosters cannot drift apart in the one place that
+    # would make this equality meaningless.
+    # ⛔ THE CONFORMANCE CENSUS MEASURES NUMERIC AGREEMENT between the lanes. A
+    # node that never becomes a number has nothing for it to compare, so
+    # including it would either be skipped (proving nothing) or force the census
+    # to grow an exception. It is covered by the parity fixture instead, where
+    # the comparison that matters — same answer, same refusal STRING — is the
+    # one being made.
+    assert (set(ast_conformance.CANONICAL_NODE_TYPES)
+            == set(ast_interpret.NODE_TYPES) - set(ast_interpret.BIND_TIME_NODE_TYPES))
+    # ⛔ AND THE SUBTRACTION IS NOT VACUOUS. If `BIND_TIME_NODE_TYPES` were
+    # emptied, the line above would demand the census carry types it cannot
+    # evaluate; if it swallowed a numeric type, the census would quietly stop
+    # measuring one. Both directions are named.
+    assert set(ast_interpret.BIND_TIME_NODE_TYPES) < set(ast_interpret.NODE_TYPES)
+    assert set(ast_interpret.BIND_TIME_NODE_TYPES), "the bind-time subset went empty"
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

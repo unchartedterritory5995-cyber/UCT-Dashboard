@@ -10,6 +10,7 @@
     "lint:css": "stylelint \"src/**/*.css\"",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:engine": "vitest run src/components/chart/engine/",
     "test:watch": "vitest"
   },
   "dependencies": {

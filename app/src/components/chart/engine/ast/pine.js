@@ -112,6 +112,19 @@ import {
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP,
 } from './objectProgram.js'
 
+// ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
+// `symbolScope.json` is a fact about the outside world (our symbol store's
+// exchange spellings on one side, TradingView's on the other), and a fact that
+// can change without any code changing does not belong in code.
+import SYMBOL_SCOPE from './symbolScope.json'
+// ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
+// folds a predicate over two LITERALS at translate time and `bind.js` settles the
+// same predicate over a symbol at bind time — one question, two moments — and two
+// copies of "does an empty needle match" is the second-authority defect this repo
+// keeps paying for. The exchange-witness map lives there too: it is consulted per
+// BINDING, which is not a question a door that runs once per script can answer.
+import { TEXT_PREDICATE_FN } from './bind.js'
+
 // --------------------------------------------------------------------------- //
 // the refusals
 // --------------------------------------------------------------------------- //
@@ -975,6 +988,79 @@ export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
     + 'differently for the same stock on the same day',
 })
 
+/** ⭐⭐ `syminfo.<field>` — THE FOURTH KIND OF DOTTED PINE NAME: constant for
+ *  one BINDING, not for the engine, not for the calendar, and not per bar.
+ *
+ *  The three maps above answer, in order: because of how this engine EVALUATES
+ *  (`barstate.*`), because of what a CALENDAR is (`dayofweek.*`), and because the
+ *  manifest already ships the column under another spelling (`timeframe.*`).
+ *  These answer for a fourth reason: **because a symbol was chosen.** Within one
+ *  binding the value never moves; across bindings it does — which is exactly the
+ *  shape `_bind_time_constants` describes and `fold_bound` resolves.
+ *
+ *  ⛔⛔ THEY ARE TEXT, AND TEXT NEVER REACHES THE RUNTIME. `symtext` is not in
+ *  `interpret.js`'s node switch and must not be: the closed table's value model is
+ *  numbers (booleans as 1/0), and adding a string kind to it would put a second
+ *  value system inside every walk that prices, lints and evaluates a tree. A
+ *  `symtext` node exists ONLY to be folded — `str.contains(syminfo.ticker, "/")`
+ *  becomes 1 or 0 at bind time, and a `symtext` that survives the fold is a
+ *  refusal naming the operand, never a column.
+ *
+ *  ⛔⛔ ALL THREE ARE NAMES HERE; THE VENDOR GATE IS IN THE FOLD, NOT THIS DOOR.
+ *  `syminfo.ticker` is the plain symbol — the string our own store is keyed by — so
+ *  there is no vendor question in it. `tickerid` and `exchange` are TRADINGVIEW
+ *  strings, and a member compares them with `==` and `str.contains`, where a
+ *  plausible-but-unmeasured spelling does not degrade the answer, it INVERTS it.
+ *  ⭐ SO THE GATE IS PER-BINDING AND IT BELONGS WHERE THE SYMBOL IS KNOWN:
+ *  `symbolScope.json::confirmed` names the exchange spellings actually WITNESSED on
+ *  a TradingView chart, and the fold resolves these two only for a symbol whose
+ *  exchange is in it. A door runs once per script and cannot decide a question
+ *  whose answer is "it depends which symbol". It also means a capture turns these
+ *  on with NO CODE CHANGE — built, railed and reachable today, measurement pending. */
+export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
+  'syminfo.ticker': 'ticker',
+  'syminfo.tickerid': 'tickerid',
+  'syminfo.exchange': 'exchange',
+})
+
+/** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
+ *  `symbolScope.json::unserved` so the roster has ONE owner.
+ *
+ *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE FALSE ABOUT ITS OWN NEIGHBOURS. The
+ *  sentence is *"the engine grammar does not hold this name"*, and one line above
+ *  `syminfo.ticker` resolves. A refusal that is false about the name next to it
+ *  teaches a reader to distrust every refusal in the file. */
+export const BUILTIN_SYMBOL_UNSERVED = Object.freeze(Object.fromEntries(
+  Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.unserved) || {})
+    .filter(([k]) => !k.startsWith('_'))
+    .map(([k, why]) => [`syminfo.${k}`, String(why)]),
+))
+
+/** ⭐ THE `str.*` PREDICATES THAT ARE DECIDABLE OVER BIND-TIME TEXT, by arity.
+ *
+ *  ⛔⛔ THIS IS NOT "STRINGS AS VALUES" AND THE LINE IS THE SAME ONE
+ *  `stringValueOf` DRAWS. A string still never becomes a column, never reaches
+ *  `parse.js`, never reaches the interpreter and never reaches a saved
+ *  definition — `resolve` still refuses a bare one at `pine:text-value`. What
+ *  these do is answer a QUESTION about text with a NUMBER: `str.contains` is 1
+ *  or 0, `str.length` is a count. The text is consumed inside the fold and
+ *  nothing textual survives it.
+ *
+ *  ⭐ THEY ARE ADMISSIBLE ONLY BECAUSE BOTH OPERANDS ARE BIND-TIME. A literal is
+ *  fixed when the script is written; `syminfo.*` is fixed when a symbol is
+ *  chosen. Neither moves bar to bar, so the answer is constant for the binding —
+ *  which is what makes it foldable rather than a value kind the engine carries.
+ *
+ *  ⚠️ `str.tostring`, `str.format` and `str.split` are NOT here and must not
+ *  drift in: each PRODUCES text from something else, and a producer is the step
+ *  that would make text a value. These four only consume. */
+export const PINE_TEXT_PREDICATE = Object.freeze({
+  'str.contains': 2,
+  'str.startswith': 2,
+  'str.endswith': 2,
+  'str.length': 1,
+})
+
 /** Pine CALLS that take arguments and are an EXACT expansion in this table's own
  *  vocabulary. The sibling of `BUILTIN_SERIES_TREE`, which holds the zero-argument
  *  ones.
@@ -1261,17 +1347,12 @@ const BUILTIN_RULED = Object.freeze({
     + 'symbol. What has no spelling here is another ticker — a comparison against '
     + 'SPY, a sector proxy, or a relative-strength line — because that needs a '
     + 'second feed rather than a wider vocabulary.',
-  'syminfo.mintick':
-    "It is the symbol's minimum price increment, which differs per symbol and is "
-    + 'not something this engine holds. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — '
-    + '`math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar '
-    + 'whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero '
-    + 'denominator is reported as NOT COMPUTABLE for that symbol rather than '
-    + 'quietly replaced, so write `(close - low) / (high - low)` and a halted, '
-    + 'zero-range bar is left unanswered instead of being scored as though it '
-    + 'closed on its low. ⚠️ That is a REAL difference, not a simplification: '
-    + 'Pine answers 0 on such a bar and this engine answers nothing, which is why '
-    + 'the edit is yours to make rather than one taken silently on your behalf.',
+  // ⚰️ `syminfo.mintick` WAS A ROW HERE AND HAS MOVED, WHOLE, INTO
+  // `symbolScope.json::unserved`. It did not change meaning — what changed is
+  // that Kind 4 gave the `syminfo.*` fields a roster of their own, and leaving a
+  // copy here would have been a SECOND AUTHORITY over one member-facing sentence:
+  // two places to edit, one of which somebody would miss. This map keeps the
+  // names that are not symbol-scoped.
 })
 
 // ⭐ RE-EXPORTED, NOT REDEFINED. The predicate is pure manifest logic and it
@@ -3588,6 +3669,26 @@ export function printFormula(node, parentBp = 0) {
       // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
       // back must be able to see that this one reads the FORMING period.
       return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'str':
+      // ⛔ SINGLE-QUOTED, AND ESCAPED THROUGH JSON. `tf` and `sym` hand-roll
+      // `'${value}'` because a timeframe code and a ticker are both shape-checked
+      // to characters that cannot break out of the quotes. A member's text is
+      // arbitrary — it can contain a quote, a backslash or a newline — so the
+      // escaping has to be real or the round trip is a parse error the member
+      // cannot act on.
+      return `'${JSON.stringify(node.value).slice(1, -1).replace(/'/g, "\\'")}'`
+    case 'symtext':
+      // ⭐ THE FIELD IS QUOTED because it is a FIELD on the node, not an
+      // expression — the same surface `tf` and `sym` use for the same reason.
+      return `syminfo('${node.name}')`
+    case 'textop':
+      // ⭐ `text_eq` RATHER THAN `==`, and deliberately not the operator. `==`
+      // over two numbers is already a canonical `op`, and printing text equality
+      // the same way would give ONE SURFACE TWO MEANINGS decided by what the
+      // operands happen to be — which is exactly the ambiguity a member reading
+      // their own formula back cannot resolve. A distinct spelling says "this
+      // comparison is about text" without anybody having to infer it.
+      return `text_${node.name}(${node.args.map((a) => printFormula(a, 0)).join(', ')})`
     case 'sym':
       // ⭐ THE SEVENTH NODE TYPE, and the TICKER COMES FIRST — `sym('SPY', expr)`
       // — because that is the order this engine's own parser reads, which is in
@@ -4748,6 +4849,40 @@ export class Resolver {
     return null
   }
 
+  /** A node as BIND-TIME TEXT: a `string` node for something already known, or a
+   *  `symtext` node for something a symbol will decide. Null when the node is not
+   *  text at all, so every caller falls through to its ordinary refusal.
+
+   *  ⭐ THE TWO CASES DIFFER IN EXACTLY ONE WAY — WHEN they are known — which is
+   *  why they share a return type. A literal is known now, a `syminfo.*` field is
+   *  known once a symbol is chosen, and the fold is the single pass that treats
+   *  "now" and "at bind time" as the same moment. */
+  textOperandOf(node) {
+    if (!node || typeof node !== 'object') return null
+    const lit = this.stringValueOf(node)
+    if (lit !== null) return { type: 'str', value: lit }
+    // ⚰️ THIS RETURNED NULL FOR AN UNSERVED FIELD AND THE MEMBER GOT THE WRONG
+    // SENTENCE. `str.length(syminfo.mintick)` fell out of the text branch, hit
+    // the `str` namespace guard, and refused *"`str.length`"* — naming the one
+    // part of the line that was fine. The specific refusal has to win: it is the
+    // difference between a member deleting a call they could have kept and a
+    // member reading why the FIELD is unavailable.
+    if (node.type === 'name' && own(BUILTIN_SYMBOL_UNSERVED, node.name)) {
+      throw new PineRefusal('pine:builtin',
+        `\`${node.name}\` is a Pine built-in this engine holds no VALUE for, though it `
+        + `holds its sibling \`syminfo.ticker\`: ${BUILTIN_SYMBOL_UNSERVED[node.name]}`,
+        locate(node.tok))
+    }
+    if (node.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, node.name)) {
+      // ⛔ NOT `this.resolveName(node)` — that would re-run the type and
+      // namespace guards for a name already decided, so a member who had written
+      // `syminfo = 5` would get a confusing refusal from inside a text predicate.
+      // The map is the authority; ask it directly.
+      return { type: 'symtext', name: BUILTIN_SYMBOL_SCOPED[node.name] }
+    }
+    return null
+  }
+
   /** `Point.new(…)` and `p.x` are both a user-defined type showing through, and
    *  saying `pine:builtin` about either would name the wrong thing. A dotted name
    *  whose first segment is a type the script DECLARED, or a local the script
@@ -4893,6 +5028,23 @@ export class Resolver {
             if (right !== null) {
               return cNum(((left === right) === (node.op === '==')) ? 1 : 0)
             }
+          }
+        }
+        // ⭐⭐ ...AND ONE SIDE MAY BE SYMBOL-SCOPED, in which case the answer is a
+        // constant for the BINDING rather than for the script. `syminfo.ticker ==
+        // "SPY"` is not knowable here — no symbol has been chosen — but it is
+        // knowable the moment one is, so it DEFERS into a `textop` the fold
+        // settles, instead of refusing `pine:text-value` for a question that has
+        // a perfectly good answer one step later.
+        // ⛔ BOTH SIDES MUST BE TEXT. A `symtext` compared against a NUMBER is a
+        // script bug, and quietly answering 0 would hide it: `textOperandOf`
+        // returns null for the number and this falls through to the ordinary
+        // refusal, which names the operand.
+        if (node.op === '==' || node.op === '!=') {
+          const lt = this.textOperandOf(node.left)
+          const rt = lt ? this.textOperandOf(node.right) : null
+          if (lt && rt && (lt.type === 'symtext' || rt.type === 'symtext')) {
+            return { type: 'textop', name: node.op === '==' ? 'eq' : 'ne', args: [lt, rt] }
           }
         }
         // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
@@ -5310,6 +5462,28 @@ export class Resolver {
       if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
         return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
       }
+      // ⭐⭐ KIND 4 — SYMBOL-SCOPED, AND TEXT. This is the only place in the
+      // translator that mints a `symtext` node, and it is deliberately a dead end
+      // for everything except the bind-time fold: `interpret.js` has no case for
+      // it, so a `symtext` that survives to evaluation is a refusal rather than a
+      // silently wrong column. `str.contains(syminfo.ticker, "/")` folds to 1 or 0
+      // the moment a symbol is chosen; without a symbol it does not fold and the
+      // check downstream refuses NAMING the operand.
+      if (own(BUILTIN_SYMBOL_SCOPED, name)) {
+        return { type: 'symtext', name: BUILTIN_SYMBOL_SCOPED[name] }
+      }
+      // ⛔ THE RULED FIELDS, EACH WITH ITS OWN SENTENCE. Checked before the
+      // namespace shrug for the same reason `BUILTIN_RULED` is: a name we have
+      // actually thought about gets the thinking. And the prefix is NOT
+      // `REFUSALS['pine:builtin']` — that sentence says the grammar has no home
+      // for the name, which is false three lines above where `syminfo.ticker`
+      // resolves. This is the mistake `barstate.islast` shipped with for weeks.
+      if (own(BUILTIN_SYMBOL_UNSERVED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `\`${name}\` is a Pine built-in this engine holds no VALUE for, though it `
+          + `holds its sibling \`syminfo.ticker\`: ${BUILTIN_SYMBOL_UNSERVED[name]}`,
+          locate(node.tok))
+      }
       // ⭐ A NAME WE HAVE RULED ON GETS THE RULING, checked before the namespace
       // shrug — the same precedence `_functions_excluded` takes over the
       // sixty-four-name dump one layer down.
@@ -5446,7 +5620,7 @@ export class Resolver {
     const text = this.source.slice(keepSpan[0], keepSpan[1]).trim()
     if (!text) return null
     return new PineRefusal('pine:builtin',
-      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_RULED['syminfo.mintick']}`,
+      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_SYMBOL_UNSERVED['syminfo.mintick']}`,
       locate(node.tok), `(${text})`, callSpan)
   }
 
@@ -5673,6 +5847,34 @@ export class Resolver {
       if (!this.shadowedByDefinition(name)) {
         const asTf = this.securityAsNode(node)
         if (asTf) return asTf
+      }
+    }
+    // ⭐⭐ THE TEXT PREDICATES, TRIED BEFORE THE `str` NAMESPACE GUARD and falling
+    // through to it — the shape `request.security` established directly above. A
+    // `str.contains` whose operands are not both bind-time text is NOT a special
+    // case with a message of its own; it is an ordinary `pine:builtin` refusal
+    // naming `str.contains`, which is the true sentence for the shapes this door
+    // does not take.
+    // ⛔ AND IT YIELDS TO A USER DEFINITION OF THE SAME NAME, for the reason the
+    // `security` carve-out records above: consult what the script SAID before
+    // what the table knows.
+    if (own(PINE_TEXT_PREDICATE, name) && !this.shadowedByDefinition(name)) {
+      const want = PINE_TEXT_PREDICATE[name]
+      const raw = (node.args || []).filter((a) => !a.name)
+        .map((a) => (a && a.value !== undefined ? a.value : a))
+      if (raw.length === want) {
+        const parts = raw.map((a) => this.textOperandOf(a))
+        if (parts.every(Boolean)) {
+          const bare = name.slice(4)
+          // ⭐ WHEN NOTHING IS SYMBOL-SCOPED THE ANSWER IS KNOWN RIGHT HERE, and
+          // folding it now keeps the tree free of a node whose value never
+          // depended on the binding — the same judgement `stringValueOf` already
+          // makes for `==` over two literals.
+          if (parts.every((p) => p.type === 'str')) {
+            return cNum(TEXT_PREDICATE_FN[bare](...parts.map((p) => p.value)))
+          }
+          return { type: 'textop', name: bare, args: parts }
+        }
       }
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
