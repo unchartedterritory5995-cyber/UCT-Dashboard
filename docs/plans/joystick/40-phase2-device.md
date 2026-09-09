@@ -113,6 +113,70 @@ name. Re-run in run 3 only if that check can be made to hold; otherwise drop the
 
 ---
 
+## RUN 4 pass A (2026-09-09 05:52) — INCOMPLETE: BrowserStack quota exhausted
+
+⛔ **Three of four devices could not start a session: `Automate testing time expired.`**
+`GET /automate/plan.json` reports `automate_plan: "Free"` with `parallel_sessions_running: 0` —
+so this is the plan's **total Automate minutes** allowance, not a concurrency limit. It is an
+account limit and cannot be worked around from here: run 4 needs either a plan upgrade or the
+quota window to roll over.
+
+Only **iPhone 15 Pro** got a session. Recorded as INCOMPLETE, never as a matrix.
+
+Port guard verified first; **snapshot-compare CLEAN** as the first line and again after.
+
+| Check | iPhone 15 Pro (iOS 17) | SE 3rd · S24 · Pixel 8 |
+|---|---|---|
+| Hub mounts | ✅ | ⛔ no session |
+| Ring 0 — 10/10 | 🔴 **9/10** (miss #1 stayed on `/dashboard`) | ⛔ |
+| **Ring 1 — 10/10** | ✅ **10/10** — first inner-ring pass ever recorded on iOS | ⛔ |
+| Sticky fan 10/10 | 🔴 0/10 | ⛔ |
+| Flick ≥8/10 | 🔴 0/10 | ⛔ |
+| Right-edge swipe → 0 actions | ✅ (and no longer vacuous — the gesture now lands) | ⛔ |
+| Keyboard hides hub | 🔴 threw (stale element) | ⛔ |
+| **`/charts` pad hit-testable** | ✅ **topmost at 0/500/2000/7000 ms AND after a 100px pan** (canvases 15→15) | ⛔ |
+| `/charts` scrim band | ✅ scrim bottom 482px of 659px; clearance 177px | ⛔ |
+| Actions → Feedback → `/support` | ✅ | ⛔ |
+| Toolbar clearance ≥68px | ✅ 68px | ⛔ |
+| Frame rate (relative gate) | ✅ **59.9 fan-open vs 56 idle = 107%** (pass ≥90%) | ⛔ |
+| Role gating — admin sees, member does not | ✅ | ⛔ |
+| Five screenshots | ✅ captured | ⛔ |
+
+Session: `iphone-15-pro` — see `results/iphone-15-pro.json`. Pointer calibration for this
+session measured `{dx: 0, dy: 59}`.
+
+### What this run does settle
+
+- **The `/charts` fix holds on a real device, including through re-composition.** The pad is
+  topmost at every sample **and after a 100px canvas pan** — precisely the case flagged as able
+  to pass every earlier check and still fail for real users. It does not fail.
+- **The iOS transport works.** Ring 1 at 10/10 is the first inner-ring pass ever recorded on
+  iOS; ring 0 reached 9/10.
+- **The relative FPS gate behaves as intended** — 59.9 against a 56 idle baseline measured in
+  the same session.
+
+### Still open on iPhone 15 Pro — and NOT attributed
+
+- **Sticky fan 0/10 and flick 0/10**, while the iPhone SE scores 10/10 on both. Both now run the
+  same calibrated pointer path, so the wheel-bug explanation no longer covers them.
+  ⚠️ **Unexplained. It needs its own trace**, the way the sticky-fan 5/10 did — guessing here is
+  how the previous wrong diagnoses started.
+- **Ring 0 miss #1** — the first iteration stayed on `/dashboard`, the other nine passed. Smells
+  like harness warm-up rather than product, **recorded as a guess, not a finding**.
+- **Keyboard step threw** a stale-element error. It is the last step still using
+  `driver.findElements` + an element handle — the exact pattern deleted everywhere else. Known
+  harness defect.
+
+### Harness defect found this run
+
+**Five screenshots were written to `C:/uct-worktrees/...`, a directory that did not exist.** The
+path walked up three levels from `__dirname`, but the harness lives in `C:/tools/hub-devicetests`,
+which is **not** a sibling of the worktree, so the files landed outside the repo silently. The
+path is now explicit and `HUB_REPO`-overridable, and the captured screenshots have been moved to
+`docs/plans/joystick/screens/phase2/iphone-15-pro/`.
+
+---
+
 ## RUN 2 (2026-09-08 23:40) — VOID. Not a result set.
 
 ⛔ **A SECOND SERVER WAS ON THE TEST PORT FOR PART OF THIS RUN.** At 23:52:03 a concurrent
@@ -635,3 +699,63 @@ keep it moving for the full 5 seconds).
   building custom indicators and is off-limits to this build; log a conflict there,
   never fix it here), goes into `docs/plans/joystick/requests.md`, not into an edit
   of this file's results.
+
+---
+
+## MANUAL SCREEN-READER CHECKLIST — for Patrick, in BrowserStack Live
+
+⛔ **These cannot be automated and are not covered by any row above.** The suite checks the
+Actions button's **accessible name** (`aria-label` ending `" actions"`) and that it reaches
+`/support`. That is not the same claim as "a screen-reader user can operate the hub" — it says
+the label exists, not that the reading order, focus handling and gestures work. Everything below
+is unverified until a human runs it.
+
+Run these in **BrowserStack Live** (not Automate — Live is the interactive one), against the
+same local sandbox through the tunnel.
+
+### A. VoiceOver — iPhone 15 Pro, iOS 17
+
+**Turn it on:** in the Live session, tap the **device settings / gear** icon in the left toolbar
+→ **Accessibility** → **VoiceOver** → On. (If the toolbar has no Accessibility entry on this
+device, use the device itself: **Settings → Accessibility → VoiceOver → On**.)
+
+1. With VoiceOver on, load `/dashboard` and **swipe right** repeatedly from the top of the page
+   until focus reaches the hub. **Record how many swipes it takes** — the hub should be reachable
+   without exhausting the page.
+2. Confirm the Actions button announces as **"&lt;mode&gt; actions"** (e.g. "Home actions") and as a
+   **button**, not as an unlabelled element.
+3. **Double-tap** to activate it. The Actions sheet must open and VoiceOver focus must move
+   **into** the sheet.
+4. Swipe through the sheet and confirm **every action announces its label**, and that a disabled
+   action announces as **dimmed / unavailable** (this is what `aria-disabled` is for — a CSS-only
+   dim would be silent here).
+5. Find **Feedback**, double-tap, and confirm it lands on `/support`.
+6. **Escape gesture** (two-finger Z scrub) and confirm the sheet closes and focus returns
+   somewhere sensible, not to the top of the page.
+7. Confirm the **pad itself is not announced as an interactive control** the user is invited to
+   double-tap — it is a gesture surface, and the Actions sheet is the accessible door to it
+   (spec §C2, the WCAG 2.5.1 single-pointer path).
+8. Turn VoiceOver **off** before ending the session.
+
+### B. TalkBack — Google Pixel 8, Android 14
+
+**Turn it on:** device settings → **Accessibility** → **TalkBack** → On. (On BrowserStack Live,
+the gear icon in the left toolbar exposes the device Settings app.)
+
+1. With TalkBack on, load `/dashboard` and **swipe right** repeatedly until focus reaches the hub.
+   **Record the swipe count.**
+2. Confirm the Actions button announces as **"&lt;mode&gt; actions", button**.
+3. **Double-tap** to activate. The sheet opens; confirm focus moves into it.
+4. Swipe through and confirm **every action announces its label**, and a disabled action
+   announces as **disabled**.
+5. **Feedback → double-tap →** confirm `/support`.
+6. **Back gesture** (swipe down-then-left) closes the sheet; confirm focus is not lost to the top
+   of the page.
+7. Confirm the pad is not presented as a double-tappable control (same reasoning as A7).
+8. Turn TalkBack **off** before ending the session.
+
+### Recording the result
+
+Write **PASS / FAIL / NOTES** per numbered step directly under this checklist, with the device
+and OS version. ⚠️ A step you did not run is **blank**, never a pass — the whole point of this
+section is that the automated rows above cannot speak for it.
