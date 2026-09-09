@@ -142,12 +142,17 @@ Measured 2026-09-09 over all 266 committed scripts, in-process, after the
 could only ever take *itself* down — the process boundary was doing its job, and no
 other script's result was ever hidden behind it.
 
-⛔ **What it did cost was the ability to ask the question at all.** The full census
-now runs in **2.2 seconds in one process**; before, that single file burned 11-35s
-and made an in-process sweep impractical, so every census had to go through the
-fork-per-script runner. The fix bought a fast, honest census — not a higher number,
-and it would have been wrong to expect one: a script that refuses `pine:timeout`
-refused before and refuses now.
+⭐ **What it cost was speed, and it is worth stating that accurately rather than
+dramatically.** The full census now runs in **2.2 seconds in one process**. Before,
+that single file burned 11-35s of it — so a full in-process sweep would have taken
+roughly 14-37s. **Slow, not impossible.** The earlier note here said the hang made
+an in-process census "impractical"; that was an overstatement, and the corrected
+figure is the one to quote. What the fix genuinely bought is a census fast enough to
+re-run without thinking about it, plus a *deterministic* one — see `rails.md` Rule 5
+for the same file returning three different refusals before the bound.
+
+⛔ It bought **no** additional passing scripts, and it would have been wrong to expect
+any: a script that refuses `pine:timeout` refused before and refuses now.
 
 ## (g) How much is Group C actually holding
 
