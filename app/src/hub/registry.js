@@ -481,6 +481,98 @@ export const modes = [
 /** Lookup by id. Built once; the array above stays the single source of order. */
 export const modesById = Object.fromEntries(modes.map((m) => [m.id, m]));
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  PHASE 2.5 — THE PREVIEW PROJECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Is the navigation-only preview in effect?
+ *
+ * ⭐ A PROJECTION OVER THE REGISTRY, NEVER A DESTRUCTIVE EDIT. Phase 3 continues on this same
+ * branch and needs every fan above intact, so the preview narrows what is SHOWN rather than
+ * deleting what is DEFINED. Flip this to `false` when Phase 3 wires the section actions.
+ */
+export const PREVIEW = true;
+
+/**
+ * Home's preview fan (owner ruling, 2026-09-09).
+ *
+ *   outer — Screener · Charts · Flow · Breadth
+ *   inner — Journal · Notebook · Wire · Voice
+ *
+ * ⚠️ Two deliberate differences from the full Home fan above, both owner decisions:
+ * **Wire moves outer -> inner** (`/morning-wire` is a real route; this is placement, not
+ * scope), and **Calendar is dropped from the preview** — still reachable through ordinary nav,
+ * and it returns in Phase 3 with its in-section actions.
+ * **Catalysts is absent because it has no route at all** (Wave 0: an in-place dashboard tile
+ * mode), so it could not be a navigate target even if it were wanted.
+ */
+const PREVIEW_HOME = [
+  { id: 'home.scan', ring: 0 },
+  { id: 'home.chart', ring: 0 },
+  { id: 'home.flow', ring: 0 },
+  { id: 'home.breadth', ring: 0 },
+  { id: 'home.journal', ring: 1 },
+  { id: 'home.notebook', ring: 1 },
+  { id: 'home.wire', ring: 1 },
+  { id: 'home.voice', ring: 1 },
+];
+
+/**
+ * The fan a mode actually shows right now.
+ *
+ * ⛔ AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT. Phase 2 answered `run`/`confirm`
+ * with a "Phase 3" toast; the preview does not ship that. A control that answers a deliberate
+ * gesture with "not yet" teaches the user the product is unfinished — one that is not there
+ * teaches them nothing false.
+ *
+ * Home keeps a real fan; every other mode is `[Voice, Home]` until Phase 3.
+ *
+ * @param {HubMode} mode
+ * @returns {HubAction[]}
+ */
+export function fanFor(mode) {
+  if (!mode) return [];
+  if (!PREVIEW) return mode.fan;
+  if (mode.id === HOME_MODE_ID) {
+    const byId = Object.fromEntries(mode.fan.map((a) => [a.id, a]));
+    return PREVIEW_HOME
+      .filter((p) => byId[p.id])
+      .map((p) => ({ ...byId[p.id], ring: p.ring }));
+  }
+  return mode.fan.filter((a) => a.kind === 'run' || a.kind === 'home')
+    .filter((a) => a.id.endsWith('.voice') || a.kind === 'home');
+}
+
+/**
+ * Preview-scoped rule: **Voice is the only `run` action anywhere in the preview.**
+ *
+ * The preview is sold as navigation-only-plus-Voice. Anything else that DOES something rather
+ * than going somewhere would make that sentence false, and the sentence is what members are
+ * told. Scoped to `PREVIEW` so Phase 3 can add real `run` actions without editing this rule.
+ *
+ * @returns {string[]} problems; empty means valid.
+ */
+export function validatePreview(list = modes) {
+  if (!PREVIEW) return [];
+  const problems = [];
+  for (const mode of list) {
+    for (const action of fanFor(mode)) {
+      if (action.kind === 'run' && !action.id.endsWith('.voice')) {
+        problems.push(
+          `${mode.id}: ${action.id} is kind:"run" but is not Voice — the preview is `
+          + 'navigation-only plus Voice',
+        );
+      }
+      if (action.kind === 'confirm') {
+        problems.push(`${mode.id}: ${action.id} is kind:"confirm"; the preview writes nothing`);
+      }
+    }
+  }
+  return problems;
+}
+
+
 /**
  * The registry's own conscience.
  *

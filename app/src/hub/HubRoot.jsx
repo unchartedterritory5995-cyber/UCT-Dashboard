@@ -24,7 +24,9 @@ import HubFan from './HubFan'
 import HubChip from './HubChip'
 import HubScrim from './HubScrim'
 import HubActionsButton from './HubActionsButton'
-import { modesById } from './registry'
+import HubVoiceBridge from './HubVoiceBridge'
+import HubCoachMark from './HubCoachMark'
+import { modesById, fanFor, PREVIEW } from './registry'
 import { RING_NAMES } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
@@ -59,7 +61,7 @@ function resolveNavTarget(to) {
 function HubShell() {
   const keyboardVisible = useKeyboardVisible()
   const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
-  const { settings } = useHubSettings()
+  const { settings, updateHubSettings } = useHubSettings()
   const {
     mode, activeModeConfig, symbol, timeframe, activeScan, selectedPosition,
     chartRef, livePrice, isStreaming, lastSection,
@@ -69,7 +71,11 @@ function HubShell() {
   const [toastMsg, setToastMsg] = useJournalToast()
 
   const mirrored = settings.handedness === 'left'
-  const fan = activeModeConfig?.fan ?? []
+  // ⛔ THE PREVIEW PROJECTION, not `mode.fan`. Phase 2.5 ships navigation-only plus Voice, so
+  // an unwired action is ABSENT rather than present-and-inert — no "Phase 3" toast on a
+  // deliberate gesture. `fanFor` is a view over the registry; Phase 3 flips `PREVIEW` and every
+  // full fan returns untouched. See registry.js.
+  const fan = fanFor(activeModeConfig)
 
   // The context object every mode's onTap/onDoubleTap/onScrub/onScrubCommit is
   // called with (registry.js's HubMode JSDoc) — Part C4's shared cross-section
@@ -96,7 +102,19 @@ function HubShell() {
     if (!action) return
     if (action.kind === 'home') { goHome(); return }
     if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
-    setToastMsg('Phase 3')
+    if (action.kind === 'run' && action.id.endsWith('.voice')) {
+      voiceConnectRef.current?.('compass')
+      return
+    }
+    // ⛔ UNREACHABLE IN THE PREVIEW, AND THAT IS THE POINT. `fanFor` shows only navigate,
+    // Voice and Home, so nothing can reach here; `validatePreview` fails the build if a
+    // `run`/`confirm` action ever appears in a preview fan. The Phase-2 "Phase 3" toast is
+    // deliberately gone — a control that answers a gesture with "not yet" teaches the member
+    // the product is unfinished.
+    if (import.meta.env?.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn('[hub] preview reached an unwired action:', action.id)
+    }
   }, [goHome, navigate, setToastMsg])
 
   // DEVICE-TEST HOOK (Phase 2 device suite). Records which action actually fired
@@ -110,6 +128,9 @@ function HubShell() {
   // of the gesture it measures is not an instrument. React never reconciles this
   // attribute because no JSX prop declares it.
   const rootRef = useRef(null)
+  // Filled by HubVoiceBridge only while a VoiceProvider is mounted; null elsewhere, so the
+  // Voice action no-ops on a route with no voice rather than throwing.
+  const voiceConnectRef = useRef(null)
   const fireResolved = useCallback((resolved) => {
     rootRef.current?.setAttribute('data-hub-last-action', resolved?.action?.id ?? '')
     runAction(resolved?.action)
@@ -140,6 +161,28 @@ function HubShell() {
     onScrubCommit: handleScrubCommit,
     onHome: goHome,
   })
+
+  // The coach mark dismisses itself the first time the fan actually opens — see HubCoachMark.
+  const usedRef = useRef(false)
+  if (state.open) usedRef.current = true
+
+  const dismissCoachMark = useCallback(() => (
+    updateHubSettings((cur) => (cur.coachMarkSeen ? undefined : { ...cur, coachMarkSeen: true }))
+  ), [updateHubSettings])
+
+  /**
+   * "Hide joystick" — the member's opt-out (Phase 2.5 Step 2; present for admins in Step 1 so
+   * the path is exercised before members ever see it).
+   *
+   * ⚠️ Until Phase 4 ships the Settings toggle there are exactly TWO ways back: an admin flips
+   * this member's stored preference, or the member clears it. Both are documented in
+   * 45-phase2.5-plan.md, because a member told only "soon" with no path is a support ticket
+   * nobody can close — which is why the toast names Settings rather than promising a date.
+   */
+  const hideHub = useCallback(() => {
+    setToastMsg('Hidden. Re-enable in Settings soon')
+    updateHubSettings((cur) => ({ ...cur, enabled: false }))
+  }, [setToastMsg, updateHubSettings])
 
   const hidden = keyboardVisible || viewportHidden
   const selectedId = state.target?.action?.id ?? null
@@ -197,6 +240,13 @@ function HubShell() {
         zIndex: state.open ? 'var(--z-hub-open)' : 'var(--z-hub-rest)',
       }}
     >
+      <HubVoiceBridge connectRef={voiceConnectRef} />
+      <HubCoachMark
+        show={PREVIEW && !settings.coachMarkSeen}
+        used={usedRef.current}
+        mirrored={mirrored}
+        onDismiss={dismissCoachMark}
+      />
       <HubScrim
         open={state.open}
         excludeBottom={scrimExcludeBottom}
@@ -225,7 +275,9 @@ function HubShell() {
           stays null (HubChip falls back to the literal "Scrub" while scrubbing). */}
       <HubChip
         label={activeModeConfig?.label}
-        tapHint={activeModeConfig?.tapHint}
+        // Preview chip hint (Phase 2.5): the mode name still leads, but the hint says what
+        // this build IS rather than what tap does — most taps do nothing until Phase 3.
+        tapHint={PREVIEW ? 'Preview — more coming' : activeModeConfig?.tapHint}
         scrubbing={state.scrubbing}
         scrubReadout={null}
         open={state.open}
@@ -242,12 +294,13 @@ function HubShell() {
           so navigating there keeps the capability whole without reaching into that
           component's internals. Phase 4 can restore the richer in-place form. */}
       <HubActionsButton
+        onHide={hideHub}
         mode={activeModeConfig?.label}
         actions={fan}
         mirrored={mirrored}
         disabledIds={disabledIds}
         onAction={runAction}
-        onFeedback={() => navigate('/support')}
+        onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
       />
       <JournalToast msg={toastMsg} />
     </div>

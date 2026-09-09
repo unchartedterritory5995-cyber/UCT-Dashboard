@@ -243,47 +243,53 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
-  it('a run action ("Flag") fires the exact "Phase 3" toast and calls fetch zero times', async () => {
-    const { wedgeAngles } = await import('./fanGeometry')
-    const { modesById } = await import('./registry')
+  // ⚰️ TWO TESTS USED TO LIVE HERE asserting that a `run` action ("Flag") and a `confirm`
+  // action ("Alert") each fired the exact string "Phase 3" as a toast. Phase 2.5 DELETED that
+  // toast on purpose: an unwired action is now ABSENT from the fan, not present-and-inert,
+  // because a control that answers a deliberate gesture with "not yet" teaches the member the
+  // product is unfinished.
+  //
+  // ⭐ The replacement asserts something STRONGER than the toast ever did. The old tests proved
+  // the action could be reached and said nothing useful; these prove it CANNOT be reached, on
+  // every mode at once, which is the actual product claim being shipped.
+  it('the preview fan contains NO run action except Voice, and no confirm action at all', async () => {
+    const { modes, fanFor, validatePreview } = await import('./registry')
 
-    await renderHub('/morning-wire')
-
-    const outer = modesById.wire.fan.filter((a) => a.ring === 0)
-    const angles = wedgeAngles(outer.length)
-    const idx = outer.findIndex((a) => a.id === 'wire.flag')
-    expect(outer[idx].kind).toBe('run')
-    const { dx, dy } = vecAtAngle(30, angles[idx])
-
-    const pad = screen.getByTestId('mock-hub-pad')
-    fireEvent.pointerDown(pad, { clientX: 0, clientY: 0, pointerId: 1 })
-    fireEvent.pointerMove(pad, { clientX: dx, clientY: dy, pointerId: 1 })
-    fireEvent.pointerUp(pad, { clientX: dx, clientY: dy, pointerId: 1 })
-
-    expect(screen.getByRole('status').textContent).toBe('Phase 3')
-    expect(screen.getByTestId('loc').textContent).toBe('/morning-wire') // no navigation
-    expect(global.fetch).not.toHaveBeenCalled()
+    const offenders = []
+    for (const mode of modes) {
+      for (const action of fanFor(mode)) {
+        if (action.kind === 'confirm') offenders.push(`${mode.id}/${action.id} confirm`)
+        if (action.kind === 'run' && !action.id.endsWith('.voice')) {
+          offenders.push(`${mode.id}/${action.id} run`)
+        }
+      }
+    }
+    expect(offenders, 'the preview is navigation-only plus Voice').toEqual([])
+    expect(validatePreview()).toEqual([])
   })
 
-  it('a confirm action ("Alert") ALSO fires the "Phase 3" toast and writes nothing (scan mode)', async () => {
-    const { wedgeAngles } = await import('./fanGeometry')
-    const { modesById } = await import('./registry')
+  it('the actions the toast used to cover are genuinely GONE from their fans', async () => {
+    const { modesById, fanFor } = await import('./registry')
 
-    await renderHub('/screener')
+    // Both are still DEFINED in the registry — Phase 3 needs them — and neither is shown.
+    expect(modesById.wire.fan.some((a) => a.id === 'wire.flag')).toBe(true)
+    expect(modesById.scan.fan.some((a) => a.id === 'scan.alert')).toBe(true)
 
-    const outer = modesById.scan.fan.filter((a) => a.ring === 0)
-    const angles = wedgeAngles(outer.length)
-    const idx = outer.findIndex((a) => a.id === 'scan.alert')
-    expect(outer[idx].kind).toBe('confirm')
-    const { dx, dy } = vecAtAngle(30, angles[idx])
+    expect(fanFor(modesById.wire).some((a) => a.id === 'wire.flag')).toBe(false)
+    expect(fanFor(modesById.scan).some((a) => a.id === 'scan.alert')).toBe(false)
+  })
 
-    const pad = screen.getByTestId('mock-hub-pad')
-    fireEvent.pointerDown(pad, { clientX: 0, clientY: 0, pointerId: 1 })
-    fireEvent.pointerMove(pad, { clientX: dx, clientY: dy, pointerId: 1 })
-    fireEvent.pointerUp(pad, { clientX: dx, clientY: dy, pointerId: 1 })
-
-    expect(screen.getByRole('status').textContent).toBe('Phase 3')
-    expect(global.fetch).not.toHaveBeenCalled()
+  it('every non-Home preview fan is exactly [Voice, Home]', async () => {
+    const { modes, fanFor, HOME_MODE_ID } = await import('./registry')
+    for (const mode of modes) {
+      if (mode.id === HOME_MODE_ID) continue
+      const ids = fanFor(mode).map((a) => a.id)
+      expect(ids.length, `${mode.id} preview fan: ${ids.join(', ')}`).toBeLessThanOrEqual(2)
+      for (const id of ids) {
+        expect(id.endsWith('.voice') || id.endsWith('.home'),
+          `${mode.id} shows ${id} in the preview`).toBe(true)
+      }
+    }
   })
 
   it('a hold (no drag) navigates Home to /dashboard', async () => {

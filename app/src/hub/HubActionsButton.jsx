@@ -61,6 +61,7 @@ export default function HubActionsButton({
   disabledReason,
   onAction,
   onFeedback,
+  onHide,
 }) {
   const [open, setOpen] = useState(false)
   const label = `${mode} actions`
@@ -82,6 +83,11 @@ export default function HubActionsButton({
   const handleFeedback = () => {
     setOpen(false)
     onFeedback?.()
+  }
+
+  const handleHide = () => {
+    setOpen(false)
+    onHide?.()
   }
 
   return (
@@ -127,6 +133,17 @@ export default function HubActionsButton({
               <span>Feedback</span>
             </button>
           </li>
+          {onHide ? (
+            <li role="listitem" className={styles.actionListItem}>
+              {/* The member's opt-out. It lives in the SHEET, not on the pad, because it must
+                  be reachable by a screen-reader user and by anyone who cannot perform the
+                  drag — the same WCAG 2.5.1 single-pointer path every other action uses. */}
+              <button type="button" className={styles.actionListButton} onClick={handleHide}>
+                <UIcon name="moveStop" size={18} />
+                <span>Hide joystick</span>
+              </button>
+            </li>
+          ) : null}
         </ul>
       </Sheet>
     </>

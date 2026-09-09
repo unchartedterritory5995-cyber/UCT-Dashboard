@@ -626,7 +626,12 @@ export default function Support() {
 
   // New ticket form
   const [category, setCategory] = useState('bug')
-  const [subject, setSubject] = useState('')
+  // ⭐ `?prefill=` seeds a NEW ticket's subject, and exists for one reason: the joystick-hub
+  // preview's Actions sheet sends feedback here, and those tickets need the `[joystick preview]`
+  // tag to be triageable without asking the reporter to type it. Read-only, additive, and
+  // ignored by every other entry point — a link without the param behaves exactly as before.
+  const prefill = searchParams.get('prefill') || ''
+  const [subject, setSubject] = useState(prefill)
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [urgent, setUrgent] = useState(false)
