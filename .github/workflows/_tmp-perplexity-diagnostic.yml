@@ -7,6 +7,9 @@ name: Perplexity spike diagnostic (temporary)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/_tmp-perplexity-diagnostic.yml'
 
 jobs:
   probe:
