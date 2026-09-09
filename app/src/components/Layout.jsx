@@ -5,6 +5,9 @@ import MobileNav from './MobileNav'
 import CommandPalette from './CommandPalette'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
+import HubRoot from '../hub/HubRoot'
+import useHubActive from '../hub/useHubActive'
+import { HubProvider } from '../hub/HubContext'
 import MoreSheet from './mobile/MoreSheet'
 import { MoreSheetContext } from './mobile/MoreSheetContext'
 import { TickerHubProvider } from './mobile/TickerHubContext'
@@ -91,6 +94,12 @@ export default function Layout({ children }) {
   const paletteRef = useRef(null)
   const openPalette = () => paletteRef.current?.open()
 
+  // Spec §2 exception (a): whether the hub will actually be showing — the
+  // ONE authority for that question lives in `hub/useHubActive.js`,
+  // which already requires (max-width:1023px) and (pointer:coarse), so this
+  // single read already means "hub enabled AND the viewport is touch."
+  const hubActive = useHubActive()
+
   return (
     <TickerHubProvider>
       <MoreSheetContext.Provider value={openMore}>
@@ -104,32 +113,53 @@ export default function Layout({ children }) {
               the phone chart shell — which hides this top bar — carries its
               own Menu trigger in the symbol strip via MoreSheetContext. */}
           <MobileNav onMenu={openMore} onOpenPalette={openPalette} />
-          <main className={styles.main}>
-            {/* ⭐ The app's route-level <Suspense> in App.jsx wraps the WHOLE
-                <Routes>, so a section whose chunk is not resolved yet unmounts
-                the ENTIRE shell — this nav, the header, everything — behind the
-                full-screen "Loading page" splash. That is what members feel as
-                the app "reloading" when they switch sections, and it was never
-                specific to one page: measured on prod 2026-09-07, entering
-                /uct-20 held it 878 ms and /options-flow 1,235 ms.
+          {/* HubProvider wraps <main> (not just HubRoot): Phase 3 section
+              controllers call useHubMode()/useHubCursor() from INSIDE the
+              pages <main> renders, and the hub cannot own an index into a
+              list it cannot see (spec §2 exception (b)). Purely a context
+              provider — no DOM node of its own — so wrapping it here changes
+              nothing about what renders below when the hub is off. */}
+          <HubProvider>
+            <main className={styles.main}>
+              {/* ⭐ The app's route-level <Suspense> in App.jsx wraps the WHOLE
+                  <Routes>, so a section whose chunk is not resolved yet unmounts
+                  the ENTIRE shell — this nav, the header, everything — behind the
+                  full-screen "Loading page" splash. That is what members feel as
+                  the app "reloading" when they switch sections, and it was never
+                  specific to one page: measured on prod 2026-09-07, entering
+                  /uct-20 held it 878 ms and /options-flow 1,235 ms.
 
-                This boundary sits NEARER the suspending route, so React uses it
-                first and the chrome stays on screen — only the content area
-                swaps, which is what every already-visited section already felt
-                like. Keep it INSIDE <main> for that reason; hoisting it above
-                the nav would restore the old behaviour.
+                  This boundary sits NEARER the suspending route, so React uses it
+                  first and the chrome stays on screen — only the content area
+                  swaps, which is what every already-visited section already felt
+                  like. Keep it INSIDE <main> for that reason; hoisting it above
+                  the nav would restore the old behaviour.
 
-                Rail: components/Layout.routeSuspense.test.jsx. */}
-            <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
-              {children ?? <Outlet />}
-            </Suspense>
-          </main>
-          {/* Backdrop dim behind the desktop nav while it is hovered-open, so the
-              expanded rail reads as a DRAWER over the page (content clearly behind
-              it) instead of the panel edge "cutting off" the page title/content.
-              Driven purely by CSS `:has(nav:hover)` — see Layout.module.css. */}
-          <div className={styles.navScrim} aria-hidden="true" />
-          <FeedbackWidget />
+                  Rail: components/Layout.routeSuspense.test.jsx. */}
+              <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
+                {children ?? <Outlet />}
+              </Suspense>
+            </main>
+            {/* Backdrop dim behind the desktop nav while it is hovered-open, so the
+                expanded rail reads as a DRAWER over the page (content clearly behind
+                it) instead of the panel edge "cutting off" the page title/content.
+                Driven purely by CSS `:has(nav:hover)` — see Layout.module.css. */}
+            <div className={styles.navScrim} aria-hidden="true" />
+            {/* Spec §2 exception (a): on a touch viewport with the hub enabled,
+                the hub IS the corner (§2c) — Voice and Feedback fold into it
+                instead of floating separately. Only the MOUNT CONDITION
+                changes here; FeedbackWidget's own internals are untouched.
+                Desktop / hub-disabled: `hubActive` is false, so this renders
+                exactly as before.
+                ⚠️ FloatingOrb (`components/voice/FloatingOrb.jsx`) is NOT
+                reachable from Layout to gate the same way — it mounts from
+                `GlobalVoiceLayer` as a SIBLING of the route tree in App.jsx
+                (`<GlobalVoiceGate/>`), never a descendant of `<Layout/>`.
+                Gating it would mean editing App.jsx or FloatingOrb.jsx, both
+                outside this file's scope — see the Wiring engineer's report. */}
+            {!hubActive && <FeedbackWidget />}
+            <HubRoot />
+          </HubProvider>
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
           <CommandPalette ref={paletteRef} />

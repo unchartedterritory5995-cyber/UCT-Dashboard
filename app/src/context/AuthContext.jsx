@@ -12,6 +12,12 @@ export function AuthProvider({ children }) {
   const [trial, setTrial] = useState(null)
   // Whether an annual Stripe price is configured (pricing page honest copy).
   const [annualAvailable, setAnnualAvailable] = useState(false)
+  // Joystick hub preview kill switch, read per request by the backend and carried
+  // on every auth payload (see api/routers/auth.py::_access_payload).
+  // ⛔ DEFAULTS TRUE. A backend too old to send the field, or a payload that failed
+  // to parse, must not silently hide a shipped feature — only an explicit `false`
+  // from the server kills it. `=== false` below, never a truthiness test.
+  const [hubPreviewEnabled, setHubPreviewEnabled] = useState(true)
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
   // (5xx, or the fetch itself threw) must never read as "logged out" — only a
@@ -49,6 +55,7 @@ export function AuthProvider({ children }) {
         setSubscription(data.subscription || null)
         setTrial(data.trial || null)
         setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+        setHubPreviewEnabled(data.hub_preview_enabled !== false)
         setAuthTransient(false)
         return { plan: data.plan, role: data.user?.role }
       } else if (res.status >= 500) {
@@ -90,6 +97,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    setHubPreviewEnabled(data.hub_preview_enabled !== false)
     return data
   }
 
@@ -112,6 +120,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    setHubPreviewEnabled(data.hub_preview_enabled !== false)
     return data
   }
 
@@ -132,6 +141,7 @@ export function AuthProvider({ children }) {
     setPlan(data.plan)
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
+    setHubPreviewEnabled(data.hub_preview_enabled !== false)
     return data
   }
 
@@ -173,7 +183,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
