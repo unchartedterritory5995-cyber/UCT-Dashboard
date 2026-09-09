@@ -3799,6 +3799,25 @@ export const PINE_TRANSLATE_BUDGET_MS = 10000
  */
 export const PINE_TRANSLATE_MAX_STEPS = 5000000
 
+/** ⭐⭐ THE THIRD LIMB OF `pine:timeout`, AND IT FIXES A CORRECTNESS BUG RATHER
+ *  THAN A SLOW SCRIPT. Resolution recurses, and on a published Parabolic SAR it
+ *  recursed 1,281 deep and blew the JavaScript stack — a `RangeError: Maximum
+ *  call stack size exceeded` that a `catch` upstream swallowed and retried,
+ *  1,117,654 times in a single translation. That is the hang, measured.
+ *
+ *  ⛔⛔ THE DEFECT IS NOT THE TIME, IT IS WHAT THE ANSWER DEPENDED ON. With the
+ *  overflow swallowed, what this door replies was a function of the HOST'S STACK
+ *  SIZE — node version, `--stack-size`, how deep the caller already was — and not
+ *  of the member's script. The same file could translate here and refuse on a
+ *  colleague's machine, and neither run would say why. A bound stated in the
+ *  engine makes the answer a property of the script again.
+ *
+ *  ⭐ 20x THE MEASURED MAXIMUM, the same convention as the clock and the step cap.
+ *  Deepest legitimate resolution across the 51 published scripts in both corpora
+ *  is 20 (`07-rsi`); every other script sits at 8-10. So 400 is far above any real
+ *  script and far below where the host stack actually breaks. */
+export const PINE_TRANSLATE_MAX_DEPTH = 400
+
 /**
  * ⭐⭐ THE SAME DEADLINE, REACHABLE FROM THE NON-CLASS HELPERS.
  *
@@ -3929,6 +3948,19 @@ export class Resolver {
     this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
     this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
     this.budgetSteps = 0
+    /** Current and peak resolution nesting. See `PINE_TRANSLATE_MAX_DEPTH`. */
+    this.depth = 0
+    this.peakDepth = 0
+    this.maxDepth = Number.isFinite(opts.maxDepth) ? opts.maxDepth : PINE_TRANSLATE_MAX_DEPTH
+    /** ⛔ STICKY, AND PER RESOLVER ON PURPOSE. The depth refusal is swallowed by
+     *  the same `catch` that swallowed the stack overflow, and the caller then
+     *  tries a different expansion — which is why bounding the depth ALONE left the
+     *  SAR file at 11.3s instead of 28ms. Once a resolver has hit the bound it has
+     *  PROVEN it cannot expand this tree, so every later question gets the same
+     *  answer at once rather than re-descending 400 levels to rediscover it.
+     *  Scoped to the Resolver, not the script, so one unexpandable output cannot
+     *  refuse the others: `translatePine` builds one Resolver per output. */
+    this.depthTripped = false
     /** Argument bindings, one frame per user-function call in flight. */
     this.frames = []
     this.usedInputs = new Map()
@@ -4047,6 +4079,26 @@ export class Resolver {
   }
 
   resolveBinding(bound, tok, name) {
+    // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
+    // frame that still has stack left to build it — a guard that overflows while
+    // reporting an overflow reports nothing at all.
+    if (bound && this.maxDepth > 0 && (this.depthTripped || this.depth >= this.maxDepth)) {
+      this.depthTripped = true
+      throw new PineRefusal('pine:timeout',
+        `${REFUSALS['pine:timeout']} — resolving \`${name || 'an expression'}\` nested past `
+        + `${this.maxDepth} levels${this.sourcePath ? ` in ${this.sourcePath}` : ''}. `
+        + 'That is a translator defect, not a limit on the script: this door expands a '
+        + 'variable by re-reading its definition, and a definition that reaches its own '
+        + 'previous bar can be re-entered without end. The deepest legitimate script '
+        + 'measured needs 20 levels.',
+        locate(tok))
+    }
+    this.depth += 1
+    if (this.depth > this.peakDepth) this.peakDepth = this.depth
+    try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
+  }
+
+  resolveBindingInner(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
       // is not a name the member failed to define.
@@ -8969,7 +9021,7 @@ export function translatePine(source, opts = {}) {
         strict: opts.strict === true,
         // ⭐ THE BUDGET REACHES BOTH RESOLVERS OR IT PROTECTS NEITHER. The object
         // pass below builds its own, and a hang there is just as fatal.
-        budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, sourcePath: opts.sourcePath })
+        budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -9191,7 +9243,7 @@ export function translatePine(source, opts = {}) {
       const r = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
           strict: opts.strict === true,
-          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, sourcePath: opts.sourcePath })
+          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
       // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns
       // `input.int(5, "Offset")` from a welded literal into an identifier the
