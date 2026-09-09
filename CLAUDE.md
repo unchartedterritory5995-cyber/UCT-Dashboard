@@ -1081,6 +1081,16 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
+⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**
+`git worktree add` copies tracked files only, and `node_modules` is gitignored, so `npx vitest`
+in a new worktree fails at config load (`Cannot find package 'vite'`) — a startup error, not a
+test result. Every "green" reported before that install is meaningless. If you need to run a
+suite against a *second* checkout (e.g. an origin/master baseline for a reachability diff), a
+directory junction to an installed `node_modules` is enough:
+`New-Item -ItemType Junction -Path <new>\app\node_modules -Target <existing>\app\node_modules`
+— and **delete the junction with `cmd /c rmdir` BEFORE `git worktree remove`**, or the remove
+walks through it and deletes the real one.
+
 ## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
 
 **`/data` exists as `C:\data` on the dev machine, so every product path that

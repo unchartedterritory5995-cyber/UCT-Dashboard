@@ -741,12 +741,24 @@
 }
 
 /* "Back to live" chip (the `showGoLive` prop — phone/tablet chart shell).
-   40px round tap target floated just left of the price axis (76px minimum
-   axis width + gap) and above the time axis; palette mirrors the
-   originLoading pill so overlay chrome reads as one family. */
+   40px round tap target above the time axis; palette mirrors the
+   originLoading pill so overlay chrome reads as one family.
+
+   ⛔ `right` is 118px, NOT the 86px this chip was born with. 86px put it just
+   left of the price axis (76px minimum axis width + gap) — a good reason, and
+   a superseded one: the joystick hub's 84px pad now occupies
+   `right: 24px … 108px`, and at 86px this chip's box overlapped the hub's by
+   20px horizontally and 2–7px vertically (growing with the safe-area inset).
+   Thin on paper; a fingertip is an order of magnitude larger than a 2px gap.
+   Spec §2c is explicit that in this collision THE CHIP MOVES, NOT THE HUB —
+   the hub must clear the home indicator and the chart toolbar, and has
+   nowhere left to go. 118px leaves 10px of clearance.
+   Rail: `app/src/hub/hubChipCollision.test.js` asserts the two hit rects never
+   intersect at 375px and 430px, because these are two independent numbers in
+   two files that will otherwise drift apart. */
 .goLivePill {
   position: absolute;
-  right: 86px;
+  right: 118px;
   /* Above the FAB band: the phone shell raises the voice-orb cluster and the
      feedback "?" over the chart toolbar (html[data-mobile-chart-shell]), and
      their row sweeps the chart's bottom ~90px — a pill parked at bottom: 42px

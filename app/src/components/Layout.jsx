@@ -5,6 +5,7 @@ import MobileNav from './MobileNav'
 import CommandPalette from './CommandPalette'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
+import HubRoot from '../hub/HubRoot'
 import MoreSheet from './mobile/MoreSheet'
 import { MoreSheetContext } from './mobile/MoreSheetContext'
 import { TickerHubProvider } from './mobile/TickerHubContext'
@@ -130,6 +131,9 @@ export default function Layout({ children }) {
               Driven purely by CSS `:has(nav:hover)` — see Layout.module.css. */}
           <div className={styles.navScrim} aria-hidden="true" />
           <FeedbackWidget />
+          {/* Joystick hub — Phase 1 mount only (empty container, gated off by
+              default). See docs/plans/joystick/00-master-spec-v1.3.md §2c. */}
+          <HubRoot />
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
           <TickerHubSheet />
           <CommandPalette ref={paletteRef} />
