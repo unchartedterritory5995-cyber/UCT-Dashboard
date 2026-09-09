@@ -135,11 +135,36 @@ regular session and may read `true` for up to one session on a holiday or early 
 carry a standing instruction to refresh annually from `nyse.com/markets/hours-calendars`; this
 page is a second consumer of that instruction.
 
-### Extended hours
+### Extended hours — RE-MEASURED 2026-09-09, and this section was wrong twice
 
-The bars pipeline delivers regular-session bars. That is an **assumption with a test**, not a
-belief: if extended-hours bars ever appear, the session-boundary logic is wrong, and the test
-that pins it fails loudly on that day rather than silently mis-flagging the newest bar.
+⛔ This page used to say *"The bars pipeline delivers regular-session bars. That is an
+**assumption with a test**."* **Both halves were false.** The assumption is wrong, and the test
+it leaned on for safety does not exist — `pine.barstate.test.js` contains no assertion about
+sessions, extended hours, holidays or early closes. The sentence justified accepting an
+assumption by naming a safety net that was never built.
+
+Read from the code instead of from belief:
+
+- **Intraday fetches DO carry extended-hours prints.** `bars_fetch._fetch_intraday_yfinance`
+  asks `prepost=True` — *"Include premarket (4-9:30 AM) + after-hours (4-8 PM)"*. The
+  serve-time filter keeps them deliberately: *"Zero volume is legitimate (illiquid /
+  extended-hours) and is kept."* The freshness gate names 04:00–20:00 ET as the window where
+  *"extended-hours and RTH coexist"*.
+- **Daily and above do NOT.** `prepost=True` occurs at exactly one site in the repo, and it
+  reads `_YF_CONFIG`, which is intraday-only (`1/5/15/30/60`). The daily path passes no
+  `prepost`; the only other site in the tree, `api/index_bars.py`, passes `prepost=False`.
+
+**The formulas survive; their justification does not.** Intraday is `bar_open + interval`
+because interval arithmetic is indifferent to session — **not** because the regular session was
+open. D/W/M may keep a scheduled close on the ET calendar because no extended-hours print ever
+forms a daily bar in this pipeline.
+
+⛔ **Never restate the regular-session premise.** It is a wrong reason for a right answer, and
+the next person to lean on it will lean on it somewhere it does not hold.
+
+⭐⭐ Reached independently by `worktree-indicator-ecosystem` at `ae2ed68ec` — from a
+measurement, while this branch reached the opposite from an assumption. On this point theirs is
+the one to trust, and this correction adopts it.
 
 ---
 

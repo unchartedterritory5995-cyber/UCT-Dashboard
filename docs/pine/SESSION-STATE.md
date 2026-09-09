@@ -221,11 +221,56 @@ Assessed with `merge --no-commit` and then **aborted**, so the tree is clean at 
 ⛔ A half-resolved merge left across a machine restart is the worst possible state; the merge
 wants a session that can finish it.
 
+## ✅ RESOLVED 2026-09-09 (post-restart) — the calendar question, settled on evidence
+
+Steps 1 and 2 below are **done**. Measured in the code, not assumed, and it moved **both**
+branches.
+
+**Extended hours — theirs is right, mine was wrong, and mine was wrong twice.**
+Extended-hours prints **do** reach a fetch, but **only an intraday one**:
+`bars_fetch._fetch_intraday_yfinance` asks `prepost=True`, the serve-time filter keeps those
+prints on purpose (*"Zero volume is legitimate (illiquid / extended-hours) and is kept"*), and
+the freshness gate names 04:00–20:00 ET as the window where *"extended-hours and RTH coexist"*.
+**D/W/M do not carry them** — the single `prepost=True` site reads `_YF_CONFIG`, which is
+intraday-only, the daily path passes no `prepost`, and `api/index_bars.py` passes `False`.
+
+⛔ **Worse than the wrong premise:** `barstate.md` called it *"an assumption with a test"* and
+**there is no such test** — `pine.barstate.test.js` asserts nothing about sessions, hours,
+holidays or early closes. A safety net was cited as the reason to accept an assumption and was
+never built. Corrected on this branch; the false sentence is gone.
+
+**Consequence is bounded — no number changes.** Intraday `bar_open + interval` is right for a
+different reason than the doc gave, and the D/W/M scheduled close survives intact.
+
+**Early closes — MINE is right and THEIR commit message is factually wrong for this repo.**
+`ae2ed68ec` ships *"Gap 1 — early closes are not known"*, reasoning from `bars_fetch`'s comment
+that half-days are *"intentionally NOT"* in **that** set. True of that set; false of the repo.
+`liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD` (line 84) is a real frozenset —
+`20250703, 20251128, 20251224, 20261127, 20261224, 20271126` — with **five** consumers
+(`flow_gap_autofill`, `voice_temporal_awareness`, `liveflow_monitor` ×2, and the parity test
+`tests/test_nyse_calendar_parity.py`), and `indicator_compute.py:1514` already names it the ONE
+authority. ⭐ **So their `barstate.test.js` asserts a defect that does not need to exist**, and
+their Gap 1 closes outright on merge.
+
+### What the merge should therefore produce — strictly better than either branch
+
+| take | from | why |
+|---|---|---|
+| intraday reasoning + the extended-hours test | **theirs** | measured; mine reached the same formula from a false premise |
+| the early-close set, wired in | **mine** | it exists, has five readers and a parity test — closes their Gap 1 |
+| closure set handed in as a parameter (their Gap 2) | **theirs** | correct, and it honours the calendar-must-not-enter-JS rule |
+| `barstateStability.test.js`, the `divergences.json` row, the `pine:window-dependent` guard, both rail-tightenings | **mine** | theirs lacks all four |
+
+⛔ **Still NOT merged** — 16 files, and it wants one uninterrupted session. Nothing above has
+been applied to the merge; only `barstate.md` on this branch was corrected.
+
+---
+
 ## What resume should do, in order
 
-1. **Do not blind-merge.** Read `ae2ed68ec` in full first. The conflicts are two correct
+1. ✅ **DONE — do not blind-merge.** Read `ae2ed68ec` in full first. The conflicts are two correct
    implementations of one ruling, not a mistake to be resolved mechanically.
-2. **Settle the calendar question on evidence, not on whose branch it is.** Re-measure whether
+2. ✅ **DONE — settled on evidence; see the RESOLVED block above.** Re-measure whether
    extended-hours bars reach a fetch. That answer decides the scheduled-close logic and it is
    the only place the two versions genuinely disagree about behaviour.
 3. Decide which implementation survives — probably theirs for the calendar half, since it was
