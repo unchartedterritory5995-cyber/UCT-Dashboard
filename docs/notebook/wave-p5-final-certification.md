@@ -726,3 +726,149 @@ every size, every user, every concurrency or every language.
   as *populate*). Present on `origin/master` before this merge, from another
   workstream's commits, and untouched by Wave P. **Repo-green is therefore NOT
   claimed.**
+
+
+## I · Post-closure housekeeping
+
+### ⚰️ The 32 GB correction — and what it does NOT change
+
+§B called the 1,014 MB peak under two concurrent 100-page scans "the one real
+constraint". ⛔ **That framing was wrong, and it is corrected here rather than
+edited out of §B.** The number was measured on the development box; the
+production pod's cgroup limit is **32 GB**, and the whole app sits at ~2.1 GB.
+
+⛔ **Memory headroom is therefore NOT the reason production runs OCR at
+concurrency 1.** The reason is that 1 is the conservative first operating point
+while real behaviour is observed:
+
+```
+container / process-tree CPU     (parent-process CPU under-counts OCR ~5x)
+SQLite contention                 the P5 defect was a `database is locked`
+retry / recovery behaviour        the new sweep, against real documents
+real document size distribution   the fixture is one clean page
+member API and Search latency     measured at p50 ~11ms under synthetic load
+```
+
+```
+CONCURRENCY 2   FUNCTIONALLY CERTIFIED  (eight rounds, every document complete)
+CONCURRENCY 1   SELECTED PRODUCTION OPERATING POINT
+```
+
+⛔ The 2×100 evidence stays. It is the regression baseline for any future
+increase.
+
+### The observation gate before concurrency 2
+
+Do not raise it before **at least 7 days** AND either **~20 naturally occurring
+OCR documents** or **~500 naturally occurring OCR pages** — whichever takes
+longer.
+
+⛔ **Do not manufacture workload to reach those counts.** The point is natural
+member usage; synthetic volume would answer a question nobody asked.
+
+Then require, all of them:
+
+- no stuck OCR jobs (`pagesAwaitingOcr` that never clears)
+- no unexplained DB-lock recovery failures
+- no material API / Search latency degradation
+- no concerning container or process-tree CPU saturation
+- memory comfortably inside the 32 GB limit
+- recovery / sweep behaviour still clean
+
+### The 25 MB limit, and the copy that was wrong
+
+⛔ **The byte cap is the only member-facing authority.** `_MAX_PAGES = 500`
+stays an internal secondary ceiling and is never quoted as an upload guarantee —
+how many scanned pages fit inside 25 MB moves with DPI, colour depth,
+compression and page composition (measured ~145 on the Wave P fixture, which is
+exactly why no page number is stated to a member).
+
+⚰️ **Inspected, and there was a real defect.** No Notebook surface states a limit
+at all; the only place a member learns it is the refusal — and the editor was
+throwing that refusal away:
+
+```
+server        400 "File must be < 25 MB"          (correct, and specific)
+helper        throw new Error(body.detail)         (the reason survives this far)
+editor catch  "Couldn't upload huge.pdf."          ← the reason died here
+```
+
+⛔ **With OCR live the natural wrong guess is that the SCAN failed**, not the
+upload. Corrected both ends: the server now says *"File is larger than the 25 MB
+limit. How many scanned pages fit depends on scan quality and compression."* and
+the editor shows the server's reason, falling back to the plain sentence when
+there is none. ⚰️ The rail had been **pinning the defect** — it mocked the real
+400 and asserted the member saw only the generic line; it now asserts the reason
+survives and that no page count is promised.
+
+⛔ The byte cap itself is **not raised** here. That needs its own bounded
+storage/performance decision.
+
+⚠️ **Noted, not changed:** the inline-image upload path one function above has
+the identical swallowing shape against its own 5 MB cap. Out of scope for this
+housekeeping pass; recorded so it is a decision rather than an oversight.
+
+### The canary artifact — cleaned up through the canonical path
+
+Identifiers were recorded in §H first, then `--cleanup` ran:
+
+```
+before   search_hits 1 · documents 1 · pages 1 · fts 1 · excerpts 1 · notes 800
+cleanup  tools/wave_p_activation_canary.py --cleanup  →  {"trashed_notes": 1}
+after    search_hits 0 · note_is_trashed 1 · notes 800 · ocr_jobs [complete, 1]
+         documents 1 · pages 1 · fts 1 · fts_map 1 · excerpts 1
+```
+
+⭐ **No OCR search residue**: the phrase that existed only inside the scan
+returns nothing.
+
+⛔ **The rows are still there, and that is the canonical lifecycle, not a failed
+cleanup.** A delete is a soft delete — restorable for `TRASH_RETENTION_DAYS`,
+then the retention sweep purges. Lane D measured that sweep taking exactly these
+artifacts out of the **search index** as well as the page table. `fts_rows ==
+fts_map_rows == pages == 1` shows the mirror is consistent with its page, so
+there is no ghost row; a ghost would be a mirror entry with no page behind it.
+
+⛔ **Nothing was deleted by hand.** Forcing the retention window to zero would
+have been overriding a lifecycle semantic to make a number look tidier.
+
+`notes_all_users` is unchanged at 800 across the whole operation — no unrelated
+member data was touched.
+
+### The deploy-swap 502s
+
+Two `/api/health` responses returned 502 during the final service swap and
+cleared within about a minute. The new process's startup logs were clean and
+health has been 200 since.
+
+```
+CLASSIFICATION   KNOWN DEPLOYMENT-SWAP BLIP / OBSERVATION
+NOT              an OCR product defect
+```
+
+⛔ Recorded rather than erased, and not inflated into release instability. If
+future evidence connects a swap blip causally to OCR, this is the first
+data point.
+
+### Routed, not fixed
+
+`tests/test_no_shadowed_definitions.py` is red on
+`api/services/ticker_explain.py` — another workstream's file, red on master
+before the Wave P merge. Routed with full evidence to
+`docs/routed-defect-ticker-explain-domain-fetchers.md`, including the
+measurement that makes it **latent rather than live-broken** (the only read
+happens at call time, after both bindings). ⛔ Wave P does not guess which of the
+two possible fixes its owner intended. **Repo-green is not claimed.**
+
+### OCR coverage expansion — a roadmap item, not a rejection
+
+```
+HANDWRITING      NOT ASSESSED     (not rejected)
+NON-ENGLISH      NOT CERTIFIED    (not rejected)
+```
+
+A future **OCR COVERAGE EXPANSION** program sits **after Wave Q** unless product
+priorities change, and sequences multilingual typed/scanned financial documents
+first, handwriting second — ⛔ handwriting is a materially different recognition
+problem and must not inherit typed-scan claims. Wave P is not expanded
+retroactively to cover either.
