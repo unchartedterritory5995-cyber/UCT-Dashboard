@@ -562,6 +562,30 @@ fails the gate — and a timeout is re-run in isolation before it is called anyt
 misattributed to the hub. Before the Wave A gate, re-measure at the branch's actual merge-base
 and record the delta; the delta IS the other workstreams' contribution, and it is not ours.
 
+### ✅ THE BRANCH-BASE DELTA, MEASURED — the gate baseline is 9, not 8
+
+Promised when the `d3bf38f44` baseline was recorded, and it mattered. `feat/joystick-increment-2`
+rebased onto `origin/master` @ **`56a4f1370`**, fourteen commits past the baseline SHA. The Wave B
+gate found **9 files / 10 tests** failing where the baseline says 8 / 9 — one new file:
+`pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx`.
+
+**It fails identically at `origin/master`** — detached worktree, `node_modules` junctioned, same
+test (the "same keystroke DOES reach the store by DEFAULT" case), same assertion
+(`expected +0 to be 1`). It is notebook Wave Q1's durable-offline work, arriving in those fourteen
+commits, and it is **not the hub's**.
+
+⛔ **"My branch touches no notebook file" would NOT have settled it** — that is the `git status`
+provenance method this plan already rules out. The run at master is the evidence.
+
+**Increment 2 therefore gates against 9 files / 10 tests at `56a4f1370`, and the hub adds ZERO.**
+
+⚠️ **A second correction, about the measurement itself.** The first attempt at this gate was run in
+directory chunks to survive host memory pressure, and the chunk list did not cover `src/` — 1,016
+of 1,178 test files, with `ThemeTrackerPage.chartmount` (a baseline row) among the 162 missed. A
+partial suite fails in the flattering direction: fewer files run, fewer failures found. The
+complement was run separately and the numbers above are the union. **If a gate is ever chunked,
+the chunks must be diffed against the full test-file list before the total is quoted.**
+
 ### Two rules this measurement earned
 
 > **A TIMEOUT IS NEVER BANKED AS PERMITTED BREAKAGE.** A test that fails a full run on a timeout
