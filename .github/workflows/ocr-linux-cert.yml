@@ -115,8 +115,10 @@ jobs:
       - name: Tesseract, same corpus, same metrics, baseline settings
         id: bench
         continue-on-error: true
-        run: |
-          python tools/wave_p15_tesseract_benchmark.py \n            --tesseract tesseract \n            --fixtures tools/wave_p_cert_corpus \n            --label linux-bookworm
+        # One line on purpose: a line-continuation here was mangled into a
+        # literal `\n` on its way into this file and the run died on
+        # "unrecognized arguments: n n n".
+        run: python tools/wave_p15_tesseract_benchmark.py --tesseract tesseract --fixtures tools/wave_p_cert_corpus --label linux-bookworm
 
       - name: 5.4.0 (measured) against this (what ships)
         run: |
