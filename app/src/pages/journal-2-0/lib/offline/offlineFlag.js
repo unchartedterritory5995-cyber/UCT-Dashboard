@@ -33,8 +33,17 @@
  */
 
 /**
- * ✅ ACTIVATED 2026-09-09, after the §32 matrix came back complete and green on
- * seven environments including two real iPhones, and with owner approval.
+ * ⛔⛔ ROLLED BACK 2026-09-09, ~25 MINUTES AFTER ACTIVATION, BY THE CANARY.
+ *
+ * The activation canary found that REOPENING a note with unsynced work
+ * overwrote all three local layers with an EMPTY snapshot, and queued that empty
+ * state as an outbox patch with `baseUpdatedAt: null` — i.e. a server write with
+ * NO compare-and-set. On a note with real prose that is member work replaced by
+ * an empty document. See `docs/notebook/wave-q1-activation-canary-red.md`.
+ *
+ * (Activated 2026-09-09 after the §32 matrix came back green on seven
+ * environments including two real iPhones, with owner approval. The matrix was
+ * right; the mount path was not covered by it.)
  *
  * ⛔ THE ROLLBACK IS THIS ONE LINE, and turning it back to `false` STOPS
  * PROCESSING — it has never been permission to delete what a member already
@@ -47,7 +56,7 @@
  * Per-browser opt-out, no deploy needed:
  *     localStorage.setItem('uct.j2.offline.enabled', '0')
  */
-export const OFFLINE_DEFAULT_ON = true
+export const OFFLINE_DEFAULT_ON = false
 
 export const OFFLINE_FLAG_KEY = 'uct.j2.offline.enabled'
 
