@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import LayoutDock from './LayoutDock'
-import { reconcilePins, arrangementSig, UCT_DEFAULT_ID } from './layoutDockPins'
+import {
+  reconcilePins, arrangementSig, movePin, removePin, addPin, UCT_DEFAULT_ID,
+} from './layoutDockPins'
 
-// The dock owns its pin order through usePreferences; everything else about it
-// is driven by props, so one prefs stub covers the whole component.
+// The dock owns the RAIL through usePreferences; the library comes in as props,
+// so one prefs stub covers the whole component.
 let mockPrefs = {}
 const setPref = vi.fn((k, v) => { mockPrefs = { ...mockPrefs, [k]: v } })
 
@@ -24,31 +26,34 @@ const ENTRIES = [
 ]
 
 const dockPref = (o) => ({ charts_layout_dock: JSON.stringify(o) })
+const RAIL = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
+
+const openLibrary = () => fireEvent.click(screen.getByLabelText('Layout library'))
+const openMenu = (name) => fireEvent.contextMenu(screen.getByRole('button', { name }))
 
 beforeEach(() => { mockPrefs = {}; setPref.mockClear() })
 
-describe('reconcilePins', () => {
+describe('rail bookkeeping', () => {
   it('seeds every layout on the first run, in list order', () => {
     expect(reconcilePins(null, ENTRIES)).toEqual({
       pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false,
     })
   })
 
-  it('drops a deleted layout from both lists', () => {
-    const stored = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
-    const after = reconcilePins(stored, ENTRIES.filter(e => e.id !== 1))
+  it('drops a deleted layout from the rail', () => {
+    const after = reconcilePins(RAIL, ENTRIES.filter(e => e.id !== 1))
     expect(after.pins).toEqual([UCT_DEFAULT_ID, 2])
-    expect(after.known).toEqual([UCT_DEFAULT_ID, 2])
   })
 
-  it('appends a newly saved layout to the end of the bar', () => {
+  it('appends a newly saved layout to the end of the rail', () => {
     const stored = { pins: [UCT_DEFAULT_ID, 1], known: [UCT_DEFAULT_ID, 1], hidden: false }
     expect(reconcilePins(stored, ENTRIES).pins).toEqual([UCT_DEFAULT_ID, 1, 2])
   })
 
-  // The whole point of `known`: an unpinned layout still EXISTS, so without it
-  // "append anything not pinned" would silently re-pin it on the next load.
-  it('never re-pins a layout the user unpinned', () => {
+  // `known` is why closing something off the rail sticks: the layout still
+  // EXISTS in the library, so "append anything not on the rail" would put it
+  // straight back on the next load.
+  it('never re-adds a layout the user closed', () => {
     const stored = { pins: [UCT_DEFAULT_ID, 1], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
     expect(reconcilePins(stored, ENTRIES).pins).toEqual([UCT_DEFAULT_ID, 1])
   })
@@ -57,95 +62,19 @@ describe('reconcilePins', () => {
     const stored = { pins: [2, 1, UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
     expect(reconcilePins(stored, ENTRIES).pins).toEqual([2, 1, UCT_DEFAULT_ID])
   })
-})
 
-describe('LayoutDock', () => {
-  it('renders pinned layouts in stored order', () => {
-    mockPrefs = dockPref({ pins: [2, 1, UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    render(<LayoutDock entries={ENTRIES} activeId={1} />)
-    const names = screen.getAllByRole('button')
-      .map(b => b.textContent.trim())
-      .filter(t => ['Breadth', 'Main Trading', 'UCT Default'].includes(t))
-    expect(names).toEqual(['Breadth', 'Main Trading', 'UCT Default'])
+  // The rail is positional: one layout may occupy several slots.
+  it('keeps duplicate slots pointing at the same layout', () => {
+    const stored = { pins: [1, 2, 1], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
+    expect(reconcilePins(stored, ENTRIES).pins).toEqual([1, 2, 1])
   })
 
-  it('marks the open layout as current', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    render(<LayoutDock entries={ENTRIES} activeId={2} />)
-    expect(screen.getByRole('button', { name: 'Breadth' })).toHaveAttribute('aria-current', 'true')
-    expect(screen.getByRole('button', { name: 'Main Trading' })).not.toHaveAttribute('aria-current')
-  })
-
-  it('opens a layout on click', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    const onOpen = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Breadth' }))
-    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
-  })
-
-  // Re-opening the layout you are in would reload the board and throw away
-  // whatever you changed since — the one click that must do nothing.
-  it('does nothing when the open layout is clicked again', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    const onOpen = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Main Trading' }))
-    expect(onOpen).not.toHaveBeenCalled()
-  })
-
-  it('creates a layout from the inline name field', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID], hidden: false })
-    const onCreate = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={UCT_DEFAULT_ID} onCreate={onCreate} />)
-    fireEvent.click(screen.getByLabelText('New layout'))
-    const input = screen.getByLabelText('New layout name')
-    fireEvent.change(input, { target: { value: 'Earnings' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(onCreate).toHaveBeenCalledWith('Earnings')
-  })
-
-  it('abandons the name on Escape without creating anything', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID], hidden: false })
-    const onCreate = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={UCT_DEFAULT_ID} onCreate={onCreate} />)
-    fireEvent.click(screen.getByLabelText('New layout'))
-    const input = screen.getByLabelText('New layout name')
-    fireEvent.change(input, { target: { value: 'Scratch' } })
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(onCreate).not.toHaveBeenCalled()
-    expect(screen.queryByLabelText('New layout name')).toBeNull()
-  })
-
-  it('reaches an unpinned layout through the ⋯ browser', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    const onOpen = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
-    expect(screen.queryByRole('button', { name: 'Breadth' })).toBeNull()
-    fireEvent.click(screen.getByLabelText('All layouts'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Breadth' }))
-    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
-  })
-
-  it('renders nothing when the bar is hidden', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1], known: [UCT_DEFAULT_ID, 1], hidden: true })
-    const { container } = render(<LayoutDock entries={ENTRIES} activeId={1} />)
-    expect(container.firstChild).toBeNull()
-  })
-
-  it('persists the seeded pin order on a first run', () => {
-    render(<LayoutDock entries={ENTRIES} activeId={UCT_DEFAULT_ID} />)
-    expect(setPref).toHaveBeenCalledWith(
-      'charts_layout_dock',
-      JSON.stringify({ pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
-    )
-  })
-
-  // A write loop here would hammer the prefs queue on every render.
-  it('does not rewrite the pref when nothing changed', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    render(<LayoutDock entries={ENTRIES} activeId={1} />)
-    expect(setPref).not.toHaveBeenCalled()
+  it('moves, removes and adds BY SLOT, not by layout id', () => {
+    expect(movePin([1, 2, 1], 2, -1)).toEqual([1, 1, 2])
+    expect(removePin([1, 2, 1], 0)).toEqual([2, 1])       // only the first slot
+    expect(addPin([1, 2], 1)).toEqual([1, 2, 1])          // duplicates allowed
+    expect(movePin([1, 2], 0, -1)).toEqual([1, 2])        // off the end = no-op
+    expect(removePin([1, 2], 9)).toEqual([1, 2])
   })
 })
 
@@ -160,7 +89,7 @@ describe('arrangementSig', () => {
     expect(arrangementSig(flipped)).toBe(arrangementSig(board))
   })
 
-  // The false-dirty guard: everything a template carries BESIDES the arrangement
+  // The false-dirty guard: everything a layout carries BESIDES the arrangement
   // is rewritten by ordinary use, so none of it may move the signature.
   it('ignores chart settings, columns and per-widget opts', () => {
     const noisy = {
@@ -187,25 +116,111 @@ describe('arrangementSig', () => {
   })
 })
 
-describe('LayoutDock — new layout appears instantly', () => {
-  // The POST + its round-trip used to happen before the name could show up,
-  // which read as the app being slow. The typed name is rendered immediately.
-  it('shows the typed name before the API has returned the row', () => {
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID], hidden: false })
+describe('LayoutDock — the rail', () => {
+  it('renders its slots in stored order', () => {
+    mockPrefs = dockPref({ pins: [2, 1, UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
+    render(<LayoutDock entries={ENTRIES} activeId={1} />)
+    const names = screen.getAllByRole('button')
+      .map(b => b.textContent.trim())
+      .filter(t => ['Breadth', 'Main Trading', 'UCT Default'].includes(t))
+    expect(names).toEqual(['Breadth', 'Main Trading', 'UCT Default'])
+  })
+
+  it('marks the open layout as current', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={2} />)
+    expect(screen.getByRole('button', { name: 'Breadth' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('button', { name: 'Main Trading' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('opens a layout on click', () => {
+    mockPrefs = dockPref(RAIL)
+    const onOpen = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Breadth' }))
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
+  })
+
+  // Re-opening the layout you are in would reload the board and throw away
+  // whatever you changed since — the one click that must do nothing.
+  it('does nothing when the open layout is clicked again', () => {
+    mockPrefs = dockPref(RAIL)
+    const onOpen = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Main Trading' }))
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it('renders nothing when the bar is hidden', () => {
+    mockPrefs = dockPref({ ...RAIL, hidden: true })
+    const { container } = render(<LayoutDock entries={ENTRIES} activeId={1} />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('persists the seeded rail on a first run', () => {
+    render(<LayoutDock entries={ENTRIES} activeId={UCT_DEFAULT_ID} />)
+    expect(setPref).toHaveBeenCalledWith('charts_layout_dock', JSON.stringify(RAIL))
+  })
+
+  // A write loop here would hammer the prefs queue on every render.
+  it('does not rewrite the pref when nothing changed', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} />)
+    expect(setPref).not.toHaveBeenCalled()
+  })
+})
+
+describe('LayoutDock — the layout library', () => {
+  it('lists your layouts, and the prebuilt ones separately', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} />)
+    openLibrary()
+    expect(screen.getByRole('menu', { name: 'Layout library' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Main Trading' })).toBeTruthy()
+    expect(screen.getByText('Prebuilt')).toBeTruthy()
+  })
+
+  // The point of the library: put a layout on the bar. Adding one that is
+  // ALREADY out there is allowed — the rail is positional, not a set.
+  it('adds a layout to the bar even when it is already there', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={vi.fn()} />)
+    openLibrary()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Breadth' }))
+    expect(setPref).toHaveBeenCalledWith(
+      'charts_layout_dock',
+      JSON.stringify({ pins: [UCT_DEFAULT_ID, 1, 2, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
+    )
+  })
+
+  it('opens the layout it just added', () => {
+    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
+    const onOpen = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={UCT_DEFAULT_ID} onOpen={onOpen} />)
+    openLibrary()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Breadth' }))
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
+  })
+
+  it('makes a brand-new layout from the library, named inline', () => {
+    mockPrefs = dockPref(RAIL)
     const onCreate = vi.fn()
-    render(<LayoutDock entries={ENTRIES.slice(0, 1)} activeId={UCT_DEFAULT_ID} onCreate={onCreate} />)
-    fireEvent.click(screen.getByLabelText('New layout'))
+    render(<LayoutDock entries={ENTRIES} activeId={1} onCreate={onCreate} />)
+    openLibrary()
+    fireEvent.click(screen.getByRole('menuitem', { name: '＋ New layout' }))
     const input = screen.getByLabelText('New layout name')
     fireEvent.change(input, { target: { value: 'Earnings' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onCreate).toHaveBeenCalledWith('Earnings')
+    // and it is on the bar before the POST has come back
     expect(screen.getByRole('button', { name: 'Earnings' })).toBeTruthy()
   })
 
-  it('hands over to the real row once it arrives, without duplicating it', () => {
+  it('hands the provisional name over to the real row without duplicating it', () => {
     mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID], known: [UCT_DEFAULT_ID], hidden: false })
     const { rerender } = render(<LayoutDock entries={ENTRIES.slice(0, 1)} activeId={UCT_DEFAULT_ID} onCreate={vi.fn()} />)
-    fireEvent.click(screen.getByLabelText('New layout'))
+    openLibrary()
+    fireEvent.click(screen.getByRole('menuitem', { name: '＋ New layout' }))
     const input = screen.getByLabelText('New layout name')
     fireEvent.change(input, { target: { value: 'Earnings' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -214,25 +229,66 @@ describe('LayoutDock — new layout appears instantly', () => {
     rerender(<LayoutDock entries={withRow} activeId={9} onCreate={vi.fn()} />)
     expect(screen.getAllByRole('button', { name: 'Earnings' })).toHaveLength(1)
   })
-})
 
-describe('LayoutDock — right-click menu', () => {
-  const pinned = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
-  const openMenu = (name) => fireEvent.contextMenu(screen.getByRole('button', { name }))
-
-  it('opens on right-click with the move / duplicate / delete actions', () => {
-    mockPrefs = dockPref(pinned)
-    render(<LayoutDock entries={ENTRIES} activeId={1} />)
-    openMenu('Main Trading')
-    expect(screen.getByRole('menu', { name: 'Main Trading actions' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: /Move left/ })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: /Move right/ })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Duplicate layout' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Delete layout' })).toBeTruthy()
+  // ⭐ The library is the ONLY place a layout can be destroyed.
+  it('deletes from the library, behind a confirm', () => {
+    mockPrefs = dockPref(RAIL)
+    const onDelete = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onDelete={onDelete} />)
+    openLibrary()
+    fireEvent.click(screen.getByLabelText('Delete Breadth permanently'))
+    expect(onDelete).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete?' }))
+    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
   })
 
-  it('moves a layout left in the bar and persists the order', () => {
-    mockPrefs = dockPref(pinned)
+  it('offers no delete for a prebuilt layout', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} onDelete={vi.fn()} />)
+    openLibrary()
+    expect(screen.queryByLabelText('Delete UCT Default permanently')).toBeNull()
+  })
+})
+
+describe('LayoutDock — the rail menu', () => {
+  // ⛔ THE CONTRACT: the rail can never destroy a layout. Closing a slot takes
+  // it off the bar; the layout is still in the library.
+  it('offers Close and never Delete', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} />)
+    openMenu('Main Trading')
+    expect(screen.getByRole('menuitem', { name: 'Close' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Delete/ })).toBeNull()
+  })
+
+  it('closing a slot only takes it off the bar', () => {
+    mockPrefs = dockPref(RAIL)
+    const onDelete = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onDelete={onDelete} />)
+    openMenu('Breadth')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Close' }))
+    expect(onDelete).not.toHaveBeenCalled()
+    expect(setPref).toHaveBeenCalledWith(
+      'charts_layout_dock',
+      JSON.stringify({ pins: [UCT_DEFAULT_ID, 1], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
+    )
+  })
+
+  // With duplicate slots, closing must remove the SLOT you right-clicked.
+  it('closes the slot you clicked, not every copy of that layout', () => {
+    mockPrefs = dockPref({ pins: [1, 2, 1], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
+    render(<LayoutDock entries={ENTRIES} activeId={2} />)
+    const both = screen.getAllByRole('button', { name: 'Main Trading' })
+    fireEvent.contextMenu(both[1])
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Close' }))
+    expect(setPref).toHaveBeenCalledWith(
+      'charts_layout_dock',
+      JSON.stringify({ pins: [1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
+    )
+  })
+
+  it('moves a slot left', () => {
+    mockPrefs = dockPref(RAIL)
     render(<LayoutDock entries={ENTRIES} activeId={1} />)
     openMenu('Main Trading')
     fireEvent.click(screen.getByRole('menuitem', { name: /Move left/ }))
@@ -242,19 +298,8 @@ describe('LayoutDock — right-click menu', () => {
     )
   })
 
-  it('moves a layout right', () => {
-    mockPrefs = dockPref(pinned)
-    render(<LayoutDock entries={ENTRIES} activeId={1} />)
-    openMenu('Main Trading')
-    fireEvent.click(screen.getByRole('menuitem', { name: /Move right/ }))
-    expect(setPref).toHaveBeenCalledWith(
-      'charts_layout_dock',
-      JSON.stringify({ pins: [UCT_DEFAULT_ID, 2, 1], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
-    )
-  })
-
-  it('cannot move the first layout left or the last one right', () => {
-    mockPrefs = dockPref(pinned)
+  it('cannot move the first slot left or the last one right', () => {
+    mockPrefs = dockPref(RAIL)
     render(<LayoutDock entries={ENTRIES} activeId={1} />)
     openMenu('UCT Default')
     expect(screen.getByRole('menuitem', { name: /Move left/ })).toBeDisabled()
@@ -263,8 +308,24 @@ describe('LayoutDock — right-click menu', () => {
     expect(screen.getByRole('menuitem', { name: /Move right/ })).toBeDisabled()
   })
 
+  it('saves the open layout to the library on demand', () => {
+    mockPrefs = dockPref(RAIL)
+    const onSave = vi.fn()
+    render(<LayoutDock entries={ENTRIES} activeId={1} onSave={onSave} />)
+    openMenu('Main Trading')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save layout to library' }))
+    expect(onSave).toHaveBeenCalled()
+  })
+
+  it('offers Save only for the layout you are actually in', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} onSave={vi.fn()} />)
+    openMenu('Breadth')
+    expect(screen.queryByRole('menuitem', { name: 'Save layout to library' })).toBeNull()
+  })
+
   it('duplicates a layout', () => {
-    mockPrefs = dockPref(pinned)
+    mockPrefs = dockPref(RAIL)
     const onDuplicate = vi.fn()
     render(<LayoutDock entries={ENTRIES} activeId={1} onDuplicate={onDuplicate} />)
     openMenu('Breadth')
@@ -272,52 +333,8 @@ describe('LayoutDock — right-click menu', () => {
     expect(onDuplicate).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
   })
 
-  // A stray click must never destroy a layout.
-  it('needs two clicks to delete', () => {
-    mockPrefs = dockPref(pinned)
-    const onDelete = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={1} onDelete={onDelete} />)
-    openMenu('Breadth')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete layout' }))
-    expect(onDelete).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Click again to delete' }))
-    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
-  })
-
-  it('offers Save only for the layout you are actually in', () => {
-    mockPrefs = dockPref(pinned)
-    render(<LayoutDock entries={ENTRIES} activeId={1} onSave={vi.fn()} />)
-    openMenu('Breadth')
-    expect(screen.queryByRole('menuitem', { name: 'Save layout' })).toBeNull()
-    fireEvent.keyDown(document, { key: 'Escape' })
-    openMenu('Main Trading')
-    expect(screen.getByRole('menuitem', { name: 'Save layout' })).toBeTruthy()
-  })
-
-  // A prebuilt row is what every member sees; the frozen default is not a row.
-  it('will not offer to delete a prebuilt layout to a member', () => {
-    const withPrebuilt = [...ENTRIES, { id: 7, name: 'Firm Board', scope: 'global' }]
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2, 7], known: [UCT_DEFAULT_ID, 1, 2, 7], hidden: false })
-    render(<LayoutDock entries={withPrebuilt} activeId={1} isAdmin={false} />)
-    openMenu('Firm Board')
-    expect(screen.queryByRole('menuitem', { name: 'Delete layout' })).toBeNull()
-    expect(screen.getByRole('menuitem', { name: 'Duplicate layout' })).toBeTruthy()
-  })
-
-  it('will not offer to delete the frozen UCT Default', () => {
-    mockPrefs = dockPref(pinned)
-    render(<LayoutDock entries={ENTRIES} activeId={1} isAdmin />)
-    openMenu('UCT Default')
-    expect(screen.queryByRole('menuitem', { name: 'Delete layout' })).toBeNull()
-  })
-})
-
-describe('LayoutDock — rename', () => {
-  const pinned = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
-  const openMenu = (name) => fireEvent.contextMenu(screen.getByRole('button', { name }))
-
-  it('renames in place from the menu', () => {
-    mockPrefs = dockPref(pinned)
+  it('renames in place', () => {
+    mockPrefs = dockPref(RAIL)
     const onRename = vi.fn()
     render(<LayoutDock entries={ENTRIES} activeId={1} onRename={onRename} />)
     openMenu('Main Trading')
@@ -330,7 +347,7 @@ describe('LayoutDock — rename', () => {
   })
 
   it('Escape leaves the name alone', () => {
-    mockPrefs = dockPref(pinned)
+    mockPrefs = dockPref(RAIL)
     const onRename = vi.fn()
     render(<LayoutDock entries={ENTRIES} activeId={1} onRename={onRename} />)
     openMenu('Main Trading')
@@ -342,53 +359,10 @@ describe('LayoutDock — rename', () => {
     expect(screen.getByRole('button', { name: 'Main Trading' })).toBeTruthy()
   })
 
-  it('an unchanged name is not a rename', () => {
-    mockPrefs = dockPref(pinned)
-    const onRename = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={1} onRename={onRename} />)
-    openMenu('Main Trading')
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename layout' }))
-    fireEvent.keyDown(screen.getByLabelText('Rename Main Trading'), { key: 'Enter' })
-    expect(onRename).not.toHaveBeenCalled()
-  })
-
-  it('is not offered on a prebuilt to a member, nor on UCT Default', () => {
-    const withPrebuilt = [...ENTRIES, { id: 7, name: 'Firm Board', scope: 'global' }]
-    mockPrefs = dockPref({ pins: [UCT_DEFAULT_ID, 1, 2, 7], known: [UCT_DEFAULT_ID, 1, 2, 7], hidden: false })
-    render(<LayoutDock entries={withPrebuilt} activeId={1} isAdmin={false} />)
-    openMenu('Firm Board')
-    expect(screen.queryByRole('menuitem', { name: 'Rename layout' })).toBeNull()
-    fireEvent.keyDown(document, { key: 'Escape' })
+  it('does not offer rename on a prebuilt to a member', () => {
+    mockPrefs = dockPref(RAIL)
+    render(<LayoutDock entries={ENTRIES} activeId={1} isAdmin={false} />)
     openMenu('UCT Default')
     expect(screen.queryByRole('menuitem', { name: 'Rename layout' })).toBeNull()
-  })
-})
-
-describe('LayoutDock — remove from bar', () => {
-  const pinned = { pins: [UCT_DEFAULT_ID, 1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }
-  const openMenu = (name) => fireEvent.contextMenu(screen.getByRole('button', { name }))
-
-  // UCT Default is an in-code restore point, not a row, so there is nothing to
-  // delete — but it must not have to occupy a slot forever.
-  it('takes UCT Default off the bar even though it cannot be deleted', () => {
-    mockPrefs = dockPref(pinned)
-    render(<LayoutDock entries={ENTRIES} activeId={1} />)
-    openMenu('UCT Default')
-    expect(screen.queryByRole('menuitem', { name: 'Delete layout' })).toBeNull()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove from bar' }))
-    expect(setPref).toHaveBeenCalledWith(
-      'charts_layout_dock',
-      JSON.stringify({ pins: [1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false }),
-    )
-  })
-
-  it('an unpinned layout stays reachable from the ⋯ browser', () => {
-    mockPrefs = dockPref({ pins: [1, 2], known: [UCT_DEFAULT_ID, 1, 2], hidden: false })
-    const onOpen = vi.fn()
-    render(<LayoutDock entries={ENTRIES} activeId={1} onOpen={onOpen} />)
-    expect(screen.queryByRole('button', { name: 'UCT Default' })).toBeNull()
-    fireEvent.click(screen.getByLabelText('All layouts'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'UCT Default' }))
-    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: UCT_DEFAULT_ID }))
   })
 })

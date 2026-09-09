@@ -1,13 +1,20 @@
 // app/src/pages/charts/LayoutDock.jsx
 //
-// The Layout Dock — the workspace's FAST PATH between saved layouts. A 28px
-// strip welded to the bottom of the .workspace frame: pinned layouts as bare
-// text, the open one lit gold with a 2px cap seated on the dock's top edge so
-// the board reads as hanging from its own name.
+// The Layout Dock — a 28px strip welded to the bottom of the .workspace frame:
+// layouts as bare text, the open one lit gold with a 2px cap seated on the
+// dock's top edge so the board reads as hanging from its own name.
 //
-// It is a fast path, NOT a second management surface. Layouts ▾ keeps New /
-// Open / Save / Save as / Multi Chart / Pop Out; the dock switches, creates,
-// reorders and (via ⋯) reaches whatever didn't fit.
+// ⭐ THE MODEL — the LIBRARY owns layouts, the RAIL is only a working set.
+//
+//   Layout library : every layout you have ever made. The one durable store.
+//                    Opened with ＋. The ONLY place a layout can be deleted.
+//   The rail       : a positional set of slots that point INTO the library, for
+//                    switching fast. A layout may sit on it twice. Closing a
+//                    slot takes it off the bar and NEVER deletes it — whatever
+//                    you close is still in your library.
+//
+// So the rail's menu offers "Close" and never "Delete", and ＋ opens the library
+// rather than immediately making something.
 //
 // ⭐ Why this sits AFTER </main> inside .workspace rather than in Layout.jsx:
 // `computeRowHeight()` divides whatever the ResizeObserver measures on
@@ -16,16 +23,17 @@
 // makes the dock start after the 60px nav rail, bracketing the workspace with
 // the same frame the header opens.
 //
-// ⭐ YOUR layouts AUTO-SAVE — the workspace owns that (see its auto-save
-// effect), so there is no unsaved dot and no switch-away confirm: you leave a
-// layout as you left it and it is there when you come back. A PREBUILT layout
-// is shared with every member, so it is never written automatically and
-// behaves exactly as it always has.
+// ⭐ YOUR layouts AUTO-SAVE into the library as you work (the workspace owns
+// that; every switch flushes first). A PREBUILT layout is shared with every
+// member, so it is never written automatically.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import UIcon from '../../components/ui/UIcon'
-import { DOCK_PREF, UCT_DEFAULT_ID, readDockPref, reconcilePins, sameDock } from './layoutDockPins'
+import {
+  DOCK_PREF, UCT_DEFAULT_ID, readDockPref, reconcilePins, sameDock,
+  movePin, removePin, addPin,
+} from './layoutDockPins'
 import styles from './LayoutDock.module.css'
 
 export default function LayoutDock({
@@ -43,27 +51,30 @@ export default function LayoutDock({
   }, [setPref])
 
   // Persist only a CHANGED reconciliation, and never before both sides have
-  // settled — seeding against a half-loaded list would write a pin order that
-  // is missing everything still in flight.
+  // settled — seeding against a half-loaded list would write a rail that is
+  // missing everything still in flight.
   useEffect(() => {
     if (prefsLoading || loading) return
     if (sameDock(stored, dock)) return
     writeDock(dock)
   }, [prefsLoading, loading, stored, dock, writeDock])
 
-  const pinned = useMemo(
-    () => dock.pins.map(id => byId.get(id)).filter(Boolean),
+  // SLOTS, not a set: [{ entry, index }], duplicates allowed.
+  const slots = useMemo(
+    () => dock.pins
+      .map((id, index) => ({ entry: byId.get(id), index }))
+      .filter(s => s.entry),
     [dock.pins, byId],
   )
 
   // ── overflow ────────────────────────────────────────────────────────────
-  // A hidden mirror row holds every pin at its natural width, so the widths are
+  // A hidden mirror row holds every slot at its natural width, so the widths are
   // always measurable — measuring the VISIBLE row instead would lose the width
   // of an item the moment it was trimmed, and the fit could never be recomputed
   // when the workspace widens again.
   const stripRef = useRef(null)
   const mirrorRef = useRef(null)
-  const [visibleCount, setVisibleCount] = useState(pinned.length)
+  const [visibleCount, setVisibleCount] = useState(slots.length)
 
   const measure = useCallback(() => {
     const strip = stripRef.current
@@ -85,8 +96,7 @@ export default function LayoutDock({
   // ONE writer: the ResizeObserver. It fires on observe(), so it also supplies
   // the first measurement — no setState-in-effect needed. Both elements are
   // watched because they change for different reasons: the strip when the
-  // workspace is resized, the mirror when the pin set itself changes (adding a
-  // layout widens the mirror without touching the strip).
+  // workspace is resized, the mirror when the rail itself changes.
   useEffect(() => {
     const strip = stripRef.current
     const mirror = mirrorRef.current
@@ -98,21 +108,19 @@ export default function LayoutDock({
   }, [measure])
 
   const shown = useMemo(() => {
-    const list = pinned.slice(0, visibleCount)
+    const list = slots.slice(0, visibleCount)
     // The dock's second job is answering "which layout am I in?", so an active
     // layout that would be overflowed takes the last visible slot rather than
-    // vanishing. Rare — it needs a switch made from the ⋯ list — and losing the
-    // active state entirely is the worse of the two compromises.
-    if (activeId != null && pinned.some(e => e.id === activeId) && !list.some(e => e.id === activeId)) {
-      const active = pinned.find(e => e.id === activeId)
+    // vanishing. Losing the active state entirely is the worse compromise.
+    if (activeId != null && slots.some(s => s.entry.id === activeId) && !list.some(s => s.entry.id === activeId)) {
+      const active = slots.find(s => s.entry.id === activeId)
       return list.slice(0, Math.max(0, list.length - 1)).concat(active)
     }
     return list
-  }, [pinned, visibleCount, activeId])
+  }, [slots, visibleCount, activeId])
 
-  const shownIds = useMemo(() => new Set(shown.map(e => e.id)), [shown])
-  const overflow = useMemo(() => pinned.filter(e => !shownIds.has(e.id)), [pinned, shownIds])
-  const unpinned = useMemo(() => entries.filter(e => !dock.pins.includes(e.id)), [entries, dock.pins])
+  const shownIdx = useMemo(() => new Set(shown.map(s => s.index)), [shown])
+  const overflow = useMemo(() => slots.filter(s => !shownIdx.has(s.index)), [slots, shownIdx])
 
   // A prebuilt (global-scope) layout is shared with every member, and the frozen
   // UCT Default is not a row at all — neither is yours to write or delete.
@@ -121,68 +129,50 @@ export default function LayoutDock({
     [isAdmin],
   )
 
+  const mine = useMemo(() => entries.filter(e => e.id !== UCT_DEFAULT_ID && e.scope !== 'global'), [entries])
+  const prebuilt = useMemo(() => entries.filter(e => e.id === UCT_DEFAULT_ID || e.scope === 'global'), [entries])
+
   // ── popovers ────────────────────────────────────────────────────────────
-  const [browseOpen, setBrowseOpen] = useState(false)
-  const [menu, setMenu] = useState(null)   // { entry, x } — the right-click menu
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [overflowOpen, setOverflowOpen] = useState(false)
+  const [menu, setMenu] = useState(null)          // { slot, x }
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const dockRef = useRef(null)
 
   const closePopovers = useCallback(() => {
-    setBrowseOpen(false)
+    setLibraryOpen(false)
+    setOverflowOpen(false)
     setMenu(null)
-    setConfirmDelete(false)
+    setConfirmDeleteId(null)
   }, [])
 
   useEffect(() => {
-    if (!browseOpen && !menu) return
+    if (!libraryOpen && !overflowOpen && !menu) return
     const onDown = (e) => { if (!dockRef.current?.contains(e.target)) closePopovers() }
     const onKey = (e) => { if (e.key === 'Escape') closePopovers() }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
-  }, [browseOpen, menu, closePopovers])
+  }, [libraryOpen, overflowOpen, menu, closePopovers])
 
-  // ── ＋ new layout ────────────────────────────────────────────────────────
-  // Naming happens INLINE, in the slot the layout will occupy, so the thing you
-  // just made is already where your hand will look for it.
+  // ── new layout ──────────────────────────────────────────────────────────
+  // Named INLINE, in the slot it will occupy, so the thing you just made is
+  // already where your hand will look for it.
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState('')
   const inputRef = useRef(null)
   useEffect(() => { if (creating) inputRef.current?.focus() }, [creating])
 
   // The name lands on the bar the INSTANT you press Enter, while the POST is
-  // still in flight. Waiting for the round-trip made a new layout take a beat
-  // to appear, which reads as the app being slow rather than the network being
-  // slow. Cleared as soon as the real row arrives from the API.
+  // still in flight. Derived, so it stops rendering the moment the real row
+  // arrives and can never duplicate it.
   const [provisional, setProvisional] = useState(null)
-  // DERIVED, not an effect: the placeholder is simply "a name I typed that the
-  // real list has not caught up with yet", so it stops rendering the moment the
-  // row arrives — no state write, no extra render pass.
   const showProvisional = provisional && !entries.some(e => e.name === provisional)
-  // Never strand a provisional name if the save failed.
   useEffect(() => {
     if (!provisional) return
     const t = setTimeout(() => setProvisional(null), 8000)
     return () => clearTimeout(t)
   }, [provisional])
-
-  // ── rename ──────────────────────────────────────────────────────────────
-  // Edited IN PLACE, in the slot the layout already occupies, so you can see the
-  // new name land where you will look for it — same idiom as ＋.
-  const [renaming, setRenaming] = useState(null)      // entry id
-  const [renameDraft, setRenameDraft] = useState('')
-  const renameRef = useRef(null)
-  useEffect(() => { if (renaming != null) renameRef.current?.select() }, [renaming])
-
-  const commitRename = useCallback(() => {
-    const id = renaming
-    const name = renameDraft.trim()
-    const previous = entries.find(e => e.id === id)?.name
-    setRenaming(null)
-    setRenameDraft('')
-    if (!id || !name || name === previous) return
-    onRename?.(id, name)
-  }, [renaming, renameDraft, entries, onRename])
 
   const commitCreate = useCallback(() => {
     const name = draft.trim()
@@ -193,6 +183,21 @@ export default function LayoutDock({
     onCreate?.(name)
   }, [draft, onCreate])
 
+  // ── rename ──────────────────────────────────────────────────────────────
+  const [renaming, setRenaming] = useState(null)   // slot index
+  const [renameDraft, setRenameDraft] = useState('')
+  const renameRef = useRef(null)
+  useEffect(() => { if (renaming != null) renameRef.current?.select() }, [renaming])
+
+  const commitRename = useCallback(() => {
+    const slot = slots.find(s => s.index === renaming)
+    const name = renameDraft.trim()
+    setRenaming(null)
+    setRenameDraft('')
+    if (!slot || !name || name === slot.entry.name) return
+    onRename?.(slot.entry.id, name)
+  }, [renaming, renameDraft, slots, onRename])
+
   const open = useCallback((entry) => {
     closePopovers()
     // Re-opening the layout you are already in would reload the board and throw
@@ -201,39 +206,31 @@ export default function LayoutDock({
     onOpen?.(entry)
   }, [activeId, onOpen, closePopovers])
 
-  // ── reorder ─────────────────────────────────────────────────────────────
-  // Muscle memory is the whole value of a fixed bar, so the order is the user's
-  // and it persists per-user.
-  const move = useCallback((entry, delta) => {
-    const pins = dock.pins.slice()
-    const i = pins.indexOf(entry.id)
-    const j = i + delta
-    if (i < 0 || j < 0 || j >= pins.length) return
-    const swap = pins[i]
-    pins[i] = pins[j]
-    pins[j] = swap
-    writeDock({ ...dock, pins })
+  // ── rail operations (all POSITIONAL) ────────────────────────────────────
+  const move = useCallback((index, delta) => {
+    writeDock({ ...dock, pins: movePin(dock.pins, index, delta) })
     setMenu(null)
   }, [dock, writeDock])
 
-  // Take a layout OFF the bar without destroying it. This is also the only
-  // "remove" that can apply to UCT Default: the frozen default is an in-code
-  // restore point, not a row, so there is nothing to delete — but it should not
-  // have to occupy a slot forever. `known` remembers the choice, so an unpinned
-  // layout does not quietly reappear on the next load; the ⋯ browser and
-  // Layouts ▾ → Open Layout are how it comes back.
-  const unpin = useCallback((entry) => {
-    writeDock({ ...dock, pins: dock.pins.filter(id => id !== entry.id) })
+  // CLOSE, not delete. The layout stays in the library — that is the whole
+  // contract of the rail, and why this menu has no destructive action at all.
+  const closeSlot = useCallback((index) => {
+    writeDock({ ...dock, pins: removePin(dock.pins, index) })
     closePopovers()
   }, [dock, writeDock, closePopovers])
 
-  const menuIndex = menu ? dock.pins.indexOf(menu.entry.id) : -1
+  const addToBar = useCallback((entry) => {
+    writeDock({ ...dock, pins: addPin(dock.pins, entry.id) })
+    closePopovers()
+    if (entry.id !== activeId) onOpen?.(entry)
+  }, [dock, writeDock, closePopovers, activeId, onOpen])
 
-  const renderItem = (entry, isProvisional = false) => {
+  const renderItem = (slot, isProvisional = false) => {
+    const { entry, index } = slot
     const active = !isProvisional && entry.id === activeId
     return (
       <button
-        key={isProvisional ? '__provisional' : entry.id}
+        key={isProvisional ? '__provisional' : `${entry.id}@${index}`}
         type="button"
         className={`${styles.item} ${active || isProvisional ? styles.itemActive : ''}`}
         // Primary button only: a right-click that also emits a click (some
@@ -243,15 +240,15 @@ export default function LayoutDock({
         onContextMenu={(e) => {
           if (isProvisional) return
           e.preventDefault()
-          setBrowseOpen(false)
-          setConfirmDelete(false)
+          setLibraryOpen(false)
+          setOverflowOpen(false)
           const rect = dockRef.current?.getBoundingClientRect()
-          setMenu({ entry, x: rect ? e.clientX - rect.left : 0 })
+          setMenu({ slot, x: rect ? e.clientX - rect.left : 0 })
         }}
         title={entry.name}
         aria-current={active ? 'true' : undefined}
       >
-        {renaming === entry.id ? (
+        {renaming === index && !isProvisional ? (
           <input
             ref={renameRef}
             className={styles.nameInput}
@@ -276,6 +273,8 @@ export default function LayoutDock({
 
   if (dock.hidden) return null
 
+  const menuEntry = menu?.slot?.entry
+
   return (
     <div
       className={`${styles.dock} ${merged ? styles.dockMerged : ''}`}
@@ -284,8 +283,8 @@ export default function LayoutDock({
       aria-label="Saved layouts"
     >
       <div className={styles.strip} ref={stripRef}>
-        {shown.map(e => renderItem(e))}
-        {showProvisional && renderItem({ id: '__provisional', name: provisional }, true)}
+        {shown.map(s => renderItem(s))}
+        {showProvisional && renderItem({ entry: { id: '__provisional', name: provisional }, index: -1 }, true)}
         {creating && (
           <span className={`${styles.item} ${styles.itemCreating}`}>
             <input
@@ -299,8 +298,8 @@ export default function LayoutDock({
               onKeyDown={e => {
                 if (e.key === 'Enter') { e.preventDefault(); commitCreate() }
                 // Escape abandons the NAME, not the board: you are left on the
-                // blank workspace exactly as "New Layout" leaves you today, with
-                // no half-named row written to the store.
+                // blank workspace exactly as "New Layout" leaves you, with no
+                // half-named row written to the library.
                 else if (e.key === 'Escape') { e.preventDefault(); setCreating(false); setDraft('') }
               }}
               onBlur={commitCreate}
@@ -311,109 +310,144 @@ export default function LayoutDock({
 
       {/* Width oracle for the fit calculation — never shown, never focusable. */}
       <div className={styles.mirror} ref={mirrorRef} aria-hidden="true">
-        {pinned.map(e => (
-          <span key={e.id} className={styles.item}><span className={styles.label}>{e.name}</span></span>
+        {slots.map(s => (
+          <span key={`${s.entry.id}@${s.index}`} className={styles.item}>
+            <span className={styles.label}>{s.entry.name}</span>
+          </span>
         ))}
       </div>
 
       <div className={styles.right}>
+        {overflow.length > 0 && (
+          <button
+            type="button"
+            className={styles.ctl}
+            onClick={() => { setLibraryOpen(false); setMenu(null); setOverflowOpen(o => !o) }}
+            title="Layouts that don't fit"
+            aria-label="More layouts on the bar"
+            aria-expanded={overflowOpen}
+          >
+            <UIcon name="more" size={13} gold={false} />
+            <span className={styles.count}>+{overflow.length}</span>
+          </button>
+        )}
         <button
           type="button"
           className={styles.ctl}
-          onClick={() => { setMenu(null); setBrowseOpen(o => !o) }}
-          title="All layouts"
-          aria-label="All layouts"
-          aria-expanded={browseOpen}
-        >
-          <UIcon name="more" size={13} gold={false} />
-          {overflow.length > 0 && <span className={styles.count}>+{overflow.length}</span>}
-        </button>
-        <button
-          type="button"
-          className={styles.ctl}
-          onClick={() => { closePopovers(); setDraft(''); setCreating(true) }}
-          title="New layout"
-          aria-label="New layout"
+          onClick={() => { setOverflowOpen(false); setMenu(null); setLibraryOpen(o => !o) }}
+          title="Layout library"
+          aria-label="Layout library"
+          aria-expanded={libraryOpen}
         >
           <UIcon name="plus" size={13} gold={false} />
         </button>
       </div>
 
-      {menu && (
-        <div
-          className={styles.menu}
-          role="menu"
-          aria-label={`${menu.entry.name} actions`}
-          style={{ left: Math.max(6, menu.x - 20) }}
-        >
-          <div className={styles.menuHead}>{menu.entry.name}</div>
+      {/* ── the layout library ──────────────────────────────────────────── */}
+      {libraryOpen && (
+        <div className={styles.library} role="menu" aria-label="Layout library">
+          <div className={styles.libraryHead}>Layout library</div>
           <button
-            type="button" role="menuitem" className={styles.menuItem}
-            disabled={menuIndex <= 0}
-            onClick={() => move(menu.entry, -1)}
-          >← Move left</button>
-          <button
-            type="button" role="menuitem" className={styles.menuItem}
-            disabled={menuIndex < 0 || menuIndex >= dock.pins.length - 1}
-            onClick={() => move(menu.entry, 1)}
-          >Move right →</button>
+            type="button" role="menuitem" className={styles.libraryNew}
+            onClick={() => { closePopovers(); setDraft(''); setCreating(true) }}
+          >＋ New layout</button>
           <div className={styles.menuDiv} />
-          {/* Only for the layout you are IN: saving the board into some OTHER
-              layout would overwrite it with a board it never held. */}
-          {menu.entry.id === activeId && writable(menu.entry) && (
-            <button
-              type="button" role="menuitem" className={styles.menuItem}
-              onClick={() => { onSave?.(); setMenu(null) }}
-            >Save layout</button>
-          )}
-          {writable(menu.entry) && (
-            <button
-              type="button" role="menuitem" className={styles.menuItem}
-              onClick={() => { setRenameDraft(menu.entry.name); setRenaming(menu.entry.id); setMenu(null) }}
-            >Rename layout</button>
-          )}
-          <button
-            type="button" role="menuitem" className={styles.menuItem}
-            onClick={() => { onDuplicate?.(menu.entry); setMenu(null) }}
-          >Duplicate layout</button>
-          <div className={styles.menuDiv} />
-          <button
-            type="button" role="menuitem" className={styles.menuItem}
-            onClick={() => unpin(menu.entry)}
-          >Remove from bar</button>
-          {writable(menu.entry) && (<>
-            {confirmDelete ? (
+          {mine.length === 0 && <div className={styles.browseEmpty}>No saved layouts yet.</div>}
+          {mine.map(e => (
+            <div key={e.id} className={styles.libraryRow}>
               <button
-                type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuDanger}`}
-                onClick={() => { onDelete?.(menu.entry); closePopovers() }}
-              >Click again to delete</button>
-            ) : (
-              <button
-                type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuDanger}`}
-                onClick={() => setConfirmDelete(true)}
-              >Delete layout</button>
-            )}
+                type="button" role="menuitem" className={styles.libraryPick}
+                title={`Add ${e.name} to the bar`}
+                onClick={() => addToBar(e)}
+              >{e.name}</button>
+              {/* The library is the ONLY place a layout can be destroyed. */}
+              {confirmDeleteId === e.id ? (
+                <button
+                  type="button" className={styles.libraryDelConfirm}
+                  onClick={() => { onDelete?.(e); setConfirmDeleteId(null) }}
+                >Delete?</button>
+              ) : (
+                <button
+                  type="button" className={styles.libraryDel}
+                  title={`Delete ${e.name} permanently`}
+                  aria-label={`Delete ${e.name} permanently`}
+                  onClick={() => setConfirmDeleteId(e.id)}
+                >✕</button>
+              )}
+            </div>
+          ))}
+          {prebuilt.length > 0 && (<>
+            <div className={styles.browseSection}>Prebuilt</div>
+            {prebuilt.map(e => (
+              <div key={e.id} className={styles.libraryRow}>
+                <button
+                  type="button" role="menuitem" className={styles.libraryPick}
+                  title={`Add ${e.name} to the bar`}
+                  onClick={() => addToBar(e)}
+                >{e.name}</button>
+              </div>
+            ))}
           </>)}
         </div>
       )}
 
-      {browseOpen && (
-        <div className={styles.browse} role="menu">
-          {overflow.length > 0 && (<>
-            <div className={styles.browseSection}>Not on the bar</div>
-            {overflow.map(e => (
-              <button key={e.id} type="button" role="menuitem" className={styles.browseRow} onClick={() => open(e)}>{e.name}</button>
-            ))}
-          </>)}
-          {unpinned.length > 0 && (<>
-            <div className={styles.browseSection}>Unpinned</div>
-            {unpinned.map(e => (
-              <button key={e.id} type="button" role="menuitem" className={styles.browseRow} onClick={() => open(e)}>{e.name}</button>
-            ))}
-          </>)}
-          {overflow.length === 0 && unpinned.length === 0 && (
-            <div className={styles.browseEmpty}>Every layout is on the bar.</div>
+      {/* ── overflow: what is on the bar but did not fit ────────────────── */}
+      {overflowOpen && (
+        <div className={styles.browse} role="menu" aria-label="More layouts on the bar">
+          <div className={styles.browseSection}>On the bar</div>
+          {overflow.map(s => (
+            <button
+              key={`${s.entry.id}@${s.index}`}
+              type="button" role="menuitem" className={styles.browseRow}
+              onClick={() => open(s.entry)}
+            >{s.entry.name}</button>
+          ))}
+        </div>
+      )}
+
+      {/* ── right-click: rail actions ONLY. No delete lives here. ───────── */}
+      {menu && (
+        <div
+          className={styles.menu}
+          role="menu"
+          aria-label={`${menuEntry.name} actions`}
+          style={{ left: Math.max(6, menu.x - 20) }}
+        >
+          <div className={styles.menuHead}>{menuEntry.name}</div>
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            disabled={menu.slot.index <= 0}
+            onClick={() => move(menu.slot.index, -1)}
+          >← Move left</button>
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            disabled={menu.slot.index >= dock.pins.length - 1}
+            onClick={() => move(menu.slot.index, 1)}
+          >Move right →</button>
+          <div className={styles.menuDiv} />
+          {/* Only for the layout you are IN: saving the board into some OTHER
+              layout would overwrite it with a board it never held. */}
+          {menuEntry.id === activeId && writable(menuEntry) && (
+            <button
+              type="button" role="menuitem" className={styles.menuItem}
+              onClick={() => { onSave?.(); setMenu(null) }}
+            >Save layout to library</button>
           )}
+          {writable(menuEntry) && (
+            <button
+              type="button" role="menuitem" className={styles.menuItem}
+              onClick={() => { setRenameDraft(menuEntry.name); setRenaming(menu.slot.index); setMenu(null) }}
+            >Rename layout</button>
+          )}
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            onClick={() => { onDuplicate?.(menuEntry); setMenu(null) }}
+          >Duplicate layout</button>
+          <div className={styles.menuDiv} />
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            onClick={() => closeSlot(menu.slot.index)}
+          >Close</button>
         </div>
       )}
     </div>

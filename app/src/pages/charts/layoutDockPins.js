@@ -33,6 +33,33 @@ export function readDockPref(raw) {
 }
 
 /**
+ * The rail is POSITIONAL, not a set: the same layout may sit on the bar more
+ * than once (the owner asked for it — you can add a library layout again even
+ * if it is already out there). So every rail operation addresses a SLOT by
+ * index, never by layout id.
+ */
+export function movePin(pins, index, delta) {
+  const next = pins.slice()
+  const j = index + delta
+  if (index < 0 || index >= next.length || j < 0 || j >= next.length) return pins
+  const swap = next[index]
+  next[index] = next[j]
+  next[j] = swap
+  return next
+}
+
+/** Take one SLOT off the bar. Never touches the library. */
+export function removePin(pins, index) {
+  if (index < 0 || index >= pins.length) return pins
+  return pins.slice(0, index).concat(pins.slice(index + 1))
+}
+
+/** Put a library layout on the bar, duplicates allowed. */
+export function addPin(pins, id) {
+  return pins.concat(id)
+}
+
+/**
  * Fold the live layout list into the stored pin order.
  *  - first run (no pref): seed with everything, in list order — the dock is
  *    useful the second it ships instead of presenting an empty bar
@@ -45,6 +72,7 @@ export function reconcilePins(stored, entries) {
   if (!stored) return { pins: ids, known: ids, hidden: false }
   const live = new Set(ids)
   const seen = new Set(stored.known)
+  // filter keeps duplicates, which is the point: two slots may hold one layout.
   const kept = stored.pins.filter(id => live.has(id))
   const added = ids.filter(id => !seen.has(id))
   return { pins: kept.concat(added), known: ids, hidden: stored.hidden }
