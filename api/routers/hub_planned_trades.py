@@ -4,6 +4,12 @@ The joystick hub's plan-a-trade backend. Same auth dependency and the same per-u
 as the Journal 2.0 routers: every query is scoped by `user["id"]`, never by a client-supplied
 id.
 
+⭐ `r_value` GOES THROUGH `calculations.trade_pnl_dollar`, WITH THE STOP AS THE MODELLED
+EXIT — not `abs(entry - stop) * size`. The arithmetic is not the point; the second authority
+is. There is exactly one place in this app that knows how a trade's money is computed, and a
+private copy here would drift the first time either moved. A planned trade has no exit, so the
+stop IS the exit being modelled: P&L at the stop is exactly -1R, and 1R is its magnitude.
+
 ⛔ NO CLIENT IS WIRED TO THIS YET. Phase 2a ships the backend and its rails; the hub still
 writes nothing (the preview is navigation-only plus Voice).
 """

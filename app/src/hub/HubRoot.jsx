@@ -26,7 +26,7 @@ import HubScrim from './HubScrim'
 import HubActionsButton from './HubActionsButton'
 import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
-import { modesById, fanFor, PREVIEW } from './registry'
+import { modesById, fanFor, isPreviewMode } from './registry'
 import { RING_NAMES } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
@@ -242,7 +242,7 @@ function HubShell() {
     >
       <HubVoiceBridge connectRef={voiceConnectRef} />
       <HubCoachMark
-        show={PREVIEW && !settings.coachMarkSeen}
+        show={!settings.coachMarkSeen}
         used={usedRef.current}
         mirrored={mirrored}
         onDismiss={dismissCoachMark}
@@ -277,7 +277,9 @@ function HubShell() {
         label={activeModeConfig?.label}
         // Preview chip hint (Phase 2.5): the mode name still leads, but the hint says what
         // this build IS rather than what tap does — most taps do nothing until Phase 3.
-        tapHint={PREVIEW ? 'Preview — more coming' : activeModeConfig?.tapHint}
+        // Per-mode: a section that has shipped its real fan shows its real hint again.
+        tapHint={isPreviewMode(activeModeConfig?.id)
+          ? 'Preview — more coming' : activeModeConfig?.tapHint}
         scrubbing={state.scrubbing}
         scrubReadout={null}
         open={state.open}

@@ -1335,6 +1335,20 @@ someone forgot to set indistinguishable from a deliberate shutdown — the ambig
   "fixed" to match).
 
 
+### Tooling — GitHub MCP reads `GITHUB_PERSONAL_ACCESS_TOKEN`
+
+The `github` MCP server (plugin `claude-plugins-official`) is configured as:
+
+```json
+"github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/",
+            "headers": { "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}" } }
+```
+
+⛔ **It reads `GITHUB_PERSONAL_ACCESS_TOKEN` (user scope). `GITHUB_TOKEN` is NOT read** —
+setting that one does nothing, and the unexpanded `${...}` is what produces the connection
+error *"Authorization header is badly formatted"*, which reads like a malformed value rather
+than a missing variable. **A restart is required after setting it.**
+
 ## Design Documents
 
 All design docs are in `docs/plans/`. Key docs:
