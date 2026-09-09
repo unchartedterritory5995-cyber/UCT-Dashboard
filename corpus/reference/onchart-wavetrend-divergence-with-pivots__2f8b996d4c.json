@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2f8b996d4c7648eab62769c1443681a9",
+ "title": "Onchart Wavetrend Divergence with Pivots",
+ "author": "AdonisWerther",
+ "url": "https://www.tradingview.com/script/xkkyJgCO-onchart-wavetrend-divergence-with-pivots/",
+ "agreeCount": 599,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/onchart-wavetrend-divergence-with-pivots__2f8b996d4c.pine",
+ "our_status": "reference-only"
+}

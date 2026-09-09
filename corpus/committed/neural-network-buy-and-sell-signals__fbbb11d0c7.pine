@@ -1,0 +1,994 @@
+// ╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
+// ┃  ██████   ██████    ███    ███████   ┃
+// ┃  ██   ██      ██   ██ ██    ██   ██  ┃
+// ┃  ██████    █████   ██   ██  ██████   ┃
+// ┃  ██   ██      ██  ████████  ██   ██  ┃
+// ┃  ██████   ██████  ██     ██ ██   ██  ┃
+// ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+//@version=6
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Version 7 - Trend Architect neural network signals with built-in AMF, Z-score Input Normalization, and SuperTrend stop - LITE VERSION
+indicator('Neural Network Buy and Sell Signals', shorttitle = 'TA Signals', overlay = true, max_bars_back = 5000)
+
+var string scalpHelperGroup = 'Scalp Helper Signal Settings'
+enable_scalp_helper = input.bool(true, 'Enable Scalp Helper Signals', group = scalpHelperGroup)
+signalCandleType = input.string('Candlesticks', 'Signal Candle Type', options = ['Candlesticks', 'Heikin Ashi', 'Linear Regression'], group = scalpHelperGroup, tooltip = 'Choose which candle type to use for signal calculations. This will not change what candlestick type is displayed.')
+
+signal_trigger_mult = input.float(1.7, 'Signal Trigger Sensitivity', minval = 0.1, maxval = 10.0, step = 0.1, group = scalpHelperGroup, tooltip = 'Controls both buy and sell signal sensitivity. Lower values = more sensitive signals, higher values = less sensitive signals.')
+
+stop_atr_mult = input.float(1.5, 'Stop Loss ATR Multiplier', minval = 0.1, maxval = 10.0, step = 0.1, group = scalpHelperGroup, tooltip = 'Once a signal is triggered this stop will be initiated to tell how long the signal is valid. Higher values = wider stops and less signals, lower values = tighter stops and more signals.')
+
+var string filterGroup = 'Signal Grade Filter'
+show_grade_aplus = input.bool(true, 'Show A+ Signals (>= 80%)', group = filterGroup, tooltip = 'Display signals with A+ grade (score >= 0.80)')
+show_grade_a = input.bool(true, 'Show A Signals (76-79%)', group = filterGroup, tooltip = 'Display signals with A grade (score 0.76-0.79)')
+show_grade_b = input.bool(true, 'Show B Signals (65-75%)', group = filterGroup, tooltip = 'Display signals with B grade (score 0.65-0.75)')
+show_grade_c = input.bool(true, 'Show C Signals (37-64%)', group = filterGroup, tooltip = 'Display signals with C grade (score 0.37-0.64)')
+show_grade_d = input.bool(true, 'Show D Signals (28-36%)', group = filterGroup, tooltip = 'Display signals with D grade (score 0.28-0.36)')
+show_grade_f = input.bool(true, 'Show F Signals (< 28%)', group = filterGroup, tooltip = 'Display signals with F grade (score < 0.28)')
+
+var string candleGroup = 'Candlestick Settings'
+candleType = input.string('Candlesticks', 'Candle Type', options = ['Candlesticks', 'Heikin Ashi', 'Linear Regression'], group = candleGroup, tooltip = 'Choose the type of candles to display. This does not impact signal calculations.')
+lrcLength = input.int(6, 'Linear Regression Length', minval = 1, group = candleGroup, tooltip = 'Length for Linear Regression calculations. Lower values are more responsive but noisier.')
+
+var string supertrendVisualGroup = 'SuperTrend Stop Visualization'
+show_supertrend_stop = input.bool(true, 'Show SuperTrend Stop', group = supertrendVisualGroup, tooltip = 'Display trailing SuperTrend stop after signals')
+st_atr_length = input.int(3, 'SuperTrend ATR Length', minval = 1, maxval = 20, group = supertrendVisualGroup, tooltip = 'ATR length for SuperTrend calculation')
+st_factor = input.float(1.5, 'SuperTrend Factor', minval = 0.5, maxval = 5.0, step = 0.1, group = supertrendVisualGroup, tooltip = 'SuperTrend multiplier factor')
+st_delay_bars = input.int(1, 'Bars Before Stop Appears', minval = 1, maxval = 10, group = supertrendVisualGroup, tooltip = 'Number of bars to wait before showing the stop line')
+st_initial_transp = input.int(85, 'Initial Transparency', minval = 50, maxval = 95, step = 5, group = supertrendVisualGroup, tooltip = 'Transparency when stop first appears')
+st_final_transp = input.int(20, 'Final Transparency', minval = 0, maxval = 50, step = 5, group = supertrendVisualGroup, tooltip = 'Transparency after fade completes')
+st_fade_bars = input.int(8, 'Bars to Full Opacity', minval = 2, maxval = 20, group = supertrendVisualGroup, tooltip = 'Number of bars to fade from initial to final transparency')
+st_line_width = input.int(2, 'Line Width', minval = 1, maxval = 4, group = supertrendVisualGroup, tooltip = 'Width of the SuperTrend stop line')
+st_buy_color = input.color(color.new(#00FFFF, 0), 'Buy Stop Color', group = supertrendVisualGroup, tooltip = 'Color of the buy signal stop line')
+st_sell_color = input.color(color.new(#FF0000, 0), 'Sell Stop Color', group = supertrendVisualGroup, tooltip = 'Color of the sell signal stop line')
+
+var string visualGroup = 'Display Settings'
+signalOffset = input.float(0.75, 'Signal Distance from Candles', minval = 0.1, maxval = 3.0, step = 0.1, group = visualGroup, tooltip = 'Distance of buy/sell labels from candles (ATR multiplier)')
+signalLabelSize = input.string('small', 'Signal Label Size', options = ['tiny', 'small', 'medium', 'large'], group = visualGroup, tooltip = 'Size of the neural network signal labels')
+labelTextColor = input.color(color.new(#404040, 0), 'Label Text Color', group = visualGroup, tooltip = 'Text color for signal labels')
+
+var string colorGroup = 'Color Customization'
+buyLabelColor = input.color(color.new(#00FFFF, 0), 'Buy Signal Label Color', group = colorGroup, tooltip = 'Color for ALL buy signal labels (when grade colors disabled)')
+sellLabelColor = input.color(color.new(#FF0000, 0), 'Sell Signal Label Color', group = colorGroup, tooltip = 'Color for ALL sell signal labels (when grade colors disabled)')
+enableGradeColors = input.bool(true, 'Use Custom Colors for Grades', group = colorGroup, tooltip = 'When checked: Each grade gets its own color. When unchecked: Buy signals use buy color, sell signals use sell color.')
+
+// Grade-specific colors (sensible gradient from best to worst)
+gradeAPlusColor = input.color(color.new(#00FFFF, 0), 'A+ Grade Color (Best)', group = colorGroup, tooltip = 'Bright Cyan - Highest quality signals (>= 80%)')
+gradeAColor = input.color(color.new(#00FFFF, 0), 'A Grade Color', group = colorGroup, tooltip = 'Bright Cyan - Very good signals (76-79%)')
+gradeBColor = input.color(color.new(#00CED1, 0), 'B Grade Color', group = colorGroup, tooltip = 'Dark Turquoise - Good signals (65-75%)')
+gradeCColor = input.color(color.new(#008B8B, 0), 'C Grade Color', group = colorGroup, tooltip = 'Dark Cyan - Moderate signals (37-64%)')
+gradeDColor = input.color(color.new(#FF8000, 0), 'D Grade Color', group = colorGroup, tooltip = 'Orange - Poor signals (28-36%)')
+gradeFColor = input.color(color.new(#FF0000, 0), 'F Grade Color (Worst)', group = colorGroup, tooltip = 'Red - Lowest quality signals (< 28%)')
+
+buy_signal_length = 2
+buy_atr_length = 18
+sell_signal_length = 2
+sell_atr_length = 18
+
+buy_signal_use_close = false
+buy_atr_use_close = true
+sell_signal_use_close = false
+sell_atr_use_close = true
+
+// AMFv2 settings
+amf_base_length = 14
+amf_smooth_length = 10
+amf_signal_length = 10
+amf_min_lookback = 3
+amf_max_lookback = 40
+amf_volatility_sensitivity = 3.5
+amf_lookback_smooth = 5
+amf_medium_dema_mult = 1.5
+amf_slow_dema_mult = 2.5
+amf_sigmoid_steepness = 4.0
+amf_atr_norm_period = 14
+amf_diff_multiplier = 1.5
+amf_price_fast_weight = 30.0
+amf_fast_medium_weight = 30.0
+amf_medium_slow_weight = 40.0
+
+amf_far_threshold = 0.3
+amf_slope_fast_threshold = 0.03
+
+h1_amf_weight = 1.2
+h1_alma_weight = 0.4
+h1_sr_weight = 0.5
+h1_swing_weight = 0.4
+h1_regime_weight = 0.7
+h1_bias = 0.2
+
+h2_amf_weight = 1.4
+h2_alma_weight = 0.3
+h2_sr_weight = 0.6
+h2_swing_weight = 0.3
+h2_regime_weight = 0.8
+h2_bias = 0.15
+
+h3_amf_weight = 1.6
+h3_alma_weight = 0.4
+h3_sr_weight = 0.4
+h3_swing_weight = 0.5
+h3_regime_weight = 0.6
+h3_bias = 0.25
+
+out_h1_weight = 0.4
+out_h2_weight = 0.4
+out_h3_weight = 0.4
+out_bias = 0.3
+
+enable_input_normalization = true
+normalization_lookback = 50
+outlier_clipping = true
+clipping_threshold = 3.0
+
+almaLength = 20
+almaOffset = 0.85
+almaSigma = 6.0
+alma2Length = 20
+alma2Offset = 0.77
+alma2Sigma = 6.0
+alma_wide_gap_threshold = 0.1
+
+pivot_lookback = 10
+sr_proximity_threshold = 0.5
+sr_breakout_threshold = 0.2
+swing_structure_length = 20
+regime_lookback = 30
+trending_threshold = 0.6
+
+showScalpLabels = true
+
+var float signalOpen = open
+var float signalHigh = high
+var float signalLow = low
+var float signalClose = close
+
+customBuyColor = buyLabelColor
+customSellColor = sellLabelColor
+scalpLongColor = color.new(#00B3B3, 0) 
+scalpShortColor = color.new(#FF0000, 0) 
+textColor = labelTextColor
+
+f_ema_amf(float source, int length) =>
+    float alpha = 2.0 / (length + 1)
+    var float ema_val = na 
+    if not na(source) and length > 0
+        ema_val := alpha * source + (1 - alpha) * nz(ema_val[1])
+    ema_val
+
+f_dema_amf(float source, int length) =>
+    float ema1 = f_ema_amf(source, length)
+    float ema2 = f_ema_amf(ema1, length)
+    2 * ema1 - ema2
+
+f_sigmoid(float x, float steepness) =>
+    2.0 / (1.0 + math.exp(-steepness * x)) - 1.0
+
+f_calculate_amf_v2(float src, float cached_atr, float cached_avg_atr) =>
+    float volatility_ratio = cached_avg_atr > 0 ? cached_atr / cached_avg_atr : 1.0
+    float raw_adaptive_lookback = float(amf_base_length) / math.pow(volatility_ratio, amf_volatility_sensitivity)
+    float clamped_lookback = math.max(float(amf_min_lookback), math.min(float(amf_max_lookback), raw_adaptive_lookback))
+    float smoothed_lookback = ta.ema(clamped_lookback, amf_lookback_smooth)
+    int adaptive_lookback = math.max(1, int(math.round(smoothed_lookback)))
+    
+    int dema_fast_len = adaptive_lookback
+    int dema_medium_len = math.max(1, int(math.round(smoothed_lookback * amf_medium_dema_mult)))
+    int dema_slow_len = math.max(1, int(math.round(smoothed_lookback * amf_slow_dema_mult)))
+    
+    float dema_fast = f_dema_amf(src, dema_fast_len)
+    float dema_medium = f_dema_amf(src, dema_medium_len)
+    float dema_slow = f_dema_amf(src, dema_slow_len)
+    
+    float norm_atr = ta.atr(amf_atr_norm_period)
+    float price_fast_diff = norm_atr > 0 ? ((src - dema_fast) / norm_atr) * amf_diff_multiplier : 0.0
+    float fast_medium_diff = norm_atr > 0 ? ((dema_fast - dema_medium) / norm_atr) * amf_diff_multiplier : 0.0
+    float medium_slow_diff = norm_atr > 0 ? ((dema_medium - dema_slow) / norm_atr) * amf_diff_multiplier : 0.0
+    
+    float price_fast_score = f_sigmoid(price_fast_diff, amf_sigmoid_steepness)
+    float fast_medium_score = f_sigmoid(fast_medium_diff, amf_sigmoid_steepness)
+    float medium_slow_score = f_sigmoid(medium_slow_diff, amf_sigmoid_steepness)
+    
+    float oscillator_score = price_fast_score * amf_price_fast_weight + fast_medium_score * amf_fast_medium_weight + medium_slow_score * amf_medium_slow_weight
+    
+    float max_possible = amf_price_fast_weight + amf_fast_medium_weight + amf_medium_slow_weight
+    float normalized_score = max_possible != 0 ? (oscillator_score / max_possible) * 100.0 : 0.0
+    
+    float main_osc = ta.sma(normalized_score, amf_smooth_length)
+    main_osc
+
+f_amf_signal_v2(float amf_line) =>
+    ta.alma(amf_line, amf_signal_length, 0.85, 6)
+
+// ===========================================================================================================
+// CACHED CALCULATIONS
+// ===========================================================================================================
+
+cached_atr = ta.atr(14)
+
+// ===========================================================================================================
+// NORMALIZATION FUNCTIONS
+// ===========================================================================================================
+
+f_normalizeInput(value, lookback_period, enable_clipping, clip_threshold) =>
+    if not enable_input_normalization
+        value
+    else
+        mean_val = ta.sma(value, lookback_period)
+        variance = ta.sma(math.pow(value - mean_val, 2), lookback_period)
+        std_val = math.sqrt(variance)
+        
+        normalized = std_val > 0 ? (value - mean_val) / std_val : 0.0
+        
+        if enable_clipping
+            math.max(-clip_threshold, math.min(clip_threshold, normalized))
+        else
+            normalized
+
+f_robustNormalize(value, lookback_period) =>
+    if not enable_input_normalization
+        value
+    else
+        ema_val = ta.ema(value, lookback_period)
+        
+        abs_dev = math.abs(value - ema_val)
+        mad_approx = ta.ema(abs_dev, lookback_period) * 1.4826
+        
+        mad_approx > 0 ? (value - ema_val) / mad_approx : 0.0
+
+// ===========================================================================================================
+// SIGNAL SCORING
+// ===========================================================================================================
+
+// Tanh approximation
+f_tanh(x) =>
+    ex = math.exp(2 * x)
+    (ex - 1) / (ex + 1)
+
+f_scoreSignal(amf_score, alma_score, sr_score, swing_score, regime_score) =>
+    hidden1 = f_tanh(h1_amf_weight*amf_score + h1_alma_weight*alma_score + h1_sr_weight*sr_score + h1_swing_weight*swing_score + h1_regime_weight*regime_score + h1_bias)
+    hidden2 = f_tanh(h2_amf_weight*amf_score + h2_alma_weight*alma_score + h2_sr_weight*sr_score + h2_swing_weight*swing_score + h2_regime_weight*regime_score + h2_bias)
+    hidden3 = f_tanh(h3_amf_weight*amf_score + h3_alma_weight*alma_score + h3_sr_weight*sr_score + h3_swing_weight*swing_score + h3_regime_weight*regime_score + h3_bias)
+    raw_output = out_h1_weight*hidden1 + out_h2_weight*hidden2 + out_h3_weight*hidden3 + out_bias
+    1.0 / (1.0 + math.exp(-raw_output))
+
+f_scoreSignalNormalized(amf_norm, alma_norm, sr_norm, swing_norm, regime_norm) =>
+    input_scale = 0.9  // Slightly more conservative than 1.0
+    
+    scaled_amf = amf_norm * input_scale
+    scaled_alma = alma_norm * input_scale
+    scaled_sr = sr_norm * input_scale
+    scaled_swing = swing_norm * input_scale
+    scaled_regime = regime_norm * input_scale
+    
+    hidden1 = f_tanh(h1_amf_weight*scaled_amf + h1_alma_weight*scaled_alma + 
+                     h1_sr_weight*scaled_sr + h1_swing_weight*scaled_swing + h1_regime_weight*scaled_regime + h1_bias)
+    
+    hidden2 = f_tanh(h2_amf_weight*scaled_amf + h2_alma_weight*scaled_alma + 
+                     h2_sr_weight*scaled_sr + h2_swing_weight*scaled_swing + h2_regime_weight*scaled_regime + h2_bias)
+    
+    hidden3 = f_tanh(h3_amf_weight*scaled_amf + h3_alma_weight*scaled_alma + 
+                     h3_sr_weight*scaled_sr + h3_swing_weight*scaled_swing + h3_regime_weight*scaled_regime + h3_bias)
+    
+    raw_output = out_h1_weight*hidden1 + out_h2_weight*hidden2 + out_h3_weight*hidden3 + out_bias
+    
+    temperature = 1.0  // Standard sigmoid - no temperature scaling
+    1.0 / (1.0 + math.exp(-raw_output / temperature))
+
+f_getSignalGrade(score) =>
+    if score >= 0.80
+        "A+"  
+    else if score >= 0.76
+        "A"   
+    else if score >= 0.65
+        "B"   
+    else if score >= 0.37
+        "C"   
+    else if score >= 0.28
+        "D"   
+    else
+        "F"   // (< 0.28)
+
+f_getScoreColor(score, is_buy_signal) =>
+    var color result_color = color.maroon
+    
+    if enableGradeColors
+        // Use grade-specific colors when enabled (same color for buy and sell)
+        if score >= 0.80
+            result_color := gradeAPlusColor
+        else if score >= 0.76
+            result_color := gradeAColor
+        else if score >= 0.65
+            result_color := gradeBColor
+        else if score >= 0.37
+            result_color := gradeCColor
+        else if score >= 0.28
+            result_color := gradeDColor
+        else
+            result_color := gradeFColor
+    else
+        // Use simple buy/sell colors when grade colors are disabled
+        if is_buy_signal
+            result_color := buyLabelColor
+        else
+            result_color := sellLabelColor
+    
+    result_color
+
+f_shouldShowGrade(grade) =>
+    switch grade
+        "A+" => show_grade_aplus
+        "A" => show_grade_a
+        "B" => show_grade_b
+        "C" => show_grade_c
+        "D" => show_grade_d
+        "F" => show_grade_f
+        => false
+
+// AMF Analysis Functions (updated for AMFv2 which outputs 0-100 scale)
+f_analyzeAMF(amf_line, signal_line, is_buy, is_sell, cached_atr) =>
+    amf_vs_signal = amf_line - signal_line
+    
+    crossing_up = amf_line > signal_line and amf_line[1] <= signal_line[1]
+    crossing_down = amf_line < signal_line and amf_line[1] >= signal_line[1]
+    
+    // Normalize distance relative to typical AMF range
+    normalized_distance = math.abs(amf_vs_signal) / 10.0  // AMFv2 uses 0-100 scale
+    is_far = normalized_distance > amf_far_threshold
+    
+    signal_slope = (signal_line - signal_line[1]) / 10.0
+    slope_fast_falling = signal_slope < -amf_slope_fast_threshold
+    slope_fast_rising = signal_slope > amf_slope_fast_threshold
+    
+    var float amf_score = 0.0
+    
+    if is_buy
+        if crossing_up or amf_line > signal_line
+            amf_score := 1.0  
+        else if amf_line < signal_line
+            if is_far
+                amf_score := -0.8 
+            else
+                amf_score := -0.4 
+        else
+            amf_score := 0.0
+        
+        if slope_fast_falling
+            amf_score := amf_score - 0.3
+            
+    else if is_sell
+        if crossing_down or amf_line < signal_line
+            amf_score := 1.0  
+        else if amf_line > signal_line
+            if is_far
+                amf_score := -0.8
+            else
+                amf_score := -0.4
+        else
+            amf_score := 0.0
+        
+        if slope_fast_rising
+            amf_score := amf_score - 0.3
+            
+    else
+        amf_score := 0.0
+    
+    math.max(-1.0, math.min(1.0, amf_score))
+
+f_analyzeALMA(fast_alma, slow_alma, is_buy, is_sell, cached_atr) =>
+    alma_gap = fast_alma - slow_alma
+    normalized_gap = math.abs(alma_gap) / cached_atr
+    is_wide_gap = normalized_gap > alma_wide_gap_threshold
+    
+    crossing_up = fast_alma > slow_alma and fast_alma[1] <= slow_alma[1]
+    crossing_down = fast_alma < slow_alma and fast_alma[1] >= slow_alma[1]
+    
+    var float alma_score = 0.0
+    
+    if is_buy
+        if crossing_up or fast_alma > slow_alma
+            alma_score := 0.5 
+        else if fast_alma < slow_alma
+            if is_wide_gap
+                alma_score := -0.8 
+            else
+                alma_score := -0.2 
+        else
+            alma_score := 0.0
+            
+    else if is_sell
+        if crossing_down or fast_alma < slow_alma
+            alma_score := 0.5 
+        else if fast_alma > slow_alma
+            if is_wide_gap
+                alma_score := -0.8
+            else
+                alma_score := -0.2
+        else
+            alma_score := 0.0
+            
+    else
+        alma_score := 0.0
+    
+    alma_score
+
+f_analyzeSupportResistance(is_buy, is_sell, cached_atr, sig_high, sig_low, sig_close) =>
+    pivot_high = ta.pivothigh(sig_high, pivot_lookback, pivot_lookback)
+    pivot_low = ta.pivotlow(sig_low, pivot_lookback, pivot_lookback)
+    
+    var float nearest_resistance = na
+    var float nearest_support = na
+    
+    if not na(pivot_high)
+        nearest_resistance := pivot_high
+    if not na(pivot_low)
+        nearest_support := pivot_low
+    
+    resistance_distance = nearest_resistance > 0 ? math.abs(sig_close - nearest_resistance) / cached_atr : 999
+    support_distance = nearest_support > 0 ? math.abs(sig_close - nearest_support) / cached_atr : 999
+    
+    near_resistance = resistance_distance <= sr_proximity_threshold
+    near_support = support_distance <= sr_proximity_threshold
+    
+    recent_resistance_break = nearest_resistance > 0 and sig_close > nearest_resistance and sig_close[5] <= nearest_resistance
+    recent_support_break = nearest_support > 0 and sig_close < nearest_support and sig_close[5] >= nearest_support
+    
+    var float sr_score = 0.0
+    
+    if is_buy
+        if recent_resistance_break
+            sr_score := 0.8
+        else if near_support
+            sr_score := 0.5
+        else if near_resistance
+            sr_score := -0.6
+        else
+            sr_score := 0.0
+            
+    else if is_sell
+        if recent_support_break
+            sr_score := 0.8
+        else if near_resistance
+            sr_score := 0.5
+        else if near_support
+            sr_score := -0.6
+        else
+            sr_score := 0.0
+            
+    else
+        sr_score := 0.0
+    
+    sr_score
+
+
+f_analyzeSwingStructure(is_buy, is_sell, sig_high, sig_low) =>
+    recent_high = ta.highest(sig_high, swing_structure_length)
+    recent_low = ta.lowest(sig_low, swing_structure_length)
+    previous_high = ta.highest(sig_high[swing_structure_length], swing_structure_length)
+    previous_low = ta.lowest(sig_low[swing_structure_length], swing_structure_length)
+    
+    making_higher_highs = recent_high > previous_high
+    making_higher_lows = recent_low > previous_low
+    making_lower_highs = recent_high < previous_high
+    making_lower_lows = recent_low < previous_low
+    
+    bullish_structure = making_higher_highs and making_higher_lows
+    bearish_structure = making_lower_highs and making_lower_lows
+    mixed_structure = not bullish_structure and not bearish_structure
+    
+    var float swing_score = 0.0
+    
+    if is_buy
+        if bullish_structure
+            swing_score := 0.6
+        else if bearish_structure
+            swing_score := -0.7
+        else
+            swing_score := -0.1
+            
+    else if is_sell
+        if bearish_structure
+            swing_score := 0.6
+        else if bullish_structure
+            swing_score := -0.7
+        else
+            swing_score := -0.1
+            
+    else
+        swing_score := 0.0
+    
+    swing_score
+
+f_analyzeMarketRegime(is_buy, is_sell, sig_open, sig_high, sig_low, sig_close) =>
+    tr1 = math.max(sig_high - sig_low, math.abs(sig_high - sig_close[1]))
+    tr = math.max(tr1, math.abs(sig_low - sig_close[1]))
+    plus_dm = sig_high - sig_high[1] > sig_low[1] - sig_low ? math.max(sig_high - sig_high[1], 0) : 0
+    minus_dm = sig_low[1] - sig_low > sig_high - sig_high[1] ? math.max(sig_low[1] - sig_low, 0) : 0
+    
+    plus_di = 100 * ta.rma(plus_dm, regime_lookback) / ta.rma(tr, regime_lookback)
+    minus_di = 100 * ta.rma(minus_dm, regime_lookback) / ta.rma(tr, regime_lookback)
+    dx = math.abs(plus_di - minus_di) / (plus_di + minus_di) * 100
+    adx = ta.rma(dx, regime_lookback)
+    
+    trending_market = adx >= trending_threshold * 100
+    ranging_market = not trending_market
+    bullish_trend = trending_market and plus_di > minus_di
+    bearish_trend = trending_market and minus_di > plus_di
+    
+    var float regime_score = 0.0
+    
+    if is_buy
+        if bullish_trend
+            regime_score := 0.7
+        else if bearish_trend
+            regime_score := -0.8
+        else
+            regime_score := -0.2
+            
+    else if is_sell
+        if bearish_trend
+            regime_score := 0.7
+        else if bullish_trend
+            regime_score := -0.8
+        else
+            regime_score := -0.2
+            
+    else
+        regime_score := 0.0
+    
+    regime_score
+
+// ===========================================================================================================
+// CANDLE TYPE CALCULATIONS
+// ===========================================================================================================
+
+// Heikin Ashi
+calculateHA() =>
+    var haOpen = 0.0
+    var haHigh = 0.0
+    var haLow = 0.0
+    var haClose = 0.0
+
+    newHaClose = (open + high + low + close) / 4
+    newHaOpen = na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2
+    newHaHigh = math.max(high, math.max(newHaOpen, newHaClose))
+    newHaLow = math.min(low, math.min(newHaOpen, newHaClose))
+
+    haClose := newHaClose
+    haOpen := newHaOpen
+    haHigh := newHaHigh
+    haLow := newHaLow
+
+    [newHaOpen, newHaHigh, newHaLow, newHaClose]
+
+[oHA, hHA, lHA, cHA] = calculateHA()
+
+var float displayOpen = na
+var float displayHigh = na
+var float displayLow = na
+var float displayClose = na
+
+if candleType == 'Candlesticks'
+    displayOpen := open
+    displayHigh := high
+    displayLow := low
+    displayClose := close
+else if candleType == 'Heikin Ashi'
+    displayOpen := oHA
+    displayHigh := hHA
+    displayLow := lHA
+    displayClose := cHA
+else if candleType == 'Linear Regression'
+    displayOpen := ta.linreg(open, lrcLength, 0)
+    displayHigh := ta.linreg(high, lrcLength, 0)
+    displayLow := ta.linreg(low, lrcLength, 0)
+    displayClose := ta.linreg(close, lrcLength, 0)
+
+// Determine coloring
+isBullishCandle = displayClose > displayOpen
+isBearishCandle = displayClose < displayOpen
+
+// ===========================================================================================================
+// SIGNAL DATA SOURCE SELECTION
+// ===========================================================================================================
+
+var float signalOpenCalc = na
+var float signalHighCalc = na
+var float signalLowCalc = na
+var float signalCloseCalc = na
+
+if signalCandleType == 'Candlesticks'
+    signalOpenCalc := open
+    signalHighCalc := high
+    signalLowCalc := low
+    signalCloseCalc := close
+else if signalCandleType == 'Heikin Ashi'
+    signalOpenCalc := oHA
+    signalHighCalc := hHA
+    signalLowCalc := lHA
+    signalCloseCalc := cHA
+else if signalCandleType == 'Linear Regression'
+    signalOpenCalc := ta.linreg(open, lrcLength, 0)
+    signalHighCalc := ta.linreg(high, lrcLength, 0)
+    signalLowCalc := ta.linreg(low, lrcLength, 0)
+    signalCloseCalc := ta.linreg(close, lrcLength, 0)
+
+signalOpen := signalOpenCalc
+signalHigh := signalHighCalc
+signalLow := signalLowCalc
+signalClose := signalCloseCalc
+
+// ===========================================================================================================
+// SCALP HELPER SIGNAL SYSTEM
+// ===========================================================================================================
+
+buy_signal_buySignal = false
+sell_signal_sellSignal = false
+buy_atr_sellSignal = false
+sell_atr_buySignal = false
+buy_atr_longStop = close
+sell_atr_shortStop = close
+var bool buy_atr_stop_active = false
+var bool sell_atr_stop_active = false
+
+if enable_scalp_helper
+    // ============================================================================
+    // BUY SIGNAL
+    // ============================================================================
+    
+    buy_signal_atr = ta.atr(buy_signal_length) * signal_trigger_mult
+    
+    buy_signal_longStop = (buy_signal_use_close ? ta.highest(signalClose, buy_signal_length) : ta.highest(signalHigh, buy_signal_length)) - buy_signal_atr
+    buy_signal_longStopPrev = nz(buy_signal_longStop[1], buy_signal_longStop)
+    buy_signal_longStop := signalClose[1] > buy_signal_longStopPrev ? math.max(buy_signal_longStop, buy_signal_longStopPrev) : buy_signal_longStop
+    
+    buy_signal_shortStop = (buy_signal_use_close ? ta.lowest(signalClose, buy_signal_length) : ta.lowest(signalLow, buy_signal_length)) + buy_signal_atr
+    buy_signal_shortStopPrev = nz(buy_signal_shortStop[1], buy_signal_shortStop)
+    buy_signal_shortStop := signalClose[1] < buy_signal_shortStopPrev ? math.min(buy_signal_shortStop, buy_signal_shortStopPrev) : buy_signal_shortStop
+    
+    var int buy_signal_dir = 1
+    buy_signal_dir := signalClose > buy_signal_shortStopPrev ? 1 : signalClose < buy_signal_longStopPrev ? -1 : buy_signal_dir
+    
+    buy_signal_buySignal := buy_signal_dir == 1 and buy_signal_dir[1] == -1
+    
+    // ============================================================================
+    // BUY ATR STOP
+    // ============================================================================
+    
+    buy_atr_atr = ta.atr(buy_atr_length) * stop_atr_mult
+    
+    buy_atr_longStop := (buy_atr_use_close ? ta.highest(signalClose, buy_atr_length) : ta.highest(signalHigh, buy_atr_length)) - buy_atr_atr
+    buy_atr_longStopPrev = nz(buy_atr_longStop[1], buy_atr_longStop)
+    buy_atr_longStop := signalClose[1] > buy_atr_longStopPrev ? math.max(buy_atr_longStop, buy_atr_longStopPrev) : buy_atr_longStop
+    
+    buy_atr_shortStop = (buy_atr_use_close ? ta.lowest(signalClose, buy_atr_length) : ta.lowest(signalLow, buy_atr_length)) + buy_atr_atr
+    buy_atr_shortStopPrev = nz(buy_atr_shortStop[1], buy_atr_shortStop)
+    buy_atr_shortStop := signalClose[1] < buy_atr_shortStopPrev ? math.min(buy_atr_shortStop, buy_atr_shortStopPrev) : buy_atr_shortStop
+    
+    var int buy_atr_dir = 1
+    buy_atr_dir := signalClose > buy_atr_shortStopPrev ? 1 : signalClose < buy_atr_longStopPrev ? -1 : buy_atr_dir
+    
+    buy_atr_sellSignal := buy_atr_dir == -1 and buy_atr_dir[1] == 1
+    
+    // ============================================================================
+    // SELL SIGNAL
+    // ============================================================================
+    
+    sell_signal_atr = ta.atr(sell_signal_length) * signal_trigger_mult
+    
+    sell_signal_longStop = (sell_signal_use_close ? ta.highest(signalClose, sell_signal_length) : ta.highest(signalHigh, sell_signal_length)) - sell_signal_atr
+    sell_signal_longStopPrev = nz(sell_signal_longStop[1], sell_signal_longStop)
+    sell_signal_longStop := signalClose[1] > sell_signal_longStopPrev ? math.max(sell_signal_longStop, sell_signal_longStopPrev) : sell_signal_longStop
+    
+    sell_signal_shortStop = (sell_signal_use_close ? ta.lowest(signalClose, sell_signal_length) : ta.lowest(signalLow, sell_signal_length)) + sell_signal_atr
+    sell_signal_shortStopPrev = nz(sell_signal_shortStop[1], sell_signal_shortStop)
+    sell_signal_shortStop := signalClose[1] < sell_signal_shortStopPrev ? math.min(sell_signal_shortStop, sell_signal_shortStopPrev) : sell_signal_shortStop
+    
+    var int sell_signal_dir = 1
+    sell_signal_dir := signalClose > sell_signal_shortStopPrev ? 1 : signalClose < sell_signal_longStopPrev ? -1 : sell_signal_dir
+    
+    sell_signal_sellSignal := sell_signal_dir == -1 and sell_signal_dir[1] == 1
+    
+    // ============================================================================
+    // SELL ATR STOP
+    // ============================================================================
+    
+    sell_atr_atr = ta.atr(sell_atr_length) * stop_atr_mult
+    
+    sell_atr_longStop = (sell_atr_use_close ? ta.highest(signalClose, sell_atr_length) : ta.highest(signalHigh, sell_atr_length)) - sell_atr_atr
+    sell_atr_longStopPrev = nz(sell_atr_longStop[1], sell_atr_longStop)
+    sell_atr_longStop := signalClose[1] > sell_atr_longStopPrev ? math.max(sell_atr_longStop, sell_atr_longStopPrev) : sell_atr_longStop
+    
+    sell_atr_shortStop := (sell_atr_use_close ? ta.lowest(signalClose, sell_atr_length) : ta.lowest(signalLow, sell_atr_length)) + sell_atr_atr
+    sell_atr_shortStopPrev = nz(sell_atr_shortStop[1], sell_atr_shortStop)
+    sell_atr_shortStop := signalClose[1] < sell_atr_shortStopPrev ? math.min(sell_atr_shortStop, sell_atr_shortStopPrev) : sell_atr_shortStop
+    
+    var int sell_atr_dir = 1
+    sell_atr_dir := signalClose > sell_atr_shortStopPrev ? 1 : signalClose < sell_atr_longStopPrev ? -1 : sell_atr_dir
+    
+    sell_atr_buySignal := sell_atr_dir == 1 and sell_atr_dir[1] == -1
+    
+    // ============================================================================
+    // SIGNAL STATE MANAGEMENT
+    // ============================================================================
+    
+    if not buy_atr_stop_active
+        if buy_signal_buySignal
+            buy_atr_stop_active := true
+    else
+        if buy_atr_sellSignal
+            buy_atr_stop_active := false
+
+    if not sell_atr_stop_active
+        if sell_signal_sellSignal
+            sell_atr_stop_active := true
+    else
+        if sell_atr_buySignal
+            sell_atr_stop_active := false
+
+// ===========================================================================================================
+// SUPERTREND STOP VISUALIZATION
+// ===========================================================================================================
+
+// Calculate SuperTrend
+f_supertrend(float factor, int atr_len) =>
+    float atr_st = ta.atr(atr_len)
+    float up = hl2 - factor * atr_st
+    float dn = hl2 + factor * atr_st
+    
+    var float upperBand = na
+    var float lowerBand = na
+    var int direction = 1
+    
+    float prevLowerBand = nz(lowerBand[1])
+    float prevUpperBand = nz(upperBand[1])
+    
+    lowerBand := up > prevLowerBand or close[1] < prevLowerBand ? up : prevLowerBand
+    upperBand := dn < prevUpperBand or close[1] > prevUpperBand ? dn : prevUpperBand
+    
+    int prevDirection = nz(direction[1], 1)
+    direction := prevDirection == -1 and close > prevUpperBand ? 1 : 
+                 prevDirection == 1 and close < prevLowerBand ? -1 : prevDirection
+    
+    float stopLevel = direction == 1 ? lowerBand : upperBand
+    
+    [stopLevel, direction, lowerBand, upperBand]
+
+[st_stop, st_direction, st_lower, st_upper] = f_supertrend(st_factor, st_atr_length)
+
+// Track SuperTrend stops anchored to signals
+var bool buy_st_active = false
+var bool sell_st_active = false
+var float buy_st_stop = na
+var float sell_st_stop = na
+var int buy_st_bar_count = 0
+var int sell_st_bar_count = 0
+
+// Detect new signals (same logic as label display)
+bool new_buy_signal = buy_signal_buySignal and not buy_atr_stop_active[1]
+bool new_sell_signal = sell_signal_sellSignal and not sell_atr_stop_active[1]
+
+// Detect ATR stop invalidations
+bool buy_atr_invalidated = buy_atr_stop_active[1] and not buy_atr_stop_active
+bool sell_atr_invalidated = sell_atr_stop_active[1] and not sell_atr_stop_active
+
+// Detect SuperTrend crossover invalidations
+bool buy_st_crossed = buy_st_active and close < buy_st_stop
+bool sell_st_crossed = sell_st_active and close > sell_st_stop
+
+// Buy SuperTrend logic
+if new_buy_signal
+    // New buy signal - start fresh
+    buy_st_active := true
+    buy_st_stop := st_lower
+    buy_st_bar_count := 0
+else if buy_st_active
+    buy_st_bar_count += 1
+    // Trail the stop up (never down)
+    buy_st_stop := math.max(buy_st_stop, st_lower)
+    // Check invalidation conditions
+    if new_buy_signal[0] == false and (new_buy_signal or buy_atr_invalidated or buy_st_crossed)
+        buy_st_active := false
+        buy_st_stop := na
+        buy_st_bar_count := 0
+
+// Additional check for invalidations (handles same-bar)
+if buy_st_active and (buy_atr_invalidated or buy_st_crossed)
+    buy_st_active := false
+    buy_st_stop := na
+    buy_st_bar_count := 0
+
+// Sell SuperTrend logic  
+if new_sell_signal
+    // New sell signal - start fresh
+    sell_st_active := true
+    sell_st_stop := st_upper
+    sell_st_bar_count := 0
+else if sell_st_active
+    sell_st_bar_count += 1
+    // Trail the stop down (never up)
+    sell_st_stop := math.min(sell_st_stop, st_upper)
+    // Check invalidation conditions
+    if new_sell_signal[0] == false and (new_sell_signal or sell_atr_invalidated or sell_st_crossed)
+        sell_st_active := false
+        sell_st_stop := na
+        sell_st_bar_count := 0
+
+// Additional check for invalidations (handles same-bar)
+if sell_st_active and (sell_atr_invalidated or sell_st_crossed)
+    sell_st_active := false
+    sell_st_stop := na
+    sell_st_bar_count := 0
+
+// Calculate transparency based on bar count
+f_calcStopTransparency(int bars_active, int delay_bars, int initial_transp, int final_transp, int fade_bars) =>
+    if bars_active < delay_bars
+        100  // Fully transparent (hidden)
+    else
+        int bars_since_visible = bars_active - delay_bars
+        float fade_progress = math.min(1.0, float(bars_since_visible) / float(fade_bars))
+        int transp = int(initial_transp - fade_progress * (initial_transp - final_transp))
+        transp
+
+int buy_st_transp = f_calcStopTransparency(buy_st_bar_count, st_delay_bars, st_initial_transp, st_final_transp, st_fade_bars)
+int sell_st_transp = f_calcStopTransparency(sell_st_bar_count, st_delay_bars, st_initial_transp, st_final_transp, st_fade_bars)
+
+bool show_buy_st = show_supertrend_stop and buy_st_active and buy_st_bar_count >= st_delay_bars
+bool show_sell_st = show_supertrend_stop and sell_st_active and sell_st_bar_count >= st_delay_bars
+
+// Plot SuperTrend stop lines with dynamic transparency
+plot(show_buy_st ? buy_st_stop : na, "Buy SuperTrend Stop", color = color.new(st_buy_color, buy_st_transp), style = plot.style_linebr, linewidth = st_line_width)
+plot(show_sell_st ? sell_st_stop : na, "Sell SuperTrend Stop", color = color.new(st_sell_color, sell_st_transp), style = plot.style_linebr, linewidth = st_line_width)
+
+// ===========================================================================================================
+// CORE CALCULATIONS
+// ===========================================================================================================
+
+// Cached ATR values for AMFv2
+float avg_atr_50 = ta.sma(cached_atr, 50)
+
+// AMFv2 Calculations
+amf_line = f_calculate_amf_v2(signalClose, cached_atr, avg_atr_50)
+amf_signal = f_amf_signal_v2(amf_line)
+
+// Cached ATR
+atr14 = ta.atr(14)
+
+// ALMA calculations for neural network (Use Signal Candles for analysis)
+alma200 = ta.alma(signalClose, almaLength, almaOffset, almaSigma)
+alma2 = ta.alma(signalClose, alma2Length, alma2Offset, alma2Sigma)
+
+// ===========================================================================================================
+// NEURAL NETWORK
+// ===========================================================================================================
+
+is_buy_signal = buy_signal_buySignal
+is_sell_signal = sell_signal_sellSignal
+
+amf_context = f_analyzeAMF(amf_line, amf_signal, is_buy_signal, is_sell_signal, atr14)
+
+alma_context = f_analyzeALMA(alma200, alma2, is_buy_signal, is_sell_signal, atr14)
+
+sr_context = f_analyzeSupportResistance(is_buy_signal, is_sell_signal, atr14, signalHigh, signalLow, signalClose)
+
+swing_context = f_analyzeSwingStructure(is_buy_signal, is_sell_signal, signalHigh, signalLow)
+
+regime_context = f_analyzeMarketRegime(is_buy_signal, is_sell_signal, signalOpen, signalHigh, signalLow, signalClose)
+
+amf_context_normalized = f_normalizeInput(amf_context, normalization_lookback, outlier_clipping, clipping_threshold)
+alma_context_normalized = f_normalizeInput(alma_context, normalization_lookback, outlier_clipping, clipping_threshold)
+sr_context_normalized = f_normalizeInput(sr_context, normalization_lookback, outlier_clipping, clipping_threshold)
+swing_context_normalized = f_normalizeInput(swing_context, normalization_lookback, outlier_clipping, clipping_threshold)
+regime_context_normalized = f_normalizeInput(regime_context, normalization_lookback, outlier_clipping, clipping_threshold)
+
+signal_score = (is_buy_signal or is_sell_signal) ? 
+               f_scoreSignalNormalized(amf_context_normalized, alma_context_normalized, 
+                                     sr_context_normalized, swing_context_normalized, regime_context_normalized) : 0.5
+signal_grade = f_getSignalGrade(signal_score)
+score_color = f_getScoreColor(signal_score, is_buy_signal)
+
+// ===========================================================================================================
+// CANDLE PLOTTING
+// ===========================================================================================================
+
+candleColor = isBullishCandle ? customBuyColor : customSellColor
+
+plotcandle(candleType != 'Candlesticks' ? displayOpen : na, 
+           candleType != 'Candlesticks' ? displayHigh : na, 
+           candleType != 'Candlesticks' ? displayLow : na, 
+           candleType != 'Candlesticks' ? displayClose : na, 
+           title = 'Alternative Candles',
+           color = candleType != 'Candlesticks' ? candleColor : na,
+           wickcolor = candleType != 'Candlesticks' ? candleColor : na,
+           bordercolor = candleType != 'Candlesticks' ? candleColor : na)
+
+// ===========================================================================================================
+// SCALP HELPER SIGNAL PLOTS
+// ===========================================================================================================
+
+atr_offset = signalOffset * atr14
+
+show_buy_signal = enable_scalp_helper and buy_signal_buySignal and not buy_atr_stop_active[1]
+show_sell_signal = enable_scalp_helper and sell_signal_sellSignal and not sell_atr_stop_active[1]
+
+// Add grade filter check
+show_buy_signal_filtered = show_buy_signal and f_shouldShowGrade(signal_grade)
+show_sell_signal_filtered = show_sell_signal and f_shouldShowGrade(signal_grade)
+
+label_size = signalLabelSize == 'tiny' ? size.tiny : 
+             signalLabelSize == 'small' ? size.small : 
+             signalLabelSize == 'large' ? size.large : size.normal
+
+if showScalpLabels and show_buy_signal_filtered
+    buy_label_text = signal_grade
+    label.new(bar_index, signalLow - atr_offset, 
+             text = buy_label_text, 
+             style = label.style_label_up, 
+             size = label_size, 
+             color = score_color, 
+             textcolor = textColor)
+
+if showScalpLabels and show_sell_signal_filtered
+    sell_label_text = signal_grade
+    label.new(bar_index, signalHigh + atr_offset, 
+             text = sell_label_text, 
+             style = label.style_label_down, 
+             size = label_size, 
+             color = score_color, 
+             textcolor = textColor)
+
+// ===========================================================================================================
+// DATA WINDOW OUTPUTS
+// ===========================================================================================================
+
+// SuperTrend tracking
+plot(buy_st_active ? 1 : 0, "Buy ST Active", display=display.data_window)
+plot(sell_st_active ? 1 : 0, "Sell ST Active", display=display.data_window)
+plot(buy_st_bar_count, "Buy ST Bars", display=display.data_window)
+plot(sell_st_bar_count, "Sell ST Bars", display=display.data_window)
+plot(buy_st_stop, "Buy ST Stop Level", display=display.data_window)
+plot(sell_st_stop, "Sell ST Stop Level", display=display.data_window)
+
+// ===========================================================================================================
+// ALERT CONDITIONS
+// ===========================================================================================================
+
+// Basic Buy/Sell Signal Alerts (All Grades)
+alertcondition(enable_scalp_helper and show_buy_signal_filtered, "Buy Signal", "BUY Signal Triggered")
+
+alertcondition(enable_scalp_helper and show_sell_signal_filtered, "Sell Signal", "SELL Signal Triggered")
+
+// High-Quality Signal Alerts (A+ and A grades only)
+alertcondition(enable_scalp_helper and show_buy_signal_filtered and (signal_grade == "A+" or signal_grade == "A"), "High-Quality Buy Signal", "HIGH-QUALITY BUY Signal - Strong bullish setup detected")
+
+alertcondition(enable_scalp_helper and show_sell_signal_filtered and (signal_grade == "A+" or signal_grade == "A"), "High-Quality Sell Signal", "HIGH-QUALITY SELL Signal - Strong bearish setup detected")
+
+// Premium Signal Alerts (A+ grade only)
+alertcondition(enable_scalp_helper and show_buy_signal_filtered and signal_grade == "A+", "Premium Buy Signal (A+)", "PREMIUM BUY Signal - Grade A+ - Highest confidence bullish signal")
+
+alertcondition(enable_scalp_helper and show_sell_signal_filtered and signal_grade == "A+", "Premium Sell Signal (A+)", "PREMIUM SELL Signal - Grade A+ - Highest confidence bearish signal")
+
+// Combined Signal Alert (Any signal regardless of grade)
+alertcondition(enable_scalp_helper and (show_buy_signal_filtered or show_sell_signal_filtered), "Any Signal", "Signal Triggered - Check chart for details")
+
+// Grade-Specific Alerts
+alertcondition(enable_scalp_helper and show_buy_signal_filtered and signal_grade == "B", "B-Grade Buy Signal", "B-Grade BUY Signal - Good bullish setup")
+
+alertcondition(enable_scalp_helper and show_sell_signal_filtered and signal_grade == "B", "B-Grade Sell Signal", "B-Grade SELL Signal - Good bearish setup")
+
+alertcondition(enable_scalp_helper and show_buy_signal_filtered and signal_grade == "C", "C-Grade Buy Signal", "C-Grade BUY Signal - Moderate bullish setup")
+
+alertcondition(enable_scalp_helper and show_sell_signal_filtered and signal_grade == "C", "C-Grade Sell Signal", "C-Grade SELL Signal - Moderate bearish setup")
+
+// Signal State Change Alerts
+alertcondition(enable_scalp_helper and buy_atr_stop_active and not buy_atr_stop_active[1], "Buy Signal Activated", "BUY Signal State ACTIVATED - Position tracking started")
+
+alertcondition(enable_scalp_helper and sell_atr_stop_active and not sell_atr_stop_active[1], "Sell Signal Activated", "SELL Signal State ACTIVATED - Position tracking started")
+
+alertcondition(enable_scalp_helper and not buy_atr_stop_active and buy_atr_stop_active[1], "Buy Signal Deactivated", "BUY Signal State DEACTIVATED - Position tracking ended")
+
+alertcondition(enable_scalp_helper and not sell_atr_stop_active and sell_atr_stop_active[1], "Sell Signal Deactivated", "SELL Signal State DEACTIVATED - Position tracking ended")
+
+// SuperTrend Stop Alerts
+alertcondition(buy_st_crossed, "Buy Stop Hit", "BUY SuperTrend Stop HIT - Price crossed below stop level")
+
+alertcondition(sell_st_crossed, "Sell Stop Hit", "SELL SuperTrend Stop HIT - Price crossed above stop level")

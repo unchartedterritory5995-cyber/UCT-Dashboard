@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2d248c31251241019d09e02985755c71",
+ "title": "Nadaraya-Watson: Rational Quadratic Kernel (Non-Repainting)",
+ "author": "jdehorty",
+ "url": "https://www.tradingview.com/script/AWNvbPRM-nadaraya-watson-rational-quadratic-kernel-non-repainting/",
+ "agreeCount": 4306,
+ "category": "machine-learning-styled",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+ "cached_source": "tools/pine_survey/cache/sources/nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125.pine",
+ "our_status": "committed"
+}

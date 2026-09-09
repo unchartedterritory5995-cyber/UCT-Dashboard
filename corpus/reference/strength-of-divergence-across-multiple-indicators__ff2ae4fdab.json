@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ff2ae4fdabcf4d7a8b5d4e11980aed4c",
+ "title": "Strength of Divergence Across Multiple Indicators",
+ "author": "reees",
+ "url": "https://www.tradingview.com/script/680R1I3Z-strength-of-divergence-across-multiple-indicators/",
+ "agreeCount": 5295,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine",
+ "cached_source": "tools/pine_survey/cache/sources/strength-of-divergence-across-multiple-indicators__ff2ae4fdab.pine",
+ "our_status": "committed"
+}

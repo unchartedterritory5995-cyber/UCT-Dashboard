@@ -1,0 +1,79 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © piriya33
+
+//@version=5
+indicator("CDC_BTC Rainbow Road", overlay = true)
+
+_price  = input.source(close,"Price Source")
+_malen  = input.int(730,"MA Length",minval = 1, maxval = 999)
+_mltpl  = input.float(5,"Channel Multipler")
+_lvl00  = input.float(0.5,"Level 00")
+_lvl01  = input.float(0.618,"Level 01")
+_lvl02  = input.float(0.786,"Level 02")
+_lvl03  = input.float(0.887,"Level 03")
+_lvl04  = input.float(1.618,"Level 04")
+_lvl05  = input.float(2.618,"Level 05")
+_lvl06  = input.float(4.236,"Level 06")
+
+baseMA  = ta.sma(_price,_malen)
+peakMA  = baseMA*_mltpl
+bandwidth = peakMA-baseMA
+
+top06   = (bandwidth*_lvl06)+baseMA
+top05   = (bandwidth*_lvl05)+baseMA
+top04   = (bandwidth*_lvl04)+baseMA
+top03   = (bandwidth*_lvl03)+baseMA
+top02   = (bandwidth*_lvl02)+baseMA
+top01   = (bandwidth*_lvl01)+baseMA
+
+midline = (bandwidth*_lvl00)+baseMA
+
+bot01   = peakMA - (bandwidth*_lvl01)
+bot02   = peakMA - (bandwidth*_lvl02)
+bot03   = peakMA - (bandwidth*_lvl03)
+
+sub01   = baseMA*_lvl01
+
+color00 = #ff0040
+color01 = #ff4400
+color02 = #ffbf00
+color03 = #bfff00
+color04 = #40ff00
+color05 = #00ff40
+color06 = #00ffbf
+color07 = #00bfff
+color08 = #0040ff
+color09 = #4000ff
+color10 = #bf00ff
+color11 = #ff00bf
+
+lbot = plot(baseMA,"Lower Channel",color=color.gray,linewidth=2)
+ltop = plot(peakMA,"Upper Channel",color=color.gray,linewidth=2)
+
+lmid = plot(midline,color=color.gray,linewidth=1)
+
+l11 = plot(top06,color=color11)
+l10 = plot(top05,color=color10)
+l09 = plot(top04,color=color09)
+
+l07 = plot(top03,color=color07)
+l06 = plot(top02,color=color06)
+l05 = plot(top01,color=color05)
+
+l03 = plot(bot01,color=color03)
+l02 = plot(bot02,color=color02)
+l01 = plot(bot03,color=color01)
+
+lb1 = plot(sub01,color=color00)
+
+fill(l11,l10,color=color.new(color11,90))
+fill(l10,l09,color=color.new(color10,90))
+fill(l09,ltop,color=color.new(color09,90))
+fill(ltop,l07,color=color.new(color08,90))
+fill(l07,l06,color=color.new(color07,90))
+fill(l06,l05,color=color.new(color06,90))
+fill(l05,lmid,color=color.new(color05,90))
+fill(lmid,l03,color=color.new(color04,90))
+fill(l03,l02,color=color.new(color03,90))
+fill(l02,l01,color=color.new(color02,90))
+fill(l01,lbot,color=color.new(color01,90))

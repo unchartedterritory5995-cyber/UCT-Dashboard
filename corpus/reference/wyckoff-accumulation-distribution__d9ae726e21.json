@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d9ae726e213847b08519d4200eff6c39",
+ "title": "Wyckoff Accumulation Distribution",
+ "author": "faytterro",
+ "url": "https://www.tradingview.com/script/eKXiwaeS-wyckoff-accumulation-distribution/",
+ "agreeCount": 3499,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/wyckoff-accumulation-distribution__d9ae726e21.pine",
+ "cached_source": "tools/pine_survey/cache/sources/wyckoff-accumulation-distribution__d9ae726e21.pine",
+ "our_status": "committed"
+}

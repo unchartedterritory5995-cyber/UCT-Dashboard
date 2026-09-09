@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c85c28c18a5649cdbf5f1c62cf4d3e18",
+ "title": "Market sessions and Volume profile - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/tV3rCaJ9-market-sessions-and-volume-profile-by-leviathan/",
+ "agreeCount": 22675,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/market-sessions-and-volume-profile-by-leviathan__c85c28c18a.pine",
+ "cached_source": "tools/pine_survey/cache/sources/market-sessions-and-volume-profile-by-leviathan__c85c28c18a.pine",
+ "our_status": "committed"
+}

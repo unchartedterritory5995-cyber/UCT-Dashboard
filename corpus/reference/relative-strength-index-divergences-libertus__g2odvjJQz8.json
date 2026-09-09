@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;g2odvjJQz8YO6azoVZZEW7kqncYeNETc",
+ "title": "Relative Strength Index - Divergences - Libertus",
+ "author": "Libertus",
+ "url": "https://www.tradingview.com/script/42wcFfql-relative-strength-index-divergences-libertus/",
+ "agreeCount": 9889,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/relative-strength-index-divergences-libertus__g2odvjJQz8.pine",
+ "our_status": "reference-only"
+}

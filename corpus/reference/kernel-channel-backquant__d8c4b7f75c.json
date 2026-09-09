@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d8c4b7f75cc247099a8284ca59fdf392",
+ "title": "Kernel Channel [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/pg4EGmu5-kernel-channel-backquant/",
+ "agreeCount": 752,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/kernel-channel-backquant__d8c4b7f75c.pine",
+ "our_status": "committed"
+}

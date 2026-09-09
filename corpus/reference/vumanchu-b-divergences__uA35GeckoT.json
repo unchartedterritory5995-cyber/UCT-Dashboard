@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;uA35GeckoTA2EfgI63SD2WCSmca4njxp",
+ "title": "VuManChu B Divergences",
+ "author": "vumanchu",
+ "url": "https://www.tradingview.com/script/Msm4SjwI-vumanchu-b-divergences/",
+ "agreeCount": 24450,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/vumanchu-b-divergences__uA35GeckoT.pine",
+ "our_status": "reference-only"
+}

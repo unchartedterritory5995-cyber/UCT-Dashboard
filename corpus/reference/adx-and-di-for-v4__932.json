@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;932",
+ "title": "ADX and DI for v4",
+ "author": "BeikabuOyaji",
+ "url": "https://www.tradingview.com/script/VTPMMOrx-adx-and-di-for-v4/",
+ "agreeCount": 45150,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/adx-and-di-for-v4__932.pine",
+ "cached_source": "tools/pine_survey/cache/sources/adx-and-di-for-v4__932.pine",
+ "our_status": "committed"
+}

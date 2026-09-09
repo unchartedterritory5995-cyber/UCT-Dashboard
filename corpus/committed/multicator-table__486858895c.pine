@@ -1,0 +1,802 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © only_fibonacci
+
+//@version=6
+indicator('Multicator Table', overlay = true, max_labels_count = 300, max_lines_count = 150, max_boxes_count = 50, max_polylines_count = 40)
+
+// Color pack for table, HUD, and frames.
+type ThemePalette
+    color tableBg
+    color tableHeader
+    color tableText
+    color frame
+    color bull
+    color bear
+    color neutral
+    color accentText
+    color hudBg
+    color hudBorder
+    color hudText
+
+// Builds the color pack for the selected theme.
+themePalette(bool dark) =>
+    ThemePalette.new(
+         dark ? color.new(#070b14, 8) : color.new(#f4f7fb, 0),
+         dark ? color.new(#031018, 0) : color.new(#e4eef5, 0),
+         dark ? color.new(#eaffff, 0) : color.new(#0b1c28, 0),
+         dark ? color.new(#00f3ff, 20) : color.new(#0b4f6c, 0),
+         dark ? color.new(#00ff9c, 35) : color.new(#c8f7d6, 0),
+         dark ? color.new(#ff2d6a, 28) : color.new(#ffd0d6, 0),
+         dark ? color.new(#0d1524, 0) : color.new(#e8eef4, 0),
+         dark ? color.new(#eaffff, 0) : color.new(#0b1c28, 0),
+         dark ? color.new(#05080f, 18) : color.new(#dfe7ef, 8),
+         dark ? color.new(#00f3ff, 25) : color.new(#0b4f6c, 0),
+         dark ? color.new(#eaffff, 0) : color.new(#0b1c28, 0))
+
+lang = input.string('EN', 'Language', options = ['EN', 'TR'], group = 'General')
+themeName = input.string('Dark', 'Theme', options = ['Dark', 'Light'], group = 'General')
+preset = input.string('Manual', 'Preset', options = ['Manual', 'Scalping', 'Swing'], group = 'General')
+en = lang == 'EN'
+isDark = themeName == 'Dark'
+theme = themePalette(isDark)
+colEma1 = isDark ? color.new(#f8ff32, 0) : color.new(#7a5b00, 0)
+colEma2 = isDark ? color.new(#00f3ff, 0) : color.new(#063a8c, 0)
+colEma3 = isDark ? color.new(#ff4dff, 0) : color.new(#5b21b6, 0)
+colSma1 = isDark ? color.new(#00ff9c, 0) : color.new(#14532d, 0)
+colSma2 = isDark ? color.new(#39ff14, 0) : color.new(#0f766e, 0)
+colSma3 = isDark ? color.new(#ff2d6a, 0) : color.new(#9f1239, 0)
+colRsi = isDark ? color.new(#bf5af2, 0) : color.new(#6b21a8, 0)
+colRsiMa = isDark ? color.new(#00f3ff, 0) : color.new(#1e3a5f, 0)
+colAtr = isDark ? color.new(#ff2d6a, 0) : color.new(#9f1239, 0)
+colMom = isDark ? color.new(#ffb800, 0) : color.new(#92400e, 0)
+colAdx = isDark ? color.new(#00ff9c, 0) : color.new(#14532d, 0)
+colMacd = isDark ? color.new(#00f3ff, 0) : color.new(#063a8c, 0)
+colMacdSig = isDark ? color.new(#ffb800, 0) : color.new(#92400e, 0)
+colSar = isDark ? color.new(#00f3ff, 0) : color.new(#063a8c, 0)
+colBbMid = isDark ? color.new(#ffb800, 0) : color.new(#9a3412, 0)
+colBbBand = isDark ? color.new(#00f3ff, 0) : color.new(#063a8c, 0)
+colIchTenkan = isDark ? color.new(#00f3ff, 0) : color.new(#063a8c, 0)
+colIchKijun = isDark ? color.new(#ff2d6a, 0) : color.new(#9f1239, 0)
+colIchChikou = isDark ? color.new(#00ff9c, 0) : color.new(#14532d, 0)
+colFib = isDark ? color.new(#00f3ff, 20) : color.new(#334155, 0)
+colVwap = isDark ? color.new(#ffb800, 0) : color.new(#9a3412, 0)
+colSt = isDark ? color.new(#00ff9c, 0) : color.new(#166534, 0)
+colDon = isDark ? color.new(#00f3ff, 0) : color.new(#1e40af, 0)
+colKel = isDark ? color.new(#ff4dff, 0) : color.new(#6b21a8, 0)
+colStoch = isDark ? color.new(#39ff14, 0) : color.new(#3f6212, 0)
+colCci = isDark ? color.new(#ffb800, 0) : color.new(#854d0e, 0)
+colMfi = isDark ? color.new(#00f3ff, 0) : color.new(#0e7490, 0)
+colWpr = isDark ? color.new(#ff2d6a, 0) : color.new(#9f1239, 0)
+neonHeaderText = isDark ? color.new(#00f3ff, 0) : color.new(#0a6b7c, 0)
+
+tableMode = input.string('Desktop', 'Table', options = ['Off', 'Desktop', 'Mobile'], group = 'Table')
+tablePos = input.string('Top Right', 'Position', options = ['Top Right', 'Bottom Right', 'Middle Right', 'Bottom Center', 'Bottom Left'], group = 'Table')
+tableSize = input.string('Small', 'Size', options = ['Small', 'Large', 'Normal'], group = 'Table')
+
+showHud = input.bool(true, 'Show HUD', group = 'HUD')
+hudExtra = input.bool(false, 'HUD extra osc (Stoch/CCI/MFI/%R)', group = 'HUD')
+hudGap = input.int(30, 'Right gap (bars)', minval = 30, maxval = 80, group = 'HUD', tooltip = 'HUD starts this many bars to the right of the last candle.')
+hudBars = input.int(40, 'HUD bars', minval = 30, maxval = 50, group = 'HUD', tooltip = 'HUD panel width in bars (30–50).')
+
+showFib = input.bool(false, 'Show Fibonacci', group = 'Fibonacci')
+fibonacciExtendRight = input.bool(true, 'Extend right', group = 'Fibonacci', inline = 'FG')
+fibShowData = input.bool(true, 'Show labels', group = 'Fibonacci', inline = 'FG')
+fibLookback = input.int(233, minval = 8, title = 'Fibonacci Distance', group = 'Fibonacci')
+fibColor = input.color(color.gray, 'Fibonacci Color', group = 'Fibonacci')
+fib1 = input.int(618, 'Fib Level 1', group = 'Fibonacci', maxval = 1618)
+fib2 = input.int(382, 'Fib Level 2', group = 'Fibonacci', maxval = 1618)
+fib3 = input.int(786, 'Fib Level 3', group = 'Fibonacci', maxval = 1618)
+
+ema1 = input.int(50, 'EMA 1', group = 'MA', inline = 'E1')
+ema1Show = input.bool(false, '', group = 'MA', inline = 'E1')
+ema1Color = input.color(color.new(#f7c948, 0), 'EMA1 COLOR', group = 'MA')
+ema2 = input.int(100, 'EMA 2', group = 'MA', inline = 'E2')
+ema2Show = input.bool(false, '', group = 'MA', inline = 'E2')
+ema2Color = input.color(color.new(#61afef, 0), 'EMA2 COLOR', group = 'MA')
+ema3 = input.int(200, 'EMA 3', group = 'MA', inline = 'E3')
+ema3Show = input.bool(false, '', group = 'MA', inline = 'E3')
+ema3Color = input.color(color.new(#c678dd, 0), 'EMA3 COLOR', group = 'MA')
+sma1 = input.int(50, 'SMA 1', group = 'MA', inline = 'S1')
+sma1Show = input.bool(false, '', group = 'MA', inline = 'S1')
+sma1Color = input.color(color.new(#98c379, 0), 'SMA1 COLOR', group = 'MA')
+sma2 = input.int(100, 'SMA 2', group = 'MA', inline = 'S2')
+sma2Show = input.bool(false, '', group = 'MA', inline = 'S2')
+sma2Color = input.color(color.new(#56b6c2, 0), 'SMA2 COLOR', group = 'MA')
+sma3 = input.int(200, 'SMA 3', group = 'MA', inline = 'S3')
+sma3Show = input.bool(false, '', group = 'MA', inline = 'S3')
+sma3Color = input.color(color.new(#e06c75, 0), 'SMA3 COLOR', group = 'MA')
+
+rsiPeriod = input.int(14, 'RSI Period', inline = 'RSI', group = 'RSI')
+rsiShow = input.bool(true, '', inline = 'RSI', group = 'RSI')
+rsiColor = input.color(color.new(#c678dd, 0), 'RSI COLOR', group = 'RSI')
+rsiMaPeriod = input.int(10, 'RSI MA Period', group = 'RSI')
+
+atrPeriod = input.int(14, 'ATR Period', inline = 'ATR', group = 'ATR')
+atrShow = input.bool(true, '', inline = 'ATR', group = 'ATR')
+atrColor = input.color(color.new(#e06c75, 0), 'ATR COLOR', group = 'ATR')
+
+momPeriod = input.int(14, 'MOM Period', inline = 'MOM', group = 'MOM')
+momShow = input.bool(true, '', inline = 'MOM', group = 'MOM')
+momColor = input.color(color.new(#d19a66, 0), 'MOM COLOR', group = 'MOM')
+
+diLen = input.int(14, 'DI Length', minval = 1, maxval = 50, inline = 'ADX', group = 'ADX')
+lensig = input.int(14, 'ADX Smoothing', minval = 1, maxval = 50, inline = 'ADX', group = 'ADX')
+adxShow = input.bool(true, '', inline = 'ADX', group = 'ADX')
+adxColor = input.color(color.new(#98c379, 0), 'ADX COLOR', group = 'ADX')
+
+ml = input.int(12, 'Macd Line', inline = 'MACD', group = 'MACD')
+macdShow = input.bool(true, '', inline = 'MACD', group = 'MACD')
+sl = input.int(26, 'Signal Line', group = 'MACD')
+hl = input.int(9, 'Hist Line', group = 'MACD')
+macdLineColor = input.color(color.new(#61afef, 0), 'MACD LINE COLOR', group = 'MACD')
+macdSignalColor = input.color(color.new(#d19a66, 0), 'MACD SIGNAL COLOR', group = 'MACD')
+
+start = input.float(0.02, 'Start', group = 'P.SAR', inline = 'SAR')
+sarShow = input.bool(false, '', inline = 'SAR', group = 'P.SAR')
+increment = input.float(0.02, 'Increment', group = 'P.SAR')
+maximum = input.float(0.2, 'Max Value', group = 'P.SAR')
+
+length = input.int(20, minval = 1, group = 'BB', inline = 'BB')
+bbShow = input.bool(false, '', inline = 'BB', group = 'BB')
+maType = input.string('SMA', 'Basis MA Type', options = ['SMA', 'EMA', 'SMMA (RMA)', 'WMA', 'VWMA'], group = 'BB')
+src = input.source(close, 'Source', group = 'BB')
+mult = input.float(2.0, minval = 0.001, maxval = 50, title = 'StdDev', group = 'BB')
+offset = input.int(0, 'Offset', minval = -500, maxval = 500, group = 'BB')
+
+conversionPeriods = input.int(9, minval = 1, title = 'Conversion Line Length', group = 'ICHIMOKU', inline = 'ICHIMOKU')
+ichShow = input.bool(false, '', group = 'ICHIMOKU', inline = 'ICHIMOKU')
+basePeriods = input.int(26, minval = 1, title = 'Base Line Length', group = 'ICHIMOKU')
+laggingSpan2Periods = input.int(52, minval = 1, title = 'Leading Span B Length', group = 'ICHIMOKU')
+displacement = input.int(26, minval = 1, title = 'Lagging Span', group = 'ICHIMOKU')
+
+vwapShow = input.bool(false, 'Show VWAP', group = 'VWAP')
+stShow = input.bool(false, 'Show Supertrend', group = 'Supertrend', inline = 'ST')
+stAtrIn = input.int(10, 'ST ATR', minval = 1, group = 'Supertrend', inline = 'ST')
+stFactorIn = input.float(3.0, 'ST Factor', minval = 0.1, group = 'Supertrend')
+donShow = input.bool(false, 'Show Donchian', group = 'Donchian', inline = 'DON')
+donLenIn = input.int(20, 'Donchian Length', minval = 1, group = 'Donchian', inline = 'DON')
+kelShow = input.bool(false, 'Show Keltner', group = 'Keltner', inline = 'KEL')
+kelLenIn = input.int(20, 'Keltner Length', minval = 1, group = 'Keltner', inline = 'KEL')
+kelMultIn = input.float(1.5, 'Keltner Mult', minval = 0.1, group = 'Keltner')
+hvnShow = input.bool(false, 'Show HVN line', group = 'Volume summary')
+hvnLook = input.int(50, 'HVN lookback', minval = 10, maxval = 200, group = 'Volume summary')
+
+stochLenIn = input.int(14, 'Stoch Length', minval = 1, group = 'Stoch')
+cciLenIn = input.int(20, 'CCI Length', minval = 1, group = 'CCI')
+mfiLenIn = input.int(14, 'MFI Length', minval = 1, group = 'MFI')
+wprLenIn = input.int(14, 'Williams %R', minval = 1, group = 'WPR')
+chopLenIn = input.int(14, 'Chop Length', minval = 2, group = 'Chop')
+
+showDiv = input.bool(true, 'Show divergence', group = 'Divergence')
+divLook = input.int(5, 'Div pivot L/R', minval = 2, maxval = 20, group = 'Divergence')
+
+pivotShow = input.bool(false, 'PIVOT SHOW', group = 'PIVOT')
+leftLenH = input.int(10, minval = 1, title = 'Pivot High', inline = 'Pivot High', group = 'PIVOT')
+rightLenH = input.int(10, minval = 1, title = '/', inline = 'Pivot High', group = 'PIVOT')
+textColorH = input.color(color.black, title = 'High text', inline = 'PHC', group = 'PIVOT')
+labelColorH = input.color(color.white, title = 'High fill', inline = 'PHC', group = 'PIVOT')
+leftLenL = input.int(10, minval = 1, title = 'Pivot Low', inline = 'Pivot Low', group = 'PIVOT')
+rightLenL = input.int(10, minval = 1, title = '/', inline = 'Pivot Low', group = 'PIVOT')
+textColorL = input.color(color.black, title = 'Low text', inline = 'PLC', group = 'PIVOT')
+labelColorL = input.color(color.white, title = 'Low fill', inline = 'PLC', group = 'PIVOT')
+pivotMax = input.int(24, 'Max pivot labels', minval = 4, maxval = 80, group = 'PIVOT')
+
+scalp = preset == 'Scalping'
+swing = preset == 'Swing'
+rsiLenK = scalp ? 7 : swing ? 21 : rsiPeriod
+macdFast = scalp ? 8 : ml
+macdSlow = scalp ? 17 : sl
+macdSignal = scalp ? 9 : hl
+adxDiK = scalp ? 10 : diLen
+stochLenK = scalp ? 8 : swing ? 14 : stochLenIn
+stAtrK = scalp ? 7 : swing ? 10 : stAtrIn
+stFactorK = scalp ? 2.5 : swing ? 3.0 : stFactorIn
+
+tablePlace = switch tablePos
+    'Top Right' => position.top_right
+    'Bottom Right' => position.bottom_right
+    'Middle Right' => position.middle_right
+    'Bottom Center' => position.bottom_center
+    'Bottom Left' => position.bottom_left
+    => position.top_right
+
+textSz = switch tableSize
+    'Small' => size.small
+    'Large' => size.large
+    'Normal' => size.normal
+    => size.small
+
+var table mobileTable = table.new(position.bottom_right, 2, 22, border_width = 1, border_color = theme.frame, frame_color = theme.frame, frame_width = 2)
+var table deskTable = table.new(position.top_right, 6, 10, border_width = 1, border_color = theme.frame, frame_color = theme.frame, frame_width = 2)
+
+mapY(float val, float vmin, float vmax, float yBot, float yTop) =>
+    float rng = math.max(vmax - vmin, syminfo.mintick)
+    yBot + (nz(val, vmin) - vmin) / rng * (yTop - yBot)
+
+visibleRange(int leftTime, int rightTime) =>
+    float vh = high
+    float vl = low
+    bool started = false
+    int i = 0
+    while i < 5000 and not na(time[i])
+        int t = time[i]
+        if t >= leftTime and t <= rightTime
+            if not started
+                vh := high[i]
+                vl := low[i]
+                started := true
+            else
+                vh := math.max(vh, high[i])
+                vl := math.min(vl, low[i])
+        if t < leftTime
+            break
+        i += 1
+    [vh, vl]
+
+sparkPoints(series float srcVal, int len, int x0, int xStep, float yBot, float yTop, float vmin, float vmax) =>
+    array<chart.point> pts = array.new<chart.point>()
+    for i = 0 to len - 1
+        float y = mapY(srcVal[len - 1 - i], vmin, vmax, yBot, yTop)
+        array.push(pts, chart.point.from_index(x0 + i * xStep, y))
+    pts
+
+hudGeometry(int slot, int slotCount, float visTop, float visBot) =>
+    float visSpan = math.max(visTop - visBot, syminfo.mintick)
+    float gapY = visSpan * 0.04
+    int n = math.max(slotCount, 1)
+    float usable = visSpan - gapY * (n + 1)
+    float h = usable / n
+    float yTop = visTop - gapY - slot * (h + gapY)
+    float yBot = yTop - h
+    [yTop, yBot]
+
+maColor(float maVal) =>
+    maVal > close ? theme.bear : theme.bull
+
+cell(table t, int col, int row, string txt, color bg) =>
+    table.cell(t, col, row, txt, bgcolor = bg, text_color = theme.tableText, text_size = textSz, text_halign = text.align_center)
+
+headerCell(table t, int col, int row, string txt) =>
+    table.cell(t, col, row, txt, bgcolor = theme.tableHeader, text_color = neonHeaderText, text_size = textSz, text_halign = text.align_center)
+
+rsiCellColor(float r) =>
+    r >= 70 ? theme.bear : r <= 30 ? theme.bull : color.from_gradient(r, 30, 70, theme.neutral, color.new(#7c3aed, isDark ? 45 : 70))
+
+chgCellColor(float f) =>
+    f > 0 ? color.from_gradient(math.min(math.abs(f), 3.0), 0.0, 3.0, theme.neutral, theme.bull) : f < 0 ? color.from_gradient(math.min(math.abs(f), 3.0), 0.0, 3.0, theme.neutral, theme.bear) : theme.neutral
+
+adxCellColor(float a) =>
+    color.from_gradient(math.min(a, 50.0), 15.0, 40.0, theme.neutral, theme.bull)
+
+clearHud(array<box> boxes, array<polyline> polylines, array<label> labels) =>
+    if array.size(boxes) > 0
+        for i = 0 to array.size(boxes) - 1
+            box.delete(array.get(boxes, i))
+        array.clear(boxes)
+    if array.size(polylines) > 0
+        for i = 0 to array.size(polylines) - 1
+            polyline.delete(array.get(polylines, i))
+        array.clear(polylines)
+    if array.size(labels) > 0
+        for i = 0 to array.size(labels) - 1
+            label.delete(array.get(labels, i))
+        array.clear(labels)
+
+addPivot(array<label> lbls, label lbl, int limit) =>
+    array.push(lbls, lbl)
+    if array.size(lbls) > limit
+        label.delete(array.shift(lbls))
+
+fibHigh = ta.highest(fibLookback)
+fibLow = ta.lowest(fibLookback)
+distToHigh = math.abs(ta.highestbars(fibLookback))
+distToLow = math.abs(ta.lowestbars(fibLookback))
+fibTopTxt = en ? 'Top ( ' : 'Tepe ( '
+fibBotTxt = en ? 'Bottom ( ' : 'Dip ( '
+
+ema50 = ta.ema(close, ema1)
+ema100 = ta.ema(close, ema2)
+ema200 = ta.ema(close, ema3)
+emaRegime = ta.ema(close, 200)
+sma50 = ta.sma(close, sma1)
+sma100 = ta.sma(close, sma2)
+sma200 = ta.sma(close, sma3)
+
+chg = ta.change(close) / close[1] * 100
+rsi = ta.rsi(close, rsiLenK)
+rsiMa = ta.sma(rsi, rsiMaPeriod)
+atr = ta.atr(atrPeriod)
+mom = ta.mom(close, momPeriod)
+[diplus, diminus, adx] = ta.dmi(adxDiK, lensig)
+[macdLine, signalLine, histLine] = ta.macd(close, macdFast, macdSlow, macdSignal)
+out = ta.sar(start, increment, maximum)
+volMa20 = ta.sma(volume, 20)
+relVol = volMa20 == 0 ? 1.0 : volume / volMa20
+stochK = ta.stoch(close, high, low, stochLenK)
+stochD = ta.sma(stochK, 3)
+cci = ta.cci(hlc3, cciLenIn)
+mfi = ta.mfi(hlc3, mfiLenIn)
+wpr = ta.wpr(wprLenIn)
+obv = ta.obv
+vwapVal = ta.vwap(hlc3)
+[stLine, stDir] = ta.supertrend(stFactorK, stAtrK)
+donHigh = ta.highest(high, donLenIn)
+donLow = ta.lowest(low, donLenIn)
+donMid = math.avg(donHigh, donLow)
+kelBasis = ta.ema(close, kelLenIn)
+kelDev = kelMultIn * ta.atr(kelLenIn)
+kelUpper = kelBasis + kelDev
+kelLower = kelBasis - kelDev
+atr1 = ta.atr(1)
+chopNum = math.max(ta.highest(high, chopLenIn) - ta.lowest(low, chopLenIn), syminfo.mintick)
+chop = 100.0 * math.log(math.max(math.sum(atr1, chopLenIn), syminfo.mintick) / chopNum) / math.log(chopLenIn)
+
+hvnPrice = close
+hvnVol = volume
+for hvnI = 1 to hvnLook - 1
+    if volume[hvnI] > hvnVol
+        hvnVol := volume[hvnI]
+        hvnPrice := close[hvnI]
+
+rsiBgSeri = rsiCellColor(rsi)
+chgBgSeri = chgCellColor(chg)
+adxBgSeri = adxCellColor(adx)
+volBgSeri = relVol > 1.5 ? theme.bull : relVol < 0.65 ? theme.neutral : theme.tableBg
+macdLoHud = math.min(ta.lowest(macdLine, hudBars), ta.lowest(signalLine, hudBars))
+macdHiHud = math.max(ta.highest(macdLine, hudBars), ta.highest(signalLine, hudBars))
+adxHiHud = math.max(50.0, ta.highest(adx, hudBars))
+momLoHud = ta.lowest(mom, hudBars)
+momHiHud = ta.highest(mom, hudBars)
+atrLoHud = ta.lowest(atr, hudBars)
+atrHiHud = ta.highest(atr, hudBars)
+stochLoHud = ta.lowest(stochK, hudBars)
+stochHiHud = ta.highest(stochK, hudBars)
+cciLoHud = ta.lowest(cci, hudBars)
+cciHiHud = ta.highest(cci, hudBars)
+mfiLoHud = 0.0
+mfiHiHud = 100.0
+wprLoHud = -100.0
+wprHiHud = 0.0
+fallbackHigh = ta.highest(high, 100)
+fallbackLow = ta.lowest(low, 100)
+
+voteEma = close > emaRegime ? 1 : 0
+voteAdx = adx > 25 ? 1 : 0
+voteMacd = macdLine > signalLine ? 1 : 0
+voteRsi = rsi >= 40 and rsi <= 65 ? 1 : 0
+voteSt = stDir < 0 ? 1 : 0
+voteStoch = stochK > 50 ? 1 : 0
+voteMfi = mfi > 50 ? 1 : 0
+voteVol = relVol >= 1.0 ? 1 : 0
+voteDon = close > donMid ? 1 : 0
+score = int(math.round((voteEma + voteAdx + voteMacd + voteRsi + voteSt + voteStoch + voteMfi + voteVol + voteDon) / 9.0 * 100.0))
+regimeRange = adx < 20 or chop > 61.8
+regimeText = regimeRange ? (en ? 'Range' : 'Yatay') : close > emaRegime ? (en ? 'Trend up' : 'Trend yukarı') : (en ? 'Trend down' : 'Trend aşağı')
+scoreBg = score >= 66 ? theme.bull : score <= 33 ? theme.bear : theme.neutral
+
+bbSma = ta.sma(src, length)
+bbEma = ta.ema(src, length)
+bbRma = ta.rma(src, length)
+bbWma = ta.wma(src, length)
+bbVwma = ta.vwma(src, length)
+basis = switch maType
+    'SMA' => bbSma
+    'EMA' => bbEma
+    'SMMA (RMA)' => bbRma
+    'WMA' => bbWma
+    'VWMA' => bbVwma
+    => bbSma
+dev = mult * ta.stdev(src, length)
+upper = basis + dev
+lower = basis - dev
+
+donchian(int lenDon) =>
+    math.avg(ta.lowest(lenDon), ta.highest(lenDon))
+conversionLine = donchian(conversionPeriods)
+baseLine = donchian(basePeriods)
+leadLine1 = math.avg(conversionLine, baseLine)
+leadLine2 = donchian(laggingSpan2Periods)
+
+plot(ema1Show ? ema50 : na, color = colEma1, title = 'EMA1', linewidth = 2)
+plot(ema2Show ? ema100 : na, color = colEma2, title = 'EMA2', linewidth = 2)
+plot(ema3Show ? ema200 : na, color = colEma3, title = 'EMA3', linewidth = 2)
+plot(sma1Show ? sma50 : na, color = colSma1, title = 'SMA1', linewidth = 2)
+plot(sma2Show ? sma100 : na, color = colSma2, title = 'SMA2', linewidth = 2)
+plot(sma3Show ? sma200 : na, color = colSma3, title = 'SMA3', linewidth = 2)
+plot(sarShow ? out : na, 'ParabolicSAR', style = plot.style_cross, color = colSar, linewidth = 2)
+plot(bbShow ? basis : na, 'Basis', color = colBbMid, offset = offset, linewidth = 2)
+p1 = plot(bbShow ? upper : na, 'Upper', color = colBbBand, offset = offset, linewidth = 2)
+p2 = plot(bbShow ? lower : na, 'Lower', color = colBbBand, offset = offset, linewidth = 2)
+fill(p1, p2, title = 'Background', color = bbShow ? (isDark ? color.new(#00f3ff, 88) : color.new(#063a8c, 88)) : na)
+plot(ichShow ? conversionLine : na, color = colIchTenkan, title = 'Conversion Line', linewidth = 2)
+plot(ichShow ? baseLine : na, color = colIchKijun, title = 'Base Line', linewidth = 2)
+plot(ichShow ? close : na, offset = -displacement + 1, color = colIchChikou, title = 'Lagging Span', linewidth = 2)
+p1i = plot(ichShow ? leadLine1 : na, offset = displacement - 1, color = colSma1, title = 'Leading Span A', linewidth = 2)
+p2i = plot(ichShow ? leadLine2 : na, offset = displacement - 1, color = colSma3, title = 'Leading Span B', linewidth = 2)
+plot(ichShow ? leadLine1 > leadLine2 ? leadLine1 : leadLine2 : na, offset = displacement - 1, title = 'Kumo Cloud Upper Line', display = display.none)
+plot(ichShow ? leadLine1 < leadLine2 ? leadLine1 : leadLine2 : na, offset = displacement - 1, title = 'Kumo Cloud Lower Line', display = display.none)
+fill(p1i, p2i, color = ichShow ? (leadLine1 > leadLine2 ? (isDark ? color.new(#00ff9c, 82) : color.new(#14532d, 85)) : (isDark ? color.new(#ff2d6a, 82) : color.new(#9f1239, 85))) : na)
+plot(vwapShow ? vwapVal : na, 'VWAP', color = colVwap, linewidth = 2)
+plot(stShow ? stLine : na, 'Supertrend', color = stDir < 0 ? colSt : colSma3, linewidth = 2)
+plot(donShow ? donHigh : na, 'Donchian High', color = colDon, linewidth = 2)
+plot(donShow ? donLow : na, 'Donchian Low', color = colDon, linewidth = 2)
+plot(kelShow ? kelUpper : na, 'Keltner Upper', color = colKel, linewidth = 2)
+plot(kelShow ? kelLower : na, 'Keltner Lower', color = colKel, linewidth = 2)
+plot(kelShow ? kelBasis : na, 'Keltner Basis', color = colKel, linewidth = 1)
+
+var line fibLHigh = na
+var line fibLLow = na
+var line fibL382 = na
+var line fibL50 = na
+var line fibL618 = na
+var line fibL786 = na
+var label fibLbHigh = na
+var label fibLbLow = na
+var label fibLb382 = na
+var label fibLb50 = na
+var label fibLb618 = na
+var label fibLb786 = na
+var line hvnLine = na
+
+setFibLine(line ln, int x1, float y, int x2, string styleName) =>
+    line result = ln
+    if na(result)
+        result := line.new(x1, y, x2, y, color = colFib, width = 1, style = styleName == 'dash' ? line.style_dashed : line.style_solid, extend = fibonacciExtendRight ? extend.right : extend.none)
+    else
+        line.set_xy1(result, x1, y)
+        line.set_xy2(result, x2, y)
+        line.set_color(result, colFib)
+        line.set_extend(result, fibonacciExtendRight ? extend.right : extend.none)
+        line.set_style(result, styleName == 'dash' ? line.style_dashed : line.style_solid)
+    result
+
+setFibLabel(label lb, int x, float y, string txt) =>
+    label result = lb
+    if na(result)
+        result := label.new(x, y, txt, color = color.new(color.gray, 100), style = label.style_none, textcolor = theme.hudText)
+    else
+        label.set_xy(result, x, y)
+        label.set_text(result, txt)
+        label.set_textcolor(result, theme.hudText)
+    result
+
+if barstate.islast
+    if showFib
+        float fib618 = distToLow > distToHigh ? fibHigh - (fibHigh - fibLow) * fib1 / 1000 : fibLow + (fibHigh - fibLow) * fib1 / 1000
+        float fib50 = distToLow > distToHigh ? fibHigh - (fibHigh - fibLow) * 500 / 1000 : fibLow + (fibHigh - fibLow) * 500 / 1000
+        float fib382 = distToLow > distToHigh ? fibHigh - (fibHigh - fibLow) * fib2 / 1000 : fibLow + (fibHigh - fibLow) * fib2 / 1000
+        float fib786 = distToLow > distToHigh ? fibHigh - (fibHigh - fibLow) * fib3 / 1000 : fibLow + (fibHigh - fibLow) * fib3 / 1000
+        int xHigh = bar_index - int(distToHigh)
+        int xLow = bar_index - int(distToLow)
+        int xRight = bar_index + 50
+        int xLbl = bar_index + 55
+        fibLHigh := setFibLine(fibLHigh, xHigh, fibHigh, xRight, 'solid')
+        fibLLow := setFibLine(fibLLow, xLow, fibLow, xRight, 'solid')
+        fibL382 := setFibLine(fibL382, bar_index + 10, fib382, xRight, 'dash')
+        fibL50 := setFibLine(fibL50, bar_index + 10, fib50, xRight, 'dash')
+        fibL618 := setFibLine(fibL618, bar_index + 10, fib618, xRight, 'dash')
+        fibL786 := setFibLine(fibL786, bar_index + 10, fib786, xRight, 'dash')
+        if fibShowData
+            fibLbHigh := setFibLabel(fibLbHigh, xLbl, fibHigh, fibTopTxt + str.tostring(math.round_to_mintick(fibHigh)) + ' )')
+            fibLbLow := setFibLabel(fibLbLow, xLbl, fibLow, fibBotTxt + str.tostring(math.round_to_mintick(fibLow)) + ' )')
+            fibLb382 := setFibLabel(fibLb382, xLbl, fib382, str.tostring(fib2 / 1000) + ' ( ' + str.tostring(math.round_to_mintick(fib382)) + ' )')
+            fibLb618 := setFibLabel(fibLb618, xLbl, fib618, str.tostring(fib1 / 1000) + ' ( ' + str.tostring(math.round_to_mintick(fib618)) + ' )')
+            fibLb50 := setFibLabel(fibLb50, xLbl, fib50, '% 50 ( ' + str.tostring(math.round_to_mintick(fib50)) + ' )')
+            fibLb786 := setFibLabel(fibLb786, xLbl, fib786, str.tostring(fib3 / 1000) + ' ( ' + str.tostring(math.round_to_mintick(fib786)) + ' )')
+        else
+            if not na(fibLbHigh)
+                label.delete(fibLbHigh)
+                fibLbHigh := na
+            if not na(fibLbLow)
+                label.delete(fibLbLow)
+                fibLbLow := na
+            if not na(fibLb382)
+                label.delete(fibLb382)
+                fibLb382 := na
+            if not na(fibLb50)
+                label.delete(fibLb50)
+                fibLb50 := na
+            if not na(fibLb618)
+                label.delete(fibLb618)
+                fibLb618 := na
+            if not na(fibLb786)
+                label.delete(fibLb786)
+                fibLb786 := na
+    else
+        if not na(fibLHigh)
+            line.delete(fibLHigh)
+            fibLHigh := na
+        if not na(fibLLow)
+            line.delete(fibLLow)
+            fibLLow := na
+        if not na(fibL382)
+            line.delete(fibL382)
+            fibL382 := na
+        if not na(fibL50)
+            line.delete(fibL50)
+            fibL50 := na
+        if not na(fibL618)
+            line.delete(fibL618)
+            fibL618 := na
+        if not na(fibL786)
+            line.delete(fibL786)
+            fibL786 := na
+        if not na(fibLbHigh)
+            label.delete(fibLbHigh)
+            fibLbHigh := na
+        if not na(fibLbLow)
+            label.delete(fibLbLow)
+            fibLbLow := na
+        if not na(fibLb382)
+            label.delete(fibLb382)
+            fibLb382 := na
+        if not na(fibLb50)
+            label.delete(fibLb50)
+            fibLb50 := na
+        if not na(fibLb618)
+            label.delete(fibLb618)
+            fibLb618 := na
+        if not na(fibLb786)
+            label.delete(fibLb786)
+            fibLb786 := na
+    if hvnShow
+        if na(hvnLine)
+            hvnLine := line.new(bar_index - hvnLook, hvnPrice, bar_index + 10, hvnPrice, color = colMom, style = line.style_dotted, extend = extend.right)
+        else
+            line.set_xy1(hvnLine, bar_index - hvnLook, hvnPrice)
+            line.set_xy2(hvnLine, bar_index + 10, hvnPrice)
+            line.set_color(hvnLine, colMom)
+    else if not na(hvnLine)
+        line.delete(hvnLine)
+        hvnLine := na
+
+ph = ta.pivothigh(leftLenH, rightLenH)
+pl = ta.pivotlow(leftLenL, rightLenL)
+phDiv = ta.pivothigh(divLook, divLook)
+plDiv = ta.pivotlow(divLook, divLook)
+var label[] pivotLabels = array.new<label>()
+var float lastPh = na
+var float lastPhRsi = na
+var float lastPhMacd = na
+var float lastPl = na
+var float lastPlRsi = na
+var float lastPlMacd = na
+bearRsiDiv = false
+bullRsiDiv = false
+bearMacdDiv = false
+bullMacdDiv = false
+if not na(phDiv)
+    float pr = rsi[divLook]
+    float pm = macdLine[divLook]
+    if not na(lastPh)
+        if phDiv > lastPh and pr < lastPhRsi
+            bearRsiDiv := true
+        if phDiv > lastPh and pm < lastPhMacd
+            bearMacdDiv := true
+    lastPh := phDiv
+    lastPhRsi := pr
+    lastPhMacd := pm
+if not na(plDiv)
+    float lr = rsi[divLook]
+    float lm = macdLine[divLook]
+    if not na(lastPl)
+        if plDiv < lastPl and lr > lastPlRsi
+            bullRsiDiv := true
+        if plDiv < lastPl and lm > lastPlMacd
+            bullMacdDiv := true
+    lastPl := plDiv
+    lastPlRsi := lr
+    lastPlMacd := lm
+
+plotshape(showDiv and bullRsiDiv, title = 'RSI bull div', style = shape.triangleup, location = location.belowbar, color = colSt, size = size.tiny)
+plotshape(showDiv and bearRsiDiv, title = 'RSI bear div', style = shape.triangledown, location = location.abovebar, color = colSma3, size = size.tiny)
+plotshape(showDiv and bullMacdDiv, title = 'MACD bull div', style = shape.diamond, location = location.belowbar, color = colMacd, size = size.tiny)
+plotshape(showDiv and bearMacdDiv, title = 'MACD bear div', style = shape.diamond, location = location.abovebar, color = colMacdSig, size = size.tiny)
+
+if pivotShow
+    if not na(ph)
+        addPivot(pivotLabels, label.new(bar_index[rightLenH], ph, str.tostring(ph, format.mintick), style = label.style_label_down, color = theme.tableBg, textcolor = theme.tableText), pivotMax)
+    if not na(pl)
+        addPivot(pivotLabels, label.new(bar_index[rightLenL], pl, str.tostring(pl, format.mintick), style = label.style_label_up, color = theme.tableBg, textcolor = theme.tableText), pivotMax)
+
+var box[] hudBoxes = array.new<box>()
+var polyline[] hudPolylines = array.new<polyline>()
+var label[] hudLabels = array.new<label>()
+
+drawHud(int x0, int xStep, int len, float yTop, float yBot, string title, array<chart.point> pts1, array<chart.point> pts2, color col1, color col2, bool dual) =>
+    array.push(hudBoxes, box.new(x0, yTop, x0 + (len - 1) * xStep, yBot, border_color = theme.hudBorder, bgcolor = theme.hudBg, extend = extend.none, xloc = xloc.bar_index))
+    array.push(hudPolylines, polyline.new(pts1, false, false, xloc.bar_index, col1, color(na), line.style_solid, 2))
+    if dual
+        array.push(hudPolylines, polyline.new(pts2, false, false, xloc.bar_index, col2, color(na), line.style_solid, 2))
+    array.push(hudLabels, label.new(x0, yTop, title, style = label.style_none, color = color.new(color.black, 100), textcolor = theme.hudText, size = size.small, textalign = text.align_left))
+
+leftVisTime = chart.left_visible_bar_time
+rightVisTime = chart.right_visible_bar_time
+x0Hud = bar_index + hudGap
+xStepHud = 1
+lenHud = hudBars
+[visTop0, visBot0] = visibleRange(leftVisTime, rightVisTime)
+visTopHud = visTop0 - visBot0 < syminfo.mintick * 2 ? fallbackHigh : visTop0
+visBotHud = visTop0 - visBot0 < syminfo.mintick * 2 ? fallbackLow : visBot0
+geoTop = visTopHud
+geoBot = visBotHud
+slotN = hudExtra ? 9 : 5
+[yT0, yB0] = hudGeometry(0, slotN, geoTop, geoBot)
+[yT1, yB1] = hudGeometry(1, slotN, geoTop, geoBot)
+[yT2, yB2] = hudGeometry(2, slotN, geoTop, geoBot)
+[yT3, yB3] = hudGeometry(3, slotN, geoTop, geoBot)
+[yT4, yB4] = hudGeometry(4, slotN, geoTop, geoBot)
+[yT5, yB5] = hudGeometry(5, slotN, geoTop, geoBot)
+[yT6, yB6] = hudGeometry(6, slotN, geoTop, geoBot)
+[yT7, yB7] = hudGeometry(7, slotN, geoTop, geoBot)
+[yT8, yB8] = hudGeometry(8, slotN, geoTop, geoBot)
+ptsRsi = sparkPoints(rsi, lenHud, x0Hud, xStepHud, yB0, yT0, 0.0, 100.0)
+ptsRsiMa = sparkPoints(rsiMa, lenHud, x0Hud, xStepHud, yB0, yT0, 0.0, 100.0)
+ptsMacd = sparkPoints(macdLine, lenHud, x0Hud, xStepHud, yB1, yT1, macdLoHud, macdHiHud)
+ptsMacdSig = sparkPoints(signalLine, lenHud, x0Hud, xStepHud, yB1, yT1, macdLoHud, macdHiHud)
+ptsAdx = sparkPoints(adx, lenHud, x0Hud, xStepHud, yB2, yT2, 0.0, adxHiHud)
+ptsMom = sparkPoints(mom, lenHud, x0Hud, xStepHud, yB3, yT3, momLoHud, momHiHud)
+ptsAtr = sparkPoints(atr, lenHud, x0Hud, xStepHud, yB4, yT4, atrLoHud, atrHiHud)
+ptsStoch = sparkPoints(stochK, lenHud, x0Hud, xStepHud, yB5, yT5, stochLoHud, stochHiHud)
+ptsStochD = sparkPoints(stochD, lenHud, x0Hud, xStepHud, yB5, yT5, stochLoHud, stochHiHud)
+ptsCci = sparkPoints(cci, lenHud, x0Hud, xStepHud, yB6, yT6, cciLoHud, cciHiHud)
+ptsMfi = sparkPoints(mfi, lenHud, x0Hud, xStepHud, yB7, yT7, mfiLoHud, mfiHiHud)
+ptsWpr = sparkPoints(wpr, lenHud, x0Hud, xStepHud, yB8, yT8, wprLoHud, wprHiHud)
+
+if barstate.islast
+    clearHud(hudBoxes, hudPolylines, hudLabels)
+    if showHud
+        if rsiShow
+            drawHud(x0Hud, xStepHud, lenHud, yT0, yB0, 'RSI ' + str.tostring(math.round_to_mintick(rsi)), ptsRsi, ptsRsiMa, colRsi, colRsiMa, true)
+        if macdShow
+            drawHud(x0Hud, xStepHud, lenHud, yT1, yB1, 'MACD ' + str.tostring(math.round(macdLine, 4)), ptsMacd, ptsMacdSig, colMacd, colMacdSig, true)
+        if adxShow
+            drawHud(x0Hud, xStepHud, lenHud, yT2, yB2, 'ADX ' + str.tostring(math.round_to_mintick(adx)), ptsAdx, ptsAdx, colAdx, colAdx, false)
+        if momShow
+            drawHud(x0Hud, xStepHud, lenHud, yT3, yB3, 'MOM ' + str.tostring(math.round_to_mintick(mom)), ptsMom, ptsMom, colMom, colMom, false)
+        if atrShow
+            drawHud(x0Hud, xStepHud, lenHud, yT4, yB4, 'ATR ' + str.tostring(math.round_to_mintick(atr)), ptsAtr, ptsAtr, colAtr, colAtr, false)
+        if hudExtra
+            drawHud(x0Hud, xStepHud, lenHud, yT5, yB5, 'Stoch ' + str.tostring(math.round_to_mintick(stochK)), ptsStoch, ptsStochD, colStoch, colMfi, true)
+            drawHud(x0Hud, xStepHud, lenHud, yT6, yB6, 'CCI ' + str.tostring(math.round_to_mintick(cci)), ptsCci, ptsCci, colCci, colCci, false)
+            drawHud(x0Hud, xStepHud, lenHud, yT7, yB7, 'MFI ' + str.tostring(math.round_to_mintick(mfi)), ptsMfi, ptsMfi, colMfi, colMfi, false)
+            drawHud(x0Hud, xStepHud, lenHud, yT8, yB8, '%R ' + str.tostring(math.round_to_mintick(wpr)), ptsWpr, ptsWpr, colWpr, colWpr, false)
+
+if barstate.islast
+    table.set_position(deskTable, tablePlace)
+    table.set_position(mobileTable, position.bottom_right)
+    table.set_border_color(deskTable, theme.frame)
+    table.set_frame_color(deskTable, theme.frame)
+    table.set_border_color(mobileTable, theme.frame)
+    table.set_frame_color(mobileTable, theme.frame)
+    table.clear(deskTable, 0, 0, 5, 9)
+    table.clear(mobileTable, 0, 0, 1, 21)
+
+    string g1 = en ? 'Open' : 'Açılış'
+    string g2 = en ? 'Close' : 'Kapanış'
+    string g3 = en ? 'Change' : 'Değişim'
+    string g4 = 'RSI'
+    string g5 = 'ATR'
+    string g6 = en ? 'Volume' : 'Hacim'
+    string tOpen = str.tostring(math.round_to_mintick(open))
+    string tClose = str.tostring(math.round_to_mintick(close))
+    string tChg = (chg > 0 ? '▲ ' : chg < 0 ? '▼ ' : '') + str.tostring(math.round_to_mintick(chg)) + '%'
+    string tRsi = str.tostring(math.round_to_mintick(rsi))
+    string tAtr = str.tostring(math.round_to_mintick(atr))
+    string tVol = str.tostring(volume, format.volume)
+    string stText = stDir < 0 ? (en ? 'UP' : 'YUKARI') : (en ? 'DOWN' : 'AŞAĞI')
+
+    if tableMode == 'Desktop'
+        headerCell(deskTable, 0, 0, g1)
+        headerCell(deskTable, 1, 0, g2)
+        headerCell(deskTable, 2, 0, g3)
+        headerCell(deskTable, 3, 0, g4)
+        headerCell(deskTable, 4, 0, g5)
+        headerCell(deskTable, 5, 0, g6)
+        cell(deskTable, 0, 1, tOpen, theme.tableBg)
+        cell(deskTable, 1, 1, tClose, theme.tableBg)
+        cell(deskTable, 2, 1, tChg, chgBgSeri)
+        cell(deskTable, 3, 1, tRsi, rsiBgSeri)
+        cell(deskTable, 4, 1, tAtr, theme.tableBg)
+        cell(deskTable, 5, 1, tVol, volBgSeri)
+        headerCell(deskTable, 0, 2, 'SMA' + str.tostring(sma1))
+        headerCell(deskTable, 1, 2, 'SMA' + str.tostring(sma2))
+        headerCell(deskTable, 2, 2, 'SMA' + str.tostring(sma3))
+        headerCell(deskTable, 3, 2, 'EMA' + str.tostring(ema1))
+        headerCell(deskTable, 4, 2, 'EMA' + str.tostring(ema2))
+        headerCell(deskTable, 5, 2, 'EMA' + str.tostring(ema3))
+        cell(deskTable, 0, 3, str.tostring(math.round_to_mintick(sma50)), maColor(sma50))
+        cell(deskTable, 1, 3, str.tostring(math.round_to_mintick(sma100)), maColor(sma100))
+        cell(deskTable, 2, 3, str.tostring(math.round_to_mintick(sma200)), maColor(sma200))
+        cell(deskTable, 3, 3, str.tostring(math.round_to_mintick(ema50)), maColor(ema50))
+        cell(deskTable, 4, 3, str.tostring(math.round_to_mintick(ema100)), maColor(ema100))
+        cell(deskTable, 5, 3, str.tostring(math.round_to_mintick(ema200)), maColor(ema200))
+        headerCell(deskTable, 0, 4, 'ADX')
+        headerCell(deskTable, 1, 4, 'MOM')
+        headerCell(deskTable, 2, 4, 'MACD')
+        headerCell(deskTable, 3, 4, '+DI/-DI')
+        headerCell(deskTable, 4, 4, en ? 'Score' : 'Skor')
+        headerCell(deskTable, 5, 4, en ? 'Regime' : 'Rejim')
+        cell(deskTable, 0, 5, str.tostring(math.round_to_mintick(adx)), adxBgSeri)
+        cell(deskTable, 1, 5, str.tostring(math.round_to_mintick(mom)), mom >= 0 ? theme.bull : theme.bear)
+        cell(deskTable, 2, 5, str.tostring(math.round(macdLine, 4)), macdLine >= signalLine ? theme.bull : theme.bear)
+        cell(deskTable, 3, 5, str.tostring(math.round_to_mintick(diplus)) + '/' + str.tostring(math.round_to_mintick(diminus)), diplus > diminus ? theme.bull : theme.bear)
+        cell(deskTable, 4, 5, str.tostring(score), scoreBg)
+        cell(deskTable, 5, 5, regimeText, regimeRange ? theme.neutral : close > emaRegime ? theme.bull : theme.bear)
+        headerCell(deskTable, 0, 6, 'Stoch')
+        headerCell(deskTable, 1, 6, 'CCI')
+        headerCell(deskTable, 2, 6, 'MFI')
+        headerCell(deskTable, 3, 6, '%R')
+        headerCell(deskTable, 4, 6, 'OBV')
+        headerCell(deskTable, 5, 6, 'VWAP')
+        cell(deskTable, 0, 7, str.tostring(math.round_to_mintick(stochK)), stochK > 80 ? theme.bear : stochK < 20 ? theme.bull : theme.tableBg)
+        cell(deskTable, 1, 7, str.tostring(math.round_to_mintick(cci)), cci > 100 ? theme.bear : cci < -100 ? theme.bull : theme.tableBg)
+        cell(deskTable, 2, 7, str.tostring(math.round_to_mintick(mfi)), mfi > 80 ? theme.bear : mfi < 20 ? theme.bull : theme.tableBg)
+        cell(deskTable, 3, 7, str.tostring(math.round_to_mintick(wpr)), wpr > -20 ? theme.bear : wpr < -80 ? theme.bull : theme.tableBg)
+        cell(deskTable, 4, 7, str.tostring(obv, format.volume), theme.tableBg)
+        cell(deskTable, 5, 7, str.tostring(math.round_to_mintick(vwapVal)), close >= vwapVal ? theme.bull : theme.bear)
+        headerCell(deskTable, 0, 8, 'ST')
+        headerCell(deskTable, 1, 8, 'RelVol')
+        headerCell(deskTable, 2, 8, 'HVN')
+        headerCell(deskTable, 3, 8, 'Chop')
+        headerCell(deskTable, 4, 8, 'SAR')
+        headerCell(deskTable, 5, 8, 'Hist')
+        cell(deskTable, 0, 9, stText, stDir < 0 ? theme.bull : theme.bear)
+        cell(deskTable, 1, 9, str.tostring(math.round(relVol, 2)) + 'x', volBgSeri)
+        cell(deskTable, 2, 9, str.tostring(math.round_to_mintick(hvnPrice)), theme.tableBg)
+        cell(deskTable, 3, 9, str.tostring(math.round_to_mintick(chop)), chop > 61.8 ? theme.neutral : theme.bull)
+        cell(deskTable, 4, 9, str.tostring(math.round_to_mintick(out)), close >= out ? theme.bull : theme.bear)
+        cell(deskTable, 5, 9, str.tostring(math.round(histLine, 4)), histLine >= 0 ? theme.bull : theme.bear)
+
+    if tableMode == 'Mobile'
+        headerCell(mobileTable, 0, 0, g1)
+        cell(mobileTable, 1, 0, tOpen, theme.tableBg)
+        headerCell(mobileTable, 0, 1, g2)
+        cell(mobileTable, 1, 1, tClose, theme.tableBg)
+        headerCell(mobileTable, 0, 2, g3)
+        cell(mobileTable, 1, 2, tChg, chgBgSeri)
+        headerCell(mobileTable, 0, 3, g4)
+        cell(mobileTable, 1, 3, tRsi, rsiBgSeri)
+        headerCell(mobileTable, 0, 4, en ? 'Score' : 'Skor')
+        cell(mobileTable, 1, 4, str.tostring(score), scoreBg)
+        headerCell(mobileTable, 0, 5, en ? 'Regime' : 'Rejim')
+        cell(mobileTable, 1, 5, regimeText, regimeRange ? theme.neutral : close > emaRegime ? theme.bull : theme.bear)
+        headerCell(mobileTable, 0, 6, 'SMA' + str.tostring(sma1))
+        cell(mobileTable, 1, 6, str.tostring(math.round_to_mintick(sma50)), maColor(sma50))
+        headerCell(mobileTable, 0, 7, 'EMA' + str.tostring(ema1))
+        cell(mobileTable, 1, 7, str.tostring(math.round_to_mintick(ema50)), maColor(ema50))
+        headerCell(mobileTable, 0, 8, 'ADX')
+        cell(mobileTable, 1, 8, str.tostring(math.round_to_mintick(adx)), adxBgSeri)
+        headerCell(mobileTable, 0, 9, 'MACD')
+        cell(mobileTable, 1, 9, str.tostring(math.round(macdLine, 4)), macdLine >= signalLine ? theme.bull : theme.bear)
+        headerCell(mobileTable, 0, 10, 'Stoch')
+        cell(mobileTable, 1, 10, str.tostring(math.round_to_mintick(stochK)), stochK > 80 ? theme.bear : stochK < 20 ? theme.bull : theme.tableBg)
+        headerCell(mobileTable, 0, 11, 'CCI')
+        cell(mobileTable, 1, 11, str.tostring(math.round_to_mintick(cci)), theme.tableBg)
+        headerCell(mobileTable, 0, 12, 'MFI')
+        cell(mobileTable, 1, 12, str.tostring(math.round_to_mintick(mfi)), theme.tableBg)
+        headerCell(mobileTable, 0, 13, '%R')
+        cell(mobileTable, 1, 13, str.tostring(math.round_to_mintick(wpr)), theme.tableBg)
+        headerCell(mobileTable, 0, 14, 'VWAP')
+        cell(mobileTable, 1, 14, str.tostring(math.round_to_mintick(vwapVal)), close >= vwapVal ? theme.bull : theme.bear)
+        headerCell(mobileTable, 0, 15, 'ST')
+        cell(mobileTable, 1, 15, stText, stDir < 0 ? theme.bull : theme.bear)
+        headerCell(mobileTable, 0, 16, 'RelVol')
+        cell(mobileTable, 1, 16, str.tostring(math.round(relVol, 2)) + 'x', volBgSeri)
+        headerCell(mobileTable, 0, 17, 'HVN')
+        cell(mobileTable, 1, 17, str.tostring(math.round_to_mintick(hvnPrice)), theme.tableBg)
+        headerCell(mobileTable, 0, 18, 'Chop')
+        cell(mobileTable, 1, 18, str.tostring(math.round_to_mintick(chop)), theme.tableBg)
+        headerCell(mobileTable, 0, 19, 'OBV')
+        cell(mobileTable, 1, 19, str.tostring(obv, format.volume), theme.tableBg)
+        headerCell(mobileTable, 0, 20, g6)
+        cell(mobileTable, 1, 20, tVol, volBgSeri)
+        headerCell(mobileTable, 0, 21, 'MOM')
+        cell(mobileTable, 1, 21, str.tostring(math.round_to_mintick(mom)), mom >= 0 ? theme.bull : theme.bear)
+
+alertcondition(rsi >= 70, title = 'RSI >= 70', message = 'RSI overbought')
+alertcondition(rsi <= 30, title = 'RSI <= 30', message = 'RSI oversold')
+alertcondition(ta.crossover(macdLine, signalLine), title = 'MACD cross up', message = 'MACD bullish cross')
+alertcondition(ta.crossunder(macdLine, signalLine), title = 'MACD cross down', message = 'MACD bearish cross')
+alertcondition(ta.crossover(close, emaRegime), title = 'Close x EMA200 up', message = 'Price crossed above EMA200')
+alertcondition(ta.crossunder(close, emaRegime), title = 'Close x EMA200 down', message = 'Price crossed below EMA200')

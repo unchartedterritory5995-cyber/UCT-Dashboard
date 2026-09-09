@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5c7960db26f548cdbc6a58474137e123",
+ "title": "Machine Learning: Lorentzian Classification",
+ "author": "StrategiesForEveryone",
+ "url": "https://www.tradingview.com/script/SfyBCHIJ-machine-learning-lorentzian-classification/",
+ "agreeCount": 5714,
+ "category": "machine-learning-styled",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/machine-learning-lorentzian-classification__5c7960db26.pine",
+ "cached_source": "tools/pine_survey/cache/sources/machine-learning-lorentzian-classification__5c7960db26.pine",
+ "our_status": "committed"
+}

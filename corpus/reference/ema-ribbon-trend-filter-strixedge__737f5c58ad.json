@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;737f5c58ad764241b7180284c45ab86b",
+ "title": "EMA Ribbon Trend Filter [StrixEDGE]",
+ "author": "StrixEDGE",
+ "url": "https://www.tradingview.com/script/z6prdGnA-ema-ribbon-trend-filter-strixedge/",
+ "agreeCount": 679,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;bd898a1af09b405cb065e85bbc589039",
+ "title": "CC • Yata",
+ "author": "Yatagarasu_",
+ "url": "https://www.tradingview.com/script/rHyTRtIx-cc-yata/",
+ "agreeCount": 4510,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cc-yata__bd898a1af0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cc-yata__bd898a1af0.pine",
+ "our_status": "committed"
+}

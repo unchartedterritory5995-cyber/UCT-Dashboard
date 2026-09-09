@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0ded7d1e366849b381499bbb2b2ce9a4",
+ "title": "Zero-Lag MA Trend Levels [ChartPrime]",
+ "author": "ChartPrime",
+ "url": "https://www.tradingview.com/script/pP2FhzAX-zero-lag-ma-trend-levels-chartprime/",
+ "agreeCount": 12318,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+ "cached_source": "tools/pine_survey/cache/sources/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
+ "our_status": "committed"
+}

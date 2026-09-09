@@ -1,0 +1,284 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © DolphinTradeBot
+// ___   ___  ___ _    _  _ ___ _  _   _____ ___    _   ___  ___   ___  ___ _____ 
+//|   \ / _ \| _ \ |  | || |_ _| \| | |_   _| _ \  /_\ |   \| __| | _ )/ _ \_   _|
+//| |) | (_) |  _/ |__| __ || || .` |   | | |   / / _ \| |) | _|  | _ \ (_) || |  
+//|___/ \___/|_| |____|_||_|___|_|\_|   |_| |_|_\/_/ \_\___/|___| |___/\___/ |_| 
+
+//@version=6
+indicator("Fibonacci - DolphinTradeBot",shorttitle = "Fibonacci Retracement", overlay = true, max_bars_back = 500, max_lines_count = 500, max_labels_count = 500)
+
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                          INPUT SECTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+group0   = " ========== ➡️ ZIGZAG ⬅️ ========== "
+prd      = input.int  (defval = 15,        title = "ZigZag Period", minval  = 2, maxval = 50, group = group0, display = display.data_window)
+i_ShowZ  = input.bool (defval = false,     title =  "Show Zigzag",                            group = group0, display = display.data_window)
+col_U    = input.color(defval = color.green , title = "Zigzag Colors", inline = "zzcol",         group = group0, display = display.data_window) //#00e676
+col_D    = input.color(defval = color.black, title = "",              inline = "zzcol",         group = group0, display = display.data_window) //#ff5252
+Show_prv = input.bool (defval = false,     title = "Show Previous Levels",                    group = group0, display = display.none       )
+group_   = " ========== ➡️ FIB Levels ⬅️ ========== "
+ward      = input.string(defval = "Both", title = "Fibonacci Direction", options = ["Upward","Downward","Both"])
+i_level1 = input.float(defval = 0.236, title = "1. Level", group = group_ , inline = "l1", display = display.data_window)
+i_level2 = input.float(defval = 0.382, title = "2. Level", group = group_ , inline = "l2", display = display.data_window)
+i_level3 = input.float(defval = 0.5,   title = "3. Level", group = group_ , inline = "l3", display = display.data_window)
+i_level4 = input.float(defval = 0.618, title = "4. Level", group = group_ , inline = "l4", display = display.data_window)
+i_level5 = input.float(defval = 0.786, title = "5. Level", group = group_ , inline = "l5", display = display.data_window)
+c_border = input.color(defval =color.gray, title = "Fib Border Color",group = group_   , display = display.none)
+c_level1 = input.color(defval =color.red,    title = "", group = group_,  inline = "l1", display = display.none)
+c_level2 = input.color(defval =color.orange, title = "", group = group_,  inline = "l2", display = display.none)
+c_level3 = input.color(defval =color.green,  title = "", group = group_,  inline = "l3", display = display.none)
+c_level4 = input.color(defval =#20c798,      title = "", group = group_,  inline = "l4", display = display.none)
+c_level5 = input.color(defval =color.aqua,   title = "", group = group_,  inline = "l5", display = display.none)
+group_a      = " ========== ➡️ Alert Section ⬅️ ========== "
+tooltip_ = "This indicator by default alerts when a level is formed or broken. Additionally, if you want to set an alert for a specific level of your choice, you need to enable this option and configure below which level should trigger an alert and in which direction."
+b_alert      = input.bool  (defval = false,      title = "Custom Alert", group = group_a, display = display.none, tooltip = tooltip_)
+alert_source = input.source(defval = close,      title = "Alert Source", group = group_a, display = display.data_window)
+alert_tpye   = input.string(defval = "cross-up", title = "Alert Type",   group = group_a, options = ["cross-up", "cross-down","cross-any"] )
+cross_level  = input.string(defval = "1. Level", title = "Select Level", group = group_a, options = ["1. Level", "2. Level","3. Level","4. Level","5. Level"])
+
+
+float LeveL = switch cross_level
+    "1. Level" => i_level1
+    "2. Level" => i_level2
+    "3. Level" => i_level3
+    "4. Level" => i_level4
+    "5. Level" => i_level5
+    // Default used when the three first cases do not match.
+    => i_level3
+
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                    VARIABLES SECTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+
+var yon           = array.new_float(1)
+float high_p      = high >=ta.highest(prd) ? high : na                          //ta.highestbars(high, prd) == 0 ? high : na
+float low_p       = low <= ta.lowest(prd) ? low : na
+var Trend_dir     = 0
+var Array_max     = 100
+var Z_value       = array.new_float(0)
+
+var line czg_1    = na
+var line czg_2    = na
+var line czg_3    = na
+var line czg_4    = na
+var line czg_5    = na
+var line czg_6    = na
+var line czg_7    = na
+
+var label mark_1  = na
+var label mark_2  = na
+var label mark_3  = na
+var label mark_4  = na
+var label mark_5  = na
+var label mark_6  = na
+var label mark_7  = na
+
+var bool  kop     = false
+var bool  sinyal  = true 
+var float diff    = na
+var float seviye6 =  na
+var float seviye8 = na
+var float index0  = na
+
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                          ZIGZAG SECTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+Trend_dir := ( high_p == high and na(low_p) ? 1 : (low_p == low and na(high_p) ? -1 : nz(Trend_dir)) )
+
+
+bool Dir_Change = (Trend_dir != Trend_dir[1])
+
+
+
+Re(int num) =>
+    r_num = num + 1 
+    r_array = array.get(Z_value, array.size(Z_value)-r_num)
+    (r_array)
+
+if array.size(Z_value) > Array_max
+    array.shift(Z_value)
+    array.shift(Z_value)
+
+Change = not na(high_p) or not na(low_p)
+if Change 
+    var line cizgi_Z = na
+    if Dir_Change
+        if Trend_dir == 1 
+            array.push(Z_value, bar_index)
+            array.push(Z_value, high_p)
+
+        else if  Trend_dir == -1 
+            array.push(Z_value, bar_index)
+            array.push(Z_value, low_p)
+
+    else
+        if Trend_dir == 1 
+            if array.size(Z_value) == 0
+                array.push(Z_value, bar_index)
+                array.push(Z_value, high_p)
+            else 
+                if high_p > array.last(Z_value)
+                    array.set(Z_value, array.size(Z_value)-2, bar_index)
+                    array.set(Z_value, array.size(Z_value)-1, high_p)
+        else 
+            if array.size(Z_value) == 0
+                array.push(Z_value, bar_index)
+                array.push(Z_value, low_p)
+            else 
+                if low_p < array.last(Z_value)
+                    array.set(Z_value, array.size(Z_value)-2, bar_index)
+                    array.set(Z_value, array.size(Z_value)-1, low_p)
+    if array.size(Z_value) > 4 and i_ShowZ
+        if array.get(Z_value, array.size(Z_value)-3) == array.get(Z_value[1], array.size(Z_value[1])-3) 
+            line.delete(cizgi_Z)
+        cizgi_Z := line.new(x1 = math.round(array.get(Z_value, array.size(Z_value)-2)), y1 = array.get(Z_value, array.size(Z_value)-1), x2 = math.round(array.get(Z_value, array.size(Z_value)-4)), y2 = array.get(Z_value, array.size(Z_value)-3), color = Trend_dir == 1 ? col_U : col_D, width = 1 , style =  line.style_solid, force_overlay = true)
+
+
+
+//▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                           LOGIC 
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 
+if  array.size(Z_value) >= 14 
+    con1 = (Re(6)< Re(2) and  Re(4) < Re(8)  and   Re(4)  > Re(6) and  Re(6)  < Re(8) and  Re(0)  < Re(8) and ward != "Upward")  // (math.abs(Re(8)-Re(6)) < (math.abs(Re(6)-Re(4))*1.5)) and (math.abs(Re(6)-Re(4)) < (math.abs(Re(4)-Re(2))*1.5))and
+    con2 = (Re(6)> Re(2) and  Re(4) > Re(8)   and Re(4)  < Re(6) and  Re(6)  > Re(8) and  Re(0)  > Re(8) and  ward != "Downward") //(math.abs(Re(8)-Re(6)) < (math.abs(Re(6)-Re(4))*1.5)) and (math.abs(Re(6)-Re(4)) < (math.abs(Re(4)-Re(2))*1.5)) and
+    
+    if   (con1 and not con2 and kop == false and  sinyal == true) or (con2 and not con1  and kop == false  and  sinyal == true)
+        kop := true 
+        diff := Re(8) - Re(6)
+        seviye6 := Re(6)
+        index0  := Re(9) 
+        seviye8 :=  Re(8)
+    if  kop  == true 
+        if seviye6 > seviye8   
+            array.push(yon, 1)
+        else 
+            array.push(yon,-1)
+        sinyal := false
+        if (array.get(yon, array.size(yon)-1) == 1 and close > seviye6 and sinyal == false)      or      (array.get(yon, array.size(yon)-1) == 1 and close < seviye8 and sinyal == false)       or      (array.get(yon, array.size(yon)-1) == -1 and close > seviye8 and sinyal == false)       or     (array.get(yon, array.size(yon)-1) == -1 and close < seviye6 and sinyal == false)  
+            sinyal := true
+            kop  := false
+
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                         CONDITIONS
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼           
+bool Cross_con = switch alert_tpye
+    "cross-up"   => ta.crossover (alert_source, seviye6 + diff * (LeveL))
+    "cross-down" => ta.crossunder(alert_source, seviye6 + diff * (LeveL))
+    "cross-any"  => ta.cross     (alert_source, seviye6 + diff * (LeveL))
+    => ta.cross(alert_source, seviye6 + diff * (LeveL))
+cross_1     = ta.cross(close,seviye6 + diff * 1) and kop[1]  == true
+cross_2     = ta.cross(close,seviye6 + diff * 0) and kop[1]  == true
+Range_cross =  cross_1 or cross_2
+cross_line  = kop  == true ? Cross_con : false
+plotchar(Range_cross ? high : na, char='❌', force_overlay = true)
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                      UP TREND PLOT SECTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼    
+if kop  == true
+
+    if seviye6 > seviye8   // Down to Up
+        label.delete(mark_1[1]), label.delete(mark_2[1]), label.delete(mark_3[1]), label.delete(mark_4[1]), label.delete(mark_5[1]), label.delete(mark_6[1]), label.delete(mark_7[1])
+        line.delete (czg_1[1]),  line.delete (czg_2[1]),  line.delete (czg_3[1]),  line.delete (czg_4[1]),  line.delete (czg_5[1]),  line.delete (czg_6[1]),  line.delete (czg_7[1])
+        czg_1 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 1,          x2 = bar_index, y2 = seviye6 + diff * 1,           color = c_border,  width = 2, style = line.style_solid, force_overlay = true ) 
+        czg_2 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level1), x2 = bar_index, y2 = seviye6 + diff * (i_level1),  color = c_level1,  width = 1, style = line.style_solid, force_overlay = true) 
+        czg_3 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level2), x2 = bar_index, y2 = seviye6 + diff * (i_level2),  color = c_level2,  width = 1, style = line.style_solid, force_overlay = true) 
+        czg_4 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level3), x2 = bar_index, y2 = seviye6 + diff * (i_level3),  color = c_level3,  width = 2, style = line.style_solid, force_overlay = true) 
+        czg_5 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level4), x2 = bar_index, y2 = seviye6 + diff * (i_level4),  color = c_level4,  width = 2, style = line.style_solid, force_overlay = true)   
+        czg_6 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level5), x2 = bar_index, y2 = seviye6 + diff * (i_level5),  color = c_level5,  width = 1, style = line.style_solid, force_overlay = true)  
+        czg_7 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 0,          x2 = bar_index, y2 = seviye6 + diff * 0,           color = c_border , width = 2, style = line.style_solid, force_overlay = true)   
+
+        mark_1 := label.new( x = bar_index + 8, y = seviye6 + diff * 0,          text = str.tostring(0)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 0))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_2 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level1), text = str.tostring(i_level1) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level1))) + ")", textcolor = c_level1, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_3 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level2), text = str.tostring(i_level2) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level2))) + ")", textcolor = c_level2, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_4 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level3), text = str.tostring(i_level3) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level3))) + ")", textcolor = c_level3, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_5 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level4), text = str.tostring(i_level4) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level4))) + ")", textcolor = c_level4, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_6 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level5), text = str.tostring(i_level5) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level5))) + ")", textcolor = c_level5, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_7 := label.new( x = bar_index + 8, y = seviye6 + diff * 1,          text = str.tostring(1)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 1))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                          DOWN TREND PLOT SECTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 
+    else  // Up to Down
+        label.delete(mark_1[1]), label.delete(mark_2[1]), label.delete(mark_3[1]), label.delete(mark_4[1]), label.delete(mark_5[1]), label.delete(mark_6[1]), label.delete(mark_7[1])
+        line.delete (czg_1[1]),  line.delete (czg_2[1]),  line.delete (czg_3[1]),  line.delete (czg_4[1]),  line.delete (czg_5[1]),  line.delete (czg_6[1]),  line.delete (czg_7[1])
+        czg_1 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 1,          x2 = bar_index, y2 = seviye6 + diff * 1,          color = c_border, width = 2, style = line.style_solid, force_overlay = true) 
+        czg_2 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level5), x2 = bar_index, y2 = seviye6 + diff * (i_level5), color = c_level5, width = 1, style = line.style_solid, force_overlay = true) 
+        czg_3 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level4), x2 = bar_index, y2 = seviye6 + diff * (i_level4), color = c_level4, width = 2, style = line.style_solid, force_overlay = true) 
+        czg_4 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level3), x2 = bar_index, y2 = seviye6 + diff * (i_level3), color = c_level3, width = 2, style = line.style_solid, force_overlay = true) 
+        czg_5 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level2), x2 = bar_index, y2 = seviye6 + diff * (i_level2), color = c_level2, width = 1, style = line.style_solid, force_overlay = true)   
+        czg_6 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level1), x2 = bar_index, y2 = seviye6 + diff * (i_level1), color = c_level1, width = 1, style = line.style_solid, force_overlay = true)  
+        czg_7 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 0,          x2 = bar_index, y2 = seviye6 + diff * 0,          color = c_border, width = 2, style = line.style_solid, force_overlay = true)   
+
+        mark_1 := label.new( x = bar_index + 8, y = seviye6 + diff * 1,        text = str.tostring(1)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 1))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_2 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level5, text = str.tostring(i_level5) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * i_level5))   + ")", textcolor = c_level5, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_3 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level4, text = str.tostring(i_level4) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * i_level4))   + ")", textcolor = c_level4, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_4 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level3, text = str.tostring(i_level3) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level3))) + ")", textcolor = c_level3, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_5 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level2, text = str.tostring(i_level2) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level2))) + ")", textcolor = c_level2, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_6 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level1, text = str.tostring(i_level1) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level1))) + ")", textcolor = c_level1, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        mark_7 := label.new( x = bar_index + 8, y = seviye6 + diff * 0,        text = str.tostring(0)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 0))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+    if cross_line and b_alert
+        alert(cross_level+" : Breaked", freq = alert.freq_once_per_bar_close)
+if Range_cross
+    alert("Range Breaked")
+    if Show_prv 
+        if seviye6[1] > seviye8[1]
+            label.delete(mark_1[1]), label.delete(mark_2[1]), label.delete(mark_3[1]), label.delete(mark_4[1]), label.delete(mark_5[1]), label.delete(mark_6[1]), label.delete(mark_7[1])
+
+            czg_1 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 1,          x2 = bar_index, y2 = seviye6 + diff * 1,           color = c_border,  width = 2, style = line.style_solid, force_overlay = true ) 
+            czg_2 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level1), x2 = bar_index, y2 = seviye6 + diff * (i_level1),  color = c_level1,  width = 1, style = line.style_solid, force_overlay = true) 
+            czg_3 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level2), x2 = bar_index, y2 = seviye6 + diff * (i_level2),  color = c_level2,  width = 1, style = line.style_solid, force_overlay = true) 
+            czg_4 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level3), x2 = bar_index, y2 = seviye6 + diff * (i_level3),  color = c_level3,  width = 2, style = line.style_solid, force_overlay = true) 
+            czg_5 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level4), x2 = bar_index, y2 = seviye6 + diff * (i_level4),  color = c_level4,  width = 2, style = line.style_solid, force_overlay = true)   
+            czg_6 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level5), x2 = bar_index, y2 = seviye6 + diff * (i_level5),  color = c_level5,  width = 1, style = line.style_solid, force_overlay = true)  
+            czg_7 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 0,          x2 = bar_index, y2 = seviye6 + diff * 0,           color = c_border , width = 2, style = line.style_solid, force_overlay = true)   
+
+            mark_1 := label.new( x = bar_index + 8, y = seviye6 + diff * 0,          text = str.tostring(0)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 0))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_2 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level1), text = str.tostring(i_level1) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level1))) + ")", textcolor = c_level1, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_3 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level2), text = str.tostring(i_level2) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level2))) + ")", textcolor = c_level2, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_4 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level3), text = str.tostring(i_level3) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level3))) + ")", textcolor = c_level3, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_5 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level4), text = str.tostring(i_level4) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level4))) + ")", textcolor = c_level4, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_6 := label.new( x = bar_index + 8, y = seviye6 + diff * (i_level5), text = str.tostring(i_level5) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level5))) + ")", textcolor = c_level5, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_7 := label.new( x = bar_index + 8, y = seviye6 + diff * 1,          text = str.tostring(1)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 1))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+        else 
+            label.delete(mark_1[1]), label.delete(mark_2[1]), label.delete(mark_3[1]), label.delete(mark_4[1]), label.delete(mark_5[1]), label.delete(mark_6[1]), label.delete(mark_7[1])
+
+            czg_1 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 1,          x2 = bar_index, y2 = seviye6 + diff * 1,          color = c_border, width = 2, style = line.style_solid, force_overlay = true) 
+            czg_2 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level5), x2 = bar_index, y2 = seviye6 + diff * (i_level5), color = c_level5, width = 1, style = line.style_solid, force_overlay = true) 
+            czg_3 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level4), x2 = bar_index, y2 = seviye6 + diff * (i_level4), color = c_level4, width = 2, style = line.style_solid, force_overlay = true) 
+            czg_4 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level3), x2 = bar_index, y2 = seviye6 + diff * (i_level3), color = c_level3, width = 2, style = line.style_solid, force_overlay = true) 
+            czg_5 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level2), x2 = bar_index, y2 = seviye6 + diff * (i_level2), color = c_level2, width = 1, style = line.style_solid, force_overlay = true)   
+            czg_6 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * (i_level1), x2 = bar_index, y2 = seviye6 + diff * (i_level1), color = c_level1, width = 1, style = line.style_solid, force_overlay = true)  
+            czg_7 := line.new(x1 = math.round(index0), y1 = seviye6 + diff * 0,          x2 = bar_index, y2 = seviye6 + diff * 0,          color = c_border, width = 2, style = line.style_solid, force_overlay = true)   
+
+            mark_1 := label.new( x = bar_index + 8, y = seviye6 + diff * 1,        text = str.tostring(1)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 1))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_2 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level5, text = str.tostring(i_level5) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * i_level5))   + ")", textcolor = c_level5, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_3 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level4, text = str.tostring(i_level4) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * i_level4))   + ")", textcolor = c_level4, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_4 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level3, text = str.tostring(i_level3) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level3))) + ")", textcolor = c_level3, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_5 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level2, text = str.tostring(i_level2) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level2))) + ")", textcolor = c_level2, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_6 := label.new( x = bar_index + 8, y = seviye6 + diff * i_level1, text = str.tostring(i_level1) + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * (i_level1))) + ")", textcolor = c_level1, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+            mark_7 := label.new( x = bar_index + 8, y = seviye6 + diff * 0,        text = str.tostring(0)        + "(" + str.tostring(math.round_to_mintick(seviye6 + diff * 0))          + ")", textcolor = c_border, style = label.style_none,size = size.small, force_overlay = true, yloc = yloc.price)
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+//                          ALERT SECTION
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+if kop  == true and kop[1]  == false
+    alert("Range Detected")
+plotchar((kop== true and kop[1] == false) ? high : na, char='📌', force_overlay = true)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fe6c65802901485eb55c6861f7ce6363",
+ "title": "Ripster + RVOL + Saty ATR Levels (v6) — Options Dashboard",
+ "author": "chandranewagetrader",
+ "url": "https://www.tradingview.com/script/GJIiY64L-ripster-rvol-saty-atr-levels-v6-options-dashboard/",
+ "agreeCount": 739,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029.pine",
+ "our_status": "reference-only"
+}

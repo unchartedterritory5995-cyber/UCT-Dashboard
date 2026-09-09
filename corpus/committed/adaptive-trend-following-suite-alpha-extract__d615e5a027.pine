@@ -1,0 +1,296 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=6
+indicator("Adaptive Trend Following Suite [Alpha Extract]", overlay = true, behind_chart = false)
+
+import TradingView/ta/10 as ta
+
+// ═══════════════════════════════════════════════════════════════════════
+// INPUT CONFIGURATION PANEL
+// ═══════════════════════════════════════════════════════════════════════
+
+// Visual Theme Configuration
+bullishTheme = input.color(#099881, 'Bull Theme', group = 'Visual Configuration')
+bearishTheme = input.color(#F33644, 'Bear Theme', group = 'Visual Configuration') 
+neutralTheme = input.color(#888888, 'Neutral Theme', group = 'Visual Configuration')
+
+// Core Filter Parameters
+priceInput = input(close, 'Price Input', group = 'Core Filters')
+noiseFilterPeriod = input.int(16, 'Noise Filter Period', group = 'Core Filters')
+noiseSigmaValue = input.float(1.4, 'Noise Sigma Value', group = 'Core Filters', step=0.1)
+mainFilterPeriod = input.int(11, 'Main Filter Period', group = 'Core Filters')
+phaseAdjustment = input.int(0, title="Phase Adjustment", minval = -100, maxval = 100, group = 'Core Filters', tooltip = "Negative: More responsive | Positive: More smooth")
+
+// Market Structure Analysis
+enableMarketStructure = input.bool(true, title="Enable Market Structure Analysis", group = "Market Structure", tooltip = "Toggle market structure detection for adaptive channel behavior")
+structurePeriod = input.int(18, title="Structure Analysis Period", group = "Market Structure")
+structureThresholdValue = input.float(1.50, "Structure Threshold", step=0.01, group = "Market Structure")
+defaultChannelMode = input.string("Trending", "Default Mode (when disabled)", options=["Trending", "Ranging", "Fixed"], group = "Market Structure", tooltip = "Channel behavior when market structure is disabled")
+fixedMultiplier = input.float(1.5, "Fixed Multiplier", step=0.1, group = "Market Structure", tooltip = "Used when Default Mode is set to Fixed")
+
+// Momentum Component Settings
+enableMomentumRSI = input.bool(true, title="Enable RSI Component", group="Momentum Analysis")
+enableMomentumCCI = input.bool(true, title="Enable CCI Component", group="Momentum Analysis")
+momentumRSIPeriod = input.int(8, minval=1, title="RSI Analysis Period", group="Momentum Analysis")
+momentumCCIPeriod = input.int(48, minval=1, title="CCI Analysis Period", group="Momentum Analysis")
+zAnalysisPeriod = input(14, "Z-Analysis Period", group = "Momentum Analysis")
+zSignificanceLevel = input.float(1.45, "Z-Significance Level", step=0.025, group = "Momentum Analysis")
+
+// Dynamic Channel Configuration
+channelMethod = input.string("Gaussian Deviation", "Channel Method", options=["ATR", "Standard Deviation", "Gaussian Deviation"], group = "Dynamic Channels")
+channelPeriod = input.int(33, "Channel Period", group = "Dynamic Channels")
+trendingMultiplier = input.float(1.3, "Trending Multiplier", step=0.1, group = "Dynamic Channels")
+rangingMultiplier = input.float(1.9, "Ranging Multiplier", step=0.1, group = "Dynamic Channels")
+
+// Signal Quality Control
+signalConfidenceThreshold = input.float(0.6, "Signal Confidence Threshold", step=0.1, minval=0, maxval=1, group = "Signal Quality")
+
+// ═══════════════════════════════════════════════════════════════════════
+// MATHEMATICAL FOUNDATION LIBRARY
+// ═══════════════════════════════════════════════════════════════════════
+
+// Advanced Noise Reduction Filter 
+advancedNoiseFilter(sourceData, filterLength, sigmaParam) =>
+    weightSum = 0.0
+    valueSum = 0.0
+    centerPoint = (filterLength - 1) / 2
+    for index = 0 to filterLength - 1
+        gaussianWeight = math.exp(-0.5 * math.pow((index - centerPoint) / sigmaParam, 2))
+        weightSum += gaussianWeight
+        valueSum += sourceData[index] * gaussianWeight
+    valueSum / weightSum
+
+// Adaptive Moving Average Core Engine
+adaptiveMACore(inputSeries, periodLength) =>
+    upperBoundary = inputSeries
+    lowerBoundary = inputSeries
+    
+    deltaUp = inputSeries - nz(upperBoundary[1], inputSeries)
+    deltaDown = inputSeries - nz(lowerBoundary[1], inputSeries)
+    volatilityMeasure = math.abs(deltaUp) == math.abs(deltaDown) ? 0 : math.max(math.abs(deltaUp), math.abs(deltaDown))
+    
+    volSum = 0.0
+    volSum := nz(volSum[1]) + 0.1 * (volatilityMeasure - nz(volatilityMeasure[10], volatilityMeasure))
+    
+    baselineLength = 65
+    avgVolatility = ta.sma(volSum, baselineLength)
+    
+    adaptiveLength = (periodLength - 1) / 2
+    logFactor = math.max(math.log(math.sqrt(adaptiveLength)) / math.log(2) + 2, 0)
+    powerFactor = math.max(logFactor - 2, 0.5)
+    
+    relativeVol = avgVolatility != 0 ? volatilityMeasure / avgVolatility : 0
+    if (relativeVol > math.pow(logFactor, 1 / powerFactor))
+        relativeVol := math.pow(logFactor, 1 / powerFactor)
+    if relativeVol < 1
+        relativeVol := 1
+    
+    adaptivePower = math.pow(relativeVol, powerFactor)
+    bandwidthFactor = math.sqrt(adaptiveLength) * logFactor
+    betaValue = bandwidthFactor/(bandwidthFactor + 1)
+    kappaValue = math.pow(betaValue, math.sqrt(adaptivePower))
+    
+    upperBoundary := deltaUp > 0 ? inputSeries : inputSeries - kappaValue * deltaUp
+    lowerBoundary := deltaDown < 0 ? inputSeries : inputSeries - kappaValue * deltaDown
+
+    adaptivePower
+
+// Primary Adaptive Filter
+primaryAdaptiveFilter(float inputData, int lengthParam, int phaseParam = 50) =>
+    adaptiveMA = 0.0
+    phaseRatio = phaseParam < -100 ? 0.5 : phaseParam > 100 ? 2.5 : phaseParam / 100 + 1.5
+    betaCoeff = 0.45 * (lengthParam - 1) / (0.45 * (lengthParam - 1) + 2)
+    powerValue = adaptiveMACore(inputData, lengthParam)
+    alphaCoeff = math.pow(betaCoeff, powerValue)
+    
+    stage1MA = 0.0
+    stage1MA := (1 - alphaCoeff) * inputData + alphaCoeff * nz(stage1MA[1])
+    
+    stage2Det = 0.0
+    stage2Det := (1 - betaCoeff) * (inputData - stage1MA) + betaCoeff * nz(stage2Det[1])
+    stage2MA = stage1MA + phaseRatio * stage2Det
+    
+    finalDet = 0.0
+    finalDet := math.pow(1 - alphaCoeff, 2) * (stage2MA - nz(adaptiveMA[1])) + math.pow(alphaCoeff, 2) * nz(finalDet[1])
+
+    adaptiveMA := nz(adaptiveMA[1]) + finalDet
+    adaptiveMA
+
+// Market Structure Analysis Engine
+marketStructureEngine(priceData, analysisLength) =>
+    highestLevel = ta.highest(priceData, analysisLength)
+    lowestLevel = ta.lowest(priceData, analysisLength)
+    
+    var float[] normalizedArray = array.new_float(analysisLength)
+    for i = 0 to analysisLength - 1
+        normalizedValue = (priceData[i] - lowestLevel) / (highestLevel - lowestLevel)
+        array.set(normalizedArray, i, normalizedValue)
+    
+    float pathLength = 0.0
+    for i = 0 to analysisLength - 2
+        currentPoint = array.get(normalizedArray, i)
+        nextPoint = array.get(normalizedArray, i + 1)
+        pathLength += math.sqrt(math.pow(currentPoint - nextPoint, 2) + math.pow(1.0 / analysisLength, 2))
+    
+    1 + (math.log(pathLength) + math.log(2)) / math.log(2 * analysisLength)
+
+// Confidence Transformation Function
+confidenceTransform(inputValue, steepness, centerPoint) =>
+    1.0 / (1.0 + math.exp(-steepness * (inputValue - centerPoint)))
+
+// Dynamic Channel Calculation Engine
+dynamicChannelEngine(baselineData, channelLength, methodType) =>
+    switch methodType
+        "ATR" => ta.atr(channelLength)
+        "Standard Deviation" => ta.stdev(baselineData, channelLength)
+        "Gaussian Deviation" => 
+            weightArray = array.new_float()
+            totalWeight = 0.0
+            for i = 0 to channelLength - 1
+                gaussWeight = math.exp(-math.pow((i / channelLength) / 2, 2))
+                array.push(weightArray, gaussWeight)
+                totalWeight += gaussWeight
+            
+            weightedMean = 0.0
+            for i = 0 to channelLength - 1
+                weightedMean += baselineData[i] * array.get(weightArray, i)
+            weightedMean := weightedMean / totalWeight
+            
+            weightedVariance = 0.0
+            for i = 0 to channelLength - 1
+                deviation = baselineData[i] - weightedMean
+                weightedVariance += math.pow(deviation, 2) * array.get(weightArray, i)
+            math.sqrt(weightedVariance / totalWeight)
+        => ta.stdev(baselineData, channelLength)
+
+// ═══════════════════════════════════════════════════════════════════════
+// SIGNAL PROCESSING PIPELINE
+// ═══════════════════════════════════════════════════════════════════════
+
+//Apply Advanced Noise Filtering
+cleanedPriceData = advancedNoiseFilter(priceInput, noiseFilterPeriod, noiseSigmaValue)
+
+//Generate Primary Trend Reference
+primaryTrendLine = primaryAdaptiveFilter(cleanedPriceData, mainFilterPeriod, phaseAdjustment)
+
+//Analyze Market Structure (if enabled)
+marketStructureValue = enableMarketStructure ? marketStructureEngine(close, structurePeriod) : 0.0
+isRangingMarket = enableMarketStructure ? marketStructureValue >= structureThresholdValue : false
+
+//Calculate Momentum Components
+rsiComponent = ta.rsi(close, momentumRSIPeriod)
+cciComponent = ta.cci(close, momentumCCIPeriod)
+
+rsiAverage = ta.sma(rsiComponent, zAnalysisPeriod)
+rsiDeviation = ta.stdev(rsiComponent, zAnalysisPeriod)
+rsiZScore = (rsiComponent - rsiAverage) / rsiDeviation
+
+cciAverage = ta.sma(cciComponent, zAnalysisPeriod)
+cciDeviation = ta.stdev(cciComponent, zAnalysisPeriod)
+cciZScore = (cciComponent - cciAverage) / cciDeviation
+
+//Generate Momentum Signals
+var int rsiMomentumSignal = 0
+var int cciMomentumSignal = 0
+
+if barstate.isconfirmed
+    if math.abs(rsiZScore) > zSignificanceLevel
+        rsiMomentumSignal := rsiComponent > 50 ? 1 : rsiComponent < 50 ? -1 : rsiMomentumSignal[1]
+    else
+        rsiMomentumSignal := rsiComponent > 60 ? 1 : rsiComponent < 40 ? -1 : rsiMomentumSignal[1]
+    
+    if math.abs(cciZScore) > zSignificanceLevel
+        cciMomentumSignal := cciComponent > 0 ? 1 : cciComponent < 0 ? -1 : cciMomentumSignal[1]
+    else
+        cciMomentumSignal := cciComponent > 100 ? 1 : cciComponent < -100 ? -1 : cciMomentumSignal[1]
+
+// Calculate Dynamic Channels with Market Structure Control
+channelDeviation = dynamicChannelEngine(primaryTrendLine, channelPeriod, channelMethod)
+
+// Determine effective multiplier based on market structure settings
+effectiveMultiplier = trendingMultiplier  // Default value
+
+if enableMarketStructure
+    effectiveMultiplier := isRangingMarket ? rangingMultiplier : trendingMultiplier
+else
+    switch defaultChannelMode
+        "Trending" => effectiveMultiplier := trendingMultiplier
+        "Ranging" => effectiveMultiplier := rangingMultiplier
+        "Fixed" => effectiveMultiplier := fixedMultiplier
+
+upperChannelBoundary = primaryTrendLine + channelDeviation * effectiveMultiplier
+lowerChannelBoundary = primaryTrendLine - channelDeviation * effectiveMultiplier
+
+// Determine Primary Trend Direction
+var primaryTrend = 0
+if barstate.isconfirmed
+    primaryTrend := close > upperChannelBoundary ? 1 : close < lowerChannelBoundary ? -1 : nz(primaryTrend[1], 0)
+
+// Calculate Momentum Consensus
+activeComponents = (enableMomentumRSI ? 1 : 0) + (enableMomentumCCI ? 1 : 0)
+momentumSum = (enableMomentumRSI ? rsiMomentumSignal : 0) + (enableMomentumCCI ? cciMomentumSignal : 0)
+momentumConsensus = activeComponents > 0 ? momentumSum / activeComponents : 0
+
+// Step 9: Apply Confidence Scoring
+rawConfidenceScore = momentumConsensus
+finalConfidenceScore = confidenceTransform(math.abs(rawConfidenceScore), 5, 0) * math.sign(rawConfidenceScore)
+
+// Generate Final Signal
+var int masterTrendSignal = 0
+if barstate.isconfirmed
+    if math.abs(finalConfidenceScore) > signalConfidenceThreshold
+        masterTrendSignal := primaryTrend
+    else
+        masterTrendSignal := nz(masterTrendSignal[1], 0)
+
+// ═══════════════════════════════════════════════════════════════════════
+// VISUAL PRESENTATION LAYER
+// ═══════════════════════════════════════════════════════════════════════
+
+// Color Theme Assignment
+dynamicColor = masterTrendSignal == 1 ? bullishTheme : masterTrendSignal == -1 ? bearishTheme : neutralTheme
+
+// Primary Trend Line Visualization
+trendLineViz = plot(primaryTrendLine, "Primary Trend", color = dynamicColor, linewidth = 3)
+upperBoundaryViz = plot(upperChannelBoundary, "Upper Boundary", color = color.new(dynamicColor, 60), style = plot.style_line)
+lowerBoundaryViz = plot(lowerChannelBoundary, "Lower Boundary", color = color.new(dynamicColor, 60), style = plot.style_line)
+
+// Channel Fill Visualization
+fill(upperBoundaryViz, lowerBoundaryViz, color = color.new(dynamicColor, 90), title = "Dynamic Channel")
+
+// Price-Trend Relationship Fill
+priceReference = plot(close, "Price Reference", display = display.none)
+fill(trendLineViz, priceReference, close, primaryTrendLine, 
+     top_color = color.new(dynamicColor, 99), 
+     bottom_color = color.new(dynamicColor, 65))
+
+// Enhanced Candle Visualization
+plotcandle(open, high, low, close, "Enhanced Candles", 
+           color = dynamicColor, 
+           wickcolor = dynamicColor, 
+           bordercolor = dynamicColor, 
+           force_overlay = true,
+           display = display.all - display.status_line)
+
+// Signal Change Circle Markers
+if barstate.isconfirmed and ta.change(masterTrendSignal) != 0
+    circleColor = masterTrendSignal == 1 ? bullishTheme : masterTrendSignal == -1 ? bearishTheme : neutralTheme
+    label.new(bar_index, primaryTrendLine, text = '⬡', 
+              color = color.new(color.black, 99), 
+              textcolor = circleColor, 
+              style = label.style_label_center, 
+              size = size.large)
+
+// Market Structure Status Display 
+if enableMarketStructure
+    var table statusTable = table.new(position.top_right, 1, 1)
+    marketStatus = isRangingMarket ? "Ranging" : "Trending"
+    statusColor = isRangingMarket ? color.new(color.orange, 80) : color.new(color.green, 80)
+    table.cell(statusTable, 0, 0, marketStatus, text_color=color.white, bgcolor=statusColor, text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════
+// ALERT NOTIFICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════════
+
+alertcondition(ta.change(masterTrendSignal) == 2, "Bullish Signal", "Advanced Multi-Filter System: Bullish trend detected")
+alertcondition(ta.change(masterTrendSignal) == -2, "Bearish Signal", "Advanced Multi-Filter System: Bearish trend detected")
+alertcondition(ta.change(isRangingMarket) and enableMarketStructure, "Mode Change", "Advanced Multi-Filter System: Market mode changed")

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2f747d848bb143188f4d7b414d2816a1",
+ "title": "Inside Bar Boxes",
+ "author": "LennyT",
+ "url": "https://www.tradingview.com/script/db9fuGm0-inside-bar-boxes/",
+ "agreeCount": 2019,
+ "category": "candlestick patterns",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/inside-bar-boxes__2f747d848b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/inside-bar-boxes__2f747d848b.pine",
+ "our_status": "committed"
+}

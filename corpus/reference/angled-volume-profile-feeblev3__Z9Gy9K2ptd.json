@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;Z9Gy9K2ptdZjrYYz3Xd7isz3m5DzjyKf",
+ "title": "Angled Volume Profile [feeble.v3]",
+ "author": "gamazama",
+ "url": "https://www.tradingview.com/script/OGwqa3DI-angled-volume-profile-feeble-v3/",
+ "agreeCount": 2846,
+ "category": "order flow",
+ "pine_version": "v3",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/angled-volume-profile-feeblev3__Z9Gy9K2ptd.pine",
+ "our_status": "reference-only"
+}

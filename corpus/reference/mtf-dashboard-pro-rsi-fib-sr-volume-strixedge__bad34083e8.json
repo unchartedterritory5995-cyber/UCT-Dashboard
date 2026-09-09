@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;bad34083e8f24ed7b3a1519c8181367c",
+ "title": "MTF Dashboard Pro | RSI • Fib • S/R • Volume [StrixEDGE]",
+ "author": "StrixEDGE",
+ "url": "https://www.tradingview.com/script/25I5V9OE-mtf-dashboard-pro-rsi-fib-s-r-volume-strixedge/",
+ "agreeCount": 2044,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
+ "cached_source": "tools/pine_survey/cache/sources/mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;RkKU95fUai5HVPhC11nAkLLxFIQtxEwI",
+ "title": "Money Flow Index MTF + Alerts",
+ "author": "DreamsDefined",
+ "url": "https://www.tradingview.com/script/8gPjNEsE-money-flow-index-mtf-alerts/",
+ "agreeCount": 7820,
+ "category": "volume",
+ "pine_version": "v3",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/money-flow-index-mtf-alerts__RkKU95fUai.pine",
+ "our_status": "reference-only"
+}

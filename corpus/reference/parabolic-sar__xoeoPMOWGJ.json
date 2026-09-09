@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;xoeoPMOWGJ9ViG65Q33PwFgkgqF1hcvt",
+ "title": "Parabolic SAR",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/idpMOtsh-parabolic-sar/",
+ "agreeCount": 4299,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine",
+ "cached_source": "tools/pine_survey/cache/sources/parabolic-sar__xoeoPMOWGJ.pine",
+ "our_status": "committed"
+}

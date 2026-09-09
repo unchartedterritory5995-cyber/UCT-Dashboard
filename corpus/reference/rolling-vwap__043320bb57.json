@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;043320bb572a4bb08853f40189c57586",
+ "title": "Rolling VWAP",
+ "author": "TradingView",
+ "url": "https://www.tradingview.com/script/ZU2UUu9T-rolling-vwap/",
+ "agreeCount": 5287,
+ "category": "volume",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rolling-vwap__043320bb57.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rolling-vwap__043320bb57.pine",
+ "our_status": "committed"
+}

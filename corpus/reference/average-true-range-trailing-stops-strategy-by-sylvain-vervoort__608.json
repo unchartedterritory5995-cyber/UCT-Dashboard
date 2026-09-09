@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;608",
+ "title": "Average True Range Trailing Stops Strategy, by Sylvain Vervoort",
+ "author": "HPotter",
+ "url": "https://www.tradingview.com/script/VP32b3aR-average-true-range-trailing-stops-strategy-by-sylvain-vervoo/",
+ "agreeCount": 4567,
+ "category": "volatility",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9d844269d6c9493594d64c11b59ebb81",
+ "title": "Support and Resistance Logistic Regression | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/rS3xqWYx-support-and-resistance-logistic-regression-flux-charts/",
+ "agreeCount": 10790,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine",
+ "our_status": "committed"
+}

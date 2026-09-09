@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2809",
+ "title": "VWAP MTF",
+ "author": "TheYangGuizi",
+ "url": "https://www.tradingview.com/script/n2F64NVO-vwap-mtf/",
+ "agreeCount": 5812,
+ "category": "volume",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/vwap-mtf__2809.pine",
+ "our_status": "reference-only"
+}

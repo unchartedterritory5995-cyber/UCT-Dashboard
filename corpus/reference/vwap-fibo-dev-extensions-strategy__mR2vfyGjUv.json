@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;mR2vfyGjUvIZ1uT6uiAC33hOFzqsZG1B",
+ "title": "VWAP + Fibo Dev Extensions Strategy",
+ "author": "UnknownUnicorn4889556",
+ "url": "https://www.tradingview.com/script/EaBACrDi-vwap-fibo-dev-extensions-strategy/",
+ "agreeCount": 5088,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+ "cached_source": "tools/pine_survey/cache/sources/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
+ "our_status": "committed"
+}

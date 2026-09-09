@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;uP24atP4R0ezEQ1veebMsg5WsAIZB5nK",
+ "title": "Delta Volume v2.1 by kernel_phi",
+ "author": "iliyaand05",
+ "url": "https://www.tradingview.com/script/YZa6Qdnz-delta-volume-v2-1-by-kernel-phi/",
+ "agreeCount": 605,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/delta-volume-v21-by-kernel-phi__uP24atP4R0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/delta-volume-v21-by-kernel-phi__uP24atP4R0.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1025",
+ "title": "Madrid Moving Average Ribbon",
+ "author": "Madrid",
+ "url": "https://www.tradingview.com/script/1JKqmEKy-madrid-moving-average-ribbon/",
+ "agreeCount": 28239,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
+ "cached_source": "tools/pine_survey/cache/sources/madrid-moving-average-ribbon__1025.pine",
+ "our_status": "committed"
+}

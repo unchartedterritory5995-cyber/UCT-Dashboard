@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6092fcc4e7804755b43168a18e3792d0",
+ "title": "QQE MOD + SSL Hybrid + Waddah Attar Explosion",
+ "author": "kevinmck100",
+ "url": "https://www.tradingview.com/script/YCob5r03-qqe-mod-ssl-hybrid-waddah-attar-explosion/",
+ "agreeCount": 5167,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7.pine",
+ "our_status": "reference-only"
+}

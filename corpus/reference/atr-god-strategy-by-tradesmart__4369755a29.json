@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;4369755a29a640e8bb3e7c7896b409c4",
+ "title": "ATR GOD Strategy by TradeSmart",
+ "author": "TradeSmart22",
+ "url": "https://www.tradingview.com/script/Je04kGO0-atr-god-strategy-by-tradesmart/",
+ "agreeCount": 2300,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-god-strategy-by-tradesmart__4369755a29.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-god-strategy-by-tradesmart__4369755a29.pine",
+ "our_status": "committed"
+}

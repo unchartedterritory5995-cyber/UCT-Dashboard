@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;285cd9fa6f8941a69bdef37cf54ef6dc",
+ "title": "Smart Money Concepts Probability (Expo)",
+ "author": "Zeiierman",
+ "url": "https://www.tradingview.com/script/mBINsJlf-smart-money-concepts-probability-expo/",
+ "agreeCount": 14687,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-concepts-probability-expo__285cd9fa6f.pine",
+ "our_status": "reference-only"
+}

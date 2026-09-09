@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fbc538f076254ca7acbbdc95f4d994a8",
+ "title": "Cumulative Volume Delta Divergence",
+ "author": "UnknownUnicorn13336802",
+ "url": "https://www.tradingview.com/script/EZ5F4GfP-cumulative-volume-delta-divergence/",
+ "agreeCount": 650,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/cumulative-volume-delta-divergence__fbc538f076.pine",
+ "our_status": "reference-only"
+}

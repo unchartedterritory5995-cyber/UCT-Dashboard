@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1562",
+ "title": "Twiggs Money Flow [LazyBear]",
+ "author": "swetswet",
+ "url": "https://www.tradingview.com/script/IPIOGazv-twiggs-money-flow-lazybear/",
+ "agreeCount": 668,
+ "category": "volume",
+ "pine_version": "v1 (inferred: catalog revision -1)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/twiggs-money-flow-lazybear__1562.pine",
+ "our_status": "reference-only"
+}

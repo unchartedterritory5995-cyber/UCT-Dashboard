@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;PNSKf75832zX8AsDV5fO2zuaBOt60Tqw",
+ "title": "Volume_Profile_v0.5.4beta",
+ "author": "makit0",
+ "url": "https://www.tradingview.com/script/FQmVaaK9-volume-profile-v0-5-4beta/",
+ "agreeCount": 4908,
+ "category": "order flow",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-profile-v054beta__PNSKf75832.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile-v054beta__PNSKf75832.pine",
+ "our_status": "committed"
+}

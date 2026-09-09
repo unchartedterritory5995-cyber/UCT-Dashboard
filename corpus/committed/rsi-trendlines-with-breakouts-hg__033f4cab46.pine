@@ -1,0 +1,86 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © HoanGhetti
+
+//@version=5
+indicator("RSI Trendlines with Breakouts [HG]", precision = 2, max_labels_count = 500, max_lines_count = 500)
+import HoanGhetti/SimpleTrendlines/3 as tl
+
+g_trendlines    = 'Trendline Settings', g_conditions = 'Conditions',  g_styling = 'Styling', g_timeframe = 'Timeframe'
+input_timeframe = input.timeframe(defval = '', title = 'Timeframe', group = g_timeframe)
+input_pLen      = input.int(defval = 4, title = 'Lookback Range', minval = 1, group = g_trendlines, tooltip = 'How many bars to determine when a swing high/low is detected.')
+input_rLen      = input.int(defval = 14, title = 'RSI Length' , minval = 1, group = g_trendlines)
+input_rSrc      = input.source(defval = close, title = 'RSI Source', group = g_trendlines)
+input_repaint   = input.string(defval = 'On', title = 'Repainting', group = g_conditions, options = ['On', 'Off: Bar Confirmation'], tooltip = 'Bar Confirmation: Generates alerts when candle closes. (1 Candle Later)')
+input_rsiDiff   = input.int(defval = 3, title = 'RSI Difference', group = g_conditions, tooltip = 'The difference between the current RSI value and the breakout value.\n\nHow much higher in value should the current RSI be compared to the breakout value in order to detect a breakout?')
+input_rsiCol    = input.color(defval = color.blue, title = 'RSI Color', group = g_styling)
+input_width     = input.int(defval = 2, title = 'Line Width', minval = 1, group = g_styling)
+input_lblType   = input.string(defval = 'Simple', title = 'Label Type', group = g_styling, options = ['Full', 'Simple'])
+input_lblSize   = input.string(defval = size.small, title = 'Label Size', group = g_styling, options = [size.huge, size.large, size.normal, size.small, size.tiny])
+input_pLowCol   = input.color(defval = color.red, title = 'Pivot Low', inline = 'col', group = g_styling)
+input_pHighCol  = input.color(defval = #089981, title = 'Pivot High', inline = 'col', group = g_styling)
+input_override  = input.bool(defval = false, title = 'Override Text Color', group = g_styling, inline = 'override')
+input_overCol   = input.color(defval = color.white, title = ' ', group = g_styling, inline = 'override')
+
+lblText = switch input_lblType
+    'Simple' => 'Br'
+    'Full'   => 'Break'
+repaint = switch input_repaint
+    'On' => true
+    'Off: Bar Confirmation' => false
+
+rsi_v = ta.rsi(input_rSrc, input_rLen) 
+rsi = input_timeframe == '' ? rsi_v : request.security(syminfo.tickerid, input_timeframe, rsi_v, lookahead = barmerge.lookahead_on)
+
+pl = fixnan(ta.pivotlow(rsi, 1, input_pLen))
+ph = fixnan(ta.pivothigh(rsi, 1, input_pLen))
+
+pivot(float pType) =>
+    pivot = pType == pl ? pl : ph
+    xAxis = ta.valuewhen(ta.change(pivot), bar_index, 0) - ta.valuewhen(ta.change(pivot), bar_index, 1)
+    prevPivot = ta.valuewhen(ta.change(pivot), pivot, 1)
+    pivotCond = ta.change(pivot) and (pType == pl ? pivot > prevPivot : pivot < prevPivot)
+    pData = tl.new(x_axis = xAxis, offset = input_pLen, strictMode = true, strictType = pType == pl ? 0 : 1)
+    pData.drawLine(pivotCond, prevPivot, pivot, rsi)
+    pData
+
+breakout(tl.Trendline this, float pType) =>
+    var bool hasCrossed = false
+    if ta.change(this.lines.startline.get_y1())
+        hasCrossed := false
+    this.drawTrendline(not hasCrossed)
+    condType = (pType == pl ? rsi < this.lines.trendline.get_y2() - input_rsiDiff : rsi > this.lines.trendline.get_y2() + input_rsiDiff) and not hasCrossed
+    condition = repaint ? condType : condType and barstate.isconfirmed
+    if condition
+        hasCrossed := true
+        this.lines.startline.set_xy2(this.lines.trendline.get_x2(), this.lines.trendline.get_y2())
+        this.lines.trendline.set_xy2(na, na)
+        this.lines.startline.copy()
+        label.new(
+             bar_index, 
+             this.lines.startline.get_y2(), 
+             text = lblText, color = pType == pl ? color.new(input_pLowCol, 50) : color.new(input_pHighCol, 50), 
+             size = input_lblSize, style = pType == pl ? label.style_label_lower_left : label.style_label_upper_left, 
+             textcolor = pType == pl ? (input_override ? input_overCol : input_pLowCol) : input_override ? input_overCol : input_pHighCol)
+    hasCrossed
+
+method style(tl.Trendline this, color col) =>
+    this.lines.startline.set_color(col)
+    this.lines.startline.set_width(input_width)
+    this.lines.trendline.set_color(col)
+    this.lines.trendline.set_width(input_width)
+    this.lines.trendline.set_style(line.style_dashed)
+
+plData = pivot(pl)
+phData = pivot(ph)
+plData.style(input_pLowCol)
+phData.style(input_pHighCol)
+cu = breakout(plData, pl)
+co = breakout(phData, ph)
+
+hline(70, title = 'Overbought', color = input_pHighCol, linestyle = hline.style_dotted)
+hline(30, title = 'Oversold', color = input_pLowCol, linestyle = hline.style_dotted)
+plot(rsi, title = 'Relative Strength Index', linewidth = 2, color = input_rsiCol)
+alertcondition(ta.change(plData.lines.startline.get_y1()), 'New Pivot Low Trendline')
+alertcondition(ta.change(cu) and cu, 'Pivot Low Breakout')
+alertcondition(ta.change(phData.lines.startline.get_y1()), 'New Pivot High Trendline')
+alertcondition(ta.change(co) and co, 'Pivot High Breakout')

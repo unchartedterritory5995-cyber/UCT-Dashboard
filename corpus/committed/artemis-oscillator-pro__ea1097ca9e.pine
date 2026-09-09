@@ -1,0 +1,737 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Artemis Oscillator PRO
+// Author  : a_jabbaroff
+// Version : 1.2.0
+//
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// FEATURES
+//   Directional Range Momentum oscillator (DRM) — signed range impulse normalized 0-100
+//   11 Color Themes with full palette (Aurora, Ember, Cyber, Arctic, Helios, Bloomberg, Solar, Royal, Obsidian, Classic, Mono)
+//   Bar Coloring — paint price bars by Oscillator / Volume Pressure / Momentum State / AOP Score
+//   Smoothing method selector for oscillator and signal line (EMA / SMA / RMA / TMA)
+//   Adaptive color mode — oscillator line shifts with trend direction
+//   Adaptive OB/OS zones — optional percentile-based bands that self-calibrate per asset
+//   Volume Pressure — dual MFI blend with power-curve compression, inflow/outflow fills
+//   Volume Pressure Divergence — price vs. money-flow disagreement (optional)
+//   Momentum State Zones — OB/OS strip fills scored 0-3 (oscillator + signal + volume)
+//   Momentum Exhaustion Labels — detects weakening in OB / strengthening in OS zones
+//   Regular Divergence detection — bullish and bearish with solid lines and labels
+//   Hidden Divergence detection — bullish and bearish with dashed lines and labels
+//   Smart Divergence Filter (AI) — min oscillator swing, min price swing %, volume confirmation
+//   Reversal Confluence (R▲ / R▼) — high-conviction marker when Exhaustion + Regular Divergence align
+//   AOP Score (0-100) — composite of oscillator, volume, state and KNN, with a rising/falling momentum arrow
+//   MTF Confluence panel — four higher-timeframe DRM biases with alignment detection (anti-repaint)
+//   KNN Bias Panel — K-Nearest Neighbors directional bias with confidence bar (leakage-free)
+//   17 Alert conditions — cross, zone exit, divergences, VP divergence, exhaustion, reversal, MTF aligned
+// ═══════════════════════════════════════════════════════════════════════════════
+
+//@version=6
+indicator("Artemis Oscillator PRO", shorttitle="AOP PRO", overlay=false, precision=2, max_lines_count=500, max_labels_count=500)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 1 — GROUPS
+// Declared in the exact order they appear in the Settings dialog, so the inputs
+// below read top-to-bottom in a logical workflow: look (theme, bars) → engine
+// (oscillator, signal) → zones → volume → state → divergence → exhaustion →
+// reversal → score → panels (MTF, KNN) → alerts.
+// ═══════════════════════════════════════════════════════════════════════════════
+string G_THEME = "Color Theme"
+string G_BAR   = "Bar Coloring"
+string G_OSC   = "Oscillator"
+string G_SIG   = "Signal Line"
+string G_ZONE  = "Zones & Fills"
+string G_VP    = "Volume Pressure"
+string G_MS    = "Momentum State"
+string G_DIV   = "Divergence"
+string G_EXH   = "Momentum Exhaustion"
+string G_REV   = "Reversal Confluence"
+string G_SCORE = "AOP Score"
+string G_MTF   = "MTF Confluence"
+string G_KNN   = "KNN Bias"
+string G_ALRT  = "Alerts"
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 2 — INPUTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Color Theme ────────────────────────────────────────────────────────────────
+string themeChoice = input.string("Aurora", "Theme",
+    options = ["Aurora", "Ember", "Cyber", "Arctic", "Helios", "Bloomberg", "Solar", "Royal", "Obsidian", "Classic", "Mono"],
+    group   = G_THEME,
+    tooltip = "Instantly applies a full color palette across the entire indicator.\n\nAurora — Northern lights: cyan + violet\nEmber — Fire & steel: amber + blue\nCyber — Neon terminal: lime green + crimson\nArctic — Icy cool: sky blue + soft purple\nHelios — Warm gold: yellow gold + salmon (solar warmth)\nBloomberg — Terminal orange + cyan (Wall Street finance heritage — PRO)\nSolar — Solarized olive + crimson (developer palette, easy on the eyes — PRO)\nRoyal — Imperial gold + deep purple (luxury signature — PRO)\nObsidian — Pro trader: emerald green + scarlet red\nClassic — Light mode: navy blue + crimson red\nMono — Light mode: black + silver + gray")
+
+// ── Bar Coloring ───────────────────────────────────────────────────────────────
+// Optional chart-wide colouring of every price bar, driven by one selected
+// state. "None" leaves bars untouched (default), so existing charts are unchanged.
+string barMode = input.string("None", "Bar Color Mode",
+    options = ["None", "Oscillator", "Volume Pressure", "Momentum State", "AOP Score"],
+    group   = G_BAR,
+    tooltip = "Paints every price bar from the active theme based on one state:\n\nNone — leave bars untouched (default)\nOscillator — bull above midline, bear below\nVolume Pressure — bull on inflow, bear on outflow\nMomentum State — bull when state ≥ 2, bear when ≤ 1\nAOP Score — bull ≥ 60, bear ≤ 40, neutral between\n\nUses the theme's bull / bear colors so it stays in palette.")
+
+// ── Oscillator ─────────────────────────────────────────────────────────────────
+int    drmLen    = input.int   (14,    "Period",   minval=2, group=G_OSC,
+    tooltip="Lookback window for the directional range engine.\nIncrease → smoother, slower response.\nDecrease → faster, more sensitive.\nAlso controls divergence pivot sensitivity (pivot arm = Period / 2).")
+string drmMethod = input.string("RMA", "Smoothing", options=["EMA","SMA","RMA","TMA"], group=G_OSC,
+    tooltip="Smoothing algorithm applied to the range force.\nRMA — Wilder's MA (most stable, default)\nEMA — exponential, more responsive\nSMA — simple, equal weight\nTMA — double-smoothed, maximum smoothness")
+float  drmSrc    = input.source(close, "Source", group=G_OSC,
+    tooltip="Price series fed into the directional range engine.\nClose recommended for most strategies.\nHLC3 adds body context for volatile assets.")
+bool   useAdapt  = input.bool  (true,  "Adaptive Color", group=G_OSC,
+    tooltip="ON — line color shifts based on momentum: bull color above 50, bear color below 50.\nOFF — line uses a muted neutral shade derived from the active theme.")
+
+// ── Signal Line ────────────────────────────────────────────────────────────────
+int    sigLen    = input.int   (7,     "Period",   minval=1, group=G_SIG,
+    tooltip="Smoothing period for the signal (trigger) line.\nKeep below Oscillator period for clean crossovers.\nDefault: 7")
+string sigMethod = input.string("EMA", "Smoothing", options=["EMA","SMA","RMA","TMA"], group=G_SIG,
+    tooltip="Algorithm for the signal line.\nEMA recommended — fast response without excessive lag.")
+bool   sigDots   = input.bool  (true,  "Show Cross Dots", group=G_SIG,
+    tooltip="Renders a dot on the signal line when the oscillator crosses it.\nBull dot (cross up) uses the theme bull color.\nBear dot (cross down) uses the theme bear color.")
+
+// ── Zones & Fills ──────────────────────────────────────────────────────────────
+float  obLevel   = input.float (80.0, "Overbought", minval=51.0, maxval=99.0, step=0.5, group=G_ZONE,
+    tooltip="Oscillator threshold for the overbought zone.\nDefault: 80 | Adjust to match your asset's volatility profile.\nWhen Adaptive OB/OS is ON this acts as the UPPER clamp.")
+int    obAlpha   = input.int   (20, "Overbought Opacity", minval=0, maxval=100, group=G_ZONE,
+    tooltip="Fill opacity for the overbought zone.\n0 = invisible | 100 = fully opaque\nDefault: 20")
+float  osLevel   = input.float (20.0, "Oversold", minval=1.0, maxval=49.0, step=0.5, group=G_ZONE,
+    tooltip="Oscillator threshold for the oversold zone.\nDefault: 20 | Adjust to match your asset's volatility profile.\nWhen Adaptive OB/OS is ON this acts as the LOWER clamp.")
+int    osAlpha   = input.int   (20, "Oversold Opacity", minval=0, maxval=100, group=G_ZONE,
+    tooltip="Fill opacity for the oversold zone.\n0 = invisible | 100 = fully opaque\nDefault: 20")
+bool   adaptZones = input.bool (false, "Adaptive OB/OS Zones", group=G_ZONE,
+    tooltip="OFF (default) — fixed Overbought / Oversold levels above (classic behavior, unchanged).\n\nON — the OB and OS bands self-calibrate to the oscillator's own recent behavior (percentile of the last N bars), so the zones fit each asset automatically without manual tuning. The manual Overbought / Oversold values act as clamps the bands never cross: the dashed lines stay at those clamps while a solid line tracks each live adaptive level, and the zone fills / exhaustion follow the adaptive levels.")
+int    adaptLook  = input.int  (100, "Adaptive Lookback", minval=20, maxval=500, step=10, group=G_ZONE,
+    tooltip="How many bars the adaptive OB/OS bands learn from.\nShorter → reacts faster to regime changes.\nLonger → steadier zones.\nDefault: 100. Requires Adaptive OB/OS Zones ON.")
+
+// ── Volume Pressure ────────────────────────────────────────────────────────────
+bool   vpShow    = input.bool  (true, "Show Volume Pressure", group=G_VP,
+    tooltip="Renders a dual-MFI fill on the oscillator panel.\nBull fill above 50, bear fill below 50.\nColor = active theme buy/sell colors.")
+string vpSrc     = input.string("HLC3", "MFI Source", options=["HLC3","Close","HL2","OHLC4"], group=G_VP,
+    tooltip="Price source used for the Money Flow Index calculation.\nHLC3 = (High+Low+Close)/3 — default, most common\nClose = closing price only — faster reaction\nHL2 = (High+Low)/2 — mid-range, less noise\nOHLC4 = (Open+High+Low+Close)/4 — smoothest")
+int    vpAlpha   = input.int   (18, "Volume Pressure Opacity", minval=0, maxval=100, group=G_VP,
+    tooltip="Volume Pressure fill opacity.\nKeep low (10–25) so the main oscillator line stays visible.\nDefault: 18")
+bool   vpDivOn   = input.bool  (false, "Volume Pressure Divergence", group=G_VP,
+    tooltip="OFF by default. When ON, marks where PRICE and VOLUME PRESSURE disagree at a swing:\n\nVP▼ — price prints a higher high while money flow makes a lower high (rally not backed by volume → hidden weakness).\nVP▲ — price prints a lower low while money flow makes a higher low (sell-off losing volume → hidden strength).\n\nCatches exhaustion-by-participation that price-vs-oscillator divergence can miss. Shown as a small tag at the swing, on the oscillator pane.")
+
+// ── Momentum State ─────────────────────────────────────────────────────────────
+bool   msShow    = input.bool  (true, "Show Momentum State", group=G_MS,
+    tooltip="Scores market state 0–3 and renders a dynamic fill inside the 0–100 panel:\n+1 if Oscillator > Signal line\n+1 if Oscillator > 50 (midline)\n+1 if Volume Pressure > 50\nScore 3 → full overbought fill | Score 0 → full oversold fill")
+int    msObAlpha = input.int   (40, "OB Opacity", minval=0, maxval=100, group=G_MS,
+    tooltip="Opacity for the overbought momentum state fill.\n0 = invisible | 100 = fully opaque\nFull score (3) uses this value. Partial score (2) uses this − 20.")
+int    msOsAlpha = input.int   (40, "OS Opacity", minval=0, maxval=100, group=G_MS,
+    tooltip="Opacity for the oversold momentum state fill.\n0 = invisible | 100 = fully opaque\nFull score (0) uses this value. Partial score (1) uses this − 20.")
+
+// ── Divergence ─────────────────────────────────────────────────────────────────
+bool   divRegOn    = input.bool(true, "Regular Divergence", group=G_DIV,
+    tooltip="Detects potential trend reversals.\nBull (D▲): price lower low + oscillator higher low → reversal up\nBear (D▼): price higher high + oscillator lower high → reversal down\nSolid lines. Pivot arm = Period / 2.")
+int    divRegAlpha = input.int (80, "Regular Divergence Opacity", minval=0, maxval=100, group=G_DIV,
+    tooltip="Line and label opacity for Regular Divergence.\n0 = invisible | 100 = fully opaque\nDefault: 80")
+bool   divHidOn    = input.bool(true, "Hidden Divergence", group=G_DIV,
+    tooltip="Detects trend continuation signals.\nBull (H▲): price higher low + oscillator lower low → uptrend continues\nBear (H▼): price lower high + oscillator higher high → downtrend continues\nDashed lines. Results appear a few bars late — expected Pine Script pivot behavior.")
+int    divHidAlpha = input.int (80, "Hidden Divergence Opacity", minval=0, maxval=100, group=G_DIV,
+    tooltip="Line and label opacity for Hidden Divergence.\n0 = invisible | 100 = fully opaque\nDefault: 80")
+string divLabelSize = input.string("Tiny", "Label Size", options=["Tiny","Small","Normal","Large"], group=G_DIV,
+    tooltip="Size of the D▲ D▼ H▲ H▼ divergence labels.\nTiny = default, minimal\nSmall = slightly larger\nNormal = standard\nLarge = maximum visibility")
+bool   sdfOn     = input.bool  (false, "Smart Divergence Filter (AI)", group=G_DIV,
+    tooltip="AI-assisted filter that suppresses weak or low-quality divergence signals.\nOFF by default — enable when you want fewer, higher-confidence signals only.\n\nFilters out divergences where:\n  - Oscillator swing is too small (noise)\n  - Price swing is too small relative to recent range\n  - Volume Pressure does not confirm direction (if VP Confirm is ON)")
+float  sdfMinOsc = input.float (5.0,  "Min Oscillator Swing", minval=1.0, maxval=20.0, step=0.5, group=G_DIV,
+    tooltip="Minimum oscillator swing between the two pivot points.\nSmall value (1–3): allows most divergences through\nMedium (5): filters minor oscillations (default)\nLarge (10–20): only strong structural divergences pass\nRequires Smart Filter ON.")
+float  sdfMinPct = input.float (0.3,  "Min Price Swing (%)", minval=0.1, maxval=5.0, step=0.1, group=G_DIV,
+    tooltip="Minimum price swing between pivots as a percentage of recent range.\nFilters divergences caused by tiny price moves relative to volatility.\n0.3% = default, permissive\n1.0% = moderate\n2.0%+ = strict (swing must be significant)\nRequires Smart Filter ON.")
+bool   sdfVpConf = input.bool  (true, "Require VP Confirmation", group=G_DIV,
+    tooltip="Volume Pressure must agree with the divergence direction.\nBull divergence: VP must be above 50 (buying pressure)\nBear divergence: VP must be below 50 (selling pressure)\nON by default — adds volume confirmation layer.\nRequires Smart Filter ON.")
+
+// ── Momentum Exhaustion ────────────────────────────────────────────────────────
+bool  meShow  = input.bool(true, "Show Exhaustion Labels", group=G_EXH,
+    tooltip="Shows ✦ OB when oscillator is in overbought zone but weakening.\nShows ✦ OS when oscillator is in oversold zone but strengthening.\nSignals that momentum is running out — potential reversal ahead.")
+int   meConf  = input.int (4, "Confirmation Bars", minval=1, maxval=4, group=G_EXH,
+    tooltip="How many consecutive bars the oscillator must weaken (OB) or strengthen (OS) before the label appears.\n1 = first bar of weakness (min)\n2 = confirmed weakness\n3 = strong confirmation\n4 = maximum reliability (max)\nHigher = fewer but more reliable signals.")
+
+// ── Reversal Confluence ────────────────────────────────────────────────────────
+bool meRevOn   = input.bool(true, "Show Reversal Marker", group=G_REV,
+    tooltip="ON by default. Prints an R▲ (bull) / R▼ (bear) marker when TWO independent reversal signals agree at the same swing:\n  • Momentum Exhaustion (✦ OB / ✦ OS), AND\n  • a Regular Divergence (D▼ / D▲) of the same direction\nwithin the Confluence Window.\n\nTwo confirmations beating one → the highest-conviction reversal the indicator produces. Respects the Smart Divergence Filter.")
+int  meRevWin  = input.int(5, "Confluence Window (bars)", minval=1, maxval=15, group=G_REV,
+    tooltip="How many bars may separate the Exhaustion signal and the Divergence signal and still count as one reversal.\n\nExhaustion fires in real time; a Regular Divergence confirms a few bars later (pivot lag), so a small window is needed for them to pair.\n\n5 = balanced default. Raise if you run a longer Period.")
+
+// ── AOP Score ──────────────────────────────────────────────────────────────────
+bool   scShow = input.bool  (true, "Show AOP Score", group=G_SCORE,
+    tooltip="A single composite 0–100 read of overall bias, blending four layers:\n  • Oscillator 30%\n  • Volume Pressure 25%\n  • Momentum State 20%\n  • KNN Bias 25%\n\n≥75 STRONG BULL · ≥60 BULL · 40–59 NEUTRAL · ≤40 BEAR · <25 STRONG BEAR.\nShown as a compact badge on the oscillator pane, with a ↑ / ↓ arrow tracking how the score has moved over the last 3 bars.")
+string scPos  = input.string("Middle Right", "Score Position", options=["Top Right","Middle Right","Bottom Right","Top Left","Middle Left","Bottom Left"], group=G_SCORE,
+    tooltip="Corner for the AOP Score badge. Default Middle Right so it stacks between the MTF (top-right) and KNN (bottom-right) panels — every readout lives on the same edge.")
+string scSize = input.string("Small", "Score Text Size", options=["Tiny","Small","Normal","Large"], group=G_SCORE,
+    tooltip="Text size of the AOP Score badge.")
+
+// ── MTF Confluence ─────────────────────────────────────────────────────────────
+bool   mtfShow  = input.bool(true, "Show MTF Panel", group=G_MTF,
+    tooltip="Runs the DRM oscillator on four higher timeframes and shows each one's bias as a row, plus an overall alignment tag:\n  ▲▲▲▲ ALIGNED — all four bullish (highest-conviction long)\n  ▼▼▼▼ ALIGNED — all four bearish (highest-conviction short)\n  ◮ MIXED — timeframes disagree\n\nAll requests use lookahead_off — repaint-safe on closed bars. A timeframe below the chart's own is shown as '— n/a' and never counts toward alignment.")
+string mtfPreset = input.string("Swing", "Timeframe Preset", options=["Scalp","Intraday","Swing","Position","Crypto","Forex"], group=G_MTF,
+    tooltip="Pre-tuned four-timeframe sets:\nScalp: 1m / 5m / 15m / 1h\nIntraday: 5m / 15m / 1h / 4h\nSwing: 15m / 1h / 4h / 1D (default)\nPosition: 1h / 4h / 1D / 1W\nCrypto: 5m / 15m / 1h / 4h\nForex: 15m / 1h / 4h / 1D")
+string mtfPos   = input.string("Top Right", "Panel Position", options=["Top Right","Middle Right","Bottom Right","Top Left","Middle Left","Bottom Left"], group=G_MTF,
+    tooltip="Corner for the MTF Confluence panel. Defaults to Top Right, opposite the KNN panel.")
+string mtfSize  = input.string("Small", "Panel Text Size", options=["Tiny","Small","Normal","Large"], group=G_MTF,
+    tooltip="Text size inside the MTF Confluence panel.")
+
+// ── KNN Bias ───────────────────────────────────────────────────────────────────
+bool   knnOn  = input.bool  (true,  "Show KNN Panel",     group=G_KNN,
+    tooltip="KNN AI — K-Nearest Neighbors machine learning panel.\n\nWhat it does:\nLooks at up to 'Training Window' PAST bars, finds the K most similar ones based on 3 market features, and votes on likely direction. The current bar is excluded from its own neighbor search (no self-leakage).\n\nPanel rows:\n• KNN AI — current directional bias (BULL / BEAR / NEUTRAL)\n• Confidence — how strong the vote is (0–100%)\n• Progress bar — visual confidence level + how many bars are in memory\n• O / V / S — current feature states (see below)\n\nFeature signals:\n• O+ = Oscillator above 50 | O- = below 50\n• V+ = Money flow inflow | V- = outflow\n• S+ = Oscillator above signal | S- = below\n• K= = Number of neighbors used for the vote")
+int    knnK   = input.int   (5,     "Neighbors (K)",      minval=3, maxval=10,  group=G_KNN,
+    tooltip="How many similar past bars vote on the current direction.\n\n3 = fast reaction, more signals, less reliable\n5 = balanced — recommended default\n10 = slow, fewer signals, higher reliability\n\nShown as K=5 in the panel footer.")
+int    knnLen = input.int   (100,   "Training Window",    minval=50, maxval=300, step=10, group=G_KNN,
+    tooltip="How many past bars the algorithm learns from.\n\n50 = short memory — adapts fast, good for volatile markets\n100 = balanced — recommended default\n300 = long memory — stable, good for trending markets\n\nShown as '100 bars' in the panel.")
+string knnPos  = input.string("Bottom Right", "Panel Position", options=["Top Right","Middle Right","Bottom Right","Top Left","Middle Left","Bottom Left"], group=G_KNN,
+    tooltip="Where the KNN panel appears on the oscillator pane.\n\nChoose a corner that does not overlap the MTF or Score panels.")
+string knnSize = input.string("Small", "Panel Text Size", options=["Tiny","Small","Normal","Large"], group=G_KNN,
+    tooltip="Text size inside the KNN AI panel.")
+
+// ── Alerts ─────────────────────────────────────────────────────────────────────
+bool alCrossOn  = input.bool(true,  "Bullish / Bearish Cross",         group=G_ALRT, tooltip="Alert when oscillator crosses the signal line.\nBull: cross up below midline.\nBear: cross down above midline.")
+bool alZoneOn   = input.bool(true,  "Exiting OB / OS Zone",            group=G_ALRT, tooltip="Alert when oscillator exits overbought or oversold zone.")
+bool alDivRegOn = input.bool(true,  "Regular Divergence",              group=G_ALRT, tooltip="Alert on regular bullish or bearish divergence detection.")
+bool alDivHidOn = input.bool(false, "Hidden Divergence",               group=G_ALRT, tooltip="Alert on hidden bullish or bearish divergence detection.")
+bool alVpOn     = input.bool(true,  "Volume Pressure Inflow/Outflow",  group=G_ALRT, tooltip="Alert when Volume Pressure crosses the midline.")
+bool alVpDivOn  = input.bool(false, "Volume Pressure Divergence",      group=G_ALRT, tooltip="Alert on a price ↔ Volume-Pressure divergence (requires VP Divergence ON).")
+bool alMeOn     = input.bool(true,  "Momentum Exhaustion",             group=G_ALRT, tooltip="Alert when an exhaustion label fires in the OB or OS zone.")
+bool alRevOn    = input.bool(true,  "Reversal Confluence",             group=G_ALRT, tooltip="Alert when the R▲ / R▼ Reversal Confluence marker fires (Exhaustion + Regular Divergence).")
+bool alMtfOn    = input.bool(false, "MTF Aligned",                     group=G_ALRT, tooltip="Alert the bar all four MTF timeframes first agree on direction. Fires once per state change.")
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 3 — THEME RESOLVER + DERIVED LOOKUPS
+// Every coloured element reads from these resolved variables — one theme switch
+// cascades everywhere. Obsidian is the intentional fall-through (else) entry.
+// ═══════════════════════════════════════════════════════════════════════════════
+color thOb     = themeChoice=="Aurora" ? #00e5ff : themeChoice=="Ember" ? #ff9d00 : themeChoice=="Cyber" ? #11cf77 : themeChoice=="Arctic" ? #4fc3f7 : themeChoice=="Helios" ? #ffd600 : themeChoice=="Bloomberg" ? #ff8c00 : themeChoice=="Solar" ? #859900 : themeChoice=="Royal" ? #ffd700 : themeChoice=="Classic" ? #0d47a1 : themeChoice=="Mono" ? #1a1a1a : #089981
+color thOs     = themeChoice=="Aurora" ? #ce93d8 : themeChoice=="Ember" ? #419fec : themeChoice=="Cyber" ? #d11645 : themeChoice=="Arctic" ? #b39ddb : themeChoice=="Helios" ? #da5b52 : themeChoice=="Bloomberg" ? #00b0ff : themeChoice=="Solar" ? #dc322f : themeChoice=="Royal" ? #6a0dad : themeChoice=="Classic" ? #b71c1c : themeChoice=="Mono" ? #757575 : #f23645
+color thSig    = themeChoice=="Aurora" ? #ff6d00 : themeChoice=="Ember" ? #ff4500 : themeChoice=="Cyber" ? #ffffff : themeChoice=="Arctic" ? #80cbc4 : themeChoice=="Helios" ? #ff8f00 : themeChoice=="Bloomberg" ? #ffd180 : themeChoice=="Solar" ? #b58900 : themeChoice=="Royal" ? #ffe680 : themeChoice=="Classic" ? #546e7a : themeChoice=="Mono" ? #9e9e9e : #ff5d00
+color thVpBuy  = themeChoice=="Aurora" ? #00bcd4 : themeChoice=="Ember" ? #ffcfa6 : themeChoice=="Cyber" ? #00e676 : themeChoice=="Arctic" ? #29b6f6 : themeChoice=="Helios" ? #ffca28 : themeChoice=="Bloomberg" ? #ffa726 : themeChoice=="Solar" ? #b5cb00 : themeChoice=="Royal" ? #ffb300 : themeChoice=="Classic" ? #1565c0 : themeChoice=="Mono" ? #424242 : #089981
+color thVpSell = themeChoice=="Aurora" ? #7b1fa2 : themeChoice=="Ember" ? #4683b4 : themeChoice=="Cyber" ? #ff1744 : themeChoice=="Arctic" ? #9575cd : themeChoice=="Helios" ? #ef5350 : themeChoice=="Bloomberg" ? #4fc3f7 : themeChoice=="Solar" ? #cb4b16 : themeChoice=="Royal" ? #8e24aa : themeChoice=="Classic" ? #c62828 : themeChoice=="Mono" ? #bdbdbd : #9c27b0
+
+// Light-canvas themes (Classic / Mono) flip every panel to a light layout.
+bool isLight = themeChoice == "Classic" or themeChoice == "Mono"
+
+// Neutral accent for NEUTRAL / FLAT readouts — fully opaque and bright enough to
+// read on either canvas (light slate on dark themes, dark slate on light themes).
+color thNeut = isLight ? #5d606b : #c0c4ce
+
+// Size resolvers.
+string divSz = divLabelSize == "Tiny" ? size.tiny : divLabelSize == "Small" ? size.small : divLabelSize == "Normal" ? size.normal : size.large
+string knnSz = knnSize == "Tiny" ? size.tiny : knnSize == "Small" ? size.small : knnSize == "Normal" ? size.normal : size.large
+string mtfSz = mtfSize == "Tiny" ? size.tiny : mtfSize == "Small" ? size.small : mtfSize == "Normal" ? size.normal : size.large
+string scSz  = scSize  == "Tiny" ? size.tiny : scSize  == "Small" ? size.small : scSize  == "Normal" ? size.normal : size.large
+
+// Divergence line/label colours (theme bull/bear at the chosen opacity).
+color thDivRB  = color.new(thOb, 100 - divRegAlpha)
+color thDivRBr = color.new(thOs, 100 - divRegAlpha)
+color thDivHB  = color.new(thOb, 100 - divHidAlpha)
+color thDivHBr = color.new(thOs, 100 - divHidAlpha)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 4 — ENGINE FUNCTIONS
+// Pure, parameterised helpers declared up front so the main chart AND the MTF
+// request.security() calls can share the exact same DRM math.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Selectable moving average.
+smooth(series float s, simple int n, simple string m) =>
+    switch m
+        "EMA" => ta.ema(s, n)
+        "SMA" => ta.sma(s, n)
+        "RMA" => ta.rma(s, n)
+        "TMA" => ta.sma(ta.sma(s, n), n)
+        =>       ta.rma(s, n)
+
+// Directional Range Momentum core → returns the 0–100 oscillator value.
+// On a new range high the full span pushes up; on a new low it pushes down;
+// otherwise the bar-to-bar delta carries it. Normalised by smoothed |force|,
+// so the output is always bounded 0–100 regardless of price units.
+drmEngine(series float src, simple int len, simple string method) =>
+    float pk    = ta.highest(src, len)
+    float vy    = ta.lowest (src, len)
+    float span  = pk - vy
+    float force = pk > pk[1] ? span : vy < vy[1] ? -span : src - src[1]
+    float su    = smooth(force,           len, method)
+    float sa    = smooth(math.abs(force), len, method)
+    sa != 0 ? (su / sa) * 50.0 + 50.0 : 50.0
+
+// Power-curve compressor for the Volume Pressure blend (expands the mid-range,
+// tames the extremes) — maps a 0–100 input to a signed, eased value.
+compress(series float x, simple float k) =>
+    float n = (x / 100.0 - 0.5) * 2.0
+    k * 100.0 * (n > 0 ? 1.0 : -1.0) * math.pow(math.abs(n), 0.75)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 5 — CORE COMPUTATIONS (oscillator, signal, volume pressure, zones)
+// ═══════════════════════════════════════════════════════════════════════════════
+float oscVal = drmEngine(drmSrc, drmLen, drmMethod)
+float sigVal = smooth(oscVal, sigLen, sigMethod)
+
+// ── Volume Pressure — dual MFI with power-curve compression ─────────────────────
+// vpFastLen / vpSlowLen are derived from Period; int() makes the float math.round
+// result a true int so ta.mfi's length argument is unambiguous.
+int   vpFastLen = math.max(int(math.round(drmLen / 1.33)), 2)
+int   vpSlowLen = math.max(int(math.round(drmLen * 1.33)), 2)
+float vpSrcVal  = vpSrc == "Close" ? close : vpSrc == "HL2" ? hl2 : vpSrc == "OHLC4" ? ohlc4 : hlc3
+float vpFastRaw = ta.mfi(vpSrcVal, vpFastLen)
+float vpSlowRaw = ta.mfi(vpSrcVal, vpSlowLen)
+float vpMid     = compress(ta.sma(vpFastRaw * 0.5 + vpSlowRaw * 0.5, 2), 0.7) / 2.0 + 50.0
+
+// ── Adaptive OB/OS levels ───────────────────────────────────────────────────────
+// OFF (default) → the manual obLevel / osLevel (classic, fixed). ON → percentile
+// bands of the oscillator's own recent range, clamped to the manual values so the
+// adaptive lines can never invert or leave the panel. The percentiles are computed
+// unconditionally (every bar) so the ta.* call keeps consistent state; the toggle
+// only chooses between the adaptive value and the manual one.
+float obPct    = ta.percentile_linear_interpolation(oscVal, adaptLook, 80)
+float osPct    = ta.percentile_linear_interpolation(oscVal, adaptLook, 20)
+float obLevelF = adaptZones ? math.min(obLevel, math.max(51.0, obPct)) : obLevel
+float osLevelF = adaptZones ? math.max(osLevel, math.min(49.0, osPct)) : osLevel
+
+// ── Momentum State score 0–3 ────────────────────────────────────────────────────
+int   msScore  = (oscVal > sigVal ? 1 : 0) + (oscVal > 50 ? 1 : 0) + (vpMid > 50 ? 1 : 0)
+int   msFdOb   = math.max(msObAlpha - 20, 0)
+int   msFdOs   = math.max(msOsAlpha - 20, 0)
+color msObFill = not msShow ? na : msScore == 3 ? color.new(thOb, 100 - msObAlpha) : msScore == 2 ? color.new(thOb, 100 - msFdOb) : na
+color msOsFill = not msShow ? na : msScore == 0 ? color.new(thOs, 100 - msOsAlpha) : msScore == 1 ? color.new(thOs, 100 - msFdOs) : na
+
+// ── Momentum Exhaustion ─────────────────────────────────────────────────────────
+bool meObWeak = oscVal >= obLevelF and oscVal < oscVal[1]
+bool meOsStr  = oscVal <= osLevelF and oscVal > oscVal[1]
+var int meObCount = 0
+var int meOsCount = 0
+meObCount := meObWeak ? meObCount + 1 : 0
+meOsCount := meOsStr  ? meOsCount + 1 : 0
+bool meObSignal = meShow and meObCount == meConf
+bool meOsSignal = meShow and meOsCount == meConf
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 6 — DIVERGENCE (oscillator + volume-pressure) & REVERSAL CONFLUENCE
+// Pivot-confirmed: the pivot is known `pivSpan` bars after it forms, so labels
+// land a few bars late by design. Each new pivot is compared against the prior
+// stored pivot, then becomes the new reference.
+// ═══════════════════════════════════════════════════════════════════════════════
+int   pivSpan = math.max(drmLen / 2, 2)
+float phRaw   = ta.pivothigh(high, pivSpan, pivSpan)
+float plRaw   = ta.pivotlow (low,  pivSpan, pivSpan)
+
+// Previous-pivot stores: price, oscillator, volume-pressure and bar index.
+var float pHH_px = na
+var float pHH_ox = na
+var float pHH_vx = na
+var int   pHH_bx = na
+var float pLL_px = na
+var float pLL_ox = na
+var float pLL_vx = na
+var int   pLL_bx = na
+
+// Current-pivot snapshots (na unless a pivot confirmed this bar).
+float cHH_p = na
+float cHH_o = na
+float cHH_v = na
+float cLL_p = na
+float cLL_o = na
+float cLL_v = na
+if not na(phRaw)
+    cHH_p := high[pivSpan]
+    cHH_o := oscVal[pivSpan]
+    cHH_v := vpMid[pivSpan]
+if not na(plRaw)
+    cLL_p := low[pivSpan]
+    cLL_o := oscVal[pivSpan]
+    cLL_v := vpMid[pivSpan]
+
+bool dRegBull = false
+bool dRegBear = false
+bool dHidBull = false
+bool dHidBear = false
+bool dVpBull  = false
+bool dVpBear  = false
+if not na(cHH_p) and not na(pHH_px)
+    if cHH_p > pHH_px and cHH_o < pHH_ox
+        dRegBear := true
+    if cHH_p < pHH_px and cHH_o > pHH_ox
+        dHidBear := true
+    if cHH_p > pHH_px and cHH_v < pHH_vx
+        dVpBear  := true
+if not na(cLL_p) and not na(pLL_px)
+    if cLL_p < pLL_px and cLL_o > pLL_ox
+        dRegBull := true
+    if cLL_p > pLL_px and cLL_o < pLL_ox
+        dHidBull := true
+    if cLL_p < pLL_px and cLL_v > pLL_vx
+        dVpBull  := true
+
+// ── Smart Divergence Filter ─────────────────────────────────────────────────────
+float sdfPriceRange   = ta.highest(high, drmLen * 4) - ta.lowest(low, drmLen * 4)
+float sdfMinPriceAbs  = sdfPriceRange * (sdfMinPct / 100.0)
+float sdfOscSwingLL   = math.abs(cLL_o - pLL_ox)
+float sdfOscSwingHH   = math.abs(cHH_o - pHH_ox)
+float sdfPriceSwingLL = math.abs(cLL_p - pLL_px)
+float sdfPriceSwingHH = math.abs(cHH_p - pHH_px)
+bool sdfPassBull = not sdfOn or (sdfOscSwingLL >= sdfMinOsc and sdfPriceSwingLL >= sdfMinPriceAbs and (not sdfVpConf or vpMid[pivSpan] > 50))
+bool sdfPassBear = not sdfOn or (sdfOscSwingHH >= sdfMinOsc and sdfPriceSwingHH >= sdfMinPriceAbs and (not sdfVpConf or vpMid[pivSpan] < 50))
+
+// Rendered divergence flags (passed the toggle + filter) — reused by reversal + alerts.
+bool showRegBull = divRegOn and dRegBull and sdfPassBull
+bool showRegBear = divRegOn and dRegBear and sdfPassBear
+bool showHidBull = divHidOn and dHidBull and sdfPassBull
+bool showHidBear = divHidOn and dHidBear and sdfPassBear
+bool showVpBull  = vpDivOn  and dVpBull
+bool showVpBear  = vpDivOn  and dVpBear
+
+// ── Reversal Confluence ─────────────────────────────────────────────────────────
+// A Regular Divergence and a same-direction Momentum Exhaustion within meRevWin
+// bars = high-conviction reversal. Exhaustion is real-time; the divergence (the
+// lagging signal) is the trigger, and we look back for a recent exhaustion.
+var int meRevExhObBar = na
+var int meRevExhOsBar = na
+meRevExhObBar := meObSignal ? bar_index : meRevExhObBar
+meRevExhOsBar := meOsSignal ? bar_index : meRevExhOsBar
+bool meRevBear = meRevOn and showRegBear and not na(meRevExhObBar) and (bar_index - meRevExhObBar) <= meRevWin
+bool meRevBull = meRevOn and showRegBull and not na(meRevExhOsBar) and (bar_index - meRevExhOsBar) <= meRevWin
+
+// ── Divergence rendering (lines + labels) ───────────────────────────────────────
+if showRegBull
+    line.new(pLL_bx, pLL_ox, bar_index[pivSpan], cLL_o, color=thDivRB, width=2, style=line.style_solid)
+    label.new(bar_index[pivSpan], cLL_o, "D▲", style=label.style_label_up, color=thDivRB, textcolor=color.white, size=divSz,
+        tooltip="D▲ Regular Bullish Divergence\nPrice: Lower Low\nOscillator: Higher Low\nSignal: Potential reversal to the upside")
+if showRegBear
+    line.new(pHH_bx, pHH_ox, bar_index[pivSpan], cHH_o, color=thDivRBr, width=2, style=line.style_solid)
+    label.new(bar_index[pivSpan], cHH_o, "D▼", style=label.style_label_down, color=thDivRBr, textcolor=color.white, size=divSz,
+        tooltip="D▼ Regular Bearish Divergence\nPrice: Higher High\nOscillator: Lower High\nSignal: Potential reversal to the downside")
+if showHidBull
+    line.new(pLL_bx, pLL_ox, bar_index[pivSpan], cLL_o, color=thDivHB, width=2, style=line.style_dashed)
+    label.new(bar_index[pivSpan], cLL_o, "H▲", style=label.style_label_up, color=thDivHB, textcolor=color.white, size=divSz,
+        tooltip="H▲ Hidden Bullish Divergence\nPrice: Higher Low\nOscillator: Lower Low\nSignal: Uptrend continuation expected")
+if showHidBear
+    line.new(pHH_bx, pHH_ox, bar_index[pivSpan], cHH_o, color=thDivHBr, width=2, style=line.style_dashed)
+    label.new(bar_index[pivSpan], cHH_o, "H▼", style=label.style_label_down, color=thDivHBr, textcolor=color.white, size=divSz,
+        tooltip="H▼ Hidden Bearish Divergence\nPrice: Lower High\nOscillator: Higher High\nSignal: Downtrend continuation expected")
+
+// ── Volume-Pressure divergence tags (no line — just a small marker at the pivot) ─
+if showVpBull
+    label.new(bar_index[pivSpan], cLL_o, "VP▲", style=label.style_label_up, color=color.new(thVpBuy, 30), textcolor=color.white, size=divSz,
+        tooltip="VP▲ Volume-Pressure Bullish Divergence\nPrice: Lower Low | Money flow: Higher Low\nSell-off losing volume — hidden strength.")
+if showVpBear
+    label.new(bar_index[pivSpan], cHH_o, "VP▼", style=label.style_label_down, color=color.new(thVpSell, 30), textcolor=color.white, size=divSz,
+        tooltip="VP▼ Volume-Pressure Bearish Divergence\nPrice: Higher High | Money flow: Lower High\nRally not backed by volume — hidden weakness.")
+
+// ── Reversal Confluence marker (drawn after divergence so it sits on top) ────────
+if meRevBull
+    label.new(bar_index[pivSpan], cLL_o, "R▲", style=label.style_label_up, color=thDivRB, textcolor=color.white, size=divSz,
+        tooltip="R▲ Reversal Confluence — BULLISH\nMomentum Exhaustion (✦ OS) AND a Regular Bullish Divergence aligned within the window.\nTwo independent reversal signals agree — high-conviction turn up.")
+if meRevBear
+    label.new(bar_index[pivSpan], cHH_o, "R▼", style=label.style_label_down, color=thDivRBr, textcolor=color.white, size=divSz,
+        tooltip="R▼ Reversal Confluence — BEARISH\nMomentum Exhaustion (✦ OB) AND a Regular Bearish Divergence aligned within the window.\nTwo independent reversal signals agree — high-conviction turn down.")
+
+// Promote the current pivot to the previous-pivot store (after all comparisons).
+if not na(cHH_p)
+    pHH_px := cHH_p
+    pHH_ox := cHH_o
+    pHH_vx := cHH_v
+    pHH_bx := bar_index[pivSpan]
+if not na(cLL_p)
+    pLL_px := cLL_p
+    pLL_ox := cLL_o
+    pLL_vx := cLL_v
+    pLL_bx := bar_index[pivSpan]
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 7 — KNN BIAS (leakage-free)
+// Search the training memory of PAST bars for the K most similar, vote their
+// outcomes, THEN add the current bar. Adding after the search means the query
+// point is never its own nearest neighbour (no self-inclusion / data leakage).
+// ═══════════════════════════════════════════════════════════════════════════════
+var array<float> knnF1  = array.new<float>()
+var array<float> knnF2  = array.new<float>()
+var array<float> knnF3  = array.new<float>()
+var array<int>   knnOut = array.new<int>()
+
+float kf1  = oscVal / 100.0
+float kf2  = vpMid  / 100.0
+float kf3  = (oscVal - sigVal + 100.0) / 200.0
+float kAtr = ta.atr(14)
+var int kOut = 0
+kOut := close > close[1] + kAtr * 0.1 ? 1 : close < close[1] - kAtr * 0.1 ? 0 : kOut
+
+// 1) Vote using the existing memory (past bars only).
+float knnVal = 50.0
+int   kSize  = array.size(knnF1)
+if kSize >= knnK
+    var array<float> kDist = array.new<float>()
+    array.clear(kDist)
+    for i = 0 to kSize - 1
+        float d = math.sqrt(math.pow(kf1 - array.get(knnF1, i), 2) + math.pow(kf2 - array.get(knnF2, i), 2) + math.pow(kf3 - array.get(knnF3, i), 2))
+        array.push(kDist, d)
+    int kBull = 0
+    for _k = 0 to knnK - 1
+        int mi = array.indexof(kDist, array.min(kDist))
+        kBull += array.get(knnOut, mi)
+        array.set(kDist, mi, 999.0)
+    knnVal := kBull / knnK * 100.0
+
+// 2) Now commit the current bar to memory for FUTURE bars to learn from.
+if bar_index > 1
+    array.push(knnF1,  kf1)
+    array.push(knnF2,  kf2)
+    array.push(knnF3,  kf3)
+    array.push(knnOut, kOut)
+    if array.size(knnF1) > knnLen
+        array.shift(knnF1)
+        array.shift(knnF2)
+        array.shift(knnF3)
+        array.shift(knnOut)
+
+bool  knnIsBull = knnVal >= 60.0
+bool  knnIsBear = knnVal <= 40.0
+int   knnConf   = knnIsBull ? math.round(knnVal) : knnIsBear ? math.round(100.0 - knnVal) : math.round(math.abs(knnVal - 50) * 2)
+color knnCol    = knnIsBull ? thOb : knnIsBear ? thOs : thNeut
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 8 — AOP SCORE (0–100 composite)
+// One blended read of overall bias: oscillator 30%, volume 25%, state 20%, KNN 25%.
+// ═══════════════════════════════════════════════════════════════════════════════
+float aopScore = math.round(oscVal * 0.30 + vpMid * 0.25 + (msScore / 3.0 * 100.0) * 0.20 + knnVal * 0.25)
+string aopTier = aopScore >= 75 ? "STRONG BULL" : aopScore >= 60 ? "BULL" : aopScore >= 40 ? "NEUTRAL" : aopScore >= 25 ? "BEAR" : "STRONG BEAR"
+string aopArrow = aopScore >= 60 ? "▲" : aopScore <= 40 ? "▼" : "■"
+color  aopCol   = aopScore >= 60 ? thOb : aopScore <= 40 ? thOs : thNeut
+
+// Score momentum — how the composite has moved over the last 3 bars: is the bias
+// strengthening or fading? Coloured independently of the tier (bull up, bear down).
+float  aopDelta    = aopScore - aopScore[3]
+string aopTrend    = aopDelta > 0 ? "↑+" + str.tostring(aopDelta, "#") : aopDelta < 0 ? "↓" + str.tostring(aopDelta, "#") : "→0"
+color  aopTrendCol = aopDelta > 0 ? thOb : aopDelta < 0 ? thOs : thNeut
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 9 — MTF CONFLUENCE
+// Run the DRM oscillator on four higher timeframes via request.security (anti-
+// repaint). A timeframe below the chart's own is forced "— n/a" so it can never
+// pollute the alignment maths.
+// ═══════════════════════════════════════════════════════════════════════════════
+string mtfTf1 = mtfPreset=="Scalp" ? "1"  : mtfPreset=="Intraday" ? "5"  : mtfPreset=="Position" ? "60" : mtfPreset=="Crypto" ? "5"  : "15"
+string mtfTf2 = mtfPreset=="Scalp" ? "5"  : mtfPreset=="Intraday" ? "15" : mtfPreset=="Position" ? "240": mtfPreset=="Crypto" ? "15" : "60"
+string mtfTf3 = mtfPreset=="Scalp" ? "15" : mtfPreset=="Intraday" ? "60" : mtfPreset=="Position" ? "D"  : mtfPreset=="Crypto" ? "60" : "240"
+string mtfTf4 = mtfPreset=="Scalp" ? "60" : mtfPreset=="Intraday" ? "240": mtfPreset=="Position" ? "W"  : mtfPreset=="Crypto" ? "240": "D"
+
+mtfLabel(string tf) =>
+    switch tf
+        "1"   => "1m"
+        "5"   => "5m"
+        "15"  => "15m"
+        "60"  => "1h"
+        "240" => "4h"
+        "D"   => "1D"
+        "W"   => "1W"
+        =>       tf
+
+// Called unconditionally (request.security must not sit behind a branch); the
+// `mtfShow` toggle gates only the panel display below.
+float mtfO1 = request.security(syminfo.tickerid, mtfTf1, drmEngine(close, drmLen, drmMethod), lookahead=barmerge.lookahead_off)
+float mtfO2 = request.security(syminfo.tickerid, mtfTf2, drmEngine(close, drmLen, drmMethod), lookahead=barmerge.lookahead_off)
+float mtfO3 = request.security(syminfo.tickerid, mtfTf3, drmEngine(close, drmLen, drmMethod), lookahead=barmerge.lookahead_off)
+float mtfO4 = request.security(syminfo.tickerid, mtfTf4, drmEngine(close, drmLen, drmMethod), lookahead=barmerge.lookahead_off)
+
+float chartSec = timeframe.in_seconds()
+bool  mtfV1 = timeframe.in_seconds(mtfTf1) >= chartSec
+bool  mtfV2 = timeframe.in_seconds(mtfTf2) >= chartSec
+bool  mtfV3 = timeframe.in_seconds(mtfTf3) >= chartSec
+bool  mtfV4 = timeframe.in_seconds(mtfTf4) >= chartSec
+
+// Per-TF direction: +1 bull (osc > 50), −1 bear (osc < 50), 0 neutral / invalid.
+int mtfD1 = not mtfV1 or na(mtfO1) ? 0 : mtfO1 > 50 ? 1 : mtfO1 < 50 ? -1 : 0
+int mtfD2 = not mtfV2 or na(mtfO2) ? 0 : mtfO2 > 50 ? 1 : mtfO2 < 50 ? -1 : 0
+int mtfD3 = not mtfV3 or na(mtfO3) ? 0 : mtfO3 > 50 ? 1 : mtfO3 < 50 ? -1 : 0
+int mtfD4 = not mtfV4 or na(mtfO4) ? 0 : mtfO4 > 50 ? 1 : mtfO4 < 50 ? -1 : 0
+
+mtfTag(int d, bool valid) =>
+    not valid ? "— n/a" : d > 0 ? "▲ BULL" : d < 0 ? "▼ BEAR" : "◈ FLAT"
+
+bool mtfAllBull = mtfD1 > 0 and mtfD2 > 0 and mtfD3 > 0 and mtfD4 > 0
+bool mtfAllBear = mtfD1 < 0 and mtfD2 < 0 and mtfD3 < 0 and mtfD4 < 0
+bool mtfAligned = mtfAllBull or mtfAllBear
+bool mtfAllNa   = not mtfV1 and not mtfV2 and not mtfV3 and not mtfV4
+string mtfHeader = mtfAllNa ? "◮ N/A" : mtfAllBull ? "▲▲▲▲ ALIGNED" : mtfAllBear ? "▼▼▼▼ ALIGNED" : "◮ MIXED"
+bool justMtfAligned = mtfAligned and not mtfAligned[1]
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 10 — PANELS (AOP Score badge · MTF Confluence · KNN Bias)
+// Neutral backgrounds; one accent colour family per panel. Each panel is built
+// ONCE and its cells refreshed on the last bar — editing an input forces a full
+// recalc, so panels rebuild cleanly without delete+new on every realtime tick.
+// ═══════════════════════════════════════════════════════════════════════════════
+posOf(string p) =>
+    switch p
+        "Top Right"    => position.top_right
+        "Top Left"     => position.top_left
+        "Middle Right" => position.middle_right
+        "Middle Left"  => position.middle_left
+        "Bottom Right" => position.bottom_right
+        =>                position.bottom_left
+
+color pnlBgH = isLight ? color.new(#f0f0f0, 0) : color.new(#181818, 0)
+color pnlBgM = isLight ? color.new(#fafafa, 0) : color.new(#111111, 0)
+color pnlBgF = isLight ? color.new(#e8e8e8, 0) : color.new(#0e0e0e, 0)
+
+// ── AOP Score badge ─────────────────────────────────────────────────────────────
+var table scTable = na
+if scShow and barstate.islast
+    if na(scTable)
+        scTable := table.new(posOf(scPos), 3, 1, border_color=color.new(thOb, isLight ? 55 : 45), border_width=1, frame_color=color.new(thOb, isLight ? 55 : 45), frame_width=1)
+    table.cell(scTable, 0, 0, "AOP", text_color=color.new(thOb, isLight ? 5 : 0), text_size=scSz, bgcolor=pnlBgH, text_halign=text.align_left, text_font_family=font.family_monospace)
+    table.cell(scTable, 1, 0, str.tostring(aopScore, "#") + " " + aopArrow + " " + aopTier, text_color=aopCol, text_size=scSz, bgcolor=pnlBgM, text_halign=text.align_right, text_font_family=font.family_monospace)
+    table.cell(scTable, 2, 0, aopTrend, text_color=aopTrendCol, text_size=scSz, bgcolor=pnlBgF, text_halign=text.align_right, text_font_family=font.family_monospace, tooltip="Score momentum — change in the AOP Score over the last 3 bars.\n↑ rising → bias strengthening   ·   ↓ falling → bias fading   ·   → flat.")
+
+// ── MTF Confluence panel ────────────────────────────────────────────────────────
+color mtfHCol = mtfAllBull ? thOb : mtfAllBear ? thOs : color.new(thOb, isLight ? 5 : 0)
+mtfTint(int d, bool valid) =>
+    not valid ? color.new(thNeut, 45) : d > 0 ? thOb : d < 0 ? thOs : thNeut
+
+var table mtfTable = na
+if mtfShow and barstate.islast
+    if na(mtfTable)
+        mtfTable := table.new(posOf(mtfPos), 2, 5, bgcolor=pnlBgM, border_color=color.new(thOb, isLight ? 60 : 50), border_width=1, frame_color=color.new(thOb, isLight ? 60 : 50), frame_width=1)
+    table.cell(mtfTable, 0, 0, "MTF", text_color=mtfHCol, text_size=mtfSz, bgcolor=pnlBgH, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(mtfTable, 1, 0, mtfHeader, text_color=mtfHCol, text_size=mtfSz, bgcolor=pnlBgH, text_halign=text.align_right, text_font_family=font.family_monospace)
+    table.cell(mtfTable, 0, 1, mtfLabel(mtfTf1), text_color=mtfTint(mtfD1, mtfV1), text_size=mtfSz, bgcolor=pnlBgM, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(mtfTable, 1, 1, mtfTag(mtfD1, mtfV1), text_color=mtfTint(mtfD1, mtfV1), text_size=mtfSz, bgcolor=pnlBgM, text_halign=text.align_right, text_font_family=font.family_monospace)
+    table.cell(mtfTable, 0, 2, mtfLabel(mtfTf2), text_color=mtfTint(mtfD2, mtfV2), text_size=mtfSz, bgcolor=pnlBgM, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(mtfTable, 1, 2, mtfTag(mtfD2, mtfV2), text_color=mtfTint(mtfD2, mtfV2), text_size=mtfSz, bgcolor=pnlBgM, text_halign=text.align_right, text_font_family=font.family_monospace)
+    table.cell(mtfTable, 0, 3, mtfLabel(mtfTf3), text_color=mtfTint(mtfD3, mtfV3), text_size=mtfSz, bgcolor=pnlBgM, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(mtfTable, 1, 3, mtfTag(mtfD3, mtfV3), text_color=mtfTint(mtfD3, mtfV3), text_size=mtfSz, bgcolor=pnlBgM, text_halign=text.align_right, text_font_family=font.family_monospace)
+    table.cell(mtfTable, 0, 4, mtfLabel(mtfTf4), text_color=mtfTint(mtfD4, mtfV4), text_size=mtfSz, bgcolor=pnlBgF, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(mtfTable, 1, 4, mtfTag(mtfD4, mtfV4), text_color=mtfTint(mtfD4, mtfV4), text_size=mtfSz, bgcolor=pnlBgF, text_halign=text.align_right, text_font_family=font.family_monospace)
+
+// ── KNN Bias panel ──────────────────────────────────────────────────────────────
+// Single-accent: thOb is the only theme colour; backgrounds stay pure neutral.
+color knnTxS = color.new(thOb, isLight ? 5 : 0)
+var table knnTable = na
+if knnOn and barstate.islast
+    if na(knnTable)
+        knnTable := table.new(posOf(knnPos), 2, 4, bgcolor=pnlBgM, border_color=color.new(thOb, isLight ? 65 : 55), border_width=1, frame_color=color.new(thOb, isLight ? 65 : 55), frame_width=1)
+    string kDir  = knnIsBull ? "BULL" : knnIsBear ? "BEAR" : "NEUTRAL"
+    string kIcon = knnIsBull ? "▲"    : knnIsBear ? "▼"    : "◈"
+    table.cell(knnTable, 0, 0, "KNN AI",           text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgH, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(knnTable, 1, 0, kIcon + " " + kDir, text_color=knnCol, text_size=knnSz, bgcolor=pnlBgH, text_halign=text.align_right, text_font_family=font.family_monospace)
+    table.cell(knnTable, 0, 1, "Confidence",              text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgM, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(knnTable, 1, 1, str.tostring(knnConf)+"%", text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgM, text_halign=text.align_right, text_font_family=font.family_monospace)
+    int    filled  = math.round(knnConf / 10)
+    string bar_str = ""
+    for _i = 0 to filled - 1
+        bar_str := bar_str + "█"
+    for _i = 0 to 10 - filled - 1
+        bar_str := bar_str + "░"
+    table.cell(knnTable, 0, 2, bar_str,                     text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgM, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(knnTable, 1, 2, str.tostring(kSize)+" bars", text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgM, text_halign=text.align_right, text_font_family=font.family_monospace)
+    string fTxt = (kf1 > 0.5 ? "O+" : "O-") + "  " + (kf2 > 0.5 ? "V+" : "V-") + "  " + (kf3 > 0.5 ? "S+" : "S-")
+    table.cell(knnTable, 0, 3, fTxt,                    text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgF, text_halign=text.align_left,  text_font_family=font.family_monospace)
+    table.cell(knnTable, 1, 3, "K="+str.tostring(knnK), text_color=knnTxS, text_size=knnSz, bgcolor=pnlBgF, text_halign=text.align_right, text_font_family=font.family_monospace)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 11 — PLOTS
+// ═══════════════════════════════════════════════════════════════════════════════
+// Oscillator line colour — OB/OS aware, optionally adaptive to momentum.
+color lineCol = oscVal >= obLevelF ? thOb : oscVal <= osLevelF ? thOs : useAdapt ? (oscVal >= 50 ? color.new(thOb, 40) : color.new(thOs, 40)) : color.new(thOb, 60)
+color obFillDyn = color.new(thOb, 100 - obAlpha)
+color osFillDyn = color.new(thOs, 100 - osAlpha)
+
+// Volume Pressure.
+p_vpUp   = plot(vpShow ? math.max(vpMid, 50) : na, "VP Bull", color.new(thVpBuy,  70), linewidth=1)
+p_vpDown = plot(vpShow ? math.min(vpMid, 50) : na, "VP Bear", color.new(thVpSell, 70), linewidth=1)
+p_vpBase = plot(vpShow ? 50 : na,                  "VP Base", color=na, editable=false)
+fill(p_vpUp,   p_vpBase, color.new(thVpBuy,  100 - vpAlpha), title="VP Bull Fill")
+fill(p_vpDown, p_vpBase, color.new(thVpSell, 100 - vpAlpha), title="VP Bear Fill")
+
+// Oscillator + signal.
+p_osc = plot(oscVal, "DRM Oscillator", lineCol, linewidth=3)
+p_sig = plot(sigVal, "Signal Line",    thSig,   linewidth=1)
+
+// Cross states computed once at global scope so every ta.* runs on every bar
+// (Pine v6 warns if a ta.crossover/crossunder sits behind a conditional). Reused
+// by the dots and the alert block below.
+bool crossUp   = ta.crossover (oscVal, sigVal)
+bool crossDown = ta.crossunder(oscVal, sigVal)
+bool aExitOs   = ta.crossover (oscVal, osLevelF)
+bool aExitOb   = ta.crossunder(oscVal, obLevelF)
+bool aVpIn     = ta.crossover (vpMid, 50)
+bool aVpOut    = ta.crossunder(vpMid, 50)
+plotshape(sigDots and crossUp   ? sigVal : na, "Bull Cross Dot", shape.circle, location.absolute, thOb, size=size.tiny)
+plotshape(sigDots and crossDown ? sigVal : na, "Bear Cross Dot", shape.circle, location.absolute, thOs, size=size.tiny)
+
+// Exhaustion labels.
+if meObSignal
+    label.new(bar_index, oscVal + 7, "✦ OB", style=label.style_none, textcolor=thOb, size=size.small,
+        tooltip="✦ OB Momentum Exhaustion — Overbought\nOscillator has been weakening for " + str.tostring(meConf) + " consecutive bars while above the OB level.\nBuying momentum is fading — potential reversal to the downside.")
+if meOsSignal
+    label.new(bar_index, oscVal - 7, "✦ OS", style=label.style_none, textcolor=thOs, size=size.small,
+        tooltip="✦ OS Momentum Exhaustion — Oversold\nOscillator has been strengthening for " + str.tostring(meConf) + " consecutive bars while below the OS level.\nSelling momentum is fading — potential reversal to the upside.")
+
+// Hidden level anchors for the zone/state fills.
+p_ob  = plot(obLevelF, "OB Level", adaptZones ? color.new(thOb, 0) : na, linewidth=1, editable=false)
+p_os  = plot(osLevelF, "OS Level", adaptZones ? color.new(thOs, 0) : na, linewidth=1, editable=false)
+p_mid = plot(50,  color=na, editable=false, display=display.none)
+p_top = plot(100, color=na, editable=false, display=display.none)
+p_bot = plot(0,   color=na, editable=false, display=display.none)
+
+// Zone solid + gradient fills.
+fill(p_osc, p_ob, oscVal >= obLevelF ? obFillDyn : na, title="OB Solid Fill")
+fill(p_os, p_osc, oscVal <= osLevelF ? osFillDyn : na, title="OS Solid Fill")
+fill(p_osc, p_mid, obLevelF, 50, obFillDyn, color.new(chart.bg_color, 100), title="Bull Gradient")
+fill(p_mid, p_osc, 50, osLevelF, color.new(chart.bg_color, 100), osFillDyn, title="Bear Gradient")
+
+// Dashed reference lines at the manual OB/OS levels (always shown). With
+// Adaptive Zones ON these mark your clamp boundaries, while the live adaptive
+// levels are the solid moving lines drawn by p_ob / p_os above.
+hline(obLevel, "OB Level", thOb, hline.style_dashed)
+hline(50,      "Midline",  color.gray, hline.style_dotted)
+hline(osLevel, "OS Level", thOs, hline.style_dashed)
+
+// Momentum State fills.
+fill(p_top, p_ob, msObFill, title="Momentum OB State")
+fill(p_os,  p_bot, msOsFill, title="Momentum OS State")
+
+// ── Bar Coloring ────────────────────────────────────────────────────────────────
+color barCol = barMode == "Oscillator"      ? (oscVal > 50 ? thOb : thOs) :
+               barMode == "Volume Pressure" ? (vpMid > 50 ? thVpBuy : thVpSell) :
+               barMode == "Momentum State"  ? (msScore >= 2 ? thOb : thOs) :
+               barMode == "AOP Score"       ? (aopScore >= 60 ? thOb : aopScore <= 40 ? thOs : color.new(color.gray, 20)) :
+               na
+barcolor(barCol)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 12 — ALERTS
+// Seventeen conditions; each fires through alert() so the message carries context.
+// ═══════════════════════════════════════════════════════════════════════════════
+if alCrossOn  and crossUp   and oscVal < 50
+    alert("AOP — Bullish Cross (Oversold): DRM crossed above Signal below midline.",   alert.freq_once_per_bar)
+if alCrossOn  and crossDown and oscVal > 50
+    alert("AOP — Bearish Cross (Overbought): DRM crossed below Signal above midline.", alert.freq_once_per_bar)
+if alZoneOn   and aExitOs
+    alert("AOP — Exiting Oversold Zone: DRM rising out of oversold.",                  alert.freq_once_per_bar)
+if alZoneOn   and aExitOb
+    alert("AOP — Exiting Overbought Zone: DRM falling out of overbought.",             alert.freq_once_per_bar)
+if alDivRegOn and showRegBull
+    alert("AOP — Regular Bullish Divergence: Price lower low, DRM higher low.",        alert.freq_once_per_bar)
+if alDivRegOn and showRegBear
+    alert("AOP — Regular Bearish Divergence: Price higher high, DRM lower high.",      alert.freq_once_per_bar)
+if alDivHidOn and showHidBull
+    alert("AOP — Hidden Bullish Divergence: Price higher low, DRM lower low.",         alert.freq_once_per_bar)
+if alDivHidOn and showHidBear
+    alert("AOP — Hidden Bearish Divergence: Price lower high, DRM higher high.",       alert.freq_once_per_bar)
+if alVpOn     and aVpIn
+    alert("AOP — Volume Pressure Inflow: buying pressure rising.",                     alert.freq_once_per_bar)
+if alVpOn     and aVpOut
+    alert("AOP — Volume Pressure Outflow: selling pressure rising.",                   alert.freq_once_per_bar)
+if alVpDivOn  and showVpBull
+    alert("AOP — VP Bullish Divergence: price lower low, money flow higher low.",      alert.freq_once_per_bar)
+if alVpDivOn  and showVpBear
+    alert("AOP — VP Bearish Divergence: price higher high, money flow lower high.",    alert.freq_once_per_bar)
+if alMeOn     and meObSignal
+    alert("AOP — Momentum Exhaustion OB: buying momentum fading.",                     alert.freq_once_per_bar)
+if alMeOn     and meOsSignal
+    alert("AOP — Momentum Exhaustion OS: selling momentum fading.",                    alert.freq_once_per_bar)
+if alRevOn    and meRevBull
+    alert("AOP — Reversal Confluence BULLISH: exhaustion + regular divergence aligned.", alert.freq_once_per_bar)
+if alRevOn    and meRevBear
+    alert("AOP — Reversal Confluence BEARISH: exhaustion + regular divergence aligned.", alert.freq_once_per_bar)
+if alMtfOn    and justMtfAligned
+    alert("AOP — MTF Aligned: all four higher timeframes agree (" + (mtfAllBull ? "BULL" : "BEAR") + ").", alert.freq_once_per_bar)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// END OF SCRIPT
+// ═══════════════════════════════════════════════════════════════════════════════

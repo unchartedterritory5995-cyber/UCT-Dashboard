@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fa7b28e733bb424fa5e72ede089515b8",
+ "title": "Liquidity Pools",
+ "author": "FX365_Thailand",
+ "url": "https://www.tradingview.com/script/YHQBWfXw-liquidity-pools/",
+ "agreeCount": 9526,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/liquidity-pools__fa7b28e733.pine",
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-pools__fa7b28e733.pine",
+ "our_status": "committed"
+}

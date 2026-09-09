@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c7722507515d406b9f298340913e350d",
+ "title": "Cumulative Volume Delta",
+ "author": "footlz",
+ "url": "https://www.tradingview.com/script/RNYYXeI8-cumulative-volume-delta/",
+ "agreeCount": 706,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cumulative-volume-delta__c772250751.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cumulative-volume-delta__c772250751.pine",
+ "our_status": "committed"
+}

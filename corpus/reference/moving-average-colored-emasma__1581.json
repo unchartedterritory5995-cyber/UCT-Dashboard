@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1581",
+ "title": "Moving Average Colored EMA/SMA",
+ "author": "repo32",
+ "url": "https://www.tradingview.com/script/pJ2ndFEf-moving-average-colored-ema-sma/",
+ "agreeCount": 14272,
+ "category": "trend",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/moving-average-colored-emasma__1581.pine",
+ "our_status": "reference-only"
+}

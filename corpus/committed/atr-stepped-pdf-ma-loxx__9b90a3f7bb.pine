@@ -1,0 +1,119 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © loxx
+
+//@version=5
+indicator("ATR-Stepped PDF MA [Loxx]", 
+     shorttitle="ATRSPDFMA [Loxx]", 
+     overlay = true, 
+     timeframe="", 
+     timeframe_gaps = true)
+
+greencolor = #2DD204
+redcolor = #D2042D 
+
+lightgreencolor = #96E881 
+lightredcolor =  #DF4F6C
+
+src = input.source(close, "Source", group = "Basic Settings")
+per = input.int(21, "Period", group = "Basic Settings")
+vari = input.float(2, "Variance", step = 0.1, minval = 0.1, group = "Basic Settings") 
+mean = input.float(0, "Mean", step = 0.1, minval = -1, maxval = 1, group = "Basic Settings") 
+mult = input.float(20, "Step Size", group = "Basic Settings") 
+atrper = input.int(50, "ATR Period", group = "Basic Settings") 
+
+showSigs = input.bool(false, "Show signals?", group= "UI Options")
+
+colorbars = input.bool(false, "Color bars?", group = "UI Options")
+
+_pdf(x, variance, mean)=>
+    out = (1.0/math.sqrt(2 * math.pi * math.pow(variance,2)) * math.exp(-math.pow(x-mean, 2)/(2 * math.pow(variance, 2))))
+    out
+
+_pdfma(src, period, variance, mean)=>
+    maxx = 3.5
+    step = math.pi/(period-1)
+    coeff = array.new_float(period, 0)
+    for k = 0 to period - 1
+        array.set(coeff, k, _pdf(k * step, variance, mean * math.pi))
+
+    sumw = array.get(coeff, 0)
+    sum  = array.get(coeff, 0) * src
+    
+    for k = 1 to period -1  
+        weight = nz(array.get(coeff, k)) * src
+        sumw += weight 
+        sum += weight * nz(src[k])
+    out = sum/sumw
+    out
+  
+ 
+multout = mult/100.0
+atr = ta.atr(atrper)
+
+val = _pdfma(src, per, vari, mean)
+stepSize = multout * atr
+
+_diff = val - nz(val[1])
+
+val := nz(val[1]) + ((_diff < stepSize and _diff > -stepSize) ? 0 : (_diff / stepSize) * stepSize)
+
+goLong_pre = ta.crossover(val, val[1])
+goShort_pre = ta.crossunder(val, val[1])
+
+contSwitch = 0
+contSwitch := nz(contSwitch[1])
+contSwitch := goLong_pre ? 1 : goShort_pre ? -1 : contSwitch
+
+goLong = goLong_pre and ta.change(contSwitch)
+goShort = goShort_pre and ta.change(contSwitch)
+
+plot(val,"ATR-Stepped, PDF MA", color = contSwitch == 1  ? greencolor : redcolor, linewidth = 3)
+
+barcolor(colorbars ? contSwitch == 1 ? greencolor : redcolor : na)
+
+plotshape(showSigs and goLong, title = "Long", color = color.yellow, textcolor = color.yellow, text = "Long", style = shape.triangleup, location = location.belowbar, size = size.tiny)
+plotshape(showSigs and goShort, title = "Short", color = color.fuchsia, textcolor = color.fuchsia, text = "Short", style = shape.triangledown, location = location.abovebar, size = size.tiny)
+
+alertcondition(goLong, title = "Long", message = "ATR-Stepped PDF MA [Loxx]: Uptrend\nSymbol: {{ticker}}\nPrice: {{close}}")
+alertcondition(goShort, title = "Short", message = "ATR-Stepped PDF MA [Loxx]: Downtrend\nSymbol: {{ticker}}\nPrice: {{close}}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;af306a4359ab4db7bd2c9863fa007b85",
+ "title": "AD Line of S&P Sectors",
+ "author": "Tom1trader",
+ "url": "https://www.tradingview.com/script/pV8aPTZN-ad-line-of-s-p-sectors/",
+ "agreeCount": 703,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ad-line-of-sp-sectors__af306a4359.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ad-line-of-sp-sectors__af306a4359.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,396 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © fareidzulkifli
+
+// {
+// Sample Strategy: MACD Crossover with trend filter options
+
+// MA Filter  : Price Close Above MA, Search for Buy, Price Close Below MA, Search for Sell
+// ADX Filter : Take trade only when ADX is above certain treshold
+// MACD Signal: MACD Cross above signal line while under 0 line indicate Buy Signal
+//              MACD Cross below signal line while above 0 line indicate Sell Signal
+
+// Using Alert Module:
+// Enable Alert     --> Enable TV's alert and plot signal to chart
+// Alert Type       --> Set to take Buy only, Sell only or Both alert
+
+// Using Backtest Module:
+// Enable Backtest  --> Enable Backtest simulation
+// Backtest Type    --> Set to take Buy only or Sell only or both
+// SL Type          --> 
+//                     ATR     : Set SL in ATR times Multiplier below entry price
+//                     Fixed   : Set SL in fixed point below entry point (in 'Dollar'). e.g. for Stocks -> 0.5 equals to 50cent while for EURUSD currency -> 0.005 equal to 50 pips
+//                     HiLo Bar: Set SL at highest/lowest wick of previous [x] bar plus/minus Fixed point. e.g. EURUSD HiLo=3 and Fixed Point = 0.0005, buy trade will place SL 5 Pips below lowest of previous 3 bar
+// SL ATR Multi     --> Set Lookback Period used for SL's ATR calculation
+// SL ATR Multi     --> Set ATR Multiplier for SL
+// SL Fixed         --> Set Fixed Level for SL
+// SL Bar           --> Set Number of previous bar to check for SL placement
+// TP RR Ratio      --> Set TP based on RR multiplier. e.g. 2 means TP level will be twice further from entry point compared to Entry-SL distance.
+//
+// Notes: The point is for preliminary testing, so it only supports 1 trade at a time and no Trailing Stop
+
+// Using [PineCoders] Backtest Engine Module:
+// External Signal Protocol   --> Set ESP State to send to "Backtesting & Trading Engine [PineCoders]"
+//             Signal With Filter              --> Use this to send entry signal that already filtered by this study indicator (without stoploss level)
+//             Signal Without Filter           --> Use this to send raw entry signal that are NOT YET FILTERED by this study indicator (without stoploss level)
+//             Signal and Stop With Filter     --> Use this to send entry signal WITH StopLoss that already filtered by this study indicator (with stoploss level)
+//             Signal and Stop Without Filter  --> Use this to send raw entry signal WITH StopLoss that are NOT YET FILTERED by this study indicator (with stoploss level)
+
+// Notes: Backtesting & Trading Engine [PineCoders] already have built-in Filter, Entries and Stop Level. e.g. Unselect all their filter state if only want to use custom filter and make sure send Signal with Filter (with or without SL level)
+
+// Disclaimer: 
+// This script main objective is to create my personal indicator template so that i just have to modify the indicator module for preliminary testing in future.
+
+// Testing Alert Module so i can re-use it as template in future study/indicator
+// Testing Visual Backtest Module so i can re-use it as template in future study/indicator 
+
+// i believe using Strategy function is a better approach for this but the entry/exit level seems to be hit n miss (at least for me, still trying to figure what i did wrong) 
+// also, i rather spend time code the strategy in other platform where i can use the more accurate tick data if i want to validate backtest statistics.
+// My study scripts was built only to test/visualize an idea to see its viability and if it can be used to optimize existing strategy.
+
+// credit: ADX code are originally from "ADX and DI" by @BeikabuOyaji although i re-wrote so i can have cleaner read and use RMA instead of SMA
+// } Description
+
+//@version=4
+study(title="MACD With Filter: Visual Backtest Module Sample", overlay=true)
+
+//****************************************************************************************************************************************************************************************//
+// Indicator Module: Start {
+//****************************************************************************************************************************************************************************************//
+//************************************************//
+// Indicator Parameter
+//************************************************//
+src             = input(close, title="Price Source", type=input.source)
+//Filter Parameter
+section1        = input(false,  "═════════ Filter Parameter ════════")
+use_mafilt      = input(true,   title="Use MA Filter")
+mafilt_type     = input("EMA",  title="MA Filter Type", options = ["EMA","SMA","WMA","RMA","VWMA"])
+mafilt_len      = input(200,    title="MA Filter Length")
+use_adxfilt     = input(false,  title="Use ADX Filter")
+adxfilt_len     = input(14,     title="ADX Filter Length")
+adxfilt_tres    = input(20,     title="ADX Filter Treshold")
+
+//Indicator Parameter
+section2        = input(false,  "═════════ Signal Parameter ════════")
+fast_length     = input(12,     title="MACD Fast Length")
+slow_length     = input(26,     title="MACD Slow Length")
+signal_length   = input(9,      title="MACD Signal Smoothing", minval = 1, maxval = 50)
+
+
+//************************************************//
+// Main Indicator Function
+//************************************************//
+
+//Filter Indicator Calculation: Sample --> ADX
+smooth(_src,len)=>
+    float smoothed_src   = 0.0
+    smoothed_src        := nz(smoothed_src[1]) - (nz(smoothed_src[1])/len) + _src
+
+DirectionUp     = high-high[1] > low[1]-low ? max(high-high[1], 0): 0
+DirectionalDn   = low[1]-low > high-high[1] ? max(low[1]-low, 0): 0
+DIPlus          = smooth(DirectionUp,adxfilt_len) / smooth(tr,adxfilt_len) * 100
+DIMinus         = smooth(DirectionalDn,adxfilt_len) / smooth(tr,adxfilt_len) * 100
+DX              = abs(DIPlus-DIMinus) / (DIPlus+DIMinus)*100
+ADX             = rma(DX, adxfilt_len)
+
+//Filter Indicator Calculation: Sample --> MA
+get_MA(typ, len) =>
+    float maVal = na
+    if (typ == "EMA")
+        maVal := ema(src, len)
+    if (typ == "SMA")
+        maVal := sma(src, len)
+    if (typ == "WMA")
+        maVal := wma(src, len)
+    if (typ == "RMA")
+        maVal := rma(src, len)
+    if (typ == "VWMA")
+        maVal := vwma(src, len)
+    maVal
+
+MAfilt = get_MA(mafilt_type, mafilt_len)
+
+
+//Signal Indicator Calculation: Sample --> MACD
+macd_fast_ma    = ema(src, fast_length)
+macd_slow_ma    = ema(src, slow_length)
+macd_main       = macd_fast_ma - macd_slow_ma
+macd_signal     = ema(macd_main, signal_length)
+
+
+
+//************************************************//
+// Set filter here
+//************************************************//
+//Uptrend/Dntrend used in Alert/Backtest Module Section. Update condition accordingly
+
+Uptrend = false
+Dntrend = false
+
+if(((use_mafilt==true and close > MAfilt) or use_mafilt==false) and ((use_adxfilt==true and ADX > adxfilt_tres) or use_adxfilt==false))
+    Uptrend := true
+
+if(((use_mafilt==true and close < MAfilt) or use_mafilt==false) and ((use_adxfilt==true and ADX > adxfilt_tres) or use_adxfilt==false))
+    Dntrend := true
+    
+//************************************************//
+// Set signal here
+//************************************************//
+//BuySignal/SellSignal used in Alert/Backtest Module Section. Update condition accordingly 
+
+BuySignal  = macd_main < 0 and crossover(macd_main, macd_signal)
+SellSignal = macd_main > 0 and crossunder(macd_main, macd_signal)
+
+
+//************************************************//
+// Plot Indicator Here (For Overlay Indicator Only)
+//************************************************//
+
+plotMA = use_mafilt ? MAfilt : na
+plot(plotMA, color=color.orange, linewidth=2)
+
+//****************************************************************************************************************************************************************************************//
+// } Indicator Module: End
+//****************************************************************************************************************************************************************************************//
+
+// 
+//****************************************************************************************************************************************************************************************//
+// Backtest Module: Start {
+//****************************************************************************************************************************************************************************************//
+//************************************************//
+// Backtest Parameter
+//************************************************//
+BTsection       = input(false,          "═════════ Backtest Parameter ════════")
+enable_Backtest = input(true,           title="Enable Visual Backtest Module?")
+Entry_Type      = input("Buy and Sell", title="Backtest Type", options=["Buy and Sell","Buy", "Sell"])
+SL_Type         = input("ATR",          title="Stop Loss Type", options=["ATR","Fixed Point", "X bar high/low"])
+SL_ATRlen       = input(14,             title="Stop Loss ATR Period", minval=1, step=1)
+SL_ATR          = input(2.5,            title="Stop Loss ATR Multiplier", minval=0.1, step=0.1)
+SL_Fixed        = input(0.0005,         title="Stop Loss Fixed Point", minval=0.00001, step=0.1)
+SL_Bar          = input(3,              title="Stop Loss HiLo [x] bar", minval=1, step=1)
+reward_ratio    = input(1.5,            title="TP Reward to Risk Ratio", minval=0.1, step=0.1)
+//************************************************//
+
+int open_pos    = 0
+int long_pos    = 0
+int short_pos   = 0
+
+float _EntryPrice   = na
+float _StopLoss     = na
+float _TakeProfit   = na
+
+float _EP = na
+float _SL = na
+float _TP = na
+
+open_pos    := (open_pos [1] == 1) ? 1 : 0
+long_pos    := (long_pos [1] == 1) ? 1 : 0
+short_pos   := (short_pos[1] == 1) ? 1 : 0
+
+_EP         := (open_pos[1] == 1) ? _EP[1] : na
+_SL         := (open_pos[1] == 1) ? _SL[1] : na
+_TP         := (open_pos[1] == 1) ? _TP[1] : na
+
+//************************************************//
+// Stoploss Function
+//************************************************//
+atr     = sma(tr, SL_ATRlen)
+prevhi  = highest(high, SL_Bar)
+prevlo  = lowest(low, SL_Bar)
+
+get_SL(_entry,_signal)=>
+    ret_sl = 0.0
+    
+    if(_signal=="Buy")
+        if(SL_Type == "ATR")
+            ret_sl := _entry - (atr*SL_ATR)
+        if(SL_Type == "Fixed Point")
+            ret_sl := _entry - SL_Fixed
+        if(SL_Type == "X bar high/low")
+            ret_sl := prevlo - SL_Fixed
+    
+    if(_signal=="Sell")
+        if(SL_Type=="ATR")
+            ret_sl := _entry + (atr*SL_ATR)
+        if(SL_Type=="Fixed Point")
+            ret_sl := _entry + SL_Fixed
+        if(SL_Type == "X bar high/low")
+            ret_sl := prevhi + SL_Fixed
+    ret_sl
+
+//************************************************//
+// Generate Entry/Exit Level
+//************************************************//
+
+//Buy
+if(Uptrend and BuySignal)
+    _EntryPrice     := close
+    _StopLoss       := min(get_SL(_EntryPrice,"Buy"),low-(atr*0.2))
+    _TakeProfit     := (_EntryPrice + ((_EntryPrice - _StopLoss)*reward_ratio))
+
+//Sell    
+if(Dntrend and SellSignal)
+    _EntryPrice     := close
+    _StopLoss       := max(get_SL(_EntryPrice,"Sell"),high+(atr*0.2))
+    _TakeProfit     := (_EntryPrice - ((_StopLoss - _EntryPrice)*reward_ratio))    
+
+//************************************************//
+// Trade Entry Function
+//************************************************//
+
+//Buy
+if(enable_Backtest and Entry_Type != "Sell" and open_pos == 0 and Uptrend and BuySignal)
+    long_pos    := 1
+    open_pos    := 1
+    _EP         := _EntryPrice
+    _SL         := _StopLoss
+    _TP         := _TakeProfit
+
+//Sell    
+if(enable_Backtest and Entry_Type != "Buy" and open_pos == 0 and Dntrend and SellSignal)
+    short_pos   := 1
+    open_pos    := 1
+    _EP         := _EntryPrice
+    _SL         := _StopLoss
+    _TP         := _TakeProfit
+
+//************************************************//
+// Exit Function
+//************************************************//
+
+bool long_Profit_Label  = false
+bool short_Profit_Label = false
+bool long_Loss_Label    = false
+bool short_Loss_Label   = false
+
+
+//Exit Long Condition
+if (long_pos[0] == 1 and low <= _SL)
+    long_pos            := 0
+    open_pos            := 0
+    long_Loss_Label     := true
+    
+if (long_pos[0] == 1 and high >= _TP)
+    long_pos            := 0
+    open_pos            := 0
+    long_Profit_Label   := true    
+    
+if (short_pos[0] == 1 and high >= _SL)
+    short_pos           := 0
+    open_pos            := 0
+    short_Loss_Label    := true
+
+if (short_pos[0] == 1 and low <= _TP)
+    short_pos           := 0
+    open_pos            := 0
+    short_Profit_Label  := true
+
+
+
+//************************************************//
+// Backtest Drawing
+//************************************************//
+plot_EP = plot(_EP, title="Entry Level", color=color.blue,  linewidth=1, style=plot.style_linebr)
+plot_SL = plot(_SL, title="Stop Loss",   color=color.red,   linewidth=2, style=plot.style_linebr)
+plot_TP = plot(_TP, title="Take Profit", color=color.green, linewidth=2, style=plot.style_linebr)
+
+fill(plot_TP, plot_EP, title="TP Background", color=color.green, transp = 75)
+fill(plot_SL, plot_EP, title="SL Background", color=color.red,   transp = 75)
+
+plotshape(long_Profit_Label,  title="Profit", text="Buy\nProfit",  color=color.green, style=shape.labeldown, location=location.abovebar, size=size.small, textcolor=color.white, editable=false)
+plotshape(long_Loss_Label,    title="Loss",   text="Buy\nLoss",    color=color.red,   style=shape.labelup,   location=location.belowbar, size=size.small, textcolor=color.white, editable=false)
+plotshape(short_Profit_Label, title="Profit", text="Sell\nProfit", color=color.green, style=shape.labelup,   location=location.belowbar, size=size.small, textcolor=color.white, editable=false)
+plotshape(short_Loss_Label,   title="Loss",   text="Sell\nLoss",   color=color.red,   style=shape.labeldown, location=location.abovebar, size=size.small, textcolor=color.white, editable=false)
+
+//****************************************************************************************************************************************************************************************//
+// } Backtest module: End
+//****************************************************************************************************************************************************************************************//
+
+
+//****************************************************************************************************************************************************************************************//
+// Alert Module: Start {
+//****************************************************************************************************************************************************************************************//
+
+//************************************************//
+// Alert Parameter
+//************************************************//
+Alertsection    = input(false,          "═════════ Alert Parameter ════════")
+enable_alert    = input(false,          title="Enable Alert?")
+alert_Type      = input("Buy and Sell", title="Alert Type", options=["Buy and Sell","Buy", "Sell"])
+
+
+bool alertbuy   = na
+bool alertsell  = na
+
+//Set Buy alert
+if(enable_alert and alert_Type != "Sell" and Uptrend and BuySignal)
+    alertbuy    := true
+
+//Set Sell alert   
+if(enable_alert and alert_Type != "Buy" and Dntrend and SellSignal)
+    alertsell   := true
+
+plotshape(alertbuy,  title="Buy Signal",  color=color.green, style=shape.triangleup,   location=location.belowbar, size=size.tiny, text="Buy",  textcolor=color.green) 
+plotshape(alertsell, title="Sell Signal", color=color.red,   style=shape.triangledown, location=location.abovebar, size=size.tiny, text="Sell", textcolor=color.red)
+
+alertcondition(alertbuy,  title='MACD Buy', message='MACD Buy Signal')
+alertcondition(alertsell, title='MACD Sell', message='MACD Buy Signal')
+    
+//****************************************************************************************************************************************************************************************//
+// } Alert Module: End
+//****************************************************************************************************************************************************************************************//
+
+
+//****************************************************************************************************************************************************************************************//
+// Backtesting-Trading Engine [PineCoders] Module: Start {
+//****************************************************************************************************************************************************************************************//
+
+//************************************************//
+// BTE Parameter
+//************************************************//
+BTEsection      = input(false,                          "═════════ PineCoders Backtest Engine Module ════════")
+ext_protocol    = input("Signal With Filter",  title="External Signal Protocol", options=["Signal With Filter","Signal Without Filter", "Signal and Stop With Filter", "Signal and Stop Without Filter"])
+
+
+//************************************************//
+// Setup BTE Signal
+//************************************************//
+// FudgeStop function by PineCoders
+// ————— This function ensures that no stop value equal to one of the protocol's reserved values is sent, so it isn't misinterpreted as a signal.
+// The fudge is in the direction where the trade's risk is decreased by a tick, so added for longs and subtracted for shorts.
+FudgeStop( _stop, _fudgedir) => _stop == 1.0 or _stop == 2.0 or _stop == 3.0 ? _stop + syminfo.mintick * _fudgedir : _stop
+
+
+float BTEmarker = 0
+
+if(ext_protocol == "Signal and Stop With Filter")
+    if(Uptrend and BuySignal)
+        BTEmarker   := FudgeStop(_StopLoss, 1)
+    if(Dntrend and SellSignal)
+        BTEmarker   := -FudgeStop(_StopLoss, -1)
+        
+if(ext_protocol == "Signal and Stop Without Filter")
+    if(BuySignal)
+        BTEmarker   := FudgeStop(_StopLoss, 1)
+    if(SellSignal)
+        BTEmarker   := -FudgeStop(_StopLoss, -1)
+
+if(ext_protocol == "Signal With Filter")
+    if(Uptrend and BuySignal)
+        BTEmarker   := 2
+    if(Dntrend and SellSignal)
+        BTEmarker   := -2
+        
+if(ext_protocol == "Signal Without Filter")
+    if(BuySignal)
+        BTEmarker   := 2
+    if(SellSignal)
+        BTEmarker   := -2
+
+// ————— Plots BTE markers.
+// ————— Backtesting & Trading Engine external signal line.
+plot(BTEmarker==0 ? na : BTEmarker, "EW BTE Signal", display = display.none)
+
+//****************************************************************************************************************************************************************************************//
+// } Backtesting-Trading Engine [PineCoders] Module: End
+//****************************************************************************************************************************************************************************************//
+

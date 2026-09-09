@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;TDlqz0q9TN3WplzAuRuntvRAHNxL8gRh",
+ "title": "Machine Learning: Logistic Regression (v.3)",
+ "author": "capissimo",
+ "url": "https://www.tradingview.com/script/49YIV1jW-machine-learning-logistic-regression-v-3/",
+ "agreeCount": 5620,
+ "category": "machine-learning-styled",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/machine-learning-logistic-regression-v3__TDlqz0q9TN.pine",
+ "cached_source": "tools/pine_survey/cache/sources/machine-learning-logistic-regression-v3__TDlqz0q9TN.pine",
+ "our_status": "committed"
+}

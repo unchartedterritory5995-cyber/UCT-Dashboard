@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;25d4834579ad4806b4ccb4f1dbf00ff0",
+ "title": "ICT Institutional Order Flow (fadi)",
+ "author": "fadizeidan",
+ "url": "https://www.tradingview.com/script/RoK9cao8-ict-institutional-order-flow-fadi/",
+ "agreeCount": 8036,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ict-institutional-order-flow-fadi__25d4834579.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ict-institutional-order-flow-fadi__25d4834579.pine",
+ "our_status": "committed"
+}

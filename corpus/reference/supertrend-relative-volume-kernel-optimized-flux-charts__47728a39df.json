@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;47728a39dfea457aa07a603d40fbfa37",
+ "title": "SuperTrend + Relative Volume (Kernel Optimized) | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/31up9Ozt-supertrend-relative-volume-kernel-optimized-flux-charts/",
+ "agreeCount": 11498,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
+ "cached_source": "tools/pine_survey/cache/sources/supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df.pine",
+ "our_status": "committed"
+}

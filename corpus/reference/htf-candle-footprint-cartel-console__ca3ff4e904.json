@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ca3ff4e904ad48d28e83d404c064984a",
+ "title": "HTF Candle Footprint [Cartel Console]",
+ "author": "CartelConsole",
+ "url": "https://www.tradingview.com/script/Qh1YuNeJ-htf-candle-footprint-cartel-console/",
+ "agreeCount": 614,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+ "cached_source": "tools/pine_survey/cache/sources/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;919c1fd9c63a46c390f8e07eceb2da57",
+ "title": "Swing Points and Liquidity - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/ljgpWxqE-swing-points-and-liquidity-by-leviathan/",
+ "agreeCount": 11415,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1302",
+ "title": "ZigZag (MA, Pattern Recognition)",
+ "author": "RicardoSantos",
+ "url": "https://www.tradingview.com/script/C3gCl77i-zigzag-ma-pattern-recognition/",
+ "agreeCount": 3836,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/zigzag-ma-pattern-recognition__1302.pine",
+ "cached_source": "tools/pine_survey/cache/sources/zigzag-ma-pattern-recognition__1302.pine",
+ "our_status": "committed"
+}

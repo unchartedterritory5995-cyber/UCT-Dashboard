@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;hoTsDQRY3LZgGesbKL2Vbd2LXpvfZhsP",
+ "title": "Pivot High Low Points",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/9dK1FvCB-pivot-high-low-points/",
+ "agreeCount": 2150,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
+ "cached_source": "tools/pine_survey/cache/sources/pivot-high-low-points__hoTsDQRY3L.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e5075eb888384c538dbc7c8f04d717db",
+ "title": "Nonlinear Regression, Zero-lag Moving Average [Loxx]",
+ "author": "loxx",
+ "url": "https://www.tradingview.com/script/R94i54w7-nonlinear-regression-zero-lag-moving-average-loxx/",
+ "agreeCount": 669,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+ "cached_source": "tools/pine_survey/cache/sources/nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888.pine",
+ "our_status": "committed"
+}

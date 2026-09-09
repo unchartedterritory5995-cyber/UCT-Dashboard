@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;98d2ed3472a6401097eb765cac1d52c2",
+ "title": "TradePro&#039;s Trading Idea Cipher B+ Divergence EMA Pullback Strategy",
+ "author": "TradingStrategyCheck",
+ "url": "https://www.tradingview.com/script/ywcSiaaV-tradepro-039-s-trading-idea-cipher-b-divergence-ema-pullback/",
+ "agreeCount": 2515,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/tradepro039s-trading-idea-cipher-b-divergence-ema-pullback-strategy__98d2ed3472.pine",
+ "our_status": "reference-only"
+}

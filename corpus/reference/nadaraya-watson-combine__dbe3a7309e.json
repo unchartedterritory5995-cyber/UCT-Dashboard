@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;dbe3a7309e24469996456f1caaab4a5b",
+ "title": "Nadaraya-Watson Combine",
+ "author": "capam",
+ "url": "https://www.tradingview.com/script/eAtUw8q8-nadaraya-watson-combine/",
+ "agreeCount": 724,
+ "category": "machine-learning-styled",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/nadaraya-watson-combine__dbe3a7309e.pine",
+ "our_status": "reference-only"
+}

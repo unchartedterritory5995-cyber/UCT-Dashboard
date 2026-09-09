@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;03e4633d31994c1c947b4e55d1db3c97",
+ "title": "All Chart Patterns [theEccentricTrader]",
+ "author": "theEccentricTrader",
+ "url": "https://www.tradingview.com/script/zNdghVOS-all-chart-patterns-theeccentrictrader/",
+ "agreeCount": 3731,
+ "category": "harmonic patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+ "cached_source": "tools/pine_survey/cache/sources/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+ "our_status": "committed"
+}

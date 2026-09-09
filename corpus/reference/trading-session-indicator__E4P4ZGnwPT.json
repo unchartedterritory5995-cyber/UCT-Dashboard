@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;E4P4ZGnwPTGi4jiTJWFWJFYutyqkVR0e",
+ "title": "Trading Session Indicator",
+ "author": "ErikStenberg",
+ "url": "https://www.tradingview.com/script/MUnGUiUE-trading-session-indicator/",
+ "agreeCount": 713,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/trading-session-indicator__E4P4ZGnwPT.pine",
+ "our_status": "reference-only"
+}

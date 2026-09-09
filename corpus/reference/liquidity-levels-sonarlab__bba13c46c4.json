@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;bba13c46c4894f36b39e9a1cc6bc1fd2",
+ "title": "Liquidity Levels - Sonarlab",
+ "author": "vuetratrading",
+ "url": "https://www.tradingview.com/script/xr4eVwH4-liquidity-levels-sonarlab/",
+ "agreeCount": 9599,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/liquidity-levels-sonarlab__bba13c46c4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-levels-sonarlab__bba13c46c4.pine",
+ "our_status": "committed"
+}

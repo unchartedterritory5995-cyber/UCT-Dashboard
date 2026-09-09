@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;VfOPXWDHDPhORvJYRTcuHOyeqpOcRR45",
+ "title": "Supertrend",
+ "author": "KivancOzbilgic",
+ "url": "https://www.tradingview.com/script/r6dAP7yi-supertrend/",
+ "agreeCount": 81234,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/supertrend__VfOPXWDHDP.pine",
+ "our_status": "reference-only"
+}

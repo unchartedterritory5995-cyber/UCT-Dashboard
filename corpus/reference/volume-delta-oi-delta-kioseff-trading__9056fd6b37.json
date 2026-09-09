@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;9056fd6b376f4954a069a61b4a01926b",
+ "title": "Volume Delta | OI Delta [Kioseff Trading]",
+ "author": "KioseffTrading",
+ "url": "https://www.tradingview.com/script/xp9OdTFm-volume-delta-oi-delta-kioseff-trading/",
+ "agreeCount": 10692,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-delta-oi-delta-kioseff-trading__9056fd6b37.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-delta-oi-delta-kioseff-trading__9056fd6b37.pine",
+ "our_status": "committed"
+}

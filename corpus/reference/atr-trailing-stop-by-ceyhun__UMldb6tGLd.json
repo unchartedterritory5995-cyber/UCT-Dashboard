@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;UMldb6tGLd3SI7f8v7Zjp3YNypIWR9l2",
+ "title": "ATR Trailing Stop by ceyhun",
+ "author": "ceyhun",
+ "url": "https://www.tradingview.com/script/3h4LO8zH-atr-trailing-stop-by-ceyhun/",
+ "agreeCount": 4581,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,1877 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ata_sabanci
+
+//@version=6
+indicator("Volume Footprint: Measuring Classical Indicators by Math & Geometry, Introduction",
+     shorttitle    = "VFP-Intro",
+     overlay       = true,
+     max_bars_back = 5000)
+
+// TradingView's official technical analysis library; the Intrabar
+// engine reads its per-bar up and down volume from this library's
+// intrabar request, exactly as TradingView defines it.
+import TradingView/ta/14 as tvta
+
+// ─────────────────────── Constants ───────────────────────
+
+// Directional accent pair: buy / forward side and sell / reverse side.
+color COL_FWD = #2979FF
+color COL_REV = #FF1744
+
+// Deepest history the window search may scan, equal to the Pine
+// historical buffer ceiling for computed series: 5000 bars.
+int MAX_LOOKBACK = 5000
+
+string TT_ENGINE = "Data source for every number in this indicator. Geometric splits each bar's volume by where the bar closed inside its range and works on every plan. Intrabar reads real up and down volume from the candles of a lower timeframe through TradingView's official ta library; bars older than your plan's intrabar history stay empty, with no substitute data. Footprint feeds everything from TradingView's own per-tick volume footprint, the same data behind the platform's footprint charts; it requires a Premium or Ultimate plan, and on lower plans the script stops with an error."
+string TT_LTF    = "Lower timeframe the Intrabar engine reads its volume from. Smaller timeframes give higher precision but cover fewer chart bars; the banner and the data window report how many bars carry valid data. Choosing a timeframe higher than the chart's causes a runtime error, exactly as the library defines."
+string TT_TPR    = "Size of each row in the volume footprint, in ticks. One tick gives the highest resolution: every minimum price increment gets its own row. Higher values merge ticks into wider rows and reduce detail. Only used by the Footprint engine."
+string TT_WINDOW = "Number of columns in the footprint. The window walks back from the current bar and keeps only candles that traded inside the visible price frame, skipping the rest, so every column is a candle that actually left volume at these prices. The search reaches at most 5000 bars back."
+string TT_VIEW   = "Number of one-tick price rows shown above and below the current price. The frame follows the price like an aircraft altimeter: the price stays centered while the price ladder slides behind it. Rows outside the frame stay off screen; they are never merged."
+string TT_SPREAD = "How tightly each bar's volume gathers around its center price. Higher values pull the volume toward the center; lower values spread it out toward the bar's extremes."
+string TT_SHOW   = "Draws the footprint table on the chart. Turn it off for a clean chart; the volume figures stay available in the Data Window either way."
+string TT_TSIZE  = "Text size of the footprint table, in typographic points. Large windows or tall frames produce many cells; smaller text keeps them readable."
+string TT_TPOS   = "Corner or edge of the chart where the footprint table is anchored."
+string TT_MOBILE = "Replaces the full footprint table with a compact numeric dashboard built for small phone screens, on by default. On a desktop, or whenever you want the full detail (per-bar cells, the price ladder, and the sum column), turn this mode off to bring the full table back."
+string TT_MSIZE  = "Text size of the mobile dashboard, in typographic points. Independent of the full table's text size."
+
+// Hover help shown on the table cells, written for the trader.
+string TT_C_DATA  = "Sell volume (-, red) and buy volume (+, blue) modeled at this price for this bar. The background gets stronger as the cell nears the busiest cell of the window."
+string TT_C_AXIS  = "Current price row. The frame is anchored here; the price ladder slides through it as price moves, like an aircraft altimeter."
+string TT_C_HDR   = "How many bars back this column sits on the chart: 0 is the bar still being built, -1 the last closed candle, and so on. Each header wears the direction of its own candle: blue closed up, red closed down. Candles that never traded inside this frame take no column, so the numbers can jump."
+string TT_C_PRICE = "One-tick price ladder around the current price."
+string TT_C_TOT   = "Total volume of this bar."
+string TT_C_DELTA = "Buy volume minus sell volume for this bar. Positive means buyers dominated."
+string TT_C_SUM   = "Sell and buy volume of this price level summed across every bar of the window: the window's volume profile written as numbers. The background scales against the busiest summed level."
+string TT_METRICS = "Column marking academic footprint levels beside the price. Point of Control is the price level with the greatest volume."
+string TT_POC     = "Point of Control: the price level that traded the most volume. Choose where it is marked. Dashboard uses the table's own window of bars and dots the metrics column; Chart uses the profile's period and draws a line beside the bells. The number sets how many bars past the profile the chart line runs before its label."
+string TT_VA      = "Value Area: the price band that holds the chosen share of the period's traded volume, marked by a high line and a low line around the Point of Control. Inside the band the market accepted price and business kept building; past its edges trade thinned out fast. Price re-entering the band tends to travel across it, and price holding beyond an edge often means the market has moved on to do business elsewhere. The percentage sets how much of the traded volume the band must contain; seventy is the classical figure."
+string TT_IMB     = "Volume imbalance: one side of a price level overwhelming the other side of the neighbouring level, measured diagonally. A level has a buy imbalance when its buy volume exceeds the sell volume one level below by the given percentage, and a sell imbalance when its sell volume exceeds the buy volume one level above by the same percentage. Three hundred, the classical figure, demands three times the opposing volume. In the table, imbalanced cells carry an arrow and a stronger tint per bar, the metrics column marks the levels imbalanced across the whole window, and the chart draws a dotted line per imbalanced zone of the profile period. The Footprint engine reads the platform's own per-row verdict; the other engines apply the same rule to their own rows."
+string TT_C_POC   = "Point of Control. Over the bars covered by this table, more volume changed hands at this price than at any other. Price tends to return to it, and a break away from it that holds often marks a real shift.\n"
+string TT_C_STAT  = "Current bar at a glance: symbol, active engine, last price with its change from the prior close, total volume, sell and buy volume, and the side that leads by percentage points of the bar's volume. The banner turns blue when the bar is up and red when it is down."
+string TT_C_OVL   = "How much the buying and the selling happened at the same prices over this profile's period, on a scale from zero to one.\nNear one, both sides worked the same levels: the market is balanced and rotating, and the edges of the profile tend to hold.\nAway from one, each side kept its own price territory, and the label names the heavier side and wears its colour. That is what a directional market looks like: one side pushing, the other answering somewhere else.\nWhen the two sides are close to equal in volume, no side is named, because calling a direction there would be guesswork."
+string TT_TILT    = "How far apart the two sides must be, in percentage points of the profile's volume, before the balance label names a side.\nBelow this distance the label stays neutral and only reports that the market left balance, which keeps a coin flip from being dressed up as a direction.\nRaise it to hear only about clear dominance, lower it to catch smaller leans."
+string TT_C_RES   = "Self-check of the profile's own arithmetic, in parts per million.\nThe area under each curve, together with the volume of the flat bars, has to add back up to the volume that side really traded. This is how far the two came apart.\nEXACT means the drawing you see is a faithful picture of the volume behind it. DRIFT means the reading has left its tolerance and the shape should not be traded on until it settles.\nThis is a health reading of the tool, not a signal about the market."
+string TT_RESTOL  = "How far the profile's self-check may drift, in parts per million, before it is called out.\nHealthy readings sit far below one, so the default leaves a wide margin and speaks up only when something is genuinely wrong.\nLower it for a stricter watch, raise it if a symbol's rounding makes the reading noisy."
+string TT_MERGE   = "How close two chart marks may sit, in ticks of this market, before their labels are combined into one.\nLevels inside this distance share a single label, one line of text per level, so nothing covers anything.\nLevels at exactly the same price also share a single horizontal line. Set to zero to always keep every label separate."
+
+// @enum Domains a metric is shown in.
+// @field off Not calculated or drawn anywhere.
+// @field dashboard Table metrics column only, over the Window Bars.
+// @field chart Profile only, over the profile period.
+// @field both Both domains.
+enum MetricScope
+    off       = "Off"
+    dashboard = "Dashboard"
+    chart     = "Chart"
+    both      = "Dashboard and Chart"
+
+// @enum Vertical anchor of the footprint table.
+enum TableYPos
+    top    = "Top"
+    middle = "Middle"
+    bottom = "Bottom"
+
+// @enum Horizontal anchor of the footprint table.
+enum TableXPos
+    left   = "Left"
+    center = "Center"
+    right  = "Right"
+
+// @enum Stroke style for the profile frame lines.
+enum LineStyleOpt
+    solid  = "Solid"
+    dashed = "Dashed"
+    dotted = "Dotted"
+
+// Hover help for the profile inputs, written for the trader.
+string TT_P_SHOW   = "Draws the volume profile in the free space to the right of the last bar: two bell curves grown from one shared baseline, one fed only by buy volume, one fed only by sell volume. Where they overlap, a third shade marks the prices both sides fought over."
+string TT_P_PERIOD = "Number of bars the profile covers, counting back from the current bar. The profile's height spans exactly the highest high and the lowest low of these bars."
+string TT_P_SIZE   = "Left: horizontal size of the profile, in bars of free space to the right of the last bar; the widest price level reaches exactly this far. Right: number of price levels the curve is sampled at; higher values trace the curve more finely without ever changing its shape."
+string TT_P_FILL   = "Opacity of the bell bodies, in percent. Where the translucent buy and sell bodies overlap, their colors blend on their own into a third shade that marks the contested prices."
+string TT_P_COLS   = "Body colors of the buy bell (left) and the sell bell (right). The outline of each bell follows its body color."
+string TT_P_LINES  = "Two horizontal lines capping the profile at the period's lowest low and highest high. Left to right: line color, thickness, and stroke style."
+string TT_P_BUY    = "Shows the buy bell of the profile. Turn both sides on to see where their shapes overlap."
+string TT_P_SELL   = "Shows the sell bell of the profile. Turn both sides on to see where their shapes overlap."
+
+// Theme-aware palette. `chart.fg_color` resolves to #0f0f0f on light
+// chart backgrounds, which selects the saturated color set; on dark
+// backgrounds the bright neon set is used. Colors depending on
+// `chart.*` values are built once and reused.
+var bool  isLightTheme = chart.fg_color == #0f0f0f
+
+// Buy / sell / axis accents, one shade per theme.
+var color colBuyText   = isLightTheme ? #0B57D0 : #4FADFF
+var color colSellText  = isLightTheme ? #C4001D : #FF5C78
+var color colAxisText  = isLightTheme ? #8A6D00 : #FFE08A
+
+// Structural colors derived from the user's own chart theme.
+var color colPanelBg   = color.new(chart.bg_color, 15)
+var color colHeadText  = color.new(chart.fg_color, 25)
+var color colMutedText = color.new(chart.fg_color, 45)
+var color colGhostText = color.new(chart.fg_color, 82)
+var color colAxisBg    = color.new(colAxisText, 80)
+
+// Directional header tints and the neutral structural band, tuned
+// per theme so the wash reads the same on light and dark charts.
+var color colHdrUpBg   = color.new(COL_FWD, isLightTheme ? 90 : 82)
+var color colHdrDnBg   = color.new(COL_REV, isLightTheme ? 92 : 84)
+var color colBandBg    = color.new(chart.fg_color, isLightTheme ? 95 : 94)
+var color colFrame     = color.new(chart.fg_color, 80)
+
+// Metrics accent and its cell tint, one shade per theme. The light
+// shade is darkened so its contrast clears the readability threshold
+// on white chart backgrounds.
+var color colMetricText = isLightTheme ? #C2410C : #FF8A3D
+var color colMetricBg   = color.new(colMetricText, 84)
+
+// Value Area accent, one shade per theme like the metrics accent: a
+// violet for the level text that clears readability on both chart
+// backgrounds, its chip tint, and a near-transparent wash for the
+// band drawn between the two Value Area edges.
+var color colVaText = isLightTheme ? #6D28D9 : #B39DFF
+var color colVaBg   = color.new(colVaText, 84)
+var color colVaBand = color.new(colVaText, isLightTheme ? 94 : 92)
+
+// Imbalance accents: chip tints for the metrics column and the chart
+// labels, and a stronger cell wash marking imbalanced table cells.
+var color colImbBuyBg   = color.new(colBuyText, 84)
+var color colImbSellBg  = color.new(colSellText, 84)
+var color colImbBuyCell = color.new(colBuyText, isLightTheme ? 55 : 50)
+var color colImbSellCell = color.new(colSellText, isLightTheme ? 55 : 50)
+
+// Five-step background intensity ladders, index 0 = faintest.
+var array<color> buyBgSteps  = array.from(
+     color.new(colBuyText, 94), color.new(colBuyText, 88),
+     color.new(colBuyText, 81), color.new(colBuyText, 74),
+     color.new(colBuyText, 66))
+var array<color> sellBgSteps = array.from(
+     color.new(colSellText, 94), color.new(colSellText, 88),
+     color.new(colSellText, 81), color.new(colSellText, 74),
+     color.new(colSellText, 66))
+
+// ─────────────────────── Inputs ───────────────────────
+
+// @enum Volume engine feeding the table, the profile, and every output.
+// @field geometric Splits each bar's volume by the close position inside the bar range.
+// @field intrabar Reads real up and down volume from a lower timeframe through TradingView's ta library.
+// @field footprint TradingView's server-side per-tick volume footprint; Premium and Ultimate plans only.
+enum VolumeEngine
+    geometric = "Geometric"
+    intrabar  = "Intrabar"
+    footprint = "Footprint (Premium/Ultimate)"
+
+VolumeEngine engineInput = input.enum(VolumeEngine.geometric, "Engine", tooltip = TT_ENGINE)
+string ltfInput         = input.timeframe("1", "Intrabar Timeframe", tooltip = TT_LTF)
+int   ticksPerRowInput  = input.int(1,     "Ticks Per Row",        minval = 1,   maxval = 500,  tooltip = TT_TPR)
+int   windowInput       = input.int(5,     "Window Bars",          minval = 2,   maxval = 60,   tooltip = TT_WINDOW)
+int   viewTicksInput    = input.int(5,    "Ticks Above/Below",    minval = 1,   maxval = 50,   tooltip = TT_VIEW)
+float bellDivInput      = input.float(3.0, "Volume Concentration", minval = 1.0, maxval = 10.0, step = 0.5, tooltip = TT_SPREAD)
+bool  showTableInput    = input.bool(true,  "Show Table",          tooltip = TT_SHOW)
+int   tableSizeInput    = input.int(12,    "Table Text Size",      minval = 1,   maxval = 100,  tooltip = TT_TSIZE)
+bool  mobileModeInput   = input.bool(true, "Mobile Mode",          tooltip = TT_MOBILE)
+int   mobileSizeInput   = input.int(10,    "Mobile Text Size",     minval = 1,   maxval = 100,  tooltip = TT_MSIZE)
+
+TableYPos tableYposInput = input.enum(TableYPos.bottom, "Table Position", inline = "pos", tooltip = TT_TPOS)
+TableXPos tableXposInput = input.enum(TableXPos.right,  "",               inline = "pos")
+
+// Profile inputs, an independent menu section.
+const string GRP_PROFILE = "Volume Profile"
+
+bool profShowInput   = input.bool(true,  "Show Profile",       group = GRP_PROFILE, tooltip = TT_P_SHOW)
+bool profBuyInput    = input.bool(true,  "Buy Bell",  inline = "pbell", group = GRP_PROFILE, active = profShowInput, tooltip = TT_P_BUY)
+bool profSellInput   = input.bool(true,  "Sell Bell", inline = "pbell", group = GRP_PROFILE, active = profShowInput, tooltip = TT_P_SELL)
+int  profPeriodInput = input.int(23,  "Profile Period",     group = GRP_PROFILE, minval = 2,  maxval = 60,  tooltip = TT_P_PERIOD)
+int  profWidthInput  = input.int(20,  "Width / Resolution", inline = "psize", group = GRP_PROFILE, minval = 5,  maxval = 100, tooltip = TT_P_SIZE)
+int  profResInput    = input.int(100, "",                   inline = "psize", group = GRP_PROFILE, minval = 20, maxval = 400)
+int  profFillInput   = input.int(15,  "Fill Opacity %",          group = GRP_PROFILE, minval = 0,  maxval = 100, tooltip = TT_P_FILL)
+
+color profBuyColInput  = input.color(#4FADFF, "Bell Colors", inline = "pcol",  group = GRP_PROFILE, tooltip = TT_P_COLS)
+color profSellColInput = input.color(#FF5C78, "",            inline = "pcol",  group = GRP_PROFILE)
+
+color  profLineColInput   = input.color(#787B86,   "Frame Lines", inline = "pline", group = GRP_PROFILE, tooltip = TT_P_LINES)
+int    profLineWidthInput = input.int(1,           "",            inline = "pline", group = GRP_PROFILE, minval = 1, maxval = 10)
+LineStyleOpt profLineStyleInput = input.enum(LineStyleOpt.dashed, "", inline = "pline", group = GRP_PROFILE)
+
+const string GRP_METRICS = "Metrics"
+MetricScope pocScopeInput = input.enum(MetricScope.both, "Point of Control", inline = "poc", group = GRP_METRICS, tooltip = TT_POC)
+int pocOffsetInput = input.int(5, "", inline = "poc", group = GRP_METRICS, minval = 0, maxval = 100)
+MetricScope vaScopeInput = input.enum(MetricScope.both, "Value Area", inline = "va", group = GRP_METRICS, tooltip = TT_VA)
+float vaPctInput   = input.float(70.0, "", inline = "va", group = GRP_METRICS, minval = 1.0, maxval = 100.0, step = 1.0)
+bool  imbShowInput = input.bool(true, "Imbalance", inline = "imb", group = GRP_METRICS, tooltip = TT_IMB)
+float imbPctInput  = input.float(300.0, "", inline = "imb", group = GRP_METRICS, minval = 1.0, maxval = 1000.0, step = 25.0)
+float ovlTiltInput = input.float(5.0, "Balance Tilt %", group = GRP_METRICS, minval = 0.0, maxval = 50.0, step = 0.5, tooltip = TT_TILT)
+float resTolInput  = input.float(1.0, "Residual Tolerance PPM", group = GRP_METRICS, minval = 0.0, maxval = 1000.0, step = 0.5, tooltip = TT_RESTOL)
+int   lblMergeInput = input.int(2, "Label Merge Ticks", group = GRP_METRICS, minval = 0, maxval = 100, tooltip = TT_MERGE)
+
+// Profile fill colors, built once from the color and opacity inputs.
+// Where the two translucent bodies overlap, the blend itself marks
+// the contested prices; no dedicated color is drawn.
+var color colProfBuyBg  = color.new(profBuyColInput, 100 - profFillInput)
+var color colProfSellBg = color.new(profSellColInput, 100 - profFillInput)
+
+// Frame line style resolved once from its input.
+var string profLineStyle = switch profLineStyleInput
+    LineStyleOpt.solid  => line.style_solid
+    LineStyleOpt.dotted => line.style_dotted
+    => line.style_dashed
+
+// Table anchor resolved once from the two position inputs.
+var string tablePosition = switch
+    tableXposInput == TableXPos.left   and tableYposInput == TableYPos.top    => position.top_left
+    tableXposInput == TableXPos.left   and tableYposInput == TableYPos.middle => position.middle_left
+    tableXposInput == TableXPos.left   and tableYposInput == TableYPos.bottom => position.bottom_left
+    tableXposInput == TableXPos.center and tableYposInput == TableYPos.top    => position.top_center
+    tableXposInput == TableXPos.center and tableYposInput == TableYPos.middle => position.middle_center
+    tableXposInput == TableXPos.center and tableYposInput == TableYPos.bottom => position.bottom_center
+    tableXposInput == TableXPos.right  and tableYposInput == TableYPos.top    => position.top_right
+    tableXposInput == TableXPos.right  and tableYposInput == TableYPos.middle => position.middle_right
+    => position.bottom_right
+
+// ─────────────────────── Types ───────────────────────
+
+// @type One bar's slice of the altimeter frame. Lattice rows are
+//       whole-tick price levels: a price p belongs to the row with
+//       absolute index round(p / tick), and each row owns half a tick
+//       on either side of its level.
+// @field offset Bars back from the newest included bar; 0 is that bar itself.
+// @field buyTotal Bar buy volume over the full bar range.
+// @field sellTotal Bar sell volume over the full bar range.
+// @field buyRows Buy volume per frame row, index 0 at the frame bottom; na where the bar never traded.
+// @field sellRows Sell volume per frame row, index 0 at the frame bottom; na where the bar never traded.
+// @field buyImb Per frame row, true when the row carries a buy imbalance; na rows stay false.
+// @field sellImb Per frame row, true when the row carries a sell imbalance; na rows stay false.
+type FpBar
+    int          offset
+    float        buyTotal
+    float        sellTotal
+    array<float> buyRows
+    array<float> sellRows
+    array<bool>  buyImb
+    array<bool>  sellImb
+
+// @type One truncated-normal component of a profile side. The bar's
+//       bell contributes density only inside the bar's own price
+//       range; outside it the component is exactly zero.
+// @field mu Bell center price.
+// @field sigma Bell standard deviation, the bar range divided by the concentration input.
+// @field coef Intensity coefficient w / (sigma * Z): bar volume over the bell width and its truncation mass.
+// @field priceLo Lower truncation bound, the bar low.
+// @field priceHi Upper truncation bound, the bar high.
+type ProfComp
+    float mu
+    float sigma
+    float coef
+    float priceLo
+    float priceHi
+
+// ─────────────────────── Functions ───────────────────────
+
+// @function Standard normal cumulative distribution function,
+//           Abramowitz-Stegun formula 26.2.17. Absolute error is
+//           below 7.5e-8 across the real line.
+// @param z (float) Standard normal deviate.
+// @returns Phi(z) = P(Z <= z), clamped to [0, 1].
+f_normCdf(float z) =>
+    float x    = math.abs(z)
+    float t    = 1.0 / (1.0 + 0.2316419 * x)
+    float poly = t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))))
+    float phi  = 0.3989422804014327 * math.exp(-0.5 * x * x)
+    float cdf  = z >= 0.0 ? 1.0 - phi * poly : phi * poly
+    math.max(0.0, math.min(1.0, cdf))
+
+// @function Maps one cell's volume to a background tint from a
+//           five-step ladder scaled by the window's largest cell.
+// @param vol (float) Cell volume; `na` or zero yields no tint.
+// @param maxVol (float) Largest single-cell volume in the window.
+// @param steps (array<color>) Tint ladder, faintest first.
+// @returns (color) The cell tint, or `na` for an empty cell.
+f_cellBg(float vol, float maxVol, array<color> steps) =>
+    color tint = na
+    if not na(vol) and vol > 0.0 and maxVol > 0.0
+        int step = math.min(int(math.floor(5.0 * vol / maxVol)), 4)
+        tint := array.get(steps, step)
+    tint
+
+// @function Formats a volume magnitude as a compact figure with one
+//           decimal place and a K / M / B suffix, keeping the mobile
+//           dashboard rows short. The sign is left to the caller.
+// @param v (float) Volume magnitude; `na` yields an empty string.
+// @returns (string) The compact one-decimal volume text.
+f_volCompact(float v) =>
+    string txt = ""
+    if not na(v)
+        float a = math.abs(v)
+        if a >= 1e9
+            txt := str.tostring(v / 1e9, "#.#") + "B"
+        else if a >= 1e6
+            txt := str.tostring(v / 1e6, "#.#") + "M"
+        else if a >= 1e3
+            txt := str.tostring(v / 1e3, "#.#") + "K"
+        else
+            txt := str.tostring(v, "#.#")
+    txt
+
+// @function Splits one bar's buy and sell volume across the one-tick
+//           lattice rows inside a view frame centered on the axis row.
+//           Buy mass follows a normal bell centered midway from the
+//           bar low to the close; sell mass follows a bell centered
+//           midway from the close to the bar high. Each bell's
+//           standard deviation is the bar range divided by `bellDiv`,
+//           truncated to the bar range. A row's value is the exact
+//           truncated-normal mass of its half-tick band clipped to the
+//           bar range; rows are never rescaled and never merged, so
+//           every value is the analytic truth of its own price level.
+//           Volume beyond the frame is returned as two off-frame sums,
+//           and per side the frame rows plus the off-frame sum equal
+//           the input volume up to floating-point noise.
+// @param bv (float) Bar buy volume.
+// @param sv (float) Bar sell volume.
+// @param h (float) Bar high.
+// @param l (float) Bar low.
+// @param c (float) Bar close.
+// @param axisTick (int) Absolute lattice index of the frame center.
+// @param viewTicks (int) Rows shown on each side of the axis row.
+// @param tick (float) Symbol tick size, the lattice step.
+// @param bellDiv (float) Divisor of the bar range that sets the bell width.
+// @param imbPct (float) Diagonal imbalance threshold in percent applied to the frame rows.
+// @returns An eight-part tuple: the frame-aligned buy and sell row
+//          volumes (index 0 at the frame bottom, na where the bar
+//          never traded), the bar's low and high lattice index, the
+//          off-frame buy and sell volume, and the per-row buy and
+//          sell imbalance flags. The table reads the row volumes and
+//          the imbalance flags; the lattice span and the off-frame
+//          sums complete the split so no volume is ever lost.
+f_gaussViewRows(float bv, float sv, float h, float l, float c, int axisTick, int viewTicks, float tick, float bellDiv, float imbPct) =>
+    int nView = 2 * viewTicks + 1
+    array<float> bRows = array.new<float>(nView, na)
+    array<float> sRows = array.new<float>(nView, na)
+    int   kMin   = axisTick - viewTicks
+    int   kMax   = axisTick + viewTicks
+    int   tickLo = 0
+    int   tickHi = 0
+    float bOff   = na
+    float sOff   = na
+    float rng    = h - l
+    if not (na(bv) or na(sv) or na(h) or na(l) or na(c) or tick <= 0.0)
+        tickLo := int(math.round(l / tick))
+        tickHi := int(math.round(h / tick))
+        bOff   := 0.0
+        sOff   := 0.0
+        if rng <= 0.0
+            // Flat bar: all volume sits on the single lattice row of
+            // its price, inside or outside the frame.
+            int flatRow = int(math.round(c / tick))
+            if flatRow >= kMin and flatRow <= kMax
+                array.set(bRows, flatRow - kMin, bv)
+                array.set(sRows, flatRow - kMin, sv)
+            else
+                bOff := bv
+                sOff := sv
+        else
+            // Bell centers and shared width: the buy center midway from
+            // low to close, the sell center midway from close to high.
+            float muB   = l + (c - l) / 2.0
+            float muS   = c + (h - c) / 2.0
+            float sigma = rng / bellDiv
+            // Truncation mass of each side over the full bar range.
+            float cdfBLow = f_normCdf((l - muB) / sigma)
+            float cdfSLow = f_normCdf((l - muS) / sigma)
+            float zB      = f_normCdf((h - muB) / sigma) - cdfBLow
+            float zS      = f_normCdf((h - muS) / sigma) - cdfSLow
+            bool  okB     = zB > 1e-12
+            bool  okS     = zS > 1e-12
+            float frameBot = (kMin - 0.5) * tick
+            float frameTop = (kMax + 0.5) * tick
+            // Off-frame volume below the frame: the part of the bar
+            // range under the bottom boundary of the lowest frame row.
+            if frameBot > l
+                float capB = math.min(frameBot, h)
+                bOff += okB ? math.max(0.0, (f_normCdf((capB - muB) / sigma) - cdfBLow) / zB) * bv : 0.0
+                sOff += okS ? math.max(0.0, (f_normCdf((capB - muS) / sigma) - cdfSLow) / zS) * sv : 0.0
+            // Frame rows the bar actually reaches.
+            int kStart = math.max(tickLo, kMin)
+            int kEnd   = math.min(tickHi, kMax)
+            if kStart <= kEnd
+                // Row boundaries rise monotonically from the first
+                // clipped band bottom to the bar high, so each boundary
+                // CDF is computed once and reused.
+                float botStart = math.max((kStart - 0.5) * tick, l)
+                float prevB    = f_normCdf((botStart - muB) / sigma)
+                float prevS    = f_normCdf((botStart - muS) / sigma)
+                for k = kStart to kEnd
+                    float bandTop = math.min((k + 0.5) * tick, h)
+                    float nextB   = f_normCdf((bandTop - muB) / sigma)
+                    float nextS   = f_normCdf((bandTop - muS) / sigma)
+                    array.set(bRows, k - kMin, okB ? math.max(0.0, (nextB - prevB) / zB) * bv : 0.0)
+                    array.set(sRows, k - kMin, okS ? math.max(0.0, (nextS - prevS) / zS) * sv : 0.0)
+                    prevB := nextB
+                    prevS := nextS
+            // Off-frame volume above the frame: the part of the bar
+            // range over the top boundary of the highest frame row.
+            if frameTop < h
+                float capT = math.max(frameTop, l)
+                bOff += okB ? math.max(0.0, (f_normCdf((h - muB) / sigma) - f_normCdf((capT - muB) / sigma)) / zB) * bv : 0.0
+                sOff += okS ? math.max(0.0, (f_normCdf((h - muS) / sigma) - f_normCdf((capT - muS) / sigma)) / zS) * sv : 0.0
+    // Diagonal imbalance on the frame rows, the official definition
+    // applied to this engine's own rows: a row carries a buy
+    // imbalance when its buy volume exceeds the sell volume one row
+    // below by the threshold, and a sell imbalance when its sell
+    // volume exceeds the buy volume one row above by the same
+    // threshold. Rows the bar never traded stay silent: na is never
+    // treated as zero opposing volume.
+    array<bool> bImb = array.new<bool>(nView, false)
+    array<bool> sImb = array.new<bool>(nView, false)
+    float imbRatio = imbPct / 100.0
+    for k = 1 to nView - 1
+        float bCur = array.get(bRows, k)
+        float sBel = array.get(sRows, k - 1)
+        if not na(bCur) and not na(sBel) and bCur > 0.0 and bCur > sBel * imbRatio
+            array.set(bImb, k, true)
+    for k = 0 to nView - 2
+        float sCur = array.get(sRows, k)
+        float bAbv = array.get(bRows, k + 1)
+        if not na(sCur) and not na(bAbv) and sCur > 0.0 and sCur > bAbv * imbRatio
+            array.set(sImb, k, true)
+    [bRows, sRows, tickLo, tickHi, bOff, sOff, bImb, sImb]
+
+// @function Complementary error function, Cody's rational Chebyshev
+//           approximation over three ranges. The exp(-y*y) factor is
+//           computed as exp(-ysq*ysq) * exp(-(y-ysq)*(y+ysq)) with ysq
+//           a 1/16-grid truncation of y, preserving accuracy of the
+//           product. The resulting normal CDF has an absolute error
+//           below 2e-16 across the real line.
+// @param x (float) Real argument.
+// @returns erfc(x) = 1 - erf(x).
+f_profErfc(float x) =>
+    float y   = math.abs(x)
+    float res = 0.0
+    if y <= 0.46875
+        float z   = y > 1.11e-16 ? y * y : 0.0
+        float num = 1.85777706184603153e-1 * z
+        float den = z
+        num := (num + 3.16112374387056560e0) * z
+        den := (den + 2.36012909523441209e1) * z
+        num := (num + 1.13864154151050156e2) * z
+        den := (den + 2.44024637934444173e2) * z
+        num := (num + 3.77485237685302021e2) * z
+        den := (den + 1.28261652607737228e3) * z
+        res := 1.0 - x * (num + 3.20937758913846947e3) / (den + 2.84423683343917062e3)
+    else
+        float r = 0.0
+        if y <= 4.0
+            float num = 2.15311535474403846e-8 * y
+            float den = y
+            num := (num + 5.64188496988670089e-1) * y
+            den := (den + 1.57449261107098347e1) * y
+            num := (num + 8.88314979438837594e0) * y
+            den := (den + 1.17693950891312499e2) * y
+            num := (num + 6.61191906371416295e1) * y
+            den := (den + 5.37181101862009858e2) * y
+            num := (num + 2.98635138197400131e2) * y
+            den := (den + 1.62138957456669019e3) * y
+            num := (num + 8.81952221241769090e2) * y
+            den := (den + 3.29079923573345963e3) * y
+            num := (num + 1.71204761263407058e3) * y
+            den := (den + 4.36261909014324716e3) * y
+            num := (num + 2.05107837782607147e3) * y
+            den := (den + 3.43936767414372164e3) * y
+            r := (num + 1.23033935479799725e3) / (den + 1.23033935480374942e3)
+        else if y < 26.543
+            float z   = 1.0 / (y * y)
+            float num = 1.63153871373020978e-2 * z
+            float den = z
+            num := (num + 3.05326634961232344e-1) * z
+            den := (den + 2.56852019228982242e0) * z
+            num := (num + 3.60344899949804439e-1) * z
+            den := (den + 1.87295284992346047e0) * z
+            num := (num + 1.25781726111229246e-1) * z
+            den := (den + 5.27905102951428412e-1) * z
+            num := (num + 1.60837851487422766e-2) * z
+            den := (den + 6.05183413124413191e-2) * z
+            r := z * (num + 6.58749161529837803e-4) / (den + 2.33520497626869185e-3)
+            r := (5.6418958354775628695e-1 - r) / y
+        if y >= 4.0 and y < 26.543 or y <= 4.0
+            float ysq  = math.floor(y * 16.0) / 16.0
+            float delt = (y - ysq) * (y + ysq)
+            r := math.exp(-ysq * ysq) * math.exp(-delt) * r
+        res := x >= 0.0 ? r : 2.0 - r
+    res
+
+// @function Standard normal cumulative distribution function built on
+//           the erfc identity Phi(z) = erfc(-z / sqrt(2)) / 2. The
+//           1/sqrt(2) constant is the correctly rounded double.
+// @param z (float) Standard normal deviate.
+// @returns Phi(z) = P(Z <= z).
+f_profNormCdf(float z) =>
+    0.5 * f_profErfc(-z * 7.071067811865476e-1)
+
+// @function Standard normal probability density function. The leading
+//           constant is the correctly rounded double of 1/sqrt(2*pi).
+// @param z (float) Standard normal deviate.
+// @returns phi(z) = exp(-z*z/2) / sqrt(2*pi).
+f_profNormPdf(float z) =>
+    3.989422804014327e-1 * math.exp(-0.5 * z * z)
+
+// @function Volume intensity of one profile side at one price: the
+//           sum, over every component whose truncation range holds the
+//           price, of coef * phi((p - mu) / sigma). The unit is volume
+//           per unit price. Dividing by the side's total volume turns
+//           it into the truncated-normal mixture probability density.
+// @param p (float) Price at which the intensity is evaluated.
+// @param comps (array<ProfComp>) Components of this profile side.
+// @returns (float) The intensity at p; zero where no component reaches.
+f_profDensity(float p, array<ProfComp> comps) =>
+    float dens = 0.0
+    for comp in comps
+        if p >= comp.priceLo and p <= comp.priceHi
+            dens += comp.coef * f_profNormPdf((p - comp.mu) / comp.sigma)
+    dens
+
+// @function Volume of one profile side inside a price band: the sum,
+//           over every component, of its truncated-normal mass on the
+//           band clipped to the component's own range. Summing this
+//           over a full lattice returns the side's total volume, so
+//           the figure is directly comparable with a table row.
+// @param bandLo (float) Lower band bound.
+// @param bandHi (float) Upper band bound.
+// @param comps (array<ProfComp>) Components of this profile side.
+// @returns (float) Volume traded inside the band.
+f_profBandMass(float bandLo, float bandHi, array<ProfComp> comps) =>
+    float mass = 0.0
+    for comp in comps
+        float segLo = math.max(bandLo, comp.priceLo)
+        float segHi = math.min(bandHi, comp.priceHi)
+        if segHi > segLo
+            float zAll = f_profNormCdf((comp.priceHi - comp.mu) / comp.sigma) - f_profNormCdf((comp.priceLo - comp.mu) / comp.sigma)
+            if zAll > 0.0
+                float zSeg = f_profNormCdf((segHi - comp.mu) / comp.sigma) - f_profNormCdf((segLo - comp.mu) / comp.sigma)
+                mass += comp.coef * comp.sigma * zSeg
+    mass
+
+// @function Lays one bar's official footprint rows onto the altimeter
+//           frame with the same output contract as f_gaussViewRows:
+//           frame rows the bar traded carry their real volumes, rows
+//           it never traded stay na, and official volume beyond the
+//           frame goes to the off-frame sums untouched. The rows are
+//           read straight from the bar's own footprint object through
+//           history referencing; with one-tick rows, row j sits on
+//           the absolute lattice level tickLo + j, so the footprint
+//           and the altimeter share one addressing scheme.
+// @param fpBar (footprint) The bar's footprint object, or na for none.
+// @param axisTick (int) Absolute lattice index of the frame axis row.
+// @param viewTicks (int) One-tick rows shown on each side of the axis.
+// @returns The same eight-part tuple f_gaussViewRows returns, in the
+//          same order: buy rows, sell rows, bar low tick, bar high
+//          tick, off-frame buy, off-frame sell, per-row buy imbalance
+//          flags, per-row sell imbalance flags. One output contract
+//          lets the window search treat both engines alike.
+f_fpViewRows(footprint fpBar, int axisTick, int viewTicks) =>
+    int nView = 2 * viewTicks + 1
+    array<float> bRows = array.new<float>(nView, na)
+    array<float> sRows = array.new<float>(nView, na)
+    array<bool>  bImb  = array.new<bool>(nView, false)
+    array<bool>  sImb  = array.new<bool>(nView, false)
+    int   kMin   = axisTick - viewTicks
+    int   kMax   = axisTick + viewTicks
+    int   tickLo = 0
+    int   tickHi = 0
+    float bOff   = na
+    float sOff   = na
+    if not na(fpBar)
+        array<volume_row> rws = fpBar.rows()
+        int nRows = array.size(rws)
+        if nRows > 0
+            // Ceiling-anchored row reading: each official row spans
+            // down_price to up_price, and a trade at the live price is
+            // the top edge of its own row. Anchoring rows by up_price()
+            // puts that volume on the lattice cell of the price itself,
+            // so the axis row updates while price sits on it.
+            volume_row rowFirst = array.get(rws, 0)
+            volume_row rowLast  = array.get(rws, nRows - 1)
+            tickLo := int(math.round(rowFirst.up_price() / syminfo.mintick))
+            tickHi := int(math.round(rowLast.up_price()  / syminfo.mintick))
+            bOff   := 0.0
+            sOff   := 0.0
+            for row in rws
+                int k = int(math.round(row.up_price() / syminfo.mintick))
+                float bVal = row.buy_volume()
+                float sVal = row.sell_volume()
+                if k >= kMin and k <= kMax
+                    array.set(bRows, k - kMin, bVal)
+                    array.set(sRows, k - kMin, sVal)
+                    // Official per-row verdict of the platform, tuned
+                    // by the imbalance_percent of the request.
+                    array.set(bImb, k - kMin, row.has_buy_imbalance())
+                    array.set(sImb, k - kMin, row.has_sell_imbalance())
+                else
+                    bOff += bVal
+                    sOff += sVal
+    [bRows, sRows, tickLo, tickHi, bOff, sOff, bImb, sImb]
+
+// ─────────────────────── Engine: every bar ───────────────────────
+// Geometric split: the close position inside the bar range sets the
+// buy share of the bar volume; a zero range splits fifty-fifty.
+
+float barRange = high - low
+float geoShare = barRange > 0.0 ? (close - low) / barRange : 0.5
+
+// Engine layer. Every engine wakes only its own machinery. The
+// official request sits behind a real conditional: v6 dynamic
+// requests execute request.*() calls inside conditional structures,
+// activating zero or more times per execution, and the engine input
+// is constant for the whole run. So with the Footprint engine
+// selected the request fires on every bar exactly like global
+// scope, and on the other engines it never fires, so the plan
+// check never runs for them. The intrabar request keeps its own
+// conditional block likewise.
+bool useFpEngine = engineInput == VolumeEngine.footprint
+bool useIbEngine = engineInput == VolumeEngine.intrabar
+footprint engFp = na
+if useFpEngine
+    engFp := request.footprint(ticks_per_row = ticksPerRowInput, va_percent = vaPctInput, imbalance_percent = imbPctInput)
+bool hasEngFp = useFpEngine and not na(engFp)
+
+// Intrabar request through TradingView's own library: the tuple is
+// the bar's total up volume, total down volume, and delta. Bars
+// outside the plan's intrabar history return na, and by the purity
+// rule nothing is ever substituted in their place.
+float ibUp = na
+float ibDn = na
+if useIbEngine
+    [u, d, _] = tvta.requestUpAndDownVolume(ltfInput)
+    ibUp := u
+    ibDn := d
+
+// Per-bar volume split of the active engine. Downstream code reads
+// these two series only. The down leg passes through math.abs so the
+// sell series stays a magnitude regardless of the library's sign.
+float engBuy = if useFpEngine
+    hasEngFp ? footprint.buy_volume(engFp) : na
+else if useIbEngine
+    ibUp
+else
+    volume * geoShare
+
+float engSell = if useFpEngine
+    hasEngFp ? footprint.sell_volume(engFp) : na
+else if useIbEngine
+    math.abs(ibDn)
+else
+    volume * (1.0 - geoShare)
+
+// Buy and sell shares of the active engine, for the data window.
+// The two sides are complementary, so the sell share is the buy
+// share mirrored. On a bar the active engine cannot fill, and on a
+// bar that traded no volume, both sides stay na: no share is ever
+// borrowed from another engine, and na is never read as zero.
+float engTotal  = engBuy + engSell
+float buyShare  = engTotal > 0.0 ? engBuy / engTotal : na
+float sellShare = 1.0 - buyShare
+
+// ─────────────────────── Engine: last bar ───────────────────────
+// The frame is anchored to the lattice row of the newest close and
+// spans a fixed number of one-tick rows on each side. Data lives at
+// full tick resolution inside the frame; volume beyond the frame is
+// kept aside untouched. Nothing is ever merged. Window columns are
+// the newest candles whose range overlaps the frame: candles that
+// never traded at these prices take no column, and the walk back
+// continues until the window is filled or the ceiling is reached.
+
+// Frame store: one FpBar per window bar, newest first.
+var array<FpBar> fpBars = array.new<FpBar>()
+
+// Diagnostics forwarded to the data window from the last-bar scope.
+var int   axisRowTick = na
+var int   ibCovBars   = na
+
+// Control levels published to the global scope for the alert module.
+var float pocDashLevel  = na
+var float pocChartLevel = na
+
+// Chart POC band volumes published for the mobile dashboard: the sell
+// and buy volume of the control level's one-tick band. They reset to
+// na on every profile update and hold values only on updates where
+// the chart POC was actually computed, so the mobile dashboard can
+// never read a stale figure.
+var float pocChartSell = na
+var float pocChartBuy  = na
+
+if barstate.islast
+    array.clear(fpBars)
+    float tick     = syminfo.mintick
+    int   axisTick = int(math.round(close / tick))
+    axisRowTick   := axisTick
+
+    // Zone-memory search: walk back through history, newest first,
+    // and keep only candles that carry volume and whose range
+    // overlaps the frame. The cheap overlap test runs before the
+    // analytic split, so skipped candles cost almost nothing. The
+    // walk stops when the window is filled, at the buffer ceiling,
+    // or at the first bar of the dataset, whichever comes first.
+    int found   = 0
+    int lastIdx = math.min(MAX_LOOKBACK - 1, bar_index)
+    for i = 0 to lastIdx
+        if found >= windowInput
+            break
+        bool hasBar = not na(close[i]) and not na(high[i]) and not na(low[i])
+        // Missing engine data is missing, never zero. A bar the active
+        // engine could not fill is rejected by its own na test, so an
+        // absent reading is never mistaken for an absent trade.
+        bool hasVol = hasBar and not na(engBuy[i]) and not na(engSell[i])
+        float barVol = hasVol ? engBuy[i] + engSell[i] : na
+        bool inFrame = false
+        if hasVol and barVol > 0.0
+            // Engine-aware data test, one law for every engine: a
+            // candle takes a column only when the data it would paint
+            // exists and overlaps the frame. Official rows cover the
+            // bar's price range, so the range overlap test serves
+            // every engine; the Footprint engine additionally demands
+            // that the bar's own footprint object exists in history,
+            // so a candle without official data, including the
+            // still-building one when its rows have not been
+            // published, is skipped exactly as the window law demands.
+            int barLoT = int(math.round(low[i]  / tick))
+            int barHiT = int(math.round(high[i] / tick))
+            inFrame := barLoT <= axisTick + viewTicksInput and barHiT >= axisTick - viewTicksInput
+            if useFpEngine and inFrame
+                inFrame := not na(engFp[i])
+        if inFrame
+            // Engine-aware column source: the Footprint engine reads
+            // the bar's stored official rows and the other engines
+            // keep the analytic Gaussian split, with one shared
+            // output contract on the frame.
+            [bR, sR, _, _, _, _, bIm, sIm] = if useFpEngine
+                f_fpViewRows(engFp[i], axisTick, viewTicksInput)
+            else
+                f_gaussViewRows(engBuy[i], engSell[i], high[i], low[i], close[i], axisTick, viewTicksInput, tick, bellDivInput, imbPctInput)
+            // A bar whose official rows all fell outside the frame
+            // carries no visible data; skip it so the window slot
+            // goes to the next bar that actually paints cells.
+            bool hasFrameData = false
+            for k = 0 to 2 * viewTicksInput
+                if not na(array.get(bR, k)) or not na(array.get(sR, k))
+                    hasFrameData := true
+                    break
+            if hasFrameData
+                found += 1
+                array.push(fpBars, FpBar.new(
+                     offset    = i,
+                     buyTotal  = engBuy[i],
+                     sellTotal = engSell[i],
+                     buyRows   = bR,
+                     sellRows  = sR,
+                     buyImb    = bIm,
+                     sellImb   = sIm))
+
+    // Intrabar coverage: consecutive bars back from the newest whose
+    // library volume is valid. A pure report; nothing is substituted.
+    if useIbEngine
+        int covBars = 0
+        for i = 0 to lastIdx
+            if na(engBuy[i])
+                break
+            covBars += 1
+        ibCovBars := covBars
+
+    // Dashboard control level, display-independent: the window POC is
+    // recomputed here on every update, with the same row-sum rule the
+    // table and the mobile dashboard use, so the "Dashboard POC" alert
+    // series stays live under every table and mobile setting.
+    pocDashLevel := na
+    if array.size(fpBars) > 0
+        int nRowsCtl = 2 * viewTicksInput + 1
+        array<float> ctlRowSum = array.new<float>(nRowsCtl, 0.0)
+        for fp in fpBars
+            for k = 0 to nRowsCtl - 1
+                array.set(ctlRowSum, k, array.get(ctlRowSum, k) + nz(array.get(fp.buyRows, k)) + nz(array.get(fp.sellRows, k)))
+        float ctlBest = 0.0
+        int   ctlRowK = -1
+        for k = 0 to nRowsCtl - 1
+            float lvlVol = array.get(ctlRowSum, k)
+            if lvlVol > ctlBest
+                ctlBest := lvlVol
+                ctlRowK := k
+        if ctlRowK >= 0
+            pocDashLevel := (axisTick - viewTicksInput + ctlRowK) * tick
+
+// ─────────────────────── Outputs ───────────────────────
+// Data window only: the ladder has no chart drawing of its own yet.
+
+plot(engBuy,           "Buy Volume",         color = COL_FWD, display = display.data_window, editable = false)
+plot(engSell,          "Sell Volume",        color = COL_REV, display = display.data_window, editable = false)
+plot(engBuy + engSell, "Total Volume",       display = display.data_window, editable = false)
+plot(buyShare * 100,   "Buy Share %",        color = COL_FWD, display = display.data_window, editable = false, precision = 1)
+plot(sellShare * 100,  "Sell Share %",       color = COL_REV, display = display.data_window, editable = false, precision = 1)
+
+// ─────────────────────── Footprint table ───────────────────────
+// One sell/buy column pair per window bar plus a price column on the
+// left. Rows top to bottom: header, one row per lattice level from
+// the frame top down, totals, and delta. The
+// dimensions come from the inputs, so changing an input recreates the
+// table. Cells are populated on the last bar only.
+
+int nViewRows = 2 * viewTicksInput + 1
+var table fpTable = na
+
+if barstate.isfirst and not mobileModeInput
+    fpTable := table.new(
+         position     = tablePosition,
+         columns      = 4 + 2 * windowInput,
+         rows         = nViewRows + 4,
+         bgcolor      = colPanelBg,
+         frame_color  = colFrame,
+         frame_width  = 1,
+         border_color = colFrame,
+         border_width = 1)
+
+if barstate.islast and not na(volume) and showTableInput and not mobileModeInput
+    float tick = syminfo.mintick
+    int   w    = array.size(fpBars)
+    // Wipe the data region (lattice rows) so cells that move between
+    // updates, like the metrics marker, leave no stale copies behind.
+    // The status, header, total, and delta rows sit outside this
+    // range, so their merges survive.
+    table.clear(fpTable, 0, 2, 2 * windowInput + 3, nViewRows + 1)
+    // One scan sets the tint scales and accumulates the per-level
+    // window sums for the sum column.
+    float maxCell = 0.0
+    float winBuy  = 0.0
+    float winSell = 0.0
+    var array<float> rowSumB = array.new<float>(nViewRows, 0.0)
+    var array<float> rowSumS = array.new<float>(nViewRows, 0.0)
+    array.fill(rowSumB, 0.0)
+    array.fill(rowSumS, 0.0)
+    for fp in fpBars
+        winBuy  += fp.buyTotal
+        winSell += fp.sellTotal
+        for k = 0 to nViewRows - 1
+            float bCell = nz(array.get(fp.buyRows, k))
+            float sCell = nz(array.get(fp.sellRows, k))
+            maxCell := math.max(maxCell, math.max(bCell, sCell))
+            array.set(rowSumB, k, array.get(rowSumB, k) + bCell)
+            array.set(rowSumS, k, array.get(rowSumS, k) + sCell)
+    // Sum-column tint scale: the busiest summed level.
+    float maxRowSum = 0.0
+    for k = 0 to nViewRows - 1
+        maxRowSum := math.max(maxRowSum, math.max(array.get(rowSumB, k), array.get(rowSumS, k)))
+
+    bool pocDash = pocScopeInput == MetricScope.dashboard or pocScopeInput == MetricScope.both
+    bool vaDash = vaScopeInput == MetricScope.dashboard or vaScopeInput == MetricScope.both
+    bool needPocRow = pocDash or vaDash or imbShowInput
+    int  pocRowK = -1
+    // Dashboard Point of Control: the in-frame lattice row whose
+    // summed buy-plus-sell volume is greatest, one rule for every
+    // engine so the metrics column always reads the window's own
+    // horizontal picture.
+    if needPocRow
+        float pocBest = 0.0
+        for k = 0 to nViewRows - 1
+            float lvlVol = array.get(rowSumB, k) + array.get(rowSumS, k)
+            if lvlVol > pocBest
+                pocBest := lvlVol
+                pocRowK := k
+
+    // Dashboard Value Area: classical expansion from the POC row
+    // outward, one rule for every engine.
+    int vahRowK = -1
+    int valRowK = -1
+    if vaDash and pocRowK >= 0
+        float vaTotal = 0.0
+        for k = 0 to nViewRows - 1
+            vaTotal += array.get(rowSumB, k) + array.get(rowSumS, k)
+        float vaTarget = vaPctInput / 100.0 * vaTotal
+        float vaAcc    = array.get(rowSumB, pocRowK) + array.get(rowSumS, pocRowK)
+        int   vaLo     = pocRowK
+        int   vaHi     = pocRowK
+        // Boundary-guarded expansion, the same guard as the chart
+        // Value Area: an exhausted side is never stepped again, so
+        // the loop ends after at most nViewRows passes.
+        while vaAcc < vaTarget and (vaLo > 0 or vaHi < nViewRows - 1)
+            bool  vaCanUp = vaHi < nViewRows - 1
+            bool  vaCanDn = vaLo > 0
+            float volUp   = vaCanUp ? array.get(rowSumB, vaHi + 1) + array.get(rowSumS, vaHi + 1) : 0.0
+            float volDn   = vaCanDn ? array.get(rowSumB, vaLo - 1) + array.get(rowSumS, vaLo - 1) : 0.0
+            if not vaCanUp
+                vaLo -= 1
+                vaAcc += volDn
+            else if not vaCanDn
+                vaHi += 1
+                vaAcc += volUp
+            else if volUp >= volDn
+                vaHi += 1
+                vaAcc += volUp
+            else
+                vaLo -= 1
+                vaAcc += volDn
+        vahRowK := vaHi
+        valRowK := vaLo
+    // Window-scale imbalance: the same diagonal rule the cells use,
+    // applied to the summed levels of the Sum column, so the metrics
+    // column and the sum column always tell one story.
+    var array<bool> wBuyImb  = array.new<bool>(nViewRows, false)
+    var array<bool> wSellImb = array.new<bool>(nViewRows, false)
+    array.fill(wBuyImb, false)
+    array.fill(wSellImb, false)
+    if imbShowInput
+        float wImbRatio = imbPctInput / 100.0
+        for k = 1 to nViewRows - 1
+            float wb = array.get(rowSumB, k)
+            if wb > 0.0 and wb > array.get(rowSumS, k - 1) * wImbRatio
+                array.set(wBuyImb, k, true)
+        for k = 0 to nViewRows - 2
+            float ws = array.get(rowSumS, k)
+            if ws > 0.0 and ws > array.get(rowSumB, k + 1) * wImbRatio
+                array.set(wSellImb, k, true)
+    // Exactly the chart's rule, applied to the window: from the POC
+    // row outward, only the first imbalanced level above and the
+    // first below carry marks anywhere in the table.
+    int  wImbUpK   = -1
+    bool wImbUpBuy = false
+    int  wImbDnK   = -1
+    bool wImbDnBuy = false
+    if imbShowInput and pocRowK >= 0
+        if pocRowK < nViewRows - 1
+            for k = pocRowK + 1 to nViewRows - 1
+                if array.get(wBuyImb, k) or array.get(wSellImb, k)
+                    wImbUpK   := k
+                    wImbUpBuy := array.get(wBuyImb, k)
+                    break
+        if pocRowK > 0
+            for stp = 1 to pocRowK
+                int k = pocRowK - stp
+                if array.get(wBuyImb, k) or array.get(wSellImb, k)
+                    wImbDnK   := k
+                    wImbDnBuy := array.get(wBuyImb, k)
+                    break
+    // Metrics column beside price, then the price column, then the
+    // sum pair, all on the table's right edge.
+    int metCol   = 2 * windowInput
+    int priceCol = 2 * windowInput + 1
+    int sumL     = 2 * windowInput + 2
+    // Status row: one merged neon banner across the full table width.
+    // Its background follows the sign of the current change: forward
+    // blue when the bar is up, reverse red when it is down.
+    // Live figures of the active engine, read raw. On a bar the engine
+    // cannot fill they stay na, and the banner reports the absence
+    // instead of printing a zero the market never traded.
+    float nowBuy  = engBuy
+    float nowSell = engSell
+    float nowTot  = nowBuy + nowSell
+    float prevCls = close[1]
+    float chgPct  = not na(prevCls) and prevCls != 0.0 ? 100.0 * (close - prevCls) / prevCls : na
+    string chgTxt = na(chgPct) ? "" : "  " + (chgPct >= 0.0 ? "+" : "") + str.tostring(chgPct, "#.##") + "%"
+    bool  buyLeads = nowBuy >= nowSell
+    float leadPct  = nowTot > 0.0 ? 100.0 * math.abs(nowBuy - nowSell) / nowTot : na
+    string leadTxt = na(leadPct) ? "" : "  ·  " + (buyLeads ? "▲ BUY +" : "▼ SELL +") + str.tostring(leadPct, "#.#") + "%"
+    string volTxt  = (nowSell > 0.0 ? "  ·  ▼-" + str.tostring(nowSell, format.volume) : "") + (nowBuy > 0.0 ? "  ·  ▲+" + str.tostring(nowBuy, format.volume) : "")
+    string engTxt  = engineInput == VolumeEngine.footprint ? "FOOTPRINT" : useIbEngine ? "INTRABAR " + ltfInput : "GEOMETRIC"
+    string covTxt  = na(ibCovBars) ? "" : "  ·  DATA " + str.tostring(ibCovBars) + " BARS"
+    string volTot  = na(nowTot) ? "  ·  NO ENGINE DATA" : "  ·  VOL " + str.tostring(nowTot, format.volume)
+    string statTxt = "$" + syminfo.ticker + "  ·  " + engTxt + "  ·  " + str.tostring(close, format.mintick) + chgTxt + volTot + volTxt + leadTxt + covTxt
+    color statBg = na(chgPct) ? colPanelBg : chgPct >= 0.0 ? color.new(COL_FWD, 15) : color.new(COL_REV, 15)
+    table.cell(fpTable, 0, 0, statTxt, text_color = color.white, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = statBg, tooltip = TT_C_STAT)
+    table.cell(fpTable, metCol, 1, "Metrics", text_color = colMutedText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_METRICS)
+    table.cell(fpTable, sumL, 1, "Sum", text_color = colMutedText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_C_SUM)
+    float winTot = winBuy + winSell
+    float winDlt = winBuy - winSell
+    table.cell(fpTable, sumL, nViewRows + 2, str.tostring(winTot, format.volume),
+         text_color = colHeadText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_C_TOT)
+    table.cell(fpTable, sumL, nViewRows + 3, (winDlt >= 0.0 ? "+" : "-") + str.tostring(math.abs(winDlt), format.volume),
+         text_color = winDlt >= 0.0 ? colBuyText : colSellText, text_size = tableSizeInput, text_halign = text.align_center,
+         bgcolor = colBandBg, tooltip = TT_C_DELTA)
+    table.cell(fpTable, priceCol, 1,             "Price", text_color = colMutedText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_C_PRICE)
+    table.cell(fpTable, priceCol, nViewRows + 2, "Total", text_color = colMutedText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_C_TOT)
+    table.cell(fpTable, priceCol, nViewRows + 3, "Delta", text_color = colMutedText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_C_DELTA)
+    for k = 0 to nViewRows - 1
+        int  rowIdx  = 2 + (nViewRows - 1 - k)
+        int  rowTick = axisRowTick - viewTicksInput + k
+        bool isAxis  = rowTick == axisRowTick
+        table.cell(fpTable, priceCol, rowIdx, (isAxis ? "◀ " : "") + str.tostring(rowTick * tick, format.mintick),
+             text_color = isAxis ? colAxisText : colMutedText, text_size = tableSizeInput,
+             text_halign = text.align_center, bgcolor = isAxis ? colAxisBg : na,
+             tooltip = isAxis ? TT_C_AXIS : "")
+        if pocDash and k == pocRowK
+            float pocS = array.get(rowSumS, k)
+            float pocB = array.get(rowSumB, k)
+            // The chip wears the verdict of its own level: blue when
+            // buys dominate, red when sells do, neutral on a tie.
+            color pocFgCol = pocB > pocS ? colBuyText : pocS > pocB ? colSellText : colMetricText
+            color pocBgCol = pocB > pocS ? colImbBuyBg : pocS > pocB ? colImbSellBg : colMetricBg
+            table.cell(fpTable, metCol, rowIdx, "●  POC", text_color = pocFgCol, text_size = tableSizeInput,
+                 text_halign = text.align_center, bgcolor = pocBgCol,
+                 tooltip = TT_C_POC + "Sell " + str.tostring(pocS, format.volume) + "   ·   Buy " + str.tostring(pocB, format.volume) + "   ·   Total " + str.tostring(pocS + pocB, format.volume))
+        else if vaDash and k == vahRowK
+            float vahS = array.get(rowSumS, k)
+            float vahB = array.get(rowSumB, k)
+            table.cell(fpTable, metCol, rowIdx, "▲ VAH", text_color = colVaText, text_size = tableSizeInput,
+                 text_halign = text.align_center, bgcolor = colVaBg,
+                 tooltip = "Value Area High: the upper edge of the price band holding " + str.tostring(vaPctInput, "#") + "% of the window's traded volume.\nSell " + str.tostring(vahS, format.volume) + "   ·   Buy " + str.tostring(vahB, format.volume) + "   ·   Total " + str.tostring(vahS + vahB, format.volume))
+        else if vaDash and k == valRowK
+            float valS = array.get(rowSumS, k)
+            float valB = array.get(rowSumB, k)
+            table.cell(fpTable, metCol, rowIdx, "▼ VAL", text_color = colVaText, text_size = tableSizeInput,
+                 text_halign = text.align_center, bgcolor = colVaBg,
+                 tooltip = "Value Area Low: the lower edge of the price band holding " + str.tostring(vaPctInput, "#") + "% of the window's traded volume.\nSell " + str.tostring(valS, format.volume) + "   ·   Buy " + str.tostring(valB, format.volume) + "   ·   Total " + str.tostring(valS + valB, format.volume))
+        else if imbShowInput and ((k == wImbUpK and wImbUpBuy) or (k == wImbDnK and wImbDnBuy))
+            table.cell(fpTable, metCol, rowIdx, "▲ IMB", text_color = colBuyText, text_size = tableSizeInput,
+                 text_halign = text.align_center, bgcolor = colImbBuyBg,
+                 tooltip = "Window buy imbalance: over the whole window, the buy volume of this level exceeds the sell volume one level below by the threshold. One side overwhelmed the other here.")
+        else if imbShowInput and ((k == wImbUpK and not wImbUpBuy) or (k == wImbDnK and not wImbDnBuy))
+            table.cell(fpTable, metCol, rowIdx, "▼ IMB", text_color = colSellText, text_size = tableSizeInput,
+                 text_halign = text.align_center, bgcolor = colImbSellBg,
+                 tooltip = "Window sell imbalance: over the whole window, the sell volume of this level exceeds the buy volume one level above by the threshold. One side overwhelmed the other here.")
+        else if vaDash and k > valRowK and k < vahRowK and k != pocRowK
+            table.cell(fpTable, metCol, rowIdx, "", bgcolor = colVaBand)
+        float sumS2 = array.get(rowSumS, k)
+        float sumB2 = array.get(rowSumB, k)
+        // Empty side of a one-sided level is padded with a ghost run
+        // of x characters as long as the number it faces, so the two
+        // halves of the pair keep equal width.
+        string sSumTxt = sumS2 > 0.0 ? "-" + str.tostring(sumS2, format.volume) : ""
+        string bSumTxt = sumB2 > 0.0 ? "+" + str.tostring(sumB2, format.volume) : ""
+        string sSumOut = sSumTxt != "" ? sSumTxt : bSumTxt != "" ? str.repeat("x", str.length(bSumTxt)) : ""
+        string bSumOut = bSumTxt != "" ? bSumTxt : sSumTxt != "" ? str.repeat("x", str.length(sSumTxt)) : ""
+        table.cell(fpTable, sumL, rowIdx, sSumOut,
+             text_color = sSumTxt != "" ? colSellText : colGhostText, text_size = tableSizeInput, text_halign = text.align_right,
+             bgcolor = isAxis ? colAxisBg : f_cellBg(sumS2, maxRowSum, sellBgSteps), tooltip = TT_C_SUM)
+        table.cell(fpTable, sumL + 1, rowIdx, bSumOut,
+             text_color = bSumTxt != "" ? colBuyText : colGhostText, text_size = tableSizeInput, text_halign = text.align_left,
+             bgcolor = isAxis ? colAxisBg : f_cellBg(sumB2, maxRowSum, buyBgSteps), tooltip = TT_C_SUM)
+    // Bar columns, the newest candle in the rightmost pair. When the
+    // search fills only part of the window, the unused pairs sit on
+    // the left edge.
+    for [i, fp] in fpBars
+        int cL = 2 * (windowInput - 1 - i)
+        // Header of each candle column, tinted by that candle's own
+        // direction: forward blue when it closed up, reverse red down.
+        bool barUp = close[fp.offset] >= open[fp.offset]
+        table.cell(fpTable, cL, 1, str.tostring(-fp.offset),
+             text_color = barUp ? colBuyText : colSellText, text_size = tableSizeInput, text_halign = text.align_center,
+             bgcolor = barUp ? colHdrUpBg : colHdrDnBg, tooltip = TT_C_HDR)
+        // Lattice rows, one sell/buy cell pair per price level. The
+        // empty side of a one-sided level is padded with a ghost run
+        // of x characters as long as the number it faces, so the two
+        // halves of the pair keep equal width.
+        for k = 0 to nViewRows - 1
+            int   rowIdx = 2 + (nViewRows - 1 - k)
+            float sv      = array.get(fp.sellRows, k)
+            float bv      = array.get(fp.buyRows, k)
+            bool  axisRow = k == viewTicksInput
+            // Per-bar imbalance marks: the imbalanced side carries an
+            // arrow beside its number and a stronger wash behind it.
+            bool imbRowSel = k == wImbUpK or k == wImbDnK
+            bool sImbCell = imbShowInput and imbRowSel and array.get(fp.sellImb, k)
+            bool bImbCell = imbShowInput and imbRowSel and array.get(fp.buyImb, k)
+            string sTxt = not na(sv) and sv > 0.0 ? (sImbCell ? "▼ " : "") + "-" + str.tostring(sv, format.volume) : ""
+            string bTxt = not na(bv) and bv > 0.0 ? "+" + str.tostring(bv, format.volume) + (bImbCell ? " ▲" : "") : ""
+            string sOut = sTxt != "" ? sTxt : bTxt != "" ? str.repeat("x", str.length(bTxt)) : ""
+            string bOut = bTxt != "" ? bTxt : sTxt != "" ? str.repeat("x", str.length(sTxt)) : ""
+            table.cell(fpTable, cL, rowIdx, sOut,
+                 text_color = sTxt != "" ? colSellText : colGhostText, text_size = tableSizeInput, text_halign = text.align_right,
+                 bgcolor = axisRow ? colAxisBg : sImbCell ? colImbSellCell : f_cellBg(sv, maxCell, sellBgSteps), tooltip = TT_C_DATA)
+            table.cell(fpTable, cL + 1, rowIdx, bOut,
+                 text_color = bTxt != "" ? colBuyText : colGhostText, text_size = tableSizeInput, text_halign = text.align_left,
+                 bgcolor = axisRow ? colAxisBg : bImbCell ? colImbBuyCell : f_cellBg(bv, maxCell, buyBgSteps), tooltip = TT_C_DATA)
+        // Per-bar totals and delta.
+        float tot = fp.buyTotal + fp.sellTotal
+        float dlt = fp.buyTotal - fp.sellTotal
+        table.cell(fpTable, cL, nViewRows + 2, str.tostring(tot, format.volume),
+             text_color = colHeadText, text_size = tableSizeInput, text_halign = text.align_center, bgcolor = colBandBg, tooltip = TT_C_TOT)
+        table.cell(fpTable, cL, nViewRows + 3, (dlt >= 0.0 ? "+" : "-") + str.tostring(math.abs(dlt), format.volume),
+             text_color = dlt >= 0.0 ? colBuyText : colSellText, text_size = tableSizeInput, text_halign = text.align_center,
+             bgcolor = colBandBg, tooltip = TT_C_DELTA)
+    // Column pairs beyond the candles found on this update are
+    // blanked, so a shrinking window leaves no stale header, total,
+    // or delta behind.
+    if w < windowInput
+        for i = w to windowInput - 1
+            int cE = 2 * (windowInput - 1 - i)
+            table.cell(fpTable, cE, 1,             "")
+            table.cell(fpTable, cE, nViewRows + 2, "", bgcolor = colBandBg)
+            table.cell(fpTable, cE, nViewRows + 3, "", bgcolor = colBandBg)
+    // Merge the status spans once, then each column pair's header,
+    // total, and delta, covering every allocated pair independent of
+    // how many candles were found.
+    var bool pairsMerged = false
+    if not pairsMerged
+        table.merge_cells(fpTable, 0, 0, 2 * windowInput + 3, 0)
+        for i = 0 to windowInput - 1
+            int cM = 2 * i
+            table.merge_cells(fpTable, cM, 1,             cM + 1, 1)
+            table.merge_cells(fpTable, cM, nViewRows + 2, cM + 1, nViewRows + 2)
+            table.merge_cells(fpTable, cM, nViewRows + 3, cM + 1, nViewRows + 3)
+        table.merge_cells(fpTable, sumL, 1,             sumL + 1, 1)
+        table.merge_cells(fpTable, sumL, nViewRows + 2, sumL + 1, nViewRows + 2)
+        table.merge_cells(fpTable, sumL, nViewRows + 3, sumL + 1, nViewRows + 3)
+        pairsMerged := true
+
+// Warning panel for symbols that publish no volume data, drawn on the
+// last bar only.
+if barstate.islast and na(volume)
+    var table warnTable = table.new(position.top_center, 1, 1, color.new(#B71C1C, 15))
+    table.cell(warnTable, 0, 0, "This symbol publishes no volume data.\nThe footprint engine has nothing to split.",
+         text_color = color.new(#FFCDD2, 0), text_size = 12)
+
+// ─────────────────────── Volume profile ───────────────────────
+// Two truncated-normal mixture bells over the highest-high to
+// lowest-low span of the profile period, one fed by buy volume and
+// one by sell volume, drawn as closed polylines opening rightward
+// from a shared baseline one bar past the last bar. Flat bars have
+// zero variance and enter the model as point atoms, never the
+// curves. The overlapping coefficient of the two sides is the
+// integral of the pointwise minimum of the volume-normalized
+// densities plus the matched atomic masses. Integration is composite
+// Simpson on pieces cut at every bar boundary, where the mixture
+// jumps, and at every crossing of the two densities, located by
+// bisection to machine tolerance; each piece's active components are
+// fixed by its midpoint, so every integrand is smooth. The engine
+// runs on the last bar whether or not the drawing is shown, keeping
+// the data-window figures alive.
+
+var polyline profBuyPl  = na
+var polyline profSellPl = na
+var line     profLoLn   = na
+var line     profHiLn   = na
+var line     profPocLn  = na
+var line     profVahLn  = na
+var line     profValLn  = na
+var label    profOvlLb  = na
+var label    profResLb  = na
+var array<line> profImbLns = array.new<line>()
+
+// @type One price-anchored chart mark headed for the label renderer.
+//       The blocks that discover levels push marks here instead of
+//       drawing their own labels, so a single renderer can see every
+//       mark at once, cluster the close ones, and draw labels that
+//       never cover each other.
+// @field price Price level the mark sits on.
+// @field txt The one line of text this mark contributes.
+// @field fg Text color of the mark's own chip.
+// @field bg Background color of the mark's own chip.
+// @field prio Merge priority: POC 3, Value Area 2, Imbalance 1.
+// @field ln The mark's own horizontal line, for exact-price line merging.
+type ChartMark
+    float  price
+    string txt
+    color  fg
+    color  bg
+    int    prio
+    line   ln
+
+var array<ChartMark> chartMarks = array.new<ChartMark>()
+var array<label>     profMrgLbs = array.new<label>()
+
+var float profOvl       = na
+var float profResidual  = na
+var float profTilt      = na
+
+if barstate.islast and not na(volume)
+    if not na(profBuyPl)
+        polyline.delete(profBuyPl)
+    if not na(profSellPl)
+        polyline.delete(profSellPl)
+    if not na(profLoLn)
+        line.delete(profLoLn)
+    if not na(profHiLn)
+        line.delete(profHiLn)
+    if not na(profPocLn)
+        line.delete(profPocLn)
+    if not na(profVahLn)
+        line.delete(profVahLn)
+    if not na(profValLn)
+        line.delete(profValLn)
+    if not na(profOvlLb)
+        label.delete(profOvlLb)
+    if not na(profResLb)
+        label.delete(profResLb)
+    for ln in profImbLns
+        line.delete(ln)
+    array.clear(profImbLns)
+    for mlb in profMrgLbs
+        label.delete(mlb)
+    array.clear(profMrgLbs)
+    array.clear(chartMarks)
+    profOvl       := na
+    profResidual  := na
+    profTilt      := na
+    pocChartSell  := na
+    pocChartBuy   := na
+    // Component construction: one truncated bell per side per bar
+    // with range, plus per-price atoms for flat bars.
+    array<ProfComp> compsB    = array.new<ProfComp>()
+    array<ProfComp> compsS    = array.new<ProfComp>()
+    array<float> atomPrices   = array.new<float>()
+    array<float> atomBuys     = array.new<float>()
+    array<float> atomSells    = array.new<float>()
+    float sumB   = 0.0
+    float sumS   = 0.0
+    float atomB  = 0.0
+    float atomS  = 0.0
+    float profLo = na
+    float profHi = na
+    int   profDataBars = 0
+    for i = 0 to profPeriodInput - 1
+        float barH = high[i]
+        float barL = low[i]
+        float barC = close[i]
+        float bv   = engBuy[i]
+        float sv   = engSell[i]
+        if not (na(barH) or na(barL) or na(barC) or na(bv) or na(sv))
+            profDataBars += 1
+            profLo := na(profLo) ? barL : math.min(profLo, barL)
+            profHi := na(profHi) ? barH : math.max(profHi, barH)
+            sumB += bv
+            sumS += sv
+            float rng = barH - barL
+            if rng <= 0.0
+                array.push(atomPrices, barC)
+                array.push(atomBuys, bv)
+                array.push(atomSells, sv)
+                atomB += bv
+                atomS += sv
+            else
+                float sg  = rng / bellDivInput
+                float muB = barL + (barC - barL) / 2.0
+                float muS = barC + (barH - barC) / 2.0
+                float zB  = f_profNormCdf((barH - muB) / sg) - f_profNormCdf((barL - muB) / sg)
+                float zS  = f_profNormCdf((barH - muS) / sg) - f_profNormCdf((barL - muS) / sg)
+                if bv > 0.0 and zB > 0.0
+                    array.push(compsB, ProfComp.new(muB, sg, bv / (sg * zB), barL, barH))
+                if sv > 0.0 and zS > 0.0
+                    array.push(compsS, ProfComp.new(muS, sg, sv / (sg * zS), barL, barH))
+    if not na(profLo) and sumB + sumS > 0.0
+        // Piece boundaries: the span edges and every component's
+        // truncation bounds from both sides, sorted and deduplicated.
+        array<float> bps = array.new<float>()
+        array.push(bps, profLo)
+        array.push(bps, profHi)
+        for comp in compsB
+            array.push(bps, comp.priceLo)
+            array.push(bps, comp.priceHi)
+        for comp in compsS
+            array.push(bps, comp.priceLo)
+            array.push(bps, comp.priceHi)
+        array.sort(bps, order.ascending)
+        array<float> cutsAll = array.new<float>()
+        float prevBp = na
+        for bpv in bps
+            if na(prevBp) or bpv != prevBp
+                array.push(cutsAll, bpv)
+            prevBp := bpv
+        float intB   = 0.0
+        float intS   = 0.0
+        float intMin = 0.0
+        int nPieces = array.size(cutsAll) - 1
+        if nPieces >= 1
+            for seg = 0 to nPieces - 1
+                float segLo = array.get(cutsAll, seg)
+                float segHi = array.get(cutsAll, seg + 1)
+                float segMid = 0.5 * (segLo + segHi)
+                // The active set is decided once at the piece midpoint,
+                // so the integrand stays smooth across the whole piece.
+                array<ProfComp> actB = array.new<ProfComp>()
+                array<ProfComp> actS = array.new<ProfComp>()
+                float sgMin = na
+                for comp in compsB
+                    if comp.priceLo <= segMid and segMid <= comp.priceHi
+                        array.push(actB, comp)
+                        sgMin := na(sgMin) ? comp.sigma : math.min(sgMin, comp.sigma)
+                for comp in compsS
+                    if comp.priceLo <= segMid and segMid <= comp.priceHi
+                        array.push(actS, comp)
+                        sgMin := na(sgMin) ? comp.sigma : math.min(sgMin, comp.sigma)
+                if not na(sgMin) and segHi > segLo
+                    // Composite Simpson, step bounded by the smallest
+                    // active sigma so the quartic error term stays small.
+                    int nSub = math.max(12, int(math.ceil(16.0 * (segHi - segLo) / sgMin)))
+                    nSub += nSub % 2
+                    float hStep = (segHi - segLo) / nSub
+                    float accB = f_profDensity(segLo, actB) + f_profDensity(segHi, actB)
+                    float accS = f_profDensity(segLo, actS) + f_profDensity(segHi, actS)
+                    for k = 1 to nSub - 1
+                        float xk = segLo + k * hStep
+                        float wgt = k % 2 == 1 ? 4.0 : 2.0
+                        accB += wgt * f_profDensity(xk, actB)
+                        accS += wgt * f_profDensity(xk, actS)
+                    intB += accB * hStep / 3.0
+                    intS += accS * hStep / 3.0
+                    // Overlap term: cut the piece at every crossing of
+                    // the normalized densities, then integrate the
+                    // smaller side of each sub-piece.
+                    if sumB > 0.0 and sumS > 0.0
+                        array<float> subCuts = array.new<float>()
+                        array.push(subCuts, segLo)
+                        int scanN = 12
+                        float dPrev = f_profDensity(segLo, actB) / sumB - f_profDensity(segLo, actS) / sumS
+                        for j = 1 to scanN
+                            float xj = segLo + (segHi - segLo) * j / scanN
+                            float dCur = f_profDensity(xj, actB) / sumB - f_profDensity(xj, actS) / sumS
+                            if dPrev * dCur < 0.0
+                                float rLo = segLo + (segHi - segLo) * (j - 1) / scanN
+                                float rHi = xj
+                                int iter = 0
+                                while rHi - rLo > math.abs(0.5 * (rLo + rHi)) * 2.3e-16 and iter < 90
+                                    float rMid = 0.5 * (rLo + rHi)
+                                    float dLo2 = f_profDensity(rLo, actB) / sumB - f_profDensity(rLo, actS) / sumS
+                                    float dMid = f_profDensity(rMid, actB) / sumB - f_profDensity(rMid, actS) / sumS
+                                    if dLo2 * dMid <= 0.0
+                                        rHi := rMid
+                                    else
+                                        rLo := rMid
+                                    iter += 1
+                                array.push(subCuts, 0.5 * (rLo + rHi))
+                            dPrev := dCur
+                        array.push(subCuts, segHi)
+                        for j = 0 to array.size(subCuts) - 2
+                            float subLo = array.get(subCuts, j)
+                            float subHi = array.get(subCuts, j + 1)
+                            if subHi > subLo
+                                float subMid = 0.5 * (subLo + subHi)
+                                bool useBuy = f_profDensity(subMid, actB) / sumB <= f_profDensity(subMid, actS) / sumS
+                                int n2 = math.max(12, int(math.ceil(16.0 * (subHi - subLo) / sgMin)))
+                                n2 += n2 % 2
+                                float h2 = (subHi - subLo) / n2
+                                float accM = useBuy ? f_profDensity(subLo, actB) / sumB + f_profDensity(subHi, actB) / sumB : f_profDensity(subLo, actS) / sumS + f_profDensity(subHi, actS) / sumS
+                                for k = 1 to n2 - 1
+                                    float xk2 = subLo + k * h2
+                                    float wgt2 = k % 2 == 1 ? 4.0 : 2.0
+                                    accM += useBuy ? wgt2 * f_profDensity(xk2, actB) / sumB : wgt2 * f_profDensity(xk2, actS) / sumS
+                                intMin += accM * h2 / 3.0
+        // Atomic overlap: atoms sharing one exact price pool their
+        // probability mass per side; the matched minimum joins the OVL.
+        float atomTerm = 0.0
+        int nAtoms = array.size(atomPrices)
+        if nAtoms > 0 and sumB > 0.0 and sumS > 0.0
+            array<bool> atomUsed = array.new<bool>(nAtoms, false)
+            for a1 = 0 to nAtoms - 1
+                if not array.get(atomUsed, a1)
+                    float pMassB = 0.0
+                    float pMassS = 0.0
+                    for a2 = a1 to nAtoms - 1
+                        if not array.get(atomUsed, a2) and array.get(atomPrices, a2) == array.get(atomPrices, a1)
+                            array.set(atomUsed, a2, true)
+                            pMassB += array.get(atomBuys, a2)
+                            pMassS += array.get(atomSells, a2)
+                    atomTerm += math.min(pMassB / sumB, pMassS / sumS)
+        float residB = sumB > 0.0 ? math.abs((intB + atomB) / sumB - 1.0) : 0.0
+        float residS = sumS > 0.0 ? math.abs((intS + atomS) / sumS - 1.0) : 0.0
+        // Residual carried in parts per million, so the chart label and
+        // the alert menu both read a figure a human can compare.
+        profResidual  := (residB + residS) * 1000000.0
+        profOvl       := sumB > 0.0 and sumS > 0.0 ? 100.0 * (intMin + atomTerm) : na
+
+        // Balance tilt: which side carried more of the period's volume,
+        // in percentage points of the total. Positive leans to the buy
+        // side, negative to the sell side.
+        profTilt      := sumB + sumS > 0.0 ? 100.0 * (sumB - sumS) / (sumB + sumS) : na
+        // Drawing: sampled intensity curves as straight-segment closed
+        // polylines. Straight segments trace the sampled values without
+        // inventing curvature between them; smoothness comes from the
+        // resolution. The horizontal scale is shared by the visible
+        // sides, so relative bell size reflects real volume dominance.
+        float span = profHi - profLo
+        // Frame lines capping the profile at the period's lowest low
+        // and highest high, spanning the covered bars and the bells.
+        if profShowInput and span > 0.0
+            int frameL = bar_index - (profPeriodInput - 1)
+            int frameR = bar_index + 1 + profWidthInput
+            profLoLn := line.new(frameL, profLo, frameR, profLo, xloc = xloc.bar_index, color = profLineColInput, style = profLineStyle, width = profLineWidthInput)
+            // Health reading, mirrored under the floor line. It carries
+            // the drift in parts per million and turns red only once that
+            // drift clears the tolerance.
+            if not na(profResidual)
+                bool resOk = profResidual <= resTolInput
+                profResLb := label.new(bar_index + 1, profLo, "RES  " + str.tostring(profResidual, "0.0000") + " PPM   ·   " + (resOk ? "EXACT" : "DRIFT"),
+                     xloc = xloc.bar_index, style = label.style_label_up, color = resOk ? colMetricBg : colImbSellBg,
+                     textcolor = resOk ? colMetricText : colSellText, size = tableSizeInput, tooltip = TT_C_RES)
+            profHiLn := line.new(frameL, profHi, frameR, profHi, xloc = xloc.bar_index, color = profLineColInput, style = profLineStyle, width = profLineWidthInput)
+            // Balance reading, sitting where the profile body meets the
+            // ceiling line. In balance the label stays neutral. Out of
+            // balance it names the heavier side and wears that side's
+            // colour, and when the two sides are too close to call it
+            // reports the imbalance without inventing a direction.
+            if not na(profOvl)
+                float  ovlCoef  = profOvl / 100.0
+                bool   ovlBal   = ovlCoef >= 0.75
+                bool   tiltBuy  = not na(profTilt) and profTilt >= ovlTiltInput
+                bool   tiltSell = not na(profTilt) and profTilt <= -ovlTiltInput
+                string ovlWord  = ovlBal ? "BALANCED" : tiltBuy ? "OFF BALANCE TO BUY" : tiltSell ? "OFF BALANCE TO SELL" : "OFF BALANCE"
+                color  ovlFg    = ovlBal ? colMetricText : tiltBuy ? colBuyText : tiltSell ? colSellText : colMetricText
+                color  ovlBg    = ovlBal ? colMetricBg : tiltBuy ? colImbBuyBg : tiltSell ? colImbSellBg : colMetricBg
+                string covNote = profDataBars < profPeriodInput ? "   ·   BARS " + str.tostring(profDataBars) + " / " + str.tostring(profPeriodInput) : ""
+                profOvlLb := label.new(bar_index + 1, profHi, "OVL  " + str.tostring(ovlCoef, "0.00") + "   ·   " + ovlWord + covNote,
+                     xloc = xloc.bar_index, style = label.style_label_down, color = ovlBg,
+                     textcolor = ovlFg, size = tableSizeInput, tooltip = TT_C_OVL)
+        if profShowInput and span > 0.0 and (profBuyInput or profSellInput)
+            int res = profResInput
+            array<float> buyVals  = array.new<float>(res + 1, 0.0)
+            array<float> sellVals = array.new<float>(res + 1, 0.0)
+            float pxStep = span / res
+            float vMax   = 0.0
+            // Chart Point of Control: the sampled price whose total
+            // buy-plus-sell curve height is greatest, tracked as the
+            // curve is sampled so no extra scan is needed.
+            bool  pocChart = pocScopeInput == MetricScope.chart or pocScopeInput == MetricScope.both
+            bool  vaChart  = vaScopeInput == MetricScope.chart or vaScopeInput == MetricScope.both
+            float pocTot   = -1.0
+            float pocPrice = na
+            for k = 0 to res
+                float pk = profLo + k * pxStep
+                float vb2 = f_profDensity(pk, compsB)
+                float vs2 = f_profDensity(pk, compsS)
+                array.set(buyVals, k, vb2)
+                array.set(sellVals, k, vs2)
+                if profBuyInput
+                    vMax := math.max(vMax, vb2)
+                if profSellInput
+                    vMax := math.max(vMax, vs2)
+                if (pocChart or vaChart or imbShowInput) and vb2 + vs2 > pocTot
+                    pocTot   := vb2 + vs2
+                    pocPrice := pk
+            if pocChart and not na(pocPrice)
+                pocChartLevel := pocPrice
+                int pocL = bar_index - (profPeriodInput - 1)
+                int pocR = bar_index + 1 + profWidthInput + pocOffsetInput
+                // Band volumes of the control level over the one-tick
+                // band the table would call a row, so both domains report
+                // the same kind of figure. Their comparison sets the
+                // level's verdict colour: blue when buys dominate, red
+                // when sells do, neutral orange on a tie.
+                float pocTick = syminfo.mintick
+                float pocBLo  = pocPrice - pocTick / 2.0
+                float pocBHi  = pocPrice + pocTick / 2.0
+                float pocSell = f_profBandMass(pocBLo, pocBHi, compsS)
+                float pocBuy  = f_profBandMass(pocBLo, pocBHi, compsB)
+                pocChartSell := pocSell
+                pocChartBuy  := pocBuy
+                color pocFgCol = pocBuy > pocSell ? colBuyText : pocSell > pocBuy ? colSellText : colMetricText
+                color pocBgCol = pocBuy > pocSell ? colImbBuyBg : pocSell > pocBuy ? colImbSellBg : colMetricBg
+                profPocLn := line.new(pocL, pocPrice, pocR, pocPrice, xloc = xloc.bar_index, color = pocFgCol, width = 2)
+                // The control level hands the renderer one mark carrying
+                // its whole story: the control price, the sell volume, and
+                // the buy volume of its one-tick band, at the top merge
+                // priority.
+                array.push(chartMarks, ChartMark.new(pocPrice,
+                     "POC  " + str.tostring(pocPrice, format.mintick) + "   ▼-" + str.tostring(pocSell, format.volume) + "   ▲+" + str.tostring(pocBuy, format.volume),
+                     pocFgCol, pocBgCol, 3, profPocLn))
+            // Chart Value Area: expand from the sampled POC index
+            // outward, adding the neighbouring sample with more total
+            // height at each step, until the accumulated height
+            // reaches the target share of the full curve.
+            if vaChart and not na(pocPrice) and res > 0
+                int cPocIdx = int(math.round((pocPrice - profLo) / pxStep))
+                cPocIdx := math.max(0, math.min(res, cPocIdx))
+                float cvTotal = 0.0
+                for k = 0 to res
+                    cvTotal += array.get(buyVals, k) + array.get(sellVals, k)
+                float cvTarget = vaPctInput / 100.0 * cvTotal
+                float cvAcc    = array.get(buyVals, cPocIdx) + array.get(sellVals, cPocIdx)
+                int   cvLo     = cPocIdx
+                int   cvHi     = cPocIdx
+                // Boundary-guarded expansion: an exhausted side is never
+                // stepped again, so every pass moves one boundary inside
+                // the range and the loop ends after at most res + 1 passes.
+                while cvAcc < cvTarget and (cvLo > 0 or cvHi < res)
+                    bool  canUp = cvHi < res
+                    bool  canDn = cvLo > 0
+                    float vUp   = canUp ? array.get(buyVals, cvHi + 1) + array.get(sellVals, cvHi + 1) : 0.0
+                    float vDn   = canDn ? array.get(buyVals, cvLo - 1) + array.get(sellVals, cvLo - 1) : 0.0
+                    if not canUp
+                        cvLo -= 1
+                        cvAcc += vDn
+                    else if not canDn
+                        cvHi += 1
+                        cvAcc += vUp
+                    else if vUp >= vDn
+                        cvHi += 1
+                        cvAcc += vUp
+                    else
+                        cvLo -= 1
+                        cvAcc += vDn
+                float vahP = profLo + cvHi * pxStep
+                float valP = profLo + cvLo * pxStep
+                int   vaL  = bar_index - (profPeriodInput - 1)
+                int   vaR  = bar_index + 1 + profWidthInput + pocOffsetInput
+                profVahLn := line.new(vaL, vahP, vaR, vahP, xloc = xloc.bar_index, color = colVaText, width = 1, style = line.style_dashed)
+                profValLn := line.new(vaL, valP, vaR, valP, xloc = xloc.bar_index, color = colVaText, width = 1, style = line.style_dashed)
+                array.push(chartMarks, ChartMark.new(vahP, "▲ VAH  " + str.tostring(vahP, format.mintick),
+                     colVaText, colVaBg, 2, profVahLn))
+                array.push(chartMarks, ChartMark.new(valP, "▼ VAL  " + str.tostring(valP, format.mintick),
+                     colVaText, colVaBg, 2, profValLn))
+            // Chart imbalance: from the POC outward, the first
+            // imbalanced sample above and the first below, at most
+            // one dotted line per side. Each level keeps the color
+            // of its own dominant side, and its label carries the
+            // one-tick band volumes so the figure matches the POC
+            // label's unit.
+            if imbShowInput and res > 0 and not na(pocPrice)
+                float cImbRatio = imbPctInput / 100.0
+                int   imbL  = bar_index - (profPeriodInput - 1)
+                int   imbR  = bar_index + 1 + profWidthInput + pocOffsetInput
+                int   cPocK = int(math.round((pocPrice - profLo) / pxStep))
+                cPocK := math.max(0, math.min(res, cPocK))
+                int  upK   = -1
+                bool upBuy = false
+                if cPocK < res
+                    for k = cPocK + 1 to res
+                        bool hitB = array.get(buyVals, k) > 0.0 and array.get(buyVals, k) > array.get(sellVals, k - 1) * cImbRatio
+                        bool hitS = k <= res - 1 and array.get(sellVals, k) > 0.0 and array.get(sellVals, k) > array.get(buyVals, k + 1) * cImbRatio
+                        if hitB or hitS
+                            upK   := k
+                            upBuy := hitB
+                            break
+                int  dnK   = -1
+                bool dnBuy = false
+                if cPocK > 0
+                    for step = 1 to cPocK
+                        int k = cPocK - step
+                        bool hitB = k >= 1 and array.get(buyVals, k) > 0.0 and array.get(buyVals, k) > array.get(sellVals, k - 1) * cImbRatio
+                        bool hitS = array.get(sellVals, k) > 0.0 and array.get(sellVals, k) > array.get(buyVals, k + 1) * cImbRatio
+                        if hitB or hitS
+                            dnK   := k
+                            dnBuy := hitB
+                            break
+                float imbHalf = syminfo.mintick / 2.0
+                if upK >= 0
+                    float pU = profLo + upK * pxStep
+                    float uS = f_profBandMass(pU - imbHalf, pU + imbHalf, compsS)
+                    float uB = f_profBandMass(pU - imbHalf, pU + imbHalf, compsB)
+                    color cU  = upBuy ? colBuyText  : colSellText
+                    color cUb = upBuy ? colImbBuyBg : colImbSellBg
+                    line upLn = line.new(imbL, pU, imbR, pU, xloc = xloc.bar_index, color = cU, width = 1, style = line.style_dotted)
+                    array.push(profImbLns, upLn)
+                    array.push(chartMarks, ChartMark.new(pU, (upBuy ? "▲" : "▼") + " IMB  " + str.tostring(pU, format.mintick) + "   ▼-" + str.tostring(uS, format.volume) + "   ▲+" + str.tostring(uB, format.volume),
+                         cU, cUb, 1, upLn))
+                if dnK >= 0
+                    float pD = profLo + dnK * pxStep
+                    float dS = f_profBandMass(pD - imbHalf, pD + imbHalf, compsS)
+                    float dB = f_profBandMass(pD - imbHalf, pD + imbHalf, compsB)
+                    color cD  = dnBuy ? colBuyText  : colSellText
+                    color cDb = dnBuy ? colImbBuyBg : colImbSellBg
+                    line dnLn = line.new(imbL, pD, imbR, pD, xloc = xloc.bar_index, color = cD, width = 1, style = line.style_dotted)
+                    array.push(profImbLns, dnLn)
+                    array.push(chartMarks, ChartMark.new(pD, (dnBuy ? "▲" : "▼") + " IMB  " + str.tostring(pD, format.mintick) + "   ▼-" + str.tostring(dS, format.volume) + "   ▲+" + str.tostring(dB, format.volume),
+                         cD, cDb, 1, dnLn))
+            // ── Label renderer ──
+            // Every price mark of the profile lands here. Marks are
+            // sorted by price, chained into clusters while the gap to
+            // the next mark stays inside the merge distance, and each
+            // cluster becomes one label, one member per row, colored
+            // by its highest-priority member. Members at exactly the
+            // same price also give up their extra lines: only the
+            // highest-priority line of an exact group survives.
+            int nMk = array.size(chartMarks)
+            if nMk > 0
+                // Selection sort needs at least two marks: with one mark,
+                // 0 to nMk - 2 runs descending per the for-loop rules and
+                // reads past the array. The renderer below handles nMk == 1.
+                if nMk > 1
+                    for i = 0 to nMk - 2
+                        int hi = i
+                        for j = i + 1 to nMk - 1
+                            if array.get(chartMarks, j).price > array.get(chartMarks, hi).price
+                                hi := j
+                        if hi != i
+                            ChartMark tmpMk = array.get(chartMarks, i)
+                            array.set(chartMarks, i, array.get(chartMarks, hi))
+                            array.set(chartMarks, hi, tmpMk)
+                float mergeSpan = lblMergeInput * syminfo.mintick
+                float sameEps   = syminfo.mintick / 10.0
+                int   mrgX      = bar_index + 1 + profWidthInput + pocOffsetInput
+                int i = 0
+                while i < nMk
+                    int j = i
+                    while j + 1 < nMk and array.get(chartMarks, j).price - array.get(chartMarks, j + 1).price <= mergeSpan
+                        j += 1
+                    int top = i
+                    string mrgTxt = ""
+                    for k = i to j
+                        if array.get(chartMarks, k).prio > array.get(chartMarks, top).prio
+                            top := k
+                        mrgTxt += (k > i ? "\n" : "") + array.get(chartMarks, k).txt
+                    if j > i
+                        for k = i to j - 1
+                            for m = k + 1 to j
+                                ChartMark mkA = array.get(chartMarks, k)
+                                ChartMark mkB = array.get(chartMarks, m)
+                                if math.abs(mkA.price - mkB.price) < sameEps
+                                    ChartMark loser = mkA.prio >= mkB.prio ? mkB : mkA
+                                    if not na(loser.ln)
+                                        line.delete(loser.ln)
+                                        loser.ln := na
+                    ChartMark topMk = array.get(chartMarks, top)
+                    array.push(profMrgLbs, label.new(mrgX, topMk.price, mrgTxt,
+                         xloc = xloc.bar_index, style = label.style_label_left, color = topMk.bg,
+                         textcolor = topMk.fg, size = tableSizeInput))
+                    i := j + 1
+            if vMax > 0.0
+                // Bar-index coordinates: uniform in the future and
+                // immune to session gaps, unlike future timestamps.
+                int baseIdx = bar_index + 1
+                if profBuyInput
+                    array<chart.point> ptsB = array.new<chart.point>()
+                    array.push(ptsB, chart.point.from_index(baseIdx, profLo))
+                    for k = 0 to res
+                        int xI = baseIdx + int(math.round(profWidthInput * array.get(buyVals, k) / vMax))
+                        array.push(ptsB, chart.point.from_index(xI, profLo + k * pxStep))
+                    array.push(ptsB, chart.point.from_index(baseIdx, profHi))
+                    profBuyPl := polyline.new(ptsB, curved = false, closed = true, xloc = xloc.bar_index, line_color = profBuyColInput, fill_color = colProfBuyBg, line_width = 1)
+                if profSellInput
+                    array<chart.point> ptsS = array.new<chart.point>()
+                    array.push(ptsS, chart.point.from_index(baseIdx, profLo))
+                    for k = 0 to res
+                        int xI = baseIdx + int(math.round(profWidthInput * array.get(sellVals, k) / vMax))
+                        array.push(ptsS, chart.point.from_index(xI, profLo + k * pxStep))
+                    array.push(ptsS, chart.point.from_index(baseIdx, profHi))
+                    profSellPl := polyline.new(ptsS, curved = false, closed = true, xloc = xloc.bar_index, line_color = profSellColInput, fill_color = colProfSellBg, line_width = 1)
+        // Chart control level, display-independent: with the profile
+        // drawing off, the sampled POC and its one-tick band volumes
+        // are still computed, so the "Chart POC" alert series and the
+        // mobile C-POC row keep publishing. When the drawing runs, its
+        // own path fills these values and this block stays silent.
+        if span > 0.0 and not (profShowInput and (profBuyInput or profSellInput))
+            int   resCtl    = profResInput
+            float pxStepCtl = span / resCtl
+            float bestTot   = -1.0
+            float bestPx    = na
+            for k = 0 to resCtl
+                float pk  = profLo + k * pxStepCtl
+                float tot = f_profDensity(pk, compsB) + f_profDensity(pk, compsS)
+                if tot > bestTot
+                    bestTot := tot
+                    bestPx  := pk
+            if not na(bestPx)
+                pocChartLevel := bestPx
+                float ctlHalf = syminfo.mintick / 2.0
+                pocChartSell := f_profBandMass(bestPx - ctlHalf, bestPx + ctlHalf, compsS)
+                pocChartBuy  := f_profBandMass(bestPx - ctlHalf, bestPx + ctlHalf, compsB)
+
+plot(profResidual,  "Residual PPM",      display = display.data_window, editable = false, precision = 4)
+plot(profTilt,      "Balance Tilt %",    display = display.data_window, editable = false, precision = 1)
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// CONTROL LEVEL SERIES — alert sources
+//
+// Each control level is published as its own output series, so the alert
+// dialog treats it the way it treats any other line on a chart: the user
+// picks the series, then picks the state from TradingView's own list —
+// crossing, crossing up, crossing down, greater than, less than, and the
+// rest. No condition, title, or message is hardcoded here.
+// ══════════════════════════════════════════════════════════════════════════════════
+
+plot(pocDashLevel,  "Dashboard POC", display = display.data_window, editable = false)
+plot(pocChartLevel, "Chart POC",     display = display.data_window, editable = false)
+
+// ─────────────────────── Mobile dashboard ───────────────────────
+// Compact two-column numeric dashboard for small phone screens,
+// drawn instead of the full footprint table while Mobile Mode is
+// on. Every figure is read from, or recomputed with, exactly the
+// rules the full table uses, so the two views can never disagree;
+// the full table's code is untouched and returns unchanged the
+// moment Mobile Mode is turned off. The section sits after the
+// profile engine on purpose: on every update it reads the chart
+// POC, OVL, and tilt of this same update, never the previous one.
+
+var table mobTable = na
+
+if barstate.isfirst and mobileModeInput
+    mobTable := table.new(
+         position     = tablePosition,
+         columns      = 2,
+         rows         = 13,
+         bgcolor      = colPanelBg,
+         frame_color  = colFrame,
+         frame_width  = 1,
+         border_color = colFrame,
+         border_width = 1)
+
+if barstate.islast and not na(volume) and showTableInput and mobileModeInput
+    float tick   = syminfo.mintick
+    int nRowsMob = 2 * viewTicksInput + 1
+    // Window sums per lattice row, the same accumulation the full
+    // table performs; the window is small, so the scan is cheap.
+    float mWinBuy  = 0.0
+    float mWinSell = 0.0
+    var array<float> mRowSumB = array.new<float>(nRowsMob, 0.0)
+    var array<float> mRowSumS = array.new<float>(nRowsMob, 0.0)
+    array.fill(mRowSumB, 0.0)
+    array.fill(mRowSumS, 0.0)
+    for fp in fpBars
+        mWinBuy  += fp.buyTotal
+        mWinSell += fp.sellTotal
+        for k = 0 to nRowsMob - 1
+            array.set(mRowSumB, k, array.get(mRowSumB, k) + nz(array.get(fp.buyRows, k)))
+            array.set(mRowSumS, k, array.get(mRowSumS, k) + nz(array.get(fp.sellRows, k)))
+    // Window POC, Value Area, and imbalance: the full table's own
+    // rules re-run on the same sums.
+    bool mPocDash = pocScopeInput == MetricScope.dashboard or pocScopeInput == MetricScope.both
+    bool mVaDash  = vaScopeInput == MetricScope.dashboard or vaScopeInput == MetricScope.both
+    int  mPocRowK = -1
+    if mPocDash or mVaDash or imbShowInput
+        float mPocBest = 0.0
+        for k = 0 to nRowsMob - 1
+            float lvlVol = array.get(mRowSumB, k) + array.get(mRowSumS, k)
+            if lvlVol > mPocBest
+                mPocBest := lvlVol
+                mPocRowK := k
+    int mVahRowK = -1
+    int mValRowK = -1
+    if mVaDash and mPocRowK >= 0
+        float mVaTotal = 0.0
+        for k = 0 to nRowsMob - 1
+            mVaTotal += array.get(mRowSumB, k) + array.get(mRowSumS, k)
+        float mVaTarget = vaPctInput / 100.0 * mVaTotal
+        float mVaAcc    = array.get(mRowSumB, mPocRowK) + array.get(mRowSumS, mPocRowK)
+        int   mVaLo     = mPocRowK
+        int   mVaHi     = mPocRowK
+        // Boundary-guarded expansion, the same guard as the chart
+        // Value Area: an exhausted side is never stepped again, so
+        // the loop ends after at most nRowsMob passes.
+        while mVaAcc < mVaTarget and (mVaLo > 0 or mVaHi < nRowsMob - 1)
+            bool  mCanUp = mVaHi < nRowsMob - 1
+            bool  mCanDn = mVaLo > 0
+            float volUp  = mCanUp ? array.get(mRowSumB, mVaHi + 1) + array.get(mRowSumS, mVaHi + 1) : 0.0
+            float volDn  = mCanDn ? array.get(mRowSumB, mVaLo - 1) + array.get(mRowSumS, mVaLo - 1) : 0.0
+            if not mCanUp
+                mVaLo -= 1
+                mVaAcc += volDn
+            else if not mCanDn
+                mVaHi += 1
+                mVaAcc += volUp
+            else if volUp >= volDn
+                mVaHi += 1
+                mVaAcc += volUp
+            else
+                mVaLo -= 1
+                mVaAcc += volDn
+        mVahRowK := mVaHi
+        mValRowK := mVaLo
+    int  mImbUpK   = -1
+    bool mImbUpBuy = false
+    int  mImbDnK   = -1
+    bool mImbDnBuy = false
+    if imbShowInput and mPocRowK >= 0
+        var array<bool> mBuyImb  = array.new<bool>(nRowsMob, false)
+        var array<bool> mSellImb = array.new<bool>(nRowsMob, false)
+        array.fill(mBuyImb, false)
+        array.fill(mSellImb, false)
+        float mImbRatio = imbPctInput / 100.0
+        for k = 1 to nRowsMob - 1
+            float wb = array.get(mRowSumB, k)
+            if wb > 0.0 and wb > array.get(mRowSumS, k - 1) * mImbRatio
+                array.set(mBuyImb, k, true)
+        for k = 0 to nRowsMob - 2
+            float ws = array.get(mRowSumS, k)
+            if ws > 0.0 and ws > array.get(mRowSumB, k + 1) * mImbRatio
+                array.set(mSellImb, k, true)
+        if mPocRowK < nRowsMob - 1
+            for k = mPocRowK + 1 to nRowsMob - 1
+                if array.get(mBuyImb, k) or array.get(mSellImb, k)
+                    mImbUpK   := k
+                    mImbUpBuy := array.get(mBuyImb, k)
+                    break
+        if mPocRowK > 0
+            for stp = 1 to mPocRowK
+                int k = mPocRowK - stp
+                if array.get(mBuyImb, k) or array.get(mSellImb, k)
+                    mImbDnK   := k
+                    mImbDnBuy := array.get(mBuyImb, k)
+                    break
+    // Rows 1 to 11 are wiped and refilled; the banner and the notice
+    // rows sit outside the cleared range, so their merges survive.
+    table.clear(mobTable, 0, 1, 1, 11)
+    float mBuyNow  = engBuy
+    float mSellNow = engSell
+    float mTotNow  = mBuyNow + mSellNow
+    float mPrevCls = close[1]
+    float mChgPct  = not na(mPrevCls) and mPrevCls != 0.0 ? 100.0 * (close - mPrevCls) / mPrevCls : na
+    string mChgTxt = na(mChgPct) ? "" : " · " + (mChgPct >= 0.0 ? "+" : "") + str.tostring(mChgPct, "#.##") + "%"
+    string mEngTxt = engineInput == VolumeEngine.footprint ? "FP" : useIbEngine ? "IB " + ltfInput : "GEO"
+    string mNoData = na(mTotNow) ? " · NO ENGINE DATA" : ""
+    color  mStatBg = na(mChgPct) ? colPanelBg : mChgPct >= 0.0 ? color.new(COL_FWD, 15) : color.new(COL_REV, 15)
+    table.cell(mobTable, 0, 0, "$" + syminfo.ticker + " · " + mEngTxt + mChgTxt + mNoData,
+         text_color = color.white, text_size = mobileSizeInput, text_halign = text.align_center, bgcolor = mStatBg,
+         tooltip = "Current bar at a glance: symbol, active engine, and the change from the prior close. Blue when the bar is up, red when it is down.")
+    if not na(mTotNow) and mTotNow > 0.0
+        bool   mBuyLeads = mBuyNow >= mSellNow
+        string mBarVolTt = "Sell and buy volume of the bar still being built, split by the active engine."
+        table.cell(mobTable, 0, 1, "BAR VOL", text_color = colMutedText, text_size = mobileSizeInput, text_halign = text.align_left, tooltip = mBarVolTt)
+        table.cell(mobTable, 1, 1, "▼" + f_volCompact(mSellNow) + "  ▲" + f_volCompact(mBuyNow),
+             text_color = mBuyLeads ? colBuyText : colSellText, text_size = mobileSizeInput, text_halign = text.align_right, tooltip = mBarVolTt)
+        float mDlt     = mBuyNow - mSellNow
+        float mLeadPct = 100.0 * math.abs(mDlt) / mTotNow
+        table.cell(mobTable, 0, 2, "BAR Δ", text_color = colMutedText, text_size = mobileSizeInput, text_halign = text.align_left, tooltip = TT_C_DELTA)
+        table.cell(mobTable, 1, 2, (mDlt >= 0.0 ? "+" : "-") + f_volCompact(math.abs(mDlt)) + " · " + (mBuyLeads ? "BUY " : "SELL ") + str.tostring(mLeadPct, "#.#") + "%",
+             text_color = mDlt >= 0.0 ? colBuyText : colSellText, text_size = mobileSizeInput, text_halign = text.align_right, tooltip = TT_C_DELTA)
+    if array.size(fpBars) > 0
+        float  mWinTot   = mWinBuy + mWinSell
+        float  mWinDlt   = mWinBuy - mWinSell
+        string mWinVolTt = "Total volume of the table window: every candle the window search found at these prices."
+        string mWinDltTt = "Buy volume minus sell volume across the whole window."
+        table.cell(mobTable, 0, 3, "WIN VOL", text_color = colMutedText, text_size = mobileSizeInput, text_halign = text.align_left, tooltip = mWinVolTt)
+        table.cell(mobTable, 1, 3, f_volCompact(mWinTot), text_color = colHeadText, text_size = mobileSizeInput, text_halign = text.align_right, tooltip = mWinVolTt)
+        table.cell(mobTable, 0, 4, "WIN Δ", text_color = colMutedText, text_size = mobileSizeInput, text_halign = text.align_left, tooltip = mWinDltTt)
+        table.cell(mobTable, 1, 4, (mWinDlt >= 0.0 ? "+" : "-") + f_volCompact(math.abs(mWinDlt)),
+             text_color = mWinDlt >= 0.0 ? colBuyText : colSellText, text_size = mobileSizeInput, text_halign = text.align_right, tooltip = mWinDltTt)
+    if mPocDash and mPocRowK >= 0
+        float  wpPrice = (axisRowTick - viewTicksInput + mPocRowK) * tick
+        float  wpS  = array.get(mRowSumS, mPocRowK)
+        float  wpB  = array.get(mRowSumB, mPocRowK)
+        color  wpFg = wpB > wpS ? colBuyText : wpS > wpB ? colSellText : colMetricText
+        color  wpBg = wpB > wpS ? colImbBuyBg : wpS > wpB ? colImbSellBg : colMetricBg
+        string wpTt = TT_C_POC + "Window figure, over the table window's bars. Sell " + f_volCompact(wpS) + " · Buy " + f_volCompact(wpB)
+        table.cell(mobTable, 0, 5, "W-POC", text_color = wpFg, text_size = mobileSizeInput, text_halign = text.align_left, bgcolor = wpBg, tooltip = wpTt)
+        table.cell(mobTable, 1, 5, str.tostring(wpPrice, format.mintick) + "  ▼" + f_volCompact(wpS) + " ▲" + f_volCompact(wpB),
+             text_color = wpFg, text_size = mobileSizeInput, text_halign = text.align_right, bgcolor = wpBg, tooltip = wpTt)
+    if mVaDash and mVahRowK >= 0
+        float  vhP  = (axisRowTick - viewTicksInput + mVahRowK) * tick
+        float  vlP  = (axisRowTick - viewTicksInput + mValRowK) * tick
+        string vhTt = "Value Area High: the upper edge of the price band holding " + str.tostring(vaPctInput, "#") + "% of the window's traded volume."
+        string vlTt = "Value Area Low: the lower edge of the price band holding " + str.tostring(vaPctInput, "#") + "% of the window's traded volume."
+        table.cell(mobTable, 0, 6, "VAH", text_color = colVaText, text_size = mobileSizeInput, text_halign = text.align_left, bgcolor = colVaBg, tooltip = vhTt)
+        table.cell(mobTable, 1, 6, str.tostring(vhP, format.mintick) + "  ▼" + f_volCompact(array.get(mRowSumS, mVahRowK)) + " ▲" + f_volCompact(array.get(mRowSumB, mVahRowK)),
+             text_color = colVaText, text_size = mobileSizeInput, text_halign = text.align_right, bgcolor = colVaBg, tooltip = vhTt)
+        table.cell(mobTable, 0, 7, "VAL", text_color = colVaText, text_size = mobileSizeInput, text_halign = text.align_left, bgcolor = colVaBg, tooltip = vlTt)
+        table.cell(mobTable, 1, 7, str.tostring(vlP, format.mintick) + "  ▼" + f_volCompact(array.get(mRowSumS, mValRowK)) + " ▲" + f_volCompact(array.get(mRowSumB, mValRowK)),
+             text_color = colVaText, text_size = mobileSizeInput, text_halign = text.align_right, bgcolor = colVaBg, tooltip = vlTt)
+    if imbShowInput and mImbUpK >= 0
+        float  iuP  = (axisRowTick - viewTicksInput + mImbUpK) * tick
+        color  iuFg = mImbUpBuy ? colBuyText : colSellText
+        color  iuBg = mImbUpBuy ? colImbBuyBg : colImbSellBg
+        string iuTt = "First imbalanced level above the window POC. One side overwhelmed the other here, measured diagonally over the whole window."
+        table.cell(mobTable, 0, 8, "IMB " + (mImbUpBuy ? "▲" : "▼"), text_color = iuFg, text_size = mobileSizeInput, text_halign = text.align_left, bgcolor = iuBg, tooltip = iuTt)
+        table.cell(mobTable, 1, 8, str.tostring(iuP, format.mintick) + "  ▼" + f_volCompact(array.get(mRowSumS, mImbUpK)) + " ▲" + f_volCompact(array.get(mRowSumB, mImbUpK)),
+             text_color = iuFg, text_size = mobileSizeInput, text_halign = text.align_right, bgcolor = iuBg, tooltip = iuTt)
+    if imbShowInput and mImbDnK >= 0
+        float  idP  = (axisRowTick - viewTicksInput + mImbDnK) * tick
+        color  idFg = mImbDnBuy ? colBuyText : colSellText
+        color  idBg = mImbDnBuy ? colImbBuyBg : colImbSellBg
+        string idTt = "First imbalanced level below the window POC. One side overwhelmed the other here, measured diagonally over the whole window."
+        table.cell(mobTable, 0, 9, "IMB " + (mImbDnBuy ? "▲" : "▼"), text_color = idFg, text_size = mobileSizeInput, text_halign = text.align_left, bgcolor = idBg, tooltip = idTt)
+        table.cell(mobTable, 1, 9, str.tostring(idP, format.mintick) + "  ▼" + f_volCompact(array.get(mRowSumS, mImbDnK)) + " ▲" + f_volCompact(array.get(mRowSumB, mImbDnK)),
+             text_color = idFg, text_size = mobileSizeInput, text_halign = text.align_right, bgcolor = idBg, tooltip = idTt)
+    if not na(pocChartLevel) and not na(pocChartSell)
+        color  cpFg = pocChartBuy > pocChartSell ? colBuyText : pocChartSell > pocChartBuy ? colSellText : colMetricText
+        color  cpBg = pocChartBuy > pocChartSell ? colImbBuyBg : pocChartSell > pocChartBuy ? colImbSellBg : colMetricBg
+        string cpTt = "Chart Point of Control: the price level of the profile period where the most volume changed hands, with the sell and buy volume of its one-tick band."
+        table.cell(mobTable, 0, 10, "C-POC", text_color = cpFg, text_size = mobileSizeInput, text_halign = text.align_left, bgcolor = cpBg, tooltip = cpTt)
+        table.cell(mobTable, 1, 10, str.tostring(pocChartLevel, format.mintick) + "  ▼" + f_volCompact(pocChartSell) + " ▲" + f_volCompact(pocChartBuy),
+             text_color = cpFg, text_size = mobileSizeInput, text_halign = text.align_right, bgcolor = cpBg, tooltip = cpTt)
+    if not na(profOvl)
+        float  mOvlCoef  = profOvl / 100.0
+        bool   mOvlBal   = mOvlCoef >= 0.75
+        bool   mTiltBuy  = not na(profTilt) and profTilt >= ovlTiltInput
+        bool   mTiltSell = not na(profTilt) and profTilt <= -ovlTiltInput
+        string mOvlWord  = mOvlBal ? "BALANCED" : mTiltBuy ? "OFF BAL · BUY" : mTiltSell ? "OFF BAL · SELL" : "OFF BALANCE"
+        color  mOvlFg    = mOvlBal ? colMetricText : mTiltBuy ? colBuyText : mTiltSell ? colSellText : colMetricText
+        table.cell(mobTable, 0, 11, "OVL", text_color = colMutedText, text_size = mobileSizeInput, text_halign = text.align_left, tooltip = TT_C_OVL)
+        table.cell(mobTable, 1, 11, str.tostring(mOvlCoef, "0.00") + " · " + mOvlWord,
+             text_color = mOvlFg, text_size = mobileSizeInput, text_halign = text.align_right, tooltip = TT_C_OVL)
+    table.cell(mobTable, 0, 12, "MOBILE VIEW · TURN OFF FOR FULL TABLE",
+         text_color = color.white, text_size = mobileSizeInput, text_halign = text.align_center,
+         bgcolor = color.new(colMetricText, 20), tooltip = TT_MOBILE)
+    var bool mobMerged = false
+    if not mobMerged
+        table.merge_cells(mobTable, 0, 0, 1, 0)
+        table.merge_cells(mobTable, 0, 12, 1, 12)
+        mobMerged := true

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ca6022754b7f4c278f0d1a08acf8d035",
+ "title": "Auto Harmonic Patterns - Open Source",
+ "author": "Trendoscope",
+ "url": "https://www.tradingview.com/script/f6Ae6av3-auto-harmonic-patterns-open-source/",
+ "agreeCount": 3065,
+ "category": "harmonic patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/auto-harmonic-patterns-open-source__ca6022754b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/auto-harmonic-patterns-open-source__ca6022754b.pine",
+ "our_status": "committed"
+}

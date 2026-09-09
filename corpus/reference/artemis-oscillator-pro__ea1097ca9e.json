@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ea1097ca9e2e4c2093338db79c7f6b93",
+ "title": "Artemis Oscillator PRO",
+ "author": "a_jabbaroff",
+ "url": "https://www.tradingview.com/script/HTA7VSVn-artemis-oscillator-pro/",
+ "agreeCount": 1821,
+ "category": "visual decoration",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
+ "cached_source": "tools/pine_survey/cache/sources/artemis-oscillator-pro__ea1097ca9e.pine",
+ "our_status": "committed"
+}

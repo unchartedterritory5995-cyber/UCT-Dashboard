@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;CdN3hioOVlxF346lS8GQ03zf5Ekg5LAz",
+ "title": "Implied Volatility Suite",
+ "author": "SegaRKO",
+ "url": "https://www.tradingview.com/script/E8zeTYik-implied-volatility-suite/",
+ "agreeCount": 3444,
+ "category": "volatility",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine",
+ "cached_source": "tools/pine_survey/cache/sources/implied-volatility-suite__CdN3hioOVl.pine",
+ "our_status": "committed"
+}

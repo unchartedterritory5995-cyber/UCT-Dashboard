@@ -1,0 +1,54 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RicardoSantos.
+
+//@version=6
+string  TITLE = 'PA ZigZag Fibonacci FAN'
+string STITLE = 'F'
+indicator(TITLE, STITLE, true)
+
+bool useHA = input.bool(false, 'Use Heikken Ashi Candles?')
+bool useAltTF = input.bool(true, title='Use Alt Timeframe?')
+string tf = input.timeframe('1D', 'Alt Timeframe')
+
+zigzag () =>
+    bool _isUp = close >= close[1]
+    bool _isDown = close <= close[1]
+    int _dir = na , _dir := _isUp[1] and _isDown ? -1 : _isDown[1] and _isUp ? 1 : nz(_dir[1])
+    float _hh = ta.highest(2)
+    float _ll = ta.lowest(2)
+    float _zz = _isUp[1] and _isDown and _dir[1] != -1 ? _hh : _isDown[1] and _isUp and _dir[1] != 1 ? _ll : na
+    _zz
+
+string _ticker = useHA ?  ticker.heikinashi(syminfo.tickerid) : syminfo.tickerid
+float sz = useAltTF ? (ta.change(time(tf)) != 0 ? request.security(_ticker, tf, zigzag(), barmerge.gaps_off, barmerge.lookahead_on) : na) : zigzag()
+
+plot(sz, 'zigzag', color.black, 2)
+
+//  ||---   Pattern Recognition:
+bool ev = not na(sz)
+float x = ta.valuewhen(ev, sz, 1) 
+float z = ta.valuewhen(ev, sz, 0)
+int n_x = ta.valuewhen(ev, bar_index, 1) 
+int n_z = ta.valuewhen(ev, bar_index, 0)
+
+float price_range = z - x
+int bar_range = n_z - n_x
+float step = price_range / bar_range
+
+float projection_n0000 = ev ? na : z + ((bar_index - n_z) * step)
+float projection_n0236 = ev ? na : z + ((bar_index - n_z) * step) * -0.236
+float projection_n0382 = ev ? na : z + ((bar_index - n_z) * step) * -0.382
+float projection_n0500 = ev ? na : z + ((bar_index - n_z) * step) * -0.500
+float projection_n0618 = ev ? na : z + ((bar_index - n_z) * step) * -0.618
+float projection_n1000 = ev ? na : z + ((bar_index - n_z) * step) * -1.000
+float projection_n1618 = ev ? na : z + ((bar_index - n_z) * step) * -1.618
+float projection_n3141 = ev ? na : z + ((bar_index - n_z) * step) * -3.141
+
+plot(projection_n0000, ' 0.000', color.blue, 1, plot.style_linebr)
+plot(projection_n0236, '-0.236', color.gray, 1, plot.style_linebr)
+plot(projection_n0382, '-0.382', color.yellow, 1, plot.style_linebr)
+plot(projection_n0500, '-0.500', color.orange, 1, plot.style_linebr)
+plot(projection_n0618, '-0.618', color.red, 1, plot.style_linebr)
+plot(projection_n1000, '-1.000', color.black, 1, plot.style_linebr)
+plot(projection_n1618, '-1.618', color.maroon, 1, plot.style_linebr)
+plot(projection_n3141, '-3.141', color.aqua, 1, plot.style_linebr)

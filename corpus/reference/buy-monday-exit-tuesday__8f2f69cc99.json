@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8f2f69cc99fe4e688129de177799ac4a",
+ "title": "Buy Monday, Exit Tuesday",
+ "author": "processingclouds",
+ "url": "https://www.tradingview.com/script/dT5bJuH0-buy-monday-exit-tuesday/",
+ "agreeCount": 540,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/buy-monday-exit-tuesday__8f2f69cc99.pine",
+ "cached_source": "tools/pine_survey/cache/sources/buy-monday-exit-tuesday__8f2f69cc99.pine",
+ "our_status": "committed"
+}

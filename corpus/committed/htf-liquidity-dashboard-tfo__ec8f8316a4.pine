@@ -1,0 +1,587 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © tradeforopp
+
+//@version=5
+indicator("HTF Liquidity Dashboard [TFO]", "HTF Liquidity Dashboard [TFO]", true, max_labels_count = 500, max_lines_count = 500)
+
+
+// ------------------------------ Inputs ------------------------------
+var g_SET = "Settings"
+show_d = input.bool(true, "Daily", inline = "DWM", tooltip = "Select which timeframes should be displayed with their highs and lows", group = g_SET)
+show_w = input.bool(false, "Weekly", inline = "DWM", group = g_SET)
+show_m = input.bool(false, "Monthly", inline = "DWM", group = g_SET)
+labels = input.bool(false, "Show Sweep Labels", inline = "LBL", tooltip = "Show labels when any of the selected symbols sweep their previous highs and lows", group = g_SET)
+label_bg = input.color(color.black, "", inline = "LBL", group = g_SET)
+label_text = input.color(color.white, "", inline = "LBL", group = g_SET)
+text_size = input.string("Normal", "Text Size", options = ['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'], tooltip = "Label and table text size", group = g_SET)
+dash_text = input.string("Custom", "Dashboard Text", options = ['Custom', 'Levels'], tooltip = "Custom will show the strings below in the dashboard cells. Levels will show the actual numerical highs and lows", group = g_SET)
+exceed_str = input.string("✔", "Swept & Exceeded ‏", inline = "XC", tooltip = "When price takes a high and is currently trading above it, or takes a low and is currently trading below it", group = g_SET)
+failed_str = input.string("❌", "Swept & Reversed ‏ ‏", inline = "RV", tooltip = "When price takes a high but is currently trading back below it, or takes a low and is currently trading back above it", group = g_SET)
+exceed_color = input.color(color.new(#089981, 30), "", inline = "XC", group = g_SET)
+failed_color = input.color(color.new(#f23645, 30), "", inline = "RV", group = g_SET)
+
+var g_CC = "Current Chart"
+show_c = input.bool(true, "Show Levels", tooltip = "Show previous highs and lows of the current chart symbol", group = g_CC)
+plimit = input.int(3, "Session Limit", 1, tooltip = "This many highs and lows will be stored and shown on the current chart (per timeframe)", group = g_CC)
+before_color = input.color(#000000, "Colors Before / After Sweep", inline = "CCC", tooltip = "Levels will be drawn as the left color, but will change to the right color once price trades through them", group = g_CC)
+after_color = input.color(#f23645, "", inline = "CCC", group = g_CC)
+d_style = input.string('Dotted', "Daily ‏ ‏ ‏ ‏", options = ['Solid', 'Dashed', 'Dotted'], inline = "CCD", group = g_CC)
+d_width = input.int(1, "", 0, inline = "CCD", group = g_CC)
+w_style = input.string('Dashed', "Weekly ‏", options = ['Solid', 'Dashed', 'Dotted'], inline = "CCW", group = g_CC)
+w_width = input.int(1, "", 0, inline = "CCW", group = g_CC)
+m_style = input.string('Solid', "Monthly", options = ['Solid', 'Dashed', 'Dotted'], inline = "CCM", group = g_CC)
+m_width = input.int(1, "", 0, inline = "CCM", group = g_CC)
+
+var g_SYM = "Symbols"
+use_s0 = input.bool(true, "", inline = "s0", group = g_SYM)
+use_s1 = input.bool(true, "", inline = "s1", group = g_SYM)
+use_s2 = input.bool(true, "", inline = "s2", group = g_SYM)
+use_s3 = input.bool(true, "", inline = "s3", group = g_SYM)
+use_s4 = input.bool(true, "", inline = "s4", group = g_SYM)
+use_s5 = input.bool(true, "", inline = "s5", group = g_SYM)
+use_s6 = input.bool(true, "", inline = "s6", group = g_SYM)
+use_s7 = input.bool(true, "", inline = "s7", group = g_SYM)
+use_s8 = input.bool(true, "", inline = "s8", group = g_SYM)
+
+s0 = input.symbol("ES1!", "", inline = "s0", group = g_SYM)
+s1 = input.symbol("NQ1!", "", inline = "s1", group = g_SYM)
+s2 = input.symbol("YM1!", "", inline = "s2", group = g_SYM)
+s3 = input.symbol("CL1!", "", inline = "s3", group = g_SYM)
+s4 = input.symbol("GC1!", "", inline = "s4", group = g_SYM)
+s5 = input.symbol("EURUSD", "", inline = "s5", group = g_SYM)
+s6 = input.symbol("GBPUSD", "", inline = "s6", group = g_SYM)
+s7 = input.symbol("USDJPY", "", inline = "s7", group = g_SYM)
+s8 = input.symbol("AUDUSD", "", inline = "s8", group = g_SYM)
+
+var g_TBL = "Table Style"
+table_position = input.string('Top Right', "Table Position", options = ['Bottom Center', 'Bottom Left', 'Bottom Right', 'Middle Center', 'Middle Left', 'Middle Right', 'Top Center', 'Top Left', 'Top Right'], group = g_TBL)
+tbl_bg = input.color(color.white, "Background Color", group = g_TBL)
+tbl_bd = input.color(color.black, "Border Color", group = g_TBL)
+tbl_fr = input.color(color.black, "Frame Color", group = g_TBL)
+tbl_fr_w = input.int(2, "Frame Width", 1, group = g_TBL)
+tbl_bd_w = input.int(1, "Border Width", 1, group = g_TBL)
+// ------------------------------ Inputs ------------------------------
+
+
+// ------------------------------ Functions ------------------------------
+get_name(x) =>
+    array.get(str.split(x, ":"), 1)
+
+get_size(x) =>
+    result = switch x
+        'Auto' => size.auto
+        'Tiny' => size.tiny
+        'Small' => size.small
+        'Normal' => size.normal
+        'Large' => size.large
+        'Huge' => size.huge
+
+get_line_style(x) =>
+    result = switch x
+        'Solid' => line.style_solid
+        'Dashed' => line.style_dashed
+        'Dotted' => line.style_dotted
+
+get_table_position(x) =>
+    result = switch x
+        "Bottom Center" => position.bottom_center
+        "Bottom Left" => position.bottom_left
+        "Bottom Right" => position.bottom_right
+        "Middle Center" => position.middle_center
+        "Middle Left" => position.middle_left
+        "Middle Right" => position.middle_right
+        "Top Center" => position.top_center
+        "Top Left" => position.top_left
+        "Top Right" => position.top_right
+
+update_arrays(o, h_arr, l_arr, h, l) =>
+    if o != o[1]
+        h_arr.unshift(h[1])
+        l_arr.unshift(l[1])
+    if h_arr.size() > 1
+        h_arr.pop()
+        l_arr.pop()
+
+evaluate(ph, ch, pl, cl, cc) =>
+    color _hcolor = na
+    string _hstring = (dash_text == 'Levels') ? str.tostring(ph) : "-"
+    if ch > ph
+        if cc > ph
+            _hcolor := exceed_color
+            if not (dash_text == 'Levels')
+                _hstring := exceed_str
+        else 
+            _hcolor := failed_color
+            if not (dash_text == 'Levels')
+                _hstring := failed_str
+    
+    color _lcolor = na
+    string _lstring = (dash_text == 'Levels') ? str.tostring(pl) : "-"
+    if cl < pl
+        if cc < pl
+            _lcolor := exceed_color
+            if not (dash_text == 'Levels')
+                _lstring := exceed_str
+        else 
+            _lcolor := failed_color
+            if not (dash_text == 'Levels')
+                _lstring := failed_str
+    [_hstring, _hcolor, _lstring, _lcolor]
+
+update_table(_table, _col, _row, _use, _name, _h, _l, _c, _highs, _lows) =>
+    if _use and _highs.size() > 0
+        _size = get_size(text_size)
+        [_hstring, _hcolor, _lstring, _lcolor] = evaluate(_highs.get(0), _h, _lows.get(0), _l, _c)
+        table.cell(_table, 0, _row, str.tostring(get_name(_name)), text_size = _size) 
+        table.cell(_table, _col, _row, _hstring, bgcolor = _hcolor, text_size = _size)
+        table.cell(_table, _col + 1, _row, _lstring, bgcolor = _lcolor, text_size = _size)
+
+check_raids(_s, _use, _ph, _pl, _ch, _cl, _rah, _ral, _ri, _tf) =>
+    if _ph.size() > 0 and _use
+        took_highs = _ch > _ph.get(0)
+        took_lows = _cl < _pl.get(0)
+        _name = get_name(_s)
+        if took_highs and not _rah.get(_ri)
+            _rah.set(_ri, true)
+            _text = _name + " Took P" + _tf + "H"
+            alert(_text, freq = alert.freq_once_per_bar)
+            if labels
+                label.new(bar_index, high, _text, style = label.style_label_down, color = label_bg, textcolor = label_text, size = get_size(text_size))
+        if took_lows and not _ral.get(_ri)
+            _ral.set(_ri, true)
+            _text = _name + " Took P" + _tf + "L"
+            alert(_text, freq = alert.freq_once_per_bar)
+            if labels
+                label.new(bar_index, low, _text, style = label.style_label_up, color = label_bg, textcolor = label_text, size = get_size(text_size))
+                
+reset_raid(_d, _ah, _al) =>
+    result = false    
+    if _d != _d[1]
+        for i = 0 to _ah.size() - 1
+            _ah.set(i, false)
+        for i = 0 to _al.size() - 1
+            _al.set(i, false)
+
+chart_pivot(_open, _high, _low, _ph, _pl, _hline, _lline, _hlabel, _llabel, _tf, _style, _width) =>
+    if _ph.size() > 0
+        if _open != _open[1]
+            _hline.unshift(line.new(bar_index, _ph.get(0), bar_index, _ph.get(0), color = before_color, width = _width, style = _style))
+            _lline.unshift(line.new(bar_index, _pl.get(0), bar_index, _pl.get(0), color = before_color, width = _width, style = _style))
+
+            _hlabel.set_xy(bar_index, _ph.get(0))
+            _llabel.set_xy(bar_index, _pl.get(0))
+            
+            _hlabel.set_text("P" + _tf + "H")
+            _llabel.set_text("P" + _tf + "L")
+            
+            _hlabel.set_textcolor(before_color)
+            _llabel.set_textcolor(before_color)
+        else
+            _hline.get(0).set_x2(bar_index)
+            _lline.get(0).set_x2(bar_index)
+            
+            _hlabel.set_x(bar_index)
+            _llabel.set_x(bar_index)
+            if _high > _hline.get(0).get_y1()
+                _hline.get(0).set_color(after_color)
+                _hlabel.set_textcolor(after_color)
+            if _low < _lline.get(0).get_y1()
+                _lline.get(0).set_color(after_color)
+                _llabel.set_textcolor(after_color)
+        if _hline.size() > plimit
+            line.delete(_hline.pop())
+            line.delete(_lline.pop())
+// ------------------------------ Functions ------------------------------
+
+
+// ------------------------------ DWM Data ------------------------------
+// chart timeframe
+[s0c_o, s0c_h, s0c_l, s0c_c] = request.security(s0, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s1c_o, s1c_h, s1c_l, s1c_c] = request.security(s1, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s2c_o, s2c_h, s2c_l, s2c_c] = request.security(s2, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s3c_o, s3c_h, s3c_l, s3c_c] = request.security(s3, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s4c_o, s4c_h, s4c_l, s4c_c] = request.security(s4, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s5c_o, s5c_h, s5c_l, s5c_c] = request.security(s5, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s6c_o, s6c_h, s6c_l, s6c_c] = request.security(s6, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s7c_o, s7c_h, s7c_l, s7c_c] = request.security(s7, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s8c_o, s8c_h, s8c_l, s8c_c] = request.security(s8, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+
+// daily timeframe
+[s0d_o, s0d_h, s0d_l, s0d_c] = request.security(s0, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s1d_o, s1d_h, s1d_l, s1d_c] = request.security(s1, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s2d_o, s2d_h, s2d_l, s2d_c] = request.security(s2, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s3d_o, s3d_h, s3d_l, s3d_c] = request.security(s3, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s4d_o, s4d_h, s4d_l, s4d_c] = request.security(s4, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s5d_o, s5d_h, s5d_l, s5d_c] = request.security(s5, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s6d_o, s6d_h, s6d_l, s6d_c] = request.security(s6, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s7d_o, s7d_h, s7d_l, s7d_c] = request.security(s7, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s8d_o, s8d_h, s8d_l, s8d_c] = request.security(s8, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+
+// weekly timeframe
+[s0w_o, s0w_h, s0w_l, s0w_c] = request.security(s0, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s1w_o, s1w_h, s1w_l, s1w_c] = request.security(s1, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s2w_o, s2w_h, s2w_l, s2w_c] = request.security(s2, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s3w_o, s3w_h, s3w_l, s3w_c] = request.security(s3, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s4w_o, s4w_h, s4w_l, s4w_c] = request.security(s4, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s5w_o, s5w_h, s5w_l, s5w_c] = request.security(s5, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s6w_o, s6w_h, s6w_l, s6w_c] = request.security(s6, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s7w_o, s7w_h, s7w_l, s7w_c] = request.security(s7, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s8w_o, s8w_h, s8w_l, s8w_c] = request.security(s8, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+
+// monthly timeframe
+[s0m_o, s0m_h, s0m_l, s0m_c] = request.security(s0, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s1m_o, s1m_h, s1m_l, s1m_c] = request.security(s1, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s2m_o, s2m_h, s2m_l, s2m_c] = request.security(s2, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s3m_o, s3m_h, s3m_l, s3m_c] = request.security(s3, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s4m_o, s4m_h, s4m_l, s4m_c] = request.security(s4, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s5m_o, s5m_h, s5m_l, s5m_c] = request.security(s5, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s6m_o, s6m_h, s6m_l, s6m_c] = request.security(s6, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s7m_o, s7m_h, s7m_l, s7m_c] = request.security(s7, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s8m_o, s8m_h, s8m_l, s8m_c] = request.security(s8, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+
+// current chart symbol
+[s9c_o, s9c_h, s9c_l, s9c_c] = request.security(syminfo.tickerid, "", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s9d_o, s9d_h, s9d_l, s9d_c] = request.security(syminfo.tickerid, "D", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s9w_o, s9w_h, s9w_l, s9w_c] = request.security(syminfo.tickerid, "W", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[s9m_o, s9m_h, s9m_l, s9m_c] = request.security(syminfo.tickerid, "M", [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+// ------------------------------ DWM Data ------------------------------
+
+
+// ------------------------------ Arrays ------------------------------
+// daily
+var s00d_highs = array.new_float()
+var s0d_highs = array.new_float()
+var s1d_highs = array.new_float()
+var s2d_highs = array.new_float()
+var s3d_highs = array.new_float()
+var s4d_highs = array.new_float()
+var s5d_highs = array.new_float()
+var s6d_highs = array.new_float()
+var s7d_highs = array.new_float()
+var s8d_highs = array.new_float()
+var s9d_highs = array.new_float()
+
+var s00d_lows = array.new_float()
+var s0d_lows = array.new_float()
+var s1d_lows = array.new_float()
+var s2d_lows = array.new_float()
+var s3d_lows = array.new_float()
+var s4d_lows = array.new_float()
+var s5d_lows = array.new_float()
+var s6d_lows = array.new_float()
+var s7d_lows = array.new_float()
+var s8d_lows = array.new_float()
+var s9d_lows = array.new_float()
+
+var s0d_rh = array.new_bool(10, false)
+var s1d_rh = array.new_bool(10, false)
+var s2d_rh = array.new_bool(10, false)
+var s3d_rh = array.new_bool(10, false)
+var s4d_rh = array.new_bool(10, false)
+var s5d_rh = array.new_bool(10, false)
+var s6d_rh = array.new_bool(10, false)
+var s7d_rh = array.new_bool(10, false)
+var s8d_rh = array.new_bool(10, false)
+var s9d_rh = array.new_bool(10, false)
+
+var s0d_rl = array.new_bool(10, false)
+var s1d_rl = array.new_bool(10, false)
+var s2d_rl = array.new_bool(10, false)
+var s3d_rl = array.new_bool(10, false)
+var s4d_rl = array.new_bool(10, false)
+var s5d_rl = array.new_bool(10, false)
+var s6d_rl = array.new_bool(10, false)
+var s7d_rl = array.new_bool(10, false)
+var s8d_rl = array.new_bool(10, false)
+var s9d_rl = array.new_bool(10, false)
+
+// weekly
+var s00w_highs = array.new_float()
+var s0w_highs = array.new_float()
+var s1w_highs = array.new_float()
+var s2w_highs = array.new_float()
+var s3w_highs = array.new_float()
+var s4w_highs = array.new_float()
+var s5w_highs = array.new_float()
+var s6w_highs = array.new_float()
+var s7w_highs = array.new_float()
+var s8w_highs = array.new_float()
+var s9w_highs = array.new_float()
+
+var s00w_lows = array.new_float()
+var s0w_lows = array.new_float()
+var s1w_lows = array.new_float()
+var s2w_lows = array.new_float()
+var s3w_lows = array.new_float()
+var s4w_lows = array.new_float()
+var s5w_lows = array.new_float()
+var s6w_lows = array.new_float()
+var s7w_lows = array.new_float()
+var s8w_lows = array.new_float()
+var s9w_lows = array.new_float()
+
+var s0w_rh = array.new_bool(10, false)
+var s1w_rh = array.new_bool(10, false)
+var s2w_rh = array.new_bool(10, false)
+var s3w_rh = array.new_bool(10, false)
+var s4w_rh = array.new_bool(10, false)
+var s5w_rh = array.new_bool(10, false)
+var s6w_rh = array.new_bool(10, false)
+var s7w_rh = array.new_bool(10, false)
+var s8w_rh = array.new_bool(10, false)
+var s9w_rh = array.new_bool(10, false)
+
+var s0w_rl = array.new_bool(10, false)
+var s1w_rl = array.new_bool(10, false)
+var s2w_rl = array.new_bool(10, false)
+var s3w_rl = array.new_bool(10, false)
+var s4w_rl = array.new_bool(10, false)
+var s5w_rl = array.new_bool(10, false)
+var s6w_rl = array.new_bool(10, false)
+var s7w_rl = array.new_bool(10, false)
+var s8w_rl = array.new_bool(10, false)
+var s9w_rl = array.new_bool(10, false)
+
+// monthly
+var s00m_highs = array.new_float()
+var s0m_highs = array.new_float()
+var s1m_highs = array.new_float()
+var s2m_highs = array.new_float()
+var s3m_highs = array.new_float()
+var s4m_highs = array.new_float()
+var s5m_highs = array.new_float()
+var s6m_highs = array.new_float()
+var s7m_highs = array.new_float()
+var s8m_highs = array.new_float()
+var s9m_highs = array.new_float()
+
+var s00m_lows = array.new_float()
+var s0m_lows = array.new_float()
+var s1m_lows = array.new_float()
+var s2m_lows = array.new_float()
+var s3m_lows = array.new_float()
+var s4m_lows = array.new_float()
+var s5m_lows = array.new_float()
+var s6m_lows = array.new_float()
+var s7m_lows = array.new_float()
+var s8m_lows = array.new_float()
+var s9m_lows = array.new_float()
+
+var s0m_rh = array.new_bool(10, false)
+var s1m_rh = array.new_bool(10, false)
+var s2m_rh = array.new_bool(10, false)
+var s3m_rh = array.new_bool(10, false)
+var s4m_rh = array.new_bool(10, false)
+var s5m_rh = array.new_bool(10, false)
+var s6m_rh = array.new_bool(10, false)
+var s7m_rh = array.new_bool(10, false)
+var s8m_rh = array.new_bool(10, false)
+var s9m_rh = array.new_bool(10, false)
+
+var s0m_rl = array.new_bool(10, false)
+var s1m_rl = array.new_bool(10, false)
+var s2m_rl = array.new_bool(10, false)
+var s3m_rl = array.new_bool(10, false)
+var s4m_rl = array.new_bool(10, false)
+var s5m_rl = array.new_bool(10, false)
+var s6m_rl = array.new_bool(10, false)
+var s7m_rl = array.new_bool(10, false)
+var s8m_rl = array.new_bool(10, false)
+var s9m_rl = array.new_bool(10, false)
+
+//current chart
+var pdh = array.new_line()
+var pwh = array.new_line()
+var pmh = array.new_line()
+
+var pdl = array.new_line()
+var pwl = array.new_line()
+var pml = array.new_line()
+
+var pdh_label = label.new(na, na, style = label.style_label_left, color = #ffffff00, textcolor = before_color, size = get_size(text_size))
+var pwh_label = label.new(na, na, style = label.style_label_left, color = #ffffff00, textcolor = before_color, size = get_size(text_size))
+var pmh_label = label.new(na, na, style = label.style_label_left, color = #ffffff00, textcolor = before_color, size = get_size(text_size))
+
+var pdl_label = label.new(na, na, style = label.style_label_left, color = #ffffff00, textcolor = before_color, size = get_size(text_size))
+var pwl_label = label.new(na, na, style = label.style_label_left, color = #ffffff00, textcolor = before_color, size = get_size(text_size))
+var pml_label = label.new(na, na, style = label.style_label_left, color = #ffffff00, textcolor = before_color, size = get_size(text_size))
+// ------------------------------ Arrays ------------------------------
+
+
+// ------------------------------ Update Arrays ------------------------------
+// daily 
+update_arrays(s0d_o, s0d_highs, s0d_lows, s0d_h, s0d_l)
+update_arrays(s1d_o, s1d_highs, s1d_lows, s1d_h, s1d_l)
+update_arrays(s2d_o, s2d_highs, s2d_lows, s2d_h, s2d_l)
+update_arrays(s3d_o, s3d_highs, s3d_lows, s3d_h, s3d_l)
+update_arrays(s4d_o, s4d_highs, s4d_lows, s4d_h, s4d_l)
+update_arrays(s5d_o, s5d_highs, s5d_lows, s5d_h, s5d_l)
+update_arrays(s6d_o, s6d_highs, s6d_lows, s6d_h, s6d_l)
+update_arrays(s7d_o, s7d_highs, s7d_lows, s7d_h, s7d_l)
+update_arrays(s8d_o, s8d_highs, s8d_lows, s8d_h, s8d_l)
+update_arrays(s9d_o, s9d_highs, s9d_lows, s9d_h, s9d_l)
+
+// weekly 
+update_arrays(s0w_o, s0w_highs, s0w_lows, s0w_h, s0w_l)
+update_arrays(s1w_o, s1w_highs, s1w_lows, s1w_h, s1w_l)
+update_arrays(s2w_o, s2w_highs, s2w_lows, s2w_h, s2w_l)
+update_arrays(s3w_o, s3w_highs, s3w_lows, s3w_h, s3w_l)
+update_arrays(s4w_o, s4w_highs, s4w_lows, s4w_h, s4w_l)
+update_arrays(s5w_o, s5w_highs, s5w_lows, s5w_h, s5w_l)
+update_arrays(s6w_o, s6w_highs, s6w_lows, s6w_h, s6w_l)
+update_arrays(s7w_o, s7w_highs, s7w_lows, s7w_h, s7w_l)
+update_arrays(s8w_o, s8w_highs, s8w_lows, s8w_h, s8w_l)
+update_arrays(s9w_o, s9w_highs, s9w_lows, s9w_h, s9w_l)
+
+// monthly 
+update_arrays(s0m_o, s0m_highs, s0m_lows, s0m_h, s0m_l)
+update_arrays(s1m_o, s1m_highs, s1m_lows, s1m_h, s1m_l)
+update_arrays(s2m_o, s2m_highs, s2m_lows, s2m_h, s2m_l)
+update_arrays(s3m_o, s3m_highs, s3m_lows, s3m_h, s3m_l)
+update_arrays(s4m_o, s4m_highs, s4m_lows, s4m_h, s4m_l)
+update_arrays(s5m_o, s5m_highs, s5m_lows, s5m_h, s5m_l)
+update_arrays(s6m_o, s6m_highs, s6m_lows, s6m_h, s6m_l)
+update_arrays(s7m_o, s7m_highs, s7m_lows, s7m_h, s7m_l)
+update_arrays(s8m_o, s8m_highs, s8m_lows, s8m_h, s8m_l)
+update_arrays(s9m_o, s9m_highs, s9m_lows, s9m_h, s9m_l)
+// ------------------------------ Update Arrays ------------------------------
+
+
+// ------------------------------ Reset Raids ------------------------------
+// daily
+reset_raid(s0d_o, s0d_rh, s0d_rl)
+reset_raid(s1d_o, s1d_rh, s1d_rl)
+reset_raid(s2d_o, s2d_rh, s2d_rl)
+reset_raid(s3d_o, s3d_rh, s3d_rl)
+reset_raid(s4d_o, s4d_rh, s4d_rl)
+reset_raid(s5d_o, s5d_rh, s5d_rl)
+reset_raid(s6d_o, s6d_rh, s6d_rl)
+reset_raid(s7d_o, s7d_rh, s7d_rl)
+reset_raid(s8d_o, s8d_rh, s8d_rl)
+reset_raid(s9d_o, s9d_rh, s9d_rl)
+
+// weeks
+reset_raid(s0w_o, s0w_rh, s0w_rl)
+reset_raid(s1w_o, s1w_rh, s1w_rl)
+reset_raid(s2w_o, s2w_rh, s2w_rl)
+reset_raid(s3w_o, s3w_rh, s3w_rl)
+reset_raid(s4w_o, s4w_rh, s4w_rl)
+reset_raid(s5w_o, s5w_rh, s5w_rl)
+reset_raid(s6w_o, s6w_rh, s6w_rl)
+reset_raid(s7w_o, s7w_rh, s7w_rl)
+reset_raid(s8w_o, s8w_rh, s8w_rl)
+reset_raid(s9w_o, s9w_rh, s9w_rl)
+
+// monthly
+reset_raid(s0m_o, s0m_rh, s0m_rl)
+reset_raid(s1m_o, s1m_rh, s1m_rl)
+reset_raid(s2m_o, s2m_rh, s2m_rl)
+reset_raid(s3m_o, s3m_rh, s3m_rl)
+reset_raid(s4m_o, s4m_rh, s4m_rl)
+reset_raid(s5m_o, s5m_rh, s5m_rl)
+reset_raid(s6m_o, s6m_rh, s6m_rl)
+reset_raid(s7m_o, s7m_rh, s7m_rl)
+reset_raid(s8m_o, s8m_rh, s8m_rl)
+reset_raid(s9m_o, s9m_rh, s9m_rl)
+// ------------------------------ Reset Raids ------------------------------
+
+
+// ------------------------------ Check Raids ------------------------------
+// daily
+check_raids(s0, use_s0 and show_d, s0d_highs, s0d_lows, s0c_h, s0c_l, s0d_rh, s0d_rl, 0, "D")
+check_raids(s1, use_s1 and show_d, s1d_highs, s1d_lows, s1c_h, s1c_l, s1d_rh, s1d_rl, 1, "D")
+check_raids(s2, use_s2 and show_d, s2d_highs, s2d_lows, s2c_h, s2c_l, s2d_rh, s2d_rl, 2, "D")
+check_raids(s3, use_s3 and show_d, s3d_highs, s3d_lows, s3c_h, s3c_l, s3d_rh, s3d_rl, 3, "D")
+check_raids(s4, use_s4 and show_d, s4d_highs, s4d_lows, s4c_h, s4c_l, s4d_rh, s4d_rl, 4, "D")
+check_raids(s5, use_s5 and show_d, s5d_highs, s5d_lows, s5c_h, s5c_l, s5d_rh, s5d_rl, 5, "D")
+check_raids(s6, use_s6 and show_d, s6d_highs, s6d_lows, s6c_h, s6c_l, s6d_rh, s6d_rl, 6, "D")
+check_raids(s7, use_s7 and show_d, s7d_highs, s7d_lows, s7c_h, s7c_l, s7d_rh, s7d_rl, 7, "D")
+check_raids(s8, use_s8 and show_d, s8d_highs, s8d_lows, s8c_h, s8c_l, s8d_rh, s8d_rl, 8, "D")
+
+// weekly
+check_raids(s0, use_s0 and show_w, s0w_highs, s0w_lows, s0c_h, s0c_l, s0w_rh, s0w_rl, 0, "W")
+check_raids(s1, use_s1 and show_w, s1w_highs, s1w_lows, s1c_h, s1c_l, s1w_rh, s1w_rl, 1, "W")
+check_raids(s2, use_s2 and show_w, s2w_highs, s2w_lows, s2c_h, s2c_l, s2w_rh, s2w_rl, 2, "W")
+check_raids(s3, use_s3 and show_w, s3w_highs, s3w_lows, s3c_h, s3c_l, s3w_rh, s3w_rl, 3, "W")
+check_raids(s4, use_s4 and show_w, s4w_highs, s4w_lows, s4c_h, s4c_l, s4w_rh, s4w_rl, 4, "W")
+check_raids(s5, use_s5 and show_w, s5w_highs, s5w_lows, s5c_h, s5c_l, s5w_rh, s5w_rl, 5, "W")
+check_raids(s6, use_s6 and show_w, s6w_highs, s6w_lows, s6c_h, s6c_l, s6w_rh, s6w_rl, 6, "W")
+check_raids(s7, use_s7 and show_w, s7w_highs, s7w_lows, s7c_h, s7c_l, s7w_rh, s7w_rl, 7, "W")
+check_raids(s8, use_s8 and show_w, s8w_highs, s8w_lows, s8c_h, s8c_l, s8w_rh, s8w_rl, 8, "W")
+
+// monthly
+check_raids(s0, use_s0 and show_m, s0m_highs, s0m_lows, s0c_h, s0c_l, s0m_rh, s0m_rl, 0, "M")
+check_raids(s1, use_s1 and show_m, s1m_highs, s1m_lows, s1c_h, s1c_l, s1m_rh, s1m_rl, 1, "M")
+check_raids(s2, use_s2 and show_m, s2m_highs, s2m_lows, s2c_h, s2c_l, s2m_rh, s2m_rl, 2, "M")
+check_raids(s3, use_s3 and show_m, s3m_highs, s3m_lows, s3c_h, s3c_l, s3m_rh, s3m_rl, 3, "M")
+check_raids(s4, use_s4 and show_m, s4m_highs, s4m_lows, s4c_h, s4c_l, s4m_rh, s4m_rl, 4, "M")
+check_raids(s5, use_s5 and show_m, s5m_highs, s5m_lows, s5c_h, s5c_l, s5m_rh, s5m_rl, 5, "M")
+check_raids(s6, use_s6 and show_m, s6m_highs, s6m_lows, s6c_h, s6c_l, s6m_rh, s6m_rl, 6, "M")
+check_raids(s7, use_s7 and show_m, s7m_highs, s7m_lows, s7c_h, s7c_l, s7m_rh, s7m_rl, 7, "M")
+check_raids(s8, use_s8 and show_m, s8m_highs, s8m_lows, s8c_h, s8c_l, s8m_rh, s8m_rl, 8, "M")
+// ------------------------------ Check Raids ------------------------------
+
+
+// ------------------------------ Current Chart ------------------------------
+d_style := get_line_style(d_style)
+w_style := get_line_style(w_style)
+m_style := get_line_style(m_style)
+
+if show_c
+    if show_d
+        chart_pivot(s9d_o, s9d_h, s9d_l, s9d_highs, s9d_lows, pdh, pdl, pdh_label, pdl_label, "D", d_style, d_width)
+    if show_w
+        chart_pivot(s9w_o, s9w_h, s9w_l, s9w_highs, s9w_lows, pwh, pwl, pwh_label, pwl_label, "W", w_style, w_width)
+    if show_m
+        chart_pivot(s9m_o, s9m_h, s9m_l, s9m_highs, s9m_lows, pmh, pml, pmh_label, pml_label, "M", m_style, m_width)
+// ------------------------------ Current Chart ------------------------------
+
+
+// ------------------------------ Dashboard ------------------------------
+var stats = table.new(get_table_position(table_position), 20, 20, tbl_bg, tbl_fr, tbl_fr_w, tbl_bd, tbl_bd_w)
+if barstate.islast
+    _size = get_size(text_size)
+    table.cell(stats, 0, 0, "Symbol", text_size = _size)
+    
+    if show_d
+        table.cell(stats, 1, 0, "PDH", text_size = _size)
+        table.cell(stats, 2, 0, "PDL", text_size = _size)
+
+        update_table(stats, 1, 1, use_s0, s0, s0d_h, s0d_l, s0d_c, s0d_highs, s0d_lows)
+        update_table(stats, 1, 2, use_s1, s1, s1d_h, s1d_l, s1d_c, s1d_highs, s1d_lows)
+        update_table(stats, 1, 3, use_s2, s2, s2d_h, s2d_l, s2d_c, s2d_highs, s2d_lows)
+        update_table(stats, 1, 4, use_s3, s3, s3d_h, s3d_l, s3d_c, s3d_highs, s3d_lows)
+        update_table(stats, 1, 5, use_s4, s4, s4d_h, s4d_l, s4d_c, s4d_highs, s4d_lows)
+        update_table(stats, 1, 6, use_s5, s5, s5d_h, s5d_l, s5d_c, s5d_highs, s5d_lows)
+        update_table(stats, 1, 7, use_s6, s6, s6d_h, s6d_l, s6d_c, s6d_highs, s6d_lows)
+        update_table(stats, 1, 8, use_s7, s7, s7d_h, s7d_l, s7d_c, s7d_highs, s7d_lows)
+        update_table(stats, 1, 9, use_s8, s8, s8d_h, s8d_l, s8d_c, s8d_highs, s8d_lows)
+    
+    if show_w
+        table.cell(stats, 3, 0, "PWH", text_size = _size)
+        table.cell(stats, 4, 0, "PWL", text_size = _size)
+
+        update_table(stats, 3, 1, use_s0, s0, s0w_h, s0w_l, s0w_c, s0w_highs, s0w_lows)
+        update_table(stats, 3, 2, use_s1, s1, s1w_h, s1w_l, s1w_c, s1w_highs, s1w_lows)
+        update_table(stats, 3, 3, use_s2, s2, s2w_h, s2w_l, s2w_c, s2w_highs, s2w_lows)
+        update_table(stats, 3, 4, use_s3, s3, s3w_h, s3w_l, s3w_c, s3w_highs, s3w_lows)
+        update_table(stats, 3, 5, use_s4, s4, s4w_h, s4w_l, s4w_c, s4w_highs, s4w_lows)
+        update_table(stats, 3, 6, use_s5, s5, s5w_h, s5w_l, s5w_c, s5w_highs, s5w_lows)
+        update_table(stats, 3, 7, use_s6, s6, s6w_h, s6w_l, s6w_c, s6w_highs, s6w_lows)
+        update_table(stats, 3, 8, use_s7, s7, s7w_h, s7w_l, s7w_c, s7w_highs, s7w_lows)
+        update_table(stats, 3, 9, use_s8, s8, s8w_h, s8w_l, s8w_c, s8w_highs, s8w_lows)
+    
+    if show_m
+        table.cell(stats, 5, 0, "PMH", text_size = _size)
+        table.cell(stats, 6, 0, "PML", text_size = _size)
+
+        update_table(stats, 5, 1, use_s0, s0, s0m_h, s0m_l, s0m_c, s0m_highs, s0m_lows)
+        update_table(stats, 5, 2, use_s1, s1, s1m_h, s1m_l, s1m_c, s1m_highs, s1m_lows)
+        update_table(stats, 5, 3, use_s2, s2, s2m_h, s2m_l, s2m_c, s2m_highs, s2m_lows)
+        update_table(stats, 5, 4, use_s3, s3, s3m_h, s3m_l, s3m_c, s3m_highs, s3m_lows)
+        update_table(stats, 5, 5, use_s4, s4, s4m_h, s4m_l, s4m_c, s4m_highs, s4m_lows)
+        update_table(stats, 5, 6, use_s5, s5, s5m_h, s5m_l, s5m_c, s5m_highs, s5m_lows)
+        update_table(stats, 5, 7, use_s6, s6, s6m_h, s6m_l, s6m_c, s6m_highs, s6m_lows)
+        update_table(stats, 5, 8, use_s7, s7, s7m_h, s7m_l, s7m_c, s7m_highs, s7m_lows)
+        update_table(stats, 5, 9, use_s8, s8, s8m_h, s8m_l, s8m_c, s8m_highs, s8m_lows)
+// ------------------------------ Dashboard ------------------------------

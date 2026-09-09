@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;rcRbtoBiKGtjZq96XWjZtnEs2k2dBWaj",
+ "title": "SuperTrend STRATEGY",
+ "author": "KivancOzbilgic",
+ "url": "https://www.tradingview.com/script/P5Gu6F8k-supertrend-strategy/",
+ "agreeCount": 25066,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/supertrend-strategy__rcRbtoBiKG.pine",
+ "cached_source": "tools/pine_survey/cache/sources/supertrend-strategy__rcRbtoBiKG.pine",
+ "our_status": "committed"
+}

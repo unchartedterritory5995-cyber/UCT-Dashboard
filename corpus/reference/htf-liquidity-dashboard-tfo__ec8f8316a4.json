@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ec8f8316a42742a3b4e2298eb3e35f19",
+ "title": "HTF Liquidity Dashboard [TFO]",
+ "author": "tradeforopp",
+ "url": "https://www.tradingview.com/script/cX21mnps-htf-liquidity-dashboard-tfo/",
+ "agreeCount": 3653,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+ "our_status": "committed"
+}

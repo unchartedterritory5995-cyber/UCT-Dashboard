@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;36140b1cbee54a8c89e85a1537aafca9",
+ "title": "Strong Start RVOL Dashboard",
+ "author": "finallynitin",
+ "url": "https://www.tradingview.com/script/NQikq2mA-strong-start-rvol-dashboard/",
+ "agreeCount": 3782,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine",
+ "cached_source": "tools/pine_survey/cache/sources/strong-start-rvol-dashboard__36140b1cbe.pine",
+ "our_status": "committed"
+}

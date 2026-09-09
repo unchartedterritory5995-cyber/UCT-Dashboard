@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c61e4a062a284871841f3bde06c57b3e",
+ "title": "Supertrend - Ladder ATR - 1909Capital [Trendoscope®]",
+ "author": "Trendoscope",
+ "url": "https://www.tradingview.com/script/8EZaD3CW-supertrend-ladder-atr-1909capital-trendoscope/",
+ "agreeCount": 6361,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/supertrend-ladder-atr-1909capital-trendoscope__c61e4a062a.pine",
+ "our_status": "reference-only"
+}

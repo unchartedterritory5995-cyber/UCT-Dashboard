@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ebbd1d4440dc43c693210af690486089",
+ "title": "Breaks and Retests with Volatility Stop [HG]",
+ "author": "str0zzapreti",
+ "url": "https://www.tradingview.com/script/mE2Krq9e-breaks-and-retests-with-volatility-stop-hg/",
+ "agreeCount": 2297,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/breaks-and-retests-with-volatility-stop-hg__ebbd1d4440.pine",
+ "our_status": "reference-only"
+}

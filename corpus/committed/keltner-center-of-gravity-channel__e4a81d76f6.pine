@@ -1,0 +1,179 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © eykpunter
+
+//@version=5
+indicator(title='Keltner Center Of Gravity Channel', shorttitle='KeltCOG', overlay=true)
+
+//calculate or set lookback
+//inputs
+jz = input.bool(title="toggle channel mode (off) supertrend mode (on)", defval=false, group='main settings')
+bz  = input.bool(title="show both channel and supertrend modes", defval=false, group='main settings')
+zz = input.bool(title="Show outer zones combined with supertrend", defval=false, group='main settings')
+nzz = not zz                             //condition to ditch inner zones
+naz = jz or bz or zz? true: false         //condition to show patches and nearby fib
+az  = bz or zz? true: jz? false: true     //condition to show standard channel
+
+autotttext="Script uses timeframe to set lookback - month and week: 14, day: 21, 4hour and 3hour:28, 1hour and 45min: 35, 15min: 42, 5min and 3min: 49, 1min: 56"
+autowish = input.bool(title='automatic lookback adjustment to timeframe', tooltip=autotttext, defval=true, group='main settings')
+per = 14  //initialize per
+setper = 14  //initialize setper
+tf = timeframe.period
+setper := tf == 'M' ? 14 : tf == 'W' ? 14 : tf == 'D' ? 21 : tf == '240' ? 28 : tf == '180' ? 28 : tf == '120' ? 35 : tf == '60' ? 35 : tf == '45' ? 35 : tf == '30' ? 42 : tf == '15' ? 42 : tf == '5' ? 49 : tf == '3' ? 49 : tf == '1' ? 56 : 14
+per := autowish ? setper : input.int(title='manual lookback when auto is off', defval=10, minval=2, group='main settings')
+
+//calculate or set width (i.e. COG to border)
+settttext="if set, script calculates multiplier as follows: 2 plus lookback/25 minus 6/lookback"
+setwish = input.bool(title='automatic width multiplier adjustment to lookback period',tooltip=settttext, defval=true, group='main settings')
+varwidth = 2.00  //initialize variable width
+formula = math.round(2 + per / 25 - 6 / per, 1)  //Script uses this formula to adapt Width (i.e COG to border) to look back period
+varwidth := setwish ? formula : input.float(2.0, title='Manual width multiplier (i.e. COG to border) when auto is off', step=0.1, minval=1, group='main settings')
+
+//activate feedback labels
+feedbwish = input(title='show #lookback and width feedback label on chart', defval=true, group='labels')
+centwish = input(title='show width of channel (volatility) as percent of price', defval=true, group='labels')
+centshortwish = input(title='width (volatility) in ##.# % format', defval=false, group='labels')
+
+//activate extra lines
+plushiwish = input.bool(title='show extra keltner line above channel', defval=false, group='extra lines')
+pluslowish = input.bool(title='show extra keltner line below channel', defval=false, group='extra lines')
+hmawish = input.bool(title='show last 20 of 40 period Hull Moving Average', defval = false, group='extra lines')
+
+//Calculate values for channel lines
+dis = ta.atr(per)  //Keltner channels have lines spaced by average true range
+horizontal = false  //Initialize horizontal boolean. New values only calculated when the COG (Center of Gravity) changes 
+
+donhigh = ta.highest(high, per)  //COG calculated using values of Donchian channel
+donlow = ta.lowest(low, per)
+cent = (donhigh + donlow) / 2  //center line not plotted, used calculation of widthpercent
+donrange = donhigh - donlow
+fiblow = donlow + donrange * 0.236  //Low fibonacci line
+L4 = donlow + donrange * 0.382  //coglow=donlow+donrange*0.382        //L4=Coglow Actually a Center Low fibonacci line in my donchian fibonacci channel
+L3 = donlow + donrange * 0.618  //coghigh=donlow+donrange*0.618       //L3=Coghigh center high fibonacci
+fibhigh = donlow + donrange * 0.764  //high fibonacci line
+
+L2 = L3  //innerhigh=coghigh//initialize first Keltner line above COG
+L1 = L3  //outerhigh=coghigh//initialize second Keltner line abvoe COG
+L5 = L4  //innerlow=coglow//initialize first Keltner below COG
+L6 = L4  //outerlow=coglow//initialize second Kelner below COG
+outhighplus = L3  //=coghigh//initialize extra high line above COG
+outlowplus = L4  //coglow//initialize extra low line below COG
+
+horizontal := L4 == L4[1] ? true : false  //coglow==coglow[1]?true: false//set horizontal COG changes result in Keltner changes, otherwize Keltner is horizontal
+L2 := fibhigh //: horizontal ? L2[1] : L3 + 0.5 * dis  //innerhigh:= fibwish?fibhigh: horizontal?innerhigh[1]: coghigh+0.5*dis//L2=Innerhigh set innerhigh using fibwish or horizontal as criterium
+L1 := horizontal ? L1[1] : L3 + varwidth * dis  //outerhigh:= horizontal?outerhigh[1]: coghigh+varwidth*dis//L1=Outerhigh
+outhighplus := plushiwish ? L1 + 2 * dis : na  //outerhigh+2*dis : na
+L5 := fiblow //: horizontal ? L5[1] : L4 - 0.5 * dis  //innerlow:= fibwish?fiblow: horizontal?innerlow[1]: coglow-0.5*dis//L5=Innerlow set innerlow using fibwish or horizontal
+L6 := horizontal ? L6[1] : L4 - varwidth * dis  //outerlow:= horizontal?outerlow[1]: coglow-varwidth*dis//L6=Outerlow
+outlowplus := pluslowish ? L6 - 2 * dis : na  //outerlow-2*dis : na
+
+//values for extra HMA40
+hma40 = hmawish? ta.hma(close, 40): na  //40 period Hull Moving Average calculated when wished for
+
+//define values for permanent lines (standard channel)
+outerhigh = az? L1 : na
+innerhigh = az? L2 : na
+coghigh   = az and nzz? L3 : na
+coglow   =  az and nzz? L4 : na
+innerlow =  az? L5 : na
+outerlow =  az? L6 : na
+
+//define plots of permanent lines (channel mode)
+pphi = plot(outhighplus, title='extra high line', color=color.new(color.olive, 20))
+pohi = plot(outerhigh, title='outerhigh', color=color.new(color.purple, 30))
+pihi = plot(innerhigh, title='innerhigh', color=color.new(color.blue, 30))
+pchi = plot(coghigh, title='coghigh', color=color.new(color.gray, 20))
+pclo = plot(coglow, title='coglow', color=color.new(color.gray, 20))
+pilo = plot(innerlow, title='innerlow', color=color.new(color.red, 30))
+polo = plot(outerlow, title='outerlow', color=color.new(color.purple, 30))
+pplo = plot(outlowplus, title='extra low line', color=color.new(color.olive, 20))
+
+//define fills between permanent lines (area)
+fill(pohi, pihi, title='uptrend area', color= nzz? color.new(color.blue, 70):color.new(color.blue, 90))
+fill(pchi, pihi, title='look up area', color= color.new(color.green, 70))
+fill(pchi, pclo, title='center area', color= color.new(color.gray, 90))
+fill(pclo, pilo, title='look down area', color= color.new(color.yellow, 70))
+fill(pilo, polo, title='downtrend area', color= nzz?color.new(color.red, 80): color.new(color.red,90))
+
+//define values for patch lines (super trend mode)
+CL1 = naz and high > L2                 //condition to show L1 as outhi
+CL2 = naz and high > L3 and low < L1    //condition to show L2 as inhi
+CL3 = naz and high > L4 and low < L2    //condition to show L3 as cogbase
+CL4 = naz and high > L5 and low < L3    //condition to show L4 as cogl
+CL5 = naz and high > L6 and low < L4    //condition to show L5 as inlow
+CL6 = naz and low < L5                  //condition to show L6 as outlow  
+
+outhi =   CL1 ? math.min(L1, math.max(high, high[1], high[2], high[3], high[4])) : na   //patchline continues a few periods after a higher high  
+inhi =    CL2 ? L2 : na
+coghi = CL3 ? L3 : na
+cogl =    CL4 ? L4 : na
+inlow =   CL5 ? L5 : na
+outlow =  CL6 ? math.max(L6, math.min(low, low[1], low[2], low[3], low[4])) : na    //patchline continues a few periods after a lower low
+support=  CL6 ? L5 : CL5 ? L5 : CL4 ? L4 : CL3 ? L3 : CL2 ? L2 : CL1 ? L2 : na     //level for nearby supportive fib
+resist=   CL1 ? L2 : CL2 ? L2 : CL3 ? L3 : CL4 ? L4 : CL5 ? L5 : CL6 ? L5 : na     //level for nearby resistive fib
+
+//supertrend
+mid = naz? hl2 : na //midle value of bar 
+up=mid-(varwidth*dis) //same settings as channel used
+up1 = naz? nz(up[1],up) :na
+up := naz? close[1] > up1 ? math.max(up,up1) : up : na
+dn=mid+(varwidth*dis)
+dn1 = naz? nz(dn[1], dn) :na
+dn := naz? close[1] < dn1 ? math.min(dn, dn1) : dn : na
+trend = 1
+trend := nz(trend[1], trend)
+trend := trend == -1 and close > dn1 ? 1 : trend == 1 and close < up1 ? -1 : trend
+supres = naz? trend == 1? support: resist: na 
+
+//define plots for supertrend mode
+upPlot = plot(trend == 1 ? up : na, title="Up Trend", style=plot.style_linebr, linewidth=2, color=color.green)
+dnPlot = plot(trend == 1 ? na : dn, title="Down Trend", style=plot.style_linebr, linewidth=2, color=color.red)
+supresPlot = plot(supres, title="Support/Resistance Level", style=plot.style_stepline, linewidth=1, color=trend==1?color.lime: color.maroon)
+
+//define fills between supertrend lines
+fill(upPlot,supresPlot, title="uptrend highlighter", color=color.new(#faec6a, 75))
+fill(dnPlot,supresPlot, title="downtrend highlighter", color=color.new(#db9758, 85))
+
+//define plots of patch lines
+pohir = plot(outhi, title='outhi', display=display.none)
+pihir = plot(inhi, title='inhi', display=display.none)
+pchir = plot(coghi, title='coghi', display=display.none)
+pclor = plot(cogl, title='cogl', display=display.none)
+pilor = plot(inlow, title='inlow', display=display.none)
+polor = plot(outlow, title='outlow', display=display.none)
+
+//define fills between patch lines (patches)
+fill(pohir, pihir, title='go up patch', color= color.new(color.blue, 65))
+fill(pchir, pihir, title='look up patch', color= color.new(color.green, 65))
+fill(pchir, pclor, title='doubt patch', color= color.new(color.gray, 65))
+fill(pclor, pilor, title='look down patch', color= color.new(color.orange, 65))
+fill(pilor, polor, title='go down patch', color= color.new(color.red, 65))
+
+//extra HMA40
+plot(hma40, title='HMA', color=color.rgb(190,123,45,0), linewidth=3, show_last=20) 
+
+//define feedback label
+var table feedback = table.new(position=position.bottom_left, columns=1, rows=2)
+lbtext = autowish ? 'KeltCOG lookback = ' + str.tostring(per) + ' (script), COG to border multiplier (with ATR) ' : 'KeltCOG lookback = ' + str.tostring(per) + ' (user), COG to border multiplier (with ATR) '
+witext = setwish ? str.tostring(varwidth) + ' (script)' : str.tostring(varwidth) + ' (user)'
+if feedbwish == true
+    table.cell(feedback, row=0, column=0, text=lbtext + witext, bgcolor=color.silver)
+else if feedbwish == false
+    table.clear(feedback, 0, 0, 0, 0)
+
+//define width percent label
+wide = L1 - L6  //outerhigh-outerlow
+percent = math.round(wide / cent * 100, 1)
+var table width = table.new(position=position.bottom_right, columns=1, rows=2)
+petext = 'KeltCOG width (volatility measure) ' + str.tostring(percent) + ' %'
+pestext = str.tostring(percent) + ' %'
+if centwish == true
+    table.cell(width, row=0, column=0, text=centshortwish ? pestext : petext, text_color=color.black, bgcolor=color.silver, text_size=size.normal) //upper cell contains text
+    table.cell(width, row=1, column=0, text="|", bgcolor=color.new(color.white,100), text_color=color.new(color.white,100), text_size=size.normal) //lower cell made invisible
+else if centwish == false
+    table.clear(width, 0, 0, 0, 0)
+
+
+
+
+
+

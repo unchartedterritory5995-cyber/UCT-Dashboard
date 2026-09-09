@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;07070e14d6ea4e17a6788428bc0e73d7",
+ "title": "HalfTrend Long/Short Signal Engine [BigBeluga]",
+ "author": "BigBeluga",
+ "url": "https://www.tradingview.com/script/ZHGPnlAz-halftrend-long-short-signal-engine-bigbeluga/",
+ "agreeCount": 5751,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/halftrend-longshort-signal-engine-bigbeluga__07070e14d6.pine",
+ "our_status": "reference-only"
+}

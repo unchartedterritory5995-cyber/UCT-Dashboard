@@ -1,0 +1,96 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Assembled by ©ClassicScott
+
+//@version=6
+indicator('+ Donchian Channels', shorttitle = '+ DC', overlay = true, timeframe = '')
+
+//----- Inputs
+//--- General
+srcHigh           = input.source(title = 'Source for Upper', defval = high, group = 'Inputs')
+srcLow            = input.source(title = 'Source for Lower', defval = low, group = 'Inputs')
+period            = input.int(title    = 'Period', defval = 100, group = 'Inputs')
+bandWidthInput    = input.float(title  = 'Band Thickness', defval = 10, step = 0.5, group = 'Inputs', tooltip = 'Defines the thickness of the band. Larger number is thinner. Realistically you wouldn\'t want to go below 3 probably.')
+dcSmoothing       = input.int(title    = 'EMA Period', defval = 1, group = 'Inputs', tooltip = 'Applies an exponential moving average to the calculation of the top and bottom borders to smooth their movements. This is creating an EMA of the highest highs and lowest lows (or closes if you prefer) of the Donchian Channels lookback. Obviously the basis and everything else will be calculated from that.')
+
+//--- Basis
+basisInput        = input.bool(title      = 'Display Basis?', defval = true, group = 'Basis')
+timeframeInput    = input.timeframe(title = 'Timeframe for Basis Color', defval = '', group = 'Basis', tooltip = 'Pick your timeframe and the basis will be colored based on if current price is above or below the previous close of that other timeframe\'s basis.')
+
+//--- Boolean inputs for displaying fib lines
+topMiddleInput    = input.bool(title = 'Display Upper Mid Line?', defval = true, group = 'Minor Channels')
+bottomMiddleInput = input.bool(title = 'Display Lower Mid Line?', defval = true, group = 'Minor Channels')
+
+top786Input       = input.bool(title = 'Display Upper .786?', defval = false, group = 'Fib Levels')
+top702Input       = input.bool(title = 'Display Upper .702?', defval = true, group = 'Fib Levels') // no it's not a fib, but is halfway between .618 and .786
+top382Input       = input.bool(title = 'Display Upper .382?', defval = false, group = 'Fib Levels')
+bottom382Input    = input.bool(title = 'Display Lower .382?', defval = false, group = 'Fib Levels')
+bottom702Input    = input.bool(title = 'Display Lower .702?', defval = true, group = 'Fib Levels')
+bottom786Input    = input.bool(title = 'Display Lower .786?', defval = false, group = 'Fib Levels')
+
+//----- Top, bottom and basis variables
+top            = ta.highest(srcHigh, period)
+topSmoothed    = ta.ema(top, dcSmoothing)
+bottom         = ta.lowest(srcLow, period)
+bottomSmoothed = ta.ema(bottom, dcSmoothing)
+basis          = math.avg(topSmoothed, bottomSmoothed)
+
+bandWidth      = (topSmoothed - bottomSmoothed) / bandWidthInput
+
+topInner       = topSmoothed - bandWidth
+bottomInner    = bottomSmoothed + bandWidth
+
+
+//----- Fib line calculations and variables
+topMiddle    = math.avg(topSmoothed, basis) // when thinking of thes mid levels of the upper and lower channels, they are, if calculated the same way as the fibonacci levels, the
+bottomMiddle = math.avg(bottomSmoothed, basis) // .75 and. 25 levels within the whole of the channel itself, hence why they are between the .786 and .702, and the .298 and .214
+
+top786       = ((topSmoothed - bottomSmoothed) * .786) + bottom
+top702       = ((topSmoothed - bottomSmoothed) * .702) + bottom
+top382       = ((topSmoothed - bottomSmoothed) * .618) + bottom // also a .382
+
+bottom382    = ((topSmoothed - bottomSmoothed) * .382) + bottom // also a .618
+bottom702    = ((topSmoothed - bottomSmoothed) * .298) + bottom
+bottom786    = ((topSmoothed - bottomSmoothed) * .214) + bottom
+
+
+//----- Visuals
+//--- Plots
+plot(basisInput ? basis : na, title = 'Basis', color = request.security(syminfo.tickerid, timeframeInput, close > basis[1] ? color.new(#445b84, 50) : close < basis[1] ? color.new(#844444, 50) : na), linewidth = 2)
+
+pTop          = plot(top,      title = 'Upper Donchian', color = color.new(#844444, 50), display = display.none)
+pTopInner     = plot(topInner, title = 'Upper Donchian | Inner', color = color.new(#844444, 50), display = display.none)
+
+pTop786       = plot(top786Input ? top786 : na,             title = 'Upper .786', color = color.new(#448484, 50))
+pTopMiddle    = plot(topMiddleInput ? topMiddle : na,       title = 'Upper Mid', color = color.new(#808080, 50), linewidth = 2)
+pTop702       = plot(top702Input ? top702 : na,             title = 'Upper.702', color = color.new(#448484, 50))
+pTop382       = plot(top382Input ? top382 : na,             title = 'Upper .382', color = color.new(#5a4484, 50))
+pBottom382    = plot(bottom382Input ? bottom382 : na,       title = 'Lower .382', color = color.new(#5a4484, 50))
+pBottom702    = plot(bottom702Input ? bottom702 : na,       title = 'Lower .702', color = color.new(#448484, 50))
+pBottomMiddle = plot(bottomMiddleInput ? bottomMiddle : na, title = 'Lower Mid', color = color.new(#808080, 50), linewidth = 2)
+pBottom786    = plot(bottom786Input ? bottom786 : na,       title = 'Lower .786', color = color.new(#448484, 50))
+
+pBottomInner  = plot(bottomInner, title = 'Lower Donchian | Inner', color = color.new(#445b84, 50), display = display.none)
+pBottom       = plot(bottom,      title = 'Lower Donchian', color = color.new(#445b84, 50), display = display.none)
+
+//--- Fills
+fill(pTop, pTopInner,           title = 'Upper Band', color = color.new(#808080, 85))
+fill(pTop786, pTopMiddle,       title = 'Upper .786 Zone', color = color.new(#448484, 85))
+fill(pTopMiddle, pTop702,       title = 'Upper .702 Zone', color = color.new(#448484, 85))
+fill(pBottom382, pTop382,       title = 'Middle .382 Zone', color = color.new(#5a4484, 85))
+fill(pBottomMiddle, pBottom702, title = 'Lower .702 Zone', color = color.new(#448484, 85))
+fill(pBottom786, pBottomMiddle, title = 'Lower .786 Zone', color = color.new(#448484, 85))
+fill(pBottom, pBottomInner,     title = 'Lower Band', color = color.new(#808080, 85))
+
+
+//----- Alerts
+alertcondition(ta.cross(close, basis),        title = 'Price crosses Basis', message = 'Price has crossed the basis of the Donchian Channels.')
+alertcondition(ta.cross(close, bottomInner),  title = 'Price crosses into lower band', message = 'Price has crossed into the bottom band of the Donchian Channels.')
+alertcondition(ta.cross(close, topInner),     title = 'Price crosses into upper band', message = 'Price has crossed into the upper band of the Donchian Channels.')
+alertcondition(ta.cross(close, topMiddle),    title = 'Price crosses mid line of upper channel', message = 'Price has crossed the mid line of the upper Donchian Channels.')
+alertcondition(ta.cross(close, bottomMiddle), title = 'Price crosses mid line of lower channel', message = 'Price has crossed the mid line of the lower Donchian Channels.')
+alertcondition(ta.cross(close, top786),       title = 'Price crosses upper .786', message = 'Price as crossed the upper .786 (high zone) fib of the Donchian Channels.')
+alertcondition(ta.cross(close, top702),       title = 'Price crosses upper .702', message = 'Price as crossed the upper .702 fib of the Donchian Channels.')
+alertcondition(ta.cross(close, top382),       title = 'Price crosses upper .382', message = 'Price as crossed the upper .382 (mid zone) fib of the Donchian Channels.')
+alertcondition(ta.cross(close, bottom382),    title = 'Price crosses lower .382', message = 'Price as crossed the lower .382 (mid zone fib of the Donchian Channels.')
+alertcondition(ta.cross(close, bottom702),    title = 'Price crosses lower .702', message = 'Price as crossed the lower .702 fib of the Donchian Channels.')
+alertcondition(ta.cross(close, bottom786),    title = 'Price crosses lower .786', message = 'Price as crossed the lower .786 (low zone) fib of the Donchian Channels.')

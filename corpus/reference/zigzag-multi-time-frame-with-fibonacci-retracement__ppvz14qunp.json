@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ppvz14qunpxmytd55D0FiTjqvpBu4drk",
+ "title": "ZigZag Multi Time Frame with Fibonacci Retracement",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/PkG2p43H-zigzag-multi-time-frame-with-fibonacci-retracement/",
+ "agreeCount": 10119,
+ "category": "market structure / smart-money",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp.pine",
+ "cached_source": "tools/pine_survey/cache/sources/zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp.pine",
+ "our_status": "committed"
+}

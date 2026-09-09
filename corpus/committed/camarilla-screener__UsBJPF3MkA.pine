@@ -1,0 +1,77 @@
+//This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=4
+
+study("Camarilla screener", shorttitle="CamScr", overlay=false)
+
+coin1_bar = 10, coin2_bar = 9, coin3_bar = 8, coin4_bar = 7, coin5_bar = 6, coin6_bar = 5, coin7_bar = 4, coin8_bar = 3, coin9_bar = 2, coin10_bar = 1
+
+res1 = input(defval="D", type=input.resolution, title="Pivot resolution")
+res2 = timeframe.period
+
+coin1 =  input(defval="BINANCE:BTCUSDT", type=input.symbol, title="Ticker 1")
+coin2 = input(defval="BINANCE:ETHUSDT", type=input.symbol, title="Ticker 2")
+coin3 = input(defval="BINANCE:XRPUSDT", type=input.symbol, title="Ticker 3")
+coin4 = input(defval="BINANCE:LINKUSDT", type=input.symbol, title="Ticker 4")
+coin5 = input(defval="BINANCE:AAVEUSDT", type=input.symbol, title="Ticker 5")
+coin6 = input(defval="BINANCE:XLMUSDT", type=input.symbol, title="Ticker 6")
+coin7 = input(defval="BINANCE:DOTUSDT", type=input.symbol, title="Ticker 7")
+coin8 = input(defval="BINANCE:ADAUSDT", type=input.symbol, title="Ticker 8")
+coin9 = input(defval="BINANCE:EOSUSDT", type=input.symbol, title="Ticker 9")
+coin10 = input(defval="BINANCE:BNBUSDT", type=input.symbol, title="Ticker 10")
+
+makeBar(ticker) =>
+    sopen = security(ticker, res1, open[1], barmerge.gaps_off, barmerge.lookahead_on)
+    shigh = security(ticker, res1, high[1], barmerge.gaps_off, barmerge.lookahead_on)
+    slow = security(ticker, res1, low[1], barmerge.gaps_off, barmerge.lookahead_on)
+    sclose = security(ticker, res1, close[1], barmerge.gaps_off, barmerge.lookahead_on)
+    sPrice = security(ticker, res2, close)
+    r = shigh-slow
+    //Calculate pivots
+    pivot = (shigh + slow + sclose) / 3
+    pivotBottom = (shigh + slow ) / 2
+    pivotTop = (pivot - pivotBottom) + pivot
+    h3=sclose + r*(1.1/4)
+    h4=sclose + r*(1.1/2)
+    h5=(shigh/slow)*sclose
+    l3=sclose - r*(1.1/4)
+    l4=sclose - r*(1.1/2)
+    l5=sclose - (h5-sclose)
+    //Assign color    
+    bcolor = sPrice > h4 ? color.blue : sPrice < h3 and sPrice > pivotTop ? color.red : sPrice < pivotTop and sPrice > pivotBottom ? color.fuchsia : sPrice > l3 and sPrice < pivotBottom ? color.green : sPrice < l4 ? color.blue : na
+    
+//Plot bars
+plot(coin1_bar, title="1", color=makeBar(coin1), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin2_bar, title="2", color=makeBar(coin2), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin3_bar, title="3", color=makeBar(coin3), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin4_bar, title="4", color=makeBar(coin4), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin5_bar, title="5", color=makeBar(coin5), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin6_bar, title="6", color=makeBar(coin6), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin7_bar, title="7", color=makeBar(coin7), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin8_bar, title="8", color=makeBar(coin8), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin9_bar, title="9", color=makeBar(coin9), transp=0, style=plot.style_cross, linewidth=2)
+plot(coin10_bar, title="10", color=makeBar(coin10), transp=0, style=plot.style_cross, linewidth=2)
+
+
+//Ticker names to avoid having to enable indicator name labels
+var label name1 = na, var label name2 = na, var label name3 = na, var label name4 = na, var label name5 = na
+var label name6 = na, var label name7 = na, var label name8 = na, var label name9 = na, var label name10 = na
+name1 := label.new(x = time + 86400000 / 2, y = 10, text = coin1,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name1[1])
+name2 := label.new(x = time + 86400000 / 2, y = 9, text = coin2,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name2[1])
+name3 := label.new(x = time + 86400000 / 2, y = 8, text = coin3,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name3[1])
+name4 := label.new(x = time + 86400000 / 2, y = 7, text = coin4,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name4[1])
+name5 := label.new(x = time + 86400000 / 2, y = 6, text = coin5,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name5[1])
+name6 := label.new(x = time + 86400000 / 2, y = 5, text = coin6,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name6[1])
+name7 := label.new(x = time + 86400000 / 2, y = 4, text = coin7,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name7[1])
+name8 := label.new(x = time + 86400000 / 2, y = 3, text = coin8,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name8[1])
+name9 := label.new(x = time + 86400000 / 2, y = 2, text = coin9,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name9[1])
+name10 := label.new(x = time + 86400000 / 2, y = 1, text = coin10,size=size.small,textcolor=color.yellow, style=label.style_none, xloc = xloc.bar_time, yloc=yloc.price)
+label.delete(name10[1])

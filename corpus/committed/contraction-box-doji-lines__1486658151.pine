@@ -1,0 +1,58 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © AleSaira
+
+//@version=5
+indicator("Contraction Box & Doji Lines", shorttitle="Contraction Box & Doji Lines", overlay=true, max_lines_count = 200)
+
+// Set the length of horizontal lines from doji
+var int LineLongInput       =       input.int   (25, title="Line Length")
+var color LineColorInput    =       input.color (color.rgb(8, 151, 132), title="Line Color")
+var int LineWidthInput      =       input.int   (1, title="Line Width")
+var int HistoryLength       =       input.int   (20, title="Historical Bars", minval=1)
+
+boxLineColor                =       input.color (color.blue, title="Box Line Border Color")
+boxLColor                   =       input.color (color.rgb(61, 118, 204, 70), title="Box Background Color")
+lineWidth                   =       input.int   (2, title="Box Width", minval=1)
+
+// Added input for the number of historical bars
+
+drawHorizontalLineFromDoji(LineLong, lineColor, lineWidth) =>
+    // Calculate the size of the doji body
+    dojiSize = math.abs(open - close)
+
+    // Identify a doji if the body size is very small compared to the entire range
+    isDoji = dojiSize < (high - low) * 0.1
+
+    // Calculate the index of the last doji candle
+    var int lastDojiIndex = na
+    var float lastDojiBodyMid = na
+    if isDoji
+        lastDojiIndex := bar_index
+        lastDojiBodyMid := (open + close) / 2
+
+        // Draw a horizontal line starting from the middle of the doji body and extending for LineLong bars to the right
+        line.new(x1=lastDojiIndex, y1=lastDojiBodyMid, x2=lastDojiIndex + LineLong, y2=lastDojiBodyMid, width=lineWidth, color=lineColor)
+
+//Call the function only once for each doji candle
+drawHorizontalLineFromDoji(HistoryLength, LineColorInput, LineWidthInput)
+
+// Calculate the lowest low of the last 5 candles
+lowestLow = ta.lowest(low, 5)
+
+// Calculate the highest high of the last 5 candles
+highestHigh = ta.highest(high, 5)
+
+// formula condition
+condition = high <= high[5] and low[5] <= low and low >= low[3]
+
+// Draw the rectangle only if the condition is true
+rectLeft = condition ? bar_index - 5 : na
+rectRight = bar_index
+rectTop = condition ? highestHigh : na
+rectBottom = condition ? lowestLow : na
+
+
+box.new(left = int(rectLeft), right = int(rectRight), top = rectTop, bottom = rectBottom, border_width = 1, border_color = boxLineColor, bgcolor = boxLColor)
+
+
+

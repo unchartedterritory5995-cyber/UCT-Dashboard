@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;17ec799bc11c4da0affab7fd13f38b62",
+ "title": "Dynamic Linear Regression Channels",
+ "author": "iravan",
+ "url": "https://www.tradingview.com/script/IPdDUsgl-dynamic-linear-regression-channels/",
+ "agreeCount": 6527,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/dynamic-linear-regression-channels__17ec799bc1.pine",
+ "our_status": "reference-only"
+}

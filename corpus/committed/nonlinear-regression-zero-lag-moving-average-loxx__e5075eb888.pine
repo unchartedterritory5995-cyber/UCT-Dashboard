@@ -1,0 +1,105 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © loxx
+
+//@version=5
+indicator("Nonlinear Regression, Zero-lag Moving Average [Loxx]", 
+     overlay = true, 
+     timeframe="", 
+     timeframe_gaps = true)
+
+color greencolor = #2DD204
+color redcolor = #D2042D 
+
+zlma(float src, simple int per)=>
+    float sum = 0
+    float sumw = 0
+    float weight = 0
+    float lwma1 = 0.
+    float out = 0.
+    for k = 0 to per - 1
+        weight := per - k
+        sumw += weight
+        sum += weight * nz(src[k])
+    lwma1 := sum / sumw
+
+    sumw := 0
+    sum := 0
+    for k = 0 to per - 1
+        weight := per - k
+        sumw += weight
+        sum += weight * nz(lwma1[k])  
+    out := sum / sumw
+    out
+
+nonLinearRegression(float src, simple int per)=>
+    float AvgX = 0
+    float AvgY = 0
+
+    float[] nlrXValue = array.new<float>(per, 0)
+    float[] nlrYValue = array.new<float>(per, 0)
+
+    for i = 0 to per - 1
+        array.set(nlrXValue, i, i)
+        array.set(nlrYValue, i, nz(src[i]))
+        AvgX += array.get(nlrXValue, i)
+        AvgY += array.get(nlrYValue, i)
+    
+    AvgX /= per
+    AvgY /= per
+ 
+    float SXX = 0
+    float SXY = 0
+    float SYY = 0
+    float SXX2 = 0
+    float SX2X2 = 0
+    float SYX2 = 0
+
+    for i = 0 to per - 1
+        float XM = array.get(nlrXValue, i) - AvgX
+        float YM = array.get(nlrYValue, i) - AvgY
+        float XM2 = array.get(nlrXValue, i) * array.get(nlrXValue, i) - AvgX * AvgX
+        SXX += XM * XM
+        SXY += XM * YM
+        SYY += YM * YM
+        SXX2 += XM * XM2
+        SX2X2 += XM2 * XM2
+        SYX2 += YM * XM2
+    
+    float tmp = 0
+    float ACoeff = 0
+    float BCoeff = 0
+    float CCoeff = 0
+
+    tmp := SXX * SX2X2 - SXX2 * SXX2
+
+    if tmp != 0
+        BCoeff := (SXY * SX2X2 - SYX2 * SXX2) / tmp
+        CCoeff := (SXX * SYX2 - SXX2 * SXY) / tmp
+    
+    ACoeff := AvgY - BCoeff * AvgX - CCoeff * AvgX * AvgX
+    tmp := ACoeff + CCoeff 
+    tmp
+
+float src = input.source(close, "Source", group = "Basic Settings")
+int zlmaper = input.int(15, "Zero-lag Moving Average Period", group = "Basic Settings")
+int regressionper = input.int(15, "Nonlinear Regression Period", group = "Basic Settings")
+
+bool colorbars = input.bool(true, title='Color bars', group = "UI Options")
+bool showSigs = input.bool(true, title='Show signals', group = "UI Options")
+
+float out = nonLinearRegression(zlma(src, zlmaper), regressionper)
+float sig = out[1]
+
+color colorout = out > sig ? greencolor : redcolor,
+plot(out, "Nonlinear Regression, Zero-lag Moving Average [Loxx]", color = colorout, linewidth = 3)
+
+barcolor(colorout)
+
+bool goLong = ta.crossover(out, sig)
+bool goShort = ta.crossunder(out, sig)
+
+plotshape(showSigs and goLong, title = "Long", color = color.yellow, textcolor = color.yellow, text = "L", style = shape.triangleup, location = location.belowbar, size = size.tiny)
+plotshape(showSigs and goShort, title = "Short", color = color.fuchsia, textcolor = color.fuchsia, text = "S", style = shape.triangledown, location = location.abovebar, size = size.tiny)
+
+alertcondition(goLong, title = "Long", message = "Nonlinear Regression, Zero-lag Moving Average [Loxx]: Long\nSymbol: {{ticker}}\nPrice: {{close}}")
+alertcondition(goShort, title = "Short", message = "Nonlinear Regression, Zero-lag Moving Average [Loxx]: Short\nSymbol: {{ticker}}\nPrice: {{close}}")

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;41",
+ "title": "CM_Forex-Sessions-Highlight_V1",
+ "author": "ChrisMoody",
+ "url": "https://www.tradingview.com/script/cJmgSrqQ-cm-forex-sessions-highlight-v1/",
+ "agreeCount": 5533,
+ "category": "session tools",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/cm-forex-sessions-highlight-v1__41.pine",
+ "our_status": "reference-only"
+}

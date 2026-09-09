@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;30185ad35b5148a8ae9241674f1e67dc",
+ "title": "Auto-Length Moving Average + Trend Signals (Zeiierman)",
+ "author": "Zeiierman",
+ "url": "https://www.tradingview.com/script/ZsWZRg62-auto-length-moving-average-trend-signals-zeiierman/",
+ "agreeCount": 4200,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/auto-length-moving-average-trend-signals-zeiierman__30185ad35b.pine",
+ "our_status": "reference-only"
+}

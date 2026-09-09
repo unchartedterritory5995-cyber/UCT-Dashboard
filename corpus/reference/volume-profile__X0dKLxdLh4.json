@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;X0dKLxdLh46AZbqGl3Bgxb83fo9oWlDe",
+ "title": "Volume Profile",
+ "author": "kv4coins",
+ "url": "https://www.tradingview.com/script/r3VrWAO4-volume-profile/",
+ "agreeCount": 23953,
+ "category": "order flow",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile__X0dKLxdLh4.pine",
+ "our_status": "committed"
+}

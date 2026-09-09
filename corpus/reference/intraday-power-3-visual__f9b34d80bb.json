@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f9b34d80bbda4e6da0007e22082213dc",
+ "title": "Intraday Power 3 Visual",
+ "author": "Infinity_Trading_",
+ "url": "https://www.tradingview.com/script/YiAkfJC0-intraday-power-3-visual/",
+ "agreeCount": 1758,
+ "category": "visual decoration",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/intraday-power-3-visual__f9b34d80bb.pine",
+ "our_status": "reference-only"
+}

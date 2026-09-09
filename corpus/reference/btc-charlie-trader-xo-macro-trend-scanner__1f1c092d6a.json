@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1f1c092d6a7c47bdb360b667e4725c04",
+ "title": "[@btc_charlie] Trader XO Macro Trend Scanner",
+ "author": "btc_charlie",
+ "url": "https://www.tradingview.com/script/Q95qqFgC-btc-charlie-trader-xo-macro-trend-scanner/",
+ "agreeCount": 7174,
+ "category": "screener/scanner",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+ "cached_source": "tools/pine_survey/cache/sources/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+ "our_status": "committed"
+}

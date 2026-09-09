@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;29fdf0235d9e4ed2a9141d13d0483477",
+ "title": "McClellan Indicators",
+ "author": "crutchie",
+ "url": "https://www.tradingview.com/script/i6LNu8wO-mcclellan-indicators/",
+ "agreeCount": 669,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/mcclellan-indicators__29fdf0235d.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c6388de20b7b4c068127ad3b7518ddce",
+ "title": "Stop Loss Clustering (Breakouts) [Kioseff Trading]",
+ "author": "KioseffTrading",
+ "url": "https://www.tradingview.com/script/CJX3k6l2-stop-loss-clustering-breakouts-kioseff-trading/",
+ "agreeCount": 3273,
+ "category": "machine-learning-styled",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/stop-loss-clustering-breakouts-kioseff-trading__c6388de20b.pine",
+ "our_status": "committed"
+}

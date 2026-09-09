@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f7eb2c2d64a24ce1a043a979da1aa3fe",
+ "title": "Momentum Terrain 3D [LuxAlgo]",
+ "author": "LuxAlgo",
+ "url": "https://www.tradingview.com/script/WgcQ7iYB-momentum-terrain-3d-luxalgo/",
+ "agreeCount": 724,
+ "category": "visual decoration",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/momentum-terrain-3d-luxalgo__f7eb2c2d64.pine",
+ "our_status": "reference-only"
+}

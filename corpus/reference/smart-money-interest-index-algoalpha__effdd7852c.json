@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;effdd7852cfc4ddc955c6b4b22c79088",
+ "title": "Smart Money Interest Index [AlgoAlpha]",
+ "author": "AlgoAlpha",
+ "url": "https://www.tradingview.com/script/oBwmJW5g-smart-money-interest-index-algoalpha/",
+ "agreeCount": 4009,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-interest-index-algoalpha__effdd7852c.pine",
+ "our_status": "committed"
+}

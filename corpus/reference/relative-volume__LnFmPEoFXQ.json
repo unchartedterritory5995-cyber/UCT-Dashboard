@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;LnFmPEoFXQMe986nYnpXqjmUV4DhgqUf",
+ "title": "Relative Volume",
+ "author": "veryfid",
+ "url": "https://www.tradingview.com/script/rZpNXicF-relative-volume/",
+ "agreeCount": 3386,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
+ "cached_source": "tools/pine_survey/cache/sources/relative-volume__LnFmPEoFXQ.pine",
+ "our_status": "committed"
+}

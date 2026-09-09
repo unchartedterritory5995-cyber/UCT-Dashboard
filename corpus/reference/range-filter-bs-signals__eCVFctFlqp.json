@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;eCVFctFlqpt475hG8Qw7yYA89NxMtSGa",
+ "title": "Range Filter - B&S Signals",
+ "author": "Jazal",
+ "url": "https://www.tradingview.com/script/q23anHmP-range-filter-b-s-signals/",
+ "agreeCount": 15703,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/range-filter-bs-signals__eCVFctFlqp.pine",
+ "cached_source": "tools/pine_survey/cache/sources/range-filter-bs-signals__eCVFctFlqp.pine",
+ "our_status": "committed"
+}

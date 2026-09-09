@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5efd12f9556c40c2a7ea448f7c2e4f76",
+ "title": "+ Rate of Change",
+ "author": "ClassicScott",
+ "url": "https://www.tradingview.com/script/YJrOouJF-rate-of-change/",
+ "agreeCount": 550,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rate-of-change__5efd12f955.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rate-of-change__5efd12f955.pine",
+ "our_status": "committed"
+}

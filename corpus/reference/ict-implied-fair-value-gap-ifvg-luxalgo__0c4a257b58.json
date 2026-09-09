@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0c4a257b58c54748b0d0c7be31d5f79b",
+ "title": "ICT Implied Fair Value Gap (IFVG) [LuxAlgo]",
+ "author": "LuxAlgo",
+ "url": "https://www.tradingview.com/script/1KtO6NVA-ict-implied-fair-value-gap-ifvg-luxalgo/",
+ "agreeCount": 6024,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/ict-implied-fair-value-gap-ifvg-luxalgo__0c4a257b58.pine",
+ "our_status": "reference-only"
+}

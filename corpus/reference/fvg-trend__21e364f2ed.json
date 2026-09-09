@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;21e364f2edc2485088ec798e50741619",
+ "title": "FVG Trend",
+ "author": "makuchaku",
+ "url": "https://www.tradingview.com/script/VkMvWb7D-fvg-trend/",
+ "agreeCount": 2445,
+ "category": "market structure / smart-money",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fvg-trend__21e364f2ed.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fvg-trend__21e364f2ed.pine",
+ "our_status": "committed"
+}

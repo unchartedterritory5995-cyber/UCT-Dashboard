@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;YlblCbts4xOLxi0aeKaZ2Bz5I6efpBMH",
+ "title": "Stop loss and Take Profit in $$ example",
+ "author": "adolgov",
+ "url": "https://www.tradingview.com/script/IHVPG6TS-stop-loss-and-take-profit-in-example/",
+ "agreeCount": 6430,
+ "category": "volatility",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/stop-loss-and-take-profit-in-example__YlblCbts4x.pine",
+ "cached_source": "tools/pine_survey/cache/sources/stop-loss-and-take-profit-in-example__YlblCbts4x.pine",
+ "our_status": "committed"
+}

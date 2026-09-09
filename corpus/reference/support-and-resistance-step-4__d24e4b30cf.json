@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d24e4b30cf05422ca88387ab1de91b52",
+ "title": "Support and Resistance Step 4",
+ "author": "AnmolMaheshwari",
+ "url": "https://www.tradingview.com/script/N1Bi54WD-support-and-resistance-step-4/",
+ "agreeCount": 3845,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/support-and-resistance-step-4__d24e4b30cf.pine",
+ "our_status": "reference-only"
+}

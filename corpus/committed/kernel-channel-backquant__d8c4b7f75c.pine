@@ -1,0 +1,161 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © BackQuant
+
+//@version=6
+indicator("Kernel Channel [BackQuant]", overlay = true)
+
+// Input groups
+const string gKernel = "Kernel Settings"
+const string gBand   = "Channel Width"
+const string gVisual = "Visuals"
+
+// Kernel settings
+src                  = input.source(hlc3, "Source", group = gKernel)
+winLength            = input.int(100, "Window Length", minval = 2, group = gKernel)
+bandwidth            = input.float(1.0, "Bandwidth (locality)", minval = 0.1, step = 0.1, group = gKernel)
+kernelType           = input.string("Epanechnikov", "Kernel Type", options = ["Epanechnikov", "Triangular", "Laplacian", "Cosine"], group = gKernel)
+
+// Channel width settings
+bandType             = input.string("Kernel StdDev", "Band Type", options = ["Kernel ATR", "Kernel StdDev"], group = gBand)
+bandMult             = input.float(2.0, "Band Multiplier", minval = 0.0, step = 0.1, group = gBand)
+
+// Visual settings
+bool showBands       = input.bool(true, "Show Bands", group = gVisual, tooltip = "This is the plotting of the Band Type, ATR or StdDev")
+bool useBarColor     = input.bool(false, "Color Bars By Regime", group = gVisual)
+bool showSqueeze     = input.bool(true, "Highlight Squeeze Periods", group = gVisual)
+bool highlightDev    = input.bool(false, "Highlight Price Devation from Channel", group = gVisual, tooltip = "Only use this when Band Type is set to Kernal StdDev, using this on ATR mode will not have any signal capacity.")
+int squeezeLookback  = input.int(100, "Squeeze Lookback", group = gVisual)
+float squeezePct     = input.float(20.0, "Squeeze Percentile", minval = 1.0, step = 1.0, group = gVisual)
+color colUp          = input.color(#00ff00, "Long Color", group=gVisual, inline="col", tooltip="Line/ channel color when slope is up")
+color colDown        = input.color(#ff0000, "Short Color", group=gVisual, inline="col", tooltip="Line/ channel color when slope is down")
+color sqzCol         = input.color(#ffeb3b26, "Squeeze Color", group = gVisual, inline="col")
+color colFlat        = color.gray
+
+// Helper functions
+// Kernel weight function
+kernelWeight(int idx, int length, float bw, string ktype) =>
+    float uRaw = length > 1 ? idx / (length - 1.0) : 0.0
+    float u    = uRaw / bw
+    float w    = 0.0
+
+    if ktype == "Epanechnikov"
+        float uClamp = math.min(1.0, math.max(0.0, u))
+        w := 1.0 - math.pow(uClamp, 2.0)
+    else if ktype == "Triangular"
+        float uClamp = math.min(1.0, math.max(0.0, u))
+        w := 1.0 - uClamp
+    else if ktype == "Laplacian"
+        w := math.exp(-math.abs(u))
+    else
+        float uClamp = math.min(1.0, math.max(0.0, u))
+        w := 0.5 * (1.0 + math.cos(math.pi * uClamp))
+
+    w
+
+// Kernel mean
+kernelMu(series float s, int length, float bw, string ktype) =>
+    float num = 0.0
+    float den = 0.0
+    for i = 0 to length - 1
+        float w = kernelWeight(i, length, bw, ktype)
+        float v = nz(s[i])
+        num += w * v
+        den += w
+    den != 0.0 ? num / den : na
+
+// Kernel standard deviation around given mean
+kernelStddev(series float s, int length, float bw, string ktype, float mean) =>
+    float num = 0.0
+    float den = 0.0
+    for i = 0 to length - 1
+        float w = kernelWeight(i, length, bw, ktype)
+        float diff = nz(s[i]) - mean
+        num += w * diff * diff
+        den += w
+    den != 0.0 ? math.sqrt(num / den) : na
+
+
+// Core calculations
+midline = kernelMu(src, winLength, bandwidth, kernelType)
+
+// Width from ATR or StdDev
+trSeries = ta.tr(true)
+widthAtr = kernelMu(trSeries, winLength, bandwidth, kernelType)
+widthStd = na(midline) ? na : kernelStddev(src, winLength, bandwidth, kernelType, midline)
+width    = bandType == "Kernel ATR" ? widthAtr : widthStd
+
+upper = na(midline) or na(width) ? na : midline + width * bandMult
+lower = na(midline) or na(width) ? na : midline - width * bandMult
+
+// Colors and regimes
+midColor = midline > midline[1] ? colUp : midline < midline[1] ? colDown : colFlat
+
+// Relative width for squeeze logic
+relWidth = na(width) or midline == 0.0 ? na : width / math.abs(midline)
+
+// Percentile based squeeze threshold
+percentile(series float s, int len, float pct) =>
+    // rolling approximation using rank in window
+    float threshold = na
+    if bar_index >= len
+        int count = 0
+        int rank  = 0
+        for i = 0 to len - 1
+            float v = nz(s[i])
+            if not na(v)
+                count += 1
+                if v < nz(s[0])
+                    rank += 1
+        // If current value is in lowest pct percent of the window
+        frac = count > 0 ? 100.0 * rank / count : na
+        threshold := frac
+    threshold
+
+squeezeRank = showSqueeze and not na(relWidth) ? percentile(relWidth, squeezeLookback, squeezePct) : na
+inSqueeze   = showSqueeze and not na(squeezeRank) and squeezeRank <= squeezePct
+
+
+// Plotting
+plotMid   = plot(midline, "Kernel Midline", color = midColor, linewidth = 3)
+plotUpper = plot(showBands?upper:na, "Upper Band", color = midColor)
+plotLower = plot(showBands?lower:na, "Lower Band", color = midColor)
+
+fill(plotUpper, plotLower, title = "Kernel Channel Fill", color = color.new(midColor, 80))
+
+bgcolor(showSqueeze and inSqueeze ? sqzCol : na)
+bgcolor(highlightDev and close>upper ? color.new(colUp, 80) : na)
+bgcolor(highlightDev and close<lower ? color.new(colDown, 80) : na)
+
+// Bar coloring
+var color barCol = na
+bool trendUpStrong   = close > upper and midline > midline[1]
+bool trendDownStrong = close < lower and midline < midline[1]
+bool trendUpWeak     = close >= midline and close <= upper and midline > midline[1]
+bool trendDownWeak   = close <= midline and close >= lower and midline < midline[1]
+bool compressed      = showSqueeze and inSqueeze
+
+if trendUpStrong
+    barCol := color.lime
+else if trendDownStrong
+    barCol := color.red
+else if trendUpWeak
+    barCol := color.teal
+else if trendDownWeak
+    barCol := color.maroon
+else if compressed
+    barCol := color.new(color.gray, 60)
+else
+    barCol := color.orange
+
+plotcandle(open, high, low, close, "Bar Coloring", barCol, barCol, true, bordercolor = barCol, display = useBarColor?display.all:display.none)
+
+
+// Alerts
+alertcondition(midline > midline[1], "Kernel Channel Long", "Kernel Channel Long {{exchange}}:{{ticker}}")
+alertcondition(midline < midline[1], "Kernel Channel Short", "Kernel Channel Short {{exchange}}:{{ticker}}")
+
+alertcondition(ta.crossover(close,midline), "Price Crossed Kernel Channel Midline", "Price Crossed Kernel Channel Midline {{exchange}}:{{ticker}}")
+alertcondition(ta.crossunder(close,midline), "Price Crossed Kernel Channel Midline", "Price Crossed Kernel Channel Midline {{exchange}}:{{ticker}}")
+
+alertcondition(close<upper, "Price Above Kernel Channel Upper", "Price Above Kernel Channel Upper {{exchange}}:{{ticker}}")
+alertcondition(close<lower, "Price Below Kernel Channel Lower", "Price Below Kernel Channel Lower {{exchange}}:{{ticker}}")

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;jN9HBNhynFqGOf4KrVcu2d0TU9g0jvGR",
+ "title": "PMax Explorer",
+ "author": "KivancOzbilgic",
+ "url": "https://www.tradingview.com/script/nHGK4Qtp-pmax-explorer/",
+ "agreeCount": 16997,
+ "category": "screener/scanner",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+ "cached_source": "tools/pine_survey/cache/sources/pmax-explorer__jN9HBNhynF.pine",
+ "our_status": "committed"
+}

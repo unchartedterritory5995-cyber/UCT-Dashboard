@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e3692e253c5e497ab528b0e3a5e3cf3b",
+ "title": "High/Low channel swing",
+ "author": "exlux",
+ "url": "https://www.tradingview.com/script/UXKktYt6-high-low-channel-swing/",
+ "agreeCount": 770,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/highlow-channel-swing__e3692e253c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/highlow-channel-swing__e3692e253c.pine",
+ "our_status": "committed"
+}

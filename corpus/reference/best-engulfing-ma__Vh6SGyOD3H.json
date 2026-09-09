@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;Vh6SGyOD3HRNJdILOPZdhui04LNBaUYy",
+ "title": "BEST Engulfing + MA",
+ "author": "Daveatt",
+ "url": "https://www.tradingview.com/script/ROM3crig-best-engulfing-ma/",
+ "agreeCount": 4287,
+ "category": "candlestick patterns",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/best-engulfing-ma__Vh6SGyOD3H.pine",
+ "our_status": "reference-only"
+}

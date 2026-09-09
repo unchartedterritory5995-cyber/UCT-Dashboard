@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b96fdd470dac47d1a227d8aae88bdbb4",
+ "title": "Volume SuperTrend AI (Zeiierman)",
+ "author": "Zeiierman",
+ "url": "https://www.tradingview.com/script/eTgP2ymK-volume-supertrend-ai-zeiierman/",
+ "agreeCount": 8895,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/volume-supertrend-ai-zeiierman__b96fdd470d.pine",
+ "our_status": "reference-only"
+}

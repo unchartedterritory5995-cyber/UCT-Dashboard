@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;4d7ff59e68004a2d9180ff3bae7643af",
+ "title": "Machine Learning Moving Average [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/LzVjzvnS-machine-learning-moving-average-backquant/",
+ "agreeCount": 747,
+ "category": "machine-learning-styled",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/machine-learning-moving-average-backquant__4d7ff59e68.pine",
+ "cached_source": "tools/pine_survey/cache/sources/machine-learning-moving-average-backquant__4d7ff59e68.pine",
+ "our_status": "committed"
+}

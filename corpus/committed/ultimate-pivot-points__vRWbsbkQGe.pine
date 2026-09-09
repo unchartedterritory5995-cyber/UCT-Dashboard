@@ -1,0 +1,96 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Owl
+
+//@version=5
+indicator('Ultimate Pivot Points', shorttitle='UltPivots', overlay=true)
+higherTF = input.timeframe('D')
+showlastSR = input(title='Show S/R for Day only?', defval=true)
+islastSR = showlastSR ? request.security(syminfo.tickerid, higherTF, barstate.islast, lookahead=barmerge.lookahead_on) : true
+showline = input(false, title='Show Lines?, Dfval=false')
+prevCloseHTF = request.security(syminfo.tickerid, higherTF, close[1], lookahead=barmerge.lookahead_on)
+prevOpenHTF = request.security(syminfo.tickerid, higherTF, open[1], lookahead=barmerge.lookahead_on)
+prevHighHTF = request.security(syminfo.tickerid, higherTF, high[1], lookahead=barmerge.lookahead_on)
+prevLowHTF = request.security(syminfo.tickerid, higherTF, low[1], lookahead=barmerge.lookahead_on)
+tOpenHTF = request.security(syminfo.tickerid, higherTF, open[0], lookahead=barmerge.lookahead_on)
+usewoodie = input(false, title='Use Woodie central PP calc?')
+showregpp = input(false, title='Show Regular Pivot point')  // Enable only to view Pivot if usewoodie is turned on to plot regular Pivot as well
+
+Pivot = (prevHighHTF + prevLowHTF + prevCloseHTF) / 3
+
+Range = prevHighHTF - prevLowHTF
+pLevel = usewoodie ? (prevHighHTF + prevLowHTF + tOpenHTF * 2) / 4 : (prevHighHTF + prevLowHTF + prevCloseHTF) / 3
+r1Level = pLevel + Range * 0.38
+s1Level = pLevel - Range * 0.38
+
+r2Level = pLevel + Range * 0.78
+s2Level = pLevel - Range * 0.78
+
+camr3Level = prevCloseHTF + Range * 1.1 / 4
+cams3Level = prevCloseHTF - Range * 1.1 / 4
+
+camr4Level = prevCloseHTF + Range * 1.1 / 2
+cams4Level = prevCloseHTF - Range * 1.1 / 2
+
+
+var line camr3Line = na
+var line cams3Line = na
+var line camr4Line = na
+var line cams4Line = na
+
+var line r1Line = na
+var line pLine = na
+var line s1Line = na
+var line r2Line = na
+var line s2Line = na
+
+if pLevel[1] != pLevel
+    line.set_x2(r1Line, bar_index)
+    line.set_x2(pLine, bar_index)
+    line.set_x2(s1Line, bar_index)
+    line.set_x2(r2Line, bar_index)
+    line.set_x2(s2Line, bar_index)
+    line.set_x2(cams3Line, bar_index)
+    line.set_x2(cams4Line, bar_index)
+    line.set_x2(camr4Line, bar_index)
+    line.set_x2(camr3Line, bar_index)
+    line.set_extend(r1Line, extend.none)
+    line.set_extend(pLine, extend.none)
+    line.set_extend(s1Line, extend.none)
+
+    r2Line := line.new(bar_index, islastSR and showline ? r2Level : na, bar_index, islastSR and showline ? r2Level : na, extend=extend.none, color=color.red)
+    r1Line := line.new(bar_index, islastSR and showline ? r1Level : na, bar_index, islastSR and showline ? r1Level : na, extend=extend.none, color=color.red)
+    pLine := line.new(bar_index, islastSR and showline ? pLevel : na, bar_index, islastSR and showline ? pLevel : na, width=3, extend=extend.right)
+    s1Line := line.new(bar_index, islastSR and showline ? s1Level : na, bar_index, islastSR and showline ? s1Level : na, extend=extend.none, color=color.lime)
+    s2Line := line.new(bar_index, islastSR and showline ? s2Level : na, bar_index, islastSR and showline ? s2Level : na, extend=extend.none, color=color.lime)
+    camr3Line := line.new(bar_index, islastSR and showline ? camr3Level : na, bar_index, islastSR and showline ? camr3Level : na, extend=extend.none, color=color.red)
+    camr4Line := line.new(bar_index, islastSR and showline ? camr4Level : na, bar_index, islastSR and showline ? camr4Level : na, extend=extend.none, color=color.red)
+    cams3Line := line.new(bar_index, islastSR and showline ? cams3Level : na, bar_index, islastSR and showline ? cams3Level : na, extend=extend.none, color=color.lime)
+    cams4Line := line.new(bar_index, islastSR and showline ? cams4Level : na, bar_index, islastSR and showline ? cams4Level : na, extend=extend.none, color=color.lime)
+
+    label.new(bar_index, r2Level, 'R2', style=label.style_none, textcolor=color.red)
+    label.new(bar_index, r1Level, 'R1', style=label.style_none, textcolor=color.red)
+    label.new(bar_index, pLevel, 'P', style=label.style_none, textcolor=color.white)
+    label.new(bar_index, s1Level, 'S1', style=label.style_none, textcolor=color.lime)
+    label.new(bar_index, s2Level, 'S2', style=label.style_none, textcolor=color.lime)
+    label.new(bar_index, camr4Level, 'CR4', style=label.style_none, textcolor=color.red)
+    label.new(bar_index, camr3Level, 'CR3', style=label.style_none, textcolor=color.red)
+    label.new(bar_index, cams3Level, 'CS3', style=label.style_none, textcolor=color.lime)
+    label.new(bar_index, cams4Level, 'CS4', style=label.style_none, textcolor=color.lime)
+
+if not na(pLine) and line.get_x2(pLine) != bar_index
+    line.set_x2(r2Line, bar_index)
+    line.set_x2(r1Line, bar_index)
+    line.set_x2(pLine, bar_index)
+    line.set_x2(s1Line, bar_index)
+    line.set_x2(s2Line, bar_index)
+    line.set_x2(camr3Line, bar_index)
+    line.set_x2(camr4Line, bar_index)
+    line.set_x2(cams3Line, bar_index)
+    line.set_x2(cams4Line, bar_index)
+
+
+plot(prevHighHTF > 0 ? prevHighHTF : na, color=prevHighHTF == nz(prevHighHTF[1]) ? color.new(color.green, 10) : na, title='PD_H', linewidth=1, style=plot.style_line)
+plot(prevLowHTF > 0 ? prevLowHTF : na, color=prevLowHTF == nz(prevLowHTF[1]) ? color.new(color.red, 10) : na, title='PD_L', linewidth=1, style=plot.style_line)
+plot(Pivot > 0 ? Pivot : na, color=Pivot == nz(Pivot[1]) ? color.new(color.orange, 10) : na, title='Pivot', linewidth=1, style=plot.style_line)
+
+

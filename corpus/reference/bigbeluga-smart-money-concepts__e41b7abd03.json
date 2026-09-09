@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e41b7abd03224b3fb9cf6394c0846ec1",
+ "title": "BigBeluga - Smart Money Concepts",
+ "author": "BigBeluga",
+ "url": "https://www.tradingview.com/script/jvNJYfbL-bigbeluga-smart-money-concepts/",
+ "agreeCount": 24760,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/bigbeluga-smart-money-concepts__e41b7abd03.pine",
+ "cached_source": "tools/pine_survey/cache/sources/bigbeluga-smart-money-concepts__e41b7abd03.pine",
+ "our_status": "committed"
+}

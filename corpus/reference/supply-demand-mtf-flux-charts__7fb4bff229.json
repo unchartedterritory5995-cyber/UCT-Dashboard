@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;7fb4bff2291a4034b9daca1df70c4065",
+ "title": "Supply & Demand (MTF) | Flux Charts",
+ "author": "fluxchart",
+ "url": "https://www.tradingview.com/script/yq3DJDMc-supply-demand-mtf-flux-charts/",
+ "agreeCount": 15747,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/supply-demand-mtf-flux-charts__7fb4bff229.pine",
+ "cached_source": "tools/pine_survey/cache/sources/supply-demand-mtf-flux-charts__7fb4bff229.pine",
+ "our_status": "committed"
+}

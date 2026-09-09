@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2ff596b2f1364097b0a71eefade0eb19",
+ "title": "Rate Of Change and rsi zones",
+ "author": "souvik0",
+ "url": "https://www.tradingview.com/script/D2lwHC0W-rate-of-change-and-rsi-zones/",
+ "agreeCount": 770,
+ "category": "momentum",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/rate-of-change-and-rsi-zones__2ff596b2f1.pine",
+ "our_status": "reference-only"
+}

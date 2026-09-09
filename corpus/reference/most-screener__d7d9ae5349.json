@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d7d9ae53499245939c80de4914ff836c",
+ "title": "MOST Screener",
+ "author": "KivancOzbilgic",
+ "url": "https://www.tradingview.com/script/w5W8qi8k-most-screener/",
+ "agreeCount": 6602,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/most-screener__d7d9ae5349.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;38b8c996e9964b4290eec5fbd91668e8",
+ "title": "Average Day Range (ADR) Pivots",
+ "author": "Arun_K_Bhaskar",
+ "url": "https://www.tradingview.com/script/6JsHCBzf-average-day-range-adr-pivots/",
+ "agreeCount": 2930,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+ "cached_source": "tools/pine_survey/cache/sources/average-day-range-adr-pivots__38b8c996e9.pine",
+ "our_status": "committed"
+}

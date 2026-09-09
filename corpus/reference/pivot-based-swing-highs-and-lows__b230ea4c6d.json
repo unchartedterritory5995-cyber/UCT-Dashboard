@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b230ea4c6da343b98b0930de503399cb",
+ "title": "Pivot-based Swing Highs and Lows",
+ "author": "hitesh.daiya86",
+ "url": "https://www.tradingview.com/script/ffRnXR2F-pivot-based-swing-highs-and-lows/",
+ "agreeCount": 718,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/pivot-based-swing-highs-and-lows__b230ea4c6d.pine",
+ "our_status": "reference-only"
+}

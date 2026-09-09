@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;7366c2d2c0984f6d9c53c9b45eebed54",
+ "title": "IPDA Standard Deviations [DexterLab x TFO x toodegrees]",
+ "author": "toodegrees",
+ "url": "https://www.tradingview.com/script/dz03uwWw-ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees/",
+ "agreeCount": 3594,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0.pine",
+ "our_status": "committed"
+}

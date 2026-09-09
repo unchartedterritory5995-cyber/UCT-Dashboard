@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;pTI5ZVw9n4dg9X112h7RMOZVF6NOGprc",
+ "title": "RSI-VWAP Indicator %",
+ "author": "UnknownUnicorn2151907",
+ "url": "https://www.tradingview.com/script/d0FZtMLp-rsi-vwap-indicator/",
+ "agreeCount": 2408,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rsi-vwap-indicator__pTI5ZVw9n4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rsi-vwap-indicator__pTI5ZVw9n4.pine",
+ "our_status": "committed"
+}

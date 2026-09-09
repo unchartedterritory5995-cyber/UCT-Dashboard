@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;b951deedc8054f90981250a3b4f3eea0",
+ "title": "Makuchaku&#039;s Trade Tools - Fair Value Gaps",
+ "author": "makuchaku",
+ "url": "https://www.tradingview.com/script/0Uavi8yy-makuchaku-039-s-trade-tools-fair-value-gaps/",
+ "agreeCount": 689,
+ "category": "market structure / smart-money",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+ "cached_source": "tools/pine_survey/cache/sources/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,148 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © faytterro
+
+//@version=5
+indicator("Wyckoff Accumulation Distribution", overlay=true, max_boxes_count = 500, calc_bars_count = 1000)
+
+// === Genel ayar ===
+color_ = input.color(color.white, "Text Color")
+
+// RSI hesaplama
+rsilen = input.int(14, "RSI Length")
+rsi = ta.rsi(close, rsilen)
+rsisens = input.int(20, title= "trend Sensitivity", maxval=50, minval=0, 
+ tooltip = "When it increases, bull and bear signals decrease and horizontal trend signals increase.")
+
+utad = rsi<50+rsisens and rsi[1]>50+rsisens
+spring = rsi>50-rsisens and rsi[1]<50-rsisens
+
+// Yüksek ve düşük hesaplama fonksiyonları
+myhigh(len) =>
+    x = array.new_float()
+    for i = 0 to len - 1
+        array.push(x, high[i])
+    array.max(x)
+
+mylow(len) =>
+    x = array.new_float()
+    for i = 0 to len - 1
+        array.push(x, low[i])
+    array.min(x)
+
+// Yatay, yükseliş ve düşüş koşulları
+side = (rsi < 50 + rsisens and rsi > 50 - rsisens) or (rsi[1] < 50 + rsisens and rsi[1] > 50 - rsisens)
+bull = rsi > 50 + rsisens and rsi[1] > 50 + rsisens
+bear = rsi < 50 - rsisens and rsi[1] < 50 - rsisens 
+
+boxlen = ta.barssince(side and not side[1])
+
+barcolor(bull ? color.lime : bear ? color.purple : na, offset = -2)
+
+x1 = ta.valuewhen(side and not side[1], bar_index, 0)
+x2 = ta.valuewhen(not side and side[1], bar_index[1], 0)-1
+y1 = myhigh(math.max(1, boxlen+1))[2]
+y2 = mylow(math.max(1, boxlen+1))[2]
+
+// Kutuyu çizme
+var box trendBox = na
+if side[1] and not side
+    trendBox := box.new(x1, y1, x2, y2, color.gray, 1, line.style_solid, extend.none, xloc.bar_index, x1 < x2 ? color.rgb(120, 123, 134, 90) : na, text_color = color.new(color_,80))
+
+var string after_trend = na
+if bull
+    after_trend := "Accumulation"
+else if bear
+    after_trend := "Distribution"
+
+if not na(trendBox) and after_trend == "Accumulation"
+    box.set_bgcolor(trendBox, color.rgb(76, 175, 79, 95))
+    box.set_text(trendBox, "Accumulation")
+else if not na(trendBox) and after_trend == "Distribution"
+    box.set_bgcolor(trendBox, color.rgb(255, 82, 82, 95))
+    box.set_text(trendBox, "Distribution")
+
+pivotLen = input.int(5, "Pivot Length", minval=1)
+rsiLow = 50 - rsisens
+rsiHigh = 50 + rsisens
+offsetVal = -pivotLen
+
+pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
+pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
+rsiAtPivot = rsi[pivotLen]
+
+// Flagler
+var bool isSCFlag = false
+var bool isARFlag = false
+var bool isSTFlag = false
+var bool isBCFlag = false
+var bool isDARFlag = false
+var bool isDSTFlag = false
+
+// SC
+isSC = pivotLow and rsiAtPivot < rsiLow and not isSCFlag and not spring
+plotshape(isSC, "The Selling Climax", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text="SC", textcolor=color_, display = display.pane)
+isSCFlag := isSC ? true : isSCFlag
+
+// AR
+var int scBarIndex = na
+if isSC
+    scBarIndex := bar_index - pivotLen
+isAR = false
+if not na(scBarIndex)
+    if pivotHigh and (bar_index - pivotLen > scBarIndex) and not isARFlag
+        isAR := true
+        scBarIndex := na
+isARFlag := isAR ? true : isARFlag
+plotshape(isAR, "Automatic Rally", style=shape.triangledown, location=location.abovebar, color=color.green, size=size.tiny, offset=offsetVal, text="AR", textcolor=color_, display = display.pane)
+
+// ST (Accumulation)
+var int pivotCounter = 0
+if pivotLow
+    pivotCounter := pivotCounter + 1
+if rsiAtPivot < rsiLow
+    pivotCounter := 0
+isST = pivotCounter == 1 and pivotLow and not isSTFlag 
+plotshape(isST,"the Secondary Test", location=location.belowbar, style=shape.triangleup, color=color.green, size=size.tiny, offset=offsetVal, text="ST", textcolor=color_, display = display.pane)
+isSTFlag := isST ? true : isSTFlag
+
+// BC
+isBC = rsiAtPivot > rsiHigh and pivotHigh and not isBCFlag and not utad
+plotshape(isBC,"The Buying Climax", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text="BC", textcolor=color_, display = display.pane)
+isBCFlag := isBC ? true : isBCFlag
+
+// DAR
+var int bcBarIndex = na
+if isBC
+    bcBarIndex := bar_index - pivotLen
+isDAR = false
+if not na(bcBarIndex)
+    if pivotLow and (bar_index - pivotLen > bcBarIndex) and not isDARFlag
+        isDAR := true
+        bcBarIndex := na
+isDARFlag := isDAR ? true : isDARFlag
+plotshape(isDAR,"Automatic Reaction", location=location.belowbar, style=shape.triangleup, color=color.red, size=size.tiny, offset=offsetVal, text="AR", textcolor=color_, display = display.pane)
+
+// DST
+var int darBarIndex = na
+if isDAR
+    darBarIndex := bar_index - pivotLen
+isDST = false
+if not na(darBarIndex)
+    if pivotHigh and (bar_index - pivotLen > darBarIndex) and not isDSTFlag and not isBC
+        isDST := true
+        darBarIndex := na
+isDSTFlag := isDST ? true : isDSTFlag
+plotshape(isDST,"The Secondary Test", location=location.abovebar, style=shape.triangledown, color=color.red, size=size.tiny, offset=offsetVal, text="ST", textcolor=color_, display = display.pane)
+
+// Diğer pivotlar (turuncu)
+plotshape(pivotLow and not isSC and not isST and not isAR and not isDAR, "pivotHigh", location=location.belowbar, style=shape.triangleup, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)
+plotshape(pivotHigh and not isAR and not isDST and not isBC,"pivotLow", location=location.abovebar, style=shape.triangledown, color=color.orange, size=size.auto, offset=offsetVal, display = display.pane)
+
+// Reset flagler
+if bar_index != bar_index[1]
+    isSCFlag := false
+    isARFlag := false
+    isSTFlag := false
+    isBCFlag := false
+    isDARFlag := false
+    isDSTFlag := false

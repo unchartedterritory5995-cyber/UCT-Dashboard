@@ -1,0 +1,94 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FX365_Thailand
+
+//Revision History
+    //v2.0 First release
+    //v4.0 Fixed an issue to calculate previous N period highs/lows.(repainting issue)
+    
+//@version=4
+//Define indicator name
+study("Previous N Days/Weeks/Months High Low",overlay=true,shorttitle="Previous N Days/Weeks/Months High Low")
+
+//Users input
+f_ndays = input(true, title="Previous N Days", inline="#1")
+i_ndays = input(type=input.integer, title="High", defval=20, inline="#1")
+i_ndays_l = input(type=input.integer, title="Low", defval=20, inline="#1")
+f_nweeks = input(true, title="Previous N Weeks", inline="#2")
+i_nweeks = input(type=input.integer, title="High", defval=12, inline="#2")
+i_nweeks_l = input(type=input.integer, title="Low", defval=12, inline="#2")
+f_nmonths = input(true, title="Previous N Months", inline="#3")
+i_nmonths = input(type=input.integer, title="High", defval=6, inline="#3")
+i_nmonths_l = input(type=input.integer, title="Low", defval=6, inline="#3")
+
+bar_num = input(title="Number of candles to look back to draw lines", defval=50, tooltip="This is to control the number of candlestick to draw high/low lines.If you select 50, then each high/low line will be drawn for 50 bars from the current bar. If 0 , then lines will be drawn for all historical bars.")
+show_labels = input(title="Show Labels?", defval=true)
+size_labels = input(title="Label font size", defval=size.normal, options = [size.large,size.normal,size.small])
+color_labels = input(title="Label font color", defval=color.black)
+label_position = input(title="Label Position", defval=10, minval=0, maxval=50,tooltip="When increasing number, labels move right")
+
+
+//Get High&Low Price
+isess = session.regular
+t = tickerid(syminfo.prefix, syminfo.ticker, session=isess)
+igaps = barmerge.gaps_off
+ilookaehad = barmerge.gaps_on
+
+
+previousdayHigh = security(t,"D",highest(high,i_ndays)[barstate.isconfirmed ? 0 : 1],gaps=igaps, lookahead=ilookaehad)
+previousdayLow = security(t,"D",lowest(low,i_ndays_l)[barstate.isconfirmed ? 0 : 1],gaps=igaps, lookahead=ilookaehad)
+previousweekHigh = security(t,"W",highest(high,i_nweeks)[barstate.isconfirmed ? 0 : 1],gaps=igaps, lookahead=ilookaehad)
+previousweekLow = security(t,"W",lowest(low,i_nweeks_l)[barstate.isconfirmed ? 0 : 1],gaps=igaps, lookahead=ilookaehad)
+previousmonthHigh = security(t,"M",highest(high,i_nmonths)[barstate.isconfirmed ? 0 : 1],gaps=igaps, lookahead=ilookaehad)
+previousmonthLow = security(t,"M",lowest(low,i_nmonths_l)[barstate.isconfirmed ? 0 : 1],gaps=igaps, lookahead=ilookaehad)
+
+
+//Edit label text
+txt_day_h = "Prev. " + tostring(i_ndays) + " Day's High"
+txt_day_l = "Prev. " + tostring(i_ndays_l) + " Day's Low"
+txt_week_h = "Prev. " + tostring(i_nweeks) + " Week's High"
+txt_week_l = "Prev. " + tostring(i_nweeks_l) + " Week's Low"
+txt_month_h = "Prev. " + tostring(i_nmonths) + " Month's High"
+txt_month_l = "Prev. " + tostring(i_nmonths_l) + " Month's Low"
+
+
+// Plot the other time frame's data
+a=plot(f_ndays ? (timeframe.isintraday or timeframe.isdaily) ? previousdayHigh : na : na, linewidth=1, title = "Previous N day's High", color=color.orange,style=plot.style_stepline,show_last=bar_num)
+b=plot(f_ndays ? (timeframe.isintraday or timeframe.isdaily) ? previousdayLow : na : na, linewidth=1, title = "Previous N day's Low", color=color.orange,style=plot.style_stepline, show_last=bar_num)
+c=plot(f_nweeks ? (timeframe.isintraday or timeframe.isdaily or timeframe.isweekly) ? previousweekHigh : na : na, linewidth=1, title = "Previous N week's High", color=color.blue, style=plot.style_stepline, show_last=bar_num)
+d=plot(f_nweeks ? (timeframe.isintraday or timeframe.isdaily or timeframe.isweekly) ? previousweekLow : na : na, linewidth=1, title = "Previous N week's Low", color=color.blue, style=plot.style_stepline, show_last=bar_num)
+e=plot(f_nmonths ? (timeframe.isintraday or timeframe.isdaily or timeframe.isweekly or timeframe.ismonthly) ? previousmonthHigh : na : na, linewidth=1, title = "Previous N month's High", color=color.purple,style=plot.style_stepline, show_last=bar_num)
+f=plot(f_nmonths ? (timeframe.isintraday or timeframe.isdaily or timeframe.isweekly or timeframe.ismonthly) ? previousmonthLow : na : na, linewidth=1, title = "Previous N month's Low", color=color.purple, style=plot.style_stepline, show_last=bar_num)
+
+
+//Draw labels
+if show_labels == true
+    if (timeframe.isintraday == true or timeframe.isdaily == true) and f_ndays == true
+        label YES_HIGH = label.new(bar_index + label_position, previousdayHigh, txt_day_h, style=label.style_none, textcolor = color_labels, size = size_labels, textalign = text.align_right), label.delete(YES_HIGH[1])
+    if (timeframe.isintraday == true or timeframe.isdaily == true) and f_ndays == true
+        label YES_LOW = label.new(bar_index + label_position, previousdayLow, txt_day_l, style=label.style_none, textcolor = color_labels, size = size_labels, textalign = text.align_right), label.delete(YES_LOW[1])
+    if (timeframe.isdaily == true or timeframe.isintraday == true or timeframe.isweekly == true) and f_nweeks == true
+        label prevW_HIGH = label.new(bar_index + label_position + 20, previousweekHigh, txt_week_h, style=label.style_none, textcolor = color_labels, size = size_labels, textalign = text.align_right), label.delete(prevW_HIGH[1])
+    if (timeframe.isdaily == true or timeframe.isintraday == true or timeframe.isweekly == true) and f_nweeks == true
+        label prevW_LOW = label.new(bar_index + label_position + 20, previousweekLow, txt_week_l, style=label.style_none, textcolor = color_labels, size = size_labels, textalign = text.align_right), label.delete(prevW_LOW[1])
+    if (timeframe.isdaily == true or timeframe.isintraday == true or timeframe.isweekly == true or timeframe.ismonthly == true) and f_nmonths == true
+        label prevM_HIGH = label.new(bar_index + label_position + 40, previousmonthHigh, txt_month_h, style=label.style_none, textcolor = color_labels, size = size_labels, textalign = text.align_right), label.delete(prevM_HIGH[1])
+    if (timeframe.isdaily == true or timeframe.isintraday == true or timeframe.isweekly == true or timeframe.ismonthly == true) and f_nmonths == true
+        label prevM_LOW = label.new(bar_index + label_position + 40, previousmonthLow, txt_month_l, style=label.style_none, textcolor = color_labels, size = size_labels, textalign = text.align_right), label.delete(prevM_LOW[1])
+
+
+//Judge cross over/under with high/low
+Al_co_yh = crossover(close, previousdayHigh)
+Al_cu_yl = crossunder(close, previousdayLow)
+Al_co_lwh = crossover(close, previousweekHigh)
+Al_cu_lwl = crossunder(close, previousweekLow)
+Al_co_lmh = crossover(close, previousmonthHigh)
+Al_cu_lml = crossunder(close, previousmonthLow)
+
+
+//Alert condition
+alertcondition(Al_co_yh, title="Cross over previous N day's High", message="Price crosses over previous N day's High")
+alertcondition(Al_cu_yl, title="Cross under previous N day's Low", message="Price crosses under previous N day's Low")
+alertcondition(Al_co_lwh, title="Cross over previous N week's High", message="Price crosses over previous N week's High")
+alertcondition(Al_cu_lwl, title="Cross under previous N week's Low", message="Price crosses under previous N week's Low")
+alertcondition(Al_co_lmh, title="Cross over previous N month's High", message="Price crosses over previous N month's High")
+alertcondition(Al_cu_lml, title="Cross under previous N month's Low", message="Price crosses under previous N month's Low")

@@ -1,0 +1,163 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © rjgtrader
+
+//@version=5
+indicator(title='AsianRange and KillZones', shorttitle='Killzones', overlay=true)
+
+displayZonesLimit = input.int(title='Max Timeframe To Display (Minutes)', defval=60, minval=1, maxval=1440)
+
+//ASIA
+asiashow = input(true, title='Display Asia Range', group="Asia Session")
+asiashowdeviations = input(false, title='Display Asia Range Deviations', group="Asia Session")
+asiadeviations = input.int(title='Asia Deviations', defval=2, minval=1, group="Asia Session")
+asiacolor = input(color.new(color.aqua, 70), 'Asia Range Color', group="Asia Session")
+asia = input.session(title='Asia Session', defval='1900-0001', group="Asia Session")
+
+//LONDON OPEN
+loshow = input(true, title='Display London Open', group="London Session")
+locolor = input(color.new(color.gray, 50), 'London Open Range Color', group="London Session")
+lo = input.session(title='London Open Session', defval='0200-0600', group="London Session")
+
+//NY OPEN
+nyshow = input(true, title='Display New York Open')
+nycolor = input(color.new(color.gray, 50), 'New York Open Range Color', group="New York Session")
+ny = input.session(title='New York Open Session', defval='0700-1000', group="New York Session")
+
+//LONDON CLOSE
+lcshow = input(true, title='Display London Close', group="London Close Session")
+lccolor = input(color.new(color.red, 50), 'London Close Range Color', group="London Close Session")
+lc = input.session(title='London Close Session', defval='1000-1300', group="London CLose Session")
+
+//NY CLOSE
+nycshow = input(false, title='Display New York Close', group="New York Close Session")
+nyccolor = input(color.new(color.gray, 50), 'New York Close Range Color', group="New York Close Session")
+nyc = input.session(title='New York Close Session', defval='1400-1600', group="New York Close Session")
+
+// FUNCTIONS
+in_session(sess) =>
+    not na(time(timeframe.period, sess))
+
+start_time(sess) =>
+    int startTime = na
+    startTime := in_session(sess) and not in_session(sess)[1] ? time : startTime[1]
+    startTime
+
+is_new_session(res, sess) =>
+    t = time(res, sess)
+    na(t[1]) and not na(t) or t[1] < t
+
+BarInSession(sess) =>
+    time(timeframe.period, sess) != 0
+    
+_hline(StartTime, EndTime, Price, Color, Style, Width) =>
+    return_1 = line.new(StartTime, Price, EndTime, Price, xloc=xloc.bar_time, extend=extend.none, color=Color, style=Style, width=Width)
+    
+//PARAMS
+indexHighTF = barstate.isrealtime ? 0 : 0
+indexCurrTF = barstate.isrealtime ? 0 : 0
+dailyhigh = request.security(syminfo.tickerid, 'D', high, lookahead=barmerge.lookahead_on)[indexHighTF]
+dailylow = request.security(syminfo.tickerid, 'D', low[indexCurrTF], lookahead=barmerge.lookahead_on)[indexCurrTF]
+
+displayZones = timeframe.isintraday and (timeframe.multiplier > displayZonesLimit ? false : true)
+
+//ASIA BOX
+asia_session = is_new_session('1440', asia)
+
+float _asialow = na
+float _asiahigh = na
+_asiabox = box(na)
+
+_asiastart = start_time(asia)
+_asialow := asia_session ? low : in_session(asia) ? math.min(low, _asialow[1]) : na
+_asiahigh := asia_session ? high : in_session(asia) ? math.max(high, _asiahigh[1]) : na
+diff = _asiahigh[1] - _asialow[1]
+
+if in_session(asia)
+    if in_session(asia)[1]
+        box.delete(_asiabox[1])
+
+    if low < _asialow
+        _asialow := low
+        _asialow
+    if high > _asiahigh
+        _asiahigh := high
+        _asiahigh
+
+    if asiashow
+        _asiabox := box.new(_asiastart, _asiahigh, time, _asialow, xloc=xloc.bar_time, bgcolor=asiacolor, border_color=asiacolor, border_style=line.style_solid)
+        _asiabox
+        
+if asiashowdeviations and not in_session(asia) and in_session(asia)[1]
+    for s = 1 to asiadeviations by 1
+        _hline(_asiastart, time, _asiahigh[1] + diff * s, color.new(color.black, 0), line.style_solid, 1)
+        _hline(_asiastart, time, _asialow[1] - diff * s, color.new(color.black, 0), line.style_solid, 1)
+
+
+//LONDON OPEN
+lo_session = is_new_session('1440', lo)
+
+line _lolinelow = na
+line _lolinehigh = na
+_lostart = start_time(lo)
+
+if in_session(lo)
+    if in_session(lo)[1]
+        line.delete(_lolinelow[1])
+        line.delete(_lolinehigh[1])
+
+    if loshow
+        _lolinehigh := line.new(_lostart, dailyhigh, time, dailyhigh, xloc=xloc.bar_time, color=locolor, style=line.style_solid, width=3)
+        _lolinelow := line.new(_lostart, dailylow, time, dailylow, xloc=xloc.bar_time, color=locolor, style=line.style_solid, width=3)
+        _lolinelow
+
+//NEW YORK OPEN
+ny_session = is_new_session('1440', ny)
+
+line _nylinelow = na
+line _nylinehigh = na
+_nystart = start_time(ny)
+
+if in_session(ny)
+    if in_session(ny)[1]
+        line.delete(_nylinelow[1])
+        line.delete(_nylinehigh[1])
+
+    if nyshow
+        _nylinehigh := line.new(_nystart, dailyhigh, time, dailyhigh, xloc=xloc.bar_time, color=nycolor, style=line.style_solid, width=3)
+        _nylinelow := line.new(_nystart, dailylow, time, dailylow, xloc=xloc.bar_time, color=nycolor, style=line.style_solid, width=3)
+        _nylinelow
+
+//LONDON CLOSE
+lc_session = is_new_session('1440', lc)
+
+line _lclinelow = na
+line _lclinehigh = na
+_lcstart = start_time(lc)
+
+if in_session(lc)
+    if in_session(lc)[1]
+        line.delete(_lclinelow[1])
+        line.delete(_lclinehigh[1])
+
+    if lcshow
+        _lclinehigh := line.new(_lcstart, dailyhigh, time, dailyhigh, xloc=xloc.bar_time, color=lccolor, style=line.style_solid, width=3)
+        _lclinelow := line.new(_lcstart, dailylow, time, dailylow, xloc=xloc.bar_time, color=lccolor, style=line.style_solid, width=3)
+        _lclinelow
+
+//NEW YORK CLOSE
+nyc_session = is_new_session('1440', nyc)
+
+line _nyclinelow = na
+line _nyclinehigh = na
+_nycstart = start_time(nyc)
+
+if in_session(nyc)
+    if in_session(nyc)[1]
+        line.delete(_nyclinelow[1])
+        line.delete(_nyclinehigh[1])
+
+    if nycshow
+        _nyclinehigh := line.new(_nycstart, dailyhigh, time, dailyhigh, xloc=xloc.bar_time, color=nyccolor, style=line.style_solid, width=3)
+        _nyclinelow := line.new(_nycstart, dailylow, time, dailylow, xloc=xloc.bar_time, color=nyccolor, style=line.style_solid, width=3)
+        _nyclinelow
+

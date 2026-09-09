@@ -1,0 +1,50 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © omidbnb
+
+//@version=4
+study("TrendLineSample", overlay=true)
+shortPeriod = input(30, title="shortPeriod")
+longPeriod = input(100, title="longPeriod")
+
+if barstate.islast
+    float lowest_y2 = 60000
+    float lowest_x2 = 0
+    
+    float highest_y2 = 0
+    float highest_x2 = 0
+    
+    
+    for i = 1 to shortPeriod
+        if low[i] < lowest_y2
+            lowest_y2 := low[i]
+            lowest_x2 := i
+        if high[i] > highest_y2
+            highest_y2 := high[i]
+            highest_x2 := i
+            
+    float lowest_y1 = 60000
+    float lowest_x1 = 0
+    
+    float highest_y1 = 0
+    float highest_x1 = 0
+    
+    for j = shortPeriod + 1 to longPeriod
+        if low[j] < lowest_y1
+            lowest_y1 := low[j]
+            lowest_x1 := j
+        if high[j] > highest_y1
+            highest_y1 := high[j]
+            highest_x1 := j
+            
+    sup = line.new(x1=bar_index[lowest_x1], y1=lowest_y1, x2=bar_index[lowest_x2], y2=lowest_y2, extend=extend.right, width=2, color=color.green)
+    res = line.new(x1=bar_index[highest_x1], y1=highest_y1, x2=bar_index[highest_x2], y2=highest_y2, extend=extend.right, width=2, color=color.red)
+    line.delete(sup[1])
+    line.delete(res[1])
+    if crossunder(close, line.get_price(sup, bar_index[0]))
+        alert("break support", freq=alert.freq_once_per_bar_close)
+
+    if crossover(close, line.get_price(res, bar_index[0]))
+        alert("break resistance", freq=alert.freq_once_per_bar_close)
+
+
+

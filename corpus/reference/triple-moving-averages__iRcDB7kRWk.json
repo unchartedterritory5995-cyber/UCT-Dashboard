@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;iRcDB7kRWkfRDqo92l5AN0C9zeCVHGXh",
+ "title": "Triple Moving Averages",
+ "author": "AdventTrading",
+ "url": "https://www.tradingview.com/script/reIK2us9-triple-moving-averages/",
+ "agreeCount": 13391,
+ "category": "trend",
+ "pine_version": "v2",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/triple-moving-averages__iRcDB7kRWk.pine",
+ "our_status": "reference-only"
+}

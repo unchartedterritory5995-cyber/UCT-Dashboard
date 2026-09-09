@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;26fb08b910744f9eb035af666c4e5880",
+ "title": "UT Bot + LinReg Candles + Longevity Zones + S/R + Dashboard",
+ "author": "PDK1977",
+ "url": "https://www.tradingview.com/script/rPSb8fC8-ut-bot-linreg-candles-longevity-zones-s-r-dashboard/",
+ "agreeCount": 6891,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910.pine",
+ "our_status": "reference-only"
+}

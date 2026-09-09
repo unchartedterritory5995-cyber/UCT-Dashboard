@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3078",
+ "title": "3 Level ZigZag Semafor",
+ "author": "RicardoSantos",
+ "url": "https://www.tradingview.com/script/Kfru2vzF-3-level-zigzag-semafor/",
+ "agreeCount": 2143,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/3-level-zigzag-semafor__3078.pine",
+ "cached_source": "tools/pine_survey/cache/sources/3-level-zigzag-semafor__3078.pine",
+ "our_status": "committed"
+}

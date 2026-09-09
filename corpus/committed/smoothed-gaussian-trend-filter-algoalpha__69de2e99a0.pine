@@ -1,0 +1,159 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © AlgoAlpha
+//@version=6
+indicator("Smoothed Gaussian Trend Filter [AlgoAlpha]", "AlgoAlpha - Smoothed Gaussian Trend", overlay = true)
+
+periodInput = input.int(15, title="Gaussian Length", tooltip="Period used to calculate the Gaussian alpha.", group = "Gaussian Filter Settings")
+polesInput = input.int(3, title="Poles", minval=1, maxval=4, tooltip="Order of the Gaussian filter, affects smoothness.", group = "Gaussian Filter Settings")
+linreglen = input.int(22, title="Smoothing Length", tooltip="Length for linear regression smoothing applied on the gaussian line.", group = "Smoothing Settings")
+linregoffset = input.int(7, title="Flatten Multiplier", tooltip="Offset for flattening the output, making it less wavey.", group = "Smoothing Settings")
+
+en_table = input.bool(true, title="Enable Table", tooltip="Enables/Disables the table.", group = "Extra Timeframes")
+table_size = input.string("Tiny", title="Table Size", options = ["Tiny", "Small", "Medium", "Large"], tooltip="Size of the table.", group = "Extra Timeframes")
+t1 = input.timeframe("5", "Time frame 1", group = "Extra Timeframes")
+t2 = input.timeframe("15", "Time frame 2", group = "Extra Timeframes")
+t3 = input.timeframe("60", "Time frame 3", group = "Extra Timeframes")
+t4 = input.timeframe("240", "Time frame 4", group = "Extra Timeframes")
+t5 = input.timeframe("1D", "Time frame 5", group = "Extra Timeframes")
+
+vol_int = input.bool(true, title="", tooltip="Highlight based on volume intensity.", group = "Appearance", inline = "vol")
+vol_filt = input.int(70, title="Volume Intensity Highlighting Strength", minval=1, maxval=99, tooltip="Adjusts sensitivity to volume changes.", group = "Appearance", inline = "vol")
+mid_trnd_sig = input.bool(false, title=" Mid-Trend Signals", tooltip="Enable additional buy/sell signals during trends.", group = "Appearance")
+bands = input.bool(false, title=" Trailing Bands", tooltip="Enables/Disables Trend Bands", group = "Appearance")
+barcol = input.bool(true, title=" Bar Color", tooltip="Enables/Disables Candle Colouring", group = "Appearance")
+green = input.color(#00ffbb, title="Bullish Color", tooltip="Color for bullish signals and indicators.", group = "Appearance")
+red = input.color(#ff1100, title="Bearish Color", tooltip="Color for bearish signals and indicators.", group = "Appearance")
+
+calcGaussianAlpha(_length, _order) =>
+    freq = (2.0 * math.pi) / _length
+    factorB = (1.0 - math.cos(freq)) / (math.pow(1.414, (2.0 / _order)) - 1.0)
+    alphaVal = -factorB + math.sqrt(factorB * factorB + 2.0 * factorB)
+    alphaVal
+
+gaussianSmooth(dataIn, filterLevel, alphaCoeff) =>
+    var float runningFilterValue = 0.0
+    oneMinusAlpha = 1.0 - alphaCoeff
+    alphaSquared  = alphaCoeff * alphaCoeff
+    alphaCubed    = alphaCoeff * alphaCoeff * alphaCoeff
+    alpha4        = alphaCoeff * alphaCoeff * alphaCoeff * alphaCoeff
+    omaSquared    = oneMinusAlpha * oneMinusAlpha
+    omaCubed      = omaSquared * oneMinusAlpha
+    oma4          = omaCubed * oneMinusAlpha
+
+    if filterLevel == 1
+        runningFilterValue := alphaCoeff * dataIn +
+                              oneMinusAlpha * nz(runningFilterValue[1])
+    else
+        if filterLevel == 2
+            runningFilterValue := alphaSquared * dataIn
+                                  + 2.0 * oneMinusAlpha * nz(runningFilterValue[1])
+                                  - omaSquared * nz(runningFilterValue[2])
+        else
+            if filterLevel == 3
+                runningFilterValue := alphaCubed * dataIn
+                                      + 3.0 * oneMinusAlpha * nz(runningFilterValue[1])
+                                      - 3.0 * omaSquared * nz(runningFilterValue[2])
+                                      + omaCubed * nz(runningFilterValue[3])
+            else
+                if filterLevel == 4
+                    runningFilterValue := alpha4 * dataIn
+                                          + 4.0 * oneMinusAlpha * nz(runningFilterValue[1])
+                                          - 6.0 * omaSquared * nz(runningFilterValue[2])
+                                          + 4.0 * omaCubed * nz(runningFilterValue[3])
+                                          - oma4 * nz(runningFilterValue[4])
+    runningFilterValue
+
+pine_supertrend(src, factor, atrPeriod) =>
+    atr = ta.atr(atrPeriod)
+    upperBand = src + factor * atr
+    lowerBand = src - factor * atr
+    prevLowerBand = nz(lowerBand[1])
+    prevUpperBand = nz(upperBand[1])
+    lowerBand := lowerBand > prevLowerBand or src[1] < prevLowerBand ? lowerBand : prevLowerBand
+    upperBand := upperBand < prevUpperBand or src[1] > prevUpperBand ? upperBand : prevUpperBand
+    int _direction = na
+    float superTrend = na
+    prevSuperTrend = superTrend[1]
+    if na(atr[1])
+        _direction := 1
+    else if prevSuperTrend == prevUpperBand
+        _direction := src > upperBand ? -1 : 1
+    else
+        _direction := src < lowerBand ? 1 : -1
+    superTrend := _direction == -1 ? lowerBand : upperBand
+    [superTrend, _direction]
+
+tableSize(table_size) =>
+	switch table_size
+		"Tiny"                   => size.tiny
+		"Small"                  => size.small
+		"Medium"                 => size.normal
+		"Large"                  => size.large
+
+alphaValue = calcGaussianAlpha(periodInput, polesInput)
+gmaOutput = gaussianSmooth(close, polesInput, alphaValue)
+final = ta.linreg(gmaOutput, linreglen, linregoffset)
+
+[ST, dir] = pine_supertrend(final, 0.15, 21)
+trend = final > final[1] ? 1 : -1
+trend1 = final > ST ? 1 : -1
+ranging = (trend * trend1 < 0)
+
+z = 33
+s_vol = ta.hma((volume - ta.lowest(volume, z)) / (ta.highest(volume, z) - ta.lowest(volume, z)), 4)
+transparency_ = math.min(100 - s_vol * 100, vol_filt)
+dist = ta.sma(math.abs(close - open), 100)
+
+main = plot(final, color=ranging and mid_trnd_sig ? color.gray : trend1 > 0 ? color.new(green, vol_int ? transparency_ : 50) : color.new(red, vol_int ? transparency_ : 50), linewidth=3)
+bull = plot(trend1 > 0 ? final - dist * 2 : na, style=plot.style_linebr, color=color.new(green, 90), display = bands ? display.all : display.none)
+bear = plot(trend1 < 0 ? final + dist * 2 : na, style=plot.style_linebr, color=color.new(red, 90), display = bands ? display.all : display.none)
+fill(main, bull, final, final - dist * 2, color.new(ranging and mid_trnd_sig ? color.gray : green, vol_int ? transparency_ : 50), color.new(ranging and mid_trnd_sig ? color.gray : green, 93), display = bands ? display.all : display.none)
+fill(main, bear, final + dist * 2, final, color.new(ranging and mid_trnd_sig ? color.gray : red, 93), color.new(ranging and mid_trnd_sig ? color.gray : red, vol_int ? transparency_ : 50), display = bands ? display.all : display.none)
+
+h = math.max(ta.highest(14), ta.highest(final, 14), final + dist * 2)
+l = math.min(ta.lowest(14), ta.lowest(final, 14), final - dist * 2)
+
+plotshape(trend1 > 0 and (mid_trnd_sig ? not ranging and ranging[1] : trend1[1] < 0) ? l : na, title="Bullish Signal", style=shape.labelup, location=location.absolute, size=size.small, color=green)
+plotshape(trend1 < 0 and (mid_trnd_sig ? not ranging and ranging[1] : trend1[1] > 0) ? h : na, title="Bearish Signal", style=shape.labeldown, location=location.absolute, size=size.small, color=red)
+
+barcolor(barcol ? ranging and mid_trnd_sig ? color.gray : trend1 > 0 ? color.new(green, vol_int ? transparency_ : 50) : color.new(red, vol_int ? transparency_ : 50) : na, title = "Bar Coloring")
+
+s1 = request.security(syminfo.tickerid, t1, ranging and mid_trnd_sig ? 0 : trend1 > 0 ? 1 : -1)
+s2 = request.security(syminfo.tickerid, t2, ranging and mid_trnd_sig ? 0 : trend1 > 0 ? 1 : -1)
+s3 = request.security(syminfo.tickerid, t3, ranging and mid_trnd_sig ? 0 : trend1 > 0 ? 1 : -1)
+s4 = request.security(syminfo.tickerid, t4, ranging and mid_trnd_sig ? 0 : trend1 > 0 ? 1 : -1)
+s5 = request.security(syminfo.tickerid, t5, ranging and mid_trnd_sig ? 0 : trend1 > 0 ? 1 : -1)
+
+s1a = s1 == 1 ? "Bullish" : s1 == -1 ? "Bearish" : "Ranging"
+s2a = s2 == 1 ? "Bullish" : s2 == -1 ? "Bearish" : "Ranging "
+s3a = s3 == 1 ? "Bullish" : s3 == -1 ? "Bearish" : "Ranging"
+s4a = s4 == 1 ? "Bullish" : s4 == -1 ? "Bearish" : "Ranging"
+s5a = s5 == 1 ? "Bullish" : s5 == -1 ? "Bearish" : "Ranging"
+
+if barstate.islast and en_table
+    var data_table = table.new(position=position.top_right, columns=2, rows=mid_trnd_sig ? 6 : 7, bgcolor=chart.bg_color, border_width=1, border_color=chart.fg_color, frame_color=chart.fg_color, frame_width=1)
+    table.cell(data_table, text_halign=text.align_center, column=0, row=0, text="Time Frame", text_color=chart.fg_color, text_size=tableSize(table_size))
+    table.cell(data_table, text_halign=text.align_center, column=1, row=0, text="Signal", text_color=chart.fg_color, text_size=tableSize(table_size))
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=1, text=t1, text_color=chart.fg_color, text_size=tableSize(table_size))
+    table.cell(data_table, text_halign=text.align_center, column=1, row=1, text=s1a, text_color=chart.fg_color, bgcolor=s1a == "Bullish" ? color.new(green, 70) : s1a == "Bearish" ? color.new(red, 70) : color.new(color.gray, 70), text_size=tableSize(table_size))
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=2, text=t2, text_color=chart.fg_color, text_size=tableSize(table_size))
+    table.cell(data_table, text_halign=text.align_center, column=1, row=2, text=s2a, text_color=chart.fg_color, bgcolor=s2a == "Bullish" ? color.new(green, 70) : s2a == "Bearish" ? color.new(red, 70) : color.new(color.gray, 70), text_size=tableSize(table_size))
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=3, text=t3, text_color=chart.fg_color, text_size=tableSize(table_size))
+    table.cell(data_table, text_halign=text.align_center, column=1, row=3, text=s3a, text_color=chart.fg_color, bgcolor=s3a == "Bullish" ? color.new(green, 70) : s3a == "Bearish" ? color.new(red, 70) : color.new(color.gray, 70), text_size=tableSize(table_size))   
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=4, text=t4, text_color=chart.fg_color, text_size=tableSize(table_size))
+    table.cell(data_table, text_halign=text.align_center, column=1, row=4, text=s4a, text_color=chart.fg_color, bgcolor=s4a == "Bullish" ? color.new(green, 70) : s4a == "Bearish" ? color.new(red, 70) : color.new(color.gray, 70), text_size=tableSize(table_size))
+
+    table.cell(data_table, text_halign=text.align_center, column=0, row=5, text=t5, text_color=chart.fg_color, text_size=tableSize(table_size))
+    table.cell(data_table, text_halign=text.align_center, column=1, row=5, text=s5a, text_color=chart.fg_color, bgcolor=s5a == "Bullish" ? color.new(green, 70) : s5a == "Bearish" ? color.new(red, 70) : color.new(color.gray, 70), text_size=tableSize(table_size))
+    
+    if not mid_trnd_sig
+        table.cell(data_table, text_halign=text.align_center, column=0, row=6, text="Note", text_color=chart.fg_color, text_size=tableSize(table_size))
+        table.cell(data_table, text_halign=text.align_center, column=1, row=6, text="Mid-trend signals disabled, 'Ranging' signals won't appear.", text_color=chart.fg_color, text_size=tableSize(table_size))
+
+alertcondition(trend1 > 0 and (mid_trnd_sig ? not ranging and ranging[1] : trend1[1] < 0), title="Bullish Signal", message="Bullish signal triggered.")
+alertcondition(trend1 < 0 and (mid_trnd_sig ? not ranging and ranging[1] : trend1[1] > 0), title="Bearish Signal", message="Bearish signal triggered.")
+alertcondition(ranging and mid_trnd_sig, title="Choppy Market", message="Choppy market conditions detected.")

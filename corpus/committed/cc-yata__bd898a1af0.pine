@@ -1,0 +1,210 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+//@version=5
+
+indicator("CC • Yata", 
+     overlay = true, 
+     timeframe = "")
+
+// -----------------------------------
+groupCC = ""
+// -----------------------------------
+
+lastN	= input.string      ("6 to 9"	, title="Show"							, options=["1 to 9", "6 to 9", "7, 8 and 9", "8 and 9", "Only 9", "None"], inline="CC1", group=groupCC)
+showSR	= input			(true		, title="Show Support and Resistance"	, inline="CC2", group=groupCC)
+showCD	= input			(true		, title="Show 1 to 13 |"				, inline="CC3", group=groupCC)
+lastCN	= input			(true		, title="Only 13 |"						, inline="CC4", group=groupCC)
+coun	= input.string	("Standard"	, title="Mode"							, options=["Standard", "Aggressive"], inline="CC3", group=groupCC)
+
+locB = input.string("Below", title="Label: Buy"	, options=["Above", "Below"], inline="CC5", group=groupCC)
+locA = input.string("Above", title="Sell"		, options=["Above", "Below"], inline="CC5", group=groupCC)
+
+locBc = locB == "Above" ? location.abovebar : locB == "Below" ? location.belowbar : na
+locAc = locA == "Above" ? location.abovebar : locA == "Below" ? location.belowbar : na
+
+// -----------------------------------
+
+i_style0 = "Label"
+i_style1 = "Arrow"
+i_style2 = "Triangle"
+i_style3 = "Circle"
+i_style4 = "Cross"
+
+Bstyle = input.string(i_style0, title="Style: Buy"	, options=[i_style0, i_style1, i_style2, i_style3, i_style4], inline="CC6", group=groupCC)
+Sstyle = input.string(i_style0, title="Sell"		, options=[i_style0, i_style1, i_style2, i_style3, i_style4], inline="CC6", group=groupCC)
+
+f_getStyleB(_inputStyle) =>
+    _return = _inputStyle == i_style1 ? shape.arrowup		:
+              _inputStyle == i_style2 ? shape.triangleup	:
+              _inputStyle == i_style3 ? shape.circle		:
+              _inputStyle == i_style4 ? shape.cross			: shape.labelup
+    _return
+
+f_getStyleS(_inputStyle) =>
+    _return = _inputStyle == i_style1 ? shape.arrowdown		: 
+              _inputStyle == i_style2 ? shape.triangledown	:
+              _inputStyle == i_style3 ? shape.circle		:
+              _inputStyle == i_style4 ? shape.xcross		: shape.labeldown
+    _return
+
+// -----------------------------------
+
+sellSet = 0
+sellSet := close > close[4] ? sellSet[1] == 9 ? 1 : sellSet[1] + 1 : 0
+
+buySet = 0
+buySet := close < close[4] ? buySet[1] == 9 ? 1 : buySet[1] + 1 : 0
+
+// -----------------------------------
+
+plotshape(lastN == "1 to 9" ? buySet == 1 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#1C61B1, 75), text="1", title="b1", textcolor=color.new(color.white, 75))
+plotshape(lastN == "1 to 9" ? buySet == 2 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#1D80AF, 70), text="2", title="b2", textcolor=color.new(color.white, 70))
+plotshape(lastN == "1 to 9" ? buySet == 3 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#1D80AF, 65), text="3", title="b3", textcolor=color.new(color.white, 65))
+plotshape(lastN == "1 to 9" ? buySet == 4 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#1EA9AC, 60), text="4", title="b4", textcolor=color.new(color.white, 60))
+plotshape(lastN == "1 to 9" ? buySet == 5 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#1EA9AC, 55), text="5", title="b5", textcolor=color.new(color.white, 55))
+
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" ? 
+     buySet == 6 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#34BEA5, 50), text="6", title="b6", textcolor=color.new(color.white, 40))
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" or lastN == "7, 8 and 9" ? 
+     buySet == 7 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#34BEA5, 40), text="7", title="b7", textcolor=color.new(color.white, 30))
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" or lastN == "7, 8 and 9" or lastN == "8 and 9" ? 
+     buySet == 8 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#67D89A, 30), text="8", title="b8", textcolor=color.new(color.white, 10))
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" or lastN == "7, 8 and 9" or lastN == "8 and 9" or lastN == "Only 9" ? 
+     buySet == 9 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#90EE90, 20), text="9", title="b9", textcolor=color.new(color.white, 0))
+
+// -----------------------------------
+
+plotshape(lastN == "1 to 9" ? sellSet == 1 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#69208E, 75), text="1", title="s1", textcolor=color.new(color.white, 75))
+plotshape(lastN == "1 to 9" ? sellSet == 2 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#9138A7, 70), text="2", title="s2", textcolor=color.new(color.white, 70))
+plotshape(lastN == "1 to 9" ? sellSet == 3 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#9138A7, 65), text="3", title="s3", textcolor=color.new(color.white, 65))
+plotshape(lastN == "1 to 9" ? sellSet == 4 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#CA3AB0, 60), text="4", title="s4", textcolor=color.new(color.white, 60))
+plotshape(lastN == "1 to 9" ? sellSet == 5 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#CA3AB0, 55), text="5", title="s5", textcolor=color.new(color.white, 55))
+
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" ? 
+     sellSet == 6 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#F23D92, 50), text="6", title="s6", textcolor=color.new(color.white, 40))
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" or lastN == "7, 8 and 9" ? 
+     sellSet == 7 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#F23D92, 40), text="7", title="s7", textcolor=color.new(color.white, 30))
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" or lastN == "7, 8 and 9" or lastN == "8 and 9" ? 
+     sellSet == 8 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#F71746, 30), text="8", title="s8", textcolor=color.new(color.white, 10))
+plotshape(lastN == "1 to 9" or lastN == "6 to 9" or lastN == "7, 8 and 9" or lastN == "8 and 9" or lastN == "Only 9" ? 
+     sellSet == 9 : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#E21B22, 20), text="9", title="s9", textcolor=color.new(color.white, 0))
+
+// -----------------------------------
+
+showST = input(false, title="Show Stealth 9", inline="CC1", group=groupCC)
+
+stealthBuy = ta.barssince(buySet == 8) <= 1 and sellSet == 1
+stealthSell = ta.barssince(sellSet == 8) <= 1 and buySet == 1
+
+plotshape(showST ? stealthBuy : na, location=locBc, style=f_getStyleB(Bstyle), size=size.tiny, color=color.new(#90EE90, 20), text="s9", title="b9", textcolor=color.new(color.white, 0))
+
+plotshape(showST ? stealthSell : na, location=locAc, style=f_getStyleS(Sstyle), size=size.tiny, color=color.new(#E21B22, 20), text="s9", title="s9", textcolor=color.new(color.white, 0))
+
+// -----------------------------------
+
+highest9		= ta.highest(9)
+highTrendLine	= 0.0
+highTrendLine	:= buySet == 9 ? highest9 : close > highTrendLine[1] ? 0 : highTrendLine[1]
+
+lowest9			= ta.lowest(9)
+lowTrendLine	= 0.0
+lowTrendLine	:= sellSet == 9 ? lowest9 : close < lowTrendLine[1] ? 0 : lowTrendLine[1]
+
+S_color	= input.color(color.new(#90EE90, 25), title="|", inline="CC2", group=groupCC)
+R_color	= input.color(color.new(#E21B22, 25), title="", inline="CC2", group=groupCC)
+
+plot(showSR and lowTrendLine > 0 ? lowTrendLine : na, style=plot.style_circles, linewidth=1, color=S_color, title="Support")
+plot(showSR and highTrendLine > 0 ? highTrendLine : na, style=plot.style_circles, linewidth=1, color=R_color, title="Resistance")
+
+// -----------------------------------
+
+buyCounCC		= 0.0
+buyCounCC8Close	= 0.0
+isBuyCounCC		= close < low[2]
+nonQBuy13		= isBuyCounCC and math.abs(buyCounCC[1]) == 12 and low > buyCounCC8Close[1]
+buyCounCC		:= buySet == 9 ? isBuyCounCC ? 1 : 0 : sellSet == 9 or highTrendLine == 0 ? 14 : nonQBuy13 ? -12 : isBuyCounCC ? math.abs(buyCounCC[1]) + 1 : -math.abs(buyCounCC[1])
+nonQBuy13		:= nonQBuy13 and buyCounCC == -12
+buyCounCC8Close	:= buyCounCC == 8 ? close : buyCounCC8Close[1]
+
+sellCounCC		= 0.0
+sellCounCC8Close = 0.0
+isSellCounCC	= close > high[2]
+nonQSell13		= isSellCounCC and math.abs(sellCounCC[1]) == 12 and high < sellCounCC8Close[1]
+sellCounCC		:= sellSet == 9 ? isSellCounCC ? 1 : 0 : buySet == 9 or lowTrendLine == 0 ? 14 : nonQSell13 ? -12 : isSellCounCC ? math.abs(sellCounCC[1]) + 1 : -math.abs(sellCounCC[1])
+nonQSell13		:= nonQSell13 and sellCounCC == -12
+sellCounCC8Close := sellCounCC == 8 ? close : sellCounCC8Close[1]
+
+isAggressiveBuy	= low < low[2]
+aggressiveBuy	= 0.0
+aggressiveBuy	:= buySet == 9 ? isAggressiveBuy ? 1 : 0 : sellSet == 9 or highTrendLine == 0 ? 14 : isAggressiveBuy ? math.abs(aggressiveBuy[1]) + 1 : -math.abs(aggressiveBuy[1])
+
+isAggressiveSell = high > high[2]
+aggressiveSell	 = 0.0
+aggressiveSell	 := sellSet == 9 ? isAggressiveSell ? 1 : 0 : buySet == 9 or lowTrendLine == 0 ? 14 : isAggressiveSell ? math.abs(aggressiveSell[1]) + 1 : -math.abs(aggressiveSell[1])
+
+showStandardCounCC	= coun == "Standard"
+showAggressiveCounCC = coun == "Aggressive"
+
+sellCounCCNumber = showStandardCounCC ? sellCounCC : showAggressiveCounCC ? aggressiveSell : na
+buyCounCCNumber	= showStandardCounCC ? buyCounCC : showAggressiveCounCC ? aggressiveBuy : na
+
+// -----------------------------------
+
+both = input(true, title="Both Mode", inline="CC4", group=groupCC)
+
+plotshape(showCD and not lastCN ? sellCounCCNumber == 1 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="1"	, title="sc1"	, textcolor=color.new(color.silver, 75))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 2 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="2"	, title="sc2"	, textcolor=color.new(color.silver, 70))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 3 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="3"	, title="sc3"	, textcolor=color.new(color.silver, 65))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 4 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="4"	, title="sc4"	, textcolor=color.new(color.silver, 60))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 5 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="5"	, title="sc5"	, textcolor=color.new(color.silver, 55))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 6 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="6"	, title="sc6"	, textcolor=color.new(color.silver, 50))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 7 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="7"	, title="sc7"	, textcolor=color.new(color.silver, 45))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 8 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="8"	, title="sc8"	, textcolor=color.new(color.silver, 40))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 9 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="9"	, title="sc9"	, textcolor=color.new(color.silver, 35))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 10 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="10"	, title="sc10"	, textcolor=color.new(color.silver, 30))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 11 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="11"	, title="sc11"	, textcolor=color.new(color.silver, 25))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 12 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="12"	, title="sc12"	, textcolor=color.new(color.silver, 20))
+plotshape(showCD and not lastCN ? sellCounCCNumber == 13 : na	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#E21B22, 100), text="13"	, title="sc13"	, textcolor=color.new(color.red	,	0))
+
+plotshape(showCD and not lastCN and nonQSell13 and showStandardCounCC				, location=locAc, style=f_getStyleS(Sstyle), size=size.small	, color=color.new(#E21B22, 100), text="+"	, title="+"		, textcolor=color.new(color.red, 0))
+//plotshape(showCD and not lastCN and sellCounCC == 13 and showAggressiveCounCC		, location=locAc, style=f_getStyleS(Sstyle), size=size.normal	, color=color.new(#E21B22, 100), text="s13"	, title="s13"	, textcolor=color.new(color.red, 0))
+//plotshape(showCD and not lastCN and aggressiveSell == 13 and showStandardCounCC	, location=locAc, style=f_getStyleS(Sstyle), size=size.normal	, color=color.new(#E21B22, 100), text="a13"	, title="a13"	, textcolor=color.new(color.red, 0))
+
+//plotshape(showCD and lastCN ? sellCounCCNumber == 13 : na																									, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#FF9800, 20), text="13"	, title="sc13", textcolor=color.new(color.white, 0))
+plotshape(showCD and lastCN and sellCounCC == 13 and showStandardCounCC or showCD and lastCN and sellCounCC == 13 and showAggressiveCounCC and both			, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#FF9800, 20), text="13"	, title="os13", textcolor=color.new(color.white, 0))
+plotshape(showCD and lastCN and aggressiveSell == 13 and showAggressiveCounCC or showCD and lastCN and aggressiveSell == 13 and showStandardCounCC and both	, location=locAc, style=f_getStyleS(Sstyle), size=size.small, color=color.new(#FF9800, 20), text="a13"	, title="oa13", textcolor=color.new(color.white, 0))
+
+// -----------------------------------
+
+plotshape(showCD and not lastCN ? buyCounCCNumber == 1 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="1"	, title="bc1"	, textcolor=color.new(color.silver, 75))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 2 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="2"	, title="bc2"	, textcolor=color.new(color.silver, 70))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 3 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="3"	, title="bc3"	, textcolor=color.new(color.silver, 65))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 4 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="4"	, title="bc4"	, textcolor=color.new(color.silver, 60))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 5 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="5"	, title="bc5"	, textcolor=color.new(color.silver, 55))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 6 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="6"	, title="bc6"	, textcolor=color.new(color.silver, 50))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 7 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="7"	, title="bc7"	, textcolor=color.new(color.silver, 45))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 8 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="8"	, title="bc8"	, textcolor=color.new(color.silver, 40))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 9 : na	, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="9"	, title="bc9"	, textcolor=color.new(color.silver, 35))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 10 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="10", title="bc10"	, textcolor=color.new(color.silver, 30))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 11 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="11", title="bc11"	, textcolor=color.new(color.silver, 25))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 12 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="12", title="bc12"	, textcolor=color.new(color.silver, 20))
+plotshape(showCD and not lastCN ? buyCounCCNumber == 13 : na, location=locBc, style=f_getStyleB(Bstyle), size=size.small,	color=color.new(#90EE90, 100), text="13", title="bc13"	, textcolor=color.new(color.green,	0))
+
+plotshape(showCD and not lastCN and nonQBuy13 and showStandardCounCC				, location=locBc, style=f_getStyleB(Bstyle), size=size.small	, color=color.new(#90EE90, 100), text="+"	, title="+", textcolor=color.new(color.green, 0))
+//plotshape(showCD and not lastCN and buyCounCC == 13 and showAggressiveCounCC		, location=locBc, style=f_getStyleB(Bstyle), size=size.normal	, color=color.new(#90EE90, 100), text="s13"	, title="s13", textcolor=color.new(color.green, 0))
+//plotshape(showCD and not lastCN and aggressiveBuy == 13 and showStandardCounCC	, location=locBc, style=f_getStyleB(Bstyle), size=size.normal	, color=color.new(#90EE90, 100), text="a13"	, title="a13", textcolor=color.new(color.green, 0))
+
+//plotshape(showCD and lastCN ? buyCounCCNumber == 13 : na																									, location=locBc, style=f_getStyleB(Bstyle), size=size.small, color=color.new(#2196F3, 20), text="13"	, title="bc13", textcolor=color.new(color.white, 0))
+plotshape(showCD and lastCN and buyCounCC == 13 and showStandardCounCC or showCD and lastCN and buyCounCC == 13 and showAggressiveCounCC and both			, location=locBc, style=f_getStyleB(Bstyle), size=size.small, color=color.new(#2196F3, 20), text="13"	, title="os13", textcolor=color.new(color.white, 0))
+plotshape(showCD and lastCN and aggressiveBuy == 13 and showAggressiveCounCC or showCD and lastCN and aggressiveBuy == 13 and showStandardCounCC and both	, location=locBc, style=f_getStyleB(Bstyle), size=size.small, color=color.new(#2196F3, 20), text="a13"	, title="oa13", textcolor=color.new(color.white, 0))
+
+// -----------------------------------
+
+ct9 = buySet == 9 or sellSet == 9
+ct13 = buyCounCC == 13 or sellCounCC == 13
+cta13 = aggressiveBuy == 13 or aggressiveSell == 13
+ct913 = ct9 or ct13
+
+alertcondition(ct9	, title="9 Alert"		, message="9 \n\nTicker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")
+alertcondition(ct13	, title="13 Alert"		, message="13 \n\nTicker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")
+alertcondition(cta13	, title="a13 Alert"		, message="a13 \n\nTicker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")
+alertcondition(ct913	, title="9 and 13 Alert", message="9, 13 \n\nTicker: {{ticker}}\nTime: {{time}}\nPrice: {{close}}")

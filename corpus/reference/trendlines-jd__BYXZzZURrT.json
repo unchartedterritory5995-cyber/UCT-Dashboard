@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;BYXZzZURrThJMlooOHJ0Y8fvakd4oRPZ",
+ "title": "Trendlines - JD",
+ "author": "Duyck",
+ "url": "https://www.tradingview.com/script/mpeEgn5J-trendlines-jd/",
+ "agreeCount": 8279,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/trendlines-jd__BYXZzZURrT.pine",
+ "our_status": "reference-only"
+}

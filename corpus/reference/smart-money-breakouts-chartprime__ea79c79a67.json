@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ea79c79a676844a2884f43e44c1be6af",
+ "title": "Smart Money Breakouts [ChartPrime]",
+ "author": "ChartPrime",
+ "url": "https://www.tradingview.com/script/aM3PRWEM-smart-money-breakouts-chartprime/",
+ "agreeCount": 11303,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-breakouts-chartprime__ea79c79a67.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-breakouts-chartprime__ea79c79a67.pine",
+ "our_status": "committed"
+}

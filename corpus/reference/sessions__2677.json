@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2677",
+ "title": "Sessions",
+ "author": "Aurocks_AIF",
+ "url": "https://www.tradingview.com/script/nY823NXq-sessions/",
+ "agreeCount": 11648,
+ "category": "session tools",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/sessions__2677.pine",
+ "cached_source": "tools/pine_survey/cache/sources/sessions__2677.pine",
+ "our_status": "committed"
+}

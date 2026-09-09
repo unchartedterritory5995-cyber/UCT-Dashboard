@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;rzuOQrVQWtyYE5KOJgZwyuxPp3KPvW6r",
+ "title": "Trendlines 2x +",
+ "author": "Lij_MC",
+ "url": "https://www.tradingview.com/script/wmfD15eY-trendlines-2x/",
+ "agreeCount": 5629,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/trendlines-2x__rzuOQrVQWt.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3e9ddb38c478452299ca08436c9c3de6",
+ "title": "+ ATR Support and Resistance",
+ "author": "ClassicScott",
+ "url": "https://www.tradingview.com/script/NxezQute-atr-support-and-resistance/",
+ "agreeCount": 2261,
+ "category": "volatility",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-support-and-resistance__3e9ddb38c4.pine",
+ "our_status": "committed"
+}

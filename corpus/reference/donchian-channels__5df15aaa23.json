@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5df15aaa239447509a7b7466c877c36d",
+ "title": "+ Donchian Channels",
+ "author": "ClassicScott",
+ "url": "https://www.tradingview.com/script/QE0LMwzk-donchian-channels/",
+ "agreeCount": 609,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/donchian-channels__5df15aaa23.pine",
+ "cached_source": "tools/pine_survey/cache/sources/donchian-channels__5df15aaa23.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;eb13ccd13fec48d19d4e132fc52710a0",
+ "title": "[CP]Pivot Boss Floor Pivots with ATR Dilation and Dynamic Levels",
+ "author": "pranjalchaubey",
+ "url": "https://www.tradingview.com/script/bC2dFgXw-cp-pivot-boss-floor-pivots-with-atr-dilation-and-dynamic-lev/",
+ "agreeCount": 3816,
+ "category": "volatility",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,976 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Erebor_GIT
+
+//@version=5
+
+indicator(title="Heikin Ashi True Strength Index and Optimized Trend Tracker [Erebor]", shorttitle="Heikin Ashi TSI + OTT [Erebor]", format=format.price, precision=1, max_bars_back = 4000) // , timeframe = "", timeframe_gaps = false
+
+totalR = input.bool(true, title="Show TSI1", group="============= Dashboard =============")
+totalT = input.bool(true, title="Show TSI2", group="============= Dashboard =============")
+
+fastCH = input.bool(true, title="Show Channel 1", group="============= TSI Optimized Trend Tracker =============")
+slowCH = input.bool(true, title="Show Channel 2", group="============= TSI Optimized Trend Tracker =============")
+
+//------------------------------------------------------------------------------//
+// Colors
+
+bearColor  = input.color(color.new(#ff0000,0), title = "", inline = "1", group = "============= Colors =============")
+bullColor  = input.color(color.new(#00ff00,0), title = "", inline = "1", group = "============= Colors =============")
+bearColor2 = input.color(color.new(#814100,0), title = "", inline = "1", group = "============= Colors =============") // #620000
+bullColor2 = input.color(color.new(#008141,0), title = "", inline = "1", group = "============= Colors =============") // #006200
+
+bearColor1 = input.color(color.new(#892200,0), title = "", inline = "2", group = "============= Colors =============") // #ff4000
+bullColor1 = input.color(color.new(#008922,0), title = "", inline = "2", group = "============= Colors =============") // #00ff40
+
+chanColor = input.color(color.new(#0000b3,00), title = "", inline = "3", group = "============= Colors =============")
+chn5Color = input.color(color.new(#0000ff,00), title = "", inline = "3", group = "============= Colors =============")
+chn2Color = input.color(color.new(#00ffff,00), title = "", inline = "3", group = "============= Colors =============")
+chn3Color = input.color(color.new(#0000b3,80), title = "", inline = "3", group = "============= Colors =============")
+chn6Color = input.color(color.new(#00ffff,60), title = "", inline = "3", group = "============= Colors =============")
+chn4Color = input.color(color.new(#4d4dff,40), title = "", inline = "3", group = "============= Colors =============")
+
+DIVbear01 = input.color(color.new(#ff8000,0), title = "", inline = "4", group = "============= Colors =============")
+DIVbull01 = input.color(color.new(#ffff00,0), title = "", inline = "4", group = "============= Colors =============")
+extraColor = input.color(color.new(#5a00b3,40), title = "", inline = "4", group = "============= Colors =============")
+
+//bullTR = input.color(color.new(#923eff,0), title = "HA True Range", inline = "4", group = "============= Colors =============")
+// = input.color(color.new(#923eff,0), title = "", inline = "4", group = "============= Colors =============")
+
+zeroColor = input.color(color.new(#ffffff,00), title = "", inline = "5", group = "============= Colors =============")
+
+//------------------------------------------------------------------------------//
+
+HLVar_Func(source, length) =>
+    valpha = 2 / (length + 1)
+    vud1 = source > source[1] ? source - source[1] : 0
+    vdd1 = source < source[1] ? source[1] - source : 0
+    vUD = math.sum(vud1, 9)
+    vDD = math.sum(vdd1, 9)
+    vCMO = nz((vUD - vDD) / (vUD + vDD))
+    HLVAR = 0.0
+    HLVAR := nz(valpha * math.abs(vCMO) * source) + (1 - valpha * math.abs(vCMO)) * nz(HLVAR[1])
+    HLVAR
+
+//------------------------------------------------------------------------------//
+
+lsmao = input.int(title = "LSMA Offset", defval = 0 , group = "============= LSMA =============")
+
+//------------------------------------------------------------------------------//
+
+kama_Func(source, length) =>
+
+    KAMA = 0.0
+    xvnoise = math.abs(source - source[1])
+    nfastend = 0.666
+    nslowend = 0.0645
+    nsignal = math.abs(source - source[length])
+    nnoise = math.sum(xvnoise, length)
+    nefratio = nnoise != 0 ? nsignal / nnoise : 0
+    nsmooth = math.pow(nefratio * (nfastend - nslowend) + nslowend, 2)
+    KAMA := nz(KAMA[1]) + nsmooth * (source - nz(KAMA[1]))
+    KAMA
+
+//------------------------------------------------------------------------------//
+
+trama_Func(source, length) =>
+
+    ama = 0.
+    hhA = math.max(math.sign(ta.change(ta.highest(length))), 0)
+    llA = bool(math.max(math.sign(ta.change(ta.lowest(length)) * -1), 0))
+    tc = math.pow(ta.sma(bool(hhA) or bool(llA) ? 1 : 0, length), 2)
+    ama := nz(ama[1] + tc * (source - ama[1]), source)
+    ama
+
+//------------------------------------------------------------------------------//
+
+DEMA_Func(source, length) =>
+    HLDEMA = 0.0
+    HLDEMA := 2 * ta.ema(source, length) - ta.ema(ta.ema(source, length), length)
+    HLDEMA
+
+//------------------------------------------------------------------------------//
+
+HLZlema_Func(source, length) =>
+    zxLag = length / 2 == math.round(length / 2) ? length / 2 : (length - 1) / 2
+    zxEMAData = source + source - source[zxLag]
+    HLZLEMA = ta.ema(zxEMAData, length)
+    HLZLEMA
+
+//------------------------------------------------------------------------------//
+//Time Series Forecast (TSF)
+
+HLTsf_Func(source, length) =>
+    lrc = ta.linreg(source, length, 0)
+    lrc1 = ta.linreg(source, length, 1)
+    lrs = lrc - lrc1
+    HLTSF = ta.linreg(source, length, 0) + lrs
+    HLTSF
+
+//------------------------------------------------------------------------------//
+
+HLWwma_Func(source, length) =>
+    wwalpha = 1 / length
+    HLWWMA = 0.0
+    HLWWMA := wwalpha * source + (1 - wwalpha) * nz(HLWWMA[1])
+    HLWWMA
+
+//------------------------------------------------------------------------------//
+
+ma1(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+        "HMA" => ta.hma(source, length)
+        "KAMA" => kama_Func(source, length)
+        "LSMA" => ta.linreg(source, length, offset = lsmao)
+        "TRAMA" => trama_Func(source, length)
+        "VAR" => HLVar_Func(source, length)
+        "DEMA" => DEMA_Func(source, length)
+        "ZLEMA" => HLZlema_Func(source, length)
+        "TSF" => HLTsf_Func(source, length)
+        "WWMA" => HLWwma_Func(source, length)
+
+//------------------------------------------------------------------------------//
+
+mode_ma0 = input.string(defval = "WMA", options = ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA", "HMA", "KAMA", "LSMA", "TRAMA", "VAR", "DEMA", "ZLEMA", "TSF", "WWMA"],
+     title = 'TSI Type', group = "============= TSI Moving Average =============", tooltip = "Regular Moving Average used is EMA")
+
+//------------------------------------------------------------------------------//
+// TSI1
+
+TSImode_ma1 = input.string(defval = "WMA", options = ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA", "HMA", "KAMA", "LSMA", "TRAMA", "VAR", "DEMA", "ZLEMA", "TSF", "WWMA"],
+     title = 'TSI1 Signal Type', group = "============= TSI1 Moving Average =============")
+
+//------------------------------------------------------------------------------//
+// TSI2
+
+mode_ma1 = input.string(defval = "WMA", options = ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA", "HMA", "KAMA", "LSMA", "TRAMA", "VAR", "DEMA", "ZLEMA", "TSF", "WWMA"],
+     title = 'TSI2 Signal Type', group = "============= TSI2 Moving Average =============")
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// Optimized Trend Tracker
+
+HLpercent = input.float(1, title = 'OTT Optimization Coeff', step=0.1, minval=0, group = "============= Optimized Trend Tracker =============", tooltip = "Works better between 1 - 10 Range")
+
+OTT_Func(MA_Source) =>
+    fark = MA_Source * HLpercent * 0.01
+    longStop = MA_Source - fark
+    longStopPrev = nz(longStop[1], longStop)
+    longStop := MA_Source > longStopPrev ? math.max(longStop, longStopPrev) : longStop
+    shortStop = MA_Source + fark
+    shortStopPrev = nz(shortStop[1], shortStop)
+    shortStop := MA_Source < shortStopPrev ? math.min(shortStop, shortStopPrev) : shortStop
+    dir = 1
+    dir := nz(dir[1], dir)
+    dir := dir == -1 and MA_Source > shortStopPrev ? 1 : dir == 1 and MA_Source < longStopPrev ? -1 : dir
+    MT = dir == 1 ? longStop : shortStop
+    OTT = MA_Source > MT ? MT * (100 + HLpercent) / 100 : MT * (100 - HLpercent) / 100
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// Moving Average Color 
+
+COL_Func(Hosc, Losc, MA, BullC, BearC) =>
+    COL_lv = int(na)
+    COL_lv := (Hosc > MA) and (Losc > MA) ? 1 : (Hosc < MA) and (Losc < MA) ? -1 : COL_lv[1]
+    COL_cl = COL_lv > 0 ? BullC : COL_lv < 0 ? BearC : na
+
+//------------------------------------------------------------------------------//
+
+showSig = input.bool(false, title="Show MAvg", group="============= Settings =============")
+OVtransp = input.int(10, minval=0, maxval=100, title="Over Bought / Sold Transparency", group="============= Settings =============")
+
+multRSI = input.float(1, minval=0, maxval=100, title="TSI1 Multiplier", group="============= Settings =============")
+distRSI = input.float(0, title="TSI1 Distance", group="============= Settings =============")
+
+multTSI = input.float(1.5, minval=0, maxval=100, title="TSI2 Multiplier", group="============= Settings =============")
+distTSI = input.float(-100, title="TSI2 Distance", group="============= Settings =============")
+
+//showTR = input.bool(true, title="Show TSI ATR", group="============= Settings =============")
+//TR_length = input.int(32, minval=1, title="Average True Range Length", group="============= Settings =============")
+//TR_mult = input.float(1, title="Average True Range Multiplier", step=0.1, group="============= Settings =============")
+
+//------------------------------------------------------------------------------//
+
+src = input.source(ohlc4, "TSI Source", group="============= TSI Settings =============")
+
+//------------------------------------------------------------------------------//
+// TSI1
+
+fast_length1 = input.int(4, minval=1, title="Fast Length1", group="============= TSI1 Settings =============")
+slow_length1 = input.int(16, minval=1, title="Slow Length1", group="============= TSI1 Settings =============")
+RSImaLengthInput = input.int(4, title="TSI1 MA Length", group="============= TSI1 Moving Average =============")
+
+//------------------------------------------------------------------------------//
+// TSI2
+
+fast_length2 = input.int(4, minval=1, title="Fast Length", group="============= TSI2 Settings =============")
+slow_length2 = input.int(64, minval=1, title="Slow Length", group="============= TSI2 Settings =============")
+maLengthInput = input.int(4, title="TSI2 MA Length", group="============= TSI2 Moving Average =============")
+
+//------------------------------------------------------------------------------//
+// TSI1 Levels
+
+TSIupA = input(+62, title="TSI1 Over Bought", group="============= TSI2 Settings =============")
+TSIdnA = input(+38, title="TSI1 Over Sold", group="============= TSI2 Settings =============")
+
+//------------------------------------------------------------------------------//
+// TSI2 Levels
+
+upA = input(+62, title="TSI2 Over Bought", group="============= TSI1 Settings =============")
+dnA = input(+38, title="TSI2 Over Sold", group="============= TSI1 Settings =============")
+
+//------------------------------------------------------------------------------//
+// True Range
+
+//T_Range(HIGH, LOW, CLOSE) =>
+//    TRange = math.max(HIGH - LOW, math.abs(HIGH - CLOSE[1]), math.abs(LOW - CLOSE[1]))
+//    TRng = ma1(TRange, TR_length, mode_ma0)
+
+//------------------------------------------------------------------------------//
+// TSI
+
+double_smooth(source, long, short) =>
+	fist_smooth = ma1(source, long, mode_ma0)
+	ma1(fist_smooth, short, mode_ma0)
+
+//------------------------------------------------------------------------------//
+// TSI1 Close
+
+pc0 = ta.change(src)
+double_smoothed_pc0 = double_smooth(pc0, slow_length1, fast_length1)
+double_smoothed_abs_pc0 = double_smooth(math.abs(pc0), slow_length1, fast_length1)
+tsi0_ = (50 * (double_smoothed_pc0 / double_smoothed_abs_pc0)) + 50
+
+// TSI1 High
+
+Hpc0 = ta.change(high)
+Hdouble_smoothed_pc0 = double_smooth(Hpc0, slow_length1, fast_length1)
+Hdouble_smoothed_abs_pc0 = double_smooth(math.abs(Hpc0), slow_length1, fast_length1)
+Htsi0_ = (50 * (Hdouble_smoothed_pc0 / Hdouble_smoothed_abs_pc0)) + 50
+
+// TSI1 Low
+
+Lpc0 = ta.change(low)
+Ldouble_smoothed_pc0 = double_smooth(Lpc0, slow_length1, fast_length1)
+Ldouble_smoothed_abs_pc0 = double_smooth(math.abs(Lpc0), slow_length1, fast_length1)
+Ltsi0_ = (50 * (Ldouble_smoothed_pc0 / Ldouble_smoothed_abs_pc0)) + 50
+
+//TR_01 = T_Range(Htsi0_, Ltsi0_, tsi0_)
+
+//A_up = tsi0_ - TR_mult * TR_01
+//A_up1 = nz(A_up[1], A_up)
+//A_up := tsi0_[1] > A_up1 ? math.max(A_up, A_up1) : A_up
+//A_dn = tsi0_ + TR_mult * TR_01
+//A_dn1 = nz(A_dn[1], A_dn)
+//A_dn := tsi0_[1] < A_dn1 ? math.min(A_dn, A_dn1) : A_dn
+//A_trend = 1
+//A_trend := nz(A_trend[1], A_trend)
+//A_trend := A_trend == -1 and tsi0_ > A_dn1 ? 1 : A_trend == 1 and tsi0_ < A_up1 ? -1 : A_trend
+
+//------------------------------------------------------------------------------//
+// TSI1 Signal
+// Close 
+
+rsiMA = ma1(tsi0_, RSImaLengthInput, TSImode_ma1)
+SrsiMA = ma1(rsiMA, RSImaLengthInput, TSImode_ma1)
+DrsiMA = 2 * rsiMA - SrsiMA
+
+// High
+
+HrsiMA = ma1(Htsi0_, RSImaLengthInput, TSImode_ma1)
+HSrsiMA = ma1(HrsiMA, RSImaLengthInput, TSImode_ma1)
+HDrsiMA = 2 * HrsiMA - HSrsiMA
+
+// Low
+
+LrsiMA = ma1(Ltsi0_, RSImaLengthInput, TSImode_ma1)
+LSrsiMA = ma1(LrsiMA, RSImaLengthInput, TSImode_ma1)
+LDrsiMA = 2 * LrsiMA - LSrsiMA
+
+//
+
+RSIsignal(type) =>
+    switch type
+        "Simple" => rsiMA
+		"Smoothed" => SrsiMA
+		"Double" => DrsiMA
+
+HRSIsignal(type) =>
+    switch type
+        "Simple" => HrsiMA
+		"Smoothed" => HSrsiMA
+		"Double" => HDrsiMA
+
+LRSIsignal(type) =>
+    switch type
+        "Simple" => LrsiMA
+		"Smoothed" => LSrsiMA
+		"Double" => LDrsiMA
+
+RSImode_sig = input.string(defval = "Smoothed",
+     options = ["Simple", "Smoothed", "Double"],
+     title = 'TSI1 Signal Mode',
+     group = "============= TSI1 Moving Average =============",
+     tooltip = "Regular Moving Average used is Simple")
+
+//------------------------------------------------------------------------------//
+// Close
+
+pc = ta.change(src)
+double_smoothed_pc = double_smooth(pc, slow_length2, fast_length2)
+double_smoothed_abs_pc = double_smooth(math.abs(pc), slow_length2, fast_length2)
+tsi = (50 * (double_smoothed_pc / double_smoothed_abs_pc)) + 50
+
+// High
+
+Hpc = ta.change(high)
+Hdouble_smoothed_pc = double_smooth(Hpc, slow_length2, fast_length2)
+Hdouble_smoothed_abs_pc = double_smooth(math.abs(Hpc), slow_length2, fast_length2)
+Htsi = (50 * (Hdouble_smoothed_pc / Hdouble_smoothed_abs_pc)) + 50
+
+// Low
+
+Lpc = ta.change(low)
+Ldouble_smoothed_pc = double_smooth(Lpc, slow_length2, fast_length2)
+Ldouble_smoothed_abs_pc = double_smooth(math.abs(Lpc), slow_length2, fast_length2)
+Ltsi = (50 * (Ldouble_smoothed_pc / Ldouble_smoothed_abs_pc)) + 50
+
+//TR_02 = T_Range(Htsi, Ltsi, tsi)
+
+//B_up = tsi - TR_mult * TR_02
+//B_up1 = nz(B_up[1], B_up)
+//B_up := tsi[1] > B_up1 ? math.max(B_up, B_up1) : B_up
+//B_dn = tsi + TR_mult * TR_02
+//B_dn1 = nz(B_dn[1], B_dn)
+//B_dn := tsi[1] < B_dn1 ? math.min(B_dn, B_dn1) : B_dn
+//B_trend = 1
+//B_trend := nz(B_trend[1], B_trend)
+//B_trend := B_trend == -1 and tsi > B_dn1 ? 1 : B_trend == 1 and tsi < B_up1 ? -1 : B_trend
+
+//------------------------------------------------------------------------------//
+// TSI Signal
+// Close
+
+tsiMA = ma1(tsi, maLengthInput, mode_ma1)
+StsiMA = ma1(tsiMA, maLengthInput, mode_ma1)
+DtsiMA = 2 * tsiMA - StsiMA
+
+// High
+
+HtsiMA = ma1(Htsi, maLengthInput, mode_ma1)
+HStsiMA = ma1(HtsiMA, maLengthInput, mode_ma1)
+HDtsiMA = 2 * HtsiMA - HStsiMA
+
+// Low
+
+LtsiMA = ma1(Ltsi, maLengthInput, mode_ma1)
+LStsiMA = ma1(LtsiMA, maLengthInput, mode_ma1)
+LDtsiMA = 2 * LtsiMA - LStsiMA
+
+//
+
+TSIsignal(type) =>
+    switch type
+        "Simple" => tsiMA
+		"Smoothed" => StsiMA
+		"Double" => DtsiMA
+
+HTSIsignal(type) =>
+    switch type
+        "Simple" => HtsiMA
+		"Smoothed" => HStsiMA
+		"Double" => HDtsiMA
+
+LTSIsignal(type) =>
+    switch type
+        "Simple" => LtsiMA
+		"Smoothed" => LStsiMA
+		"Double" => LDtsiMA
+
+mode_sig = input.string(defval = "Smoothed",
+     options = ["Simple", "Smoothed", "Double"],
+     title = 'TSI2 Signal Mode',
+     group = "============= TSI2 Moving Average =============",
+     tooltip = "Regular Moving Average used is Simple")
+
+//------------------------------------------------------------------------------//
+// RSI MA
+
+RSI_hlc1(type) =>
+    switch type
+        "Close" => RSIsignal(RSImode_sig)
+        "High" => HRSIsignal(RSImode_sig)
+        "Low" => LRSIsignal(RSImode_sig)
+
+rsiMA_src = input.string(defval = "Close",
+     options = ["Close", "High", "Low"],
+     title = 'TSI1 MA Source',
+     group = "============= TSI1 Moving Average =============",
+     tooltip = "Regular Source used is Close")
+
+//------------------------------------------------------------------------------//
+// TSI MA
+
+TSI_hlc1(type) =>
+    switch type
+        "Close" => TSIsignal(mode_sig)
+        "High" => HTSIsignal(mode_sig)
+        "Low" => LTSIsignal(mode_sig)
+
+tsiMA_src = input.string(defval = "Close",
+     options = ["Close", "High", "Low"], title = 'TSI2 MA Source',
+     group = "============= TSI2 Moving Average =============",
+     tooltip = "Regular Source used is Close")
+
+//------------------------------------------------------------------------------//
+// Candle
+
+RSIshowHA = input.bool(true, title="Show Heikin Ashi Wicks", group="============= TSI1 Heikin Ashi Settings =============")
+showHA = input.bool(true, title="Show Heikin Ashi Wicks", group="============= TSI2 Heikin Ashi Settings =============")
+
+//------------------------------------------------------------------------------//
+// TSI1 CANDLE
+
+RSIHALength = input.int(1, minval=0, title="TSI1 Heikin Ashi Length", group="============= TSI1 Heikin Ashi Settings =============", tooltip = "Regular Heikin Ashi Period is 1")
+RSItransp = input.int(0, minval=0, maxval=100, title="TSI1 Body Transparency", group="============= TSI1 Heikin Ashi Settings =============")
+
+RSIhk_Cl = tsi0_
+RSIhk_Op = float(na)
+RSIhk_Op := na(RSIhk_Op[RSIHALength]) ? (RSIhk_Cl[RSIHALength] + RSIhk_Cl) / 2 : (nz(RSIhk_Op[RSIHALength]) + nz(RSIhk_Cl[RSIHALength])) / 2
+
+RSIstandarColor = (RSIhk_Cl > RSIhk_Cl[1]) ? bullColor : (RSIhk_Cl < RSIhk_Cl[1]) ? bearColor : extraColor
+
+RSIcandleColor = (RSIhk_Cl > RSIhk_Op) and (RSIhk_Cl > Ltsi0_[RSIHALength]) ? bullColor : // RSI_hlc1(rsiMA_src)
+     (RSIhk_Cl > RSIhk_Op) and (RSIhk_Cl < Ltsi0_[RSIHALength]) ? bullColor2 :
+     (RSIhk_Cl < RSIhk_Op) and (RSIhk_Cl < Htsi0_[RSIHALength]) ? bearColor :
+     (RSIhk_Cl < RSIhk_Op) and (RSIhk_Cl > Htsi0_[RSIHALength]) ? bearColor2 : RSIstandarColor
+
+//
+
+RSIHAmode(type) =>
+    switch type
+        "Regular Candle" => RSIhk_Cl[1]
+		"Heikin Ashi" => RSIhk_Op
+		"Smoothed" => RSI_hlc1(rsiMA_src)
+
+RSImode_HA = input.string(defval = "Regular Candle", options = ["Regular Candle", "Heikin Ashi", "Smoothed"], title = 'TSI1 Open HA Mode', group = "============= TSI1 Heikin Ashi Settings =============")
+
+//------------------------------------------------------------------------------//
+// TSI1
+
+plotcandle(totalR ? (RSIHAmode(RSImode_HA) * multRSI) + distRSI : na,
+     totalR ? (Htsi0_ * multRSI) + distRSI : na,
+     totalR ? (Ltsi0_ * multRSI) + distRSI : na,
+     totalR ? (RSIhk_Cl * multRSI) + distRSI : na,
+     title = "TSI Heikin Ashi Candle" ,
+     color = color.new(RSIcandleColor, RSItransp),
+     wickcolor = RSIshowHA ? RSIcandleColor : na,
+     bordercolor = RSIcandleColor,
+     editable = true)
+
+hline(totalR ? (50 * multRSI) + distRSI : na, "TSI1 Middle Band", color=zeroColor, linewidth = 1)
+
+//------------------------------------------------------------------------------//
+// TSI1 Channel
+
+RSICHlength = input.int(32, minval=0, title="TSI1 Channel Length", group="============= TSI1 Optimized Trend Tracker =============")
+RSICHlength2 = input.int(64, minval=0, title="TSI1 Channel Length 2", group="============= TSI1 Optimized Trend Tracker =============")
+RSICHoffset = input.int(1, minval=0, title="TSI1 Channel Offset", group="============= TSI1 Optimized Trend Tracker =============")
+
+RSIch_up_ = ta.highest(tsi0_,RSICHlength)
+RSIch_dn_ = ta.lowest (tsi0_,RSICHlength)
+RSIch_up2_ = ta.highest(tsi0_,RSICHlength2)
+RSIch_dn2_ = ta.lowest (tsi0_,RSICHlength2)
+
+RSIch_up = OTT_Func(ma1(RSIch_up_, RSImaLengthInput, TSImode_ma1)) 
+RSIch_dn = OTT_Func(ma1(RSIch_dn_, RSImaLengthInput, TSImode_ma1))
+RSIch_up2 = OTT_Func(ma1(RSIch_up2_, RSImaLengthInput, TSImode_ma1)) 
+RSIch_dn2 = OTT_Func(ma1(RSIch_dn2_, RSImaLengthInput, TSImode_ma1))
+
+RSIch_av = math.avg(RSIch_up, RSIch_dn)
+RSIch_av2 = math.avg(RSIch_up2, RSIch_dn2)
+
+chA1 = plot(fastCH and totalR ? (nz(RSIch_up) * multRSI) + distRSI : na, title="TSI1 Channel Up", color = tsi0_ > nz(RSIch_up)[RSICHoffset] ? chn2Color : chanColor, linewidth = 1, style = plot.style_line, offset = RSICHoffset, join = true)
+chA2 = plot(fastCH and totalR ? (nz(RSIch_dn) * multRSI) + distRSI : na, title="TSI1 Channel Dn", color = tsi0_ < nz(RSIch_dn)[RSICHoffset] ? chn2Color : chanColor, linewidth = 1, style = plot.style_line, offset = RSICHoffset, join = true)
+chA12 = plot(slowCH and totalR ? (nz(RSIch_up2) * multRSI) + distRSI : na, title="TSI1 Channel Up 2", color = tsi0_ > nz(RSIch_up2)[RSICHoffset] ? chn2Color : chn4Color, linewidth = 1, style = plot.style_line, offset = RSICHoffset, join = true)
+chA22 = plot(slowCH and totalR ? (nz(RSIch_dn2) * multRSI) + distRSI : na, title="TSI1 Channel Dn 2", color = tsi0_ < nz(RSIch_dn2)[RSICHoffset] ? chn2Color : chn4Color, linewidth = 1, style = plot.style_line, offset = RSICHoffset, join = true)
+
+plot(fastCH and totalR ? (nz(RSIch_av) * multRSI) + distRSI : na, title="TSI1 Channel Av", color = chn5Color, linewidth = 1, style = plot.style_circles, offset = RSICHoffset, join = true)
+
+//
+
+fill(chA1, chA2, top_value = (nz(RSIch_up)[RSICHoffset] * multRSI) + distRSI, bottom_value = (nz(RSIch_dn)[RSICHoffset] * multRSI) + distRSI, top_color = tsi0_ > nz(RSIch_up)[RSICHoffset] ? chn6Color : chn3Color, bottom_color = tsi0_ < nz(RSIch_dn)[RSICHoffset] ? chn6Color : chn3Color)
+
+//
+
+//A_upPlot = plot(totalR and showTR and A_trend ==  1 ? (A_up * multRSI) + distRSI : na, title='Up Trend 1', style=plot.style_linebr, linewidth=2, color=bullTR)
+//A_dnPlot = plot(totalR and showTR and A_trend == -1 ? (A_dn * multRSI) + distRSI : na, title='Dn Trend 1', style=plot.style_linebr, linewidth=2, color=bearTR)
+
+//------------------------------------------------------------------------------//
+// TSI2 CANDLE
+
+HALength = input.int(1, minval=0, title="TSI2 Heikin Ashi Length", group="============= TSI2 Heikin Ashi Settings =============", tooltip = "Regular Heikin Ashi Period is 1")
+transp = input.int(0, minval=0, maxval=100, title="TSI2 Body Transparency", group="============= TSI2 Heikin Ashi Settings =============")
+
+hk_Cl = tsi
+hk_Op = float(na)
+hk_Op := na(hk_Op[HALength]) ? (hk_Cl[HALength] + hk_Cl) / 2 : (nz(hk_Op[HALength]) + nz(hk_Cl[HALength])) / 2
+
+standarColor = (hk_Cl > hk_Cl[1]) ? bullColor : (hk_Cl < hk_Cl[1]) ? bearColor : extraColor
+
+candleColor = (hk_Cl > hk_Op) and (hk_Cl > Ltsi[HALength]) ? bullColor : // TSI_hlc1(tsiMA_src)
+     (hk_Cl > hk_Op) and (hk_Cl < Ltsi[HALength]) ? bullColor2 :
+     (hk_Cl < hk_Op) and (hk_Cl < Htsi[HALength]) ? bearColor :
+     (hk_Cl < hk_Op) and (hk_Cl > Htsi[HALength]) ? bearColor2 : standarColor
+
+HAmode(type) =>
+    switch type
+        "Regular Candle" => hk_Cl[1]
+		"Heikin Ashi" => hk_Op
+		"Smoothed" => TSI_hlc1(tsiMA_src)
+
+mode_HA = input.string(defval = "Regular Candle", options = ["Regular Candle", "Heikin Ashi", "Smoothed"], title = 'TSI2 Open HA Mode', group = "============= TSI2 Heikin Ashi Settings =============")
+
+//------------------------------------------------------------------------------//
+// TSI2
+
+plotcandle(totalT ? (HAmode(mode_HA) * multTSI) + distTSI : na,
+     totalT ? (Htsi * multTSI) + distTSI : na,
+     totalT ? (Ltsi * multTSI) + distTSI : na,
+     totalT ? (hk_Cl * multTSI) + distTSI : na,
+     title = "TSI2 Heikin Ashi Candle" , color = color.new(candleColor, transp),
+     wickcolor = showHA ? candleColor : na,
+     bordercolor = candleColor,
+     editable = true)
+
+hline(totalT ? (50 * multTSI) + distTSI : na, "TSI2 Middle Band", color=zeroColor, linewidth = 1)
+
+//------------------------------------------------------------------------------//
+// TSI2 Channel
+
+CHlength = input.int(32, minval=0, title="TSI2 Channel Length", group="============= TSI2 Optimized Trend Tracker =============")
+CHlength2 = input.int(64, minval=0, title="TSI2 Channel Length 2", group="============= TSI2 Optimized Trend Tracker =============")
+CHoffset = input.int(1, minval=0, title="TSI2 Channel Offset", group="============= TSI2 Optimized Trend Tracker =============")
+
+ch_up_ = ta.highest(tsi,CHlength)
+ch_dn_ = ta.lowest (tsi,CHlength)
+ch_up2_ = ta.highest(tsi,CHlength2)
+ch_dn2_ = ta.lowest (tsi,CHlength2)
+
+ch_up = OTT_Func(ma1(ch_up_, maLengthInput, mode_ma1))
+ch_dn = OTT_Func(ma1(ch_dn_, maLengthInput, mode_ma1))
+ch_up2 = OTT_Func(ma1(ch_up2_, maLengthInput, mode_ma1))
+ch_dn2 = OTT_Func(ma1(ch_dn2_, maLengthInput, mode_ma1))
+
+ch_av = math.avg(ch_up, ch_dn)
+ch_av2 = math.avg(ch_up2, ch_dn2)
+
+chB1 = plot(fastCH and totalT ? (nz(ch_up) * multTSI) + distTSI : na, title="TSI2 Channel Up", color = tsi > nz(ch_up)[CHoffset] ? chn2Color : chanColor, linewidth = 1, style = plot.style_line, offset = CHoffset, join = true)
+chB2 = plot(fastCH and totalT ? (nz(ch_dn) * multTSI) + distTSI : na, title="TSI2 Channel Dn", color = tsi < nz(ch_dn)[CHoffset] ? chn2Color : chanColor, linewidth = 1, style = plot.style_line, offset = CHoffset, join = true)
+chB12 = plot(slowCH and totalT ? (nz(ch_up2) * multTSI) + distTSI : na, title="TSI2 Channel Up 2", color = tsi > nz(ch_up2)[CHoffset] ? chn2Color : chn4Color, linewidth = 1, style = plot.style_line, offset = CHoffset, join = true)
+chB22 = plot(slowCH and totalT ? (nz(ch_dn2) * multTSI) + distTSI : na, title="TSI2 Channel Dn 2", color = tsi < nz(ch_dn2)[CHoffset] ? chn2Color : chn4Color, linewidth = 1, style = plot.style_line, offset = CHoffset, join = true)
+
+plot(fastCH and totalT ? (nz(ch_av) * multTSI) + distTSI : na, title="TSI2 Channel Av", color = chn5Color, linewidth = 1, style = plot.style_circles, offset = CHoffset, join = true)
+
+//
+
+fill(chB1, chB2, top_value = (nz(ch_up)[CHoffset] * multTSI) + distTSI, bottom_value = (nz(ch_dn)[CHoffset] * multTSI) + distTSI, top_color = tsi > nz(ch_up)[CHoffset] ? chn6Color : chn3Color, bottom_color = tsi < nz(ch_dn)[CHoffset] ? chn6Color : chn3Color)
+
+//
+
+//B_upPlot = plot(totalT and showTR and B_trend ==  1 ? (B_up * multTSI) + distTSI : na, title='Up Trend 2', style=plot.style_linebr, linewidth=2, color=bullTR)
+//B_dnPlot = plot(totalT and showTR and B_trend == -1 ? (B_dn * multTSI) + distTSI : na, title='Dn Trend 2', style=plot.style_linebr, linewidth=2, color=bearTR)
+
+//------------------------------------------------------------------------------//
+// TSI1 PLOT
+
+RSIHASignal = plot(totalR and showSig ? (RSI_hlc1(rsiMA_src) * multRSI) + distRSI : na, "TSI1-based MA", color=COL_Func(Htsi0_, Ltsi0_, RSI_hlc1(rsiMA_src), bullColor1, bearColor1), linewidth = 1)
+hline(totalR ? (TSIupA * multRSI) + distRSI : na, title = "TSI1 Upper Band", color=color.new(bullColor1,OVtransp), linestyle = hline.style_dotted)
+hline(totalR ? (TSIdnA * multRSI) + distRSI : na, title = "TSI1 Lower Band", color=color.new(bearColor1,OVtransp), linestyle = hline.style_dotted)
+
+plot(totalR ? (RSIhk_Cl * multRSI) + distRSI : na, "TSI1-Line", color=zeroColor, linewidth = 0, display = display.none)
+
+//------------------------------------------------------------------------------//
+// TSI2 PLOT
+
+HASignal = plot(totalT and showSig ? (TSI_hlc1(tsiMA_src) * multTSI) + distTSI : na, "TSI2-based MA", color=COL_Func(Htsi, Ltsi, TSI_hlc1(tsiMA_src), bullColor1, bearColor1), linewidth = 1)
+hline(totalT ? (upA * multTSI) + distTSI : na, title = "TSI2 Upper Band", color=color.new(bullColor1,OVtransp), linestyle = hline.style_dotted)
+hline(totalT ? (dnA * multTSI) + distTSI : na, title = "TSI2 Lower Band", color=color.new(bearColor1,OVtransp), linestyle = hline.style_dotted)
+
+plot(totalT ? (hk_Cl * multTSI) + distTSI : na, "TSI2-Line", color=zeroColor, linewidth = 0, display = display.none)
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// TSI Heikin Ashi (Long/Short) I
+
+RSIcond_A1 = if RSIHALength > 0
+    RSIhk_Cl > RSIhk_Op
+else
+    RSIhk_Cl > RSIhk_Cl[1]
+
+RSIcond_A2 = if RSIHALength > 0
+    RSIhk_Cl < RSIhk_Op
+else
+    RSIhk_Cl < RSIhk_Cl[1]
+//
+
+RSIlong_A1 = RSIcond_A1 == true
+RSIshrt_A1 = RSIcond_A2 == true
+
+//
+
+RSIa1_since_long  = ta.barssince(RSIcond_A1) [1]
+RSIa1_since_short = ta.barssince(RSIcond_A2) [1]
+
+//
+
+RSIlong_condition_A1 = 0
+RSIlong_count_A1 = 1
+
+if(RSIcond_A1)
+    if(bool(RSIlong_count_A1))
+        RSIlong_count_A1 := RSIlong_count_A1 - 1
+        if RSIlong_A1 and RSIa1_since_long > RSIa1_since_short
+            RSIlong_condition_A1 := RSIlong_condition_A1 + 1
+        else
+            RSIlong_condition_A1 := RSIlong_condition_A1 - 1    
+
+RSIlA01 = RSIlong_condition_A1 > 0 
+
+//
+
+RSIshort_condition_A1 = 0
+RSIshort_count_A1 = 1
+
+if(RSIcond_A2)
+    if(bool(RSIshort_count_A1))
+        RSIshort_count_A1 := RSIshort_count_A1 - 1
+        if RSIshrt_A1 and RSIa1_since_short > RSIa1_since_long
+            RSIshort_condition_A1 := RSIshort_condition_A1 + 1
+        else
+            RSIshort_condition_A1 := RSIshort_condition_A1 - 1    
+
+RSIsA01 = RSIshort_condition_A1 > 0 
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// TSI Heikin Ashi (Long/Short) I
+
+cond_A1 = if RSIHALength > 0
+    hk_Cl > hk_Op
+else
+    hk_Cl > hk_Cl[1]
+
+cond_A2 = if RSIHALength > 0
+    hk_Cl < hk_Op
+else
+    hk_Cl < hk_Cl[1]
+
+//
+
+long_A1 = cond_A1 == true
+shrt_A1 = cond_A2 == true
+
+//
+
+a1_since_long  = ta.barssince(cond_A1) [1]
+a1_since_short = ta.barssince(cond_A2) [1]
+
+//
+
+long_condition_A1 = 0
+long_count_A1 = 1
+
+if(cond_A1)
+    if(bool(long_count_A1))
+        long_count_A1 := long_count_A1 - 1
+        if long_A1 and a1_since_long > a1_since_short
+            long_condition_A1 := long_condition_A1 + 1
+        else
+            long_condition_A1 := long_condition_A1 - 1    
+
+lA01 = long_condition_A1 > 0 
+
+//
+
+short_condition_A1 = 0
+short_count_A1 = 1
+
+if(cond_A2)
+    if(bool(short_count_A1))
+        short_count_A1 := short_count_A1 - 1
+        if shrt_A1 and a1_since_short > a1_since_long
+            short_condition_A1 := short_condition_A1 + 1
+        else
+            short_condition_A1 := short_condition_A1 - 1    
+
+sA01 = short_condition_A1 > 0 
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// Divergences
+
+DIV = input.float(title = 'Divergences Signal Distance', defval = 7.5, group = "========== Divergences ==========")
+
+rangeUpper = input(title = 'Max of Lookback Range', defval = 750, group = "========== Divergences ==========")
+rangeLower = input(title = 'Min of Lookback Range', defval = 1,   group = "========== Divergences ==========")
+
+plotBull = input(title  ='Plot Bullish', defval = true, group = "========== Divergences ==========")
+plotBear = input(title = 'Plot Bearish', defval = true, group = "========== Divergences ==========")
+
+lbR1 = input(title = 'Pivot Lookback Right TSI1', defval = 1, group = "========== Divergences ==========")
+lbL1 = input(title = 'Pivot Lookback Left TSI1',  defval = 4, group = "========== Divergences ==========")
+
+lbR2 = input(title = 'Pivot Lookback Right TSI2', defval = 1, group = "========== Divergences ==========")
+lbL2 = input(title = 'Pivot Lookback Left TSI2',  defval = 4, group = "========== Divergences ==========")
+
+lbR3 = input(title = 'Pivot Lookback Right BAR', defval = 1, group = "========== Divergences ==========")
+lbL3 = input(title = 'Pivot Lookback Left BAR',  defval = 4, group = "========== Divergences ==========")
+
+delay_plot_til_closed = input(title = 'Delay plot until candle is closed (don\'t repaint)', defval = true, group = "========== Divergences ==========")
+repaint = not delay_plot_til_closed or barstate.ishistory or barstate.isconfirmed
+
+//------------------------------------------------------------------------------//
+// Functions
+
+plFound(osc,lbL, lbR) =>
+    na(ta.pivotlow(osc, lbL, lbR)) ? false : true
+phFound(osc, lbL, lbR) =>
+    na(ta.pivothigh(osc, lbL, lbR)) ? false : true
+
+_inRange(cond) =>
+    bars = ta.barssince(cond == true)
+    rangeLower <= bars and bars <= rangeUpper
+
+_findDivRB(osc, lbL, lbR) =>
+    // Osc: Higher Low
+    oscHL = osc[lbR] > ta.valuewhen(plFound(osc, lbL, lbR), osc[lbR], 1) and _inRange(plFound(osc,lbL, lbR)[1])
+
+    // Price: Lower Low
+    priceLL = low[lbR] < ta.valuewhen(plFound(osc,lbL, lbR), low[lbR], 1)
+
+    bullCond = priceLL and oscHL and plFound(osc,lbL, lbR) and repaint
+
+    //------------------------------------------------------------------------------
+    // Hidden Bullish
+
+    // Osc: Lower Low
+    oscLL = osc[lbR] < ta.valuewhen(plFound(osc,lbL, lbR), osc[lbR], 1) and _inRange(plFound(osc,lbL, lbR)[1])
+
+    // Price: Higher Low
+    priceHL = low[lbR] > ta.valuewhen(plFound(osc,lbL, lbR), low[lbR], 1)
+
+    hiddenBullCond = priceHL and oscLL and plFound(osc,lbL, lbR) and repaint
+
+    //------------------------------------------------------------------------------
+    // Regular Bearish
+
+    // Osc: Lower High
+    oscLH = osc[lbR] < ta.valuewhen(phFound(osc,lbL, lbR), osc[lbR], 1) and _inRange(phFound(osc,lbL, lbR)[1])
+
+    // Price: Higher High
+    priceHH = high[lbR] > ta.valuewhen(phFound(osc,lbL, lbR), high[lbR], 1)
+
+    bearCond = priceHH and oscLH and phFound(osc,lbL, lbR) and repaint
+
+    //------------------------------------------------------------------------------
+    // Hidden Bearish
+
+    // Osc: Higher High
+    oscHH = osc[lbR] > ta.valuewhen(phFound(osc,lbL, lbR), osc[lbR], 1) and _inRange(phFound(osc,lbL, lbR)[1])
+
+    // Price: Lower High
+    priceLH = high[lbR] < ta.valuewhen(phFound(osc,lbL, lbR), high[lbR], 1)
+
+    hiddenBearCond = priceLH and oscHH and phFound(osc,lbL, lbR) and repaint
+
+    [bullCond, hiddenBullCond, bearCond, hiddenBearCond]
+
+//------------------------------------------------------------------------------//
+// TSI1
+
+[bullCondA1, hiddenBullCondA1, bearCondA1, hiddenBearCondA1] = _findDivRB(RSIhk_Cl,lbL1, lbR1)
+
+//
+
+plotshape(plotBull and totalR and (bullCondA1 or hiddenBullCondA1) ? ((RSIhk_Cl * multRSI) + distRSI) - DIV : na, title = "Bull1", style = shape.labelup, location = location.absolute, color = DIVbull01, size = size.auto) // ▲ ▼
+plotshape(plotBear and totalR and (bearCondA1 or hiddenBearCondA1) ? ((RSIhk_Cl * multRSI) + distRSI) + DIV : na, title = "Bear1", style = shape.labeldown, location = location.absolute, color = DIVbear01, size = size.auto)
+
+//------------------------------------------------------------------------------//
+// TSI2
+
+[bullCondB1, hiddenBullCondB1, bearCondB1, hiddenBearCondB1] = _findDivRB(hk_Cl,lbL2, lbR2)
+
+//
+
+plotshape(plotBull and totalT and (bullCondB1 or hiddenBullCondB1) ? ((hk_Cl * multTSI) + distTSI) - DIV : na, title = "Bull2", style = shape.labelup, location = location.absolute, color = DIVbull01, size = size.auto) // ▲ ▼
+plotshape(plotBear and totalT and (bearCondB1 or hiddenBearCondB1) ? ((hk_Cl * multTSI) + distTSI) + DIV : na, title = "Bear2", style = shape.labeldown, location = location.absolute, color = DIVbear01, size = size.auto)
+
+//------------------------------------------------------------------------------//
+// BAR COLOR   
+
+showBAR = input.bool(true, title="Show Bar Color", group="============= Bar Heikin Ashi Settings =============")
+PriceSourceInput = input.source(hlcc4, "Bar Source", group="============= Bar Heikin Ashi Settings =============")
+PriceHALength = input.int(3, minval=0, title="Bar Heikin Ashi Length", group="============= Bar Heikin Ashi Settings =============", tooltip = "Regular Heikin Ashi Period is 1")
+PriceTransp = input.int(0, minval=0, maxval=100, title="Bar Body Transparency", group="============= Bar Heikin Ashi Settings =============")
+
+Pricehk_Cl = PriceSourceInput
+Pricehk_Op = float(na)
+Pricehk_Op := na(Pricehk_Op[PriceHALength]) ? (open + Pricehk_Cl) / 2 : (nz(Pricehk_Op[PriceHALength]) + nz(Pricehk_Cl[PriceHALength])) / 2
+
+PricecandleColor = (Pricehk_Cl > Pricehk_Op) and (Pricehk_Cl > low[PriceHALength]) ? bullColor :
+     (Pricehk_Cl > Pricehk_Op) and (Pricehk_Cl < low[PriceHALength]) ? bullColor2 :
+     (Pricehk_Cl < Pricehk_Op) and (Pricehk_Cl < high[PriceHALength]) ? bearColor :
+     (Pricehk_Cl < Pricehk_Op) and (Pricehk_Cl > high[PriceHALength]) ? bearColor2 : extraColor
+
+//------------------------------------------------------------------------------//
+// BAR Divergences
+
+[bullCondC1, hiddenBullCondC1, bearCondC1, hiddenBearCondC1] = _findDivRB(Pricehk_Cl,lbL3, lbR3)
+
+BARdiv = bullCondC1 ? DIVbull01 : hiddenBullCondC1 ? DIVbull01 : bearCondC1 ? DIVbear01 : hiddenBearCondC1 ? DIVbear01 : extraColor
+
+//------------------------------------------------------------------------------//
+
+bar_color(type) =>
+    switch type
+        "Price" => PricecandleColor
+        "TSI1" => RSIcandleColor
+        "TSI2" => candleColor
+        "BAR Divergence" => BARdiv
+
+BARmode = input.string(defval = "Price", options = ["Price", "TSI1", "TSI2", "BAR Divergence"], title = 'Bar Color Mode', group = "============= Bar Heikin Ashi Settings =============")
+
+barcolor(color = showBAR ? color.new(bar_color(BARmode), PriceTransp) : na, title = "Bar Color")
+
+//------------------------------------------------------------------------------//
+// BAR Heikin Ashi (Long/Short) I
+
+Pricecond_A1 = Pricehk_Op < Pricehk_Cl
+Pricecond_A2 = Pricehk_Op > Pricehk_Cl
+
+Pricelong_A1 = Pricecond_A1 == true
+Priceshrt_A1 = Pricecond_A2 == true
+
+//
+
+Pricea1_since_long  = ta.barssince(Pricecond_A1) [1]
+Pricea1_since_short = ta.barssince(Pricecond_A2) [1]
+
+//
+
+Pricelong_condition_A1 = 0
+Pricelong_count_A1 = 1
+
+if(Pricecond_A1)
+    if(bool(Pricelong_count_A1))
+        Pricelong_count_A1 := Pricelong_count_A1 - 1
+        if Pricelong_A1 and Pricea1_since_long > Pricea1_since_short
+            Pricelong_condition_A1 := Pricelong_condition_A1 + 1
+        else
+            Pricelong_condition_A1 := Pricelong_condition_A1 - 1    
+
+PricelA01 = Pricelong_condition_A1 > 0 
+
+//
+
+Priceshort_condition_A1 = 0
+Priceshort_count_A1 = 1
+
+if(Pricecond_A2)
+    if(bool(Priceshort_count_A1))
+        Priceshort_count_A1 := Priceshort_count_A1 - 1
+        if Priceshrt_A1 and Pricea1_since_short > Pricea1_since_long
+            Priceshort_condition_A1 := Priceshort_condition_A1 + 1
+        else
+            Priceshort_condition_A1 := Priceshort_condition_A1 - 1    
+
+PricesA01 = Priceshort_condition_A1 > 0 
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// BAR Alert
+
+alertcondition(PricelA01 or PricesA01, 'Erebor Heikin Ashi BAR Alert', 'Heikin Ashi BAR Alert')
+
+//------------------------------------------------------------------------------//
+// TSI1/TSI2 Heikin Ashi Alerts
+
+alertcondition(RSIlA01 or RSIsA01 or lA01 or sA01, 'Erebor Heikin Ashi TSI 1-2 Alert', 'Heikin Ashi TSI 1-2 Alert')
+
+//------------------------------------------------------------------------------//
+// Any Alert
+
+alertcondition(PricelA01 or PricesA01 or RSIlA01 or RSIsA01 or lA01 or sA01, 'Any Erebor Heikin Ashi Alert', 'Any Heikin Ashi Alert')
+
+//------------------------------------------------------------------------------//
+// Divergence Alert
+
+alertcondition(bullCondA1 or hiddenBullCondA1 or bearCondA1 or hiddenBearCondA1 or bullCondB1 or hiddenBullCondB1 or bearCondB1 or hiddenBearCondB1, 'Erebor TSI 1-2 Divergences Alert', 'TSI 1-2 Divergences Alert')
+
+//------------------------------------------------------------------------------//
+// Bar Divergences Alert
+
+alertcondition(bullCondC1 or hiddenBullCondC1 or bearCondC1 or hiddenBearCondC1, 'Erebor BAR Divergences Alert', 'BAR Divergences Alert')
+
+//------------------------------------------------------------------------------//
+// Table
+// TSI1 - TSI2 - BAR
+
+cond01 = (RSIlA01 == true) or (RSIsA01 == true) ? "■" : na
+cond02 = (lA01 == true) or (sA01 == true) ? "■" : na
+cond03 = (PricelA01 == true) or (PricesA01 == true) ? "■" : na
+
+//
+
+drawTester = input(true, title = "Table", group = "============= Table =============")
+mode_size = input.string(defval = "Tiny", options = ["Tiny", "Small", "Normal", "Large"], title = "Size", group = "============= Table =============")
+
+TextSize(type) =>
+    switch type
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+
+TextSize1(type) =>
+    switch type
+        "Tiny" => 0
+        "Small" => 1
+        "Normal" => 2
+        "Large" => 3
+
+// We use `var` to only initialize the table on the first bar.
+
+var table atrDisplay = table.new(position.middle_left, 3, 4)
+
+// Call 
+
+//if barstate.islast
+
+if drawTester
+    // We only populate the table on the last bar.
+    table.cell(atrDisplay, column = 1, row = 0, text = "H.A.", width = 6 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+
+    table.cell(atrDisplay, column = 0, row = 1, text = "TSI1", width = 6 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+    table.cell(atrDisplay, column = 0, row = 2, text = "TSI2", width = 6 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+    table.cell(atrDisplay, column = 0, row = 3, text = "BAR", width = 6 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+
+    table.cell(atrDisplay, column = 1, row = 1, text = str.tostring(cond01), width = 0 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+    table.cell(atrDisplay, column = 1, row = 2, text = str.tostring(cond02), width = 0 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+    table.cell(atrDisplay, column = 1, row = 3, text = str.tostring(cond03), width = 0 + TextSize1(mode_size), height = 0, text_color = #ffffff, text_halign = text.align_center, text_valign = text.align_center, text_size = TextSize(mode_size), bgcolor = #333333)
+
+//------------------------------------------------------------------------------//
+//------------------------------------------------------------------------------//
+// END
+// DIMI
+//──────█▀█▄▄▄▄─────██▄───
+//──────█▀▄▄▄▄█─────█▀▀█──
+//───▄▄▄█─────█──▄▄▄█─────
+//──██▀▄█─▄██▀█─███▀█─────
+//───▀▀▀──▀█▄█▀─▀█▄█▀─────

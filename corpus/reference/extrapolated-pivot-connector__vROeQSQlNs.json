@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;vROeQSQlNsz6xvzeE2beg18o10DaGkZR",
+ "title": "Extrapolated Pivot Connector",
+ "author": "alexgrover",
+ "url": "https://www.tradingview.com/script/CtjX82Hp-extrapolated-pivot-connector/",
+ "agreeCount": 5781,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine",
+ "cached_source": "tools/pine_survey/cache/sources/extrapolated-pivot-connector__vROeQSQlNs.pine",
+ "our_status": "committed"
+}

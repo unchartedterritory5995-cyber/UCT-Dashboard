@@ -1,0 +1,89 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Trader_Morry
+
+// This is an interesting take on a common engulfing candle pattern with 2 additional filter critera to ensure there is a liquidity play
+// Idea came from AtaBankz based on trade setup 4H candles. Thanks mate!
+
+//@version=5
+indicator("Liquidity Engulfing & Displacement [MsF]", overlay=true)
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Liquidity Engulfing Candles - LEC
+// --------------- INPUTS ---------------
+var GRP1 = "LEC setting"
+show_H1 = input(true, title='Show H1 LEC', group=GRP1)
+show_H4 = input(false, title='Show H4 LEC', group=GRP1)
+show_CUR = input(false, title='Show Current LEC', group=GRP1)
+filter_liqudity = input.bool(true, "Apply Stop Hunt Wick Filter", tooltip="Require candle wick into prior candle retracement zone")
+filter_close = input.bool(true, "Apply Close Filter", tooltip="Require LL/HH on candle in order to print a valid engulfing signal")
+
+// --------------- function ---------------
+drawing_lec() =>
+    bull_engulf = false
+    bear_engulf = false
+    if barstate.isnew
+        prior_open = open[1]
+        prior_close = close[1]
+        current_open = open
+        current_close = close
+
+        // identify "normal" engulfing candles
+        bull_engulf := (current_open <= prior_close) and (current_open < prior_open) and (current_close > prior_open)
+        bear_engulf := (current_open >= prior_close) and (current_open > prior_open) and (current_close < prior_open)
+
+        // "stop hunt" logic
+        if filter_liqudity
+            bull_engulf := bull_engulf and low <= low[1]
+            bear_engulf := bear_engulf and high >= high[1]
+
+        // require LL/HH on the candle
+        if filter_close
+            bull_engulf := bull_engulf and close >= high[1]
+            bear_engulf := bear_engulf and close <= low[1]
+    [bull_engulf, bear_engulf]
+
+// --------------- Main MTF ---------------
+[bull_engulf_H1, bear_engulf_H1] = request.security(syminfo.tickerid, "60", drawing_lec())
+[bull_engulf_H4, bear_engulf_H4] = request.security(syminfo.tickerid, "240", drawing_lec())
+[bull_engulf_CUR, bear_engulf_CUR] = request.security(syminfo.tickerid, timeframe.period, drawing_lec())
+
+// plots
+bullcol = color.aqua
+bearcol = color.red
+plotshape(bull_engulf_H1 and not bull_engulf_H1[1] and show_H1, style=shape.triangleup, location=location.belowbar, color=bullcol, size=size.small)
+plotshape(bear_engulf_H1 and not bear_engulf_H1[1] and show_H1, style=shape.triangledown , location=location.abovebar, color=bearcol, size=size.small)
+plotshape(bull_engulf_H4 and not bull_engulf_H4[1] and show_H4, style=shape.triangleup, location=location.belowbar, color=bullcol, size=size.small)
+plotshape(bear_engulf_H4 and not bear_engulf_H4[1] and show_H4, style=shape.triangledown , location=location.abovebar, color=bearcol, size=size.small)
+plotshape(bull_engulf_CUR and not bull_engulf_CUR[1] and show_CUR, style=shape.triangleup, location=location.belowbar, color=bullcol, size=size.small)
+plotshape(bear_engulf_CUR and not bear_engulf_CUR[1] and show_CUR, style=shape.triangledown , location=location.abovebar, color=bearcol, size=size.small)
+
+// alarts
+alertcondition(bull_engulf_H1,"H1 Bullish LEC detected","H1 Bullish LEC detected!!")
+alertcondition(bear_engulf_H1,"H1 Bearish LEC detected","H1 Bearish LEC detected!!")
+alertcondition(bull_engulf_H4,"H4 Bullish LEC detected","H4 Bullish LEC detected!!")
+alertcondition(bear_engulf_H4,"H4 Bearish LEC detected","H4 Bearish LEC detected!!")
+alertcondition(bull_engulf_CUR,"Bullish LEC detected","Bullish LEC detected!!")
+alertcondition(bear_engulf_CUR,"Bearish LEC detected","Bearish LEC detected!!")
+
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Displacement
+// --------------- INPUTS ---------------
+var GRP2 = "Displacement setting"
+require_fvg = input.bool(true, "Require FVG", group = GRP2)
+disp_type = input.string("Open to Close", "Displacement Type", options = ['Open to Close', 'High to Low'], group = GRP2)
+std_len = input.int(100, minval = 1, title = "Displacement Length", tooltip = "How far back the script will look to determine the candle range standard deviation", group = GRP2)
+std_x = input.int(2, minval = 0, title = "Displacement Strength", group = GRP2)
+disp_color = input.color(color.yellow, "Bar Color", group = GRP2)
+
+candle_range = disp_type == "Open to Close" ? math.abs(open - close) : high - low
+std = ta.stdev(candle_range, std_len) * std_x
+fvg = close[1] > open[1] ? high[2] < low[0] : low[2] > high[0]
+
+displacement = require_fvg ? candle_range[1] > std[1] and fvg : candle_range > std
+
+barcolor(displacement ? disp_color : na, offset = require_fvg ? -1 : na)
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////

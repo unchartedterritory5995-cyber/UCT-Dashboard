@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ac98ab25d5614356b895581e48cea700",
+ "title": "Smarter SnR",
+ "author": "hanabil",
+ "url": "https://www.tradingview.com/script/g1ZVGdT1-smarter-snr/",
+ "agreeCount": 10722,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smarter-snr__ac98ab25d5.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smarter-snr__ac98ab25d5.pine",
+ "our_status": "committed"
+}

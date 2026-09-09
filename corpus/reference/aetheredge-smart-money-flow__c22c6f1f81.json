@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c22c6f1f81014a33a2d0f88a2fd48520",
+ "title": "AetherEdge - Smart Money Flow",
+ "author": "AetherEdge",
+ "url": "https://www.tradingview.com/script/jkgBMcNr-aetheredge-smart-money-flow/",
+ "agreeCount": 632,
+ "category": "volume",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/aetheredge-smart-money-flow__c22c6f1f81.pine",
+ "our_status": "reference-only"
+}

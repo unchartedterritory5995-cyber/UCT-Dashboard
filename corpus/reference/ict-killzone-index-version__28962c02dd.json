@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;28962c02dd3e4cd5aa07853c049f7893",
+ "title": "ICT Killzone [Index Version]",
+ "author": "SimoneMicucci00",
+ "url": "https://www.tradingview.com/script/Bec6tTTy-ict-killzone-index-version/",
+ "agreeCount": 511,
+ "category": "session tools",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/ict-killzone-index-version__28962c02dd.pine",
+ "cached_source": "tools/pine_survey/cache/sources/ict-killzone-index-version__28962c02dd.pine",
+ "our_status": "committed"
+}

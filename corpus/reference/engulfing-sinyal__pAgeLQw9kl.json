@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;pAgeLQw9klrUu3JkrQTcFverpzv2Z5d4",
+ "title": "Engulfing Sinyal",
+ "author": "amri_pangestu",
+ "url": "https://www.tradingview.com/script/kVS1X5F5-engulfing-sinyal/",
+ "agreeCount": 3365,
+ "category": "candlestick patterns",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/engulfing-sinyal__pAgeLQw9kl.pine",
+ "our_status": "reference-only"
+}

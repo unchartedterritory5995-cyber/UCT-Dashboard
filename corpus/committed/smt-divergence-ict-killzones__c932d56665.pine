@@ -1,0 +1,403 @@
+//@version=6
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Copyright TradingView_User
+// Standard candlestick charts are recommended. Non-standard charts may distort pivot-based logic.
+indicator("SMT Divergence & ICT Killzones", shorttitle="SMT ICT Sessions", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500, max_bars_back=5000, dynamic_requests=true)
+
+// ==================== INPUTS ====================
+grp_main    = "Main Logic"
+symbol_corr          = input.symbol("ETHUSDT", "Correlation Symbol", group=grp_main, tooltip="Symbol used for SMT comparison (e.g. BTCUSDT on an ETH chart)")
+tf_corr              = input.timeframe("", "SMT Timeframe (Empty = Chart)", group=grp_main, tooltip="SMT comparison must use the same timeframe as the chart. Change the chart timeframe for LTF/HTF analysis.")
+swing_len            = input.int(2, "Swing Length", minval=1, maxval=20, group=grp_main, tooltip="Confirmation delay. Signal appears after pivot validation.")
+pivot_history_limit  = input.int(160, "Pivot History Limit", minval=60, maxval=300, group=grp_main, tooltip="Limits pivot history used for SMT pairing. Lower values are faster on LTF charts.")
+max_pivot_span       = input.int(300, "Max Pivot Span Bars", minval=50, maxval=1000, group=grp_main, tooltip="Skips SMT checks when two pivots are too far apart in chart bars.")
+strict_corr_reversal = input.bool(false, "Require Correlation Reversal", group=grp_main, tooltip="When disabled, equal highs/lows on the correlation symbol can still qualify as SMT.")
+
+grp_sessions = "ICT & Time Settings"
+show_kz      = input.bool(true, "Show Killzones", group=grp_sessions)
+kz_color     = input.color(color.new(color.gray, 92), "Background Color", group=grp_sessions)
+show_mid_o   = input.bool(true, "Show Midnight Open", group=grp_sessions)
+midnight_tz  = input.string("America/New_York", "Midnight Timezone", options=["America/New_York", "UTC", "Europe/Istanbul"], group=grp_sessions)
+
+grp_visuals = "Visuals"
+color_bear  = input.color(color.red, "Bear Signal Color", group=grp_visuals)
+color_bull  = input.color(color.blue, "Bull Signal Color", group=grp_visuals)
+show_lbl    = input.bool(true, "Display Signal Labels", group=grp_visuals)
+out_transp  = input.int(70, "Outside Killzone Transparency (%)", minval=0, maxval=100, group=grp_visuals)
+max_objects = input.int(50, "Max Historical Objects", minval=10, maxval=100, group=grp_visuals, tooltip="Limits the total number of lines and labels to reduce chart lag.")
+
+string corr_tf        = tf_corr == "" ? timeframe.period : tf_corr
+float chart_tf_sec    = timeframe.in_seconds()
+float corr_tf_sec     = timeframe.in_seconds(corr_tf)
+bool has_timeframe_seconds = not na(chart_tf_sec) and not na(corr_tf_sec)
+if not has_timeframe_seconds
+    runtime.error("This indicator requires a time-based chart and a time-based correlation timeframe.")
+bool corr_tf_mismatch = has_timeframe_seconds and corr_tf_sec != chart_tf_sec
+if corr_tf_mismatch
+    runtime.error("SMT timeframe must match the chart timeframe. Leave it empty or set it exactly to the chart timeframe. Change the chart timeframe for LTF/HTF SMT.")
+
+// ==================== TYPES & STATE ====================
+type KillzoneLabel
+    label lbl
+
+var KillzoneLabel[] kz_labels  = array.new<KillzoneLabel>()
+var box[]           fut_boxes  = array.new_box()
+var line[]          smt_lines  = array.new_line()
+var label[]         smt_labels = array.new_label()
+
+// ==================== HELPERS ====================
+f_in_time(sess, tz) => not na(time(timeframe.period, sess, tz))
+
+f_in_hour_range(ts, tz, start_h, end_h) =>
+    int mins = hour(ts, tz) * 60 + minute(ts, tz)
+    mins >= start_h * 60 and mins < end_h * 60
+
+f_is_ict_ts(ts) =>
+    bool in_session = false
+    if not na(ts)
+        in_session := f_in_hour_range(ts, "America/New_York", 2, 5) or f_in_hour_range(ts, "America/New_York", 7, 10)
+    in_session
+
+f_day_key(ts, tz) =>
+    year(ts, tz) * 10000 + month(ts, tz) * 100 + dayofmonth(ts, tz)
+
+f_future_session_ts(ref_ts, tz, day_offset, hour_val) =>
+    timestamp(tz, year(ref_ts, tz), month(ref_ts, tz), dayofmonth(ref_ts, tz) + day_offset, hour_val, 0, 0)
+
+f_draw_future(txt, start_h, end_h) =>
+    float ceil_price = ta.highest(high, 500)
+    float floor_price = ta.lowest(low, 500)
+    for i = 0 to 1
+        int t_s = f_future_session_ts(time, "America/New_York", i, start_h)
+        int t_e = f_future_session_ts(time, "America/New_York", i, end_h)
+        if t_s > time
+            box fb = box.new(t_s, ceil_price, t_e, floor_price, xloc=xloc.bar_time, bgcolor=color.new(color.gray, 92), border_color=na, text=txt, text_size=size.small, text_color=color.new(color.gray, 50), text_halign=text.align_center, text_valign=text.align_top)
+            array.push(fut_boxes, fb)
+
+f_push_pivot_history(times_arr, values_arr, pivot_time, pivot_value, history_limit) =>
+    if not na(pivot_time) and not na(pivot_value)
+        int sz = array.size(times_arr)
+        bool is_new_pivot = sz == 0 or array.get(times_arr, sz - 1) != pivot_time
+        if is_new_pivot
+            array.push(times_arr, pivot_time)
+            array.push(values_arr, pivot_value)
+            while array.size(times_arr) > history_limit
+                array.shift(times_arr)
+                array.shift(values_arr)
+
+f_push_pivot_with_idx(times_arr, values_arr, idxs_arr, pivot_time, pivot_value, pivot_idx, history_limit) =>
+    if not na(pivot_time) and not na(pivot_value)
+        int sz = array.size(times_arr)
+        bool is_new_pivot = sz == 0 or array.get(times_arr, sz - 1) != pivot_time
+        if is_new_pivot
+            array.push(times_arr, pivot_time)
+            array.push(values_arr, pivot_value)
+            array.push(idxs_arr, pivot_idx)
+            while array.size(times_arr) > history_limit
+                array.shift(times_arr)
+                array.shift(values_arr)
+                array.shift(idxs_arr)
+
+f_find_best_corr_pair(times_arr, values_arr, main_prev_time, main_last_time, base_tolerance_ms, score_adapt, scan_limit) =>
+    float matched_prev = na
+    int matched_prev_time = na
+    float matched_last = na
+    int matched_last_time = na
+    float best_score = na
+    int sz = array.size(times_arr)
+    if sz >= 2 and not na(main_prev_time) and not na(main_last_time)
+        int main_span = math.max(main_last_time - main_prev_time, 1)
+        int max_offset = base_tolerance_ms
+        int max_prev_lead = base_tolerance_ms
+        int max_last_gap = base_tolerance_ms
+        float max_pair_score = float(base_tolerance_ms) * math.max(score_adapt, 1.0) * 4.0
+        int from_i = math.max(1, sz - scan_limit)
+        for i = sz - 1 to from_i
+            int cand_prev_time = array.get(times_arr, i - 1)
+            int cand_last_time = array.get(times_arr, i)
+            if cand_prev_time < cand_last_time
+                if cand_last_time < main_prev_time - max_last_gap
+                    break
+                int dist_prev = math.abs(cand_prev_time - main_prev_time)
+                int dist_last = math.abs(cand_last_time - main_last_time)
+                int span_diff = math.abs((cand_last_time - cand_prev_time) - main_span)
+                bool pair_overlaps_main = cand_last_time >= main_prev_time - max_last_gap and cand_prev_time <= main_last_time + max_last_gap
+                bool pair_prev_is_recent = cand_prev_time >= main_prev_time - max_prev_lead
+                bool pair_last_represents_main = cand_last_time > main_prev_time and main_last_time - cand_last_time <= max_last_gap and cand_last_time - main_last_time <= max_last_gap
+                bool pair_is_fresh = dist_prev <= max_offset and dist_last <= max_offset and pair_prev_is_recent and pair_last_represents_main
+                if pair_overlaps_main and pair_is_fresh
+                    float score = float(dist_prev) * 1.0 + float(dist_last) * 1.5 + float(span_diff) * 1.0
+                    if score <= max_pair_score and (na(best_score) or score < best_score)
+                        best_score := score
+                        matched_prev := array.get(values_arr, i - 1)
+                        matched_prev_time := cand_prev_time
+                        matched_last := array.get(values_arr, i)
+                        matched_last_time := cand_last_time
+    [matched_prev, matched_prev_time, matched_last, matched_last_time, best_score]
+
+f_is_new_history_pivot(times_arr, pivot_time) =>
+    not na(pivot_time) and (array.size(times_arr) == 0 or pivot_time != array.get(times_arr, array.size(times_arr) - 1))
+
+// ==================== CORE LOGIC ====================
+is_london = f_in_time("0200-0500", "America/New_York")
+is_ny     = f_in_time("0700-1000", "America/New_York")
+is_ict    = is_london or is_ny
+bgcolor(show_kz and is_ict ? kz_color : na)
+
+// --- Killzone labels ---
+var label active_lon_lbl = na
+var label active_ny_lbl  = na
+var int active_lon_start = na
+var int active_ny_start  = na
+
+if show_kz
+    if ta.change(is_london) and is_london
+        active_lon_start := bar_index
+        active_lon_lbl := label.new(bar_index, high, "LONDON", yloc=yloc.price, color=color.new(color.gray, 85), textcolor=color.new(color.gray, 40), style=label.style_label_down, size=size.small)
+        array.push(kz_labels, KillzoneLabel.new(active_lon_lbl))
+    if is_london and not na(active_lon_lbl) and not na(active_lon_start)
+        label.set_x(active_lon_lbl, int(math.round((active_lon_start + bar_index) / 2.0)))
+
+    if ta.change(is_ny) and is_ny
+        active_ny_start := bar_index
+        active_ny_lbl := label.new(bar_index, high, "NEW YORK", yloc=yloc.price, color=color.new(color.gray, 85), textcolor=color.new(color.gray, 40), style=label.style_label_down, size=size.small)
+        array.push(kz_labels, KillzoneLabel.new(active_ny_lbl))
+    if is_ny and not na(active_ny_lbl) and not na(active_ny_start)
+        label.set_x(active_ny_lbl, int(math.round((active_ny_start + bar_index) / 2.0)))
+else
+    if array.size(kz_labels) > 0
+        for i = 0 to array.size(kz_labels) - 1
+            KillzoneLabel item = array.get(kz_labels, i)
+            label.delete(item.lbl)
+        array.clear(kz_labels)
+    if array.size(fut_boxes) > 0
+        for b in fut_boxes
+            box.delete(b)
+        array.clear(fut_boxes)
+    active_lon_lbl := na
+    active_ny_lbl := na
+    active_lon_start := na
+    active_ny_start := na
+
+if barstate.islast
+    if array.size(fut_boxes) > 0
+        for b in fut_boxes
+            box.delete(b)
+        array.clear(fut_boxes)
+    if show_kz
+        f_draw_future("LONDON", 2, 5)
+        f_draw_future("NEW YORK", 7, 10)
+
+    float current_ceil = ta.highest(high, 500)
+    if array.size(kz_labels) > 0
+        for i = 0 to array.size(kz_labels) - 1
+            KillzoneLabel item = array.get(kz_labels, i)
+            label.set_y(item.lbl, current_ceil)
+
+while array.size(kz_labels) > max_objects
+    KillzoneLabel deleted_item = array.shift(kz_labels)
+    label.delete(deleted_item.lbl)
+
+// --- Midnight open ---
+var float mid_o = na
+var line mid_l = na
+var label mid_lbl = na
+var int tracked_day_key = na
+bool can_track_midnight = not na(chart_tf_sec) and chart_tf_sec <= 86400
+bool should_track_midnight = show_mid_o and can_track_midnight
+
+int active_day_key = na
+int resolved_mid_day_key = na
+float resolved_mid_o = na
+
+if should_track_midnight
+    if chart_tf_sec > 60
+        [sec_active_day_key, sec_resolved_mid_day_key, sec_resolved_mid_o] = request.security(syminfo.tickerid, "1", [f_day_key(time, midnight_tz), ta.valuewhen(hour(time, midnight_tz) == 0 and minute(time, midnight_tz) == 0, f_day_key(time, midnight_tz), 0), ta.valuewhen(hour(time, midnight_tz) == 0 and minute(time, midnight_tz) == 0, open, 0)], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+        active_day_key := sec_active_day_key
+        resolved_mid_day_key := sec_resolved_mid_day_key
+        resolved_mid_o := sec_resolved_mid_o
+    else
+        bool chart_is_midnight_bar = hour(time, midnight_tz) == 0 and minute(time, midnight_tz) == 0 and second(time, midnight_tz) == 0
+        active_day_key := f_day_key(time, midnight_tz)
+        resolved_mid_day_key := ta.valuewhen(chart_is_midnight_bar, f_day_key(time, midnight_tz), 0)
+        resolved_mid_o := ta.valuewhen(chart_is_midnight_bar, open, 0)
+
+bool has_valid_midnight = should_track_midnight and not na(active_day_key) and not na(resolved_mid_o) and resolved_mid_day_key == active_day_key
+
+if not should_track_midnight
+    if not na(mid_l)
+        line.delete(mid_l)
+        mid_l := na
+    if not na(mid_lbl)
+        label.delete(mid_lbl)
+        mid_lbl := na
+    mid_o := na
+    tracked_day_key := na
+else if has_valid_midnight
+    bool midnight_changed = na(tracked_day_key) or tracked_day_key != resolved_mid_day_key or na(mid_o) or mid_o != resolved_mid_o
+    mid_o := resolved_mid_o
+    tracked_day_key := resolved_mid_day_key
+    if midnight_changed
+        if not na(mid_l)
+            line.delete(mid_l)
+            mid_l := na
+        if not na(mid_lbl)
+            label.delete(mid_lbl)
+            mid_lbl := na
+else
+    if not na(mid_l)
+        line.delete(mid_l)
+        mid_l := na
+    if not na(mid_lbl)
+        label.delete(mid_lbl)
+        mid_lbl := na
+    mid_o := na
+    tracked_day_key := na
+
+if should_track_midnight and not na(mid_o)
+    if na(mid_l)
+        mid_l := line.new(bar_index, mid_o, bar_index + 1, mid_o, color=color.new(color.gray, 50), style=line.style_dotted, extend=extend.right)
+    if na(mid_lbl)
+        mid_lbl := label.new(bar_index, mid_o, "MIDNIGHT", yloc=yloc.price, color=color.new(color.gray, 100), textcolor=color.new(color.gray, 50), style=label.style_none, size=size.tiny)
+
+// --- SMT detection ---
+float main_pivot_high = barstate.isconfirmed ? ta.pivothigh(high, swing_len, swing_len) : na
+float main_pivot_low = barstate.isconfirmed ? ta.pivotlow(low, swing_len, swing_len) : na
+int main_pivot_high_time = not na(main_pivot_high) ? time[swing_len] : na
+int main_pivot_low_time = not na(main_pivot_low) ? time[swing_len] : na
+int main_pivot_high_idx = not na(main_pivot_high) ? bar_index - swing_len : na
+int main_pivot_low_idx = not na(main_pivot_low) ? bar_index - swing_len : na
+
+[corr_pivot_high, corr_pivot_high_time, corr_pivot_low, corr_pivot_low_time] = request.security(symbol_corr, corr_tf, [barstate.isconfirmed ? ta.pivothigh(high, swing_len, swing_len) : na, barstate.isconfirmed and not na(ta.pivothigh(high, swing_len, swing_len)) ? time[swing_len] : na, barstate.isconfirmed ? ta.pivotlow(low, swing_len, swing_len) : na, barstate.isconfirmed and not na(ta.pivotlow(low, swing_len, swing_len)) ? time[swing_len] : na], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+float corr_mintick = request.security(symbol_corr, corr_tf, syminfo.mintick, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+float corr_atr = request.security(symbol_corr, corr_tf, ta.atr(14), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off, ignore_invalid_symbol=true)
+
+var int[] corr_high_times = array.new_int()
+var float[] corr_high_values = array.new_float()
+var int[] corr_low_times = array.new_int()
+var float[] corr_low_values = array.new_float()
+var int[] main_high_times = array.new_int()
+var float[] main_high_values = array.new_float()
+var int[] main_high_idxs = array.new_int()
+var int[] main_low_times = array.new_int()
+var float[] main_low_values = array.new_float()
+var int[] main_low_idxs = array.new_int()
+
+var int last_bear_sig_main_time = na
+var int last_bull_sig_main_time = na
+int corr_history_limit = pivot_history_limit
+float tf_pair_mult = chart_tf_sec <= 300 ? 1.0 : chart_tf_sec <= 3600 ? 1.25 : 1.5
+float pair_score_adapt = 1.0
+int pairing_tolerance_ms = has_timeframe_seconds ? int(chart_tf_sec * 1000.0 * float(swing_len + 1) * tf_pair_mult) : 0
+int pair_scan_limit = math.min(corr_history_limit, 120)
+float price_eps_mult = chart_tf_sec <= 300 ? 0.20 : chart_tf_sec <= 3600 ? 0.15 : 0.10
+float corr_atr_sma = ta.sma(corr_atr, 50)
+float corr_price_eps = math.max(nz(corr_atr, 0) * price_eps_mult, math.max(nz(corr_atr_sma, 0) * price_eps_mult * 0.5, math.max(nz(corr_mintick, syminfo.mintick), syminfo.mintick)))
+int cooldown_ms = has_timeframe_seconds ? int(chart_tf_sec * 1000.0 * swing_len * 4) : 0
+float main_atr = ta.atr(14)
+float main_atr_sma = ta.sma(main_atr, 50)
+float main_price_eps = math.max(nz(main_atr, 0) * price_eps_mult, math.max(nz(main_atr_sma, 0) * price_eps_mult * 0.5, syminfo.mintick))
+
+bool new_main_high = f_is_new_history_pivot(main_high_times, main_pivot_high_time)
+bool new_main_low = f_is_new_history_pivot(main_low_times, main_pivot_low_time)
+bool new_corr_high = f_is_new_history_pivot(corr_high_times, corr_pivot_high_time)
+bool new_corr_low = f_is_new_history_pivot(corr_low_times, corr_pivot_low_time)
+bool alert_bear = false
+bool alert_bull = false
+
+if new_corr_high
+    f_push_pivot_history(corr_high_times, corr_high_values, corr_pivot_high_time, corr_pivot_high, corr_history_limit)
+
+if new_corr_low
+    f_push_pivot_history(corr_low_times, corr_low_values, corr_pivot_low_time, corr_pivot_low, corr_history_limit)
+
+if new_main_high
+    f_push_pivot_with_idx(main_high_times, main_high_values, main_high_idxs, main_pivot_high_time, main_pivot_high, main_pivot_high_idx, corr_history_limit)
+
+if new_main_low
+    f_push_pivot_with_idx(main_low_times, main_low_values, main_low_idxs, main_pivot_low_time, main_pivot_low, main_pivot_low_idx, corr_history_limit)
+
+int mh_sz = array.size(main_high_times)
+if new_main_high and mh_sz >= 2
+    int search_depth = math.min(mh_sz - 1, 3)
+    int m_last_i = mh_sz - 1
+    float m_last_val = array.get(main_high_values, m_last_i)
+    int m_last_time = array.get(main_high_times, m_last_i)
+    int m_last_bar = array.get(main_high_idxs, m_last_i)
+    bool bear_pair_unused = na(last_bear_sig_main_time) or (m_last_time != last_bear_sig_main_time and m_last_time - last_bear_sig_main_time >= cooldown_ms)
+    if bear_pair_unused
+        for j = 1 to search_depth
+            int m_prev_i = m_last_i - j
+            float m_prev_val = array.get(main_high_values, m_prev_i)
+            int m_prev_time = array.get(main_high_times, m_prev_i)
+            int m_prev_bar = array.get(main_high_idxs, m_prev_i)
+            bool span_ok = m_last_bar >= m_prev_bar and m_last_bar - m_prev_bar <= max_pivot_span
+            float max_h = -1.0e38
+            bool is_pierced = true
+            if span_ok
+                for k = m_prev_bar to m_last_bar
+                    max_h := math.max(max_h, high[bar_index - k])
+                is_pierced := max_h > math.max(m_prev_val, m_last_val) + main_price_eps
+            if span_ok and m_last_val - m_prev_val >= main_price_eps and not is_pierced
+                [pair_prev_h, _, pair_last_h, _, _] = f_find_best_corr_pair(corr_high_times, corr_high_values, m_prev_time, m_last_time, pairing_tolerance_ms, pair_score_adapt, pair_scan_limit)
+                bool bear_pair_ready = not na(pair_prev_h) and not na(pair_last_h)
+                bool bear_corr_structure_valid = bear_pair_ready and (strict_corr_reversal ? pair_prev_h - pair_last_h >= corr_price_eps : pair_last_h <= pair_prev_h + corr_price_eps)
+                if bear_pair_ready and bear_corr_structure_valid
+                    alert_bear := true
+                    bool bear_in_ict = show_kz and f_is_ict_ts(m_last_time)
+                    color bear_color = bear_in_ict ? color_bear : show_kz ? color.new(color_bear, out_transp) : color_bear
+                    line bear_line = line.new(m_prev_bar, m_prev_val, m_last_bar, m_last_val, color=bear_color, width=bear_in_ict ? 4 : 2)
+                    array.push(smt_lines, bear_line)
+                    if show_lbl
+                        label bear_lbl = label.new(m_last_bar, m_last_val, "Bearish SMT", style=label.style_label_down, color=bear_color, textcolor=color.white, size=size.small)
+                        array.push(smt_labels, bear_lbl)
+                    last_bear_sig_main_time := m_last_time
+                    break
+
+int ml_sz = array.size(main_low_times)
+if new_main_low and ml_sz >= 2
+    int search_depth_l = math.min(ml_sz - 1, 3)
+    int m_last_li = ml_sz - 1
+    float m_last_lval = array.get(main_low_values, m_last_li)
+    int m_last_ltime = array.get(main_low_times, m_last_li)
+    int m_last_lbar = array.get(main_low_idxs, m_last_li)
+    bool bull_pair_unused = na(last_bull_sig_main_time) or (m_last_ltime != last_bull_sig_main_time and m_last_ltime - last_bull_sig_main_time >= cooldown_ms)
+    if bull_pair_unused
+        for j = 1 to search_depth_l
+            int m_prev_li = m_last_li - j
+            float m_prev_lval = array.get(main_low_values, m_prev_li)
+            int m_prev_ltime = array.get(main_low_times, m_prev_li)
+            int m_prev_lbar = array.get(main_low_idxs, m_prev_li)
+            bool span_l_ok = m_last_lbar >= m_prev_lbar and m_last_lbar - m_prev_lbar <= max_pivot_span
+            float min_l = 1.0e38
+            bool is_pierced_l = true
+            if span_l_ok
+                for k = m_prev_lbar to m_last_lbar
+                    min_l := math.min(min_l, low[bar_index - k])
+                is_pierced_l := min_l < math.min(m_prev_lval, m_last_lval) - main_price_eps
+            if span_l_ok and m_prev_lval - m_last_lval >= main_price_eps and not is_pierced_l
+                [pair_prev_l, _, pair_last_l, _, _] = f_find_best_corr_pair(corr_low_times, corr_low_values, m_prev_ltime, m_last_ltime, pairing_tolerance_ms, pair_score_adapt, pair_scan_limit)
+                bool bull_pair_ready = not na(pair_prev_l) and not na(pair_last_l)
+                bool bull_corr_structure_valid = bull_pair_ready and (strict_corr_reversal ? pair_last_l - pair_prev_l >= corr_price_eps : pair_last_l >= pair_prev_l - corr_price_eps)
+                if bull_pair_ready and bull_corr_structure_valid
+                    alert_bull := true
+                    bool bull_in_ict = show_kz and f_is_ict_ts(m_last_ltime)
+                    color bull_color = bull_in_ict ? color_bull : show_kz ? color.new(color_bull, out_transp) : color_bull
+                    line bull_line = line.new(m_prev_lbar, m_prev_lval, m_last_lbar, m_last_lval, color=bull_color, width=bull_in_ict ? 4 : 2)
+                    array.push(smt_lines, bull_line)
+                    if show_lbl
+                        label bull_lbl = label.new(m_last_lbar, m_last_lval, "Bullish SMT", style=label.style_label_up, color=bull_color, textcolor=color.white, size=size.small)
+                        array.push(smt_labels, bull_lbl)
+                    last_bull_sig_main_time := m_last_ltime
+                    break
+
+// --- Cleanup ---
+while array.size(smt_lines) > max_objects
+    line.delete(array.shift(smt_lines))
+
+while array.size(smt_labels) > max_objects
+    label.delete(array.shift(smt_labels))
+
+// --- Alerts ---
+alertcondition(alert_bear, "Bearish SMT Divergence", "Bearish SMT divergence detected.")
+alertcondition(alert_bull, "Bullish SMT Divergence", "Bullish SMT divergence detected.")

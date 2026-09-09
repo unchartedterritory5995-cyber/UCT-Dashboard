@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;aArjfk9ShGtObFi0UQeUl8gG2Evx7zJi",
+ "title": "Multiple MTF Moving Average [xdecow]",
+ "author": "xdecow",
+ "url": "https://www.tradingview.com/script/IzmSs7Ma-multiple-mtf-moving-average-xdecow/",
+ "agreeCount": 2480,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine",
+ "cached_source": "tools/pine_survey/cache/sources/multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;CVZdVmg7iba7mq5BscP2FHWi68SSVvxe",
+ "title": "RSI Swing Indicator",
+ "author": "MrDinasty",
+ "url": "https://www.tradingview.com/script/uHew29m1-rsi-swing-indicator/",
+ "agreeCount": 10760,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
+ "cached_source": "tools/pine_survey/cache/sources/rsi-swing-indicator__CVZdVmg7ib.pine",
+ "our_status": "committed"
+}

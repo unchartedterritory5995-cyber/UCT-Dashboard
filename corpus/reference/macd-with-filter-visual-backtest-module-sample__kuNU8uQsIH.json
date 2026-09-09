@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;kuNU8uQsIHZrjDT8iOjbtcCpsglI0Mqd",
+ "title": "MACD With Filter: Visual Backtest Module Sample",
+ "author": "fareidzulkifli",
+ "url": "https://www.tradingview.com/script/KEFmpxF0-macd-with-filter-visual-backtest-module-sample/",
+ "agreeCount": 1760,
+ "category": "visual decoration",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+ "cached_source": "tools/pine_survey/cache/sources/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;7d00b883de414a20b9e6284d631d8730",
+ "title": "Multi Timeframe Support and Resistance [ABA Invest]",
+ "author": "abainvest",
+ "url": "https://www.tradingview.com/script/kO82pg19-multi-timeframe-support-and-resistance-aba-invest/",
+ "agreeCount": 6039,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/multi-timeframe-support-and-resistance-aba-invest__7d00b883de.pine",
+ "our_status": "reference-only"
+}

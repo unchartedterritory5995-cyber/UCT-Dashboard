@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c932d56665e842a0bde73dae21d1ee9b",
+ "title": "SMT Divergence & ICT Killzones",
+ "author": "malibuuu",
+ "url": "https://www.tradingview.com/script/s7tr7Kxe-smt-divergence-ict-killzones/",
+ "agreeCount": 557,
+ "category": "session tools",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smt-divergence-ict-killzones__c932d56665.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smt-divergence-ict-killzones__c932d56665.pine",
+ "our_status": "committed"
+}

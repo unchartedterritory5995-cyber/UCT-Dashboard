@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;XqxUTKWKYqrZhEffXx3qNtmzHAl99EPn",
+ "title": "Stoch Money Flow (ADMF) & Absolute Strength Index (ASI) [cI8DH]",
+ "author": "cI8DH",
+ "url": "https://www.tradingview.com/script/2XiF9PJd-stoch-money-flow-admf-absolute-strength-index-asi-ci8dh/",
+ "agreeCount": 739,
+ "category": "volume",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/stoch-money-flow-admf-absolute-strength-index-asi-ci8dh__XqxUTKWKYq.pine",
+ "our_status": "reference-only"
+}

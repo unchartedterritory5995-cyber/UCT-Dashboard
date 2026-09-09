@@ -1,0 +1,1814 @@
+//@version=6
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © renderingnature1
+//
+// RenderingNature SMC Reversal Engine v7.1
+// Major engine rebuild following forensic audit and validation.
+// Removed legacy predictive-memory and redundant scoring subsystems.
+
+indicator("RenderingNature SMC Reversal Engine v7.1", overlay=true, max_bars_back=5000, max_lines_count=500, max_boxes_count=500, max_labels_count=500)
+  
+// =============================================================================
+// INPUTS
+// =============================================================================
+
+// --- Display / UX
+dashboardPosition = input.string("Top Right", "Dashboard Position",
+     options = ["Top Left", "Top Right", "Bottom Left", "Bottom Right"], group = "Display")
+dashboardTextSize = input.string("Small", "Dashboard Text Size",
+     options = ["Normal", "Small", "Tiny"], group = "Display")
+displayMode = input.string("Trader", "View Mode",
+     options = ["Simple", "Trader", "Diagnostic"], group = "Display")
+showExplanations = input.bool(true, "Show plain-English explanations", group = "Display")
+showTechnicalTerms = input.bool(false, "Show SMC terminology in Trader view", group = "Display")
+enableLightMode = input.bool(false, "Light Mode (reduces drawings only)", group = "Performance",
+     tooltip = "Reduces chart drawings without disabling analytical calculations, scores, alerts, or Market Read logic.")
+zoneExtendBars = input.int(120, "Zone Extend Bars", minval = 20, maxval = 500, group = "Performance")
+maxSwingHistory = input.int(20, "Max Swing Memory", minval = 6, maxval = 100, group = "Performance")
+maxZigzagSwings = input.int(20, "Max ZigZag Segments", minval = 5, maxval = 100, group = "Performance")
+maxTrendlines = input.int(8, "Max Trendlines", minval = 2, maxval = 50, group = "Performance")
+maxEventLabels = input.int(40, "Max Event Labels", minval = 10, maxval = 150, group = "Performance")
+
+// --- Structure
+structureHTFMode = input.string("Auto", "Structure Horizon Mode", options = ["Auto", "Manual"], group = "Structure")
+manualStructureHTF = input.timeframe("60", "Manual Structure Horizon", group = "Structure")
+useIDMFilter = input.bool(true, "Require inducement context before CHoCH?", group = "Structure")
+useAutoFractal = input.bool(true, "Auto Fractal Sensitivity?", group = "Structure")
+manualFractalSensitivity = input.int(3, "Manual Fractal Sensitivity", minval = 1, group = "Structure")
+showStructureLines = input.bool(true, "Show Structure Levels", group = "Structure")
+showStructureLabels = input.bool(true, "Show Structure Events", group = "Structure")
+showSwingTags = input.bool(false, "Show HH / HL / LH / LL", group = "Structure",
+     tooltip = "Displays HH, HL, LH and LL swing classifications. Swing structure continues to be calculated when hidden.")
+showPivotDots = input.bool(false, "Show Pivot Dots", group = "Structure")
+showZigZag = input.bool(false, "Show ZigZag", group = "Structure")
+
+// --- Liquidity
+enableLiquiditySweep = input.bool(true, "Enable Liquidity Sweeps", group = "Liquidity")
+showSweepLabels = input.bool(true, "Show Sweep Labels", group = "Liquidity")
+liquidityMaxAge = input.int(300, "Liquidity Level Max Age (bars)", minval = 20, maxval = 2000, group = "Liquidity")
+
+// --- HTF reaction zones (the repaired replacement for the old hybrid-timeframe OB geometry)
+enableHTFZones = input.bool(true, "Enable HTF Reaction Zones", group = "HTF Reaction Zones")
+htfMode = input.string("Auto TradFi", "HTF Pairing Mode",
+     options = ["Manual", "Auto TradFi", "Auto Crypto"], group = "HTF Reaction Zones")
+manualHTF = input.timeframe("60", "Manual Higher Timeframe", group = "HTF Reaction Zones")
+maxHTFZones = input.int(3, "Max Zones Per Side", minval = 1, maxval = 10, group = "HTF Reaction Zones")
+showHTFZones = input.bool(true, "Show HTF Reaction Zones", group = "HTF Reaction Zones")
+useMinimalZones = input.bool(true, "Use Minimal Zone Lines", group = "HTF Reaction Zones")
+zoneLineWidth = input.int(2, "Zone Line Width", minval = 1, maxval = 4, group = "HTF Reaction Zones")
+zoneLineStyleInput = input.string("Dotted", "Zone Line Style",
+     options = ["Solid", "Dashed", "Dotted"], group = "HTF Reaction Zones")
+
+// --- Breakers
+enableBreakerBlocks = input.bool(true, "Enable Breaker Zones", group = "Breaker Zones")
+maxBreakerBlocks = input.int(3, "Max Breakers Per Side", minval = 1, maxval = 10, group = "Breaker Zones")
+showBreakerLabels = input.bool(true, "Show Breaker Labels", group = "Breaker Zones")
+showBreakerFill = input.bool(true, "Show Breaker Fill", group = "Breaker Zones")
+breakerFillTrans = input.int(85, "Breaker Fill Transparency", minval = 0, maxval = 100, group = "Breaker Zones")
+
+// --- FVG
+enableFVG = input.bool(true, "Enable FVG Zones", group = "FVG")
+useTrendFilter = input.bool(true, "Only FVGs in directional context", group = "FVG")
+showFVGFill = input.bool(true, "Show FVG Fill", group = "FVG")
+maxFVGs = input.int(3, "Max FVGs Per Side", minval = 1, maxval = 20, group = "FVG")
+fvgMaxLife = input.int(50, "FVG Max Life (bars)", minval = 10, group = "FVG")
+fvgRemovalDelayBars = input.int(0, "Bars After First Touch Before Removal", minval = 0, maxval = 10, group = "FVG")
+fvgMitigationMethod = input.string("wick", "FVG Touch Method", options = ["wick", "close"], group = "FVG")
+enableVolFVG = input.bool(true, "Require volume + displacement", group = "FVG")
+volFVGLookback = input.int(20, "Volume SMA Lookback", minval = 5, group = "FVG")
+volFVGMultiplier = input.float(1.3, "Volume Spike Multiplier", minval = 1.0, step = 0.1, group = "FVG")
+minDisplacementPct = input.float(0.3, "Min Displacement Body / ATR", minval = 0.0, step = 0.05, group = "FVG")
+
+// --- Premium / Discount
+enablePDZones = input.bool(true, "Show Premium / Discount", group = "Premium / Discount")
+pdZoneTransparency = input.int(88, "Zone Transparency", minval = 0, maxval = 100, group = "Premium / Discount")
+
+// --- OTE / Fibonacci
+enableAutoFib = input.bool(true, "Enable OTE / Fibonacci", group = "OTE / Fibonacci")
+showFib50 = input.bool(false, "Show 0.50", group = "OTE / Fibonacci")
+showFib618 = input.bool(false, "Show 0.618", group = "OTE / Fibonacci", tooltip = "Displays the active 0.618 retracement reference. OTE calculations remain active when hidden.")
+showFib705 = input.bool(false, "Show 0.705", group = "OTE / Fibonacci", tooltip = "Displays the active 0.705 retracement reference. OTE calculations remain active when hidden.")
+showFib79 = input.bool(false, "Show 0.79", group = "OTE / Fibonacci", tooltip = "Displays the active 0.79 retracement reference. OTE calculations remain active when hidden.")
+showOTEZone = input.bool(true, "Highlight OTE 0.618–0.79", group = "OTE / Fibonacci")
+fibExtendBars = input.int(50, "Fib Extend Bars", minval = 10, maxval = 200, group = "OTE / Fibonacci")
+alertOnOTETouch = input.bool(true, "Alert On First OTE Entry", group = "OTE / Fibonacci")
+
+// --- TP reference extensions
+enableTPProjection = input.bool(true, "Enable TP Reference Extensions", group = "TP Projection")
+showTP127 = input.bool(false, "Show 1.272 (TP1)", group = "TP Projection")
+showTP162 = input.bool(false, "Show 1.618 (TP2)", group = "TP Projection")
+showSLLine = input.bool(false, "Show Stop Reference", group = "TP Projection")
+showEntryLine = input.bool(false, "Show Entry Reference", group = "TP Projection")
+showRRLabels = input.bool(false, "Show RR Labels", group = "TP Projection")
+slBufferATR = input.float(0.5, "Stop Buffer ATR", minval = 0.1, step = 0.1, group = "TP Projection")
+tpExtendBars = input.int(80, "TP Extend Bars", minval = 20, maxval = 300, group = "TP Projection")
+alertOnTP1Hit = input.bool(true, "Alert TP1", group = "TP Projection")
+alertOnTP2Hit = input.bool(true, "Alert TP2", group = "TP Projection")
+
+// --- Trendlines
+enableTrendlines = input.bool(false, "Enable Swing Trendlines", group = "Trendlines",
+     tooltip = "Displays structural trendline drawings. Off by default to reduce visual clutter. Trendline calculations remain active.")
+trendlineBreakMode = input.string("Close", "Trigger On", options = ["Close", "Wick"], group = "Trendlines")
+highlightBrokenLines = input.bool(true, "Highlight Broken Lines", group = "Trendlines")
+
+// --- MTF context
+enableMTFScanner = input.bool(true, "Enable MTF Scanner", group = "MTF Context")
+mtf1 = input.timeframe("D", "MTF 1", group = "MTF Context")
+mtf2 = input.timeframe("240", "MTF 2", group = "MTF Context")
+mtf3 = input.timeframe("60", "MTF 3", group = "MTF Context")
+
+// --- Confluence
+enableConfluence = input.bool(true, "Enable Confluence", group = "Confluence")
+wStructure = input.int(3, "Weight: Structure", minval = 0, maxval = 5, group = "Confluence")
+wLiquidity = input.int(2, "Weight: Liquidity", minval = 0, maxval = 5, group = "Confluence")
+wZone = input.int(2, "Weight: HTF Zone", minval = 0, maxval = 5, group = "Confluence")
+wOTE = input.int(1, "Weight: OTE", minval = 0, maxval = 5, group = "Confluence")
+wFVG = input.int(2, "Weight: FVG", minval = 0, maxval = 5, group = "Confluence")
+wTrend = input.int(2, "Weight: Momentum / Trend", minval = 0, maxval = 5, group = "Confluence")
+wMTF = input.int(1, "Weight: MTF Context", minval = 0, maxval = 5, group = "Confluence")
+wTrendline = input.int(1, "Weight: Trendline Pressure", minval = 0, maxval = 5, group = "Confluence")
+wBreaker = input.int(1, "Weight: Breaker Retest", minval = 0, maxval = 5, group = "Confluence")
+minGradeForAlerts = input.string("A", "Minimum Grade Alert", options = ["C", "B", "A", "S"], group = "Confluence")
+
+// --- EMA signals
+enableBuySell = input.bool(true, "Enable EMA Context Signals", group = "Signals")
+useAutoEMA = input.bool(true, "Auto EMA Lengths", group = "Signals")
+manualFastEMA = input.int(21, "Manual Fast EMA", minval = 1, group = "Signals")
+manualSlowEMA = input.int(89, "Manual Slow EMA", minval = 2, group = "Signals")
+signalCooldownBars = input.int(10, "Signal Cooldown", minval = 0, group = "Signals")
+
+// --- Early hints
+enableEarlySignal = input.bool(true, "Enable Developing HL/LH Hint", group = "Early Signals")
+earlyRSILen = input.int(14, "RSI Length", minval = 5, group = "Early Signals")
+earlyRSIOver = input.int(60, "Bull Momentum Threshold", minval = 50, maxval = 100, group = "Early Signals")
+earlyRSIUnder = input.int(40, "Bear Momentum Threshold", minval = 0, maxval = 50, group = "Early Signals")
+enableEarlyVol = input.bool(false, "Require Volume Spike", group = "Early Signals")
+enableEarlyTop = input.bool(true, "Enable Early Top Warning", group = "Early Signals")
+earlyTopCooldownBars = input.int(30, "Early Top Cooldown", minval = 1, group = "Early Signals")
+
+// =============================================================================
+// VIEW HELPERS / BASIC HELPERS
+// =============================================================================
+isSimple = displayMode == "Simple"
+isTrader = displayMode == "Trader"
+isDiagnostic = displayMode == "Diagnostic"
+showTechnicalChart = not enableLightMode
+showAdvancedChart = (isTrader or isDiagnostic) and not enableLightMode
+showDiagnosticChart = isDiagnostic and not enableLightMode
+int effectiveEventLabelLimit = isDiagnostic ? maxEventLabels : isTrader ? math.min(maxEventLabels, 20) : math.min(maxEventLabels, 10)
+
+f_pos(string p) =>
+    p == "Top Left" ? position.top_left :
+     p == "Bottom Left" ? position.bottom_left :
+     p == "Bottom Right" ? position.bottom_right :
+     position.top_right
+
+f_tableTextSize(string s) =>
+    s == "Normal" ? size.normal :
+     s == "Tiny" ? size.tiny :
+     size.small
+
+f_lineStyle(string s) =>
+    s == "Solid" ? line.style_solid :
+     s == "Dashed" ? line.style_dashed :
+     line.style_dotted
+
+f_cleanTF(string tf) =>
+    tf == "1" ? "1m" :
+     tf == "3" ? "3m" :
+     tf == "5" ? "5m" :
+     tf == "15" ? "15m" :
+     tf == "30" ? "30m" :
+     tf == "60" ? "1H" :
+     tf == "120" ? "2H" :
+     tf == "180" ? "3H" :
+     tf == "240" ? "4H" :
+     tf == "360" ? "6H" :
+     tf == "480" ? "8H" :
+     tf == "720" ? "12H" :
+     tf == "D" or tf == "1D" ? "1D" :
+     tf == "2D" ? "2D" :
+     tf == "3D" ? "3D" :
+     tf == "W" or tf == "1W" ? "1W" :
+     tf == "2W" ? "2W" :
+     tf == "M" or tf == "1M" ? "1M" :
+     tf == "3M" ? "3M" :
+     tf
+
+f_autoHTF(string mode) =>
+    string tf = timeframe.period
+    string tradfi =
+         tf == "1" ? "5" :
+         tf == "3" ? "15" :
+         tf == "5" ? "15" :
+         tf == "15" ? "60" :
+         tf == "30" ? "120" :
+         tf == "60" ? "240" :
+         tf == "120" ? "D" :
+         tf == "180" ? "D" :
+         tf == "240" ? "D" :
+         tf == "360" ? "D" :
+         tf == "480" ? "D" :
+         tf == "720" ? "D" :
+         tf == "D" or tf == "1D" ? "3D" :
+         tf == "2D" ? "W" :
+         tf == "3D" ? "W" :
+         tf == "W" or tf == "1W" ? "2W" :
+         tf == "2W" ? "M" :
+         tf == "M" or tf == "1M" ? "3M" :
+         manualHTF
+    string crypto =
+         tf == "1" ? "5" :
+         tf == "3" ? "15" :
+         tf == "5" ? "30" :
+         tf == "15" ? "60" :
+         tf == "30" ? "120" :
+         tf == "60" ? "240" :
+         tf == "120" ? "360" :
+         tf == "180" ? "720" :
+         tf == "240" ? "720" :
+         tf == "360" ? "720" :
+         tf == "480" ? "D" :
+         tf == "720" ? "D" :
+         tf == "D" or tf == "1D" ? "3D" :
+         tf == "2D" ? "W" :
+         tf == "3D" ? "W" :
+         tf == "W" or tf == "1W" ? "2W" :
+         tf == "2W" ? "M" :
+         tf == "M" or tf == "1M" ? "3M" :
+         manualHTF
+    mode == "Auto TradFi" ? tradfi : mode == "Auto Crypto" ? crypto : manualHTF
+
+f_autoStructureHorizon() =>
+    string tf = timeframe.period
+    tf == "1" ? "5" :
+     tf == "3" ? "15" :
+     tf == "5" ? "15" :
+     tf == "15" ? "60" :
+     tf == "30" ? "120" :
+     tf == "60" ? "240" :
+     tf == "120" ? "D" :
+     tf == "180" ? "D" :
+     tf == "240" ? "D" :
+     tf == "360" ? "D" :
+     tf == "480" ? "D" :
+     tf == "720" ? "3D" :
+     tf == "D" or tf == "1D" ? "3D" :
+     tf == "2D" ? "W" :
+     tf == "3D" ? "W" :
+     tf == "W" or tf == "1W" ? "2W" :
+     tf == "2W" ? "M" :
+     tf == "M" or tf == "1M" ? "3M" :
+     "D"
+
+string obHTF = f_autoHTF(htfMode)
+string structureHorizon = structureHTFMode == "Auto" ? f_autoStructureHorizon() : manualStructureHTF
+zoneLineStyle = f_lineStyle(zoneLineStyleInput)
+atrCore = ta.atr(14)
+
+// =============================================================================
+// PIVOTS / SWING MEMORY — actual pivot price and actual pivot bar
+// =============================================================================
+fractalSensitivity =
+     useAutoFractal ?
+         (structureHorizon == "5" ? 2 :
+          structureHorizon == "15" ? 3 :
+          structureHorizon == "30" ? 4 :
+          structureHorizon == "60" ? 5 :
+          structureHorizon == "120" ? 6 :
+          structureHorizon == "240" ? 7 :
+          structureHorizon == "D" or structureHorizon == "1D" ? 8 :
+          structureHorizon == "2D" or structureHorizon == "3D" ? 9 :
+          structureHorizon == "W" or structureHorizon == "1W" ? 10 :
+          structureHorizon == "2W" ? 11 : 12)
+         : manualFractalSensitivity
+fractalSensitivity := math.max(2, fractalSensitivity)
+
+pivotHigh = ta.pivothigh(high, fractalSensitivity, fractalSensitivity)
+pivotLow = ta.pivotlow(low, fractalSensitivity, fractalSensitivity)
+pivotBar = bar_index - fractalSensitivity
+pivotOffset = -fractalSensitivity
+newSwingHigh = not na(pivotHigh)
+newSwingLow = not na(pivotLow)
+
+var float lastSwingHigh = na
+var float lastSwingLow = na
+var float prevSwingHigh = na
+var float prevSwingLow = na
+var int lastSwingHighBar = na
+var int lastSwingLowBar = na
+
+var float[] swingPrices = array.new_float()
+var int[] swingBars = array.new_int()
+var int[] swingTypes = array.new_int() // +1 high, -1 low
+
+if newSwingHigh
+    prevSwingHigh := lastSwingHigh
+    lastSwingHigh := pivotHigh
+    lastSwingHighBar := pivotBar
+    array.push(swingPrices, pivotHigh)
+    array.push(swingBars, pivotBar)
+    array.push(swingTypes, 1)
+
+if newSwingLow
+    prevSwingLow := lastSwingLow
+    lastSwingLow := pivotLow
+    lastSwingLowBar := pivotBar
+    array.push(swingPrices, pivotLow)
+    array.push(swingBars, pivotBar)
+    array.push(swingTypes, -1)
+
+while array.size(swingPrices) > maxSwingHistory
+    array.shift(swingPrices)
+    array.shift(swingBars)
+    array.shift(swingTypes)
+
+plotshape(showPivotDots and showAdvancedChart and newSwingHigh,
+     title = "Pivot High", style = shape.circle, location = location.abovebar,
+     offset = pivotOffset, size = size.tiny, color = color.red)
+plotshape(showPivotDots and showAdvancedChart and newSwingLow,
+     title = "Pivot Low", style = shape.circle, location = location.belowbar,
+     offset = pivotOffset, size = size.tiny, color = color.lime)
+
+// Event-label store prevents unbounded label growth.
+var label[] eventLabels = array.new_label()
+f_storeLabel(label id) =>
+    if not na(id)
+        array.push(eventLabels, id)
+        while array.size(eventLabels) > effectiveEventLabelLimit
+            label.delete(array.shift(eventLabels))
+
+if showSwingTags and showAdvancedChart and newSwingHigh
+    string swingTagH = na(prevSwingHigh) ? "SH" : pivotHigh > prevSwingHigh ? "HH" : "LH"
+    f_storeLabel(label.new(pivotBar, pivotHigh, swingTagH,
+         style = label.style_label_down, textcolor = color.white,
+         color = color.new(color.red, 70), size = size.tiny))
+
+if showSwingTags and showAdvancedChart and newSwingLow
+    string swingTagL = na(prevSwingLow) ? "SL" : pivotLow > prevSwingLow ? "HL" : "LL"
+    f_storeLabel(label.new(pivotBar, pivotLow, swingTagL,
+         style = label.style_label_up, textcolor = color.white,
+         color = color.new(color.green, 70), size = size.tiny))
+
+// ZigZag only creates a segment when a newly confirmed pivot arrives.
+var int zzLastBar = na
+var float zzLastPrice = na
+var line[] zzLines = array.new_line()
+
+if showZigZag and showAdvancedChart and (newSwingHigh or newSwingLow)
+    float zzPrice = newSwingHigh ? pivotHigh : pivotLow
+    int zzBar = pivotBar
+    if not na(zzLastBar) and zzBar != zzLastBar
+        line zz = line.new(zzLastBar, zzLastPrice, zzBar, zzPrice,
+             color = color.new(color.silver, 40), width = 1)
+        array.push(zzLines, zz)
+        while array.size(zzLines) > maxZigzagSwings
+            line.delete(array.shift(zzLines))
+    zzLastBar := zzBar
+    zzLastPrice := zzPrice
+
+// =============================================================================
+// STRUCTURE / INDUCEMENT / LIQUIDITY
+// =============================================================================
+var string trendDir = "Neutral"
+var float structureHigh = na
+var float structureLow = na
+var int structureHighBar = na
+var int structureLowBar = na
+
+// Inducement context: an internal swing formed after the opposing structural leg.
+// It qualifies CHoCH but does not itself create CHoCH/BOS.
+var float inducementHigh = na
+var float inducementLow = na
+var int inducementHighBar = na
+var int inducementLowBar = na
+
+// Persistent liquidity pools.
+var float activeHighLiquidity = na
+var float activeLowLiquidity = na
+var int activeHighLiquidityBar = na
+var int activeLowLiquidityBar = na
+var bool highLiquidityConsumed = true
+var bool lowLiquidityConsumed = true
+
+if newSwingHigh
+    activeHighLiquidity := pivotHigh
+    activeHighLiquidityBar := pivotBar
+    highLiquidityConsumed := false
+if newSwingLow
+    activeLowLiquidity := pivotLow
+    activeLowLiquidityBar := pivotBar
+    lowLiquidityConsumed := false
+
+highLiquidityExpired = not na(activeHighLiquidityBar) and bar_index - activeHighLiquidityBar > liquidityMaxAge
+lowLiquidityExpired = not na(activeLowLiquidityBar) and bar_index - activeLowLiquidityBar > liquidityMaxAge
+if highLiquidityExpired
+    highLiquidityConsumed := true
+if lowLiquidityExpired
+    lowLiquidityConsumed := true
+
+bearSweep = enableLiquiditySweep and not highLiquidityConsumed and not na(activeHighLiquidity) and
+     bar_index > nz(activeHighLiquidityBar) and high > activeHighLiquidity and close < activeHighLiquidity
+bullSweep = enableLiquiditySweep and not lowLiquidityConsumed and not na(activeLowLiquidity) and
+     bar_index > nz(activeLowLiquidityBar) and low < activeLowLiquidity and close > activeLowLiquidity
+
+if bearSweep
+    highLiquidityConsumed := true
+if bullSweep
+    lowLiquidityConsumed := true
+
+// Structure levels are the latest confirmed swing high / low.
+// Break classification is evaluated before replacing a level with a new pivot.
+if na(structureHigh) and newSwingHigh
+    structureHigh := pivotHigh
+    structureHighBar := pivotBar
+if na(structureLow) and newSwingLow
+    structureLow := pivotLow
+    structureLowBar := pivotBar
+
+// Create inducement context from confirmed internal counter-swings.
+if newSwingHigh and trendDir == "Bearish" and not na(structureLow)
+    inducementHigh := pivotHigh
+    inducementHighBar := pivotBar
+if newSwingLow and trendDir == "Bullish" and not na(structureHigh)
+    inducementLow := pivotLow
+    inducementLowBar := pivotBar
+
+// Confirm structure breaks on CLOSE through an already-established level.
+bullBreakRaw = not na(structureHigh) and bar_index > nz(structureHighBar) and
+     close > structureHigh and close[1] <= structureHigh
+bearBreakRaw = not na(structureLow) and bar_index > nz(structureLowBar) and
+     close < structureLow and close[1] >= structureLow
+
+// The inducement filter only gates CHoCH, matching the repaired input wording.
+bullIDMOK = not useIDMFilter or (not na(inducementHighBar) and inducementHighBar < bar_index)
+bearIDMOK = not useIDMFilter or (not na(inducementLowBar) and inducementLowBar < bar_index)
+
+validBullCHoCH = bullBreakRaw and trendDir == "Bearish" and bullIDMOK
+validBearCHoCH = bearBreakRaw and trendDir == "Bullish" and bearIDMOK
+bullishBOS = bullBreakRaw and trendDir == "Bullish"
+bearishBOS = bearBreakRaw and trendDir == "Bearish"
+bullBootstrap = bullBreakRaw and trendDir == "Neutral"
+bearBootstrap = bearBreakRaw and trendDir == "Neutral"
+
+// Structure Shift is linked to a specific CHoCH, then confirmed by a later BOS.
+var int bullChochSeq = 0
+var int bearChochSeq = 0
+var int pendingBullShiftSeq = na
+var int pendingBearShiftSeq = na
+var int pendingBullShiftBar = na
+var int pendingBearShiftBar = na
+
+bullShift = false
+bearShift = false
+
+if validBullCHoCH
+    bullChochSeq += 1
+    pendingBullShiftSeq := bullChochSeq
+    pendingBullShiftBar := bar_index
+    pendingBearShiftSeq := na
+    pendingBearShiftBar := na
+    trendDir := "Bullish"
+    inducementHigh := na
+    inducementHighBar := na
+
+if validBearCHoCH
+    bearChochSeq += 1
+    pendingBearShiftSeq := bearChochSeq
+    pendingBearShiftBar := bar_index
+    pendingBullShiftSeq := na
+    pendingBullShiftBar := na
+    trendDir := "Bearish"
+    inducementLow := na
+    inducementLowBar := na
+
+if bullBootstrap
+    trendDir := "Bullish"
+if bearBootstrap
+    trendDir := "Bearish"
+
+if bullishBOS and not na(pendingBullShiftSeq) and bar_index > nz(pendingBullShiftBar)
+    bullShift := true
+    pendingBullShiftSeq := na
+    pendingBullShiftBar := na
+
+if bearishBOS and not na(pendingBearShiftSeq) and bar_index > nz(pendingBearShiftBar)
+    bearShift := true
+    pendingBearShiftSeq := na
+    pendingBearShiftBar := na
+
+// Only after break classification is finished do new confirmed pivots replace structure levels.
+if newSwingHigh
+    structureHigh := pivotHigh
+    structureHighBar := pivotBar
+if newSwingLow
+    structureLow := pivotLow
+    structureLowBar := pivotBar
+
+if showSweepLabels and showTechnicalChart and bearSweep
+    f_storeLabel(label.new(bar_index, high,
+         showTechnicalTerms ? "Bearish Liquidity Sweep" : "LIQUIDITY SWEPT ABOVE",
+         style = label.style_label_down, color = color.new(color.red, 20),
+         textcolor = color.white, size = size.tiny))
+
+if showSweepLabels and showTechnicalChart and bullSweep
+    f_storeLabel(label.new(bar_index, low,
+         showTechnicalTerms ? "Bullish Liquidity Sweep" : "LIQUIDITY SWEPT BELOW",
+         style = label.style_label_up, color = color.new(color.green, 20),
+         textcolor = color.white, size = size.tiny))
+
+if showStructureLabels and showTechnicalChart
+    if validBullCHoCH
+        f_storeLabel(label.new(bar_index, high,
+             showTechnicalTerms ? "Bull CHoCH" : "SELLER CONTROL MAY BE WEAKENING",
+             style = label.style_label_down, color = color.orange,
+             textcolor = color.white, size = size.small))
+    if validBearCHoCH
+        f_storeLabel(label.new(bar_index, low,
+             showTechnicalTerms ? "Bear CHoCH" : "BUYER CONTROL MAY BE WEAKENING",
+             style = label.style_label_up, color = color.orange,
+             textcolor = color.white, size = size.small))
+    if bullishBOS
+        f_storeLabel(label.new(bar_index, high,
+             showTechnicalTerms ? "Bull BOS" : "BUYERS BROKE THE LAST IMPORTANT HIGH",
+             style = label.style_label_down, color = color.lime,
+             textcolor = color.black, size = size.small))
+    if bearishBOS
+        f_storeLabel(label.new(bar_index, low,
+             showTechnicalTerms ? "Bear BOS" : "SELLERS BROKE THE LAST IMPORTANT LOW",
+             style = label.style_label_up, color = color.red,
+             textcolor = color.white, size = size.small))
+    if bullShift
+        f_storeLabel(label.new(bar_index, low,
+             showTechnicalTerms ? "Bull Structure Shift" : "BULLISH TRANSITION CONFIRMED",
+             style = label.style_label_up, color = color.lime,
+             textcolor = color.black, size = size.small))
+    if bearShift
+        f_storeLabel(label.new(bar_index, high,
+             showTechnicalTerms ? "Bear Structure Shift" : "BEARISH TRANSITION CONFIRMED",
+             style = label.style_label_down, color = color.red,
+             textcolor = color.white, size = size.small))
+
+plot(showStructureLines and showTechnicalChart ? structureHigh : na,
+     "Structure High", color = color.new(color.red, 20), style = plot.style_linebr)
+plot(showStructureLines and showTechnicalChart ? structureLow : na,
+     "Structure Low", color = color.new(color.green, 20), style = plot.style_linebr)
+
+// =============================================================================
+// HTF REACTION ZONES — all boundaries sourced from the SAME HTF pivot candle
+// =============================================================================
+// The old script mixed an HTF pivot with the current chart-TF high/low.
+// This repaired engine requests the high/low of the actual confirmed HTF pivot candle.
+
+f_htfPivotHighTuple() =>
+    float p = ta.pivothigh(high, 5, 5)
+    [p, not na(p) ? high[5] : na, not na(p) ? low[5] : na, not na(p) ? time[5] : na]
+
+f_htfPivotLowTuple() =>
+    float p = ta.pivotlow(low, 5, 5)
+    [p, not na(p) ? high[5] : na, not na(p) ? low[5] : na, not na(p) ? time[5] : na]
+
+[htfPH, htfPHHigh, htfPHLow, htfPHTime] =
+     request.security(syminfo.tickerid, obHTF, f_htfPivotHighTuple(), lookahead = barmerge.lookahead_off)
+[htfPL, htfPLHigh, htfPLLow, htfPLTime] =
+     request.security(syminfo.tickerid, obHTF, f_htfPivotLowTuple(), lookahead = barmerge.lookahead_off)
+
+newBullZone = enableHTFZones and not na(htfPL) and not na(htfPLTime) and
+     (na(htfPLTime[1]) or htfPLTime != htfPLTime[1])
+newBearZone = enableHTFZones and not na(htfPH) and not na(htfPHTime) and
+     (na(htfPHTime[1]) or htfPHTime != htfPHTime[1])
+
+var float[] bullZoneTop = array.new_float()
+var float[] bullZoneBot = array.new_float()
+var bool[] bullZoneInvalid = array.new_bool()
+var bool[] bullZoneTouched = array.new_bool()
+var line[] bullZoneTopLines = array.new_line()
+var line[] bullZoneBotLines = array.new_line()
+var box[] bullZoneBoxes = array.new_box()
+
+var float[] bearZoneTop = array.new_float()
+var float[] bearZoneBot = array.new_float()
+var bool[] bearZoneInvalid = array.new_bool()
+var bool[] bearZoneTouched = array.new_bool()
+var line[] bearZoneTopLines = array.new_line()
+var line[] bearZoneBotLines = array.new_line()
+var box[] bearZoneBoxes = array.new_box()
+
+f_deleteBullZone(int idx) =>
+    line tl = array.get(bullZoneTopLines, idx)
+    line bl = array.get(bullZoneBotLines, idx)
+    box bx = array.get(bullZoneBoxes, idx)
+    if not na(tl)
+        line.delete(tl)
+    if not na(bl)
+        line.delete(bl)
+    if not na(bx)
+        box.delete(bx)
+    array.remove(bullZoneTop, idx)
+    array.remove(bullZoneBot, idx)
+    array.remove(bullZoneInvalid, idx)
+    array.remove(bullZoneTouched, idx)
+    array.remove(bullZoneTopLines, idx)
+    array.remove(bullZoneBotLines, idx)
+    array.remove(bullZoneBoxes, idx)
+
+f_deleteBearZone(int idx) =>
+    line tl = array.get(bearZoneTopLines, idx)
+    line bl = array.get(bearZoneBotLines, idx)
+    box bx = array.get(bearZoneBoxes, idx)
+    if not na(tl)
+        line.delete(tl)
+    if not na(bl)
+        line.delete(bl)
+    if not na(bx)
+        box.delete(bx)
+    array.remove(bearZoneTop, idx)
+    array.remove(bearZoneBot, idx)
+    array.remove(bearZoneInvalid, idx)
+    array.remove(bearZoneTouched, idx)
+    array.remove(bearZoneTopLines, idx)
+    array.remove(bearZoneBotLines, idx)
+    array.remove(bearZoneBoxes, idx)
+
+f_addHTFZone(bool bull, float top, float bot) =>
+    bool render = showHTFZones and showTechnicalChart
+    line tl = na
+    line bl = na
+    box bx = na
+    if render and useMinimalZones
+        tl := line.new(bar_index, top, bar_index + zoneExtendBars, top,
+             extend = extend.right, color = bull ? color.lime : color.red,
+             style = zoneLineStyle, width = zoneLineWidth)
+        bl := line.new(bar_index, bot, bar_index + zoneExtendBars, bot,
+             extend = extend.right, color = bull ? color.lime : color.red,
+             style = zoneLineStyle, width = zoneLineWidth)
+    if render and not useMinimalZones
+        bx := box.new(bar_index, top, bar_index + zoneExtendBars, bot,
+             extend = extend.right, border_color = bull ? color.lime : color.red,
+             bgcolor = color.new(bull ? color.lime : color.red, 88))
+    if bull
+        array.push(bullZoneTop, top)
+        array.push(bullZoneBot, bot)
+        array.push(bullZoneInvalid, false)
+        array.push(bullZoneTouched, false)
+        array.push(bullZoneTopLines, tl)
+        array.push(bullZoneBotLines, bl)
+        array.push(bullZoneBoxes, bx)
+    else
+        array.push(bearZoneTop, top)
+        array.push(bearZoneBot, bot)
+        array.push(bearZoneInvalid, false)
+        array.push(bearZoneTouched, false)
+        array.push(bearZoneTopLines, tl)
+        array.push(bearZoneBotLines, bl)
+        array.push(bearZoneBoxes, bx)
+
+if newBullZone and not na(htfPLHigh) and not na(htfPLLow)
+    f_addHTFZone(true, math.max(htfPLHigh, htfPLLow), math.min(htfPLHigh, htfPLLow))
+if newBearZone and not na(htfPHHigh) and not na(htfPHLow)
+    f_addHTFZone(false, math.max(htfPHHigh, htfPHLow), math.min(htfPHHigh, htfPHLow))
+
+while array.size(bullZoneTop) > maxHTFZones
+    f_deleteBullZone(0)
+while array.size(bearZoneTop) > maxHTFZones
+    f_deleteBearZone(0)
+
+// --- Breaker state
+var float[] bullBkrTop = array.new_float()
+var float[] bullBkrBot = array.new_float()
+var bool[] bullBkrTapped = array.new_bool()
+var int[] bullBkrRetestBar = array.new_int()
+var box[] bullBkrBoxes = array.new_box()
+
+var float[] bearBkrTop = array.new_float()
+var float[] bearBkrBot = array.new_float()
+var bool[] bearBkrTapped = array.new_bool()
+var int[] bearBkrRetestBar = array.new_int()
+var box[] bearBkrBoxes = array.new_box()
+
+newBullZoneViolation = false
+newBearZoneViolation = false
+newBullBreaker = false
+newBearBreaker = false
+bullZoneTouchThisBar = false
+bearZoneTouchThisBar = false
+
+if array.size(bullZoneTop) > 0
+    for i = array.size(bullZoneTop) - 1 to 0
+        if not array.get(bullZoneInvalid, i)
+            float top = array.get(bullZoneTop, i)
+            float bot = array.get(bullZoneBot, i)
+            bool overlap = low <= top and high >= bot
+            if overlap and not array.get(bullZoneTouched, i)
+                array.set(bullZoneTouched, i, true)
+                bullZoneTouchThisBar := true
+            if close < bot
+                array.set(bullZoneInvalid, i, true)
+                newBullZoneViolation := true
+                if enableBreakerBlocks
+                    array.push(bearBkrTop, top)
+                    array.push(bearBkrBot, bot)
+                    array.push(bearBkrTapped, false)
+                    array.push(bearBkrRetestBar, na)
+                    box bb = showTechnicalChart ? box.new(bar_index, top, bar_index + zoneExtendBars, bot,
+                         extend = extend.right,
+                         bgcolor = showBreakerFill ? color.new(color.orange, breakerFillTrans) : na,
+                         border_color = color.orange) : na
+                    array.push(bearBkrBoxes, bb)
+                    newBearBreaker := true
+                    if showBreakerLabels and showTechnicalChart
+                        f_storeLabel(label.new(bar_index, top,
+                             showTechnicalTerms ? "Bear Breaker Candidate" : "PRIOR BUYER AREA FLIPPED",
+                             style = label.style_label_down, color = color.new(color.orange, 30),
+                             textcolor = color.white, size = size.tiny))
+
+if array.size(bearZoneTop) > 0
+    for i = array.size(bearZoneTop) - 1 to 0
+        if not array.get(bearZoneInvalid, i)
+            float top = array.get(bearZoneTop, i)
+            float bot = array.get(bearZoneBot, i)
+            bool overlap = low <= top and high >= bot
+            if overlap and not array.get(bearZoneTouched, i)
+                array.set(bearZoneTouched, i, true)
+                bearZoneTouchThisBar := true
+            if close > top
+                array.set(bearZoneInvalid, i, true)
+                newBearZoneViolation := true
+                if enableBreakerBlocks
+                    array.push(bullBkrTop, top)
+                    array.push(bullBkrBot, bot)
+                    array.push(bullBkrTapped, false)
+                    array.push(bullBkrRetestBar, na)
+                    box bb = showTechnicalChart ? box.new(bar_index, top, bar_index + zoneExtendBars, bot,
+                         extend = extend.right,
+                         bgcolor = showBreakerFill ? color.new(color.aqua, breakerFillTrans) : na,
+                         border_color = color.aqua) : na
+                    array.push(bullBkrBoxes, bb)
+                    newBullBreaker := true
+                    if showBreakerLabels and showTechnicalChart
+                        f_storeLabel(label.new(bar_index, bot,
+                             showTechnicalTerms ? "Bull Breaker Candidate" : "PRIOR SELLER AREA FLIPPED",
+                             style = label.style_label_up, color = color.new(color.aqua, 30),
+                             textcolor = color.black, size = size.tiny))
+
+while array.size(bullBkrTop) > maxBreakerBlocks
+    box oldBox = array.shift(bullBkrBoxes)
+    if not na(oldBox)
+        box.delete(oldBox)
+    array.shift(bullBkrTop)
+    array.shift(bullBkrBot)
+    array.shift(bullBkrTapped)
+    array.shift(bullBkrRetestBar)
+
+while array.size(bearBkrTop) > maxBreakerBlocks
+    box oldBox = array.shift(bearBkrBoxes)
+    if not na(oldBox)
+        box.delete(oldBox)
+    array.shift(bearBkrTop)
+    array.shift(bearBkrBot)
+    array.shift(bearBkrTapped)
+    array.shift(bearBkrRetestBar)
+
+bullBkrTappedThisBar = false
+bearBkrTappedThisBar = false
+
+if array.size(bullBkrTop) > 0
+    for i = array.size(bullBkrTop) - 1 to 0
+        if not array.get(bullBkrTapped, i) and low <= array.get(bullBkrTop, i) and high >= array.get(bullBkrBot, i)
+            array.set(bullBkrTapped, i, true)
+            array.set(bullBkrRetestBar, i, bar_index)
+            bullBkrTappedThisBar := true
+
+if array.size(bearBkrTop) > 0
+    for i = array.size(bearBkrTop) - 1 to 0
+        if not array.get(bearBkrTapped, i) and low <= array.get(bearBkrTop, i) and high >= array.get(bearBkrBot, i)
+            array.set(bearBkrTapped, i, true)
+            array.set(bearBkrRetestBar, i, bar_index)
+            bearBkrTappedThisBar := true
+
+bullOBNear = false
+bearOBNear = false
+
+if array.size(bullZoneTop) > 0
+    for i = 0 to array.size(bullZoneTop) - 1
+        bullOBNear := bullOBNear or
+             (not array.get(bullZoneInvalid, i) and low <= array.get(bullZoneTop, i) and high >= array.get(bullZoneBot, i))
+
+if array.size(bearZoneTop) > 0
+    for i = 0 to array.size(bearZoneTop) - 1
+        bearOBNear := bearOBNear or
+             (not array.get(bearZoneInvalid, i) and low <= array.get(bearZoneTop, i) and high >= array.get(bearZoneBot, i))
+
+// Breaker lifecycle separation:
+// - stored breaker = historical/location fact
+// - bull/bearBkrNear = price is currently at the stored location
+// - bull/bearBkrTappedThisBar = first fresh retest event
+// Fresh directional influence is computed later from the retest event, not from location persistence.
+bullBkrNear = false
+bearBkrNear = false
+
+if array.size(bullBkrTop) > 0
+    for i = 0 to array.size(bullBkrTop) - 1
+        bullBkrNear := bullBkrNear or
+             (low <= array.get(bullBkrTop, i) and high >= array.get(bullBkrBot, i))
+
+if array.size(bearBkrTop) > 0
+    for i = 0 to array.size(bearBkrTop) - 1
+        bearBkrNear := bearBkrNear or
+             (low <= array.get(bearBkrTop, i) and high >= array.get(bearBkrBot, i))
+
+// =============================================================================
+// FVG — correct three-candle imbalance geometry / first-touch lifecycle
+// =============================================================================
+var box[] bullFVGs = array.new_box()
+var int[] bullFVGBars = array.new_int()
+var int[] bullFVGTouchBars = array.new_int()
+var box[] bearFVGs = array.new_box()
+var int[] bearFVGBars = array.new_int()
+var int[] bearFVGTouchBars = array.new_int()
+
+f_deleteBullFVG(int i) =>
+    box.delete(array.get(bullFVGs, i))
+    array.remove(bullFVGs, i)
+    array.remove(bullFVGBars, i)
+    array.remove(bullFVGTouchBars, i)
+
+f_deleteBearFVG(int i) =>
+    box.delete(array.get(bearFVGs, i))
+    array.remove(bearFVGs, i)
+    array.remove(bearFVGBars, i)
+    array.remove(bearFVGTouchBars, i)
+
+volSMA = ta.sma(volume, volFVGLookback)
+dispBody = math.abs(close[1] - open[1])
+dispBodyATR = atrCore[1] > 0 ? dispBody / atrCore[1] : 0.0
+passesVolFVG = not enableVolFVG or
+     (volume[1] >= volSMA[1] * volFVGMultiplier and dispBodyATR >= minDisplacementPct)
+
+bullFVGCreated = enableFVG and low > high[2] and
+     (not useTrendFilter or trendDir == "Bullish") and passesVolFVG
+bearFVGCreated = enableFVG and high < low[2] and
+     (not useTrendFilter or trendDir == "Bearish") and passesVolFVG
+
+if bullFVGCreated
+    box b = box.new(bar_index - 2, low, bar_index, high[2],
+         extend = extend.right,
+         border_color = showTechnicalChart ? color.lime : color.new(color.lime, 100),
+         bgcolor = showTechnicalChart and showFVGFill ? color.new(color.lime, 90) : color.new(color.lime, 100))
+    array.push(bullFVGs, b)
+    array.push(bullFVGBars, bar_index)
+    array.push(bullFVGTouchBars, na)
+
+if bearFVGCreated
+    box b = box.new(bar_index - 2, low[2], bar_index, high,
+         extend = extend.right,
+         border_color = showTechnicalChart ? color.red : color.new(color.red, 100),
+         bgcolor = showTechnicalChart and showFVGFill ? color.new(color.red, 90) : color.new(color.red, 100))
+    array.push(bearFVGs, b)
+    array.push(bearFVGBars, bar_index)
+    array.push(bearFVGTouchBars, na)
+
+while array.size(bullFVGs) > maxFVGs
+    f_deleteBullFVG(0)
+while array.size(bearFVGs) > maxFVGs
+    f_deleteBearFVG(0)
+
+bullFvgTapThisBar = false
+bearFvgTapThisBar = false
+
+if array.size(bullFVGs) > 0
+    for i = array.size(bullFVGs) - 1 to 0
+        int born = array.get(bullFVGBars, i)
+        int touched = array.get(bullFVGTouchBars, i)
+        box bx = array.get(bullFVGs, i)
+        float top = box.get_top(bx)
+        float bot = box.get_bottom(bx)
+        bool touch = fvgMitigationMethod == "close" ?
+             (close <= top and close >= bot) :
+             (low <= top and high >= bot)
+        bool expired = bar_index - born > fvgMaxLife
+        if na(touched) and touch and bar_index > born
+            array.set(bullFVGTouchBars, i, bar_index)
+            bullFvgTapThisBar := true
+        int touchBar = array.get(bullFVGTouchBars, i)
+        bool removeNow = expired or
+             (not na(touchBar) and bar_index - touchBar >= fvgRemovalDelayBars)
+        if removeNow
+            f_deleteBullFVG(i)
+
+if array.size(bearFVGs) > 0
+    for i = array.size(bearFVGs) - 1 to 0
+        int born = array.get(bearFVGBars, i)
+        int touched = array.get(bearFVGTouchBars, i)
+        box bx = array.get(bearFVGs, i)
+        float top = box.get_top(bx)
+        float bot = box.get_bottom(bx)
+        bool touch = fvgMitigationMethod == "close" ?
+             (close <= top and close >= bot) :
+             (low <= top and high >= bot)
+        bool expired = bar_index - born > fvgMaxLife
+        if na(touched) and touch and bar_index > born
+            array.set(bearFVGTouchBars, i, bar_index)
+            bearFvgTapThisBar := true
+        int touchBar = array.get(bearFVGTouchBars, i)
+        bool removeNow = expired or
+             (not na(touchBar) and bar_index - touchBar >= fvgRemovalDelayBars)
+        if removeNow
+            f_deleteBearFVG(i)
+
+// =============================================================================
+// PREMIUM / DISCOUNT — only with coherent swing range
+// =============================================================================
+validDealingRange = enablePDZones and not na(lastSwingHigh) and not na(lastSwingLow) and lastSwingHigh > lastSwingLow
+eqPrice = validDealingRange ? (lastSwingHigh + lastSwingLow) / 2.0 : na
+
+var box premiumBox = na
+var box discountBox = na
+var line eqLine = na
+var float lastPDHigh = na
+var float lastPDLow = na
+
+pdChanged = validDealingRange and
+     (na(lastPDHigh) or na(lastPDLow) or lastSwingHigh != lastPDHigh or lastSwingLow != lastPDLow)
+
+if pdChanged
+    if not na(premiumBox)
+        box.delete(premiumBox)
+    if not na(discountBox)
+        box.delete(discountBox)
+    if not na(eqLine)
+        line.delete(eqLine)
+    premiumBox := showTechnicalChart ?
+         box.new(bar_index, lastSwingHigh, bar_index + 50, eqPrice,
+             extend = extend.right, border_color = na,
+             bgcolor = color.new(color.red, pdZoneTransparency)) : na
+    discountBox := showTechnicalChart ?
+         box.new(bar_index, eqPrice, bar_index + 50, lastSwingLow,
+             extend = extend.right, border_color = na,
+             bgcolor = color.new(color.green, pdZoneTransparency)) : na
+    eqLine := showTechnicalChart ?
+         line.new(bar_index, eqPrice, bar_index + 50, eqPrice,
+             extend = extend.right, color = color.gray, style = line.style_dotted) : na
+    lastPDHigh := lastSwingHigh
+    lastPDLow := lastSwingLow
+
+// =============================================================================
+// TRENDLINES — actual pivot coordinates, explicit high/low anchors, one break
+// =============================================================================
+var float prevLowAnchor = na
+var int prevLowAnchorBar = na
+var float prevHighAnchor = na
+var int prevHighAnchorBar = na
+var line activeBullTL = na
+var line activeBearTL = na
+var bool bullTLBroken = false
+var bool bearTLBroken = false
+var line[] historicalTrendlines = array.new_line()
+
+if newSwingLow
+    if not na(prevLowAnchor)
+        if not na(activeBullTL)
+            array.push(historicalTrendlines, activeBullTL)
+        activeBullTL := line.new(prevLowAnchorBar, prevLowAnchor, pivotBar, pivotLow,
+             extend = extend.right,
+             color = enableTrendlines and showAdvancedChart ? color.lime : color.new(color.lime, 100),
+             width = 1)
+        bullTLBroken := false
+    prevLowAnchor := pivotLow
+    prevLowAnchorBar := pivotBar
+
+if newSwingHigh
+    if not na(prevHighAnchor)
+        if not na(activeBearTL)
+            array.push(historicalTrendlines, activeBearTL)
+        activeBearTL := line.new(prevHighAnchorBar, prevHighAnchor, pivotBar, pivotHigh,
+             extend = extend.right,
+             color = enableTrendlines and showAdvancedChart ? color.red : color.new(color.red, 100),
+             width = 1)
+        bearTLBroken := false
+    prevHighAnchor := pivotHigh
+    prevHighAnchorBar := pivotBar
+
+while array.size(historicalTrendlines) > maxTrendlines
+    line.delete(array.shift(historicalTrendlines))
+
+bullTrendlineBroken = false
+bearTrendlineBroken = false
+
+if not bullTLBroken and not na(activeBullTL)
+    float linePrice = line.get_price(activeBullTL, bar_index)
+    bool broke = trendlineBreakMode == "Close" ? close < linePrice : low < linePrice
+    if broke
+        bullTLBroken := true
+        bullTrendlineBroken := true
+        if highlightBrokenLines
+            line.set_color(activeBullTL, color.new(color.red, 25))
+
+if not bearTLBroken and not na(activeBearTL)
+    float linePrice = line.get_price(activeBearTL, bar_index)
+    bool broke = trendlineBreakMode == "Close" ? close > linePrice : high > linePrice
+    if broke
+        bearTLBroken := true
+        bearTrendlineBroken := true
+        if highlightBrokenLines
+            line.set_color(activeBearTL, color.new(color.lime, 25))
+
+// =============================================================================
+// MTF CONTEXT + DIRECTIONAL TREND CONFIDENCE
+// =============================================================================
+f_mtfBiasCore() =>
+    float fast = ta.ema(close, 20)
+    float slow = ta.ema(close, 50)
+    fast > slow ? 1 : fast < slow ? -1 : 0
+
+mtfBias1 = enableMTFScanner ?
+     request.security(syminfo.tickerid, mtf1, f_mtfBiasCore(), lookahead = barmerge.lookahead_off) : 0
+mtfBias2 = enableMTFScanner ?
+     request.security(syminfo.tickerid, mtf2, f_mtfBiasCore(), lookahead = barmerge.lookahead_off) : 0
+mtfBias3 = enableMTFScanner ?
+     request.security(syminfo.tickerid, mtf3, f_mtfBiasCore(), lookahead = barmerge.lookahead_off) : 0
+
+mtfBullCount = (mtfBias1 == 1 ? 1 : 0) + (mtfBias2 == 1 ? 1 : 0) + (mtfBias3 == 1 ? 1 : 0)
+mtfBearCount = (mtfBias1 == -1 ? 1 : 0) + (mtfBias2 == -1 ? 1 : 0) + (mtfBias3 == -1 ? 1 : 0)
+mtfBullPct = enableMTFScanner ? 100.0 * mtfBullCount / 3.0 : 0.0
+mtfBearPct = enableMTFScanner ? 100.0 * mtfBearCount / 3.0 : 0.0
+tripleBullish = enableMTFScanner and mtfBullCount == 3
+tripleBearish = enableMTFScanner and mtfBearCount == 3
+
+confFast = ta.ema(close, 9)
+confSlow = ta.ema(close, 21)
+emaBull = confFast > confSlow
+emaBear = confFast < confSlow
+emaSepNorm = close != 0 ? math.min(math.abs(confFast - confSlow) / close / 0.005, 1.0) : 0.0
+
+slopeNow = ta.linreg(close, 20, 0)
+slopePrev = ta.linreg(close, 20, 1)
+priceSlope = slopeNow - slopePrev
+slopeBull = priceSlope > 0
+slopeBear = priceSlope < 0
+structBull = trendDir == "Bullish"
+structBear = trendDir == "Bearish"
+
+// Directional agreement display is preserved for backward compatibility.
+// It includes MTF as one of its agreement inputs, but it is NOT a probability estimate.
+trendConfidenceAvailable = 35.0 + 25.0 + 25.0 + (enableMTFScanner ? 15.0 : 0.0)
+bullTrendRaw =
+     (emaBull ? 35.0 * emaSepNorm : 0.0) +
+     (slopeBull ? 25.0 : 0.0) +
+     (structBull ? 25.0 : 0.0) +
+     (enableMTFScanner ? 15.0 * mtfBullPct / 100.0 : 0.0)
+bearTrendRaw =
+     (emaBear ? 35.0 * emaSepNorm : 0.0) +
+     (slopeBear ? 25.0 : 0.0) +
+     (structBear ? 25.0 : 0.0) +
+     (enableMTFScanner ? 15.0 * mtfBearPct / 100.0 : 0.0)
+
+bullTrendConfidence = trendConfidenceAvailable > 0 ? math.min(100.0, 100.0 * bullTrendRaw / trendConfidenceAvailable) : 0.0
+bearTrendConfidence = trendConfidenceAvailable > 0 ? math.min(100.0, 100.0 * bearTrendRaw / trendConfidenceAvailable) : 0.0
+
+// Redundancy-control score source: current trend pressure EXCLUDING the MTF leg.
+// MTF keeps its own family contribution below, preventing the same MTF agreement
+// from being counted once inside Trend Confidence and again as a separate MTF vote.
+trendPressureAvailable = 35.0 + 25.0 + 25.0
+bullTrendPressureRaw =
+     (emaBull ? 35.0 * emaSepNorm : 0.0) +
+     (slopeBull ? 25.0 : 0.0) +
+     (structBull ? 25.0 : 0.0)
+bearTrendPressureRaw =
+     (emaBear ? 35.0 * emaSepNorm : 0.0) +
+     (slopeBear ? 25.0 : 0.0) +
+     (structBear ? 25.0 : 0.0)
+bullTrendPressurePct = trendPressureAvailable > 0 ? math.min(100.0, 100.0 * bullTrendPressureRaw / trendPressureAvailable) : 0.0
+bearTrendPressurePct = trendPressureAvailable > 0 ? math.min(100.0, 100.0 * bearTrendPressureRaw / trendPressureAvailable) : 0.0
+
+trendConfScore = math.max(bullTrendConfidence, bearTrendConfidence)
+
+// =============================================================================
+// OTE / SIMPLIFIED FIB — validated structural impulse anchors only
+// =============================================================================
+var float impulseStart = na
+var float impulseEnd = na
+var int impulseStartBar = na
+var int impulseEndBar = na
+var int impulseDir = 0
+var int impulseId = 0
+var bool impulseActive = false
+
+newBullImpulseEvent = validBullCHoCH or bullishBOS or bullShift
+newBearImpulseEvent = validBearCHoCH or bearishBOS or bearShift
+
+// A new confirmed structural impulse supersedes the previous OTE geometry.
+if newBullImpulseEvent and not na(lastSwingLow) and not na(lastSwingLowBar)
+    impulseStart := lastSwingLow
+    impulseStartBar := lastSwingLowBar
+    impulseEnd := high
+    impulseEndBar := bar_index
+    impulseDir := 1
+    impulseId += 1
+    impulseActive := true
+
+if newBearImpulseEvent and not na(lastSwingHigh) and not na(lastSwingHighBar)
+    impulseStart := lastSwingHigh
+    impulseStartBar := lastSwingHighBar
+    impulseEnd := low
+    impulseEndBar := bar_index
+    impulseDir := -1
+    impulseId += 1
+    impulseActive := true
+
+// Origin failure invalidates the active impulse. The historical structure event remains true,
+// but its OTE geometry no longer acts as current location evidence.
+bullImpulseInvalidated = impulseActive and impulseDir == 1 and
+     bar_index > nz(impulseEndBar) and close < impulseStart
+bearImpulseInvalidated = impulseActive and impulseDir == -1 and
+     bar_index > nz(impulseEndBar) and close > impulseStart
+if bullImpulseInvalidated or bearImpulseInvalidated
+    impulseActive := false
+
+fibValid = enableAutoFib and impulseActive and
+     not na(impulseStart) and not na(impulseEnd) and impulseStart != impulseEnd
+fibRange = fibValid ? math.abs(impulseEnd - impulseStart) : na
+
+f_fibLevel(float ratio) =>
+    impulseDir == 1 ? impulseEnd - fibRange * ratio : impulseEnd + fibRange * ratio
+
+fib50 = fibValid ? f_fibLevel(0.50) : na
+fib618 = fibValid ? f_fibLevel(0.618) : na
+fib705 = fibValid ? f_fibLevel(0.705) : na
+fib79 = fibValid ? f_fibLevel(0.79) : na
+oteTop = fibValid ? math.max(fib618, fib79) : na
+oteBot = fibValid ? math.min(fib618, fib79) : na
+
+priceInOTE = fibValid and close <= oteTop and close >= oteBot
+oteEnteredThisBar = priceInOTE and not priceInOTE[1]
+
+var line fib50Line = na
+var line fib618Line = na
+var line fib705Line = na
+var line fib79Line = na
+var box oteBox = na
+var float lastFibStart = na
+var float lastFibEnd = na
+var int lastFibImpulseId = na
+
+fibChanged = fibValid and
+     (na(lastFibImpulseId) or impulseId != lastFibImpulseId or
+      na(lastFibStart) or na(lastFibEnd) or impulseStart != lastFibStart or impulseEnd != lastFibEnd)
+fibBecameInvalid = not fibValid and fibValid[1]
+
+if fibChanged
+    if not na(fib50Line)
+        line.delete(fib50Line)
+    if not na(fib618Line)
+        line.delete(fib618Line)
+    if not na(fib705Line)
+        line.delete(fib705Line)
+    if not na(fib79Line)
+        line.delete(fib79Line)
+    if not na(oteBox)
+        box.delete(oteBox)
+    fib50Line := showTechnicalChart and showFib50 ?
+         line.new(bar_index, fib50, bar_index + fibExtendBars, fib50, color = color.aqua) : na
+    fib618Line := showTechnicalChart and showFib618 ?
+         line.new(bar_index, fib618, bar_index + fibExtendBars, fib618, color = color.lime) : na
+    fib705Line := showTechnicalChart and showFib705 ?
+         line.new(bar_index, fib705, bar_index + fibExtendBars, fib705, color = color.yellow, width = 2) : na
+    fib79Line := showTechnicalChart and showFib79 ?
+         line.new(bar_index, fib79, bar_index + fibExtendBars, fib79, color = color.orange) : na
+    oteBox := showTechnicalChart and showOTEZone ?
+         box.new(bar_index, oteTop, bar_index + fibExtendBars, oteBot,
+             bgcolor = color.new(color.yellow, 86), border_color = color.new(color.yellow, 60)) : na
+    lastFibStart := impulseStart
+    lastFibEnd := impulseEnd
+    lastFibImpulseId := impulseId
+
+if fibBecameInvalid
+    if not na(fib50Line)
+        line.delete(fib50Line)
+        fib50Line := na
+    if not na(fib618Line)
+        line.delete(fib618Line)
+        fib618Line := na
+    if not na(fib705Line)
+        line.delete(fib705Line)
+        fib705Line := na
+    if not na(fib79Line)
+        line.delete(fib79Line)
+        fib79Line := na
+    if not na(oteBox)
+        box.delete(oteBox)
+        oteBox := na
+
+// --- TP reference extensions
+tp1 = fibValid ?
+     (impulseDir == 1 ? impulseStart + fibRange * 1.272 : impulseStart - fibRange * 1.272) : na
+tp2 = fibValid ?
+     (impulseDir == 1 ? impulseStart + fibRange * 1.618 : impulseStart - fibRange * 1.618) : na
+
+entryPrice = fibValid ? fib705 : na
+slPrice = fibValid ?
+     (impulseDir == 1 ? impulseStart - atrCore * slBufferATR : impulseStart + atrCore * slBufferATR) : na
+
+directionalGeometryValid = fibValid and
+     ((impulseDir == 1 and slPrice < entryPrice and tp1 > entryPrice and tp2 > tp1) or
+      (impulseDir == -1 and slPrice > entryPrice and tp1 < entryPrice and tp2 < tp1))
+
+risk = directionalGeometryValid ? math.abs(entryPrice - slPrice) : na
+validRR = enableTPProjection and directionalGeometryValid and risk > syminfo.mintick
+
+var line entryLine = na
+var line slLine = na
+var line tp1Line = na
+var line tp2Line = na
+var label tp1Label = na
+var label tp2Label = na
+var float lastTPStart = na
+var float lastTPEnd = na
+var int lastTPImpulseId = na
+
+tpChanged = validRR and
+     (na(lastTPImpulseId) or impulseId != lastTPImpulseId or
+      na(lastTPStart) or na(lastTPEnd) or impulseStart != lastTPStart or impulseEnd != lastTPEnd)
+
+if tpChanged
+    if not na(entryLine)
+        line.delete(entryLine)
+    if not na(slLine)
+        line.delete(slLine)
+    if not na(tp1Line)
+        line.delete(tp1Line)
+    if not na(tp2Line)
+        line.delete(tp2Line)
+    if not na(tp1Label)
+        label.delete(tp1Label)
+    if not na(tp2Label)
+        label.delete(tp2Label)
+
+    entryLine := showTechnicalChart and showEntryLine ?
+         line.new(bar_index, entryPrice, bar_index + tpExtendBars, entryPrice,
+             color = color.white, style = line.style_dotted) : na
+    slLine := showTechnicalChart and showSLLine ?
+         line.new(bar_index, slPrice, bar_index + tpExtendBars, slPrice, color = color.red) : na
+    tp1Line := showTechnicalChart and showTP127 ?
+         line.new(bar_index, tp1, bar_index + tpExtendBars, tp1, color = color.lime) : na
+    tp2Line := showTechnicalChart and showTP162 ?
+         line.new(bar_index, tp2, bar_index + tpExtendBars, tp2, color = color.aqua) : na
+
+    if showTechnicalChart and showRRLabels
+        float rr1 = math.abs(tp1 - entryPrice) / risk
+        float rr2 = math.abs(tp2 - entryPrice) / risk
+        tp1Label := showTP127 ?
+             label.new(bar_index + tpExtendBars, tp1,
+                 "1.272 | RR " + str.tostring(rr1, "#.##"),
+                 textcolor = color.lime, color = color.new(color.black, 100),
+                 style = label.style_label_left) : na
+        tp2Label := showTP162 ?
+             label.new(bar_index + tpExtendBars, tp2,
+                 "1.618 | RR " + str.tostring(rr2, "#.##"),
+                 textcolor = color.aqua, color = color.new(color.black, 100),
+                 style = label.style_label_left) : na
+
+    lastTPStart := impulseStart
+    lastTPEnd := impulseEnd
+    lastTPImpulseId := impulseId
+
+if fibBecameInvalid
+    if not na(entryLine)
+        line.delete(entryLine)
+        entryLine := na
+    if not na(slLine)
+        line.delete(slLine)
+        slLine := na
+    if not na(tp1Line)
+        line.delete(tp1Line)
+        tp1Line := na
+    if not na(tp2Line)
+        line.delete(tp2Line)
+        tp2Line := na
+    if not na(tp1Label)
+        label.delete(tp1Label)
+        tp1Label := na
+    if not na(tp2Label)
+        label.delete(tp2Label)
+        tp2Label := na
+
+var bool tp1Done = false
+var bool tp2Done = false
+newImpulse = fibChanged
+
+if newImpulse
+    tp1Done := false
+    tp2Done := false
+
+tp1Hit = validRR and not tp1Done and (impulseDir == 1 ? high >= tp1 : low <= tp1)
+tp2Hit = validRR and not tp2Done and (impulseDir == 1 ? high >= tp2 : low <= tp2)
+
+if tp1Hit
+    tp1Done := true
+if tp2Hit
+    tp2Done := true
+
+// =============================================================================
+// CONFLUENCE — normalized CURRENT evidence families
+// FACT != CONTEXT != AGREEMENT != PROBABILITY.
+// Scores/grades summarize current evidence agreement only; they are not empirical probabilities.
+// =============================================================================
+f_recent(bool event, int bars) =>
+    int since = ta.barssince(event)
+    not na(since) and since <= bars
+
+recentBullStructure = f_recent(validBullCHoCH or bullishBOS or bullShift, 15)
+recentBearStructure = f_recent(validBearCHoCH or bearishBOS or bearShift, 15)
+recentBullLiquidity = f_recent(bullSweep, 5)
+recentBearLiquidity = f_recent(bearSweep, 5)
+recentBullFVG = f_recent(bullFvgTapThisBar, 3)
+recentBearFVG = f_recent(bearFvgTapThisBar, 3)
+// Provisional conservative Breaker freshness. This is lifecycle separation, not optimized tuning.
+// The location may persist visually after this evidence window expires.
+int breakerFreshBars = 3
+recentBullBreakerRetest = f_recent(bullBkrTappedThisBar, breakerFreshBars)
+recentBearBreakerRetest = f_recent(bearBkrTappedThisBar, breakerFreshBars)
+recentBullTrendlinePressure = f_recent(bearTrendlineBroken, 3)
+recentBearTrendlinePressure = f_recent(bullTrendlineBroken, 3)
+
+// Independent evidence families: STRUCTURE, LIQUIDITY, LOCATION, IMBALANCE,
+// DIRECTIONAL PRESSURE, MTF, TRENDLINE.
+// LOCATION caps HTF zone + OTE retracement context + fresh Breaker reaction evidence,
+// so overlapping location labels cannot masquerade as independent directional votes.
+// FVG remains a single IMBALANCE family contribution and is not added a second time as LOCATION.
+float structureMax = wStructure
+float liquidityMax = enableLiquiditySweep ? wLiquidity : 0
+float zoneAvailableWeight = enableHTFZones ? wZone : 0
+float oteAvailableWeight = enableAutoFib ? wOTE : 0
+float breakerAvailableWeight = enableHTFZones and enableBreakerBlocks ? wBreaker : 0
+float locationMax = math.max(zoneAvailableWeight, math.max(oteAvailableWeight, breakerAvailableWeight))
+float imbalanceMax = enableFVG ? wFVG : 0
+float trendMax = wTrend
+float mtfMax = enableMTFScanner ? wMTF : 0
+float trendlineMax = wTrendline
+float availableScoreWeight =
+     structureMax + liquidityMax + locationMax + imbalanceMax + trendMax + mtfMax + trendlineMax
+
+float bullStructureEarn = recentBullStructure ? wStructure : 0
+float bearStructureEarn = recentBearStructure ? wStructure : 0
+float bullLiquidityEarn = recentBullLiquidity ? wLiquidity : 0
+float bearLiquidityEarn = recentBearLiquidity ? wLiquidity : 0
+
+// OTE is retracement/location context only. It has no standalone score family.
+float bullLocationRaw =
+     (bullOBNear ? wZone : 0) +
+     (priceInOTE and impulseDir == 1 ? wOTE : 0) +
+     (bullBkrNear and recentBullBreakerRetest ? wBreaker : 0)
+float bearLocationRaw =
+     (bearOBNear ? wZone : 0) +
+     (priceInOTE and impulseDir == -1 ? wOTE : 0) +
+     (bearBkrNear and recentBearBreakerRetest ? wBreaker : 0)
+
+float bullLocationEarn = math.min(locationMax, bullLocationRaw)
+float bearLocationEarn = math.min(locationMax, bearLocationRaw)
+float bullImbalanceEarn = recentBullFVG ? wFVG : 0
+float bearImbalanceEarn = recentBearFVG ? wFVG : 0
+float bullTrendEarn = wTrend * bullTrendPressurePct / 100.0
+float bearTrendEarn = wTrend * bearTrendPressurePct / 100.0
+float bullMtfEarn = enableMTFScanner ? wMTF * mtfBullPct / 100.0 : 0
+float bearMtfEarn = enableMTFScanner ? wMTF * mtfBearPct / 100.0 : 0
+float bullTrendlineEarn = recentBullTrendlinePressure ? wTrendline : 0
+float bearTrendlineEarn = recentBearTrendlinePressure ? wTrendline : 0
+
+bullScore = enableConfluence and availableScoreWeight > 0 ?
+     100.0 * (bullStructureEarn + bullLiquidityEarn + bullLocationEarn +
+              bullImbalanceEarn + bullTrendEarn + bullMtfEarn + bullTrendlineEarn) /
+              availableScoreWeight : 0.0
+
+bearScore = enableConfluence and availableScoreWeight > 0 ?
+     100.0 * (bearStructureEarn + bearLiquidityEarn + bearLocationEarn +
+              bearImbalanceEarn + bearTrendEarn + bearMtfEarn + bearTrendlineEarn) /
+              availableScoreWeight : 0.0
+
+f_grade(float s) =>
+    // Agreement tiers only: NO SETUP=insufficient, C=limited, B=meaningful,
+    // A=strong multi-family agreement, S=exceptionally broad agreement.
+    s < 35 ? "NO SETUP" :
+     s < 50 ? "C" :
+     s < 65 ? "B" :
+     s < 80 ? "A" : "S"
+
+f_gradeRank(string grade) =>
+    grade == "S" ? 4 :
+     grade == "A" ? 3 :
+     grade == "B" ? 2 :
+     grade == "C" ? 1 : 0
+
+bullGrade = f_grade(bullScore)
+bearGrade = f_grade(bearScore)
+conflicted = bullScore >= 50 and bearScore >= 50
+
+bullSetup = not conflicted and f_gradeRank(bullGrade) >= f_gradeRank(minGradeForAlerts)
+bearSetup = not conflicted and f_gradeRank(bearGrade) >= f_gradeRank(minGradeForAlerts)
+bullSetupNew = bullSetup and not bullSetup[1]
+bearSetupNew = bearSetup and not bearSetup[1]
+
+// =============================================================================
+// EMA CONTEXT SIGNALS + EARLY HINTS
+// =============================================================================
+fastLen =
+     useAutoEMA ?
+         (timeframe.isintraday and timeframe.multiplier <= 5 ? 9 :
+          timeframe.isintraday and timeframe.multiplier <= 60 ? 21 : 34) :
+         manualFastEMA
+
+slowLen =
+     useAutoEMA ?
+         (timeframe.isintraday and timeframe.multiplier <= 5 ? 21 :
+          timeframe.isintraday and timeframe.multiplier <= 60 ? 89 : 144) :
+         manualSlowEMA
+
+fastEMA = ta.ema(close, fastLen)
+slowEMA = ta.ema(close, slowLen)
+crossUp = ta.crossover(fastEMA, slowEMA)
+crossDown = ta.crossunder(fastEMA, slowEMA)
+
+var int lastBuyBar = na
+var int lastSellBar = na
+
+buySignal = enableBuySell and crossUp and bullTrendConfidence >= 50 and
+     (na(lastBuyBar) or bar_index - lastBuyBar >= signalCooldownBars)
+sellSignal = enableBuySell and crossDown and bearTrendConfidence >= 50 and
+     (na(lastSellBar) or bar_index - lastSellBar >= signalCooldownBars)
+
+if buySignal
+    lastBuyBar := bar_index
+if sellSignal
+    lastSellBar := bar_index
+
+plotshape(showTechnicalChart and buySignal,
+     "Bullish EMA Context Signal", shape.triangleup, location.belowbar,
+     color = color.lime, size = size.small, text = "LONG?")
+plotshape(showTechnicalChart and sellSignal,
+     "Bearish EMA Context Signal", shape.triangledown, location.abovebar,
+     color = color.red, size = size.small, text = "SHORT?")
+
+earlyRSI = ta.rsi(close, earlyRSILen)
+earlyVol = volume > ta.sma(volume, 20) * 1.2
+
+developingHL = enableEarlySignal and validBullCHoCH and
+     close > (high + low) / 2 and earlyRSI > earlyRSIOver and
+     (not enableEarlyVol or earlyVol)
+
+developingLH = enableEarlySignal and validBearCHoCH and
+     close < (high + low) / 2 and earlyRSI < earlyRSIUnder and
+     (not enableEarlyVol or earlyVol)
+
+plotshape(showTechnicalChart and developingHL,
+     "Developing HL", shape.labelup, location.belowbar,
+     color = color.new(color.lime, 40), text = "HL?", textcolor = color.black, size = size.tiny)
+plotshape(showTechnicalChart and developingLH,
+     "Developing LH", shape.labeldown, location.abovebar,
+     color = color.new(color.red, 40), text = "LH?", textcolor = color.white, size = size.tiny)
+
+upperWick = high - math.max(open, close)
+candleBody = math.max(math.abs(close - open), syminfo.mintick)
+rsi14 = ta.rsi(close, 14)
+var int lastEarlyTopBar = na
+
+earlyTop = enableEarlyTop and upperWick > candleBody and rsi14 > 70 and
+     (na(lastEarlyTopBar) or bar_index - lastEarlyTopBar >= earlyTopCooldownBars)
+
+if earlyTop
+    lastEarlyTopBar := bar_index
+
+plotshape(showTechnicalChart and earlyTop,
+     "Early Top?", shape.labeldown, location.abovebar,
+     color = color.new(color.orange, 30), text = "TOP?", textcolor = color.white, size = size.tiny)
+
+// =============================================================================
+// COMMUNICATION / DASHBOARD
+// =============================================================================
+edgeWho =
+     conflicted ? "No clear edge" :
+     bullScore > bearScore and bullScore >= 35 ? "Buyers" :
+     bearScore > bullScore and bearScore >= 35 ? "Sellers" :
+     "Balanced"
+
+edgeStrength =
+     conflicted ? "Conflicted" :
+     math.max(bullScore, bearScore) >= 80 ? "Very strong agreement" :
+     math.max(bullScore, bearScore) >= 65 ? "Strong agreement" :
+     math.max(bullScore, bearScore) >= 50 ? "Moderate agreement" :
+     "Limited evidence"
+
+// --------------------------------------------------------------------------
+// Communication relevance layer
+// Keeps immediate tactical guidance separate from larger structural invalidation.
+// This does NOT change structure, confluence, zones, or signal calculations.
+// --------------------------------------------------------------------------
+f_levelDistanceATR(float level) =>
+    not na(level) and atrCore > 0 ? math.abs(level - close) / atrCore : na
+
+f_relevance(float level) =>
+    float d = f_levelDistanceATR(level)
+    na(d) ? "UNKNOWN" : d <= 1.5 ? "NEAR" : d <= 4.0 ? "MODERATE" : "FAR"
+
+float bullInvalidationLevel = trendDir == "Bullish" ? structureLow : na
+float bearInvalidationLevel = trendDir == "Bearish" ? structureHigh : na
+string bullInvalidationRelevance = f_relevance(bullInvalidationLevel)
+string bearInvalidationRelevance = f_relevance(bearInvalidationLevel)
+
+bool nearbyHighLiquidity =
+     not highLiquidityConsumed and not na(activeHighLiquidity) and
+     f_levelDistanceATR(activeHighLiquidity) <= 4.0
+
+bool nearbyLowLiquidity =
+     not lowLiquidityConsumed and not na(activeLowLiquidity) and
+     f_levelDistanceATR(activeLowLiquidity) <= 4.0
+
+whatChanged =
+     validBullCHoCH ? "Seller structure was broken; bullish transition is possible." :
+     validBearCHoCH ? "Buyer structure was broken; bearish transition is possible." :
+     bullShift ? "Bullish transition gained follow-through." :
+     bearShift ? "Bearish transition gained follow-through." :
+     bullishBOS ? "Buyers broke the last important high." :
+     bearishBOS ? "Sellers broke the last important low." :
+     bullSweep ? "Liquidity below a confirmed swing was swept and reclaimed." :
+     bearSweep ? "Liquidity above a confirmed swing was swept and rejected." :
+     "No new major structural event."
+
+activeArea =
+     bullOBNear ? "Testing " + f_cleanTF(obHTF) + " buyer reaction area" :
+     bearOBNear ? "Testing " + f_cleanTF(obHTF) + " seller reaction area" :
+     bullBkrNear and recentBullBreakerRetest ? "Fresh bullish breaker retest area" :
+     bearBkrNear and recentBearBreakerRetest ? "Fresh bearish breaker retest area" :
+     bullBkrNear ? "At prior bullish breaker location" :
+     bearBkrNear ? "At prior bearish breaker location" :
+     priceInOTE ? "Price is inside the active impulse retracement area" :
+     bullFvgTapThisBar or bearFvgTapThisBar ? "Testing fast-move imbalance" :
+     "No key area being tested"
+
+bool activeDecisionArea =
+     bullOBNear or bearOBNear or bullBkrNear or bearBkrNear or
+     priceInOTE or bullFvgTapThisBar or bearFvgTapThisBar
+
+string activeAreaWatch =
+     bullOBNear ? "Watch how price reacts inside the " + f_cleanTF(obHTF) + " buyer reaction area." :
+     bearOBNear ? "Watch how price reacts inside the " + f_cleanTF(obHTF) + " seller reaction area." :
+     bullBkrNear and recentBullBreakerRetest ? "A fresh bullish breaker retest occurred; watch the reaction." :
+     bearBkrNear and recentBearBreakerRetest ? "A fresh bearish breaker retest occurred; watch the reaction." :
+     bullBkrNear ? "Price is at an older bullish breaker location; no fresh retest evidence is active." :
+     bearBkrNear ? "Price is at an older bearish breaker location; no fresh retest evidence is active." :
+     priceInOTE ? "Watch the reaction while price is inside the active impulse retracement area." :
+     bullFvgTapThisBar ? "Watch whether buyers respond after the bullish imbalance test." :
+     bearFvgTapThisBar ? "Watch whether sellers respond after the bearish imbalance test." :
+     ""
+
+whatNext =
+     activeDecisionArea ? activeAreaWatch :
+     validBullCHoCH ? "Watch for a higher low and bullish follow-through break." :
+     validBearCHoCH ? "Watch for a lower high and bearish follow-through break." :
+     trendDir == "Bullish" and bullInvalidationRelevance == "NEAR" ?
+         "Watch whether buyers hold above " + str.tostring(bullInvalidationLevel, format.mintick) + "." :
+     trendDir == "Bearish" and bearInvalidationRelevance == "NEAR" ?
+         "Watch whether sellers hold below " + str.tostring(bearInvalidationLevel, format.mintick) + "." :
+     trendDir == "Bullish" and (bullInvalidationRelevance == "MODERATE" or bullInvalidationRelevance == "FAR") ?
+         (nearbyLowLiquidity ?
+              "Watch whether nearby downside liquidity around " + str.tostring(activeLowLiquidity, format.mintick) + " is swept or reclaimed." :
+          nearbyHighLiquidity ?
+              "Watch whether buyers can challenge nearby liquidity around " + str.tostring(activeHighLiquidity, format.mintick) + "." :
+              "Watch whether this pullback forms and holds a higher low.") :
+     trendDir == "Bearish" and (bearInvalidationRelevance == "MODERATE" or bearInvalidationRelevance == "FAR") ?
+         (nearbyHighLiquidity ?
+              "Watch whether nearby upside liquidity around " + str.tostring(activeHighLiquidity, format.mintick) + " is swept or rejected." :
+          nearbyLowLiquidity ?
+              "Watch whether sellers can challenge nearby liquidity around " + str.tostring(activeLowLiquidity, format.mintick) + "." :
+              "Watch whether this bounce forms and holds a lower high.") :
+     "No nearby structural decision point — wait for price to approach structure."
+
+whatChanges =
+     trendDir == "Bullish" and not na(bullInvalidationLevel) and bullInvalidationRelevance == "NEAR" ?
+         "A close below " + str.tostring(bullInvalidationLevel, format.mintick) + " damages the bullish structure." :
+     trendDir == "Bullish" and not na(bullInvalidationLevel) ?
+         "Larger bullish structure remains intact unless price closes below " + str.tostring(bullInvalidationLevel, format.mintick) + "." :
+     trendDir == "Bearish" and not na(bearInvalidationLevel) and bearInvalidationRelevance == "NEAR" ?
+         "A close above " + str.tostring(bearInvalidationLevel, format.mintick) + " damages the bearish structure." :
+     trendDir == "Bearish" and not na(bearInvalidationLevel) ?
+         "Larger bearish structure remains intact unless price closes above " + str.tostring(bearInvalidationLevel, format.mintick) + "." :
+     "The story changes when confirmed structure breaks."
+
+controlBull = trendDir == "Bullish" and bullTrendConfidence >= 70 and bullScore >= 65 and not conflicted
+controlBear = trendDir == "Bearish" and bearTrendConfidence >= 70 and bearScore >= 65 and not conflicted
+
+marketStory =
+     controlBull and bullInvalidationRelevance == "NEAR" ?
+         "Bullish structure and current evidence are aligned, but price is near the level that would damage that structure." :
+     controlBull ?
+         "Bullish structure and current evidence are aligned. The larger invalidation is not the immediate decision point; watch the next pullback or reaction area." :
+     controlBear and bearInvalidationRelevance == "NEAR" ?
+         "Bearish structure and current evidence are aligned, but price is near the level that would damage that structure." :
+     controlBear ?
+         "Bearish structure and current evidence are aligned. The larger invalidation is not the immediate decision point; watch the next bounce or reaction area." :
+     validBullCHoCH ?
+         "Seller structure was challenged. A bullish transition is possible, but follow-through is still required." :
+     validBearCHoCH ?
+         "Buyer structure was challenged. A bearish transition is possible, but follow-through is still required." :
+     conflicted ?
+         "Current evidence is split between bullish and bearish families; agreement is not clean." :
+     "Structure is developing. Wait for a confirmed break, sweep, or reaction before assigning a directional lean."
+
+traderPosture =
+     conflicted ? "Wait — signals conflict" :
+     controlBull and activeDecisionArea ?
+         "Bullish context — watch the current reaction" :
+     controlBear and activeDecisionArea ?
+         "Bearish context — watch the current reaction" :
+     validBullCHoCH or validBearCHoCH ?
+         "Transition watch — wait for follow-through" :
+     trendDir == "Bullish" and bullInvalidationRelevance == "FAR" ?
+         "Bullish context — wait for a nearer decision point" :
+     trendDir == "Bearish" and bearInvalidationRelevance == "FAR" ?
+         "Bearish context — wait for a nearer decision point" :
+     math.max(bullScore, bearScore) < 35 ? "No setup" :
+     "Wait for cleaner confirmation"
+
+var table dash = table.new(f_pos(dashboardPosition), 2, 14,
+     border_width = 1, bgcolor = color.new(color.black, 82))
+
+f_dashRow(int row, string question, string answer, color answerColor) =>
+    table.cell(dash, 0, row, question, text_color = color.silver,
+         text_halign = text.align_left, text_size = f_tableTextSize(dashboardTextSize))
+    table.cell(dash, 1, row, answer, text_color = answerColor,
+         text_halign = text.align_left, text_size = f_tableTextSize(dashboardTextSize))
+
+if barstate.islast
+    table.clear(dash, 0, 0, 1, 13)
+    table.cell(dash, 0, 0, "MARKET READ [" + displayMode + "]",
+         text_color = color.white, bgcolor = color.new(color.navy, 20),
+         text_size = f_tableTextSize(dashboardTextSize))
+    table.cell(dash, 1, 0, "", bgcolor = color.new(color.navy, 20),
+         text_size = f_tableTextSize(dashboardTextSize))
+
+    color edgeColor =
+         edgeWho == "Buyers" ? color.lime :
+         edgeWho == "Sellers" ? color.red :
+         edgeWho == "No clear edge" ? color.orange : color.gray
+
+    // Always visible in every dashboard mode: chart / structure / reaction-zone hierarchy.
+    string tfPairingText =
+         "Chart " + f_cleanTF(timeframe.period) +
+         " | Structure " + f_cleanTF(structureHorizon) +
+         " | Reaction " + f_cleanTF(obHTF) +
+         " (" + htfMode + ")"
+
+    f_dashRow(1, "Directional lean", edgeWho + " — " + edgeStrength, edgeColor)
+    f_dashRow(2, "Timeframe pairing", tfPairingText, color.aqua)
+    f_dashRow(3, "What changed?", whatChanged, color.yellow)
+    f_dashRow(4, "What matters next?", whatNext, color.aqua)
+    f_dashRow(5, "What changes the story?", whatChanges, color.orange)
+    f_dashRow(6, "Best posture?", traderPosture, edgeColor)
+
+    if showExplanations
+        f_dashRow(7, "Market story", marketStory, color.white)
+
+    if isTrader or isDiagnostic
+        f_dashRow(8, "Area that matters?", activeArea, color.white)
+        f_dashRow(9, "Confluence tier",
+             "Bull " + str.tostring(bullScore, "#") + "/100 " + bullGrade +
+             " | Bear " + str.tostring(bearScore, "#") + "/100 " + bearGrade,
+             conflicted ? color.orange : edgeColor)
+        f_dashRow(10, "Directional agreement",
+             "Bull " + str.tostring(bullTrendConfidence, "#") +
+             "% | Bear " + str.tostring(bearTrendConfidence, "#") + "%",
+             color.white)
+
+    if isDiagnostic
+        f_dashRow(11, "Raw structure",
+             trendDir + " | H " + str.tostring(structureHigh, format.mintick) +
+             " | L " + str.tostring(structureLow, format.mintick),
+             color.silver)
+        f_dashRow(12, "HTF zone source",
+             f_cleanTF(obHTF) + " pivot-candle reaction zones", color.silver)
+        f_dashRow(13, "MTF EMA bias",
+             str.tostring(mtfBias1) + " / " +
+             str.tostring(mtfBias2) + " / " +
+             str.tostring(mtfBias3), color.silver)
+
+// =============================================================================
+// ALERTS — event / transition based
+// =============================================================================
+alertcondition(validBullCHoCH,
+     title = "Bullish CHoCH",
+     message = "Bullish CHoCH on {{ticker}}: seller structure was broken; transition is possible.")
+
+alertcondition(validBearCHoCH,
+     title = "Bearish CHoCH",
+     message = "Bearish CHoCH on {{ticker}}: buyer structure was broken; transition is possible.")
+
+alertcondition(bullishBOS,
+     title = "Bullish BOS",
+     message = "Bullish BOS on {{ticker}}: buyers closed above the last important structural high.")
+
+alertcondition(bearishBOS,
+     title = "Bearish BOS",
+     message = "Bearish BOS on {{ticker}}: sellers closed below the last important structural low.")
+
+alertcondition(bullShift,
+     title = "Bullish Structure Shift",
+     message = "Bullish structure shift confirmed on {{ticker}} after CHoCH and follow-through BOS.")
+
+alertcondition(bearShift,
+     title = "Bearish Structure Shift",
+     message = "Bearish structure shift confirmed on {{ticker}} after CHoCH and follow-through BOS.")
+
+alertcondition(bullSweep,
+     title = "Bullish Liquidity Sweep",
+     message = "Liquidity below a confirmed swing was swept and reclaimed on {{ticker}}.")
+
+alertcondition(bearSweep,
+     title = "Bearish Liquidity Sweep",
+     message = "Liquidity above a confirmed swing was swept and rejected on {{ticker}}.")
+
+alertcondition(bullFvgTapThisBar,
+     title = "Bullish FVG First Touch",
+     message = "Price first touched a bullish FVG on {{ticker}}.")
+
+alertcondition(bearFvgTapThisBar,
+     title = "Bearish FVG First Touch",
+     message = "Price first touched a bearish FVG on {{ticker}}.")
+
+alertcondition(bullZoneTouchThisBar,
+     title = "Bull HTF Reaction Zone Touch",
+     message = "Price entered or touched a bullish higher-timeframe reaction area on {{ticker}}.")
+
+alertcondition(bearZoneTouchThisBar,
+     title = "Bear HTF Reaction Zone Touch",
+     message = "Price entered or touched a bearish higher-timeframe reaction area on {{ticker}}.")
+
+alertcondition(newBullZoneViolation,
+     title = "Bull HTF Reaction Zone Violated",
+     message = "A bullish HTF reaction zone was closed through on {{ticker}}.")
+
+alertcondition(newBearZoneViolation,
+     title = "Bear HTF Reaction Zone Violated",
+     message = "A bearish HTF reaction zone was closed through on {{ticker}}.")
+
+alertcondition(newBullBreaker,
+     title = "Bull Breaker Created",
+     message = "A violated bearish HTF reaction zone flipped to a bullish breaker candidate on {{ticker}}.")
+
+alertcondition(newBearBreaker,
+     title = "Bear Breaker Created",
+     message = "A violated bullish HTF reaction zone flipped to a bearish breaker candidate on {{ticker}}.")
+
+alertcondition(bullBkrTappedThisBar,
+     title = "Bull Breaker Retest",
+     message = "Price retested a bullish flipped area on {{ticker}}.")
+
+alertcondition(bearBkrTappedThisBar,
+     title = "Bear Breaker Retest",
+     message = "Price retested a bearish flipped area on {{ticker}}.")
+
+alertcondition(bullTrendlineBroken,
+     title = "Bull Trendline Broken",
+     message = "Price broke below the active bullish swing trendline on {{ticker}}.")
+
+alertcondition(bearTrendlineBroken,
+     title = "Bear Trendline Broken",
+     message = "Price broke above the active bearish swing trendline on {{ticker}}.")
+
+alertcondition(alertOnOTETouch and oteEnteredThisBar,
+     title = "OTE Zone Entry",
+     message = "Price entered the active impulse retracement area on {{ticker}}.")
+
+alertcondition(alertOnTP1Hit and tp1Hit,
+     title = "TP1 Reference Hit",
+     message = "Price reached the 1.272 reference extension on {{ticker}}.")
+
+alertcondition(alertOnTP2Hit and tp2Hit,
+     title = "TP2 Reference Hit",
+     message = "Price reached the 1.618 reference extension on {{ticker}}.")
+
+alertcondition(tripleBullish and not tripleBullish[1],
+     title = "Triple Bullish MTF",
+     message = "Three selected MTF EMA contexts turned bullish on {{ticker}}.")
+
+alertcondition(tripleBearish and not tripleBearish[1],
+     title = "Triple Bearish MTF",
+     message = "Three selected MTF EMA contexts turned bearish on {{ticker}}.")
+
+alertcondition(bullSetupNew,
+     title = "Bull Setup Grade Transition",
+     message = "Bullish evidence agreement crossed the selected confluence-grade threshold on {{ticker}}.")
+
+alertcondition(bearSetupNew,
+     title = "Bear Setup Grade Transition",
+     message = "Bearish evidence agreement crossed the selected confluence-grade threshold on {{ticker}}.")
+
+alertcondition(buySignal,
+     title = "Bullish EMA Context Signal",
+     message = "Bullish EMA cross occurred with supporting directional context on {{ticker}}.")
+
+alertcondition(sellSignal,
+     title = "Bearish EMA Context Signal",
+     message = "Bearish EMA cross occurred with supporting directional context on {{ticker}}.")
+
+// =============================================================================
+// END
+// =============================================================================

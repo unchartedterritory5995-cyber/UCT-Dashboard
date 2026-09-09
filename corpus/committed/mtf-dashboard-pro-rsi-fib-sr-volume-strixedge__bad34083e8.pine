@@ -1,0 +1,693 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © StrixEDGE
+
+//@version=6
+indicator("MTF Dashboard Pro | RSI • Fib • S/R • Volume [StrixEDGE]", overlay = true, max_bars_back = 500)
+
+// ══════════════════════════════════════════════════════════════════════
+//  MTF DASHBOARD PRO
+// ══════════════════════════════════════════════════════════════════════
+//
+//  Multi-Timeframe analysis dashboard combining 4 independent signals:
+//  RSI momentum, Fibonacci Golden Zone, Support/Resistance positioning,
+//  and Volume confirmation across 15M, 1H, 4H, and 1D timeframes.
+//
+//  LONG signal  → all conditions align bullish (configurable threshold)
+//  SHORT signal → all conditions align bearish (configurable threshold)
+//
+// ══════════════════════════════════════════════════════════════════════
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                         INPUTS                                  │
+// └─────────────────────────────────────────────────────────────────┘
+
+// ── Table Settings ──────────────────────────────────────────────────
+var GRP_TABLE = "⚙️ Table Display"
+i_tblPos = input.string("Top Right", "📍 Position", 
+     options = ["Top Left", "Top Center", "Top Right", "Middle Left", "Middle Center", "Middle Right", "Bottom Left", "Bottom Center", "Bottom Right"], 
+     group = GRP_TABLE,
+     tooltip = "Where the dashboard appears on your chart")
+
+i_tblSize = input.string("Normal", "🔤 Text Size", 
+     options = ["Tiny", "Small", "Normal", "Large"], 
+     group = GRP_TABLE,
+     tooltip = "Controls the overall size of the dashboard table")
+
+// ── Indicator Parameters ────────────────────────────────────────────
+var GRP_IND = "📈 Indicator Settings"
+i_rsiLen = input.int(14, "RSI Period", 
+     minval = 2, maxval = 100, 
+     group = GRP_IND,
+     tooltip = "Standard RSI period. Default 14 is the most widely used")
+
+i_lkb = input.int(20, "S/R & Golden Zone Lookback (Bars)", 
+     minval = 5, maxval = 500, 
+     group = GRP_IND,
+     tooltip = "Number of candles used to find the highest high (Resistance) and lowest low (Support). Golden Zone (Fib 0.618–0.786) is derived from this range")
+
+i_volLen = input.int(20, "Volume SMA Period", 
+     minval = 2, maxval = 200, 
+     group = GRP_IND,
+     tooltip = "Moving average period for volume comparison. Volume above this average = confirmation")
+
+// ── Signal Logic ────────────────────────────────────────────────────
+var GRP_SIG = "🎯 Signal Logic"
+i_minCond = input.int(4, "Minimum Conditions for Signal", 
+     minval = 1, maxval = 4, 
+     group = GRP_SIG,
+     tooltip = "How many of the 4 conditions (RSI, Golden Zone, S/R Position, Volume) must align for a LONG or SHORT signal. Default 4 = all must agree")
+
+
+// ── Chart Overlay ───────────────────────────────────────────────────
+var GRP_CHART = "🖊️ Chart Lines"
+i_showChart = input.bool(true, "Show S/R & Golden Zone on Chart", 
+     group = GRP_CHART,
+     tooltip = "Toggle visibility of Support, Resistance and Golden Zone lines on the price chart")
+
+i_plotTF = input.string("Current", "Timeframe to Plot", 
+     options = ["Current", "15 MIN", "1 HOUR", "4 HOUR", "DAILY"], 
+     group = GRP_CHART,
+     tooltip = "Which timeframe's levels to draw on the chart. 'Current' uses the chart's own timeframe")
+
+i_supColor = input.color(color.rgb(38, 166, 154), "Support Color", group = GRP_CHART)
+i_resColor = input.color(color.rgb(239, 83, 80), "Resistance Color", group = GRP_CHART)
+i_gzColor  = input.color(color.rgb(210, 190, 60), "Golden Zone Color", group = GRP_CHART)
+i_lineWidth = input.int(2, "Line Width", minval = 1, maxval = 4, group = GRP_CHART)
+i_lineStyle = input.string("Solid", "Line Style", 
+     options = ["Solid", "Dashed", "Dotted"], 
+     group = GRP_CHART)
+i_showLabels = input.bool(true, "Show Price Labels", 
+     group = GRP_CHART,
+     tooltip = "Show price labels at the right edge of each level")
+i_gzFill = input.bool(true, "Fill Golden Zone", 
+     group = GRP_CHART,
+     tooltip = "Shade the area between 0.618 and 0.786 levels")
+i_gzFillTransp = input.int(88, "Golden Zone Fill Transparency", 
+     minval = 50, maxval = 98, 
+     group = GRP_CHART)
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                    COLOR PALETTE                                │
+// └─────────────────────────────────────────────────────────────────┘
+var color C_TITLE_BG   = color.rgb(8, 10, 18)
+var color C_TITLE_TXT  = color.rgb(220, 225, 235)
+var color C_HDR_BG     = color.rgb(16, 20, 32)
+var color C_HDR_TXT    = color.rgb(140, 145, 160)
+var color C_LABEL_BG   = color.rgb(20, 24, 38)
+var color C_LABEL_TXT  = color.rgb(185, 190, 205)
+var color C_BULL_BG    = color.rgb(20, 50, 38)
+var color C_BULL_TXT   = color.rgb(38, 166, 154)
+var color C_BEAR_BG    = color.rgb(55, 22, 22)
+var color C_BEAR_TXT   = color.rgb(239, 83, 80)
+var color C_NEUT_BG    = color.rgb(35, 38, 50)
+var color C_NEUT_TXT   = color.rgb(120, 123, 134)
+var color C_DATA_BG    = color.rgb(24, 28, 42)
+var color C_DATA_TXT   = color.rgb(200, 205, 215)
+var color C_SIG_LONG   = color.rgb(38, 166, 154)
+var color C_SIG_SHORT  = color.rgb(239, 83, 80)
+var color C_SIG_NEUT   = color.rgb(50, 54, 68)
+var color C_WHITE      = color.rgb(255, 255, 255)
+var color C_SEP        = color.rgb(12, 14, 22)
+var color C_GZ_ZONE_BG = color.rgb(40, 45, 20)
+var color C_GZ_ZONE_TX = color.rgb(210, 190, 60)
+var color C_ACCENT     = color.rgb(100, 120, 255)
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                    HELPER FUNCTIONS                              │
+// └─────────────────────────────────────────────────────────────────┘
+
+// Table position mapper
+f_pos() =>
+    switch i_tblPos
+        "Top Left"      => position.top_left
+        "Top Center"    => position.top_center
+        "Top Right"     => position.top_right
+        "Middle Left"   => position.middle_left
+        "Middle Center" => position.middle_center
+        "Middle Right"  => position.middle_right
+        "Bottom Left"   => position.bottom_left
+        "Bottom Center" => position.bottom_center
+        =>                 position.bottom_right
+
+// Text size mapper
+f_size() =>
+    switch i_tblSize
+        "Tiny"  => size.tiny
+        "Small" => size.small
+        "Large" => size.large
+        =>         size.normal
+
+// Format volume with K/M/B suffix
+f_vol(float v) =>
+    string result = na(v) ? "N/A" : v >= 1e9 ? str.tostring(v / 1e9, "#.##") + "B" : v >= 1e6 ? str.tostring(v / 1e6, "#.##") + "M" : v >= 1e3 ? str.tostring(v / 1e3, "#.##") + "K" : str.tostring(v, "#.##")
+    result
+
+// Format price adaptively
+f_price(float p) =>
+    string result = na(p) ? "—" : p >= 10000 ? str.tostring(p, "#.##") : p >= 100 ? str.tostring(p, "#.###") : p >= 1 ? str.tostring(p, "#.####") : p >= 0.01 ? str.tostring(p, "#.######") : str.tostring(p, "#.########")
+    result
+
+// ── Color/text helpers for table cells ──────────────────────────────
+
+// RSI
+f_rsiClr(float v) =>
+    v > 50 ? C_BULL_TXT : v < 50 ? C_BEAR_TXT : C_NEUT_TXT
+
+f_rsiBg(float v) =>
+    v > 50 ? C_BULL_BG : v < 50 ? C_BEAR_BG : C_NEUT_BG
+
+// Golden Zone
+f_gzStatus(float _c, float _gzl, float _gzh) =>
+    _c > _gzh ? "▲ ABOVE" : _c >= _gzl ? "◆ IN ZONE" : "▼ BELOW"
+
+f_gzClr(float _c, float _gzl, float _gzh) =>
+    _c > _gzh ? C_BULL_TXT : _c >= _gzl ? C_GZ_ZONE_TX : C_BEAR_TXT
+
+f_gzBg(float _c, float _gzl, float _gzh) =>
+    _c > _gzh ? C_BULL_BG : _c >= _gzl ? C_GZ_ZONE_BG : C_BEAR_BG
+
+// Support / Resistance position
+f_srClr(float _c, float _m) =>
+    _c > _m ? C_BULL_TXT : _c < _m ? C_BEAR_TXT : C_NEUT_TXT
+
+f_srBg(float _c, float _m) =>
+    _c > _m ? C_BULL_BG : _c < _m ? C_BEAR_BG : C_NEUT_BG
+
+f_srTxt(float _c, float _m) =>
+    _c > _m ? "▲ BULLISH" : _c < _m ? "▼ BEARISH" : "— NEUTRAL"
+
+// Volume
+f_volClr(float _v, float _a) =>
+    _v > _a ? C_BULL_TXT : C_NEUT_TXT
+
+f_volBg(float _v, float _a) =>
+    _v > _a ? C_BULL_BG : C_NEUT_BG
+
+// Signal
+f_sigTxt(int s) =>
+    s == 1 ? "LONG  ▲" : s == -1 ? "SHORT  ▼" : "NEUTRAL  —"
+
+f_sigClr(int s) =>
+    s == 1 ? C_WHITE : s == -1 ? C_WHITE : C_NEUT_TXT
+
+f_sigBg(int s) =>
+    s == 1 ? C_SIG_LONG : s == -1 ? C_SIG_SHORT : C_SIG_NEUT
+
+// Score
+f_scoreTxt(int b, int s) =>
+    b >= s ? str.tostring(b) + "/4 BULL" : str.tostring(s) + "/4 BEAR"
+
+f_scoreClr(int b, int s) =>
+    b > s ? C_BULL_TXT : s > b ? C_BEAR_TXT : C_NEUT_TXT
+
+f_scoreBg(int b, int s) =>
+    b > s ? C_BULL_BG : s > b ? C_BEAR_BG : C_NEUT_BG
+
+// Condition detail string
+f_condStr(float rsi, float _c, float _gzl, float _m, float _v, float _a) =>
+    string s1 = rsi > 50   ? "✓" : "✗"
+    string s2 = _c >= _gzl ? "✓" : "✗"
+    string s3 = _c > _m    ? "✓" : "✗"
+    string s4 = _v > _a    ? "✓" : "✗"
+    s1 + "  " + s2 + "  " + s3 + "  " + s4
+
+// Bull/Bear count
+f_bullCount(float rsi, float _c, float _gzl, float _m, float _v, float _av) =>
+    int count = 0
+    count += rsi > 50   ? 1 : 0
+    count += _c >= _gzl  ? 1 : 0
+    count += _c > _m     ? 1 : 0
+    count += _v > _av    ? 1 : 0
+    count
+
+f_bearCount(float rsi, float _c, float _gzl, float _m, float _v, float _av) =>
+    int count = 0
+    count += rsi < 50   ? 1 : 0
+    count += _c < _gzl   ? 1 : 0
+    count += _c < _m     ? 1 : 0
+    count += _v > _av    ? 1 : 0
+    count
+
+
+// Line style mapper
+f_lineStyle() =>
+    switch i_lineStyle
+        "Dashed" => line.style_dashed
+        "Dotted" => line.style_dotted
+        =>          line.style_solid
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │              CORE CALCULATIONS (Current TF)                     │
+// └─────────────────────────────────────────────────────────────────┘
+_rsi    = ta.rsi(close, i_rsiLen)
+_hi     = ta.highest(high, i_lkb)
+_lo     = ta.lowest(low, i_lkb)
+_rng    = _hi - _lo
+_gz_lo  = _lo + _rng * 0.618
+_gz_hi  = _lo + _rng * 0.786
+_mid    = (_hi + _lo) / 2.0
+_volU   = volume * close
+_avgV   = ta.sma(_volU, i_volLen)
+_hi_off = float(ta.highestbars(high, i_lkb))
+_lo_off = float(ta.lowestbars(low, i_lkb))
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                 MULTI-TIMEFRAME DATA                            │
+// └─────────────────────────────────────────────────────────────────┘
+// 15-Minute
+[r1, hi1, lo1, gl1, gh1, mid1, vol1, avg1, c1, hoff1, loff1] = request.security(syminfo.tickerid, "15",  [_rsi, _hi, _lo, _gz_lo, _gz_hi, _mid, _volU, _avgV, close, _hi_off, _lo_off])
+
+// 1-Hour
+[r2, hi2, lo2, gl2, gh2, mid2, vol2, avg2, c2, hoff2, loff2] = request.security(syminfo.tickerid, "60",  [_rsi, _hi, _lo, _gz_lo, _gz_hi, _mid, _volU, _avgV, close, _hi_off, _lo_off])
+
+// 4-Hour
+[r3, hi3, lo3, gl3, gh3, mid3, vol3, avg3, c3, hoff3, loff3] = request.security(syminfo.tickerid, "240", [_rsi, _hi, _lo, _gz_lo, _gz_hi, _mid, _volU, _avgV, close, _hi_off, _lo_off])
+
+// Daily
+[r4, hi4, lo4, gl4, gh4, mid4, vol4, avg4, c4, hoff4, loff4] = request.security(syminfo.tickerid, "1D",  [_rsi, _hi, _lo, _gz_lo, _gz_hi, _mid, _volU, _avgV, close, _hi_off, _lo_off])
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                     SIGNAL ENGINE                               │
+// └─────────────────────────────────────────────────────────────────┘
+
+// Calculate scores per timeframe
+bc1 = f_bullCount(r1, c1, gl1, mid1, vol1, avg1)
+sc1 = f_bearCount(r1, c1, gl1, mid1, vol1, avg1)
+bc2 = f_bullCount(r2, c2, gl2, mid2, vol2, avg2)
+sc2 = f_bearCount(r2, c2, gl2, mid2, vol2, avg2)
+bc3 = f_bullCount(r3, c3, gl3, mid3, vol3, avg3)
+sc3 = f_bearCount(r3, c3, gl3, mid3, vol3, avg3)
+bc4 = f_bullCount(r4, c4, gl4, mid4, vol4, avg4)
+sc4 = f_bearCount(r4, c4, gl4, mid4, vol4, avg4)
+
+// Final signals:  1 = LONG | -1 = SHORT | 0 = NEUTRAL
+sig1 = bc1 >= i_minCond ? 1 : sc1 >= i_minCond ? -1 : 0
+sig2 = bc2 >= i_minCond ? 1 : sc2 >= i_minCond ? -1 : 0
+sig3 = bc3 >= i_minCond ? 1 : sc3 >= i_minCond ? -1 : 0
+sig4 = bc4 >= i_minCond ? 1 : sc4 >= i_minCond ? -1 : 0
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │               CHART OVERLAY — S/R & GOLDEN ZONE                 │
+// └─────────────────────────────────────────────────────────────────┘
+
+// Select which TF's levels + offsets to plot
+plot_hi    = i_plotTF == "15 MIN" ? hi1 : i_plotTF == "1 HOUR" ? hi2 : i_plotTF == "4 HOUR" ? hi3 : i_plotTF == "DAILY" ? hi4 : _hi
+plot_lo    = i_plotTF == "15 MIN" ? lo1 : i_plotTF == "1 HOUR" ? lo2 : i_plotTF == "4 HOUR" ? lo3 : i_plotTF == "DAILY" ? lo4 : _lo
+plot_gz_lo = i_plotTF == "15 MIN" ? gl1 : i_plotTF == "1 HOUR" ? gl2 : i_plotTF == "4 HOUR" ? gl3 : i_plotTF == "DAILY" ? gl4 : _gz_lo
+plot_gz_hi = i_plotTF == "15 MIN" ? gh1 : i_plotTF == "1 HOUR" ? gh2 : i_plotTF == "4 HOUR" ? gh3 : i_plotTF == "DAILY" ? gh4 : _gz_hi
+plot_hi_off = i_plotTF == "15 MIN" ? hoff1 : i_plotTF == "1 HOUR" ? hoff2 : i_plotTF == "4 HOUR" ? hoff3 : i_plotTF == "DAILY" ? hoff4 : _hi_off
+plot_lo_off = i_plotTF == "15 MIN" ? loff1 : i_plotTF == "1 HOUR" ? loff2 : i_plotTF == "4 HOUR" ? loff3 : i_plotTF == "DAILY" ? loff4 : _lo_off
+
+// TF scaling factor: convert HTF bar offsets → chart bar offsets
+chart_secs = timeframe.in_seconds()
+tf_secs    = i_plotTF == "15 MIN" ? 900 : i_plotTF == "1 HOUR" ? 3600 : i_plotTF == "4 HOUR" ? 14400 : i_plotTF == "DAILY" ? 86400 : chart_secs
+tf_scale   = math.max(tf_secs / chart_secs, 1)
+
+// S/R zone band thickness (subtle zone around the level)
+atr14       = ta.atr(14)
+zone_band   = atr14 * 0.15
+
+
+// ── Draw everything on the last bar ─────────────────────────────────
+if barstate.islast and i_showChart
+
+    lnStyle = f_lineStyle()
+    int bi  = bar_index
+    int gz_right = bi + 20
+
+    // ── Calculate S/R start bars (where the actual high/low occurred) ──
+    int res_start = bi + int(plot_hi_off * tf_scale)
+    int sup_start = bi + int(plot_lo_off * tf_scale)
+    int sr_right  = bi + 5
+
+    // ════════════════════════════════════════════════════════════════
+    //  STRONG RESISTANCE — line from zone origin to current + extension
+    // ════════════════════════════════════════════════════════════════
+    var line  ln_res     = na
+    var box   bx_res     = na
+    var label lbl_res    = na
+    var label lbl_res_px = na
+    line.delete(ln_res)
+    box.delete(bx_res)
+    label.delete(lbl_res)
+    label.delete(lbl_res_px)
+
+    // Main resistance line
+    ln_res := line.new(res_start, plot_hi, sr_right, plot_hi, 
+         color = i_resColor, width = i_lineWidth, style = lnStyle)
+    
+    // Subtle resistance zone band
+    bx_res := box.new(res_start, plot_hi + zone_band, sr_right, plot_hi - zone_band, 
+         border_color = color.new(i_resColor, 85), border_width = 0,
+         bgcolor = color.new(i_resColor, 90))
+    
+    // Tag label at origin
+    lbl_res := label.new(res_start, plot_hi + zone_band, "▼ RES", 
+         style = label.style_label_down, color = color.new(i_resColor, 60), 
+         textcolor = C_WHITE, size = size.tiny)
+    
+    // Price label at right edge
+    if i_showLabels
+        lbl_res_px := label.new(sr_right + 1, plot_hi, f_price(plot_hi), 
+             style = label.style_label_left, color = color.new(i_resColor, 70), 
+             textcolor = i_resColor, size = size.small)
+
+
+    // ════════════════════════════════════════════════════════════════
+    //  STRONG SUPPORT — line from zone origin to current + extension
+    // ════════════════════════════════════════════════════════════════
+    var line  ln_sup     = na
+    var box   bx_sup     = na
+    var label lbl_sup    = na
+    var label lbl_sup_px = na
+    line.delete(ln_sup)
+    box.delete(bx_sup)
+    label.delete(lbl_sup)
+    label.delete(lbl_sup_px)
+
+    // Main support line
+    ln_sup := line.new(sup_start, plot_lo, sr_right, plot_lo, 
+         color = i_supColor, width = i_lineWidth, style = lnStyle)
+    
+    // Subtle support zone band
+    bx_sup := box.new(sup_start, plot_lo + zone_band, sr_right, plot_lo - zone_band, 
+         border_color = color.new(i_supColor, 85), border_width = 0,
+         bgcolor = color.new(i_supColor, 90))
+    
+    // Tag label at origin
+    lbl_sup := label.new(sup_start, plot_lo - zone_band, "▲ SUP", 
+         style = label.style_label_up, color = color.new(i_supColor, 60), 
+         textcolor = C_WHITE, size = size.tiny)
+    
+    // Price label at right edge
+    if i_showLabels
+        lbl_sup_px := label.new(sr_right + 1, plot_lo, f_price(plot_lo), 
+             style = label.style_label_left, color = color.new(i_supColor, 70), 
+             textcolor = i_supColor, size = size.small)
+
+
+    // ════════════════════════════════════════════════════════════════
+    //  GOLDEN ZONE — box projecting 20 bars to the right only
+    // ════════════════════════════════════════════════════════════════
+    var box   bx_gz      = na
+    var line  ln_gz_top  = na
+    var line  ln_gz_bot  = na
+    var line  ln_gz_mid  = na
+    var label lbl_gz_top = na
+    var label lbl_gz_bot = na
+    var label lbl_gz_tag = na
+    box.delete(bx_gz)
+    line.delete(ln_gz_top)
+    line.delete(ln_gz_bot)
+    line.delete(ln_gz_mid)
+    label.delete(lbl_gz_top)
+    label.delete(lbl_gz_bot)
+    label.delete(lbl_gz_tag)
+
+    // Filled golden zone box
+    if i_gzFill
+        bx_gz := box.new(bi, plot_gz_hi, gz_right, plot_gz_lo, 
+             border_color = color.new(i_gzColor, 40), border_width = 1, border_style = line.style_dashed,
+             bgcolor = color.new(i_gzColor, i_gzFillTransp))
+
+    // Top border (0.786)
+    ln_gz_top := line.new(bi, plot_gz_hi, gz_right, plot_gz_hi, 
+         color = i_gzColor, width = 1, style = line.style_dashed)
+
+    // Bottom border (0.618)
+    ln_gz_bot := line.new(bi, plot_gz_lo, gz_right, plot_gz_lo, 
+         color = i_gzColor, width = 1, style = line.style_dashed)
+
+    // Midline (0.702) — dotted
+    float gz_mid = (plot_gz_lo + plot_gz_hi) / 2
+    ln_gz_mid := line.new(bi, gz_mid, gz_right, gz_mid, 
+         color = color.new(i_gzColor, 50), width = 1, style = line.style_dotted)
+
+    // Labels on the right edge
+    if i_showLabels
+        lbl_gz_top := label.new(gz_right + 1, plot_gz_hi, "0.786  " + f_price(plot_gz_hi), 
+             style = label.style_label_left, color = color.new(i_gzColor, 70), 
+             textcolor = i_gzColor, size = size.small)
+
+        lbl_gz_bot := label.new(gz_right + 1, plot_gz_lo, "0.618  " + f_price(plot_gz_lo), 
+             style = label.style_label_left, color = color.new(i_gzColor, 70), 
+             textcolor = i_gzColor, size = size.small)
+
+    // "GOLDEN ZONE" tag centered in the box
+    lbl_gz_tag := label.new(bi + 10, gz_mid, "GOLDEN ZONE", 
+         style = label.style_label_center, color = color.rgb(0, 0, 0, 100), 
+         textcolor = color.new(i_gzColor, 20), size = size.small)
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                    TABLE CONSTRUCTION                           │
+// └─────────────────────────────────────────────────────────────────┘
+
+var COLS = 5
+var ROWS = 13
+
+var tbl = table.new(f_pos(), COLS, ROWS, 
+     bgcolor      = C_DATA_BG, 
+     frame_width  = 2, 
+     frame_color  = C_SEP, 
+     border_width = 1, 
+     border_color = C_SEP)
+
+if barstate.islast
+
+    txtSz = f_size()
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 0 — TITLE
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 0, "⚡  MTF DASHBOARD PRO StrixEDGE", 
+         text_color = C_ACCENT, bgcolor = C_TITLE_BG, 
+         text_halign = text.align_center, text_size = txtSz)
+    tbl.cell(1, 0, "", bgcolor = C_TITLE_BG)
+    tbl.cell(2, 0, "", bgcolor = C_TITLE_BG)
+    tbl.cell(3, 0, "", bgcolor = C_TITLE_BG)
+    tbl.cell(4, 0, syminfo.ticker + "  |  RSI " + str.tostring(i_rsiLen) + "  |  LB " + str.tostring(i_lkb), 
+         text_color = C_HDR_TXT, bgcolor = C_TITLE_BG, 
+         text_halign = text.align_center, text_size = txtSz)
+    tbl.merge_cells(0, 0, 3, 0)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 1 — COLUMN HEADERS
+    // ═══════════════════════════════════════════════════════════════
+    string[] headers = array.from("INDICATOR", "15 MIN", "1 HOUR", "4 HOUR", "DAILY")
+    for i = 0 to 4
+        tbl.cell(i, 1, array.get(headers, i), 
+             text_color = C_HDR_TXT, bgcolor = C_HDR_BG, 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 2 — RSI
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 2, "RSI (" + str.tostring(i_rsiLen) + ")", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "RSI > 50 = Bullish ✓  |  RSI < 50 = Bearish ✗")
+
+    float[] rsiVals = array.from(r1, r2, r3, r4)
+    for i = 0 to 3
+        float rv = array.get(rsiVals, i)
+        string rTxt = na(rv) ? "—" : str.tostring(rv, "#.#")
+        tbl.cell(i + 1, 2, rTxt, 
+             text_color = f_rsiClr(rv), bgcolor = f_rsiBg(rv), 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 3 — GOLDEN ZONE STATUS
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 3, "GOLDEN ZONE", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Fibonacci 0.618–0.786 retracement of " + str.tostring(i_lkb) + "-bar range\n▲ ABOVE = Bullish  |  ◆ IN ZONE = Watch  |  ▼ BELOW = Bearish")
+
+    float[] cArr  = array.from(c1, c2, c3, c4)
+    float[] glArr = array.from(gl1, gl2, gl3, gl4)
+    float[] ghArr = array.from(gh1, gh2, gh3, gh4)
+
+    for i = 0 to 3
+        float _c  = array.get(cArr, i)
+        float _gl = array.get(glArr, i)
+        float _gh = array.get(ghArr, i)
+        tbl.cell(i + 1, 3, f_gzStatus(_c, _gl, _gh), 
+             text_color = f_gzClr(_c, _gl, _gh), bgcolor = f_gzBg(_c, _gl, _gh), 
+             text_halign = text.align_center, text_size = txtSz,
+             tooltip = "0.618: " + f_price(_gl) + "\n0.786: " + f_price(_gh))
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 4 — GOLDEN ZONE RANGE (Prices)
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 4, "  GZ RANGE", 
+         text_color = C_NEUT_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Golden Zone price range: 0.618 level — 0.786 level")
+
+    for i = 0 to 3
+        float _gl = array.get(glArr, i)
+        float _gh = array.get(ghArr, i)
+        tbl.cell(i + 1, 4, f_price(_gl) + "\n" + f_price(_gh), 
+             text_color = C_DATA_TXT, bgcolor = C_DATA_BG, 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 5 — STRONG SUPPORT
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 5, "STRONG SUPPORT", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Lowest low of the last " + str.tostring(i_lkb) + " bars")
+
+    float[] loArr = array.from(lo1, lo2, lo3, lo4)
+    for i = 0 to 3
+        tbl.cell(i + 1, 5, f_price(array.get(loArr, i)), 
+             text_color = C_BULL_TXT, bgcolor = C_DATA_BG, 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 6 — STRONG RESISTANCE
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 6, "STRONG RESISTANCE", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Highest high of the last " + str.tostring(i_lkb) + " bars")
+
+    float[] hiArr = array.from(hi1, hi2, hi3, hi4)
+    for i = 0 to 3
+        tbl.cell(i + 1, 6, f_price(array.get(hiArr, i)), 
+             text_color = C_BEAR_TXT, bgcolor = C_DATA_BG, 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 7 — S/R POSITION
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 7, "S/R POSITION", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Price position relative to the midpoint of Support–Resistance range\nAbove midpoint = Bullish  |  Below midpoint = Bearish")
+
+    float[] midArr = array.from(mid1, mid2, mid3, mid4)
+    for i = 0 to 3
+        float _c = array.get(cArr, i)
+        float _m = array.get(midArr, i)
+        tbl.cell(i + 1, 7, f_srTxt(_c, _m), 
+             text_color = f_srClr(_c, _m), bgcolor = f_srBg(_c, _m), 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 8 — VOLUME USDT
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 8, "VOLUME USDT", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Current bar volume × close price (USDT estimate)\nGreen = above " + str.tostring(i_volLen) + "-bar average")
+
+    float[] volArr = array.from(vol1, vol2, vol3, vol4)
+    float[] avgArr = array.from(avg1, avg2, avg3, avg4)
+    for i = 0 to 3
+        float _v = array.get(volArr, i)
+        float _a = array.get(avgArr, i)
+        tbl.cell(i + 1, 8, f_vol(_v), 
+             text_color = f_volClr(_v, _a), bgcolor = f_volBg(_v, _a), 
+             text_halign = text.align_center, text_size = txtSz,
+             tooltip = "Avg: " + f_vol(_a))
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 9 — SEPARATOR
+    // ═══════════════════════════════════════════════════════════════
+    for i = 0 to 4
+        tbl.cell(i, 9, "", bgcolor = C_SEP, text_size = size.tiny)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 10 — CONDITIONS DETAIL
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 10, "CONDITIONS", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz,
+         tooltip = "Individual condition status:\n① RSI  ② Golden Zone  ③ S/R Position  ④ Volume")
+
+    string[] condStrs = array.from(
+         f_condStr(r1, c1, gl1, mid1, vol1, avg1),
+         f_condStr(r2, c2, gl2, mid2, vol2, avg2),
+         f_condStr(r3, c3, gl3, mid3, vol3, avg3),
+         f_condStr(r4, c4, gl4, mid4, vol4, avg4))
+
+    for i = 0 to 3
+        tbl.cell(i + 1, 10, array.get(condStrs, i), 
+             text_color = C_DATA_TXT, bgcolor = C_DATA_BG, 
+             text_halign = text.align_center, text_size = txtSz,
+             tooltip = "① RSI  ② GZ  ③ S/R  ④ VOL\n✓ = condition met  |  ✗ = not met")
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 11 — SCORE
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 11, "SCORE", 
+         text_color = C_LABEL_TXT, bgcolor = C_LABEL_BG, 
+         text_halign = text.align_left, text_size = txtSz)
+
+    int[] bcArr = array.from(bc1, bc2, bc3, bc4)
+    int[] scArr = array.from(sc1, sc2, sc3, sc4)
+    for i = 0 to 3
+        int b = array.get(bcArr, i)
+        int s = array.get(scArr, i)
+        tbl.cell(i + 1, 11, f_scoreTxt(b, s), 
+             text_color = f_scoreClr(b, s), bgcolor = f_scoreBg(b, s), 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // ROW 12 — SIGNAL
+    // ═══════════════════════════════════════════════════════════════
+    tbl.cell(0, 12, "🎯 SIGNAL", 
+         text_color = C_WHITE, bgcolor = C_TITLE_BG, 
+         text_halign = text.align_left, text_size = txtSz)
+
+    int[] sigArr = array.from(sig1, sig2, sig3, sig4)
+    for i = 0 to 3
+        int s = array.get(sigArr, i)
+        tbl.cell(i + 1, 12, f_sigTxt(s), 
+             text_color = f_sigClr(s), bgcolor = f_sigBg(s), 
+             text_halign = text.align_center, text_size = txtSz)
+
+
+// ┌─────────────────────────────────────────────────────────────────┐
+// │                        ALERTS                                   │
+// └─────────────────────────────────────────────────────────────────┘
+alertcondition(sig1 == 1,  "15M LONG Signal",   "MTF Dashboard: 15M triggered LONG — all conditions bullish")
+alertcondition(sig1 == -1, "15M SHORT Signal",  "MTF Dashboard: 15M triggered SHORT — all conditions bearish")
+alertcondition(sig2 == 1,  "1H LONG Signal",    "MTF Dashboard: 1H triggered LONG — all conditions bullish")
+alertcondition(sig2 == -1, "1H SHORT Signal",   "MTF Dashboard: 1H triggered SHORT — all conditions bearish")
+alertcondition(sig3 == 1,  "4H LONG Signal",    "MTF Dashboard: 4H triggered LONG — all conditions bullish")
+alertcondition(sig3 == -1, "4H SHORT Signal",   "MTF Dashboard: 4H triggered SHORT — all conditions bearish")
+alertcondition(sig4 == 1,  "1D LONG Signal",    "MTF Dashboard: 1D triggered LONG — all conditions bullish")
+alertcondition(sig4 == -1, "1D SHORT Signal",   "MTF Dashboard: 1D triggered SHORT — all conditions bearish")
+
+// Combined alert: any TF flips to LONG or SHORT
+anyLong  = sig1 == 1  or sig2 == 1  or sig3 == 1  or sig4 == 1
+anyShort = sig1 == -1 or sig2 == -1 or sig3 == -1 or sig4 == -1
+alertcondition(anyLong,  "Any TF LONG",  "MTF Dashboard: At least one timeframe triggered LONG")
+alertcondition(anyShort, "Any TF SHORT", "MTF Dashboard: At least one timeframe triggered SHORT")
+
+// ══════════════════════════════════════════════════════════════════════
+// END OF SCRIPT
+// ══════════════════════════════════════════════════════════════════════

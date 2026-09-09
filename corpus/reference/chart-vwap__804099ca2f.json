@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;804099ca2f324ea4a7f896df3e326474",
+ "title": "Chart VWAP",
+ "author": "TradingView",
+ "url": "https://www.tradingview.com/script/QE4dq4ZM-chart-vwap/",
+ "agreeCount": 3996,
+ "category": "volume",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/chart-vwap__804099ca2f.pine",
+ "cached_source": "tools/pine_survey/cache/sources/chart-vwap__804099ca2f.pine",
+ "our_status": "committed"
+}

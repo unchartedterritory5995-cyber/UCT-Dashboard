@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;EhBrwQPjZ1cE1oo4D8LLRpWDfSgqyNpC",
+ "title": "QQE signals",
+ "author": "colinmck",
+ "url": "https://www.tradingview.com/script/7R6ZxyZu-qqe-signals/",
+ "agreeCount": 16405,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/qqe-signals__EhBrwQPjZ1.pine",
+ "cached_source": "tools/pine_survey/cache/sources/qqe-signals__EhBrwQPjZ1.pine",
+ "our_status": "committed"
+}

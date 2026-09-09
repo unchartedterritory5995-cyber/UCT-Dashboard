@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;qADnaAfCPpBEGLqLJaMaVZrYTmlIHPGN",
+ "title": "Delta Volume Candles [LucF]",
+ "author": "LucF",
+ "url": "https://www.tradingview.com/script/h0yZPTiS-delta-volume-candles-lucf/",
+ "agreeCount": 5782,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/delta-volume-candles-lucf__qADnaAfCPp.pine",
+ "cached_source": "tools/pine_survey/cache/sources/delta-volume-candles-lucf__qADnaAfCPp.pine",
+ "our_status": "committed"
+}

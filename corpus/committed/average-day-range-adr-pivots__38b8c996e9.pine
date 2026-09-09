@@ -1,0 +1,478 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Arun_K_Bhaskar
+
+//@version=6
+indicator(title = 'Average Day Range (ADR) Pivots', shorttitle = 'ADR Pivots', overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 500)
+
+//__________________________ Menu ADR Start
+
+string g_gi = '███████████████ Common Inputs ███████████████'
+
+string tt_l = 
+ '• Usually, the ADR is calculated using a period of 14.' + 
+ '\n• Multipliers are calculated based on the \'Length 1\' input.' + 
+ '\n• Input the same value in both lengths to display the ADR levels as lines.'
+
+int i_adr_len_1 = input.int(defval = 14, minval = 1, title = 'Length 1', tooltip = tt_l, group = g_gi)
+int i_adr_len_2 = input.int(defval = 7, minval = 1, title = 'Length 2', group = g_gi)
+
+string g_adr_1 = '█████████████ Average Day Range 1 █████████████'
+
+int i_adr_1_showlast = input.int(defval = 1, minval = 0, title = 'Show Last', group = g_adr_1) + 1
+string i_adr_1_tf = input.timeframe(defval = 'D', title = 'Timeframe', group = g_adr_1)
+
+bool i_adr_1_multi_show_1 = input.bool(defval = true, title = 'M1', inline = 'm_1', group = g_adr_1)
+float i_adr_1_multi_1 = input.float(defval = 0.33, title = '    ', minval = 0, inline = 'm_1', group = g_adr_1)
+bool i_adr_1_multi_show_2 = input.bool(defval = false, title = 'M2', inline = 'm_2', group = g_adr_1)
+float i_adr_1_multi_2 = input.float(defval = 2, title = '    ', minval = 0, inline = 'm_2', group = g_adr_1)
+bool i_adr_1_multi_show_3 = input.bool(defval = false, title = 'M3', inline = 'm_3', group = g_adr_1)
+float i_adr_1_multi_3 = input.float(defval = 3, title = '    ', minval = 0, inline = 'm_3', group = g_adr_1)
+
+bool i_adr_1_show_past = input.bool(defval = false, title = 'Historical Plot', group = g_adr_1)
+
+string i_adr_1_ln_style = input.string(defval = line.style_solid, title = 'Line Style', options = [line.style_solid, line.style_dashed, line.style_dotted], group = g_adr_1)
+int i_adr_1_ln_width = input.int(defval = 1, title = 'Line Width', group = g_adr_1)
+
+color i_adr_1_r_txt_color = input.color(defval = #F7525F, title = 'Resistance', group = g_adr_1)
+color i_adr_1_multi_color = input.color(defval = #434651, title = 'Multiplier', group = g_adr_1)
+color i_adr_1_s_txt_color = input.color(defval = #22AB94, title = 'Support', group = g_adr_1)
+
+string g_adr_2 = '█████████████ Average Day Range 2 █████████████'
+
+int i_adr_2_showlast = input.int(defval = 0, minval = 0, title = 'Show Last', group = g_adr_2) + 1
+string i_adr_2_tf = input.timeframe(defval = 'W', title = 'Timeframe', group = g_adr_2)
+
+bool i_adr_2_multi_show_1 = input.bool(defval = true, title = 'M1', inline = '2', group = g_adr_2)
+float i_adr_2_multi_1 = input.float(defval = 0.33, title = '    ', minval = 0, inline = '2', group = g_adr_2)
+
+string i_adr_2_ln_style = input.string(defval = line.style_dashed, title = 'Line Style', options = [line.style_solid, line.style_dashed, line.style_dotted], group = g_adr_2)
+int i_adr_2_ln_width = input.int(defval = 1, title = 'Line Width', group = g_adr_2)
+
+color i_adr_2_r_txt_color = input.color(defval = #F7525F, title = 'Resistance', group = g_adr_2)
+color i_adr_2_multi_color = input.color(defval = #434651, title = 'Multiplier', group = g_adr_2)
+color i_adr_2_s_txt_color = input.color(defval = #22AB94, title = 'Support', group = g_adr_2)
+
+string g_adr_3 = '█████████████ Average Day Range 3 █████████████'
+
+int i_adr_3_showlast = input.int(defval = 0, minval = 0, title = 'Show Last', group = g_adr_3) + 1
+string i_adr_3_tf = input.timeframe(defval = 'M', title = 'Timeframe', group = g_adr_3)
+
+bool i_adr_3_multi_show_1 = input.bool(defval = true, title = 'M1', inline = '2', group = g_adr_3)
+float i_adr_3_multi_1 = input.float(defval = 0.33, title = '    ', minval = 0, inline = '2', group = g_adr_3)
+
+string i_adr_3_ln_style = input.string(defval = line.style_dotted, title = 'Line Style', options = [line.style_solid, line.style_dashed, line.style_dotted], group = g_adr_3)
+int i_adr_3_ln_width = input.int(defval = 1, title = 'Line Width', group = g_adr_3)
+
+color i_adr_3_r_txt_color = input.color(defval = #F7525F, title = 'Resistance', group = g_adr_3)
+color i_adr_3_multi_color = input.color(defval = #434651, title = 'Multiplier', group = g_adr_3)
+color i_adr_3_s_txt_color = input.color(defval = #22AB94, title = 'Support', group = g_adr_3)
+
+string g_adr_gs = '██████████████ General Settings ██████████████'
+
+int i_adr_bx_transp = input.int(defval = 90, minval = 0, maxval = 100, title = 'Box Transp', group = g_adr_gs)
+string i_adr_txt_size = input.string(defval = size.auto, title = 'Text Size', options = [size.auto, size.tiny, size.small, size.normal, size.large, size.huge], group = g_adr_gs)
+string i_adr_bx_text_align = input.string(text.align_right, 'Text Align', options = [text.align_right, text.align_center, text.align_left], group = g_adr_gs)
+
+string g_adr_tbl = '██████████████████ Table ██████████████████'
+
+bool i_adr_tbl_disp = input.bool(defval = true, title = 'Table', group = g_adr_tbl)
+string i_adr_tbl_pos = input.string(defval = position.top_right, title = 'Position', options = [position.top_left, position.top_center, position.top_right, position.middle_left, position.middle_center, position.middle_right, position.bottom_left, position.bottom_center, position.bottom_right], group = g_adr_tbl)
+string i_adr_tbl_txt_size = input.string(defval = size.auto, title = 'Size', options = [size.auto, size.tiny, size.small, size.normal, size.large, size.huge], group = g_adr_tbl)
+color i_adr_tbl_txt_color = input.color(defval = #B2B5BE, title = 'Color', group = g_adr_tbl)
+
+//_____________________________ Menu ADR End
+
+//_____________________________ Menu Moving Average Start
+
+string g_ma = '██████████████ Moving Average ██████████████'
+
+bool i_ma_1_show = input.bool(defval = false, title = '', inline = 'ma_1_1', group = g_ma)
+int i_ma_1_length = input.int(defval = 7, title = '', inline = 'ma_1_1', group = g_ma)
+string i_ma_1_type = input.string(defval = 'SMA', title = '', options = ['SMA', 'EMA'], inline = 'ma_1_1', group = g_ma)
+color i_ma_1_color = input.color(defval = #22AB94, title = '', inline = 'ma_1_1', group = g_ma)
+float i_ma_1_source = input.source(defval = close, title = '     ', inline = 'ma_1_2', group = g_ma)
+string i_ma_1_timeframe = input.timeframe(defval = '', title = '', inline = 'ma_1_2', group = g_ma)
+
+bool i_ma_2_show = input.bool(defval = false, title = '', inline = 'ma_2_1', group = g_ma)
+int i_ma_2_length = input.int(defval = 25, title = '', inline = 'ma_2_1', group = g_ma)
+string i_ma_2_type = input.string(defval = 'SMA', title = '', options = ['SMA', 'EMA'], inline = 'ma_2_1', group = g_ma)
+color i_ma_2_color = input.color(defval = #F7525F, title = '', inline = 'ma_2_1', group = g_ma)
+float i_ma_2_source = input.source(defval = close, title = '     ', inline = 'ma_2_2', group = g_ma)
+string i_ma_2_timeframe = input.timeframe(defval = '', title = '', inline = 'ma_2_2', group = g_ma)
+
+bool i_ma_3_show = input.bool(defval = false, title = '', inline = 'ma_3_1', group = g_ma)
+int i_ma_3_length = input.int(defval = 99, title = '', inline = 'ma_3_1', group = g_ma)
+string i_ma_3_type = input.string(defval = 'SMA', title = '', options = ['SMA', 'EMA'], inline = 'ma_3_1', group = g_ma)
+color i_ma_3_color = input.color(defval = #2962FF, title = '', inline = 'ma_3_1', group = g_ma)
+float i_ma_3_source = input.source(defval = close, title = '     ', inline = 'ma_3_2', group = g_ma)
+string i_ma_3_timeframe = input.timeframe(defval = '', title = '', inline = 'ma_3_2', group = g_ma)
+
+int i_ma_offset = input.int(defval = 0, minval = 0, title = 'Offset', inline = '6', group = g_ma)
+
+bool i_ma_lb_length_show = input.bool(defval = false, title = 'Label: Length', inline = '7', group = g_ma)
+bool i_ma_lb_type_show = input.bool(defval = false, title = 'Type', inline = '7', group = g_ma)
+bool i_ma_lb_htf_show = input.bool(defval = false, title = 'Timeframe', inline = '7', group = g_ma)
+
+//_____________________________ Menu Moving Average End
+
+//_____________________________ Menu ADR Screener Formula Start
+
+string g_adr_scr = '████████████ ADR Screener Formula ████████████'
+
+string txt_scr = 
+ 'Formula for price Near ADR High:\n\n' + 
+ 'Line 1.\n' + 
+ '5 minute Close <= ( day Open + ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) + ( ( ( day Open + ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) - day Open ) / 4 ) \n\n' + 
+ 'Line 2.\n' + 
+ '5 minute Close >= ( day Open + ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) - ( ( ( day Open + ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) - day Open ) / 4 ) \n\n\n' + 
+ 'Formula for price Near ADR Low:\n\n' + 
+ 'Line 1.\n' + 
+ '5 minute Close <= ( day Open - ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) + ( ( day Open - ( day Open - ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) ) / 4 ) \n\n' + 
+ 'Line 2.\n' + '5 minute Close >= ( day Open - ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) - ( ( day Open - ( day Open - ( ( day Sma ( 1 day ago High , 14 ) - day Sma ( 1 day ago Low , 14 ) ) / 2 ) ) ) / 4 )'
+
+string i_adr_scr_formula = input.text_area(defval = txt_scr, title = '', group = g_adr_scr)
+
+//_____________________________ Menu ADR Screener Formula End
+
+//_____________________________ Menu GitHub Start
+
+string g_txt_git = '███████████████ Source Code ███████████████'
+
+string txt_git = 
+ 'Source code and free TradingView indicators are available on GitHub\n' + 
+ 'Link: https://github.com/ArunKBhaskar/PineScript'
+
+string github = input.text_area(defval = txt_git, title = '', group = g_txt_git)
+
+//_____________________________ Menu GitHub End
+
+//__________________________ ADR Start
+
+// Data Function
+data_adr(string tf) =>
+    [l_1_sma_h, l_1_sma_l, l_2_sma_h, l_2_sma_l, o, t, tc] = request.security(symbol = syminfo.tickerid, timeframe = tf, expression = [ta.sma(high[1], i_adr_len_1), ta.sma(low[1], i_adr_len_1), ta.sma(high[1], i_adr_len_2), ta.sma(low[1], i_adr_len_2), open, time, time_close], lookahead = barmerge.lookahead_on)
+    [l_1_sma_h, l_1_sma_l, l_2_sma_h, l_2_sma_l, o, t, tc]
+
+// ADR Function
+adr(float prev_high_sma, float prev_low_sma, float curr_open, float multiplier) =>
+    adr_value = (prev_high_sma - prev_low_sma) / 2
+    [curr_open + adr_value * multiplier, curr_open - adr_value * multiplier]
+
+// ADR 1 Data
+[adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_len_2_sma_h, adr_1_len_2_sma_l, adr_1_curr_o, adr_1_time, adr_1_tc] = data_adr(i_adr_1_tf)
+// ADR 1 Calculation
+[adr_1_len_1_r, adr_1_len_1_s] = adr(adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_curr_o, 1)
+[adr_1_len_2_r, adr_1_len_2_s] = adr(adr_1_len_2_sma_h, adr_1_len_2_sma_l, adr_1_curr_o, 1)
+// ADR 1 Multiplier
+[adr_1_len_1_r_m_1, adr_1_len_1_s_m_1] = adr(adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_curr_o, i_adr_1_multi_1)
+[adr_1_len_1_r_m_2, adr_1_len_1_s_m_2] = adr(adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_curr_o, i_adr_1_multi_2)
+[adr_1_len_1_r_m_3, adr_1_len_1_s_m_3] = adr(adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_curr_o, i_adr_1_multi_3)
+// Near ADR 1 S & R
+[adr_1_len_1_r_near_up, adr_1_len_1_s_near_up] = adr(adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_curr_o, 1.25)
+[adr_1_len_1_r_near_dn, adr_1_len_1_s_near_dn] = adr(adr_1_len_1_sma_h, adr_1_len_1_sma_l, adr_1_curr_o, 0.75)
+
+// ADR 2 Data
+[adr_2_len_1_sma_h, adr_2_len_1_sma_l, adr_2_len_2_sma_h, adr_2_len_2_sma_l, adr_2_curr_o, adr_2_time, adr_2_tc] = data_adr(i_adr_2_tf)
+// ADR 2 Calculation
+[adr_2_len_1_r, adr_2_len_1_s] = adr(adr_2_len_1_sma_h, adr_2_len_1_sma_l, adr_2_curr_o, 1)
+[adr_2_len_2_r, adr_2_len_2_s] = adr(adr_2_len_2_sma_h, adr_2_len_2_sma_l, adr_2_curr_o, 1)
+// ADR 2 Multiplier
+[adr_2_len_1_r_m_1, adr_2_len_1_s_m_1] = adr(adr_2_len_1_sma_h, adr_2_len_1_sma_l, adr_2_curr_o, i_adr_2_multi_1)
+// Near ADR 2 S & R
+[adr_2_len_1_r_near_up, adr_2_len_1_s_near_up] = adr(adr_2_len_1_sma_h, adr_2_len_1_sma_l, adr_2_curr_o, 1.25)
+[adr_2_len_1_r_near_dn, adr_2_len_1_s_near_dn] = adr(adr_2_len_1_sma_h, adr_2_len_1_sma_l, adr_2_curr_o, 0.75)
+
+// ADR 3 Data
+[adr_3_len_1_sma_h, adr_3_len_1_sma_l, adr_3_len_2_sma_h, adr_3_len_2_sma_l, adr_3_curr_o, adr_3_time, adr_3_tc] = data_adr(i_adr_3_tf)
+// ADR 3 Calculation
+[adr_3_len_1_r, adr_3_len_1_s] = adr(adr_3_len_1_sma_h, adr_3_len_1_sma_l, adr_3_curr_o, 1)
+[adr_3_len_2_r, adr_3_len_2_s] = adr(adr_3_len_2_sma_h, adr_3_len_2_sma_l, adr_3_curr_o, 1)
+// ADR 23 Multiplier
+[adr_3_len_1_r_m_1, adr_3_len_1_s_m_1] = adr(adr_3_len_1_sma_h, adr_3_len_1_sma_l, adr_3_curr_o, i_adr_3_multi_1)
+// Near ADR 3 S & R
+[adr_3_len_1_r_near_up, adr_3_len_1_s_near_up] = adr(adr_3_len_1_sma_h, adr_3_len_1_sma_l, adr_3_curr_o, 1.25)
+[adr_3_len_1_r_near_dn, adr_3_len_1_s_near_dn] = adr(adr_3_len_1_sma_h, adr_3_len_1_sma_l, adr_3_curr_o, 0.75)
+
+//_____________________________ Get Data
+
+//_____________________________ Pivots Calculations
+
+// ADR Width
+// Function to calculate CPR width
+adr_width(float tc, float bc, float pivot) =>
+    math.abs(tc - bc) / pivot * 100
+
+// Using the function for different pivots
+float adr_1_width = adr_width(adr_1_len_1_r, adr_1_len_1_s, adr_1_curr_o)
+
+//_____________________________ Draw Functions Start
+
+draw_line(bool display, left_time, right_time, float price, color _color, string _style, int _width) =>
+    if display
+        line.new(x1 = left_time, y1 = price, x2 = right_time, y2 = price, xloc = xloc.bar_time, color = _color, style = _style, width = _width, force_overlay = true)
+
+draw_box(bool display, left_time, right_time, float top_price, float bottom_price, color _color, int _border_width, string _border_style, string tf_text) =>
+    if display
+        box.new(left = left_time, top = top_price, right = right_time, bottom = bottom_price, border_color = _color, border_width = _border_width, border_style = _border_style, xloc = xloc.bar_time, bgcolor = color.new(_color, i_adr_bx_transp), text = str.tostring(top_price, '#.##') + ' (' + tf_text + ')', text_size = i_adr_txt_size, text_color = _color, text_halign = i_adr_bx_text_align, text_valign = text.align_center)
+
+//_____________________________ Draw Functions End
+
+//_____________________________ Draw Pivots 1 Start
+
+// Variables
+var adr_1_r_bx_arr = array.new_box()
+var adr_1_s_bx_arr = array.new_box()
+var adr_1_r_m_1_ln_arr = array.new_line()
+var adr_1_r_m_2_ln_arr = array.new_line()
+var adr_1_r_m_3_ln_arr = array.new_line()
+var adr_1_s_m_1_ln_arr = array.new_line()
+var adr_1_s_m_2_ln_arr = array.new_line()
+var adr_1_s_m_3_ln_arr = array.new_line()
+
+// Draw
+if timeframe.change(i_adr_1_tf)
+    array.push(adr_1_r_bx_arr, draw_box(true, adr_1_time, adr_1_tc, adr_1_len_1_r, adr_1_len_2_r, i_adr_1_r_txt_color, i_adr_1_ln_width, i_adr_1_ln_style, i_adr_1_tf))
+    array.push(adr_1_s_bx_arr, draw_box(true, adr_1_time, adr_1_tc, adr_1_len_1_s, adr_1_len_2_s, i_adr_1_s_txt_color, i_adr_1_ln_width, i_adr_1_ln_style, i_adr_1_tf))
+
+    array.push(adr_1_r_m_1_ln_arr, draw_line(i_adr_1_multi_show_1, adr_1_time, adr_1_tc, adr_1_len_1_r_m_1, i_adr_1_multi_color, i_adr_1_ln_style, i_adr_1_ln_width))
+    array.push(adr_1_s_m_1_ln_arr, draw_line(i_adr_1_multi_show_1, adr_1_time, adr_1_tc, adr_1_len_1_s_m_1, i_adr_1_multi_color, i_adr_1_ln_style, i_adr_1_ln_width))
+
+    array.push(adr_1_r_m_2_ln_arr, draw_line(i_adr_1_multi_show_2, adr_1_time, adr_1_tc, adr_1_len_1_r_m_2, i_adr_1_multi_color, i_adr_1_ln_style, i_adr_1_ln_width))
+    array.push(adr_1_s_m_2_ln_arr, draw_line(i_adr_1_multi_show_2, adr_1_time, adr_1_tc, adr_1_len_1_s_m_2, i_adr_1_multi_color, i_adr_1_ln_style, i_adr_1_ln_width))
+
+    array.push(adr_1_r_m_3_ln_arr, draw_line(i_adr_1_multi_show_3, adr_1_time, adr_1_tc, adr_1_len_1_r_m_3, i_adr_1_multi_color, i_adr_1_ln_style, i_adr_1_ln_width))
+    array.push(adr_1_s_m_3_ln_arr, draw_line(i_adr_1_multi_show_3, adr_1_time, adr_1_tc, adr_1_len_1_s_m_3, i_adr_1_multi_color, i_adr_1_ln_style, i_adr_1_ln_width))
+
+// Function to delete past lines & boxes
+showlast_boxes(arr, int showlast) =>
+    if array.size(arr) >= showlast
+        box = array.get(arr, 0)
+        box.delete(box)
+        array.remove(arr, 0)
+
+showlast_lines(arr, int showlast) =>
+    if array.size(arr) >= showlast
+        line = array.get(arr, 0)
+        line.delete(line)
+        array.remove(arr, 0)
+
+// Lines
+showlast_boxes(adr_1_r_bx_arr, i_adr_1_showlast)
+showlast_boxes(adr_1_s_bx_arr, i_adr_1_showlast)
+
+showlast_lines(adr_1_r_m_1_ln_arr, i_adr_1_showlast)
+showlast_lines(adr_1_r_m_2_ln_arr, i_adr_1_showlast)
+showlast_lines(adr_1_r_m_3_ln_arr, i_adr_1_showlast)
+
+showlast_lines(adr_1_s_m_1_ln_arr, i_adr_1_showlast)
+showlast_lines(adr_1_s_m_2_ln_arr, i_adr_1_showlast)
+showlast_lines(adr_1_s_m_3_ln_arr, i_adr_1_showlast)
+
+// Plot Historical
+adr_1_len_1_r_break = adr_1_len_1_r == adr_1_len_1_r[1]
+adr_1_len_1_s_tf_break = adr_1_len_1_s == adr_1_len_1_s[1]
+
+adr_1_len_2_r_break = adr_1_len_2_r == adr_1_len_2_r[1]
+adr_1_len_2_s_tf_break = adr_1_len_2_s == adr_1_len_2_s[1]
+
+adr_1_len_1_r_tf_plot = plot(series = i_adr_1_show_past and adr_1_len_1_r_break ? adr_1_len_1_r : na, title = 'ADR 1 Resistance', color = i_adr_1_r_txt_color, style = plot.style_steplinebr, offset = -1)
+adr_1_len_1_s_tf_plot = plot(series = i_adr_1_show_past and adr_1_len_1_s_tf_break ? adr_1_len_1_s : na, title = 'ADR 1 Support ', color = i_adr_1_s_txt_color, style = plot.style_steplinebr, offset = -1)
+
+adr_1_len_2_r_tf_plot = plot(series = i_adr_1_show_past and adr_1_len_2_r_break ? adr_1_len_2_r : na, title = 'ADR 2 Resistance', color = i_adr_1_r_txt_color, style = plot.style_steplinebr, offset = -1)
+adr_1_len_2_s_tf_plot = plot(series = i_adr_1_show_past and adr_1_len_2_s_tf_break ? adr_1_len_2_s : na, title = 'ADR 2 Support ', color = i_adr_1_s_txt_color, style = plot.style_steplinebr, offset = -1)
+
+fill(plot1 = adr_1_len_1_r_tf_plot, plot2 = adr_1_len_2_r_tf_plot, color = color.new(i_adr_1_r_txt_color, i_adr_bx_transp), title = 'ADR 1 Resistance Fill')
+fill(plot1 = adr_1_len_1_s_tf_plot, plot2 = adr_1_len_2_s_tf_plot, color = color.new(i_adr_1_s_txt_color, i_adr_bx_transp), title = 'ADR 1 Support Fill')
+
+//_____________________________ Draw Pivots 2 Start
+
+// Variables
+var adr_2_r_bx_arr = array.new_box()
+var adr_2_s_bx_arr = array.new_box()
+var adr_2_r_m_1_ln_arr = array.new_line()
+var adr_2_s_m_1_ln_arr = array.new_line()
+
+// Draw
+if timeframe.change(i_adr_2_tf)
+    array.push(adr_2_r_bx_arr, draw_box(true, adr_2_time, adr_2_tc, adr_2_len_1_r, adr_2_len_2_r, i_adr_2_r_txt_color, i_adr_2_ln_width, i_adr_2_ln_style, i_adr_2_tf))
+    array.push(adr_2_s_bx_arr, draw_box(true, adr_2_time, adr_2_tc, adr_2_len_1_s, adr_2_len_2_s, i_adr_2_s_txt_color, i_adr_2_ln_width, i_adr_2_ln_style, i_adr_2_tf))
+
+    array.push(adr_2_r_m_1_ln_arr, draw_line(i_adr_2_multi_show_1, adr_2_time, adr_2_tc, adr_2_len_1_r_m_1, i_adr_2_multi_color, i_adr_2_ln_style, i_adr_2_ln_width))
+    array.push(adr_2_s_m_1_ln_arr, draw_line(i_adr_2_multi_show_1, adr_2_time, adr_2_tc, adr_2_len_1_s_m_1, i_adr_2_multi_color, i_adr_2_ln_style, i_adr_2_ln_width))
+
+// Lines
+showlast_boxes(adr_2_r_bx_arr, i_adr_2_showlast)
+showlast_boxes(adr_2_s_bx_arr, i_adr_2_showlast)
+showlast_lines(adr_2_r_m_1_ln_arr, i_adr_2_showlast)
+showlast_lines(adr_2_s_m_1_ln_arr, i_adr_2_showlast)
+
+//_____________________________ Draw Pivots 3 Start
+
+// Variables
+var adr_3_r_bx_arr = array.new_box()
+var adr_3_s_bx_arr = array.new_box()
+var adr_3_r_m_1_ln_arr = array.new_line()
+var adr_3_s_m_1_ln_arr = array.new_line()
+
+// Draw
+if timeframe.change(i_adr_3_tf)
+    array.push(adr_3_r_bx_arr, draw_box(true, adr_3_time, adr_3_tc, adr_3_len_1_r, adr_3_len_2_r, i_adr_3_r_txt_color, i_adr_3_ln_width, i_adr_3_ln_style, i_adr_3_tf))
+    array.push(adr_3_s_bx_arr, draw_box(true, adr_3_time, adr_3_tc, adr_3_len_1_s, adr_3_len_2_s, i_adr_3_s_txt_color, i_adr_3_ln_width, i_adr_3_ln_style, i_adr_3_tf))
+
+    array.push(adr_3_r_m_1_ln_arr, draw_line(i_adr_3_multi_show_1, adr_3_time, adr_3_tc, adr_3_len_1_r_m_1, i_adr_3_multi_color, i_adr_3_ln_style, i_adr_3_ln_width))
+    array.push(adr_3_s_m_1_ln_arr, draw_line(i_adr_3_multi_show_1, adr_3_time, adr_3_tc, adr_3_len_1_s_m_1, i_adr_3_multi_color, i_adr_3_ln_style, i_adr_3_ln_width))
+
+// Lines
+showlast_boxes(adr_3_r_bx_arr, i_adr_3_showlast)
+showlast_boxes(adr_3_s_bx_arr, i_adr_3_showlast)
+showlast_lines(adr_3_r_m_1_ln_arr, i_adr_3_showlast)
+showlast_lines(adr_3_s_m_1_ln_arr, i_adr_3_showlast)
+
+//__________________________ ADR End
+
+// Resolution to String
+res_to_str(_res) =>
+    if _res == ''
+        ''
+    else if _res == '1'
+        '1m'
+    else if _res == '3'
+        '3m'
+    else if _res == '5'
+        '5m'
+    else if _res == '15'
+        '15m'
+    else if _res == '30'
+        '30m'
+    else if _res == '45'
+        '45m'
+    else if _res == '60'
+        '1h'
+    else if _res == '120'
+        '2h'
+    else if _res == '180'
+        '3h'
+    else if _res == '240'
+        '4h'
+    else if _res == '1D'
+        'D'
+    else if _res == '1W'
+        'W'
+    else if _res == '1M'
+        'M'
+    else if _res == '3M'
+        '3M'
+    else if _res == '6M'
+        '6M'
+    else if _res == '12M'
+        '12M'
+    else
+        _res
+
+//__________________________ Table Start
+
+// Price Near ADR Levels Start
+price_near(float near_dn, float near_up, string adr_tf, string label_type) =>
+    condition = close > near_dn and close < near_up
+    txt = condition ? 'Price near \'' + res_to_str(adr_tf) + '\' ' + label_type : ''
+    txt
+
+messages = array.new_string(0)
+
+array.push(messages, price_near(adr_1_len_1_r_near_dn, adr_1_len_1_r_near_up, i_adr_1_tf, 'Resistance'))
+array.push(messages, price_near(adr_1_len_1_s_near_up, adr_1_len_1_s_near_dn, i_adr_1_tf, 'Support'))
+array.push(messages, price_near(adr_2_len_1_r_near_dn, adr_2_len_1_r_near_up, i_adr_2_tf, 'Resistance'))
+array.push(messages, price_near(adr_2_len_1_s_near_dn, adr_2_len_1_s_near_up, i_adr_2_tf, 'Support'))
+array.push(messages, price_near(adr_3_len_1_r_near_dn, adr_3_len_1_r_near_up, i_adr_3_tf, 'Resistance'))
+array.push(messages, price_near(adr_3_len_1_s_near_dn, adr_3_len_1_s_near_up, i_adr_3_tf, 'Support'))
+
+// Concatenate the messages based on conditions
+all_messages = ''
+for i = 0 to array.size(messages) - 1 by 1
+    current_message = array.get(messages, i)
+    all_messages := current_message != '' ? all_messages + current_message + '\n' : all_messages
+    all_messages
+
+// Color
+color adr_1_len_1_rw_col = adr_1_width > 4 ? i_adr_1_s_txt_color : i_adr_tbl_txt_color
+color tbl_bgcolor = #00000000
+
+// Plot Table
+var table tbl = table.new(position = i_adr_tbl_pos, columns = 2, rows = 3, border_width = 1)
+
+string tt_rw = '• Range width is the % between support & resistance of ADR 14.\n' + '• A range width above 4% means increasing volatility & is good for intraday.\n' + '• A range width below 3% may not give an interesting % change between the swings.'
+
+if i_adr_tbl_disp and barstate.islast
+    table.cell(tbl, column = 0, row = 0, text = 'Range Width:', text_color = i_adr_tbl_txt_color, text_halign = text.align_left, bgcolor = tbl_bgcolor, text_size = i_adr_tbl_txt_size, tooltip = tt_rw)
+    table.cell(tbl, column = 1, row = 0, text = str.tostring(adr_1_width, '#.##') + ' % (' + res_to_str(i_adr_1_tf) + ')', text_color = adr_1_len_1_rw_col, text_halign = text.align_right, bgcolor = tbl_bgcolor, text_size = i_adr_tbl_txt_size)
+    table.cell(tbl, column = 0, row = 1, text = all_messages, text_color = i_adr_tbl_txt_color, text_halign = text.align_left, bgcolor = tbl_bgcolor, text_size = i_adr_tbl_txt_size)
+    table.merge_cells(table_id = tbl, start_column = 0, start_row = 1, end_column = 1, end_row = 1)
+
+//_____________________________ Table End
+
+//_____________________________ Moving Average Start
+
+// Acknowledgement & Reference
+// Trader: 'xdecow'
+// Indicator Title: 'Multi Timeframe Moving Average [xdecow]'
+// Indicator Link: 'https://www.tradingview.com/script/IzmSs7Ma-Multi-Timeframe-Moving-Average-xdecow/'
+
+// Functions
+ma_offset() =>
+    offset_spaces = ''
+    if i_ma_offset > 0
+        for i = 1 to i_ma_offset by 1
+            offset_spaces := offset_spaces + '    '
+            offset_spaces
+    offset_spaces
+
+ma(_type, _source, _length) =>
+    float result = na
+    if _type == 'EMA'
+        result := ta.ema(_source, _length)
+        result
+    if _type == 'SMA'
+        result := ta.sma(_source, _length)
+        result
+    result
+
+add_label(show_label, _value, res, _type, _length, _color) =>
+    label lbl = na
+    if show_label
+        label_text = ''
+        if i_ma_lb_length_show
+            label_text := str.tostring(_length)
+            label_text
+        if i_ma_lb_type_show
+            label_text := label_text + (label_text != '' ? ' ' : '') + _type
+            label_text
+        if i_ma_lb_htf_show and res != ''
+            label_text := label_text + (label_text != '' ? ' (' : '') + res_to_str(res) + ')'
+            label_text
+        if label_text != ''
+            lbl := label.new(bar_index, na(_value) ? close : _value, text = ma_offset() + label_text, color = #00000000, textcolor = _color, style = label.style_label_left, textalign = text.align_left)
+            label.delete(lbl[1])
+
+ma_htf(res, _type, _source, _length) =>
+    _value = ma(_type, _source, _length)
+    [ma_sec, ma_bindex] = request.security(syminfo.tickerid, res, [_value, bar_index])
+    var int last_barindex = na
+    last_barindex := na(last_barindex[1]) or ma_bindex > last_barindex[1] ? ma_bindex : last_barindex[1]
+    last_barindex != last_barindex[1] or barstate.islast ? ma_sec : na
+
+// Calculate
+float ma_1 = ma_htf(i_ma_1_timeframe, i_ma_1_type, i_ma_1_source, i_ma_1_length)
+float ma_2 = ma_htf(i_ma_2_timeframe, i_ma_2_type, i_ma_2_source, i_ma_2_length)
+float ma_3 = ma_htf(i_ma_3_timeframe, i_ma_3_type, i_ma_3_source, i_ma_3_length)
+
+// Plot
+plot(series = i_ma_1_show ? ma_1 : na, title = 'MA 1', color = i_ma_1_color, linewidth = 1, offset = i_ma_offset, join = true)
+add_label(i_ma_1_show, ma_1, i_ma_1_timeframe, i_ma_1_type, i_ma_1_length, i_ma_1_color)
+plot(series = i_ma_2_show ? ma_2 : na, title = 'MA 2', color = i_ma_2_color, linewidth = 1, offset = i_ma_offset, join = true)
+add_label(i_ma_2_show, ma_2, i_ma_2_timeframe, i_ma_2_type, i_ma_2_length, i_ma_2_color)
+plot(series = i_ma_3_show ? ma_3 : na, title = 'MA 3', color = i_ma_3_color, linewidth = 1, offset = i_ma_offset, join = true)
+add_label(i_ma_3_show, ma_3, i_ma_3_timeframe, i_ma_3_type, i_ma_3_length, i_ma_3_color)
+
+//_____________________________ Moving Average End
+
+//_____________________________ Code End

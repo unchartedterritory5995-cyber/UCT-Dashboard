@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c4792aabd0bc4e29a19877b6c56d7cbd",
+ "title": "Support and Resistance",
+ "author": "faytterro",
+ "url": "https://www.tradingview.com/script/c2U4et6K-support-and-resistance/",
+ "agreeCount": 3374,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/support-and-resistance__c4792aabd0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/support-and-resistance__c4792aabd0.pine",
+ "our_status": "committed"
+}

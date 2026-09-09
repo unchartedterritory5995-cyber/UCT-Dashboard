@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0fc598254843471d9cc313bb5d949f57",
+ "title": "Boom Hunter - Entry Point Screener Alerts",
+ "author": "veryfid",
+ "url": "https://www.tradingview.com/script/0biqhEpB-boom-hunter-entry-point-screener-alerts/",
+ "agreeCount": 1945,
+ "category": "screener/scanner",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/boom-hunter-entry-point-screener-alerts__0fc5982548.pine",
+ "cached_source": "tools/pine_survey/cache/sources/boom-hunter-entry-point-screener-alerts__0fc5982548.pine",
+ "our_status": "committed"
+}

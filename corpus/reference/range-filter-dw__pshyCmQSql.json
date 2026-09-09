@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;pshyCmQSqlUKsVQ4FrNUAuGkurQPg3ty",
+ "title": "Range Filter [DW]",
+ "author": "DonovanWall",
+ "url": "https://www.tradingview.com/script/lut7sBgG-range-filter-dw/",
+ "agreeCount": 6172,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/range-filter-dw__pshyCmQSql.pine",
+ "cached_source": "tools/pine_survey/cache/sources/range-filter-dw__pshyCmQSql.pine",
+ "our_status": "committed"
+}

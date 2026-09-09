@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d3c06abad69d4dc4aa77a4ae0849216a",
+ "title": "Market Structure Trend Targets [ChartPrime]",
+ "author": "ChartPrime",
+ "url": "https://www.tradingview.com/script/F3b5dGLx-market-structure-trend-targets-chartprime/",
+ "agreeCount": 5689,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/market-structure-trend-targets-chartprime__d3c06abad6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/market-structure-trend-targets-chartprime__d3c06abad6.pine",
+ "our_status": "committed"
+}

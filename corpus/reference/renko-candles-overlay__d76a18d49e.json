@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d76a18d49ed244afb89195645b2dce6f",
+ "title": "Renko Candles Overlay",
+ "author": "LonesomeTheBlue",
+ "url": "https://www.tradingview.com/script/rZs7YdMI-renko-candles-overlay/",
+ "agreeCount": 8499,
+ "category": "trend",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/renko-candles-overlay__d76a18d49e.pine",
+ "cached_source": "tools/pine_survey/cache/sources/renko-candles-overlay__d76a18d49e.pine",
+ "our_status": "committed"
+}

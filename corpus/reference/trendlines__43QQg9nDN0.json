@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;43QQg9nDN0YPnyEWoGquJlspUe4BhKs5",
+ "title": "Trendlines",
+ "author": "BacktestRookies",
+ "url": "https://www.tradingview.com/script/ih8Z9vSB-trendlines/",
+ "agreeCount": 3216,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trendlines__43QQg9nDN0.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trendlines__43QQg9nDN0.pine",
+ "our_status": "committed"
+}

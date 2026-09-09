@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;KSz0yeOiH2GSFfMWVJNcAVXXsR7mMOtP",
+ "title": "SPY Moving Averages and Signals",
+ "author": "colejustice",
+ "url": "https://www.tradingview.com/script/t8uBvyEy-spy-moving-averages-and-signals/",
+ "agreeCount": 4605,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/spy-moving-averages-and-signals__KSz0yeOiH2.pine",
+ "our_status": "reference-only"
+}

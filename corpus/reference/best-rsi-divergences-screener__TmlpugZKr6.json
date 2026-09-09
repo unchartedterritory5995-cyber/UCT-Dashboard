@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;TmlpugZKr61cUHvawRXIFYbkQifsSONO",
+ "title": "BEST RSI Divergences Screener",
+ "author": "Daveatt",
+ "url": "https://www.tradingview.com/script/eCBr7MoH-best-rsi-divergences-screener/",
+ "agreeCount": 3327,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/best-rsi-divergences-screener__TmlpugZKr6.pine",
+ "our_status": "reference-only"
+}

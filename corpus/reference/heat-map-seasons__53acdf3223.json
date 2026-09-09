@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;53acdf3223424edab7c512f3cad54946",
+ "title": "Heat Map Seasons",
+ "author": "VanHe1sing",
+ "url": "https://www.tradingview.com/script/zuS134uh-heat-map-seasons/",
+ "agreeCount": 2704,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/heat-map-seasons__53acdf3223.pine",
+ "cached_source": "tools/pine_survey/cache/sources/heat-map-seasons__53acdf3223.pine",
+ "our_status": "committed"
+}

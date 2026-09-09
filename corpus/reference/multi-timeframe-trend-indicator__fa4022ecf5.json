@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fa4022ecf519453c881eb3d02cf7f5d8",
+ "title": "Multi-Timeframe Trend Indicator",
+ "author": "Ox_kali",
+ "url": "https://www.tradingview.com/script/xQSGzY4E-multi-timeframe-trend-indicator/",
+ "agreeCount": 4643,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine",
+ "cached_source": "tools/pine_survey/cache/sources/multi-timeframe-trend-indicator__fa4022ecf5.pine",
+ "our_status": "committed"
+}

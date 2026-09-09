@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5bfe6b3a168546d7b913f6dd71295f17",
+ "title": "Divergence Stack Scanner [AGPro Series]",
+ "author": "AGProLabs",
+ "url": "https://www.tradingview.com/script/7hSVbN7z-divergence-stack-scanner-agpro-series/",
+ "agreeCount": 723,
+ "category": "screener/scanner",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/divergence-stack-scanner-agpro-series__5bfe6b3a16.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,26 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © kaaiii
+
+//@version=4
+study("Support and Resistance Multi Time frame", shorttitle="SNR", overlay=true)
+resistance = input(title="Number of bars to go back", defval=34, minval=0)
+resistanceTop = valuewhen(high >= highest(high, resistance), high, 0)
+resistanceBottom = valuewhen(low <= lowest(resistance), low, 0)
+
+dailyHigh = security(syminfo.tickerid, 'D', valuewhen(high >= highest(high, resistance), high, 0))
+dailyLow  = security(syminfo.tickerid, 'D', valuewhen(low <= lowest(resistance), low, 0))
+
+plot(title="Resistance Daily", series=dailyHigh, color=color.green, linewidth=1, style=plot.style_circles)
+plot(title="Support Daily", series=dailyLow, color=color.green, linewidth=1, style=plot.style_cross)
+
+weeklyHigh = security(syminfo.tickerid, 'W', valuewhen(high >= highest(high, resistance), high, 0))
+weeklyLow  = security(syminfo.tickerid, 'W', valuewhen(low <= lowest(resistance), low, 0))
+
+plot(title="Resistance Weekly", series=weeklyHigh, color=color.yellow, linewidth=1, style=plot.style_circles)
+plot(title="Support Weekly", series=weeklyLow, color=color.yellow, linewidth=1, style=plot.style_cross)
+
+monthlyHigh = security(syminfo.tickerid, 'M', valuewhen(high >= highest(high, resistance), high, 0))
+monthlyLow  = security(syminfo.tickerid, 'M', valuewhen(low <= lowest(resistance), low, 0))
+
+plot(title="Resistance Monthly", series=monthlyHigh, color=color.red, linewidth=1, style=plot.style_circles)
+plot(title="Support Monthly", series=monthlyLow, color=color.red, linewidth=1, style=plot.style_cross)

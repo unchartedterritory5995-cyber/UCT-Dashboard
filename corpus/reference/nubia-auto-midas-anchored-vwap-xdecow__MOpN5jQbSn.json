@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;MOpN5jQbSnm4ZMFhjFnILW4OhuntmCCL",
+ "title": "Nubia - Auto Midas Anchored VWAP [xdecow]",
+ "author": "xdecow",
+ "url": "https://www.tradingview.com/script/AGTGntuE-nubia-auto-midas-anchored-vwap-xdecow/",
+ "agreeCount": 3436,
+ "category": "volume",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn.pine",
+ "cached_source": "tools/pine_survey/cache/sources/nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn.pine",
+ "our_status": "committed"
+}

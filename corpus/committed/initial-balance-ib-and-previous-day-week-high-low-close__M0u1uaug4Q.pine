@@ -1,0 +1,328 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Bartjs
+
+//@version=4
+study("Initial Balance (IB) and Previous Day / Week High, Low & Close", overlay=true, shorttitle = "Past HLC & IB")
+
+/////////USER INPUT///////////
+plot_previous_day = input(true, title="Plot previous days High, Low and Close?")
+plot_previous_week = input(true, title= "Plot previous weeks High and Low?")
+plot_IB = input(true, title= "Plot IB?")
+plot_previous_IB = input(true, title= "Plot previous days IB?")
+show_historical_IB = input(false, title= "Show all historical IB data during trading hours?")
+two_days = input(false, title="Look back two trading days?")
+dailyOn = input(title="Turn on H,L,C and IBs for daily?", defval=false)
+IB_session = input(title="IB Session", type=input.session, defval = "0945-1100")
+offset_label = input(title = "Offset Stock Story number label", type=input.integer,defval =1 )
+auto_IB = input(title = "Automatic IB range calculation", type=input.bool, defval=true)
+auto_adjust_IB = input(title = "StDev Adjustment", type=input.float, defval=1.0)
+average_IB = input(title = "Assets average IB", type=input.float,defval=357)
+IB_SD = input(title = "Assets 1 Standard Deviation", type = input.float, defval=193)
+// tight_desc = input(title = "Percentage chance of tight breaking %" , type=input.float, defval=0)
+// normal_desc = input(title = "Percentage chance of normal breaking %" , type=input.float, defval=0)
+// wide_desc = input(title = "Percentage chance of wide breaking %" , type=input.float, defval=0)
+lookbackIB = input(title = "Look back for IB average",type=input.integer,defval=30,maxval=30)
+show_ib_sizes = input(title = "Show IB Sizes", type=input.bool, defval=false)
+show_array= input(title = "Show IB Array", type=input.bool, defval=false)
+///////////////////////////////
+/////////DECLARING VARIABLES/////////
+///////////////////////////////
+
+//Check to see if current time is start of the day
+
+
+D_High = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'D', high[1], barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+D_Low = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'D', low[1], barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+D_Close =  security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'D', close[1], barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+W_High = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'W', high[1], barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+W_Low = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'W', low[1], barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+
+
+D_High2 = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'D', high[2], barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+D_Low2 = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'D', low[2], barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+D_Close2 =  security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), 'D', close[2], barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+var label stock_story_label = na
+
+var bool intraday = na
+var bool D_Close_Not_Duplicate = na
+
+var float Max_High = na
+var float Min_Low = na
+var float Average_Close = na
+
+var float start_of_day = na
+
+var bool IB_active = false
+var float IB_high = na
+var float IB_low = na
+var float PIBH = na
+var float PIBL = na
+var bool isToday = false
+var bool not_last_bar = false
+var bool not_HTF = false
+var float IB_range = 0
+var int stock_story = 0
+var string IB_size_string = na
+var string IB_desc_string = na
+var float stored_IB_range = na
+IB_ranges_array = array.new_float(lookbackIB*2,na)
+var float IB_range_average = na
+var float IB_range_stdev = na
+var float auto_tight_IB = na
+var float auto_wide_IB = na
+var bool perc_label = true
+var string IB_details = na
+var int bar_count = na
+///////////////////////////////
+/////////CALCULATIONS//////////
+////////////////////////////////
+
+start = security(syminfo.tickerid, "D", time)
+newSession = iff(change(start), 1, 0)
+
+
+timeinrange(res, sess) => not na(time(res, sess)) ? true : false
+IB_active := timeinrange(timeframe.period,IB_session)
+
+if(newSession and IB_active)
+    bar_count := 1
+else 
+    bar_count := bar_count[1] + 1
+
+candle_high = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), '60', high, barmerge.gaps_off, lookahead=barmerge.lookahead_on) 
+candle_low = security(tickerid(syminfo.prefix, syminfo.ticker, session.regular), '60', low, barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+
+if(IB_active and newSession)
+    IB_high := high
+    IB_low := low
+else if(IB_active)
+    IB_high := max(candle_high,high)
+    IB_low := min(candle_low,low)
+else if(not IB_active)
+    IB_high := IB_high[1]
+    IB_low := IB_low[1]
+
+
+if(newSession)
+    PIBH := IB_high[1]
+    PIBL := IB_low[1]
+
+if (year(timenow) == year(time) and month(timenow) == month(time) and dayofmonth(timenow) == dayofmonth(time))
+    isToday := true
+
+if(timeframe.multiplier < 15)
+    not_HTF := true
+    
+//Previous Day / Week High, Low and Close
+Max_High := two_days ? max(D_High,D_High2) : D_High 
+Min_Low := two_days ? min(D_Low,D_Low2) : D_Low
+Average_Close := two_days ? (D_Close + D_Close2) / 2 : D_Close
+
+if(dailyOn)
+    intraday := false
+else
+    intraday := true
+
+if(D_Close == D_High or D_Close == D_Low)
+    D_Close_Not_Duplicate := false
+else
+    D_Close_Not_Duplicate := true
+
+var int close_daily = 0
+var int close_weekly = 0
+var int close_IB = 0
+
+if(barstate.islast and timeframe.isintraday and timeframe.multiplier < 15)
+    stock_story := 0
+    close_daily := 0
+    close_weekly := 0
+    close_IB := 0
+    
+    if(close[1] > D_High)
+        close_daily := 1
+    else if (close[1] < D_Low)
+        close_daily := -1
+    else
+        close_daily := 0
+    
+    if(close[1] > W_High)
+        close_weekly := 1
+    else if (close[1] < W_Low)
+        close_weekly := -1
+    else
+        close_weekly := 0
+    
+    if(close[1] > IB_high)
+        close_IB := 1
+    else if (close[1] < IB_low)
+        close_IB := -1
+    else
+        close_IB := 0
+    
+    stock_story := close_daily + close_weekly + close_IB
+
+IB_range := (IB_high - IB_low)*100
+
+if(IB_range <= (average_IB-IB_SD))
+    IB_size_string := "Tight"
+else if(IB_range >= (average_IB+IB_SD))
+    IB_size_string := "Wide"
+else
+    IB_size_string := "Normal"
+    
+// if(tight_desc == 0 and normal_desc == 0 and wide_desc == 0)
+//     perc_label := false
+
+// if(IB_size_string == "Tight")
+//     IB_desc_string := tostring(round(tight_desc))
+// else if(IB_size_string == "Normal")
+//     IB_desc_string := tostring(round(normal_desc))
+// else if(IB_size_string == "Wide")
+//     IB_desc_string := tostring(round(wide_desc))
+ 
+ 
+if(IB_active[1] and not IB_active)
+    stored_IB_range := IB_range
+else
+    stored_IB_range := na
+    
+array.insert(IB_ranges_array,0,valuewhen(not na(stored_IB_range),stored_IB_range,0))
+array.insert(IB_ranges_array,1,valuewhen(not na(stored_IB_range),stored_IB_range,1))
+array.insert(IB_ranges_array,2,valuewhen(not na(stored_IB_range),stored_IB_range,2))
+array.insert(IB_ranges_array,3,valuewhen(not na(stored_IB_range),stored_IB_range,3))
+array.insert(IB_ranges_array,4,valuewhen(not na(stored_IB_range),stored_IB_range,4))
+array.insert(IB_ranges_array,5,valuewhen(not na(stored_IB_range),stored_IB_range,5))
+array.insert(IB_ranges_array,6,valuewhen(not na(stored_IB_range),stored_IB_range,6))
+array.insert(IB_ranges_array,7,valuewhen(not na(stored_IB_range),stored_IB_range,7))
+array.insert(IB_ranges_array,8,valuewhen(not na(stored_IB_range),stored_IB_range,8))
+array.insert(IB_ranges_array,9,valuewhen(not na(stored_IB_range),stored_IB_range,9))
+array.insert(IB_ranges_array,10,valuewhen(not na(stored_IB_range),stored_IB_range,10))
+array.insert(IB_ranges_array,11,valuewhen(not na(stored_IB_range),stored_IB_range,11))
+array.insert(IB_ranges_array,12,valuewhen(not na(stored_IB_range),stored_IB_range,12))
+array.insert(IB_ranges_array,13,valuewhen(not na(stored_IB_range),stored_IB_range,13))
+array.insert(IB_ranges_array,14,valuewhen(not na(stored_IB_range),stored_IB_range,14))
+array.insert(IB_ranges_array,15,valuewhen(not na(stored_IB_range),stored_IB_range,15))
+array.insert(IB_ranges_array,16,valuewhen(not na(stored_IB_range),stored_IB_range,16))
+array.insert(IB_ranges_array,17,valuewhen(not na(stored_IB_range),stored_IB_range,17))
+array.insert(IB_ranges_array,18,valuewhen(not na(stored_IB_range),stored_IB_range,18))
+array.insert(IB_ranges_array,19,valuewhen(not na(stored_IB_range),stored_IB_range,19))
+array.insert(IB_ranges_array,20,valuewhen(not na(stored_IB_range),stored_IB_range,20))
+array.insert(IB_ranges_array,21,valuewhen(not na(stored_IB_range),stored_IB_range,21))
+array.insert(IB_ranges_array,22,valuewhen(not na(stored_IB_range),stored_IB_range,22))
+array.insert(IB_ranges_array,23,valuewhen(not na(stored_IB_range),stored_IB_range,23))
+array.insert(IB_ranges_array,24,valuewhen(not na(stored_IB_range),stored_IB_range,24))
+array.insert(IB_ranges_array,25,valuewhen(not na(stored_IB_range),stored_IB_range,25))
+array.insert(IB_ranges_array,26,valuewhen(not na(stored_IB_range),stored_IB_range,26))
+array.insert(IB_ranges_array,27,valuewhen(not na(stored_IB_range),stored_IB_range,27))
+array.insert(IB_ranges_array,28,valuewhen(not na(stored_IB_range),stored_IB_range,28))
+array.insert(IB_ranges_array,29,valuewhen(not na(stored_IB_range),stored_IB_range,29))
+array.insert(IB_ranges_array,30,valuewhen(not na(stored_IB_range),stored_IB_range,30))
+array.insert(IB_ranges_array,31,valuewhen(not na(stored_IB_range),stored_IB_range,31))
+array.insert(IB_ranges_array,32,valuewhen(not na(stored_IB_range),stored_IB_range,32))
+array.insert(IB_ranges_array,33,valuewhen(not na(stored_IB_range),stored_IB_range,33))
+array.insert(IB_ranges_array,34,valuewhen(not na(stored_IB_range),stored_IB_range,34))
+array.insert(IB_ranges_array,35,valuewhen(not na(stored_IB_range),stored_IB_range,35))
+array.insert(IB_ranges_array,36,valuewhen(not na(stored_IB_range),stored_IB_range,36))
+array.insert(IB_ranges_array,37,valuewhen(not na(stored_IB_range),stored_IB_range,37))
+array.insert(IB_ranges_array,38,valuewhen(not na(stored_IB_range),stored_IB_range,38))
+array.insert(IB_ranges_array,39,valuewhen(not na(stored_IB_range),stored_IB_range,39))
+array.insert(IB_ranges_array,40,valuewhen(not na(stored_IB_range),stored_IB_range,40))
+array.insert(IB_ranges_array,41,valuewhen(not na(stored_IB_range),stored_IB_range,41))
+array.insert(IB_ranges_array,42,valuewhen(not na(stored_IB_range),stored_IB_range,42))
+array.insert(IB_ranges_array,43,valuewhen(not na(stored_IB_range),stored_IB_range,43))
+array.insert(IB_ranges_array,44,valuewhen(not na(stored_IB_range),stored_IB_range,44))
+array.insert(IB_ranges_array,45,valuewhen(not na(stored_IB_range),stored_IB_range,45))
+array.insert(IB_ranges_array,46,valuewhen(not na(stored_IB_range),stored_IB_range,46))
+array.insert(IB_ranges_array,47,valuewhen(not na(stored_IB_range),stored_IB_range,47))
+array.insert(IB_ranges_array,48,valuewhen(not na(stored_IB_range),stored_IB_range,48))
+array.insert(IB_ranges_array,49,valuewhen(not na(stored_IB_range),stored_IB_range,49))
+array.insert(IB_ranges_array,50,valuewhen(not na(stored_IB_range),stored_IB_range,50))
+array.insert(IB_ranges_array,51,valuewhen(not na(stored_IB_range),stored_IB_range,51))
+array.insert(IB_ranges_array,52,valuewhen(not na(stored_IB_range),stored_IB_range,52))
+array.insert(IB_ranges_array,53,valuewhen(not na(stored_IB_range),stored_IB_range,53))
+array.insert(IB_ranges_array,54,valuewhen(not na(stored_IB_range),stored_IB_range,54))
+array.insert(IB_ranges_array,55,valuewhen(not na(stored_IB_range),stored_IB_range,55))
+array.insert(IB_ranges_array,56,valuewhen(not na(stored_IB_range),stored_IB_range,56))
+array.insert(IB_ranges_array,57,valuewhen(not na(stored_IB_range),stored_IB_range,57))
+array.insert(IB_ranges_array,58,valuewhen(not na(stored_IB_range),stored_IB_range,58))
+array.insert(IB_ranges_array,59,valuewhen(not na(stored_IB_range),stored_IB_range,59))
+  
+
+IB_ranges_array := array.slice(IB_ranges_array,1,lookbackIB+1)
+IB_range_average := array.avg(IB_ranges_array)
+IB_range_stdev := (array.stdev(IB_ranges_array))/auto_adjust_IB
+
+    
+
+if(auto_IB)
+    auto_tight_IB := IB_range_average - (IB_range_stdev)
+    auto_wide_IB := IB_range_average + (IB_range_stdev)
+
+    if(IB_range <= auto_tight_IB)
+        IB_size_string := "Tight"
+    else if(IB_range >= auto_wide_IB)
+        IB_size_string := "Wide"
+    else
+        IB_size_string := "Normal"
+    // if(IB_size_string == "Tight")
+    //     IB_desc_string := tostring(round(tight_desc))
+    // else if(IB_size_string == "Normal")
+    //     IB_desc_string := tostring(round(normal_desc))
+    // else if(IB_size_string == "Wide")
+    //     IB_desc_string := tostring(round(wide_desc))
+
+perc_label := false //just for now
+if(perc_label)
+    IB_details := "SS: " + tostring(stock_story) +"\nIB: "+tostring(IB_range)+" "+IB_size_string + " \n" + IB_desc_string + "% chance of breaking"
+else
+    IB_details := "SS: " + tostring(stock_story) +"\nIB: "+tostring(IB_range)+" "+IB_size_string 
+
+if(show_ib_sizes)
+    IB_details := IB_details + "\n"+"Tight: " + tostring(round(auto_tight_IB)) +"\n"+ "Wide: " + tostring(round(auto_wide_IB)) +"\n"+"IB Avg: " + tostring(round(IB_range_average)) +"\n"+"IB Std Dev: " + tostring(round(IB_range_stdev))
+    
+if(show_array)
+    IB_details := IB_details + "\nArray: " + tostring(IB_ranges_array)
+
+///////////////////////////////
+///////CHART PLOTTING////////
+////////////////////////////////
+
+PDH = plot(intraday and plot_previous_day ? two_days ? Max_High : D_High : na, title="Daily High",style=plot.style_stepline, trackprice=true, offset=-9999, color=color.new(color.green,20),linewidth=2)
+PDL = plot(intraday and plot_previous_day ? two_days ? Min_Low :D_Low : na, title="Daily Low",style=plot.style_stepline, trackprice=true, offset=-9999, color=color.new(color.red,20),linewidth=2)
+PDC = plot(intraday and plot_previous_day ? two_days ? Average_Close :  D_Close :  na, title="Daily Close",style=plot.style_stepline, trackprice=true, offset=-9999, color=color.new(color.yellow,20),linewidth=2)
+
+PWH = plot(intraday and plot_previous_week ? W_High : na, title="Weekly High",style=plot.style_circles, trackprice=true, offset=-9999, color=color.new(color.green,60),linewidth=4)
+PWL = plot(intraday and plot_previous_week ? W_Low : na, title="Weekly Low",style=plot.style_circles, trackprice=true, offset=-9999, color=color.new(color.red,60),linewidth=4)
+
+plotIBHigh = plot((isToday or show_historical_IB) and not_HTF and intraday and plot_IB and not barstate.islast ? IB_high : na,title="IB High", offset=0, color=color.purple, transp=50, linewidth=2)
+plotIBLow = plot((isToday or show_historical_IB) and not_HTF and intraday and plot_IB and not barstate.islast ? IB_low : na,title="IB Low", offset=0, color=color.purple, transp=50, linewidth=2)
+plot((isToday or show_historical_IB) and not_HTF and intraday and plot_previous_IB and not barstate.islast  ? PIBH : na,title="Previous IB High", color=color.red, transp=50, linewidth=2)
+plot((isToday or show_historical_IB) and not_HTF and intraday and plot_previous_IB and not barstate.islast  ? PIBL : na ,title="Previous IB Low", color=color.green, transp=50, linewidth=2)
+
+if(newSession)
+    PIBH_label = label.new(x=bar_index, y=(isToday or show_historical_IB) and not_HTF and intraday and plot_previous_IB and not barstate.islast ? PIBH : na,style=label.style_none, text="PIBH", textcolor = color.new(color.yellow,25))
+    PIBL_label = label.new(x=bar_index, y=(isToday or show_historical_IB) and not_HTF and intraday and plot_previous_IB and not barstate.islast ? PIBL : na,style=label.style_none, text="PIBL", textcolor = color.new(color.yellow,25))
+
+fill(plotIBHigh,plotIBLow,title="IB Background",color=color.purple,transp = 75)
+
+
+if(barstate.islast and timeframe.isintraday and timeframe.multiplier < 15)
+    label.delete(stock_story_label)
+    stock_story_label := label.new(time, (IB_high+IB_low)/2, IB_details , style=label.style_none, textalign=text.align_left, textcolor=color.new(color.silver,40), xloc=xloc.bar_time)
+    label.set_x(id=stock_story_label,x=label.get_x(id=stock_story_label)+(1000000*offset_label))
+
+// if(not newSession)
+//     IB_high := IB_high[1] > IB_high ? IB_high[1] : IB_high
+//     IB_low := IB_low[1] < IB_low ? IB_low[1] : IB_low
+
+if(bar_index[1] and timeframe.multiplier < 15 and timeframe.isintraday)
+    var label IB_High_Price_label = na
+    var label IB_Low_Price_label = na
+    label.delete(IB_High_Price_label)
+    label.delete(IB_Low_Price_label)
+    IB_High_Price_label := label.new(x=bar_index-5 - bar_count, y=IB_high*0.995,style=label.style_none, text=tostring(IB_high*100), textcolor = color.new(color.yellow,25))
+    IB_Low_Price_label := label.new(x=bar_index-5 - bar_count, y= IB_low,style=label.style_none, text=tostring(IB_low*100), textcolor = color.new(color.yellow,25))
+    

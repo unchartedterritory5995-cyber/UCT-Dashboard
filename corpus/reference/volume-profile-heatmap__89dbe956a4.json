@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;89dbe956a42b412ca708f45b04913df9",
+ "title": "Volume Profile Heatmap",
+ "author": "colejustice",
+ "url": "https://www.tradingview.com/script/oCuvfPRd-volume-profile-heatmap/",
+ "agreeCount": 2201,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile-heatmap__89dbe956a4.pine",
+ "our_status": "reference-only"
+}

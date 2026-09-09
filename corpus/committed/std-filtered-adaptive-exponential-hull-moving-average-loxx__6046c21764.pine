@@ -1,0 +1,153 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © loxx
+
+//@version=5
+indicator("STD-Filtered, Adaptive Exponential Hull Moving Average [Loxx]",
+     shorttitle = "STDAEHMA [Loxx]",
+     overlay = true, 
+     timeframe="", 
+     timeframe_gaps = true)
+
+import loxx/loxxexpandedsourcetypes/4
+
+greencolor = #2DD204
+redcolor = #D2042D 
+
+aEMA(float src, float alpha) =>
+    ema = src
+    ema := na(ema[1]) ? src : nz(ema[1]) + alpha * (src - nz(ema[1])) 
+    ema
+
+adaptiveAlpha(float SNR, float periodL, float periodH)=>
+    float al = 2.0 / (periodL + 1.0)
+    float ah = 2.0 / (periodH + 1.0)
+    out = (ah + SNR * (al - ah))
+    out
+
+hullAdaptiveMovingAverage(float src, int persnr, int perfast, int perslow, int gain, float beta)=>
+    float signal = math.abs(src - nz(src[persnr]))
+    float noise = 0
+    for i = 0 to persnr - 1
+        noise += math.abs(nz(src[i]) - nz(src[i + 1]))
+    float SNR = beta * signal / noise * math.sqrt(persnr)
+    float exp2SNR = math.exp(2.0 * SNR)
+    float tanhSNR = (exp2SNR - 1.0) / (exp2SNR + 1.0)
+    float w = math.pow(tanhSNR, gain)
+    float a1 = adaptiveAlpha(w, perfast * 0.5, perslow * 0.5)
+    float a2 = adaptiveAlpha(w, perfast, perslow)
+    float a3 = adaptiveAlpha(w, math.sqrt(perfast), math.sqrt(perslow))
+    float h1 = src
+    float h2 = src
+    float h3 = src
+    h1 := aEMA(h1, a1) 
+    h2 := aEMA(h2, a2) 
+    h3 := (2 * h1 - h2)
+    h3 := aEMA(h3, a3) 
+    h3
+
+stdFilter(float src, int len, float filter)=>
+    float price = src
+    float filtdev = filter * ta.stdev(src, len)
+    price := math.abs(price - nz(price[1])) < filtdev ? nz(price[1]) : price
+    price
+    
+smthtype = input.string("Kaufman", "Heiken-Ashi Better Smoothing", options = ["AMA", "T3", "Kaufman"], group=  "Source Settings")
+srcoption = input.string("Close", "Source", group= "Source Settings", 
+     options = 
+     ["Close", "Open", "High", "Low", "Median", "Typical", "Weighted", "Average", "Average Median Body", "Trend Biased", "Trend Biased (Extreme)", 
+     "HA Close", "HA Open", "HA High", "HA Low", "HA Median", "HA Typical", "HA Weighted", "HA Average", "HA Average Median Body", "HA Trend Biased", "HA Trend Biased (Extreme)",
+     "HAB Close", "HAB Open", "HAB High", "HAB Low", "HAB Median", "HAB Typical", "HAB Weighted", "HAB Average", "HAB Average Median Body", "HAB Trend Biased", "HAB Trend Biased (Extreme)"])
+
+persnr = input.int(10, "Signl-to-Noise Ratio (SNR) Period", group = "Basic Settings")
+perfast = input.int(7, "Fast Period", group = "Basic Settings")
+perslow = input.int(30, "Slow Period", group = "Basic Settings")
+gain = input.int(2, "Gain", group = "Basic Settings")
+beta = input.float(.25, "Beta", group = "Basic Settings")
+
+filterop = input.string("Both", "Filter Options", options = ["Price", "AEHMA", "Both", "None"], group=  "Filter Settings")
+filter = input.float(1, "Filter Devaitions", minval = 0, group= "Filter Settings")
+filterperiod = input.int(10, "Filter Period", minval = 0, group= "Filter Settings")
+
+colorbars = input.bool(true, "Color bars?", group = "UI Options")
+showSigs = input.bool(true, "Show signals?", group= "UI Options")
+
+kfl=input.float(0.666, title="* Kaufman's Adaptive MA (KAMA) Only - Fast End", group = "Moving Average Inputs")
+ksl=input.float(0.0645, title="* Kaufman's Adaptive MA (KAMA) Only - Slow End", group = "Moving Average Inputs")
+amafl = input.int(2, title="* Adaptive Moving Average (AMA) Only - Fast", group = "Moving Average Inputs")
+amasl = input.int(30, title="* Adaptive Moving Average (AMA) Only - Slow", group = "Moving Average Inputs")
+
+haclose = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close)
+haopen = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open)
+hahigh = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, high)
+halow = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, low)
+hamedian = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hl2)
+hatypical = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hlc3)
+haweighted = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, hlcc4)
+haaverage = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, ohlc4)
+
+float src = switch srcoption
+	"Close" => loxxexpandedsourcetypes.rclose()
+	"Open" => loxxexpandedsourcetypes.ropen()
+	"High" => loxxexpandedsourcetypes.rhigh()
+	"Low" => loxxexpandedsourcetypes.rlow()
+	"Median" => loxxexpandedsourcetypes.rmedian()
+	"Typical" => loxxexpandedsourcetypes.rtypical()
+	"Weighted" => loxxexpandedsourcetypes.rweighted()
+	"Average" => loxxexpandedsourcetypes.raverage()
+    "Average Median Body" => loxxexpandedsourcetypes.ravemedbody()
+	"Trend Biased" => loxxexpandedsourcetypes.rtrendb()
+	"Trend Biased (Extreme)" => loxxexpandedsourcetypes.rtrendbext()
+	"HA Close" => loxxexpandedsourcetypes.haclose(haclose)
+	"HA Open" => loxxexpandedsourcetypes.haopen(haopen)
+	"HA High" => loxxexpandedsourcetypes.hahigh(hahigh)
+	"HA Low" => loxxexpandedsourcetypes.halow(halow)
+	"HA Median" => loxxexpandedsourcetypes.hamedian(hamedian)
+	"HA Typical" => loxxexpandedsourcetypes.hatypical(hatypical)
+	"HA Weighted" => loxxexpandedsourcetypes.haweighted(haweighted)
+	"HA Average" => loxxexpandedsourcetypes.haaverage(haaverage)
+    "HA Average Median Body" => loxxexpandedsourcetypes.haavemedbody(haclose, haopen)
+	"HA Trend Biased" => loxxexpandedsourcetypes.hatrendb(haclose, haopen, hahigh, halow)
+	"HA Trend Biased (Extreme)" => loxxexpandedsourcetypes.hatrendbext(haclose, haopen, hahigh, halow)
+	"HAB Close" => loxxexpandedsourcetypes.habclose(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Open" => loxxexpandedsourcetypes.habopen(smthtype, amafl, amasl, kfl, ksl)
+	"HAB High" => loxxexpandedsourcetypes.habhigh(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Low" => loxxexpandedsourcetypes.hablow(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Median" => loxxexpandedsourcetypes.habmedian(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Typical" => loxxexpandedsourcetypes.habtypical(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Weighted" => loxxexpandedsourcetypes.habweighted(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Average" => loxxexpandedsourcetypes.habaverage(smthtype, amafl, amasl, kfl, ksl)
+    "HAB Average Median Body" => loxxexpandedsourcetypes.habavemedbody(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Trend Biased" => loxxexpandedsourcetypes.habtrendb(smthtype, amafl, amasl, kfl, ksl)
+	"HAB Trend Biased (Extreme)" => loxxexpandedsourcetypes.habtrendbext(smthtype, amafl, amasl, kfl, ksl)
+	=> haclose
+	
+src := filterop == "Both" or filterop == "Price" and filter > 0 ? stdFilter(src, filterperiod, filter) : src
+
+out = hullAdaptiveMovingAverage(src, persnr, perfast, perslow, gain, beta)
+
+out := filterop == "Both" or filterop == "AEHMA" and filter > 0 ? stdFilter(out, filterperiod, filter) : out
+
+sig = nz(out[1])
+
+state = out > sig ? 1 : out < sig ? -1 : 0
+pregoLong = out > sig and (nz(out[1]) < nz(sig[1]) or nz(out[1]) == nz(sig[1]))
+pregoShort = out < sig and (nz(out[1]) > nz(sig[1]) or nz(out[1]) == nz(sig[1]))
+
+contsw = 0
+contsw := nz(contsw[1])
+contsw := pregoLong ? 1 : pregoShort ? -1 : nz(contsw[1])
+
+goLong = pregoLong and nz(contsw[1]) == -1
+goShort = pregoShort and nz(contsw[1]) == 1 
+
+var color colorout = na
+colorout := state == -1 ? redcolor : state == 1 ? greencolor : nz(colorout[1])
+
+plot(out, "Step AEHMA", color = colorout, linewidth = 3)
+barcolor(colorbars ? colorout : na)
+
+plotshape(showSigs and goLong, title = "Long", color = color.yellow, textcolor = color.yellow, text = "L", style = shape.triangleup, location = location.belowbar, size = size.tiny)
+plotshape(showSigs and goShort, title = "Short", color = color.fuchsia, textcolor = color.fuchsia, text = "S", style = shape.triangledown, location = location.abovebar, size = size.tiny)
+
+alertcondition(goLong, title = "Long", message = "STD-Filtered, Adaptive Exponential Hull Moving Average [Loxx]: Long\nSymbol: {{ticker}}\nPrice: {{close}}")
+alertcondition(goShort, title = "Short", message = "STD-Filtered, Adaptive Exponential Hull Moving Average [Loxx]: Short\nSymbol: {{ticker}}\nPrice: {{close}}")

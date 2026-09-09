@@ -1,0 +1,40 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © rathiabhi
+
+//@version=4
+study("BankNifty McClellan Oscillator", overlay=false,precision=0)
+
+EMAPeriod1 = input(title="10% Trend EMA",type=input.integer,defval=19)
+EMAPeriod2 = input(title="5% Trend EMA",type=input.integer,defval=39)
+
+//Weightage of Stocks in Index as on 31st Dec'21
+W_HDFCBANK=input(title="HDFCBANK", type=input.float, defval=27.8)
+W_ICICIBANK=input(title="ICICIBANK", type=input.float, defval=22.62)
+W_AXISBANK=input(title="AXISBANK", type=input.float, defval=11.52)
+W_KOTAKBANK=input(title="KOTAKBANK", type=input.float, defval=11.61)
+W_SBIN=input(title="SBIN", type=input.float, defval=11.45)
+W_INDUSINDBK=input(title="INDUSINDBK", type=input.float, defval=5.91)
+W_FEDERALBNK=input(title="FEDERALBNK", type=input.float, defval=1.70)
+W_RBLBANK=input(title="RBLBANK", type=input.float, defval=0.65)
+W_BANKBARODA=input(title="BANKBARODA", type=input.float, defval=0)
+W_BANDHANBNK=input(title="BANDHANBNK", type=input.float, defval=1.75)
+W_IDFC=input(title="IDFC", type=input.float, defval=1.54)
+W_PNB=input(title="PNB", type=input.float, defval=1.13)
+W_AUBANK=input(title="AUBANK", type=input.float, defval=2.23)
+
+Close(symbol) => change(security(symbol,timeframe.period,close))
+Volume(symbol) => security(symbol,timeframe.period,volume)
+positive(symbol,weight)=> Close(symbol) > 0 ? weight*Volume(symbol)/100 :0
+negative(symbol,weight)=> Close(symbol) < 0 ? weight*Volume(symbol)/100 :0
+
+net_pos= positive("NSE:HDFCBANK",W_HDFCBANK) + positive("NSE:ICICIBANK",W_ICICIBANK) + positive("NSE:AXISBANK",W_AXISBANK) +positive("NSE:KOTAKBANK",W_KOTAKBANK) +positive("NSE:SBIN",W_SBIN) + positive( "NSE:INDUSINDBK",W_INDUSINDBK) +positive("NSE:FEDERALBNK",W_FEDERALBNK) +positive("NSE:RBLBANK",W_RBLBANK) + positive("NSE:BANKBARODA",W_BANKBARODA) +positive("NSE:BANDHANBNK",W_BANDHANBNK) + positive("NSE:IDFC",W_IDFC)+positive("NSE:PNB",W_PNB)+positive("NSE:AUBANK",W_AUBANK)
+net_neg= negative("NSE:HDFCBANK",W_HDFCBANK) + negative("NSE:ICICIBANK",W_ICICIBANK) + negative("NSE:AXISBANK",W_AXISBANK) +negative("NSE:KOTAKBANK",W_KOTAKBANK) +negative("NSE:SBIN",W_SBIN) + negative( "NSE:INDUSINDBK",W_INDUSINDBK) +negative("NSE:FEDERALBNK",W_FEDERALBNK) +negative("NSE:RBLBANK",W_RBLBANK) + negative("NSE:BANKBARODA",W_BANKBARODA) +negative("NSE:BANDHANBNK",W_BANDHANBNK) + negative("NSE:IDFC",W_IDFC)+negative("NSE:PNB",W_PNB)+negative("NSE:AUBANK",W_AUBANK) 
+
+net_vol= net_pos - net_neg
+EMA_19 = ema(net_vol,EMAPeriod1)
+EMA_39 = ema(net_vol,EMAPeriod2)
+MC_Oscillator = EMA_19-EMA_39
+plot(MC_Oscillator, style=plot.style_columns, color=color.blue, transp=0, editable=true)
+
+
+

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;GdkmXaTINI8knwuCrctQD1pB5dFaRnyr",
+ "title": "Blackflag FTS",
+ "author": "vsnfnd",
+ "url": "https://www.tradingview.com/script/Dxc0Pi3n-blackflag-fts/",
+ "agreeCount": 7256,
+ "category": "volatility",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/blackflag-fts__GdkmXaTINI.pine",
+ "cached_source": "tools/pine_survey/cache/sources/blackflag-fts__GdkmXaTINI.pine",
+ "our_status": "committed"
+}

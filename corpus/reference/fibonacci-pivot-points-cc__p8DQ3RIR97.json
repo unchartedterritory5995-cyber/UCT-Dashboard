@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;p8DQ3RIR972Y25dacB6Hyziay6CELdyt",
+ "title": "Fibonacci Pivot Points [CC]",
+ "author": "cheatcountry",
+ "url": "https://www.tradingview.com/script/vDWxTZCv-fibonacci-pivot-points-cc/",
+ "agreeCount": 772,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MIT",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+ "our_status": "committed"
+}

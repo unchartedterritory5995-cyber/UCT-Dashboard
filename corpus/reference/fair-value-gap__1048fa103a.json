@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1048fa103aab46908257f0623175e381",
+ "title": "Fair Value Gap",
+ "author": "spacemanbtc",
+ "url": "https://www.tradingview.com/script/erbzoVY8-fair-value-gap/",
+ "agreeCount": 7962,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fair-value-gap__1048fa103a.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fair-value-gap__1048fa103a.pine",
+ "our_status": "committed"
+}

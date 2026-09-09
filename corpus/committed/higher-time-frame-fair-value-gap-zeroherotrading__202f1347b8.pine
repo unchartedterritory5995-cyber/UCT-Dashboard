@@ -1,0 +1,441 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ZeroHeroTrading
+
+//@version=6
+const int MAX_LTF_FVG   = 100
+const int MAX_HTF_FVG   = 100
+const int MAX_HTF_LINES = 3 * MAX_HTF_FVG
+
+indicator(
+ "Higher Time Frame Fair Value Gap [ZeroHeroTrading]",
+ shorttitle="HTF FVG",
+ overlay=true,
+ max_lines_count=MAX_HTF_LINES,
+ max_boxes_count=MAX_HTF_FVG ,
+ max_polylines_count=MAX_LTF_FVG
+ )
+
+const int MIN_VALID_BARS = 3
+
+// higher timeframe fair value gap indicator input
+i_higherTimeFrame = input.timeframe(defval="15", title="Higher Time Frame FVG", inline="HTF", group="indicator")
+i_textColor       = input.color(defval=color.black, title="", inline="HTF", group="indicator", tooltip=
+ "Color of the text to display for higher timeframe fair value gaps.
+ For bullish (resp. bearish) fair value gaps, it is the buying (resp. selling) pressure
+ as a percentage ratio of the up (resp. down) volume of the second higher timeframe bar
+ out of the total up (resp. down) volume of the first two higher timeframe bars."
+ )
+i_trend           = input.bool(defval=true, title="Show Trend Line", group="indicator", tooltip=
+ "When checked, a right extended trendline is drawn
+ from the most recent lowest low (resp. highest high)
+ to the top (resp. bottom) of the higher timeframe bullish (resp. bearish) fair value gap."
+ )
+i_lowerTimeFrame  = input.bool(defval=true, title="Show Lower Time Frame FVG", inline="LTF", group="indicator")
+i_borderColor     = input.color(defval=color.white, title="", inline="LTF", group="indicator", tooltip=
+ "Color of the border for lower timeframe (i.e. chart's timeframe) fair value gaps."
+ )
+i_includeInside   = input.bool(defval=true, title="Include Inside Bars", group="indicator", tooltip=
+ "When unchecked, inside first bars are skipped when evaluating fair value gaps."
+ )
+i_updates         = input.bool(defval=true, title="With Consistent Updates", group="indicator", tooltip=
+ "When checked, higher timeframe fair value gaps are dismissed if there is no update for any period of the chart's timeframe.
+ For instance, this can occur at lower timeframes during low trading activity periods such as extended hours."
+ )
+i_alert_formation = input.bool(defval=true, title="FVG Formation", group="alerts", tooltip=
+ "When checked, alerting is enabled when a higher timeframe fair value gap has formed.
+ Alerts must be re-created for the setting to apply."
+ )
+i_alert_price     = input.bool(defval=true, title="FVG Price Action", group="alerts", tooltip=
+ "When checked, alerting is enabled when the price has traded into a non-mitigated higher timeframe fair value gap.
+ Alerts must be re-created for the setting to apply."
+ )
+
+// higher timeframe validity checks
+if timeframe.in_seconds() > timeframe.in_seconds(i_higherTimeFrame)
+    runtime.error("The requested timeframe must be higher than or equal to the chart's timeframe.")
+
+if timeframe.in_seconds(i_higherTimeFrame) % timeframe.in_seconds() > 0
+    runtime.error("The requested timeframe must be a multiple of the chart's timeframe.")
+
+// function to request higher timeframe data without repainting
+requestTimeFrame(timeframe, expression) =>
+    request.security(syminfo.tickerid, timeframe, expression[1], lookahead=barmerge.lookahead_on, gaps=barmerge.gaps_on)
+
+// higher timeframe variables
+type HTF
+    bool consistentUpdates
+    int leftIndex
+    int rightIndex
+    int highIndex
+    int lowIndex
+    int highestIndex
+    int lowestIndex
+    float high
+    float low
+    float open
+    float close
+    float highest
+    float lowest
+    float upVolume
+    float downVolume
+
+var htfBars           = array.new<HTF>()
+var HTF lastBar       = na
+var int nextLeftIndex = 0
+var int htfStep       = 0
+
+// fair value gap and trendline variables
+type FVG
+    bool mitigated = false
+    bool closed    = false
+    bool bullish
+    box  area
+    line trend
+    line top
+    line bottom
+    float volumePressure
+
+var htfFVGs              = array.new<FVG>()
+var box  formingFVG      = na
+var line formingTrend    = na
+var bool detectFVG       = true
+var bool bullishFVG      = true
+var float volumePressure = na
+
+// highest/lowest variables from lower timeframe to assess fair value gap
+var float _highest      = na
+var float _lowest       = na
+var int   _highestIndex = na
+var int   _lowestIndex  = na
+
+// verify lower timeframe consistent updates within session
+var bool consistentUpdates = true
+if not (session.isfirstbar or timeframe.in_seconds() >= (time_close - time_close[1]) / 1000)
+    consistentUpdates := false
+
+// optimize runtime tracking new bar
+var bool isNewBar = true
+var int lastBarIndex = bar_index
+if bar_index != lastBarIndex
+    lastBarIndex := bar_index
+    isNewBar := true
+
+// retrieve higher timeframe time close from previous bar
+htfTimeClose = time_close(i_higherTimeFrame, 1)
+
+// mitigate higher timeframe fair value gaps
+mitigate(fvg) =>
+    if not fvg.closed
+        if fvg.bullish
+            if close[1] < fvg.bottom.get_y1()
+                fvg.mitigated := true
+                fvg.closed := true
+                fvg.top.set_style(line.style_dashed)
+                fvg.bottom.set_style(line.style_dashed)
+                fvg.top.set_x2(bar_index)
+                fvg.bottom.set_x2(bar_index)
+                fvg.top.set_extend(extend.none)
+                fvg.bottom.set_extend(extend.none)
+            else if not fvg.mitigated and close[1] < fvg.top.get_y1()
+                fvg.mitigated := true
+                fvg.top.set_style(line.style_dashed)
+        else
+            if close[1] > fvg.top.get_y1()
+                fvg.mitigated := true
+                fvg.closed := true
+                fvg.top.set_style(line.style_dashed)
+                fvg.bottom.set_style(line.style_dashed)
+                fvg.top.set_x2(bar_index)
+                fvg.bottom.set_x2(bar_index)
+                fvg.top.set_extend(extend.none)
+                fvg.bottom.set_extend(extend.none)
+            else if not fvg.mitigated and close[1] > fvg.bottom.get_y1()
+                fvg.mitigated := true
+                fvg.bottom.set_style(line.style_dashed)
+
+// manage higher timeframe data, mitigate and overlay confirmed higher timeframe fair value gaps on the chart
+if isNewBar and time_close[1] <= htfTimeClose and time_close > htfTimeClose
+    detectFVG := false
+    
+    htfBar = requestTimeFrame(i_higherTimeFrame, HTF.new(high=high, low=low, open=open, close=close))
+    if not na(htfBar)
+        htfBar.consistentUpdates := consistentUpdates
+        htfBar.leftIndex := nextLeftIndex
+        htfBar.rightIndex := bar_index[1]
+        lastBar := htfBars.size() > 0 and na(lastBar) ? htfBars.last() : lastBar
+
+        for i = htfBar.leftIndex to htfBar.rightIndex
+            if high[bar_index - i] == htfBar.high
+                htfBar.highIndex := i
+            if low[bar_index - i] == htfBar.low
+                htfBar.lowIndex := i
+        
+        if na(htfBar.upVolume)
+            float upVolume = 0
+            for i = htfBar.leftIndex to htfBar.rightIndex
+                if close[bar_index - i] >= open[bar_index - i]
+                    upVolume += volume[bar_index - i]
+            htfBar.upVolume := upVolume
+
+        if na(htfBar.downVolume)
+            float downVolume = 0
+            for i = htfBar.leftIndex to htfBar.rightIndex
+                if close[bar_index - i] <= open[bar_index - i]
+                    downVolume += volume[bar_index - i]
+            htfBar.downVolume := downVolume
+
+        if na(lastBar) or htfBar.high >= lastBar.high
+            htfBar.highest := htfBar.high
+            htfBar.highestIndex := htfBar.highIndex
+        else
+            htfBar.highest := lastBar.highest
+            htfBar.highestIndex := lastBar.highestIndex
+
+        if na(lastBar) or htfBar.low <= lastBar.low
+            htfBar.lowest := htfBar.low
+            htfBar.lowestIndex := htfBar.lowIndex
+        else
+            htfBar.lowest := lastBar.lowest
+            htfBar.lowestIndex := lastBar.lowestIndex
+        
+        if na(lastBar) or i_includeInside or (htfBar.low < lastBar.low or htfBar.high > lastBar.high)
+            htfBars.push(htfBar)
+            if htfBars.size() == MIN_VALID_BARS
+                htfBars.shift()
+        else
+            if htfBars.size() > 1
+                htfBars.shift()
+
+        lastBar := htfBar
+        nextLeftIndex := htfBar.rightIndex + 1
+        
+        if not na(formingFVG)
+            line confirmedTrend = na
+            if not na(formingTrend)
+                confirmedTrend := formingTrend.copy()
+                confirmedTrend.set_style(line.style_solid)
+            
+            confirmedFVG = formingFVG.copy()
+            confirmedFVG.set_border_style(line.style_solid)
+            confirmedFVG.set_right(bar_index[1])
+
+            _fvg = FVG.new(
+             bullish=bullishFVG,
+             volumePressure=volumePressure,
+             area=confirmedFVG,
+             trend=confirmedTrend,
+             top=line.new(
+             confirmedFVG.get_left(),
+             confirmedFVG.get_top(),
+             confirmedFVG.get_right(),
+             confirmedFVG.get_top(),
+             extend=extend.right,
+             color=bullishFVG ? color.green : color.red
+             ),
+             bottom=line.new(
+             confirmedFVG.get_left(),
+             confirmedFVG.get_bottom(),
+             confirmedFVG.get_right(),
+             confirmedFVG.get_bottom(),
+             extend=extend.right,
+             color=bullishFVG ? color.green : color.red)
+             )
+            
+            if i_alert_formation
+                alert(_fvg.bullish ? 
+                 "Bullish (" +
+                 str.tostring(i_higherTimeFrame) +
+                 ") FVG has formed [Top @" +
+                 str.tostring(_fvg.top.get_y1()) +
+                 " Bottom @" +
+                 str.tostring(_fvg.bottom.get_y1()) +
+                 " with Up Volume Pressure @" +
+                 str.tostring(_fvg.volumePressure, format.percent) +
+                 "]" :
+                 "Bearish (" +
+                 str.tostring(i_higherTimeFrame) +
+                 ") FVG has formed [Top @" +
+                 str.tostring(_fvg.top.get_y1()) +
+                 " Bottom @" +
+                 str.tostring(_fvg.bottom.get_y1()) +
+                 " with Down Volume Pressure @" +
+                 str.tostring(_fvg.volumePressure, format.percent) +
+                 "]"
+                 )
+            
+            htfFVGs.push(_fvg)
+            if htfFVGs.size() == MAX_HTF_FVG
+                htfFVGs.first().area.delete()
+                htfFVGs.first().top.delete()
+                htfFVGs.first().bottom.delete()
+                htfFVGs.first().trend.delete()
+                htfFVGs.shift()
+        
+        for _fvg in htfFVGs
+            mitigate(_fvg)
+        
+        detectFVG := true
+        consistentUpdates := true
+        formingFVG.delete()
+        formingTrend.delete()
+        formingFVG := na
+        formingTrend := na
+        _lowest := na
+        _highest := na
+        isNewBar := false
+
+// identify and overlay forming higher timeframe fair value gap on the chart
+if detectFVG and htfBars.size() == MIN_VALID_BARS - 1
+    htfStep := math.max(htfStep, htfBars.last().rightIndex - htfBars.first().rightIndex)
+
+    if not i_updates or (htfBars.first().consistentUpdates and htfBars.last().consistentUpdates and consistentUpdates)
+        if htfBars.last().close > htfBars.last().open
+            bullishFVG := true
+            if na(_lowest) or low <= _lowest
+                _lowest := low
+                _lowestIndex := bar_index
+            if _lowest > htfBars.first().high
+                if na(formingFVG)
+                    volumePressure := htfBars.last().upVolume / (htfBars.first().upVolume + htfBars.last().upVolume) * 100
+                    formingFVG := box.new(
+                     chart.point.from_index(htfBars.first().leftIndex, _lowest),
+                     chart.point.from_index(htfBars.last().rightIndex + htfStep, htfBars.first().high),
+                     border_color=color.green,
+                     border_style=line.style_dashed,
+                     bgcolor=color.new(color.green, 100 - volumePressure),
+                     text=str.tostring(volumePressure, format.percent),
+                     text_size=size.small,
+                     text_color=i_textColor,
+                     text_halign=text.align_right,
+                     text_valign=text.align_top
+                     )
+                    formingTrend := i_trend ? line.new(
+                     chart.point.from_index(htfBars.first().lowestIndex, htfBars.first().lowest),
+                     chart.point.from_index(_lowestIndex, _lowest),
+                     extend=extend.right,
+                     color=color.green,
+                     style=line.style_dotted
+                     ) : na
+                else
+                    formingFVG.set_top(_lowest)
+                    formingTrend.set_x2(_lowestIndex)
+                    formingTrend.set_y2(_lowest)
+            else
+                detectFVG := false
+                formingFVG.delete()
+                formingTrend.delete()
+                formingFVG := na
+                formingTrend := na
+        else if htfBars.last().close < htfBars.last().open
+            bullishFVG := false
+            if na(_highest) or high >= _highest
+                _highest := high
+                _highestIndex := bar_index
+            if _highest < htfBars.first().low
+                if na(formingFVG)
+                    volumePressure := htfBars.last().downVolume / (htfBars.first().downVolume + htfBars.last().downVolume) * 100
+                    formingFVG := box.new(
+                     chart.point.from_index(htfBars.first().leftIndex, htfBars.first().low),
+                     chart.point.from_index(htfBars.last().rightIndex + htfStep, _highest),
+                     border_color=color.red,
+                     border_style=line.style_dashed,
+                     bgcolor=color.new(color.red, 100 - volumePressure),
+                     text=str.tostring(volumePressure, format.percent),
+                     text_size=size.small,
+                     text_color=i_textColor,
+                     text_halign=text.align_right,
+                     text_valign=text.align_bottom
+                     )
+                    formingTrend := i_trend ? line.new(
+                     chart.point.from_index(htfBars.first().highestIndex, htfBars.first().highest),
+                     chart.point.from_index(_highestIndex, _highest),
+                     extend=extend.right,
+                     color=color.red,
+                     style=line.style_dotted
+                     ) : na
+                else
+                    formingFVG.set_bottom(_highest)
+                    formingTrend.set_x2(_highestIndex)
+                    formingTrend.set_y2(_highest)
+            else
+                detectFVG := false
+                formingFVG.delete()
+                formingTrend.delete()
+                formingFVG := na
+                formingTrend := na
+    else
+        detectFVG := false
+        formingFVG.delete()
+        formingTrend.delete()
+        formingFVG := na
+        formingTrend := na
+
+// alert when price has traded into a non-mitigated higher timeframe fair value gap
+tradeInto(fvg) =>
+    tradedInto = false
+    if not fvg.closed
+        if (low[1] > fvg.top.get_y1() and low <= fvg.top.get_y1() and high >= fvg.bottom.get_y1()) or
+         (high[1] < fvg.bottom.get_y1() and high >= fvg.bottom.get_y1() and low <= fvg.top.get_y1())
+            tradedInto := true
+    tradedInto
+
+if barstate.isconfirmed and i_alert_price
+    FVG bullishPriceFVG = na
+    FVG bearishPriceFVG = na
+
+    for _fvg in htfFVGs
+        if tradeInto(_fvg)
+            if _fvg.bullish
+                if na(bullishPriceFVG) or _fvg.top.get_y1() < bullishPriceFVG.top.get_y1()
+                    bullishPriceFVG := _fvg
+            else
+                if na(bearishPriceFVG) or _fvg.bottom.get_y1() > bearishPriceFVG.bottom.get_y1()
+                    bearishPriceFVG := _fvg
+    
+    if not na(bullishPriceFVG)
+        alert(
+         "Price has traded into bullish (" +
+         str.tostring(i_higherTimeFrame) +
+         ") FVG [Top @" +
+         str.tostring(bullishPriceFVG.top.get_y1()) +
+         " Bottom @" +
+         str.tostring(bullishPriceFVG.bottom.get_y1()) +
+         "]"
+         )
+
+    if not na(bearishPriceFVG)
+        alert(
+         "Price has traded into bearish (" +
+         str.tostring(i_higherTimeFrame) +
+         ") FVG [Top @" +
+         str.tostring(bearishPriceFVG.top.get_y1()) +
+         " Bottom @" +
+         str.tostring(bearishPriceFVG.bottom.get_y1()) +
+         "]"
+         )
+
+// identify and overlay lower timeframe fair value gap on the chart
+if barstate.isconfirmed and i_lowerTimeFrame
+    fvgPoints = array.new<chart.point>()
+    _offset = 0
+
+    if close[1] > open[1]
+        if not i_includeInside
+            while low[MIN_VALID_BARS + _offset] < low[MIN_VALID_BARS + _offset - 1] and high[MIN_VALID_BARS + _offset] > high[MIN_VALID_BARS + _offset - 1]
+                _offset += 1
+        if low > high[MIN_VALID_BARS + _offset - 1]
+            fvgPoints.push(chart.point.from_index(bar_index[MIN_VALID_BARS + _offset - 1], high[MIN_VALID_BARS + _offset - 1]))
+            fvgPoints.push(chart.point.from_index(bar_index[MIN_VALID_BARS + _offset - 1], low))
+            fvgPoints.push(chart.point.from_index(bar_index, low))
+            fvgPoints.push(chart.point.from_index(bar_index, high[MIN_VALID_BARS + _offset - 1]))
+            polyline.new(fvgPoints, closed=true, fill_color=color.green, line_color=i_borderColor, force_overlay=true)
+    else if close[1] < open[1]
+        if not i_includeInside
+            while low[MIN_VALID_BARS + _offset] < low[MIN_VALID_BARS + _offset - 1] and high[MIN_VALID_BARS + _offset] > high[MIN_VALID_BARS + _offset - 1]
+                _offset += 1
+        if low[MIN_VALID_BARS + _offset - 1] > high
+            fvgPoints.push(chart.point.from_index(bar_index[MIN_VALID_BARS + _offset - 1], low[MIN_VALID_BARS + _offset - 1]))
+            fvgPoints.push(chart.point.from_index(bar_index[MIN_VALID_BARS + _offset - 1], high))
+            fvgPoints.push(chart.point.from_index(bar_index, high))
+            fvgPoints.push(chart.point.from_index(bar_index, low[MIN_VALID_BARS + _offset - 1]))
+            polyline.new(fvgPoints, closed=true, fill_color=color.red, line_color=i_borderColor, force_overlay=true)

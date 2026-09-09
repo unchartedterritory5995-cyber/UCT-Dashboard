@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3KZoMPYziyb4zHtK43htj9OetbgOzDRP",
+ "title": "FX Market Sessions",
+ "author": "boitoki",
+ "url": "https://www.tradingview.com/script/IijBXaGM-fx-market-sessions/",
+ "agreeCount": 16635,
+ "category": "session tools",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/fx-market-sessions__3KZoMPYziy.pine",
+ "cached_source": "tools/pine_survey/cache/sources/fx-market-sessions__3KZoMPYziy.pine",
+ "our_status": "committed"
+}

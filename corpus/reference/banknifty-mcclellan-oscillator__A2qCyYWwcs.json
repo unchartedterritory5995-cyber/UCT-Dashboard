@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;A2qCyYWwcsu4dAUGHo6me7fealF2AfJ3",
+ "title": "BankNifty McClellan Oscillator",
+ "author": "ar_volumetrader",
+ "url": "https://www.tradingview.com/script/GS4NGmjk-banknifty-mcclellan-oscillator/",
+ "agreeCount": 749,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/banknifty-mcclellan-oscillator__A2qCyYWwcs.pine",
+ "cached_source": "tools/pine_survey/cache/sources/banknifty-mcclellan-oscillator__A2qCyYWwcs.pine",
+ "our_status": "committed"
+}

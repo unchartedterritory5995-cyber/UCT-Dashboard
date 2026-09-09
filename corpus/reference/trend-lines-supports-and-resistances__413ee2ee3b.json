@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;413ee2ee3b434b9690a84442ebf838e6",
+ "title": "Trend Lines, Supports and Resistances",
+ "author": "ismailcarlik",
+ "url": "https://www.tradingview.com/script/47hbpISG-trend-lines-supports-and-resistances/",
+ "agreeCount": 3779,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+ "our_status": "committed"
+}

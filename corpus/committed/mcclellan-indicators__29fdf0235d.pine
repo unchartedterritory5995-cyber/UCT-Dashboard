@@ -1,0 +1,76 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © crutchie
+
+//@version=5
+indicator("McClellan Indicators", shorttitle = "Mkt Internals")
+
+// Inputs
+exchange = input.string("NYSE", options = ["NYSE", "Nasdaq"])
+Indicator = input.string('Oscillator', 'Indicator', options = ['Oscillator', 'Summation Index (MSI)', 'MSI RSI', 'MSI MACD'])
+MSI_EMA_Length = input(10, "MSI EMA Length")
+
+// Data
+adv = exchange == "NYSE" ? request.security("ADVN", timeframe.period, close) : request.security("ADVQ", timeframe.period,close)
+dec = exchange == "NYSE" ? request.security("DECN", timeframe.period, close) : request.security("DECQ", timeframe.period,close)
+
+// Osc calc
+netadv = 1000 * (adv-dec)/(adv+dec)
+ema1 = ta.ema(netadv,19)
+ema2 = ta.ema(netadv,39)
+osc = ema1-ema2
+
+// MSI calc
+msi = ta.cum(osc)
+msiema = ta.ema(msi,MSI_EMA_Length)
+
+// MSI RSI calc
+msirsi = ta.rsi(msi,14)
+rsihi = ta.highest(msirsi,5)
+rsilo = ta.lowest(msirsi,5)
+
+// MSI MACD calc
+fast = ta.ema(msi,12)
+slow = ta.ema(msi,26)
+macd = fast-slow
+avg = ta.ema(macd,9)
+diff = macd-avg
+
+// Osc plots
+osccolor = osc > 0 ? color.green : color.red
+plot(Indicator == 'Oscillator' ? osc : na, title = "Osc", color = osccolor)
+hline(Indicator == 'Oscillator' ? 0 : na, title = "Osc Zero Line", color = color.black, linestyle=hline.style_dashed)
+
+// MSI plots
+plot(Indicator == 'Summation Index (MSI)' ? msi : na, title = "MSI", color = color.black)
+plot(Indicator == 'Summation Index (MSI)' ? msiema : na, title = "MSI EMA", color = color.red)
+msisignal =  msi > msiema ? color.rgb(76, 175, 79, 90) : color.rgb(255, 82, 82, 92)
+bgcolor(Indicator == 'Summation Index (MSI)' ? msisignal : na, title = "MSI Signal Shading")
+msiup = ta.crossover(msi,msiema) ? msi : na
+plotshape(Indicator == 'Summation Index (MSI)' ? msiup : na, title="MSI Cross Up", location = location.absolute, color=color.green, style=shape.xcross, size=size.tiny)
+msidown = ta.crossunder(msi,msiema) ? msi : na
+plotshape(Indicator == 'Summation Index (MSI)' ? msidown : na, title="MSI Cross Down", location = location.absolute, color=color.red, style=shape.xcross, size=size.tiny)
+
+// MSI RSI plots
+msirsicolor = msirsi < rsihi and msirsi > 70 ? color.red : msirsi > rsilo and msirsi < 30 ? color.green : color.black
+
+plot(Indicator == 'MSI RSI' ? msirsi : na, "MSI RSI", color = msirsicolor)
+hline(Indicator == 'MSI RSI' ? 70 : na,"RSI Overbought", linestyle = hline.style_solid, color = color.red)
+hline(Indicator == 'MSI RSI' ? 30 : na,"RSI Oversold", linestyle = hline.style_solid, color = color.green)
+hookdown = msirsi < rsihi  and msirsi < msirsi[1] and msirsi > 70 or ta.crossunder(msirsi,70) ? msirsi+5 : na
+plotshape(Indicator == 'MSI RSI' ? hookdown : na, title="RSI Hook Down", location = location.absolute, color=color.red, style=shape.triangleup, size=size.tiny)
+hookup = msirsi > rsilo  and msirsi > msirsi[1] and msirsi < 30 or ta.crossover(msirsi,30) ? msirsi-5 : na
+plotshape(Indicator == 'MSI RSI' ? hookup : na, title="RSI Hook Up", location = location.absolute, color=color.green, style=shape.triangledown, size=size.tiny)
+
+// MSI MACD plots
+
+diffcolor = diff > 0 and diff > diff[1]? color.green : diff > 0 ? color.rgb(76, 175, 79, 47) : diff < 0 and diff < diff[1] ? color.red : color.rgb(255, 82, 82, 51) 
+
+plot(Indicator == 'MSI MACD' ? macd : na, "MACD", color = color.black)
+plot(Indicator == 'MSI MACD' ? avg : na, "MACD Signal Line", color = color.red)
+plot(Indicator == 'MSI MACD' ? diff : na, "MACD Histogram", style = plot.style_histogram, linewidth=4, color = diffcolor)
+MACDsignal =  macd > avg ? color.rgb(76, 175, 79, 90): color.rgb(255, 82, 82, 92)
+bgcolor(Indicator == 'MSI MACD' ? MACDsignal : na, title = "MACD Signal Shading")
+MACDup = ta.crossover(macd,avg) ? macd : na
+plotshape(Indicator == 'MSI MACD' ? MACDup : na, title="MACD Cross Up", location = location.absolute, color=color.green, style=shape.xcross, size=size.tiny)
+MACDdown = ta.crossunder(macd,avg) ? macd : na
+plotshape(Indicator == 'MSI MACD' ? MACDdown : na, title="MACD Cross Down", location = location.absolute, color=color.red, style=shape.xcross, size=size.tiny)

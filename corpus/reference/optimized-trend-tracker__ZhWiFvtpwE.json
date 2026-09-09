@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ZhWiFvtpwEdOcFNXdkSpkRMy3Wub8BG8",
+ "title": "Optimized Trend Tracker",
+ "author": "KivancOzbilgic",
+ "url": "https://www.tradingview.com/script/HPbRZvsV-optimized-trend-tracker/",
+ "agreeCount": 6801,
+ "category": "screener/scanner",
+ "pine_version": "v4",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/optimized-trend-tracker__ZhWiFvtpwE.pine",
+ "cached_source": "tools/pine_survey/cache/sources/optimized-trend-tracker__ZhWiFvtpwE.pine",
+ "our_status": "committed"
+}

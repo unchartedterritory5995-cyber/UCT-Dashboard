@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d7293b07f6e44fb982879b7b7cd48add",
+ "title": "Fabio-Style Order Flow + LVN + VolumeProfile + FVG/OB + LiquidityGrabs + Dashboard — Stable (v6)",
+ "author": "SaaETH",
+ "url": "https://www.tradingview.com/script/rCKzrbRP-fabio-style-order-flow-lvn-volumeprofile-fvg-ob-liquiditygra/",
+ "agreeCount": 680,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/fabio-style-order-flow-lvn-volumeprofile-fvgob-liquiditygrabs-dashboar__d7293b07f6.pine",
+ "our_status": "reference-only"
+}

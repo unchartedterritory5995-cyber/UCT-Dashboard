@@ -1,0 +1,32 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © makuchaku
+
+//@version=4
+study("FVG Trend", overlay=false)
+
+isUp(index) =>
+    close[index] > open[index]
+    
+isDown(index) =>
+    close[index] < open[index]
+
+
+var fvgCounter = 0
+bullishFvg = (close > high[1])
+bearishFvg = (close < low[1])
+
+if(bullishFvg)
+    if(fvgCounter < 0) 
+        fvgCounter := 0
+    fvgCounter := fvgCounter + 1
+if(bearishFvg)
+    if(fvgCounter > 0) 
+        fvgCounter := 0
+    fvgCounter := fvgCounter - 1
+    
+plot(fvgCounter, color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter", linewidth=1)
+bgcolor(fvgCounter > 0 ? color.green : color.red, transp=90)
+plot(0, color=color.black)
+
+
+

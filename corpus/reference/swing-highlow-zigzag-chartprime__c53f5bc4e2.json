@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c53f5bc4e2fb49eab79403fdfd9ea08c",
+ "title": "Swing High/Low (ZigZag) [ChartPrime]",
+ "author": "ChartPrime",
+ "url": "https://www.tradingview.com/script/91qV64vV-swing-high-low-zigzag-chartprime/",
+ "agreeCount": 5870,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
+ "cached_source": "tools/pine_survey/cache/sources/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
+ "our_status": "committed"
+}

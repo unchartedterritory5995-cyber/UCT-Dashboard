@@ -1,0 +1,306 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TradingView
+
+//@version=6
+indicator("Volatility Stop MTF", "VStop MTF", true)
+
+// Volatility Stop MTF
+// v4, 2026.04.14
+
+// This code's style is based on the recommendations from the Pine Script User Manual's Style guide:
+//    https://www.tradingview.com/pine-script-docs/writing/style-guide/
+
+
+
+import PineCoders/Time/5 as pcTime
+import TradingView/ta/12 as TVta
+
+
+
+//#region ———————————————————— Constants and inputs
+
+
+// Style options
+string CS0 = "Lime/Red"
+string CS1 = "Aqua/Pink"
+string ST0 = "Line"
+string ST1 = "Circles"
+string ST2 = "Diamonds"
+string ST3 = "Arrows"             
+
+// Table text sizes
+string SI1 = "tiny"
+string SI2 = "small"
+string SI3 = "normal"
+string SI4 = "large"
+string SI5 = "huge"
+string SI6 = "auto"
+
+// Table position options
+string TP1 = "top"
+string TP2 = "middle" 
+string TP3 = "bottom" 
+string TP4 = "left"
+string TP5 = "center" 
+string TP6 = "right"
+
+// MTF calculation options
+string TF0 = "None"            
+string TF1 = "Discrete Steps (60min, 1D, 3D, 1W, 1M, 12M)"           
+string TF2 = "Multiple Of Current TF"      
+string TF3 = "Fixed TF"         
+
+// Alert frequency options
+string A1 = alert.freq_once_per_bar
+string A2 = alert.freq_once_per_bar_close
+
+// Tooltips
+string SIZE_TT = "Sets the size of the display table."
+string POS_TT  = "Sets the position of the display table on the chart."
+string REV_TT = (
+    "Enables an alert after the detected trend changes from upward to downward or vice versa. "
+    + "If the 'Delay in minutes' value is not 0, the alert occurs after the specified time passes since the last " 
+    + "change in the trend. The timer resets each time the direction changes."
+)
+string UP_TT  = (
+    "Enables an alert after the price crosses above the downtrend stop on the requested timeframe. "
+    + "If the 'Delay in minutes' value is not 0, the alert occurs after the specified time passes since the last " 
+    + "change to an uptrend."
+)
+string DN_TT  = (
+    "Enables an alert after the price crosses below the uptrend stop on the requested timeframe. "
+    + "If the 'Delay in minutes' value is not 0, the alert occurs after the specified time passes since the last " 
+    + "change to a downtrend."
+)
+string EDN_TT  = (
+    "Enables an alert after the price on the chart timeframe crosses above the HTF downtrend stop, signaling an " 
+    + "early breach of the downtrend. If the 'Delay in minutes' value is not 0, the alert occurs after the specified " 
+    + "time passes since the last early breach condition."
+)
+string EUP_TT  = (
+    "Enables an alert after the price on the chart timeframe crosses below the HTF uptrend stop, signaling an " 
+    + "early breach of the uptrend. If the 'Delay in minutes' value is not 0, the alert occurs after the specified " 
+    + "time passes since the last early breach condition."
+)
+string DLY_TT = (
+    "The number of minutes that must elapse since the last occurrence of a selected condition to trigger an alert. " 
+    + "The delay timer for each condition resets every time the condition occurs. " 
+    + "A value of 0.5 represents 30 seconds. If the delay is 0, the alert occurs as soon as possible."
+)
+
+// Inputs
+string GRP1                = "Stop calculations"
+float  srcInput            = input.source(close,    "Source",                          group = GRP1)
+int    lenInput            = input.int(20,          "Length",                          group = GRP1, minval = 2)
+float  atrInput            = input.float(2.0,       "ATR factor",                      group = GRP1, minval = 0.25, step = 0.25)
+
+string GRP2                = "HTF selection"
+string typeInput           = input.string(TF2,      "Higher-timeframe selection",      group = GRP2, options = [TF0, TF1, TF2, TF3])
+float  type2Input          = input.float(3.,        "  Multiple of current TF",        group = GRP2, minval  = 1, active = typeInput == TF2)
+string type3Input          = input.timeframe("1D",  "  Fixed TF",                      group = GRP2, active  = typeInput == TF3)
+bool   detectBreachesInput = input.bool(true,       "Detect breaches by chart bars",   group = GRP2)
+bool   breachesMrkrInput   = input.bool(true,       "  Show chart breaches",           group = GRP2)
+bool   breachedBarsInput   = input.bool(false,      "  Color bars in limbo",           group = GRP2)
+bool   breachedBgInput     = input.bool(false,      "  Highlight background in limbo", group = GRP2)
+bool   repaintsInput       = input.bool(false,      "Repainting HTF",                  group = GRP2)
+
+string GRP3                = "Alert conditions"
+bool   revInput            = input.bool(false,      "Trend reversal",                  group = GRP3, tooltip = REV_TT)
+bool   upInput             = input.bool(false,      "Change to uptrend",               group = GRP3, tooltip = UP_TT)
+bool   dnInput             = input.bool(false,      "Change to downtrend",             group = GRP3, tooltip = DN_TT)
+bool   eDnInput            = input.bool(false,      "Chart breach of HTF downtrend",   group = GRP3, tooltip = EDN_TT)
+bool   eUpInput            = input.bool(false,      "Chart breach of HTF uptrend",     group = GRP3, tooltip = EUP_TT)
+float  delayInput          = input.float(0.0,       "Delay in minutes",                group = GRP3, tooltip = DLY_TT, minval = 0.0, step = 0.5)
+string freqInput           = input.string(A1,       "Alert frequency",                 group = GRP3, options = [A1, A2])
+
+string GRP4                = "Visuals"
+string colSchemeInput      = input.string(CS1,      "Color scheme",                    group = GRP4, options = [CS0, CS1])
+string styleInput          = input.string(ST0,      "Style",                           group = GRP4, options = [ST0, ST1, ST2, ST3])
+int    thicknessInput      = input.int(2,           "Line thickness",                  group = GRP4, options = [0, 1, 2, 3])
+bool   colorBarsInput      = input.bool(false,      "Color bars on trend state",       group = GRP4)
+
+string GRP5                = "Display HTF"
+bool   showHTFInput        = input.bool(false,      "Show HTF used",                   group = GRP5)
+string textSizeInput       = input.string("large",  "Text size",                       group = GRP5, tooltip = SIZE_TT, options = [SI1, SI2, SI3, SI4, SI5, SI6])
+string tableYposInput      = input.string("bottom", "Position         ",               group = GRP5, tooltip = POS_TT,  options = [TP1, TP2, TP3], inline = "41")
+string tableXposInput      = input.string("right",  "",                                group = GRP5,                    options = [TP4, TP5, TP6], inline = "41")
+
+// Get conditions from input selections.
+bool defaultScheme = colSchemeInput == CS0
+bool showCircles   = styleInput     == ST1
+bool showDiamonds  = styleInput     == ST2
+bool showArrows    = styleInput     == ST3
+bool htfOn         = typeInput      != TF0
+//#endregion
+
+
+
+//#region ———————————————————— Functions
+
+
+// @function        Calculates a stepped higher timeframe from a base timeframe in minutes.
+// @param tf        (simple int) The number of minutes in the base timeframe.    
+// @returns         (string) A string representing the calculated higher timeframe.
+tfNextStep(simple int tf) =>
+    string result = switch 
+        tf <= 1     => "60" 
+        tf <= 60    => "1D" 
+        tf <= 360   => "3D" 
+        tf <= 1440  => "1W" 
+        tf <= 10080 => "1M" 
+        =>             "12M"
+//#endregion
+
+
+
+//#region ———————————————————— Calculations
+
+
+//@variable The number of seconds in the current chart timeframe.
+int tfInSec = timeframe.in_seconds() 
+
+//@variable A string representing the higher timeframe to use for the request. 
+string htf = switch typeInput 
+    TF1 => tfNextStep(tfInSec / 60)
+    TF2 => timeframe.from_seconds(math.round(tfInSec * type2Input)) 
+    =>     type3Input
+
+// Raise an error if the specified timeframe is not higher than the chart's timeframe
+if barstate.isfirst and htfOn and timeframe.in_seconds(timeframe.main_period) >= timeframe.in_seconds(htf)
+    string mainStr = htf == ""  ? timeframe.period : htf
+    runtime.error(str.format("The requested timeframe must be higher than the chart''s timeframe (''{0}'').", mainStr))
+
+// Calculate the volatility stop and uptrend state on the chart's timeframe.
+[stopChartTf, trendUpChartTf] = TVta.vStop(srcInput, lenInput, atrInput)
+
+// Request the stop and uptrend state from a higher timeframe.
+int offset = repaintsInput ? 0 : 1
+lookahead  = repaintsInput ? barmerge.lookahead_off : barmerge.lookahead_on
+[stopSec, trendUpSec] = request.security(
+    syminfo.tickerid, htf, [stopChartTf[offset], trendUpChartTf[offset]], lookahead = lookahead
+)
+
+// Use the chart or HTF stop and trend states, depending on the `htfOn` value. 
+float stop    = not htfOn ? stopChartTf    : stopSec
+bool  trendUp = not htfOn ? trendUpChartTf : trendUpSec
+
+// Calculate conditions for plots and alerts. 
+var bool inLimbo = false
+bool trendReversal   = trendUp != trendUp[1]
+bool trendChangeToUp = trendUp and not trendUp[1]
+bool trendChangeToDn = not trendUp and trendUp[1]
+bool cross           = ta.cross(close, stop)
+bool htfBreach       = htfOn and detectBreachesInput and not inLimbo and cross
+bool earlyBreachUp   = htfBreach and not trendReversal and trendUp
+bool earlyBreachDn   = htfBreach and not trendReversal and not trendUp
+inLimbo := (inLimbo or htfBreach) and trendUp == trendUp[1]
+
+// Calculate scheme colors.
+color colorUp      = inLimbo  ? defaultScheme ? #00ff0080  : #00c0ff80 : defaultScheme ? #00ff00 : #00c0ff
+color colorDown    = inLimbo  ? defaultScheme ? #ff0000b0  : #ff008080 : defaultScheme ? #ff0000 : #ff0080
+color schemeColor  = inLimbo  ? defaultScheme ? trendUp ? #00ff0080 : #ff0000b0 : trendUp ? #00c0ff80 : 
+                     #ff008080 : defaultScheme ? trendUp ? #00ff00 : #ff0000 : trendUp ? #00c0ff  : #ff0080
+color lineColor    = trendReversal or htfBreach ? #00000000 : schemeColor
+
+// Estimate the time elapsed since each trend condition.
+float secondsUp  = pcTime.secondsSince(trendChangeToUp, false)
+float secondsDn  = pcTime.secondsSince(trendChangeToDn, false)
+float secondsRev = pcTime.secondsSince(trendReversal,   false)
+float secondsEBU = pcTime.secondsSince(earlyBreachUp,   false)
+float secondsEBD = pcTime.secondsSince(earlyBreachDn,   false)
+
+// Get timed alert conditions.
+bool timed        = delayInput != 0 
+bool alertUp      = secondsUp  >= delayInput * 60
+bool alertDn      = secondsDn  >= delayInput * 60
+bool alertRev     = secondsRev >= delayInput * 60
+bool alertEarlyUp = secondsEBU >= delayInput * 60
+bool alertEarlyDn = secondsEBD >= delayInput * 60
+//#endregion
+
+
+
+//#region ———————————————————— Display
+
+
+// Plot the stop lines and shapes.
+plotshape(
+    showDiamonds or showCircles ? stop : na, "Diamonds & Circles", showDiamonds ? shape.diamond : shape.circle, 
+    location.absolute, schemeColor
+)
+plotchar(showArrows and trendUp     ? stop : na, "Arrows Up", "⮝", location.absolute, colorUp)
+plotchar(showArrows and not trendUp ? stop : na, "Arrows Dn", "⮟", location.absolute, colorDown)
+plot(thicknessInput != 0 ? stop : na, "V-Stop", lineColor, thicknessInput)
+plot(trendReversal  ? stop : na, "Beg. Circle", schemeColor, math.max(thicknessInput, 1) + 2, plot.style_circles)
+plot(trendReversal  ? stop : na, "Beg. Small circle", #000000ff, math.max(thicknessInput, 1), plot.style_circles)
+
+// Plot shapes for chart breaches of the HTF stop.
+plotshape(
+    breachesMrkrInput and earlyBreachUp, "Breach of HTF Uptrend", shape.triangledown, location.abovebar, #ff0000, 
+    size = size.tiny
+)
+plotshape(
+    breachesMrkrInput and earlyBreachDn, "Breach of HTF Downtrend", shape.triangleup, location.belowbar, #ff0000, 
+    size = size.tiny
+)
+
+// Color bars based on trend and "limbo" states.
+bool barUp = close > open
+barcolor(
+    breachedBarsInput and inLimbo ? barUp ? #ff8000 : #ff8000d0 : not colorBarsInput ? na : 
+    trendUp ? barUp ? #00ff00 : #00ff0080 : barUp ? #ff0000 : #ff0000b0
+)
+// Color the background for "limbo" states.
+bgcolor(breachedBgInput and inLimbo ? color.new(color.silver, 90) : na)
+
+// Display the higher timeframe in a table on the last bar. 
+if barstate.islastconfirmedhistory and htfOn and showHTFInput
+    var table tfDisplay = table.new(tableYposInput + "_" + tableXposInput, 1, 1)
+    table.cell(tfDisplay, 0, 0, htf, text_color = color.silver, text_size = textSizeInput)
+//#endregion
+
+
+
+//#region ———————————————————— Alerts
+
+
+// Alert for trend reversals
+if alertRev and revInput
+    string alertMsg = (
+        "Trend Reversal. " 
+        + (timed ? "Price crossed stop ~" + str.tostring(secondsRev / 60, "#.## minutes ago") : "")
+    )
+    alert(alertMsg, freqInput)
+
+// Alert for uptrend changes
+if alertUp and upInput
+    string alertMsg = (
+        "Change to uptrend. " 
+        + (timed ? "Price crossed above downtrend stop ~" + str.tostring(secondsUp / 60, "#.## minutes ago") : "")
+    )
+    alert(alertMsg, freqInput)
+
+// Alert for downtrend changes
+if alertDn and dnInput
+    string alertMsg = (
+        "Change to downtrend. " 
+    + (timed ? "Price crossed below downtrend stop ~" + str.tostring(secondsDn / 60, "#.## minutes ago") : "")
+    )
+    alert(alertMsg, freqInput)
+
+// Alert for chart breach of HTF uptrend
+if alertEarlyUp and eUpInput
+    string alertMsg = (
+        "Chart breach of HTF uptrend. " + 
+        (timed ? "Chart price crossed below stop ~" + str.tostring(secondsEBU / 60, "#.## minutes ago") : "")
+    )
+    alert(alertMsg, freqInput)
+
+// Alert for chart breach of HTF downtrend
+if alertEarlyDn and eDnInput
+    string alertMsg = (
+        "Chart breach of HTF downtrend. "
+        + (timed ? "Chart price crossed above stop ~" + str.tostring(secondsEBD / 60, "#.## minutes ago") : "")
+    )
+    alert(alertMsg, freqInput)
+//#endregion

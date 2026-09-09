@@ -1,0 +1,60 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RozaniGhani-RG
+
+//@version=5
+indicator('Linear Regression Channel 200', 'LRC200', true)
+
+// 0. Inputs
+// 1. Custom function
+// 2. Variables
+// 3. Contructs
+// 4. Alerts
+
+//#region ———————————————————— 0. Inputs
+devLen = input.float(2.0, 'Deviation')
+regLen = input.int(  200,    'Length', minval = 1, maxval = 5000)
+//#endregion
+
+//#region ———————————————————— 1. Custom function
+calculateRegression(int len = 200) =>
+    max_bars_back(close, 1500)
+    mid    = math.sum( close, len) / len
+    slope  = ta.linreg(close, len, 0) - ta.linreg(close, len, 1)
+    price1 =    mid - slope * math.floor(len / 2) + (1 - len % 2) / 2 * slope
+    price2 = price1 + slope * (len - 1)
+    dev    = 0.0
+    for x = 0 to len - 1
+        dev += math.pow(close[x] - (slope * (len - x) + price1), 2)
+        dev
+    dev := math.sqrt(dev / len)
+    [price1, price2, dev, slope]
+//#endregion
+
+//#region ————————————————————  2. Variables
+[price1, price2, stdDev, slope] = calculateRegression(regLen) 
+
+mid1 = chart.point.new(na, bar_index - regLen + 1, price1)
+up1  = chart.point.new(na, bar_index - regLen + 1, price1 + (devLen * stdDev))
+dn1  = chart.point.new(na, bar_index - regLen + 1, price1 - (devLen * stdDev))
+
+mid2 = chart.point.new(na, bar_index, price2)
+up2  = chart.point.new(na, bar_index, price2 + (devLen * stdDev))
+dn2  = chart.point.new(na, bar_index, price2 - (devLen * stdDev))
+
+col = price1 > price2 ? color.red : color.teal
+//#endregion
+
+//#region ———————————————————— 3. Contructs
+if barstate.islast
+    var line midLine = na, midLine.delete(), midLine := line.new(mid1, mid2, xloc.bar_index, extend.right, chart.fg_color, line.style_dashed, 1)
+    var line upLine  = na, upLine.delete(),   upLine := line.new( up1,  up2, xloc.bar_index, extend.right, chart.fg_color, line.style_solid,  2)
+    var line dnLine  = na, dnLine.delete(),   dnLine := line.new( dn1,  dn2, xloc.bar_index, extend.right, chart.fg_color, line.style_solid,  2)
+//#endregion
+
+//#region ———————————————————— 4. Alerts
+float trend = math.sign(price1 - price2)
+alertcondition(trend[1] >= 0 and trend < 0, 'Uptrend',   'Regression Channel change to Uptrend')
+alertcondition(trend[1] <= 0 and trend > 0, 'Downtrend', 'Regression Channel change to Downtrend')
+//#endregion
+
+

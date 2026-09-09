@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c1753fd2871a41d4be2d8802bbfa39f6",
+ "title": "Footprint strategy",
+ "author": "dboichenko",
+ "url": "https://www.tradingview.com/script/x51WyBCh-footprint-strategy/",
+ "agreeCount": 668,
+ "category": "order flow",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/footprint-strategy__c1753fd287.pine",
+ "our_status": "reference-only"
+}

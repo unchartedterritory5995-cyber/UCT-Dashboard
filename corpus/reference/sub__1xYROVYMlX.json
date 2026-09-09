@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;1xYROVYMlXZU7hBpopQPmrhJivWZ2pgr",
+ "title": "Sub",
+ "author": "IcemanRan",
+ "url": "https://www.tradingview.com/script/VXRJkFlZ-sub/",
+ "agreeCount": 1395,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/sub__1xYROVYMlX.pine",
+ "cached_source": "tools/pine_survey/cache/sources/sub__1xYROVYMlX.pine",
+ "our_status": "committed"
+}

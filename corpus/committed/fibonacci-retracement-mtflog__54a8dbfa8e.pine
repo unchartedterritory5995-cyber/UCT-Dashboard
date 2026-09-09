@@ -1,0 +1,125 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © dg_factor [01.05.2022, Istanbul] [v2 : 17.01.2025]
+
+//@version=6
+indicator("Fibonacci Retracement MTF/LOG", overlay=true)
+
+// Inputs
+grd = "DISPLAY", grc = "CONFIGURATION"
+tf = input.timeframe ("1D", "TimeFrame ", tooltip="Select a higher timeframe (HTF).\nPlease ensure that your chart includes the starting bar of the selected timeframe to accurately calculate the trend direction.")
+rf = input.int(0, "Reference ", 0, tooltip="The value returns the results of the Nth previous timeframe based on the specified integer. (For example, if 1 is selected and timeframe is '1D', the results from one day ago will be displayed.)\n\nPlease note that, the results produced are not those accumulated since the specified timeframe but belong specifically to that timeframe.")
+sc = input.string("Linear ", "Scale ", ["Linear ", "Logarithmic "], tooltip="It is recommended to set the chart scale (either as linear or logarithmic) according to the selected calculation type in order to see the levels correctly.")
+rp = input.bool(false, "Avoid Repaint ", tooltip="When this parameter is enabled, the results are drawn from the bar where they occur permanently. That's an effective way to eliminate repainting.")
+tr = input.bool(true, "Trend ", group=grd, tooltip="You can display or hide the trend line.")
+ex = input.bool(false, "Extend Line ", group=grd, tooltip="You can extend lines indefinitely to the right side of the chart.")
+wd = input.int(1, "Line Width ", 1, group=grd, tooltip="You can adjust line width.")
+st = input.string("Solid ", "Line Style ", ["Solid ", "Dashed ", "Dotted "], group=grd, tooltip="You can adjust line style.")
+ps = input.int(0, "Label Position ", group=grd, tooltip="You can change the position of the labels to the right or left.")
+s_0000 = input.bool(true,  "", group=grc, inline="1"),  k_0000 = input.float(0.000, "", group=grc, inline="1"),  c_0000 = input.color(#07be01, "", group=grc, inline="1")
+s_0236 = input.bool(true,  "", group=grc, inline="2"),  k_0236 = input.float(0.236, "", group=grc, inline="2"),  c_0236 = input.color(#1293cc, "", group=grc, inline="2")
+s_0382 = input.bool(true,  "", group=grc, inline="3"),  k_0382 = input.float(0.382, "", group=grc, inline="3"),  c_0382 = input.color(#af6003, "", group=grc, inline="3")
+s_0500 = input.bool(true,  "", group=grc, inline="4"),  k_0500 = input.float(0.500, "", group=grc, inline="4"),  c_0500 = input.color(#008f6e, "", group=grc, inline="4")
+s_0618 = input.bool(true,  "", group=grc, inline="5"),  k_0618 = input.float(0.618, "", group=grc, inline="5"),  c_0618 = input.color(#7805d7, "", group=grc, inline="5")
+s_0786 = input.bool(true,  "", group=grc, inline="6"),  k_0786 = input.float(0.786, "", group=grc, inline="6"),  c_0786 = input.color(#919c10, "", group=grc, inline="6")
+s_1000 = input.bool(true,  "", group=grc, inline="7"),  k_1000 = input.float(1.000, "", group=grc, inline="7"),  c_1000 = input.color(#bb1111, "", group=grc, inline="7")
+s_ops  = input.bool(false, "", group=grc, inline="8"),  k_ops  = input.float(1.272, "", group=grc, inline="8"),  c_ops  = input.color(#686868, "", group=grc, inline="8")
+
+// Variables
+term     = math.max(rf + 1, 1)
+anchored = ta.change(time(tf)) != 0
+duration = timeframe.in_seconds() * 1000
+
+// Retracement Function
+f_ret(s, k, c) =>
+    var line  ln = na, line.delete(ln)
+    var label lb = na, label.delete(lb)
+    var line  td = na, line.delete(td)
+    var float [] yh = array.new_float(term, na)
+    var float [] yl = array.new_float(term, na)
+    var int   [] xh = array.new_int(term, na)
+    var int   [] xl = array.new_int(term, na)
+    if anchored
+        if rf > 0
+            for i = rf - 1 to 0
+                yh.set(i + 1, yh.get(i))
+                yl.set(i + 1, yl.get(i))
+                xh.set(i + 1, xh.get(i))
+                xl.set(i + 1, xl.get(i))
+        yh.set(0, high)
+        yl.set(0, low)
+        xh.set(0, time)
+        xl.set(0, time)
+    if high > yh.get(0)
+        yh.set(0, high)
+        xh.set(0, time)
+    if low < array.get(yl, 0)
+        yl.set(0, low)
+        xl.set(0, time)
+    _yh = yh.get(rf), _yl = yl.get(rf) 
+    _xh = xh.get(rf), _xl = xl.get(rf)
+    dir = _xl < _xh ? 1 : _xl > _xh ? -1 : 0
+    x1 = dir == 1 ? _xl : dir == -1 ? _xh : int(na)
+    x2 = dir == 1 ? _xh : dir == -1 ? _xl : int(na)
+    y1 = dir == 1 ? _yl : dir == -1 ? _yh : float(na)
+    y2 = dir == 1 ? _yh : dir == -1 ? _yl : float(na)
+    r1 = y1 * k + y2 * (1 - k)
+    r2 = y2 * math.exp(math.log(y1 / y2) * k) 
+    y  = sc == "Linear " ? r1 : r2                                                                                             
+    x3 = ta.valuewhen(anchored, time, rf)
+    x4 = rf == 0 ? time : ta.valuewhen(anchored, time, rf - 1)     
+    td := tr ? line.new(x1, y1, x2, y2, xloc.bar_time, extend.none, 
+     color.new(chart.fg_color, 90), line.style_dashed) : na
+    ln := s ? line.new(rp ? x2 : x3, y, x4, y, 
+     xloc.bar_time, ex ? extend.right : extend.none, c, 
+     st == "Solid " ? line.style_solid : st == "Dashed " ? line.style_dashed : line.style_dotted, wd) : na
+    lb := s ? label.new(rf == 0 or (rf > 0 and ex) ? time + ps * duration : x4 + (ps == 0 ? 1 : ps) * duration, y, 
+     "[" + str.tostring(k) + "] (" + str.tostring(y, format.mintick) + ")", xloc.bar_time, 
+     yloc.price, #00000000, ex ? label.style_none : label.style_label_left, c, size.normal, ex ? text.align_left : text.align_right) : na
+    y
+//
+
+// Return and Plot (for PineScreener)
+l_0000 = f_ret(s_0000, k_0000, c_0000),  plot(l_0000, "Lvl 0.000", c_0000,   display=s_0000 ? display.data_window : display.none, editable=false)
+l_0236 = f_ret(s_0236, k_0236, c_0236),  plot(l_0236, "Lvl 0.236", c_0236,   display=s_0236 ? display.data_window : display.none, editable=false)
+l_0382 = f_ret(s_0382, k_0382, c_0382),  plot(l_0382, "Lvl 0.382", c_0382,   display=s_0382 ? display.data_window : display.none, editable=false)
+l_0500 = f_ret(s_0500, k_0500, c_0500),  plot(l_0500, "Lvl 0.500", c_0500,   display=s_0500 ? display.data_window : display.none, editable=false)
+l_0618 = f_ret(s_0618, k_0618, c_0618),  plot(l_0618, "Lvl 0.618", c_0618,   display=s_0618 ? display.data_window : display.none, editable=false)
+l_0786 = f_ret(s_0786, k_0786, c_0786),  plot(l_0786, "Lvl 0.786", c_0786,   display=s_0786 ? display.data_window : display.none, editable=false)
+l_1000 = f_ret(s_1000, k_1000, c_1000),  plot(l_1000, "Lvl 1.000", c_1000,   display=s_1000 ? display.data_window : display.none, editable=false)
+l_ops  = f_ret(s_ops , k_ops , c_ops ),  plot(l_ops , "Lvl Optional", c_ops, display=s_ops  ? display.data_window : display.none, editable=false)
+
+plotshape(anchored, " Anchored TF ⚓", shape.labeldown, location.top, #00000000, text="⚓", precision=0)
+
+// Alerts for PineScreener
+alertcondition(ta.crossover(close,  l_0236), "Crossover 0.236", "Crossover 0.236")
+alertcondition(ta.crossover(close,  l_0382), "Crossover 0.382", "Crossover 0.382")
+alertcondition(ta.crossover(close,  l_0500), "Crossover 0.500", "Crossover 0.500")
+alertcondition(ta.crossover(close,  l_0618), "Crossover 0.618", "Crossover 0.618")
+alertcondition(ta.crossover(close,  l_0786), "Crossover 0.786", "Crossover 0.786")
+alertcondition(ta.crossover(close,  l_ops) , "Crossover Optional", "Crossover Optional")
+alertcondition(ta.crossunder(close, l_0236), "Crossunder 0.236", "Crossunder 0.236")
+alertcondition(ta.crossunder(close, l_0382), "Crossunder 0.382", "Crossunder 0.382")
+alertcondition(ta.crossunder(close, l_0500), "Crossunder 0.500", "Crossunder 0.500")
+alertcondition(ta.crossunder(close, l_0618), "Crossunder 0.618", "Crossunder 0.618")
+alertcondition(ta.crossunder(close, l_0786), "Crossunder 0.786", "Crossunder 0.786")
+alertcondition(ta.crossunder(close, l_ops) , "Crossunder Optional", "Crossunder Optional")
+
+// Info
+var start  = time
+anc_num    = ta.cum(anchored ? 1 : 0)
+start_date = str.format_time(start, "dd.MM.yyyy - HH:mm")
+anc_start  = ta.valuewhen(anc_num == 1, time, 0)
+anc_max    = ta.max(anc_num)
+
+var tb = table.new(position.top_right, 1, 3)
+if barstate.islast 
+    if timeframe.in_seconds(tf) <= timeframe.in_seconds() 
+        table.cell(tb, 0, 0, "\n\n" + "The requested timeframe '" + tf + "' is too small.\nSelect a higher timeframe.", text_color=chart.fg_color, text_halign=text.align_left)
+    if nz(anc_start) < start
+        table.cell(tb, 0, 1, "\n\n" + "The requested timeframe '" + tf + "' is too big.\nSelect a lower timeframe.\nThe chart starts from:\n" + start_date, text_color=chart.fg_color, text_halign=text.align_left)
+    if rf > anc_max - 1 and not (anc_max - 1 < 0)
+        table.cell(tb, 0, 2, "\n\n" + "The requested Reference '" + tf + "[" + str.tostring(rf) + "]" + "' is too big.\nSelect a lower reference.\nMax : " + str.tostring(anc_max - 1), text_color=chart.fg_color, text_halign=text.align_left)
+//
+
+// Bitti :)
+plotshape(barstate.isfirst, "@ dg_factor", shape.flag, location.bottom, #00000000, precision=0, editable=false)

@@ -1,0 +1,210 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © finallynitin
+// thanks to @FreeThinkEd for the original script
+// thanks to Manas Arora for the strong start concept
+
+//@version=6
+indicator("Strong Start RVOL Dashboard", shorttitle = 'SS RVOL', overlay = true, max_bars_back = 500)
+
+const float SS_LOWMULT = 0.995   // day low must hold ≥ prev close × this
+
+// ---- settings ----
+int    lookback = input.int(20, "Avg volume lookback (days)", minval = 1, maxval = 100, tooltip = "20 is a steadier baseline than 10. Set 10 to match the screener exactly.", group = "Settings")
+string showAs   = input.string("Percent", "Show RVOL as", options = ["Percent", "Ratio"], group = "Settings")
+float  rvolFlag = input.float(8.0, "Flag when RVOL% ≥", step = 0.5, group = "Settings")
+float  chgFlag  = input.float(1.5, "Move threshold (Chg% for green)", step = 0.1, tooltip = "Row tints green when up at least this, red when down by it, amber in between. Drives color even when the Chg% column is hidden.", group = "Settings")
+int    gatePct  = input.int(50, "Light up top % by RVOL", minval = 10, maxval = 100, step = 5, tooltip = "Only the heaviest-volume X% of the list gets a tinted row. Lower = fewer, hotter names.", group = "Settings")
+
+// ---- watchlist (paste) ----
+string gWL  = "Watchlist (paste)"
+string DEF  = ""
+string defExch = input.string("NSE", "Default exchange for bare tickers", tooltip = "Chartink lists are bare tickers. Any token without 'EXCHANGE:' gets this prefix.", group = gWL)
+string pasted  = input.text_area(DEF, "Paste watchlist", tooltip = "Up to 40 symbols (39 when the corner box is on); page with 'Start at symbol #'.", group = gWL)
+int    startAt = input.int(0, "Start at symbol #", minval = 0, step = 10, tooltip = "Skip this many valid symbols — page a long list past the cap.", group = gWL)
+
+// ---- table options ----
+string GRP3       = "════════ Table Options ═════════"
+string showWhat   = input.string("Both", "Show", group = GRP3, options = ["Both", "Watchlist only", "Current symbol only"], tooltip = "Which to display: the watchlist table, just the current chart symbol's box, or both.")
+string sortBy     = input.string("RVOL", "Sort by", group = GRP3, options = ["RVOL", "Chg%", "SS"], tooltip = "Row order. RVOL = heaviest volume first; Chg% = biggest movers first; SS = strong starts on top (RVOL-ranked within). Volume-leads coloring always highlights the heaviest-RVOL names regardless of sort.")
+bool   showChg    = input.bool(false, "Show Chg% column", tooltip = "Hidden by default. Row coloring still reflects the move.", group = GRP3)
+string theme      = input.string("Light", "Theme", options = ["Dark", "Light"], tooltip = "Light is the default. Switch to Dark for a dark chart background.", group = GRP3)
+string tablesize  = input.string("small", "Table", inline = "tbl", group = GRP3, options = ["tiny", "small", "normal", "large", "huge", "auto"], tooltip = "Watchlist table: size and position (vertical ↕, horizontal ↔).")
+string tableposY  = input.string("middle", "↕", inline = "tbl", group = GRP3, options = ["top", "middle", "bottom"])
+string tableposX  = input.string("right", "↔", inline = "tbl", group = GRP3, options = ["left", "center", "right"])
+string cornerSize = input.string("large", "Box", inline = "box", group = GRP3, options = ["tiny", "small", "normal", "large", "huge", "auto"], tooltip = "Current-symbol box: its own size and position. If it lands on the table's exact spot it's auto-moved so they don't overlap.")
+string cornerPosY = input.string("top", "↕", inline = "box", group = GRP3, options = ["top", "middle", "bottom"])
+string cornerPosX = input.string("center", "↔", inline = "box", group = GRP3, options = ["left", "center", "right"])
+
+bool showTable  = showWhat != "Current symbol only"
+bool showCorner = showWhat != "Watchlist only"
+
+// ---- parse pasted blob → clean EXCHANGE:TICKER list (Chartink bare tickers get defExch) ----
+parseSymbols(string raw, string exch) =>
+    string norm = str.replace_all(raw, "\n", ",")
+    norm := str.replace_all(norm, "\r", ",")
+    array<string> out  = array.new<string>()
+    array<string> toks = str.split(norm, ",")
+    for i = 0 to array.size(toks) - 1
+        string tk = str.trim(array.get(toks, i))
+        if tk != "" and not str.startswith(tk, "###")
+            array.push(out, str.contains(tk, ":") ? tk : exch + ":" + tk)
+    out
+
+var array<string> ALL = parseSymbols(pasted, defExch)
+
+// ---- daily metrics per symbol (one request each) ----
+calcDaily(simple int N) =>
+    float avgv = ta.sma(volume[1], N)
+    float rv   = avgv > 0 ? volume / avgv : na
+    float cg   = close[1] != 0 ? (close - close[1]) / close[1] * 100 : na
+    [rv, cg, open, low, close[1]]
+
+isStrongStart(float o, float l, float pc) =>
+    not na(o) and not na(l) and not na(pc) and o > pc and l >= pc * SS_LOWMULT
+
+// ---- watchlist (every bar) ----
+int total = array.size(ALL)
+int avail = math.max(0, total - startAt)
+int cap   = showTable ? (showCorner ? 39 : 40) : 0
+int slots = math.min(avail, cap)
+
+array<string> names = array.new<string>()
+array<float>  rvs   = array.new<float>()
+array<float>  cgs   = array.new<float>()
+array<bool>   qs    = array.new<bool>()
+
+if slots > 0
+    for i = 0 to slots - 1
+        string sym = array.get(ALL, startAt + i)
+        [rv, cg, dOpen, dLow, dPrev] = request.security(sym, "1D", calcDaily(lookback), ignore_invalid_symbol = true)
+        array.push(names, sym)
+        array.push(rvs, rv)
+        array.push(cgs, cg)
+        array.push(qs, isStrongStart(dOpen, dLow, dPrev))
+
+// sort key for the chosen order (higher = nearer the top)
+keyOf(int i) =>
+    float rv = array.get(rvs, i)
+    float cg = array.get(cgs, i)
+    bool  q  = array.get(qs, i)
+    sortBy == "RVOL" ? (na(rv) ? -1e18 : rv) : sortBy == "Chg%" ? (na(cg) ? -1e18 : cg) : ((q ? 1e9 : 0.0) + (na(rv) ? 0.0 : rv))
+
+// ---- current chart symbol (corner box) ----
+float cRv  = na
+bool  cSS  = false
+if showCorner
+    [crv, ccg, cO, cL, cPc] = request.security(syminfo.tickerid, "1D", calcDaily(lookback), ignore_invalid_symbol = true)
+    cRv := crv
+    cSS := isStrongStart(cO, cL, cPc)
+
+// ---- palette ----
+bool  light  = theme == "Light"
+color cText  = light ? color.black : color.white
+color cUp    = light ? #0b8043     : color.lime
+color cDown  = light ? #cc2222     : color.red
+color cFlat  = light ? #c77800     : color.orange
+color cMuted = light ? #5b616b     : color.silver
+color cNa    = light ? #9aa0aa     : color.gray
+color cHdrBg = light ? color.new(#e2e5ea, 0) : color.new(color.gray, 15)
+color cHdrTx = light ? color.black : color.white
+color cStar  = light ? #0b8043     : color.lime
+
+// ---- geometry ----
+tablePos = tableposY == "top" ? (tableposX == "left" ? position.top_left : tableposX == "center" ? position.top_center : position.top_right) : tableposY == "middle" ? (tableposX == "left" ? position.middle_left : tableposX == "center" ? position.middle_center : position.middle_right) : (tableposX == "left" ? position.bottom_left : tableposX == "center" ? position.bottom_center : position.bottom_right)
+
+// corner box position, auto-bumped vertically if it collides exactly with the table
+bool   collide = showTable and showCorner and tableposY == cornerPosY and tableposX == cornerPosX
+string cYf = collide ? (cornerPosY == "top" ? "bottom" : cornerPosY == "bottom" ? "top" : "top") : cornerPosY
+string cXf = cornerPosX
+cornerPos = cYf == "top" ? (cXf == "left" ? position.top_left : cXf == "center" ? position.top_center : position.top_right) : cYf == "middle" ? (cXf == "left" ? position.middle_left : cXf == "center" ? position.middle_center : position.middle_right) : (cXf == "left" ? position.bottom_left : cXf == "center" ? position.bottom_center : position.bottom_right)
+
+var table t  = table.new(tablePos,  4, 41, border_width = 1, frame_width = 1, frame_color = color.new(color.gray, 40))
+var table tc = table.new(cornerPos, 1, 1, border_width = 1, frame_width = 1, frame_color = color.new(color.gray, 40))
+
+szOf(string s) =>
+    s == "tiny" ? size.tiny : s == "small" ? size.small : s == "normal" ? size.normal : s == "large" ? size.large : s == "huge" ? size.huge : size.auto
+sz  = szOf(tablesize)
+csz = szOf(cornerSize)
+
+int chgCol = showChg ? 2 : -1
+int ssCol  = showChg ? 3 : 2
+
+fmtRvol(float rv) =>
+    na(rv) ? "–" : showAs == "Percent" ? str.tostring(rv * 100, "#") + "%" : str.tostring(rv, "#.00")
+
+if barstate.islast
+    // ---- watchlist table ----
+    if showTable and array.size(ALL) == 0
+        table.clear(t, 0, 0, 3, 40)
+        table.cell(t, 0, 0, "Strong Start RVOL Dashboard", text_color = cHdrTx, bgcolor = cHdrBg, text_size = sz, text_formatting = text.format_bold)
+        table.cell(t, 0, 1, "Paste a watchlist in  Settings → Paste watchlist", text_color = cText, text_size = sz)
+        table.cell(t, 0, 2, "Bare tickers get the default exchange (NSE)", text_color = cMuted, text_size = sz)
+        table.cell(t, 0, 3, "Up to 40 symbols", text_color = cMuted, text_size = sz)
+    else if showTable
+        table.cell(t, 0, 0, "Symbol", text_color = cHdrTx, bgcolor = cHdrBg, text_size = sz, text_formatting = text.format_bold)
+        table.cell(t, 1, 0, "RVOL",   text_color = cHdrTx, bgcolor = cHdrBg, text_size = sz, text_formatting = text.format_bold)
+        if showChg
+            table.cell(t, chgCol, 0, "Chg%", text_color = cHdrTx, bgcolor = cHdrBg, text_size = sz, text_formatting = text.format_bold)
+        table.cell(t, ssCol, 0, "SS", text_color = cHdrTx, bgcolor = cHdrBg, text_size = sz, text_formatting = text.format_bold)
+
+        idx = array.new<int>()
+        for i = 0 to array.size(names) - 1
+            if array.get(names, i) != "" and not na(array.get(rvs, i))
+                array.push(idx, i)
+        cnt = array.size(idx)
+
+        // RVOL rank (drives the volume-leads highlight, independent of the display sort)
+        rvOrder = array.copy(idx)
+        if cnt > 1
+            for a = 0 to cnt - 2
+                for b = a + 1 to cnt - 1
+                    if array.get(rvs, array.get(rvOrder, b)) > array.get(rvs, array.get(rvOrder, a))
+                        int tmp = array.get(rvOrder, a)
+                        array.set(rvOrder, a, array.get(rvOrder, b))
+                        array.set(rvOrder, b, tmp)
+        rank = array.new<int>(array.size(names), 100000)
+        if cnt > 0
+            for p = 0 to cnt - 1
+                array.set(rank, array.get(rvOrder, p), p)
+
+        // display order per the "Sort by" choice
+        if cnt > 1
+            for a = 0 to cnt - 2
+                for b = a + 1 to cnt - 1
+                    if keyOf(array.get(idx, b)) > keyOf(array.get(idx, a))
+                        int tmp = array.get(idx, a)
+                        array.set(idx, a, array.get(idx, b))
+                        array.set(idx, b, tmp)
+
+        table.clear(t, 0, 1, 3, 40)
+
+        int hiCount = math.max(1, int(math.round(cnt * gatePct / 100.0)))
+
+        if cnt > 0
+            for r = 0 to cnt - 1
+                i  = array.get(idx, r)
+                rr = array.get(rank, i)
+                nm = array.get(names, i)
+                parts = str.split(nm, ":")
+                disp  = array.size(parts) > 1 ? array.get(parts, 1) : nm
+                rv = array.get(rvs, i)
+                cg = array.get(cgs, i)
+                bool q = array.get(qs, i)
+                float rvPct = na(rv) ? na : rv * 100
+                bool isHigh = rr < hiCount
+                int  tp = light ? 70 + int(16.0 * rr / math.max(1, hiCount - 1)) : 45 + int(35.0 * rr / math.max(1, hiCount - 1))
+                color rowBg = na
+                if isHigh and not na(cg)
+                    rowBg := cg >= chgFlag ? color.new(color.green, tp) : cg <= -chgFlag ? color.new(color.red, tp) : color.new(color.orange, tp)
+                color rvCol = light ? color.black : na(rvPct) ? cNa : rvPct >= rvolFlag ? cUp : rvPct >= rvolFlag * 0.6 ? cFlat : cMuted
+                color cgCol = light ? color.black : na(cg) ? cNa : cg >= 0 ? cUp : cDown
+                table.cell(t, 0, r + 1, disp, text_color = cText, bgcolor = rowBg, text_size = sz, text_formatting = text.format_bold)
+                table.cell(t, 1, r + 1, fmtRvol(rv), text_color = rvCol, bgcolor = rowBg, text_size = sz)
+                if showChg
+                    table.cell(t, chgCol, r + 1, na(cg) ? "–" : str.tostring(cg, "#.0") + "%", text_color = cgCol, bgcolor = rowBg, text_size = sz)
+                table.cell(t, ssCol, r + 1, q ? "★" : "", text_color = cStar, bgcolor = rowBg, text_size = sz)
+
+    // ---- current-symbol box ----
+    if showCorner
+        color cbg = cSS ? color.new(color.green, light ? 70 : 50) : cHdrBg
+        table.cell(tc, 0, 0, (cSS ? "★ " : "") + "RVOL " + fmtRvol(cRv), text_color = cText, bgcolor = cbg, text_size = csz)

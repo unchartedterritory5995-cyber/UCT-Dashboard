@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;87b9b078c8b34105910d467471b2ba2c",
+ "title": "Support and Resistance Zones [FEELS]",
+ "author": "FeelsStrategy",
+ "url": "https://www.tradingview.com/script/EYO7FUhF-support-and-resistance-zones-feels/",
+ "agreeCount": 4398,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/support-and-resistance-zones-feels__87b9b078c8.pine",
+ "our_status": "reference-only"
+}

@@ -1,0 +1,56 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RicardoSantos
+
+
+//@version=6
+indicator('3 Level ZigZag Semafor', '3LZZS', true)
+
+bool showZigZags = input.bool(false, 'Show ZigZag:')
+bool useAltTF1 = input.bool(false, 'Use Alt Timeframe 1?')
+string tf1 = input.timeframe( '5', 'Timeframe 1')
+string tf2 = input.timeframe('15', 'Timeframe 2')
+string tf3 = input.timeframe('30', 'Timeframe 3')
+
+//@function ZigZag function.
+zigzag() =>
+    bool _isUp   = close >= open
+    bool _isDown = close <= open
+    int _direction = na , _direction := switch
+        _isUp[1] and _isDown => -1
+        _isDown[1] and _isUp =>  1
+        => nz(_direction[1])
+    float _zigzag = na , _zigzag := switch
+        _isUp[1] and _isDown and _direction[1] != -1 => high
+        _isDown[1] and _isUp and _direction[1] !=  1 => low
+        => na
+    _zigzag
+
+bool is_new_zz = ta.change(time(tf1)) != 0
+float zigzag = zigzag()
+float security_1 = request.security(syminfo.tickerid, tf1, zigzag, barmerge.gaps_on, barmerge.lookahead_on)
+float security_2 = request.security(syminfo.tickerid, tf2, zigzag, barmerge.gaps_on, barmerge.lookahead_on)
+float security_3 = request.security(syminfo.tickerid, tf3, zigzag, barmerge.gaps_on, barmerge.lookahead_on)
+
+float zz1 = useAltTF1 ? is_new_zz ? security_1 : na : zigzag
+float zz2 = ta.change(time(tf2)) != 0 ? security_2 : na
+float zz3 = ta.change(time(tf3)) != 0 ? security_3 : na
+
+plot(not showZigZags ? na : zz1, title = 'zigzag1', color = color.new(#313235, 0), linewidth = 1)
+plot(not showZigZags ? na : zz2, title = 'zigzag2', color = color.new(color.blue, 0), linewidth = 2)
+plot(not showZigZags ? na : zz3, title = 'zigzag3', color = color.new(color.red, 0), linewidth = 3)
+
+bool is_lvl1_high = bool(zz1) and zz1 >= high
+bool is_lvl2_high = bool(zz2) and zz2 >= high
+bool is_lvl3_high = bool(zz3) and zz3 >= high
+
+bool is_lvl1_low = bool(zz1) and zz1 <= low
+bool is_lvl2_low = bool(zz2) and zz2 <= low
+bool is_lvl3_low = bool(zz3) and zz3 <= low
+
+plotchar(is_lvl1_high, '1', '', location.abovebar, color.new(color.red, 0), text='1', textcolor=color.new(color.red, 0))
+plotchar(is_lvl2_high, '2', '', location.abovebar, color.new(color.red, 0), text='2\n', textcolor=color.new(color.red, 0))
+plotchar(is_lvl3_high, '3', '', location.abovebar, color.new(color.red, 0), text='3\n\n', textcolor=color.new(color.red, 0))
+
+plotchar(is_lvl1_low, '1', '', location.belowbar, color.new(color.lime, 0), text='1', textcolor=color.new(color.lime, 0))
+plotchar(is_lvl2_low, '2', '', location.belowbar, color.new(color.lime, 0), text='\n2', textcolor=color.new(color.lime, 0))
+plotchar(is_lvl3_low, '3', '', location.belowbar, color.new(color.lime, 0), text='\n\n3', textcolor=color.new(color.lime, 0))

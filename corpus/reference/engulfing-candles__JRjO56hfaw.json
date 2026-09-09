@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;JRjO56hfawmbhkjHDWHKhpTJsSeORIAd",
+ "title": "Engulfing Candles",
+ "author": "rmunoz",
+ "url": "https://www.tradingview.com/script/YrudGA12-engulfing-candles/",
+ "agreeCount": 5842,
+ "category": "candlestick patterns",
+ "pine_version": "v3",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/engulfing-candles__JRjO56hfaw.pine",
+ "our_status": "reference-only"
+}

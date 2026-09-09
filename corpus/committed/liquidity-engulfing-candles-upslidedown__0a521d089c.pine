@@ -1,0 +1,60 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © upslidedown
+
+// This is an interesting take on a common engulfing candle pattern with 2 additional filter critera to ensure there is a liquidity play
+// Idea came from AtaBankz based on trade setup 4H candles. Thanks mate!
+
+//@version=5
+indicator("Liquidity Engulfing Candles [upslidedown]", overlay=true)
+
+prior_open = open[1]
+prior_close = close[1]
+current_open = open
+current_close = close
+
+bullcol = #2c7bb6
+bearcol = color.red
+
+// identify "normal" engulfing candles
+bull_engulf = (current_open <= prior_close) and (current_open < prior_open) and (current_close > prior_open)
+bear_engulf = (current_open >= prior_close) and (current_open > prior_open) and (current_close < prior_open)
+
+// "stop hunt" logic
+filter_liqudity = input.bool(true, "Apply Stop Hunt Wick Filter", tooltip="Require candle wick into prior candle retracement zone")
+if filter_liqudity
+    bull_engulf := bull_engulf and low <= low[1]
+    bear_engulf := bear_engulf and high >= high[1]
+
+// require LL/HH on the candle
+filter_close = input.bool(true, "Apply Close Filter", tooltip="Require LL/HH on candle in order to print a valid engulfing signal")
+if filter_close
+    bull_engulf := bull_engulf and close >= high[1]
+    bear_engulf := bear_engulf and close <= low[1]
+
+// plots
+plotshape(bull_engulf, style=shape.triangleup, location=location.belowbar, color=bullcol, size=size.tiny)
+plotshape(bear_engulf, style=shape.triangledown , location=location.abovebar, color=bearcol, size=size.tiny)
+
+// alert inputs
+group_alerts = "Alerts"
+a_require_close = input.bool(true, 'Wait for bar close to send alerts', group=group_alerts)
+a_bull_enable = input.bool(true, "Bullish Alert", group=group_alerts, inline="abull")
+a_bull = input.string("Bullish LEC detected", "", group=group_alerts, inline="abull")
+a_bear_enable = input.bool(true, "Bearish Alert", group=group_alerts, inline="abear")
+a_bear = input.string("Bearish LEC detected", "", group=group_alerts, inline="abear")
+
+if bull_engulf and a_bull_enable
+    alert(a_bull, a_require_close ? alert.freq_once_per_bar_close : alert.freq_once_per_bar)
+else if bear_engulf and a_bear_enable
+    alert(a_bear, a_require_close ? alert.freq_once_per_bar_close : alert.freq_once_per_bar)
+    
+
+// strategy signal for my backtester
+//strategy_inverse = input.bool(false, "Inverse Strategy")
+strategy_inverse = false
+strategy = 0
+if bull_engulf 
+    strategy := strategy_inverse ? -1 : 1
+else if bear_engulf
+    strategy := strategy_inverse ? 1 : -1
+plot(strategy, "Strategy Signal", display=display.data_window)

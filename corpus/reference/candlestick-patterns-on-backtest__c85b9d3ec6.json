@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c85b9d3ec6e743949b2c66f40fedaaf6",
+ "title": "Candlestick Patterns on Backtest",
+ "author": "MUQWISHI",
+ "url": "https://www.tradingview.com/script/OsTuKG4q-candlestick-patterns-on-backtest/",
+ "agreeCount": 2781,
+ "category": "candlestick patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/candlestick-patterns-on-backtest__c85b9d3ec6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/candlestick-patterns-on-backtest__c85b9d3ec6.pine",
+ "our_status": "committed"
+}

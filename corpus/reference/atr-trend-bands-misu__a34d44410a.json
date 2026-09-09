@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;a34d44410a7f4df0951fea8100ba5944",
+ "title": "ATR Trend Bands [Misu]",
+ "author": "Fontiramisu",
+ "url": "https://www.tradingview.com/script/PtnKi3nX-atr-trend-bands-misu/",
+ "agreeCount": 3238,
+ "category": "volatility",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-trend-bands-misu__a34d44410a.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-trend-bands-misu__a34d44410a.pine",
+ "our_status": "committed"
+}

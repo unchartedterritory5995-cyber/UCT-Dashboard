@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;451cecfc9dc74960a050e9b068fab5b1",
+ "title": "Elliott Wave 3 Finder_v2",
+ "author": "StockSignaler",
+ "url": "https://www.tradingview.com/script/Hr28hxzL-elliott-wave-3-finder-v2/",
+ "agreeCount": 2192,
+ "category": "harmonic patterns",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/elliott-wave-3-finder-v2__451cecfc9d.pine",
+ "our_status": "committed"
+}

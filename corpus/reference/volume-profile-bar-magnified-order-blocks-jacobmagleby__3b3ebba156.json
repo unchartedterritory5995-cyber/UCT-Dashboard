@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3b3ebba156574e058cc8ae73dc5c7fa2",
+ "title": "Volume Profile Bar-Magnified Order Blocks [JacobMagleby]",
+ "author": "JacobMagleby",
+ "url": "https://www.tradingview.com/script/n5WMDywt-volume-profile-bar-magnified-order-blocks-jacobmagleby/",
+ "agreeCount": 6028,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156.pine",
+ "cached_source": "tools/pine_survey/cache/sources/volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156.pine",
+ "our_status": "committed"
+}

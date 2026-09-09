@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;257dbd8cadff432c82aeb9a89ab05dc9",
+ "title": "Auto Chart Patterns [Trendoscope®]",
+ "author": "Trendoscope",
+ "url": "https://www.tradingview.com/script/WZ8B1FIW-auto-chart-patterns-trendoscope/",
+ "agreeCount": 22452,
+ "category": "harmonic patterns",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/auto-chart-patterns-trendoscope__257dbd8cad.pine",
+ "our_status": "reference-only"
+}

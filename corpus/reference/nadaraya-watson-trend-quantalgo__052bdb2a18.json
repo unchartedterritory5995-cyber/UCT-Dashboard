@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;052bdb2a18184e458cad5f6e089a7820",
+ "title": "Nadaraya-Watson Trend [QuantAlgo]",
+ "author": "QuantAlgo",
+ "url": "https://www.tradingview.com/script/DyPTog1C-nadaraya-watson-trend-quantalgo/",
+ "agreeCount": 3105,
+ "category": "machine-learning-styled",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/nadaraya-watson-trend-quantalgo__052bdb2a18.pine",
+ "our_status": "reference-only"
+}

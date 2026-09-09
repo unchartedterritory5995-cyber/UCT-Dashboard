@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;ndAEr9lJjOf9IT22VzYnJUtbqN2KIOU7",
+ "title": "MY_CME Open Interest",
+ "author": "giancapino",
+ "url": "https://www.tradingview.com/script/2e71Ju0C-my-cme-open-interest/",
+ "agreeCount": 603,
+ "category": "volume",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/my-cme-open-interest__ndAEr9lJjO.pine",
+ "our_status": "reference-only"
+}

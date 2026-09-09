@@ -1,0 +1,112 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © BackQuant
+
+//@version=6
+indicator("Volatility Trend Score [BackQuant]", overlay=false)
+
+// Constants
+const string calc   = "Core Calculation Settings" 
+const string thres  = "Signals Settings"
+const string ui     = "Plotting and Coloring"
+const color  GREEN  = #00ff00
+const color  RED    = #ff0000
+
+// Inputs
+int   calc_p        = input.int(35, "Average True Range Period", group=calc)
+float atr_factor    = input.float(1.2, "Factor", step = 0.1, group=calc)
+int   start         = input.int(1, "For Loop Start", inline="FL", group=calc)
+int   end           = input.int(45, "End",maxval = 50, inline="FL", group=calc)
+
+bool  show_refs     = input.bool(true, "Show Reference Lines", group=thres)
+bool  showls        = input.bool(true, "Show Long and Short Signals On Chart?", group=thres)
+int   thresL        = input.int(40, "Long Threshold", group=thres, inline=thres)
+int   thresS        = input.int(-10, "Short Threshold", group=thres, inline=thres)
+
+color longcol       = input.color(GREEN, "Long Color", group=ui)
+color shortcol      = input.color(RED, "Short Color", group=ui)
+int   lineW         = input.int(5, "Line Width", group=ui)
+bool  onchart       = input.bool(true, "Show On Chart?", group=ui)
+bool  paintCandles  = input.bool(false, "Paint Candles to Trend?", group=ui)
+bool  bgCol         = input.bool(false, "Background Color?", group=ui)
+
+method transp(color x, int t) =>
+    color.new(x, t)
+
+// Types
+type tCalc
+    float atr
+    float band
+    float trail
+    float up
+    float dn
+    float score
+
+type tCond
+    bool longCond
+    bool shortCond
+
+type tState
+    int signal
+
+var tCalc  c  = tCalc.new(na, na, na, na, na, na)
+var tCond  cd = tCond.new(false, false)
+var tState st = tState.new(1)
+var color coloring = na 
+float scoreS = 0.0
+
+// Core calcs 
+c.atr  := ta.atr(calc_p)
+c.band := c.atr * atr_factor
+
+var float trailS = na
+trailS := close
+trailS := nz(trailS[1], trailS)
+
+c.up := close + c.band
+c.dn := close - c.band
+
+if c.dn > trailS
+    trailS := c.dn
+if c.up < trailS
+    trailS := c.up
+
+c.trail := trailS
+
+for i = start to end by 1
+    scoreS += (trailS > trailS[i] ? 1 : -1)
+    scoreS
+
+c.score := scoreS
+
+cd.longCond  := c.score > thresL
+cd.shortCond := ta.crossunder(c.score, thresS)
+
+
+if cd.longCond and not cd.shortCond
+    st.signal := 1
+    coloring := longcol
+else if cd.shortCond
+    st.signal := -1
+    coloring := shortcol
+
+plot(c.score, "", coloring, lineW)
+plot(c.trail, "ATR On Chart", coloring, lineW, plot.style_line, false, force_overlay = true, display = onchart?display.all:display.none)
+
+if barstate.islast and show_refs
+    line.new(x1=last_bar_index, x2=bar_index - 1, y1=thresL, y2=thresL, color=chart.fg_color.transp(50), style=line.style_dashed, extend=extend.right)
+    line.new(x1=last_bar_index, x2=bar_index - 1, y1=thresS, y2=thresS, color=chart.fg_color.transp(50), style=line.style_dashed, extend=extend.right)
+
+// Long and Short Signals 
+plotcandle(open, high, low, close, "Trend Candles",
+     coloring, coloring, true,
+     bordercolor=coloring,
+     display=paintCandles ? display.all : display.none, force_overlay=true)
+
+bgcolor(bgCol?coloring.transp(80):na, force_overlay=true)
+
+int sigS = st.signal
+plotshape(sigS == 1 and sigS[1] == -1, "Long Signal", shape.triangleup, location.belowbar, longcol, 0, "𝕃", longcol, true, size.small, display=showls ? display.all : display.none, force_overlay=true)
+plotshape(sigS == -1 and sigS[1] == 1, "Short Signal", shape.triangledown, location.abovebar, shortcol, 0, "𝕊", shortcol, true, size.small, display=showls ? display.all : display.none, force_overlay=true)
+/////////////////////////////////////////////////////////////// © BackQuant ///////////////////////////////////////////////////////////////
+
+

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d880789793de46efa173b3ead6b4f025",
+ "title": "CDC_BTC Rainbow Road",
+ "author": "piriya33",
+ "url": "https://www.tradingview.com/script/GVD283Lu-cdc-btc-rainbow-road/",
+ "agreeCount": 472,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/cdc-btc-rainbow-road__d880789793.pine",
+ "cached_source": "tools/pine_survey/cache/sources/cdc-btc-rainbow-road__d880789793.pine",
+ "our_status": "committed"
+}

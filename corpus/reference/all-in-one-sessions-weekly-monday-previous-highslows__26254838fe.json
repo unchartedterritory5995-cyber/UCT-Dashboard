@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;26254838fe18417eb2cbebdc97d9c39a",
+ "title": "All-In-One Sessions, Weekly, Monday, Previous Highs/Lows",
+ "author": "Texmoonbeam",
+ "url": "https://www.tradingview.com/script/ySn3JPLj-all-in-one-sessions-weekly-monday-previous-highs-lows/",
+ "agreeCount": 5006,
+ "category": "session tools",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/all-in-one-sessions-weekly-monday-previous-highslows__26254838fe.pine",
+ "our_status": "reference-only"
+}

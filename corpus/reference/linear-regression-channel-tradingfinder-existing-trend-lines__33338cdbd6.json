@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;33338cdbd66a4b37aa9369e634b7e039",
+ "title": "Linear Regression Channel [TradingFinder] Existing Trend Lines",
+ "author": "TradingFinder",
+ "url": "https://www.tradingview.com/script/DHCJHzck-linear-regression-channel-tradingfinder-existing-trend-lines/",
+ "agreeCount": 3742,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+ "our_status": "committed"
+}

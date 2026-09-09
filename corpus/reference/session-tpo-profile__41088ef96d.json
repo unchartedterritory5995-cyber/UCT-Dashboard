@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;41088ef96dda44d595ca3e0ec64a566e",
+ "title": "Session TPO Profile",
+ "author": "noop-noop",
+ "url": "https://www.tradingview.com/script/nqNBQ4p9-session-tpo-profile/",
+ "agreeCount": 5539,
+ "category": "order flow",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/session-tpo-profile__41088ef96d.pine",
+ "cached_source": "tools/pine_survey/cache/sources/session-tpo-profile__41088ef96d.pine",
+ "our_status": "committed"
+}

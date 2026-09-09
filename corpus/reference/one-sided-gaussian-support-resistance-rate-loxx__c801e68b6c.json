@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c801e68b6c174ae28bb17d09fe36b1bb",
+ "title": "One-Sided Gaussian Support & Resistance Rate [Loxx]",
+ "author": "loxx",
+ "url": "https://www.tradingview.com/script/iuc6YQS1-one-sided-gaussian-support-resistance-rate-loxx/",
+ "agreeCount": 505,
+ "category": "support/resistance",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c.pine",
+ "cached_source": "tools/pine_survey/cache/sources/one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c.pine",
+ "our_status": "committed"
+}

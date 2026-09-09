@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;xF3L2PeXm7gqNdFwfMOLuDTzxi91qMuC",
+ "title": "Twin Range Filter",
+ "author": "colinmck",
+ "url": "https://www.tradingview.com/script/r2aZvj57-twin-range-filter/",
+ "agreeCount": 11525,
+ "category": "trend",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/twin-range-filter__xF3L2PeXm7.pine",
+ "cached_source": "tools/pine_survey/cache/sources/twin-range-filter__xF3L2PeXm7.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,27 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FractalTrade15
+
+//@version=5
+indicator('RVOL')
+
+upv = input.color(color.rgb(255, 0, 0), title='Positive RVOL', group='RVOL Colors')
+dnv = input.color(color.rgb(144, 144, 144), title='Negative RVOL', group='RVOL Colors')
+mlen = input.int(defval=21, title='Average Length', group='RVOL Base Settings')
+th = input.float(defval=1, title='Base Level', group='RVOL Base Settings')
+matype = input.string(defval='SMA', options=['SMA', 'EMA'], title='MA Type', group='RVOL Base Settings')
+smoothing = input.bool(defval=false, title='Smooth RVOL?', group='Smoothing')
+smoothlen = input.int(defval=8, title='Smoothing Factor', group='Smoothing')
+
+vol = volume
+mvol = matype == 'SMA' ? ta.sma(vol, mlen) : ta.ema(vol, mlen)
+float rvol = smoothing ? ta.hma(vol / mvol, smoothlen) : vol / mvol
+grad = color.from_gradient(rvol, 0.5,2,dnv,upv)
+top   = rvol > th? 3 : th
+bottom = rvol < th? 0 : th
+
+topc = rvol > th? upv : chart.bg_color
+bottomc = rvol >  th? chart.bg_color : dnv
+pvol = plot(rvol, style=plot.style_line, color=color.new(grad,0), linewidth=2)
+pth = plot(th, color=color.rgb(255, 255, 255, 70))
+fill(pvol, pth, top, bottom, topc,bottomc)
+

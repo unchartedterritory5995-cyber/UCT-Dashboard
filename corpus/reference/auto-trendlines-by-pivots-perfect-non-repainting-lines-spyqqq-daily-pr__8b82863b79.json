@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8b82863b79dc4e34ade1902737ebf294",
+ "title": "🔥 Auto Trendlines by Pivots - Perfect Non-Repainting Lines | SPY/QQQ Daily Pro Tool",
+ "author": "TrendRiderPro",
+ "url": "https://www.tradingview.com/script/Z2jE0ynw-auto-trendlines-by-pivots-perfect-non-repainting-lines-spy-q/",
+ "agreeCount": 3659,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79.pine",
+ "our_status": "reference-only"
+}

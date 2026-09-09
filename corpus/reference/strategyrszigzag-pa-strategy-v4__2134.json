@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2134",
+ "title": "[STRATEGY][RS]ZigZag PA Strategy V4",
+ "author": "RicardoSantos",
+ "url": "https://www.tradingview.com/script/DYONEypp-strategy-rs-zigzag-pa-strategy-v4/",
+ "agreeCount": 2765,
+ "category": "market structure / smart-money",
+ "pine_version": "v1 (no //@version line)",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/strategyrszigzag-pa-strategy-v4__2134.pine",
+ "our_status": "reference-only"
+}

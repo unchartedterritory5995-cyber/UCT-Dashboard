@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0de1c85a2f8b4029a436cb0c66569829",
+ "title": "Lorentzian Classification - Advanced Trading Dashboard",
+ "author": "DskyzInvestments",
+ "url": "https://www.tradingview.com/script/yt4TgB3l-lorentzian-classification-advanced-trading-dashboard/",
+ "agreeCount": 765,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/lorentzian-classification-advanced-trading-dashboard__0de1c85a2f.pine",
+ "our_status": "reference-only"
+}

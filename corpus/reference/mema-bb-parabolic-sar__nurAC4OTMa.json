@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;nurAC4OTMatNaNdWHlffB65lDfIYSOka",
+ "title": "MEMA & BB & Parabolic SAR",
+ "author": "phunodor",
+ "url": "https://www.tradingview.com/script/FcUUCbHo-mema-bb-parabolic-sar/",
+ "agreeCount": 509,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/mema-bb-parabolic-sar__nurAC4OTMa.pine",
+ "our_status": "reference-only"
+}

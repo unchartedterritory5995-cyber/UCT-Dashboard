@@ -1,0 +1,505 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// Assembled by ©ClassicScott
+
+// @version=6
+indicator(title = '+ Rate of Change', shorttitle = '+ ROC', timeframe = '')
+import ClassicScott/MyMovingAveragesLibrary/4 as mymas
+import ClassicScott/MyVolatilityBands/7 as volbands
+
+//----- Inputs
+barColor         = input.bool     (title = 'Bar Color', defval = true, group = 'Rate of Change')
+useSmoothed      = input.bool     (title = 'Indicator Smoothing', defval = false, group = 'Rate of Change', tooltip = 'Checking this will turn off the standard indicator. The assumption is you will use a smoothed version as your primary indicator.')
+rocTypeInput     = input.string   (title = 'Rate of Change Type', defval = 'Cumulative True Change (with signum)', options = ['Rate of Change', 'Cumulative True Change (with signum)', 'Cumulative True Change (without signum)'], group = 'Rate of Change', tooltip = 'The two Cumulative True Change indicators, due to them both being of a cumulative nature, do not oscillate around a central pivot, but plot a line the value of which is either added to or subtracted from. They both are a measure of the change in the source multiplied by the true range of that bar. The difference between the two types is simply the addition of the signum (also used in the OBV, giving it its characteristic look) in one of them. The signum is a mathematical function that adds 1 if a number is greater than zero, or subtracts 1 if the number is less than 0.')
+src              = input.source   (title = 'Source', defval = close, group = 'Rate of Change')
+period           = input.int      (title = 'Period', defval = 55, group = 'Rate of Change')
+colorSelectInput = input.string   (title = 'Color Reference', defval = 'Signal Line', options = ['Centerline', 'Signal Line', 'Donchian Channel Basis', 'Channel / Bands Range'], group = 'Rate of Change', tooltip = 'All of these options, with the exception of \'Channel / Bands Range\', should be self-explanatory. Selecting \'Channel / Bands Range\' simply colors the indicator differently if it reaches the Donchian Channel or Bollinger Bands extremes. Also, only the Rate of Change will be displayed when \'Centerline\' is chosen.')
+timeframeInput   = input.timeframe(title = 'Timeframe Reference for Indicator Color', defval = '', group = 'Rate of Change', tooltip = 'Pick your timeframe and the indicator and bars, if bar color is selected, will be colored based on the relation of the current indicator to whatever you selected for the color reference of this other timeframe.')
+
+
+//------------------------------------------------------------------------------
+//----- Moving average inputs for smoothed rate of change or signal line 1
+showSmoothed    = input.bool  (title = '', defval = true, group = 'Smoothed RoC', tooltip = 'Use this as a signal line on your indicator of choice, or as a smoothed version to reduce chop and false signals.')
+smoothedType    = input.string(title = 'Type     ', defval = 'Exponential - EMA', options = ['Arnaud Legoux - ALMA', 'Exponential - EMA', 'Double Exponential - DEMA', 'Triple Exponential - EMA', 'Fractal Adaptive - FRAMA', 'Kaufman Adaptive - KAMA', 'Hull - HMA', 'Jurik - JMA', 'Laguerre Filter', 'Least Squares - LSMA', 'McGinley Dynamic', 'Modular Filter', 'RexDog - RDMA', 'Simple - SMA', 'Smoothed - SMMA', 'Tillson T3', 'Triangular - TMA', 'Volatility-Adjusted - VAMA', 'Volume-Weighted - VWMA', 'Weighted - WMA', 'Zero-Lag - ZLMA'], inline = 'type', group = 'Smoothed RoC')
+smoothedPeriod  = input.int   (title = 'Period', defval = 13, inline = 'period', group = 'Smoothed RoC')
+
+//----- Further moving average inputs for those that require more than just a period
+//--- ALMA - arnaud legoux
+almaoffset = input.float(title = 'ALMA Offset     ', defval = 0.85, step = 0.05, inline = 'alma', group = 'Additional Smoothed RoC Inputs')
+sigma      = input.float(title = 'ALMA Sigma        ', defval = 6, step = 0.5, inline = 'alma', group = 'Additional Smoothed RoC Inputs')
+
+//--- FRAMA - fractal adaptive
+fc = input.int(title = 'FRAMA Fast Period ', defval = 34, minval = 1, inline = 'frama', group = 'Additional Smoothed RoC Inputs')
+sc = input.int(title = 'FRAMA Slow Period', defval = 89, minval = 1, inline = 'frama', group = 'Additional Smoothed RoC Inputs')
+
+//--- KAMA - kaufman adaptive
+fl = input.float(title = 'KAMA Fast End     ', defval = 0.7, minval = 0.01, step = 0.01, inline = 'kama', group = 'Additional Smoothed RoC Inputs')
+sl = input.float(title = 'KAMA Slow End      ', defval = 0.065, minval = 0.01, step = 0.0025, inline = 'kama', group = 'Additional Smoothed RoC Inputs')
+
+//--- JMA - jurik
+phase = input.int  (title = 'Jurik Phase      ', defval = 1, minval = -100, maxval = 100, inline = 'jma', group = 'Additional Smoothed RoC Inputs')
+power = input.float(title = 'Jurik Power           ', defval = 1, minval = 0.1, maxval = 10, step = 0.1, inline = 'jma', group = 'Additional Smoothed RoC Inputs')
+
+//---  Laguerre Filter
+laguerreAlpha = input.float(title = 'Laguerre Filter Alpha ', defval = 0.7, minval = 0, maxval = 1, step = 0.025, inline = 'laguerre', group = 'Additional Smoothed RoC Inputs')
+
+//--- LSMA - least squares
+lsmaoffset = input.int(title = 'Least Squares Offset  ', defval = 9, inline = 'lsma', group = 'Additional Smoothed RoC Inputs')
+
+//--- MF - modular filter
+beta      = input.float(title = 'Modular Filter Beta  ', defval = 0.5, maxval = 1, step = 0.05, inline = 'mf', group = 'Additional Smoothed RoC Inputs')
+feedback  = input.bool (title = 'Modular Filter Feedback', defval = true, inline = 'mf', group = 'Additional Smoothed RoC Inputs')
+weighting = input.float(title = 'Modular Filter Feedback Weighting      ', defval = 0.2, step = 0.1, minval = 0, maxval = 1, inline = 'mf', group = 'Additional Smoothed RoC Inputs')
+
+//--- VAMA - volatility-adjusted
+vamaPeriod = input.int(title = 'Volatility Adjusted Period         ', defval = 21, minval = 1, inline = 'vama', group = 'Additional Smoothed RoC Inputs')
+
+
+//------------------------------------------------------------------------------
+//----- Moving average inputs for signal line 2
+showSignal       = input.bool  (title = '', defval = true, group = 'Signal Line', tooltip = 'A signal line for a smoothed version of your indicator, or a second signal line for the standard version if you like (can be helpful, particularly when using the cumulative versions of the indicator).')
+signalFillInput  = input.bool  (title = 'Signal Line Fill', defval = true, group = 'Signal Line', tooltip = 'Adds a color fill between the smoothed indicator and signal line.')
+signalType       = input.string(title = 'Type     ', defval = 'Jurik - JMA', options = ['Arnaud Legoux - ALMA', 'Exponential - EMA', 'Double Exponential - DEMA', 'Triple Exponential - EMA', 'Fractal Adaptive - FRAMA', 'Kaufman Adaptive - KAMA', 'Hull - HMA', 'Jurik - JMA', 'Laguerre Filter', 'Least Squares - LSMA', 'McGinley Dynamic', 'Modular Filter', 'RexDog - RDMA', 'Simple - SMA', 'Smoothed - SMMA', 'Tillson T3', 'Triangular - TMA', 'Volatility-Adjusted - VAMA', 'Volume-Weighted - VWMA', 'Weighted - WMA', 'Zero-Lag - ZLMA'], inline = 'type', group = 'Signal Line')
+signalPeriod     = input.int   (title = 'Period', defval = 21, inline = 'period', group = 'Signal Line')
+
+//----- Further moving average inputs for those that require more than just a period
+//--- ALMA - arnaud legoux
+almaoffset2 = input.float(title = 'ALMA Offset     ', defval = 0.85, step = 0.05, inline = 'alma', group = 'Additional Signal Line Inputs')
+sigma2      = input.float(title = 'ALMA Sigma        ', defval = 6, step = 0.5, inline = 'alma', group = 'Additional Signal Line Inputs')
+
+//--- FRAMA - fractal adaptive
+fc2 = input.int(title = 'FRAMA Fast Period ', defval = 34, minval = 1, inline = 'frama', group = 'Additional Signal Line Inputs')
+sc2 = input.int(title = 'FRAMA Slow Period', defval = 89, minval = 1, inline = 'frama', group = 'Additional Signal Line Inputs')
+
+//--- KAMA - kaufman adaptive
+fl2 = input.float(title = 'KAMA Fast End     ', defval = 0.7, minval = 0.01, step = 0.01, inline = 'kama', group = 'Additional Signal Line Inputs')
+sl2 = input.float(title = 'KAMA Slow End      ', defval = 0.065, minval = 0.01, step = 0.0025, inline = 'kama', group = 'Additional Signal Line Inputs')
+
+//--- JMA - jurik
+phase2 = input.int  (title = 'Jurik Phase      ', defval = 1, minval = -100, maxval = 100, inline = 'jma', group = 'Additional Signal Line Inputs')
+power2 = input.float(title = 'Jurik Power           ', defval = 1, minval = 0.1, maxval = 10, step = 0.1, inline = 'jma', group = 'Additional Signal Line Inputs')
+
+//--- Laguerre Filter
+laguerreAlpha2 = input.float(title = 'Laguerre Filter Alpha ', defval = 0.7, minval = 0, maxval = 1, step = 0.025, inline = 'laguerre', group = 'Additional Signal Line Inputs')
+
+//--- LSMA - least squares
+lsmaoffset2 = input.int(title = 'Least Squares Offset  ', defval = 9, inline = 'lsma', group = 'Additional Signal Line Inputs')
+
+//--- MF - modular filter
+beta2      = input.float(title = 'Modular Filter Beta  ', defval = 0.5, maxval = 1, step = 0.05, inline = 'mf', group = 'Additional Signal Line Inputs')
+feedback2  = input.bool (title = 'Modular Filter Feedback', defval = true, inline = 'mf', group = 'Additional Signal Line Inputs')
+weighting2 = input.float(title = 'Modular Filter Feedback Weighting      ', defval = 0.2, step = 0.1, minval = 0, maxval = 1, inline = 'mf', group = 'Additional Signal Line Inputs')
+
+//--- VAMA - volatility-adjusted
+vamaPeriod2 = input.int(title = 'Volatility Adjusted Period         ', defval = 21, minval = 1, inline = 'vama', group = 'Additional Signal Line Inputs')
+
+
+//------------------------------------------------------------------------------
+//----- Bollinger bands and donchian channel inputs
+showBands     = input.bool  (title = '', defval = false, group = 'Bollinger Bands & Donchian Channel')
+bandsType     = input.string(title = 'Type', defval = 'Donchian Channel', options = ['Bollinger Bands', 'Donchian Channel'], group = 'Bollinger Bands & Donchian Channel')
+bandsPeriod   = input.int   (title = 'Period', defval = 20, group = 'Bollinger Bands & Donchian Channel')
+bandsMult     = input.float (title = 'Multiplier', defval = 2, step = 0.25, group = 'Bollinger Bands & Donchian Channel', tooltip = 'Standard deviation multiplier for Bollinger Bands.')
+bandsWidth    = input.float (title = 'Band Thickness', defval = 10, step = 0.5, group = 'Bollinger Bands & Donchian Channel', tooltip = 'Defines the thickness of the band. Larger number is thinner.')
+showBasis     = input.bool  (title = 'Display Basis', defval = false, group = 'Bollinger Bands & Donchian Channel', tooltip = 'Ignore this if using Bollinger Bands as the basis for these is the signal line.')
+
+
+//------------------------------------------------------------------------------
+//math.sign (signum) of number is zero if number is zero, 1.0 if number is greater than zero, -1.0 if number is less than zero
+//--- Rate of change
+roc = 100 * ((src - src[period]) / src[period])
+
+//--- Cumulative true change (without signum)
+roctc = ta.cum(ta.change(src) * ta.tr)
+
+//--- Cumulative true change (similar to on balance volume, but multiplied by the true range, and excluding volume)
+roctcSig = ta.cum(math.sign(ta.change(src)) * ta.tr)
+
+
+//------------------------------------------------------------------------------
+rocType = rocTypeInput == 'Rate of Change' ? roc :
+          rocTypeInput == 'Cumulative True Change (with signum)' ? roctcSig :
+          rocTypeInput == 'Cumulative True Change (without signum)' ? roctc :
+          na
+
+
+//------------------------------------------------------------------------------
+///----- Switch operation for selecting the smoothed rate of change or signal line 
+smoothedROC = switch smoothedType
+    
+    'Arnaud Legoux - ALMA'       => mymas.alma    (rocType, smoothedPeriod, almaoffset, sigma)
+    'Exponential - EMA'          => mymas.ema     (rocType, smoothedPeriod)
+    'Double Exponential - DEMA'  => mymas.dema    (rocType, smoothedPeriod)
+    'Triple Exponential - EMA'   => mymas.tema    (rocType, smoothedPeriod)
+    'Fractal Adaptive - FRAMA'   => mymas.frama   (rocType, smoothedPeriod, fc, sc)
+    'Kaufman Adaptive - KAMA'    => mymas.kama    (rocType, smoothedPeriod, fl, sl)
+    'Hull - HMA'                 => mymas.hma     (rocType, smoothedPeriod)
+    'Jurik - JMA'                => mymas.jma     (rocType, smoothedPeriod, phase, power)
+    'Laguerre Filter'            => mymas.laguerre(rocType, laguerreAlpha)
+    'Least Squares - LSMA'       => mymas.lsma    (rocType, smoothedPeriod, lsmaoffset)
+    'McGinley Dynamic'           => mymas.mcginley(rocType, smoothedPeriod)
+    'Modular Filter'             => mymas.mf      (rocType, smoothedPeriod, feedback, beta, weighting)
+    'RexDog - RDMA'              => mymas.rdma    (rocType)
+    'Simple - SMA'               => mymas.sma     (rocType, smoothedPeriod)
+    'Smoothed - SMMA'            => mymas.smma    (rocType, smoothedPeriod)
+    'Tillson T3'                 => mymas.t3      (rocType, smoothedPeriod)
+    'Triangular - TMA'           => mymas.tma     (rocType, smoothedPeriod)
+    'Volatility-Adjusted - VAMA' => mymas.vama    (rocType, smoothedPeriod, vamaPeriod)
+    'Volume-Weighted - VWMA'     => mymas.vwma    (rocType, smoothedPeriod)
+    'Weighted - WMA'             => mymas.wma     (rocType, smoothedPeriod)
+    'Zero-Lag - ZLMA'            => mymas.zlma    (rocType, smoothedPeriod)
+    => 
+        runtime.error("No matching MA type found.")
+        float(na)
+
+
+//------------------------------------------------------------------------------
+//----- Switch operation for selecting the signal line on the smoothed rate of change
+signalLine = switch signalType
+    
+    'Arnaud Legoux - ALMA'       => mymas.alma    (smoothedROC, signalPeriod,almaoffset2, sigma2)
+    'Exponential - EMA'          => mymas.ema     (smoothedROC, signalPeriod)
+    'Double Exponential - DEMA'  => mymas.dema    (smoothedROC, signalPeriod)
+    'Triple Exponential - EMA'   => mymas.tema    (smoothedROC, signalPeriod)
+    'Fractal Adaptive - FRAMA'   => mymas.frama   (smoothedROC, signalPeriod,fc2, sc2)
+    'Kaufman Adaptive - KAMA'    => mymas.kama    (smoothedROC, signalPeriod,fl2, sl2)
+    'Hull - HMA'                 => mymas.hma     (smoothedROC, signalPeriod)
+    'Jurik - JMA'                => mymas.jma     (smoothedROC, signalPeriod,phase2, power2)
+    'Laguerre Filter'            => mymas.laguerre(smoothedROC, laguerreAlpha2)
+    'Least Squares - LSMA'       => mymas.lsma    (smoothedROC, signalPeriod,lsmaoffset2)
+    'McGinley Dynamic'           => mymas.mcginley(smoothedROC, signalPeriod)
+    'Modular Filter'             => mymas.mf      (smoothedROC, signalPeriod,feedback2, beta2, weighting2)
+    'RexDog - RDMA'              => mymas.rdma    (smoothedROC)
+    'Simple - SMA'               => mymas.sma     (smoothedROC, signalPeriod)
+    'Smoothed - SMMA'            => mymas.smma    (smoothedROC, signalPeriod)
+    'Tillson T3'                 => mymas.t3      (smoothedROC, signalPeriod)
+    'Triangular - TMA'           => mymas.tma     (smoothedROC, signalPeriod)
+    'Volatility-Adjusted - VAMA' => mymas.vama    (smoothedROC, signalPeriod,vamaPeriod2)
+    'Volume-Weighted - VWMA'     => mymas.vwma    (smoothedROC, signalPeriod)
+    'Weighted - WMA'             => mymas.wma     (smoothedROC, signalPeriod)
+    'Zero-Lag - ZLMA'            => mymas.zlma    (smoothedROC, signalPeriod)
+    => 
+        runtime.error("No matching MA type found.")
+        float(na)
+
+
+//------------------------------------------------------------------------------
+//----- Switch operation for selecting bollinger bands or donchian channel 
+[basis, upper, lower, innerUpper, innerLower] = switch bandsType
+    'Bollinger Bands'  => (volbands.bollingerbands (useSmoothed ? smoothedROC : rocType, bandsPeriod, bandsMult, useSmoothed ? signalLine : smoothedROC, bandsWidth))
+    'Donchian Channel' => (volbands.donchianchannel(useSmoothed ? smoothedROC : rocType, bandsPeriod, bandsWidth))
+    =>
+        runtime.error("No matching bands or channel type found.")
+        [na, na, na, na, na]
+
+
+//------------------------------------------------------------------------------
+//----- Rate of change, as an oscillator, has a centerline
+centerline = rocTypeInput == 'Rate of Change' ? 0 : na
+
+
+//------------------------------------------------------------------------------
+//----- Color variables
+colorOb         = color.new(#445b84, 50)
+colorUp         = color.new(#445b84, 0)
+colorNeut       = color.new(#808080, 0)
+colorDown       = color.new(#844444, 0)
+colorOs         = color.new(#844444, 50)
+signalColorUp   = color.new(#448484, 50)
+signalColorDown = color.new(#5a4484, 50)
+ribbonColorUp   = color.new(#448484, 75)
+ribbonColorDown = color.new(#5a4484, 75)
+xUpColor        = color.new(#ffffff, 75)
+xDownColor      = color.new(#000000, 75)
+
+
+//------------------------------------------------------------------------------
+//----- if statements determining how to color indicator depending on if it is an oscillator or not
+rocColor1  = if not useSmoothed
+    color1 = request.security(syminfo.tickerid, timeframeInput, rocType > centerline ? colorUp : rocType < centerline ? colorDown : na)
+else
+    color1 = request.security(syminfo.tickerid, timeframeInput, smoothedROC > centerline ? colorUp : smoothedROC < centerline ? colorDown : na)
+
+
+rocColor2 =
+     if rocTypeInput == 'Cumulative True Change (with signum)' and not useSmoothed or rocTypeInput == 'Cumulative True Change (without signum)' and not useSmoothed
+    color2 = request.security(syminfo.tickerid, timeframeInput, rocType > smoothedROC ? colorUp : colorDown)
+else if rocTypeInput == 'Cumulative True Change (with signum)' and useSmoothed or rocTypeInput == 'Cumulative True Change (without signum)' and useSmoothed
+    color2 = request.security(syminfo.tickerid, timeframeInput, smoothedROC > signalLine ? colorUp : colorDown)
+
+else if not useSmoothed
+    color2 = request.security(syminfo.tickerid, timeframeInput, rocType > centerline and rocType > smoothedROC ? colorUp : rocType < centerline and rocType < smoothedROC ? colorDown : colorNeut)
+else if useSmoothed
+    color2 = request.security(syminfo.tickerid, timeframeInput, smoothedROC > centerline and smoothedROC > signalLine ? colorUp : smoothedROC < centerline and smoothedROC < signalLine ? colorDown : colorNeut)
+
+
+rocColor3 =
+     if rocTypeInput == 'Cumulative True Change (with signum)' and not useSmoothed or rocTypeInput == 'Cumulative True Change (without signum)' and not useSmoothed
+    color3 = request.security(syminfo.tickerid, timeframeInput, rocType > basis ? colorUp : colorDown)
+else if rocTypeInput == 'Cumulative True Change (with signum)' and useSmoothed or rocTypeInput == 'Cumulative True Change (without signum)' and useSmoothed
+    color3 = request.security(syminfo.tickerid, timeframeInput, smoothedROC > basis ? colorUp : colorDown)
+
+else if not useSmoothed
+    color3 = request.security(syminfo.tickerid, timeframeInput, rocType > centerline and rocType > basis ? colorUp : rocType < centerline and rocType < basis ? colorDown : colorNeut)
+else if useSmoothed
+    color3 = request.security(syminfo.tickerid, timeframeInput, smoothedROC > centerline and smoothedROC > basis ? colorUp : smoothedROC < centerline and smoothedROC < basis ? colorDown : colorNeut)
+
+
+rocColor4 =
+     if rocTypeInput == 'Cumulative True Change (with signum)' and not useSmoothed or rocTypeInput == 'Cumulative True Change (without signum)' and not useSmoothed
+    color4 = request.security(syminfo.tickerid, timeframeInput, rocType >= innerUpper ? colorOb : rocType > basis and rocType < innerUpper ? colorUp : rocType < basis and rocType > innerLower ? colorDown : rocType < basis and rocType <= innerLower ? colorOs : na)
+else if rocTypeInput == 'Cumulative True Change (with signum)' and useSmoothed or rocTypeInput == 'Cumulative True Change (without signum)' and useSmoothed
+    color4 = request.security(syminfo.tickerid, timeframeInput, smoothedROC >= innerUpper ? colorOb : smoothedROC > basis and rocType < innerUpper ? colorUp : smoothedROC < basis and smoothedROC > innerLower ? colorDown : smoothedROC < basis and smoothedROC <= innerLower ? colorOs : na)
+
+else if not useSmoothed
+    color4 = request.security(syminfo.tickerid, timeframeInput, rocType > centerline and rocType <= innerLower or rocType < centerline and rocType >= innerUpper ? colorNeut : rocType > centerline and rocType >= innerUpper ? colorOb : rocType > centerline and rocType < innerUpper ? colorUp : rocType < centerline and rocType > innerLower ? colorDown : rocType < centerline and rocType <= innerLower ? colorOs : na)
+else if useSmoothed
+    color4 = request.security(syminfo.tickerid, timeframeInput, smoothedROC > centerline and smoothedROC <= innerLower or smoothedROC < centerline and smoothedROC >= innerUpper ? colorNeut : smoothedROC > centerline and smoothedROC >= innerUpper ? colorOb : smoothedROC > centerline and smoothedROC < innerUpper ? colorUp : smoothedROC < centerline and smoothedROC > innerLower ? colorDown : smoothedROC < centerline and smoothedROC <= innerLower ? colorOs : na)
+
+
+//----- if statements determining how to color the signal line depending on if smoothing is or is not being used
+smoothedColor = if useSmoothed
+    color     = request.security(syminfo.tickerid, timeframeInput, signalLine > signalLine[1] ? signalColorUp : signalColorDown)
+else
+    color     = request.security(syminfo.tickerid, timeframeInput, smoothedROC > smoothedROC[1] ? signalColorUp : signalColorDown)
+
+
+//----- signal color for signal line on smoothed rate of change or as a secondary signal line if not smoothed
+signalColor = request.security(syminfo.tickerid, timeframeInput, signalLine > signalLine[1] ? signalColorUp : signalColorDown)
+
+
+//----- the rest
+signalFill  = signalFillInput ? smoothedROC > signalLine ? ribbonColorUp : ribbonColorDown : na
+
+colorSelect = colorSelectInput == 'Centerline' ? rocColor1 :
+              colorSelectInput == 'Signal Line' ? rocColor2 :
+              colorSelectInput == 'Donchian Channel Basis' ? rocColor3 :
+              colorSelectInput == 'Channel / Bands Range' ? rocColor4 :
+              na
+
+
+
+//------------------------------------------------------------------------------
+//----- Signal and Centerline crosses
+signalXUp    = ta.crossover (useSmoothed ? smoothedROC : rocType, useSmoothed ? signalLine : smoothedROC)
+signalXDown  = ta.crossunder(useSmoothed ? smoothedROC : rocType, useSmoothed ? signalLine : smoothedROC)
+centerXUp    = ta.crossover (useSmoothed ? smoothedROC : rocType, centerline)
+centerXDown  = ta.crossunder(useSmoothed ? smoothedROC : rocType, centerline)
+
+
+//------------------------------------------------------------------------------
+//----- Visuals
+//--- Plots, bar color, shapes, background color
+plot(title = 'Rate of Change', series = useSmoothed ? na : rocType, color = colorSelect)
+
+smoothed = plot(title = 'Smoothed RoC', series = showSmoothed ? smoothedROC : useSmoothed and not showSmoothed ? smoothedROC : na, color = useSmoothed ? colorSelect : smoothedColor)
+signal   = plot(title = 'Signal Line', series = showSignal ? signalLine : na, color = signalColor)
+
+barcolor(title = 'Bar Color', color = barColor ? colorSelect : na)
+
+plotshape(title = '+ Signal Line Cross', series = not useSmoothed and showSmoothed ? signalXUp : useSmoothed and showSignal ? signalXUp : bool(na), color = xUpColor, style = shape.circle, location = location.bottom)
+plotshape(title = '- Signal Line Cross', series = not useSmoothed and showSmoothed ? signalXDown : useSmoothed and showSignal ? signalXDown : bool(na), color = xDownColor, style = shape.circle, location = location.top)
+
+bgcolor(title = '+ Centerline Cross', color = centerXUp ? xUpColor : na, display = display.none)
+bgcolor(title = '- Centerline Cross', color = centerXDown ? xDownColor : na, display = display.none)
+
+//--- Channel/bands plots
+plot(title = 'Basis', series = showBasis ? basis : na, color = color.new(#808080, 50))
+
+upperPlot      = plot(title = 'Upper Band', series = showBands ? upper : na, color = colorNeut, display = display.none)
+innerUpperPlot = plot(title = 'Inner Upper Band', series = showBands ? innerUpper : na, color = colorNeut, display = display.none)
+innerLowerPlot = plot(title = 'Inner Lower Band', series = showBands ? innerLower : na, color = colorNeut, display = display.none)
+lowerPlot      = plot(title = 'Lower Band', series = showBands ? lower : na, color = colorNeut, display = display.none)
+
+//--- Fills
+fill(smoothed, signal, color=signalFill, title='Signal Line Ribbon')
+fill(upperPlot, innerUpperPlot, color = color.new(#808080, 50), title = 'Upper Bands Fill')
+fill(lowerPlot, innerLowerPlot, color = color.new(#808080, 50), title = 'Lower Bands Fill')
+
+//--- Centerline for oscillators
+hline(title = 'Centerline', price = centerline, linestyle = hline.style_dotted, color = #000000)
+
+
+//------------------------------------------------------------------------------
+//----- Divergences
+//--- is the indicator smoothed or not?
+rocDivType = if useSmoothed
+    smoothedROC
+else
+    rocType
+    
+lbR            = input(title = 'Pivot Period Right', defval = 5, group = 'Divergences')
+lbL            = input(title = 'Pivot Period Left', defval = 5, group = 'Divergences')
+rangeUpper     = input(title = 'Max of Period Range', defval = 60, group = 'Divergences')
+rangeLower     = input(title = 'Min of Period Range', defval = 5, group = 'Divergences')
+plotBull       = input(title = 'Bullish', defval = false, group = 'Divergences')
+plotHiddenBull = input(title = 'Hidden Bullish', defval = false, group = 'Divergences')
+plotBear       = input(title = 'Bearish', defval = false, group = 'Divergences')
+plotHiddenBear = input(title = 'Hidden Bearish', defval = false, group = 'Divergences')
+
+bearColor       = #844444
+bullColor       = #445b84
+hiddenBullColor = color.new(#445b84, 80)
+hiddenBearColor = color.new(#844444, 80)
+textColor       = color.white
+noneColor       = color.new(color.white, 100)
+
+plFound = na(ta.pivotlow(rocDivType, lbL, lbR)) ? false : true
+phFound = na(ta.pivothigh(rocDivType, lbL, lbR)) ? false : true
+
+_inRange(cond) =>
+    bars = ta.barssince(cond == true)
+    rangeLower <= bars and bars <= rangeUpper
+
+//------------------------------------------------------------------------------
+//----- Regular Bullish
+//--- rocDivType: Higher Low
+inRangePl = _inRange(plFound[1])
+rocDivTypeHL = rocDivType[lbR] > ta.valuewhen(plFound, rocDivType[lbR], 1) and inRangePl
+
+//--- Price: Lower Low
+
+priceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)
+bullCondAlert = priceLL and rocDivTypeHL and plFound
+bullCond = plotBull and bullCondAlert
+
+plot(
+     plFound ? rocDivType[lbR] : na,
+     offset = -lbR,
+     title = 'Regular Bullish',
+     linewidth = 2,
+     color = (bullCond ? bullColor : noneColor),
+ display = display.pane,
+ editable = plotBull
+     )
+
+plotshape(
+ bullCond ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Regular Bullish Label',
+ text = ' Bull ',
+ style = shape.labelup,
+ location = location.absolute,
+ color = bullColor,
+ textcolor = textColor,
+ editable = plotBull
+ )
+
+//------------------------------------------------------------------------------
+//----- Hidden Bullish
+//--- rocDivType: Lower Low
+
+rocDivTypeLL = rocDivType[lbR] < ta.valuewhen(plFound, rocDivType[lbR], 1) and inRangePl
+
+//--- Price: Higher Low
+
+priceHL = low[lbR] > ta.valuewhen(plFound, low[lbR], 1)
+hiddenBullCondAlert = priceHL and rocDivTypeLL and plFound
+hiddenBullCond = plotHiddenBull and hiddenBullCondAlert
+
+plot(
+ plFound ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Hidden Bullish',
+ linewidth = 2,
+ color = (hiddenBullCond ? hiddenBullColor : noneColor),
+ display = display.pane,
+ editable = plotHiddenBull
+ )
+
+plotshape(
+ hiddenBullCond ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Hidden Bullish Label',
+ text = ' H Bull ',
+ style = shape.labelup,
+ location = location.absolute,
+ color = bullColor,
+ textcolor = textColor,
+ editable = plotHiddenBull
+ )
+
+//------------------------------------------------------------------------------
+//----- Regular Bearish
+//--- rocDivType: Lower High
+inRangePh = _inRange(phFound[1])
+rocDivTypeLH = rocDivType[lbR] < ta.valuewhen(phFound, rocDivType[lbR], 1) and inRangePh
+
+//--- Price: Higher High
+
+priceHH = high[lbR] > ta.valuewhen(phFound, high[lbR], 1)
+
+bearCondAlert = priceHH and rocDivTypeLH and phFound
+bearCond = plotBear and bearCondAlert
+
+plot(
+ phFound ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Regular Bearish',
+ linewidth = 2,
+ color = (bearCond ? bearColor : noneColor),
+ display = display.pane,
+ editable = plotBear
+ )
+
+plotshape(
+ bearCond ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Regular Bearish Label',
+ text = ' Bear ',
+ style = shape.labeldown,
+ location = location.absolute,
+ color = bearColor,
+ textcolor = textColor,
+ editable = plotBear
+ )
+
+//------------------------------------------------------------------------------
+//----- Hidden Bearish
+//--- rocDivType: Higher High
+
+rocDivTypeHH = rocDivType[lbR] > ta.valuewhen(phFound, rocDivType[lbR], 1) and inRangePh
+
+//--- Price: Lower High
+
+priceLH = high[lbR] < ta.valuewhen(phFound, high[lbR], 1)
+
+hiddenBearCondAlert = priceLH and rocDivTypeHH and phFound
+hiddenBearCond = plotHiddenBear and hiddenBearCondAlert
+
+plot(
+ phFound ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Hidden Bearish',
+ linewidth = 2,
+ color = (hiddenBearCond ? hiddenBearColor : noneColor),
+ display = display.pane,
+ editable = plotHiddenBear
+ )
+
+plotshape(
+ hiddenBearCond ? rocDivType[lbR] : na,
+ offset = -lbR,
+ title = 'Hidden Bearish Label',
+ text = ' H Bear ',
+ style = shape.labeldown,
+ location = location.absolute,
+ color = bearColor,
+ textcolor = textColor,
+ editable = plotHiddenBear
+ )
+
+
+//------------------------------------------------------------------------------
+//----- Alerts
+alertcondition(ta.cross(useSmoothed ? smoothedROC : rocType, centerline), title = 'RoC Crossing Centerline', message = 'RoC has crossed the centerline.')
+alertcondition(ta.cross(useSmoothed ? smoothedROC : rocType, basis),      title = 'RoC Crossing Basis',      message = 'RoC has crossed the basis.')
+
+alertcondition(ta.cross(useSmoothed ? smoothedROC : rocType, useSmoothed ? signalLine : smoothedROC), title = 'RoC Crossing Signal Line', message = 'RoC has crossed the signal line.')
+
+alertcondition(ta.cross(useSmoothed ? smoothedROC : rocType, innerUpper), title = 'RoC Crossing Upper Band', message = 'RoC is at the upper band.')
+alertcondition(ta.cross(useSmoothed ? smoothedROC : rocType, innerLower), title = 'RoC Crossing Lower Band', message = 'RoC is at the lower band.')
+
+alertcondition(bullCondAlert,       title = 'Bull Div', message = 'RoC bull div')
+alertcondition(bearCondAlert,       title = 'Bear Div', message = 'RoC bear div')
+alertcondition(hiddenBullCondAlert, title = 'Hidden Bull Div', message = 'RoC hidden bull div')
+alertcondition(hiddenBearCondAlert, title = 'Hidden Bear Div', message = 'RoC hidden bear div')

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5715509e0b7d45f29aae08847ac77127",
+ "title": "High Low Open Mid Ranges",
+ "author": "Shanxia",
+ "url": "https://www.tradingview.com/script/yj4FibJH-high-low-open-mid-ranges/",
+ "agreeCount": 1894,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine",
+ "cached_source": "tools/pine_survey/cache/sources/high-low-open-mid-ranges__5715509e0b.pine",
+ "our_status": "committed"
+}

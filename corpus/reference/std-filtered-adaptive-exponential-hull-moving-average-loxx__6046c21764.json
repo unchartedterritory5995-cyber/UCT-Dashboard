@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6046c21764ba4c00a1f48eba35e621d5",
+ "title": "STD-Filtered, Adaptive Exponential Hull Moving Average [Loxx]",
+ "author": "loxx",
+ "url": "https://www.tradingview.com/script/UYfYiSKe-std-filtered-adaptive-exponential-hull-moving-average-loxx/",
+ "agreeCount": 759,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764.pine",
+ "cached_source": "tools/pine_survey/cache/sources/std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764.pine",
+ "our_status": "committed"
+}

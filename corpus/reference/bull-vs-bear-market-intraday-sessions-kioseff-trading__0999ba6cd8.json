@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0999ba6cd86e4709ad54bfa93034f5db",
+ "title": "Bull Vs. Bear Market Intraday Sessions [Kioseff Trading]",
+ "author": "KioseffTrading",
+ "url": "https://www.tradingview.com/script/3mKewfnN-bull-vs-bear-market-intraday-sessions-kioseff-trading/",
+ "agreeCount": 6188,
+ "category": "session tools",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine",
+ "cached_source": "tools/pine_survey/cache/sources/bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8.pine",
+ "our_status": "committed"
+}

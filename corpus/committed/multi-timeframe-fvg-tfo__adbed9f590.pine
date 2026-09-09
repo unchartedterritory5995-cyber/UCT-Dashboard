@@ -1,0 +1,195 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © tradeforopp
+
+//@version=5
+indicator("Multi-Timeframe FVG [TFO]", "MFVG [TFO]", true)
+
+
+// ------------------------------ Inputs ------------------------------
+var g_TF = "Timeframes"
+use_tf1         = input.bool(true, "Timeframe 1", inline = "TF1", group = g_TF)
+tf1             = input.timeframe("5", "", inline = "TF1", group = g_TF)
+tf1_color       = input.color(color.new(#089981, 70), "", inline = "TF1", group = g_TF)
+
+use_tf2         = input.bool(true, "Timeframe 2", inline = "TF2", group = g_TF)
+tf2             = input.timeframe("15", "", inline = "TF2", group = g_TF)
+tf2_color       = input.color(color.new(#00bcd4, 70), "", inline = "TF2", group = g_TF)
+
+use_tf3         = input.bool(true, "Timeframe 3", inline = "TF3", group = g_TF)
+tf3             = input.timeframe("60", "", inline = "TF3", group = g_TF)
+tf3_color       = input.color(color.new(#673ab7, 70), "", inline = "TF3", group = g_TF)
+
+var g_OPT = "Options"
+mitigation      = input.string('Wick', "Mitigation Type", options = ['Wick','Close'], tooltip = "Close will only delete FVGs if price closes through the area, whereas Wick will delete FVGs once they are fully traded through at all (not necessarily closing through)", group = g_OPT)
+disp_x          = input.int(3, "Displacement", 0, 10, tooltip = "Larger values will require larger displacement in order to draw FVGs, filtering out smaller moves", group = g_OPT)
+tf_align        = input.int(3, "Timerfame Alignment", 1, 3, tooltip = "The number of timeframes that must be aligned in order to draw a FVG. A value of 1 will draw any/all FVGs, 2 will draw FVGs that overlap on 2+ timeframes, and 3 will draw FVGs that overlap on all 3 timeframes", group = g_OPT)
+max_arr_size    = input.int(10, "Max FVG Storage", 0, 30, tooltip = "The maximum FVG objects to be stored at one time, per timeframe. Larger values will significantly increase load times", group = g_OPT)
+delete_after    = input.int(500, "Delete After X Bars", 0, tooltip = "If not mitigated, FVGs will be deleted after this many bars have passed", group = g_OPT)
+// ------------------------------ Inputs ------------------------------
+
+
+// ------------------------------ Constants & Variables ------------------------------
+long_atr = ta.atr(200) / 4
+transparent = #ffffff00
+mg_wick = mitigation == 'Wick'
+
+[o1, h1, l1, c1] = request.security(syminfo.tickerid, tf1, [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[o2, h2, l2, c2] = request.security(syminfo.tickerid, tf2, [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+[o3, h3, l3, c3] = request.security(syminfo.tickerid, tf3, [open, high, low, close], barmerge.gaps_off, barmerge.lookahead_on)
+
+var tf1_o = array.new_float()
+var tf1_h = array.new_float()
+var tf1_l = array.new_float()
+var tf1_c = array.new_float()
+var tf1_fvg_bull = array.new_box()
+var tf1_fvg_bear = array.new_box()
+
+var tf2_o = array.new_float()
+var tf2_h = array.new_float()
+var tf2_l = array.new_float()
+var tf2_c = array.new_float()
+var tf2_fvg_bull = array.new_box()
+var tf2_fvg_bear = array.new_box()
+
+var tf3_o = array.new_float()
+var tf3_h = array.new_float()
+var tf3_l = array.new_float()
+var tf3_c = array.new_float()
+var tf3_fvg_bull = array.new_box()
+var tf3_fvg_bear = array.new_box()
+// ------------------------------ Constants & Variables ------------------------------
+
+
+// ------------------------------ Functions ------------------------------
+check_disp(o, c) =>
+    result = false
+    if math.abs(o.get(1) - c.get(1)) > long_atr * disp_x
+        result := true
+    result
+
+overlap(top1, bot1, top2, bot2) =>
+    result = false
+
+    // Overlap formula: w1 + w2 <= max - min
+    if math.abs(top1 - bot1) + math.abs(top2 - bot2) > math.max(top1, top2) - math.min(bot1, bot2)
+        result := true
+    result
+
+update_price(o_price, h_price, l_price, c_price, o_arr, h_arr, l_arr, c_arr) =>
+    if o_price != o_price[1]
+        o_arr.unshift(o_price[1])
+        h_arr.unshift(h_price[1])
+        l_arr.unshift(l_price[1])
+        c_arr.unshift(c_price[1])
+    if o_arr.size() > max_arr_size
+        o_arr.pop()
+        h_arr.pop()
+        l_arr.pop()
+        c_arr.pop()
+
+check_fvg(o, h, l, c, fvg_bull, fvg_bear, color) =>
+    if fvg_bull.size() > 0
+        for i = fvg_bull.size() - 1 to 0
+            if (mg_wick ? low : close[1]) <= fvg_bull.get(i).get_bottom() or bar_index - fvg_bull.get(i).get_left() > delete_after
+                box.delete(fvg_bull.get(i))
+                fvg_bull.remove(i)
+
+    if fvg_bear.size() > 0
+        for i = fvg_bear.size() - 1 to 0
+            if (mg_wick ? high : close[1]) >= fvg_bear.get(i).get_top() or bar_index - fvg_bear.get(i).get_left() > delete_after
+                box.delete(fvg_bear.get(i))
+                fvg_bear.remove(i)
+
+    proceed = false
+    if o.size() > 2
+        if fvg_bull.size() == 0
+            proceed := true
+        else
+            if l.get(0) != fvg_bull.get(0).get_top()
+                proceed := true
+
+        if proceed and l.get(0) > h.get(2) and c.get(1) > o.get(1) and check_disp(o, c)
+            fvg_bull.unshift(box.new(bar_index, l.get(0), bar_index, h.get(2), extend = extend.right, bgcolor = transparent, border_color = na))
+            if fvg_bull.size() > max_arr_size
+                fvg_bull.get(fvg_bull.size() - 1).delete()
+                fvg_bull.pop()
+        
+    proceed := false
+    if o.size() > 2
+        if fvg_bear.size() == 0
+            proceed := true
+        else
+            if l.get(2) != fvg_bear.get(0).get_top()
+                proceed := true
+
+        if proceed and l.get(2) > h.get(0) and c.get(1) < o.get(1) and check_disp(o, c)
+            fvg_bear.unshift(box.new(bar_index, l.get(2), bar_index, h.get(0), extend = extend.right, bgcolor = transparent, border_color = na))
+            if fvg_bear.size() > max_arr_size
+                fvg_bear.get(fvg_bear.size() - 1).delete()
+                fvg_bear.pop()
+
+check_overlap(tf1_fvg, tf2_fvg, tf3_fvg) =>
+    if (use_tf1 ? tf1_fvg.size() > 0 : true) and (use_tf2 ? tf2_fvg.size() > 0 : true) and (use_tf3 ? tf3_fvg.size() > 0 : true)
+        for i = 0 to tf1_fvg.size() - 1
+            for j = 0 to tf2_fvg.size() - 1
+                for k = 0 to tf3_fvg.size() - 1
+                    fvg1 = use_tf1 ? tf1_fvg.get(i) : na
+                    fvg2 = use_tf2 ? tf2_fvg.get(j) : na
+                    fvg3 = use_tf3 ? tf3_fvg.get(k) : na
+
+                    top1 = use_tf1 ? fvg1.get_top() : na
+                    bot1 = use_tf1 ? fvg1.get_bottom() : na
+                    
+                    top2 = use_tf2 ? fvg2.get_top() : na
+                    bot2 = use_tf2 ? fvg2.get_bottom() : na
+                    
+                    top3 = use_tf3 ? fvg3.get_top() : na
+                    bot3 = use_tf3 ? fvg3.get_bottom() : na
+
+                    if tf_align == 1
+                        if use_tf1
+                            fvg1.set_bgcolor(tf1_color)
+                        if use_tf2
+                            fvg2.set_bgcolor(tf2_color)
+                        if use_tf3
+                            fvg3.set_bgcolor(tf3_color)
+
+                    else if tf_align == 2
+                        if use_tf1 and use_tf2
+                            if overlap(top1, bot1, top2, bot2)
+                                fvg1.set_bgcolor(tf1_color)
+                                fvg2.set_bgcolor(tf2_color)
+                            
+                        if use_tf1 and use_tf3
+                            if overlap(top1, bot1, top3, bot3)
+                                fvg1.set_bgcolor(tf1_color)
+                                fvg3.set_bgcolor(tf3_color)
+                            
+                        if use_tf3 and use_tf2
+                            if overlap(top3, bot3, top2, bot2)
+                                fvg3.set_bgcolor(tf3_color)
+                                fvg2.set_bgcolor(tf2_color)
+
+                    else if tf_align == 3
+                        if use_tf1 and use_tf2 and use_tf3
+                            if overlap(top1, bot1, top2, bot2) and overlap(top1, bot1, top3, bot3) and overlap(top2, bot2, top3, bot3)
+                                fvg1.set_bgcolor(tf1_color)
+                                fvg2.set_bgcolor(tf2_color)
+                                fvg3.set_bgcolor(tf3_color)
+// ------------------------------ Functions ------------------------------
+
+
+// ------------------------------ Logic ------------------------------
+if use_tf1
+    update_price(o1, h1, l1, c1, tf1_o, tf1_h, tf1_l, tf1_c)
+    check_fvg(tf1_o, tf1_h, tf1_l, tf1_c, tf1_fvg_bull, tf1_fvg_bear, tf1_color)
+if use_tf2
+    update_price(o2, h2, l2, c2, tf2_o, tf2_h, tf2_l, tf2_c)
+    check_fvg(tf2_o, tf2_h, tf2_l, tf2_c, tf2_fvg_bull, tf2_fvg_bear, tf2_color)
+if use_tf3
+    update_price(o3, h3, l3, c3, tf3_o, tf3_h, tf3_l, tf3_c)
+    check_fvg(tf3_o, tf3_h, tf3_l, tf3_c, tf3_fvg_bull, tf3_fvg_bear, tf3_color)
+
+check_overlap(tf1_fvg_bear, tf2_fvg_bear, tf3_fvg_bear)
+check_overlap(tf1_fvg_bull, tf2_fvg_bull, tf3_fvg_bull)
+// ------------------------------ Logic ------------------------------

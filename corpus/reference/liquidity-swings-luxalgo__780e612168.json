@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;780e612168be41d5aa300f1c16084130",
+ "title": "Liquidity Swings [LuxAlgo]",
+ "author": "LuxAlgo",
+ "url": "https://www.tradingview.com/script/1S2VOnJP-liquidity-swings-luxalgo/",
+ "agreeCount": 38851,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/liquidity-swings-luxalgo__780e612168.pine",
+ "our_status": "reference-only"
+}

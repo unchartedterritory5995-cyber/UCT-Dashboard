@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;61d59f90bc514ef5bb080a7299ca392c",
+ "title": "TrendLineSample",
+ "author": "omidbnb",
+ "url": "https://www.tradingview.com/script/yGaPNB1O-trendlinesample/",
+ "agreeCount": 2874,
+ "category": "support/resistance",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trendlinesample__61d59f90bc.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trendlinesample__61d59f90bc.pine",
+ "our_status": "committed"
+}

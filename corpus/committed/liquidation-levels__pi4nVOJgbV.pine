@@ -1,0 +1,100 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © mabonyi
+
+//@version=4
+study("Liquidation Levels", shorttitle = "Liq Levels", overlay = true)
+
+
+
+i_nonlinear = input(true, group = "Formula", title = "Nonlinear Contract (e.g. COIN-M)", type = input.bool)
+i_maintmargin = input(0.05, group = "Formula", title = "Maintenance Margin above Liquidation", type = input.float)
+maint_margin = 1 - i_maintmargin
+
+i_x1 = input(5, group = "Leverage", title = "Level #1", type = input.float)
+i_x2 = input(10, group = "Leverage", title = "Level #2", type = input.float)
+i_x3 = input(20, group = "Leverage", title = "Level #3", type = input.float)
+i_x4 = input(50, group = "Leverage", title = "Level #4", type = input.float)
+i_x5 = input(100, group = "Leverage", title = "Level #5", type = input.float)
+//i_x6 = input(20, group = "Leverage", title = "Level #6", type = input.float)
+//i_x7 = input(25, group = "Leverage", title = "Level #7", type = input.float)
+//i_x8 = input(50, group = "Leverage", title = "Level #8", type = input.float)
+//i_x9 = input(75, group = "Leverage", title = "Level #9", type = input.float)
+//i_x10 = input(100, group = "Leverage", title = "Level #10", type = input.float)
+//i_x11 = input(125, group = "Leverage", title = "Level #11", type = input.float)
+
+i_showlast = input(1, group = "Display", title = "Only Show Last X Bars (0 = all)", type = input.integer)
+i_offset = input(0, group = "Display", title = "Projection offset", type = input.integer)
+i_label_offset = input(5, group = "Display", title = "Level Label Offset", type = input.integer)
+
+i_show_longs = input(true, group = "Labels", title = "Show long levels", type = input.bool)
+i_show_shorts = input(true, group = "Labels", title = "Show short levels", type = input.bool)
+i_show_x1 = input(true, group = "Labels", title = "Show Level 1 Labels", type = input.bool)
+i_show_x2 = input(true, group = "Labels", title = "Show Level 2 Labels", type = input.bool)
+i_show_x3 = input(true, group = "Labels", title = "Show Level 3 Labels", type = input.bool)
+i_show_x4 = input(true, group = "Labels", title = "Show Level 4 Labels", type = input.bool)
+i_show_x5 = input(true, group = "Labels", title = "Show Level 5 Labels", type = input.bool)
+
+c_x1 = input(color.aqua, group = "Colours", title = "Level 1 Colour", type = input.color)
+c_x2 = input(color.lime, group = "Colours", title = "Level 2 Colour", type = input.color)
+c_x3 = input(color.yellow, group = "Colours", title = "Level 3 Colour", type = input.color)
+c_x4 = input(color.orange, group = "Colours", title = "Level 4 Colour", type = input.color)
+c_x5 = input(color.red, group = "Colours", title = "Level 5 Colour", type = input.color)
+
+f_leveraged(_price, _x) =>
+    _xlong = i_nonlinear ? _x + 1 : _x
+    _xshort = i_nonlinear ? _x - 1 : _x
+    _liq_long = _price * (1 - (1/_xlong * maint_margin))
+    _liq_short = _price * (1 + (1/_xshort * maint_margin))
+    [_liq_long, _liq_short]
+
+f_print(_y, _txt, _c) =>
+    t = time_close + ((i_offset + i_label_offset) * timeframe.multiplier * 60 * 1000)
+    var _lbl = label.new(t, _y, _txt, xloc.bar_time, yloc.price, color.white, label.style_none, _c, size.small)
+    label.set_xy(_lbl, t, _y)
+    label.set_text(_lbl, _txt)
+
+
+[x1_long, x1_short] = f_leveraged(close, i_x1)
+[x2_long, x2_short] = f_leveraged(close, i_x2)
+[x3_long, x3_short] = f_leveraged(close, i_x3)
+[x4_long, x4_short] = f_leveraged(close, i_x4)
+[x5_long, x5_short] = f_leveraged(close, i_x5)
+
+plot(x1_long, title = "L1 Long", color = c_x1, offset = i_offset, show_last = i_showlast)
+plot(x2_long, title = "L2 Long", color = c_x2, offset = i_offset, show_last = i_showlast)
+plot(x3_long, title = "L3 Long", color = c_x3, offset = i_offset, show_last = i_showlast)
+plot(x4_long, title = "L4 Long", color = c_x4, offset = i_offset, show_last = i_showlast)
+plot(x5_long, title = "L5 Long", color = c_x5, offset = i_offset, show_last = i_showlast)
+
+plot(x1_short, title = "L1 Short", color = c_x1, offset = i_offset, show_last = i_showlast)
+plot(x2_short, title = "L2 Short", color = c_x2, offset = i_offset, show_last = i_showlast)
+plot(x3_short, title = "L3 Short", color = c_x3, offset = i_offset, show_last = i_showlast)
+plot(x4_short, title = "L4 Short", color = c_x4, offset = i_offset, show_last = i_showlast)
+plot(x5_short, title = "L5 Short", color = c_x5, offset = i_offset, show_last = i_showlast)
+
+plotchar(10e10, "", "")
+
+// Print value on last bar only, so code runs faster.
+if barstate.islast
+    if i_show_longs
+        if i_show_x1
+            f_print(x1_long, str.format("+{0}x: {1}", i_x1, x1_long), c_x1)
+        if i_show_x2
+            f_print(x2_long, str.format("+{0}x: {1}", i_x2, x2_long), c_x2)
+        if i_show_x3
+            f_print(x3_long, str.format("+{0}x: {1}", i_x3, x3_long), c_x3)
+        if i_show_x4
+            f_print(x4_long, str.format("+{0}x: {1}", i_x4, x4_long), c_x4)
+        if i_show_x5
+            f_print(x5_long, str.format("+{0}x: {1}", i_x5, x5_long), c_x5)
+    if i_show_shorts
+        if i_show_x1
+            f_print(x1_short, str.format("-{0}x: {1}", i_x1, x1_short), c_x1)
+        if i_show_x2
+            f_print(x2_short, str.format("-{0}x: {1}", i_x2, x2_short), c_x2)
+        if i_show_x3
+            f_print(x3_short, str.format("-{0}x: {1}", i_x3, x3_short), c_x3)
+        if i_show_x4
+            f_print(x4_short, str.format("-{0}x: {1}", i_x4, x4_short), c_x4)
+        if i_show_x5
+            f_print(x5_short, str.format("-{0}x: {1}", i_x5, x5_short), c_x5)

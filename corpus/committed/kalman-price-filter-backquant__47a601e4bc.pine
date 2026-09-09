@@ -1,0 +1,77 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © BackQuant
+
+//@version=5
+indicator(
+ "Kalman Price Filter [BackQuant]", 
+ overlay=true, 
+ precision = 2, 
+ format = format.price, 
+ timeframe = "", 
+ timeframe_gaps = true
+ )
+
+// Kalman Filter parameters
+series float        pricesource          = input.source(close, "Kalman Price Source", group = "Calculation")
+simple float        processNoise         = input.float(0.01, title="Process Noise", step = 0.01, group = "Calculation")
+simple float        measurementNoise     = input.float(3.0, title="Measurement Noise", group = "Calculation")
+simple int          N                    = input.int(5, title="Filter Order", minval=1, group = "Calculation")
+simple bool         showkalman           = input.bool(true, "Show Filtered Price on chart?", group = "UI Settings")
+simple bool         paintCandles         = input.bool(true, "Paint candles according to Trend?", group = "UI Settings")
+
+
+var float[] stateEstimate = array.new_float(N, na)
+var float[] errorCovariance = array.new_float(N, 100.0)
+
+f_init(series float pricesource) =>
+    if na(array.get(stateEstimate, 0))
+        for i = 0 to N-1
+            array.set(stateEstimate, i, pricesource)
+            array.set(errorCovariance, i, 1.0)
+
+f_kalman(series float pricesource) =>
+    // Prediction Step
+    predictedStateEstimate = array.new_float(N)
+    predictedErrorCovariance = array.new_float(N)
+    for i = 0 to N-1
+        array.set(predictedStateEstimate, i, array.get(stateEstimate, i)) // Simplified prediction
+        array.set(predictedErrorCovariance, i, array.get(errorCovariance, i) + processNoise)
+    
+    kalmanGain = array.new_float(N)
+    for i = 0 to N-1
+        kg = array.get(predictedErrorCovariance, i) / (array.get(predictedErrorCovariance, i) + measurementNoise)
+        array.set(kalmanGain, i, kg)
+        array.set(stateEstimate, i, array.get(predictedStateEstimate, i) + kg * (pricesource - array.get(predictedStateEstimate, i)))
+        array.set(errorCovariance, i, (1 - kg) * array.get(predictedErrorCovariance, i))
+    
+    array.get(stateEstimate, 0)
+
+f_init(pricesource)
+kalmanFilteredPrice = f_kalman(pricesource)
+
+// Conditional Trend
+var Trend = 0
+
+if kalmanFilteredPrice>kalmanFilteredPrice[1]
+	Trend := 1
+
+if kalmanFilteredPrice<kalmanFilteredPrice[1] 
+	Trend := -1
+
+// Colouring
+var barColour = #ffffff
+if Trend == 1 
+    barColour := #33ff00
+if Trend == -1
+    barColour := #ff0000
+
+// Plotting
+barcolor(paintCandles ? barColour : na)
+
+plot(
+ showkalman ? kalmanFilteredPrice : na, 
+ "Kalman", 
+ color = color.new(barColour, 40), 
+ linewidth = 4
+ )
+

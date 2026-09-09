@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;2811",
+ "title": "Golden Cross, SMA 200 Long Only, Moving Average Strategy (by ChartArt)",
+ "author": "ChartArt",
+ "url": "https://www.tradingview.com/script/6ZReHYKn-golden-cross-sma-200-long-only-moving-average-strategy-by-ch/",
+ "agreeCount": 11287,
+ "category": "trend",
+ "pine_version": "v2",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/golden-cross-sma-200-long-only-moving-average-strategy-by-chartart__2811.pine",
+ "our_status": "reference-only"
+}

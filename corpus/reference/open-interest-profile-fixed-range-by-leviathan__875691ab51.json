@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;875691ab51f6496c924bf44847fc8863",
+ "title": "Open Interest Profile [Fixed Range] - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/ox607m21-open-interest-profile-fixed-range-by-leviathan/",
+ "agreeCount": 4894,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/open-interest-profile-fixed-range-by-leviathan__875691ab51.pine",
+ "cached_source": "tools/pine_survey/cache/sources/open-interest-profile-fixed-range-by-leviathan__875691ab51.pine",
+ "our_status": "committed"
+}

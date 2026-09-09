@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;fd50b245b67c4a9e8314be6c27e870ed",
+ "title": "SMC Structures and Multi-Timeframe FVG MA PY",
+ "author": "patwayfarer",
+ "url": "https://www.tradingview.com/script/yXQhl6Ya-smc-structures-and-multi-timeframe-fvg-ma-py/",
+ "agreeCount": 2933,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine",
+ "our_status": "committed"
+}

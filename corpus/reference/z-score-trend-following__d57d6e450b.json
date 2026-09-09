@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;d57d6e450b0b426fa109d0132d7356ba",
+ "title": "Z Score & Trend Following",
+ "author": "Ameno09",
+ "url": "https://www.tradingview.com/script/p1VDdZCB-z-score-trend-following/",
+ "agreeCount": 732,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/z-score-trend-following__d57d6e450b.pine",
+ "our_status": "reference-only"
+}

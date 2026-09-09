@@ -1,0 +1,36 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © adolgov
+
+//@version=5
+indicator('One indicator - multiple (max 40) checked symbols and "infinite" number of checked conditions. Example')
+
+// check any condition you needed to fire
+checkForAlert()=>
+    alertMsg = ""
+
+    // check for highest high
+    if high > ta.highest(high,14)[1]
+        alertMsg += str.format("new high {0} for {1}!\n", high, syminfo.ticker)
+
+    // check for lowest low
+    if low < ta.lowest(low,14)[1]
+        alertMsg += str.format("new low {0} for {1}!\n", low, syminfo.ticker)
+
+    // check for odd
+    if bar_index % 2 == 0
+        alertMsg += str.format("bar index is odd for {0}!\n", syminfo.ticker)        
+
+    // any other checks needed
+
+    alertMsg
+
+fireAlert(ticker, freq = alert.freq_once_per_bar)=>
+    msg = request.security(ticker, timeframe.period, checkForAlert())
+    if str.length(msg) > 0
+        alert(msg, freq)
+
+fireAlert("BTCUSD")
+fireAlert("ETHUSD")
+fireAlert("EURUSD")
+fireAlert("USDJPY")
+// more symbols here ... max 40

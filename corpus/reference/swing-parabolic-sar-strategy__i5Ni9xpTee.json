@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;i5Ni9xpTeeT0820jiHdI1iSNnd2c2mKh",
+ "title": "Swing Parabolic SAR Strategy",
+ "author": "SoftKill21",
+ "url": "https://www.tradingview.com/script/Kf33o8g5-swing-parabolic-sar-strategy/",
+ "agreeCount": 658,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/swing-parabolic-sar-strategy__i5Ni9xpTee.pine",
+ "our_status": "reference-only"
+}

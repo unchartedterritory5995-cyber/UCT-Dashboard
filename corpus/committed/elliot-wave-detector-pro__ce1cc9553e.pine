@@ -1,0 +1,1982 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Elliott Wave Advanced Multi-Degree Analyzer v3.1 — MTF Edition
+
+//@version=6
+indicator("Elliot Wave Detector Pro", "EW Advanced v3.1", overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=100)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+// === Swing Detection ===
+swingGroup = "Swing Detection"
+primarySwingLen = input.int(13, "Primary Wave Swing Length", minval=3, maxval=100, group=swingGroup, tooltip="Bars to confirm major swings (lower = more sensitive)")
+secondarySwingLen = input.int(5, "Sub-Wave Swing Length", minval=2, maxval=50, group=swingGroup, tooltip="Bars to confirm minor swings")
+minSwingPct = input.float(5.0, "Min Swing % (Primary)", minval=0.5, maxval=30.0, step=0.5, group=swingGroup, tooltip="Minimum % move for primary waves (crypto: 5-10%)")
+minSubSwingPct = input.float(2.0, "Min Swing % (Sub)", minval=0.1, maxval=15.0, step=0.1, group=swingGroup)
+
+// === Multi-Timeframe Analysis ===
+mtfGroup = "Multi-Timeframe Analysis"
+enableMTF = input.bool(true, "Enable MTF Validation", group=mtfGroup, tooltip="Cross-reference wave counts with higher timeframes")
+autoDetectHTF = input.bool(true, "Auto-Detect HTF from Chart", group=mtfGroup, tooltip="Automatically pick sensible higher timeframes based on your chart TF. Disable to set manually.")
+htf1Manual = input.timeframe("240", "Manual HTF 1 (if auto off)", group=mtfGroup, tooltip="First higher timeframe — only used when auto-detect is off")
+htf2Manual = input.timeframe("D", "Manual HTF 2 (if auto off)", group=mtfGroup, tooltip="Second higher timeframe — only used when auto-detect is off")
+htfSwingLenManual = input.int(8, "Manual HTF Swing Length (if auto off)", minval=3, maxval=50, group=mtfGroup, tooltip="Swing sensitivity for HTF pivot detection — only used when auto-detect is off")
+htfMinSwingPctManual = input.float(8.0, "Manual HTF Min Swing % (if auto off)", minval=0.1, maxval=50.0, step=0.5, group=mtfGroup, tooltip="Minimum swing size on HTF — only used when auto-detect is off")
+htfConfWeight = input.float(0.20, "HTF Confidence Weight", minval=0.0, maxval=0.50, step=0.05, group=mtfGroup, tooltip="How much HTF alignment affects CTF confidence (0 = disabled)")
+showHTFPivots = input.bool(false, "Show HTF Pivot Markers", group=mtfGroup, tooltip="Draw HTF swing points on chart")
+
+// Auto-detect: map chart timeframe → sensible HTF1 / HTF2
+// timeframe.in_seconds() is "simple int" so switch produces "simple string"
+// | Chart TF    | HTF1 | HTF2 |
+// |-------------|------|------|
+// | ≤1m         | 15m  | 1H   |
+// | 2m – 5m     | 1H   | 4H   |
+// | 6m – 15m    | 4H   | D    |
+// | 16m – 1H    | 4H   | D    |
+// | 2H – 4H     | D    | W    |
+// | Daily       | W    | M    |
+// | Weekly+     | M    | 3M   |
+
+autoTF1 = switch
+    timeframe.in_seconds() <= 60    => "15"
+    timeframe.in_seconds() <= 300   => "60"
+    timeframe.in_seconds() <= 900   => "240"
+    timeframe.in_seconds() <= 3600  => "240"
+    timeframe.in_seconds() <= 14400 => "D"
+    timeframe.in_seconds() <= 86400 => "W"
+    => "M"
+
+autoTF2 = switch
+    timeframe.in_seconds() <= 60    => "60"
+    timeframe.in_seconds() <= 300   => "240"
+    timeframe.in_seconds() <= 900   => "D"
+    timeframe.in_seconds() <= 3600  => "D"
+    timeframe.in_seconds() <= 14400 => "W"
+    timeframe.in_seconds() <= 86400 => "M"
+    => "3M"
+
+htf1Timeframe = autoDetectHTF ? autoTF1 : htf1Manual
+htf2Timeframe = autoDetectHTF ? autoTF2 : htf2Manual
+
+// Human-readable TF label for info panel
+htf1Label = switch htf1Timeframe
+    "1"   => "1m"
+    "3"   => "3m"
+    "5"   => "5m"
+    "15"  => "15m"
+    "30"  => "30m"
+    "60"  => "1H"
+    "120" => "2H"
+    "240" => "4H"
+    "D"   => "Daily"
+    "W"   => "Weekly"
+    "M"   => "Monthly"
+    "3M"  => "3M"
+    => htf1Timeframe
+
+htf2Label = switch htf2Timeframe
+    "1"   => "1m"
+    "3"   => "3m"
+    "5"   => "5m"
+    "15"  => "15m"
+    "30"  => "30m"
+    "60"  => "1H"
+    "120" => "2H"
+    "240" => "4H"
+    "D"   => "Daily"
+    "W"   => "Weekly"
+    "M"   => "Monthly"
+    "3M"  => "3M"
+    => htf2Timeframe
+
+// Auto-detect HTF swing parameters based on asset type + HTF resolution
+// syminfo.type: "crypto", "forex", "stock", "index", "futures", "cfd", "fund", etc.
+//
+// Min Swing % by asset class (typical volatility):
+// | Asset   | HTF Min Swing % | Rationale                         |
+// |---------|-----------------|-----------------------------------|
+// | Crypto  | 5.0 – 8.0%     | High vol, large swings            |
+// | Stock   | 3.0 – 5.0%     | Moderate vol                      |
+// | Index   | 2.0 – 3.0%     | Diversified, lower per-unit vol   |
+// | Forex   | 0.8 – 1.5%     | Low vol, tight ranges             |
+// | Futures | 2.0 – 4.0%     | Varies, middle ground             |
+// | CFD     | 2.0 – 3.0%     | Usually index/commodity-like      |
+//
+// Swing length scales with HTF resolution:
+// Faster HTF (4H) → more bars needed (8-10)
+// Slower HTF (W/M) → fewer bars needed (4-6)
+
+autoMinSwingPct = switch syminfo.type
+    "crypto" => 5.0
+    "forex"  => 1.0
+    "stock"  => 3.5
+    "dr"     => 3.5
+    "fund"   => 2.5
+    "index"  => 2.5
+    "cfd"    => 2.5
+    => 3.0  // futures, commodity, others
+
+// Adjust swing % by HTF resolution — higher TF can use slightly smaller %
+// because the candles themselves are larger
+autoMinSwingPctAdj = switch htf1Timeframe
+    "15"  => autoMinSwingPct * 0.6
+    "60"  => autoMinSwingPct * 0.8
+    "240" => autoMinSwingPct * 1.0
+    "D"   => autoMinSwingPct * 0.9
+    "W"   => autoMinSwingPct * 0.8
+    "M"   => autoMinSwingPct * 0.7
+    => autoMinSwingPct
+
+// Swing length: fewer bars needed on higher TFs (each bar covers more time)
+autoSwingLen = switch htf1Timeframe
+    "15"  => 10
+    "60"  => 8
+    "240" => 7
+    "D"   => 6
+    "W"   => 5
+    "M"   => 4
+    => 8
+
+htfSwingLen = autoDetectHTF ? autoSwingLen : htfSwingLenManual
+htfMinSwingPct = autoDetectHTF ? autoMinSwingPctAdj : htfMinSwingPctManual
+
+// Asset class label for info panel
+assetClassLabel = switch syminfo.type
+    "crypto" => "Crypto"
+    "forex"  => "Forex"
+    "stock"  => "Stock"
+    "dr"     => "Stock"
+    "fund"   => "Fund"
+    "index"  => "Index"
+    "cfd"    => "CFD"
+    "futures"=> "Futures"
+    => syminfo.type
+
+// === Wave Display ===
+waveGroup = "Wave Display"
+showPrimary = input.bool(true, "Show Primary Waves (1-5)", group=waveGroup)
+showCorrectiveLabels = input.bool(true, "Show Corrective (A-B-C)", group=waveGroup)
+showSubWaves = input.bool(false, "Show Sub-Waves (i-v)", group=waveGroup)
+showWaveLines = input.bool(true, "Connect Waves with Lines", group=waveGroup)
+showWaveZones = input.bool(false, "Show Wave Zones (Boxes)", group=waveGroup)
+
+// === Pattern Detection ===
+patternGroup = "Pattern Detection"
+detectImpulse = input.bool(true, "Detect Impulse Waves", group=patternGroup)
+detectZigzag = input.bool(true, "Detect Zigzag Corrections", group=patternGroup)
+detectFlat = input.bool(true, "Detect Flat Corrections", group=patternGroup)
+detectTriangle = input.bool(true, "Detect Triangles", group=patternGroup)
+detectDiagonal = input.bool(true, "Detect Diagonal Triangles", group=patternGroup)
+
+// === Fibonacci ===
+fibGroup = "Fibonacci Analysis"
+showFibTargets = input.bool(true, "Show Price Targets", group=fibGroup)
+showFibRetrace = input.bool(true, "Show Retracements", group=fibGroup)
+showFibExtensions = input.bool(true, "Show Extensions", group=fibGroup)
+fibTransparency = input.int(70, "Fib Line Transparency", minval=0, maxval=100, group=fibGroup)
+
+// === Forecast ===
+forecastGroup = "Forecast & Projections"
+showForecast = input.bool(true, "Show Next Wave Forecast", group=forecastGroup)
+showProjectionLines = input.bool(true, "Show Projected Wave Lines", group=forecastGroup)
+showTargetZones = input.bool(true, "Show Target Price Zones", group=forecastGroup)
+projectionBars = input.int(30, "Projection Length (bars)", minval=10, maxval=100, group=forecastGroup)
+
+// === Signals & Alerts ===
+signalGroup = "Signals"
+enableSignals = input.bool(true, "Enable Trade Signals", group=signalGroup)
+signalW3Entry = input.bool(true, "Wave 3 Entry Signal", group=signalGroup)
+signalW5Exit = input.bool(true, "Wave 5 Exit Signal", group=signalGroup)
+signalWCReversal = input.bool(true, "Wave C Reversal Signal", group=signalGroup)
+
+// === Colors ===
+colorGroup = "Colors"
+bullWaveColor = input.color(color.new(#00C853, 0), "Bullish Waves", group=colorGroup)
+bearWaveColor = input.color(color.new(#FF1744, 0), "Bearish Waves", group=colorGroup)
+correctiveColor = input.color(color.new(#FFC107, 0), "Corrective Waves", group=colorGroup)
+fibColor = input.color(color.new(#2196F3, 0), "Fibonacci Lines", group=colorGroup)
+targetColor = input.color(color.new(#9C27B0, 0), "Target Zones", group=colorGroup)
+invalidColor = input.color(color.new(#FF5722, 0), "Invalid / Rejected", group=colorGroup)
+htfColor = input.color(color.new(#00BCD4, 0), "HTF Markers", group=colorGroup)
+
+// === Display ===
+displayGroup = "Display Options"
+waveTextSize = input.string("normal", "Wave Label Size", options=["tiny", "small", "normal", "large", "huge"], group=displayGroup)
+infoPanelSize = input.string("small", "Info Panel Text Size", options=["tiny", "small", "normal", "large"], group=displayGroup)
+showInfoPanel = input.bool(true, "Show Info Panel", group=displayGroup)
+showPatternName = input.bool(true, "Show Pattern Names", group=displayGroup)
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+type Pivot
+    int idx
+    float price
+    bool isHigh
+    string degree  // "primary", "secondary", "htf1", "htf2"
+
+type ElliottWave
+    int startIdx
+    float startPrice
+    int endIdx
+    float endPrice
+    string number       // "1","2","3","4","5","A","B","C","D","E"
+    string degree       // "primary", "intermediate", "minor"
+    bool isMotive
+    bool isBullish
+    float retracePct
+    float extensionPct
+    int subWaveCount
+    label lbl
+    line ln
+
+type WavePattern
+    string patternType  // "impulse","zigzag","flat","triangle","diagonal","none"
+    array<ElliottWave> waves
+    bool isComplete
+    float confidence
+    bool isBullish
+    int startIdx
+    int endIdx
+    float startPrice
+    float endPrice
+
+type WaveContext
+    string confirmedPattern
+    int confirmedWaveNum
+    string confirmedPhase   // "motive" or "corrective"
+    float confidence
+    bool isBullish
+    bool alternationMet
+    bool subWavesValid
+
+// === MTF Context Type ===
+type HTFContext
+    string phase        // "motive", "corrective", "unknown"
+    string pattern      // "impulse", "zigzag", "flat", "triangle", "diagonal", "trend_up", "trend_down", "ranging", "none"
+    bool isBullish
+    float confidence    // 0.0 - 1.0
+    int pivotCount
+    string trendBias    // "bullish", "bearish", "neutral"
+
+type MTFResult
+    HTFContext htf1
+    HTFContext htf2
+    float alignmentScore  // -1.0 (conflict) to +1.0 (full alignment)
+    string alignmentLabel // "ALIGNED", "PARTIAL", "CONFLICTING", "N/A"
+
+type Forecast
+    string nextWave
+    string scenario
+    float targetHigh
+    float targetLow
+    float stopLevel
+    int confidence
+    string action
+    string timeframe
+    bool isGated
+    string mtfNote        // MTF context note for forecast
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+var float PHI = 1.618034
+var float PHI_INV = 0.618034
+var float[] FIB_RETRACE = array.from(0.236, 0.382, 0.500, 0.618, 0.786)
+var float[] FIB_EXTEND = array.from(1.000, 1.272, 1.618, 2.000, 2.618, 4.236)
+
+// ============================================================================
+// GLOBAL STATE
+// ============================================================================
+
+var array<Pivot> primaryPivots = array.new<Pivot>()
+var array<Pivot> secondaryPivots = array.new<Pivot>()
+var array<Pivot> htf1Pivots = array.new<Pivot>()
+var array<Pivot> htf2Pivots = array.new<Pivot>()
+var array<line> fibLines = array.new<line>()
+var array<label> fibLabels = array.new<label>()
+var WaveContext confirmedCtx = WaveContext.new(
+     confirmedPattern = "none", confirmedWaveNum = 0,
+     confirmedPhase = "unknown", confidence = 0.0,
+     isBullish = true, alternationMet = false, subWavesValid = false
+ )
+var MTFResult mtfResult = MTFResult.new(
+     htf1 = HTFContext.new(phase="unknown", pattern="none", isBullish=true, confidence=0.0, pivotCount=0, trendBias="neutral"),
+     htf2 = HTFContext.new(phase="unknown", pattern="none", isBullish=true, confidence=0.0, pivotCount=0, trendBias="neutral"),
+     alignmentScore = 0.0, alignmentLabel = "N/A"
+ )
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+getTextSize(string s) =>
+    switch s
+        "tiny" => size.tiny
+        "small" => size.small
+        "large" => size.large
+        "huge" => size.huge
+        => size.normal
+
+pctMove(float fromPrice, float toPrice) =>
+    fromPrice != 0 ? math.abs((toPrice - fromPrice) / fromPrice) * 100 : 0.0
+
+retracementRatio(float waveStart, float waveEnd, float retraceTo) =>
+    float waveLen = math.abs(waveEnd - waveStart)
+    float retraceLen = math.abs(retraceTo - waveEnd)
+    waveLen != 0 ? retraceLen / waveLen : 0.0
+
+// ============================================================================
+// SUB-WAVE COUNTING
+// ============================================================================
+
+countSubWaves(array<Pivot> secPivots, int fromIdx, int toIdx) =>
+    int count = 0
+    int sz = array.size(secPivots)
+    if sz > 0
+        for i = 0 to sz - 1
+            Pivot p = array.get(secPivots, i)
+            if p.idx > fromIdx and p.idx < toIdx
+                count += 1
+    count
+
+subWaveCountValid(int subCount, bool isMotive) =>
+    if isMotive
+        subCount >= 3
+    else
+        subCount >= 1 and subCount <= 5
+
+// ============================================================================
+// ALTERNATION GUIDELINE
+// ============================================================================
+
+classifyCorrection(float retracePct, int durationBars, float prevWaveDuration) =>
+    string result = "unknown"
+    if retracePct > 50.0
+        result := "sharp"
+    else if retracePct <= 50.0
+        result := "sideways"
+    if durationBars > prevWaveDuration * 1.5 and retracePct < 55.0
+        result := "sideways"
+    result
+
+checkAlternation(float w2RetracePct, int w2Duration, float w1Duration,
+                 float w4RetracePct, int w4Duration, float w3Duration) =>
+    string w2Type = classifyCorrection(w2RetracePct, w2Duration, w1Duration)
+    string w4Type = classifyCorrection(w4RetracePct, w4Duration, w3Duration)
+    w2Type != w4Type and w2Type != "unknown" and w4Type != "unknown"
+
+// ============================================================================
+// CARDINAL RULE VALIDATION
+// ============================================================================
+
+rule1Valid(float w1Start, float w1End, float w2End, bool bullish) =>
+    bullish ? w2End > w1Start : w2End < w1Start
+
+rule2Valid(float w1Len, float w3Len, float w5Len) =>
+    not (w3Len < w1Len and w3Len < w5Len)
+
+rule3Valid(float w1End, float w4End, bool bullish, bool isDiagonal) =>
+    isDiagonal ? true : (bullish ? w4End > w1End : w4End < w1End)
+
+validateImpulseFull(float w0, float w1, float w2, float w3, float w4, float w5,
+                    bool bullish, bool isDiagonal,
+                    float w2RetracePct, int w2Dur, float w1Dur,
+                    float w4RetracePct, int w4Dur, float w3Dur,
+                    int sw1, int sw2, int sw3, int sw4, int sw5) =>
+    float w1Len = math.abs(w1 - w0)
+    float w3Len = math.abs(w3 - w2)
+    float w5Len = math.abs(w5 - w4)
+
+    bool r1 = rule1Valid(w0, w1, w2, bullish)
+    bool r2 = rule2Valid(w1Len, w3Len, w5Len)
+    bool r3 = rule3Valid(w1, w4, bullish, isDiagonal)
+
+    bool rulesPass = r1 and r2 and r3
+    bool altOk = checkAlternation(w2RetracePct, w2Dur, w1Dur, w4RetracePct, w4Dur, w3Dur)
+    bool swOk = subWaveCountValid(sw1, true) and
+                 subWaveCountValid(sw2, false) and
+                 subWaveCountValid(sw3, true) and
+                 subWaveCountValid(sw4, false) and
+                 subWaveCountValid(sw5, true)
+
+    [rulesPass, r1, r2, r3, altOk, swOk]
+
+// ============================================================================
+// PATTERN DETECTION — IMPULSE
+// ============================================================================
+
+detectImpulsePattern(array<Pivot> pivots, array<Pivot> secPivots) =>
+    WavePattern result = na
+    int pivotCount = array.size(pivots)
+
+    if pivotCount >= 6 and detectImpulse
+        Pivot p0 = array.get(pivots, pivotCount - 6)
+        Pivot p1 = array.get(pivots, pivotCount - 5)
+        Pivot p2 = array.get(pivots, pivotCount - 4)
+        Pivot p3 = array.get(pivots, pivotCount - 3)
+        Pivot p4 = array.get(pivots, pivotCount - 2)
+        Pivot p5 = array.get(pivots, pivotCount - 1)
+
+        bool bullish = p0.price < p1.price
+
+        bool validStructure = false
+        if bullish
+            validStructure := not p0.isHigh and p1.isHigh and not p2.isHigh and p3.isHigh and not p4.isHigh and p5.isHigh
+        else
+            validStructure := p0.isHigh and not p1.isHigh and p2.isHigh and not p3.isHigh and p4.isHigh and not p5.isHigh
+
+        if validStructure
+            float w1Len = math.abs(p1.price - p0.price)
+            float w3Len = math.abs(p3.price - p2.price)
+            float w5Len = math.abs(p5.price - p4.price)
+            float w2Retrace = retracementRatio(p0.price, p1.price, p2.price) * 100
+            float w4Retrace = retracementRatio(p2.price, p3.price, p4.price) * 100
+
+            int w1Dur = p1.idx - p0.idx
+            int w2Dur = p2.idx - p1.idx
+            int w3Dur = p3.idx - p2.idx
+            int w4Dur = p4.idx - p3.idx
+            int w5Dur = p5.idx - p4.idx
+
+            int sw1 = countSubWaves(secPivots, p0.idx, p1.idx)
+            int sw2 = countSubWaves(secPivots, p1.idx, p2.idx)
+            int sw3 = countSubWaves(secPivots, p2.idx, p3.idx)
+            int sw4 = countSubWaves(secPivots, p3.idx, p4.idx)
+            int sw5 = countSubWaves(secPivots, p4.idx, p5.idx)
+
+            [rulesPass, r1, r2, r3, altOk, swOk] = validateImpulseFull(
+                 p0.price, p1.price, p2.price, p3.price, p4.price, p5.price,
+                 bullish, false,
+                 w2Retrace, w2Dur, w1Dur, w4Retrace, w4Dur, w3Dur,
+                 sw1, sw2, sw3, sw4, sw5
+             )
+
+            if rulesPass
+                float conf = 0.40
+
+                if math.abs(w2Retrace - 61.8) < 10.0
+                    conf += 0.10
+                else if math.abs(w2Retrace - 50.0) < 10.0
+                    conf += 0.07
+                if math.abs((w3Len / w1Len) - 1.618) < 0.3
+                    conf += 0.12
+                else if w3Len / w1Len > 1.0
+                    conf += 0.05
+                if math.abs(w4Retrace - 38.2) < 10.0
+                    conf += 0.08
+                if altOk
+                    conf += 0.10
+                if swOk
+                    conf += 0.10
+                if w3Len > w1Len and w3Len > w5Len
+                    conf += 0.05
+                if math.abs((w5Len / w1Len) - 1.0) < 0.3
+                    conf += 0.05
+
+                waves = array.new<ElliottWave>()
+
+                array.push(waves, ElliottWave.new(
+                     startIdx=p0.idx, startPrice=p0.price, endIdx=p1.idx, endPrice=p1.price,
+                     number="1", degree="primary", isMotive=true, isBullish=bullish,
+                     retracePct=0.0, extensionPct=0.0, subWaveCount=sw1, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p1.idx, startPrice=p1.price, endIdx=p2.idx, endPrice=p2.price,
+                     number="2", degree="primary", isMotive=false, isBullish=not bullish,
+                     retracePct=w2Retrace, extensionPct=0.0, subWaveCount=sw2, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p2.idx, startPrice=p2.price, endIdx=p3.idx, endPrice=p3.price,
+                     number="3", degree="primary", isMotive=true, isBullish=bullish,
+                     retracePct=0.0, extensionPct=(w3Len/w1Len)*100, subWaveCount=sw3, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p3.idx, startPrice=p3.price, endIdx=p4.idx, endPrice=p4.price,
+                     number="4", degree="primary", isMotive=false, isBullish=not bullish,
+                     retracePct=w4Retrace, extensionPct=0.0, subWaveCount=sw4, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p4.idx, startPrice=p4.price, endIdx=p5.idx, endPrice=p5.price,
+                     number="5", degree="primary", isMotive=true, isBullish=bullish,
+                     retracePct=0.0, extensionPct=(w5Len/w1Len)*100, subWaveCount=sw5, lbl=na, ln=na))
+
+                result := WavePattern.new(
+                     patternType="impulse", waves=waves, isComplete=true,
+                     confidence=math.min(conf, 1.0), isBullish=bullish,
+                     startIdx=p0.idx, endIdx=p5.idx,
+                     startPrice=p0.price, endPrice=p5.price)
+
+                confirmedCtx.confirmedPattern := "impulse"
+                confirmedCtx.confirmedWaveNum := 5
+                confirmedCtx.confirmedPhase := "motive"
+                confirmedCtx.confidence := math.min(conf, 1.0)
+                confirmedCtx.isBullish := bullish
+                confirmedCtx.alternationMet := altOk
+                confirmedCtx.subWavesValid := swOk
+    result
+
+// ============================================================================
+// PATTERN DETECTION — DIAGONAL
+// ============================================================================
+
+detectDiagonalPattern(array<Pivot> pivots) =>
+    WavePattern result = na
+    int pivotCount = array.size(pivots)
+
+    if pivotCount >= 6 and detectDiagonal
+        Pivot p0 = array.get(pivots, pivotCount - 6)
+        Pivot p1 = array.get(pivots, pivotCount - 5)
+        Pivot p2 = array.get(pivots, pivotCount - 4)
+        Pivot p3 = array.get(pivots, pivotCount - 3)
+        Pivot p4 = array.get(pivots, pivotCount - 2)
+        Pivot p5 = array.get(pivots, pivotCount - 1)
+
+        bool bullish = p0.price < p1.price
+
+        bool validStructure = false
+        if bullish
+            validStructure := not p0.isHigh and p1.isHigh and not p2.isHigh and p3.isHigh and not p4.isHigh and p5.isHigh
+        else
+            validStructure := p0.isHigh and not p1.isHigh and p2.isHigh and not p3.isHigh and p4.isHigh and not p5.isHigh
+
+        if validStructure
+            bool hasOverlap = bullish ? p4.price < p1.price : p4.price > p1.price
+            bool r1 = rule1Valid(p0.price, p1.price, p2.price, bullish)
+            float w1Len = math.abs(p1.price - p0.price)
+            float w3Len = math.abs(p3.price - p2.price)
+            float w5Len = math.abs(p5.price - p4.price)
+            bool r2 = rule2Valid(w1Len, w3Len, w5Len)
+
+            bool converging = false
+            if bullish
+                float highSlope1 = (p3.price - p1.price) / math.max(p3.idx - p1.idx, 1)
+                float highSlope2 = (p5.price - p3.price) / math.max(p5.idx - p3.idx, 1)
+                converging := (highSlope2 < highSlope1) or (w5Len < w3Len and w3Len < w1Len)
+            else
+                float lowSlope1 = (p3.price - p1.price) / math.max(p3.idx - p1.idx, 1)
+                float lowSlope2 = (p5.price - p3.price) / math.max(p5.idx - p3.idx, 1)
+                converging := (math.abs(lowSlope2) < math.abs(lowSlope1)) or (w5Len < w3Len and w3Len < w1Len)
+
+            if hasOverlap and r1 and r2 and converging
+                float conf = 0.45
+                if w3Len < w1Len and w5Len < w3Len
+                    conf += 0.15
+                if w5Len < w1Len
+                    conf += 0.05
+
+                waves = array.new<ElliottWave>()
+                for i = 0 to 4
+                    Pivot pStart = array.get(pivots, pivotCount - 6 + i)
+                    Pivot pEnd = array.get(pivots, pivotCount - 5 + i)
+                    string num = str.tostring(i + 1)
+                    bool motive = (i % 2) == 0
+                    array.push(waves, ElliottWave.new(
+                         startIdx=pStart.idx, startPrice=pStart.price,
+                         endIdx=pEnd.idx, endPrice=pEnd.price,
+                         number=num, degree="primary",
+                         isMotive=motive, isBullish=motive ? bullish : not bullish,
+                         retracePct=0.0, extensionPct=0.0, subWaveCount=0,
+                         lbl=na, ln=na))
+
+                result := WavePattern.new(
+                     patternType="diagonal", waves=waves, isComplete=true,
+                     confidence=math.min(conf, 1.0), isBullish=bullish,
+                     startIdx=p0.idx, endIdx=p5.idx,
+                     startPrice=p0.price, endPrice=p5.price)
+
+                confirmedCtx.confirmedPattern := "diagonal"
+                confirmedCtx.confirmedWaveNum := 5
+                confirmedCtx.confirmedPhase := "motive"
+                confirmedCtx.confidence := math.min(conf, 1.0)
+                confirmedCtx.isBullish := bullish
+    result
+
+// ============================================================================
+// PATTERN DETECTION — ZIGZAG
+// ============================================================================
+
+detectZigzagPattern(array<Pivot> pivots) =>
+    WavePattern result = na
+    int pivotCount = array.size(pivots)
+
+    if pivotCount >= 4 and detectZigzag
+        Pivot p0 = array.get(pivots, pivotCount - 4)
+        Pivot p1 = array.get(pivots, pivotCount - 3)
+        Pivot p2 = array.get(pivots, pivotCount - 2)
+        Pivot p3 = array.get(pivots, pivotCount - 1)
+
+        bool bearishZigzag = p0.price > p1.price
+
+        bool validStructure = false
+        if bearishZigzag
+            validStructure := p0.isHigh and not p1.isHigh and p2.isHigh and not p3.isHigh
+            validStructure := validStructure and p2.price < p0.price
+            validStructure := validStructure and p3.price <= p1.price
+        else
+            validStructure := not p0.isHigh and p1.isHigh and not p2.isHigh and p3.isHigh
+            validStructure := validStructure and p2.price > p0.price
+            validStructure := validStructure and p3.price >= p1.price
+
+        if validStructure
+            float waveALen = math.abs(p1.price - p0.price)
+            float waveBRetrace = retracementRatio(p0.price, p1.price, p2.price)
+            float waveCLen = math.abs(p3.price - p2.price)
+            float cRatio = waveALen > 0 ? waveCLen / waveALen : 0.0
+
+            bool validBRetrace = waveBRetrace >= 0.30 and waveBRetrace <= 0.85
+
+            if validBRetrace
+                float confidence = 0.45
+                if math.abs(waveBRetrace - 0.618) < 0.1
+                    confidence += 0.15
+                else if math.abs(waveBRetrace - 0.5) < 0.1
+                    confidence += 0.10
+                if math.abs(cRatio - 1.0) < 0.2
+                    confidence += 0.12
+                else if math.abs(cRatio - 1.618) < 0.25
+                    confidence += 0.08
+
+                waves = array.new<ElliottWave>()
+
+                array.push(waves, ElliottWave.new(
+                     startIdx=p0.idx, startPrice=p0.price, endIdx=p1.idx, endPrice=p1.price,
+                     number="A", degree="primary", isMotive=true, isBullish=not bearishZigzag,
+                     retracePct=0.0, extensionPct=0.0, subWaveCount=0, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p1.idx, startPrice=p1.price, endIdx=p2.idx, endPrice=p2.price,
+                     number="B", degree="primary", isMotive=false, isBullish=bearishZigzag,
+                     retracePct=waveBRetrace*100, extensionPct=0.0, subWaveCount=0, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p2.idx, startPrice=p2.price, endIdx=p3.idx, endPrice=p3.price,
+                     number="C", degree="primary", isMotive=true, isBullish=not bearishZigzag,
+                     retracePct=0.0, extensionPct=cRatio*100, subWaveCount=0, lbl=na, ln=na))
+
+                result := WavePattern.new(
+                     patternType="zigzag", waves=waves, isComplete=true,
+                     confidence=math.min(confidence, 1.0), isBullish=not bearishZigzag,
+                     startIdx=p0.idx, endIdx=p3.idx,
+                     startPrice=p0.price, endPrice=p3.price)
+
+                confirmedCtx.confirmedPattern := "zigzag"
+                confirmedCtx.confirmedWaveNum := 0
+                confirmedCtx.confirmedPhase := "corrective"
+                confirmedCtx.confidence := math.min(confidence, 1.0)
+                confirmedCtx.isBullish := not bearishZigzag
+    result
+
+// ============================================================================
+// PATTERN DETECTION — FLAT
+// ============================================================================
+
+detectFlatPattern(array<Pivot> pivots) =>
+    WavePattern result = na
+    int pivotCount = array.size(pivots)
+
+    if pivotCount >= 4 and detectFlat
+        Pivot p0 = array.get(pivots, pivotCount - 4)
+        Pivot p1 = array.get(pivots, pivotCount - 3)
+        Pivot p2 = array.get(pivots, pivotCount - 2)
+        Pivot p3 = array.get(pivots, pivotCount - 1)
+
+        bool bearishFlat = p0.price > p1.price
+
+        bool validStructure = false
+        if bearishFlat
+            validStructure := p0.isHigh and not p1.isHigh and p2.isHigh and not p3.isHigh
+        else
+            validStructure := not p0.isHigh and p1.isHigh and not p2.isHigh and p3.isHigh
+
+        if validStructure
+            float waveALen = math.abs(p1.price - p0.price)
+            float waveBRetrace = retracementRatio(p0.price, p1.price, p2.price)
+            float waveCLen = math.abs(p3.price - p2.price)
+            float cRatio = waveALen > 0 ? waveCLen / waveALen : 0.0
+
+            bool validBRetrace = waveBRetrace >= 0.80 and waveBRetrace <= 1.45
+
+            if validBRetrace
+                float confidence = 0.40
+                if waveBRetrace >= 0.90 and waveBRetrace <= 1.05
+                    confidence += 0.15
+                else if waveBRetrace > 1.05 and waveBRetrace <= 1.38
+                    confidence += 0.10
+                if math.abs(cRatio - 1.0) < 0.2
+                    confidence += 0.12
+                else if cRatio > 1.0 and cRatio < 1.8
+                    confidence += 0.08
+
+                bool cTerminatesValid = false
+                if bearishFlat
+                    cTerminatesValid := p3.price <= p1.price * 1.05
+                else
+                    cTerminatesValid := p3.price >= p1.price * 0.95
+                if cTerminatesValid
+                    confidence += 0.08
+
+                string flatType = waveBRetrace > 1.05 ? "expanded flat" : "regular flat"
+
+                waves = array.new<ElliottWave>()
+                array.push(waves, ElliottWave.new(
+                     startIdx=p0.idx, startPrice=p0.price, endIdx=p1.idx, endPrice=p1.price,
+                     number="A", degree="primary", isMotive=false, isBullish=not bearishFlat,
+                     retracePct=0.0, extensionPct=0.0, subWaveCount=0, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p1.idx, startPrice=p1.price, endIdx=p2.idx, endPrice=p2.price,
+                     number="B", degree="primary", isMotive=false, isBullish=bearishFlat,
+                     retracePct=waveBRetrace*100, extensionPct=0.0, subWaveCount=0, lbl=na, ln=na))
+                array.push(waves, ElliottWave.new(
+                     startIdx=p2.idx, startPrice=p2.price, endIdx=p3.idx, endPrice=p3.price,
+                     number="C", degree="primary", isMotive=true, isBullish=not bearishFlat,
+                     retracePct=0.0, extensionPct=cRatio*100, subWaveCount=0, lbl=na, ln=na))
+
+                result := WavePattern.new(
+                     patternType=flatType, waves=waves, isComplete=true,
+                     confidence=math.min(confidence, 1.0), isBullish=not bearishFlat,
+                     startIdx=p0.idx, endIdx=p3.idx,
+                     startPrice=p0.price, endPrice=p3.price)
+
+                confirmedCtx.confirmedPattern := flatType
+                confirmedCtx.confirmedWaveNum := 0
+                confirmedCtx.confirmedPhase := "corrective"
+                confirmedCtx.confidence := math.min(confidence, 1.0)
+                confirmedCtx.isBullish := not bearishFlat
+    result
+
+// ============================================================================
+// PATTERN DETECTION — TRIANGLE
+// ============================================================================
+
+detectTrianglePattern(array<Pivot> pivots) =>
+    WavePattern result = na
+    int pivotCount = array.size(pivots)
+
+    if pivotCount >= 6 and detectTriangle
+        Pivot p0 = array.get(pivots, pivotCount - 6)
+        Pivot p1 = array.get(pivots, pivotCount - 5)
+        Pivot p2 = array.get(pivots, pivotCount - 4)
+        Pivot p3 = array.get(pivots, pivotCount - 3)
+        Pivot p4 = array.get(pivots, pivotCount - 2)
+        Pivot p5 = array.get(pivots, pivotCount - 1)
+
+        bool validStructure = false
+
+        if p0.isHigh and not p1.isHigh and p2.isHigh and not p3.isHigh and p4.isHigh and not p5.isHigh
+            validStructure := p2.price < p0.price and p4.price < p2.price and
+                              p3.price > p1.price and p5.price > p3.price
+        else if not p0.isHigh and p1.isHigh and not p2.isHigh and p3.isHigh and not p4.isHigh and p5.isHigh
+            validStructure := p2.price > p0.price and p4.price > p2.price and
+                              p3.price < p1.price and p5.price < p3.price
+
+        if validStructure
+            float waveALen = math.abs(p1.price - p0.price)
+            float waveBLen = math.abs(p2.price - p1.price)
+            float waveCLen = math.abs(p3.price - p2.price)
+            float waveDLen = math.abs(p4.price - p3.price)
+            float waveELen = math.abs(p5.price - p4.price)
+
+            bool contracting = waveBLen < waveALen and waveCLen < waveBLen and
+                               waveDLen < waveCLen and waveELen < waveDLen
+
+            int contractCount = 0
+            if waveBLen < waveALen
+                contractCount += 1
+            if waveCLen < waveBLen
+                contractCount += 1
+            if waveDLen < waveCLen
+                contractCount += 1
+            if waveELen < waveDLen
+                contractCount += 1
+
+            if contractCount >= 3
+                float conf = 0.40
+                if contracting
+                    conf += 0.15
+                else
+                    conf += 0.05
+
+                float eRetrace = retracementRatio(p3.price, p4.price, p5.price)
+                if math.abs(eRetrace - 0.618) < 0.15
+                    conf += 0.10
+
+                float bRetrace = retracementRatio(p0.price, p1.price, p2.price)
+                if bRetrace >= 0.55 and bRetrace <= 0.85
+                    conf += 0.08
+
+                waves = array.new<ElliottWave>()
+                string[] triLabels = array.from("A", "B", "C", "D", "E")
+
+                for i = 0 to 4
+                    Pivot pStart = array.get(pivots, pivotCount - 6 + i)
+                    Pivot pEnd = array.get(pivots, pivotCount - 5 + i)
+                    array.push(waves, ElliottWave.new(
+                         startIdx=pStart.idx, startPrice=pStart.price,
+                         endIdx=pEnd.idx, endPrice=pEnd.price,
+                         number=array.get(triLabels, i), degree="primary",
+                         isMotive=false, isBullish=pEnd.price > pStart.price,
+                         retracePct=0.0, extensionPct=0.0, subWaveCount=0,
+                         lbl=na, ln=na))
+
+                bool bullish = p0.isHigh ? false : true
+
+                result := WavePattern.new(
+                     patternType="triangle", waves=waves, isComplete=true,
+                     confidence=math.min(conf, 1.0), isBullish=bullish,
+                     startIdx=p0.idx, endIdx=p5.idx,
+                     startPrice=p0.price, endPrice=p5.price)
+
+                confirmedCtx.confirmedPattern := "triangle"
+                confirmedCtx.confirmedWaveNum := 0
+                confirmedCtx.confirmedPhase := "corrective"
+                confirmedCtx.confidence := math.min(conf, 1.0)
+                confirmedCtx.isBullish := bullish
+    result
+
+// ============================================================================
+// MTF — HIGHER TIMEFRAME PIVOT COLLECTION
+// ============================================================================
+
+// Fetch HTF pivots via request.security()
+// These return the pivot price when confirmed, na otherwise
+htf1PivotHigh = request.security(syminfo.tickerid, htf1Timeframe, ta.pivothigh(high, htfSwingLen, htfSwingLen), lookahead=barmerge.lookahead_off)
+htf1PivotLow  = request.security(syminfo.tickerid, htf1Timeframe, ta.pivotlow(low, htfSwingLen, htfSwingLen), lookahead=barmerge.lookahead_off)
+htf2PivotHigh = request.security(syminfo.tickerid, htf2Timeframe, ta.pivothigh(high, htfSwingLen, htfSwingLen), lookahead=barmerge.lookahead_off)
+htf2PivotLow  = request.security(syminfo.tickerid, htf2Timeframe, ta.pivotlow(low, htfSwingLen, htfSwingLen), lookahead=barmerge.lookahead_off)
+
+// Collect HTF1 pivots into array
+if enableMTF and not na(htf1PivotHigh)
+    if array.size(htf1Pivots) > 0
+        Pivot lastP = array.get(htf1Pivots, array.size(htf1Pivots) - 1)
+        if not lastP.isHigh and pctMove(lastP.price, htf1PivotHigh) >= htfMinSwingPct
+            array.push(htf1Pivots, Pivot.new(idx=bar_index, price=htf1PivotHigh, isHigh=true, degree="htf1"))
+        else if lastP.isHigh and htf1PivotHigh > lastP.price
+            lastP.price := htf1PivotHigh
+            lastP.idx := bar_index
+    else
+        array.push(htf1Pivots, Pivot.new(idx=bar_index, price=htf1PivotHigh, isHigh=true, degree="htf1"))
+
+if enableMTF and not na(htf1PivotLow)
+    if array.size(htf1Pivots) > 0
+        Pivot lastP = array.get(htf1Pivots, array.size(htf1Pivots) - 1)
+        if lastP.isHigh and pctMove(lastP.price, htf1PivotLow) >= htfMinSwingPct
+            array.push(htf1Pivots, Pivot.new(idx=bar_index, price=htf1PivotLow, isHigh=false, degree="htf1"))
+        else if not lastP.isHigh and htf1PivotLow < lastP.price
+            lastP.price := htf1PivotLow
+            lastP.idx := bar_index
+    else
+        array.push(htf1Pivots, Pivot.new(idx=bar_index, price=htf1PivotLow, isHigh=false, degree="htf1"))
+
+// Collect HTF2 pivots into array
+if enableMTF and not na(htf2PivotHigh)
+    if array.size(htf2Pivots) > 0
+        Pivot lastP = array.get(htf2Pivots, array.size(htf2Pivots) - 1)
+        if not lastP.isHigh and pctMove(lastP.price, htf2PivotHigh) >= htfMinSwingPct
+            array.push(htf2Pivots, Pivot.new(idx=bar_index, price=htf2PivotHigh, isHigh=true, degree="htf2"))
+        else if lastP.isHigh and htf2PivotHigh > lastP.price
+            lastP.price := htf2PivotHigh
+            lastP.idx := bar_index
+    else
+        array.push(htf2Pivots, Pivot.new(idx=bar_index, price=htf2PivotHigh, isHigh=true, degree="htf2"))
+
+if enableMTF and not na(htf2PivotLow)
+    if array.size(htf2Pivots) > 0
+        Pivot lastP = array.get(htf2Pivots, array.size(htf2Pivots) - 1)
+        if lastP.isHigh and pctMove(lastP.price, htf2PivotLow) >= htfMinSwingPct
+            array.push(htf2Pivots, Pivot.new(idx=bar_index, price=htf2PivotLow, isHigh=false, degree="htf2"))
+        else if not lastP.isHigh and htf2PivotLow < lastP.price
+            lastP.price := htf2PivotLow
+            lastP.idx := bar_index
+    else
+        array.push(htf2Pivots, Pivot.new(idx=bar_index, price=htf2PivotLow, isHigh=false, degree="htf2"))
+
+// Limit HTF array sizes
+if array.size(htf1Pivots) > 50
+    array.shift(htf1Pivots)
+if array.size(htf2Pivots) > 50
+    array.shift(htf2Pivots)
+
+// ============================================================================
+// MTF — TREND STRUCTURE CLASSIFIER
+// ============================================================================
+
+// Classify the trend structure from a set of pivots
+// Returns: [phase, isBullish, confidence, trendBias]
+// phase: "motive" (clear directional), "corrective" (overlapping/ranging), "unknown"
+classifyTrendStructure(array<Pivot> pivots) =>
+    string phase = "unknown"
+    bool isBullish = true
+    float confidence = 0.0
+    string trendBias = "neutral"
+    int count = array.size(pivots)
+
+    if count >= 4
+        // Check last 4-6 pivots for higher-highs/higher-lows or lower-highs/lower-lows
+        int checkCount = math.min(count, 6)
+        int startI = count - checkCount
+
+        // Collect highs and lows separately
+        array<float> highs = array.new<float>()
+        array<float> lows = array.new<float>()
+        for i = startI to count - 1
+            Pivot p = array.get(pivots, i)
+            if p.isHigh
+                array.push(highs, p.price)
+            else
+                array.push(lows, p.price)
+
+        int hCount = array.size(highs)
+        int lCount = array.size(lows)
+
+        if hCount >= 2 and lCount >= 2
+            // Count HH/HL vs LH/LL
+            int hhCount = 0
+            int hlCount = 0
+            int lhCount = 0
+            int llCount = 0
+
+            for i = 1 to hCount - 1
+                if array.get(highs, i) > array.get(highs, i - 1)
+                    hhCount += 1
+                else
+                    lhCount += 1
+
+            for i = 1 to lCount - 1
+                if array.get(lows, i) > array.get(lows, i - 1)
+                    hlCount += 1
+                else
+                    llCount += 1
+
+            int bullPoints = hhCount + hlCount
+            int bearPoints = lhCount + llCount
+            int totalPoints = bullPoints + bearPoints
+
+            if totalPoints > 0
+                if bullPoints > bearPoints
+                    trendBias := "bullish"
+                    isBullish := true
+                    float ratio = bullPoints / totalPoints
+                    if ratio >= 0.8
+                        phase := "motive"
+                        confidence := 0.7 + (ratio - 0.8) * 1.5
+                    else if ratio >= 0.6
+                        phase := "motive"
+                        confidence := 0.4 + (ratio - 0.6) * 1.5
+                    else
+                        phase := "corrective"
+                        confidence := 0.3
+                else if bearPoints > bullPoints
+                    trendBias := "bearish"
+                    isBullish := false
+                    float ratio = bearPoints / totalPoints
+                    if ratio >= 0.8
+                        phase := "motive"
+                        confidence := 0.7 + (ratio - 0.8) * 1.5
+                    else if ratio >= 0.6
+                        phase := "motive"
+                        confidence := 0.4 + (ratio - 0.6) * 1.5
+                    else
+                        phase := "corrective"
+                        confidence := 0.3
+                else
+                    phase := "corrective"
+                    trendBias := "neutral"
+                    confidence := 0.2
+
+            // Check for overlap (corrective characteristic)
+            // If recent highs and lows overlap significantly, it's corrective
+            if hCount >= 2 and lCount >= 2
+                float recentHigh = array.get(highs, hCount - 1)
+                float prevLow = array.get(lows, lCount - 2)
+                float recentLow = array.get(lows, lCount - 1)
+                float prevHigh = array.get(highs, hCount - 2)
+                // Overlap: current low dips below previous high (in uptrend) = corrective
+                if isBullish and recentLow < prevHigh
+                    if phase == "motive"
+                        phase := "corrective"
+                        confidence := confidence * 0.7
+                else if not isBullish and recentHigh > prevLow
+                    if phase == "motive"
+                        phase := "corrective"
+                        confidence := confidence * 0.7
+    else if count >= 2
+        Pivot last = array.get(pivots, count - 1)
+        Pivot prev = array.get(pivots, count - 2)
+        isBullish := last.price > prev.price
+        trendBias := isBullish ? "bullish" : "bearish"
+        phase := "unknown"
+        confidence := 0.1
+
+    [phase, isBullish, math.min(confidence, 1.0), trendBias]
+
+// ============================================================================
+// MTF — HTF PATTERN DETECTION (reuses existing detectors)
+// ============================================================================
+
+// Run full pattern detection on HTF pivots
+// Returns an HTFContext with the best detected pattern or trend classification
+analyzeHTF(array<Pivot> htfPivots) =>
+    HTFContext ctx = HTFContext.new(phase="unknown", pattern="none", isBullish=true, confidence=0.0,
+         pivotCount=array.size(htfPivots), trendBias="neutral")
+
+    int count = array.size(htfPivots)
+    if count < 3
+        ctx
+    else
+        // Empty secondary pivots for HTF (no sub-wave counting at this degree)
+        array<Pivot> emptySec = array.new<Pivot>()
+
+        WavePattern bestPattern = na
+        float bestConf = 0.0
+
+        // Try impulse
+        if count >= 6
+            // Save and restore confirmedCtx since the detection functions mutate it
+            string savedPat = confirmedCtx.confirmedPattern
+            float savedConf = confirmedCtx.confidence
+            string savedPhase = confirmedCtx.confirmedPhase
+            bool savedBull = confirmedCtx.isBullish
+            bool savedAlt = confirmedCtx.alternationMet
+            bool savedSw = confirmedCtx.subWavesValid
+
+            WavePattern imp = detectImpulsePattern(htfPivots, emptySec)
+            if not na(imp) and imp.confidence > bestConf
+                bestPattern := imp
+                bestConf := imp.confidence
+
+            WavePattern diag = detectDiagonalPattern(htfPivots)
+            if not na(diag) and diag.confidence > bestConf
+                bestPattern := diag
+                bestConf := diag.confidence
+
+            WavePattern tri = detectTrianglePattern(htfPivots)
+            if not na(tri) and tri.confidence > bestConf
+                bestPattern := tri
+                bestConf := tri.confidence
+
+            // Restore confirmedCtx
+            confirmedCtx.confirmedPattern := savedPat
+            confirmedCtx.confidence := savedConf
+            confirmedCtx.confirmedPhase := savedPhase
+            confirmedCtx.isBullish := savedBull
+            confirmedCtx.alternationMet := savedAlt
+            confirmedCtx.subWavesValid := savedSw
+
+        if count >= 4
+            string savedPat = confirmedCtx.confirmedPattern
+            float savedConf = confirmedCtx.confidence
+            string savedPhase = confirmedCtx.confirmedPhase
+            bool savedBull = confirmedCtx.isBullish
+
+            WavePattern zz = detectZigzagPattern(htfPivots)
+            if not na(zz) and zz.confidence > bestConf
+                bestPattern := zz
+                bestConf := zz.confidence
+
+            WavePattern fl = detectFlatPattern(htfPivots)
+            if not na(fl) and fl.confidence > bestConf
+                bestPattern := fl
+                bestConf := fl.confidence
+
+            confirmedCtx.confirmedPattern := savedPat
+            confirmedCtx.confidence := savedConf
+            confirmedCtx.confirmedPhase := savedPhase
+            confirmedCtx.isBullish := savedBull
+
+        if not na(bestPattern)
+            // Found a valid EW pattern on HTF
+            bool isCorr = bestPattern.patternType == "zigzag" or
+                 str.contains(bestPattern.patternType, "flat") or
+                 bestPattern.patternType == "triangle"
+            ctx.phase := isCorr ? "corrective" : "motive"
+            ctx.pattern := bestPattern.patternType
+            ctx.isBullish := bestPattern.isBullish
+            ctx.confidence := bestConf
+            ctx.trendBias := bestPattern.isBullish ? "bullish" : "bearish"
+        else
+            // Fallback to trend structure classification
+            [tPhase, tBull, tConf, tBias] = classifyTrendStructure(htfPivots)
+            ctx.phase := tPhase
+            ctx.pattern := tPhase == "motive" ? (tBull ? "trend_up" : "trend_down") : "ranging"
+            ctx.isBullish := tBull
+            ctx.confidence := tConf
+            ctx.trendBias := tBias
+
+        ctx
+
+// ============================================================================
+// MTF — ALIGNMENT SCORING
+// ============================================================================
+
+// Compare CTF wave context with HTF context and compute alignment
+// Returns: alignment score from -1.0 (full conflict) to +1.0 (full alignment)
+computeAlignment(WaveContext ctf, HTFContext htf1, HTFContext htf2) =>
+    float score = 0.0
+    string label = "N/A"
+
+    if not enableMTF
+        [score, label]
+    else
+        float htf1Score = 0.0
+        float htf2Score = 0.0
+        bool hasHTF1 = htf1.pivotCount >= 3
+        bool hasHTF2 = htf2.pivotCount >= 3
+
+        if hasHTF1 and htf1.confidence > 0.1
+            // Direction alignment
+            if ctf.isBullish == htf1.isBullish
+                htf1Score += 0.5
+            else
+                htf1Score -= 0.5
+
+            // Phase coherence
+            // CTF motive within HTF motive = strong alignment
+            // CTF corrective within HTF motive = expected (wave 2/4 correction in larger trend)
+            // CTF motive within HTF corrective = potentially problematic
+            if ctf.confirmedPhase == "motive" and htf1.phase == "motive" and ctf.isBullish == htf1.isBullish
+                htf1Score += 0.5  // Nested motive in same direction
+            else if ctf.confirmedPhase == "corrective" and htf1.phase == "motive"
+                htf1Score += 0.3  // Correction within larger trend — normal
+            else if ctf.confirmedPhase == "motive" and htf1.phase == "corrective"
+                htf1Score -= 0.2  // Motive move in corrective HTF context — weaker
+            else if ctf.confirmedPhase == "corrective" and htf1.phase == "corrective"
+                htf1Score += 0.0  // Both corrective — neutral
+
+            // Weight by HTF confidence
+            htf1Score := htf1Score * htf1.confidence
+
+        if hasHTF2 and htf2.confidence > 0.1
+            if ctf.isBullish == htf2.isBullish
+                htf2Score += 0.5
+            else
+                htf2Score -= 0.5
+
+            if ctf.confirmedPhase == "motive" and htf2.phase == "motive" and ctf.isBullish == htf2.isBullish
+                htf2Score += 0.5
+            else if ctf.confirmedPhase == "corrective" and htf2.phase == "motive"
+                htf2Score += 0.3
+            else if ctf.confirmedPhase == "motive" and htf2.phase == "corrective"
+                htf2Score -= 0.2
+            else if ctf.confirmedPhase == "corrective" and htf2.phase == "corrective"
+                htf2Score += 0.0
+
+            htf2Score := htf2Score * htf2.confidence
+
+        // Combine: weight HTF1 more (closer timeframe = more relevant)
+        if hasHTF1 and hasHTF2
+            score := htf1Score * 0.6 + htf2Score * 0.4
+        else if hasHTF1
+            score := htf1Score
+        else if hasHTF2
+            score := htf2Score
+
+        // Clamp
+        score := math.max(-1.0, math.min(1.0, score))
+
+        // Label
+        if score >= 0.4
+            label := "ALIGNED"
+        else if score >= 0.1
+            label := "PARTIAL"
+        else if score >= -0.1
+            label := "NEUTRAL"
+        else
+            label := "CONFLICTING"
+
+        [score, label]
+
+// Apply MTF alignment to CTF confidence
+applyMTFConfidence(float ctfConfidence, float alignmentScore) =>
+    if not enableMTF or htfConfWeight == 0.0
+        ctfConfidence
+    else
+        // Alignment score ranges from -1.0 to +1.0
+        // Map to a multiplier: aligned → boost, conflicting → penalize
+        float adjustment = alignmentScore * htfConfWeight
+        float adjusted = ctfConfidence + adjustment
+        math.max(0.05, math.min(1.0, adjusted))
+
+// ============================================================================
+// VALIDATED WAVE LABELING
+// ============================================================================
+
+drawValidatedWaveLabels(array<Pivot> pivots, array<Pivot> secPivots) =>
+    int count = array.size(pivots)
+    if count < 3
+        WavePattern _empty = na
+        _empty
+    else
+        WavePattern bestPattern = na
+        float bestConf = 0.0
+
+        if count >= 6
+            WavePattern imp = detectImpulsePattern(pivots, secPivots)
+            if not na(imp)
+                if imp.confidence > bestConf
+                    bestPattern := imp
+                    bestConf := imp.confidence
+
+            WavePattern diag = detectDiagonalPattern(pivots)
+            if not na(diag)
+                if diag.confidence > bestConf
+                    bestPattern := diag
+                    bestConf := diag.confidence
+
+            WavePattern tri = detectTrianglePattern(pivots)
+            if not na(tri)
+                if tri.confidence > bestConf
+                    bestPattern := tri
+                    bestConf := tri.confidence
+
+        if count >= 4
+            WavePattern zz = detectZigzagPattern(pivots)
+            if not na(zz)
+                if zz.confidence > bestConf
+                    bestPattern := zz
+                    bestConf := zz.confidence
+
+            WavePattern fl = detectFlatPattern(pivots)
+            if not na(fl)
+                if fl.confidence > bestConf
+                    bestPattern := fl
+                    bestConf := fl.confidence
+
+        if count >= 7 and na(bestPattern)
+            array<Pivot> shiftedPivots = array.new<Pivot>()
+            for i = 0 to count - 2
+                array.push(shiftedPivots, array.get(pivots, i))
+            WavePattern imp2 = detectImpulsePattern(shiftedPivots, secPivots)
+            if not na(imp2)
+                if imp2.confidence > bestConf
+                    bestPattern := imp2
+                    bestConf := imp2.confidence
+
+        bestPattern
+
+// ============================================================================
+// WAVE VISUALIZATION
+// ============================================================================
+
+drawWavePattern(WavePattern pattern) =>
+    waveColor = pattern.isBullish ? bullWaveColor : bearWaveColor
+    isCorrectivePattern = pattern.patternType == "zigzag" or
+         str.contains(pattern.patternType, "flat") or
+         pattern.patternType == "triangle"
+    displayColor = isCorrectivePattern ? correctiveColor : waveColor
+    int maxBarsBack = 500
+
+    for wave in pattern.waves
+        bool endWithinRange = (bar_index - wave.endIdx) < maxBarsBack
+        bool startWithinRange = (bar_index - wave.startIdx) < maxBarsBack
+
+        if endWithinRange
+            labelStyle = wave.endPrice > wave.startPrice ?
+                 label.style_label_down : label.style_label_up
+            lbl = label.new(
+                 x=wave.endIdx, y=wave.endPrice,
+                 text=wave.number,
+                 style=labelStyle,
+                 color=color.new(displayColor, 70),
+                 textcolor=displayColor,
+                 size=getTextSize(waveTextSize))
+            wave.lbl := lbl
+
+        if showWaveLines and endWithinRange and startWithinRange
+            ln = line.new(
+                 x1=wave.startIdx, y1=wave.startPrice,
+                 x2=wave.endIdx, y2=wave.endPrice,
+                 color=color.new(displayColor, 50),
+                 width=wave.isMotive ? 2 : 1,
+                 style=wave.isMotive ? line.style_solid : line.style_dashed)
+            wave.ln := ln
+
+    if showPatternName
+        midIdx = math.round((pattern.startIdx + pattern.endIdx) / 2)
+        if (bar_index - midIdx) < maxBarsBack
+            patternText = str.upper(pattern.patternType) + " (" + str.tostring(pattern.confidence * 100, "#") + "%)"
+            detailText = ""
+            if pattern.patternType == "impulse" and confirmedCtx.alternationMet
+                detailText := "\nAlt: ✓"
+            else if pattern.patternType == "impulse"
+                detailText := "\nAlt: ✗"
+
+            // Add MTF alignment tag
+            if enableMTF and mtfResult.alignmentLabel != "N/A"
+                detailText := detailText + "\nMTF: " + mtfResult.alignmentLabel
+
+            label.new(
+                 x=midIdx,
+                 y=pattern.isBullish ? pattern.startPrice * 0.985 : pattern.startPrice * 1.015,
+                 text=patternText + detailText,
+                 style=label.style_label_center,
+                 color=color.new(displayColor, 80),
+                 textcolor=displayColor,
+                 size=size.small)
+
+drawUnlabeledPivots(array<Pivot> pivots) =>
+    int count = array.size(pivots)
+    int startIdx = math.max(0, count - 12)
+    int maxBarsBack = 500
+    for i = startIdx to count - 1
+        Pivot p = array.get(pivots, i)
+        if (bar_index - p.idx) < maxBarsBack
+            label.new(
+                 x=p.idx, y=p.price,
+                 text="•",
+                 style=p.isHigh ? label.style_label_down : label.style_label_up,
+                 color=color.new(color.gray, 70),
+                 textcolor=color.gray,
+                 size=size.tiny)
+            if showWaveLines and i > startIdx
+                Pivot prevP = array.get(pivots, i - 1)
+                if (bar_index - prevP.idx) < maxBarsBack
+                    line.new(
+                         x1=prevP.idx, y1=prevP.price,
+                         x2=p.idx, y2=p.price,
+                         color=color.new(color.gray, 60),
+                         width=1,
+                         style=line.style_dotted)
+
+// Draw HTF pivot markers on chart (optional)
+drawHTFPivots(array<Pivot> pivots, color markerColor, string tfLabel) =>
+    if showHTFPivots
+        int count = array.size(pivots)
+        int startI = math.max(0, count - 20)
+        int maxBarsBack = 500
+        for i = startI to count - 1
+            Pivot p = array.get(pivots, i)
+            if (bar_index - p.idx) < maxBarsBack
+                label.new(
+                     x=p.idx, y=p.price,
+                     text=tfLabel,
+                     style=p.isHigh ? label.style_label_down : label.style_label_up,
+                     color=color.new(markerColor, 60),
+                     textcolor=markerColor,
+                     size=size.tiny)
+
+// ============================================================================
+// FIBONACCI PROJECTION
+// ============================================================================
+
+drawFibLevels(array<Pivot> pivots, WavePattern pattern) =>
+    for ln in fibLines
+        line.delete(ln)
+    array.clear(fibLines)
+    for lbl in fibLabels
+        label.delete(lbl)
+    array.clear(fibLabels)
+
+    pivotCount = array.size(pivots)
+    if pivotCount >= 2
+        lastPivot = array.get(pivots, pivotCount - 1)
+        prevPivot = array.get(pivots, pivotCount - 2)
+        int maxBarsBack = 500
+
+        float waveLen = lastPivot.price - prevPivot.price
+        bool isBullWave = waveLen > 0
+
+        bool lastPivotInRange = (bar_index - lastPivot.idx) < maxBarsBack
+        int fibStartX = lastPivotInRange ? lastPivot.idx : bar_index - maxBarsBack + 10
+
+        if showFibRetrace
+            for i = 0 to array.size(FIB_RETRACE) - 1
+                ratio = array.get(FIB_RETRACE, i)
+                level = lastPivot.price - (waveLen * ratio)
+
+                ln = line.new(
+                     x1=fibStartX, y1=level,
+                     x2=bar_index + 20, y2=level,
+                     color=color.new(fibColor, fibTransparency),
+                     style=line.style_dotted,
+                     width=ratio == 0.618 ? 2 : 1)
+                array.push(fibLines, ln)
+
+                lbl = label.new(
+                     x=bar_index + 22, y=level,
+                     text=str.tostring(ratio * 100, "#.#") + "%",
+                     style=label.style_label_left,
+                     color=color.new(fibColor, 90),
+                     textcolor=fibColor, size=size.tiny)
+                array.push(fibLabels, lbl)
+
+        if showFibExtensions and pivotCount >= 3
+            float impulseLen = 0.0
+            float projectionBase = 0.0
+            bool validExtension = false
+
+            if not na(pattern)
+                if pattern.isComplete
+                    int waveCount = array.size(pattern.waves)
+                    if pattern.patternType == "impulse" and waveCount >= 4
+                        ElliottWave wave1 = array.get(pattern.waves, 0)
+                        ElliottWave wave4 = array.get(pattern.waves, 3)
+                        impulseLen := math.abs(wave1.endPrice - wave1.startPrice)
+                        projectionBase := wave4.endPrice
+                        validExtension := true
+                    else if (pattern.patternType == "zigzag" or str.contains(pattern.patternType, "flat")) and waveCount >= 2
+                        ElliottWave waveA = array.get(pattern.waves, 0)
+                        ElliottWave waveB = array.get(pattern.waves, 1)
+                        impulseLen := math.abs(waveA.endPrice - waveA.startPrice)
+                        projectionBase := waveB.endPrice
+                        validExtension := true
+
+            if not validExtension
+                p0 = array.get(pivots, pivotCount - 3)
+                impulseLen := math.abs(prevPivot.price - p0.price)
+                projectionBase := lastPivot.price
+                validExtension := true
+
+            if validExtension and impulseLen > 0
+                for i = 0 to array.size(FIB_EXTEND) - 1
+                    ratio = array.get(FIB_EXTEND, i)
+
+                    float targetLevel = 0.0
+                    if not lastPivot.isHigh
+                        targetLevel := projectionBase + (impulseLen * ratio)
+                    else
+                        targetLevel := projectionBase - (impulseLen * ratio)
+
+                    if ratio >= 1.0
+                        ln = line.new(
+                             x1=fibStartX, y1=targetLevel,
+                             x2=bar_index + 30, y2=targetLevel,
+                             color=color.new(targetColor, fibTransparency),
+                             style=line.style_dashed,
+                             width=ratio == 1.618 ? 2 : 1)
+                        array.push(fibLines, ln)
+
+                        lbl = label.new(
+                             x=bar_index + 32, y=targetLevel,
+                             text=str.tostring(ratio, "#.###") + "x",
+                             style=label.style_label_left,
+                             color=color.new(targetColor, 90),
+                             textcolor=targetColor, size=size.tiny)
+                        array.push(fibLabels, lbl)
+
+// ============================================================================
+// FORECAST — GATED + MTF ENHANCED
+// ============================================================================
+
+generateForecast(array<Pivot> pivots, WaveContext ctx, MTFResult mtf) =>
+    Forecast fc = Forecast.new()
+    fc.isGated := false
+    fc.mtfNote := ""
+    int count = array.size(pivots)
+    float currentPrice = close
+
+    if count < 3
+        fc.nextWave := "Insufficient data"
+        fc.scenario := "Need more pivots"
+        fc.confidence := 0
+        fc.action := "WAIT"
+        fc.timeframe := "N/A"
+    else if ctx.confirmedPattern == "none" or ctx.confidence < 0.35
+        Pivot lastP = array.get(pivots, count - 1)
+        Pivot prevP = array.get(pivots, count - 2)
+        float lastWaveLen = math.abs(lastP.price - prevP.price)
+        float moveSince = math.abs(currentPrice - lastP.price)
+        float retraceSince = lastWaveLen > 0 ? moveSince / lastWaveLen : 0
+
+        fc.nextWave := "Unconfirmed"
+        fc.confidence := 1
+
+        if lastP.isHigh
+            if currentPrice < lastP.price
+                fc.scenario := "Pullback from high (" + str.tostring(retraceSince * 100, "#") + "% retrace)"
+                fc.targetLow := lastP.price - lastWaveLen * 0.618
+                fc.targetHigh := lastP.price
+                fc.stopLevel := lastP.price - lastWaveLen * 0.786
+                fc.action := "NO CONFIRMED COUNT"
+            else
+                fc.scenario := "Extending above prior high"
+                fc.targetHigh := lastP.price + lastWaveLen * 0.618
+                fc.targetLow := lastP.price
+                fc.stopLevel := lastP.price - lastWaveLen * 0.236
+                fc.action := "NO CONFIRMED COUNT"
+        else
+            if currentPrice > lastP.price
+                fc.scenario := "Bounce from low (" + str.tostring(retraceSince * 100, "#") + "% recovery)"
+                fc.targetHigh := lastP.price + lastWaveLen * 0.618
+                fc.targetLow := lastP.price
+                fc.stopLevel := lastP.price - lastWaveLen * 0.1
+                fc.action := "NO CONFIRMED COUNT"
+            else
+                fc.scenario := "Breaking below prior low"
+                fc.targetLow := lastP.price - lastWaveLen * 0.618
+                fc.targetHigh := lastP.price
+                fc.stopLevel := lastP.price + lastWaveLen * 0.236
+                fc.action := "NO CONFIRMED COUNT"
+        fc.timeframe := "Uncertain"
+
+        // Even without CTF pattern, MTF can provide directional context
+        if enableMTF and mtf.htf1.pivotCount >= 3
+            if mtf.htf1.trendBias == "bullish"
+                fc.mtfNote := "HTF bias: Bullish"
+            else if mtf.htf1.trendBias == "bearish"
+                fc.mtfNote := "HTF bias: Bearish"
+    else
+        fc.isGated := true
+        Pivot lastP = array.get(pivots, count - 1)
+        Pivot prevP = array.get(pivots, count - 2)
+        float lastWaveLen = math.abs(lastP.price - prevP.price)
+
+        if ctx.confirmedPhase == "motive" and ctx.confirmedWaveNum == 5
+            fc.nextWave := "Wave A (correction)"
+            fc.scenario := ctx.isBullish ?
+                 "Impulse complete — expect pullback" :
+                 "Impulse complete — expect bounce"
+            fc.targetLow := ctx.isBullish ? lastP.price - lastWaveLen * 0.618 : lastP.price
+            fc.targetHigh := ctx.isBullish ? lastP.price : lastP.price + lastWaveLen * 0.618
+            fc.stopLevel := ctx.isBullish ?
+                 lastP.price + lastWaveLen * 0.1 :
+                 lastP.price - lastWaveLen * 0.1
+            fc.confidence := math.round(ctx.confidence * 5)
+            fc.action := ctx.isBullish ? "TAKE PROFIT / SHORT" : "TAKE PROFIT / LONG"
+            fc.timeframe := "Medium-term"
+
+            // MTF context can strengthen or weaken this signal
+            if enableMTF
+                if mtf.alignmentLabel == "CONFLICTING"
+                    fc.mtfNote := "⚠ HTF opposes correction thesis"
+                else if mtf.alignmentLabel == "ALIGNED"
+                    fc.mtfNote := "✓ HTF supports reversal zone"
+
+        else if ctx.confirmedPhase == "corrective"
+            bool nextBullish = not ctx.isBullish
+
+            if ctx.confirmedPattern == "triangle"
+                fc.nextWave := "Post-triangle thrust"
+                fc.scenario := nextBullish ?
+                     "Triangle complete — expect sharp rally" :
+                     "Triangle complete — expect sharp decline"
+            else
+                fc.nextWave := "Wave 1 (new impulse)"
+                fc.scenario := nextBullish ?
+                     "Correction complete — bullish trend resuming" :
+                     "Correction complete — bearish trend resuming"
+
+            fc.targetHigh := nextBullish ?
+                 lastP.price + lastWaveLen * 1.618 :
+                 lastP.price + lastWaveLen * 0.5
+            fc.targetLow := nextBullish ?
+                 lastP.price - lastWaveLen * 0.1 :
+                 lastP.price - lastWaveLen * 1.618
+            fc.stopLevel := nextBullish ?
+                 lastP.price - lastWaveLen * 0.382 :
+                 lastP.price + lastWaveLen * 0.382
+            fc.confidence := math.round(ctx.confidence * 5)
+            fc.action := nextBullish ? "BUY ZONE" : "SELL ZONE"
+            fc.timeframe := "Medium-term"
+
+            if enableMTF
+                if mtf.htf1.trendBias == (nextBullish ? "bullish" : "bearish")
+                    fc.mtfNote := "✓ HTF trend supports entry"
+                    fc.confidence := math.min(fc.confidence + 1, 5)
+                else if mtf.htf1.trendBias == (nextBullish ? "bearish" : "bullish")
+                    fc.mtfNote := "⚠ Counter-trend to HTF"
+                    fc.confidence := math.max(fc.confidence - 1, 1)
+        else
+            fc.nextWave := ctx.confirmedPattern
+            fc.scenario := "Pattern confirmed at " + str.tostring(ctx.confidence * 100, "#") + "% confidence"
+            fc.confidence := math.round(ctx.confidence * 5)
+            fc.action := "MONITOR"
+            fc.timeframe := "Short-term"
+    fc
+
+// ============================================================================
+// FORECAST PROJECTION DRAWING
+// ============================================================================
+
+drawForecastProjection(array<Pivot> pivots, Forecast fc) =>
+    int count = array.size(pivots)
+    if count >= 2 and showProjectionLines
+        Pivot lastP = array.get(pivots, count - 1)
+        int maxBarsBack = 500
+
+        bool lastPInRange = (bar_index - lastP.idx) < maxBarsBack
+        int projStartX = lastPInRange ? lastP.idx : bar_index - 10
+
+        bool goingUp = not lastP.isHigh
+        color projColor = goingUp ? bullWaveColor : bearWaveColor
+
+        string gateTag = fc.isGated ? " ✓" : " ?"
+
+        float projTarget = goingUp ? fc.targetHigh : fc.targetLow
+        if not na(projTarget) and projTarget > 0
+            line.new(
+                 x1=projStartX, y1=lastP.price,
+                 x2=bar_index + projectionBars, y2=projTarget,
+                 color=color.new(projColor, fc.isGated ? 40 : 70),
+                 width=fc.isGated ? 2 : 1,
+                 style=line.style_dotted)
+
+            label.new(
+                 x=bar_index + projectionBars + 2, y=projTarget,
+                 text=fc.nextWave + gateTag,
+                 style=label.style_label_left,
+                 color=color.new(projColor, 70),
+                 textcolor=projColor, size=size.small)
+
+        if showTargetZones and not na(fc.targetHigh) and not na(fc.targetLow) and fc.targetHigh > 0 and fc.targetLow > 0
+            float zoneTop = math.max(fc.targetHigh, fc.targetLow)
+            float zoneBottom = math.min(fc.targetHigh, fc.targetLow)
+            if zoneTop > zoneBottom
+                box.new(
+                     left=bar_index, top=zoneTop,
+                     right=bar_index + projectionBars, bottom=zoneBottom,
+                     bgcolor=goingUp ? color.new(bullWaveColor, 90) : color.new(bearWaveColor, 90),
+                     border_color=goingUp ? bullWaveColor : bearWaveColor,
+                     border_width=1, border_style=line.style_dashed)
+
+        if not na(fc.stopLevel) and fc.stopLevel > 0
+            line.new(
+                 x1=projStartX, y1=fc.stopLevel,
+                 x2=bar_index + projectionBars, y2=fc.stopLevel,
+                 color=color.new(color.red, 50),
+                 width=1, style=line.style_dotted)
+            label.new(
+                 x=bar_index + projectionBars + 2, y=fc.stopLevel,
+                 text="Stop", style=label.style_label_left,
+                 color=color.new(color.red, 70),
+                 textcolor=color.red, size=size.tiny)
+
+// ============================================================================
+// TRADE SIGNALS
+// ============================================================================
+
+detectWave3Entry(array<Pivot> pivots) =>
+    bool result = false
+    if array.size(pivots) >= 3 and signalW3Entry
+        Pivot p0 = array.get(pivots, array.size(pivots) - 3)
+        Pivot p1 = array.get(pivots, array.size(pivots) - 2)
+        Pivot p2 = array.get(pivots, array.size(pivots) - 1)
+
+        bool bullish = p0.price < p1.price
+        float w2Retrace = retracementRatio(p0.price, p1.price, p2.price)
+
+        bool validRetrace = w2Retrace >= 0.382 and w2Retrace <= 0.786
+        if validRetrace and p2.idx >= bar_index - primarySwingLen * 2
+            result := true
+    result
+
+// ============================================================================
+// PIVOT DETECTION — CURRENT TIMEFRAME
+// ============================================================================
+
+primaryHigh = ta.pivothigh(high, primarySwingLen, primarySwingLen)
+primaryLow = ta.pivotlow(low, primarySwingLen, primarySwingLen)
+secondaryHigh = ta.pivothigh(high, secondarySwingLen, secondarySwingLen)
+secondaryLow = ta.pivotlow(low, secondarySwingLen, secondarySwingLen)
+
+if not na(primaryHigh)
+    int pivotIdx = bar_index - primarySwingLen
+    if array.size(primaryPivots) > 0
+        Pivot lastPivot = array.get(primaryPivots, array.size(primaryPivots) - 1)
+        if not lastPivot.isHigh and pctMove(lastPivot.price, primaryHigh) >= minSwingPct
+            array.push(primaryPivots, Pivot.new(idx=pivotIdx, price=primaryHigh, isHigh=true, degree="primary"))
+        else if lastPivot.isHigh and primaryHigh > lastPivot.price
+            lastPivot.price := primaryHigh
+            lastPivot.idx := pivotIdx
+    else
+        array.push(primaryPivots, Pivot.new(idx=pivotIdx, price=primaryHigh, isHigh=true, degree="primary"))
+
+if not na(primaryLow)
+    int pivotIdx = bar_index - primarySwingLen
+    if array.size(primaryPivots) > 0
+        Pivot lastPivot = array.get(primaryPivots, array.size(primaryPivots) - 1)
+        if lastPivot.isHigh and pctMove(lastPivot.price, primaryLow) >= minSwingPct
+            array.push(primaryPivots, Pivot.new(idx=pivotIdx, price=primaryLow, isHigh=false, degree="primary"))
+        else if not lastPivot.isHigh and primaryLow < lastPivot.price
+            lastPivot.price := primaryLow
+            lastPivot.idx := pivotIdx
+    else
+        array.push(primaryPivots, Pivot.new(idx=pivotIdx, price=primaryLow, isHigh=false, degree="primary"))
+
+if not na(secondaryHigh)
+    int pivotIdx = bar_index - secondarySwingLen
+    if array.size(secondaryPivots) > 0
+        Pivot lastPivot = array.get(secondaryPivots, array.size(secondaryPivots) - 1)
+        if pctMove(lastPivot.price, secondaryHigh) >= minSubSwingPct
+            array.push(secondaryPivots, Pivot.new(idx=pivotIdx, price=secondaryHigh, isHigh=true, degree="secondary"))
+    else
+        array.push(secondaryPivots, Pivot.new(idx=pivotIdx, price=secondaryHigh, isHigh=true, degree="secondary"))
+
+if not na(secondaryLow)
+    int pivotIdx = bar_index - secondarySwingLen
+    if array.size(secondaryPivots) > 0
+        Pivot lastPivot = array.get(secondaryPivots, array.size(secondaryPivots) - 1)
+        if pctMove(lastPivot.price, secondaryLow) >= minSubSwingPct
+            array.push(secondaryPivots, Pivot.new(idx=pivotIdx, price=secondaryLow, isHigh=false, degree="secondary"))
+    else
+        array.push(secondaryPivots, Pivot.new(idx=pivotIdx, price=secondaryLow, isHigh=false, degree="secondary"))
+
+if array.size(primaryPivots) > 100
+    array.shift(primaryPivots)
+if array.size(secondaryPivots) > 200
+    array.shift(secondaryPivots)
+
+// ============================================================================
+// MAIN EXECUTION
+// ============================================================================
+
+var Forecast currentForecast = Forecast.new()
+
+if barstate.islast
+    // Reset context for fresh detection
+    confirmedCtx.confirmedPattern := "none"
+    confirmedCtx.confidence := 0.0
+
+    // === MTF Analysis ===
+    if enableMTF
+        // Analyze both HTF pivot arrays
+        HTFContext htf1Ctx = analyzeHTF(htf1Pivots)
+        HTFContext htf2Ctx = analyzeHTF(htf2Pivots)
+
+        mtfResult.htf1 := htf1Ctx
+        mtfResult.htf2 := htf2Ctx
+
+        // Draw HTF pivot markers if enabled
+        drawHTFPivots(htf1Pivots, htfColor, "H1")
+        drawHTFPivots(htf2Pivots, color.new(htfColor, 30), "H2")
+
+    // === CTF Pattern Detection ===
+    WavePattern bestPattern = drawValidatedWaveLabels(primaryPivots, secondaryPivots)
+
+    // === Apply MTF confidence adjustment ===
+    if not na(bestPattern) and enableMTF
+        // Compute alignment AFTER CTF pattern is detected
+        [alignScore, alignLabel] = computeAlignment(confirmedCtx, mtfResult.htf1, mtfResult.htf2)
+        mtfResult.alignmentScore := alignScore
+        mtfResult.alignmentLabel := alignLabel
+
+        // Adjust CTF confidence based on MTF alignment
+        float adjustedConf = applyMTFConfidence(confirmedCtx.confidence, alignScore)
+        confirmedCtx.confidence := adjustedConf
+        bestPattern.confidence := adjustedConf
+    else if enableMTF
+        // No CTF pattern but still compute HTF alignment info
+        [alignScore, alignLabel] = computeAlignment(confirmedCtx, mtfResult.htf1, mtfResult.htf2)
+        mtfResult.alignmentScore := alignScore
+        mtfResult.alignmentLabel := alignLabel
+
+    bool drewPattern = false
+    if not na(bestPattern)
+        if bestPattern.isComplete
+            drawWavePattern(bestPattern)
+            drewPattern := true
+
+    if not drewPattern
+        drawUnlabeledPivots(primaryPivots)
+
+    if showFibTargets or showFibRetrace or showFibExtensions
+        drawFibLevels(primaryPivots, bestPattern)
+
+    if showForecast
+        currentForecast := generateForecast(primaryPivots, confirmedCtx, mtfResult)
+        drawForecastProjection(primaryPivots, currentForecast)
+
+// ============================================================================
+// SIGNALS
+// ============================================================================
+
+bool newLongSignal = false
+bool newShortSignal = false
+bool wave5ExitSignal = false
+
+if enableSignals and array.size(primaryPivots) >= 3
+    Pivot lastP = array.get(primaryPivots, array.size(primaryPivots) - 1)
+    Pivot prevP = array.get(primaryPivots, array.size(primaryPivots) - 2)
+    Pivot prevPrevP = array.get(primaryPivots, array.size(primaryPivots) - 3)
+
+    if lastP.idx >= bar_index - primarySwingLen - 2
+        bool isW3Setup = detectWave3Entry(primaryPivots)
+        bool hasContext = confirmedCtx.confidence >= 0.35
+
+        // MTF can gate signals: require HTF alignment for higher conviction
+        bool mtfAllows = true
+        if enableMTF and mtfResult.alignmentLabel == "CONFLICTING"
+            mtfAllows := false  // Suppress signals when HTF conflicts
+
+        if isW3Setup and signalW3Entry and hasContext and mtfAllows
+            newLongSignal := not lastP.isHigh
+            newShortSignal := lastP.isHigh
+
+        if signalW5Exit and confirmedCtx.confirmedPattern == "impulse"
+            float totalMove = math.abs(lastP.price - prevPrevP.price)
+            float lastMove = math.abs(lastP.price - prevP.price)
+            if lastMove < totalMove * 0.3 and lastP.isHigh
+                wave5ExitSignal := true
+
+        if signalWCReversal and (confirmedCtx.confirmedPattern == "zigzag" or str.contains(confirmedCtx.confirmedPattern, "flat"))
+            if confirmedCtx.confirmedPhase == "corrective" and mtfAllows
+                if not confirmedCtx.isBullish and not lastP.isHigh
+                    newLongSignal := true
+                else if confirmedCtx.isBullish and lastP.isHigh
+                    newShortSignal := true
+
+plotshape(newLongSignal ? low : na, "Long Entry", shape.triangleup, location.belowbar, bullWaveColor, size=size.small)
+plotshape(newShortSignal ? high : na, "Short Entry", shape.triangledown, location.abovebar, bearWaveColor, size=size.small)
+plotshape(wave5ExitSignal ? high : na, "Wave 5 Exit", shape.xcross, location.abovebar, correctiveColor, size=size.small)
+
+// ============================================================================
+// INFO PANEL
+// ============================================================================
+
+getInfoPanelSize() =>
+    switch infoPanelSize
+        "tiny" => size.tiny
+        "small" => size.small
+        "normal" => size.normal
+        "large" => size.large
+        => size.small
+
+if showInfoPanel and barstate.islast
+    // Expanded panel to fit MTF rows
+    int totalRows = enableMTF ? 24 : 16
+    var table infoPanel = table.new(position.top_right, 2, totalRows, bgcolor=color.new(color.black, 85), border_width=1)
+    string panelSize = getInfoPanelSize()
+
+    table.cell(infoPanel, 0, 0, "Elliott Wave v3.1", text_color=color.white, text_size=size.normal)
+    table.cell(infoPanel, 1, 0, enableMTF ? (autoDetectHTF ? "MTF Auto" : "MTF Manual") : "Single TF", text_color=enableMTF ? color.aqua : color.gray, text_size=panelSize)
+
+    table.cell(infoPanel, 0, 1, "Pivots:", text_color=color.gray, text_size=panelSize)
+    table.cell(infoPanel, 1, 1, str.tostring(array.size(primaryPivots)), text_color=color.yellow, text_size=panelSize)
+
+    table.cell(infoPanel, 0, 2, "Pattern:", text_color=color.gray, text_size=panelSize)
+    color patColor = confirmedCtx.confirmedPattern != "none" ? bullWaveColor : color.gray
+    string patText = confirmedCtx.confirmedPattern != "none" ?
+         str.upper(confirmedCtx.confirmedPattern) : "NONE"
+    table.cell(infoPanel, 1, 2, patText, text_color=patColor, text_size=panelSize)
+
+    table.cell(infoPanel, 0, 3, "Confidence:", text_color=color.gray, text_size=panelSize)
+    string confStr = confirmedCtx.confidence > 0 ?
+         str.tostring(confirmedCtx.confidence * 100, "#") + "%" : "—"
+    color confColor = confirmedCtx.confidence >= 0.7 ? bullWaveColor :
+         confirmedCtx.confidence >= 0.5 ? correctiveColor : color.gray
+    table.cell(infoPanel, 1, 3, confStr, text_color=confColor, text_size=panelSize)
+
+    table.cell(infoPanel, 0, 4, "Phase:", text_color=color.gray, text_size=panelSize)
+    table.cell(infoPanel, 1, 4, confirmedCtx.confirmedPhase, text_color=color.white, text_size=panelSize)
+
+    table.cell(infoPanel, 0, 5, "Alternation:", text_color=color.gray, text_size=panelSize)
+    string altStr = confirmedCtx.confirmedPattern == "impulse" ?
+         (confirmedCtx.alternationMet ? "✓ Met" : "✗ Not met") : "N/A"
+    color altColor = confirmedCtx.alternationMet ? bullWaveColor :
+         confirmedCtx.confirmedPattern == "impulse" ? bearWaveColor : color.gray
+    table.cell(infoPanel, 1, 5, altStr, text_color=altColor, text_size=panelSize)
+
+    table.cell(infoPanel, 0, 6, "Sub-waves:", text_color=color.gray, text_size=panelSize)
+    string swStr = confirmedCtx.confirmedPattern == "impulse" ?
+         (confirmedCtx.subWavesValid ? "✓ Valid" : "✗ Inconsistent") : "N/A"
+    color swColor = confirmedCtx.subWavesValid ? bullWaveColor :
+         confirmedCtx.confirmedPattern == "impulse" ? correctiveColor : color.gray
+    table.cell(infoPanel, 1, 6, swStr, text_color=swColor, text_size=panelSize)
+
+    int pivotCount = array.size(primaryPivots)
+    if pivotCount >= 2
+        Pivot lastPivot = array.get(primaryPivots, pivotCount - 1)
+        Pivot prevPivot = array.get(primaryPivots, pivotCount - 2)
+        string trend = lastPivot.price > prevPivot.price ? "BULLISH" : "BEARISH"
+        color trendColor = lastPivot.price > prevPivot.price ? bullWaveColor : bearWaveColor
+        table.cell(infoPanel, 0, 7, "Trend:", text_color=color.gray, text_size=panelSize)
+        table.cell(infoPanel, 1, 7, trend, text_color=trendColor, text_size=panelSize)
+
+    // ========== MTF SECTION ==========
+    int mtfRowStart = 8
+    if enableMTF
+        table.cell(infoPanel, 0, mtfRowStart, "──── MTF ────", text_color=color.aqua, text_size=panelSize)
+        table.cell(infoPanel, 1, mtfRowStart, "", text_color=color.aqua, text_size=panelSize)
+
+        // Detected asset + auto params
+        string autoTag = autoDetectHTF ? "Auto" : "Manual"
+        table.cell(infoPanel, 0, mtfRowStart + 1, "Asset:", text_color=color.gray, text_size=panelSize)
+        table.cell(infoPanel, 1, mtfRowStart + 1, assetClassLabel + " | Sw:" + str.tostring(htfSwingLen) + " / " + str.tostring(htfMinSwingPct, "#.#") + "% (" + autoTag + ")", text_color=color.aqua, text_size=panelSize)
+
+        // HTF1
+        string htf1PatStr = mtfResult.htf1.pattern != "none" ? str.upper(mtfResult.htf1.pattern) : "—"
+        color htf1Color = mtfResult.htf1.trendBias == "bullish" ? bullWaveColor :
+             mtfResult.htf1.trendBias == "bearish" ? bearWaveColor : color.gray
+        table.cell(infoPanel, 0, mtfRowStart + 2, htf1Label + ":", text_color=color.gray, text_size=panelSize)
+        table.cell(infoPanel, 1, mtfRowStart + 2, htf1PatStr, text_color=htf1Color, text_size=panelSize)
+
+        table.cell(infoPanel, 0, mtfRowStart + 3, "  Phase:", text_color=color.gray, text_size=panelSize)
+        table.cell(infoPanel, 1, mtfRowStart + 3, mtfResult.htf1.phase + " (" + str.tostring(mtfResult.htf1.confidence * 100, "#") + "%)", text_color=htf1Color, text_size=panelSize)
+
+        // HTF2
+        string htf2PatStr = mtfResult.htf2.pattern != "none" ? str.upper(mtfResult.htf2.pattern) : "—"
+        color htf2Color = mtfResult.htf2.trendBias == "bullish" ? bullWaveColor :
+             mtfResult.htf2.trendBias == "bearish" ? bearWaveColor : color.gray
+        table.cell(infoPanel, 0, mtfRowStart + 4, htf2Label + ":", text_color=color.gray, text_size=panelSize)
+        table.cell(infoPanel, 1, mtfRowStart + 4, htf2PatStr, text_color=htf2Color, text_size=panelSize)
+
+        table.cell(infoPanel, 0, mtfRowStart + 5, "  Phase:", text_color=color.gray, text_size=panelSize)
+        table.cell(infoPanel, 1, mtfRowStart + 5, mtfResult.htf2.phase + " (" + str.tostring(mtfResult.htf2.confidence * 100, "#") + "%)", text_color=htf2Color, text_size=panelSize)
+
+        // Alignment
+        table.cell(infoPanel, 0, mtfRowStart + 6, "Alignment:", text_color=color.gray, text_size=panelSize)
+        color alignColor = mtfResult.alignmentLabel == "ALIGNED" ? bullWaveColor :
+             mtfResult.alignmentLabel == "PARTIAL" ? correctiveColor :
+             mtfResult.alignmentLabel == "CONFLICTING" ? bearWaveColor : color.gray
+        table.cell(infoPanel, 1, mtfRowStart + 6, mtfResult.alignmentLabel + " (" + str.tostring(mtfResult.alignmentScore, "#.##") + ")", text_color=alignColor, text_size=panelSize)
+
+        mtfRowStart := mtfRowStart + 7
+
+    // ========== FORECAST SECTION ==========
+    int fcStart = mtfRowStart
+    table.cell(infoPanel, 0, fcStart, "─── FORECAST ───", text_color=color.aqua, text_size=panelSize)
+    string gateLabel = currentForecast.isGated ? "CONFIRMED" : "UNCONFIRMED"
+    color gateColor = currentForecast.isGated ? bullWaveColor : invalidColor
+    table.cell(infoPanel, 1, fcStart, gateLabel, text_color=gateColor, text_size=panelSize)
+
+    Forecast fc = currentForecast
+
+    table.cell(infoPanel, 0, fcStart + 1, "Next Wave:", text_color=color.gray, text_size=panelSize)
+    table.cell(infoPanel, 1, fcStart + 1, fc.nextWave, text_color=color.white, text_size=panelSize)
+
+    table.cell(infoPanel, 0, fcStart + 2, "Scenario:", text_color=color.gray, text_size=panelSize)
+    table.cell(infoPanel, 1, fcStart + 2, fc.scenario, text_color=color.white, text_size=panelSize)
+
+    table.cell(infoPanel, 0, fcStart + 3, "Action:", text_color=color.gray, text_size=panelSize)
+    color actionColor = str.contains(fc.action, "BUY") ? bullWaveColor :
+         str.contains(fc.action, "SELL") or str.contains(fc.action, "SHORT") ? bearWaveColor :
+         str.contains(fc.action, "NO CONFIRMED") ? invalidColor : correctiveColor
+    table.cell(infoPanel, 1, fcStart + 3, fc.action, text_color=actionColor, text_size=panelSize)
+
+    table.cell(infoPanel, 0, fcStart + 4, "Target:", text_color=color.gray, text_size=panelSize)
+    bool isBullishForecast = str.contains(fc.action, "BUY") or str.contains(fc.action, "LONG") or str.contains(fc.action, "HOLD")
+    float displayTarget = isBullishForecast ? fc.targetHigh : fc.targetLow
+    string targetStr = not na(displayTarget) and displayTarget > 0 ?
+         str.tostring(displayTarget, format.mintick) : "N/A"
+    color targetDisplayColor = isBullishForecast ? bullWaveColor : bearWaveColor
+    table.cell(infoPanel, 1, fcStart + 4, targetStr, text_color=targetDisplayColor, text_size=panelSize)
+
+    table.cell(infoPanel, 0, fcStart + 5, "Stop:", text_color=color.gray, text_size=panelSize)
+    string stopStr = not na(fc.stopLevel) and fc.stopLevel > 0 ?
+         str.tostring(fc.stopLevel, format.mintick) : "N/A"
+    table.cell(infoPanel, 1, fcStart + 5, stopStr, text_color=bearWaveColor, text_size=panelSize)
+
+    table.cell(infoPanel, 0, fcStart + 6, "Stars:", text_color=color.gray, text_size=panelSize)
+    int stars = math.max(fc.confidence, 0)
+    string starStr = stars >= 5 ? "★★★★★" : stars >= 4 ? "★★★★☆" : stars >= 3 ? "★★★☆☆" : stars >= 2 ? "★★☆☆☆" : "★☆☆☆☆"
+    color starColor = stars >= 4 ? bullWaveColor : stars >= 3 ? correctiveColor : bearWaveColor
+    table.cell(infoPanel, 1, fcStart + 6, starStr, text_color=starColor, text_size=panelSize)
+
+    // MTF note in forecast
+    if enableMTF and fc.mtfNote != ""
+        table.cell(infoPanel, 0, fcStart + 7, "MTF:", text_color=color.gray, text_size=panelSize)
+        color mtfNoteColor = str.contains(fc.mtfNote, "✓") ? bullWaveColor :
+             str.contains(fc.mtfNote, "⚠") ? correctiveColor : color.white
+        table.cell(infoPanel, 1, fcStart + 7, fc.mtfNote, text_color=mtfNoteColor, text_size=panelSize)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+alertcondition(newLongSignal, title="Long Entry", message="Elliott Wave v3.1 MTF: Validated long entry signal")
+alertcondition(newShortSignal, title="Short Entry", message="Elliott Wave v3.1 MTF: Validated short entry signal")
+alertcondition(wave5ExitSignal, title="Wave 5 Exit", message="Elliott Wave v3.1 MTF: Confirmed Wave 5 completion — consider exit")
+
+// MTF-specific alerts
+bool mtfAligned = enableMTF and mtfResult.alignmentLabel == "ALIGNED" and confirmedCtx.confirmedPattern != "none"
+bool mtfConflict = enableMTF and mtfResult.alignmentLabel == "CONFLICTING" and confirmedCtx.confirmedPattern != "none"
+
+alertcondition(mtfAligned, title="MTF Aligned", message="Elliott Wave v3.1: Multi-timeframe alignment confirmed — high conviction setup")
+alertcondition(mtfConflict, title="MTF Conflict", message="Elliott Wave v3.1: Multi-timeframe conflict detected — exercise caution")

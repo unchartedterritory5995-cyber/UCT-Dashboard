@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0df91dc775074bcaa9c31ca99551bf5f",
+ "title": "EngulfingCandle",
+ "author": "ahmedirshad419",
+ "url": "https://www.tradingview.com/script/58m8mjwG-engulfingcandle/",
+ "agreeCount": 6473,
+ "category": "candlestick patterns",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/engulfingcandle__0df91dc775.pine",
+ "cached_source": "tools/pine_survey/cache/sources/engulfingcandle__0df91dc775.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,1074 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © tradeforopp
+
+//@version=6
+indicator("ICT Killzones & Pivots [TFO]", "KZP [TFO]", true, max_labels_count = 500, max_lines_count = 500, max_boxes_count = 500) 
+
+
+// ---------------------------------------- Common Functions --------------------------------------------------
+var default_transparency = 60
+
+get_line_type(_style) =>
+    result = switch _style
+        'Solid' => line.style_solid
+        'Dotted' => line.style_dotted
+        'Dashed' => line.style_dashed
+
+get_size(x) =>
+    result = switch x
+        'Auto' => size.auto
+        'Tiny' => size.tiny
+        'Small' => size.small
+        'Normal' => size.normal
+        'Large' => size.large
+        'Huge' => size.huge
+        
+get_table_pos(pos) =>
+    result = switch pos
+        "Bottom Center" => position.bottom_center
+        "Bottom Left" => position.bottom_left
+        "Bottom Right" => position.bottom_right
+        "Middle Center" => position.middle_center
+        "Middle Left" => position.middle_left
+        "Middle Right" => position.middle_right
+        "Top Center" => position.top_center
+        "Top Left" => position.top_left
+        "Top Right" => position.top_right
+// ---------------------------------------- Common Functions --------------------------------------------------
+
+    
+// ---------------------------------------- Inputs --------------------------------------------------
+var g_KZ            = "Killzones"
+show_kz             = input.bool(true, "Show Boxes", tooltip = "Killzone session times follow the Timezone setting in the Global section", group = g_KZ)
+max_days            = input.int(3, "Session Limit", 1, tooltip = "Only this many drawings will be kept on the chart, for each selected drawing type (killzone boxes, pivot lines, open lines, range levels, etc.)", group = g_KZ)
+
+use_kz1             = input.bool(true, "", inline = "KZ1", group = g_KZ)
+kz1_color           = input.color(color.new(color.blue, default_transparency), "", inline = "KZ1", group = g_KZ)
+kz1_txt             = input.string("ASIA", "", inline = "KZ1", group = g_KZ)
+kz1_session         = input.session("2000-0000", "", inline = "KZ1", group = g_KZ)
+
+use_kz2             = input.bool(true, "", inline = "KZ2", group = g_KZ)
+kz2_color           = input.color(color.new(color.red, default_transparency), "", inline = "KZ2", group = g_KZ)
+kz2_txt             = input.string("LNDN", "", inline = "KZ2", group = g_KZ)
+kz2_session         = input.session("0200-0500", "", inline = "KZ2", group = g_KZ)
+
+use_kz3             = input.bool(true, "", inline = "KZ3", group = g_KZ)
+kz3_color           = input.color(color.new(color.teal, default_transparency), "", inline = "KZ3", group = g_KZ)
+kz3_txt             = input.string("NYAM", "", inline = "KZ3", group = g_KZ)
+kz3_session         = input.session("0930-1100", "", inline = "KZ3", group = g_KZ)
+
+use_kz4             = input.bool(false, "", inline = "KZ4", group = g_KZ)
+kz4_color           = input.color(color.new(color.orange, default_transparency), "", inline = "KZ4", group = g_KZ)
+kz4_txt             = input.string("NYL", "", inline = "KZ4", group = g_KZ)
+kz4_session         = input.session("1200-1300", "", inline = "KZ4", group = g_KZ)
+
+use_kz5             = input.bool(true, "", inline = "KZ5", group = g_KZ)
+kz5_color           = input.color(color.new(color.fuchsia, default_transparency), "", inline = "KZ5", group = g_KZ)
+kz5_txt             = input.string("NYPM", "", inline = "KZ5", group = g_KZ)
+kz5_session         = input.session("1330-1600", "", inline = "KZ5", group = g_KZ)
+
+use_kz6             = input.bool(false, "", inline = "KZ6", group = g_KZ)
+kz6_color           = input.color(color.new(color.black, default_transparency), "", inline = "KZ6", group = g_KZ)
+kz6_txt             = input.string("RTH", "", inline = "KZ6", group = g_KZ)
+kz6_session         = input.session("0930-1600", "", inline = "KZ6", group = g_KZ)
+
+
+var g_LABELS        = "Pivots"
+show_pivots         = input.bool(true, "Show Pivots", inline = "KZP", group = g_LABELS)
+kzp_style           = get_line_type(input.string(defval = 'Solid', title = "", options = ['Solid', 'Dotted', 'Dashed'], inline = "KZP", group = g_LABELS))
+kzp_width           = input.int(1, "", inline = "KZP", group = g_LABELS)
+
+show_midpoints      = input.bool(false, "Midpoints", inline = "KZM", group = g_LABELS)
+kzm_style           = get_line_type(input.string(defval = 'Dotted', title = "", options = ['Solid', 'Dotted', 'Dashed'], inline = "KZM", group = g_LABELS))
+kzm_width           = input.int(1, "", inline = "KZM", group = g_LABELS)
+
+show_labels         = input.bool(true, "Pivot Labels", inline = "KZL", tooltip = "Show labels denoting each killzone's high and low", group = g_LABELS)
+label_right         = input.string('Right', "", inline = "KZL", options = ['Left','Right'], group = g_LABELS) == 'Right'
+
+stop_midpoints      = false // input.bool(true, "Stop Once Mitigated", inline = "KZM", group = g_LABELS) 
+
+use_alerts          = input.bool(true, "Alert Broken Pivots", tooltip = "The desired killzones must be enabled at the time that an alert is created, along with the show pivots option, in order for alerts to work", group = g_LABELS)
+ext_pivots          = input.string("Until Mitigated", "Extend Pivots...", options = ['Until Mitigated', 'Past Mitigation'], group = g_LABELS)
+ext_which           = input.string("Most Recent", "...From Which Sessions", options = ['Most Recent', 'All'], tooltip = "Also sets the hit rate tracking window - a pivot counts toward hit rate stats for as long as its lines remain active. With Most Recent, each pivot is tracked until the killzone's next session begins. With All, pivots are tracked until the Session Limit removes them", group = g_LABELS)
+
+
+var g_DATA          = "Range Data & Levels"
+show_data           = input.bool(true, "Show Data Table", inline = "DATA", tooltip = "Show the most recent ranges of each selected killzone, from high to low", group = g_DATA)
+data_loc            = get_table_pos(input.string('Top Right', "", options = ['Bottom Center', 'Bottom Left', 'Bottom Right', 'Middle Center', 'Middle Left', 'Middle Right', 'Top Center', 'Top Left', 'Top Right'], inline = "DATA", group = g_DATA))
+data_size           = get_size(input.string('Small', "", options = ['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'], inline = "DATA", group = g_DATA))
+show_pivot_stats    = input.bool(true, "Pivot Stats", inline = "STATS", tooltip = "Choose which stat categories appear in the data table. Pivot stats show how often each killzone's high and low get hit - requires Show Pivots. Level stats show how often each range level gets hit, above (top) and below (bottom) the opening price - requires Show Range Levels. D/W/M stats show how often the previous day, week, and month highs and lows get hit - requires the corresponding High/Low options", group = g_DATA)
+show_level_stats    = input.bool(true, "Range Level Stats", inline = "STATS", group = g_DATA)
+show_dwm_stats      = input.bool(true, "D/W/M Stats", inline = "STATS", group = g_DATA)
+
+data_lookback       = input.int(20, "Data Lookback", 1, tooltip = "Used to calculate range measurements and show N number of recent events in the data table tooltips. Will use the maximum value possible if the current chart doesn't contain enough data for the specified lookback", group = g_DATA)
+range_measure       = input.string("Average", "Range Measurement", options = ["Average","Median","Standard Deviation"], tooltip = "Average and Median are calculated from each killzone's session ranges (high to low). Standard Deviation is calculated from price's displacement away from the session's opening price, sampled on every bar of each session", group = g_DATA)
+
+show_levels         = input.bool(false, "Show Range Levels", tooltip = "Plot levels above and below each killzone's opening price, calculated by applying each multiplier to the selected range measurement over the data lookback", group = g_DATA)
+levels_input        = input.text_area("0.25\n0.5\n1.0\n// 1.5\n// 2.0", title = "Multiplier, Color (one per line)", tooltip = "For example, '1.5' will plot lines 1.5 times the selected range measurement above and below each killzone's opening price. The multiplier applies per side for every measurement type, so the distance from +0.5 to -0.5 spans one full range measurement. Levels inherit their killzone's color by default - optionally define a color to override it, ex. '1.5, purple'. Colors support all which are available in pine script (ex. red, green, blue), or a hex code (ex. #FFFFFF). Lines starting with '//' are ignored, allowing entries to be disabled without deleting them.", group = g_DATA)
+
+lv_style            = get_line_type(input.string(defval = 'Dotted', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "R0", group = g_DATA))
+lv_width            = input.int(1, "", inline = "R0", group = g_DATA)
+
+
+var g_DWM           = "Day - Week - Month"
+dwm_history         = input.string("Session Limit", "History", options = ["Most Recent", "Session Limit", "Unlimited"], tooltip = "Most Recent will only show the latest drawings for each selected type. Unlimited will show as many of the selected lines as possible. Otherwise, the session limit will be used", group = g_DWM)
+var sep_unlimited   = dwm_history == "Unlimited"
+var dwm_recent      = dwm_history == "Most Recent"
+alert_HL            = input.bool(false, "Alert High/Low Break", tooltip = "Alert when any selected highs and lows are traded through. The desired timeframe's high/low option must be enabled at the time that an alert is created", group = g_DWM)
+
+show_d_open         = input.bool(false, "D Open", inline = "DO", group = g_DWM)
+dhl                 = input.bool(true, "High/Low", inline = "DO", tooltip = "", group = g_DWM)
+dmid                = input.bool(true, "Midline", inline = "DO", tooltip = "Plot the midpoint of the previous day's range - requires High/Low", group = g_DWM)
+ds                  = input.bool(false, "Divider", inline = "DO", tooltip = "Mark where a new day begins", group = g_DWM)
+d_color             = input.color(color.blue, "", inline = "DO", group = g_DWM)
+
+show_w_open         = input.bool(false, "W Open", inline = "WO", group = g_DWM)
+whl                 = input.bool(true, "High/Low", inline = "WO", tooltip = "", group = g_DWM)
+wmid                = input.bool(true, "Midline", inline = "WO", tooltip = "Plot the midpoint of the previous week's range - requires High/Low", group = g_DWM)
+ws                  = input.bool(false, "Divider", inline = "WO", tooltip = "Mark where a new week begins", group = g_DWM)
+w_color             = input.color(#089981, "", inline = "WO", group = g_DWM)
+
+show_m_open         = input.bool(false, "M Open", inline = "MO", group = g_DWM)
+mhl                 = input.bool(true, "High/Low", inline = "MO", tooltip = "", group = g_DWM)
+mmid                = input.bool(true, "Midline", inline = "MO", tooltip = "Plot the midpoint of the previous month's range - requires High/Low", group = g_DWM)
+ms                  = input.bool(false, "Divider", inline = "MO", tooltip = "Mark where a new month begins", group = g_DWM)
+m_color             = input.color(color.red, "", inline = "MO", group = g_DWM)
+
+htf_style           = get_line_type(input.string(defval = 'Dotted', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "D0", group = g_DWM))
+htf_width           = input.int(1, "", inline = "D0", group = g_DWM)
+
+dow_labels          = input.bool(false, "Day of Week Labels", inline = "DOW", group = g_DWM)
+dow_yloc            = input.string('Bottom', "", options = ['Top', 'Bottom'], inline = "DOW", group = g_DWM)
+dow_xloc            = input.string('Midnight', "", options = ['Midnight', 'Midday'], inline = "DOW", group = g_DWM)
+dow_hide_wknd       = input.bool(true, "Hide Weekend Labels", group = g_DWM)
+
+
+var g_OPEN          = "Opening Prices"
+show_opens          = input.bool(true, "Show Opening Prices", group = g_OPEN)
+open_history        = input.string("Most Recent", "History", options = ["Most Recent", "Session Limit", "Unlimited"], tooltip = "Most Recent will only show the latest line for each configured time. Unlimited will show as many of the selected lines as possible. Otherwise, the session limit will be used", group = g_OPEN)
+
+opens_input         = input.text_area("0930, blue, NY Open\n1200, orange, Midday\n1600, #ff0000, Close\n// 0000, yellow, Midnight", title = "Time, Color, Label (one per line)", tooltip = "Times are formatted as HHMM - 0930, 930, and 09:30 are all accepted; the color and label are both optional. For example, '0930, red, NY Open' will plot a red horizontal line at the 09:30 open price. Colors support all which are available in pine script (ex. red, green, blue), or a hex code (ex. #FFFFFF). Lines starting with '//' are ignored, allowing entries to be disabled without deleting them.", group = g_OPEN)
+var open_unlimited  = open_history == "Unlimited"
+var open_recent     = open_history == "Most Recent"
+
+hz_style            = get_line_type(input.string(defval = 'Dashed', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "H0", tooltip = "The color input sets the default color for entries without a specified color", group = g_OPEN))
+hz_width            = input.int(1, "", inline = "H0", group = g_OPEN)
+def_hz_color        = input.color(color.gray, "", inline = "H0", group = g_OPEN)
+
+
+var g_VERTICAL      = "Timestamps"
+show_timestamps     = input.bool(true, "Show Timestamps", group = g_VERTICAL)
+v_history           = input.string("Most Recent", "History", options = ["Most Recent", "Session Limit", "Unlimited"], tooltip = "Most Recent will only show the latest line for each configured time. Unlimited will show as many of the selected lines as possible. Otherwise, the session history limit will be used", group = g_VERTICAL)
+
+timestamps_input    = input.text_area("0930, green\n1200, orange\n1600, red\n// 0000, yellow", title = "Time, Color (one per line)", tooltip = "Times are formatted as HHMM - 0930, 930, and 09:30 are all accepted; the color is optional. For example, '1200, black' will plot a black vertical line at 12:00. Colors support all which are available in pine script (ex. red, green, blue), or a hex code (ex. #FFFFFF). Lines starting with '//' are ignored, allowing entries to be disabled without deleting them.", group = g_VERTICAL)
+var v_unlimited     = v_history == "Unlimited"
+var v_recent        = v_history == "Most Recent"
+
+vl_style            = get_line_type(input.string(defval = 'Dotted', title = "Style", options = ['Solid', 'Dotted', 'Dashed'], inline = "V0", tooltip = "The color input sets the default color for entries without a specified color", group = g_VERTICAL))
+vl_width            = input.int(1, "", inline = "V0", group = g_VERTICAL)
+def_vl_color        = input.color(color.gray, "", inline = "V0", group = g_VERTICAL)
+
+var g_GLOBAL        = "Global"
+use_cutoff          = input.bool(false, "Drawing Cutoff Time", inline = "CO", tooltip = "When enabled, all pivots, midpoints, open price lines, and range levels will stop extending at this time. Pivot hit rate stats also stop counting at the cutoff - a pivot first broken after the cutoff is recorded as a miss. Does not apply to Day/Week/Month lines, whose lifetime is managed by their History setting. Range levels always stop at their session close, so the cutoff only affects them when a session is still open at the cutoff time", group = g_GLOBAL)
+cutoff              = input.session("1800-1801", "", inline = "CO", group = g_GLOBAL)
+gmt_tz              = input.string('America/New_York', "Timezone", options = ['America/New_York','GMT-12','GMT-11','GMT-10','GMT-9','GMT-8','GMT-7','GMT-6','GMT-5','GMT-4','GMT-3','GMT-2','GMT-1','GMT+0','GMT+1','GMT+2','GMT+3','GMT+4','GMT+5','GMT+6','GMT+7','GMT+8','GMT+9','GMT+10','GMT+11','GMT+12','GMT+13','GMT+14'], tooltip = "Note GMT is not adjusted to reflect Daylight Saving Time changes", group = g_GLOBAL)
+lbl_size            = get_size(input.string('Tiny', "Label Size", options = ['Auto', 'Tiny', 'Small', 'Normal', 'Large', 'Huge'], tooltip = "The size of all labels", group = g_GLOBAL))
+tf_limit            = input.timeframe("30", "Timeframe Limit", tooltip = "Drawings will not appear on timeframes greater than or equal to this", group = g_GLOBAL)
+// ---------------------------------------- Inputs --------------------------------------------------
+
+
+// ---------------------------------------- Variables & Constants --------------------------------------------------
+type track
+    bool[] _history
+    float _price = na
+    bool _hit_level = false
+    int _success = 0
+    int _total = 0
+
+type kz
+    string _title
+    color _kz_color
+
+    int[] _start_time
+    int[] _hi_times
+    int[] _lo_times
+
+    box[] _box
+
+    line[] _hi_line
+    line[] _md_line
+    line[] _lo_line
+
+    label[] _hi_label
+    label[] _lo_label
+
+    bool[] _hi_valid
+    bool[] _md_valid
+    bool[] _lo_valid
+    bool[] _ext_stop
+
+    float[] _range_store
+
+    track _hit_kz_hi
+    track _hit_kz_lo
+
+    float _range_current
+
+    float[] _sd_pool
+    int[] _sd_sizes
+    float[] _sd_current
+    float _session_open = na
+    float _sd_value = na
+
+var kz1 = kz.new(kz1_txt, kz1_color, array.new_int(), array.new_int(), array.new_int(), array.new_box(), array.new_line(), array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_float(), track.new(array.new_bool()), track.new(array.new_bool()), float(na), array.new_float(), array.new_int(), array.new_float())
+var kz2 = kz.new(kz2_txt, kz2_color, array.new_int(), array.new_int(), array.new_int(), array.new_box(), array.new_line(), array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_float(), track.new(array.new_bool()), track.new(array.new_bool()), float(na), array.new_float(), array.new_int(), array.new_float())
+var kz3 = kz.new(kz3_txt, kz3_color, array.new_int(), array.new_int(), array.new_int(), array.new_box(), array.new_line(), array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_float(), track.new(array.new_bool()), track.new(array.new_bool()), float(na), array.new_float(), array.new_int(), array.new_float())
+var kz4 = kz.new(kz4_txt, kz4_color, array.new_int(), array.new_int(), array.new_int(), array.new_box(), array.new_line(), array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_float(), track.new(array.new_bool()), track.new(array.new_bool()), float(na), array.new_float(), array.new_int(), array.new_float())
+var kz5 = kz.new(kz5_txt, kz5_color, array.new_int(), array.new_int(), array.new_int(), array.new_box(), array.new_line(), array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_float(), track.new(array.new_bool()), track.new(array.new_bool()), float(na), array.new_float(), array.new_int(), array.new_float())
+var kz6 = kz.new(kz6_txt, kz6_color, array.new_int(), array.new_int(), array.new_int(), array.new_box(), array.new_line(), array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_bool(), array.new_float(), track.new(array.new_bool()), track.new(array.new_bool()), float(na), array.new_float(), array.new_int(), array.new_float())
+
+t_kz1 = not na(time("", kz1_session, gmt_tz))
+t_kz2 = not na(time("", kz2_session, gmt_tz))
+t_kz3 = not na(time("", kz3_session, gmt_tz))
+t_kz4 = not na(time("", kz4_session, gmt_tz))
+t_kz5 = not na(time("", kz5_session, gmt_tz))
+t_kz6 = not na(time("", kz6_session, gmt_tz))
+t_co = not na(time("", cutoff, gmt_tz))
+
+var txt_color = chart.fg_color
+var transparent = #ffffff00
+var ext_current = ext_which == 'Most Recent'
+var ext_past = ext_pivots == 'Past Mitigation'
+var kzh_str = " High"
+var kzl_str = " Low"
+// ---------------------------------------- Variables & Constants --------------------------------------------------
+
+
+// ---------------------------------------- Killzones --------------------------------------------------
+del_kz(kz k) =>
+    if k._box.size() > max_days
+        k._box.pop().delete()
+    if k._hi_line.size() > max_days
+        k._hi_line.pop().delete()
+        k._lo_line.pop().delete()
+        k._hi_valid.pop()
+        k._lo_valid.pop()
+        k._ext_stop.pop()
+        if show_midpoints
+            k._md_line.pop().delete()
+            k._md_valid.pop()
+    if k._hi_label.size() > max_days
+        k._hi_label.pop().delete()
+        k._lo_label.pop().delete()
+
+adjust_in_kz(kz kz, bool t) =>
+    if t
+        kz._box.get(0).set_right(time)
+        kz._box.get(0).set_top(math.max(kz._box.get(0).get_top(), high))
+        kz._box.get(0).set_bottom(math.min(kz._box.get(0).get_bottom(), low))
+
+        kz._range_current := kz._box.get(0).get_top() - kz._box.get(0).get_bottom()
+
+        if show_pivots and kz._hi_line.size() > 0
+            kz._hi_line.get(0).set_x2(time)
+            if high > kz._hi_line.get(0).get_y1()
+                kz._hi_line.get(0).set_xy1(time, high)
+                kz._hi_line.get(0).set_xy2(time, high)
+
+            kz._lo_line.get(0).set_x2(time)
+            if low < kz._lo_line.get(0).get_y1()
+                kz._lo_line.get(0).set_xy1(time, low)
+                kz._lo_line.get(0).set_xy2(time, low)
+                
+            if show_midpoints
+                kz._md_line.get(0).set_x2(time)
+                kz._md_line.get(0).set_xy1(time, math.avg(kz._hi_line.get(0).get_y2(), kz._lo_line.get(0).get_y2()))
+                kz._md_line.get(0).set_xy2(time, math.avg(kz._hi_line.get(0).get_y2(), kz._lo_line.get(0).get_y2()))
+
+        if show_labels and kz._hi_label.size() > 0
+            if label_right
+                kz._hi_label.get(0).set_x(time)
+                kz._lo_label.get(0).set_x(time)
+            if high > kz._hi_label.get(0).get_y()
+                kz._hi_label.get(0).set_xy(time, high)
+                kz._hi_label.get(0).set_tooltip(str.format("{0}: {1}\nDate: {2}\n{3,number,percent} hit rate over {4} sessions (counted after each session ends), dating back to {5}", kz._title + kzh_str, high, str.format_time(kz._start_time.get(0), "M/d/yyyy", gmt_tz), kz._hit_kz_hi._success/kz._hit_kz_hi._total, kz._hit_kz_hi._total, str.format_time(kz._start_time.get(kz._start_time.size() - 1), "M/d/yyyy", gmt_tz)))
+            if low < kz._lo_label.get(0).get_y()
+                kz._lo_label.get(0).set_xy(time, low)
+                kz._lo_label.get(0).set_tooltip(str.format("{0}: {1}\nDate: {2}\n{3,number,percent} hit rate over {4} sessions (counted after each session ends), dating back to {5}", kz._title + kzl_str, low,  str.format_time(kz._start_time.get(0), "M/d/yyyy", gmt_tz), kz._hit_kz_lo._success/kz._hit_kz_lo._total, kz._hit_kz_lo._total, str.format_time(kz._start_time.get(kz._start_time.size() - 1), "M/d/yyyy", gmt_tz)))
+
+
+adjust_out_kz(kz kz, bool t) =>
+    if not t and kz._box.size() > 0
+        if t[1]
+            array.unshift(kz._range_store, kz._range_current)
+            if kz._range_store.size() > data_lookback
+                kz._range_store.pop()
+
+    if kz._box.size() > 0 and show_pivots
+        for i = 0 to kz._box.size() - 1
+            if not ext_current or (ext_current and i == 0)
+                if (ext_past ? true : (kz._hi_valid.get(i) == true)) and not kz._ext_stop.get(i)
+                    kz._hi_line.get(i).set_x2(time)
+                    if show_labels and label_right
+                        kz._hi_label.get(i).set_x(time)
+
+                if high > kz._hi_line.get(i).get_y1() and kz._hi_valid.get(i) == true
+                    if use_alerts and i == 0
+                        alert("Broke "+kz._title+" High", alert.freq_once_per_bar)
+                    kz._hi_valid.set(i, false)
+                    kz._hit_kz_hi._success += 1
+                    kz._hit_kz_hi._hit_level := true
+                    kz._hit_kz_hi._history.set(i, true)
+                    if show_labels and label_right
+                        kz._hi_label.get(0).set_style(label.style_label_down)
+                else if (use_cutoff ? t_co : false)
+                    kz._hi_valid.set(i, false)
+                    
+                if (ext_past ? true : (kz._lo_valid.get(i) == true)) and not kz._ext_stop.get(i)
+                    kz._lo_line.get(i).set_x2(time)
+                    if show_labels and label_right
+                        kz._lo_label.get(i).set_x(time)
+                        
+                if low < kz._lo_line.get(i).get_y1() and kz._lo_valid.get(i) == true
+                    if use_alerts and i == 0
+                        alert("Broke "+kz._title+" Low", alert.freq_once_per_bar)
+                    kz._lo_valid.set(i, false)
+                    kz._hit_kz_lo._success += 1
+                    kz._hit_kz_lo._hit_level := true
+                    kz._hit_kz_lo._history.set(i, true)
+                    if show_labels and label_right
+                        kz._lo_label.get(0).set_style(label.style_label_up)
+                else if (use_cutoff ? t_co : false)
+                    kz._lo_valid.set(i, false)
+                    
+                if show_midpoints and not t
+                    if not kz._ext_stop.get(i)
+                        kz._md_line.get(i).set_x2(time)
+                        if kz._md_valid.get(i) == true and low <= kz._md_line.get(i).get_y1() and high >= kz._md_line.get(i).get_y1()
+                            kz._md_valid.set(i, false)
+
+                if (use_cutoff ? t_co : false)
+                    kz._ext_stop.set(i, true)
+
+method set_track(track T, float P = na) =>
+    T._hit_level := false
+    T._total += 1
+    T._history.unshift(false)
+    if not na(P)
+        T._price := math.round_to_mintick(P)
+
+manage_kz(kz kz, bool use, bool t) => 
+    if timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit) and use
+        if t and not t[1]
+            c = kz._kz_color
+            _c = color.new(c, 0)
+            kz._box.unshift(box.new(time, high, time, low, xloc = xloc.bar_time, border_color = show_kz ? c : na, bgcolor = show_kz ? c : na))
+            kz._start_time.unshift(time)
+
+            if kz._sd_current.size() > 0
+                kz._sd_sizes.push(kz._sd_current.size())
+                array.concat(kz._sd_pool, kz._sd_current)
+                kz._sd_current.clear()
+                while kz._sd_sizes.size() > data_lookback
+                    int n = kz._sd_sizes.shift()
+                    for i = 1 to n
+                        kz._sd_pool.shift()
+            kz._session_open := open
+            kz._sd_value := kz._sd_pool.size() > 1 ? kz._sd_pool.stdev() : na
+
+            if show_pivots
+                kz._hi_line.unshift(line.new(time, high, time, high, xloc = xloc.bar_time, style = kzp_style, color = _c, width = kzp_width))
+                kz._lo_line.unshift(line.new(time, low, time, low, xloc = xloc.bar_time, style = kzp_style, color = _c, width = kzp_width))
+
+                kz._hi_times.unshift(time)
+                kz._lo_times.unshift(time)
+            
+                kz._hit_kz_hi.set_track()
+                kz._hit_kz_lo.set_track()
+
+                if show_midpoints
+                    kz._md_line.unshift(line.new(time, math.avg(high, low), time, math.avg(high, low), xloc = xloc.bar_time, style = kzm_style, color = _c, width = kzm_width))
+                    array.unshift(kz._md_valid, true)
+                
+                array.unshift(kz._hi_valid, true)
+                array.unshift(kz._lo_valid, true) 
+                array.unshift(kz._ext_stop, false)
+
+                if show_labels
+                    kzh_lbl = kz._title + kzh_str
+                    kzl_lbl = kz._title + kzl_str
+                    kz._hi_label.unshift(label.new(time, high, kzh_lbl, xloc = xloc.bar_time, color = transparent, textcolor = _c, tooltip = str.format("{0}: {1}\nDate: {2}\n{3,number,percent} hit rate over {4} sessions (counted after each session ends), dating back to {5}", kz._title + kzh_str, high, str.format_time(kz._start_time.get(0), "M/d/yyyy", gmt_tz), kz._hit_kz_hi._success/kz._hit_kz_hi._total, kz._hit_kz_hi._total, str.format_time(kz._start_time.get(kz._start_time.size() - 1), "M/d/yyyy", gmt_tz)), size = lbl_size, style =  label_right?label.style_label_left:label.style_label_down))
+                    kz._lo_label.unshift(label.new(time, low,  kzl_lbl, xloc = xloc.bar_time, color = transparent, textcolor = _c, tooltip = str.format("{0}: {1}\nDate: {2}\n{3,number,percent} hit rate over {4} sessions (counted after each session ends), dating back to {5}", kz._title + kzl_str, low,  str.format_time(kz._start_time.get(0), "M/d/yyyy", gmt_tz), kz._hit_kz_lo._success/kz._hit_kz_lo._total, kz._hit_kz_lo._total, str.format_time(kz._start_time.get(kz._start_time.size() - 1), "M/d/yyyy", gmt_tz)), size = lbl_size, style =  label_right?label.style_label_left:label.style_label_up))
+
+            del_kz(kz)
+        adjust_in_kz(kz, t)
+        adjust_out_kz(kz, t)
+        if t and not na(kz._session_open)
+            kz._sd_current.push(close - kz._session_open)
+
+
+manage_kz(kz1, use_kz1, t_kz1)
+manage_kz(kz2, use_kz2, t_kz2)
+manage_kz(kz3, use_kz3, t_kz3)
+manage_kz(kz4, use_kz4, t_kz4)
+manage_kz(kz5, use_kz5, t_kz5)
+manage_kz(kz6, use_kz6, t_kz6)
+
+var range_median = range_measure == "Median"
+var range_avg = range_measure == "Average"
+var lvl_suffix = range_avg ? " avg" : range_median ? " med" : "σ"
+
+get_range_value(kz kz) =>
+    result = range_avg ? kz._range_store.avg() : range_median ? kz._range_store.median() : kz._sd_value
+
+// ---------------------------------------- Killzones --------------------------------------------------
+
+
+// ---------------------------------------- DWM --------------------------------------------------
+type dwm_hl
+    line[] hi_line
+    line[] lo_line
+    label[] hi_label
+    label[] lo_label
+    line[] md_line
+    label[] md_label
+    track track_hi
+    track track_lo
+    bool hit_high = false
+    bool hit_low = false
+
+type dwm_info
+    string tf
+    float o = na
+    float h = na
+    float l = na
+    float ph = na
+    float pl = na
+    int t = na
+    int pt = na
+
+var d_hl = dwm_hl.new(array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_line(), array.new_label(), track.new(array.new_bool()), track.new(array.new_bool()))
+var w_hl = dwm_hl.new(array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_line(), array.new_label(), track.new(array.new_bool()), track.new(array.new_bool()))
+var m_hl = dwm_hl.new(array.new_line(), array.new_line(), array.new_label(), array.new_label(), array.new_line(), array.new_label(), track.new(array.new_bool()), track.new(array.new_bool()))
+
+var d_info = dwm_info.new("D")
+var w_info = dwm_info.new("W")
+var m_info = dwm_info.new("M")
+
+var d_sep_line = array.new_line()
+var w_sep_line = array.new_line()
+var m_sep_line = array.new_line()
+
+var d_line = array.new_line()
+var w_line = array.new_line()
+var m_line = array.new_line()
+
+var d_label = array.new_label()
+var w_label = array.new_label()
+var m_label = array.new_label()
+
+update_dwm_info(dwm_info n) =>
+    if timeframe.change(n.tf)
+        n.ph := n.h
+        n.pl := n.l
+        n.o := open
+        n.h := high
+        n.l := low
+        n.pt := n.t
+        n.t := time
+    else
+        n.h := math.max(high, n.h)
+        n.l := math.min(low,  n.l)
+
+dwm_sep(string tf, bool use, line[] arr, color col) =>
+    if use
+        if timeframe.change(tf)
+            arr.unshift(line.new(bar_index, high*1.0001, bar_index, low, style = htf_style, width = htf_width, extend = extend.both, color = col))
+            if not sep_unlimited and arr.size() > (dwm_recent ? 1 : max_days)
+                arr.pop().delete()
+                
+
+dwm_lbl_tooltip(string period, string what, float price, int t0, track T) =>
+    string s = str.format("Previous {0} {1}: {2}", period, what, price)
+    if not na(t0)
+        s += "\nDate: " + str.format_time(t0, "M/d/yyyy", gmt_tz)
+    if not na(T)
+        if T._total > 0
+            s += str.format("\n{0,number,percent} hit rate over {1} {2}s", T._success / T._total, T._total, str.lower(period))
+    s
+
+dwm_open(string tf, string period, bool use, line[] lns, label[] lbls, dwm_info n, color col) =>
+    if use
+        if lns.size() > 0
+            lns.get(0).set_x2(time)
+            lbls.get(0).set_x(time)
+        if timeframe.change(tf)
+            lns.unshift(line.new(time, n.o, time, n.o, xloc = xloc.bar_time, style = htf_style, width = htf_width, color = col))
+            lbls.unshift(label.new(time, n.o, tf + " OPEN", xloc = xloc.bar_time, style = label.style_label_left, color = transparent, textcolor = color.new(col, 0), size = lbl_size, tooltip = str.format("{0} Open: {1}\nDate: {2}", period, n.o, str.format_time(time, "M/d/yyyy", gmt_tz))))
+            if not sep_unlimited and lns.size() > (dwm_recent ? 1 : max_days)
+                lns.pop().delete()
+                lbls.pop().delete()
+
+
+dwm_hl(string tf, string period, bool use, bool mid, dwm_hl hl, dwm_info n, color col) =>
+    if use
+        if hl.hi_line.size() > 0
+            hl.hi_line.get(0).set_x2(time)
+            hl.lo_line.get(0).set_x2(time)
+            hl.hi_label.get(0).set_x(time)
+            hl.lo_label.get(0).set_x(time)
+        if mid and hl.md_line.size() > 0
+            hl.md_line.get(0).set_x2(time)
+            hl.md_label.get(0).set_x(time)
+        if timeframe.change(tf)
+            hl.hi_line.unshift(line.new(time, n.ph, time, n.ph, xloc = xloc.bar_time, style = htf_style, width = htf_width, color = col))
+            hl.lo_line.unshift(line.new(time, n.pl, time, n.pl, xloc = xloc.bar_time, style = htf_style, width = htf_width, color = col))
+            hl.hi_label.unshift(label.new(time, n.ph, "P"+tf+"H", xloc = xloc.bar_time, style = label.style_label_left, color = transparent, textcolor = color.new(col, 0), size = lbl_size))
+            hl.lo_label.unshift(label.new(time, n.pl, "P"+tf+"L", xloc = xloc.bar_time, style = label.style_label_left, color = transparent, textcolor = color.new(col, 0), size = lbl_size))
+            if mid
+                track no_track = na
+                hl.md_line.unshift(line.new(time, math.avg(n.ph, n.pl), time, math.avg(n.ph, n.pl), xloc = xloc.bar_time, style = htf_style, width = htf_width, color = col))
+                hl.md_label.unshift(label.new(time, math.avg(n.ph, n.pl), "P"+tf+"M", xloc = xloc.bar_time, style = label.style_label_left, color = transparent, textcolor = color.new(col, 0), size = lbl_size, tooltip = dwm_lbl_tooltip(period, "Midline", math.avg(n.ph, n.pl), n.pt, no_track)))
+            hl.hit_high := false
+            hl.hit_low := false
+            if not na(n.ph)
+                hl.track_hi.set_track(n.ph)
+                hl.track_lo.set_track(n.pl)
+            hl.hi_label.get(0).set_tooltip(dwm_lbl_tooltip(period, "High", n.ph, n.pt, hl.track_hi))
+            hl.lo_label.get(0).set_tooltip(dwm_lbl_tooltip(period, "Low", n.pl, n.pt, hl.track_lo))
+            if not sep_unlimited and hl.hi_line.size() > (dwm_recent ? 1 : max_days)
+                hl.hi_line.pop().delete()
+                hl.lo_line.pop().delete()
+                hl.hi_label.pop().delete()
+                hl.lo_label.pop().delete()
+            if not sep_unlimited and hl.md_line.size() > (dwm_recent ? 1 : max_days)
+                hl.md_line.pop().delete()
+                hl.md_label.pop().delete()
+        if hl.hi_line.size() > 0
+            if not hl.hit_high and high > hl.hi_line.get(0).get_y1()
+                hl.hit_high := true
+                if hl.track_hi._history.size() > 0
+                    hl.track_hi._success += 1
+                    hl.track_hi._hit_level := true
+                    hl.track_hi._history.set(0, true)
+                    hl.hi_label.get(0).set_tooltip(dwm_lbl_tooltip(period, "High", hl.hi_line.get(0).get_y1(), n.pt, hl.track_hi))
+                if alert_HL
+                    alert(str.format("Hit P{0}H", tf))
+            if not hl.hit_low and low < hl.lo_line.get(0).get_y1()
+                hl.hit_low := true
+                if hl.track_lo._history.size() > 0
+                    hl.track_lo._success += 1
+                    hl.track_lo._hit_level := true
+                    hl.track_lo._history.set(0, true)
+                    hl.lo_label.get(0).set_tooltip(dwm_lbl_tooltip(period, "Low", hl.lo_line.get(0).get_y1(), n.pt, hl.track_lo))
+                if alert_HL
+                    alert(str.format("Hit P{0}L", tf))
+
+
+dwm() =>
+    if timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit)
+        // DWM - Separators
+        dwm_sep("D", ds, d_sep_line, d_color)
+        dwm_sep("W", ws, w_sep_line, w_color)
+        dwm_sep("M", ms, m_sep_line, m_color)
+
+        // DWM - Open Lines
+        dwm_open("D", "Day", show_d_open, d_line, d_label, d_info, d_color)
+        dwm_open("W", "Week", show_w_open, w_line, w_label, w_info, w_color)
+        dwm_open("M", "Month", show_m_open, m_line, m_label, m_info, m_color)
+
+        // DWM - Highs and Lows
+        dwm_hl("D", "Day", dhl, dmid, d_hl, d_info, d_color)
+        dwm_hl("W", "Week", whl, wmid, w_hl, w_info, w_color)
+        dwm_hl("M", "Month", mhl, mmid, m_hl, m_info, m_color)
+
+if dhl or show_d_open
+    update_dwm_info(d_info)
+if whl or show_w_open
+    update_dwm_info(w_info)
+if mhl or show_m_open
+    update_dwm_info(m_info)
+        
+dwm() 
+
+// DWM label de-overlap: merge labels sitting at exactly the same price into one confluence label
+// (e.g. "D OPEN / W OPEN" on the first day of a week). Restore-then-merge runs every update on the
+// last bar, so labels reappear automatically once their prices diverge again
+var array<label> mg_lbls = array.new<label>()
+var array<string> mg_txts = array.new<string>()
+var array<string> mg_tips = array.new<string>()
+
+mg_add(label[] arr, string txt, string tip) =>
+    if arr.size() > 0
+        mg_lbls.push(arr.get(0))
+        mg_txts.push(txt)
+        mg_tips.push(tip)
+
+mg_add_family(string tf, string period, bool use_open, label[] open_lbls, bool use_hl, bool use_mid, dwm_hl hl, dwm_info n) =>
+    track no_track = na
+    if use_open and open_lbls.size() > 0
+        mg_add(open_lbls, tf + " OPEN", str.format("{0} Open: {1}\nDate: {2}", period, n.o, str.format_time(n.t, "M/d/yyyy", gmt_tz)))
+    if use_hl and hl.hi_label.size() > 0
+        mg_add(hl.hi_label, "P" + tf + "H", dwm_lbl_tooltip(period, "High", hl.hi_label.get(0).get_y(), n.pt, hl.track_hi))
+        mg_add(hl.lo_label, "P" + tf + "L", dwm_lbl_tooltip(period, "Low", hl.lo_label.get(0).get_y(), n.pt, hl.track_lo))
+        if use_mid and hl.md_label.size() > 0
+            mg_add(hl.md_label, "P" + tf + "M", dwm_lbl_tooltip(period, "Midline", hl.md_label.get(0).get_y(), n.pt, no_track))
+
+if barstate.islast
+    mg_lbls.clear()
+    mg_txts.clear()
+    mg_tips.clear()
+    mg_add_family("D", "Day", show_d_open, d_label, dhl, dmid, d_hl, d_info)
+    mg_add_family("W", "Week", show_w_open, w_label, whl, wmid, w_hl, w_info)
+    mg_add_family("M", "Month", show_m_open, m_label, mhl, mmid, m_hl, m_info)
+    int mg_n = mg_lbls.size()
+    if mg_n > 0
+        for i = 0 to mg_n - 1
+            mg_lbls.get(i).set_text(mg_txts.get(i))
+            mg_lbls.get(i).set_tooltip(mg_tips.get(i))
+        consumed = array.new_bool(mg_n, false)
+        for i = 0 to mg_n - 1
+            if not consumed.get(i) and i < mg_n - 1
+                string m_txt = mg_txts.get(i)
+                string m_tip = mg_tips.get(i)
+                bool merged = false
+                for j = i + 1 to mg_n - 1
+                    if not consumed.get(j) and math.round_to_mintick(mg_lbls.get(i).get_y()) == math.round_to_mintick(mg_lbls.get(j).get_y())
+                        merged := true
+                        consumed.set(j, true)
+                        m_txt += " / " + mg_txts.get(j)
+                        m_tip += "\n\n" + mg_tips.get(j)
+                        mg_lbls.get(j).set_text("")
+                        mg_lbls.get(j).set_tooltip("")
+                if merged
+                    mg_lbls.get(i).set_text(m_txt)
+                    mg_lbls.get(i).set_tooltip(m_tip)
+
+var dow_top = dow_yloc == 'Top'
+new_dow_time = dow_xloc == 'Midday' ? time - timeframe.in_seconds("D") / 2 * 1000 : time
+new_day = dayofweek(new_dow_time, gmt_tz) != dayofweek(new_dow_time, gmt_tz)[1]
+
+var saturday = "SATURDAY"
+var sunday = "SUNDAY"
+var monday = "MONDAY"
+var tuesday = "TUESDAY"
+var wednesday = "WEDNESDAY"
+var thursday = "THURSDAY"
+var friday = "FRIDAY"
+
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 1 and new_day and not dow_hide_wknd, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = sunday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 2 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = monday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 3 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = tuesday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 4 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = wednesday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 5 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = thursday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 6 and new_day, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = friday)
+plotchar(dow_labels and timeframe.isintraday and dayofweek(new_dow_time, gmt_tz) == 7 and new_day and not dow_hide_wknd, location = dow_top ? location.top : location.bottom, char = "", textcolor = txt_color, text = saturday)
+// ---------------------------------------- DWM --------------------------------------------------
+
+
+// ---------------------------------------- Timestamps --------------------------------------------------
+get_HHMM(string _raw) =>
+    string s = _raw
+    int c = str.pos(s, ",")          // keep only the first field (time/multiplier)
+    if not na(c)
+        s := str.substring(s, 0, c)
+    s := str.replace_all(s, " ",  "")  // strip spaces
+    s := str.replace_all(s, ":",  "")  // accept "09:30"-style times
+    s
+
+str_to_session(string _token) =>
+    string result = na
+    string s = _token
+    if str.length(s) == 3            // "930" → "0930"
+        s := "0" + s
+    if str.length(s) == 4
+        float n = str.tonumber(s)    // na unless all 4 chars are digits
+        if not na(n)
+            int hh = int(str.tonumber(str.substring(s, 0, 2)))
+            int mm = int(str.tonumber(str.substring(s, 2, 4)))
+            if hh >= 0 and hh <= 23 and mm >= 0 and mm <= 59
+                int endMin   = hh * 60 + mm + 1        // +1 minute for the window
+                int eh       = int(endMin / 60)        // 1439+1 → 1440 → "2400"
+                int em       = endMin % 60
+                string a = (hh < 10 ? "0" : "") + str.tostring(hh) + (mm < 10 ? "0" : "") + str.tostring(mm)
+                string b = (eh < 10 ? "0" : "") + str.tostring(eh) + (em < 10 ? "0" : "") + str.tostring(em)
+                result := a + "-" + b
+    result
+
+// hex digit → 0-15 (na if not a hex char)
+hex_val(string _ch) =>
+    str.pos("0123456789abcdef", _ch)
+
+// two hex chars → 0-255 (na if either is invalid)
+hex_pair(string _s2) =>
+    int hi = hex_val(str.substring(_s2, 0, 1))
+    int lo = hex_val(str.substring(_s2, 1, 2))
+    na(hi) or na(lo) ? int(na) : hi * 16 + lo
+
+str_to_color(string _raw, color _default) =>
+    color result = _default
+    string s = str.lower(str.replace_all(_raw, " ", ""))
+    if str.startswith(s, "#")
+        string hex = str.substring(s, 1, str.length(s))
+        int len = str.length(hex)
+        if len == 6 or len == 8
+            int r  = hex_pair(str.substring(hex, 0, 2))
+            int g  = hex_pair(str.substring(hex, 2, 4))
+            int b  = hex_pair(str.substring(hex, 4, 6))
+            int tt = len == 8 ? hex_pair(str.substring(hex, 6, 8)) : 0   // Pine transparency: 00 opaque → FF transparent
+            if not (na(r) or na(g) or na(b) or na(tt))
+                result := color.rgb(r, g, b, tt / 255.0 * 100.0)
+    else
+        result := s == "black"   ? color.black   : s == "white"   ? color.white   :
+                  s == "red"     ? color.red     : s == "lime"    ? color.lime    :
+                  s == "green"   ? color.green   : s == "blue"    ? color.blue    :
+                  s == "aqua"    ? color.aqua    : s == "teal"    ? color.teal    :
+                  s == "navy"    ? color.navy    : s == "purple"  ? color.purple  :
+                  s == "fuchsia" ? color.fuchsia : s == "maroon"  ? color.maroon  :
+                  s == "olive"   ? color.olive   : s == "orange"  ? color.orange  :
+                  s == "yellow"  ? color.yellow  : s == "silver"  ? color.silver  :
+                  s == "gray" or s == "grey" ? color.gray : _default
+    result
+
+get_color(string _raw, color _default) =>
+    color result = _default
+    int c = str.pos(_raw, ",")
+    if not na(c)
+        string cs = str.substring(_raw, c + 1, str.length(_raw))
+        int c2 = str.pos(cs, ",")    // color is the second field only
+        if not na(c2)
+            cs := str.substring(cs, 0, c2)
+        if str.length(str.replace_all(cs, " ", "")) > 0
+            result := str_to_color(cs, _default)
+    result
+
+var array<line> vlLines = array.new<line>()
+var array<int>  vlOwner = array.new<int>()
+
+draw_timestamp(int _i, color _col) =>
+    array.unshift(vlLines, line.new(bar_index, high * 1.0001, bar_index, low, style = vl_style, width = vl_width, extend = extend.both, color = _col))
+    array.unshift(vlOwner, _i)
+    if not v_unlimited
+        int count = 0
+        for o in vlOwner
+            count += o == _i ? 1 : 0
+        if count > (v_recent ? 1 : max_days)
+            for j = array.size(vlOwner) - 1 to 0
+                if array.get(vlOwner, j) == _i
+                    array.get(vlLines, j).delete()
+                    array.remove(vlLines, j)
+                    array.remove(vlOwner, j)
+                    break
+
+var array<string> sessions = array.new<string>()
+var array<color>  cols     = array.new<color>()
+var int bad_stamps = 0
+
+if barstate.isfirst
+    for lineStr in str.split(timestamps_input, "\n")
+        if str.startswith(str.trim(lineStr), "//")
+            continue
+        string sess = str_to_session(get_HHMM(lineStr))
+        if not na(sess)
+            array.push(sessions, sess)
+            array.push(cols, get_color(lineStr, def_vl_color))
+        else if str.length(str.trim(lineStr)) > 0
+            bad_stamps += 1
+
+if show_timestamps and timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit) and array.size(sessions) > 0
+    for i = 0 to array.size(sessions) - 1
+        string sess = array.get(sessions, i)
+        bool t = not na(time("", sess, gmt_tz))
+        bool t1 = not na(time("", sess, gmt_tz))[1]
+        if t and not t1
+            draw_timestamp(i, array.get(cols, i))
+// ---------------------------------------- Timestamps --------------------------------------------------
+
+
+// ---------------------------------------- Open Prices --------------------------------------------------
+type hz
+    line[] LN
+    label[] LB
+    bool[] CO
+    string  session
+    color   col
+    string  txt
+    string  tip
+
+get_open_settings(string _raw) =>
+    int c1 = str.pos(_raw, ",")
+    string t    = na(c1) ? _raw : str.substring(_raw, 0, c1)
+    string rest = na(c1) ? ""   : str.substring(_raw, c1 + 1, str.length(_raw))
+    int c2 = str.pos(rest, ",")
+    string colr = na(c2) ? rest : str.substring(rest, 0, c2)
+    string lbl  = na(c2) ? ""   : str.substring(rest, c2 + 1, str.length(rest))
+    [t, colr, lbl]
+
+draw_open_price(hz h) =>
+    bool t     = not na(time(timeframe.period, h.session, gmt_tz))
+    bool tPrev = not na(time(timeframe.period, h.session, gmt_tz)[1])
+    if t and not tPrev
+        h.LN.unshift(line.new(bar_index, open, bar_index, open, style = hz_style, width = hz_width, color = h.col))
+        h.LB.unshift(label.new(bar_index, open, h.txt, style = label.style_label_left, color = transparent, textcolor = color.new(h.col, 0), size = lbl_size, tooltip = str.format("{0}: {1}\nDate: {2}", h.tip, open, str.format_time(time, "M/d/yyyy", gmt_tz))))
+        h.CO.unshift(false)
+        if not open_unlimited and h.LN.size() > (open_recent ? 1 : max_days)
+            h.LN.pop().delete()
+            h.LB.pop().delete()
+            h.CO.pop()
+    if not t and h.CO.size() > 0
+        if not h.CO.get(0)
+            h.LN.get(0).set_x2(bar_index)
+            h.LB.get(0).set_x(bar_index)
+            if (use_cutoff ? t_co : false)
+                h.CO.set(0, true)
+
+var array<hz> hzs = array.new<hz>()
+var int bad_opens = 0
+
+if barstate.isfirst
+    for lineStr in str.split(opens_input, "\n")
+        if str.startswith(str.trim(lineStr), "//")
+            continue
+        [tRaw, cRaw, lRaw] = get_open_settings(lineStr)
+        string tok = str.replace_all(str.replace_all(tRaw, " ", ""), ":", "")
+        string sess = str_to_session(tok)
+        if not na(sess)
+            string lbl_txt = str.trim(lRaw)
+            string tip_name = str.length(lbl_txt) > 0 ? lbl_txt : (str.length(tok) == 3 ? "0" + tok : tok) + " Open"
+            hzs.push(hz.new(array.new_line(), array.new_label(), array.new_bool(), sess, str_to_color(cRaw, def_hz_color), lbl_txt, tip_name))
+        else if str.length(str.trim(lineStr)) > 0
+            bad_opens += 1
+
+if show_opens and timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit) and array.size(hzs) > 0
+    for i = 0 to array.size(hzs) - 1
+        draw_open_price(array.get(hzs, i))
+// ---------------------------------------- Open Prices --------------------------------------------------
+
+
+// ---------------------------------------- Range Levels --------------------------------------------------
+type lvl
+    float _mult
+    color _col
+
+    line[] _hi_line
+    line[] _lo_line
+
+    label[] _hi_label
+    label[] _lo_label
+
+    track _hit_hi
+    track _hit_lo
+
+    bool _hi_valid = false
+    bool _lo_valid = false
+    bool _active = false
+
+new_lvl(float _mult, color _col) =>
+    lvl.new(_mult, _col, array.new_line(), array.new_line(), array.new_label(), array.new_label(), track.new(array.new_bool()), track.new(array.new_bool()))
+
+lvl_tooltip(kz kz, string _txt, track T) =>
+    str.format("{0}: {1}\nDate: {2}\n{3,number,percent} hit rate over {4} sessions (counted during the level''s session only), dating back to {5}\n\nLevels calculated using the {6} of the last {7} sessions", kz._title + " " + _txt, T._price, str.format_time(kz._start_time.get(0), "M/d/yyyy", gmt_tz), T._success / T._total, T._total, str.format_time(kz._start_time.get(kz._start_time.size() - 1), "M/d/yyyy", gmt_tz), str.lower(range_measure), data_lookback)
+
+manage_levels(kz kz, array<lvl> levels, bool use, bool t) =>
+    if timeframe.in_seconds("") <= timeframe.in_seconds(tf_limit) and use and show_levels and levels.size() > 0
+        if t and not t[1]
+            float m = get_range_value(kz)
+            bool ready = not na(m) and m > 0
+            for l in levels
+                l._active := ready
+                if ready
+                    c = color.new(l._col, 0)
+                    hi_txt = "+" + str.tostring(l._mult) + lvl_suffix
+                    lo_txt = "-" + str.tostring(l._mult) + lvl_suffix
+                    l._hit_hi.set_track(open + l._mult * m)
+                    l._hit_lo.set_track(open - l._mult * m)
+                    l._hi_valid := true
+                    l._lo_valid := true
+                    l._hi_line.unshift(line.new(time, l._hit_hi._price, time, l._hit_hi._price, xloc = xloc.bar_time, style = lv_style, color = c, width = lv_width))
+                    l._lo_line.unshift(line.new(time, l._hit_lo._price, time, l._hit_lo._price, xloc = xloc.bar_time, style = lv_style, color = c, width = lv_width))
+                    l._hi_label.unshift(label.new(time, l._hit_hi._price, hi_txt, xloc = xloc.bar_time, color = transparent, textcolor = c, tooltip = lvl_tooltip(kz, hi_txt, l._hit_hi), size = lbl_size, style = label.style_label_left))
+                    l._lo_label.unshift(label.new(time, l._hit_lo._price, lo_txt, xloc = xloc.bar_time, color = transparent, textcolor = c, tooltip = lvl_tooltip(kz, lo_txt, l._hit_lo), size = lbl_size, style = label.style_label_left))
+                    if l._hi_line.size() > max_days
+                        l._hi_line.pop().delete()
+                        l._lo_line.pop().delete()
+                        l._hi_label.pop().delete()
+                        l._lo_label.pop().delete()
+        if t
+            for l in levels
+                if l._active
+                    l._hi_line.get(0).set_x2(time)
+                    l._lo_line.get(0).set_x2(time)
+                    l._hi_label.get(0).set_x(time)
+                    l._lo_label.get(0).set_x(time)
+                    if l._hi_valid and high >= l._hit_hi._price
+                        l._hi_valid := false
+                        l._hit_hi._success += 1
+                        l._hit_hi._hit_level := true
+                        l._hit_hi._history.set(0, true)
+                        l._hi_label.get(0).set_tooltip(lvl_tooltip(kz, "+" + str.tostring(l._mult) + lvl_suffix, l._hit_hi))
+                    if l._lo_valid and low <= l._hit_lo._price
+                        l._lo_valid := false
+                        l._hit_lo._success += 1
+                        l._hit_lo._hit_level := true
+                        l._hit_lo._history.set(0, true)
+                        l._lo_label.get(0).set_tooltip(lvl_tooltip(kz, "-" + str.tostring(l._mult) + lvl_suffix, l._hit_lo))
+                    if (use_cutoff ? t_co : false)
+                        l._active := false
+                        l._hi_valid := false
+                        l._lo_valid := false
+
+var array<lvl> kz1Levels = array.new<lvl>()
+var array<lvl> kz2Levels = array.new<lvl>()
+var array<lvl> kz3Levels = array.new<lvl>()
+var array<lvl> kz4Levels = array.new<lvl>()
+var array<lvl> kz5Levels = array.new<lvl>()
+var array<lvl> kz6Levels = array.new<lvl>()
+
+var int bad_levels = 0
+
+if barstate.isfirst
+    for lineStr in str.split(levels_input, "\n")
+        if str.startswith(str.trim(lineStr), "//")
+            continue
+        float mult = str.tonumber(get_HHMM(lineStr))
+        if not na(mult) and mult > 0
+            color c = get_color(lineStr, color(na))
+            kz1Levels.push(new_lvl(mult, na(c) ? kz1_color : c))
+            kz2Levels.push(new_lvl(mult, na(c) ? kz2_color : c))
+            kz3Levels.push(new_lvl(mult, na(c) ? kz3_color : c))
+            kz4Levels.push(new_lvl(mult, na(c) ? kz4_color : c))
+            kz5Levels.push(new_lvl(mult, na(c) ? kz5_color : c))
+            kz6Levels.push(new_lvl(mult, na(c) ? kz6_color : c))
+        else if str.length(str.trim(lineStr)) > 0
+            bad_levels += 1
+
+manage_levels(kz1, kz1Levels, use_kz1, t_kz1)
+manage_levels(kz2, kz2Levels, use_kz2, t_kz2)
+manage_levels(kz3, kz3Levels, use_kz3, t_kz3)
+manage_levels(kz4, kz4Levels, use_kz4, t_kz4)
+manage_levels(kz5, kz5Levels, use_kz5, t_kz5)
+manage_levels(kz6, kz6Levels, use_kz6, t_kz6)
+// ---------------------------------------- Range Levels --------------------------------------------------
+
+
+// ---------------------------------------- Data Table --------------------------------------------------
+var T_txt = "🟩"
+var F_txt = "🟥"
+
+// A stat group only renders when both its table toggle and the feature that feeds it are enabled -
+// otherwise its hit counters never accumulate and cells would display 0/0 (NaN)
+var stats_pivots = show_pivot_stats and show_pivots
+var stats_dwm = show_dwm_stats and (dhl or whl or mhl)
+var stats_levels = show_level_stats and show_levels
+
+get_last_instances(bool[] B) =>
+    _txt = ""
+    LEN = math.min(B.size(), data_lookback) - 1
+    if B.size() > 0
+        for i = 0 to LEN
+            _txt += (B.get(LEN - i) ? T_txt : F_txt)
+            if (i + 1) % 10 == 0
+                _txt += "\n"
+    str.trim(_txt)
+
+stat_tbl_string(table T, kz KZ, bool t, int COL, int ROW, track TRACK) =>
+    if TRACK._total > 0
+        fmt_str = str.format("{0,number,percent}", TRACK._success / TRACK._total)
+        table.cell(T, COL, ROW, fmt_str, text_size = data_size, bgcolor = TRACK._hit_level ? KZ._kz_color : na, text_color = chart.fg_color, tooltip = str.format("{0,number,percent} hit rate over {1} sessions (counted after each session ends), dating back to {2}\n\nLast {3} events (least to most recent):\n{4}", TRACK._success / TRACK._total, TRACK._total, str.format_time(KZ._start_time.get(KZ._start_time.size() - 1), "M/d/yyyy", gmt_tz), data_lookback, get_last_instances(TRACK._history)))
+    else
+        table.cell(T, COL, ROW, "-", text_size = data_size, text_color = chart.fg_color)
+
+lvl_tbl_cell(table tbl, kz KZ, int COL, int ROW, lvl L) =>
+    if L._hit_hi._total > 0
+        table.cell(tbl, COL, ROW, str.format("{0,number,percent}\n{1,number,percent}", L._hit_hi._success / L._hit_hi._total, L._hit_lo._success / L._hit_lo._total), text_size = data_size, bgcolor = (L._hit_hi._hit_level or L._hit_lo._hit_level) ? KZ._kz_color : na, text_color = chart.fg_color, tooltip = str.format("+{0}: {1,number,percent} hit rate over {2} sessions\nLast {3} events (least to most recent):\n{4}\n\n-{0}: {5,number,percent} hit rate over {6} sessions\nLast {3} events (least to most recent):\n{7}\n\nA colored cell indicates that a level was hit during the current session", str.tostring(L._mult) + lvl_suffix, L._hit_hi._success / L._hit_hi._total, L._hit_hi._total, data_lookback, get_last_instances(L._hit_hi._history), L._hit_lo._success / L._hit_lo._total, L._hit_lo._total, get_last_instances(L._hit_lo._history)))
+    else
+        table.cell(tbl, COL, ROW, "-", text_size = data_size, text_color = chart.fg_color)
+
+dwm_tbl_string(table T, int COL, int ROW, track TRACK, color CLR, string TXT, string PERIOD) =>
+    fmt_str = str.format("{0,number,percent}", TRACK._success / TRACK._total)
+    table.cell(T, COL, ROW, fmt_str, text_size = data_size, bgcolor = TRACK._hit_level ? CLR : na, text_color = chart.fg_color, tooltip = str.format("{0}: {1,number,percent} hit rate over {2} {3}\n\nLast {4} events (least to most recent):\n{5}", TXT, TRACK._success / TRACK._total, TRACK._total, PERIOD, data_lookback, get_last_instances(TRACK._history)))
+
+set_dwm_row(table tbl, dwm_hl hl, dwm_info n, int row, string txt, bool use, color col, string tf, string period) =>
+    if show_dwm_stats and use and hl.track_hi._total > 0
+        _col = color.new(col, default_transparency)
+        float cur_range = n.h - n.l
+        float prev_range = n.ph - n.pl
+        pct = cur_range / prev_range
+        table.cell(tbl, 0, row, txt, text_size = data_size, bgcolor = _col, text_color = chart.fg_color)
+        table.cell(tbl, 1, row, str.format("{0,number}", cur_range), text_size = data_size, bgcolor = pct >= 1.0 ? _col : na, text_color = chart.fg_color, 
+             tooltip = str.format("Current range is {0,number}, or {1,number,percent} of the previous {2} range ({3,number})\n\nA colored cell indicates that the current {2} has exceeded the previous {2} range", cur_range, pct, period, prev_range))
+        dwm_tbl_string(tbl, 2, row, hl.track_hi, _col, "P" + tf + "H", period + "s")
+        dwm_tbl_string(tbl, 3, row, hl.track_lo, _col, "P" + tf + "L", period + "s")
+
+set_table(table tbl, kz kz, array<lvl> levels, int row, string txt, bool use, bool t, color col) =>
+    if use and kz._box.size() > 0
+        int c = 0
+        avg = math.round_to_mintick(get_range_value(kz))
+        pct = kz._range_current/avg
+        measurement = str.lower(range_measure)
+        table.cell(tbl, c, row, txt, text_size = data_size, bgcolor = col, text_color = chart.fg_color)
+        c += 1
+        string range_tip = str.format("Current range is {0,number}, or {1,number,percent} of the {2} ({3,number}) calculated using the last {4} sessions\n\nA colored cell indicates that the current day has exceeded the measured value", kz._range_current, pct, measurement, avg, data_lookback)
+        if na(avg)
+            range_tip := str.format("Current range is {0,number}\n\nNot enough completed sessions to calculate the {1} yet", kz._range_current, measurement)
+        table.cell(tbl, c, row, str.format("{0,number}", kz._range_current), text_size = data_size, bgcolor = pct>=1.0 ? col : na, text_color = chart.fg_color, 
+             tooltip = range_tip)
+        c += 1
+        if stats_pivots
+            stat_tbl_string(tbl, kz, t, c, row, kz._hit_kz_hi)
+            c += 1
+            stat_tbl_string(tbl, kz, t, c, row, kz._hit_kz_lo)
+            c += 1
+        else if stats_dwm
+            c += 2
+        if stats_levels
+            for l in levels
+                if c < 20
+                    lvl_tbl_cell(tbl, kz, c, row, l)
+                    c += 1
+
+if show_data and barstate.islast
+    var tbl = table.new(data_loc, 20, 20, chart.bg_color, chart.fg_color, 2, chart.fg_color, 1)
+
+    int c = 1
+    table.cell(tbl, c, 0, "Range", text_size = data_size, text_color = chart.fg_color)
+    c += 1
+    if stats_pivots or stats_dwm
+        table.cell(tbl, c, 0, "High", text_size = data_size, text_color = chart.fg_color)
+        c += 1
+        table.cell(tbl, c, 0, "Low", text_size = data_size, text_color = chart.fg_color)
+        c += 1
+    if stats_levels
+        for l in kz1Levels
+            if c < 20
+                table.cell(tbl, c, 0, "±" + str.tostring(l._mult) + lvl_suffix, text_size = data_size, text_color = chart.fg_color)
+                c += 1
+
+    set_table(tbl, kz1, kz1Levels, 1, kz1_txt, use_kz1, t_kz1, kz1_color)
+    set_table(tbl, kz2, kz2Levels, 2, kz2_txt, use_kz2, t_kz2, kz2_color)
+    set_table(tbl, kz3, kz3Levels, 3, kz3_txt, use_kz3, t_kz3, kz3_color)
+    set_table(tbl, kz4, kz4Levels, 4, kz4_txt, use_kz4, t_kz4, kz4_color)
+    set_table(tbl, kz5, kz5Levels, 5, kz5_txt, use_kz5, t_kz5, kz5_color)
+    set_table(tbl, kz6, kz6Levels, 6, kz6_txt, use_kz6, t_kz6, kz6_color)
+
+    set_dwm_row(tbl, d_hl, d_info, 7, "PD", dhl, d_color, "D", "day")
+    set_dwm_row(tbl, w_hl, w_info, 8, "PW", whl, w_color, "W", "week")
+    set_dwm_row(tbl, m_hl, m_info, 9, "PM", mhl, m_color, "M", "month")
+// ---------------------------------------- Data Table --------------------------------------------------
+
+
+// ---------------------------------------- Input Warnings --------------------------------------------------
+// Textarea lines that fail to parse are otherwise silently ignored - surface them so a typo
+// (ex. '093O, red') reads as a visible, explained failure instead of a missing line
+if barstate.islast and bad_opens + bad_stamps + bad_levels > 0
+    var warn_tbl = table.new(position.bottom_right, 1, 1, color.new(color.red, 80), chart.fg_color, 1, chart.fg_color, 1)
+    string warn_msg = "Some settings could not be read:"
+    if bad_opens > 0
+        warn_msg += str.format("\n- {0} Opening Prices {1}", bad_opens, bad_opens == 1 ? "entry" : "entries")
+    if bad_stamps > 0
+        warn_msg += str.format("\n- {0} Timestamps {1}", bad_stamps, bad_stamps == 1 ? "entry" : "entries")
+    if bad_levels > 0
+        warn_msg += str.format("\n- {0} Range Levels {1}", bad_levels, bad_levels == 1 ? "entry" : "entries")
+    warn_msg += "\n\nExpected formats (one per line):\nOpening Prices: 'Time, Color, Label' - ex. '0930, red, NY Open'\nTimestamps: 'Time, Color' - ex. '1200, black'\nRange Levels: 'Multiplier, Color' - ex. '1.5, purple'\n\nColor and label fields are optional. Times accept 0930, 930, or 09:30. Lines starting with '//' are skipped"
+    table.cell(warn_tbl, 0, 0, "⚠ Settings", text_size = size.small, text_color = chart.fg_color, tooltip = warn_msg)
+// ---------------------------------------- Input Warnings --------------------------------------------------

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;699c36ad3114466ca5a9b1bf2955962f",
+ "title": "Smart Money Volume Activity [AlgoAlpha]",
+ "author": "AlgoAlpha",
+ "url": "https://www.tradingview.com/script/POrDlSAK-smart-money-volume-activity-algoalpha/",
+ "agreeCount": 11049,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-volume-activity-algoalpha__699c36ad31.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-volume-activity-algoalpha__699c36ad31.pine",
+ "our_status": "committed"
+}

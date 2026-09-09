@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;c904837c16f243dba8ca6882b3368b34",
+ "title": "Options Max Pain Calculator [BackQuant]",
+ "author": "BackQuant",
+ "url": "https://www.tradingview.com/script/vsPwh0vN-options-max-pain-calculator-backquant/",
+ "agreeCount": 3703,
+ "category": "other",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine",
+ "cached_source": "tools/pine_survey/cache/sources/options-max-pain-calculator-backquant__c904837c16.pine",
+ "our_status": "committed"
+}

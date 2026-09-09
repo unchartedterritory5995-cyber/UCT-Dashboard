@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;f91c76bdec984146934773a0f886ae14",
+ "title": "Heikin Ashi True Strength Index and Optimized Trend Tracker [Erebor]",
+ "author": "Erebor_GIT",
+ "url": "https://www.tradingview.com/script/uCIA1isW-heikin-ashi-true-strength-index-and-optimized-trend-tracker-/",
+ "agreeCount": 528,
+ "category": "trend",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
+ "cached_source": "tools/pine_survey/cache/sources/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine",
+ "our_status": "committed"
+}

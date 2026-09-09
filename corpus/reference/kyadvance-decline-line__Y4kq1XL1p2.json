@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;Y4kq1XL1p2R7KrT1BRvKJbHKX4fnPqxg",
+ "title": " [KY]Advance Decline Line",
+ "author": "KaibaraYuzan",
+ "url": "https://www.tradingview.com/script/S1GcKule-ky-advance-decline-line/",
+ "agreeCount": 1084,
+ "category": "breadth",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/kyadvance-decline-line__Y4kq1XL1p2.pine",
+ "our_status": "reference-only"
+}

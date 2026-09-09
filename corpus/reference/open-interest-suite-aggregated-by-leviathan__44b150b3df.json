@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;44b150b3df0f4781ac2a46a4ba38c8eb",
+ "title": "Open Interest Suite [Aggregated] - By Leviathan",
+ "author": "LeviathanCapital",
+ "url": "https://www.tradingview.com/script/GKhS3dlt-open-interest-suite-aggregated-by-leviathan/",
+ "agreeCount": 7462,
+ "category": "volume",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/open-interest-suite-aggregated-by-leviathan__44b150b3df.pine",
+ "cached_source": "tools/pine_survey/cache/sources/open-interest-suite-aggregated-by-leviathan__44b150b3df.pine",
+ "our_status": "committed"
+}

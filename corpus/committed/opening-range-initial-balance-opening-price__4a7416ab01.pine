@@ -1,0 +1,101 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © PtGambler
+
+//@version=5
+indicator('Opening Range, Initial Balance, Opening Price', shorttitle="OR/IB/OP", overlay=true)
+
+
+tz_increment = input.int(-4, 'UTC (+/-)', tooltip = 'New York is -4')
+use_exchange = input(false, 'Use Exchange Timezone')
+
+OR_sess = input.session('0930-1000', title='Opening Range Session')
+OR_t = time(timeframe.period, OR_sess + ':1234567', use_exchange ? syminfo.timezone : "GMT" + str.tostring(tz_increment))
+
+IB_sess = input.session('0930-1030', title='Initial Balance Session')
+IB_t = time(timeframe.period, IB_sess + ':1234567', use_exchange ? syminfo.timezone : "GMT" + str.tostring(tz_increment))
+
+show_mid = input.bool(true,"Show Mid levels")
+chg_col = input.bool(true,"Level changes color", tooltip="Lines change color based on whether the closing price is above or below the line")
+
+OR_pos = input.int(5,"OR label position", step=5)
+IB_pos = input.int(10,"IB label position", step=5)
+OP_pos = input.int(10,"OP label position", step=5)
+
+var opening = 0.0
+
+opening := OR_t and not(OR_t[1]) ? open : opening[1]
+
+OR_in_session = not na(OR_t)
+OR_is_first = OR_in_session and not OR_in_session[1]
+
+IB_in_session = not na(IB_t)
+IB_is_first = IB_in_session and not IB_in_session[1]
+
+OR_h = float(na)
+OR_l = float(na)
+
+if OR_is_first
+    OR_h := high
+    OR_l := low
+    OR_l
+else
+    OR_h := OR_h[1]
+    OR_l := OR_l[1]
+    OR_l
+if high > OR_h and OR_in_session
+    OR_h := high
+    OR_h
+if low < OR_l and OR_in_session
+    OR_l := low
+    OR_l
+
+OR_mid = (OR_h + OR_l) / 2
+
+IB_h = float(na)
+IB_l = float(na)
+
+if IB_is_first
+    IB_h := high
+    IB_l := low
+    IB_l
+else
+    IB_h := IB_h[1]
+    IB_l := IB_l[1]
+    IB_l
+if high > IB_h and IB_in_session
+    IB_h := high
+    IB_h
+if low < IB_l and IB_in_session
+    IB_l := low
+    IB_l
+
+IB_mid = (IB_h + IB_l) / 2
+
+OR_line_col(_src)=>
+    chg_col and close > _src ? color.new(color.green,40) : chg_col and close < _src ? color.new(color.red,40) : color.new(color.yellow,60)
+
+IB_line_col(_src)=>
+    chg_col and close > _src ? color.new(color.green,40) : chg_col and close < _src ? color.new(color.red,40) : color.new(color.yellow,60)
+   
+plot(timeframe.isintraday ? opening : na, style=plot.style_circles, color= color.new(color.white,50), title='Opening price', linewidth=2)
+
+plotshape(timeframe.isintraday ? opening : na, style=shape.labeldown, location=location.absolute, color=na, textcolor=color.new(color.white,50),text="OP", offset = OP_pos, show_last = 1)
+
+plot(timeframe.isintraday ? OR_h : na, style=plot.style_circles, color= OR_in_session[1] or OR_in_session ? na : OR_line_col(OR_h), title='OR High', linewidth=2)
+plot(timeframe.isintraday ? OR_l : na, style=plot.style_circles, color= OR_in_session[1] or OR_in_session ? na : OR_line_col(OR_l), title='OR Low', linewidth=2)
+plot(show_mid and timeframe.isintraday ? OR_mid : na, style=plot.style_circles, color= OR_in_session[1] or OR_in_session ? na : OR_line_col(OR_mid), title='OR Low', linewidth=1)
+
+plotshape(timeframe.isintraday ? OR_h : na,style=shape.labeldown, location=location.absolute, color=na, textcolor=OR_in_session[1] or OR_in_session ? na : OR_line_col(OR_h),text="OR High", offset = OR_pos, show_last = 1)
+plotshape(timeframe.isintraday ? OR_l : na,style=shape.labeldown, location=location.absolute, color=na, textcolor=OR_in_session[1] or OR_in_session ? na : OR_line_col(OR_l),text="OR Low", offset = OR_pos, show_last = 1)
+plotshape(show_mid and timeframe.isintraday ? OR_mid : na,style=shape.labeldown, location=location.absolute, color=na, textcolor=OR_in_session[1] or OR_in_session ? na : OR_line_col(OR_mid),text="OR Mid", offset = OR_pos, show_last = 1)
+
+plot(timeframe.isintraday ? IB_h : na, style=plot.style_cross, color= IB_in_session[1] or IB_in_session ? na : IB_line_col(IB_h), title='IB High', linewidth=2)
+plot(timeframe.isintraday ? IB_l : na, style=plot.style_cross, color= IB_in_session[1] or IB_in_session ? na : IB_line_col(IB_l), title='IB Low', linewidth=2)
+plot(show_mid and timeframe.isintraday ? IB_mid : na, style=plot.style_cross, color= IB_in_session[1] or IB_in_session ? na : IB_line_col(IB_mid), title='IB Low', linewidth=1)
+
+plotshape(timeframe.isintraday ? IB_h : na,style=shape.labelup, location=location.absolute, color=na, textcolor=IB_in_session[1] or IB_in_session ? na : IB_line_col(IB_h),text="IB High", offset = IB_pos, show_last = 1)
+plotshape(timeframe.isintraday ? IB_l : na,style=shape.labelup, location=location.absolute, color=na, textcolor=IB_in_session[1] or IB_in_session ? na : IB_line_col(IB_l),text="IB Low", offset = IB_pos, show_last = 1)
+plotshape(show_mid and timeframe.isintraday ? IB_mid : na,style=shape.labelup, location=location.absolute, color=na, textcolor=IB_in_session[1] or IB_in_session ? na : IB_line_col(IB_mid),text="IB Mid", offset = IB_pos, show_last = 1)
+
+
+

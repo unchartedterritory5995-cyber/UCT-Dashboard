@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;0bff41a2e53b4a59a287b775103d8b3a",
+ "title": "Smart Money Concepts by WeloTrades",
+ "author": "WeloTrades",
+ "url": "https://www.tradingview.com/script/VpqHOSip-smart-money-concepts-by-welotrades/",
+ "agreeCount": 8998,
+ "category": "market structure / smart-money",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+ "our_status": "committed"
+}

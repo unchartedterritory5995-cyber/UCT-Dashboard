@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;oayb1wVXkZiM6fDd5Klqn27PN0GwfdcC",
+ "title": "ATR Trailing Stoploss Strategy ",
+ "author": "ceyhun",
+ "url": "https://www.tradingview.com/script/NsD6sRKu-atr-trailing-stoploss-strategy/",
+ "agreeCount": 770,
+ "category": "volatility",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+ "cached_source": "tools/pine_survey/cache/sources/atr-trailing-stoploss-strategy__oayb1wVXkZ.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,463 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Lenny_Kiruthu
+
+//@version=5
+indicator(title = "Multi Timeframe Supply & Demand zones"
+  , shorttitle = "MTF SnD"
+  , overlay = true
+  , max_bars_back = 500
+  , max_lines_count = 500
+  , max_boxes_count = 500)
+
+// Constants
+Transparent_Color = color.new(color.white, 100)
+
+// Groups
+General_Settings_group = "-------General Settings-------"
+Timeframe_1_Group  = "-------Timeframe 1 Settings--------"
+Timeframe_2_Group  = "-------Timeframe 2 Settings--------"
+Timeframe_3_Group  = "-------Timeframe 3 Settings--------"
+
+// Tooltips
+Timeframe_Tooltip = "If set to chart is true no need to alter these two inputs."
+Set_To_Chart_Tooltip = "If set to chart is set to true, there is no need to alter the Timeframe inputs, it will automatically configure itself to the charts timeframe."
+Lower_Timeframe_Tooltip = "If set to true and chart timeframe is higher than the choosen timeframe, supply and demand will not display. Note plotting ltf structure on a htf will provide inaccurate plots."
+Mitigation_Tooltip = "If set to true supply zones with a high above them or a demand zone with a low below them will be removed since they are considered mitigated if false the close value will be used for both supply and demand."
+Alert_Tooltip = "After setting the alert to true or false head over to the alert dialog box and activate the any alert function under the indicator."
+Hide_Demand = "Hide or show the demand zones of the specific timeframe."
+Hide_Supply = "Hide or show the supply zones of the specific timeframe."
+Hide_Timeframe = "Hide or show the entire timeframe."
+
+// General Settings
+Hide_All_Demand = input.bool(defval = false, title = "Hide all demand zones", group = General_Settings_group)
+Hide_All_Supply = input.bool(defval = false, title = "Hide all supply zones", group = General_Settings_group)
+Show_Only_On_Lower_Timeframes = input.bool(defval = true, title = "Show Supply and Demand only on Lower Timeframes", group = General_Settings_group, tooltip = Lower_Timeframe_Tooltip)
+
+// User Inputs
+// Timeframe 1 Settings
+TF_1_Chart_Feature = input.bool(defval = false, title = "Set Timeframe to Chart", group = Timeframe_1_Group, tooltip = Set_To_Chart_Tooltip)
+TF_1_Use_High_Low = input.bool(defval = false, title = "Use High/Low to mitigates zones", group = Timeframe_1_Group, tooltip = Mitigation_Tooltip)
+TF_1_Show_Demand = input.bool(defval = true, title = "Show Demand", group = Timeframe_1_Group, tooltip = Hide_Demand)
+TF_1_Show_Supply = input.bool(defval = true, title = "Show Supply", group = Timeframe_1_Group, tooltip = Hide_Supply)
+TF_1_Demand_Alert = input.bool(defval = true, title = "Use TF 1 Demand Alert", group = Timeframe_1_Group, tooltip = Alert_Tooltip)
+TF_1_Supply_Alert = input.bool(defval = true, title = "Use TF 1 Supply Alert", group = Timeframe_1_Group, tooltip = Alert_Tooltip)
+TF_1_Multip = input.int(defval=2, minval=1, maxval=1440, title="Timeframe 1", group=Timeframe_1_Group, inline="T1")
+TF_1_Period = input.string(defval="Hour", title="", options=["Minute", "Hour", "Day", "Week", "Month"], group=Timeframe_1_Group, inline="T1", tooltip=Timeframe_Tooltip)
+TF_1_Swing_Length = input.int(defval = 7, title = "Swing Length", minval = 1, group = Timeframe_1_Group)
+TF_1_Line_Type = input.string(defval = "Solid", title = "Border Type", options = ["Solid", "Dashed", "Dotted"], group = Timeframe_1_Group)
+TF_1_Text_Size = input.string(defval = "Small", title = "Text Size", options = ["Normal", "Tiny", "Small", "Large", "Huge", "Auto"], group = Timeframe_1_Group)
+TF_1_Line_Width = input.int(defval = 1, title = "Border Width", group = Timeframe_1_Group)
+TF_1_Demand_Show_Last = input.int(defval = 2, title = "Show last (Demand)", group = Timeframe_1_Group)
+TF_1_Supply_Show_Last = input.int(defval = 2, title = "Show last (Supply)", group = Timeframe_1_Group)
+TF_1_Demand_Color = input.color(defval = #c6f89560, title = "Demand Color", group = Timeframe_1_Group, inline = "TF 1 Color")
+TF_1_Supply_Color = input.color(defval = #fb726a60, title = "Supply Color", group = Timeframe_1_Group, inline = "TF 1 Color")
+TF_1_Text_Color  = input.color(defval = color.white, title = "Text Color", group = Timeframe_1_Group)
+
+// Timeframe 2 Settings
+TF_2_Chart_Feature = input.bool(defval = false, title = "Set Timeframe to Chart", group = Timeframe_2_Group, tooltip = Set_To_Chart_Tooltip)
+TF_2_Use_High_Low = input.bool(defval = false, title = "Use High/Low to mitigates zones", group = Timeframe_2_Group, tooltip = Mitigation_Tooltip)
+TF_2_Show_Demand = input.bool(defval = true, title = "Show Demand", group = Timeframe_2_Group, tooltip = Hide_Demand)
+TF_2_Show_Supply = input.bool(defval = true, title = "Show Supply", group = Timeframe_2_Group, tooltip = Hide_Supply)
+TF_2_Demand_Alert = input.bool(defval = true, title = "Use TF 2 Demand Alert", group = Timeframe_2_Group, tooltip = Alert_Tooltip)
+TF_2_Supply_Alert = input.bool(defval = true, title = "Use TF 2 Supply Alert", group = Timeframe_2_Group, tooltip = Alert_Tooltip)
+TF_2_Multip = input.int(defval=30, minval=1, maxval=1440, title="Timeframe 2", group=Timeframe_2_Group, inline="T2")
+TF_2_Period = input.string(defval="Minute", title="", options=["Minute", "Hour", "Day", "Week", "Month"], group=Timeframe_2_Group, inline="T2", tooltip=Timeframe_Tooltip)
+TF_2_Swing_Length = input.int(defval = 7, title = "Swing Length", minval = 1, group = Timeframe_2_Group)
+TF_2_Line_Type = input.string(defval = "Solid", title = "Border Type", options = ["Solid", "Dashed", "Dotted"], group = Timeframe_2_Group)
+TF_2_Text_Size = input.string(defval = "Small", title = "Text Size", options = ["Normal", "Tiny", "Small", "Large", "Huge", "Auto"], group = Timeframe_2_Group)
+TF_2_Line_Width = input.int(defval = 1, title = "Border Width", group = Timeframe_2_Group)
+TF_2_Demand_Show_Last = input.int(defval = 2, title = "Show last (Demand)", group = Timeframe_2_Group)
+TF_2_Supply_Show_Last = input.int(defval = 2, title = "Show last (Supply)", group = Timeframe_2_Group)
+TF_2_Demand_Color = input.color(defval = #5794f860, title = "Demand Color", group = Timeframe_2_Group, inline = "TF 2 Color")
+TF_2_Supply_Color = input.color(defval = #f9c9fe60, title = "Supply Color", group = Timeframe_2_Group, inline = "TF 2 Color")
+TF_2_Text_Color  = input.color(defval = color.white, title = "Text Color", group = Timeframe_2_Group)
+
+// General functions
+// Getting the line type from the user.
+Line_Type_Control(Type) =>
+    Line_Functionality = switch Type
+        "Solid" => line.style_solid
+        "Dashed" => line.style_dashed
+        "Dotted" => line.style_dotted
+    
+    Line_Functionality
+
+// Text size from the user
+Text_Size_Switch(Text_Size) =>
+    Text_Type = switch Text_Size
+        "Normal" => size.normal
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Large" => size.large
+        "Huge" => size.huge
+        "Auto" => size.auto
+    Text_Type
+
+// Timeframe functionality
+// Timeframe for security functions
+TF(TF_Period, TF_Multip) => 
+    switch TF_Period 
+        "Minute" => str.tostring(TF_Multip)
+        "Hour"   => str.tostring(TF_Multip*60)
+        "Day"    => str.tostring(TF_Multip) + "D"
+        "Week"   => str.tostring(TF_Multip) + "W"
+        "Month"  => str.tostring(TF_Multip) + "M"
+        => timeframe.period
+
+// Timeframe shortcut form
+TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip) =>
+    if Chart_as_Timeframe == false
+        switch TF_Period
+            "Minute" => str.tostring(TF_Multip)  + "Min"
+            "Hour"   => str.tostring(TF_Multip)  + "H"
+            "Day"    => str.tostring(TF_Multip)  + "D"
+            "Week"   => str.tostring(TF_Multip)  + "W"
+            "Month"  => str.tostring(TF_Multip)  + "M"
+    
+    else if Chart_as_Timeframe == true
+        switch 
+            timeframe.isminutes and  timeframe.multiplier % 60 != 0 
+                                 => str.tostring(timeframe.multiplier)    + "Min"
+                                 
+            timeframe.isminutes and  timeframe.multiplier % 60 == 0 
+                                 => str.tostring(timeframe.multiplier/60) + "H"
+                                 
+            timeframe.isdaily    => str.tostring(timeframe.multiplier)    + "D"
+            timeframe.isweekly   => str.tostring(timeframe.multiplier)    + "W"
+            timeframe.ismonthly  => str.tostring(timeframe.multiplier)    + "M"
+
+MTF_MS_Display(Chart_as_Timeframe, TF_Period, TF_Multip, Swing_Length) =>
+    if Chart_as_Timeframe == true
+        Swing_Length
+    else
+        switch
+            TF_Period == "Month" and timeframe.isminutes and timeframe.multiplier % 60 == 0 and 
+              (24*5*5/((TF_Multip * 1440*5*5)/timeframe.multiplier)) * 60 == timeframe.multiplier => ((TF_Multip * 1440)*5*5/ timeframe.multiplier)*Swing_Length
+
+            TF_Period == "Month" and timeframe.isweekly and 
+              (5/((TF_Multip * 1440 * 5)/timeframe.multiplier)) * 1440 == timeframe.multiplier => ((TF_Multip * 1440)*5/ 1440)*Swing_Length
+
+            TF_Period == "Month" and timeframe.isdaily and 
+              (5*5/((TF_Multip * 1440 * 5*5)/timeframe.multiplier)) * 1440 == timeframe.multiplier => ((TF_Multip * 1440)*5*5/ 1440)*Swing_Length
+            
+            timeframe.ismonthly  and timeframe.multiplier == TF_Multip and 
+              TF_Period == "Month" => Swing_Length
+
+            TF_Period == "Week" and timeframe.isminutes and timeframe.multiplier % 60 == 0 and 
+              (24*5/((TF_Multip * 1440*5)/timeframe.multiplier)) * 60 == timeframe.multiplier => ((TF_Multip * 1440)*5/ timeframe.multiplier)*Swing_Length
+
+            TF_Period == "Week" and timeframe.isdaily and 
+              (5/((TF_Multip * 1440 * 5)/timeframe.multiplier)) * 1440 == timeframe.multiplier => ((TF_Multip * 1440)*5/ 1440)*Swing_Length
+            
+            timeframe.isweekly  and timeframe.multiplier == TF_Multip and 
+              TF_Period == "Week" => Swing_Length
+
+            TF_Period == "Day" and timeframe.isminutes and timeframe.multiplier % 60 == 0 and 
+              (24/((TF_Multip * 1440)/timeframe.multiplier)) * 60 == timeframe.multiplier => (TF_Multip * 1440/ timeframe.multiplier)*Swing_Length
+
+            timeframe.isdaily  and timeframe.multiplier == TF_Multip and 
+              TF_Period == "Day" => Swing_Length
+            
+            timeframe.isminutes and timeframe.multiplier % 60 != 0 and 
+              TF_Period == "Minute" and TF_Multip == timeframe.multiplier => Swing_Length
+            
+            timeframe.isminutes and timeframe.multiplier % 60 != 0 and 
+              TF_Period == "Minute" and TF_Multip != timeframe.multiplier => ((TF_Multip/60) * 60/timeframe.multiplier)*Swing_Length
+
+            timeframe.isminutes and timeframe.multiplier % 60 != 0 and 
+              TF_Period == "Hour" and TF_Multip != timeframe.multiplier => ((TF_Multip * 60 /60) * 60/timeframe.multiplier)*Swing_Length
+
+            timeframe.isminutes and timeframe.multiplier % 60 != 0 and 
+              TF_Period == "Hour" and TF_Multip == timeframe.multiplier and timeframe.multiplier * 60 == 60 => ((TF_Multip * 60 /60) * 60/timeframe.multiplier)*Swing_Length
+
+            timeframe.isminutes and timeframe.multiplier % 60 != 0 and 
+              TF_Period == "Day" and TF_Multip != timeframe.multiplier => ((TF_Multip * 1440 /60) * 60/timeframe.multiplier)*Swing_Length
+            
+            timeframe.isminutes and timeframe.multiplier % 60 == 0 and 
+              TF_Period == "Hour" and TF_Multip * 60 == timeframe.multiplier => Swing_Length
+
+            timeframe.isminutes and timeframe.multiplier % 60 == 0 and 
+              TF_Period == "Hour" and TF_Multip * 60 != timeframe.multiplier => (TF_Multip * 60/timeframe.multiplier)*Swing_Length
+
+HTF_Structure_Control(Chart_as_Timeframe, TF_Period, TF_Multip) =>
+    if Chart_as_Timeframe == true
+        true
+    else if Show_Only_On_Lower_Timeframes == false
+        true
+    else 
+        switch
+            TF_Period == "Minute" and TF_Multip < timeframe.multiplier and timeframe.isminutes
+              => false
+            TF_Period == "Minute" and TF_Multip >= timeframe.multiplier and timeframe.isminutes
+              => true
+            TF_Period == "Minute" and timeframe.isdaily 
+              => false
+            TF_Period == "Minute" and timeframe.isweekly 
+              => false
+            TF_Period == "Minute" and timeframe.ismonthly 
+              => false
+            TF_Period == "Hour" and TF_Multip * 60 < timeframe.multiplier and timeframe.isminutes 
+              => false
+            TF_Period == "Hour" and TF_Multip * 60 >= timeframe.multiplier and timeframe.isminutes
+              => true
+            TF_Period == "Hour" and timeframe.isdaily 
+              => false
+            TF_Period == "Hour" and timeframe.isweekly 
+              => false
+            TF_Period == "Hour" and timeframe.ismonthly 
+              => false
+            TF_Period == "Day" and timeframe.isdaily or timeframe.isminutes 
+              => true
+            TF_Period == "Week" and timeframe.isweekly or timeframe.isdaily or timeframe.isminutes 
+              => true
+            TF_Period == "Month" and timeframe.ismonthly or timeframe.isweekly or timeframe.isdaily or timeframe.isminutes 
+              => true
+
+
+// Arrays
+var Bullish_SnD_Top_TF_1 = array.new_float(0)
+var Bullish_SnD_Btm_TF_1 = array.new_float(0)
+var Bullish_SnD_Left_TF_1 = array.new_int(0)
+var Bullish_SnD_Type_TF_1 = array.new_int(0)
+var Bearish_SnD_Top_TF_1 = array.new_float(0)
+var Bearish_SnD_Btm_TF_1 = array.new_float(0)
+var Bearish_SnD_Left_TF_1 = array.new_int(0)
+var Bearish_SnD_Type_TF_1 = array.new_int(0)
+
+var Bullish_SnD_Top_TF_2 = array.new_float(0)
+var Bullish_SnD_Btm_TF_2 = array.new_float(0)
+var Bullish_SnD_Left_TF_2 = array.new_int(0)
+var Bullish_SnD_Type_TF_2 = array.new_int(0)
+var Bearish_SnD_Top_TF_2 = array.new_float(0)
+var Bearish_SnD_Btm_TF_2 = array.new_float(0)
+var Bearish_SnD_Left_TF_2 = array.new_int(0)
+var Bearish_SnD_Type_TF_2 = array.new_int(0)
+
+// TF Pivot values
+// TF_1_Calc_High = ta.pivothigh(high, TF_1_Swing_Length, TF_1_Swing_Length)
+
+// Getting the high and low values
+[TF_1_SH, TF_1_SL, TF_1_SH_Low, TF_1_SL_High, TF_1_Atr] = request.security(symbol = syminfo.tickerid, timeframe = (TF_1_Chart_Feature ? timeframe.period : TF(TF_1_Period, TF_1_Multip))
+  , expression = [ta.pivothigh(high, TF_1_Swing_Length, TF_1_Swing_Length)
+  , ta.pivotlow(low, TF_1_Swing_Length, TF_1_Swing_Length)
+  , not na(ta.pivothigh(high, TF_1_Swing_Length, TF_1_Swing_Length)) ? low[TF_1_Swing_Length] : 0
+  , not na(ta.pivotlow(low, TF_1_Swing_Length, TF_1_Swing_Length)) ? high[TF_1_Swing_Length] : 0
+  , ta.atr(200)]
+  , gaps = barmerge.gaps_on)
+
+[TF_2_SH, TF_2_SL, TF_2_SH_Low, TF_2_SL_High, TF_2_Atr] = request.security(symbol = syminfo.tickerid, timeframe = (TF_2_Chart_Feature ? timeframe.period : TF(TF_2_Period, TF_2_Multip))
+  , expression = [ta.pivothigh(high, TF_2_Swing_Length, TF_2_Swing_Length)
+  , ta.pivotlow(low, TF_2_Swing_Length, TF_2_Swing_Length)
+  , not na(ta.pivothigh(high, TF_2_Swing_Length, TF_2_Swing_Length)) ? low[TF_2_Swing_Length] : 0
+  , not na(ta.pivotlow(low, TF_2_Swing_Length, TF_2_Swing_Length)) ? high[TF_2_Swing_Length] : 0
+  , ta.atr(200)]
+  , gaps = barmerge.gaps_on)
+// [TF_3_SH, TF_3_SL] = request.security(symbol = syminfo.ticker, timeframe = (TF_3_Chart_Feature ? timeframe.period : TF(TF_3_Period, TF_3_Multip))
+//   , expression = [ta.pivothigh(high, TF_3_Swing_Length, TF_3_Swing_Length), ta.pivotlow(low, TF_3_Swing_Length, TF_3_Swing_Length)], gaps = barmerge.gaps_on)
+
+                              // Functions //
+// The function below is designed to loop through the arrays holding the box plot values for supply and demand box plots
+// and remove the mitigated (unnecessary plots) on the chart.
+
+Supply_and_Demand_Mitigation(SnD_Top, SnD_Btm, SnD_Left, SnD_Type, SnD_Dir, TF_Use_High_Low) =>
+    if SnD_Dir == "Bearish"
+        for i in SnD_Type
+            index = array.indexof(SnD_Type, i)
+
+            if (TF_Use_High_Low ? high : close) > array.get(SnD_Top, index)
+                array.remove(SnD_Top, index) 
+                array.remove(SnD_Btm, index)
+                array.remove(SnD_Left, index) 
+                array.remove(SnD_Type, index)
+
+                // array.set()
+
+    else if SnD_Dir == "Bullish"
+        for i in SnD_Type
+            index = array.indexof(SnD_Type, i)
+
+            if (TF_Use_High_Low ? low : close) < array.get(SnD_Btm, index)
+                array.remove(SnD_Top, index) 
+                array.remove(SnD_Btm, index)
+                array.remove(SnD_Left, index) 
+                array.remove(SnD_Type, index)
+
+// The function below is designed to find the necessary swing points in our chart that fit the description
+// of demand and supply zones
+
+Supply_and_Demand_Functionality(TF_SH, TF_SL, TF_SH_Low, TF_SL_High, TF_Atr
+  , Swing_Length, Chart_as_Timeframe, TF_Period, TF_Multip
+  , Bullish_SnD_Top, Bullish_SnD_Btm, Bullish_SnD_Left, Bullish_SnD_Type
+  , Bearish_SnD_Top, Bearish_SnD_Btm, Bearish_SnD_Left, Bearish_SnD_Type
+  , Use_Demand_Alert, Use_Supply_Alert) => 
+    
+    // Variables to identify HH, HL, LH, LL
+    var float TF_Prev_High = na
+    var float TF_Prev_Low = na
+    TF_Prev_High_Time = 0
+    TF_Prev_Low_Time = 0
+
+    //Tracking whether previous levels have been broken
+    var bool TF_High_Present = false
+    var bool TF_Low_Present = false
+    
+    // Variables for creating supply and demand boxes
+    bool HH = false
+    bool LH = false
+    bool HL = false
+    bool LL = false
+
+
+    // Identify new pivot highs and lows
+    if not na(TF_SH)
+        if TF_SH >= TF_Prev_High
+            HH := true
+        else
+            LH := true
+        TF_Prev_High := TF_SH
+        TF_Prev_High_Time := TF_Prev_High != TF_Prev_High[1] ? time[MTF_MS_Display(Chart_as_Timeframe, TF_Period, TF_Multip, Swing_Length)] : TF_Prev_High_Time[1]
+        TF_High_Present := true
+
+    if not na(TF_SL)
+        if TF_SL >= TF_Prev_Low
+            HL := true
+        else
+            LL := true
+        TF_Prev_Low := TF_SL
+        TF_Prev_Low_Time := TF_Prev_Low != TF_Prev_Low[1] ? time[MTF_MS_Display(Chart_as_Timeframe, TF_Period, TF_Multip, Swing_Length)] : TF_Prev_Low_Time[1]
+        TF_Low_Present := true
+  
+
+    // Displaying Swing Level
+    // Demand zones
+    if LL and (math.abs(TF_SL_High - TF_Prev_Low) < TF_Atr * 2)
+        array.unshift(Bullish_SnD_Top, TF_SL_High)
+        array.unshift(Bullish_SnD_Btm, TF_Prev_Low)
+        array.unshift(Bullish_SnD_Left, TF_Prev_Low_Time)
+        array.unshift(Bullish_SnD_Type, 1)
+        if Use_Demand_Alert
+            alert(message = "New demand zone formed on " +  + TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip), freq = alert.freq_once_per_bar_close)
+
+    if HL and (math.abs(TF_SL_High - TF_Prev_Low) < TF_Atr * 2)
+        array.unshift(Bullish_SnD_Top, TF_SL_High)
+        array.unshift(Bullish_SnD_Btm, TF_Prev_Low)
+        array.unshift(Bullish_SnD_Left, TF_Prev_Low_Time)
+        array.unshift(Bullish_SnD_Type, 1)
+        if Use_Demand_Alert
+            alert(message = "New demand zone formed on " +  + TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip), freq = alert.freq_once_per_bar_close)
+
+    // Supply zones
+    if HH and (math.abs(TF_Prev_High - TF_SH_Low) < TF_Atr * 2)
+        array.unshift(Bearish_SnD_Top, TF_Prev_High)
+        array.unshift(Bearish_SnD_Btm, TF_SH_Low)
+        array.unshift(Bearish_SnD_Left, TF_Prev_High_Time)
+        array.unshift(Bearish_SnD_Type, -1)
+        if Use_Supply_Alert
+            alert(message = "New supply zone formed on " +  + TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip), freq = alert.freq_once_per_bar_close)
+
+    if LH and (math.abs(TF_Prev_High - TF_SH_Low) < TF_Atr * 2)
+        array.unshift(Bearish_SnD_Top, TF_Prev_High)
+        array.unshift(Bearish_SnD_Btm, TF_SH_Low)
+        array.unshift(Bearish_SnD_Left, TF_Prev_High_Time)
+        array.unshift(Bearish_SnD_Type, -1)
+        if Use_Supply_Alert
+            alert(message = "New supply zone formed on " +  + TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip), freq = alert.freq_once_per_bar_close)
+
+
+// The function below is designed to sift through our boxes, plot them on the chart and apply the necessary formatting.
+
+Display_SnD_Zones(Box_PLot_Type, Box_Top, Box_Btm, Box_Left, Box_Type, Show_Last, Box_Arr_size
+  , TF_Demand_Color, TF_Supply_Color, TF_Text_Color, TF_Text_Size, TF_Border_style, TF_Border_width
+  , Chart_as_Timeframe, TF_Period, TF_Multip)=>
+    for i = 0 to math.min(Show_Last-1, Box_Arr_size-1)
+        get_box = array.get(Box_PLot_Type, i)
+
+        if HTF_Structure_Control(Chart_as_Timeframe, TF_Period, TF_Multip)
+            box.set_top(get_box, array.get(Box_Top, i))
+            box.set_bottom(get_box, array.get(Box_Btm, i))
+            box.set_left(get_box, array.get(Box_Left,i))        
+            box.set_right(get_box, time_close("W"))
+
+        if Box_Type == "Bullish" 
+            box.set_bgcolor(get_box, TF_Demand_Color)
+            box.set_border_color(get_box, TF_Demand_Color)
+            box.set_text(get_box, TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip))
+            box.set_text_color(get_box, TF_Text_Color)
+            box.set_text_font_family(get_box, font.family_default)
+            box.set_text_halign(get_box, text.align_right)
+            box.set_text_valign(get_box, text.align_top)
+            box.set_text_size(get_box, TF_Text_Size)
+            box.set_border_style(get_box, TF_Border_style)
+            box.set_border_width(get_box, TF_Border_width)
+        else if Box_Type == "Bearish" 
+            box.set_bgcolor(get_box, TF_Supply_Color)
+            box.set_border_color(get_box, TF_Supply_Color)
+            box.set_text(get_box, TF_Display(Chart_as_Timeframe, TF_Period, TF_Multip))
+            box.set_text_color(get_box, TF_Text_Color)
+            box.set_text_font_family(get_box, font.family_default)
+            box.set_text_halign(get_box, text.align_right)
+            box.set_text_valign(get_box, text.align_bottom)
+            box.set_text_size(get_box, TF_Text_Size)
+            box.set_border_style(get_box, TF_Border_style)
+            box.set_border_width(get_box, TF_Border_width)
+
+// Calling functions
+Supply_and_Demand_Functionality(TF_1_SH, TF_1_SL, TF_1_SH_Low, TF_1_SL_High, TF_1_Atr
+  , TF_1_Swing_Length, TF_1_Chart_Feature, TF_1_Period, TF_1_Multip
+  , Bullish_SnD_Top_TF_1, Bullish_SnD_Btm_TF_1, Bullish_SnD_Left_TF_1 ,Bullish_SnD_Type_TF_1
+  , Bearish_SnD_Top_TF_1, Bearish_SnD_Btm_TF_1, Bearish_SnD_Left_TF_1, Bearish_SnD_Type_TF_1
+  , TF_1_Demand_Alert, TF_1_Supply_Alert)
+
+Supply_and_Demand_Functionality(TF_2_SH, TF_2_SL, TF_2_SH_Low, TF_2_SL_High, TF_2_Atr
+  , TF_2_Swing_Length, TF_2_Chart_Feature, TF_2_Period, TF_2_Multip
+  , Bullish_SnD_Top_TF_2, Bullish_SnD_Btm_TF_2, Bullish_SnD_Left_TF_2 ,Bullish_SnD_Type_TF_2
+  , Bearish_SnD_Top_TF_2, Bearish_SnD_Btm_TF_2, Bearish_SnD_Left_TF_2, Bearish_SnD_Type_TF_2
+  , TF_2_Demand_Alert, TF_2_Supply_Alert)
+
+var TF_1_Bullish_Box_PLots = array.new_box(0)
+var TF_1_Bearish_Box_PLots = array.new_box(0)
+var TF_2_Bullish_Box_PLots = array.new_box(0)
+var TF_2_Bearish_Box_PLots = array.new_box(0)
+
+TF_1_Bullish_Size = array.size(Bullish_SnD_Top_TF_1)
+TF_1_Bearish_Size = array.size(Bearish_SnD_Top_TF_1)
+TF_2_Bullish_Size = array.size(Bullish_SnD_Top_TF_2)
+TF_2_Bearish_Size = array.size(Bearish_SnD_Top_TF_2)
+
+Supply_and_Demand_Mitigation(Bullish_SnD_Top_TF_1, Bullish_SnD_Btm_TF_1, Bullish_SnD_Left_TF_1, Bullish_SnD_Type_TF_1, "Bullish", TF_1_Use_High_Low)
+Supply_and_Demand_Mitigation(Bearish_SnD_Top_TF_1, Bearish_SnD_Btm_TF_1, Bearish_SnD_Left_TF_1, Bearish_SnD_Type_TF_1, "Bearish", TF_1_Use_High_Low)
+
+Supply_and_Demand_Mitigation(Bullish_SnD_Top_TF_2, Bullish_SnD_Btm_TF_2, Bullish_SnD_Left_TF_2, Bullish_SnD_Type_TF_2, "Bullish", TF_2_Use_High_Low)
+Supply_and_Demand_Mitigation(Bearish_SnD_Top_TF_2, Bearish_SnD_Btm_TF_2, Bearish_SnD_Left_TF_2, Bearish_SnD_Type_TF_2, "Bearish", TF_2_Use_High_Low)
+
+if barstate.isfirst
+    for i = 0 to 125
+        array.push(TF_1_Bullish_Box_PLots, box.new(na,na,na,na, xloc = xloc.bar_time))
+        array.push(TF_1_Bearish_Box_PLots, box.new(na,na,na,na, xloc = xloc.bar_time))
+        array.push(TF_2_Bullish_Box_PLots, box.new(na,na,na,na, xloc = xloc.bar_time))
+        array.push(TF_2_Bearish_Box_PLots, box.new(na,na,na,na, xloc = xloc.bar_time))
+
+if TF_1_Bullish_Size > 0 and TF_1_Show_Demand and not Hide_All_Demand
+    if barstate.islast
+        Display_SnD_Zones(TF_1_Bullish_Box_PLots, Bullish_SnD_Top_TF_1, Bullish_SnD_Btm_TF_1, Bullish_SnD_Left_TF_1, "Bullish", TF_1_Demand_Show_Last, TF_1_Bullish_Size
+          , TF_1_Demand_Color, TF_1_Supply_Color, TF_1_Text_Color, Text_Size_Switch(TF_1_Text_Size), Line_Type_Control(TF_1_Line_Type), TF_1_Line_Width
+          , TF_1_Chart_Feature, TF_1_Period, TF_1_Multip)
+
+if TF_1_Bearish_Size > 0 and TF_1_Show_Supply and not Hide_All_Supply
+    if barstate.islast
+        Display_SnD_Zones(TF_1_Bearish_Box_PLots, Bearish_SnD_Top_TF_1, Bearish_SnD_Btm_TF_1, Bearish_SnD_Left_TF_1, "Bearish", TF_1_Supply_Show_Last, TF_1_Bearish_Size
+          , TF_1_Demand_Color, TF_1_Supply_Color, TF_1_Text_Color, Text_Size_Switch(TF_1_Text_Size), Line_Type_Control(TF_1_Line_Type), TF_1_Line_Width
+          , TF_1_Chart_Feature, TF_1_Period, TF_1_Multip)
+
+if TF_2_Bullish_Size > 0 and TF_2_Show_Demand and not Hide_All_Demand
+    if barstate.islast
+        Display_SnD_Zones(TF_2_Bullish_Box_PLots, Bullish_SnD_Top_TF_2, Bullish_SnD_Btm_TF_2, Bullish_SnD_Left_TF_2, "Bullish", TF_2_Demand_Show_Last, TF_2_Bullish_Size
+          , TF_2_Demand_Color, TF_2_Supply_Color, TF_2_Text_Color, Text_Size_Switch(TF_2_Text_Size), Line_Type_Control(TF_2_Line_Type), TF_2_Line_Width
+          , TF_2_Chart_Feature, TF_2_Period, TF_2_Multip)
+
+if TF_2_Bearish_Size > 0 and TF_2_Show_Supply and not Hide_All_Supply
+    if barstate.islast
+        Display_SnD_Zones(TF_2_Bearish_Box_PLots, Bearish_SnD_Top_TF_2, Bearish_SnD_Btm_TF_2, Bearish_SnD_Left_TF_2, "Bearish", TF_2_Supply_Show_Last, TF_2_Bearish_Size
+          , TF_2_Demand_Color, TF_2_Supply_Color, TF_2_Text_Color, Text_Size_Switch(TF_2_Text_Size), Line_Type_Control(TF_2_Line_Type), TF_2_Line_Width
+          , TF_2_Chart_Feature, TF_2_Period, TF_2_Multip)
+

@@ -1,0 +1,21 @@
+{
+ "generated_by": "tools/pine_survey/corpus_ingest.py",
+ "plan": "docs/pine/corpus-expansion-plan.json",
+ "policy": "docs/pine/LICENSING.md",
+ "gate": "tools/pine_survey/corpus_licence.classify",
+ "counts": {
+  "plan_entries": 537,
+  "committed": 266,
+  "reference_only": 271,
+  "unresolved": 0
+ },
+ "licences": {
+  "MPL-2.0": 264,
+  "NONE-IN-SOURCE": 227,
+  "MIT": 2,
+  "CC-BY-NC-SA": 38,
+  "GPL-3.0": 1,
+  "GPL": 2,
+  "CC-BY-SA": 3
+ }
+}

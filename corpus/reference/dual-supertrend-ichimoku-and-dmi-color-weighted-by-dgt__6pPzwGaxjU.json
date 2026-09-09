@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;6pPzwGaxjUncjzWJY6kp8dQHXpZEVaUN",
+ "title": "Dual SuperTrend, Ichimoku and DMI Color Weighted by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/9DH0LwSI-dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt/",
+ "agreeCount": 3159,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU.pine",
+ "our_status": "reference-only"
+}

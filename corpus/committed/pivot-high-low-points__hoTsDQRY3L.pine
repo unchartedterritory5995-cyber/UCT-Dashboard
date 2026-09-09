@@ -1,0 +1,12 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © LonesomeTheBlue
+
+//@version=4
+study("Pivot High Low Points", overlay =true)
+lb = input(defval = 5, title="Left Bars")
+rb = input(defval = 5, title="Right Bars")
+
+mb = lb + rb + 1
+
+plotshape(iff(not na(high[mb]), iff(highestbars(mb) == -lb, high[lb], na), na), style = shape.triangledown, location = location.abovebar, color = color.red, size = size.tiny, offset = -lb)
+plotshape(iff(not na(low[mb]), iff(lowestbars(mb) == -lb, low[lb], na), na), style = shape.triangleup, location = location.belowbar, color = color.lime, size = size.tiny, offset = -lb)

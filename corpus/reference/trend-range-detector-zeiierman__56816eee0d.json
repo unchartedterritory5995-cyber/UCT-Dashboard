@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;56816eee0d9c436bbfe1ad4e20404c68",
+ "title": "Trend Range Detector (Zeiierman)",
+ "author": "Zeiierman",
+ "url": "https://www.tradingview.com/script/WC3DYn1W-trend-range-detector-zeiierman/",
+ "agreeCount": 7427,
+ "category": "trend",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "CC-BY-NC-SA",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/trend-range-detector-zeiierman__56816eee0d.pine",
+ "our_status": "reference-only"
+}

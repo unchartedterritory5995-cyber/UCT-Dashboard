@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;e247952471e7411992f384cad825690c",
+ "title": "Scalping Strategy with Williams %R, MACD, and SMA (1-Minute Only)",
+ "author": "girishmanuja",
+ "url": "https://www.tradingview.com/script/975ByLQ5-scalping-strategy-with-williams-r-macd-and-sma-1-minute-only/",
+ "agreeCount": 3706,
+ "category": "momentum",
+ "pine_version": "v5",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine",
+ "cached_source": "tools/pine_survey/cache/sources/scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine",
+ "our_status": "committed"
+}

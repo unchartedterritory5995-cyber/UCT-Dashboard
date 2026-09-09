@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;3dc9be8b73f54a888355edae991f98ce",
+ "title": "Trendline Pivots [QuantVue]",
+ "author": "QuantVue",
+ "url": "https://www.tradingview.com/script/YbPHHN8X-trendline-pivots-quantvue/",
+ "agreeCount": 4433,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/trendline-pivots-quantvue__3dc9be8b73.pine",
+ "cached_source": "tools/pine_survey/cache/sources/trendline-pivots-quantvue__3dc9be8b73.pine",
+ "our_status": "committed"
+}

@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8c16588ae9504f17b48a844d9120079c",
+ "title": "Take profit Multi timeframe",
+ "author": "TrendCrypto2022",
+ "url": "https://www.tradingview.com/script/9lzBKqhc-take-profit-multi-timeframe/",
+ "agreeCount": 1938,
+ "category": "multi-timeframe dashboard",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/take-profit-multi-timeframe__8c16588ae9.pine",
+ "cached_source": "tools/pine_survey/cache/sources/take-profit-multi-timeframe__8c16588ae9.pine",
+ "our_status": "committed"
+}

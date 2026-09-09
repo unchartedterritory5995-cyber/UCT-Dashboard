@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;5JF4Np02MaF8ht1sb5i07uerLkj58fSU",
+ "title": "OBV MACD Indicator",
+ "author": "RafaelZioni",
+ "url": "https://www.tradingview.com/script/jXvqrU4q-obv-macd-indicator/",
+ "agreeCount": 7971,
+ "category": "momentum",
+ "pine_version": "v4",
+ "declaration": "study",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/obv-macd-indicator__5JF4Np02Ma.pine",
+ "our_status": "reference-only"
+}

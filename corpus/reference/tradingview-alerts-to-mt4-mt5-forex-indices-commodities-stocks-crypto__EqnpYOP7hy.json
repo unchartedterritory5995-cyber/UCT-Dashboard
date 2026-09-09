@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;EqnpYOP7hyFVsTufjzczAvVJPIPK6ORz",
+ "title": "TradingView Alerts to MT4 MT5 - Forex, indices, commodities, stocks, crypto",
+ "author": "Peter_O",
+ "url": "https://www.tradingview.com/script/BTSkg8IP-tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stoc/",
+ "agreeCount": 1193,
+ "category": "other",
+ "pine_version": "unknown — source not yet fetched",
+ "declaration": "strategy",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+ "cached_source": "tools/pine_survey/cache/sources/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+ "our_status": "committed"
+}

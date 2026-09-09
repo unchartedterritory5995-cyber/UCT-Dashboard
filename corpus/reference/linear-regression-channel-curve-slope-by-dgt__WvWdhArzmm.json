@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;WvWdhArzmm2x97mJFkWyG9SMvGxDHMRR",
+ "title": "Linear Regression Channel / Curve / Slope by DGT",
+ "author": "dgtrd",
+ "url": "https://www.tradingview.com/script/ropVPOmR-linear-regression-channel-curve-slope-by-dgt/",
+ "agreeCount": 7608,
+ "category": "support/resistance",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "NONE-IN-SOURCE",
+ "verdict": "reference",
+ "source_file": null,
+ "cached_source": "tools/pine_survey/cache/sources/linear-regression-channel-curve-slope-by-dgt__WvWdhArzmm.pine",
+ "our_status": "reference-only"
+}

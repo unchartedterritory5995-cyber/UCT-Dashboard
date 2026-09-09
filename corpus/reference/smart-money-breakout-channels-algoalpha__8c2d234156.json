@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;8c2d234156044effa75d531d82b247b3",
+ "title": "Smart Money Breakout Channels [AlgoAlpha]",
+ "author": "AlgoAlpha",
+ "url": "https://www.tradingview.com/script/Hvk5WzPi-smart-money-breakout-channels-algoalpha/",
+ "agreeCount": 29938,
+ "category": "market structure / smart-money",
+ "pine_version": "v6",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/smart-money-breakout-channels-algoalpha__8c2d234156.pine",
+ "cached_source": "tools/pine_survey/cache/sources/smart-money-breakout-channels-algoalpha__8c2d234156.pine",
+ "our_status": "committed"
+}

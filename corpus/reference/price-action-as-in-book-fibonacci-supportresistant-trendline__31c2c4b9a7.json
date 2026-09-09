@@ -1,0 +1,15 @@
+{
+ "scriptIdPart": "PUB;31c2c4b9a7624b2e841a59cd7d2ae6f9",
+ "title": "Price action as in book: Fibonacci + Support/Resistant + Trendline",
+ "author": "TrendCrypto2022",
+ "url": "https://www.tradingview.com/script/HJqjyjGi-price-action-as-in-book-fibonacci-support-resistant-trendlin/",
+ "agreeCount": 5268,
+ "category": "support/resistance",
+ "pine_version": "v5",
+ "declaration": "indicator",
+ "licence": "MPL-2.0",
+ "verdict": "commit",
+ "source_file": "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+ "cached_source": "tools/pine_survey/cache/sources/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+ "our_status": "committed"
+}
