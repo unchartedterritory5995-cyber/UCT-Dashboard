@@ -113,3 +113,5 @@ tools/share_phone_out/
 tools/wave_l_e2e_out/
 tools/semantic_benchmark_out/
 tools/prod_asset_proof_out/
+
+tools/wave_p5_load_out/

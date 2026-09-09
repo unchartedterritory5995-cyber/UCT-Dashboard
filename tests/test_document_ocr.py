@@ -1545,3 +1545,207 @@ class TestTheFlagshipChain:
         assert after["capturedText"] == passage, "history was rewritten"
         # …while the page itself now holds the newer reading.
         assert "rescanned" in ocr.page_transcript(A, doc_id, 1)["text"]
+
+
+# ── ⚰️⚰️ WAVE P5 · THE LOCKED DATABASE, AND THE DOCUMENT NOBODY COULD SAVE ───
+#
+# Found by the P5 load run, not by reading this file: two 100-page scans read
+# at once, and one came back with a hundred pages still `required`, ZERO read,
+# and a member's document saying "Processing…" permanently. The log said
+#
+#     [doc-ocr] background job crashed for faf51fee…: database is locked
+#
+# auth.db opens with `timeout=3` on purpose, so a seconds-per-page background
+# writer beside the pod's other writers loses that race eventually. Three
+# separate things then had to be wrong for it to become permanent, and each one
+# gets its own rail here.
+
+def _locking(fn, *, fail_calls: set[int], counter: dict):
+    """A wrapper that raises SQLite's own lock error on chosen calls."""
+    def wrapped(*a, **kw):
+        counter["n"] = counter.get("n", 0) + 1
+        if counter["n"] in fail_calls:
+            raise sqlite3.OperationalError("database is locked")
+        return fn(*a, **kw)
+    return wrapped
+
+
+class TestALockedDatabaseIsSurvivable:
+    def test_a_transient_lock_is_retried_rather_than_lost(self, env, monkeypatch):
+        # ⭐ THE FIRST OF THE THREE. The write itself must survive a lock that
+        # clears — most of them do, which is exactly why losing to one was
+        # invisible for four waves.
+        doc_id, _ = _attach(_scanned_pdf(1))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        counter: dict = {}
+        monkeypatch.setattr(ocr, "_LOCK_BACKOFF", 0.01)
+        monkeypatch.setattr(ocr, "replace_page_text",
+                            _locking(ocr.replace_page_text, fail_calls={1},
+                                     counter=counter))
+        out = ocr.ocr_document(doc_id, fake_adapter)
+        assert out["pages_read"] == 1, "a lock that clears still lost the page"
+        assert counter["n"] == 2, "it did not actually retry"
+
+    def test_a_page_that_cannot_be_claimed_stays_AWAITING_not_failed(self, env, monkeypatch):
+        # ⭐ THE SECOND. The claim is a write, and it is the one that raised in
+        # production. A page left `required` has lost nothing and can be
+        # re-queued; a page burned to `failed` has spent an attempt for a
+        # reason that had nothing to do with the page.
+        doc_id, _ = _attach(_scanned_pdf(2))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        monkeypatch.setattr(ocr, "_LOCK_BACKOFF", 0.001)
+        monkeypatch.setattr(ocr, "_set_page_status",
+                            _locking(ocr._set_page_status,
+                                     fail_calls=set(range(1, 40)), counter={}))
+        out = ocr.ocr_document(doc_id, fake_adapter)      # must NOT raise
+        assert out["stopped_early"] == "database_locked", \
+            "the caller cannot tell a stopped run from a finished one"
+        c = _conn()
+        try:
+            rows = c.execute(
+                "SELECT status, attempts FROM j2_note_document_ocr_pages"
+                " WHERE document_id = ? ORDER BY page_number", (doc_id,)).fetchall()
+        finally:
+            c.close()
+        assert [r["status"] for r in rows] == [ocr.OCR_REQUIRED] * 2
+        assert [r["attempts"] for r in rows] == [0, 0], \
+            "a locked database spent the page's retry budget"
+
+    def test_one_locked_write_does_not_cost_the_pages_already_read(self, env, monkeypatch):
+        # ⛔ §16 SAYS PAGE 73 FAILING MUST NOT COST PAGES 1-72 — and the rule
+        # covered only the OCR call. The two writes after it sat outside the
+        # guard, so a lock on page 2 threw away page 1 as well.
+        doc_id, _ = _attach(_scanned_pdf(3))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        monkeypatch.setattr(ocr, "_LOCK_BACKOFF", 0.001)
+        monkeypatch.setattr(ocr, "replace_page_text",
+                            _locking(ocr.replace_page_text,
+                                     fail_calls=set(range(2, 40)), counter={}))
+        out = ocr.ocr_document(doc_id, fake_adapter)
+        assert out["pages_read"] == 1, "the page that HAD been read was lost too"
+        assert out["stopped_early"] == "database_locked"
+        # And the one that was read is really stored — the point of keeping it.
+        assert SCAN_PHRASE in (ocr.page_transcript(A, doc_id, 1) or {}).get("text", "")
+
+
+class TestAnAbandonedDocumentCanComeBack:
+    def _abandon(self, doc_id: str, *, minutes: int) -> None:
+        """Age every awaiting page, as an abandoned job would look."""
+        old = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        c = _conn()
+        try:
+            c.execute("UPDATE j2_note_document_ocr_pages SET updated_at = ?"
+                      " WHERE document_id = ?", (old, doc_id))
+            c.commit()
+        finally:
+            c.close()
+
+    def test_a_document_nobody_is_working_on_is_re_queued(self, env, monkeypatch):
+        # ⚰️ `recover_stalled` walked straight past this document, every time:
+        # it looks for pages left `processing`, and a job killed on its first
+        # write never claimed one.
+        doc_id, _ = _attach(_scanned_pdf(2))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        self._abandon(doc_id, minutes=30)
+        assert ocr.recover_stalled()["reclaimed"] == 0, \
+            "the old sweep suddenly sees it — this rail is testing the wrong gap"
+        queued: list = []
+        monkeypatch.setattr(ocr, "queue_ocr", lambda d, a: queued.append(d))
+        out = ocr.requeue_awaiting(fake_adapter, limit=50)
+        # ⛔ ASK ABOUT THIS DOCUMENT, NOT A TOTAL. The suite shares one
+        # auth.db, so a leftover from another test would make a count-based
+        # assertion pass or fail for reasons that have nothing to do with it.
+        assert doc_id in out["documents"] and doc_id in queued
+
+    def test_a_document_with_a_page_IN_FLIGHT_is_left_alone(self, env, monkeypatch):
+        # ⛔ THE CONTROL THAT STOPS TWO WRITERS RACING FOR ONE PAGE. A running
+        # job holds exactly one page `processing` and the rest `required`; a
+        # sweep that re-queued on `required` alone would start a second reader
+        # on every long document.
+        doc_id, _ = _attach(_scanned_pdf(3))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        self._abandon(doc_id, minutes=30)
+        c = _conn()
+        try:
+            c.execute("UPDATE j2_note_document_ocr_pages SET status = ?"
+                      " WHERE document_id = ? AND page_number = 1",
+                      (ocr.OCR_PROCESSING, doc_id))
+            c.commit()
+        finally:
+            c.close()
+        queued: list = []
+        monkeypatch.setattr(ocr, "queue_ocr", lambda d, a: queued.append(d))
+        assert doc_id not in ocr.requeue_awaiting(fake_adapter, limit=50)["documents"]
+        assert doc_id not in queued
+
+    def test_a_document_touched_a_moment_ago_is_left_alone(self, env, monkeypatch):
+        # The idle window is the other half of the same guard: an upload whose
+        # job has been alive for ten seconds is not abandoned.
+        doc_id, _ = _attach(_scanned_pdf(2))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        queued: list = []
+        monkeypatch.setattr(ocr, "queue_ocr", lambda d, a: queued.append(d))
+        assert doc_id not in ocr.requeue_awaiting(fake_adapter, limit=50)["documents"]
+        assert doc_id not in queued
+
+    def test_a_page_out_of_retries_is_not_re_queued_forever(self, env, monkeypatch):
+        doc_id, _ = _attach(_scanned_pdf(1))
+        ocr.set_adapter(fake_adapter)
+        ocr.plan_document(doc_id)
+        self._abandon(doc_id, minutes=30)
+        c = _conn()
+        try:
+            c.execute("UPDATE j2_note_document_ocr_pages SET attempts = ?"
+                      " WHERE document_id = ?", (ocr.MAX_ATTEMPTS, doc_id))
+            c.commit()
+        finally:
+            c.close()
+        seen: list = []
+        monkeypatch.setattr(ocr, "queue_ocr", lambda d, a: seen.append(d))
+        assert doc_id not in ocr.requeue_awaiting(fake_adapter, limit=50)["documents"]
+        assert doc_id not in seen, "a page past MAX_ATTEMPTS was re-queued"
+
+
+class TestTheSweepIsActuallyWiredToAScheduler:
+    """⛔ THE DEFECT THIS SECTION EXISTS FOR WAS A RECOVERY THAT RAN ONCE, AT
+    BOOT. A sweep nobody runs reads as coverage — this repo has shipped that
+    exact shape before (the Desk insights pass: written, documented as
+    scheduled, wired into no scheduler, for weeks)."""
+
+    def _main_source(self) -> str:
+        return (pathlib.Path(__file__).resolve().parents[1]
+                / "api" / "main.py").read_text(encoding="utf-8")
+
+    def test_the_job_id_is_registered(self):
+        import ast as _ast
+        tree = _ast.parse(self._main_source())
+        ids = set()
+        for node in _ast.walk(tree):
+            if not isinstance(node, _ast.Call):
+                continue
+            f = node.func
+            if not (isinstance(f, _ast.Attribute) and f.attr == "add_job"):
+                continue
+            for kw in node.keywords:
+                if kw.arg == "id" and isinstance(kw.value, _ast.Constant):
+                    ids.add(kw.value.value)
+        # The control: this probe can see a sibling it is not looking for, so a
+        # green result cannot come from a walk that found nothing at all.
+        assert "floor_daily_heartbeat" in ids, "the AST probe found no jobs"
+        assert "j2_ocr_recovery_sweep" in ids, \
+            "the OCR recovery sweep is not registered with any scheduler"
+
+    def test_the_scheduled_function_calls_both_halves_of_the_recovery(self):
+        src = self._main_source()
+        i = src.index("def _ocr_requeue_abandoned")
+        body = src[i:i + 1200]
+        assert "recover_stalled()" in body, "the sweep dropped the stalled half"
+        assert "requeue_awaiting(" in body, "the sweep dropped the abandoned half"
+        assert "get_adapter()" in body, \
+            "the sweep does not self-gate on OCR being armed"

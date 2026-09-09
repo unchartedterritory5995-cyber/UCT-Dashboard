@@ -44,6 +44,7 @@ import logging
 import re
 import sqlite3
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, NamedTuple
 
@@ -99,6 +100,60 @@ DOC_NO_TEXT = "no_text"
 DOC_FAILED = "processing_failed"
 
 _OCR_SEMAPHORE = threading.Semaphore(2)
+
+# ⚰️⚰️ WAVE P5, FOUND UNDER THE CONCURRENCY THE DIRECTIVE ASKED FOR.
+#
+# Two 100-page scans read at once. One finished; the other came back with 100
+# pages still `required`, ZERO read, and the member's document reading
+# "Processing…" — permanently. The log said everything:
+#
+#     [doc-ocr] background job crashed for faf51fee…: database is locked
+#
+# auth.db opens with `timeout=3` DELIBERATELY (it is on the universal request
+# path; a 10s in-driver wait compounds into the threadpool starvation behind
+# the 2026-07-01 outage). So a background job writing seconds-long page text
+# beside the pod's other writers loses that race eventually — not as an
+# exception a member sees, but as a job that quietly stops existing.
+#
+# ⛔ AND NOTHING COULD RECOVER IT. `recover_stalled` reclaims pages left
+# `processing`; these never got that far, because the very FIRST write —
+# marking page 1 `processing` — is what raised. A page in `required` was
+# invisible to the sweep, and the sweep only ran at process startup anyway.
+#
+# Three things were wrong and all three are fixed below: the write does not
+# survive a lock (this retry), one page's write failure took the whole document
+# with it (§16 says it must not), and an abandoned document had no way back
+# (`requeue_awaiting`).
+_LOCK_RETRIES = 4
+_LOCK_BACKOFF = 0.25
+
+
+def _is_locked(e: BaseException) -> bool:
+    return isinstance(e, sqlite3.OperationalError) and (
+        "locked" in str(e).lower() or "busy" in str(e).lower())
+
+
+def _retry_on_lock(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    """Run one write, surviving a transient SQLite lock.
+
+    ⛔ THIS IS A BACKGROUND JOB, WHICH IS THE WHOLE REASON IT MAY WAIT. The
+    same idiom on the request path is deliberately kept to a single retry
+    (`auth_db.execute_with_retry`) because a longer tail multiplies across
+    concurrent requests. Nothing is waiting on this thread.
+
+    ⛔ AND IT ONLY CATCHES A LOCK. A schema error or a constraint violation is
+    a bug, and retrying a bug four times just finds it four times."""
+    delay = _LOCK_BACKOFF
+    for attempt in range(_LOCK_RETRIES):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:  # noqa: BLE001 — re-raised unless it is a lock
+            if not _is_locked(e) or attempt == _LOCK_RETRIES - 1:
+                raise
+            log.info("[doc-ocr] write locked, retrying in %.2fs (%s/%s)",
+                     delay, attempt + 1, _LOCK_RETRIES - 1)
+            time.sleep(delay)
+            delay *= 2
 
 
 def _now() -> str:
@@ -502,13 +557,29 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
         import io
         reader = PdfReader(io.BytesIO(data))
         read = failed = 0
+        locked_out = False
         for n in targets:
             if n < 1 or n > len(reader.pages):
                 _set_page_status(conn, document_id, n, OCR_FAILED,
                                  error_class="page_out_of_range", bump_attempts=True)
                 failed += 1
                 continue
-            _set_page_status(conn, document_id, n, OCR_PROCESSING)
+            # ⛔ CLAIMING THE PAGE IS A WRITE, AND IT IS THE ONE THAT RAISED.
+            # A lock here left the page in `required` — not `processing` — so
+            # `recover_stalled` could never see it. If it still cannot be
+            # claimed after the retries, STOP the job and leave the page
+            # exactly as it was: `requeue_awaiting` can bring it back, and a
+            # page nobody claimed has lost nothing.
+            try:
+                _retry_on_lock(_set_page_status, conn, document_id, n, OCR_PROCESSING)
+            except Exception as e:  # noqa: BLE001
+                if not _is_locked(e):
+                    raise
+                log.warning("[doc-ocr] %s p%s: could not claim the page (%s). "
+                            "Leaving it awaiting and stopping this run.",
+                            document_id, n, e)
+                locked_out = True
+                break
             try:
                 images = page_images(reader.pages[n - 1])
                 if not images:
@@ -548,15 +619,38 @@ def ocr_document(document_id: str, adapter: OcrAdapter, *,
                                  error_class="unusable_output", terminal=True)
                 failed += 1
                 continue
-            replace_page_text(conn, document_id=document_id, user_id=user_id,
-                              page_number=n, text=text, text_origin=ORIGIN_OCR)
-            _set_page_status(conn, document_id, n, OCR_COMPLETE,
-                             engine=engine, engine_version=version,
-                             bump_attempts=True)
+            # ⛔ §16 — PAGE 73 FAILING MUST NOT COST PAGES 1-72, AND THAT RULE
+            # DID NOT COVER THE WRITES. The per-page guard above wrapped only
+            # the OCR call; these two writes sat outside it, so one locked
+            # database took the whole document down with zero pages read.
+            # A lock now stops the run and leaves the page `processing`, which
+            # `recover_stalled` reclaims by age — nothing is lost, and the work
+            # already done is kept.
+            try:
+                _retry_on_lock(replace_page_text, conn, document_id=document_id,
+                               user_id=user_id, page_number=n, text=text,
+                               text_origin=ORIGIN_OCR)
+                _retry_on_lock(_set_page_status, conn, document_id, n, OCR_COMPLETE,
+                               engine=engine, engine_version=version,
+                               bump_attempts=True)
+            except Exception as e:  # noqa: BLE001
+                if not _is_locked(e):
+                    raise
+                log.warning("[doc-ocr] %s p%s: the page read fine and the write "
+                            "was locked (%s). Stopping this run with %s page(s) "
+                            "already stored.", document_id, n, e, read)
+                locked_out = True
+                break
             read += 1
 
-        return {"ok": True, "pages_read": read, "pages_failed": failed,
-                "status": refresh_document_status(conn, user_id, document_id)}
+        out = {"ok": True, "pages_read": read, "pages_failed": failed,
+               "status": refresh_document_status(conn, user_id, document_id)}
+        if locked_out:
+            # ⛔ SAY SO. A run that stopped early and a run that finished are
+            # different facts, and a caller that cannot tell them apart is how
+            # "the document is just slow" survives for a week.
+            out["stopped_early"] = "database_locked"
+        return out
     finally:
         if owned:
             conn.close()
@@ -660,6 +754,65 @@ def recover_stalled(conn=None, *, now: datetime | None = None) -> dict[str, Any]
     finally:
         if owned:
             conn.close()
+
+
+# A document that still owes pages and has had NOTHING happen to it for this
+# long is not slow, it is abandoned. ⛔ It must be longer than a real gap
+# between two pages of a running job (P0 measured 1.8-4.2s/page) and shorter
+# than a member's patience.
+IDLE_BEFORE_REQUEUE = timedelta(minutes=5)
+
+
+def requeue_awaiting(adapter: "OcrAdapter", *, now: datetime | None = None,
+                     limit: int = 5, conn=None) -> dict[str, Any]:
+    """Put abandoned documents back on the queue.
+
+    ⚰️⚰️ WAVE P5 — `recover_stalled` COULD NOT SEE THESE, AND THAT IS HOW A
+    MEMBER'S DOCUMENT SAID "Processing…" FOREVER. It reclaims pages left
+    `processing`; a job killed by a locked database on its very first write
+    never claimed a page at all, so all hundred sat in `required` and every
+    sweep walked straight past them. Measured, under two concurrent 100-page
+    scans, not imagined.
+
+    ⛔ IT ASKS THE OTHER QUESTION: which documents still OWE pages with nothing
+    working on them? A document with any page `processing` is left alone —
+    something may still be running, and `recover_stalled` owns that case by age.
+
+    ⛔ AND IT RE-QUEUES, IT DOES NOT READ. The work goes back through
+    `queue_ocr`, so the semaphore, the adapter and every rule in `ocr_document`
+    apply exactly as they do to a fresh upload. A second implementation of the
+    read loop here is how two writers end up racing for one page.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.row_factory = sqlite3.Row
+        cutoff = ((now or datetime.now(timezone.utc)) - IDLE_BEFORE_REQUEUE).isoformat()
+        rows = conn.execute(
+            "SELECT document_id, MAX(updated_at) AS last_touch"
+            " FROM j2_note_document_ocr_pages"
+            " WHERE status = ? AND attempts < ?"
+            " GROUP BY document_id"
+            " HAVING (last_touch IS NULL OR last_touch < ?)"
+            "    AND document_id NOT IN ("
+            "        SELECT document_id FROM j2_note_document_ocr_pages"
+            "         WHERE status = ?)"
+            " ORDER BY last_touch"
+            " LIMIT ?",
+            (OCR_REQUIRED, MAX_ATTEMPTS, cutoff, OCR_PROCESSING, int(limit))
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+
+    requeued = []
+    for r in rows:
+        doc_id = r["document_id"]
+        log.info("[doc-ocr] re-queueing abandoned document %s (idle since %s)",
+                 doc_id, r["last_touch"])
+        queue_ocr(doc_id, adapter)
+        requeued.append(doc_id)
+    return {"requeued": len(requeued), "documents": requeued}
 
 
 def queue_ocr(document_id: str, adapter: OcrAdapter) -> None:

@@ -4612,6 +4612,45 @@ async def lifespan(app: FastAPI):
 
         # -- The Floor: UCT Mentor daily heartbeat (weekday ~9:20 AM ET) -------
         # One 'UCT Mentor' system post into #trading-floor each morning so the
+        # ⚰️⚰️ WAVE P5 — THE OCR RECOVERY SWEEP HAD NO SCHEDULE.
+        #
+        # `recover_stalled()` runs once, in the startup block above, and it only
+        # reclaims pages left `processing`. Two concurrent 100-page scans in the
+        # P5 load run produced the case neither half covers: a locked database
+        # killed one job on its FIRST write, so its hundred pages stayed
+        # `required`, no sweep could see them, and the member's document said
+        # "Processing…" until the next deploy. Which is to say: forever, on a
+        # quiet week.
+        #
+        # ⛔ SELF-GATING, not flag-gated here. `get_adapter()` returns None
+        # unless OCR is actually armed, so this is inert while the feature is
+        # dark — the same posture as the startup recovery beside it, and it
+        # cannot become a job that exists only when a flag was on at boot.
+        try:
+            from api.services.journal_two import document_ocr as _ocr_sweep
+
+            def _ocr_requeue_abandoned() -> None:
+                adapter = _ocr_sweep.get_adapter()
+                if adapter is None:
+                    return
+                out = _ocr_sweep.recover_stalled()
+                if out.get("reclaimed") or out.get("exhausted"):
+                    logging.getLogger(__name__).info(
+                        "[doc-ocr] sweep reclaimed=%s exhausted=%s",
+                        out["reclaimed"], out["exhausted"])
+                again = _ocr_sweep.requeue_awaiting(adapter)
+                if again.get("requeued"):
+                    logging.getLogger(__name__).info(
+                        "[doc-ocr] sweep re-queued %s abandoned document(s)",
+                        again["requeued"])
+
+            _scheduler.add_job(
+                _ocr_requeue_abandoned,
+                CronTrigger(minute="4/10"),
+                id="j2_ocr_recovery_sweep", replace_existing=True, max_instances=1)
+        except Exception as _e_ocr_sweep:
+            print(f"[startup] j2 ocr recovery sweep skip: {_e_ocr_sweep}")
+
         # live room is never a dead room. Self-gates on COMMUNITY_CHAT_ENABLED at
         # run time (no-op while dark) — NOT a Compass LLM job, so registered directly.
         try:

@@ -116,7 +116,95 @@ wave exists to avoid.
 
 ## B · OCR performance and concurrency
 
-_In progress._
+⛔ **The question was never "how fast is Tesseract".** P1.5 measured that. The
+question activation turns on is whether the pod stays a pod while a document is
+being read — and the answer arrived as a defect, not a number.
+
+### ⚰️⚰️ Two scans at once, and one of them never came back
+
+Two 100-page documents, uploaded together, against a pod also doing its ordinary
+background work. One finished. The other:
+
+```
+status = pending    pagesTotal = 100    pagesWithText = 0    pagesAwaitingOcr = 100
+
+[doc-ocr] background job crashed for faf51fee…: database is locked
+```
+
+**Zero pages read, and nothing anywhere would ever try again.** The member's
+document says "Processing…" until the next deploy — which on a quiet week means
+forever.
+
+⛔ **Three separate things had to be wrong, and all three were:**
+
+1. **The write did not survive a lock.** `auth.db` opens with `timeout=3` *on
+   purpose* — it is on the universal request path and a 10s in-driver wait
+   compounds into the threadpool starvation behind the 2026-07-01 outage. A
+   background job writing seconds of page text beside the pod's other writers
+   loses that race eventually.
+2. **§16's rule did not cover the writes.** "Page 73 failing must not cost pages
+   1-72" was enforced around the OCR *call*; the two writes after it sat outside
+   the guard. So one locked write took the whole document down.
+3. **Recovery could not see it.** `recover_stalled` reclaims pages left
+   `processing`. The write that raised was the one that *claims* the page, so
+   all hundred sat in `required` — invisible to the sweep. And the sweep ran
+   only at process startup.
+
+⭐ **All three are fixed**: the write retries with backoff (a background job may
+wait; the request-path idiom deliberately does not), a lock stops the run
+without spending the page's retry budget and without discarding pages already
+stored, and `requeue_awaiting` brings an abandoned document back — on a
+**schedule**, not only at boot, self-gated on OCR actually being armed.
+
+⛔ **Re-measured under the same contention that produced it**: all eight rounds
+completed, every document reached `textComplete`, and the temp probe came back
+**clean across every round**.
+
+### The numbers
+
+⛔ **Two runs, because they answer different questions.** Throughput and memory
+come from a quiesced sandbox; survival comes from a busy one. Mixing them would
+produce one table that is wrong in both directions.
+
+```
+throughput / memory · quiesced         page counts x concurrency, one member
+ pages  conc      MB   wall s  s/page   RSS peak  RSS grow   read p50  read p95   vol MB
+     1     1     0.2     1.10   1.099      630.5      -3.4       26.8      37.1      0.2
+    10     1     1.7     4.18   0.418      648.2       4.3       10.5      28.7      1.7
+    50     1     8.6    19.07   0.381      709.4      47.9       11.6      28.4      8.6
+   100     1    17.2    37.26   0.373      829.4     103.2       10.6      27.2     17.2
+     1     2     0.2     1.11   0.555      790.6      -0.2       12.1      24.2      0.3
+    10     2     1.7     4.76   0.238      828.6       8.0       11.0      42.6      3.4
+    50     2     8.6    19.95   0.200      930.1     -23.9       12.4      51.3     16.7
+   100     2    17.2    37.83   0.189     1014.2     205.5       11.8      28.3     34.4
+```
+
+- ⭐ **Linear to 100 pages** — 0.418 → 0.381 → 0.373 s/page. Nothing degrades
+  with document length.
+- ⭐ **The semaphore of 2 is worth its full 2×.** Two 100-page scans finish in
+  the wall time of one (37.8s vs 37.3s), i.e. 0.189 s/page effective.
+- ⭐ **The member's app stays usable.** A real authenticated document search,
+  polled every 250ms *while the OCR runs*, held a p50 of ~11ms and a p95 under
+  52ms in every round.
+- **Memory is the number to argue about**: ~630 MB baseline, **1014 MB peak**
+  under two 100-page scans — about +385 MB. That is the figure to weigh against
+  everything else sharing the pod, and it is the one real constraint this lane
+  found.
+- **Volume cost is 1:1 with the upload**: a 100-page scan is 17.2 MB.
+
+⚠️ **And a ceiling nobody had noticed**: a note attachment is capped at 25 MB,
+so at ~172 KB per scanned page a scanned document is effectively **capped near
+145 pages** — while `document_extraction._MAX_PAGES` says 500. The two limits
+disagree, and the smaller one is silent.
+
+⛔ **CPU is measured for the WEB PROCESS ONLY, and that is a finding rather than
+a gap.** Tesseract runs as a child process reading stdin, so the pod's own
+process accounting sees roughly a fifth of the real cost. Capacity planning from
+the web process's CPU would under-count OCR by about 5×.
+
+⛔ **Windows, not Railway.** These are the app's own scheduling and memory
+behaviour on the dev box. Lane C is where the engine's numbers come from a
+bookworm Linux; nothing here is claimed as a production pod measurement.
 
 ## C · `P2-LINUX-OCR-VERSION-CERT` — a Linux that already exists
 
@@ -207,16 +295,125 @@ financial recall    mean 1.0 · min 1.0
 seconds/page        p50 0.36 · max 0.6      cold first page 0.37
 ```
 
-⛔ **Production OCR stays off regardless of what the run says.** No 5.3.0
-quality claim is made anywhere until the owner has read the numbers.
+### ⭐ The measurement, on the engine that ships
 
-## D · Search / Ask / Evidence / Review, lifecycle, export, security
+Run #5, bookworm container, frozen corpus, default page-segmentation mode,
+pypdf pinned to the reference's version so the engine is the only thing that
+changed. The report is uploaded as a build artifact (`ocr-linux-cert`):
 
-_In progress._
+```
+reference   tesseract v5.4.0.20240606      candidate   tesseract 5.3.0
+
+EVERY scanned page                CER identical to three places
+  scan_clean  0.000 → 0.000   scan_dense 0.021 → 0.021   scan_slide 0.013 → 0.013
+  scan_skew   0.000 → 0.000   scan_lowres 0.000 → 0.000  scan_twocol 0.000 → 0.000
+  scan_table  0.650 → 0.650   mixed p2   0.650 → 0.650
+  scan_failed_page  p1 0.000 → 0.000 · p2 1.000 → 1.000 · p3 0.650 → 0.650
+
+FTS SEARCH recall    mean 1.0 → 1.0   ·   min 1.0 → 1.0
+financial recall     mean 1.0 → 1.0   ·   min 1.0 → 1.0
+```
+
+⭐ **On this corpus the engine version is not a quality variable.** Not "close
+enough" — identical, page for page, on the same pixels, with the same
+`eng.traineddata`.
+
+⛔ **What that does NOT say.** It certifies **this corpus**, which is ten
+synthetic fixtures chosen in P0 to span clean, dense, low-resolution, skewed,
+tabular, two-column, slide and deliberately-unreadable pages. It is a strong
+result and it is not a claim about every scan a member will ever upload.
+
+⛔ **And the timings are not comparable at all.** `seconds/page` p50 moved 0.36
+→ 0.5 between a desktop and a shared CI runner. That is two machines, not two
+engines, and no speed claim is made from it. The throughput numbers that matter
+are lane B's, measured against a running service.
+
+⚰️ **The one honest wrinkle, and it was noise.** The first successful run
+flagged two pages as moving in the wrong direction — CER 0.0 → 0.0013 on
+`mixed:3` and `native_text:2`. Both are **native** pages, which OCR never
+touches: it was pypdf 6.18 reading a text layer a hair differently from the
+6.15 the reference was measured with. pypdf is pinned now, because a stray
+delta in a table about engines makes a reader wonder which column the engine is
+in. The re-run says it plainly:
+
+```
+No per-page recall or CER moved in the wrong direction.
+```
+
+⛔ **Production OCR stays off regardless.** This is evidence for the owner to
+close `P2-LINUX-OCR-VERSION-CERT` with; it is not the gate closing itself.
+
+## D · Lifecycle, security, and the way out
+
+⛔ **Every Wave-P surface had been certified on the way IN** — upload, classify,
+read, search, quote, cite, attach. Nothing had asked the questions a member
+would ask a lawyer. Eleven of them, driven through the real routes with two real
+accounts:
+
+```
+another member's eyes
+  [ok] a stranger cannot read the page transcript                     404
+  [ok] a stranger's search does not reach the scanned page            0 hits
+  [ok] a stranger cannot open the note                                404
+the owner can, which is the control
+  [ok] the owner's search finds the scanned page                      1 hit
+  [ok] the hit says the words were read off a scan                    textOrigin: ocr
+the trash (soft delete)
+  [ok] the note moves to the trash                                    200
+  [--] its scanned page is no longer searchable                       0 hits
+the purge, which is the promise that actually matters
+  [ok] the retention sweep runs                                       2 notes
+  [ok] the scanned words leave the SEARCH INDEX, not just the table   0 hits
+  [ok] the page transcript is gone                                    404
+  [ok] a purged excerpt answers honestly rather than hanging          404
+```
+
+⭐ **The index is the one that could have been wrong.** `j2_note_document_pages`
+keeps its FTS mirror through triggers, and a delete path that took the row but
+left the mirror would leave a member's scanned bank statement findable after
+they deleted it, with nothing on screen to reveal it. It does not: the words go
+when the sweep runs, measured through the production search route rather than by
+reading the schema.
+
+⛔ **The sweep is the product's own**, run with the retention set to zero — not
+a hand-written DELETE, which would have tested this audit instead of the app.
+
+⚠️ **One deliberate non-finding, recorded so it stays a decision.** A trashed
+note's scanned page stops being searchable immediately, before the 30-day
+purge. That is the member-protective answer and it is what ships; it is written
+down here because "either answer is defensible" is exactly the kind of thing
+that later gets changed by accident.
 
 ## E · Where this sits against Evernote / Notion / Obsidian
 
-_In progress._
+⛔ **Read the sourcing before the table.** Every UCT row is a measurement made
+in this wave and pointed at the section that made it. The competitor rows are
+stated from general product knowledge and were **not re-verified inside those
+apps during this wave** — they are here because the owner asked where this sits,
+and they are marked so nobody mistakes them for evidence of the same kind.
+
+The dimensions are the ones this wave created, in the order a member hits them:
+
+| | Evernote | Notion | Obsidian | **UCT Notebook** |
+|---|---|---|---|---|
+| Find a word that exists ONLY inside a scan | yes — long-standing image/PDF text search | no — a scanned PDF is opaque to search | not in the core app; community plugins add it | **yes** — page-level FTS over stored text |
+| Select and quote a passage from a scan | no — search finds the file, not a passage | n/a | plugin-dependent | **yes** — the Scanned text panel, one page at a time |
+| Is the quote checked against the source? | n/a | n/a | n/a | **yes** — an exact substring of the canonical page text, or 400 |
+| Is derived text labelled as derived? | no | n/a | no | **yes** — "Scanned text", in the picker AND on the attached row |
+| Can the quote become evidence, with the member's reasoning kept apart? | no | no | no | **yes** — stance is the member's, the caption is a separate field |
+| Does a citation land on the exact page? | opens the attachment | opens the file | opens the file | **yes** — document + page, from search, Ask and evidence |
+
+⭐ **The row that is actually the product is the third one.** Everything above it
+is a search feature that three other tools have some version of. "A quote must
+resolve against the page it claims to come from, or it is refused" is the one
+nobody else is offering, and it is the reason the rest is worth anything to
+somebody putting money behind a thesis.
+
+⛔ **And the honest counterweight**: Evernote has been reading scanned documents
+for over a decade at a scale this has not been near, and none of the above is
+worth much until `P2-LINUX-OCR-VERSION-CERT` closes and the feature is actually
+on for members. Lane C's numbers are the first half of that; the owner's
+decision is the second.
 
 ## F · Closure
 
