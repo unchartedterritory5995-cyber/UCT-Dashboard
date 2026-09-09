@@ -1897,6 +1897,47 @@ def register_company_news_jobs(scheduler):
     return True
 
 
+def register_panel_prewarm_job(scheduler):
+    """Keep the Company Panel warm for the whole universe.
+
+    Measured cold-vs-warm on /api/earnings-intel: 4.5-7.5s cold, 0.12-0.15s
+    warm. The member only ever pays on the FIRST view of a symbol, so this
+    moves that cost onto a schedule. Everything it warms persists to the
+    snapshot store on /data, so a redeploy does not throw it away.
+
+    ⛔ Off by default (PANEL_PREWARM_ENABLED=1). It walks providers on the WEB
+    pod, and bulk warming has OOM'd this pod before, so it takes a small bounded
+    slice per cycle and holds nothing between symbols.
+    """
+    if os.environ.get("PANEL_PREWARM_ENABLED", "") not in ("1", "true", "yes"):
+        return False
+
+    from datetime import timedelta
+
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    every = int(os.environ.get("PANEL_PREWARM_MINUTES", "10"))
+
+    def _sweep():
+        try:
+            from api.services import panel_prewarm
+            res = panel_prewarm.run_prewarm()
+            print(f"[panel-prewarm] {res['symbols']} syms cursor={res['cursor']}/"
+                  f"{res['universe']} ok={res['ok']} failed={res['failed']} "
+                  f"{res['elapsed_s']}s slowest={res['slowest']}")
+        except Exception as e:
+            print(f"[panel-prewarm] error: {e}")
+
+    scheduler.add_job(
+        _sweep, trigger=IntervalTrigger(minutes=every),
+        id="panel_prewarm", max_instances=1, replace_existing=True, coalesce=True,
+        # Explicit first run, for the same reason the news jobs carry one: an
+        # IntervalTrigger's first fire is one full interval after the scheduler
+        # starts, and a deploy cadence faster than that starves the job forever.
+        next_run_time=datetime.now(_ET) + timedelta(minutes=4))
+    return True
+
+
 def register_signature_sweep_job(scheduler):
     """Register the nightly closed-bar UCT Signature sweep (20:05 ET weekdays).
 
@@ -5498,6 +5539,8 @@ async def lifespan(app: FastAPI):
         try:
             if register_company_news_jobs(_scheduler):
                 print("[startup] company news ingestion scheduled")
+            if register_panel_prewarm_job(_scheduler):
+                print("[startup] company panel prewarm scheduled")
         except Exception as e:
             print(f"[scheduler] company news registration error: {e}")
 

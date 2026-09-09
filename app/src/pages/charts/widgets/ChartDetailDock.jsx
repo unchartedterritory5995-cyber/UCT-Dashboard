@@ -18,6 +18,7 @@ import DockOwnership from './DockOwnership'
 import CompanySearch from './CompanySearch'
 import { COMPANY_TABS, MIN_RIGHT_W, DEFAULT_RIGHT_W } from './chartDock'
 import { dockColorVars } from './dockThemeColors'
+import { clearNewsPrefetch, prefetchPanel } from './dockPrefetch'
 import styles from './ChartDetailDock.module.css'
 
 /* ── Toolbar toggle (replaces Share to Floor) ────────────────────────────────
@@ -77,12 +78,22 @@ export default function ChartDetailDock({ sym, dock, setDock, onPickSymbol, char
   // own panel. Null when the settings carry nothing parseable, which leaves the
   // stylesheet defaults in place rather than half-theming the panel.
   const themeVars = useMemo(() => dockColorVars(chartSettings), [chartSettings])
+
   const commitRightW = useCallback((w) => setDock(d => ({ ...d, rightW: Math.round(w) })), [setDock])
   const rightResize = useDockResize(dock.rightW, commitRightW, rootRef, MIN_RIGHT_W)
   const setTab = useCallback((key) => setDock(d => ({ ...d, tab: key })), [setDock])
   const setNewsFilter = useCallback((f) => setDock(d => ({ ...d, newsFilter: f })), [setDock])
 
   const rightOpen = !!dock.open
+  // Ask for every tab's payload as soon as the panel has a symbol, not when the
+  // member clicks the tab. The server is already fast once warm (the news feed
+  // measures 1-12ms); what was felt on a tab click was the round trip, because
+  // each tab only started its request when it mounted.
+  useEffect(() => {
+    if (!rightOpen || !sym) return
+    clearNewsPrefetch()          // a previous symbol's page must never be served
+    prefetchPanel(sym)
+  }, [rightOpen, sym])
   const tab = dock.tab
 
   // ── Search (Ctrl/⌘+K) — an inline exploration mode, not navigation ──────────

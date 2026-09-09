@@ -14,6 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
+import { takeNewsPrefetch } from './dockPrefetch'
 import styles from './dockPanels.module.css'
 import {
   categoryLabel, descLines, emptyHint, emptyMessage, exactTime,
@@ -224,7 +225,15 @@ export default function DockNews({ sym, sentiment: sentimentProp, onSentiment })
       const qs = feedQuery({
         limit: PAGE, cursor: opts.cursor || '', sentiment, q: query,
       })
-      const r = await fetch(`/api/company-news/${encodeURIComponent(sym)}?${qs}`)
+      const url = `/api/company-news/${encodeURIComponent(sym)}?${qs}`
+      // The panel may already have asked for this exact URL when the symbol
+      // was opened (see dockPrefetch). Take that in-flight response rather
+      // than issuing a second identical request.
+      // ⚠️ AWAIT the prefetch: it is a Response PROMISE, and a promise is
+      // truthy, so `promise || fetch(url)` would hand the rest of this function
+      // an object with no .status and silently fall into the error branch.
+      const r = await ((!paging && takeNewsPrefetch(url)) || fetch(url))
+      if (!r) throw new Error('no response')
       // 402 is the membership gate, not an outage — say so plainly rather
       // than showing "temporarily unavailable" and a Retry that cannot work.
       if (r.status === 402 || r.status === 401 || r.status === 403) {
