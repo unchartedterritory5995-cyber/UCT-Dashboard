@@ -29,6 +29,7 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { useDurableNote, SESSION_ID } from '../../lib/offline/useDurableNote'
+import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -773,13 +774,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // whatever the server holds now. They differ exactly when another device
       // saved in between — and that is the case where a restore must 409 and
       // fork rather than quietly overwrite the newer copy.
-      const base = recovery?.baseUpdatedAt ?? lastSavedRef.current.updatedAt
+      const base = usableBaseline(recovery?.baseUpdatedAt, lastSavedRef.current.updatedAt)
       if (base) patch.baseUpdatedAt = base
       const saved = await update(patch)
       lastSavedRef.current = {
         title: draftTitle, subtitle: draftSubtitle,
         bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
-        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+        updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
       durableRef.current.markSynced({
         acked: { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson },
@@ -1508,14 +1509,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (bodyChanged) patch.bodyJson = bodyJson
     // Compare-and-set baseline (A15): the server 409s instead of letting this
     // full-doc PUT silently delete a write that landed after our baseline.
-    if (last.updatedAt) patch.baseUpdatedAt = last.updatedAt
+    if (isUsableBaseline(last.updatedAt)) patch.baseUpdatedAt = last.updatedAt
 
     setSaveStatus(retryAttemptsRef.current === 0 ? 'saving' : 'reconnecting')
     try {
       const saved = await update(patch)
       lastSavedRef.current = {
         title, subtitle, bodyJson,
-        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+        updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
       // Wave Q1: the server now holds `bodyJson`. ⛔ `current` is read AGAIN
       // here rather than reusing what we sent: if the member typed during the

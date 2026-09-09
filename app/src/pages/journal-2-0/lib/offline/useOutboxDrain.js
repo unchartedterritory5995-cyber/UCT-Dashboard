@@ -21,6 +21,7 @@ import {
   FOLLOWER, LEADER, READ_ONLY_FOR_SYNC, awaitSyncLeadership, claimSyncLeadership,
 } from './outboxLeader'
 import { connectNotebookDb } from './useDurableNote'
+import { usableBaseline, isUsableBaseline } from './baseline'
 
 /** How often a leader re-tries what is still queued. ⛔ The `online` event only
  *  fires on a NETWORK transition — a server that came back up produces no event
@@ -33,7 +34,7 @@ export async function sendNoteUpdate(entry) {
     title: entry.patch?.title ?? '',
     subtitle: entry.patch?.subtitle || null,
     ...(entry.patch?.bodyJson ? { bodyJson: entry.patch.bodyJson } : {}),
-    ...(entry.baseUpdatedAt ? { baseUpdatedAt: entry.baseUpdatedAt } : {}),
+    ...(isUsableBaseline(entry.baseUpdatedAt) ? { baseUpdatedAt: entry.baseUpdatedAt } : {}),
   }
   const res = await fetch(`/api/j2/notes/${entry.noteId}`, {
     method: 'PUT',

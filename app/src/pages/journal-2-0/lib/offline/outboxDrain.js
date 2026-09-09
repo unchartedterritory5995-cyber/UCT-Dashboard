@@ -16,6 +16,7 @@
  * tidy queue.
  */
 import { getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import { usableBaseline, isUsableBaseline } from './baseline'
 import { sameAuthoredContent } from './recoverLocalState'
 
 export const SENT = 'sent'
@@ -34,7 +35,7 @@ const isTransient = (e) => !e?.status || e.status >= 500
 async function settleSent(db, entry, saved) {
   const rec = await getNote(db, entry.noteId)
   const caughtUp = !rec || sameAuthoredContent(rec, entry.patch)
-  const baseUpdatedAt = saved?.updatedAt ?? entry.baseUpdatedAt ?? null
+  const baseUpdatedAt = usableBaseline(saved?.updatedAt, entry.baseUpdatedAt)
   const next = {
     noteId: entry.noteId,
     title: entry.patch?.title ?? '',
@@ -68,7 +69,7 @@ async function settleForked(db, entry, serverNote) {
     title: serverNote?.title ?? '',
     subtitle: serverNote?.subtitle ?? '',
     bodyJson: serverNote?.bodyJson ?? null,
-    baseUpdatedAt: serverNote?.updatedAt ?? null,
+    baseUpdatedAt: usableBaseline(serverNote?.updatedAt),
     generation: 0,
     sessionId: null,
     localSavedAt: Date.now(),
@@ -83,7 +84,7 @@ async function settleBlocked(db, entry, error) {
     title: entry.patch?.title ?? '',
     subtitle: entry.patch?.subtitle ?? '',
     bodyJson: entry.patch?.bodyJson ?? null,
-    baseUpdatedAt: entry.baseUpdatedAt ?? null,
+    baseUpdatedAt: usableBaseline(entry.baseUpdatedAt),
     dirty: 1,
   }, {
     ...entry,
@@ -130,7 +131,7 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
     // path that produced such an entry is fixed at its source in
     // `NoteEditorPage`'s `hydratedRef` — and it is here because the next
     // unforeseen path must fail this way too.
-    if (!entry.baseUpdatedAt) {
+    if (!isUsableBaseline(entry.baseUpdatedAt)) {
       // eslint-disable-next-line no-await-in-loop
       await settleBlocked(db, entry, new Error('queued without a baseline — refusing to send a write with no compare-and-set'))
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
