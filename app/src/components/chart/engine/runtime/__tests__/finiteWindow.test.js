@@ -395,9 +395,18 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
   })
 
   it('CUMULATIVE and undeclared builtins are still refused', () => {
+    // ⚰️ `ta.cum` WAS THIS TEST'S "UNDECLARED" SPECIMEN AND IS NOT UNDECLARED
+    // ANY MORE. `cum` is in the closed table now, served on the HOST contract with
+    // `_requirement_tags.window_dependent` doing the containment. So its refusal
+    // moved from "the closed table does not have this builtin" to "this runtime
+    // has no carried-state entry for it" — which is the true sentence now: the
+    // NAME resolves, the RUNTIME lane has not built it.
+    // ⛔ IT IS STILL REFUSED, WHICH IS WHAT THIS CASE IS ABOUT. The columnar lane
+    // computes `cum` as a forward scan; the bar-by-bar runtime has no entry, so the
+    // two families stay apart exactly as the heading says.
     expect(FINITE_WINDOW.cum).toBeUndefined()
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`).guard)
-      .toBe('runtime:call-undeclared-builtin-state')
+      .toBe('runtime:call-windowed-state')
   })
 
   it('⛔⛔ A PINE SPELLING THE TABLE HOLDS UNDER ANOTHER NAME IS NOT "UNDECLARED"', () => {
@@ -417,7 +426,12 @@ describe('⛔⛔ what 2F-2B does NOT admit — the families stay apart', () => {
     expect(r.guard).toBe('runtime:call-windowed-state')
     // ⭐ NON-VACUITY: a name the table genuinely does NOT declare must still
     // answer `undeclared`, or the fix has simply deleted the family.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`).guard)
+    // ⚰️ THE SPECIMEN WAS `ta.cum` AND HAD TO CHANGE, which is the point rather
+    // than housekeeping: `cum` became a DECLARED table entry, so a probe pointed at
+    // it stopped testing "undeclared" and started asserting the opposite of the
+    // truth while still reading as a general claim. `ta.vwma` is genuinely absent
+    // from the table — verified by driving it, not by assuming.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
   it('⛔ a window over an EXPRESSION needs its own series, and says so', () => {

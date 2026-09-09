@@ -226,7 +226,15 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // `int` and `iff` were all filed as windowed), and the split below is what
     // that correction looks like. These three refusals are three different walls.
     ['a SCAN-BACKWARDS builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`, 'runtime:call-windowed-state'],
-    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`, 'runtime:call-undeclared-builtin-state'],
+    // ⚰️⚰️ AND THE UNDECLARED ROW HAS NOW MOVED OFF `ta.cum` TOO — the third
+    // time this table has had to re-point a row, and the first time in the other
+    // direction: `cum` was ADMITTED to the closed table, so "undeclared" became
+    // false about it. Read together with the paragraph above, the two mistakes
+    // are one mistake: a specimen chosen for what it happened to be that day,
+    // asserted as if it were a claim about the CATEGORY. `ta.vwma` is the
+    // undeclared name today, verified by driving it — and it will need the same
+    // treatment the day it lands.
+    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
     ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(int(x))\n`, 'runtime:call-conversion-state'],
     ['a strategy', `//@version=5\nstrategy("s")\nplot(close)\n`, 'runtime:declaration'],

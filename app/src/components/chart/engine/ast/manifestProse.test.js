@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { stripProse, KEEP, STRUCTURAL } from './manifestProse.js'
+import { stripProse, KEEP, STRUCTURAL , DROP } from './manifestProse.js'
 import TABLE from './closedTable.json'
 
 const ROOT = path.resolve(process.cwd(), '..')
@@ -82,6 +82,35 @@ describe('the strip is safe, and the rail derives what safe means', () => {
     const missing = [...accessed].filter((k) => !KEEP.includes(k))
     expect(missing, `these manifest keys are READ but would be stripped:\n${missing.join('\n')}`)
       .toEqual([])
+  })
+
+  it('⛔⛔ every `_` key is CLASSIFIED — an unknown one fails the BUILD', () => {
+    // ⛔ THE DESIGN CHANGE OF 2026-09-09. The strip used to drop anything not in
+    // KEEP, so a new key the product READS shipped as `undefined` in a browser —
+    // three times, each caught by the rail below AFTER the fact. An allowlist
+    // that silently discards is how a whole capability ships missing.
+    const underscore = Object.keys(TABLE).filter((k) => k.startsWith('_'))
+    expect(underscore.length, 'no `_` keys at all — the probe is broken')
+      .toBeGreaterThan(0)
+    const unclassified = underscore.filter((k) => !KEEP.includes(k) && !DROP.includes(k))
+    expect(unclassified, 'these manifest keys are neither KEEP nor DROP, so the '
+      + 'build will refuse them:\n' + unclassified.join('\n')).toEqual([])
+  })
+
+  it('⛔ KEEP and DROP are DISJOINT — a key cannot be both data and prose', () => {
+    const both = KEEP.filter((k) => DROP.includes(k))
+    expect(both, `classified twice: ${both.join(', ')}`).toEqual([])
+  })
+
+  it('⭐ and the strip really THROWS on an unregistered key — the positive control', () => {
+    // ⛔ WITHOUT THIS, `stripProse` could have kept its old silent-drop behaviour
+    // and the two assertions above would still pass: they check the LISTS, not
+    // what the function does with a key that is on neither.
+    expect(() => stripProse({ functions: {}, _a_key_nobody_registered: 'prose' }))
+      .toThrow(/_a_key_nobody_registered/)
+    // …and it names what to do about it, or the author has to go read this file
+    expect(() => stripProse({ functions: {}, _a_key_nobody_registered: 'prose' }))
+      .toThrow(/KEEP|DROP/)
   })
 
   it('⛔ the keep list has no passengers — every entry is really read', () => {

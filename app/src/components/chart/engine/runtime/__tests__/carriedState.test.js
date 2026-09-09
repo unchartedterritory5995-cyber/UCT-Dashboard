@@ -360,7 +360,11 @@ describe('⭐ length, resources and what is NOT admitted', () => {
       .toBe('runtime:call-windowed-state')
     expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.rsi(x, 5))\n`).guard)
       .toBe('runtime:call-windowed-state')
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cum(x))\n`).guard)
+    // ⚰️ THE UNDECLARED SPECIMEN WAS `ta.cum` AND STOPPED BEING UNDECLARED.
+    // `cum` is a table entry now, so this line was asserting the opposite of the
+    // truth while still reading as a general claim about the family. `ta.vwma` is
+    // genuinely absent from the table — checked by driving it, not by assuming.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
 
