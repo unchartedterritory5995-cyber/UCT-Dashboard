@@ -169,19 +169,50 @@ describe('validateRegistry — confirm actions', () => {
 })
 
 describe('validateRegistry — flickable', () => {
-  it("rejects flickable:false on an action that is not kind:'confirm'", () => {
+  // ⛔ B3 WIDENED THIS RULE, and the reason is that the old one described the wrong mechanism.
+  // `flickable:false` is a guard on an action that FIRES, and the runtime gate that honours it
+  // (`useJoystick.js:387`, `flickTarget.action.flickable !== false`) never looks at `kind` — so it
+  // was always live on a 'run', and the validator was rejecting a declaration the engine obeyed.
+  // What still deserves rejection is 'navigate'/'home': nothing fires, so a guard there is a claim
+  // of danger where there is none.
+
+  it("rejects flickable:false on kind:'navigate' — nothing fires, so there is nothing to guard", () => {
     ran()
     expectProblem(
-      validMode({ fan: [outerAction(1, { flickable: false }), voice(), home()] }),
+      validMode({ fan: [outerAction(1, { kind: 'navigate', to: '/x', flickable: false }), voice(), home()] }),
       'only meaningful',
     )
   })
 
-  it("Journal's Close is flickable:false — the safety marker this rule exists for", () => {
+  it("rejects flickable:false on kind:'home'", () => {
+    ran()
+    expectProblem(
+      validMode({ fan: [outerAction(1), voice(), { ...home(), flickable: false }] }),
+      'only meaningful',
+    )
+  })
+
+  it("ACCEPTS flickable:false on kind:'run' — the B3 case, and the rule's one live consumer", () => {
+    ran()
+    expect(
+      validateRegistry([validMode({ fan: [outerAction(1, { flickable: false }), voice(), home()] })]),
+    ).toEqual([])
+  })
+
+  it("ACCEPTS flickable:false on kind:'confirm' — the case that was always legal", () => {
+    ran()
+    expect(
+      validateRegistry([validMode({
+        fan: [outerAction(1, { kind: 'confirm', confirmText: () => 'ok', flickable: false }), voice(), home()],
+      })]),
+    ).toEqual([])
+  })
+
+  it("Journal's Close is a flickable:false kind:'run' — the safety marker this rule exists for", () => {
     ran()
     const close = modesById.journal.fan.find((a) => a.id === 'journal.close')
     expect(close.flickable).toBe(false)
-    expect(close.kind).toBe('confirm')
+    expect(close.kind).toBe('run')
   })
 })
 

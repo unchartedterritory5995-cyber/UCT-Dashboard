@@ -22,6 +22,17 @@ Spec of record: `00-master-spec-v1.2.md`. Evidence: `10-wave0-discovery.md`. Cut
    confirm sheet and says nothing about these two. Close ends a position and writes a permanent
    `j2_trades` row. On a sub-120ms flick that is the highest-stakes target in the hub. **Fix: both
    become `kind:'confirm'`, and `HubAction` gains `flickable?: boolean` — Close is not flickable.**
+
+   > ⚰️ **SUPERSEDED IN PART, 2026-09-09 (B3).** The text above is left byte-identical because it is
+   > a decision record, not live spec. What survives: the `flickable?: boolean` addition, and
+   > **Close is still `flickable: false`** — that guard is untouched and does not depend on `kind`
+   > (`useJoystick.js:387` gates on `flickable !== false` with no `kind` check). What changed:
+   > Move stop, Breakeven **and** Close are now `kind:'run'`, because each already opens a sheet of
+   > its own and `confirm` stacked `HubConfirmSheet` in front of it — two sheets on one gesture.
+   > The finding here was correct that these were un-confirmed writes; `confirm` was simply the
+   > wrong instrument, since the sheets they open are stronger confirmation surfaces than a yes/no.
+   > **Live spec:** `00-master-spec-v1.6.md` §"Outer: Chart it · Move stop · Breakeven · Close"
+   > (the `kind: 'run'` bullet). **Validator:** `registry.js` `FLICK_GUARDABLE_KINDS`.
 3. **`role="toolbar"` is the wrong container and the spec mandates it.** A toolbar role exists to
    redirect arrow keys; there is no keyboard in this build. VoiceOver flattens it to nothing, TalkBack
    charges Android users an extra swipe for it, and its contract ("a fixed, always-visible set of

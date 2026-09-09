@@ -33,7 +33,9 @@
  * @property {HubRequirement[]} [requires]
  * @property {Function}[enabled]     (ctx) => boolean.
  * @property {boolean} [flickable]   Default true. false = deliberate selection only, never a
- *                                   <120ms flick. Only meaningful on kind:'confirm'.
+ *                                   <120ms flick. Meaningful on kind:'confirm' AND kind:'run' —
+ *                                   `useJoystick.js:387` gates on it with no kind check, so it is
+ *                                   live wherever an action can fire. Rejected on 'navigate'/'home'.
  */
 
 /**
@@ -56,6 +58,13 @@ export const INNER_MAX = 4;
 
 /** Every legal `requires` literal. validateRegistry rejects anything else. */
 export const HUB_REQUIREMENTS = ['symbol', 'position', 'list', 'flagged', 'chart'];
+
+/**
+ * The kinds on which `flickable: false` means something — the ones that can FIRE.
+ * 'navigate' and 'home' are absent on purpose: a flick that navigates writes nothing, so a
+ * guard there would be a claim of danger where there is none.
+ */
+export const FLICK_GUARDABLE_KINDS = ['confirm', 'run'];
 
 /**
  * The one mode allowed to end its inner ring with something other than Home.
@@ -271,7 +280,8 @@ export const modes = [
     ],
   }),
 
-  // 5 ── journal. Move stop, Breakeven and Close are ALL confirm. Close is not flickable.
+  // 5 ── journal. Move stop, Breakeven and Close are ALL `run` (B3): each one's own sheet is
+  // the confirmation, so a `confirm` in front of it stacked two sheets. Close is not flickable.
   defineMode({
     id: 'journal',
     label: 'Journal',
@@ -282,37 +292,49 @@ export const modes = [
     fan: [
       chartIt('journal'),
       {
+        // ⛔ B3 — `run`, NOT `confirm`. `StopConfirmSheet` IS the confirmation surface: it renders
+        // the value in its primary button (`StopConfirmSheet.jsx:78`, "Set stop 178.10") and
+        // disables that button while the value is invalid. A `confirm` here put `HubConfirmSheet`
+        // in FRONT of it — two sheets on one gesture, the first one labelled from `action.label`
+        // (`HubRoot.jsx:143`), which is why the primary read "Move stop" and not the number.
         id: 'journal.moveStop',
         label: 'Move stop',
         icon: 'moveStop',
         ring: 0,
         color: '--hub-mode-journal',
-        kind: 'confirm',
+        kind: 'run',
         requires: ['position'],
-        confirmText: (ctx) => `Set stop on ${ctx?.selectedPosition?.symbol ?? ''}`.trim(),
       },
       {
+        // ⛔ B3 — same as Move stop. Breakeven is the same PUT with a different seed, and it
+        // reaches the same validated sheet; a second sheet in front of it confirmed nothing.
         id: 'journal.breakeven',
         label: 'Breakeven',
         icon: 'shield',
         ring: 0,
         color: '--hub-mode-journal',
-        kind: 'confirm',
+        kind: 'run',
         requires: ['position'],
-        confirmText: (ctx) => `Stop to breakeven on ${ctx?.selectedPosition?.symbol ?? ''}`.trim(),
       },
       {
-        // ⛔ The highest-stakes action in the hub: it writes a permanent j2_trades row.
-        // flickable:false means a flick in this direction OPENS THE FAN instead of firing.
+        // ⛔ The highest-stakes action in the hub: it ends a position and writes a permanent
+        // j2_trades row. ⛔ B3 — `run`, NOT `confirm`, and the gesture STILL WRITES NOTHING:
+        // `run` reaches `OpenPositionsTab`'s own `ClosePositionModal` (`journalSection.js:581`
+        // -> `OpenPositionsTab.jsx:208` -> `:586`), a six-field form whose write is gated behind
+        // `validate()` and its own primary (`ClosePositionModal.jsx:58-63,71,213`). That form is a
+        // STRONGER confirmation surface than a yes/no sheet, so the hub sheet in front of it was
+        // a tap, not a safeguard.
+        // ⛔⛔ flickable:false STAYS, and it is not decoration: `useJoystick.js:387` gates on
+        // `flickable !== false` with NO kind check, so it is live on a `run` action exactly as it
+        // was on a `confirm` one. A flick in this direction OPENS THE FAN instead of firing.
         id: 'journal.close',
         label: 'Close',
         icon: 'x',
         ring: 0,
         color: '--ut-red',
-        kind: 'confirm',
+        kind: 'run',
         flickable: false,
         requires: ['position'],
-        confirmText: (ctx) => `Close ${ctx?.selectedPosition?.symbol ?? ''}`.trim(),
       },
       {
         id: 'journal.addTrade',
@@ -687,9 +709,14 @@ export function validateRegistry(list = modes, opts = {}) {
         problems.push(`${action.id}: kind:'navigate' requires a 'to'`);
       }
 
-      // flickable:false is a safety marker; it only means anything on an action that confirms.
-      if (action.flickable === false && action.kind !== 'confirm') {
-        problems.push(`${action.id}: flickable:false is only meaningful on kind:'confirm'`);
+      // flickable:false is a safety marker, and it means something on any action that FIRES:
+      // `useJoystick.js:387` gates on `flickable !== false` without looking at `kind`. It is
+      // therefore legal on 'confirm' and on 'run' (B3: journal.close is a flickable:false 'run'),
+      // and still rejected on 'navigate'/'home', where there is no write to guard.
+      if (action.flickable === false && !FLICK_GUARDABLE_KINDS.includes(action.kind)) {
+        problems.push(
+          `${action.id}: flickable:false is only meaningful on kind:'confirm' or kind:'run'`,
+        );
       }
 
       for (const req of action.requires ?? []) {

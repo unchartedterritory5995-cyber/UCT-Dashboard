@@ -814,10 +814,21 @@ Fans below are the real ones. Anything the spec once promised that Wave 0 found 
 - Scrub: adjust the selected position's stop; readout shows new stop and resulting R; release opens a
   one-button confirm sheet ("Set stop 178.10 → 1.6R").
 - Outer: Chart it · Move stop · Breakeven · Close. Inner: Add trade · Note · Voice · Home.
-- ⛔ **Move stop, Breakeven and Close are all `kind: 'confirm'`.** v1.1 gave only Move stop a sheet.
-  Close ends a position and writes a permanent `j2_trades` row — on a sub-120ms flick it is the
-  highest-stakes target in the hub. **Close is additionally `flickable: false`**: a flick in its
-  direction opens the fan instead of firing.
+- ⛔ **Move stop, Breakeven and Close are all `kind: 'run'`.** ⚰️ **Amended by B3, 2026-09-09** —
+  this line read "all `kind: 'confirm'`" from v1.2 through v1.6. That was implementable but wrong in
+  effect: each of the three already reaches a sheet of its own (`StopConfirmSheet` for the first two,
+  `ClosePositionModal` for Close), so `confirm` put `HubConfirmSheet` in FRONT of that sheet — two
+  sheets on one gesture — and labelled its primary from `action.label` (`HubRoot.jsx:143`), which is
+  why Move stop's primary read "Move stop" instead of the mandated "Set stop 178.10". The sheets the
+  actions already open ARE the confirmation, and they are stronger than a yes/no: `StopConfirmSheet`
+  disables its primary on an invalid value (`StopConfirmSheet.jsx:78-88`) and `ClosePositionModal` is
+  a six-field form gated behind `validate()` (`ClosePositionModal.jsx:58-63,71,213`).
+  v1.1 gave only Move stop a sheet. Close ends a position and writes a permanent `j2_trades` row — on
+  a sub-120ms flick it is the highest-stakes target in the hub. **Close is additionally
+  `flickable: false`**: a flick in its direction opens the fan instead of firing. ⭐ That guard is
+  UNCHANGED by B3 and does not depend on the kind — `useJoystick.js:387` gates on
+  `flickable !== false` with no `kind` check, so it is live on a `run` exactly as it was on a
+  `confirm`. `validateRegistry` was widened to match the engine it had been contradicting.
 - Stop writes go to `PUT /api/j2/positions/{id}`. **`activeStop(p)` is the stop in force**; "breakeven"
   sets `breakevenStop` and never mutates `stopPrice`, so R stays honest on close.
 - Live open-position R needs one new pure function beside `tradeRMultiple` — additive, not a new system.
