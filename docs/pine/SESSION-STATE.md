@@ -4,7 +4,10 @@
 Delete or rewrite it when the wave closes; it describes work in flight, not a ruling.
 
 - Branch `feat/indicator-r0r1`, worktree `C:\Users\Patrick\uct-worktrees\indicator-r0r1`
-- Tip **`cc1171d23`**, pushed to `origin/feat/indicator-r0r1` (backup only — not a deploy)
+- Pushed to `origin/feat/indicator-r0r1` (backup only — **not** a deploy); local and remote
+  match. ⚠️ **No tip hash is written here on purpose** — this line named one and it went stale
+  within the same session, which is the exact defect this repo keeps paying for. Read it with
+  `git log --oneline -1`.
 - Working tree clean. The `tests/fixtures/compat_harness/**` rows that show as modified are
   **CRLF churn with an empty content diff** — do not commit them.
 - Engine suite: `cd app && npm run test:engine` → **4,956 passed, 2 failed** (see *Known reds*)
@@ -66,7 +69,7 @@ inserting nothing.
 
 ---
 
-## Volume's refusal list — verbatim, as of `cc1171d23`
+## Volume's refusal list — verbatim, as of the barstate work landing
 
 ```
 SCREENER (default)     ok=false  refusals=5
