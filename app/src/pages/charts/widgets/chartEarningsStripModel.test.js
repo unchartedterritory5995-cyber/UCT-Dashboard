@@ -18,8 +18,16 @@ const intel = (quarters, estimates = []) => ({ quarters, estimates })
 
 describe('stripLabel', () => {
   it('shortens the fiscal form for a narrow cell', () => {
-    expect(stripLabel('FY2026 Q3')).toBe("Q3 '26")
-    expect(stripLabel('FY2025 Q1')).toBe("Q1 '25")
+    expect(stripLabel('FY2026 Q3')).toBe('FY26 Q3')
+    expect(stripLabel('FY2025 Q1')).toBe('FY25 Q1')
+  })
+
+  it('KEEPS the FY marker — dropping it made correct data look wrong', () => {
+    // NVDA's fiscal year ends in late January, so FY2027 Q2 is the quarter
+    // ending 2026-07-31, reported 2026-08-26. Rendered as "Q2 '27" that reads
+    // as calendar 2027 — a date in the future — and the strip looked broken.
+    expect(stripLabel('FY2027 Q2')).toContain('FY')
+    expect(stripLabel('FY2027 Q2')).toBe('FY27 Q2')
   })
 
   it('keeps the year, since the strip spans a fiscal boundary', () => {
@@ -38,14 +46,14 @@ describe('stripCells', () => {
   it('runs oldest -> newest, matching the time axis above it', () => {
     // earnings-intel hands back newest-first.
     const cells = stripCells(intel([q('FY2026 Q3'), q('FY2026 Q2'), q('FY2026 Q1')]), 6)
-    expect(cells.map(c => c.label)).toEqual(["Q1 '26", "Q2 '26", "Q3 '26"])
+    expect(cells.map(c => c.label)).toEqual(['FY26 Q1', 'FY26 Q2', 'FY26 Q3'])
   })
 
   it('puts forward estimates after the reported quarters', () => {
     const cells = stripCells(
       intel([q('FY2026 Q3')], [{ label: 'FY2026 Q4', eps_estimate: 2, revenue_estimate: 3e9 }]), 6)
     expect(cells.map(c => c.est)).toEqual([false, true])
-    expect(cells.at(-1).label).toBe("Q4 '26")
+    expect(cells.at(-1).label).toBe('FY26 Q4')
   })
 
   it('trims from the OLD end, so the estimate always survives', () => {
@@ -54,7 +62,7 @@ describe('stripCells', () => {
             [{ label: 'FY2026 Q4', eps_estimate: 2 }]), 2)
     expect(cells).toHaveLength(2)
     expect(cells.at(-1).est).toBe(true)
-    expect(cells.map(c => c.label)).toEqual(["Q3 '26", "Q4 '26"])
+    expect(cells.map(c => c.label)).toEqual(['FY26 Q3', 'FY26 Q4'])
   })
 
   it('respects the cell budget', () => {
@@ -65,7 +73,7 @@ describe('stripCells', () => {
 
   it('ignores unreported quarters — those are not results yet', () => {
     const cells = stripCells(intel([q('FY2026 Q3'), q('FY2026 Q4', { reported: false })]), 6)
-    expect(cells.map(c => c.label)).toEqual(["Q3 '26"])
+    expect(cells.map(c => c.label)).toEqual(['FY26 Q3'])
   })
 
   it('survives an empty or missing payload', () => {
@@ -85,7 +93,7 @@ describe('it reuses the Company Panel rules rather than restating them', () => {
       q('FY2026 Q2', { eps_yoy_pct: -14 }),
       q('FY2026 Q1', { eps_yoy_pct: 8 }),
     ]), 6)
-    expect(cells.map(c => c.label)).toEqual(["Q1 '26", "Q2 '26", "Q3 '26"])
+    expect(cells.map(c => c.label)).toEqual(['FY26 Q1', 'FY26 Q2', 'FY26 Q3'])
     expect(cells.map(c => c.epsCell.tone)).toEqual(['up', 'down', 'gold'])
   })
 
@@ -181,7 +189,7 @@ describe('the actuals -> estimates transition', () => {
       intel([q('FY2026 Q3')],
             [{ label: 'FY2026 Q4', eps_estimate: 2 }, { label: 'FY2027 Q1', eps_estimate: 3 }]), 6)
     expect(cells.filter(c => c.firstEst)).toHaveLength(1)
-    expect(cells.find(c => c.firstEst).label).toBe("Q4 '26")
+    expect(cells.find(c => c.firstEst).label).toBe('FY26 Q4')
   })
 
   it('flags nothing when there are no estimates', () => {

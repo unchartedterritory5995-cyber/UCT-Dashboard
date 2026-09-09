@@ -9,7 +9,7 @@
  * that a swing off a loss never earns gold. Nothing re-derives EPS, revenue,
  * YoY or the estimate state.
  */
-import { fmtDateShort, fmtEps, growthCell } from './earningsRows'
+import { fmtDateShort, fmtEps, growthCell, shortLabel } from './earningsRows'
 
 /**
  * Revenue at strip width: ONE decimal, not two.
@@ -50,10 +50,21 @@ export function stripGrowth(cell) {
     : { ...cell, title: null }
 }
 
-/** "FY2026 Q3" -> "Q3 '26". The strip's cells are far narrower than a table row. */
+/**
+ * The quarter label, at strip width.
+ *
+ * ⛔ It MUST keep the "FY" marker. This used to render "FY2027 Q2" as "Q2 '27",
+ * which reads as CALENDAR 2027 — a date in the future — when it is NVDA's
+ * fiscal 2027 Q2: period ending 2026-07-31, reported 2026-08-26. NVDA's fiscal
+ * year ends in late January, so its FY label runs roughly a year ahead of the
+ * calendar, and dropping "FY" turned correct data into an apparent bug.
+ *
+ * Delegates to the panel's own `shortLabel`, which was written for exactly this
+ * ("the fiscal year still reads unambiguously; only the century goes") — so the
+ * strip and the Earnings tab abbreviate identically instead of twice.
+ */
 export function stripLabel(label) {
-  const m = /^FY\s*(\d{4})\s*Q([1-4])$/i.exec(String(label || '').trim())
-  return m ? `Q${m[2]} '${m[1].slice(2)}` : String(label || '')
+  return shortLabel(String(label ?? '').trim())
 }
 
 /** Roughly the width one cell needs before EPS and its YoY start colliding.
