@@ -1763,11 +1763,37 @@ def _prepare_once(last_version):
 # classified `startup_catchup` and MUST be excluded from steady-state stats.
 _PROCESS_START_WALL = time.time()
 _VERSION_FIRST_SEEN = {}
-_PREPARE_ROLLS = collections.deque(maxlen=80)
+# ⛔ SEPARATE DEQUES PER KIND. A single shared deque(maxlen=80) let late-session
+# volume of ONE kind evict the other, and that is not hypothetical: on 2026-09-09
+# the offset went 0->1 at 08:00 ET (fill run 246), so rolls from 00:08-08:00 WERE
+# classified steady correctly -- and were then evicted by the ~9 hours of
+# misclassified catch-ups that followed. By 17:19 the ledger read `rolls_steady: []`
+# against `prepared: 437`. Classification was one failure; RETENTION was the other,
+# and fixing the classifier alone would have left this live.
+_PREPARE_ROLLS_BY_KIND = {
+    "steady_state_roll": collections.deque(maxlen=240),
+    "startup_catchup": collections.deque(maxlen=40),
+}
+# Kept as a view for anything that wants every roll in arrival order.
+_PREPARE_ROLLS = collections.deque(maxlen=280)
+
+
+_FIRST_SEEN_VERSION = None
 
 
 def _note_version_seen(version) -> None:
     """Called by the detector the moment it observes a version it has not seen."""
+    global _FIRST_SEEN_VERSION
+    if _FIRST_SEEN_VERSION is None:
+        # ⭐ THE LATCH. The very first version this detector ever saw is the one
+        # it INHERITED -- it did not watch that generation arrive. Every later
+        # version was observed to APPEAR, which is exactly what distinguishes a
+        # catch-up from a detected roll. This is explicit provenance rather than
+        # the `prev_version is None` proxy, and it is decoupled from whether the
+        # first PREPARE succeeded: a boot whose first prepare declines (prod ran
+        # declined:261 against prepared:437, so that is not rare) no longer files
+        # the next, genuinely-new generation as a catch-up.
+        _FIRST_SEEN_VERSION = version
     if version in _VERSION_FIRST_SEEN:
         return
     if len(_VERSION_FIRST_SEEN) > 200:
@@ -1803,8 +1829,14 @@ def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
         # cannot predate it. The only catch-up in that regime is the version the
         # preparer found already in place on its first pass — which is
         # precisely `prev_version is None`.
-        kind = "startup_catchup" if prev_version is None else "steady_state_roll"
-    _PREPARE_ROLLS.append({
+        # The latch is exact; prev_version stays as the fallback for a process
+        # that somehow records a roll before the detector noted a sighting.
+        if _FIRST_SEEN_VERSION is not None:
+            kind = ("startup_catchup" if version == _FIRST_SEEN_VERSION
+                    else "steady_state_roll")
+        else:
+            kind = "startup_catchup" if prev_version is None else "steady_state_roll"
+    _row = {
         "version": version,
         "kind": kind,
         # EXACT: detector sighting -> first paint published.
@@ -1820,12 +1852,16 @@ def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
         "bucket_bound_s": (round(now - born_bucket, 2)
                            if born_bucket and now >= born_bucket else None),
         "pass2_skipped": bool(pass2_skipped),
-    })
+    }
+    _PREPARE_ROLLS.append(_row)
+    _PREPARE_ROLLS_BY_KIND[kind].append(_row)
 
 
 def prepare_rolls(kind: str | None = None) -> list:
-    rows = list(_PREPARE_ROLLS)
-    return [r for r in rows if kind is None or r["kind"] == kind]
+    # Per-kind deques so one kind's volume can never evict the other's history.
+    if kind is None:
+        return list(_PREPARE_ROLLS)
+    return list(_PREPARE_ROLLS_BY_KIND.get(kind, ()))
 
 
 _PREPARE_INFLIGHT = threading.Lock()

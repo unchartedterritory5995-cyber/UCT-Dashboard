@@ -395,11 +395,15 @@ def test_CONTROL_pass_2_DOES_run_when_the_version_is_stable(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _clean_ledger():
-    fr._PREPARE_ROLLS.clear()
-    fr._VERSION_FIRST_SEEN.clear()
+    def _reset():
+        fr._PREPARE_ROLLS.clear()
+        for dq in fr._PREPARE_ROLLS_BY_KIND.values():
+            dq.clear()
+        fr._VERSION_FIRST_SEEN.clear()
+        fr._FIRST_SEEN_VERSION = None
+    _reset()
     yield
-    fr._PREPARE_ROLLS.clear()
-    fr._VERSION_FIRST_SEEN.clear()
+    _reset()
 
 
 def test_a_generation_predating_this_process_is_startup_catchup(monkeypatch):
@@ -747,3 +751,87 @@ def test_at_offset_0_a_generation_born_after_startup_is_STILL_steady(monkeypatch
     # negative "latency". The classification is the claim; `steady` despite
     # prev_version=None is already proof that the BUCKET branch decided, because
     # the fallback would have said catch-up.
+
+
+# ── The latch, and per-kind retention ────────────────────────────────────────
+# Deferred on 2026-09-09 and shipped after the gate ran, so the gate measured the
+# binary it was designed against. Two changes, two different defects:
+#   LATCH     -- classification by explicit provenance instead of the
+#                `prev_version is None` proxy.
+#   RETENTION -- separate deques so one kind cannot evict the other's history.
+# 2026-09-09 had BOTH failures: the classifier was blind AND the shared
+# deque(maxlen=80) evicted the correctly-classified 00:08-08:00 rolls under nine
+# hours of misclassified ones. Fixing only the classifier would have left the
+# second one live and invisible.
+
+def test_the_latch_files_only_the_INHERITED_generation_as_catchup(monkeypatch):
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    boot = _bumped_version()
+    for v in (boot, boot + 1, boot + 2):
+        fr._note_version_seen(v)
+        fr._record_roll(v, prepare_ms=7000, pass2_skipped=False, prev_version=None)
+    # ⛔ prev_version is None on EVERY call above. Under the old fallback that
+    # made all three catch-ups; the latch keys on what the detector SAW first.
+    assert [r["version"] for r in fr.prepare_rolls("startup_catchup")] == [boot]
+    assert ([r["version"] for r in fr.prepare_rolls("steady_state_roll")]
+            == [boot + 1, boot + 2])
+
+
+def test_the_latch_RECOVERS_the_sample_a_declined_first_prepare_used_to_lose(monkeypatch):
+    """THE CASE THE LATCH EXISTS FOR. Boot sees V0; the first prepare DECLINES so
+    no roll is recorded and _PREPARE_LAST stays None; the version then moves to
+    V1. The first RECORDED roll is V1 with prev_version=None -- a genuinely new
+    generation the old rule filed as a catch-up. Prod ran declined:261 against
+    prepared:437, so this is not a rare path."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    v0 = _bumped_version()
+    fr._note_version_seen(v0)          # detector saw the inherited generation
+    # ... first prepare declines: no _record_roll call at all ...
+    v1 = v0 + 1
+    fr._note_version_seen(v1)
+    fr._record_roll(v1, prepare_ms=7000, pass2_skipped=False, prev_version=None)
+
+    rows = fr.prepare_rolls("steady_state_roll")
+    assert len(rows) == 1 and rows[0]["version"] == v1, (
+        "a generation born after boot was filed as a catch-up because the first "
+        "prepare declined -- the sample the latch is meant to recover")
+    assert fr.prepare_rolls("startup_catchup") == []
+
+
+def test_CONTROL_the_latch_still_calls_the_boot_generation_a_catchup(monkeypatch):
+    """Without this, 'always steady' satisfies both tests above."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 1)
+    boot = _bumped_version()
+    fr._note_version_seen(boot)
+    fr._record_roll(boot, prepare_ms=8000, pass2_skipped=False, prev_version=None)
+    assert len(fr.prepare_rolls("startup_catchup")) == 1
+    assert fr.prepare_rolls("steady_state_roll") == []
+
+
+def test_catchup_volume_cannot_EVICT_steady_history(monkeypatch):
+    """THE SECOND FAILURE OF 2026-09-09, pinned. One shared deque(maxlen=80) let a
+    late-session run of one kind push the other kind's rows out entirely."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 0)
+    steady_v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(steady_v, 7000, False, prev_version=steady_v - 1)
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1
+
+    old_v = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    for i in range(300):               # far more than any single-deque maxlen
+        fr._record_roll(old_v - i, 8000, False, prev_version=None)
+
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1, (
+        "steady history was evicted by catch-up volume -- the shared-deque defect")
+    assert len(fr.prepare_rolls("startup_catchup")) > 0
+
+
+def test_CONTROL_a_kinds_own_deque_still_bounds_itself(monkeypatch):
+    """Retention must stay BOUNDED -- an unbounded ledger is a memory leak on a
+    long-lived worker, which is why the fix is per-kind deques and not no deque."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 0)
+    cap = fr._PREPARE_ROLLS_BY_KIND["steady_state_roll"].maxlen
+    assert cap is not None and cap > 0
+    base = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    for i in range(cap + 50):
+        fr._record_roll(base + i, 7000, False, prev_version=base + i - 1)
+    assert len(fr.prepare_rolls("steady_state_roll")) == cap
