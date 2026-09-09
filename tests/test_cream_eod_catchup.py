@@ -9,12 +9,9 @@ builds on the tape, and the only trace was its absence.
 
 ⭐ THE SHAPE IS `oi_morning`'s / `/buzz`'s, REUSED — a per-day record on the
 volume, a catch-up on the 60s poll that posts a late card while it is still
-honest, and a CRITICAL alert once it is not.
-
-⛔ PLUS A FIRST-RUN BOOTSTRAP. The very first time this feature runs on a volume
-(or after a /data reset) there is no record, and a card posted BEFORE tracking
-existed left none — so a "never posted" page past the window cannot be trusted.
-On that one run the day is adopted silently instead of paged.
+honest, and a CRITICAL alert once it is not. catch_up only ever examines the
+CURRENT ET day, so a prior slot handled out-of-band (e.g. a manual recovery
+post) is never re-examined — there is no "pre-feature" day to special-case.
 """
 
 from __future__ import annotations
@@ -72,12 +69,6 @@ def alerts(monkeypatch):
     return seen
 
 
-def _seed_prior_day():
-    """Create the state file (a prior handled day) so `_state_file_exists()` is
-    True — i.e. take us OUT of the one-time first-run bootstrap window."""
-    cc.mark_slot_done("2026-09-07", "posted")
-
-
 # ── the window ───────────────────────────────────────────────────────────────
 
 def test_before_the_slot_nothing_happens(ran):
@@ -97,9 +88,7 @@ def test_inside_the_window_the_card_is_caught_up(ran):
 
 def test_past_the_window_it_is_RECORDED_AND_PAGED__not_posted(ran, alerts):
     """⛔⛔ THE HALF THAT MATTERS. Past the honesty limit the run is refused, the
-    day is marked, and a HUMAN is told — but only once we are OUT of the first-run
-    bootstrap (a page for a slot we cannot verify would be a false alarm)."""
-    _seed_prior_day()
+    day is marked, and a HUMAN is told."""
     out = cc.catch_up(now=_at(19, 0))                # 170m late
     assert out["reason"] == "past the catch-up window"
     assert ran == [], "a stale card was posted anyway"
@@ -129,32 +118,6 @@ def test_disarmed_does_nothing(ran, monkeypatch):
     monkeypatch.setenv("CREAM_EOD_ENABLED", "0")
     assert cc.catch_up(now=_at(17, 0))["reason"] == "disarmed"
     assert ran == []
-
-
-# ── the first-run bootstrap ─────────────────────────────────────────────────
-
-def test_first_run_past_the_window_ADOPTS_silently__no_page(ran, alerts):
-    """⛔ THE DEPLOY-DAY CASE. On 2026-09-08 the card was posted by hand ~9h late,
-    then the feature deployed. With no state file yet, a naive catch-up would read
-    455m-past-slot as 'never posted' and page a miss that did not happen."""
-    assert not cc._state_file_exists()
-    out = cc.catch_up(now=_at(23, 45))               # 455m late, first ever run
-    assert out["reason"] == "pre-tracking bootstrap"
-    assert ran == [], "a stale card was posted on the bootstrap run"
-    assert alerts == [], "the bootstrap run paged a miss it cannot verify"
-    # the day is still closed, so the 60s poll does not keep re-adopting it
-    assert cc.slot_done("2026-09-08")
-
-
-def test_the_bootstrap_fires_ONCE__a_later_real_miss_still_pages(ran, alerts):
-    """⛔ THE GUARD MUST NOT DISARM THE ALARM PERMANENTLY. Once any day is on the
-    volume, `_state_file_exists()` is True and a genuine miss pages again."""
-    cc.catch_up(now=_at(23, 45))                      # first run -> adopts 9/08
-    assert alerts == []
-    out = cc.catch_up(now=_at(19, 0, day=9))          # 9/09, file now exists
-    assert out["reason"] == "past the catch-up window"
-    assert len(alerts) == 1, "the miss-alarm stayed disarmed after the bootstrap"
-    assert "2026-09-09" in alerts[0][0]
 
 
 # ── what counts as "handled" ────────────────────────────────────────────────

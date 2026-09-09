@@ -79,14 +79,6 @@ def _save_state(state: dict) -> None:
         log.warning("[cream-eod] could not persist slot state: %s", e)
 
 
-def _state_file_exists() -> bool:
-    """Whether this volume has ever recorded a cream slot. False only on the very
-    first run after this feature deploys (or after a /data reset) — the one window
-    in which a 'never posted' page cannot be trusted, because a card posted before
-    tracking existed left no record here."""
-    return os.path.exists(_state_path())
-
-
 def slot_done(day: str) -> bool:
     return bool(_load_state().get("done", {}).get(day))
 
@@ -226,21 +218,10 @@ def catch_up(*, now=None) -> dict:
         log.warning("[cream-eod] the %02d:%02d ET slot never fired (%dm ago) — "
                     "catching it up now", SLOT_ET[0], SLOT_ET[1], late)
         return run_scheduled(now=now_dt)
-    # Past the honesty window. Normally that's a missed-slot page — but on the
-    # FIRST run after this feature deploys (no state file has ever been written on
-    # this volume) we cannot know whether the slot was handled before tracking
-    # existed, so adopt the day silently rather than page a miss we can't verify.
-    first_run = not _state_file_exists()
     with _RUN_LOCK:
         if slot_done(day):
             return {"posted": False, "reason": "already handled today"}
-        mark_slot_done(day, "pre-tracking (feature just deployed)" if first_run
-                       else f"missed ({late}m late)")
-    if first_run:
-        log.info("[cream-eod] first run past the %02d:%02d ET slot — adopting %s as "
-                 "pre-tracking (no page: cannot verify a pre-feature post)",
-                 SLOT_ET[0], SLOT_ET[1], day)
-        return {"posted": False, "reason": "pre-tracking bootstrap"}
+        mark_slot_done(day, f"missed ({late}m late)")
     log.warning("[cream-eod] MISSED today's card — %dm late, past the %dm catch-up "
                 "window, so it will not be posted.", late, grace)
     _alert_missed(day, late)
