@@ -9,7 +9,8 @@ Nothing deployed; no feature work; no R5 measurement.
 |---|---|---|
 | §1–§8 certification @ pin `f139ad8ce` | `5fa3d6209` | ⛔ NOT_SHIP_READY — one branch-owned regression (§7) |
 | MOB-09 blocker closeout | `ace13811f` | ✅ LOCAL_SHIP_READY |
-| **Final release-tip reconciliation @ tip `068629ed5`** | **`94569640b`** | ✅ **RELEASE_READY = YES** |
+| Release-tip reconciliation @ tip `068629ed5` | `94569640b` | ✅ RELEASE_READY = YES |
+| **Final 3-commit reconciliation @ tip `2d8373449`** | **`34b8dabb7`** | ✅ **FINAL_RELEASE_READY = YES** |
 
 `_certify-master-pin` = `f139ad8ce` (historical, retained) ·
 `_release-tip` = `068629ed5` (this cycle).
@@ -724,3 +725,211 @@ cycle certified.** A push at this moment would be rejected as non-fast-forward
 (behind 3). The next catch-up is a genuine reconciliation with overlap, not the
 zero-contact merge this one turned out to be — and it must never be resolved with
 `--force`.
+
+---
+
+# FINAL 3-COMMIT RELEASE RECONCILIATION — 2026-09-09
+
+Not deployed. Not pushed. No force. No R5. No hub/review convergence work.
+Pins retained: `_certify-master-pin` = `f139ad8ce` · `_release-tip` = `068629ed5`.
+
+- **Frozen release target: `_release-tip-final` = `2d8373449`**
+- **Final merge: `34b8dabb7`**
+- **0 behind / 58 ahead** of the frozen target · working tree **clean**
+
+## F1 · The 3 commits
+
+| commit | subject | code surface | gated | changes prod behaviour | overlap class |
+|---|---|---|---|---|---|
+| `a37cd5062` | Wave P housekeeping — the upload refusal a member could not act on | `journal_two/notes.py`, `NoteEditorPage.jsx` + tests | n/a | yes, notebook upload only | **E · UNRELATED** |
+| `9c998f311` | Wave P post-closure — 32 GB correction, Wave Q packet | docs only | n/a | no | **E · UNRELATED (docs)** |
+| `2d8373449` | hub: preview — navigation-only joystick hub (mobile, gated) | `hub/**` (new), `Layout`, `App`, `AuthContext`, `UIcon`, `auth.py`, + 4 owned files | **yes ×3** | yes, behind gates | **A + B + D** |
+
+Per-file classification for the four owned files:
+
+| file | class | detail |
+|---|---|---|
+| `screener/shell/VirtualResults.jsx` | **A · DIRECT_CODE_OVERLAP** | both sides rewrote the same signature line — the only conflict |
+| `screener/shell/ResultCards.jsx` | **B · SEMANTIC_PRODUCT_OVERLAP** | `scrollToIndex` seam for a future hub cursor over a list our review session already navigates |
+| `components/StockChart.module.css` | **C · SHARED_INFRASTRUCTURE_ONLY** | same file, disjoint selectors (`.goLivePill` vs our `.volXtra`) |
+| `components/screener/reachable.test.js` | **D · TEST_ONLY** | rail; list grew by master's own new orphan |
+
+## F2 · Hub / review product overlap
+
+Answered from code, not assumption.
+
+**What it is:** a navigation-only corner joystick for one-handed touch navigation.
+It adds **no route and no backend endpoint**; it replaces the voice orb and the
+feedback "?" when active.
+
+**Gated three ways, all of which must pass** (`hub/useHubActive.js`):
+1. server kill switch `HUB_PREVIEW_ENABLED`, read **per request** so a rollback
+   needs no redeploy — default ON, so an unset variable is "not killed";
+2. a per-user `joystick_hub.enabled` pref that, when unset, resolves to
+   **admin only**;
+3. capability + viewport: `backdrop-filter`, `visualViewport`, and
+   `(max-width: 1023px) and (pointer: coarse)`.
+
+**Mounting:** `Layout.jsx`, as a sibling of `<main>` inside `HubProvider`. There
+is **no route suppression** — it is intended to appear on `/charts`, and its own
+comments record device measurements there (Pixel 8, Galaxy S24, iPhone 15 Pro).
+
+⭐ **It cannot appear inside the review workflow, and that is structural rather
+than incidental:** `--z-modal` is **1000**, `--z-hub-open` is **401**, and
+`ReviewFeed` renders through `Sheet`, which owns `--z-modal`. Master's own
+`hubZIndex.test.js` asserts the same ordering (`modals and toasts above the open
+hub`). While the feed is open it correctly covers the hub; the hub can never draw
+over the feed.
+
+**Spatial coexistence on the chart shell is already reconciled by master:**
+`.goLivePill` moved `right: 86px → 118px` because the hub's 84px pad occupies
+`right: 24px…108px`, with `hubChipCollision.test.js` asserting the two hit rects
+never intersect at 375px and 430px.
+
+### Verdict: `HUB_AND_REVIEW_COMPATIBLE_WITH_SHARED_NAV`
+
+## F3 · ⏸️ DEFERRED_PRODUCT_ARCHITECTURE — future hub cursor vs review session cursor
+
+**Status: NOT_CURRENTLY_ACTIVE · Release impact: NONE · Future risk:
+TWO_CURSOR_MODELS_OVER_ONE_LIST**
+
+This is recorded as an open collision, **not** as something this release resolved.
+
+Master has deliberately added `scrollToIndex` seams to **both** `VirtualResults`
+and `ResultCards` for a future shared hub cursor (its own comments cite
+joystick-hub spec §2d / exception (d), and say *"Nothing consumes it yet; this
+only opens the door"*).
+
+The mobile review workflow **already owns** ordered-set navigation: session
+creation, current index, next/prev, return-to-list, source ordering, and
+review/feed state.
+
+⛔ **Before any future hub phase controls scanner / screener / watchlist list
+position, a product+architecture decision must define ONE source of truth for:**
+
+1. current symbol / index
+2. the ordered result set
+3. next / previous semantics
+4. scroll position
+5. selection state
+6. route / navigation ownership
+7. behaviour when hub navigation occurs **during an active review session**
+
+Nothing is to be built, and no compatibility code written speculatively, until
+that decision exists. There is no current release conflict because nothing
+consumes the seams.
+
+## F4 · Merge and the one conflict
+
+`git merge-tree` predicted the conflict; the real merge produced exactly it.
+
+| file | ours | theirs | resolution |
+|---|---|---|---|
+| `VirtualResults.jsx` | dropped `liveSortOn` — the live re-sort moved **up** to `ScannerShell` so every renderer shares one display order and "Review charts" can publish the order on screen | wrapped in `forwardRef`, exposed `scrollToIndex` | **both intents kept**: master's `forwardRef` seam in full, with **our** prop list. Restoring `liveSortOn` would reintroduce a dead parameter implying this component still sorts; `ScannerShell` no longer passes it (verified), so master's list would also be inert. A merge note in the file records this. |
+| `StockChart.module.css` | added `.volXtra` (MOB-06′ phone volume) | moved `.goLivePill` right 86→118px | auto-merged; **selector-disjoint**, no semantic choice |
+| `.gitignore` | — | — | auto-merged |
+
+Post-merge: no unresolved conflicts, repo-wide marker scan clean,
+`git merge-base --is-ancestor _release-tip-final HEAD` → **TRUE**, behind **0**,
+working tree clean.
+
+## F5 · ⚠️ Certification-scope correction (not a regression)
+
+The 10-slice gate used through certification claimed to cover all of
+`app/src/**`. It did not. Three areas were **never** in it:
+
+- `src/styles` (3 test files)
+- `src/__tests__` (1)
+- three root-level files (`App.test.jsx`, `innerHtmlIdentity.test.js`,
+  `routePrefetch.test.js`)
+
+`src/hub` (15 files) is new from master and would have been a fourth gap.
+
+⭐ **This is a scope correction, not a regression.** Nothing broke; a set of tests
+was never being run. The final gate adds an eleventh **`gapfill`** slice covering
+all four, so the release gate genuinely covers `app/src/**`. Three failures it
+surfaces are pre-existing master-owned debt that no prior gate could have seen —
+which is precisely the argument for closing the gap rather than quietly keeping
+the smaller, prettier number.
+
+## F6 · Final 11-slice gate
+
+| slice | files | tests | failures |
+|---|---|---|---|
+| `components/chart/engine` | 2F / 158P (160) | 2F / 3,888P / 4S | `manifestProse`, `pine.blindCorpus` |
+| `components/chart/builder` | 1F / 45P (46) | 1F / 1,581P | `ImportBox.thinkscript` |
+| `components/chart` (rest) | 98P | 1,796P | — |
+| `components` research-kit + research | 1F / 46P / 1S (48) | 1F / 868P / 5S | `EarningsResearchModal.themeIsland` |
+| `components` tiles·mobile·video·screener | 1F / 53P (54) | 1F / 503P | `reachable.test.js` |
+| `components` remainder | 64P | 544P | — |
+| `pages/charts` | 84P | 894P | — |
+| `pages/journal-2-0` | 2F / 213P (215) | 2F / 2,257P | `rawErrorSurface`, `CaptureHost` *(flaky)* |
+| `pages` (rest) | 1F / 286P (287) | 2F / 3,167P | `ThemeTrackerPage.chartmount` ×2 |
+| `hooks·lib·utils·…` | 1F / 76P (77) | 1F / 911P | `pollingSites.rail` |
+| **`gapfill`** (hub · styles · __tests__ · root) | 3F / 19P (22) | 3F / 290P | `tapFloor`, `tokens.reachable`, `sourcesAreText` |
+| **TOTAL** | **1,155 files** | **16,721 — 16,699 passed · 13 failed · 9 skipped** | |
+
+**≈19.8 min.** All 11 slices ran to completion and printed a summary. **No hangs,
+no timeouts, no worker crashes, no forced terminations, no open-handle stalls.**
+
+⚰️ **Two "crash markers" my first scan reported were my own false positives** —
+the grep matched the word *forced* inside test names in `engine` and `pagesRe`.
+Reported here rather than quietly dropped, because a scan that over-reports is
+the same class of instrument error as one that under-reports.
+`pagesRe` took 489s (vs 172s) purely from 19-worker contention, not a stall.
+
+## F7 · Failure attribution — every case measured
+
+| file | cases | classification | evidence |
+|---|---|---|---|
+| `chart/engine/ast/manifestProse.test.js` | 1 | **MASTER_OWNED** | reproduced on clean master |
+| `chart/engine/ast/pine.blindCorpus.test.js` | 1 | **MASTER_OWNED** | reproduced on clean master |
+| `chart/builder/ImportBox.thinkscript.test.jsx` | 1 | **MASTER_OWNED** | reproduced on clean master |
+| `research/EarningsResearchModal.themeIsland.test.js` | 1 | **MASTER_OWNED** *(new)* | reproduced on clean `2d8373449`. Cause is legible in the message: the hub added `--hub-glass-tint`, `--hub-glass-tint-strong`, `--hub-rim` to `tokens.css` and the modal's theme island pins every theme-variant token |
+| `components/screener/reachable.test.js` | 1 | **MASTER_OWNED** | **re-measured, not carried forward**: list grew 18 → **19**, the new entry being master's own `app/src/hub/contracts.js`; clean `2d8373449` reports the **identical 19** |
+| `pages/ThemeTrackerPage.chartmount.test.jsx` | 2 | **MASTER_OWNED** | reproduced on clean master; master's 2026-09-06 rework deleted the `firstThemeTicker` auto-open the test asserts |
+| `hooks/pollingSites.rail.test.js` | 1 | **MASTER rail + PRE_EXISTING_BRANCH_DEBT** | clean master fails with `useFloor.js` + `useWatchlistIntelligence.js`; our third offender `useBoundDrawingAlerts.js` predates both merges |
+| `journal-2-0/rawErrorSurface.test.js` | 1 | **MASTER_OWNED** *(newly visible)* | reproduced on clean `2d8373449`, both isolated and across the full 215-file slice |
+| `styles/tapFloor.test.js` | 1 | **MASTER_OWNED** *(scope correction)* | reproduced on clean master; never covered by any prior gate |
+| `styles/tokens.reachable.test.js` | 1 | **MASTER_OWNED** *(scope correction)* | reproduced on clean master |
+| `__tests__/sourcesAreText.test.js` | 1 | **MASTER_OWNED** *(scope correction)* | reproduced on clean master |
+| `notebook/CaptureHost.test.jsx` | 1 | **FLAKY — not a regression** | fails only under 19-worker contention. Passes **isolated on our branch** (18/18) and passes across the **full `pagesJ2` slice on our branch**, which then matches clean master's slice result exactly (1 failure, `rawErrorSurface`) |
+
+**INTRODUCED_BY_FINAL_CATCHUP: 0 · INTRODUCED_BY_MOBILE_BRANCH: 0 · UNKNOWN: 0.**
+
+Reproducible failures: **12**, every one master-owned (one mixed). The 13th is a
+load-dependent flake, classified as such rather than forced into a category.
+
+## F8 · Blocker and coexistence status
+
+| check | result |
+|---|---|
+| MOB-09 blocker | ✅ closed — `usePreferences` 21 · `writeConfirmation` 10 · `useTracingsSync` 16 = **47 passed** |
+| `VideoDockSlot.returns` settles | ✅ **3 consecutive runs, 3s each, 6/6** |
+| hub / review coexistence | ✅ z-separated (`--z-modal` 1000 > `--z-hub-open` 401); hub tests pass; review + feed + mobile shell pass |
+| targeted regression (hub · screener · review · mobile · MOB-09) | ✅ 88 files / 1,095 tests, only `reachable.test.js` |
+| `_release-tip-final` contained | ✅ **behind 0 / ahead 58** |
+| working tree | ✅ clean |
+| fast-forward into master without force | ✅ **possible at `2d8373449`** — re-verify immediately before any push |
+
+## F9 · Remaining known debt (complete)
+
+1. `useBoundDrawingAlerts.js` — bare `useSWR` polling site (**ours**, pre-existing, non-functional).
+2. Eleven master-owned test failures listed in F7, four of which the scope correction newly exposed.
+3. `StockChart.smoke.test.jsx` `LineType` `vi.mock` gap — master-owned unhandled error.
+4. `CaptureHost.test.jsx` — load-dependent flake.
+5. ⏸️ **F3 deferred product architecture** — hub cursor vs review session cursor.
+
+# FINAL_RELEASE_READY = YES
+
+- 11 slices, all terminated normally; 16,699 / 16,721 passing.
+- **Zero failures introduced by this catch-up or by the mobile branch.** Twelve
+  reproducible failures, all master-owned; the thirteenth is a measured flake.
+- The one conflict was resolved semantically, preserving both sides' intent.
+- MOB-09 stays closed; the formerly hanging test settles in 3s.
+- Hub and review coexist by construction, and the future cursor collision is
+  recorded as deferred rather than silently absorbed.
+- The branch can fast-forward into master without force at `2d8373449`.
+
+⛔ Held: not deployed, not pushed, no R5, no hub/review convergence work, no
+chasing of master commits past the frozen target.
