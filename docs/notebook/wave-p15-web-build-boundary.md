@@ -471,3 +471,42 @@ file. What remains is the engine binary (5.3.0 vs 5.4.0) and leptonica (1.82.0
 vs 1.84.1), which is a far narrower question than "a different OCR stack".
 
 ⛔ It is still a question, and it is still unmeasured.
+
+## K · ⛔ The 5.3.0 certification is BLOCKED on this machine
+
+The ruling is right that the 5.4.0 recall numbers must not be carried over
+silently, and §9's list needs a runnable 5.3.0. Four routes were tried:
+
+| route | result |
+|---|---|
+| Docker locally | **absent** — no toolchain on this box |
+| WSL | **not installed** (`wsl --install` needs admin + a reboot — not mine to do) |
+| conda-forge `tesseract=5.3.0` (win-64) into an isolated prefix | installs, **will not execute**: `STATUS_DLL_NOT_FOUND` (0xC0000135) |
+| conda-forge `tesseract=5.3.4` (newer build, modern runtime deps) | same failure, with the env's own bin dirs on PATH |
+
+⛔ **And the production pod is not an option.** Running the corpus there would be
+a test scan in production and a heavy script on the member-serving pod — both
+forbidden, the second one twice-burned.
+
+⭐ **What was established instead, and it is the larger half of the risk:** the
+Debian language pack ships `eng.traineddata` **byte-identical** to the file the
+whole Wave P benchmark ran against (§J). The recognition model is not a
+variable. The open delta is engine binary 5.3.0 vs 5.4.0 and leptonica 1.82.0 vs
+1.84.1 — narrower than "a different OCR stack", and still unmeasured.
+
+⛔ **Unmeasured is not "probably fine."** No 5.3.0 recall number is claimed
+anywhere, and production OCR stays off regardless.
+
+**The decision this needs:**
+
+1. **Enable WSL (or Docker) on this box** — then Debian bookworm's exact
+   `tesseract-ocr 5.3.0-2` + `tesseract-ocr-eng 1:4.1.0-2` is reproducible
+   byte-for-byte and §9's whole list runs fail-closed, locally, repeatably. One
+   admin action, and it unblocks every future packaging question too.
+2. **Authorize a scoped local install of the 5.3.0 Windows build** — ⚠️ the last
+   attempt's `/D=` was ignored and it landed in `C:\Program Files\Tesseract-OCR`,
+   which is the install the current rails run against. It would overwrite 5.4.0.
+3. **Accept the narrowed risk and certify at P2** once a Linux runtime exists —
+   with production OCR disabled the whole time, which it is anyway.
+
+⚠️ Option 1 is the only one that measures what actually ships.
