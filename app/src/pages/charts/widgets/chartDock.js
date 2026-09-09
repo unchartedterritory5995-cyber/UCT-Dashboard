@@ -54,6 +54,18 @@ export const TALL_BOTTOM_H = 300
 export const MIN_RIGHT_W = 300
 export const MIN_BOTTOM_H = 96
 
+// Earnings strip. The DEFAULT is the height the content settles at on its own —
+// three lines plus leading — so an untouched strip looks designed rather than
+// arbitrary. The floor is where those lines start colliding instead of
+// shrinking; the ceiling keeps the price pane the primary visual no matter how
+// far the divider is dragged.
+// Re-measured after the figures were promoted to 12px: padding 9 + header 14
+// + gap 4 + two 19.4px rows + padding 10 = ~76, i.e. the old default fitted
+// with ZERO slack, which reads as cramped even when nothing clips.
+export const DEFAULT_STRIP_H = 84
+export const MIN_STRIP_H = 70
+export const MAX_STRIP_FRAC = 0.45      // of the chart column's height
+
 // Coerce whatever is in opts.dock into a known shape. Back-compat: the previous
 // model stored `right: 'profile'|'news'|null`; map it onto the new open/tab pair.
 export function normalizeDock(raw) {
@@ -69,6 +81,11 @@ export function normalizeDock(raw) {
   }
   const fundView = ['quarterly', 'annual', 'analyst', 'ownership'].includes(d.fundView) ? d.fundView : 'quarterly'
   const newsFilter = ['all', 'bullish', 'bearish'].includes(d.newsFilter) ? d.newsFilter : 'all'
+  // The earnings strip rides in the SAME persisted blob as the panel's own
+  // open/tab/width, so it survives a ticker change and a refresh without a
+  // second preference system for one boolean.
+  const strip = !!d.strip
+  const stripH = Number.isFinite(d.stripH) ? Math.max(MIN_STRIP_H, d.stripH) : DEFAULT_STRIP_H
   return {
     open,                                    // right (company) panel open?
     tab,                                     // active company tab
@@ -83,6 +100,8 @@ export function normalizeDock(raw) {
     bottomH: Number.isFinite(d.bottomH) ? d.bottomH : DEFAULT_BOTTOM_H,
     fundView,
     newsFilter,
+    strip,                                   // earnings strip under the chart
+    stripH,                                  // ...and its dragged height
   }
 }
 
