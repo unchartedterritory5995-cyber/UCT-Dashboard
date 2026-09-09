@@ -20,14 +20,38 @@ export default function useChartLayouts() {
       throw new Error(body.detail || 'Save failed')
     }
     const saved = await r.json()
-    await mutate()
+    // Merge the saved row straight into the cache instead of refetching it.
+    // `mutate()` with no argument costs a SECOND round-trip before a new layout
+    // can appear on the Layout Dock — the POST returns, then the whole list is
+    // fetched again — and that gap reads as the app being slow rather than the
+    // network being slow. The server hands back the full row, so there is
+    // nothing a refetch would tell us that we do not already have.
+    await mutate((cur) => {
+      const base = cur || { global: [], mine: [] }
+      const key = (saved?.scope === 'global') ? 'global' : 'mine'
+      const list = base[key] || []
+      const exists = list.some(t => t.id === saved?.id)
+      return {
+        ...base,
+        [key]: exists ? list.map(t => (t.id === saved.id ? saved : t)) : list.concat(saved),
+      }
+    }, { revalidate: false })
     return saved
   }
 
   const deleteLayout = async (id) => {
     const r = await fetch(`/api/charts/layouts/${id}`, { method: 'DELETE', credentials: 'include' })
     if (!r.ok) throw new Error('Delete failed')
-    await mutate()
+    // Same reasoning as the save path: drop it from the cache rather than
+    // refetching, so the bar loses the layout the instant the server confirms.
+    await mutate((cur) => {
+      const base = cur || { global: [], mine: [] }
+      return {
+        ...base,
+        global: (base.global || []).filter(t => t.id !== id),
+        mine: (base.mine || []).filter(t => t.id !== id),
+      }
+    }, { revalidate: false })
   }
 
   return {

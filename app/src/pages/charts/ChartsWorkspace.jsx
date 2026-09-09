@@ -1681,6 +1681,15 @@ export default function ChartsWorkspace() {
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
   // Which template's ✕ is awaiting delete confirmation (id), or null.
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  // Auto-save must not fire while a layout is being SWITCHED. applyTemplate
+  // replaces the board and the active-template pref in the same tick, but they
+  // reach this component through different paths (React state vs the SWR prefs
+  // cache); if the board landed first, the auto-save would see "active = the OLD
+  // layout, board = the NEW one" and write the new arrangement into the old row.
+  // A short suppression window makes that ordering irrelevant.
+  const suppressAutoSaveUntilRef = useRef(0)
+  const suppressAutoSave = useCallback(() => { suppressAutoSaveUntilRef.current = Date.now() + 1500 }, [])
+
   const [saveAsName, setSaveAsName] = useState('')
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
@@ -1690,6 +1699,7 @@ export default function ChartsWorkspace() {
   // so any older-shaped template is normalized to the current grid.
   const applyTemplate = useCallback((tpl) => {
     if (!tpl?.layout?.widgets) return
+    suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
     // per-user override so nothing from the previously-open layout — theme, chart
     // styling, watchlist columns, volume-pane height — carries over. Personal
@@ -1749,7 +1759,7 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, setChartsTheme, flashSaved])
+  }, [setPref, setChartsTheme, flashSaved, suppressAutoSave])
 
   // Apply the LOCKED "UCT Default" template: the frozen layout shell + the frozen
   // chart_settings + the default theme. Everything is loaded FROM the in-code
@@ -1758,6 +1768,7 @@ export default function ChartsWorkspace() {
   // wiped by re-opening it. Color-group tickers are left as-is (Option A: content
   // loads live/personal, only the shell + settings are frozen).
   const applyUctDefault = useCallback(() => {
+    suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
     setPref('charts_workspace_layout', JSON.stringify(normalized))
@@ -1788,7 +1799,7 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, setChartsTheme, flashSaved, prefs.theme])
+  }, [setPref, setChartsTheme, flashSaved, prefs.theme, suppressAutoSave])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -1819,6 +1830,7 @@ export default function ChartsWorkspace() {
   // so a returning user stays on the blank board until they add a widget or open a
   // saved layout. (Named/saved layouts are untouched — only the working board is.)
   const handleNewLayout = useCallback(() => {
+    suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
     setLayout(blank)
     setPref('charts_workspace_layout', JSON.stringify(blank))
@@ -1839,7 +1851,7 @@ export default function ChartsWorkspace() {
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
     setPref('charts_active_template', 'null')
-  }, [setPref, setChartsTheme])
+  }, [setPref, setChartsTheme, suppressAutoSave])
 
   /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
@@ -2101,9 +2113,52 @@ export default function ChartsWorkspace() {
     return arrangementSig(layout) !== arrangementSig(parseLayout(tpl.layout) || tpl.layout)
   }, [dockActiveId, globalLayouts, myLayouts, layout])
 
-  // A prebuilt (global-scope) layout is not writable by a member, so the confirm
-  // must not offer to save into it.
-  const dockCanSave = (dockActiveTpl?.scope || 'user') !== 'global' || isAdmin
+  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts.
+  //
+  // A prebuilt (global) row is what every member sees, so nudging a widget on
+  // one must never rewrite it; the frozen UCT Default is not a row at all.
+  // Those two stay exactly as they always were — deliberate saves only.
+  const dockAutoSaves = !!dockActiveId
+    && dockActiveId !== UCT_DEFAULT_ID
+    && (dockActiveTpl?.scope || 'user') !== 'global'
+
+  // Persist the arrangement into the open layout shortly after it settles, so
+  // switching away never loses work and a layout is always where you left it.
+  // dockDirty is the trigger AND the stop condition: the save makes it false,
+  // so this cannot loop. The timer restarts on every edit, which is what turns
+  // a drag into one write instead of one per frame.
+  useEffect(() => {
+    if (!dockAutoSaves || !dockDirty) return
+    const wait = Math.max(700, suppressAutoSaveUntilRef.current - Date.now() + 700)
+    const t = setTimeout(() => {
+      if (Date.now() < suppressAutoSaveUntilRef.current) return
+      handleSaveLayout()
+    }, wait)
+    return () => clearTimeout(t)
+  }, [dockAutoSaves, dockDirty, handleSaveLayout])
+
+  // Duplicate — the COPY is made from what is STORED for that layout, not from
+  // the board on screen, so duplicating a layout you are not in does what it
+  // says. A prebuilt duplicates into a personal copy you can actually edit.
+  const handleDockDuplicate = useCallback(async (entry) => {
+    const src = entry.id === UCT_DEFAULT_ID
+      ? { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT }
+      : (globalLayouts.find(t => t.id === entry.id) || myLayouts.find(t => t.id === entry.id))
+    if (!src?.layout) return
+    const taken = new Set([...globalLayouts, ...myLayouts].map(t => t.name))
+    let name = `${entry.name} copy`
+    for (let n = 2; taken.has(name); n += 1) name = `${entry.name} copy ${n}`
+    try {
+      await saveLayout({ name, layout: src.layout, groups: null, scope: 'user' })
+    } catch { /* surfaced by SWR revalidate */ }
+  }, [globalLayouts, myLayouts, saveLayout])
+
+  // Delete — reuses the workspace's own handler, so deleting the layout you are
+  // IN still falls back to UCT Default rather than leaving you on a ghost.
+  const handleDockDelete = useCallback((entry) => {
+    if (!entry || entry.id === UCT_DEFAULT_ID) return
+    handleDeleteTemplate(entry.id)
+  }, [handleDeleteTemplate])
 
   // Same contract as Open Layout: opening a workspace layout leaves grid mode.
   const handleDockOpen = useCallback((entry) => {
@@ -2589,11 +2644,12 @@ export default function ChartsWorkspace() {
           activeId={dockActiveId}
           loading={templatesLoading}
           merged={merged}
-          dirty={dockDirty}
-          canSave={dockCanSave}
+          isAdmin={isAdmin}
           onOpen={handleDockOpen}
           onCreate={handleDockCreate}
           onSave={handleSaveLayout}
+          onDuplicate={handleDockDuplicate}
+          onDelete={handleDockDelete}
         />
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders

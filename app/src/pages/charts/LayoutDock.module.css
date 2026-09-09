@@ -212,60 +212,53 @@
   color: var(--menu-text-faint, #6b6b6b);
 }
 
-/* ── unsaved changes ────────────────────────────────────────────────────────
-   A 4px dot, on the ACTIVE item only, that is also the save button. No toast,
-   no banner, no dialog — the state is visible where you are already looking and
-   one click from resolved. */
-.unsaved {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent, #c9a84c);
-  flex-shrink: 0;
-  opacity: 0.9;
-  cursor: pointer;
-}
-.unsaved:hover { opacity: 1; box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18); }
-.unsaved:focus-visible { outline: 1px solid var(--accent, #c9a84c); outline-offset: 2px; }
-
-/* The switch-away confirm. An inline strip riding above the dock, never a modal:
-   it interrupts one gesture, not the workspace. */
-.confirm {
+/* ── right-click menu ───────────────────────────────────────────────────────
+   Same theme-invariant --menu-* palette as every other popup in the workspace. */
+.menu {
   position: absolute;
   bottom: 30px;
-  left: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  min-width: 178px;
   background: var(--menu-bg, #0e0e10);
-  border: 1px solid rgba(201, 168, 76, 0.45);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
   border-radius: 4px;
   box-shadow: 0 -8px 26px var(--menu-shadow, rgba(0, 0, 0, 0.7));
-  font-size: 11.5px;
-  color: var(--menu-text, #ededed);
+  padding: 4px 0;
   z-index: 101;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuHead {
+  padding: 6px 12px 5px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--menu-accent, #c9a84c);
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
+  margin-bottom: 4px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.confirmMsg b { color: var(--accent, #c9a84c); font-weight: 600; }
-.confirmNote { color: var(--menu-text-dim, #8a8a8f); font-size: 11px; }
 
-.confirmPrimary,
-.confirmBtn {
-  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
-  border-radius: 3px;
+.menuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 11px;
-  padding: 3px 9px;
-  line-height: 1.35;
+  font-size: 11.5px;
+  color: var(--menu-text, #ededed);
 }
-.confirmPrimary {
-  background: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-  color: #0b0f14;
-  font-weight: 600;
-}
-.confirmPrimary:hover { filter: brightness(1.08); }
-.confirmBtn { background: transparent; color: var(--menu-text, #ededed); }
-.confirmBtn:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+.menuItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.055)); color: var(--menu-accent, #c9a84c); }
+/* A move that would fall off the end of the bar stays visible but inert — the
+   menu keeps the same shape wherever you open it. */
+.menuItem:disabled { color: var(--menu-text-faint, #6b6b6b); cursor: default; }
+.menuItem:disabled:hover { background: transparent; color: var(--menu-text-faint, #6b6b6b); }
+
+.menuDanger:hover { color: var(--danger, #f87171); }
+.menuDiv { height: 1px; background: var(--menu-divider, rgba(255, 255, 255, 0.06)); margin: 4px 0; }

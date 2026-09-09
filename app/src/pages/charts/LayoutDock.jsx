@@ -6,8 +6,8 @@
 // the board reads as hanging from its own name.
 //
 // It is a fast path, NOT a second management surface. Layouts ▾ keeps New /
-// Open / Save / Save as / Multi Chart / Pop Out; the dock only switches, creates
-// and (via ⋯) reaches whatever didn't fit. Anyone who ignores it loses nothing.
+// Open / Save / Save as / Multi Chart / Pop Out; the dock switches, creates,
+// reorders and (via ⋯) reaches whatever didn't fit.
 //
 // ⭐ Why this sits AFTER </main> inside .workspace rather than in Layout.jsx:
 // `computeRowHeight()` divides whatever the ResizeObserver measures on
@@ -16,10 +16,11 @@
 // makes the dock start after the 60px nav rail, bracketing the workspace with
 // the same frame the header opens.
 //
-// Phase 1: render / switch / create / overflow. The unsaved-changes dot + the
-// dirty-switch confirm (Phase 2), the right-click menu, ⋯ search and drag
-// reorder (Phase 3), and Ctrl+1…9 (Phase 4) are deliberately not here yet —
-// the pin model below is what they all build on.
+// ⭐ YOUR layouts AUTO-SAVE — the workspace owns that (see its auto-save
+// effect), so there is no unsaved dot and no switch-away confirm: you leave a
+// layout as you left it and it is there when you come back. A PREBUILT layout
+// is shared with every member, so it is never written automatically and
+// behaves exactly as it always has.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
@@ -28,8 +29,8 @@ import { DOCK_PREF, UCT_DEFAULT_ID, readDockPref, reconcilePins, sameDock } from
 import styles from './LayoutDock.module.css'
 
 export default function LayoutDock({
-  entries, activeId, loading = false, merged = false,
-  dirty = false, canSave = true, onOpen, onCreate, onSave,
+  entries, activeId, loading = false, merged = false, isAdmin = false,
+  onOpen, onCreate, onSave, onDuplicate, onDelete,
 }) {
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const stored = useMemo(() => readDockPref(prefs?.[DOCK_PREF]), [prefs])
@@ -37,14 +38,18 @@ export default function LayoutDock({
   const byId = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries])
   const dock = useMemo(() => reconcilePins(stored, entries), [stored, entries])
 
+  const writeDock = useCallback((next) => {
+    setPref(DOCK_PREF, JSON.stringify(next))
+  }, [setPref])
+
   // Persist only a CHANGED reconciliation, and never before both sides have
   // settled — seeding against a half-loaded list would write a pin order that
   // is missing everything still in flight.
   useEffect(() => {
     if (prefsLoading || loading) return
     if (sameDock(stored, dock)) return
-    setPref(DOCK_PREF, JSON.stringify(dock))
-  }, [prefsLoading, loading, stored, dock, setPref])
+    writeDock(dock)
+  }, [prefsLoading, loading, stored, dock, writeDock])
 
   const pinned = useMemo(
     () => dock.pins.map(id => byId.get(id)).filter(Boolean),
@@ -105,26 +110,37 @@ export default function LayoutDock({
     return list
   }, [pinned, visibleCount, activeId])
 
-  const activeName = useMemo(
-    () => entries.find(e => e.id === activeId)?.name || null,
-    [entries, activeId],
-  )
-
   const shownIds = useMemo(() => new Set(shown.map(e => e.id)), [shown])
   const overflow = useMemo(() => pinned.filter(e => !shownIds.has(e.id)), [pinned, shownIds])
   const unpinned = useMemo(() => entries.filter(e => !dock.pins.includes(e.id)), [entries, dock.pins])
 
-  // ── ⋯ browser ───────────────────────────────────────────────────────────
+  // A prebuilt (global-scope) layout is shared with every member, and the frozen
+  // UCT Default is not a row at all — neither is yours to write or delete.
+  const writable = useCallback(
+    (entry) => !!entry && entry.id !== UCT_DEFAULT_ID && (entry.scope !== 'global' || isAdmin),
+    [isAdmin],
+  )
+
+  // ── popovers ────────────────────────────────────────────────────────────
   const [browseOpen, setBrowseOpen] = useState(false)
+  const [menu, setMenu] = useState(null)   // { entry, x } — the right-click menu
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const dockRef = useRef(null)
+
+  const closePopovers = useCallback(() => {
+    setBrowseOpen(false)
+    setMenu(null)
+    setConfirmDelete(false)
+  }, [])
+
   useEffect(() => {
-    if (!browseOpen) return
-    const onDown = (e) => { if (!dockRef.current?.contains(e.target)) setBrowseOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') setBrowseOpen(false) }
+    if (!browseOpen && !menu) return
+    const onDown = (e) => { if (!dockRef.current?.contains(e.target)) closePopovers() }
+    const onKey = (e) => { if (e.key === 'Escape') closePopovers() }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
-  }, [browseOpen])
+  }, [browseOpen, menu, closePopovers])
 
   // ── ＋ new layout ────────────────────────────────────────────────────────
   // Naming happens INLINE, in the slot the layout will occupy, so the thing you
@@ -134,83 +150,81 @@ export default function LayoutDock({
   const inputRef = useRef(null)
   useEffect(() => { if (creating) inputRef.current?.focus() }, [creating])
 
+  // The name lands on the bar the INSTANT you press Enter, while the POST is
+  // still in flight. Waiting for the round-trip made a new layout take a beat
+  // to appear, which reads as the app being slow rather than the network being
+  // slow. Cleared as soon as the real row arrives from the API.
+  const [provisional, setProvisional] = useState(null)
+  // DERIVED, not an effect: the placeholder is simply "a name I typed that the
+  // real list has not caught up with yet", so it stops rendering the moment the
+  // row arrives — no state write, no extra render pass.
+  const showProvisional = provisional && !entries.some(e => e.name === provisional)
+  // Never strand a provisional name if the save failed.
+  useEffect(() => {
+    if (!provisional) return
+    const t = setTimeout(() => setProvisional(null), 8000)
+    return () => clearTimeout(t)
+  }, [provisional])
+
   const commitCreate = useCallback(() => {
     const name = draft.trim()
     setCreating(false)
     setDraft('')
-    if (name) onCreate?.(name)
+    if (!name) return
+    setProvisional(name)
+    onCreate?.(name)
   }, [draft, onCreate])
 
-  // ── the dirty-switch confirm ────────────────────────────────────────────
-  // The ONE place friction is correct. applyTemplate() overwrites the working
-  // board with no comparison, so before the dock existed three clicks of menu
-  // hid this; at one click it would cost someone a morning's board. Fires only
-  // when the open layout actually differs from what is stored for it.
-  const [pending, setPending] = useState(null)
-
   const open = useCallback((entry) => {
-    setBrowseOpen(false)
+    closePopovers()
     // Re-opening the layout you are already in would reload the board and throw
     // away whatever you have changed since. Never do it.
     if (entry.id === activeId) return
-    if (dirty) { setPending(entry); return }
     onOpen?.(entry)
-  }, [activeId, dirty, onOpen])
+  }, [activeId, onOpen, closePopovers])
 
-  const saveAndSwitch = useCallback(() => {
-    const entry = pending
-    setPending(null)
-    if (!entry) return
-    onSave?.()
-    onOpen?.(entry)
-  }, [pending, onSave, onOpen])
+  // ── reorder ─────────────────────────────────────────────────────────────
+  // Muscle memory is the whole value of a fixed bar, so the order is the user's
+  // and it persists per-user.
+  const move = useCallback((entry, delta) => {
+    const pins = dock.pins.slice()
+    const i = pins.indexOf(entry.id)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= pins.length) return
+    const swap = pins[i]
+    pins[i] = pins[j]
+    pins[j] = swap
+    writeDock({ ...dock, pins })
+    setMenu(null)
+  }, [dock, writeDock])
 
-  const discardAndSwitch = useCallback(() => {
-    const entry = pending
-    setPending(null)
-    if (entry) onOpen?.(entry)
-  }, [pending, onOpen])
+  const menuIndex = menu ? dock.pins.indexOf(menu.entry.id) : -1
 
-  useEffect(() => {
-    if (!pending) return
-    const onKey = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); setPending(null) }
-      else if (e.key === 'Enter') { e.preventDefault(); if (canSave) saveAndSwitch(); else discardAndSwitch() }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [pending, canSave, saveAndSwitch, discardAndSwitch])
-
-  if (dock.hidden) return null
-
-  const renderItem = (entry) => {
-    const active = entry.id === activeId
+  const renderItem = (entry, isProvisional = false) => {
+    const active = !isProvisional && entry.id === activeId
     return (
       <button
-        key={entry.id}
+        key={isProvisional ? '__provisional' : entry.id}
         type="button"
-        className={`${styles.item} ${active ? styles.itemActive : ''}`}
-        onClick={() => open(entry)}
+        className={`${styles.item} ${active || isProvisional ? styles.itemActive : ''}`}
+        onClick={() => { if (!isProvisional) open(entry) }}
+        onContextMenu={(e) => {
+          if (isProvisional) return
+          e.preventDefault()
+          setBrowseOpen(false)
+          setConfirmDelete(false)
+          const rect = dockRef.current?.getBoundingClientRect()
+          setMenu({ entry, x: rect ? e.clientX - rect.left : 0 })
+        }}
         title={entry.name}
         aria-current={active ? 'true' : undefined}
       >
         <span className={styles.label}>{entry.name}</span>
-        {/* Only ever on the ACTIVE item — that single rule is what keeps the bar
-            quiet as it fills up, and it puts "save this" where you are looking. */}
-        {active && dirty && (
-          <span
-            className={styles.unsaved}
-            role="button"
-            tabIndex={0}
-            aria-label={`Save changes to ${entry.name}`}
-            title="Unsaved changes — click to save"
-            onClick={(e) => { e.stopPropagation(); onSave?.() }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSave?.() } }}
-          />
-        )}
       </button>
     )
   }
+
+  if (dock.hidden) return null
 
   return (
     <div
@@ -220,7 +234,8 @@ export default function LayoutDock({
       aria-label="Saved layouts"
     >
       <div className={styles.strip} ref={stripRef}>
-        {shown.map(renderItem)}
+        {shown.map(e => renderItem(e))}
+        {showProvisional && renderItem({ id: '__provisional', name: provisional }, true)}
         {creating && (
           <span className={`${styles.item} ${styles.itemCreating}`}>
             <input
@@ -255,7 +270,7 @@ export default function LayoutDock({
         <button
           type="button"
           className={styles.ctl}
-          onClick={() => setBrowseOpen(o => !o)}
+          onClick={() => { setMenu(null); setBrowseOpen(o => !o) }}
           title="All layouts"
           aria-label="All layouts"
           aria-expanded={browseOpen}
@@ -266,7 +281,7 @@ export default function LayoutDock({
         <button
           type="button"
           className={styles.ctl}
-          onClick={() => { setBrowseOpen(false); setDraft(''); setCreating(true) }}
+          onClick={() => { closePopovers(); setDraft(''); setCreating(true) }}
           title="New layout"
           aria-label="New layout"
         >
@@ -274,16 +289,51 @@ export default function LayoutDock({
         </button>
       </div>
 
-      {pending && (
-        <div className={styles.confirm} role="alertdialog" aria-label="Unsaved changes">
-          <span className={styles.confirmMsg}>
-            <b>{activeName || 'This layout'}</b> has unsaved changes
-          </span>
-          {canSave
-            ? <button type="button" className={styles.confirmPrimary} onClick={saveAndSwitch}>Save &amp; switch</button>
-            : <span className={styles.confirmNote}>Prebuilt layouts can&rsquo;t be overwritten</span>}
-          <button type="button" className={styles.confirmBtn} onClick={discardAndSwitch}>Discard</button>
-          <button type="button" className={styles.confirmBtn} onClick={() => setPending(null)}>Cancel</button>
+      {menu && (
+        <div
+          className={styles.menu}
+          role="menu"
+          aria-label={`${menu.entry.name} actions`}
+          style={{ left: Math.max(6, menu.x - 20) }}
+        >
+          <div className={styles.menuHead}>{menu.entry.name}</div>
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            disabled={menuIndex <= 0}
+            onClick={() => move(menu.entry, -1)}
+          >← Move left</button>
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            disabled={menuIndex < 0 || menuIndex >= dock.pins.length - 1}
+            onClick={() => move(menu.entry, 1)}
+          >Move right →</button>
+          <div className={styles.menuDiv} />
+          {/* Only for the layout you are IN: saving the board into some OTHER
+              layout would overwrite it with a board it never held. */}
+          {menu.entry.id === activeId && writable(menu.entry) && (
+            <button
+              type="button" role="menuitem" className={styles.menuItem}
+              onClick={() => { onSave?.(); setMenu(null) }}
+            >Save layout</button>
+          )}
+          <button
+            type="button" role="menuitem" className={styles.menuItem}
+            onClick={() => { onDuplicate?.(menu.entry); setMenu(null) }}
+          >Duplicate layout</button>
+          {writable(menu.entry) && (<>
+            <div className={styles.menuDiv} />
+            {confirmDelete ? (
+              <button
+                type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuDanger}`}
+                onClick={() => { onDelete?.(menu.entry); closePopovers() }}
+              >Click again to delete</button>
+            ) : (
+              <button
+                type="button" role="menuitem" className={`${styles.menuItem} ${styles.menuDanger}`}
+                onClick={() => setConfirmDelete(true)}
+              >Delete layout</button>
+            )}
+          </>)}
         </div>
       )}
 
