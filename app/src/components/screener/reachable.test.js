@@ -277,6 +277,30 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── JOYSTICK HUB, PHASE 1 (2026-01) ──────────────────────────────────────
+  //
+  // Two hooks that are BUILT AND TESTED BUT MOUNTED NOWHERE. They are reached
+  // today only by their own test files, which is precisely the shape this rail
+  // exists to catch — so they are declared here rather than left to look
+  // shipped. Each carries a "NOT MOUNTED YET" banner in its own header naming
+  // the same Phase 3 wiring below.
+  //
+  // ⚠️ REMOVAL CONDITION, not a parking space: Phase 3 mounts them. `useHubMode`
+  // gets its first caller when a page registers its own tap/double-tap/fan via
+  // `useHubMode(modeConfig)`; `useHubCursor` gets its first caller when a
+  // section registers its list (`docs/plans/joystick/00-master-spec-v1.5.md`
+  // §2d names the six: Screener results, Journal open positions, Catalysts
+  // rows, Notebook list, Calendar days, Morning Wire segments). When the first
+  // page wires each one, DELETE ITS ENTRY HERE in the same commit. If Phase 3
+  // is cancelled, delete the files instead — do not leave them declared.
+  'app/src/hub/useHubMode.js':
+    'JOYSTICK HUB PHASE 1 — the per-page mode registration hook. Unmounted by '
+    + 'design until Phase 3 gives it its first calling page; see the banner in '
+    + 'its own header. Delete this entry the commit that wires it.',
+  'app/src/hub/useHubCursor.js':
+    'JOYSTICK HUB PHASE 1 — the one shared list cursor. Unmounted by design '
+    + 'until Phase 3 binds it to a section list; see the banner in its own '
+    + 'header. Delete this entry the commit that wires it.',
   // ── THE DASHBOARD COCKPIT RETIREMENT (2026-08-30) ────────────────────────
   //
   // `/dashboard` became four zones with declared heights, and eight preview

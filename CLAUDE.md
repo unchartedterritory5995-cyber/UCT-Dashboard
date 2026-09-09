@@ -647,6 +647,57 @@ The whole app is being made mobile-seamless with **near-full feature parity** (T
 ### Tap targets
 `--tap-min: 44px` is defined in tokens.css. Enforce on all interactive elements on touch (use `.touchTarget` or `min-height/width: var(--tap-min)`).
 
+### Preview environments for a feature branch — the decision, and why
+
+**There is ONE Railway environment (`production`) and no per-branch preview.** Measured
+`railway status --json`, 2026-01: project `luminous-recreation`, environments = `[production]`,
+services = `web · worker · flow-worker · bars-api · chart-renderer`. A single `web` service serves
+the built React SPA *and* `/api/*` from one FastAPI process — there is no separate frontend service.
+
+⚠️ **There is no Postgres and no Redis.** The entire data layer is **SQLite files on the Railway
+volume at `/data`** (auth.db, bars.db, breadth_monitor.db, catalysts.db, community.db, flow.db,
+education.db, …). This matters for previews: a Postgres plugin can be duplicated and migrated, **a
+Railway volume cannot** — there is no clone-volume primitive, so any new environment starts with an
+EMPTY `/data`.
+
+**CHOSEN (device testing): a local sandbox + BrowserStack Local tunnel.** Run
+`scripts/hub-sandbox.ps1`, then point BrowserStack Live at the tunnel. The script pins
+`DATA_DIR` to a sandbox, mints an admin via `ADMIN_EMAILS`, and zeroes/blanks every scheduler and
+outbound channel. **It hard-exits if `DATA_DIR` would resolve to `C:\data` or `/data`.**
+The BrowserStack Local binary is an **operator tool on the owner's machine, not a repo dependency** —
+it appears in no `package.json` or `requirements.txt` and must not be added to either.
+
+**APPROVED IN PRINCIPLE, NOT BUILT (durable): a persistent Railway staging environment.**
+⛔ **Ruling, recorded before it can become a blocker: NEVER copy `auth.db` or any member data to
+staging.** Production `auth.db` holds ~20,640 real members; duplicating it into a second environment
+duplicates real PII for a convenience. Staging uses a **synthetic `auth.db`** containing only the one
+`ADMIN_EMAILS` account, plus non-PII data files if any are needed at all (bars, breadth, catalysts).
+
+**REJECTED: Railway PR / ephemeral environments.** Recorded so it is not re-proposed. Railway copies
+env vars into the new environment, and **this app's env vars arm schedulers** — a booted clone posts
+to a ~750-member Discord channel, publishes to YouTube, and emails members via Resend, all on live
+credentials. It is also still data-empty (see the volume note), so it buys **no realism** over a local
+run while carrying the entire blast radius. Wrong trade in both directions.
+
+**Named test account: `hubtest@local.dev`**, promoted by `ADMIN_EMAILS` inside the sandbox DB.
+Never the owner's account, never a colleague's, never a member.
+
+**Every device script names its preview URL explicitly**, as a stated precondition at the top of the
+file. A device script that does not say what it is pointed at is not a test.
+
+### Real-device testing — BrowserStack Live (paid)
+
+**Real-device testing runs on BrowserStack Live**, accessed through the browser. There is **no
+BrowserStack MCP or SDK configured**, and none is to be installed — that would be a new dependency.
+Run scripts live in `docs/plans/joystick/*-device.md`; **results are recorded in the same file**, by
+the operator who ran them.
+
+⛔ **Never claim a device result from jsdom or an emulator.** jsdom performs no layout — it never
+resolves `calc()`, never applies `env(safe-area-inset-*)`, and reports zero for every measured box —
+so "the control sits 68px above the home indicator" is not a claim any local suite can make. A
+script written for a device and a result gathered from a device are two different artifacts; only
+the second closes a gate.
+
 ### Mobile audit harness — `tools/mobile_audit.py` (no device needed)
 Playwright sweep (Python Playwright + Chromium already installed). Boots phone/tablet viewports, dismisses the intro overlay, visits each route, flags **horizontal overflow** (the #1 objective mobile bug) + sub-44px tap targets, saves a full-page screenshot per route/viewport to `tools/mobile_audit_out/` (gitignored) + `report.md`.
 
@@ -1081,6 +1132,16 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
 
+⛔ **A FRESH WORKTREE HAS NO `node_modules` — run `npm ci` in `app/` BEFORE ANY TEST CLAIM.**
+`git worktree add` copies tracked files only, and `node_modules` is gitignored, so `npx vitest`
+in a new worktree fails at config load (`Cannot find package 'vite'`) — a startup error, not a
+test result. Every "green" reported before that install is meaningless. If you need to run a
+suite against a *second* checkout (e.g. an origin/master baseline for a reachability diff), a
+directory junction to an installed `node_modules` is enough:
+`New-Item -ItemType Junction -Path <new>\app\node_modules -Target <existing>\app\node_modules`
+— and **delete the junction with `cmd /c rmdir` BEFORE `git worktree remove`**, or the remove
+walks through it and deletes the real one.
+
 ## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
 
 **`/data` exists as `C:\data` on the dev machine, so every product path that
@@ -1119,6 +1180,133 @@ them:**
 - ⚠️ Still true and NOT fixed by this: writes into `C:\data` from outside pytest
   (a bare `python tools/...` run, a `railway ssh`-less local script) hit the live
   files. The guard is a *test-suite* rail only.
+
+## ⛔ Sandbox boots — the 2026-09-08 incident, and the two rails that make a sandbox trustworthy
+
+**The section above is a *test-suite* rail. This one is about everything else that
+boots on this machine**, which the conftest tripwire does not reach.
+
+### What happened
+
+`scripts/hub-sandbox.ps1` was written to boot the app for joystick-hub device
+testing against a sandbox data dir. It set `DATA_DIR`, printed a clean startup and
+served a healthy `/api/health` — **while writing to the live `C:\data`**:
+
+| Live file | Written | What it is |
+|---|---|---|
+| `C:\data\auth.db` | 22:04:46 | 1.01 GB, ~20,640 real members |
+| `C:\data\desk.db` | 22:04:23 | Desk sessions |
+| `C:\data\flow.db-shm` / `-wal` | 22:04:16 | Options flow tape |
+| `C:\data\buzz.db-shm` | 22:04:16 | Ticker-mention board |
+
+No member data was altered (`quick_check` ok on all four; newest user row predated
+the incident by three days; zero rows for the test account). The writes were
+idempotent schema-init and WAL churn. **It could just as easily not have been.**
+
+### Root cause 1 — `DATA_DIR` IS NOT AN AUTHORITY
+
+**There are 72 environment variables naming paths inside the shared root, and they
+resolve INDEPENDENTLY of `DATA_DIR`.** `api/services/auth_db.py:10` is the whole
+class in one line:
+
+```python
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
+```
+
+`/data` is a real directory on this box, so the default resolved to
+`C:\data\auth.db`. The script *did* have a guard — it refused `-DataDir C:\data` —
+and that guard was real, verified against five spellings, and **completely
+irrelevant**: the sandbox path was correct and 71 of the 72 vars ignored it.
+⭐ Verifying the guard you wrote is not the same as verifying the property you want.
+
+### Root cause 2 — AN INVENTED KILL-SWITCH NAME
+
+The kill-list set **`BARS_PREWARM_DISABLED=1`, which matches nothing in the
+codebase.** It was invented and never grepped. The bars seeder is gated only by
+`USE_REMOTE_BARS`, so it ran (`3160 jobs, 4 workers`) against live data while the
+operator believed it was off.
+
+> ⛔ **RULE: never invent an env flag. Every kill-switch name must be grepped to an
+> actual read site before use.** An env var nobody reads is indistinguishable from
+> a working kill switch — both produce silence.
+
+### The two rails that make a sandbox trustworthy
+
+Neither is optional, and they fail for different reasons:
+
+1. **The census rail** — `tests/test_hub_sandbox_launcher.py`. The pin list is
+   DERIVED by AST from `api/**` via `conftest.shared_data_root_census()`, never
+   typed, so the sandbox and the pytest suite cannot drift and a `/data` literal
+   added tomorrow is pinned the day it lands. The rail proves the derivation is
+   actually *applied*, that no typed `/data/...` literal has crept back in, and
+   that **every kill-list flag name resolves to a real read site** (the check that
+   would have caught root cause 2). Mutation-proved both ways: drop the
+   `AUTH_DB_PATH` pin → red; re-add `BARS_PREWARM_DISABLED` → red.
+2. **The snapshot rail** — `scripts/data_root_snapshot.py`. Content-hashes every
+   main `.db` under the shared root before boot, again at +15 s and +120 s (past
+   the ~60 s / ~75 s darkpool, industry-map and ticker-logos prewarms), and again
+   at shutdown. Any change aborts the run. Logs land in
+   `docs/plans/joystick/sandbox-runs/<timestamp>.md`.
+
+⚠️ **Hash the main `.db` file; EXCLUDE `-wal` / `-shm`.** Opening a WAL database
+**read-only still rewrites its `-shm` index**, so an mtime-based check cries wolf on
+its own diagnostics. Judge a leak by the main file's content, never by a sidecar's
+mtime.
+
+`scripts/hub-sandbox.ps1` is now a thin wrapper: it builds the frontend and hands
+off to `scripts/hub_sandbox_boot.py`, which owns all env sandboxing, arms the
+conftest tripwire in-process, and runs the snapshot rail.
+
+### > Gate criterion is hub cost relative to the device's idle baseline, not an absolute fps. Pass = fan-open fps >= 0.9 x idle baseline on the same device.
+
+Ruled after a Galaxy S24 measured 29.9 fps and an absolute >=45 gate would have called it a
+hub regression. It is not one: with the hub idle and **no fan open at all**, that unit
+already renders at **30.1 fps**, while a Pixel 8 on the identical build sits at 60.3. The
+S24 in BrowserStack is an **Exynos 2400 / Xclipse 940** part under ANGLE-on-Vulkan, Chrome
+149. An absolute threshold measures the device; a ratio measures the feature.
+
+### > Hub sandbox owns port 8077. `tools/local_backend_sandbox.py` and any other local server must use a different port; the launcher refuses a busy port and never kills another process.
+
+A concurrent session bound a second server to 8077 mid-run. Windows allowed it, and the
+BrowserStack phones drove the wrong server through the tunnel for the rest of the run:
+signup and login answered **200** against a store the hub sandbox could not see, and every
+gesture step reported "hub-pad not present". Nothing errored. That run is void.
+`hub_sandbox_boot.py` now refuses to boot on a busy port and names the command to find the
+owner — it does **not** kill the other process, which may belong to someone else's work.
+
+### > A results file is claimed (truncated + timestamped) before the session starts; a run that dies leaves an explicit INCOMPLETE, never a stale pass.
+
+Same failure shape as the line below, in file form. Phase 2 device run 2's Pixel 8 threw
+mid-session, before the code that writes its result. The PREVIOUS run's JSON stayed on
+disk — older session id, healthy-looking rows — and read as a current pass. The runner now
+writes a placeholder naming the device and `(session did not complete)` **before** opening
+the session, and overwrites it only with a real result.
+
+### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
+
+### Live-data backup (operator safety net)
+
+**`C:\data-backup-2026-09-08\`** — 53 databases, 3.88 GB, taken before the first
+device run. Made with `VACUUM INTO`, **not** a file copy: a plain copy of a main
+`.db` from a WAL database omits every transaction still in the `-wal` sidecar and
+produces a backup that looks complete and silently lags the source. All 53 verified
+`quick_check = ok`; `auth.db` row counts match live exactly (20,664 users / 597
+sessions).
+
+💡 Noted in passing: **live `auth.db` is 1.01 GB but vacuums to 35 MB — ~96% free
+pages.** Reclaiming that is a separate, unscheduled task; do not VACUUM a live
+production DB casually.
+
+### D-30 (deferred, NOT this project's to build)
+
+The 72 independent pins are a **latent production risk**, not just a testing
+inconvenience: any contributor can add a 73rd `os.environ.get("X", "/data/y")` and
+every sandbox, staging boot and local run silently inherits the hazard. The durable
+fix is a single `data_root()` helper that every path resolver derives from, so one
+env var moves the whole tree. **Recommended as a separate, non-hub task** — it
+touches ~68 call sites across `api/**` and must not ride along with a UI feature
+branch. Recorded in `docs/plans/joystick/deferred.md`.
+
 
 ## Design Documents
 
