@@ -1181,6 +1181,108 @@ them:**
   (a bare `python tools/...` run, a `railway ssh`-less local script) hit the live
   files. The guard is a *test-suite* rail only.
 
+## ⛔ Sandbox boots — the 2026-09-08 incident, and the two rails that make a sandbox trustworthy
+
+**The section above is a *test-suite* rail. This one is about everything else that
+boots on this machine**, which the conftest tripwire does not reach.
+
+### What happened
+
+`scripts/hub-sandbox.ps1` was written to boot the app for joystick-hub device
+testing against a sandbox data dir. It set `DATA_DIR`, printed a clean startup and
+served a healthy `/api/health` — **while writing to the live `C:\data`**:
+
+| Live file | Written | What it is |
+|---|---|---|
+| `C:\data\auth.db` | 22:04:46 | 1.01 GB, ~20,640 real members |
+| `C:\data\desk.db` | 22:04:23 | Desk sessions |
+| `C:\data\flow.db-shm` / `-wal` | 22:04:16 | Options flow tape |
+| `C:\data\buzz.db-shm` | 22:04:16 | Ticker-mention board |
+
+No member data was altered (`quick_check` ok on all four; newest user row predated
+the incident by three days; zero rows for the test account). The writes were
+idempotent schema-init and WAL churn. **It could just as easily not have been.**
+
+### Root cause 1 — `DATA_DIR` IS NOT AN AUTHORITY
+
+**There are 72 environment variables naming paths inside the shared root, and they
+resolve INDEPENDENTLY of `DATA_DIR`.** `api/services/auth_db.py:10` is the whole
+class in one line:
+
+```python
+_DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
+```
+
+`/data` is a real directory on this box, so the default resolved to
+`C:\data\auth.db`. The script *did* have a guard — it refused `-DataDir C:\data` —
+and that guard was real, verified against five spellings, and **completely
+irrelevant**: the sandbox path was correct and 71 of the 72 vars ignored it.
+⭐ Verifying the guard you wrote is not the same as verifying the property you want.
+
+### Root cause 2 — AN INVENTED KILL-SWITCH NAME
+
+The kill-list set **`BARS_PREWARM_DISABLED=1`, which matches nothing in the
+codebase.** It was invented and never grepped. The bars seeder is gated only by
+`USE_REMOTE_BARS`, so it ran (`3160 jobs, 4 workers`) against live data while the
+operator believed it was off.
+
+> ⛔ **RULE: never invent an env flag. Every kill-switch name must be grepped to an
+> actual read site before use.** An env var nobody reads is indistinguishable from
+> a working kill switch — both produce silence.
+
+### The two rails that make a sandbox trustworthy
+
+Neither is optional, and they fail for different reasons:
+
+1. **The census rail** — `tests/test_hub_sandbox_launcher.py`. The pin list is
+   DERIVED by AST from `api/**` via `conftest.shared_data_root_census()`, never
+   typed, so the sandbox and the pytest suite cannot drift and a `/data` literal
+   added tomorrow is pinned the day it lands. The rail proves the derivation is
+   actually *applied*, that no typed `/data/...` literal has crept back in, and
+   that **every kill-list flag name resolves to a real read site** (the check that
+   would have caught root cause 2). Mutation-proved both ways: drop the
+   `AUTH_DB_PATH` pin → red; re-add `BARS_PREWARM_DISABLED` → red.
+2. **The snapshot rail** — `scripts/data_root_snapshot.py`. Content-hashes every
+   main `.db` under the shared root before boot, again at +15 s and +120 s (past
+   the ~60 s / ~75 s darkpool, industry-map and ticker-logos prewarms), and again
+   at shutdown. Any change aborts the run. Logs land in
+   `docs/plans/joystick/sandbox-runs/<timestamp>.md`.
+
+⚠️ **Hash the main `.db` file; EXCLUDE `-wal` / `-shm`.** Opening a WAL database
+**read-only still rewrites its `-shm` index**, so an mtime-based check cries wolf on
+its own diagnostics. Judge a leak by the main file's content, never by a sidecar's
+mtime.
+
+`scripts/hub-sandbox.ps1` is now a thin wrapper: it builds the frontend and hands
+off to `scripts/hub_sandbox_boot.py`, which owns all env sandboxing, arms the
+conftest tripwire in-process, and runs the snapshot rail.
+
+### > "Reports clean" is never evidence of "wrote nowhere." Every future sandbox or staging boot in this project reports the snapshot-compare result as its first line, before any health check.
+
+### Live-data backup (operator safety net)
+
+**`C:\data-backup-2026-09-08\`** — 53 databases, 3.88 GB, taken before the first
+device run. Made with `VACUUM INTO`, **not** a file copy: a plain copy of a main
+`.db` from a WAL database omits every transaction still in the `-wal` sidecar and
+produces a backup that looks complete and silently lags the source. All 53 verified
+`quick_check = ok`; `auth.db` row counts match live exactly (20,664 users / 597
+sessions).
+
+💡 Noted in passing: **live `auth.db` is 1.01 GB but vacuums to 35 MB — ~96% free
+pages.** Reclaiming that is a separate, unscheduled task; do not VACUUM a live
+production DB casually.
+
+### D-30 (deferred, NOT this project's to build)
+
+The 72 independent pins are a **latent production risk**, not just a testing
+inconvenience: any contributor can add a 73rd `os.environ.get("X", "/data/y")` and
+every sandbox, staging boot and local run silently inherits the hazard. The durable
+fix is a single `data_root()` helper that every path resolver derives from, so one
+env var moves the whole tree. **Recommended as a separate, non-hub task** — it
+touches ~68 call sites across `api/**` and must not ride along with a UI feature
+branch. Recorded in `docs/plans/joystick/deferred.md`.
+
+
 ## Design Documents
 
 All design docs are in `docs/plans/`. Key docs:

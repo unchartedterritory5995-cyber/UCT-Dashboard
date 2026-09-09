@@ -202,16 +202,15 @@ def _start_violation_reporter(conftest):
     threading.Thread(target=_pump, daemon=True, name="shared-root-reporter").start()
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--data-dir", default=r"C:\data-hubtest")
-    ap.add_argument("--test-email", default="hubtest@local.dev")
-    ap.add_argument("--port", type=int, default=8077)
-    ap.add_argument("--host", default="0.0.0.0")
-    args = ap.parse_args()
+def apply_sandbox_env(sandbox, test_email="hubtest@local.dev",
+                      reclaim_conftest_temp=True):
+    """Point every shared-root path at `sandbox`; arm the tripwire. Returns pins.
 
-    sandbox = os.path.abspath(args.data_dir)
-
+    ⭐ SEPARATE FROM `main()` SO A RAIL CAN CALL IT. `tests/test_hub_sandbox_
+    launcher.py` runs this against a temp directory and asserts every census pin
+    landed outside the shared root. A sandbox whose only proof is "the server
+    started and looked fine" is exactly what wrote to `C:\\data\\auth.db`.
+    """
     # Importing conftest does three things, in this order, all of which we want:
     #   1. derives the census (env pins + the shared roots themselves)
     #   2. redirects every pinned var at a per-session TEMP sandbox
@@ -233,14 +232,96 @@ def main():
     # conftest minted two temp directories on import that we have now replaced.
     # Best-effort cleanup so device runs do not add to the 5,209-directory /
     # 13 GB pile-up that once took this machine to zero bytes free.
-    for stale in (conftest.SANDBOX_DATA_ROOT,
-                  os.path.dirname(conftest.ISOLATED_AUTH_DB)):
-        shutil.rmtree(stale, ignore_errors=True)
+    #
+    # ⛔ OFF UNDER PYTEST. Inside a live pytest session those two directories are
+    # not stale leftovers — they are the SESSION'S OWN isolated stores, and every
+    # other test in the run is pointed at them. Deleting them here would blow up
+    # unrelated suites from a rail that is supposed to be proving safety.
+    if reclaim_conftest_temp:
+        for stale in (conftest.SANDBOX_DATA_ROOT,
+                      os.path.dirname(conftest.ISOLATED_AUTH_DB)):
+            shutil.rmtree(stale, ignore_errors=True)
 
-    os.environ["ADMIN_EMAILS"] = args.test_email
+    os.environ["ADMIN_EMAILS"] = test_email
     os.environ["PUSH_SECRET"] = "hub-sandbox-local-only-not-the-real-secret"
     for key, value in KILL_LIST.items():
         os.environ[key] = value
+
+    return pins
+
+
+def _start_post_boot_compare(drs, baseline, log_file, port):
+    """Re-hash the shared root once the server is actually serving, then ABORT
+    the run if anything moved.
+
+    ⭐ TIMED OFF THE HEALTH CHECK, NOT OFF A FIXED SLEEP, AND THEN HELD OPEN.
+    The damaging writes in the incident landed 6-36 s after launch, and the
+    darkpool / industry-map / ticker-logos prewarms are scheduled ~60 s and
+    ~75 s after boot — so a compare that fires the moment the port opens would
+    have declared victory before the risky work ran. This checks at ~15 s and
+    again at ~120 s, which is past every scheduled prewarm.
+    """
+    import urllib.request
+
+    def _serving():
+        try:
+            with urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/api/health", timeout=3) as r:
+                return r.status == 200
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _run():
+        deadline = time.time() + 180
+        while time.time() < deadline and not _serving():
+            time.sleep(2)
+        if not _serving():
+            print("  [post-boot] server never became healthy; skipping compare.")
+            return
+        for label, delay in (("post-boot (+15s)", 15),
+                             ("post-prewarm (+120s)", 105)):
+            time.sleep(delay)
+            diffs = drs.compare(baseline, drs.snapshot())
+            drs.append_log(log_file, label, drs.DEFAULT_ROOT,
+                           len(baseline), diffs)
+            if diffs:
+                drs._print_diffs(label, diffs)
+                print("  ABORTING THE RUN. The sandbox reached live data.")
+                os._exit(2)
+            print(f"  [{label}] shared data root CLEAN "
+                  f"({len(baseline)} db files byte-identical).")
+
+    threading.Thread(target=_run, daemon=True, name="data-root-compare").start()
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--data-dir", default=r"C:\data-hubtest")
+    ap.add_argument("--test-email", default="hubtest@local.dev")
+    ap.add_argument("--port", type=int, default=8077)
+    ap.add_argument("--host", default="0.0.0.0")
+    args = ap.parse_args()
+
+    sandbox = os.path.abspath(args.data_dir)
+
+    # ⛔ THE SNAPSHOT IS THE FIRST THING THIS RUN REPORTS, BEFORE ANY HEALTH
+    # CHECK. "Reports clean" is never evidence of "wrote nowhere" — the boot
+    # that corrupted this project's trust printed a clean startup and a healthy
+    # /api/health while writing to the live auth.db.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import data_root_snapshot as drs
+
+    log_file = drs.log_path_for(REPO_ROOT)
+    baseline = drs.snapshot()
+    drs.append_log(log_file, "pre-boot (baseline)", drs.DEFAULT_ROOT,
+                   len(baseline), [], extra=f"sandbox = {sandbox}")
+    print("")
+    print(f"  [pre-boot] shared data root baseline: {len(baseline)} db files "
+          f"hashed (sha256)")
+    print(f"  [pre-boot] integrity log: {log_file}")
+
+    pins = apply_sandbox_env(sandbox, args.test_email)
+    import conftest
 
     # Seed the synthetic wire fixture so Home / Wire / Breadth render something
     # for the device script to act on. Obviously synthetic by construction —
@@ -269,8 +350,24 @@ def main():
     print("  reach live data and was stopped. Report it; do not ignore it.")
     print("")
 
+    _start_post_boot_compare(drs, baseline, log_file, args.port)
+
     import uvicorn
-    uvicorn.run("api.main:app", host=args.host, port=args.port, log_level="info")
+    try:
+        uvicorn.run("api.main:app", host=args.host, port=args.port,
+                    log_level="info")
+    finally:
+        # Shutdown checkpoint. A leak that only happens on teardown — a
+        # checkpoint, a flush, an atexit handler — would be invisible to the
+        # post-boot check alone.
+        diffs = drs.compare(baseline, drs.snapshot())
+        drs.append_log(log_file, "shutdown", drs.DEFAULT_ROOT,
+                       len(baseline), diffs)
+        if diffs:
+            drs._print_diffs("shutdown", diffs)
+            sys.exit(2)
+        print(f"  [shutdown] shared data root CLEAN ({len(baseline)} db files "
+              f"byte-identical). Log: {log_file}")
 
 
 if __name__ == "__main__":
