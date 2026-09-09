@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { createFakeDb, settleIdb, installKeyRange } from './__fixtures__/fakeIndexedDb'
-import { putNoteWithIntent } from './notebookDb'
+import { putNoteWithIntent, listOutbox, getNote } from './notebookDb'
 import { useOutboxDrain } from './useOutboxDrain'
 import { LEADER, FOLLOWER, READ_ONLY_FOR_SYNC } from './outboxLeader'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
@@ -130,5 +130,30 @@ describe('coming back online', () => {
     })
     await waitFor(() => expect(result.current.pending).toBe(0))
     expect(send).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('⛔ §21 — the rollback stops PROCESSING, it does not discard work', () => {
+  it('with the wave switched off the tab claims no leadership, sends nothing, and leaves the queue intact', async () => {
+    // This is the emergency path: `OFFLINE_DEFAULT_ON` back to false, or one
+    // browser opting out. It must never be able to mean "delete what the member
+    // already wrote" — activation created real durable member state, and a
+    // feature disable has no authority over it.
+    installLocks()
+    localStorage.removeItem(OFFLINE_FLAG_KEY)
+    const send = vi.fn(async () => ({ updatedAt: 'T2' }))
+    const { result } = mount({ send })
+    await act(async () => { await settleIdb(6) })
+
+    expect(result.current.supported).toBe(false)
+    expect(result.current.isLeader).toBe(false)
+    expect(send).not.toHaveBeenCalled()
+    // ⛔ No lock was even claimed — a dark tab does not queue behind the leader.
+    expect(held.has('uct.nb.sync.acct1')).toBe(false)
+    // And the queued work is exactly where it was, ready for a re-enable.
+    const left = await listOutbox(db)
+    expect(left).toHaveLength(1)
+    expect(left[0].patch.bodyJson).toEqual(doc('written offline'))
+    expect((await getNote(db, 'n1')).dirty).toBe(1)
   })
 })

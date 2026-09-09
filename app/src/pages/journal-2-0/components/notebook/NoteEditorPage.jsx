@@ -1693,11 +1693,25 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             Shown only while the server does NOT have the work (the healthy
             path already stays quiet), and only once the durable write has
             actually COMMITTED — never while it is pending, in flight, or
-            failed. `durable.unsynced` is that commit, not an intention. */}
+            failed. `durable.unsynced` is that commit, not an intention.
+
+            ⛔ AND THE NOUN NARROWS WHEN THE PLATFORM WILL NOT PROMISE RETENTION.
+            "This device" implies the words outlive the browsing session; only a
+            granted `persisted()` supports that. Everywhere else — a private
+            window, a fresh profile, Safari and Firefox as measured — the honest
+            claim is "in this browser", which is true in every environment in the
+            §32 matrix.
+
+            ⛔ THIS IS NOT PRIVATE-MODE DETECTION AND MUST NEVER BECOME IT.
+            `persisted() === false` is equally true of a brand-new ordinary
+            profile; it means only that persistent-storage protection has not
+            been positively granted. No badge, no claim, no behaviour change. */}
         {durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {'Saved on this device — not yet synced to UCT'}
+            {durable.persisted === true
+              ? 'Saved on this device · waiting to sync'
+              : 'Saved in this browser · waiting to sync'}
           </div>
         )}
         {saveStatus === 'conflict' && (

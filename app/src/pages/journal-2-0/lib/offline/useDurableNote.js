@@ -28,7 +28,7 @@ import {
   DEFAULT_DEBOUNCE_MS, DURABLE, FAILED, IDLE, createDurableWriter,
 } from './durableWriter'
 import {
-  getNote, offlineStorageAvailable, openNotebookDb, putNoteWithIntent,
+  getNote, offlineStorageAvailable, openNotebookDb, putNoteWithIntent, storagePosture,
 } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
 import { chooseLocalRecovery, newSessionId, sameAuthoredContent } from './recoverLocalState'
@@ -101,10 +101,24 @@ export function useDurableNote({
   const [status, setStatus] = useState(supported ? IDLE : UNAVAILABLE)
   const [unsynced, setUnsynced] = useState(false)
   const [error, setError] = useState(null)
+  // What the PLATFORM says about retention, read once. ⛔ It is a wording
+  // input, never a gate: `null` and `false` both mean "not positively granted",
+  // which is ALSO true of a brand-new ordinary profile. It does not mean private
+  // browsing, and nothing here may treat it as a mode detector.
+  const [persisted, setPersisted] = useState(null)
   const writerRef = useRef(null)
   // What the last COMMITTED write actually put on disk — read by the status
   // callback, which must never describe an intent that has not landed.
   const committedDirtyRef = useRef(false)
+
+  useEffect(() => {
+    if (!supported) { setPersisted(null); return undefined }
+    let cancelled = false
+    storagePosture()
+      .then((p) => { if (!cancelled) setPersisted(p.persisted) })
+      .catch(() => { if (!cancelled) setPersisted(null) })
+    return () => { cancelled = true }
+  }, [supported])
 
   useEffect(() => {
     if (!supported) {
@@ -226,5 +240,5 @@ export function useDurableNote({
     return chooseLocalRecovery({ server, idbRecord, lsDraft })
   }, [supported, accountId, noteId, connect])
 
-  return { supported, status, unsynced, error, schedule, markSynced, flush, recover }
+  return { supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover }
 }

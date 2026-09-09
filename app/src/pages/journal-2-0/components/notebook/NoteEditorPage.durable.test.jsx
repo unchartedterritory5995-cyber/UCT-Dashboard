@@ -166,9 +166,12 @@ describe('the server ack and the local intent', () => {
     expect(store('notes')[0].dirty).toBe(1)
     expect(store('outbox')).toHaveLength(1)
     // PERMANENT RULE: SAVED ON THIS DEVICE ≠ SYNCED TO UCT — and the surface
-    // says exactly that, only after the write COMMITTED.
-    await waitFor(() => expect(screen.getByText(/Saved on this device/i)).toBeInTheDocument())
-    expect(screen.getByText(/not yet synced to UCT/i)).toBeInTheDocument()
+    // says so only after the write COMMITTED. jsdom exposes no
+    // `navigator.storage`, so `persisted()` is unknown and the honest noun is
+    // the narrow one.
+    await waitFor(() => expect(screen.getByText(/Saved in this browser/i)).toBeInTheDocument())
+    expect(screen.getByText(/waiting to sync/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Saved on this device/i)).toBeNull()
   })
 })
 
@@ -228,8 +231,9 @@ describe('no durable store here', () => {
     // server actually has the content.
     expect(updateMock.mock.calls[0][0].title).toBe('still typing')
     expect(localStorage.getItem('uct.j2.notedraft.n1')).toBeNull()
-    // ⛔ And nothing ever claimed this device was holding it.
+    // ⛔ And nothing ever claimed anything was held locally.
     expect(screen.queryByText(/Saved on this device/i)).toBeNull()
+    expect(screen.queryByText(/Saved in this browser/i)).toBeNull()
   })
 })
 
@@ -263,5 +267,91 @@ describe('⛔ the §32 certification gate — DARK BY DEFAULT', () => {
     await letTheDurableWindowClose()
     expect(factory.databases.size).toBe(1)
     expect(store('notes')[0].title).toBe('typed with the wave switched on')
+  })
+})
+
+describe('⛔ the noun narrows when the platform will not promise retention', () => {
+  const withPersisted = (value) => {
+    Object.defineProperty(globalThis.navigator, 'storage', {
+      configurable: true,
+      value: { persisted: async () => value, estimate: async () => ({ quota: 1e9, usage: 1 }) },
+    })
+  }
+  afterEach(() => {
+    try { Object.defineProperty(globalThis.navigator, 'storage', { configurable: true, value: undefined }) } catch { /* jsdom */ }
+  })
+
+  async function typeOfflineAndRead() {
+    updateMock.mockRejectedValue(new Error('network down'))
+    await renderEditor()
+    type('written while the server was gone')
+    await letTheServerSaveFire()
+    await act(async () => { await settleIdb(6) })
+  }
+
+  it('⭐ says "on this device" ONLY when persisted() was actually granted', async () => {
+    withPersisted(true)
+    await typeOfflineAndRead()
+    await waitFor(() => expect(screen.getByText(/Saved on this device/i)).toBeInTheDocument())
+    expect(screen.queryByText(/Saved in this browser/i)).toBeNull()
+  })
+
+  it('says "in this browser" when it was not — and does NOT call that private mode', async () => {
+    // ⛔ `persisted() === false` is equally true of a brand-new ordinary
+    // profile. It means persistent-storage protection has not been positively
+    // granted, and NOTHING here may read it as a browsing mode.
+    withPersisted(false)
+    await typeOfflineAndRead()
+    await waitFor(() => expect(screen.getByText(/Saved in this browser/i)).toBeInTheDocument())
+    expect(screen.queryByText(/Saved on this device/i)).toBeNull()
+    expect(screen.queryByText(/private/i)).toBeNull()
+    expect(screen.queryByText(/incognito/i)).toBeNull()
+    // ⛔ And it changes NOTHING else: the work is still durable and queued.
+    expect(store('notes')[0].dirty).toBe(1)
+    expect(store('outbox')).toHaveLength(1)
+  })
+
+  it('⛔ a refused persist() never blocks offline editing or raises an error', async () => {
+    withPersisted(false)
+    await typeOfflineAndRead()
+    expect(store('notes')[0].title).toBe('written while the server was gone')
+    // The only problem surfaced is the SERVER one, which is real.
+    expect(screen.queryByText(/quota|storage is full|could not store/i)).toBeNull()
+  })
+})
+
+describe('⛔ §21 — switching the wave OFF must never discard queued member work', () => {
+  it('leaves an existing durable copy and its outbox entry untouched while the editor works normally', async () => {
+    // The activation is reversible. Darkening the feature stops PROCESSING; it
+    // has never been permission to delete what a member already wrote.
+    factory.open(ACCOUNT_DB)
+    await act(async () => { await settleIdb(2) })
+    const db = factory.databases.get(ACCOUNT_DB)
+    db.seed('notes', {
+      noteId: 'n1', title: 'work written before the flag was switched off', subtitle: '',
+      bodyJson: BASE_BODY, dirty: 1, generation: 4, sessionId: 's-old',
+      localSavedAt: 1000, baseUpdatedAt: 'T1',
+    })
+    db.seed('outbox', {
+      mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
+      patch: { title: 'work written before the flag was switched off', subtitle: '', bodyJson: BASE_BODY },
+      baseUpdatedAt: 'T1', permanent: false, queuedAt: 1000,
+    })
+
+    localStorage.removeItem(OFFLINE_FLAG_KEY)     // the rollback
+    __resetNotebookConnections()
+    await renderEditor()
+    type('and the member keeps typing with the wave off')
+    await letTheServerSaveFire()
+    await act(async () => { await settleIdb(6) })
+
+    // ⛔ Byte for byte where it was: no drain, no clear, no delete.
+    expect(store('notes')).toHaveLength(1)
+    expect(store('notes')[0].title).toBe('work written before the flag was switched off')
+    expect(store('notes')[0].dirty).toBe(1)
+    expect(store('outbox')).toHaveLength(1)
+    expect(store('outbox')[0].patch.title).toBe('work written before the flag was switched off')
+    // …and the editor behaved exactly as it did before Wave Q1 throughout.
+    expect(updateMock.mock.calls[0][0].title).toBe('and the member keeps typing with the wave off')
   })
 })
