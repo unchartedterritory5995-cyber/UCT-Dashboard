@@ -222,7 +222,13 @@ describe('⚰️ what PART Z could not settle, and what settled it', () => {
   })
 
   it('⛔ and a TIE goes to the OLDER bar, which is where the corpus actually moved', () => {
-    // 6–10% of bars on real SPY OHLCV change under this rule. It is not a corner
+    // ⚰️ THIS SAID "6–10% of bars on real SPY OHLCV change under this rule" AND IT
+    // WAS WRONG BY AN ORDER OF MAGNITUDE. Re-measured 2026-09-09 over 2,031 real
+    // SPY daily bars: 0.4% of `high` windows at n=5, 0.6% at n=14/20/25, 0.3% of
+    // `low` windows at every length. ⛔ THE RARITY IS THE ARGUMENT FOR THE RULE
+    // rather than against it — a defect that shows on 1 bar in 200 is one nobody
+    // finds by looking, which is why two lanes agreed on the wrong convention.
+    // It is not a corner
     // case: repeated highs and lows are ordinary in a real price series.
     const src = Float64Array.from([10, 20, 20, 15])
     // internal form is a NON-NEGATIVE distance back; `ta.highestbars` negates it.

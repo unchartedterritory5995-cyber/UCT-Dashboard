@@ -12,30 +12,31 @@
    "inputs": "EMA Close 9 (fast), EMA Close 20 (slow)",
    "plots": 45,
    "why": "21 hidden layer plots that exist only as fill anchors, plus two moving averages and 22 colorer plots. The natural stress case for fills, hidden plots and per-band colour.",
-   "lineMap": "docs/pine/linemap-clouds.md"
+   "lineMap": "docs/pine/linemap-clouds.md",
+   "source": "tests/fixtures/member/uncharted-clouds.pine (137 body lines, MPL-2.0)"
   },
   {
    "key": "uncharted_volume",
-   "studyId": "Script$PUB;d292f8caee584486870c23eacad40...@tv-scripting",
+   "studyId": "Script$PUB;d292f8caee584486870c23eacad40d54@tv-scripting",
    "what": "'Uncharted Volume', published by AtTheAsk",
    "plots": 12,
    "why": "The other firm-authored reference target.",
-   "lineMap": "NOT WRITTEN YET \u2014 the 12 plots are captured in all four sets and have not been read."
+   "lineMap": "docs/pine/linemap-volume.md",
+   "source": "tests/fixtures/member/uncharted-volume.pine (576 body lines, MPL-2.0)"
   },
   {
    "key": "volume_builtin",
    "studyId": "Volume@tv-basicstudies",
    "what": "TradingView's built-in Volume",
    "plots": 3,
-   "why": "A control, not a target. Small and independently understood, which is why it was the one that exposed the inverted colorer index.",
-   "lineMap": "docs/pine/linemap-volume.md"
+   "why": "A control, not a target. Small and independently understood, which is why it was the one that exposed the inverted colorer index. Captured alongside the two member scripts in every set so every capture has a component whose answer is known in advance.",
+   "lineMap": "docs/pine/linemap-volume-builtin.md"
   }
  ],
  "_target_naming": [
-  "The build order names the targets 'Clouds' and 'Volume'. 'Clouds' is unambiguous. 'Volume'",
-  "was first read as the TradingView built-in and is more likely 'Uncharted Volume' \u2014 same author",
-  "as Clouds. Rather than guess, ALL THREE are captured side by side in every set, so whichever",
-  "reading is right, the data is already there."
+  "CONFIRMED by the owner 2026-09-09: the Part 2 targets are AtTheAsk's own 'Uncharted Clouds'",
+  "and 'Uncharted Volume'. TradingView's built-in Volume is captured alongside as a bonus control",
+  "and has its own page, docs/pine/linemap-volume-builtin.md."
  ],
  "sets": [
   {
@@ -86,7 +87,7 @@
    "symbol": "AMEX:SPY",
    "resolution": "240",
    "bars": 300,
-   "why": "Intraday 4H. Sessions, gaps and a non-continuous time axis \u2014 the case where a renderer that assumes evenly spaced bars finally breaks.",
+   "why": "Intraday 4H. Sessions, gaps and a non-continuous time axis — the case where a renderer that assumes evenly spaced bars finally breaks.",
    "artifacts": {
     "values": "clouds-volume-spy-4h-300.csv + .meta.json",
     "values_builtin_only": "volume-spy-4h-300.csv + .meta.json",
@@ -94,7 +95,7 @@
     "crop40": "crop40-spy-4h.png",
     "note": "images re-shot at 1835x895 with UT Vol rendering; see README section 4b"
    },
-   "note": "Five distinct gaps between consecutive bars in one 300-bar window: 14400s (the 4h step), 72000s (overnight), 244800s (a weekend), 331200s (a holiday weekend) and 241200s (a weekend exactly one hour short \u2014 a DST transition). This is the set that earns its place."
+   "note": "Five distinct gaps between consecutive bars in one 300-bar window: 14400s (the 4h step), 72000s (overnight), 244800s (a weekend), 331200s (a holiday weekend) and 241200s (a weekend exactly one hour short — a DST transition). This is the set that earns its place."
   }
  ],
  "_outstanding": [
@@ -102,6 +103,6 @@
   "labels (the cyan 'HV1' annotation, the orange 'Range' readout) are inside the full and crop40",
   "images already. The first script that draws a real table will need its own crop.",
   "The built-in Volume's per-index palette (the two histogram hues) was not captured.",
-  "A line map for Uncharted Volume is not written yet \u2014 its 12 plots are captured in all four sets."
+  "A line map for Uncharted Volume is not written yet — its 12 plots are captured in all four sets."
  ]
 }

@@ -1,122 +1,89 @@
-# Line map — Volume (TradingView's built-in)
+# Linemap — `Uncharted Volume`
 
-⚠️⚠️ **THIS IS THE BUILT-IN, AND IT MAY NOT BE THE PART 2 TARGET.** When this was written the
-reference target "Volume" was assumed to mean `Volume@tv-basicstudies`. It probably means
-**Uncharted Volume** — a published script by AtTheAsk, the same author as Uncharted Clouds, found
-later in the same Indicators dialog. Both are now captured side by side in sets A–D
-(`clouds-volume-*.csv`), and this page is kept because the built-in is a genuinely useful control:
-it is small, independently understood, and it is what produced the colorer finding in §2.
+**Source of truth:** `tests/fixtures/member/uncharted-volume.pine`, 576 body lines,
+`//@version=6`, © AtTheAsk (MPL-2.0). Hashes in
+`tests/fixtures/member/manifest.json`; `tests/test_member_fixtures.py` fails if
+either moves.
 
-**A line map for Uncharted Volume is not written yet.** Its twelve plots are captured in all four
-sets and are waiting to be read the way `linemap-clouds.md` reads Clouds.
+⛔ **EVERY LINE NUMBER HERE IS FROM THAT FILE AND NOTHING ELSE.** The script was
+lost twice as a conversation attachment before it was committed, and a linemap
+built against a remembered copy is a document that describes the wrong statements
+with total confidence. Re-derive after any change to `body_sha256`.
 
-What every part of TradingView's built-in **Volume** study is, and what our renderer has to
-produce for it. Every number and colour below was **read out of a live chart**, not inferred:
-see `tests/fixtures/vendor/reference/A/volume-spy-1d-250.{csv,meta.json}` and the protocol in
-`tools/visual_conformance/README.md`.
-
-- **Capture**: `AMEX:SPY`, `1D`, 250 bars, indices 50–299 (2025-09-10 → 2026-09-08 ET).
-- **Study id**: `Volume@tv-basicstudies`.
-- **Vendor inputs**: `length = 20`, `col_prev_close = false`.
-
-> ⚠️ Volume is a **built-in**, not an open-source Pine script, so there is no vendor source to
-> map line-by-line. The left column is therefore *the Pine you would write to reproduce it* —
-> the equivalence is asserted against measured vendor output, and every assertion below names
-> the measurement that backs it.
+⭐ **The STATUS column is MEASURED, not judged.** It comes from running the
+shipped `translatePine` over this exact file in both contracts on 2026-09-09. The
+CAPABILITY and PHASE columns are the judgement.
 
 ---
 
-## 1. The map
+## What the translator actually says today
 
-| # | Pine equivalent | Plot | Visual element | Vendor state |
+```
+SCREENER  refused  pine:builtin  line 222  — `str.contains`
+HOST      refused  pine:builtin  line 222  — `str.contains`
+lenient: 5 refusals — 4 × str.contains (222), 1 × pine:window (233)
+```
+
+⚠️ **The first refusal is at line 222 in BOTH contracts**, which is why the
+`request.security` at 259 does not yet appear in the list: resolution stops
+before it. The refusal list will grow as earlier blockers clear — a shrinking
+list is not the metric here, a *changing* one is.
+
+---
+
+## The blockers, in the order the translator hits them
+
+| Line(s) | Pine feature | Capability required | Phase | Status |
 |---|---|---|---|---|
-| 1 | `indicator("Volume", format = format.volume)` | — | Its own pane, below price | separate pane; `precision: "default"` |
-| 2 | `up = close >= open` | — | (not drawn) | `col_prev_close = false` selects close-vs-open — **measured**, §2 |
-| 3 | `plot(volume, "Volume", style = plot.style_columns, color = up ? upCol : downCol)` | `vol` | Histogram from a zero base | `plottype: 5`, `linewidth: 1`, `transparency: 50`, `visible: true`, `histogramBase: 0` |
-| 4 | *(the colour argument above)* | `vol_color` | Selects the colour for each `vol` column | `type: "colorer"`, `target: "vol"` — a **palette index**, not a boolean, §2 |
-| 5 | `plot(ta.sma(volume, 20), "Volume MA")` | `vol_ma` | A line across the histogram | `plottype: 0`, `linewidth: 1`, **`visible: false`** on this chart, §3 |
+| **222** | `str.contains(syminfo.ticker, "/") or str.contains(syminfo.tickerid, "/")` | **Kind 4 — symbol-scoped constant.** `syminfo.*` resolved once at definition-bind time from our own symbol store, `str.contains` folding at bind time to a boolean | Step 5, item 2 | 🔴 **BLOCKS BOTH CONTRACTS** — first refusal |
+| **233** | `ta.sma(v, isWeekly ? lenWeekly : lenDaily)` | A window length that is a *computed* expression. Both operands are bind-time constants (`timeframe.isweekly` is the chart's own timeframe; `lenWeekly`/`lenDaily` are inputs), so this folds to a plain integer at bind time — **but only if Kind 4 folding reaches window lengths** | Step 5, item 2 (extension) | 🔴 **BLOCKS** — `pine:window` |
+| **259** | `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(), lookahead = barmerge.lookahead_off)` | 8-tuple `request.security`, chart's own symbol, daily, `lookahead_off`, **no `gaps=`** | Step 5, item 3 | ⚪ **not yet reached** — 222 refuses first |
+| **429, 450** | `barstate.islast` | Refused deliberately: `BUILTIN_REQUEST_DEPENDENT` — its value depends on how many bars were asked for | — | ⛔ **refused by ruling, not by gap** |
+| **296, 299, 399** | `barstate.isconfirmed` | Screener folds it to 1 (exact on closed bars); host refuses pending the realtime capture | Barstate capture | 🟡 **screener OK / host refuses** |
 
-## 2. ⛔ The colorer is a palette index, and it is inverted from the obvious reading
+---
 
-**`vol_color = 0` is an UP bar. `vol_color = 1` is a DOWN bar.**
+## What already works
 
-This is the single most important thing in this document, because getting it backwards
-produces a chart that looks completely plausible and is wrong on every bar.
+| Line(s) | Pine feature | Status |
+|---|---|---|
+| **215, 216, 217** | `timeframe.isdaily` / `isweekly` / `ismonthly` | ✅ **shipped 2026-09-09** (`42dd63a72`) — alias onto the clock columns the table already declared |
+| **225** | `ta.cum(nz(v)) > 0` | ✅ **shipped 2026-09-09** (`0a96689ef`) — host contract only; the screener refuses it by ruling, and the definition carries `window_dependent` |
+| **189–207** | `ta.*` — the moving averages and ranges | ✅ declared |
+| **38–150** | `input.*` × 31 | ✅ declared |
+| **151, 159, 172, 188, 389** | 5 user-defined functions | ✅ per-call-site frames (Phase 2E) |
+| **236–283** | `var` × 19 | ✅ carried state (Phase 2A) |
 
-Measured over all 250 captured bars:
+---
 
-| Hypothesis | Agreement |
-|---|---|
-| `vol_color == 1` when `close >= open` | **0 / 250** |
-| `vol_color == 0` when `close >= open` | **250 / 250** |
-| `vol_color == 1` when `close >= close[1]` | 48 / 249 (19.3%) |
+## Presentation — R2, not a translation gap
 
-⭐ **Zero out of 250 is the tell.** A wrong-but-uncorrelated guess lands near 50%; a perfect
-anti-correlation means the mapping is exactly inverted. The 19.3% row is what noise looks like
-here, and it is the measured refutation of the close-vs-previous-close reading — which is the
-*other* thing Volume can do, when `col_prev_close = true`. That input was `false` for this
-capture, so **a renderer must read the input, not hard-code either rule.**
+These are not refusals to clear in this program; they are the presentation layer.
 
-⚠️ Consequence for the renderer: a `colorer` plot's value is an **index into the plot's
-palette**, and its integers carry no inherent meaning. Do not treat a colorer as a boolean, and
-do not assume `1` is the "positive" case.
+| Line(s) | Feature | Note |
+|---|---|---|
+| **335, 341, 345, 350** | the 4 `plot()` calls | Every one is gated `skipAll ? na : …`, and `skipAll` (226) needs **222** and **225**. So all four plots are downstream of one Kind-4 blocker. |
+| **394, 419, 422, 431** | `label.*` × 4 | The HVE / HV1 annotations |
+| **489, 490, 498, 502, 532, 533, 573–575** | `table.*` × 10 | Two tables — volume and ATR |
+| **173, 393, 480, 538, 541, 542, 555, 564** | `str.*` other than `contains` | `str.tostring` on **series** values → R2 text, refused by name and routed there |
 
-## 3. ⭐ A hidden plot still carries values
+---
 
-`styles.vol_ma.visible` is `false` and `display` is `0` on the captured chart — the Volume MA
-is switched off, and nothing about it is drawn. **All 250 rows still carry a `vol_ma` number.**
+## Reading
 
-This is the same rule the Pine presentation spec states for `display = display.none`: hidden is
-an author's *display* choice, not an absence of data. Our engine already relies on it — Clouds'
-twenty-one layer plots are hidden on purpose and exist only as `fill` anchors — so this is a
-vendor-side confirmation of a rule we had only asserted.
+⭐⭐ **ONE LINE GATES THE WHOLE PANE.** `skipAll` (226) is `isRatioSymbol or not
+hasVolumeData`; `isRatioSymbol` is line 222 and `hasVolumeData` is line 225. All
+four plots carry `skipAll ? na : …`. So Kind 4 at line 222 is not one refusal
+among five — it is the difference between this script drawing and not drawing.
 
-⚠️ It is also why the capture reads the chart **model** rather than the Table-view export: the
-export shows the visible columns, and `vol_ma` would simply not have been there.
+⚠️ **AND LINE 233 IS THE SAME MECHANISM WEARING A DIFFERENT GUARD.** `pine:window`
+reads as a separate capability gap, and it is not: every operand of
+`isWeekly ? lenWeekly : lenDaily` is constant for a given binding. If bind-time
+folding reaches window lengths it clears with 222; if it does not, this script
+still refuses after item 2 lands. **That is the design question item 2 has to
+answer, and it is not in the owner's Kind-4 spec** — flagged rather than assumed.
 
-`vol_ma` is exactly `SMA(volume, 20)` — **231 bars checked, maximum absolute delta 0.0**, which
-also confirms `inputs.length = 20` is the MA length and not something else. (The first 19 bars
-of the window are not checked here because their true window reaches behind the capture; they
-do carry vendor values, computed from bars before index 50.)
-
-## 4. `vol` is the series volume
-
-250 / 250 bars: the study's `vol` plot equals the main series' volume, bit for bit. Nothing is
-rescaled, smoothed or unit-converted on the way into the study. This is a coherence check on
-the capture as much as a statement about Volume.
-
-## 5. Colours, and what we still do not have
-
-The captured chart is on a **light** theme, and the vendor state gives us:
-
-| Thing | Value |
-|---|---|
-| Pane background | `rgba(255, 255, 255, 1)` |
-| Grid (vert + horz) | `rgba(46, 46, 46, 0.06)` |
-| Series up / down | `#089981` / `#F23645` |
-| `vol` base colour | `#2962ff` |
-| `vol` transparency | `50` |
-
-⚠️ **UNVERIFIED — the two histogram colours themselves.** `styles.vol.color` is a single value
-(`#2962ff`), which is the study's *default* colour, not the up/down pair the histogram actually
-draws. The per-index palette lives in the study's palette state, which this capture did not
-read. Until it is captured, the renderer must not hard-code a green/red pair here — the
-measured facts are the *index* (§2) and the transparency, not the hues.
-
-⭐ Worth recording: the series up/down hexes `#089981` / `#F23645` are exactly the values the
-clean-room Ichimoku fixture uses (`tests/fixtures/pine/12-ichimoku-kinko-hyo.pine`), which were
-taken from the Pine v6 colour constants. Two independent routes to the same pair.
-
-## 6. What is not captured yet
-
-- **The palette state** for `vol_color` (§5) — the two histogram hues themselves.
-- **A line map for Uncharted Volume**, the probable real target (see the banner at the top). Its
-  twelve plots are captured in all four sets; nobody has read them yet.
-- **Table / label crops.** The full-chart and 40-bar images exist for every set, but neither of
-  these two studies draws a table or a label, so there was nothing to crop. The first script that
-  does will need them.
-
-⚠️ **Uncharted Volume does not appear in the reference images.** Its pane was allocated **zero
-height** on the capture layout, and pane heights cannot be recomputed while the browser tab is
-`visibilityState: "hidden"` — which it was throughout. The numbers are unaffected (they come from
-the model), and re-shooting with the window foregrounded is all that is needed.
+⚠️ **`barstate.islast` (429, 450) will never clear.** It is refused by ruling —
+its answer moves with the fetch — so the honest target for this script is *every
+refusal cleared except `islast`, and `isconfirmed` on the host contract pending
+the realtime capture*, not zero refusals.

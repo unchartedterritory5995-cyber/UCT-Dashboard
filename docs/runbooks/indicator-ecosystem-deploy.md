@@ -51,7 +51,7 @@ old behaviour was wrong and nothing on screen said so.
 | 2 | **RSI / ATR / MACD / ADX across a data gap** (halt, thin session, late feed) | Charts, alerts, screener | Previously: `atr`/`macd`/`adx` went blank from the first hole to the end of the chart; **`rsi` was worse — it kept drawing, and every value after the hole was wrong and never re-converged, with no visible gap at all.** Now all four hold across the hole and resume correctly. |
 | 3 | **`ta.rising` / `ta.falling` across a gap** | Member-authored formulas | Were being evaluated as finite windows; they are carried counters. Three sources, 375/0 against the vendor after the fix vs 287/88 before. |
 | 4 | **`ta.wma` across a gap** | Member-authored formulas | Forward-fills its lookback; answers `na` only when the *current* bar is `na`. |
-| 5 | **`highestbars` / `lowestbars` / `aroon` on tied extremes** | Member-authored formulas only | Ties now resolve to the **oldest** bar, matching TradingView (380/0 vs 193/187). **~6–10% of bars move on real SPY OHLCV.** |
+| 5 | **`highestbars` / `lowestbars` / `aroon` on tied extremes** | Member-authored formulas only | Ties now resolve to the **oldest** bar, matching TradingView (380/0 vs 193/187). **0.3–0.6% of bars move on real SPY OHLCV** (2,031 daily bars, re-measured 2026-09-09); aroon differs on 0.6%, median 7.1 points on a 0–100 scale. |
 
 **How far #5 reaches, measured:** no starter scan, no native indicator, no
 screener row and no firm-authored screen calls `highestbars`, `lowestbars` or
@@ -66,8 +66,15 @@ LIVE_TOTAL=5  ARG_EXTREME_HITS=0  UNREADABLE=0
 **No live member definition references `highestbars`, `lowestbars` or `aroon`.**
 The denominator is in the output on purpose — a bare `0` cannot be told apart
 from a query that found nothing to look at. So change #5 moves **no number any
-member can currently see**, and the 6–10% figure describes what would move if
+member can currently see**, and the 0.3–0.6% figure describes what would move if
 somebody writes one of the three tomorrow.
+
+⚰️ **AN EARLIER DRAFT OF THIS ROW SAID 6–10%.** That was wrong by an order of
+magnitude — re-measured 2026-09-09 over 2,031 real SPY daily bars at the very
+lengths the old note named. Repeated highs in a real price series are rarer than
+it assumed. ⛔ The rarity argues FOR the correction, not against it: a defect
+visible on 1 bar in 200 is one nobody finds by looking, which is exactly why two
+lanes agreed on the wrong convention for months.
 
 ---
 

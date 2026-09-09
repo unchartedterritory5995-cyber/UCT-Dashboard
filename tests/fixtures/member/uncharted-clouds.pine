@@ -1,0 +1,169 @@
+//@version=6
+indicator("Uncharted Clouds", overlay=true)
+
+// ============================================================================
+// INPUT PARAMETERS
+// ============================================================================
+
+// Fast MA Settings
+showMA1 = input.bool(true, "Fast MA", inline="ma1", group="Moving Averages")
+ma1Type = input.string("EMA", "", options=["EMA", "SMA"], inline="ma1", group="Moving Averages")
+ma1Source = input.string("Close", "", options=["Open", "High", "Low", "Close"], inline="ma1", group="Moving Averages")
+ma1Length = input.int(9, "", minval=1, inline="ma1", group="Moving Averages")
+ma1Color = input.color(color.new(color.white, 100), "", inline="ma1", group="Moving Averages")
+
+// Slow MA Settings
+showMA2 = input.bool(true, "Slow MA", inline="ma2", group="Moving Averages")
+ma2Type = input.string("EMA", "", options=["EMA", "SMA"], inline="ma2", group="Moving Averages")
+ma2Source = input.string("Close", "", options=["Open", "High", "Low", "Close"], inline="ma2", group="Moving Averages")
+ma2Length = input.int(20, "", minval=1, inline="ma2", group="Moving Averages")
+ma2Color = input.color(color.new(color.white, 95), "", inline="ma2", group="Moving Averages")
+
+// Cloud Color Settings
+// User can now control overall cloud opacity via the color picker's alpha channel
+bullColor = input.color(color.teal, "Bullish Cloud Color", group="Cloud Settings",
+     tooltip="Color when Fast MA is above Slow MA. Adjust opacity in color picker to control cloud intensity.")
+bearColor = input.color(color.maroon, "Bearish Cloud Color", group="Cloud Settings",
+     tooltip="Color when Fast MA is below Slow MA. Adjust opacity in color picker to control cloud intensity.")
+
+// Cloud Settings (fixed values)
+numLayers = 21
+minTransparency = 45  // Base transparency at outer edges (before user adjustment)
+maxTransparency = 95  // Base transparency at center (before user adjustment)
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+ma1SourceValue = ma1Source == "Open" ? open : ma1Source == "High" ? high : ma1Source == "Low" ? low : close
+ma2SourceValue = ma2Source == "Open" ? open : ma2Source == "High" ? high : ma2Source == "Low" ? low : close
+
+fastMA = ma1Type == "EMA" ? ta.ema(ma1SourceValue, ma1Length) : ta.sma(ma1SourceValue, ma1Length)
+slowMA = ma2Type == "EMA" ? ta.ema(ma2SourceValue, ma2Length) : ta.sma(ma2SourceValue, ma2Length)
+
+isBullish = fastMA > slowMA
+
+// ============================================================================
+// PLOTTING
+// ============================================================================
+
+plot(showMA1 ? fastMA : na, "Fast MA", color=ma1Color, linewidth=2)
+plot(showMA2 ? slowMA : na, "Slow MA", color=ma2Color, linewidth=2)
+
+// ============================================================================
+// FADING CLOUD EFFECT
+// ============================================================================
+
+var layerArray = array.new<float>(numLayers)
+
+for i = 0 to numLayers - 1
+    ratio = i / (numLayers - 1)
+    layerValue = fastMA + (slowMA - fastMA) * ratio
+    array.set(layerArray, i, layerValue)
+
+p1 = plot(array.get(layerArray, 0), display=display.none, editable=false)
+p2 = plot(array.get(layerArray, 1), display=display.none, editable=false)
+p3 = plot(array.get(layerArray, 2), display=display.none, editable=false)
+p4 = plot(array.get(layerArray, 3), display=display.none, editable=false)
+p5 = plot(array.get(layerArray, 4), display=display.none, editable=false)
+p6 = plot(array.get(layerArray, 5), display=display.none, editable=false)
+p7 = plot(array.get(layerArray, 6), display=display.none, editable=false)
+p8 = plot(array.get(layerArray, 7), display=display.none, editable=false)
+p9 = plot(array.get(layerArray, 8), display=display.none, editable=false)
+p10 = plot(array.get(layerArray, 9), display=display.none, editable=false)
+p11 = plot(array.get(layerArray, 10), display=display.none, editable=false)
+p12 = plot(array.get(layerArray, 11), display=display.none, editable=false)
+p13 = plot(array.get(layerArray, 12), display=display.none, editable=false)
+p14 = plot(array.get(layerArray, 13), display=display.none, editable=false)
+p15 = plot(array.get(layerArray, 14), display=display.none, editable=false)
+p16 = plot(array.get(layerArray, 15), display=display.none, editable=false)
+p17 = plot(array.get(layerArray, 16), display=display.none, editable=false)
+p18 = plot(array.get(layerArray, 17), display=display.none, editable=false)
+p19 = plot(array.get(layerArray, 18), display=display.none, editable=false)
+p20 = plot(array.get(layerArray, 19), display=display.none, editable=false)
+p21 = plot(array.get(layerArray, 20), display=display.none, editable=false)
+
+// ============================================================================
+// TRANSPARENCY CALCULATION WITH USER OPACITY SUPPORT
+// ============================================================================
+// Get the user-set transparency from the input colors (0 = fully opaque, 100 = fully transparent)
+bullUserTransparency = color.t(bullColor)
+bearUserTransparency = color.t(bearColor)
+
+// Calculate the effective transparency range based on user's opacity setting
+// When user sets 0% transparency (fully opaque), use full gradient range
+// When user sets higher transparency, scale the gradient accordingly
+transparencyRange = maxTransparency - minTransparency
+transparencyStep = transparencyRange / (numLayers - 1)
+
+// Function to calculate final transparency for each layer
+// Combines the gradient effect with user's opacity preference
+// User transparency acts as a multiplier/offset to make cloud more or less visible
+getAdjustedTransparency(layerIndex, userTransparency) =>
+    baseTransparency = maxTransparency - transparencyStep * layerIndex
+    // Blend user transparency with base gradient
+    // When userTransparency = 0 (opaque), use base gradient as-is
+    // When userTransparency > 0, shift entire gradient toward more transparent
+    adjustedTransparency = baseTransparency + (100 - baseTransparency) * (userTransparency / 100)
+    math.min(adjustedTransparency, 100)  // Cap at 100
+
+// Get bullish and bearish colors with adjusted transparency for each layer
+getBullFillColor(layerIndex) =>
+    color.new(bullColor, getAdjustedTransparency(layerIndex, bullUserTransparency))
+
+getBearFillColor(layerIndex) =>
+    color.new(bearColor, getAdjustedTransparency(layerIndex, bearUserTransparency))
+
+// Fill between consecutive layers with user-adjustable opacity
+fill(p1, p2, color=isBullish ? getBullFillColor(0) : getBearFillColor(0))
+fill(p2, p3, color=isBullish ? getBullFillColor(1) : getBearFillColor(1))
+fill(p3, p4, color=isBullish ? getBullFillColor(2) : getBearFillColor(2))
+fill(p4, p5, color=isBullish ? getBullFillColor(3) : getBearFillColor(3))
+fill(p5, p6, color=isBullish ? getBullFillColor(4) : getBearFillColor(4))
+fill(p6, p7, color=isBullish ? getBullFillColor(5) : getBearFillColor(5))
+fill(p7, p8, color=isBullish ? getBullFillColor(6) : getBearFillColor(6))
+fill(p8, p9, color=isBullish ? getBullFillColor(7) : getBearFillColor(7))
+fill(p9, p10, color=isBullish ? getBullFillColor(8) : getBearFillColor(8))
+fill(p10, p11, color=isBullish ? getBullFillColor(9) : getBearFillColor(9))
+fill(p11, p12, color=isBullish ? getBullFillColor(10) : getBearFillColor(10))
+fill(p12, p13, color=isBullish ? getBullFillColor(11) : getBearFillColor(11))
+fill(p13, p14, color=isBullish ? getBullFillColor(12) : getBearFillColor(12))
+fill(p14, p15, color=isBullish ? getBullFillColor(13) : getBearFillColor(13))
+fill(p15, p16, color=isBullish ? getBullFillColor(14) : getBearFillColor(14))
+fill(p16, p17, color=isBullish ? getBullFillColor(15) : getBearFillColor(15))
+fill(p17, p18, color=isBullish ? getBullFillColor(16) : getBearFillColor(16))
+fill(p18, p19, color=isBullish ? getBullFillColor(17) : getBearFillColor(17))
+fill(p19, p20, color=isBullish ? getBullFillColor(18) : getBearFillColor(18))
+fill(p20, p21, color=isBullish ? getBullFillColor(19) : getBearFillColor(19))
+
+// ============================================================================
+// SPDX-License-Identifier: MPL-2.0
+//
+// Copyright (c) 2026 AtTheAsk (Uncharted Territory).
+//
+// This Source Code Form is subject to the terms of the Mozilla Public License,
+// v. 2.0. If a copy of the MPL was not distributed with this file, You can
+// obtain one at https://mozilla.org/MPL/2.0/.
+//
+// ---------------------------------------------------------------------------
+// WHY THIS BLOCK IS AT THE FOOT AND NOT THE HEAD
+// ---------------------------------------------------------------------------
+// Two constraints collide at the top of a Pine file and only this placement
+// satisfies both:
+//
+//   1. `//@version=6` MUST be the first line. Pine's compiler directive is
+//      positional; pushed down by a licence header the script would be read as
+//      an older dialect, and a fixture that no longer round-trips to TradingView
+//      is worse than one with an unconventional licence position.
+//
+//   2. LINE NUMBERS MUST NOT MOVE. This file is the authority for every
+//      "line N" reference in `docs/pine/linemap-*.md` and in the owner's own
+//      instructions — the tuple `request.security` is line 259 and must stay
+//      line 259. A prepended header shifts every reference in the project by
+//      its own height, silently.
+//
+// So the body above is BYTE-IDENTICAL to the script as its author wrote it, and
+// `manifest.json` records the hash of that body separately from the hash of this
+// whole file, so a re-attached revision is detectable while this block is not
+// mistaken for one.
+// ============================================================================
