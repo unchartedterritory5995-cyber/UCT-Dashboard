@@ -342,27 +342,75 @@ def test_rsi_matches_the_VENDOR_on_no_movement_and_the_SCREENER_is_where_it_is_r
     assert technicals.compute_technicals(bars_from(rising))["rsi14"] == 100.0
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "OPEN OWNER RULING, raised 2026-09-09. The RSI ruling named the SCREENER as "
-    "where the frozen-ticker guard goes, and it went there. But "
-    "`rsi_from_wilder_averages` is the single authority for more consumers than "
-    "the screener, and the pattern-engine divergence detectors are one nobody "
-    "named: `_compute_rsi(flat)[-1]` now returns 100 where it used to return "
-    "None, and None is what this test's own docstring says they refuse on. That "
-    "is the SIM/TMTS/CWEN-A exposure arriving through a different door. ⛔ The "
-    "pattern-engine workstream is OWNER-PAUSED, so no detector is being touched "
-    "here. ⛔ STRICT, AND DELETING THIS TEST IS NOT THE FIX: strict means the "
-    "day somebody makes the detectors refuse a flat window again, this goes RED "
-    "and the ruling gets recorded rather than silently absorbed."))
-def test_a_flat_series_yields_no_rsi_divergence_detection():
-    """The detectors read RSI as an oversold/overbought LEVEL. A window in which
-    nothing moved has no level, and `None` is what they already refuse on."""
+def test_a_flat_window_reaches_the_divergence_detectors_as_100_and_FIRES_NOTHING():
+    """⭐⭐ OWNER RULING, 2026-09-09 — OPTION (a): LEAVE IT, RECORD THE FINDING.
+    This test IS the record, executable rather than restated.
+
+    ⚰️ IT USED TO ASSERT `is None` AND WAS RIGHT TO. Before the RSI correction a
+    zero-movement window was refused outright and these detectors never saw it.
+    The ruling moved the frozen-ticker guard to the SCREENER — but
+    `rsi_from_wilder_averages` is the single authority for more consumers than the
+    screener, and these two keep PRIVATE copies of the RSI calculation that call
+    it, so they inherited the change without being named in the ruling.
+
+    ⛔ SO THE QUESTION WAS: does a flat window now produce a false signal? It was
+    MEASURED rather than argued, and the answer is no — for two different reasons,
+    and both are asserted below because they fail independently.
+
+      • the BULLISH detector gates on the OVERSOLD zone (`>= 35` returns), and
+        100 fails that gate outright;
+      • the BEARISH detector gates on the OVERBOUGHT zone (`<= 65` returns), which
+        100 clears — but 100 is the TOP of the scale, and a bearish divergence
+        needs the LATER peak weaker than the earlier one. Nothing is weaker than
+        the maximum.
+
+    ⚠️ WHAT IS NOT RULED OUT, AND IT IS NAMED RATHER THAN QUIETLY DROPPED: a halt
+    on the EARLIER peak reads 100, which would exaggerate how far RSI fell between
+    the two peaks and could inflate the confidence SCORE of an otherwise genuine
+    signal. No case was built that demonstrates it and none was built that rules
+    it out. It is recorded in `divergences.json::rsi-zero-movement-reads-na
+    .downstream_consumers.residual_not_ruled_out`.
+
+    ⛔ THE BACKLOG ITEM IS NOT THIS TEST'S TO DO. The real smell is the duplicated
+    RSI implementation — the ruling reached these detectors by INHERITANCE
+    precisely because nobody had to name them — and removing it belongs to the
+    pattern-engine workstream, which is OWNER-PAUSED. Recorded there.
+    """
     from api.services.pattern_engine.detectors.classical import (
         rsi_bearish_divergence, rsi_bullish_divergence,
     )
     flat = [10.0] * 120
-    assert rsi_bullish_divergence._compute_rsi(flat, 14)[-1] is None
-    assert rsi_bearish_divergence._compute_rsi(flat, 14)[-1] is None
+
+    # ── the value they now see, which is the vendor's ────────────────────────
+    assert rsi_bullish_divergence._compute_rsi(flat, 14)[-1] == 100.0
+    assert rsi_bearish_divergence._compute_rsi(flat, 14)[-1] == 100.0
+
+    # ── and the two independent reasons it cannot become a signal ────────────
+    # ⛔ READ OFF THE DETECTORS, NEVER TYPED HERE. A literal 35/65 would agree
+    # with a copy of the threshold rather than with the threshold, and the day
+    # somebody widens the oversold zone this test would keep passing while the
+    # protection it describes had gone.
+    assert 100.0 >= rsi_bullish_divergence._RSI_OVERSOLD_THRESHOLD, (
+        "the bullish detector's oversold zone now admits 100 — a flat window can "
+        "reach its divergence logic, which is the condition this ruling rested on")
+    assert 100.0 > rsi_bearish_divergence._RSI_OVERBOUGHT_THRESHOLD, (
+        "100 no longer clears the overbought gate — the reasoning below changed")
+
+    # ⭐ THE PRODUCT-PATH PROOF, on the shape that would actually occur: a real
+    # advance, a HALT (the flat window, RSI 100), a pullback, then a higher high
+    # on ordinary action. That is textbook bearish-divergence geometry with the
+    # earlier peak sitting on the hole.
+    closes = ([100 + i * 0.8 for i in range(30)]
+              + [124.0] * 18
+              + [124 - i * 0.35 for i in range(1, 16)]
+              + [119 + i * 0.45 for i in range(1, 24)])
+    bars = [{"t": 20250101 + i, "o": c, "h": c * 1.002, "l": c * 0.998,
+             "c": c, "v": 1_000_000} for i, c in enumerate(closes)]
+    fired = rsi_bearish_divergence.detect_rsi_bearish_divergence(bars, {})
+    assert fired == [], (
+        f"a zero-movement window produced {len(fired)} bearish divergence(s) — the "
+        "ruling was made on the measurement that it produces none, so this is the "
+        "assertion that expires it")
 
 
 # ═════════════════════════════════════════════════════════════════════════════

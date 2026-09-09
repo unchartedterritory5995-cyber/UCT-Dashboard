@@ -218,7 +218,11 @@ def aroon_oracle(values, n, want_max):
     "off a TradingView Aroon pane, changing either side would be picking an "
     "authority rather than following one. ⛔ STRICT: the day the tie rule or the "
     "oracle moves, this goes RED and the decision gets recorded instead of "
-    "quietly landing. Blast radius, measured: ~6-10% of bars on real SPY OHLCV, "
+    "quietly landing. Blast radius, RE-MEASURED 2026-09-09 over 2,031 real SPY "
+    "daily bars: aroon differs on 0.6% of bars at both n=14 and n=25 (median 7.1 "
+    "points on a 0-100 scale, max 14.3); the underlying highestbars tie moves "
+    "0.3-0.6% depending on field and length. An earlier note said 6-10% and was "
+    "wrong by an order of magnitude. "
     "and NO live member definition calls aroon/highestbars/lowestbars today "
     "(count-only prod query 2026-09-09: 0 of 5)."))
 def test_aroonUp_matches_the_published_formula_over_a_shaped_series():
