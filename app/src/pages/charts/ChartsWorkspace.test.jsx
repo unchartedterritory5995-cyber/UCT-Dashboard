@@ -1,4 +1,4 @@
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import fs from 'node:fs'
@@ -101,11 +101,20 @@ function toolbarDropdownTriggers() {
   return [...header.querySelectorAll('button')].filter(b => b.parentElement?.parentElement === header)
 }
 
+/** Scoped to the <header>: the Layout Dock at the bottom of the workspace offers
+ *  the same layout names as the Open Layout menu, so a document-wide search would
+ *  return whichever happened to render first. */
+function headerButton(name) {
+  const header = document.querySelector('header')
+  if (!header) return null
+  return within(header).queryAllByRole('button', { name })[0] || null
+}
+
 /** The toolbar button matching `name`, opening menus as needed. Null if nothing offers it. */
 function toolbarButton(name) {
   // queryAll (not query) so a duplicate label reports as a normal miss/hit rather
   // than throwing out of the search.
-  const found = () => screen.queryAllByRole('button', { name })[0] || null
+  const found = () => headerButton(name)
   if (found()) return found()
   for (const trigger of toolbarDropdownTriggers()) {
     // A trigger TOGGLES, and a previous search may have left some menu open, so
@@ -224,7 +233,7 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
-  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  act(() => { headerButton(/^UCT Default$/).click() })
   // Frozen arrangement is on the board.
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
   expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
@@ -293,7 +302,7 @@ test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not 
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
-  act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+  act(() => { headerButton(/^UCT Default$/).click() })
   const parsed = persistedChartSettings()
   // Still the frozen capture in every respect it was actually a capture of.
   expect(parsed.header.titleMode).toBe('both')
@@ -417,7 +426,7 @@ test('opening a My-layouts template restores its saved chart settings (not leake
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
-  act(() => { screen.getByRole('button', { name: /^My Setup$/ }).click() })
+  act(() => { headerButton(/^My Setup$/).click() })
   // Arrangement applied.
   expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
   // Saved chart settings restored.
@@ -491,7 +500,7 @@ test('confirming delete of the OPEN layout deletes it and falls back to UCT Defa
   const layoutCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_workspace_layout')
   expect(JSON.parse(layoutCall[1]).widgets.some(w => w.type === 'chart')).toBe(true)
   const activeCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_active_template')
-  expect(activeCall[1]).toBe('null')
+  expect(JSON.parse(activeCall[1])).toEqual({ id: 'uct-default', name: 'UCT Default', scope: 'global' })
 })
 
 test('first visit prefers a prebuilt template named "chart" over the starter fallback', () => {
@@ -691,7 +700,7 @@ test('a popped-out layout is not disturbed by opening a different layout on the 
 
     // Load a fresh layout into the now-blank main tab.
     clickToolbar(/open layout/i)
-    act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
+    act(() => { headerButton(/^UCT Default$/).click() })
 
     // Main has its own board again...
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
@@ -753,4 +762,89 @@ test('?ensure=themes on a brand-new member (no saved layout at all) still yields
   goTo('/charts?ensure=themes')
   renderWS()
   expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(1)
+})
+
+/** A layout button on the bottom Layout Dock (not the Open-layout menu). */
+function dockButton(name) {
+  const dock = document.querySelector('[role="toolbar"][aria-label="Saved layouts"]')
+  if (!dock) return null
+  return [...dock.querySelectorAll('button')].find(b => b.textContent.trim() === name) || null
+}
+
+// The owner-reported bug: add a widget, switch layouts ~2s later, come back and
+// the widget is gone. The auto-save was DEBOUNCED but never FLUSHED, so leaving
+// the board cancelled the pending write instead of completing it. Every path
+// that replaces the board must flush first — timing must not decide whether an
+// edit survives.
+test('switching away flushes the pending auto-save into the layout you are leaving', () => {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Main Trading', scope: 'user' }),
+  }
+  // STORED for Main Trading is an empty board, so the live board is dirty.
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Main Trading', scope: 'user', layout: { widgets: [], cols: 24 } },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+
+  const target = dockButton('Breadth')
+  expect(target, 'the dock should offer Breadth').toBeTruthy()
+  act(() => { target.click() })
+
+  // Flushed into the layout we LEFT — by name, since upsert is keyed on it —
+  // and carrying the widget that was on screen.
+  expect(mockLayouts.saveLayout).toHaveBeenCalledWith(
+    expect.objectContaining({ name: 'Main Trading' }),
+  )
+  const flushed = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(flushed.layout.widgets.map(w => w.id)).toEqual(['w1'])
+})
+
+// The mirror of the above: a CLEAN board must not be written on every switch.
+test('switching away from an unchanged layout writes nothing', () => {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Main Trading', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Main Trading', scope: 'user', layout: board },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+})
+
+// A prebuilt row is what every member sees — it must never be auto-written.
+test('leaving a prebuilt layout never writes to it, however dirty the board is', () => {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 5, name: 'Firm Board', scope: 'global' }),
+  }
+  mockLayouts = {
+    global: [{ id: 5, name: 'Firm Board', scope: 'global', layout: { widgets: [], cols: 24 } }],
+    mine: [{ id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } }],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })

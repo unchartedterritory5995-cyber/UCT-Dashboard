@@ -141,6 +141,32 @@ def upsert(scope: str, user_id, name: str, layout: dict,
     return _row_to_dict(r)
 
 
+def rename(layout_id: int, name: str) -> Optional[dict]:
+    """Rename a layout IN PLACE. Returns the updated row, or None if it is gone.
+
+    Renaming needs its own path because `upsert` is keyed on (scope, user_id,
+    name): calling it with a new name creates a SECOND row rather than renaming
+    the first, so the only client-side rename available was save-new +
+    delete-old — two writes with a window where both exist, and a failure mode
+    that leaves a duplicate behind.
+
+    Raises sqlite3.IntegrityError when the new name is already taken in the same
+    scope for the same user (the UNIQUE constraint); the router turns that into
+    a 409 rather than a 500.
+    """
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "UPDATE charts_layouts SET name=?, updated_at=? WHERE id=?",
+            (name, now, layout_id),
+        )
+        if cur.rowcount == 0:
+            return None
+        c.commit()
+        r = c.execute("SELECT * FROM charts_layouts WHERE id=?", (layout_id,)).fetchone()
+    return _row_to_dict(r) if r else None
+
+
 def delete(layout_id: int) -> bool:
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         cur = c.execute("DELETE FROM charts_layouts WHERE id=?", (layout_id,))
