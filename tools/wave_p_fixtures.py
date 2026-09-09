@@ -400,12 +400,219 @@ def build(out_dir: pathlib.Path) -> dict:
     return manifest
 
 
+# ── §10 · THE HOLDOUT CORPUS ────────────────────────────────────────────────
+#
+# ⛔⛔ WHY A SECOND CORPUS EXISTS. The seven pages above have now INFLUENCED
+# configuration decisions — a `max_side_len` correction was found on them and a
+# character-gap threshold was swept against them. A set that has shaped the
+# thing it measures cannot also be the evidence for choosing between engines
+# (`lesson_an_acceptance_number_is_a_forecast_until_derived`).
+#
+# So this builds an independent set: different company, different figures,
+# different faces, different sizes, different degradation parameters. It is
+# meant to be run ONCE, for the decision, and never tuned against.
+
+H_LEDGER = {
+    "revenue": "$7.93 billion",
+    "gross_margin": "52.6%",
+    "eps": "$1.07",
+    "date": "March 31, 2027",
+    "shares": "1,617,400",
+    "negative": "(3,082)",
+    "ticker": "AMD",
+    "ratio": "9.6x",
+    "small_pct": "0.3%",
+    "big_dollar": "$986.41",
+}
+
+
+def h_page_report():
+    """Clean, but SERIF where the tuned corpus used sans, and a size apart."""
+    from PIL import ImageDraw
+    img = _blank()
+    d = ImageDraw.Draw(img)
+    L = H_LEDGER
+    lines = [
+        f"{L['ticker']} INC.",
+        "SELECTED QUARTERLY FINANCIAL DATA",
+        f"Three months ended {L['date']}",
+        "",
+        f"Net revenue of {L['revenue']} increased 9% from the prior-year period.",
+        f"Non-GAAP gross margin was {L['gross_margin']}, up 180 basis points.",
+        f"Diluted earnings per share were {L['eps']} on a non-GAAP basis.",
+        f"Diluted shares used in the computation: {L['shares']}.",
+        f"Other expense, net was {L['negative']} for the quarter.",
+        f"Net leverage finished the period at {L['ratio']} trailing EBITDA.",
+        f"Litigation accruals were {L['small_pct']} of net revenue.",
+        f"Backlog per design win averaged {L['big_dollar']}.",
+    ]
+    y = _lines(d, lines[:3], size=46, bold=True, serif=True)
+    _lines(d, lines[3:], y=y + 36, size=32, serif=True)
+    return img, lines
+
+
+def h_page_notes():
+    """Dense notes-to-accounts page: small sans, tight, parenthetical negatives."""
+    from PIL import ImageDraw
+    img = _blank()
+    d = ImageDraw.Draw(img)
+    L = H_LEDGER
+    body = [
+        "NOTES TO CONDENSED CONSOLIDATED FINANCIAL STATEMENTS",
+        "",
+        "Note 4 — Revenue Recognition",
+        f"Net revenue for the quarter was {L['revenue']}, of which 61% was",
+        "recognised at a point in time and the remainder over time.",
+        f"Deferred revenue movements contributed {L['negative']} to the period.",
+        "",
+        "Note 7 — Income Taxes",
+        f"The effective tax rate was 13.4% compared with {L['small_pct']} a year",
+        "earlier, reflecting a discrete benefit from a prior-year settlement.",
+        "",
+        "Note 9 — Earnings Per Share",
+        f"Diluted earnings per share of {L['eps']} were computed using",
+        f"{L['shares']} weighted average diluted shares.",
+        "",
+        "________________",
+        f"(a) Net leverage of {L['ratio']} excludes finance lease obligations.",
+        f"(b) Amounts in parentheses, such as {L['negative']}, denote reductions.",
+        f"(c) Percentages such as {L['gross_margin']} are computed on net revenue.",
+    ]
+    _lines(d, body, size=26, leading=1.65)
+    return img, body
+
+
+def h_page_balance():
+    """A different table shape: a balance sheet with a negatives column."""
+    from PIL import ImageDraw
+    img = _blank()
+    d = ImageDraw.Draw(img)
+    rows = [
+        ("Line item", "Mar 2027", "Dec 2026", "Change"),
+        ("Cash and equivalents", "$5,118", "$4,835", "6%"),
+        ("Accounts receivable", "$6,240", "$6,901", "(10%)"),
+        ("Inventories", "$4,772", "$4,410", "8%"),
+        ("Goodwill", "$24,203", "$24,203", "0%"),
+        ("Total assets", "$69,215", "$67,885", "2%"),
+    ]
+    cols = [MARGIN, MARGIN + 620, MARGIN + 980, MARGIN + 1300]
+    y = MARGIN
+    d.text((MARGIN, y), "CONDENSED BALANCE SHEET (in millions)",
+           font=_font(36, bold=True, serif=True), fill=20)
+    y += 120
+    truth = ["CONDENSED BALANCE SHEET (in millions)"]
+    for i, r in enumerate(rows):
+        f = _font(30, bold=(i == 0 or r[0].startswith("Total")), serif=True)
+        for cx, cell in zip(cols, r):
+            d.text((cx, y), cell, font=f, fill=20)
+        truth.append(" ".join(r))
+        if i == 0 or r[0].startswith("Total"):
+            d.line([(MARGIN, y + 44), (PAGE_W - MARGIN, y + 44)], fill=90, width=3)
+        y += 98
+    return img, truth
+
+
+def h_page_columns():
+    """Two columns, narrower gutter than the tuned corpus."""
+    from PIL import ImageDraw
+    img = _blank()
+    d = ImageDraw.Draw(img)
+    L = H_LEDGER
+    left = [
+        "GUIDANCE", "",
+        "Second quarter revenue is",
+        f"expected to be {L['revenue']},",
+        "plus or minus $300 million.",
+        f"Non-GAAP gross margin of",
+        f"{L['gross_margin']} is anticipated.",
+        f"Operating expenses of {L['big_dollar']}",
+        "million are planned.",
+    ]
+    right = [
+        "SENSITIVITIES", "",
+        "A one point change in mix",
+        "moves gross margin by",
+        f"roughly {L['small_pct']} of revenue.",
+        f"Leverage of {L['ratio']} constrains",
+        "buyback capacity.",
+        f"A {L['negative']} swing in other",
+        "expense would offset upside.",
+    ]
+    _lines(d, left, x=MARGIN, size=28)
+    _lines(d, right, x=MARGIN + 830, size=28)
+    d.line([(MARGIN + 770, MARGIN), (MARGIN + 770, PAGE_H - MARGIN)],
+           fill=175, width=2)
+    return img, left + right
+
+
+def h_page_deck():
+    """An image-only slide with a different layout and a labelled axis."""
+    from PIL import ImageDraw
+    img = _blank()
+    d = ImageDraw.Draw(img)
+    L = H_LEDGER
+    d.text((MARGIN, 150), "CLIENT SEGMENT RECOVERY",
+           font=_font(58, bold=True), fill=20)
+    truth = ["CLIENT SEGMENT RECOVERY"]
+    pts = [("FY25", 210), ("FY26", 430), ("FY27E", 690)]
+    base = 1450
+    for i, (lab, h) in enumerate(pts):
+        x = MARGIN + i * 420
+        d.rectangle([x, base - h, x + 260, base], outline=60, width=4)
+        d.text((x + 70, base + 34), lab, font=_font(34, bold=True), fill=20)
+        truth.append(lab)
+    d.text((MARGIN, base + 170),
+           f"Net revenue of {L['revenue']} at a {L['gross_margin']} gross margin.",
+           font=_font(36), fill=20)
+    truth.append(f"Net revenue of {L['revenue']} at a {L['gross_margin']} gross margin.")
+    return img, truth
+
+
+def build_holdout(out_dir: pathlib.Path) -> dict:
+    """⛔ RUN ONCE, FOR THE DECISION. Never tune against this."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest: dict = {"ledger": H_LEDGER, "fixtures": {}, "holdout": True}
+
+    report, report_t = h_page_report()
+    notes, notes_t = h_page_notes()
+    balance, balance_t = h_page_balance()
+    cols, cols_t = h_page_columns()
+    deck, deck_t = h_page_deck()
+
+    # Degradations use DIFFERENT parameters from the tuned corpus, so a setting
+    # that happened to suit 2.1 degrees or a 0.34 downsample gets no free ride.
+    cases = [
+        ("clean", report, report_t, "clean serif quarterly page"),
+        ("lowres", degrade_noise(degrade_lowres(report, 0.28), 0.045), report_t,
+         "heavier downsample, lighter grain"),
+        ("skew", degrade_skew(report, -1.4), report_t, "-1.4 degree skew"),
+        ("notes", notes, notes_t, "dense notes page with parenthetical negatives"),
+        ("balance", balance, balance_t, "balance-sheet table"),
+        ("columns", cols, cols_t, "two columns, narrow gutter"),
+        ("deck", deck, deck_t, "image-only slide"),
+    ]
+    for key, img, truth, desc in cases:
+        (out_dir / f"scan_{key}.pdf").write_bytes(_images_to_scanned_pdf([img]))
+        manifest["fixtures"][f"scan_{key}"] = {
+            "kind": "scanned_pdf", "pages": 1, "description": desc,
+            "truth": {"1": truth}, "expect_native_text": False}
+
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2),
+                                           encoding="utf-8")
+    return manifest
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(ROOT / "tools" / "wave_p_fixtures_out"))
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--holdout", action="store_true",
+                    help="build the INDEPENDENT holdout corpus (§10) instead")
     args = ap.parse_args()
-    m = build(pathlib.Path(args.out))
+    default = ("wave_p_holdout_out" if args.holdout else "wave_p_fixtures_out")
+    out = pathlib.Path(args.out or (ROOT / "tools" / default))
+    m = build_holdout(out) if args.holdout else build(out)
+    args.out = str(out)
     total = 0
     for k, v in m["fixtures"].items():
         total += v["pages"]
