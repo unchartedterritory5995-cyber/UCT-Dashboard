@@ -1,0 +1,60 @@
+{
+ "_comment": [
+  "The four reference sets for Part 2. Each one exists to stress a different axis of the",
+  "renderer, so they are not interchangeable and a capture is not 'done' because one of them",
+  "landed. Status is recorded per set and is the honest state, not the intent."
+ ],
+ "targets": [
+  {
+   "key": "volume",
+   "studyIdPrefix": "Volume@",
+   "what": "TradingView's built-in Volume study",
+   "why": "A histogram with a colorer plot and a hidden moving average — the smallest thing that exercises per-bar colour selection, a non-price pane, and a plot that carries values while not being drawn."
+  },
+  {
+   "key": "clouds",
+   "studyIdPrefix": "Script$USER;",
+   "what": "'Uncharted Clouds' — the firm's own Pine script",
+   "why": "Twenty-one hidden layer plots that exist only as fill anchors, plus two moving averages. It is the script that proved lenient `ok:true` was a lie for a hosting caller, so it is the natural stress case for fills, z-order and hidden-plot handling.",
+   "blocked": "Not present on the capture layout. It lives on the owner's own chart; adding it mutates a saved layout, so it is left for an authorised pass."
+  }
+ ],
+ "sets": [
+  {
+   "id": "A",
+   "symbol": "AMEX:SPY",
+   "resolution": "1D",
+   "bars": 250,
+   "why": "The baseline. Daily bars, a liquid symbol, enough history that no plot is inside its warmup.",
+   "status": {
+    "volume": "CAPTURED — tests/fixtures/vendor/reference/A/volume-spy-1d-250.{csv,meta.json}, hash-verified",
+    "clouds": "not captured — see targets[].blocked",
+    "screenshots": "not captured — the capture layout carries another session's probe study, so a screenshot of it is not a clean reference for anything"
+   }
+  },
+  {
+   "id": "B",
+   "symbol": "NASDAQ:NVDA",
+   "resolution": "1D",
+   "bars": 250,
+   "why": "A second symbol at the same timeframe, so a difference between A and B is about the DATA and never about the timeframe.",
+   "status": { "volume": "not captured", "clouds": "not captured" }
+  },
+  {
+   "id": "C",
+   "symbol": "AMEX:SPY",
+   "resolution": "1W",
+   "bars": 150,
+   "why": "Weekly. Changes bar spacing and the time axis without changing the symbol, which is where x-coordinate and label-collision bugs surface.",
+   "status": { "volume": "not captured", "clouds": "not captured" }
+  },
+  {
+   "id": "D",
+   "symbol": "AMEX:SPY",
+   "resolution": "240",
+   "bars": 300,
+   "why": "Intraday 4H. Sessions, gaps and a non-continuous time axis — the case where a renderer that assumes evenly spaced bars finally breaks.",
+   "status": { "volume": "not captured", "clouds": "not captured" }
+  }
+ ]
+}

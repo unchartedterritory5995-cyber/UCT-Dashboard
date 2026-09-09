@@ -1,0 +1,113 @@
+{
+ "capturedAt": "2026-09-09T06:25:08.307Z",
+ "symbol": {
+  "name": "SPY",
+  "full_name": "AMEX:SPY",
+  "pro_name": "AMEX:SPY",
+  "description": "State Street SPDR S&P 500 ETF",
+  "exchange": "NYSE Arca",
+  "type": "fund",
+  "pricescale": 100,
+  "timezone": "America/New_York",
+  "session": "0930-1600"
+ },
+ "resolution": "1D",
+ "barCount": 250,
+ "barRange": {
+  "firstIndex": 50,
+  "lastIndex": 299,
+  "firstTime": 1757511000,
+  "lastTime": 1788874200
+ },
+ "study": {
+  "id": "Volume@tv-basicstudies",
+  "title": "Vol (false)",
+  "description": "Volume",
+  "plots": [
+   {
+    "id": "vol",
+    "type": "line",
+    "target": null
+   },
+   {
+    "id": "vol_color",
+    "type": "colorer",
+    "target": "vol"
+   },
+   {
+    "id": "vol_ma",
+    "type": "line",
+    "target": null
+   }
+  ],
+  "styles": {
+   "vol": {
+    "histogramBase": 0,
+    "title": "Volume"
+   },
+   "vol_ma": {
+    "histogramBase": 0,
+    "title": "Volume MA"
+   }
+  },
+  "properties": {
+   "studyId": "Volume@tv-basicstudies",
+   "inputs": {
+    "col_prev_close": false,
+    "length": 20
+   },
+   "styles": {
+    "vol": {
+     "display": 4294967295,
+     "linestyle": 0,
+     "linewidth": 1,
+     "plottype": 5,
+     "trackPrice": false,
+     "transparency": 50,
+     "visible": true,
+     "color": "#2962ff",
+     "title": "vol"
+    },
+    "vol_ma": {
+     "color": "#2962ff",
+     "display": 0,
+     "linestyle": 0,
+     "linewidth": 1,
+     "plottype": 0,
+     "trackPrice": false,
+     "transparency": 0,
+     "visible": false,
+     "title": "vol_ma"
+    }
+   },
+   "visible": true,
+   "precision": "default",
+   "chartTheme": {
+    "background": "rgba(255, 255, 255, 1)",
+    "vertGridColor": "rgba(46, 46, 46, 0.06)",
+    "horzGridColor": "rgba(46, 46, 46, 0.06)"
+   },
+   "mainSeriesStyle": {
+    "upColor": "#089981",
+    "downColor": "#F23645",
+    "borderUpColor": "#089981",
+    "borderDownColor": "#F23645",
+    "wickUpColor": "#089981",
+    "wickDownColor": "#F23645"
+   }
+  }
+ },
+ "layout": {
+  "url": "https://www.tradingview.com/chart/VEeQHWPh/",
+  "title": "SPY 765.96 \u25bc \u22120.55% UCT Vendor Capture - CMF-ADL-PVT TEMP"
+ },
+ "transport": "staged textarea + real ctrl+c gesture, hash-verified on the shell side",
+ "note": "vol_color is a colorer plot targeting vol. It is a PALETTE INDEX, not a boolean: measured over all 250 bars, 0 = up bar (close >= open) and 1 = down bar. The opposite reading (1 = up) was assumed at capture time and is wrong \u2014 it matched 0 of 250 bars.",
+ "measured": {
+  "vol_equals_series_volume": "250/250",
+  "vol_ma_equals_sma_volume_20": "231/231 checked, max abs delta 0.0 (19 bars precede the check window)",
+  "vol_color_is_close_ge_open": "0/250 under 1=up; 250/250 under 0=up \u2014 the index is inverted from the naive reading",
+  "vol_color_is_close_ge_prev_close": "48/249 (19.3%) \u2014 noise, consistent with inputs.col_prev_close=false",
+  "vol_ma_carries_values_while_hidden": "250/250 rows have a vol_ma value although styles.vol_ma.visible is false"
+ }
+}
