@@ -1,0 +1,25 @@
+//@version=6
+indicator("UCTPROBE_TICKERID", overlay = false)
+
+// ⭐ KIND 4 CONTAINMENT. Uncharted Volume line 222 is
+// `str.contains(syminfo.ticker, "/") or str.contains(syminfo.tickerid, "/")`,
+// and folding it at bind time needs to know what a tickerid actually LOOKS like
+// on each instrument class. This asks the vendor directly on five symbols.
+//
+// ⚠️ THE LITERALS ARE INFERRED, NOT ENUMERATED. A 1 tells us the prefix contains
+// that substring on that symbol; it does NOT tell us the full set of exchange
+// prefixes TradingView can emit. Any fold built on this must be a whitelist of
+// what we measured, refusing what it has not seen.
+plot(str.contains(syminfo.tickerid, "AMEX")     ? 1 : 0, "has_AMEX")
+plot(str.contains(syminfo.tickerid, "NASDAQ")   ? 1 : 0, "has_NASDAQ")
+plot(str.contains(syminfo.tickerid, "NYSE")     ? 1 : 0, "has_NYSE")
+plot(str.contains(syminfo.tickerid, "FX")       ? 1 : 0, "has_FX")
+plot(str.contains(syminfo.tickerid, "BITSTAMP") ? 1 : 0, "has_BITSTAMP")
+plot(str.contains(syminfo.tickerid, "COINBASE") ? 1 : 0, "has_COINBASE")
+plot(str.contains(syminfo.tickerid, "SP")       ? 1 : 0, "has_SP")
+plot(str.contains(syminfo.tickerid, "TVC")      ? 1 : 0, "has_TVC")
+plot(str.contains(syminfo.tickerid, ":")        ? 1 : 0, "has_COLON")
+plot(str.contains(syminfo.tickerid, "/")        ? 1 : 0, "has_SLASH")
+plot(str.contains(syminfo.ticker,   "/")        ? 1 : 0, "ticker_has_SLASH")
+plot(str.length(syminfo.tickerid), "len_tickerid")
+plot(str.length(syminfo.ticker),   "len_ticker")

@@ -1,0 +1,9 @@
+// APPEND to UCTPROBE_NS. It already plots N21_isconfirmed, N22_islast and
+// N23_ishistory; these are the three the barstate ruling still needs.
+//
+// ⚠️ Every predicate is plotted as 1/0 rather than a bool because the capture
+// reads plot VALUES out of the chart model, and a bool plot has no numeric value
+// to read. The `? 1 : 0` is the instrument, not the semantics.
+plot(barstate.isrealtime ? 1 : 0, "N24_isrealtime")
+plot(barstate.isnew ? 1 : 0, "N25_isnew")
+plot(barstate.islastconfirmedhistory ? 1 : 0, "N26_islastconfirmedhistory")

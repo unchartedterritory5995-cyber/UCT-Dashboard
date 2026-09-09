@@ -1,0 +1,15 @@
+//@version=6
+indicator("UCTPROBE_FOLD", overlay = false)
+
+// ⭐ THE BIND-TIME FOLD, ASKED OF THE VENDOR. `length` is a ternary on the
+// chart's own timeframe — both arms constant — so it should fold to a plain
+// integer at bind time. Uncharted Volume line 233 is exactly this shape and it
+// is what `pine:window` refuses today.
+//
+// On 1D: `fold` must equal `sma20`.  On 1W: `fold` must equal `sma5`.
+length = timeframe.isweekly ? 5 : 20
+plot(ta.sma(close, length), "fold")
+plot(ta.sma(close, 20), "sma20")
+plot(ta.sma(close, 5), "sma5")
+plot(timeframe.isweekly ? 1 : 0, "isweekly")
+plot(timeframe.isdaily ? 1 : 0, "isdaily")
