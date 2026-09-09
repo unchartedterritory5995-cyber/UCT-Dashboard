@@ -2,14 +2,15 @@
 
 ```
 SCOPE          the product a member actually touches, on the device they touch it with
-PRODUCTION OCR OFF · zero member documents processed · J2_OCR_ENABLED unset (read live)
 LINUX CERT     5.3.0 measured · identical recognition to the 5.4.0 reference
-STATUS         A-F closed · G is a STOP and a request
+RELEASE        MERGED · DEPLOYED · DARK-VERIFIED · ACTIVATED · CANARY GREEN
+PRODUCTION     J2_OCR_ENABLED=1 on web only · MAX CONCURRENCY 1 · one document read
 ```
 
-⛔ **Nothing in this wave is merged and nothing is activated.** §G carries the
-eleven items the merge gate asks for and the activation sequence it should
-follow — it is a request, not a report of something already done.
+⭐ **Wave P is closed in production.** §H records the release; everything above
+it is the branch certification that earned it. ⛔ Nothing has been rewritten to
+match the outcome — the corrections, the failed canaries and the defects found
+along the way are kept exactly as they were written.
 
 ## A · The phone, end to end
 
@@ -421,9 +422,11 @@ decision is the second.
 
 ## F · What a member gets, and what they do not
 
-The consumer view of the whole wave, in member language. ⛔ Every row is
-**built and dark** — the feature is behind `J2_OCR_ENABLED`, which is not set in
-production (read live, not remembered).
+The consumer view of the whole wave, in member language. ⭐ Every row below is
+now **LIVE in production at concurrency 1** — `J2_OCR_ENABLED=1` on the web
+service, read live (§H). ⚰️ The "built · dark" column is kept as written,
+because it is what was true when this matrix earned the release; §H is where
+the state changed.
 
 | A member can… | where | state |
 |---|---|---|
@@ -441,7 +444,7 @@ production (read live, not remembered).
 | have a document that stalled come back on its own | background sweep | built · dark (**new in P5**) |
 | delete it all and have the words actually go | trash → retention sweep | built · dark |
 
-**What a member still cannot do**, stated plainly:
+**What a member still cannot do**, and none of it changed at release:
 
 - **Drag-select on the scanned page itself.** There is no text layer and one
   was deliberately not faked. Selection happens in the Scanned text panel.
@@ -450,9 +453,14 @@ production (read live, not remembered).
   lands on the page; it does not mark the line.
 - **Upload a scan longer than ~145 pages.** The 25 MB attachment cap binds
   first, well before `_MAX_PAGES = 500`.
-- **Have any of it, today.** Production OCR is off.
+- ⚰️ **Have any of it, today.** ~~Production OCR is off.~~ — **corrected at
+  release: it is on.** Kept struck through rather than deleted, because this
+  line is what the matrix promised and §H is what happened.
 
 ## G · The merge gate
+
+⚰️ **This section is preserved as written, and it has since been answered.** It
+was the request; §H is the release. Nothing here is edited to match the outcome.
 
 ⛔ **STOP.** No merge. No production OCR. No `J2_OCR_ENABLED`. No Wave Q.
 
@@ -552,3 +560,150 @@ start command. `J2_SHARE_LINKS_ENABLED=0` — read live, untouched.
 
 ⛔ **Requesting merge / deploy / activation approval. Nothing is merged and
 nothing is activated.**
+
+
+## H · The release
+
+⛔ **This section is a record, not a plan.** Every line is something that was
+read back from production, not something that was intended.
+
+```
+master           42cee5787  (25 Wave P commits + a master reconciliation + release work)
+serving          RAILWAY_GIT_COMMIT_SHA 42cee5787804 · service web · fresh process
+build            builder=DOCKERFILE · dockerfilePath=Dockerfile.web · configFile=/railway.web.json
+start authority  live manifest startCommand='' — the image CMD, and nothing else
+engine           tesseract 5.3.0 at /usr/bin/tesseract, resolved from the running web process
+runtime deps     node /usr/local/bin/node · ffmpeg /usr/bin/ffmpeg · git /usr/bin/git · /data mounted
+flag             J2_OCR_ENABLED=1 on WEB ONLY (absent on worker, flow-worker, bars-api, chart-renderer)
+concurrency      J2_OCR_MAX_CONCURRENCY unset → 1 · semaphore value 1
+G-080            J2_SHARE_LINKS_ENABLED=0, untouched
+broker_sync      11 occurrences in the deployed api/main.py (floor is 10)
+```
+
+### Code and capability were two separate events
+
+⛔ The merge shipped with the flag still **absent**, and was verified dark before
+anything was armed. A green deploy and a green feature are different claims, and
+they were made separately.
+
+### ⭐ The dark sweep is a no-op, proven by execution
+
+P5 changed recovery materially, so "no log seen" would have been the weakest
+possible evidence. The sweep's own control flow was run in the pod:
+
+```
+get_adapter()      → null      the scheduled wrapper's guard fires, so requeue_awaiting is never reached
+recover_stalled()  → reclaimed 0 · exhausted 0 · documents 0
+```
+
+The execution path ran and touched nothing.
+
+### ⭐ The backlog question, answered before the flag was set
+
+`plan_document` classifies always but **claims only if `ocr_available()`**, so
+with OCR dark no page is ever marked `required`. Read live, before activation:
+
+```
+j2_note_document_ocr_pages   EMPTY
+j2_note_documents            0
+j2_note_document_pages       0        (799 member notes, and no PDF had ever been attached)
+```
+
+⛔ **Arming the flag therefore enqueued nothing.** The only path that creates OCR
+work is a member uploading a document — `queue_extraction` has exactly one
+production caller, the upload route. There is no bulk reprocess anywhere.
+
+### The activation canary — ONE document
+
+Run on the owner-provisioned robot account (`canary-robot@uctintelligence.com`,
+zero notes before this), from the same synthetic fixture the benchmark and the
+rails share. `tools/wave_p_activation_canary.py` refuses to run twice, refuses
+any other account, and refuses if OCR is not armed.
+
+```
+[startup] j2-ocr: flag=1 binary=/usr/bin/tesseract version=tesseract_5.3.0 active=True max_concurrency=1
+
+[ok] one synthetic scanned document created            note 7f9b9663 · doc cf4cf06f · 172,266 bytes
+[ok] the page is classified as a scan and claimed      classes={1:'scanned'} claimed=[1]
+[ok] the page is read                                  pages_read 1 · failed 0 · no early stop
+[ok] the document reports itself complete and truthful  ready · 1/1 pages · 1 from OCR · 0 awaiting
+[ok] Search finds a word that exists ONLY in the scan   1 hit for 'CONDENSED'
+[ok] the hit says the words were read off a scan        text_origin: ocr
+[ok] the hit points at a real document page             page 1
+[ok] the page transcript is available for selection     499 chars
+[ok] an exact figure can be saved as a source quote     offsets 94–126
+[ok] and the saved quote still says where it came from  ocr
+[ok] a quote that is NOT on the page is refused         "that passage is not on the scanned page"
+
+11/11 · extract+plan 0.12s · OCR 0.48 s/page
+```
+
+⛔ **Afterwards, exactly one document exists in production**, owned by exactly one
+user, with one OCR job row (`complete`) and one page of origin `ocr`. Nothing is
+`required`, `processing` or `failed`.
+
+⚰️ **Two things the local dry run caught before they could mislead here**, and
+both are one shape: *a canary that does half the product's work reports the gap
+as a product defect.* `create_excerpt`'s return carries no `textOrigin` —
+provenance is derived from the page on the READ — and the note's excerpt list is
+rebuilt from the body's nodes, so the canary mirrors the route's
+`append_document_excerpt` rather than skipping it.
+
+### Production resource behaviour
+
+```
+container memory   2,132 MB used of a 32,000 MB cgroup limit   (6.7%)
+container CPU      cgroup cpu.stat usage_usec — the correct instrument
+health latency     0.10–0.13s after the canary (0.18–0.26s before it)
+```
+
+⛔ **CPU is read at the CONTAINER level, never from the python parent.** Tesseract
+is a child process; the parent's own accounting under-counts OCR by roughly 5×.
+
+⭐ **The 32 GB cgroup limit is larger than the branch work assumed** when it
+called 1,014 MB "the one real constraint" — that number came from a dev box, and
+production has far more headroom than the framing implied. ⛔ It does **not**
+change the operating point: concurrency stays at 1 by owner ruling until real
+workload is observed. It is recorded because whoever next considers raising it
+should start from the true limit.
+
+### What is now true for a member
+
+```
+OCR ARCHITECTURE      IMPLEMENTED
+OCR ENGINE            TESSERACT 5.3.0 · CERTIFIED ON THE FROZEN WAVE P CORPUS
+OCR PACKAGING         ISOLATED WEB IMAGE · ACTIVE
+OCR SEARCH            ACTIVE
+OCR ASK               ACTIVE
+OCR EXCERPTS          ACTIVE
+OCR THESIS EVIDENCE   ACTIVE
+OCR REVIEW            ACTIVE
+PRODUCTION OCR        ACTIVE · CONCURRENCY 1
+EXTERNAL OCR          NOT AUTHORIZED · NOT USED
+HANDWRITING           NOT ASSESSED
+LANGUAGE              ENGLISH CERTIFIED SCOPE
+```
+
+⛔ **Not "OCR fully supported".** One production document proves the
+member-serving path works for that document. It does not prove every scan class,
+every size, every user, every concurrency or every language.
+
+### Residuals carried past the release
+
+- **The 25 MB attachment cap contradicts `_MAX_PAGES = 500`.** At ~172 KB per
+  scanned page the byte cap binds near **145 pages**, silently. Do not state
+  "500 scanned pages" as a member limit. ⛔ Not raised in this release.
+- **Certification scope is the ten-fixture corpus.** Handwriting NOT ASSESSED;
+  strip scans, text-as-curves and unusual mixed/vector pages remain known
+  residual classes. Original-page verification stays in the product for exactly
+  this reason.
+- **Concurrency 2 is certified but not selected.** The 2×100 regression evidence
+  stays.
+- **Parent-process CPU under-counts OCR ~5×** — an instrumentation residual.
+- **One inherited red, and it is not this wave's.**
+  `tests/test_no_shadowed_definitions.py` fails on
+  `api/services/ticker_explain.py`, which binds `_DOMAIN_FETCHERS` twice (lines
+  930 and 1000 — a forward declaration and then a rebind, where the intent reads
+  as *populate*). Present on `origin/master` before this merge, from another
+  workstream's commits, and untouched by Wave P. **Repo-green is therefore NOT
+  claimed.**
