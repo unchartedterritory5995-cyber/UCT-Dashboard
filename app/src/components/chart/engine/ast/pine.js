@@ -297,6 +297,8 @@ export const REFUSALS = Object.freeze({
     'this Pine input carries a default the engine grammar cannot hold',
   'pine:cycle':
     'this Pine name is defined in terms of itself',
+  'pine:timeout':
+    'this Pine script did not finish translating inside the time budget',
   'pine:undefined':
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
@@ -3561,6 +3563,7 @@ function printNumber(value) {
 /** A canonical tree → UCT formula text, with the fewest parentheses that survive
  *  a round trip through `parseFormula`. */
 export function printFormula(node, parentBp = 0) {
+  tickTranslateBudget()
   if (!node || typeof node !== 'object') {
     throw new PineRefusal('pine:roundtrip', REFUSALS['pine:roundtrip'], null)
   }
@@ -3753,6 +3756,96 @@ function foldLogicalIdentity(op, left, right, table) {
  *  corpus tops out at two). */
 const MAX_CALL_DEPTH = 24
 
+/**
+ * ⭐⭐ THE WALL-CLOCK BUDGET — a hang becomes a refusal, and never takes the batch.
+ *
+ * ⛔ A HANG IS A WORSE FAILURE THAN A REFUSAL. A refused script is one datum; a
+ * script that never returns kills the whole run and reports nothing, so the batch
+ * cannot even say which file did it. That is not hypothetical — a published
+ * Parabolic SAR (70 lines) does exactly this, and it was found only because the
+ * survey runner names each file on disk BEFORE entering the translator.
+ *
+ * ⭐ THE NUMBER IS MEASURED, NOT GUESSED. Across 434 scripts — the committed
+ * corpus plus every fixture corpus — translate wall-clock is p50 2.8ms, p90 16ms,
+ * p99 73ms, and the slowest legitimate script is 322ms
+ * (`tools/pine_survey/r11_translate_timings.json`). 10s is ~30× that worst case,
+ * which leaves room for a loaded CI box an order of magnitude slower than this one
+ * and still bounds a non-terminating script.
+ *
+ * ⛔ THIS GUARD IS PERMANENT. It is not scaffolding for the cycle bug below it:
+ * a budget is the only thing that holds when the NEXT unbounded shape arrives, and
+ * that one will not be known in advance either.
+ */
+export const PINE_TRANSLATE_BUDGET_MS = 10000
+
+/**
+ * ⭐⭐ AND A STEP CAP, BECAUSE WALL-CLOCK ALONE DOES NOT CATCH THIS SHAPE.
+ *
+ * ⛔ MEASURED, NOT ASSUMED. The script that hangs expands `resolve` at roughly a
+ * MILLION CALLS PER SECOND for the first ~150ms and then the process falls into
+ * GC thrashing near the heap limit, where JS effectively stops executing — so a
+ * deadline that is only consulted from JS never gets consulted again. Profiled:
+ * 47% node.exe, 36% ntdll, ~2% JS; no OOM even at a 1GB cap after 150 seconds.
+ * A wall-clock guard cannot fire in a process that has stopped running JS.
+ *
+ * A STEP COUNT CAN, because it trips during the explosion itself, before the
+ * heap gets anywhere near full. It is also deterministic — the same script fails
+ * the same way on a fast machine and a slow one, which a timeout never is.
+ *
+ * ⭐ THE NUMBER IS MEASURED. Across 396 scripts (the committed corpus plus every
+ * fixture corpus), the most resolution-hungry legitimate script — Artemis
+ * Oscillator Pro — takes **167,336** steps. 5,000,000 is ~30× that, the same
+ * headroom ratio as the wall-clock budget above.
+ */
+export const PINE_TRANSLATE_MAX_STEPS = 5000000
+
+/**
+ * ⭐⭐ THE SAME DEADLINE, REACHABLE FROM THE NON-CLASS HELPERS.
+ *
+ * ⛔ THE RESOLVER'S OWN CHECK IS NOT ENOUGH, AND THE MEASUREMENT SAYS SO. On the
+ * script that hangs, `resolve` is entered FEWER THAN 200,000 TIMES IN 30 SECONDS
+ * while 83% of the process sits in native code — so a budget checked only inside
+ * `resolve` never fires. The tree comes back exponentially large and the time
+ * goes into `printFormula` stringifying it and `verifyRoundTrip` re-parsing the
+ * result, neither of which is a resolver method.
+ *
+ * ⚠️ A guard placed where the author ASSUMED the loop was is a guard that reports
+ * a clean pass on the exact input it was written for.
+ */
+let TRANSLATE_DEADLINE = Infinity
+let TRANSLATE_PATH = null
+let TRANSLATE_BUDGET = 0
+let printSteps = 0
+
+export function beginTranslateBudget(budgetMs, sourcePath) {
+  TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
+  TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? Date.now() + TRANSLATE_BUDGET : Infinity
+  TRANSLATE_PATH = typeof sourcePath === 'string' ? sourcePath : null
+  printSteps = 0
+}
+
+export function endTranslateBudget() {
+  TRANSLATE_DEADLINE = Infinity
+  TRANSLATE_PATH = null
+  TRANSLATE_BUDGET = 0
+}
+
+/** Throws `pine:timeout` once the wall-clock budget is gone. Cheap: a masked
+ *  counter, with `Date.now()` only every 4096th call. */
+export function tickTranslateBudget() {
+  if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
+  if (Date.now() <= TRANSLATE_DEADLINE) return
+  throw new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
+    + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
+    + '. This is a translator defect, not a limit on the script: report it with the file.',
+    null)
+}
+
+/** Checked every 4096th `resolve` — `Date.now()` on every node would itself be a
+ *  measurable cost on a 2,000-line script, and 4096 nodes is far below the budget. */
+const BUDGET_CHECK_MASK = 4095
+
 /** ⭐ TRACK F (DEC-006) parameter-manifest eligibility — the `input.*` kinds
  *  `builderInputs.js`'s `FOLDED_INPUT_TYPES` already treats as a real type
  *  decision (`input.int`→'int', `input.float`→'float', bare `input`→decide
@@ -3809,6 +3902,15 @@ export class Resolver {
     // call every reassignment a cycle; an identity-keyed one still catches the
     // real thing (`a = b` / `b = a` re-enters the same object).
     this.stack = new Set()
+    /** ⭐ THE WALL-CLOCK DEADLINE. See `PINE_TRANSLATE_BUDGET_MS`. A caller may
+     *  pass `budgetMs: 0` to disable it, which is for tests that deliberately
+     *  measure a slow path — never for a batch run over untrusted scripts. */
+    this.budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : PINE_TRANSLATE_BUDGET_MS
+    this.deadline = this.budgetMs > 0 ? Date.now() + this.budgetMs : Infinity
+    /** Named in the refusal so a batch says WHICH file, not just that one hung. */
+    this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
+    this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
+    this.budgetSteps = 0
     /** Argument bindings, one frame per user-function call in flight. */
     this.frames = []
     this.usedInputs = new Map()
@@ -4590,7 +4692,37 @@ export class Resolver {
       this.types.get(head) || locate(tok))
   }
 
+  /**
+   * ⭐ THE BUDGET CHECK. Cheap by construction: a bitmask test on every node, a
+   * `Date.now()` only on every 4096th. Placed in `resolve` because every
+   * unbounded shape — runaway recursion AND exponential re-expansion — passes
+   * through here, so one check covers both without knowing which it is.
+   */
+  checkBudget(tok) {
+    this.budgetSteps += 1
+    // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
+    // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
+    // that cannot fire. A control asking a normal script to stop at 100 steps is
+    // what caught it; the cap itself looked perfectly correct in review.
+    if (this.maxSteps > 0 && this.budgetSteps > this.maxSteps) {
+      throw new PineRefusal('pine:timeout',
+        `${REFUSALS['pine:timeout']} — expansion passed ${this.maxSteps} resolution steps`
+        + (this.sourcePath ? ' translating `' + this.sourcePath + '`' : '')
+        + '. This is a translator defect, not a limit on the script: report it with the file.',
+        tok ? locate(tok) : null)
+    }
+    if ((this.budgetSteps & BUDGET_CHECK_MASK) !== 0) return
+    const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
+    const tail = '. This is a translator defect, not a limit on the script: '
+      + 'report it with the file.'
+    if (Date.now() <= this.deadline) return
+    throw new PineRefusal('pine:timeout',
+      `${REFUSALS['pine:timeout']} — gave up after ${this.budgetMs}ms` + where + tail,
+      tok ? locate(tok) : null)
+  }
+
   resolve(node) {
+    this.checkBudget(node && node.tok)
     switch (node.type) {
       case 'number': return cNum(node.value)
       case 'string':
@@ -8168,6 +8300,12 @@ export function translatePine(source, opts = {}) {
     return { ...blank, refusal: refusalValue('pine:empty', REFUSALS['pine:empty'], null), refusals: [refusalValue('pine:empty', REFUSALS['pine:empty'], null)] }
   }
 
+  // ⭐ THE BUDGET WINDOW OPENS HERE and closes in the `finally` at the end of
+  // this function, so every phase — resolve, print, round-trip, object pass —
+  // is inside it. Opening it any later would leave the phase that actually hangs
+  // outside the guard, which is the mistake this guard was written to correct.
+  beginTranslateBudget(opts.budgetMs, opts.sourcePath)
+  try {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
   const levels = []
@@ -8797,7 +8935,10 @@ export function translatePine(source, opts = {}) {
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        strict: opts.strict === true })
+        strict: opts.strict === true,
+        // ⭐ THE BUDGET REACHES BOTH RESOLVERS OR IT PROTECTS NEITHER. The object
+        // pass below builds its own, and a hang there is just as fatal.
+        budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, sourcePath: opts.sourcePath })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -8994,7 +9135,8 @@ export function translatePine(source, opts = {}) {
     objectPass = buildObjectProgram(stmts, source, env, () => {
       const r = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
-          strict: opts.strict === true })
+          strict: opts.strict === true,
+          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, sourcePath: opts.sourcePath })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
       // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns
       // `input.int(5, "Offset")` from a welded literal into an identifier the
@@ -9115,6 +9257,11 @@ export function translatePine(source, opts = {}) {
     // already use: this module records raw facts, the builder layer turns
     // them into a shape a save can submit.
     inputParams: paramMint ? paramMint.metadata : [],
+  }
+  } finally {
+    // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone
+    // `printFormula` call — a test, a preview — throw a timeout it never earned.
+    endTranslateBudget()
   }
 }
 

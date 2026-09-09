@@ -152,6 +152,15 @@ const EXPECTED_UNEXERCISED = [
   // constructs this door cannot read. It means no PUBLISHED script now reaches it.
   'pine:statement',
   'pine:text-value',
+  // ⭐⭐ ARRIVED 2026-09-09 AND BELONGS HERE ON PURPOSE. `pine:timeout` is the
+  // wall-clock + step-count guard: it fires when translation does not finish
+  // inside its budget, which no HEALTHY script ever does. Being unexercised by
+  // the corpus is the correct state and is not evidence the guard is inert — it
+  // is proven to fire by `pine.timeout.test.js`, which asks a normal script to
+  // stop at 100 resolution steps and checks it refuses by name.
+  // ⚠️ It will LEAVE this list the day a corpus script legitimately exceeds the
+  // budget, and that would be a defect in the translator, not in the script.
+  'pine:timeout',
   'pine:type',
   // ⭐⭐ MOVED HERE 2026-08-28, and the move IS the measurement. `pine:undefined`
   // was reached by exactly one published script — `10-ehlers-instantaneous-trend`,
