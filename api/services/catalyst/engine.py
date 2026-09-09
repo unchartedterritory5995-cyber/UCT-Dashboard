@@ -450,12 +450,6 @@ def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
         c["rss_headline_count"] = len(c["rss"])
 
 
-# Per-day per-ticker guard so the reasoning-mode deep pass runs AT MOST ONCE
-# per ticker per day. The 2-min pre-market cadence would otherwise re-pay the
-# (~2-3x fast) reasoning cost on every refresh for the same names.
-_DEEP_CONTEXT_DONE: dict[str, set[str]] = {}
-
-
 def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) -> None:
     """DEEP reasoning-mode Perplexity context pass over the top movers.
 
@@ -469,7 +463,12 @@ def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) ->
     Additive + cost-bounded + anti-hallucination:
     - Gated on CATALYST_DEEP_CONTEXT_ENABLED (default ON). Disable → no deep pass.
     - Top-N capped by CATALYST_DEEP_CONTEXT_TOP_N (default 5).
-    - Per-(day, ticker) cache → at most one reasoning call per ticker per day.
+    - Per-(day, ticker) guard → at most one reasoning call per ticker per day,
+      durable via store.deep_context_already_done/mark_deep_context_done
+      (catalyst_deep_context_done table). This used to be a plain in-process
+      dict — reset on every redeploy, which on a busy-deploy day silently let
+      the same top tickers re-pay the reasoning-mode cost (this engine's most
+      expensive call) after every restart instead of once. 2026-09-09 fix.
     - Skips source-rich rows (>5 tweets + >2 RSS), like the fast top-3 pass.
     - Drops answers that error, are empty, say "no confirmed catalyst", or are
       low-info hedging filler — so we never inject vacuous context.
@@ -495,14 +494,19 @@ def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) ->
     except (TypeError, ValueError):
         max_tokens = 700
 
-    done = _DEEP_CONTEXT_DONE.setdefault(market_date, set())
-
     ranked = sorted(candidates, key=lambda c: c.get("score", 0.0), reverse=True)
     for c in ranked[:top_n]:
         ticker = c.get("ticker")
         if not ticker:
             continue
-        if ticker in done:
+        try:
+            if store.deep_context_already_done(market_date, ticker):
+                continue
+        except Exception:
+            # A broken ledger read must not silently re-open the spend
+            # this guard exists to close — skip the ticker this tick rather
+            # than risk firing unbounded reasoning-mode calls.
+            logger.exception("[catalyst-engine] deep-context guard read failed for %s", ticker)
             continue
 
         # Skip if already source-rich — Opus has plenty of context already.
@@ -525,8 +529,13 @@ def _enrich_top_movers_deep_context(candidates: list[dict], market_date: str) ->
         )
 
         # Mark done regardless of outcome below — one (attempted) reasoning call
-        # per ticker per day, whether it injects or drops.
-        done.add(ticker)
+        # per ticker per day, whether it injects or drops. Durable: written
+        # BEFORE the call so a crash mid-request still counts as "attempted"
+        # rather than leaving the ticker eligible to retry immediately.
+        try:
+            store.mark_deep_context_done(market_date, ticker)
+        except Exception:
+            logger.exception("[catalyst-engine] deep-context guard write failed for %s", ticker)
 
         try:
             result = perplexity_search.web_search(
