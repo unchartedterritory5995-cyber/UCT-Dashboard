@@ -29,9 +29,30 @@ broken. If you see it red, re-run it alone before filing anything.
 | `screener/reachable.test.js` | 18 modules reachable from no entry point: **13 under `pages/community/`** (`CommunityPage`, `ChatView`, `ThreadView`, `Composer`, `AckGate`, 5 components, 4 lib), `floor2/main.jsx`, `lib/chatStreamManager.js`, `charts/widgets/DockFundamentals.jsx`, `pages/optionsFlow/flowBootstrap.js`. Mount them, delete them, or record the decision with a reason. | community · floor2 · charts · optionsFlow |
 | `chart/builder/ImportBox.thinkscript.test.jsx` · `chart/engine/ast/manifestProse.test.js` · `chart/engine/ast/pine.blindCorpus.test.js` | The thinkscript import offer declines while the box is one keystroke behind; a manifest key the product reads does not survive the strip; the accepted floor moved. | **the indicators session** |
 
-⚠️ The community cluster is the one worth a second look: thirteen modules including a whole page
-is not a stray orphan, it is a feature that reaches no route. `lesson_built_tested_green_and_unreachable`
-is exactly this shape, and their own test files will stay green forever.
+### ⚰️ Correction — the community cluster is NOT an unrouted feature
+
+This request first described the thirteen `pages/community/` modules as "a whole feature that
+reaches no route". **That was wrong, and the route table says so.** Evidence, read rather than
+inferred:
+
+- `App.jsx:630-631` routes `/community` and `/community/:threadId`.
+- `App.jsx:124` binds them to `./pages/community/CommunityRedesign`.
+- `CommunityRedesign.jsx` is a one-line wrapper: `import Floor2 from '../../floor2/Floor2'`.
+- `App.jsx:122-123` states the intent outright: *"LOCAL REDESIGN PROTOTYPE — /community points
+  at the new Floor design. To revert: swap back to './pages/community/CommunityPage'. Old page
+  untouched."*
+- `NavBar.jsx:37` carries the nav entry, and it is dark-launch gated on `/api/community/status`.
+
+So the route exists, the nav entry exists, and members reach the **floor2** implementation. The
+thirteen modules are the **parked predecessor, deliberately kept as the documented revert path**,
+and `floor2/main.jsx` is the standalone prototype entry (`floor2.html`) that `floor2/standalone.css`
+exists to serve. That is a decision someone made on purpose, not an accident.
+
+**What is still worth an owner's minute** is narrower: the reachability rail cannot tell a parked
+revert path from an orphan, so it will report these every run forever. Its own message offers the
+remedy — record the decision in `AWAITING_A_DECISION` with the reason. Doing that turns six
+recurring rows into a documented choice and stops them masking a real orphan that lands later.
+Not ours to write; the reason belongs to whoever owns the swap-back plan.
 
 ---
 

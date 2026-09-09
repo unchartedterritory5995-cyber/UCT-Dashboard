@@ -298,4 +298,36 @@ Rows 3 and 6 go green. Row 5 stays red on its optionsFlow half alone. Row 7 lose
 at Task 0. **Expected post-merge baseline: 8 files.** Re-measure at the merge SHA before Wave A
 gates on it; do not carry this table forward as if it were still true.
 
-Filed for the other owners as **R-04** in `requests.md`.
+### Two rules this measurement earned
+
+> **A TIMEOUT IS NEVER BANKED AS PERMITTED BREAKAGE.** A test that fails a full run on a timeout
+> and passes in isolation is load-sensitive, not broken. `enumerationSites.test.js`: 15 000 ms
+> timeout under the full suite, **1461 ms** alone on the same SHA. Banking it would leave a slot
+> in the baseline that a genuine failure can occupy unnoticed for the rest of Phase 3. Re-run
+> alone before classifying any timeout.
+
+> **`git status` IS NOT A PROVENANCE METHOD. `git show <sha>:<file>` IS.** Every one of the four
+> hub-owned rows was in a file this branch had NOT modified, so a "did I touch it?" argument from
+> the working set would have cleared all four — including the theme-island token pins that PR
+> #100 actually broke. Ask the committed version whether the offending construct is present;
+> never infer authorship from what happens to be dirty.
+
+Filed for the other owners as **R-04** in `requests.md`. ⚰️ Its community paragraph has since
+been **corrected**: `/community` IS routed (`App.jsx:630`) to `CommunityRedesign` → `floor2/Floor2`,
+and the thirteen `pages/community/` modules are the documented revert path, not an unrouted
+feature. The first reading of that rail's output was wrong; the route table settled it.
+
+### The theme-island defect is now railed
+
+`app/src/styles/themeIslands.test.js` derives the required token set from `tokens.css` every run
+and fails BY NAME when a block marked `--theme-island: <name>;` is missing one. Mutation-proved
+both ways: removing `--hub-rim` from the research modal's island goes red naming that token;
+restoring it goes green. It carries two non-vacuity controls (the required set must be non-empty,
+and at least one island must be discovered) plus an internal probe that appends a throwaway
+themed token to the parsed tokens text and asserts every island reports it missing.
+
+⭐ Islands are **self-declaring** rather than guessed from a coverage threshold, because two
+blocks in this repo look like islands to a naive scan and are not: `floor2/standalone.css`
+substitutes for `tokens.css` on a page that never loads it (27/50, correctly partial), and
+`ChartsWorkspace.module.css` pins 38/50 *under* `[data-theme='light']` — a theme-specific
+re-assertion whose whole purpose would be inverted by forcing default-theme values into it.

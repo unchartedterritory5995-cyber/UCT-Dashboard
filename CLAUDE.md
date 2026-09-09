@@ -1401,6 +1401,50 @@ it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
 
+### ⛔ Provenance: `git show <sha>:<file>`, never `git status`
+
+> **"Did my change cause this?" is answered by asking the committed version, not by looking at
+> what is dirty in the working tree.**
+
+Owner ruling, 2026-09-09. A suite baseline turned up four failing rails caused by the joystick
+hub — three of them shipped by PR #100 — and **not one of the four offending files was in that
+branch's working set**:
+
+| Rail | Offender | Hub cause |
+|---|---|---|
+| `styles/tokens.reachable.test.js` | `hub/hub.module.css` | `--color-text-muted` is not a token and never was, so the declaration was a silent no-op |
+| `__tests__/sourcesAreText.test.js` | `hub/useHubCursor.js` | a raw `0x01` byte made the file binary to git and ripgrep |
+| `research/EarningsResearchModal.themeIsland.test.js` | `styles/tokens.css` | three `--hub-*` glass tokens added with `[data-theme]` variants, never pinned in the island |
+| `screener/reachable.test.js` | `hub/contracts.js` | typedef-only module with no runtime importers |
+
+A `git status`-based argument would have cleared all four and filed them to other owners. Run
+`git show <sha>:<file>` and look for the construct.
+
+**Corollary — a timeout is never banked as permitted breakage.** A test that fails a full run on
+a timeout and passes in isolation is load-sensitive, not broken (`enumerationSites.test.js`:
+15 000 ms under the full suite, **1461 ms** alone on the same SHA). Banking one leaves a slot in
+the baseline that a real failure can occupy unnoticed. Re-run it alone before classifying it.
+
+### ⛔ A themed token must be pinned in every theme island
+
+> **Adding a custom property with a `[data-theme]` variant is a change to every theme island in
+> the app, whether or not you have heard of them.**
+
+A "theme island" re-declares theme-variant tokens at their `:root` values so everything inside it
+renders as one consistent surface whatever theme the page wears. PR #100 added
+`--hub-glass-tint`, `--hub-glass-tint-strong` and `--hub-rim` to `tokens.css` with theme variants
+and did not pin them in `EarningsResearchModal.module.css`'s island — so descendants of that
+modal resolved the hub's glass against the page theme instead of the dark chrome the modal is
+drawn on. The feature that added the tokens and the surface that broke were in different
+directories and neither had reason to look at the other.
+
+**Rail:** `app/src/styles/themeIslands.test.js`. Islands declare themselves with
+`--theme-island: <name>;`; the required set is derived from `tokens.css` every run; a missing
+token fails by name. Mutation-proved both directions. Self-declaring rather than
+threshold-guessed on purpose — `floor2/standalone.css` (substitutes for `tokens.css` on a page
+that never loads it) and `ChartsWorkspace.module.css` (pins under `[data-theme='light']`) both
+look like islands to a naive scan and are not (`lesson_a_guard_that_tests_the_adjacent_thing`).
+
 ### Rebasing a feature branch — when, and when not
 
 > **Rebase only when master has touched a file the branch touches, or the branch is more than
