@@ -1,0 +1,44 @@
+{
+  "measured_at": "2026-09-09 (re-corroborated after rebase onto f58383e69)",
+  "sha": "fee08cf77bda2a9714f851ec0bb5d0ef6660491d",
+  "how": "Extracted by scripts/gate_shards.py::parse_failures from the six shard logs of the 2026-09-09 six-shard run at 0ffe68a14 (1181 files). That run predates the committed wrapper and is NOT of record for a pass/fail verdict, but its logs are a faithful capture.",
+  "provenance_caveat": "\u2b50 CORROBORATED TWICE, at two different merge-bases. Originally seeded from a run on the branch; corroborated at 78ac8016b, then RE-corroborated at f58383e69 after the rebase. At the new base the two sets are IDENTICAL: master introduced no failure this baseline lacks, and after removing the one entry master FIXED (see removed_because_master_fixed_it, attributed to 4fef130d9) no baseline entry is absent at the base. Nothing here is the hub's. \u26d4 If either of the two load-sensitive names recorded under prior_base appears as NEW in a future run, re-run it ALONE before treating it as a regression.",
+  "files": [
+    "src/__tests__/sourcesAreText.test.js",
+    "src/components/chart/builder/ImportBox.thinkscript.test.jsx",
+    "src/components/chart/engine/ast/manifestProse.test.js",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js",
+    "src/components/screener/reachable.test.js",
+    "src/hooks/pollingSites.rail.test.js",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx",
+    "src/styles/tapFloor.test.js"
+  ],
+  "failures": [
+    "src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT > contains no NUL or other C0 control byte",
+    "src/components/chart/builder/ImportBox.thinkscript.test.jsx > \ud83d\udd34 the offered call can be ACCEPTED from the box > \u26d4\u26d4 it DECLINES while the box is one keystroke behind",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "corroborated_at_merge_base": {
+    "base_sha": "f58383e69fc50bf9ab71689739734dae09f907ea",
+    "measured": "2026-09-09",
+    "how": "Full six-shard run in a detached worktree at the merge-base after the branch was rebased onto master, using the SAME fixed _capture/parse_failures code. Base: 1175 test files, 8 files / 9 tests failing.",
+    "result": "ZERO failures at the base are absent from this baseline (master introduced none), and after the removal below ZERO baseline entries are absent at the base. The two sets are now identical, so nothing in this baseline is hub-introduced.",
+    "removed_because_master_fixed_it": [
+      {
+        "entry": "src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx > \u26d4 the one-line rollback \u2014 OFF still means inert > \u2b50 and the same keystroke DOES reach the store by DEFAULT",
+        "attributed_to": "4fef130d9",
+        "attribution_basis": "The ONLY master commit between the old base (78ac8016b) and the new one (f58383e69) that touches this test file: 'Wave Q1: the canary's trigger is a measurement, and the write is gated'. Verified an ancestor of f58383e69, and the file passes ALONE at the new base (15/15), so this is a real fix and not a shard-boundary shift."
+      }
+    ],
+    "prior_base": {
+      "base_sha": "78ac8016bd5572e74e778217d581f7b44e9e0fd3",
+      "note": "Measured 11 files / 12 tests. Two base-only failures there \u2014 flowSearchProduct and sharedScreen.route \u2014 passed in isolation and were correctly NOT banked; neither fails at the new base either."
+    }
+  }
+}

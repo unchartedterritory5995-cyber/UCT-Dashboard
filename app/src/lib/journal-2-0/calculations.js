@@ -219,6 +219,61 @@ export const positionPnlPercent = (p, current) =>
 export const positionRiskDollar = (p) =>
   p.side === 'Long' ? longRiskDollar(p) : shortRiskDollar(p)
 
+/**
+ * ⭐ THE R LOCKED IN IF THE STOP IS HIT AT `candidateStopPrice` (D-34).
+ *
+ *   initialRisk = |entryPrice − originalStopPrice| × shares
+ *   dir         = +1 for Long, −1 for Short
+ *   R           = ((candidateStopPrice − entryPrice) × dir × shares) / initialRisk
+ *
+ * Returns `null` when `initialRisk` is 0 or any input is missing — risk is undefined there, and a
+ * position that cannot say what it risks cannot be expressed in R. Callers render `—`.
+ *
+ * ⛔ WHY THIS LIVES HERE AND NOT IN THE HUB. Every other R in this app is computed in this module,
+ * and the joystick's scrub readout needs one the module did not have: both existing R functions
+ * (`tradeRMultiple` here, `trade_r_multiple` server-side) take an EXIT price and answer "what R did
+ * this CLOSED trade make". Neither answers "what R is this OPEN position risking at a proposed
+ * stop". Computing that inside a gesture handler would be a second authority over what R means —
+ * the defect Phase 2a's `r_value` note exists to prevent — and it would be invisible, because a
+ * wrong R still renders as a plausible number.
+ *
+ * ⭐ Sign convention is deliberately the same as `trade_pnl_dollar`'s: at the ORIGINAL stop this
+ * returns exactly −1, at entry exactly 0, and a Long stop raised above entry gives positive R
+ * (risk removed, profit locked). Those three are asserted as a rail, not assumed.
+ *
+ * @param {number} entryPrice
+ * @param {number} originalStopPrice
+ * @param {number} candidateStopPrice
+ * @param {'Long'|'Short'} side
+ * @param {number} shares
+ * @returns {number|null}
+ */
+export function rAtStop(entryPrice, originalStopPrice, candidateStopPrice, side, shares) {
+  // ⛔ `Number(null)` IS 0, AND 0 IS FINITE. A plain `Number()` + `isFinite` gate therefore reads a
+  // MISSING original stop as "a stop at zero" and happily returns a number: for
+  // rAtStop(100, null, 102, 'Long', 100) that is 0.02R instead of null — a plausible-looking
+  // readout derived from a stop the position does not have. Caught by this function's own rail.
+  const num = (v) => (v === null || v === undefined || v === '' || typeof v === 'boolean'
+    ? NaN : Number(v))
+  const entry = num(entryPrice)
+  const orig = num(originalStopPrice)
+  const cand = num(candidateStopPrice)
+  const sh = num(shares)
+  if (![entry, orig, cand, sh].every(Number.isFinite)) return null
+  if (side !== 'Long' && side !== 'Short') return null
+
+  const initialRisk = Math.abs(entry - orig) * sh
+  if (initialRisk === 0) return null
+
+  const dir = side === 'Long' ? 1 : -1
+  const r = ((cand - entry) * dir * sh) / initialRisk
+  // ⭐ `+ 0` normalises NEGATIVE ZERO. A short whose candidate stop sits exactly at entry computes
+  // `-0`, which formats as "-0.00" — a readout telling the member they are locking in a small loss
+  // at breakeven. Costs nothing; the alternative is a wrong sign on the one value this whole
+  // gesture exists to communicate.
+  return r + 0
+}
+
 /** @param {Position} p @param {number} current */
 export const positionHeatDollar = (p, current) =>
   p.side === 'Long' ? longHeatDollar(p, current) : shortHeatDollar(p, current)

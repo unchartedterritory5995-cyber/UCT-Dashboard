@@ -21,6 +21,7 @@ import ResultCards from './ResultCards'
 import { exportScreen } from './csvExport'
 import { LIVE_SORTABLE, sortRowsLive } from './liveSort'
 import ReviewChartsButton from '../../charts/review/ReviewChartsButton'
+import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
 const densityKey = 'uct.screener.density'
@@ -138,6 +139,21 @@ export default function ScannerShell({ embedded = false }) {
   const isEmpty = result && total === 0
   const hasMore = rows.length < total
   const liveSortEligible = LIVE_SORTABLE.has(s.sort?.key)
+
+  /* ⭐ THE JOYSTICK HUB'S SCREENER SECTION (Phase 3 §3.3), registered from HERE because this is
+   * the component that owns `displayRows` — the array AS RENDERED. Registering `rows` instead
+   * would make the hub cursor and the list on screen disagree the moment the live re-sort is on,
+   * which is the same reason the sort was lifted into this file in the first place.
+   *
+   * `resultsRef` is the consumer the `scrollToIndex` seams in `VirtualResults` / `ResultCards`
+   * were built for and have been waiting on since Phase 1. `hubMount` is the section's own
+   * mount point: its feedback toast (which must outlive the control that fires it) plus the
+   * auth-guarded bridge its Flag/Alert actions reach through. Everything else — the cursor, the
+   * fan, the chip — lives in `hub/sections/screenerSection.js`. */
+  const hub = useScreenerHubSection({
+    displayRows, filters: s.filters, prices, hasMore, loadMore: s.loadMore,
+  })
+
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
       onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'} />
@@ -227,15 +243,18 @@ export default function ScannerShell({ embedded = false }) {
             )}
           </div>
         ) : isPhone ? (
-          <ResultCards rows={displayRows} columns={visibleColumns} livePrices={prices}
+          <ResultCards ref={hub.resultsRef} itemProps={hub.cursor.itemProps}
+            rows={displayRows} columns={visibleColumns} livePrices={prices}
             hasMore={hasMore} onLoadMore={s.loadMore} isLoading={isLoading} />
         ) : (
-          <VirtualResults rows={displayRows} columns={visibleColumns} sort={s.sort}
+          <VirtualResults ref={hub.resultsRef} itemProps={hub.cursor.itemProps}
+            rows={displayRows} columns={visibleColumns} sort={s.sort}
             onSort={s.setSort} livePrices={prices}
             density={density} view={s.view} hasMore={hasMore}
             onLoadMore={s.loadMore} isLoading={isLoading} />
         )}
       </div>
+      {hub.hubMount}
       {/* THE DOOR TO THE RESEARCH. The base library holds ~210 criteria across 26
           structures -- verbatim source sentences, our own numbers labelled as
           ours, and refusals naming what a house declined to publish. It reached

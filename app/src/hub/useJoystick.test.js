@@ -4,6 +4,7 @@
 import { describe, it as vitestIt, expect, beforeEach, afterEach, afterAll, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import useJoystick from './useJoystick.js'
+import { modesById } from './registry.js'
 import { TRAVEL_PX, HOLD_MS, DOUBLE_TAP_MS, FLICK_MS, openAtPx, ringSplitPx, EDGE_GUARD_PX, EDGE_GUARD_TRAVEL_PX } from './constants.js'
 
 // ⚠️ RAIL (house convention — mirrors useHubCursor.test.js): `vitest -t <regex>` is a regex
@@ -314,4 +315,58 @@ describe('useJoystick', () => {
     act(() => up(on.result.current.handlers, dx, dy))
     expect(navigator.vibrate).toHaveBeenCalled()
   })
+
+  // ── B5: the escalation rides on `escalate`, not on `kind` ─────────────────────────────────
+  //
+  // ⛔ WHY THIS RAIL EXISTS. The owner ruling is "commit sheet -> warn()", and `useJoystick`
+  // encoded it as `kind === 'confirm'` — a PROXY that held only until B3 moved the Journal's three
+  // committing actions to kind:'run' to stop two sheets stacking. The cue silently downgraded to
+  // impact() on all three, Close included, with every test green: nothing anywhere asserted which
+  // haptic fired for which action.
+  //
+  // The patterns are distinguishable at the argument (`components/mobile/haptics.js:13-16`):
+  // tap() -> 10 · impact() -> 18 · warn() -> [22, 60, 22]. So this observes `navigator.vibrate`
+  // through the REAL fireTarget path rather than spying on an internal.
+
+  const WARN = [22, 60, 22]
+  const IMPACT = 18
+
+  /** Drive one deliberate (non-flick) push-and-release onto the sole outer action of `fan`. */
+  function fireOnly(action) {
+    const { dx, dy } = vecAtAngle(HARD_DIST, 135)
+    const hook = renderHook(() => useJoystick({ mode: makeMode([action]) }))
+    act(() => down(hook.result.current.handlers, 0, 0))
+    act(() => move(hook.result.current.handlers, dx, dy))
+    act(() => vi.advanceTimersByTime(FLICK_MS + 10)) // deliberate release, never a flick
+    act(() => up(hook.result.current.handlers, dx, dy))
+  }
+
+  it('B5 — an escalate action fires warn(); a plain run action fires impact() and NEVER warn()', () => {
+    navigator.vibrate = vi.fn(() => true)
+
+    fireOnly(makeAction(0, { id: 'outer.commits', escalate: true }))
+    expect(navigator.vibrate, 'a committing action lost its escalation').toHaveBeenCalledWith(WARN)
+
+    navigator.vibrate.mockClear()
+
+    fireOnly(makeAction(0, { id: 'outer.plain' }))
+    expect(navigator.vibrate).toHaveBeenCalledWith(IMPACT)
+    expect(navigator.vibrate, 'an ordinary run action escalated — the marker is being ignored')
+      .not.toHaveBeenCalledWith(WARN)
+  })
+
+  // ⭐ ONE TEST PER ACTION, not one loop over three. Attribution is the point: when this goes red
+  // it must say WHICH action lost its escalation, and the other two must stay visibly green.
+  // ⭐ The fan is taken from the shipped registry, never re-declared here — a fixture that
+  // restated it would stay green through exactly the regression this rail exists to catch.
+  for (const id of ['journal.moveStop', 'journal.breakeven', 'journal.close']) {
+    it(`B5 — ${id} escalates to warn(), driven from the REAL registry fan`, () => {
+      navigator.vibrate = vi.fn(() => true)
+      const action = modesById.journal.fan.find((a) => a.id === id)
+      expect(action, `${id} is missing from the registry`).toBeTruthy()
+      fireOnly(action)
+      expect(navigator.vibrate, `${id} fired impact() instead of warn() — B3's silent downgrade`)
+        .toHaveBeenCalledWith(WARN)
+    })
+  }
 })

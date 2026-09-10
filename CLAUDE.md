@@ -1128,6 +1128,21 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Verification tokens reuse existing valid token on resend (>1hr remaining)
 - Stripe webhook uses `_safe_get()` for stripe>=8.0 compatibility
 
+## Active feature branches
+
+| Branch | Base | What it carries |
+|---|---|---|
+| `feat/joystick-increment-2` | `origin/master` @ `eedb58ac8` | Joystick hub **Phase 3 / Increment 2** — Task 0 `contracts.js` (runtime validators + contract tests), then Wave A (Morning Wire + Breadth integrators, Screener drift scout). Worktree `C:\Users\Patrick\uct-worktrees\joystick-hub`. |
+
+⚰️ `feat/joystick-hub` is **merged and closed** (PR #101 → `d3bf38f44`, live in production). Keep
+the branch for history; do not add to it.
+
+⛔ **Increment 2 gates on "no NEW failures relative to a measured baseline", never on a green
+suite** — the repo is not green and this branch cannot make it so. The baseline is re-measured in
+a detached worktree at a named SHA and recorded in `docs/plans/joystick/60-phase3-plan.md`; a
+timeout is never banked as permitted breakage, and provenance is `git show <sha>:<file>`, never
+`git status`. Both rules and the method are in this file above.
+
 ## Worktree Directory
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
@@ -1432,6 +1447,64 @@ about whether a human ever saw the sentence.
 it. `HubRoot.jsx::HubToastHost` is the pattern — one element above the visible/hidden branch,
 written to by both sides, with one fixed anchor so the message lands in the same place either
 way. Do not nest a feedback element inside a subtree that its own trigger tears down.
+
+### ⛔ A test run without a totals line is not a run (Testing)
+
+> **Assert the totals line before reading the exit code.**
+
+Owner ruling, 2026-09-09. A full-suite run was launched with an invalid `--minWorkers` flag; vitest
+died at argument parsing having executed nothing, and the background-task wrapper reported
+**exit 0**. Nothing in the status distinguished "17,000 tests passed" from "the runner never
+started". It was caught only because the log had no `Test Files` / `Tests` line in it — had that
+been trusted, a green gate would have been reported for a suite that never ran
+(`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
+
+**Corollary — a CHUNKED run must be diffed against the full test-file list before its total is
+quoted.** The same gate was later split by directory to survive host memory pressure, and the chunk
+list covered 1,016 of 1,178 files — missing a known baseline row. A partial suite fails in the
+flattering direction: fewer files run, fewer failures found. Count the files, not just the passes:
+
+```sh
+find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
+```
+
+### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
+
+> **A contract is verified against the runtime call site, never against a harness that restates
+> it. Arity is not a shape; validators do not catch it, derivation rails do.**
+
+Owner ruling, 2026-09-09, after R-05. `HubRoot.jsx` had called `onScrub(ctx, scrub)` since Phase 2.
+The Phase 3 typedef said `onScrub(scrub)` — and the contract test's harness hand-wired the
+one-argument form **to match the typedef**. The contract and its test agreed with each other and
+neither agreed with the product, so a section built against the documented shape would have read
+`ctx.delta === undefined` on a real page with a green suite behind it.
+
+**A runtime validator cannot see this.** `validateSectionConfig` asserts `onScrub` is a *function*,
+and a function of the wrong arity is still a function — JavaScript calls it and drops the context
+into a parameter named `scrub`. Nothing throws, nothing logs; the gesture silently does the wrong
+thing. Two integrators found it independently, from opposite sections, on their first day.
+
+**The rail:** `app/src/hub/contractArity.test.js`. For every callback `contracts.js` documents, it
+READS the argument list from the file that actually calls it (`HubRoot.jsx`, `useJoystick.js`),
+asserts the typedef declares the same, and asserts the harness invokes it the same way.
+Mutation-proved on `onScrub` and `onScrubCommit`. ⭐ It strips comments before matching — its own
+first version matched the prose "passed through to the mode's own onScrub(ctx, delta)" a few lines
+above the real call site, which is the invented-citation defect committed by a machine.
+
+### ⛔ A citation you cannot quote is struck
+
+> **A plan citation to a document or file must be verified AT WRITE TIME by quoting the cited
+> line. A citation that cannot be quoted is struck, not softened.**
+
+Owner ruling, 2026-09-09. The Phase 3 plan carried *"`Screener.jsx` no longer exposes an
+`activeTab` — the Wave 0 scout described one"*. The string `activeTab` appears **nowhere** in
+`10-wave0-discovery.md`. A binding was attributed to a document that never made the claim, and it
+survived weeks of review because a citation looks like evidence: nobody re-opens a source that has
+already been named.
+
+This is the same failure as a stale line number, one level up — and worse, because a wrong line
+number is discovered the moment someone follows it, while an invented citation sends them to a
+real document that simply does not say the thing. Quote the line into the plan, or do not cite it.
 
 ### ⛔ Provenance: `git show <sha>:<file>`, never `git status`
 

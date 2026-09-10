@@ -35,8 +35,18 @@ const colWidth = key =>
 // master's list verbatim would reintroduce a dead parameter whose presence
 // claims this component still sorts — the exact confusion the lift removed. The
 // forwardRef seam is master's and is preserved in full.
+  // ⛔ `itemProps` LANDS `data-hub-cursor="active"` ON THE CURSOR ROW.
+  //
+  // Without it Scan mode's Primary/Reverse moved a selection NOBODY COULD SEE: the index
+  // advanced, the list scrolled, the chip named a ticker — and no row was ever marked, so
+  // the member had to infer the selection from the scroll position. The Journal paints its
+  // carriers; this is the Screener half of the same job (R-15).
+  //
+  // ⭐ SAME exception (d), not a new one. These two files were already in scope for the
+  // hub's `scrollToIndex` seam; spreading the cursor's own props onto the row it already
+  // scrolls to is that seam finishing its sentence, not a second reach into the page.
 const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort, onSort, livePrices,
-  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts }, ref) {
+  density = 'compact', view, hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
   const ta = useTickerActions()
   const scrollRef = useRef(null)
   /* ⛔ `rows` ARE ALREADY IN DISPLAY ORDER — the live re-sort moved UP to
@@ -143,6 +153,7 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
             const live = !!livePrices?.[row.ticker]
             return (
               <div role="row" key={row.ticker} className={styles.gridRow}
+                {...(itemProps ? itemProps(vi.index) : null)}
                 style={{ position: 'absolute', top: vi.start, left: 0, right: 0, height: vi.size }}>
                 {columns.map(c => {
                   if (c === 'ticker') {

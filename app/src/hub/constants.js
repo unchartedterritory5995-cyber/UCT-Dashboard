@@ -143,7 +143,15 @@ export const EDGE_GUARD_TRAVEL_PX = 10
  *     fan open        → tap()
  *     target change   → tap()
  *     action fires    → impact()
- *     confirm sheet   → warn()
+ *     commit sheet    → warn()
+ *
+ * ⛔ B5, 2026-09-09 — THE LAST LINE READ "confirm sheet → warn()" AND THE CODE READ
+ * `kind === 'confirm'`. Those were the same set only by accident. B3 moved the Journal's three
+ * write actions to kind:'run' (their own sheets are the confirmation; a `confirm` stacked a second
+ * one), and the cue silently downgraded to impact() on all three — including Close. The rule was
+ * always about the SHEET, so the action now declares `escalate: true` and `useJoystick.js:197`
+ * branches on that. `validateRegistry` requires it on every kind:'confirm', so the set this line
+ * describes can never again shrink because a `kind` moved.
  *
  * Open and target-change deliberately share `tap()`: both are "something moved under your thumb",
  * and the escalation the hand should feel is reserved for the two events that actually DO
