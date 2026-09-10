@@ -20,11 +20,64 @@ does not re-derive any of it under time pressure.
 
 | | |
 |---|---|
-| Branch tip | `555d83dc1` — rebased onto master `f093bf731`, pushed |
+| Branch tip | see `git log -1`; at ~13:3x ET it is the gate-exit-code commit, rebased onto master `f093bf731`, WITH the fan fix cherry-picked |
 | Base | `f093bf731` (was `febe8ee67`, then `4c518db97`, then `0e32db845`) |
 | Gate checkpoint | `docs/plans/joystick/gate-runs/2026-09-10T12-00-02.*`, tree `8f0b38e70` |
 | Gate verdict | **Zero hub-introduced failures.** 1210 files (reconciles), 18,036 tests, 10 failing |
 | Step 6 answered | `OFFLINE_DEFAULT_ON = false` — unchanged, offline layer still off |
+
+### ⛔ OWNER RULINGS, 2026-09-10 ~13:2x ET — both settled before the window
+
+**1. The fan fix RIDES TONIGHT.** Cherry-picked onto this branch (the pick that was proved clean
+by `git merge-tree` before it was applied), so the window's re-gate covers it and the manifest of
+record attests to the tree that actually ships.
+
+⛔ **The member-impact paragraph MUST carry this sentence, verbatim, as ruled:**
+
+> Three of Home's seven bubbles navigated to the wrong section in production for admins; this
+> corrects them.
+
+⛔ **The exposure rail must stay green.** The exposure rail itself is Increment 4's file, so on this
+branch the equivalent proof is by blob hash, and it was taken before and after the pick:
+`useHubActive.js` `6d4138cb56a2`, `useHubSettings.js` `58860afcf428`, `api/routers/auth.py`
+`cf3c82112e1f` — **byte-identical across the cherry-pick**. The pick touches exactly two files,
+`HubRoot.jsx` and the new `fanResolutionParity.test.js`, so it cannot have moved a gate.
+
+**2. The freeze is being requested of the Wave Q1 session for 16:05–17:00 ET.** Proceed assuming it
+holds. ⛔ **If master moves inside that hour anyway: ONE lap, then HOLD for tomorrow's pre-09:00
+window. Do NOT burn a second lap.** That is a direct ruling and it overrides the original job
+text's "one more lap is authorized" reading — one lap total, then hold.
+
+### What the fan fix is, in one paragraph
+
+`HubRoot:88` draws `fanFor(mode)` — the PROJECTION — while `useJoystick:129` resolved a tap out of
+`mode.fan` — the DECLARATION. Both index BY POSITION WITHIN A RING, and for any mode still in
+`PREVIEW_MODES` those are different arrays in a different order. Derived from the deployed registry
+blob (`febe8ee67`), Home draws seven bubbles (four outer, three inner) and three of them fired
+someone else's action: **Flow→Breadth, Breadth→Wire, Wire→Calendar**. A fourth mismatch is a
+different kind — five outer actions declared against four drawn, so Flow's own action was
+UNREACHABLE from any bubble. Live since Increment 2, and invisible to every existing rail because
+each one checked a single list.
+
+The fix is one memo (`{ ...activeModeConfig, fan }`). The rail is `fanResolutionParity.test.js`,
+four tests including a NON-VACUITY control proving preview modes really do project differently, so
+it cannot pass tautologically after a revert. Mutation-proved on this branch: reverting the one
+line fires *"useJoystick is back on the raw config — the wedge and the action disagree again"*.
+
+### The gate wrapper's exit code was fixed in the same lap
+
+`scripts/gate_shards.py` exited **0** while printing *"The failing set DIFFERS from the baseline"*.
+It now returns `EXIT_NEW_FAILURES = 1` when `vs_baseline.new` is non-empty, `0` otherwise, with `2`
+still meaning the run was refused and produced no verdict.
+
+⭐ **`new` is enforced; `matches_baseline` is reported.** A baseline entry that STOPPED failing is
+master fixing something — `test_gate_baseline_diff.py` pins that direction as never-blocking, and
+failing a branch for an improvement is how a gate teaches people to ignore it. When the two
+disagree the run says so out loud.
+
+⚠️ **So the window job must now expect a NON-ZERO exit if anything is genuinely new.** That is the
+point of the change — but it means `python scripts/gate_shards.py` inside a `&&` chain will now
+stop the chain on a real regression instead of sailing past it. Read the manifest either way.
 
 ### The gate result, and why its one "NEW" is not ours
 
