@@ -13,6 +13,85 @@ therefore uncommittable. This one lives in the repo so it can be committed, as r
 | Deployed | `febe8ee67` — Increment 2, live since 2026-09-10T06:21:42Z |
 | Also open | `fix/deploy-watch-probe` @ `245102b1c`, pushed, unmerged — rides the next intentional deploy, **outside 09:00–16:00 ET** |
 
+## ⛔ WINDOW-JOB STATE — written 2026-09-10 ~13:1x ET, read this FIRST
+
+The 15:50 ET window job fires into a fresh context. This block is what it needs to know, so it
+does not re-derive any of it under time pressure.
+
+| | |
+|---|---|
+| Branch tip | `555d83dc1` — rebased onto master `f093bf731`, pushed |
+| Base | `f093bf731` (was `febe8ee67`, then `4c518db97`, then `0e32db845`) |
+| Gate checkpoint | `docs/plans/joystick/gate-runs/2026-09-10T12-00-02.*`, tree `8f0b38e70` |
+| Gate verdict | **Zero hub-introduced failures.** 1210 files (reconciles), 18,036 tests, 10 failing |
+| Step 6 answered | `OFFLINE_DEFAULT_ON = false` — unchanged, offline layer still off |
+
+### The gate result, and why its one "NEW" is not ours
+
+The checkpoint manifest flags exactly one NEW failure:
+
+    src/components/chart/ChartDrawingOverlay.surfaces.test.jsx > ... > ⛔ ENTERING EDIT MODE IS NOT A RESIZE
+
+It is **master's, not the hub's**, and this is settled — not assumed. The Wave Q1 session hit the
+identical failure independently and measured it three ways: it fails alone at rest in 1.4s (so it
+is not the load-sensitive population); the test and its subject are byte-identical to
+`origin/master`; and it was re-run on a detached worktree at `origin/master` with none of their
+code present and failed identically. Blamed to `8de4da43b` (charts Phase 9). They ADDED it to
+`gate-baseline.json` **on master**, and the rebase to `f093bf731` inherited that correction — so a
+re-gate at the current base will no longer flag it.
+
+⭐ Direction is `master_introduced` → ADD, never BLOCKS. Two independent measurements agreeing is
+the strongest form this evidence takes.
+
+⚠️ **The wrapper exited 0 while printing "The failing set DIFFERS from the baseline."** The exit
+code is not the verdict; the manifest is. Read the manifest.
+
+### ⛔⛔ THE BINDING CONSTRAINT: THE GATE IS SLOWER THAN MASTER MOVES
+
+Measured 2026-09-10 on `origin/master`, inter-commit gaps in minutes:
+
+    5, 10, 2, 2, 3, 4, 3, 2, 3, 23, 16, 5      median 3 min
+
+The six-shard gate takes **~25-30 minutes**. Master advanced **26 commits** (Wave Q1 notebook
+workstream) *during* the 12:00 gate run alone. This is Increment 2's lesson repeating verbatim:
+**if the gate cycle is slower than the other workstream's push cadence, FREEZE first, never lap.**
+Increment 2 cost four rebases to learn it.
+
+And the collision is **structural, not bad luck**. The repo-wide rule master landed at 10:09 ET
+(`58dea4d88`) bars pushes to master Mon-Fri 09:00-16:00 ET. That blocks the other workstream until
+16:00 and unblocks it exactly when this increment's merge window opens (16:15-17:00). Both are
+aimed at the same hour by construction.
+
+Walked forward unfrozen, step 8's *"origin/master unchanged since step 4"* fails, lap 2 burns, and
+the **third lap is a STOP** — Increment 3 does not ship.
+
+⛔ **The owner has been asked to freeze the notebook/Wave Q1 session's master pushes ~16:05-17:00
+ET.** He did this once before, for 40 minutes, and it worked. If the freeze is NOT in place at
+15:50, do not burn both laps discovering that: say so and hold for the pre-09:00 window instead.
+A day's delay costs less than a stopped merge plus two wasted gate cycles.
+
+### Load-sensitive names — re-run ALONE before classifying
+
+- `iframeFocusBlindSpot.test.jsx > useKeyboardVisible has a consumer OUTSIDE the hub, ...`
+  (Increment 4's, Stream E). **18,585 ms under the full hub suite; 4,349 ms passing alone.** It
+  walks the filesystem for consumers, so it is timing-bound, not logic-bound. ⛔ Never bank it —
+  a banked slot is one a real failure can occupy unnoticed.
+- The two already recorded under the baseline's `prior_base` key.
+
+### Open owner decisions blocking or shaping this deploy
+
+1. **Does the fan-parity fix ride tonight?** Three of Home's seven bubbles navigate somewhere other
+   than their label, live in production. `registry.js` and `useJoystick.js` on this branch are
+   **byte-identical to the deployed commit**, so this merge ships the defect untouched. The fix is
+   one memo + one mutation-proved rail, already on Increment 4 (`0a740618b`). `HubRoot.jsx` is
+   already this branch's declared product surface, so it adds no new surface. Cherry-picking is
+   safe: Increment 4 contains all of Increment 3 by patch-id, so the fix dedups on its next rebase.
+2. **Home's chip promises a tap that does nothing** — `tapHint: 'tap: last section'` with no
+   controller for `home` in production. Not fixed; needs a ruling.
+3. **Spec §C3:888 contradicts plan §3.8:330** on BOTH Home's tap and its scrub. One should be
+   struck. The plan's *"already true in the preview"* is false — no mode has ever declared `onTap`
+   in the registry; tap comes from section controllers.
+
 ## Rulings this increment is built under
 
 - **R-A (AMENDED 2026-09-10 after H1)** — Increment 3 = **B7 rule-12 rail + B8 §8 analytics marker
