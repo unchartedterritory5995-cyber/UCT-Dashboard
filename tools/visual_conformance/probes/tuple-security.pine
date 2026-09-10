@@ -1,0 +1,125 @@
+//@version=6
+indicator("UCTPROBE_TUPLE", overlay = false)
+
+// ⭐⭐ RUNBOOK ITEM 3 — the tuple `request.security` at Uncharted Volume line 259.
+// That call is an EIGHT-FIELD destructure against a daily HTF, and the engine
+// cannot fold it until the vendor's actual behaviour is measured rather than
+// predicted. This probe is OWN SOURCE, written for the measurement.
+//
+// ⚰️ WHY A NEW STUDY WAS NEEDED, since "read it off the script already on the
+// chart" was the cheaper idea and was rejected. Line 259 PINS
+// `lookahead = barmerge.lookahead_off` and OMITS `gaps` entirely, so it occupies
+// exactly ONE point in the parameter space this job has to map. The defaults and
+// the three other arms are unobservable from it -- not hard to see, structurally
+// absent. Measuring a default by reading a call that overrides it is the shape of
+// mistake this programme keeps paying for.
+//
+// ⛔ EVERY ARM IS LABELLED IN ITS PLOT TITLE. The capture reads plot VALUES and
+// names them by title; an unlabelled arm is a column of numbers nobody can
+// attribute afterwards.
+//
+// ⚠️ NAN IS AN ANSWER HERE, NOT A GAP. `gaps_on` is SUPPOSED to produce `na`
+// between HTF boundaries, and every arm is `na` before its first completed HTF
+// bar. Each value plot is therefore shadowed by an explicit `IS_NA_*` 1/0 channel,
+// because a transport that mangles NaN would otherwise turn the single most
+// important observation into a blank cell.
+
+// ── the non-vacuity control ─────────────────────────────────────────────────
+// ⛔ NOT OPTIONAL. Every arm below can legitimately read `na`. Without a channel
+// known non-`na` on every bar, "the vendor returned nothing" and "the study never
+// evaluated" are the same column, and a capture that cannot separate those is not
+// evidence. `close` is never `na` on a real bar.
+plot(close,     "N00_close_CONTROL")
+plot(bar_index, "N01_bar_index")
+
+// ── 1 · TUPLE FIELD ORDER ───────────────────────────────────────────────────
+// ⭐ POSITIONAL CONSTANTS, DELIBERATELY. Eight distinguishable values mean the
+// capture reads the ORDER directly instead of inferring it from eight lookalike
+// prices. `f1` must come back 1, `f8` must come back 8. If any pair is swapped,
+// this says so in one glance -- and a swap is silent in production, because eight
+// plausible floats in the wrong slots still look like data.
+f_eight() => [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+[t1, t2, t3, t4, t5, t6, t7, t8] = request.security(syminfo.tickerid, 'D', f_eight())
+plot(t1, "N02_ORDER_f1_expect_1")
+plot(t2, "N03_ORDER_f2_expect_2")
+plot(t3, "N04_ORDER_f3_expect_3")
+plot(t4, "N05_ORDER_f4_expect_4")
+plot(t5, "N06_ORDER_f5_expect_5")
+plot(t6, "N07_ORDER_f6_expect_6")
+plot(t7, "N08_ORDER_f7_expect_7")
+plot(t8, "N09_ORDER_f8_expect_8")
+
+// ── 2 · gaps × lookahead, FIVE ARMS ─────────────────────────────────────────
+// ⭐⭐ THE FIFTH ARM IS THE POINT. Four combinations are the grid; the arm with
+// BOTH ARGUMENTS OMITTED is what the runbook actually asks for, because that is
+// what a member's script gets when they write neither. A grid without it measures
+// four things nobody wrote and misses the one everybody does.
+f_htf() => close
+a_gon_lon = request.security(syminfo.tickerid, 'D', f_htf(), gaps = barmerge.gaps_on,  lookahead = barmerge.lookahead_on)
+a_gon_lof = request.security(syminfo.tickerid, 'D', f_htf(), gaps = barmerge.gaps_on,  lookahead = barmerge.lookahead_off)
+a_gof_lon = request.security(syminfo.tickerid, 'D', f_htf(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_on)
+a_gof_lof = request.security(syminfo.tickerid, 'D', f_htf(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+a_default = request.security(syminfo.tickerid, 'D', f_htf())
+
+plot(a_gon_lon, "N10_gapsON_lookaheadON")
+plot(a_gon_lof, "N11_gapsON_lookaheadOFF")
+plot(a_gof_lon, "N12_gapsOFF_lookaheadON")
+plot(a_gof_lof, "N13_gapsOFF_lookaheadOFF")
+plot(a_default, "N14_BOTH_OMITTED_the_defaults")
+
+// ⭐ The na-shadow of each arm. Comparing N15..N19 against N10..N14 is how the
+// capture states which arm gapped, without depending on NaN surviving transport.
+plot(na(a_gon_lon) ? 1 : 0, "N15_IS_NA_gapsON_lookaheadON")
+plot(na(a_gon_lof) ? 1 : 0, "N16_IS_NA_gapsON_lookaheadOFF")
+plot(na(a_gof_lon) ? 1 : 0, "N17_IS_NA_gapsOFF_lookaheadON")
+plot(na(a_gof_lof) ? 1 : 0, "N18_IS_NA_gapsOFF_lookaheadOFF")
+plot(na(a_default) ? 1 : 0, "N19_IS_NA_BOTH_OMITTED")
+
+// ⭐⭐ WHICH DEFAULT DID THE VENDOR PICK? These two are the whole question stated
+// as a difference: 0 means the omitted-argument arm behaves identically to that
+// explicit arm on this bar. Reading N20/N21 across the series is what turns "the
+// defaults are probably gaps_off/lookahead_off" into a measurement. ⛔ `na - na`
+// is `na`, so a 0 here means BOTH answered and agreed -- read these beside the
+// IS_NA channels above, never alone.
+plot(a_default - a_gof_lof, "N20_DEFAULT_minus_gapsOFF_lookaheadOFF_expect_0")
+plot(a_default - a_gon_lof, "N21_DEFAULT_minus_gapsON_lookaheadOFF")
+
+// ── 3 · na BEFORE THE FIRST HTF BAR ─────────────────────────────────────────
+// ⭐ Read N18/N19 against N01 (bar_index): the first bar_index at which the
+// non-gapping arms stop being `na` IS the answer. Plotted as its own channel so
+// the capture does not have to reconstruct it from two others.
+plot(na(a_gof_lof) ? bar_index : na, "N22_bar_index_WHILE_still_na")
+
+// ── 4 · FORMING vs CLOSED HTF BAR ───────────────────────────────────────────
+// ⭐⭐ THE ONE THAT MATTERS FOR A SCREENER. On the newest chart bar the daily HTF
+// bar is still forming. Does the vendor hand back the RUNNING value or the last
+// SETTLED one? N23 is 0 exactly when the HTF answer equals this bar's own close,
+// which is the signature of a running value. Read the TAIL of this column: the
+// last row is the forming bar, the rows above it are settled.
+plot(a_gof_lof - close, "N23_HTF_minus_close_0_means_running")
+
+// ── 5 · THE SAME-TIMEFRAME CASE ─────────────────────────────────────────────
+// ⭐ A request at the CHART'S OWN timeframe should be an identity. If N24 is not
+// 0 on every bar, then `request.security` is not transparent at same-tf and any
+// fold that treats it as a pass-through is wrong.
+a_same = request.security(syminfo.tickerid, timeframe.period, close)
+plot(a_same - close,          "N24_SAMETF_minus_close_expect_0")
+plot(na(a_same) ? 1 : 0,      "N25_IS_NA_SAMETF")
+
+// ── how to run it ───────────────────────────────────────────────────────────
+// ⛔ FOLLOW `docs/pine/capture-procedure.md`. Add the study only from a VISIBLE
+// tab and verify the insert by re-reading `model().dataSources()` -- never by the
+// absence of a throw. Restore symbol, resolution, pane stretch factors and study
+// visibility afterwards; the browser is shared.
+//
+// ⭐ This is a VALUE capture: once the study is on the chart, read
+// `study._data._items`, which is populated whether or not a pixel was drawn.
+//
+// SYMBOL/TF: AMEX:SPY at 1D is the wrong chart for this probe -- a daily request
+// on a daily chart makes arms 2-4 degenerate. Run it on an INTRADAY chart (5m or
+// 60m) so 'D' is genuinely a higher timeframe and the gap/forming behaviour is
+// observable. The same-tf arm (N24) is correct on any resolution.
+//
+// ⚠️ ONE ROW PER ARM in the fixture, labelled by these plot titles. The capture
+// script names its own invocation and carries the sha256 of THIS FILE, so a row
+// can be reproduced rather than trusted.

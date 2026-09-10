@@ -92,6 +92,7 @@ plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
 //     'NYSE American'   IMO       ASE       ??
 //     'Cboe BZX'        ARKK      BTS       ??
 //     'OTC'             LVMUY     PNK       ??
+//     (unmapped)        ADDYY     OQX       ??  <- the OTCQX TIER question
 //
 // ⭐⭐ SPY IS THE ROW THAT PROVES THE FILE'S THESIS. Our store says 'NYSE Arca'
 // (yfinance reports PCX) and the 2026-09-09 capture already showed its TICKERID
@@ -112,6 +113,17 @@ plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
 // in the map, so they fall through `_YF_EXCHANGE.get(exch, exch)` UNMAPPED and the
 // store holds the raw code ("OQX") — which is neither the trader-friendly name the
 // map exists to produce, nor a key `store_to_pine` names, so such a symbol REFUSES.
+// ⭐⭐ ADDYY IS THE SEVENTH WITNESS AND IT IS NOT A MISTAKE. It refuses at the
+// STORE fold -- `OQX` is not a `_YF_EXCHANGE` key, so no `confirmed` row can be
+// keyed on it -- but this probe reads `syminfo.exchange` FROM THE VENDOR, which
+// does not care what our store holds. So ADDYY answers the tier question anyway:
+// if PNK-tier (LVMUY) and OQX-tier (ADDYY) come back with the SAME pine spelling,
+// the vendor does not distinguish OTC tiers and widening `_YF_EXCHANGE` is a
+// coherent proposal; if they DIFFER, widening would collapse two real answers
+// into one and must not happen. ⛔ ADDYY's row is REPORTED, never landed in
+// `confirmed` -- an entry keyed on a spelling the store cannot produce would be
+// unreachable by construction.
+//
 // ⛔ LVMUY (PNK) was chosen precisely because it lands on a mapped code. That means
 // this capture witnesses the 'OTC' SPELLING, not the whole OTC tier. Fixing the map
 // is a separate decision and is NOT part of the capture.
