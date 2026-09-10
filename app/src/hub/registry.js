@@ -565,7 +565,15 @@ export const PREVIEW_MODES = new Set([
   // Note and Plan trade. `chart.compare` and `chart.logTrade` are DROPPED BY THE CONTROLLER
   // (not deleted from the registry) — compare's only write path cannot mount on a hub
   // viewport, and logging an executed trade lives under a rule-12 path.
-  'catalysts', 'home', 'flow',
+  // ⭐ INCREMENT 5 ALSO FLIPPED `catalysts` — the LAST section controller. `home` and `flow`
+  // are the only two left, and NEITHER is an unfinished build:
+  //   · `home` has a controller and zero run actions; it keeps a CURATED preview fan
+  //     (`PREVIEW_HOME`, owner ruling 2026-09-09). Flipping it shows eight bubbles instead
+  //     of seven — a product decision about how many doors Home offers, not a missing wire.
+  //   · `flow` is navigate-only BY DESIGN (3.9; OptionsFlow.jsx is partner-owned and a hard
+  //     no). Its real fan IS [Voice, Home], which is byte-identical to what the preview
+  //     projection returns for it — so the flag changes no bubble, only the chip.
+  'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */
