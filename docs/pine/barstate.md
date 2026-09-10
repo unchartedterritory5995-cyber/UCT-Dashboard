@@ -222,6 +222,26 @@ the one to trust, and this correction adopts it.
 
 ---
 
+## ⛔⛔ GATE — the JS pane lane is not wired, and may not be
+
+**`pineRuntimeFrontend.js` may not be wired to any route until a producer feeds
+`opts.newestBarIsForming` from Python's `bar_close_state`. Until then the JS lane
+renders CLOCK_REALTIME blank by design. Measured: at `35ba654da` the lane was
+already blank; at `3a1d9d4a3` it was confidently wrong.**
+
+⭐ The blank is the fail-closed contract working, not a defect — but it is only
+safe while nobody can see it. The module has zero importers today, so no route
+reaches it and no member meets the blanks.
+
+⛔ The gate is a TEST, not this paragraph:
+`app/src/components/chart/engine/__tests__/pineRuntimeFrontendGate.test.js`
+asserts the module has no importer outside its own tests, with a control proving
+the scan can find a referrer when one exists. **When someone wires it, that test
+goes red BY NAME, and the correct edit is to build the producer and then delete
+the test in the same commit** — never to edit the test to keep it passing.
+
+---
+
 ## Static fetch vs live pane
 
 The pane today renders a **static fetch with no realtime updates**. Under these semantics the

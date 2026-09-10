@@ -30,6 +30,14 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 10 | M1 — Volume's numeric plots as a pane behind the flag | ⬜ not started |
 | 11 | **NYSE calendar cross-lane parity** — see below | ⬜ logged 2026-09-09, NOT started |
 
+⛔⛔ **ITEMS 6–10 ARE GATED.** `pineRuntimeFrontend.js` may not be wired to any
+route until a producer feeds `opts.newestBarIsForming` from Python's
+`bar_close_state`. Until then the JS lane renders CLOCK_REALTIME blank by design.
+Measured: at `35ba654da` the lane was already blank; at `3a1d9d4a3` it was
+confidently wrong. Enforced by
+`app/src/components/chart/engine/__tests__/pineRuntimeFrontendGate.test.js` —
+when it goes red, build the producer and delete the test in that same commit.
+
 ### Item 11 — the JS-side NYSE calendar (logged, deliberately NOT in this merge)
 
 ⛔ **`app/src/lib/marketClock/nyseCalendar.js` IS OUT OF SCOPE FOR THE BARSTATE MERGE.**
