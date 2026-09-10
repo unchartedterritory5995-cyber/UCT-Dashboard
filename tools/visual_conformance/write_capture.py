@@ -127,7 +127,9 @@ def main() -> int:
 
     src_block = {}
     if args.pine_source:
-        p = pathlib.Path(args.pine_source)
+        # ⚠️ RESOLVE FIRST — a relative --pine-source is the normal way to invoke
+        # this, and `relative_to(ROOT)` raises on one that has not been resolved.
+        p = pathlib.Path(args.pine_source).resolve()
         text = io.open(p, encoding="utf-8").read()
         exact = text[:-1] if text.endswith("\n") else text
         src_block = {
