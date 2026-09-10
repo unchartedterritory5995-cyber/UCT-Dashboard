@@ -446,14 +446,19 @@ export const modes = [
     tapHint: 'tap: next day',
     cursor: { listId: 'calendar' },
     fan: [
-      {
-        id: 'calendar.earnings',
-        label: 'Earnings',
-        icon: 'earnings',
-        ring: 0,
-        color: '--hub-mode-calendar',
-        kind: 'run',
-      },
+      // ⚰️ `calendar.earnings` IS REMOVED, NOT DEFERRED — the page LOCKS that event type.
+      //
+      // It was `kind: 'run'` with no `run`, and unlike the others it could never be given one:
+      // `CalendarHeader.jsx:347` reads `const locked = type === 'earnings'; if (locked) return`.
+      // An earnings calendar showing earnings is the product, so the toggle is deliberately
+      // one-way — which means an "Earnings" bubble had exactly one possible behaviour, silence.
+      //
+      // `HubRoot` does `Promise.resolve(action.run?.(ctx))`, and on `undefined` that resolves with
+      // no throw, no warn and no toast: the member drags to it, the fan closes, nothing happens.
+      // Invisible while `calendar` sat in PREVIEW_MODES; live the moment it left, which is this
+      // commit. Dropped on the `breadth.sizeRule` / `breadth.snapshot` precedent (B2) rather than
+      // shipped inert — a bubble that answers a deliberate gesture with silence teaches the member
+      // the product is broken, which is worse than an absent action telling the truth.
       {
         id: 'calendar.macro',
         label: 'Macro',
@@ -551,7 +556,11 @@ export const PREVIEW_MODES = new Set([
   // ⭐ INCREMENT 4 FLIPPED ONE: notebook. Alone, unlike Increment 2's four, because its fan
   // shares no action with any other section — `newNote` is its own, and the two navigate
   // actions were already live. Nothing half-finished leaks into a neighbour's fan.
-  'chart', 'catalysts', 'calendar', 'home', 'flow',
+  // ⭐ INCREMENT 5 FLIPPED ONE: calendar. Its controller (`sections/calendarSection.js`)
+  // ships the `tap: next day` its chip has promised since Phase 2, a day scrub, and a real
+  // body for `calendar.macro`; `calendar.earnings` was REMOVED above rather than shipped
+  // inert. Alone, because its fan shares no action with any other section.
+  'chart', 'catalysts', 'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */

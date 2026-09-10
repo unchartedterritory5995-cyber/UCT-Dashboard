@@ -135,8 +135,10 @@ describe('a tapHint that promises a tap is backed by an onTap', () => {
       + 'changes.')
       .toEqual([
         // ⚰️ `home` LEFT THIS LIST when HubRoot began passing ctx to onTap and homeSection
-        // declared one. It is the proof the list is a live measurement rather than a copied set.
-        'calendar: "tap: next day"',
+        // declared one, and ⚰️ `calendar` LEFT IT in Increment 5 when `calendarSection.js` shipped
+        // the `tap: next day` its chip had promised since Phase 2. Two departures, both by a
+        // handler arriving rather than by an edit here — which is the proof this list is a live
+        // measurement and not a copied set.
         'catalysts: "tap: next row"',
         'chart: "tap: next timeframe"',
       ])

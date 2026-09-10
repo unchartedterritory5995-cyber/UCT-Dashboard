@@ -130,7 +130,12 @@ describe('a run action never reaches a member without a handler', () => {
       + '⛔ Taking any of these out of PREVIEW_MODES REQUIRES shipping its controller in the SAME '
       + 'commit, or dropping the listed actions.')
       .toEqual([
-        'calendar: calendar.earnings, calendar.macro',
+        // ⚰️ `calendar` LEFT THIS LIST in Increment 5, by a controller arriving — which is the
+        // departure this rail was written to require. Both of its naked run actions were resolved
+        // in that same commit, and in the two different ways the ruling allows: `calendar.macro`
+        // got a real body (a genuine event-type toggle), and `calendar.earnings` was REMOVED,
+        // because `CalendarHeader.jsx:347` locks that type (`if (locked) return`) and the bubble
+        // could therefore only ever have been silent.
         'catalysts: catalysts.flag, catalysts.filter, catalysts.note',
         'chart: chart.planTrade, chart.flag, chart.compare, chart.logTrade, chart.note',
       ])
