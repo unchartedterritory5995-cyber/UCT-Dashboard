@@ -395,11 +395,14 @@ def test_CONTROL_pass_2_DOES_run_when_the_version_is_stable(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _clean_ledger():
-    fr._PREPARE_ROLLS.clear()
-    fr._VERSION_FIRST_SEEN.clear()
+    def _reset():
+        fr._PREPARE_ROLLS.clear()
+        for dq in fr._PREPARE_ROLLS_BY_KIND.values():
+            dq.clear()
+        fr._VERSION_FIRST_SEEN.clear()
+    _reset()
     yield
-    fr._PREPARE_ROLLS.clear()
-    fr._VERSION_FIRST_SEEN.clear()
+    _reset()
 
 
 def test_a_generation_predating_this_process_is_startup_catchup(monkeypatch):
@@ -747,3 +750,88 @@ def test_at_offset_0_a_generation_born_after_startup_is_STILL_steady(monkeypatch
     # negative "latency". The classification is the claim; `steady` despite
     # prev_version=None is already proof that the BUCKET branch decided, because
     # the fallback would have said catch-up.
+
+
+# ── Per-kind ledger retention ────────────────────────────────────────────────
+# THE SECOND FAILURE OF 2026-09-09, and it is independent of classification.
+# One shared deque(maxlen=80) let a late-session run of one kind push the other
+# kind's rows out entirely. Fixing the classifier alone would have left it live.
+
+def test_catchup_volume_cannot_EVICT_steady_history(monkeypatch):
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 0)
+    steady_v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    fr._record_roll(steady_v, 7000, False, prev_version=steady_v - 1)
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1
+
+    old_v = int((fr._PROCESS_START_WALL - 600) // fr._VERSION_BUCKET_SEC)
+    for i in range(300):               # far more than any single-deque maxlen
+        fr._record_roll(old_v - i, 8000, False, prev_version=None)
+
+    assert len(fr.prepare_rolls("steady_state_roll")) == 1, (
+        "steady history was evicted by catch-up volume -- the shared-deque defect")
+    assert len(fr.prepare_rolls("startup_catchup")) > 0
+
+
+def test_CONTROL_a_kinds_own_deque_still_bounds_itself(monkeypatch):
+    """Retention must stay BOUNDED -- an unbounded ledger is a memory leak on a
+    long-lived worker, which is why the fix is per-kind deques and not no deque.
+    Without this control, 'delete the maxlen' would satisfy the test above."""
+    monkeypatch.setattr(fr, "_FORCE_BUMP_OFFSET", 0)
+    cap = fr._PREPARE_ROLLS_BY_KIND["steady_state_roll"].maxlen
+    assert cap is not None and cap > 0
+    base = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+    for i in range(cap + 50):
+        fr._record_roll(base + i, 7000, False, prev_version=base + i - 1)
+    assert len(fr.prepare_rolls("steady_state_roll")) == cap
+
+
+# ── Stage split: CSV materialization vs the parts build ──────────────────────
+# ⛔ `prepare_ms` alone said "97.66 s, somewhere". The 2026-09-09 cold boot could
+# not be attributed to a stage, and "which stage" is the entire question for the
+# next optimisation (CSV materialization was measured at ~19.9 s of a ~28.8 s
+# warm; a cold boot is a different animal). These pin that the split is real and
+# that it is taken through the REAL preparer, not a helper.
+
+def test_the_preparer_splits_CSV_time_out_of_prepare_ms(monkeypatch):
+    v = int((fr._PROCESS_START_WALL + 120) // fr._VERSION_BUCKET_SEC)
+
+    def slow_csv(source, days):
+        time.sleep(0.25)                      # stand-in for materialization
+        return (v, __import__("gzip").compress(b"csv"))
+
+    monkeypatch.setattr(fr, "_current_version", lambda: v)
+    monkeypatch.setattr(fa, "get_cached_or_build_part",
+                        lambda key, ver, provider, df, part, only=None: (provider(), (ver, b"gz"))[1])
+    monkeypatch.setattr(fr, "_get_cached_or_build", slow_csv)
+    fr._note_version_seen(v)
+
+    fr._prepare_once(None)
+
+    row = fr.prepare_rolls()[0]
+    assert row["csv_ms"] is not None and row["csv_ms"] >= 240, (
+        f"csv_ms={row['csv_ms']} did not capture the materialization stage")
+    assert row["parts_ms"] is not None and row["parts_ms"] >= 0
+    assert row["csv_ms"] + row["parts_ms"] == row["prepare_ms"], (
+        "the split must ACCOUNT for prepare_ms exactly, or it is decoration")
+
+
+def test_CONTROL_a_fast_CSV_leaves_the_time_in_parts_not_csv(monkeypatch):
+    """Proves csv_ms measures the provider and is not a constant."""
+    v = int((fr._PROCESS_START_WALL + 180) // fr._VERSION_BUCKET_SEC)
+
+    def slow_parts(key, ver, provider, df, part, only=None):
+        provider()                            # cheap CSV
+        time.sleep(0.25)                      # the node subprocess is the cost
+        return (ver, b"gz")
+
+    monkeypatch.setattr(fr, "_current_version", lambda: v)
+    monkeypatch.setattr(fa, "get_cached_or_build_part", slow_parts)
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda s, d: (v, __import__("gzip").compress(b"csv")))
+    fr._note_version_seen(v)
+
+    fr._prepare_once(None)
+
+    row = fr.prepare_rolls()[0]
+    assert row["csv_ms"] < 200, f"csv_ms={row['csv_ms']} on a fast provider"
+    assert row["parts_ms"] >= 240, f"parts_ms={row['parts_ms']} lost the parts cost"

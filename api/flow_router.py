@@ -1683,7 +1683,20 @@ def _prepare_once(last_version):
         # early as possible. Pass 2 then warms everything else in the same tick,
         # so the deferred TICKER_DB/CONV fetch and the 3b raw fallback stay warm
         # too -- nothing stops being prepared, it is only ORDERED now.
-        provider = lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")
+        # ⛔ SPLIT THE STAGES. `prepare_ms` alone said "97.66 s, somewhere" for the
+        # 2026-09-09 cold boot and could not say whether that was CSV
+        # materialization or the parts build -- which is the whole question for
+        # the next optimisation. The provider is invoked INSIDE
+        # get_cached_or_build_part, so time it there and subtract.
+        _csv = {"ms": 0}
+
+        def provider():
+            _t = time.monotonic()
+            try:
+                return gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")
+            finally:
+                _csv["ms"] += int((time.monotonic() - _t) * 1000)
+
         got = flow_aggregate.get_cached_or_build_part(
             key, version, provider, date_filter, "bootstrap",
             only=flow_aggregate.FIRST_PAINT_PARTS)
@@ -1694,6 +1707,12 @@ def _prepare_once(last_version):
         return last_version
 
     ms = int((time.monotonic() - t0) * 1000)
+    # ⛔ SNAPSHOT BEFORE PASS 2. The SAME provider closure is handed to both
+    # passes, so `_csv["ms"]` keeps accumulating into the remainder pass while
+    # `ms` covers pass 1 only. Reading it later yields csv_ms > prepare_ms and a
+    # NEGATIVE parts_ms -- caught by the test that requires the split to account
+    # for prepare_ms exactly.
+    _csv_pass1 = _csv["ms"]
     # `get_cached_or_build_part` hands back a STALE entry when the lock was held,
     # so "did we get bytes" is not the question -- "are they THIS version" is.
     if got and got[0] == version:
@@ -1707,6 +1726,7 @@ def _prepare_once(last_version):
         # only -- the difference then showed up as a nonsense "handoff". Stamp it
         # at publication, where a member can actually be served.
         published_at = time.time()
+        _pass2_ms = None
         log.info("[flow-prepare] first paint warmed %s v=%s in %dms", key, version, ms)
         # Pass 2 -- everything else, so the deferred and fallback paths stay warm.
         # Failure here is NOT a failure of the roll: first paint is already
@@ -1721,20 +1741,21 @@ def _prepare_once(last_version):
                 log.info("[flow-prepare] version moved during pass 1 — skipping "
                          "the remainder for v=%s", version)
                 _record_roll(version, ms, pass2_skipped=True, published_at=published_at,
-                             prev_version=last_version)
+                             prev_version=last_version, csv_ms=_csv_pass1)
                 return version
             t1 = time.monotonic()
             rest = tuple(p for p in flow_aggregate.SERVED_PART_NAMES
                          if p not in flow_aggregate.FIRST_PAINT_PARTS)
             flow_aggregate.get_cached_or_build_part(
                 key, version, provider, date_filter, rest[0], only=rest)
+            _pass2_ms = int((time.monotonic() - t1) * 1000)
             log.info("[flow-prepare] remainder warmed v=%s in %dms",
-                     version, int((time.monotonic() - t1) * 1000))
+                     version, _pass2_ms)
         except Exception as e:  # noqa: BLE001
             log.warning("[flow-prepare] remainder pass failed (first paint is "
                         "already live): %s", e)
         _record_roll(version, ms, pass2_skipped=False, published_at=published_at,
-                     prev_version=last_version)
+                     prev_version=last_version, csv_ms=_csv_pass1, pass2_ms=_pass2_ms)
         return version
 
     _PREPARE_STATE["declined"] += 1
@@ -1763,7 +1784,21 @@ def _prepare_once(last_version):
 # classified `startup_catchup` and MUST be excluded from steady-state stats.
 _PROCESS_START_WALL = time.time()
 _VERSION_FIRST_SEEN = {}
-_PREPARE_ROLLS = collections.deque(maxlen=80)
+# ⛔ SEPARATE DEQUES PER KIND. A single shared deque(maxlen=80) let late-session
+# volume of ONE kind evict the other, and that is not hypothetical: on 2026-09-09
+# the offset went 0->1 at 08:00 ET (fill run 246), so rolls from 00:08-08:00 WERE
+# classified steady correctly -- and were then evicted by the ~9 hours of
+# misclassified catch-ups that followed. By 17:19 the ledger read `rolls_steady: []`
+# against `prepared: 437`. Classification was ONE failure that day; RETENTION was
+# the other, and fixing the classifier alone would have left this live.
+# ⚠️ Still BOUNDED. An unbounded ledger is a memory leak on a long-lived worker,
+# so the fix is per-kind deques, not "no deque".
+_PREPARE_ROLLS_BY_KIND = {
+    "steady_state_roll": collections.deque(maxlen=240),
+    "startup_catchup": collections.deque(maxlen=40),
+}
+# Kept as a view for anything that wants every roll in arrival order.
+_PREPARE_ROLLS = collections.deque(maxlen=280)
 
 
 def _note_version_seen(version) -> None:
@@ -1776,7 +1811,7 @@ def _note_version_seen(version) -> None:
 
 
 def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
-                 prev_version=None) -> None:
+                 prev_version=None, csv_ms=None, pass2_ms=None) -> None:
     # `published_at` is when FIRST PAINT became servable. Falling back to now
     # keeps older callers working, but the preparer always passes it.
     now = published_at if published_at is not None else time.time()
@@ -1804,7 +1839,7 @@ def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
         # preparer found already in place on its first pass — which is
         # precisely `prev_version is None`.
         kind = "startup_catchup" if prev_version is None else "steady_state_roll"
-    _PREPARE_ROLLS.append({
+    _row = {
         "version": version,
         "kind": kind,
         # EXACT: detector sighting -> first paint published.
@@ -1820,12 +1855,22 @@ def _record_roll(version, prepare_ms, pass2_skipped, published_at=None,
         "bucket_bound_s": (round(now - born_bucket, 2)
                            if born_bucket and now >= born_bucket else None),
         "pass2_skipped": bool(pass2_skipped),
-    })
+        # ⭐ THE STAGE SPLIT. prepare_ms is PASS 1 and INCLUDES the CSV build,
+        # so parts_ms = prepare_ms - csv_ms is the node subprocess alone. Without
+        # this a slow roll cannot be attributed to a stage, only to "preparation".
+        "csv_ms": csv_ms,
+        "parts_ms": (prepare_ms - csv_ms) if csv_ms is not None else None,
+        "pass2_ms": pass2_ms,
+    }
+    _PREPARE_ROLLS.append(_row)
+    _PREPARE_ROLLS_BY_KIND[kind].append(_row)
 
 
 def prepare_rolls(kind: str | None = None) -> list:
-    rows = list(_PREPARE_ROLLS)
-    return [r for r in rows if kind is None or r["kind"] == kind]
+    # Per-kind deques so one kind's volume can never evict the other's history.
+    if kind is None:
+        return list(_PREPARE_ROLLS)
+    return list(_PREPARE_ROLLS_BY_KIND.get(kind, ()))
 
 
 _PREPARE_INFLIGHT = threading.Lock()
