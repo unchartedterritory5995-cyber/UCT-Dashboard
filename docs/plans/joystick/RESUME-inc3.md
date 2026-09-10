@@ -195,3 +195,30 @@ Verified 2026-09-10, all quoted from the tree at `febe8ee67`:
   `linkTicker` deferred (no symbol source on the route); `paintCursor` accepted with a selector
   rail; no off-route guard, a rail instead; Home needs nothing; flip `PREVIEW_MODES` at the end.
 
+
+- **R-auto-8 — the sandbox booted against the WRONG data dir, and the boot's own log caught it.**
+  `--data-dir C:\data-hubtest` passed through bash lost its separator and became the drive-relative
+  `C:data-hubtest`, which Windows resolved to a NEW empty directory **inside the worktree**. The
+  integrity log said so in its first line (`sandbox = ...\uct-worktrees\joystick-inc3\data-hubtest`)
+  — the standing rule that the snapshot-compare is reported BEFORE any health check is what
+  surfaced it, because `/api/health` answered 200 the whole time and the sandbox looked perfectly
+  healthy. Taken: stop the process, delete the stray directory (untracked, and it would have
+  dirtied the tree for the gate), re-boot with `C:/data-hubtest`. Rejected: trusting a healthy-
+  looking boot. ⭐ "Reports clean" is never evidence of "wrote where you meant."
+
+- **R-auto-9 — the member-impact sentence was wrong, and the evidence is what corrected it.**
+  The draft said the pad "now hides while a text field has focus on browsers without
+  `visualViewport`, where it previously never did." That is **false**: `useHubActive.js:81` returns
+  false when `window.visualViewport` is undefined, so on those browsers **the hub never mounts at
+  all** — there is no pad to hide. Emulated row B pins that floor in both engines. The real change
+  is narrower, and row A's control measures it: the pad now hides on FOCUS even when the viewport
+  never moves — a hardware keyboard, a split/floating keyboard, focus while the keyboard is already
+  open, and every touch-emulated browser. Taken: correct the paragraph. Rejected: shipping the
+  drafted sentence.
+
+- **R-auto-10 — a fresh sandbox admin rather than a password reset.** `hubtest@local.dev` exists in
+  the sandbox DB with an unknown password, and `ADMIN_EMAILS` follows `--test-email`
+  (`hub_sandbox_boot.py:280`). Taken: re-boot with `--test-email inc3admin@local.dev` and sign that
+  account up fresh (`role: admin` confirmed in the signup response). Rejected: hand-writing a
+  password hash into the sandbox DB — more invasive, and it would leave the sandbox in a state no
+  script produces.
