@@ -406,23 +406,14 @@ export const modes = [
         color: '--hub-mode-notebook',
         kind: 'run',
       },
-      {
-        id: 'notebook.linkTicker',
-        label: 'Set ticker',
-        icon: 'link',
-        ring: 0,
-        color: '--hub-mode-notebook',
-        kind: 'run',
-        requires: ['symbol'],
-      },
-      {
-        id: 'notebook.templates',
-        label: 'Templates',
-        icon: 'library',
-        ring: 0,
-        color: '--hub-mode-notebook',
-        kind: 'run',
-      },
+      // ⚰️ `notebook.linkTicker` REMOVED (R-17) and `notebook.templates` REMOVED (R-19), both when
+      // §3.7 shipped. Neither had a seam, and an action with no seam is worse live than absent:
+      //   linkTicker `requires: ['symbol']` and the Notebook route carries no symbol, so it would
+      //     render permanently DISABLED (spec §2e — disabled, never hidden).
+      //   templates needs the member to CHOOSE one, and the only surface for that is the confirm
+      //     sheet's `fields`, which is unreachable (D-35 / R-14). With no run body it would be a
+      //     dead bubble: the fan closes and nothing happens, the exact R-09 defect.
+      // Both return the day their seam exists. Ring layout after removal: outer 1, inner 4 — legal.
       {
         id: 'notebook.dailyPlan',
         label: 'Daily plan',
@@ -549,7 +540,10 @@ export const PREVIEW_MODES = new Set([
   // ⛔ THE REMAINING SIX STAY, and each still returns [Voice, Home] until its own increment.
   // A mode removed from this set gets its FULL fan the same render — which is how `calendar`
   // shipped a five-action fan into a navigation-only preview on the first attempt.
-  'chart', 'catalysts', 'notebook', 'calendar', 'home', 'flow',
+  // ⭐ INCREMENT 4 FLIPPED ONE: notebook. Alone, unlike Increment 2's four, because its fan
+  // shares no action with any other section — `newNote` is its own, and the two navigate
+  // actions were already live. Nothing half-finished leaks into a neighbour's fan.
+  'chart', 'catalysts', 'calendar', 'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */
