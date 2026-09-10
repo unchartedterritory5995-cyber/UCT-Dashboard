@@ -6,6 +6,8 @@ import CommandPalette from './CommandPalette'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
 import HubRoot from '../hub/HubRoot'
+import NotebookHubSection from '../hub/sections/NotebookHubSection'
+import HomeHubSection from '../hub/sections/HomeHubSection'
 import useHubActive from '../hub/useHubActive'
 import { HubProvider } from '../hub/HubContext'
 import MoreSheet from './mobile/MoreSheet'
@@ -158,6 +160,18 @@ export default function Layout({ children }) {
                 Gating it would mean editing App.jsx or FloatingOrb.jsx, both
                 outside this file's scope — see the Wiring engineer's report. */}
             {!hubActive && <FeedbackWidget />}
+            {/* §3.7 — the Notebook's controller mounts HERE rather than inside its page,
+                the only section that does. Rule 12 forbids editing NotebookTab.jsx, and
+                R-18's `data-note-card-id` makes the note list readable from the DOM, so the
+                'hub cannot own an index into a list it cannot see' reason above does not
+                apply to it. Renders nothing. See hub/sections/notebookSection.js. */}
+            <NotebookHubSection />
+            {/* §3.8a — Home's controller, the second hub-side mount and for a different reason:
+                its list is the REGISTRY's own route-backed section order (plus `lastSection`
+                promoted), not anything Dashboard.jsx renders, so the "hub cannot own an index into
+                a list it cannot see" rule above has nothing to bite on. Renders nothing; registers
+                only while the route resolves to the home mode. See hub/sections/homeSection.js. */}
+            <HomeHubSection />
             <HubRoot />
           </HubProvider>
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />

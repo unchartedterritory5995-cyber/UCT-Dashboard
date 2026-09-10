@@ -4,6 +4,30 @@ Filed rather than acted on. Nobody on this build edits the files below.
 
 ---
 
+## R-19 — `notebook.templates` needs a picker, and the confirm sheet cannot carry one
+
+**Status:** filed 2026-09-10, DEFERRED by the same reasoning as R-17. · **Owner:** this build, once
+a field-bearing surface exists.
+
+"Templates" means *choose one*. `createNoteFromTemplateViaApi(templateKey, …)`
+(`journal-2-0/lib/noteCreation.js:50`) requires a key, and the hub has no surface that can ask for
+one: `HubConfirmPayload.fields` is unreachable (**D-35 / R-14** — `HubRoot`'s confirm branch builds
+its own payload and never asks the section for one), and there is no other picker.
+
+Shipping it anyway had two bad shapes and no good one. With **no run body** it is a dead bubble —
+the fan closes, nothing happens, the exact R-09 defect. With a **hardcoded key** the label lies:
+"Templates" that always makes the same one.
+
+**Removed from the fan when §3.7 shipped**, with the reason in the registry beside the removal.
+The two template-shaped actions that DO have a seam stayed live — `notebook.dailyPlan` and
+`notebook.postMortem` navigate to `?new=daily-prep` / `?new=trade-review`, both stable keys
+(`lib/notebookTemplates.js:19`).
+
+**Returns when** either D-35 is closed (the confirm sheet carries fields, and Templates becomes a
+`confirm` with a select) or the Notebook gains a template-picker route the hub can navigate to.
+
+---
+
 ## R-18 — `NoteCard` renders no note identity, so the hub cannot say WHICH card the cursor is on
 
 **Status:** filed 2026-09-10, blocking Increment 4's §3.7. · **Owner:** the Notebook workstream

@@ -66,8 +66,12 @@ function splitTopLevel(s) {
  * invokes it. ⭐ The FILE is named here; the ARGUMENT LIST never is — that is the whole point.
  */
 const CALLBACKS = [
-  { name: 'onTap', source: USE_JOYSTICK, where: 'useJoystick.js' },
-  { name: 'onDoubleTap', source: USE_JOYSTICK, where: 'useJoystick.js' },
+  // ⚰️ THESE TWO MOVED. `useJoystick` used to read them off `mode` and call them with NO
+  // ARGUMENTS — which is exactly why a registry-declared mode could never navigate from a tap:
+  // the hook owns the double-tap timing but has no `ctx` and never will. HubRoot dispatches all
+  // four mode callbacks now, so this rail follows the call site rather than pinning the old one.
+  { name: 'onTap', source: HUB_ROOT, where: 'HubRoot.jsx' },
+  { name: 'onDoubleTap', source: HUB_ROOT, where: 'HubRoot.jsx' },
   { name: 'onScrub', source: HUB_ROOT, where: 'HubRoot.jsx' },
   { name: 'onScrubCommit', source: HUB_ROOT, where: 'HubRoot.jsx' },
 ]

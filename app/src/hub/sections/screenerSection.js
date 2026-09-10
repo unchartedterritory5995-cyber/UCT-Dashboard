@@ -44,21 +44,49 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ⚠️ WHAT THIS SECTION CANNOT DO TODAY, recorded rather than faked
 // ─────────────────────────────────────────────────────────────────────────────
-//  * `Scans` is ABSENT, not inert. `ScreensManager` owns its picker in private `open` state and
-//    exposes no seam; an action with `kind:'run'` and no handler is exactly the
-//    "present-and-inert" the registry header forbids. Filed as R-13.
 //  * `Alert`'s price field cannot reach the member. `HubRoot`'s `confirm` branch builds its own
 //    payload and never asks the section for one, so the ± steppers `HubConfirmSheet` already
 //    implements — "the EQUAL path, not a fallback" per `contracts.js` — are unreachable and the
 //    alert lands at the price on screen. `confirmPayload()` below is the section's real answer;
 //    filed as R-14.
-//  * No row is painted with `data-hub-cursor`: the three renderers never spread `itemProps`, and
-//    with virtualization only ~20 of them are in the DOM at once, so `paintCursor` cannot reach
-//    the rest either. Filed as R-15 with the diff. Until then the member's feedback is the chip
-//    and the scroll.
 //  * `Plan trade` is `kind:'confirm'` in the registry while plan §3.3 calls it `run`, so today a
 //    gesture opens a generic "Plan AAA" confirm and THEN the plan sheet. The registry is
 //    Director-owned; filed as R-16 rather than overridden here.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ R-13 CLOSED (increment 4). `Scans` is WIRED, and the seam is the shell's.
+// ─────────────────────────────────────────────────────────────────────────────
+// `ScreensManager` still owns its picker in private `open` state and still exposes no prop —
+// that file belongs to another workstream. What changed is that `ScannerShell` — which RENDERS
+// it, and which this section is already mounted from — now offers `openScansPicker`, and hands
+// it in as `onOpenScans`. The section holds no knowledge of the picker's markup; it calls a
+// callback the page supplied, exactly as it does for Flag and Plan trade.
+//
+// ⛔ AND THE ACTION IS STILL ABSENT WHEN NO SEAM IS SUPPLIED. `buildScanFan` drops `scan.scans`
+// unless `onOpenScans` is a function, so a caller that does not open the door ships no bubble
+// rather than a dead one — the "present-and-inert" the registry header forbids. That is what
+// keeps `buildScanFan({symbol})` (no page behind it) honest.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ R-15 CLOSED (increment 4). THE CURSOR IS PAINTED, AND IT IS REVEALED.
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚰️ THIS SAID "the three renderers never spread `itemProps`". Measured 2026-09-10 and it was
+// false of two of them: `VirtualResults` and `ResultCards` have taken `itemProps` and spread it
+// onto the row since `eeb011c66` — a stale diagnosis in the one artifact a reader consults
+// before deleting "unused" wiring. What was genuinely missing was the other half and the rail:
+//
+//   1. `ChartsGallery` (the `'charts'` view — the third renderer) takes no `itemProps` and is
+//      not this workstream's file. `ScannerShell` paints it through `paintCursor`, the
+//      imperative path `useHubCursor` documents "for markup you do not own".
+//   2. NOTHING REVEALED THE PAINTED ROW ON A TAP. Both renderers are virtualized, so a row
+//      outside the ~20-row window is not merely unpainted — it is not in the DOM at all. `next`
+//      moved the index while the scroll position stayed put, so past the bottom of the viewport
+//      the member saw no marked row anywhere. `onTap`/`onDoubleTap` now call `scrollTo` for the
+//      same reason `onScrubCommit` always has, and for the reason this file already gives for
+//      the adapter: "a cursor that advances off-screen has silently stopped being a cursor".
+//
+// Rail: `screenerCursorPaint.test.jsx` — the real page, all three renderers, asserting the
+// ATTRIBUTE on the rendered row rather than the index in the store.
 //
 // ⭐ R-09 LANDED WHILE THIS WAS BEING WRITTEN. `HubRoot.runAction` now dispatches `action.run(ctx)`
 // and opens `HubConfirmSheet` for `kind:'confirm'`, so Flag, Alert and Plan trade are LIVE the
@@ -207,8 +235,9 @@ export function alertConfirmPayload({ symbol, reference, createAlert } = {}) {
  * for; an action added to the registry tomorrow arrives here on the day it lands, unhandled,
  * which is why the unhandled case DROPS rather than passing through inert.
  *
- * ⛔ AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT (registry.js header). `scan.scans` has
- * no seam to open (see the module header) so it is dropped, not shipped as a dead bubble.
+ * ⛔ AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT (registry.js header). `scan.scans` is
+ * shipped only when the page handed in a seam that opens the picker; without one it is dropped,
+ * not shipped as a dead bubble. See the R-13 note in the module header.
  *
  * @param {Object} args
  * @param {string|null} args.symbol      The ticker under the cursor.
@@ -217,10 +246,11 @@ export function alertConfirmPayload({ symbol, reference, createAlert } = {}) {
  * @param {() => void} args.onFlag
  * @param {(props: object) => void} args.onPlanTrade
  * @param {Function} args.createAlert
+ * @param {(() => void)|null} [args.onOpenScans] The page's seam onto its saved-screen picker.
  * @returns {import('../registry').HubAction[]}
  */
 export function buildScanFan({
-  symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert,
+  symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert, onOpenScans,
 } = {}) {
   const registryFan = modesById[SCAN_MODE_ID]?.fan ?? []
   const out = []
@@ -280,7 +310,11 @@ export function buildScanFan({
         })
         break
       case 'scan.scans':
-        // ABSENT — see the module header. R-10.
+        // ⭐ THE SAVED-SCREEN PICKER, THROUGH THE PAGE'S OWN DOOR. `run` calls the seam and
+        // nothing else: this module never learns what the picker is made of, which is what
+        // lets `ScreensManager` stay another workstream's file. Absent when there is no seam —
+        // see the header; that is the case `buildScanFan({symbol})` exercises.
+        if (typeof onOpenScans === 'function') out.push({ ...action, run: () => onOpenScans() })
         break
       default:
         // Voice and Home are HubRoot's own; anything the registry grows later arrives here
@@ -407,7 +441,7 @@ export function ScreenerHubMount({ apiRef, msg, onToast, planTrade, onClosePlanT
 export function createScreenerSection({
   rows, scanName, index, count, symbol, streamPrice, shownPrice,
   next, prev, scrubTo, scrollTo, hasMore, loadMore,
-  onFlag, onPlanTrade, createAlert, scrubRef,
+  onFlag, onPlanTrade, createAlert, onOpenScans, scrubRef,
 }) {
   /**
    * The scrub's position, accumulated in a ref and seeded lazily from the row already selected.
@@ -438,16 +472,36 @@ export function createScreenerSection({
   return {
     ...modesById[SCAN_MODE_ID],
     label: chipLabel({ scanName, index, count }),
-    fan: buildScanFan({ symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert }),
+    fan: buildScanFan({
+      symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert, onOpenScans,
+    }),
 
+    /**
+     * ⛔ A STEP THAT IS NOT REVEALED IS A STEP NOBODY CAN SEE (R-15).
+     *
+     * Both results renderers are virtualized, so a row outside the ~20-row window is not merely
+     * unpainted — it is not in the DOM at all. `next()` used to move the index while the scroll
+     * position stayed put, so from the ~20th tap onward the member's ONLY feedback was the chip:
+     * no marked row existed anywhere on screen. `scrollTo` is the same reveal `onScrubCommit`
+     * has always performed, for the reason `scrollTo`'s own docstring gives.
+     *
+     * ⛔ THE TARGET IS COMPUTED, NOT RE-READ. `index` is this render's value and `next()` writes
+     * the store synchronously, so re-reading `index` here would reveal the row the cursor just
+     * LEFT. The clamp mirrors `useHubCursor.next`'s exactly (`Math.min(i + 1, count - 1)`) — a
+     * different rule here would scroll somewhere the cursor is not.
+     */
     onTap: () => {
       next()
+      if (count > 0) scrollTo(Math.min(index + 1, count - 1))
       // The tail-append half of the plan's remedy, mirroring `VirtualResults`'s own
       // near-the-end `onLoadMore()`. Without it the cursor clamps on row 100 of 3,745 and the
       // member has no way to walk past a page boundary they cannot see.
       if (hasMore && index >= count - 2) loadMore?.()
     },
-    onDoubleTap: () => { prev() },
+    onDoubleTap: () => {
+      prev()
+      if (count > 0) scrollTo(Math.max(index - 1, 0))
+    },
 
     // ⛔ CONTEXT FIRST. `HubRoot.jsx` calls `onScrub(ctx, scrub)`; `contracts.js` and
     // `contractArity.test.js` now agree, and that rail DERIVES the shape from the call site
@@ -502,13 +556,15 @@ export function createScreenerSection({
  * @param {Record<string, {price?: number}>} [args.prices]  The live-stream overlay.
  * @param {boolean} [args.hasMore]
  * @param {() => void} [args.loadMore]
+ * @param {() => void} [args.onOpenScans]  The page's seam onto its saved-screen picker. Omit it
+ *   and the `Scans` action is ABSENT rather than inert — see the R-13 note in the header.
  * @returns {{resultsRef: {current: any}, hubToast: import('react').ReactElement,
  *   planTradeRef: {current: object|null}, cursor: import('../contracts').HubCursorApi}}
  *   `resultsRef` goes on whichever results renderer is mounted (both expose `scrollToIndex`
  *   through `useImperativeHandle`); `hubToast` is the section's feedback host.
  */
 export default function useScreenerHubSection({
-  displayRows, filters, prices, hasMore = false, loadMore,
+  displayRows, filters, prices, hasMore = false, loadMore, onOpenScans,
 } = {}) {
   const rows = displayRows && displayRows.length ? displayRows : NO_ROWS
   const cursor = useHubCursor(LIST_ID, rows, { key: identityKey })
@@ -612,10 +668,12 @@ export default function useScreenerHubSection({
     onFlag,
     onPlanTrade,
     createAlert,
+    onOpenScans,
     scrubRef,
   }), [
     rows, scanName, index, count, symbol, streamPrice, shownPrice,
     next, prev, scrubTo, scrollTo, hasMore, loadMore, onFlag, onPlanTrade, createAlert,
+    onOpenScans,
   ])
 
   useHubMode(config)
