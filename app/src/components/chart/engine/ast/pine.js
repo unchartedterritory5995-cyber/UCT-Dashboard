@@ -124,6 +124,10 @@ import SYMBOL_SCOPE from './symbolScope.json'
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
 import { TEXT_PREDICATE_FN } from './bind.js'
+// ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
+// door, the bind stage and the repaint LINTER can all see. See L2 in
+// `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
+import { isBindFoldableLength } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -6977,33 +6981,39 @@ export class Resolver {
         // fails closed to `repaints` and the save door refuses it. Refusing here
         // names the length; refusing there would name the badge.
         if (resolved.type !== 'num' || !Number.isInteger(resolved.value)) {
-          // ⛔⛔⛔ THE BIND-TIME ESCAPE BELONGS HERE AND IS NOT WIRED, ON PURPOSE —
-          // MEASURED AND REVERTED 2026-09-10. `bind.js::isBindFoldableLength` says
-          // whether the stage can settle this length per binding, and gating this
-          // throw on it DOES open the door: Uncharted Volume went `ok:false` →
-          // `ok:true`, refusals 5 → 4, the `pine:window` on line 233 gone, outputs
-          // unchanged at 5.
+          // ⭐⭐⭐ THE BIND-TIME ESCAPE, AND IT IS THE ONLY WAY LINE 233 EVER OPENS.
+          // `ta.sma(v, isWeekly ? lenWeekly : lenDaily)` cannot reduce HERE — there
+          // is no chart yet, so `timeframe.isweekly` is not a value — and refusing
+          // it says "a Pine length has to reach the engine as a plain whole number"
+          // about a length that IS a plain whole number the moment a symbol and a
+          // timeframe are chosen. The refusal was true of this MOMENT and false of
+          // the script.
           //
-          // ⛔ AND IT MADE A SCRIPT STRICTLY WORSE, WHICH IS WHY IT CAME BACK OUT.
-          // THE DOOR IS NOT THE ONLY LITERAL GATE. `lint.js::resolveDeclaration`
-          // returns UNKNOWN for any window argument that is not a `num` node, that
-          // becomes `repaints`, and `canSaveFormula` refuses `repaints` outright.
-          // So deferring here does not deliver the script — it trades this precise
-          // sentence, which NAMES the length, for a badge that names nothing.
-          // `doorScorecard.test.js` measured exactly that: `07-hull-suite.pine`
-          // moved from "refused at translate" to "translates but cannot be saved",
-          // and that suite calls that gap a defect in its own words — "translating
-          // is not the finish line".
+          // ⛔⛔ WIRED ONLY ONCE THE LINTER COULD BOUND IT, AND THE FIRST ATTEMPT
+          // PROVED WHY. On 2026-09-10 this was gated on the predicate alone: the
+          // door duly stopped refusing, and `07-hull-suite.pine` moved from
+          // "refused at translate" to "TRANSLATES BUT CANNOT BE SAVED", because
+          // `lint.js` still answered UNKNOWN for a non-literal window, that becomes
+          // `repaints`, and `canSaveFormula` refuses `repaints` outright. A precise
+          // sentence naming the length was traded for a badge naming nothing, and
+          // the wiring came back out the same day. `lint.js::resolveDeclaration`
+          // now bounds a bind-foldable window at the MAXIMUM over its arms, so all
+          // three gates carry the same lengths.
           //
-          // ⭐ SO THE REMAINING WORK IS THE LINTER, NOT THIS LINE. To bound a
-          // bind-foldable window it needs the MAXIMUM over every binding the arms
-          // admit (20 for `isWeekly ? 5 : 20`), because a repaint bound may only
-          // ever OVER-state. ⚠️ That is a new correctness surface with the one
-          // failure direction a budget cannot absorb — under-stating a window —
-          // so it is its own ruling with its own evidence, not a bolt-on to this
-          // one. The predicate and its agreement corpus
-          // (`bindFoldableAgreement.test.js`) are already landed and green, so that
-          // work starts from a proved foundation rather than from scratch.
+          // ⛔ THE PREDICATE IS SHARED, NOT A SECOND OPINION. `parse.js` owns the
+          // one walk; this door, the bind stage and the linter all ask it. A copy
+          // here could admit a length the linter then refuses, which is exactly the
+          // gap above wearing different clothes.
+          //
+          // ⚠️ DEFERRED IS NOT ACCEPTED. A length that folds to 2.5 or to 0 for a
+          // given binding still refuses — at the STAGE, where the binding is known,
+          // through `assertUsableWindow`, which names the value AND the source
+          // expression the member wrote. That is a better sentence than this one
+          // could ever have been, because it can quote a number.
+          if (isBindFoldableLength(resolved)) {
+            out.push(resolved)
+            continue
+          }
           const src = own(slot, 'series') ? tok : (args[slot.pine].tok || tok)
           // ⭐⭐ THE ADVICE RIDES AS `suggest`, NOT ONLY AS PROSE IN THE MESSAGE.
           // `PineBox` renders `refusal.suggest` as a code block a member can copy;

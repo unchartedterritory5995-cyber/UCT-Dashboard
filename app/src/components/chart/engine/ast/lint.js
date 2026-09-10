@@ -64,6 +64,14 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, LOOKBACK_RE,
   SESSION_LOOKBACK, SESSION_MAX_BARS,
+  // ⭐⭐ THE SHARED WINDOW PREDICATE, AND IT IS IN `parse.js` PRECISELY SO THIS
+  // IMPORT CAN EXIST. The natural home is beside the fold in `bind.js` — but that
+  // module imports `interpret.js`, and the rail below this file's own header
+  // asserts the linter's import graph is exactly `['./parse.js']`, because a
+  // linter that could reach an evaluator could reach a verdict by RUNNING a
+  // formula. `bindFoldableWindow` reads the tree and never runs it, so the
+  // guarantee is intact in the letter and in the purpose.
+  bindFoldableWindowMax,
 } from './parse.js'
 
 /** How many BASE bars one higher-timeframe bar spans.
@@ -245,10 +253,32 @@ function resolveDeclaration(decl, argNodes) {
     // multiplier is applied here so the linter bounds the SAME window the
     // interpreter and the budget walker do — three readers, one grammar.
     const node = argNodes[Number(m[2])]
-    if (!node || node.type !== 'num') return UNKNOWN
-    if (!Number.isInteger(node.value)) return UNKNOWN
     const times = m[1] === undefined ? 1 : Number(m[1])
-    return times * node.value
+    if (node && node.type === 'num' && Number.isInteger(node.value)) {
+      return times * node.value
+    }
+    // ⭐⭐⭐ THE BIND-TIME LENGTH, BOUNDED BY ITS LARGEST ARM.
+    // `ta.sma(v, isWeekly ? lenWeekly : lenDaily)` — Uncharted Volume line 233 —
+    // has no literal here and never will: there is no chart yet, so the ternary
+    // cannot reduce. Answering UNKNOWN brands it `repaints`, and `canSaveFormula`
+    // refuses `repaints` outright, so the script could not be saved even after the
+    // save door stopped refusing it. That is why the door wiring came back out on
+    // 2026-09-10 and this line is what lets it go back in.
+    //
+    // ⛔ THE BOUND IS THE MAXIMUM OVER THE ARMS — never the first, never the one
+    // matching today's chart. A repaint bound may only ever OVER-state: too large
+    // costs warm-up bars, too small lets a formula read a bar the budget never
+    // paid for, which is the one direction a budget cannot absorb.
+    //
+    // ⛔ AND IT IS THE SAME WALK THE SAVE DOOR AND THE BIND STAGE ASK. A second
+    // classifier here could admit a length the stage then refuses — the door
+    // would defer, the linter would bound, and the member would get a number
+    // nothing produced.
+    const bound = bindFoldableWindowMax(node)
+    if (bound !== null && Number.isInteger(bound) && bound >= 0) {
+      return times * bound
+    }
+    return UNKNOWN
   }
   return UNKNOWN
 }

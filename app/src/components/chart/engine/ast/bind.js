@@ -22,7 +22,11 @@
 //   * It never mutates: the next symbol folds the same saved tree differently,
 //     and a rewrite in place would give it the previous symbol's lengths.
 
-import { TABLE, TableRefusal } from './parse.js'
+import {
+  TABLE, TableRefusal,
+  // ⭐ ONE AUTHORITY, SHARED WITH THE LINTER — see the re-export below.
+  BIND_TIME_CLOCK, isBindFoldableLength, bindFoldableWindow, bindFoldableWindowMax,
+} from './parse.js'
 // ⛔ `REFUSALS` COMES FROM `interpret.js`, NOT `parse.js`, AND THE DISTINCTION IS
 // REAL: `resolve:window` is an INTERPRETER guard and only that table declares its
 // sentence. Reading a guard's prefix from the wrong table yields `undefined` and
@@ -49,9 +53,7 @@ const refuse = (guard, detail) => {
  *  ⛔ `dayofweek` and `isdaily` are the same KIND of manifest entry and opposite
  *  kinds of value; only the sentence each carries says so. The manifest declares
  *  the split and a rail checks it against those sentences in both lanes. */
-export const BIND_TIME_CLOCK = Object.freeze(
-  ((TABLE._bind_time_constants || {}).clock) || [],
-)
+export { BIND_TIME_CLOCK }
 
 /** Scalar functions the fold may evaluate. ⛔ CLOSED AND SMALL, and identical to
  *  the Python lane's `_FOLD_CALLS` — a name in one and not the other is a script
@@ -270,71 +272,27 @@ export function foldScalar(node, consts) {
   throw new NotFoldable(`a '${kind}' node`)
 }
 
-/** ⭐⭐⭐ WILL THIS LENGTH FOLD AT BIND TIME? THE ONE PREDICATE BOTH DOORS ASK.
+/** ⭐⭐⭐ THE BIND-FOLDABLE PREDICATE — RE-EXPORTED, NOT REDEFINED.
  *
- *  ⛔⛔ IT EXISTS BECAUSE THE QUESTION WAS BEING ANSWERED TWICE, IN TWO PLACES,
- *  AND THE TWO ANSWERS DISAGREED. `translatePine` folds a window with
- *  `constantValueOf` at SAVE time and refuses `pine:window` when the result is
- *  not a literal; `foldScalar` folds the same node at BIND time with the clock
- *  and the inputs in hand. `ta.sma(v, timeframe.isweekly ? 5 : 20)` — Uncharted
- *  Volume line 233 — is refused by the first and folds cleanly under the second,
- *  so the door was rejecting a script the engine could already run. The disagreement
- *  was not a bug in either function: they were asking different questions and
- *  nothing named the difference.
+ *  ⛔⛔ IT LIVES IN `parse.js` AND THAT IS FORCED, NOT STYLISTIC. `lint.js` must
+ *  ask the same question — the door may only defer a length the LINTER can put a
+ *  number on — and `lint.test.js` asserts the linter's import graph is exactly
+ *  `['./parse.js']`, because a linter that could reach an evaluator could reach a
+ *  verdict by RUNNING a formula. This module imports `interpret.js`, so the
+ *  predicate could not live here and still be visible to the linter.
  *
- *  ⭐ SO THE DOOR ASKS THIS BEFORE REFUSING. If a length is bind-foldable the
- *  door lets it through unfolded and the bind stage settles it per binding; if it
- *  is not, the door refuses exactly as it always did.
+ *  ⭐ SO THERE IS ONE WALK AND THREE CALLERS: this fold, the save door, and the
+ *  repaint linter. A predicate that lived in two of them would let the door defer
+ *  a length the linter then refuses — which is precisely the gap that made the
+ *  first attempt at this ruling come back out on 2026-09-10.
  *
- *  ⛔⛔ IT IS DERIVED FROM THE FOLD'S OWN TABLES, NEVER TYPED BESIDE THEM.
- *  `BIND_TIME_CLOCK`, `FOLD_CALLS` and `BINARY` are the same objects `foldScalar`
- *  dispatches on, and the arities below mirror its branches one for one. A name
- *  added to any of those is covered here the day it lands — which is the whole
- *  point, because a predicate that listed the names itself would be a THIRD
- *  authority over "what folds" and would drift from the fold on the first edit.
- *  `bindFoldableAgreement.test.js` holds the two to each other on a corpus.
- *
- *  ⚠️ IT IS DELIBERATELY CONSERVATIVE ABOUT TEXT. `str.length(syminfo.prefix)` CAN
- *  fold for a witnessed symbol, but whether it does is a property of THE SYMBOL
- *  rather than of the tree, so it is not knowable here and this answers `false`.
- *  Those keep the door they already had. ⛔ THE CONTRACT IS ONE-DIRECTIONAL AND
- *  THAT DIRECTION MATTERS: `true` must mean "folds for EVERY binding that supplies
- *  the clock and the inputs", because the door stops refusing on the strength of
- *  it. `false` merely means "this pass will not promise", which costs a refusal
- *  that was already being made and can never cost a wrong number. */
-export function isBindFoldableLength(node) {
-  if (!node || typeof node !== 'object') return false
-  const kind = node.type
-
-  if (kind === 'num') return Number.isFinite(Number(node.value))
-
-  // ⭐ A `series` NODE IS THE WHOLE QUESTION. `close` reads a bar and can never
-  // fold; `isweekly` is the CHART's timeframe and `lenDaily` is an `input.*`
-  // default — both fixed before a single bar is read.
-  if (kind === 'series') {
-    if (BIND_TIME_CLOCK.includes(node.name)) return true
-    return typeof node.inputDefault === 'number' && Number.isFinite(node.inputDefault)
-  }
-
-  if (kind === 'op') {
-    const args = node.args || []
-    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
-    const arity = node.name === '?:' ? 3
-      : (node.name === 'u-' || node.name === '!') ? 1
-        : (has(BINARY, node.name) ? 2 : -1)
-    if (arity < 0 || args.length !== arity) return false
-    return args.every(isBindFoldableLength)
-  }
-
-  if (kind === 'call') {
-    if (!Object.prototype.hasOwnProperty.call(FOLD_CALLS, node.name)) return false
-    return (node.args || []).every(isBindFoldableLength)
-  }
-
-  // `offset` (x[1]), `tf`, `sym`, `tf_live`, `str`, `symtext`, `textop` — every
-  // one reads a bar, another request, or a symbol this pass cannot see.
-  return false
-}
+ *  ⚠️ IT ADMITS LESS THAN `foldScalar` CAN EVALUATE, deliberately: literals,
+ *  `input.*` defaults, clock names and ternaries over those. `foldScalar` also
+ *  handles arithmetic, comparisons and `max()`, and it may go on doing so — but
+ *  the door must not defer what cannot be BOUNDED by reading the tree, and
+ *  bounding arithmetic needs a monotonicity premise this engine will not make.
+ *  `bindFoldableAgreement.test.js` holds all three sides to each other. */
+export { isBindFoldableLength, bindFoldableWindow, bindFoldableWindowMax }
 
 /** Which argument positions of `name` the manifest declares `int`.
  *

@@ -225,6 +225,106 @@ export const SESSION_MAX_BARS = (() => {
  *  then a refusal AT THE DOOR beats a definition that saves and answers nothing. */
 export const TICKER_SHAPE = /^[A-Z][A-Z0-9.-]{0,9}$/
 
+/** The clock names constant for ONE BINDING — read off the manifest.
+ *
+ *  ⛔ NEVER A LIST TYPED HERE. `dayofweek` and `isdaily` are the same KIND of
+ *  manifest entry and opposite kinds of value; only the sentence each carries
+ *  says so, and the manifest declares the split. */
+export const BIND_TIME_CLOCK = Object.freeze(
+  ((TABLE._bind_time_constants || {}).clock) || [],
+)
+
+/** ⭐⭐⭐ CAN THIS WINDOW LENGTH BE SETTLED PER BINDING, AND HOW LARGE CAN IT GET?
+ *  `{ foldable, max }`, and it is the ONE authority both doors ask.
+ *
+ *  ⛔⛔ IT LIVES IN `parse.js` FOR A HARD ARCHITECTURAL REASON, AND THE OBVIOUS
+ *  HOME WAS WRONG. The natural place is beside the fold in `bind.js` — but
+ *  `lint.js` must consult it, and `lint.test.js` asserts the linter's import
+ *  graph is EXACTLY `['./parse.js']`, because *"a linter that could reach
+ *  `interpret.js` could reach a verdict by RUNNING the formula instead of by
+ *  reading the tree, and a claim measured on one bar window is not the universal
+ *  claim the badge makes."* `bind.js` imports `interpret.js`. So importing the
+ *  fold into the linter would break that rail in the letter AND in the purpose,
+ *  and reimplementing the question inside `lint.js` would be the second
+ *  classifier this function exists to prevent. `parse.js` is the only module both
+ *  may see, and it imports nothing that can evaluate anything.
+ *
+ *  ⭐⭐ SO THIS IS STRUCTURAL, NOT EVALUATED, AND THAT IS THE POINT. It reads the
+ *  tree; it never runs it. `bind.js::foldScalar` can evaluate far more than this
+ *  admits — arithmetic, comparisons, `max()` — but the LINTER is the binding
+ *  constraint, not the fold: the door may only defer a length the linter can put
+ *  a number on. So the admissible set is deliberately the small one that can be
+ *  bounded EXACTLY by reading:
+ *
+ *    num                literal
+ *    series (clock)     `isweekly` etc. — 0 or 1, so its max is 1
+ *    series (input)     an `input.*` default, fixed per DEFINITION
+ *    op '?:'            max over the two ARMS
+ *
+ *  Everything else answers `{foldable: false}` and the linter refuses exactly as
+ *  it did before. ⛔ NO MONOTONICITY ARGUMENT IS MADE ANYWHERE HERE: admitting
+ *  `a + b` would need "both arms non-negative" to bound it, and a bound resting
+ *  on an unstated premise is how an UNDER-stated window gets shipped.
+ *
+ *  ⛔⛔ AND THE BOUND IS THE MAXIMUM, NEVER THE FIRST ARM AND NEVER THE ONE THAT
+ *  MATCHES TODAY'S CHART. A repaint bound may only ever OVER-state: an
+ *  over-stated lookback costs warm-up bars, an UNDER-stated one lets a formula
+ *  read a bar the budget never paid for — the one direction a budget cannot
+ *  absorb (`api/services/ast_bind.py`'s own header says so). */
+export function bindFoldableWindow(node) {
+  const NO = { foldable: false, max: null }
+  if (!node || typeof node !== 'object') return NO
+
+  if (node.type === 'num') {
+    const v = Number(node.value)
+    return Number.isFinite(v) ? { foldable: true, max: v } : NO
+  }
+
+  if (node.type === 'series') {
+    // ⭐ A CLOCK NAME IS A PREDICATE: 0 or 1, so 1 bounds it for every binding.
+    if (BIND_TIME_CLOCK.includes(node.name)) return { foldable: true, max: 1 }
+    if (typeof node.inputDefault === 'number' && Number.isFinite(node.inputDefault)) {
+      return { foldable: true, max: node.inputDefault }
+    }
+    return NO
+  }
+
+  if (node.type === 'op' && node.name === '?:') {
+    const args = node.args || []
+    if (args.length !== 3) return NO
+    // ⛔ THE SELECTOR MUST FOLD TOO, even though it contributes no VALUE. The
+    // bind stage settles the whole node, so a selector it cannot fold makes the
+    // whole length unfoldable — and the door must not defer what the stage will
+    // then refuse.
+    const sel = bindFoldableWindow(args[0])
+    const a = bindFoldableWindow(args[1])
+    const b = bindFoldableWindow(args[2])
+    if (!sel.foldable || !a.foldable || !b.foldable) return NO
+    return { foldable: true, max: Math.max(a.max, b.max) }
+  }
+
+  // `offset` (x[1]), `tf`, `sym`, `tf_live`, `call`, `textop`, `str`, `symtext`,
+  // and every arithmetic `op` — each reads a bar, another request, a symbol, or
+  // needs a premise this function will not make.
+  return NO
+}
+
+/** Does this length settle per binding? The predicate half of
+ *  `bindFoldableWindow`, for callers that do not need the bound.
+ *
+ *  ⛔ ONE WALK, TWO READINGS — never a second classifier. If this and the bound
+ *  could disagree, the door could defer a length the linter then refuses, which
+ *  is the exact gap that made the first attempt at this ruling come back out. */
+export function isBindFoldableLength(node) {
+  return bindFoldableWindow(node).foldable
+}
+
+/** The largest value this length can take over every binding, or `null`. */
+export function bindFoldableWindowMax(node) {
+  const r = bindFoldableWindow(node)
+  return r.foldable ? r.max : null
+}
+
 export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live',
   // ⭐⭐ THE BIND-TIME TEXT TRIO. `textop` yields a NUMBER and sits wherever a
   // number sits; `str` and `symtext` are its operands and may appear NOWHERE
