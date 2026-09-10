@@ -220,3 +220,50 @@ throw, no warn, no toast. Decided now, so it cannot be discovered at flip time:
 - 3.5 targets `MobileChartsApp` only and must **no-op in phone grid mode**. `stepBar(dir)` is
   confirmed reachable (`StockChart.jsx:14672` via `ChartPane.jsx:633`); ⛔ `onTfChange` is a
   NOTIFICATION, not a setter, so nothing may drive the timeframe through it.
+
+## ⚰️ SELF-INFLICTED, 2026-09-10 ~17:58 ET — I emptied the shared `node_modules`
+
+**Production was never involved.** Increment 3 was already deployed and healthy throughout;
+this is a local tooling break. Recorded because the shape matters more than the damage.
+
+**What happened.** Removing the scratch merge worktree `inc3-merge`, whose `app/node_modules`
+was a JUNCTION, in the order CLAUDE.md prescribes: delete the junction with `rmdir` FIRST, then
+`git worktree remove`. The `cmd /c rmdir` **did not execute** — it printed the Windows banner
+instead of running — so the junction was still live. My check noticed:
+
+    ls .../inc3-merge/app/node_modules && echo "  STILL PRESENT — abort" || echo "  gone ✓"
+
+It printed `STILL PRESENT — abort`. **And then the next line ran `git worktree remove --force`
+anyway**, which walked the live junction and deleted the target's contents.
+
+⭐ **THE GUARD REPORTED AND DID NOT BLOCK.** The word "abort" was in an `echo`. That is exactly
+`a verification that cannot block the thing it verifies is decoration` — the same sentence this
+repo already carries about `gate_shards.py` refusing a dirty tree — committed by the session that
+had just quoted it. A check whose failure branch is a string is not a check.
+
+**Why it hit all three worktrees.** They chain: `inc5/app/node_modules` -> junction ->
+`inc4/app/node_modules` -> junction -> `joystick-hub/app/node_modules` (the one REAL directory).
+Deleting through the chain emptied the endpoint, so inc3, inc4 and inc5 all read 0 entries at
+once. ⛔ **There is ONE real `node_modules` behind every joystick worktree** — treat any operation
+on one as an operation on all of them.
+
+**Recovery:** `npm ci` in `C:/Users/Patrick/uct-worktrees/joystick-hub/app` (the chain endpoint).
+`package-lock.json` and `package.json` there were verified BYTE-IDENTICAL to inc5's before
+installing (sha `a0646a7d4f90b339`), so one install is correct for every consumer.
+
+⛔ **Before ANY test claim in a joystick worktree, confirm `node_modules/vitest` resolves.** A
+missing one fails at vite config load — a startup error, not a test result — and CLAUDE.md is
+explicit that every "green" reported before that install is meaningless.
+
+## ⚠️ HOST MEMORY PRESSURE — not ours, do not kill
+
+A background sandbox boot was killed by the system for low memory at ~17:56 ET. `tasklist` shows
+two python processes holding **~14.3 GB and ~7.5 GB** that belong to other workstreams. ⛔ They
+are NOT to be killed — the standing rule is that a busy resource may belong to someone else's
+work, and this box runs several sessions at once.
+
+**What it means for the 07:08 ET Increment 4 gate:** a six-shard gate under this pressure can be
+killed mid-run. That fails SAFELY — the wrapper writes its manifest only at the end, so a killed
+run leaves no artifact that looks like a run — but it means a gate can vanish rather than fail.
+Judge it by the presence of a manifest describing the tree you gated, never by the absence of an
+error.
