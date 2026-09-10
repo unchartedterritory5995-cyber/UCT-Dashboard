@@ -48,3 +48,41 @@ export function usableBaseline(...candidates) {
 /** Is this value safe to send as a compare-and-set? The consumers' predicate,
  *  named once so it cannot drift from the producers' above. */
 export const isUsableBaseline = (v) => usableBaseline(v) !== null
+
+/**
+ * ⭐ THE LANDED BASELINE — the one authority for "a save this browser has
+ * already got the server to accept for this note".
+ *
+ * ⛔ ONLY A CLEAN RECORD WITNESSES A LANDED SAVE. A dirty record's baseline is
+ * what its next send will *claim*, not what the server has acknowledged; reading
+ * one as the other would let a queued entry vouch for itself.
+ */
+export function landedBaseline(record) {
+  if (!record || record.dirty) return null
+  return usableBaseline(record.baseUpdatedAt)
+}
+
+/**
+ * Is `entryBaseline` older than a save this browser already landed?
+ *
+ * ⛔⛔ THE INVARIANT THIS EXISTS FOR: an entry never leaves the drain carrying a
+ * baseline older than a save this same browser has already landed for that
+ * note. Sending one cannot succeed — the server has moved past it — so it can
+ * only 409 and fork, which is how a member with ONE device ends up with a
+ * `(conflicted copy)` of their own note (2026-09-10).
+ *
+ * ⛔ PARSED, NOT STRING-COMPARED. ISO timestamps only sort lexicographically
+ * while every one of them carries the same offset, and "it has always been
+ * +00:00" is an assumption about a producer, not a property of the format.
+ * Unparseable on either side ⇒ false: this decision DELETES queued member work,
+ * so it refuses unless it is certain.
+ */
+export function isSupersededBaseline(entryBaseline, landed) {
+  const a = usableBaseline(entryBaseline)
+  const b = usableBaseline(landed)
+  if (a === null || b === null) return false
+  const ta = Date.parse(a)
+  const tb = Date.parse(b)
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false
+  return ta < tb
+}

@@ -15,8 +15,8 @@
  * RETRYING, but the entry and its patch stay: unsynced member work outranks a
  * tidy queue.
  */
-import { getNote, listOutbox, putNoteWithIntent } from './notebookDb'
-import { usableBaseline, isUsableBaseline } from './baseline'
+import { clearOutboxEntry, getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { sameAuthoredContent } from './recoverLocalState'
 
 export const SENT = 'sent'
@@ -24,6 +24,7 @@ export const FORKED = 'forked'
 export const KEPT = 'kept'          // transient — still queued, will be retried
 export const BLOCKED = 'blocked'    // permanent — still stored, no longer retried
 export const SKIPPED = 'skipped'    // the open editor owns this note right now
+export const SUPERSEDED = 'superseded'  // a save this browser landed is newer; nothing left to send
 
 /** Why a BLOCKED result carries a `report`. ⛔ The ONLY reason that does — the
  *  other two blocks (already-`permanent`, a non-transient server rejection) are
@@ -169,6 +170,39 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
       })
       continue
     }
+    // ⛔⛔ AN ENTRY OLDER THAN A SAVE THIS BROWSER ALREADY LANDED IS SUPERSEDED.
+    //
+    // Same posture as the baseline refusal above, for the same reason: a send
+    // that cannot possibly succeed must not be attempted. The server has moved
+    // past this baseline, so the PUT can only 409 — and a 409 forks, which is
+    // how a member with ONE device gets a `(conflicted copy)` of their own note
+    // and is told it "changed elsewhere" (measured 2026-09-10, ~1 offline
+    // session in 5).
+    //
+    // ⭐ THIS IS DEFENCE IN DEPTH, NOT THE FIX. The fix is `settleLandedSave`,
+    // which settles the queue the moment a save lands whether or not the editor
+    // is still mounted. This closes the remaining ordering: the drain claims the
+    // entry in the window between the unmount and the save resolving, so no
+    // settle could have run yet. Both are needed; neither is redundant.
+    //
+    // ⛔ REMOVED, NOT KEPT. Unlike a blocked entry, there is nothing here to
+    // recover: the record is clean and the server already holds this browser's
+    // words. Keeping it would leave a permanent tombstone the drain re-examines
+    // for ever.
+    // eslint-disable-next-line no-await-in-loop
+    const noteRec = await getNote(db, entry.noteId)
+    const landed = landedBaseline(noteRec)
+    if (isSupersededBaseline(entry.baseUpdatedAt, landed)) {
+      // eslint-disable-next-line no-await-in-loop
+      await clearOutboxEntry(db, entry.mutationId)
+      results.push({
+        mutationId: entry.mutationId,
+        noteId: entry.noteId,
+        outcome: SUPERSEDED,
+        reason: `a save this browser landed at ${landed} is newer than this entry's baseline ${entry.baseUpdatedAt}`,
+      })
+      continue
+    }
     try {
       // eslint-disable-next-line no-await-in-loop
       const saved = await send(entry)
@@ -207,6 +241,7 @@ export function summarize(results) {
   const count = (o) => results.filter((r) => r.outcome === o).length
   return {
     sent: count(SENT),
+    superseded: count(SUPERSEDED),
     forked: count(FORKED),
     kept: count(KEPT),
     blocked: count(BLOCKED),

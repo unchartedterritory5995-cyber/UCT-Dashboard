@@ -960,9 +960,12 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
             "the outbox entry captured its baseline, so the drain's send 409'd and "
             "forked. No second device was involved."
         )
+    # ⛔⛔ HARD RED. This is not a warning and not litter: a single-writer fork is
+    # the defect the 2026-09-10 evidence set found, and a run that sees one must
+    # refuse its row and keep the artifact.
     chk.step("5 no fork from a single writer", not forks,
              "no `(conflicted copy)` created by this run",
-             f"THIS RUN FORKED ITS OWN NOTE: {forks}")
+             f"THIS RUN FORKED ITS OWN NOTE — HARD RED: {forks}")
 
     reasons = []
     if not zeroed:

@@ -78,6 +78,74 @@ export function connectNotebookDb(accountId, { open = openNotebookDb } = {}) {
 export function __resetNotebookConnections() { _conns.clear() }
 
 /**
+ * ⭐⭐ A LANDED SAVE SETTLES THE QUEUE — AND IT MUST WORK AFTER UNMOUNT.
+ *
+ * ⚰️ WHY THIS IS NOT `markSynced`. `markSynced` routes through
+ * `writerRef.current` and returns null once the editor is gone. The editor's
+ * save resolves *after* the member navigates away often enough to matter
+ * (~1 offline session in 5, measured 2026-09-10) — and navigating away is
+ * exactly when the note leaves `excludeNoteId` and becomes the sweep's. So the
+ * one moment the queue most needs settling was the one moment it could not be.
+ * The result was a member with ONE device finding a `(conflicted copy)` of their
+ * own note, told it had "changed elsewhere".
+ *
+ * ⛔ THIS TALKS TO THE STORE DIRECTLY. No hook, no ref, no mount. It is safe to
+ * call from a promise that outlives the component, which is the whole point.
+ *
+ * ⛔ AND IT STILL RESPECTS CAUGHT-UP-NESS. Clearing the outbox on the strength
+ * of an ack for older words is how offline systems lose the newest ones:
+ *   caught up      ⇒ intent `null` ⇒ every queued entry for the note is removed
+ *   still ahead    ⇒ the entry is REBASED onto the landed revision, keeping the
+ *                    member's newer words and giving them a baseline that can
+ *                    actually succeed
+ *
+ * ⛔ `excludeNoteId` is untouched and is NOT the fix. It protects the note while
+ * it is OPEN; this protects a queued entry whose baseline the editor invalidated
+ * before handing the note back. Two different windows, two different guards.
+ *
+ * @returns the landed baseline it settled on, or null if it could not
+ */
+export async function settleLandedSave({
+  accountId, noteId, acked, current, updatedAt, connect = connectNotebookDb,
+} = {}) {
+  const landed = usableBaseline(updatedAt)
+  if (!accountId || !noteId || !landed) return null
+  try {
+    const db = await connect(accountId)
+    const prev = await getNote(db, noteId)
+    const caughtUp = sameAuthoredContent(acked, current)
+    const state = caughtUp ? (acked || current) : current
+    const record = {
+      noteId,
+      title: state?.title ?? '',
+      subtitle: state?.subtitle ?? '',
+      bodyJson: state?.bodyJson ?? null,
+      baseUpdatedAt: landed,
+      generation: prev?.generation ?? 0,
+      sessionId: SESSION_ID,
+      localSavedAt: Date.now(),
+      dirty: caughtUp ? 0 : 1,
+    }
+    const intent = caughtUp ? null : {
+      mutationId: outboxIdFor(noteId),
+      noteId,
+      kind: 'note-update',
+      patch: { title: record.title, subtitle: record.subtitle, bodyJson: record.bodyJson },
+      baseUpdatedAt: landed,
+      generation: record.generation,
+      sessionId: SESSION_ID,
+      queuedAt: Date.now(),
+    }
+    await putNoteWithIntent(db, record, intent)
+    return landed
+  } catch {
+    // ⛔ Never throws into a save path. A queue that could not be settled is
+    // caught by the drain's own supersede check, which is why that exists.
+    return null
+  }
+}
+
+/**
  * @param accountId  ⛔ part of the DATABASE NAME. Cross-account leakage is a
  *                   release blocker, so the isolation is structural.
  * @param noteId     one writer per note: generations are a per-note order.

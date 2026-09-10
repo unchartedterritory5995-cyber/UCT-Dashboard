@@ -1,6 +1,83 @@
 # Wave Q1 — RESUME HERE
 
-# 🚨🚨 THE FLIP IS STOPPED — 2026-09-10
+# ✅ THE SELF-FORK IS FIXED — and ⛔⛔ DEPLOY #4 IS BLOCKED AT TIER 1
+
+## The mechanism — it was never a missing supersede
+
+The supersede already existed: `putNoteWithIntent` deletes every queued entry for
+a note when the intent is `null`, and `markSynced` passes `null` once the editor
+has caught up. **The defect was that it could be MISSED.**
+
+`markSynced` routes through `writerRef.current` and does nothing once the editor
+has unmounted. The save resolves *after* the member navigates away — and
+navigating away is exactly when the note leaves `excludeNoteId` and becomes the
+sweep's. **The queue's most important moment was the one it could not settle.**
+That race is also why the browser saw it ~1 run in 5 while a test that unmounts
+first sees it every time.
+
+## The fix — two guards, neither redundant
+
+1. **`settleLandedSave` (`useDurableNote.js`)** — talks to the store **directly**:
+   no hook, no ref, no mount. The editor's save callback calls it whether or not
+   the editor still exists. Caught up ⇒ intent `null` ⇒ entries removed. Still
+   ahead ⇒ the entry is **REBASED** onto the landed revision, keeping the newest
+   words and giving them a baseline that can succeed.
+2. **The drain's supersede refusal (`outboxDrain.js`)** — before sending, it
+   compares the entry's baseline to the record's landed one and, if older,
+   **removes it and does not send**. Same posture as the baseline refusal. This
+   closes the ordering where the drain claims the entry between the unmount and
+   the save resolving, when no settle could have run yet.
+
+**One authority, next to `usableBaseline`:** `landedBaseline(record)` (⛔ only a
+CLEAN record witnesses a landed save — a dirty record's baseline is what its next
+send will *claim*) and `isSupersededBaseline(entry, landed)` (⛔ compares
+**instants**, not strings; ⛔ refuses on anything unparseable, because this
+decision deletes queued member work).
+
+⛔ **`excludeNoteId` is untouched**, and the distinction is a comment in the
+code: it protects the note **while open**; this protects a queued entry whose
+baseline the editor invalidated **before handing the note back**.
+
+## Rails and mutations
+
+`lib/offline/selfFork.test.jsx` — **11/11**: unmount-then-resolve · rebase when
+still ahead · still-mounted control · drain-claims-first · current-baseline
+control · a **dirty record never vouches for itself** · a **real** conflict still
+forks · the authority's parse/refuse/instant cases.
+
+| mutation | result |
+|---|---|
+| M10 `settleLandedSave` writes nothing | 🔴 2 |
+| M11 remove the drain's supersede check | 🔴 1 |
+| M12 widen the supersede to every entry | 🔴 3 |
+| M13 a dirty record may vouch for itself | 🔴 1 |
+
+`journal-2-0` at rest with the fix: **234 files / 2446 tests green**.
+Backend Q1 rails: **25**. `window_check.py --self-check` **PASS**, and the
+single-writer fork detector is now a **hard red**.
+
+✅ **Both fork artifacts cleared** (after the tests went green and their contents
+were recorded above): back to the **32-note** baseline, no `WINDOW-CHECK` notes
+left. The `To Do List` pair is the connectors feature's and was not touched.
+
+## ⛔⛔ DEPLOY #4 STOPPED BY THE GATE
+
+`origin/master` moved to **11 commits ahead** and touched
+**`NoteEditorPage.jsx`** — a guarded file, flagged by the gate as *the TipTap
+wiring* and *one of the seven*. **TIER 1: do not merge, do not deploy, report.**
+
+⚠️ **What master actually changed there is benign** — 8 insertions, 27 deletions,
+lifting the toolbar's `FONT_OPTIONS` list out to `utils/fontFamilies.js` and
+importing it (`f02276064`, charts Phase 6). It is nowhere near the save path, the
+durable layer, or `setContent`, and it does not overlap the fix's edit.
+
+⛔ **That assessment is not permission.** TIER 1 exists precisely so an agent
+does not get to decide a guarded file's drift is harmless. The merge, and
+deploys #4 and #5, wait for the owner.
+
+---
+
+# 🚨 THE SELF-FORK, AS FOUND — 2026-09-10
 
 **A SINGLE-WRITER OFFLINE SESSION FORKS ITS OWN NOTE.** Found by the compressed
 evidence set that replaced the seven-day window, on run 5 of 7. ⛔ The flag was

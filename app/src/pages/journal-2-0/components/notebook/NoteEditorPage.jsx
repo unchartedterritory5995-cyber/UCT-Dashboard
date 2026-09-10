@@ -28,7 +28,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
-import { useDurableNote, SESSION_ID } from '../../lib/offline/useDurableNote'
+import { useDurableNote, settleLandedSave, SESSION_ID } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
@@ -801,9 +801,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
         updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
+      const ackedNow = { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson }
+      const currentNow = captureLocalState() || ackedNow
       durableRef.current.markSynced({
-        acked: { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson },
-        current: captureLocalState() || { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson },
+        acked: ackedNow, current: currentNow, updatedAt: lastSavedRef.current.updatedAt,
+      })
+      // ⛔⛔ AND AGAIN, WITHOUT THE MOUNT. `markSynced` goes through the hook's
+      // writer ref and does nothing once this component is gone — and this
+      // promise resolves after the member has navigated away often enough to
+      // matter (~1 offline session in 5, measured 2026-09-10). Navigating away
+      // is exactly when the note leaves `excludeNoteId` and becomes the sweep's,
+      // so the queue's most important moment was the one it could not settle,
+      // and a single-device member got a `(conflicted copy)` of their own note.
+      // ⛔ Not awaited: a save must not wait on bookkeeping, and this never
+      // throws. It is idempotent with `markSynced` — both settle to the same
+      // landed baseline.
+      settleLandedSave({
+        accountId: user?.id, noteId,
+        acked: ackedNow, current: currentNow,
         updatedAt: lastSavedRef.current.updatedAt,
       })
       setSaveStatus('saved')
