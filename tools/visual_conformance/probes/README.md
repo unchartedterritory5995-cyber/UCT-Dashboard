@@ -10,6 +10,7 @@ text that produced a fixture is versioned beside it.
 | `fold-pass.pine` | does a timeframe ternary fold to an integer window? | Ruling 1g · Volume line 233 |
 | `tickerid-containment.pine` | what does a `tickerid` look like per instrument class? | Ruling h · Volume line 222 |
 | `exchange-spelling.pine` | what string does `syminfo.exchange` return? | `symbolScope.json::confirmed` |
+| `UCTPROBE_NS.pine` | the workhorse probe, read back OFF THE CHART 2026-09-10 — verbatim vendor bytes + `.provenance.json`. N01–N23. `barstate-append.pine` appends to THIS. | — |
 | `tuple-security.pine` | 8-field tuple order · gaps×lookahead incl. the DEFAULTS · na before first HTF bar · forming vs closed HTF · same-tf | runbook item 3 · Volume line 259 |
 
 ⛔⛔ **`tickerid-containment.pine` and `exchange-spelling.pine` ARE NOT INTERCHANGEABLE.** They read different `syminfo` fields and answer different questions. The 2026-09-09 capture ran the first and `symbolScope.json::confirmed` stayed empty, because the map is keyed on `syminfo.exchange` and that run never read it. The vendor can rewrite a prefix (`SP:SPX` → `SP_DLY:SPX`), so a tickerid prefix is not evidence about `syminfo.exchange` — `exchange-spelling.pine` N11 measures that gap rather than assuming it closed.

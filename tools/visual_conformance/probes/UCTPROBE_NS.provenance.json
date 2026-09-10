@@ -1,0 +1,37 @@
+{
+  "_": "⭐ PROVENANCE FOR UCTPROBE_NS.pine — the vendor's own bytes, not a reconstruction.",
+  "_why_a_sidecar": "The .pine beside this file is committed VERBATIM so its hash means something. Documenting it in-file would change the bytes and break the correspondence, so the record lives here instead. ⛔ DO NOT EDIT THE .pine TO ADD COMMENTS.",
+  "capturedAtUTC": "2026-09-10T13:29:24+00:00",
+  "capturedAtET": "2026-09-10T09:29:24-04:00",
+  "how": "TradingView chart -> UCTPROBE_NS legend -> More -> 'Source code…' opened the Pine editor at /pine/?id=USER;787899e263ad483c9c48748c6b6db574. Text read from Monaco's rendered .view-line nodes, sorted by CSS top, NBSP normalised to space, trailing whitespace stripped per line.",
+  "symbol": "AMEX:SPY",
+  "resolution": "1D",
+  "study": "UCTPROBE_NS",
+  "studyId": "Script$USER;787899e263ad483c9c48748c6b6db574@tv-scripting",
+  "studyVersion": 101,
+  "layout": "UCT AGENT VISIT 2026-09-10 (disposable)",
+  "layoutUrl": "https://www.tradingview.com/chart/e3cTXatd/",
+  "tabStateAsAsserted": {
+    "visibilityState": "hidden",
+    "hasFocus": false,
+    "_note": "⛔ 'hidden' DID NOT MEAN UNRENDERED. The three-part diagnostic in docs/pine/capture-procedure.md read: canvases 1743x372 / 1743x186 / 1743x186 with ZERO at the 300x150 default; sourcesWrapper 3 == pane count 3 with live legend text; control [data-name] = 128 > 0. Insert-then-count moved 11 -> 12 -> 11. The chart was fully rendered and writable throughout.",
+    "insertThenCount": {
+      "baseline": 11,
+      "afterInsert": 12,
+      "afterRemove": 11
+    }
+  },
+  "receipt": {
+    "chars": 1360,
+    "lines": 28,
+    "plots": 23,
+    "fnv1a_reported_by_page": 3243080180,
+    "fnv1a_recomputed_in_shell": 3243080180,
+    "sha256_of_extracted_text": "2b9fecc6c8ef69bb7c309e79e2c4edbba664da21c0192003c4c6e8bc14b2caa3",
+    "_note": "sha256 is over the EXACT extracted text WITHOUT the trailing newline; the committed file adds one LF for POSIX convention. Four independent cross-checks agreed: char count, FNV-1a, 28 lines, and plots==23 which matches _metaInfo.plots read separately off the study object."
+  },
+  "vendorDigest": {
+    "pine.version": "0.28",
+    "_note": "metaInfo.pine.digest is the vendor's own hash of these bytes. It is base64 and was elided by the transport's content filter, so it is NOT recorded here rather than recorded wrong. The sha256 above is ours and is reproducible from the file."
+  }
+}
