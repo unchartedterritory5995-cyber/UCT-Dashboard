@@ -62,5 +62,6 @@
       "N22_islast",
       "N23_ishistory"
     ]
-  }
+  },
+  "_displaced_2026_09_10": "⚰️ THE ON-CHART VARIANT IS GONE FROM THE DISPOSABLE LAYOUT, AND THAT IS RECOVERABLE. UCTPROBE_NS was an UNSAVED variant of Script$USER;787899e263ad483c9c48748c6b6db574 living on the chart; the script's SAVED content is a different, 1-plot study called 'UCT marker parity probe'. On 2026-09-10 an 'Update on chart' against the bound editor replaced the on-chart variant, and a second Update reverted the slot to the saved content. ⭐ The saved script was never written to ('Save script' was never clicked), which the revert itself demonstrates. These bytes are the variant, committed at a57b06986 and hashed above, so it is fully reconstructable. ⛔ Do not attempt to restore it by Updating the bound editor — see the BINDING HAZARD in docs/pine/capture-procedure.md."
 }

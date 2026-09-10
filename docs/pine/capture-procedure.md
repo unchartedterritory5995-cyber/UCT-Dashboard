@@ -205,6 +205,57 @@ study from them (see `barstate-full.pine`); never append in place.
   renders two years of history where 250 bars were asked for. The image looks perfect and is of
   the wrong thing.
 
+## ⭐⭐ PUTTING SOURCE IN THE EDITOR WITHOUT A PASTE — the Monaco handle (2026-09-10)
+
+The paste wall below is real, and it is **routed around**: the buffer can be written directly
+through Monaco's own API, reached via the bundler registry.
+
+    // 1. capture __webpack_require__ by pushing a sentinel chunk
+    const ck = Object.keys(window).find(k => /^webpackChunk/.test(k))
+    let req; window[ck].push([[Symbol('probe')], {}, r => { req = r }])
+
+    // 2. R6 CONTROL FIRST — count visible module factories. If this is 0 the
+    //    search cannot match and a miss would be meaningless. (Measured: 20,353.)
+    let seen = 0; for (const c of window[ck]) if (c && c[1]) seen += Object.keys(c[1]).length
+
+    // 3. scan factory sources, then require the candidates (11,036 modules, ~39 ms)
+    //    module 423129 is the Monaco API namespace: editor, languages, KeyCode, Range, Uri
+    const M = req('423129')
+    M.editor.getEditors()[0].getModel().setValue(src)
+
+⛔ **VERIFY THE BUFFER AGAINST THE COMMITTED BYTES BEFORE ANY ADD** — chars, FNV-1a, sha256.
+This is what makes the mechanism trustworthy rather than merely convenient.
+
+⚠️ The module id `423129` is a build artifact and **will change**. Re-derive it by the scan;
+never hard-code it. (Same defect class as the scale constant above.)
+
+## ⛔⛔ THE BINDING HAZARD — "Update on chart" IS NOT "Add to chart"
+
+**Opening a study's source via legend → More → "Source code…" BINDS the editor to that
+study's script.** The action button then reads **"Update on chart"**, and clicking it
+**edits the bound study in place** instead of adding a new one.
+
+⚰️ **MEASURED, TWICE, ON 2026-09-10.** With the editor bound to `Script$USER;787899e2…`:
+- First Update **replaced `UCTPROBE_NS` with `UCTPROBE_FOLD`** — the data-source count stayed
+  at 12 and NS vanished from the roster. The new study carried **NS's own script id**.
+- Second Update did not apply the buffer at all; the slot **reverted to the script's SAVED
+  content** ("UCT marker parity probe", 1 plot, 0 data items).
+
+⭐ **THE REVERT IS THE REASSURING PART**: it proves the *saved* script was never modified.
+"Save script" was never clicked. Only the chart's in-memory instance ever changed.
+
+✅ **ASSERT THE BUTTON TEXT BEFORE EVERY CLICK.** `Add to chart` = safe, adds a study.
+`Update on chart` = **do not click** — it writes to whatever script the editor is bound to,
+and if that is an account-scoped `Script$USER;…` it is the owner's, in every layout.
+
+⛔⛔ **AND SWAPPING THE MONACO MODEL DOES NOT UNBIND IT.** `editor.createModel(src,'pine_v6')`
++ `editor.setModel(m)` swaps the buffer (uri goes `file:///…` → `inmemory://model/4`) and the
+button **still reads "Update on chart"**. TradingView holds the binding in its own state, not
+in the Monaco model. Measured 2026-09-10. **The unbind is a UI action ("New indicator" in the
+editor's script-title dropdown) and there is no API route to it that this programme has found.**
+So a NEW study from a NEW script still needs one human action — after which `createStudy`
+by id automates every later visit.
+
 ## ⛔⛔ A CUSTOM SCRIPT REACHES A CHART ONLY BY A HUMAN PASTE
 
 **Nothing an agent can drive puts Pine source into the editor.** Measured 2026-09-10 by
