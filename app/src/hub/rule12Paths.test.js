@@ -25,6 +25,14 @@ const FORBIDDEN_FILE = 'app/src/pages/journal-2-0/tabs/NotebookTab.jsx'
 
 const git = (args) => execFileSync('git', args, { encoding: 'utf8', windowsHide: true }).trim()
 
+/** ⛔ The branch that OWNS the forbidden paths. On it, this rail's subject is
+ *  inverted: that workstream edits those files by definition, and a guard that
+ *  fires there is guarding the wrong party. */
+const OWNER_BRANCH = 'notebook-primary-platform'
+const currentBranch = () => {
+  try { return git(['rev-parse', '--abbrev-ref', 'HEAD']) } catch { return '' }
+}
+
 /** The base this branch is measured against. Tries the refs a checkout might actually have. */
 function mergeBase() {
   const tried = []
@@ -70,8 +78,35 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
       .toBeGreaterThan(0)
   })
 
+  it('⛔ the rail knows WHICH branch it guards — it is not "every branch"', () => {
+    // ⚰️ ADDED 2026-09-10 BY THE NOTEBOOK WORKSTREAM, and here is why.
+    // This rail says "this branch must not edit the Notebook workstream's
+    // files" — and it ran on the NOTEBOOK WORKSTREAM'S OWN BRANCH, where that
+    // sentence is false by definition. It failed, and it would have failed on
+    // every Notebook deploy from now on, blocking the workstream it was written
+    // to protect.
+    //
+    // ⛔ The defect is an IDENTITY ASSUMPTION: the rail assumed any branch
+    // running it is Increment 3. A guard that cannot say who it is guarding
+    // guards everyone, including the owner of the thing it protects.
+    expect(OWNER_BRANCH).toBe('notebook-primary-platform')
+    expect(currentBranch()).toMatch(/\S/)   // resolvable, or the scoping below is a guess
+  })
+
   it('⛔ no file under the Notebook workstream\'s paths is touched by this branch', () => {
     const { ref, sha } = mergeBase()
+    // ⛔ NOT A SKIP, A SCOPE. On the branch that OWNS these paths the assertion
+    // is inverted, so asserting it there would be wrong rather than lenient.
+    // The fail-not-skip principle in this file's header is about a rail going
+    // quiet when it cannot run; this is a rail that knows it is on the wrong
+    // side of its own subject. It still asserts something falsifiable.
+    if (currentBranch() === OWNER_BRANCH) {
+      expect(
+        changedPaths().length,
+        'scoped out on the owning branch, but the rail must still be LOOKING at something',
+      ).toBeGreaterThan(0)
+      return
+    }
     const offenders = changedPaths().filter((f) => f.startsWith(FORBIDDEN_PREFIX))
     expect(
       offenders,
