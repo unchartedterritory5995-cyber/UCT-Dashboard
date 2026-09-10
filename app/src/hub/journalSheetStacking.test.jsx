@@ -17,7 +17,7 @@
  * query counts hub sheets and section sheets alike and cannot miss a stacked one.
  *
  * The gesture is DELIBERATE, never a flick: `Date.now` is advanced past `FLICK_MS` between
- * pointerdown and pointerup, so release lands in `useJoystick.js:392`'s `phase === 'pushing'`
+ * pointerdown and pointerup, so release lands in `useJoystick.js:428`'s `phase === 'pushing'`
  * branch -> `releaseOntoFan` -> `fireTarget`. That path ignores `flickable` by design (a deliberate
  * selection is always allowed; only a <120ms flick is blocked), which is why `journal.close` can be
  * driven here at all. The flick path for Close is a DEVICE step, not a jsdom one — see
@@ -194,7 +194,7 @@ async function renderJournalHub() {
 
 /**
  * A DELIBERATE push-and-release onto `actionId` — pointerdown, drag past the open threshold, then
- * release more than FLICK_MS later. Not a flick: `useJoystick.js:383` needs `elapsed < FLICK_MS`.
+ * release more than FLICK_MS later. Not a flick: `useJoystick.js:392` needs `elapsed < FLICK_MS`.
  */
 function deliberateSelect(actionId) {
   const outer = modesById.journal.fan.filter((a) => a.ring === 0)
@@ -297,7 +297,7 @@ describe('B3 — one gesture, one sheet (the REAL HubRoot dispatch)', () => {
     expect(byId('journal.moveStop').kind).toBe('run')
     expect(byId('journal.breakeven').kind).toBe('run')
     expect(byId('journal.close').kind).toBe('run')
-    // ⛔ The guard `useJoystick.js:387` honours, and it never looked at `kind`.
+    // ⛔ The guard `useJoystick.js:396` honours, and it never looked at `kind`.
     expect(byId('journal.close').flickable).toBe(false)
   })
 })

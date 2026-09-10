@@ -35,14 +35,14 @@
  * @property {boolean} [escalate]    The action leads to a surface that asks the member to COMMIT
  *                                   — a confirm sheet, a stop sheet, a close form. The fire haptic
  *                                   then escalates to `warn()` instead of `impact()`
- *                                   (`useJoystick.js:188`), which is the only escalation in the
+ *                                   (`useJoystick.js:197`), which is the only escalation in the
  *                                   set. ⛔ REQUIRED on kind:'confirm' (a confirm always
  *                                   escalates) and equally legal on kind:'run', which is the whole
  *                                   point: B3 moved three committing actions to 'run' and the cue
  *                                   must not move with them. See B5.
  * @property {boolean} [flickable]   Default true. false = deliberate selection only, never a
  *                                   <120ms flick. Meaningful on kind:'confirm' AND kind:'run' —
- *                                   `useJoystick.js:387` gates on it with no kind check, so it is
+ *                                   `useJoystick.js:396` gates on it with no kind check, so it is
  *                                   live wherever an action can fire. Rejected on 'navigate'/'home'.
  */
 
@@ -335,7 +335,7 @@ export const modes = [
         // `validate()` and its own primary (`ClosePositionModal.jsx:58-63,71,213`). That form is a
         // STRONGER confirmation surface than a yes/no sheet, so the hub sheet in front of it was
         // a tap, not a safeguard.
-        // ⛔⛔ flickable:false STAYS, and it is not decoration: `useJoystick.js:387` gates on
+        // ⛔⛔ flickable:false STAYS, and it is not decoration: `useJoystick.js:396` gates on
         // `flickable !== false` with NO kind check, so it is live on a `run` action exactly as it
         // was on a `confirm` one. A flick in this direction OPENS THE FAN instead of firing.
         id: 'journal.close',
@@ -730,7 +730,7 @@ export function validateRegistry(list = modes, opts = {}) {
       }
 
       // flickable:false is a safety marker, and it means something on any action that FIRES:
-      // `useJoystick.js:387` gates on `flickable !== false` without looking at `kind`. It is
+      // `useJoystick.js:396` gates on `flickable !== false` without looking at `kind`. It is
       // therefore legal on 'confirm' and on 'run' (B3: journal.close is a flickable:false 'run'),
       // and still rejected on 'navigate'/'home', where there is no write to guard.
       if (action.flickable === false && !FLICK_GUARDABLE_KINDS.includes(action.kind)) {

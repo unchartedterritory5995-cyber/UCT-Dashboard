@@ -527,7 +527,7 @@ still ambiguous — which is how two integrators each came to write one.
 the 3.2 Breadth integrator; this entry's own request was that BOTH shims go in the fix commit.
 
 ⚠️ **Separately, and NOT fixed here: `wireSection.js` treats `scrub.delta` as an absolute
-position.** `useJoystick.js:293-297` emits `delta: (thisMove - lastMove) / travelPx` — a per-move
+position.** `useJoystick.js:301-306` emits `delta: (thisMove - lastMove) / travelPx` — a per-move
 STEP — while `useHubCursor.scrubTo(delta)` reads 0..1 as an ABSOLUTE position, so
 `scrubTo(scrub.delta)` makes one small drag jump to the first or last segment and a long one pin
 at an end. `breadthSection.js` and `screenerSection.js` both accumulate the steps in a ref;

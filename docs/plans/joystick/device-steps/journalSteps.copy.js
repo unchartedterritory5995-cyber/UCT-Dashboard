@@ -104,7 +104,7 @@ async function stepJournalClose(driver) {
 /**
  * D4 — THE ONE THAT MATTERS. A flick at Close must OPEN THE FAN and fire nothing.
  *
- * `journal.close` is `flickable:false` (registry.js), and `useJoystick.js:387` gates on
+ * `journal.close` is `flickable:false` (registry.js), and `useJoystick.js:396` gates on
  * `flickable !== false` with NO kind check — so B3 moving it to kind:'run' did not touch this
  * guard. That is the claim, and this is the only instrument that can test it on glass.
  */

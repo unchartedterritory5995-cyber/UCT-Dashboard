@@ -171,7 +171,7 @@ describe('validateRegistry — confirm actions', () => {
 describe('validateRegistry — flickable', () => {
   // ⛔ B3 WIDENED THIS RULE, and the reason is that the old one described the wrong mechanism.
   // `flickable:false` is a guard on an action that FIRES, and the runtime gate that honours it
-  // (`useJoystick.js:387`, `flickTarget.action.flickable !== false`) never looks at `kind` — so it
+  // (`useJoystick.js:396`, `flickTarget.action.flickable !== false`) never looks at `kind` — so it
   // was always live on a 'run', and the validator was rejecting a declaration the engine obeyed.
   // What still deserves rejection is 'navigate'/'home': nothing fires, so a guard there is a claim
   // of danger where there is none.

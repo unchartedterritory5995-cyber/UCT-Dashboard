@@ -26,7 +26,7 @@ Spec of record: `00-master-spec-v1.2.md`. Evidence: `10-wave0-discovery.md`. Cut
    > ⚰️ **SUPERSEDED IN PART, 2026-09-09 (B3).** The text above is left byte-identical because it is
    > a decision record, not live spec. What survives: the `flickable?: boolean` addition, and
    > **Close is still `flickable: false`** — that guard is untouched and does not depend on `kind`
-   > (`useJoystick.js:387` gates on `flickable !== false` with no `kind` check). What changed:
+   > (`useJoystick.js:396` gates on `flickable !== false` with no `kind` check). What changed:
    > Move stop, Breakeven **and** Close are now `kind:'run'`, because each already opens a sheet of
    > its own and `confirm` stacked `HubConfirmSheet` in front of it — two sheets on one gesture.
    > The finding here was correct that these were un-confirmed writes; `confirm` was simply the

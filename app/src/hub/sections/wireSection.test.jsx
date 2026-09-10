@@ -297,7 +297,7 @@ describe('scrub — segment index, CONTEXT FIRST', () => {
 
   // ⚰️ THESE TWO USED TO ASSERT `delta` AS AN ABSOLUTE POSITION — `delta: 0` landing on the first
   // segment, `delta: 0.5` on the middle — and the section called `scrubTo(scrub.delta)` to match.
-  // Both were wrong about the engine. `useJoystick.js:293-297` emits `raw / travelPx` where `raw`
+  // Both were wrong about the engine. `useJoystick.js:301-306` emits `raw / travelPx` where `raw`
   // is the distance between THIS pointermove and the LAST one: a per-move STEP. So a real drag
   // emitted a stream of ~0.05s and the old code slammed the cursor to 5% of the wire on every one.
   // The gesture "worked" — an index changed, every assertion here passed — it just went somewhere

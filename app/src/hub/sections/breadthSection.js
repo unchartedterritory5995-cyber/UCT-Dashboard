@@ -144,7 +144,7 @@ export function createBreadthSection({ tabs, activeTab, setActiveTab, scrubRef }
    * The scrub's position, seeded lazily from the tab actually showing.
    *
    * There is no `onScrubStart` in the contract, and the engine's `delta` is a STEP — the
-   * distance between two pointer moves normalized by the pad's travel (`useJoystick.js:297`) —
+   * distance between two pointer moves normalized by the pad's travel (`useJoystick.js:306`) —
    * not an absolute position. So the first step of a drag seeds from where the member already
    * is and every later step accumulates onto it. `fromKey` re-seeds if the tab moved underneath
    * us (another control, or a commit we never saw because the gesture was cancelled).

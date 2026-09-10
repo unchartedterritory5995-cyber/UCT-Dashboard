@@ -220,7 +220,7 @@ export default function useWireSection({ rootRef, wireDate, html } = {}) {
    * out of this file instead of asserting both call shapes land.
    */
   // ⛔ `scrub.delta` IS A PER-MOVE STEP, NOT A POSITION — and this called `scrubTo` as though it
-  // were one. `useJoystick.js:293-297` emits `raw / travelPx` where `raw` is the distance between
+  // were one. `useJoystick.js:301-306` emits `raw / travelPx` where `raw` is the distance between
   // THIS pointermove and the LAST one, while `useHubCursor.scrubTo` reads its argument as an
   // absolute 0..1 position along the list. So a small downward drag emitted ~-0.1 and slammed the
   // cursor to segment 0; a small upward drag jumped ~10% into the wire. The gesture "worked" —

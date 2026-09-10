@@ -828,7 +828,7 @@ Fans below are the real ones. Anything the spec once promised that Wave 0 found 
   v1.1 gave only Move stop a sheet. Close ends a position and writes a permanent `j2_trades` row — on
   a sub-120ms flick it is the highest-stakes target in the hub. **Close is additionally
   `flickable: false`**: a flick in its direction opens the fan instead of firing. ⭐ That guard is
-  UNCHANGED by B3 and does not depend on the kind — `useJoystick.js:387` gates on
+  UNCHANGED by B3 and does not depend on the kind — `useJoystick.js:396` gates on
   `flickable !== false` with no `kind` check, so it is live on a `run` exactly as it was on a
   `confirm`. `validateRegistry` was widened to match the engine it had been contradicting.
 - Stop writes go to `PUT /api/j2/positions/{id}`. **`activeStop(p)` is the stop in force**; "breakeven"
