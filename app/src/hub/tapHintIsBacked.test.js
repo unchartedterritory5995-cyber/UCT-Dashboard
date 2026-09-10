@@ -139,8 +139,11 @@ describe('a tapHint that promises a tap is backed by an onTap', () => {
         // the `tap: next day` its chip had promised since Phase 2. Two departures, both by a
         // handler arriving rather than by an edit here — which is the proof this list is a live
         // measurement and not a copied set.
+        // ⚰️ `chart` LEFT THIS LIST in Increment 5 alongside `calendar`, both by a controller
+        // arriving. `catalysts` is the LAST one — and its blockers are not a missing handler:
+        // the tile does not exist on weekends or market holidays (~114 days/yr), and no row
+        // carries a DOM identity attribute. See the 3.6a scout.
         'catalysts: "tap: next row"',
-        'chart: "tap: next timeframe"',
       ])
   })
 

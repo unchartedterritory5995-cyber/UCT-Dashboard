@@ -136,8 +136,12 @@ describe('a run action never reaches a member without a handler', () => {
         // got a real body (a genuine event-type toggle), and `calendar.earnings` was REMOVED,
         // because `CalendarHeader.jsx:347` locks that type (`if (locked) return`) and the bubble
         // could therefore only ever have been silent.
+        // ⚰️ `chart` LEFT THIS LIST in Increment 5. Three of its five naked run actions got real
+        // bodies (Flag, Note, Plan trade); the other two were DROPPED BY THE CONTROLLER rather
+        // than deleted from the registry, because both are unreachable from THIS surface rather
+        // than impossible: `chart.compare`'s only write path cannot mount on a hub viewport, and
+        // `chart.logTrade` lives under a rule-12 path. `catalysts` is the last mode here.
         'catalysts: catalysts.flag, catalysts.filter, catalysts.note',
-        'chart: chart.planTrade, chart.flag, chart.compare, chart.logTrade, chart.note',
       ])
   })
 

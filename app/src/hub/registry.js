@@ -560,7 +560,12 @@ export const PREVIEW_MODES = new Set([
   // ships the `tap: next day` its chip has promised since Phase 2, a day scrub, and a real
   // body for `calendar.macro`; `calendar.earnings` was REMOVED above rather than shipped
   // inert. Alone, because its fan shares no action with any other section.
-  'chart', 'catalysts', 'home', 'flow',
+  // ⭐ INCREMENT 5 ALSO FLIPPED `chart`: `sections/chartSection.js` ships the
+  // `tap: next timeframe` its chip has promised since Phase 2, plus real bodies for Flag,
+  // Note and Plan trade. `chart.compare` and `chart.logTrade` are DROPPED BY THE CONTROLLER
+  // (not deleted from the registry) — compare's only write path cannot mount on a hub
+  // viewport, and logging an executed trade lives under a rule-12 path.
+  'catalysts', 'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */
