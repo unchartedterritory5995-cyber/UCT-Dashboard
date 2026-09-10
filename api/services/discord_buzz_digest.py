@@ -136,7 +136,18 @@ def _write_state(**updates) -> None:
     here, in one place, so no caller can forget."""
     state = _read_state()
     state.update(updates)
-    cutoff = (dt.date.today() - dt.timedelta(days=_KEEP_DAYS)).isoformat()
+    # Retention is anchored to the DATA, never to the wall clock. These keys are
+    # slot stamps ("YYYY-MM-DD HH:MM") and every other decision in this module is
+    # driven by the caller's injected `now`; reaching for dt.date.today() HERE made
+    # the prune disagree with the write that triggered it. A caller working at any
+    # time other than real-now had its key pruned in the same breath as writing it,
+    # so the slot read back as never posted and the room could be posted twice.
+    # `state` already carries this write (update() above), so the newest key it
+    # holds IS the write's own slot -- no clock, and no new parameter to thread.
+    seen = [str(v)[:10] for k in ("posted", "missed") for v in (state.get(k) or ())]
+    newest = max(seen) if seen else None
+    cutoff = ((dt.date.fromisoformat(newest) - dt.timedelta(days=_KEEP_DAYS)).isoformat()
+              if newest else "")
     for k in ("posted", "missed"):
         if k in state:
             state[k] = sorted({v for v in state[k] if str(v)[:10] >= cutoff})
