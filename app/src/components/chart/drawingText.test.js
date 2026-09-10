@@ -13,7 +13,7 @@ import {
   BORDER_W, DEFAULT_FONT_SIZE, LINE_HEIGHT, PAD_X, PAD_Y,
   _clearTextCache,
   baselineOffset, editorTextStyle, fontLabelFor, fontSizeOf, fontStackOf,
-  fontStringFor, hasBox, isBold, isItalic, textBoxFor, usesBoxOrigin,
+  fontStringFor, isBold, isItalic, textBoxFor, usesBoxOrigin,
   FONT_OPTIONS,
 } from './drawingText'
 
@@ -209,14 +209,6 @@ describe('baselines — asked of the font, not guessed', () => {
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('the box a note draws around itself', () => {
-  it('is present when either the background or the border is on', () => {
-    expect(hasBox({})).toBe(false)
-    expect(hasBox({ bgEnabled: true })).toBe(true)
-    expect(hasBox({ borderEnabled: true })).toBe(true)
-    expect(hasBox({ bgEnabled: true, borderEnabled: true })).toBe(true)
-    expect(hasBox(null)).toBe(false)
-  })
-
   it('the box is the same size whether or not it is painted', () => {
     // ⭐ Turning a background on must not change where the text sits — the
     // padding is always there, the plate is just not drawn.

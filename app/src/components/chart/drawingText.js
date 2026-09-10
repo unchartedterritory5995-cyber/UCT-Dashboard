@@ -114,9 +114,6 @@ export function fontStringFor(drawing) {
   return parts.join(' ')
 }
 
-/** Does this note draw a box (background or border)? */
-export const hasBox = (d) => !!(d && (d.bgEnabled || d.borderEnabled))
-
 /** New notes are laid out from the box corner; notes without the marker keep
  *  the placement they were drawn with. */
 export const usesBoxOrigin = (d) => (d && d.textOrigin) === 'box'
@@ -233,19 +230,6 @@ export function textBoxFor(ctx, drawing, ax, ay, measureLine) {
     h: lines.length * lineH + (PAD_Y + BORDER_W) * 2,
     textX, textTop, lineH, lines, firstBaseline,
   }
-}
-
-/**
- * The box's top-left in canvas pixels, for placing the DOM editor.
- *
- * ⭐ THE EDITOR IS POSITIONED FROM THE NOTE, NEVER FROM THE POINTER. Opening it
- * at the double-click point is what made editing look like it moved the note:
- * click its last word and the box opened over the last word. The click chooses
- * WHICH note; the note chooses where its editor goes.
- */
-export function editorOriginFor(ctx, drawing, ax, ay, measureLine) {
-  const box = textBoxFor(ctx, drawing, ax, ay, measureLine)
-  return { x: box.x, y: box.y, w: box.w, h: box.h }
 }
 
 /** The `style` object for the editor, so it cannot drift from the painter. */
