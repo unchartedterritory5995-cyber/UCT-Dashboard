@@ -191,6 +191,74 @@
       ],
       "rosterMatchedVendorAtAdd": true,
       "history": "v1 (saved 20:06:35Z) read `syminfo.exchange` and FAILED TO COMPILE (CE10272) -- there is no such identifier in Pine v6. Corrected in place 20:42:17Z to `syminfo.prefix`, with N11 deleted as vacuous. SAME script id: this is a new version of one script, not a second script."
+    },
+    "UCTPROBE_GB_BARSSINCE_1ARG": {
+      "savedAs": "UCTPROBE_GB_BARSSINCE_1ARG",
+      "scriptId": "Script$USER;0689acf88f134f5bb8a95ec054912452@tv-scripting",
+      "scriptIdPart": "USER;0689acf88f134f5bb8a95ec054912452",
+      "version": "1.0",
+      "source": "groupb-barssince-1arg.pine",
+      "sourceBytes": 2316,
+      "sourceChars": 2056,
+      "sourceSha256": "3588b3ca301d05fcff59cb88cdb8f09da2130996381e69d3e8b3a75db76d5111",
+      "compiles": true,
+      "group": "B (item 6)",
+      "note": "⭐ THE CONTROL for the 2-arg probe. Compiled, 400 bars. N02 reads 2,3,4 across the tail; N03 (a rare condition) 17,18,19 so the column is not flat. ⚠️ N04 -- barssince on a NEVER-true condition -- answers na, NOT a saturating count, which diverges from interpret.js's own barsSince.",
+      "plotRoster_PLOTS_ORDER": [
+        "N01_bar_index_CONTROL",
+        "N02_barssince_1arg_RAW",
+        "N03_barssince_rare_MUST_vary",
+        "N04_barssince_NEVER_true_saturation"
+      ],
+      "rosterMatchedVendorAtAdd": true
+    },
+    "UCTPROBE_GB_BARSSINCE_2ARG": {
+      "savedAs": "UCTPROBE_GB_BARSSINCE_2ARG",
+      "scriptId": "Script$USER;152f9a305fa24ebab1f52fba82b433e5@tv-scripting",
+      "scriptIdPart": "USER;152f9a305fa24ebab1f52fba82b433e5",
+      "version": "1.0",
+      "source": "groupb-barssince-2arg.pine",
+      "sourceBytes": 3228,
+      "sourceChars": 2964,
+      "sourceSha256": "00b1ab140b2920fa76c35f6c81b383140d511082de5e72be5c0f8cd4ce874319",
+      "compiles": false,
+      "group": "B (item 6)",
+      "note": "⛔⛔ FAILS TO COMPILE, AND THAT IS THE ANSWER. CE10115: 'Too many arguments passed into the \"ta.barssince()\" function call. Passed 2 arguments but expected 1.' at line 45, col 19-26. closedTable.json declares barssince(series, int) -- THE TABLE IS WRONG and the fix is to NARROW to one argument. The failed study was removed from the chart after its error was read; it carried the one-plot \"Plot\" stub with 0 bars.",
+      "compileError": {
+        "code": "CE10115",
+        "message": "Too many arguments passed into the \"ta.barssince()\" function call. Passed 2 arguments but expected 1.",
+        "line": 45,
+        "colStart": 19,
+        "colEnd": 26,
+        "_": "⛔ THIS IS THE CAPTURE, not a failure to retry."
+      }
+    },
+    "UCTPROBE_GB_HILO": {
+      "savedAs": "UCTPROBE_GB_HILO",
+      "scriptId": "Script$USER;86a18d10d3f145e48b4bae17fef98ffe@tv-scripting",
+      "scriptIdPart": "USER;86a18d10d3f145e48b4bae17fef98ffe",
+      "version": "1.0",
+      "source": "groupb-hilo-default.pine",
+      "sourceBytes": 3810,
+      "sourceChars": 3502,
+      "sourceSha256": "bc77f04a2cca668a9e43da8886940255b0fde7bcb0d94d22f96ec86418865e8e",
+      "compiles": true,
+      "group": "B (item 6)",
+      "note": "⭐⭐ THE 81-SITE ANSWER, AND IT IS ASYMMETRIC: ta.highest(n) defaults to HIGH, ta.lowest(n) defaults to LOW -- not close for both. Deltas vs the explicit high/low forms read 0; vs close read 1.49 and -1.19. BOTH spread controls fired non-zero, so the row is evidence rather than a coincidence of high==close over the window.",
+      "plotRoster_PLOTS_ORDER": [
+        "N01_bar_index_CONTROL",
+        "N02_hi1_minus_hiHIGH_0_means_HIGH",
+        "N03_hi1_minus_hiCLOSE_0_means_CLOSE",
+        "N04_lo1_minus_loLOW_0_means_LOW",
+        "N05_lo1_minus_loCLOSE_0_means_CLOSE",
+        "N06_SPREAD_hi_MUST_be_nonzero",
+        "N07_SPREAD_lo_MUST_be_nonzero",
+        "N08_hi1_RAW",
+        "N09_lo1_RAW",
+        "N10_hi1_vs_HL2_0_means_hl2",
+        "N11_lo1_vs_HL2_0_means_hl2"
+      ],
+      "rosterMatchedVendorAtAdd": true
     }
   },
   "vendorStorageNormalisation": {
@@ -200,5 +268,6 @@
     "deltasObserved": "+13 / +125 / +31 / +139 chars — NOT a constant, which is why this looked at first like an injected header. It is (number of line breaks) minus (1 if the trailing newline was dropped).",
     "trailingNewline": "⚠️ UCTPROBE_FOLD is stored WITHOUT its trailing newline; the other three keep it. That is not a vendor behaviour — it is the earlier injection procedure, which measured and wrote the source with the trailing LF stripped (the 628-char and 8791-char figures in the superseded notes are exactly charsNoTrailingLF). Today's three wrote the file whole. Semantically nil for Pine: same roster, same values, same compile. Left as-is rather than re-saving, because re-saving means binding the editor to a saved script and the gain is a trailing newline."
   },
-  "_saveGotcha_2026_09_10": "⚠️ THE TOOLBAR 'Save script' ICON DID NOT SAVE; THE DROPDOWN MENU ITEM DID. Two clicks at the icon's measured position (title=\"Save script\") left the vendor's stored source and `updated` timestamp untouched -- verified on a no-store fetch against TWO endpoints, 35 minutes after the original save. The same action from the script-title dropdown saved within 500ms. ⛔ The cause was NOT isolated (a plausible candidate is that `model.setValue()` leaves the toolbar's handler unarmed until the editor is otherwise interacted with), so this is recorded as OBSERVED, not explained. ⭐ THE LESSON IS THE VERIFICATION, NOT THE BUTTON: a save is confirmed by re-reading the stored source and its `updated` stamp from pine-facade, never by the click returning cleanly or by the status line. Both clicks looked exactly like success."
+  "_saveGotcha_2026_09_10": "⚠️ THE TOOLBAR 'Save script' ICON DID NOT SAVE; THE DROPDOWN MENU ITEM DID. Two clicks at the icon's measured position (title=\"Save script\") left the vendor's stored source and `updated` timestamp untouched -- verified on a no-store fetch against TWO endpoints, 35 minutes after the original save. The same action from the script-title dropdown saved within 500ms. ⛔ The cause was NOT isolated (a plausible candidate is that `model.setValue()` leaves the toolbar's handler unarmed until the editor is otherwise interacted with), so this is recorded as OBSERVED, not explained. ⭐ THE LESSON IS THE VERIFICATION, NOT THE BUTTON: a save is confirmed by re-reading the stored source and its `updated` stamp from pine-facade, never by the click returning cleanly or by the status line. Both clicks looked exactly like success.",
+  "_groupb_note": "⭐ GROUP B (item 6) PROBES ADDED 2026-09-10. Two of the eight questions are answered and both changed a decision: ta.highest/ta.lowest default ASYMMETRICALLY (high/low, not close for both), and barssince's 2-arg form is INVALID so our table must NARROW rather than widen. ⛔ UCTPROBE_GB_BARSSINCE_2ARG IS SAVED AND DOES NOT COMPILE ON PURPOSE -- do not 'fix' it; its compile error is the measurement, and its 1-arg pair is the control that makes the failure mean something. THREE QUESTIONS REMAIN: pivothigh/pivotlow defaulting (groupb-pivot-default.pine), and math.round / math.max / vwap (groupb-round-max-vwap.pine). Both probes are committed and unrun."
 }
