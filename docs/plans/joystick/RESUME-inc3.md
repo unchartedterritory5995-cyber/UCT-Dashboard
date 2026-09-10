@@ -79,3 +79,61 @@ daily, or whenever more than five behind — not just at merge. One backup ref p
 ⛔ Never hand-roll the shard loop — `python scripts/gate_shards.py` is committed and its own rails
 exist. The baseline is `docs/plans/joystick/gate-baseline.json`; load-sensitive names are re-run
 ALONE before classifying, and a timeout is never banked.
+
+## DECISIONS — R-auto-N (autonomy charter)
+
+- **R-auto-1 — §8's "the registry's `fire()` path" reads as `HubRoot.runAction`.**
+  Taken: place the one marker at `HubRoot.jsx:108`. Rejected: inventing a `fire()` in
+  `registry.js` to match the sentence. Why: `registry.js` is data plus a validator and has never
+  had a `fire()`; dispatch has always lived in `runAction`, which is the one point BOTH doors (a
+  gesture, and the Peek sheet) pass through exactly once. Code over stale wording; the plan's
+  sentence is corrected in the docs commit.
+
+- **R-auto-2 — `contenteditable` is detected by property AND attribute.**
+  Taken: `isContentEditable || closest('[contenteditable]')` with a `!== 'false'` check. Rejected:
+  the property alone. Why: `isContentEditable` is the correct question in a browser because it
+  accounts for inherited editability, but **jsdom does not implement it**, so a property-only check
+  reported `false` for the Notebook's own editor in the only environment the suite ever runs in.
+
+- **R-auto-3 — the rule-12 rail checks the committed diff AND the working tree.**
+  Taken: both. Rejected: committed-only (the literal reading of the ruling). Why: committed-only
+  catches a violation at review time rather than when it is made, and it also makes the rail's own
+  mutation proof require a throwaway commit to unwind.
+
+- **R-auto-4 — the analytics rail excludes test files and assembles its own literal.**
+  Taken: both. Rejected: a plain scan. Why: the first version found THREE markers — the real one
+  plus its own docstring and its own constant — and failed on its own text
+  (`lesson_a_search_over_sources_counts_the_searcher`).
+
+- **R-auto-5 — `useKeyboardVisible` stays alongside the new focus hook.**
+  Taken: OR them. Rejected: replacing the viewport heuristic. Why: a soft keyboard can cover the pad
+  when focus is somewhere the focus hook cannot see (a cross-origin iframe); and the focus hook
+  covers the three cases the viewport hook structurally cannot (no `visualViewport`, a hardware
+  keyboard, a contenteditable that raises nothing). Neither substitutes for the other.
+
+- **R-auto-6 — B10/B11 STOPPED under H1.** See the hard stop below. No decision taken; the work
+  cannot proceed as ruled without a change on the notebook side.
+
+## ⛔ HARD STOP H1 — raised 2026-09-10, B10
+
+The Notebook cannot be wired as ruled without editing a rule-12 path. Two independent blockers:
+
+1. **Mount point.** Every section controller is page-mounted — `wireSection` from
+   `pages/MorningWire.jsx`, `breadthSection` from `pages/Breadth.jsx`, `screenerSection` from
+   `pages/screener/shell/ScannerShell.jsx`, `journalSection` from
+   `pages/journal-2-0/tabs/OpenPositionsTab.jsx`. The Notebook's page is `NotebookTab.jsx`, which
+   rule 12 forbids. A hub-side mount avoids that file, but does not solve (2).
+
+2. **No note identity in the DOM.** `NoteCard.jsx` renders `<div className={styles.card}>` with no
+   `data-note-id`, no `href`, and no test id. The only per-note identity is `key={n.id}` at
+   `NotebookTab.jsx:848` — a React key, which does not render. The one `data-note-id` in the
+   codebase (`lib/noteLinkNode.jsx:36-37`) is TipTap's inline note-LINK node inside a note body,
+   not a grid card.
+
+   So the hub can PAINT a cursor over cards (`paintCursor`, the Wire precedent) but cannot learn
+   which note a card is — and Q1/Q2 rule that selection writes `?note=<id>` through
+   `applyTargetToParams`. `useHubCursor` also REQUIRES an explicit identity key.
+
+**Smallest notebook-side change that unblocks it:** one attribute on the card root —
+`data-note-id={note.id}` in `NoteCard.jsx`. That is additive, renders nothing visible, and gives
+the hub both the identity and the selector Q4's rail needs.
