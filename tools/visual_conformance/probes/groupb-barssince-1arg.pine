@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_GB_BARSSINCE_1ARG", overlay = false)
+
+// ⭐⭐ THE PAIR TO `groupb-barssince-2arg.pine`, AND NEITHER MEANS ANYTHING ALONE.
+// Our table declares `barssince(series, int)`; all 12 corpus sites pass ONE
+// argument; TradingView documents `ta.barssince(condition)`. The two possible
+// fixes are OPPOSITE — widen to 1, or narrow to 1 — so the reading has to say
+// which arity the vendor actually accepts.
+//
+// ⛔ SPLIT ACROSS TWO FILES BECAUSE A PINE SCRIPT COMPILES AS A WHOLE. One file
+// holding both arities answers nothing when either is invalid: the study fails
+// outright and takes the good half with it.
+//
+// ⭐ THIS FILE IS ALSO THE CONTROL FOR THE OTHER ONE. If THIS fails to compile
+// too, the problem is the harness, the symbol or the version — not the arity —
+// and neither reading may be recorded. A pair where one side is expected to fail
+// needs a side that is expected to pass, or a failure proves nothing.
+
+// ── the control ──────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                   // N01
+
+// ── the documented form ──────────────────────────────────────────────────────
+cond = close > open
+plot(ta.barssince(cond), "N02_barssince_1arg_RAW")                         // N02
+
+// ⭐ A SECOND CONDITION SO THE COLUMN IS NOT CONSTANT. `barssince` on a condition
+// that is almost always true reads 0 forever, and a column of zeros cannot be
+// told from a column that never evaluated.
+rare = close > ta.highest(close, 50)[1]
+plot(ta.barssince(rare), "N03_barssince_rare_MUST_vary")                   // N03
+
+// ⛔ THE SATURATION QUESTION, ASKED WHILE WE ARE HERE. `interpret.js`'s own
+// `barsSince` is documented as a SATURATING counter. Whether the vendor's
+// saturates, wraps, or grows without bound on a condition that has NEVER been
+// true is a real semantic difference and it is free to measure from this file.
+never = close > 0 and close < 0
+plot(ta.barssince(never), "N04_barssince_NEVER_true_saturation")           // N04

@@ -1,0 +1,49 @@
+//@version=6
+indicator("UCTPROBE_GB_PIVOT", overlay = false)
+
+// ⭐⭐ GROUP B: does the 2-ARG `ta.pivothigh(left, right)` default its source to
+// `high` (and `pivotlow` to `low`), or to `close` for both? The same asymmetry
+// that makes the `ta.highest`/`ta.lowest` question dangerous, on 12 sites.
+//
+// ⛔ ALONE IN A FILE because the 2-arg form is the thing under test and a compile
+// failure would take any co-resident question with it.
+//
+// ⚠️⚠️ AND THIS ONE NEEDS A SENTINEL, NOT A BARE DELTA, BECAUSE `pivothigh`
+// RETURNS `na` ON ALMOST EVERY BAR. `na - na` is `na`, and a column of `na`
+// cannot be told from a study that did not evaluate — which is the exact failure
+// this whole probe family guards against. So every comparison below is gated on
+// BOTH sides being present, and says so with a distinct out-of-band value:
+//
+//     -2  = not comparable on this bar (either side was na)  ⇒ DISCARD the bar
+//      0  = the two forms agreed on this bar                 ⇒ evidence
+//   other = the two forms disagreed, by this much            ⇒ evidence
+//
+// ⛔ A CAPTURE MUST COUNT ONLY THE BARS THAT ARE NOT -2. Averaging a column that
+// contains sentinels produces a number with no meaning, and it will look fine.
+
+// ── the control ──────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                   // N01
+
+phD = ta.pivothigh(5, 5)
+phH = ta.pivothigh(high, 5, 5)
+phC = ta.pivothigh(close, 5, 5)
+
+plD = ta.pivotlow(5, 5)
+plL = ta.pivotlow(low, 5, 5)
+plC = ta.pivotlow(close, 5, 5)
+
+// ⭐ FIRING RATE FIRST. If the default form never fires, every delta below is
+// -2 forever and the probe is measuring its own silence.
+plot(na(phD) ? 0 : 1, "N02_default_HI_fires_MUST_sometimes_be_1")          // N02
+plot(na(plD) ? 0 : 1, "N03_default_LO_fires_MUST_sometimes_be_1")          // N03
+
+plot(na(phD) or na(phH) ? -2 : phD - phH, "N04_hiDEF_minus_HIGH_0_means_HIGH")   // N04
+plot(na(phD) or na(phC) ? -2 : phD - phC, "N05_hiDEF_minus_CLOSE_0_means_CLOSE") // N05
+plot(na(plD) or na(plL) ? -2 : plD - plL, "N06_loDEF_minus_LOW_0_means_LOW")     // N06
+plot(na(plD) or na(plC) ? -2 : plD - plC, "N07_loDEF_minus_CLOSE_0_means_CLOSE") // N07
+
+// ⭐⭐ THE SPREAD CONTROL, same reasoning as the hi/lo probe: if the explicit
+// `high` and `close` forms happen to agree on a bar, N04 and N05 are both 0 and
+// the bar proves nothing. A bar is only evidence when this is non-zero.
+plot(na(phH) or na(phC) ? -2 : phH - phC, "N08_SPREAD_hi_MUST_be_nonzero")  // N08
+plot(na(plL) or na(plC) ? -2 : plC - plL, "N09_SPREAD_lo_MUST_be_nonzero")  // N09

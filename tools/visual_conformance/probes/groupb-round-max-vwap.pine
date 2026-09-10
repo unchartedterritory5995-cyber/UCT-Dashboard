@@ -1,0 +1,55 @@
+//@version=6
+indicator("UCTPROBE_GB_ROUND_MAX_VWAP", overlay = false)
+
+// ⭐⭐ THE THREE GROUP B QUESTIONS WHOSE FORMS ARE DOCUMENTED AND THEREFORE
+// EXPECTED TO COMPILE — grouped deliberately, and the grouping is a judgement
+// with a stated cost.
+//
+// ⛔ IF THIS FILE FAILS TO COMPILE, ALL THREE READINGS ARE LOST TOGETHER. That is
+// an acceptable trade ONLY because the vendor's compile error names the code,
+// message, LINE and COLUMN (measured 2026-09-10: `CE10272 ... line 36, col 6-21`),
+// so a failure says which of the three caused it and the file splits on the next
+// pass. The genuinely risky arities — the 1-arg `highest`/`lowest`, the 2-arg
+// `pivothigh`, and the suspected-invalid 2-arg `barssince` — are each alone in
+// their own file, because for those a failure is the EXPECTED outcome rather
+// than a surprise.
+
+// ── the control ──────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                   // N01
+
+// ── math.round: half-up or banker's, and what negative precision does ────────
+// ⭐ CONSTANTS, NOT BAR DATA. The rounding rule is a property of the function and
+// nothing else; feeding it `close` would make the answer depend on which bar you
+// read, which is the one thing a semantics probe must not do. 101 corpus sites
+// ride on this.
+//   half-up  ⇒ N02 = 3 and N03 = -3
+//   banker's ⇒ N02 = 2 and N03 = -2
+plot(math.round(2.5),   "N02_round_2p5_3_is_HALFUP_2_is_BANKERS")          // N02
+plot(math.round(-2.5),  "N03_round_neg2p5_HALFUP_is_neg3")                 // N03
+plot(math.round(3.5),   "N04_round_3p5_4_both_rules_CONTROL")              // N04
+// ⛔ N04 IS THE CONTROL FOR N02: 3.5 rounds to 4 under BOTH rules, so if N04 is
+// not 4 the function is doing something neither rule describes and N02 must not
+// be read as a rule.
+plot(math.round(0.125, 2),  "N05_round_2dp_0p13_HALFUP_0p12_BANKERS")      // N05
+plot(math.round(1234.5, -2), "N06_round_negPRECISION_what_happens")        // N06
+plot(math.round(2.675, 2),  "N07_round_binary_float_hazard")               // N07
+
+// ── math.max: genuinely variadic, or capped? ─────────────────────────────────
+// A 5-arg call exists in the corpus. Each form has a DIFFERENT right answer, so
+// a wrong arity shows as a wrong number rather than an error.
+plot(math.max(1, 2),             "N08_max_2arg_expect_2")                  // N08
+plot(math.max(1, 2, 3),          "N09_max_3arg_expect_3")                  // N09
+plot(math.max(1, 2, 3, 4, 5),    "N10_max_5arg_expect_5")                  // N10
+plot(math.min(5, 4, 3, 2, 1),    "N11_min_5arg_expect_1")                  // N11
+
+// ── vwap: does the 1-arg form anchor like the no-arg form? ───────────────────
+// We declare ZERO arguments. The corpus calls it with one.
+// ⭐ THE ANCHOR IS THE QUESTION, NOT THE SOURCE. If `ta.vwap(hlc3)` anchored
+// differently from bare `ta.vwap`, N13 would drift over a session rather than
+// sit at a fixed offset — so the capture must read this ACROSS bars, not on one.
+plot(ta.vwap,               "N12_vwap_noarg_RAW")                          // N12
+plot(ta.vwap(hlc3) - ta.vwap, "N13_vwap_hlc3_minus_noarg_0_means_SAME")    // N13
+plot(ta.vwap(close) - ta.vwap, "N14_vwap_close_minus_noarg")               // N14
+// ⛔ NON-VACUITY: hlc3 and close must actually differ, or N13 is 0 for a reason
+// that has nothing to do with anchoring.
+plot(hlc3 - close, "N15_SPREAD_hlc3_vs_close_MUST_be_nonzero")             // N15

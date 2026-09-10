@@ -13,6 +13,11 @@ text that produced a fixture is versioned beside it.
 | `exchange-spelling.pine` | what string does **`syminfo.prefix`** return? (⚰️ read `syminfo.exchange` until 2026-09-10 and could never compile — see the ruling) | `symbolScope.json::confirmed` |
 | `UCTPROBE_NS.pine` | the workhorse probe, read back OFF THE CHART 2026-09-10 — verbatim vendor bytes + `.provenance.json`. N01–N23. `barstate-append.pine` appends to THIS. | — |
 | `tuple-security.pine` | 8-field tuple order · gaps×lookahead incl. the DEFAULTS · na before first HTF bar · forming vs closed HTF · same-tf | runbook item 3 · Volume line 259 |
+| `groupb-hilo-default.pine` | ⭐ 1-arg `ta.highest`/`ta.lowest`: does the source default to `high`/`low`, or `close` for both? **81 sites ride on it** | item 6 · Group B |
+| `groupb-pivot-default.pine` | 2-arg `ta.pivothigh`/`ta.pivotlow`: the same defaulting asymmetry. Sentinel `-2` = not comparable on this bar | item 6 · Group B |
+| `groupb-round-max-vwap.pine` | `math.round` half-up vs banker's + negative precision (101 sites) · `math.max` variadic or capped · `vwap(source)` anchoring | item 6 · Group B |
+| `groupb-barssince-1arg.pine` | the documented 1-arg form — **and the CONTROL for the 2-arg probe** | item 6 · Group B |
+| `groupb-barssince-2arg.pine` | ⛔ the form we declare and suspect is invalid. **A COMPILE FAILURE IS THE ANSWER** | item 6 · Group B |
 
 ⛔⛔ **`tickerid-containment.pine` and `exchange-spelling.pine` ARE NOT INTERCHANGEABLE.** They read different `syminfo` fields and answer different questions. The 2026-09-09 capture ran the first and `symbolScope.json::confirmed` stayed empty, because the map is keyed on `syminfo.exchange` and that run never read it. The vendor can rewrite a prefix (`SP:SPX` → `SP_DLY:SPX`), so a tickerid prefix is not evidence about `syminfo.exchange` — `exchange-spelling.pine` N11 measures that gap rather than assuming it closed.
 
@@ -111,6 +116,23 @@ rather than riding the shared unsaved slot"**, which is the property worth asser
 probes on the unsaved slot are indistinguishable from each other by id. The real
 account-scoped scripts are the six named above, and the never-append guard applies to those
 — including, now, the four probes themselves.
+
+⛔⛔ **GROUP B IS FIVE FILES FOR EIGHT QUESTIONS, AND THE SPLIT IS THE DESIGN.** A Pine
+script compiles as a WHOLE: one invalid arity produces no study at all and takes every
+co-resident reading down with it — and the corpse still lands on the chart wearing a one-plot
+stub whose roster reads fine. So each arity that might not exist is ALONE in its file
+(`hilo`, `pivot`, `barssince-2arg`), while the three documented forms whose failure would be a
+surprise rather than an outcome share one (`round-max-vwap`). ⭐ Grouping those three is a
+judgement with a stated cost: if that file fails, all three readings are lost together, and it
+is acceptable only because the vendor's compile error names the code, message, LINE and COLUMN,
+so a failure says which one to split out.
+
+⭐⭐ **`groupb-barssince-2arg.pine` IS THE ONE PROBE WHOSE EXPECTED RESULT IS A FAILURE.** We
+declare `barssince(series, int)`; every corpus site passes one argument; TradingView documents
+one. The two possible fixes are OPPOSITE — widen to 1, or narrow to 1 — so "it compiled" and
+"it did not" are two answers, and neither is success. ⛔ Its pair,
+`groupb-barssince-1arg.pine`, is the control: if BOTH fail the problem is the harness, and
+neither reading may be recorded.
 
 Aroon needs no probe — it is a TradingView built-in; add it at length 14 and read the pane.
 

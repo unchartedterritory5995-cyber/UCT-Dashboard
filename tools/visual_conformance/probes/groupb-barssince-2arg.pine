@@ -1,0 +1,51 @@
+//@version=6
+indicator("UCTPROBE_GB_BARSSINCE_2ARG", overlay = false)
+
+// ⭐⭐⭐ THE ONE PROBE WHOSE EXPECTED RESULT IS A COMPILE FAILURE, AND THAT IS
+// WHY IT IS ALONE IN A FILE.
+//
+// `closedTable.json` declares `barssince(series, int)`. All 12 corpus call sites
+// pass ONE argument, and TradingView documents `ta.barssince(condition)` — one
+// argument. `docs/pine/r11-group-b-arity.md` states the stakes precisely: "if the
+// table is wrong, 'widening to 1' would be NARROWING TO THE TRUTH, and the 2-arg
+// form we currently accept is a form the vendor may reject outright. That has to
+// be read off the vendor before either arity is touched, because THE TWO POSSIBLE
+// FIXES ARE OPPOSITE."
+//
+// ⛔⛔ SO THE TWO ARITIES CANNOT SHARE A SCRIPT. A Pine script is compiled as a
+// whole: if the 2-arg form is invalid, a file containing BOTH forms produces no
+// study at all and the 1-arg reading is lost with it. Worse, the failed study
+// still lands on the chart wearing a one-plot stub whose roster reads fine
+// (measured 2026-09-10). So the 1-arg form lives in
+// `groupb-barssince-1arg.pine` and this file holds only the form under suspicion.
+//
+// ⭐⭐ HOW TO READ THIS PROBE — AND IT IS THE OPPOSITE OF EVERY OTHER ONE HERE:
+//
+//   COMPILE FAILS  ⇒ the 2-arg form is NOT valid Pine ⇒ OUR TABLE IS WRONG.
+//                    The fix is to NARROW `barssince` to one argument. Record the
+//                    vendor's error code, message, line and column from
+//                    `status().errorDescription.editorError` — that text IS the
+//                    measurement, and `isFailed()` is how you know to read it.
+//
+//   COMPILE SUCCEEDS ⇒ the 2-arg form IS valid ⇒ the table is right and the
+//                    corpus simply never uses it. Then N02/N03 below say what the
+//                    second argument DOES, which is the follow-on question.
+//
+// ⛔ A GREEN RUN IS NOT A PASS HERE. "It compiled" is one of two answers, not
+// success, and recording it as success would flip the ruling to the wrong fix.
+// The pairing with the 1-arg probe is what makes either answer meaningful: if
+// BOTH fail, the problem is this harness, not the arity.
+
+// ── the control ──────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                   // N01
+
+// ── the form under suspicion ─────────────────────────────────────────────────
+// A condition that is true often enough to keep the result small and readable.
+cond = close > open
+plot(ta.barssince(cond, 10), "N02_barssince_2arg_RAW")                     // N02
+
+// ⭐ IF IT COMPILES, THIS SAYS WHETHER THE SECOND ARGUMENT CHANGES ANYTHING.
+// 0 would mean the extra argument is inert on this data — which would be its own
+// finding, and a different one from "the argument is a lookback cap".
+plot(ta.barssince(cond, 10) - ta.barssince(cond, 500),
+     "N03_2arg_10_minus_500_0_means_INERT_here")                           // N03
