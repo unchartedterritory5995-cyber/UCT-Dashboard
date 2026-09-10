@@ -23,11 +23,11 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 3 | Volume through strict mode | ✅ measured, list below |
 | 4 | TradingView visit | ⚠️ **DONE-EXCEPT (2026-09-10)** — A (Aroon) and B (fold numeric half) CAPTURED; C/D/E blocked, see below |
 | 5 | SAR memoisation | ⚠️ **believed already spent — see *Open questions*** |
-| 6 | Group B (eight names) with fixtures | ⬜ not started; measurements in `r11-group-b-arity.md` |
-| 7 | `time(timeframe)` + `ta.valuewhen` | ⬜ not started; measurements in `r11-time-and-valuewhen.md` |
-| 8 | Remaining real names in demand order | ⬜ not started; list in `r11-remaining-nine.md` |
-| 9 | Group C order-asserting rail | ⬜ not started; why the outcome-shaped version is vacuous is in `r11-vocabulary-gap.md` |
-| 10 | M1 — Volume's numeric plots as a pane behind the flag | ⬜ not started |
+| 6 | Group B (eight names) with fixtures | ⛔ **BLOCKED ON VENDOR READINGS** — its own doc: "eight vendor readings, not eight guesses". `ta.tr(true)` is the template: the argument CHANGES THE MATHS. Blocked by the same editor binding as item 4's C/D/E |
+| 7 | `time(timeframe)` + `ta.valuewhen` | ⛔ **BLOCKED ON VENDOR READINGS** — "the semantics still have to come off the vendor, and the questions are listed" |
+| 8 | Remaining real names in demand order | ⛔ **BLOCKED ON VENDOR READINGS** — its own doc calls it "a vocabulary backlog, not an unlock plan" |
+| 9 | Group C order-asserting rail | ✅ **DONE** (`771a101ac`) — asserted on ORDER over pine.js's AST, with two non-vacuity controls; mutation-proved |
+| 10 | M1 — Volume's numeric plots as a pane behind the flag | ⛔ **BLOCKED ON THE OWNER** — §6 was truncated mid-sentence at "Feature fl…"; the runbook says ask for the tail before starting M1 |
 | 11 | **NYSE calendar cross-lane parity** — see below | ✅ **11a DONE** (`1c98b4493`) — the rail already existed and the sets AGREE; two blind spots closed. 11b still logged |
 | 12 | `record_clock_parity.py --check` in CI | ✅ **DONE** (`86e31c706`) — red observed on a perturbed fixture, then reverted |
 | 13 | live window reads the calendar leaf | ✅ **DONE** (`2a89bf997`) — half-days shorten the window to 13:00 ET; discriminator + control mutation-proved |
