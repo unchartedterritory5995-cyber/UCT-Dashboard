@@ -1479,6 +1479,27 @@ flattering direction: fewer files run, fewer failures found. Count the files, no
 find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
 ```
 
+### ⛔ Run the suite in its OWN tool call, before `git commit` — never in the same one (Testing)
+
+> **The verification and the commit are two separate acts, in that order. Chaining them into one
+> shell invocation means the commit lands whatever the tests said.**
+
+Owner ruling, 2026-09-10, from the model's own slip an hour earlier. Adding a `@typedef` to
+`hub/contracts.js` broke `hub/phase3Contracts.test.jsx` — the rail that pairs every Phase 3 typedef
+with a `validate*` export, on the grounds that *"a @typedef is a comment; it enforces nothing."*
+The run and the `git commit` were in a single Bash call, so the failure printed and the red commit
+landed in the same breath.
+
+⭐ **The mistake is not "forgot to run the tests" — they DID run.** The output was right there. What
+failed is that nothing in the sequence could act on it: `npx vitest run … ; git commit …` commits on
+a non-zero exit exactly as happily as on a zero one, and by the time a human or a model reads the
+combined output the commit already exists. Two calls, and the second one is only issued after
+reading the first.
+
+⚠️ Corollary, same disease: this is why `scripts/gate_shards.py` refuses a dirty tree and records
+the tree hash at start AND end rather than trusting that the caller checked. A verification that
+cannot block the thing it verifies is decoration.
+
 ### ⛔ An empty result is a failed invocation until proven otherwise (Testing)
 
 > **Any rail that shells out — git, a subprocess, the network — carries a NON-VACUITY CONTROL: a
