@@ -85,3 +85,35 @@ Verified 2026-09-10 against `febe8ee67`; none of these files moved in master's c
 - BrowserStack Automate quota · server-side preference-key validation · D-35
 - core remainder after this increment: 3.5 Chart, 3.6 Catalysts, 3.8 Home scrub, 3.9 Flow verify,
   Calendar (dark, per R-C)
+
+## Concurrency — streams and file ownership
+
+`feat/joystick-increment-4` is the INTEGRATION branch. Streams branch off its tip into their own
+worktrees and merge back in the order A -> C -> D -> E. **A stream that needs a file another stream
+owns STOPS (H8) rather than editing it.** Full gates run one at a time (CPU); targeted runs are
+unlimited.
+
+| Stream | Where | Owns | Scope |
+|---|---|---|---|
+| **A** (main) | `joystick-inc4` | `hub/sections/notebookSection.js`, `hub/useHubCursor.js` if needed, its rails | B11 — cursor over note cards, Q4 selector rail against the real component, tapHint wired to advance |
+| **B** [sub] | `inc4-scout` | **nothing** — reports only | 3.5a Chart + 3.6a Catalysts scouts, read-only |
+| **C** [sub] | `inc4-screener` | `hub/sections/screenerSection.js`, `pages/screener/shell/*.jsx`, `components/screener/*.jsx`, its rails | R-13 `scan.scans` picker seam · R-15 the visible cursor |
+| **D** [sub] | `inc4-home` | `hub/sections/homeSection.js`, **only** the `home`/`calendar` declarations in `registry.js`, its rails | 3.8 Home scrub + Calendar in the inner ring (R-C) · 3.9 Flow verify-only |
+| **E** [sub] | `inc4-sweep` | `hub/HubActionsButton.jsx`, `hooks/useKeyboardVisible.js`, `C:\tools\hub-devicetests\tests\run.js`, its rails | WCAG-path haptic · `require.main` guard · the `useKeyboardVisible` measurement |
+
+⚠️ **`registry.js` is shared** between D (home/calendar) and A (notebook, already committed). D's
+diff is bounded to the `home` mode's declaration; anything wider is H8.
+
+⛔ **H8** — a stream needs a file outside its ownership. **H9** — two streams' merges conflict:
+resolve nothing, report the conflict.
+
+**Sequencing:** the 15:50 ET Increment 3 window job has absolute priority. Every stream pauses at
+its next clean commit when it fires. After Increment 3 is live, the integration branch rebases onto
+that master (backup ref) and stream merging resumes. Increment 4's full gate runs on the rebased
+integration branch only.
+
+**Evidence:** emulated rows per stream, plus ONE combined three-part glass script at the end
+(notebook cursor + tap-advance · screener cursor + scan picker · home scrub) against a seeded
+`:8077`, so the owner does one phone session rather than three. That session is Increment 4's
+pre-merge requirement — B11, C's cursor and D's scrub are all new consumption paths with no
+Increment 1 carrier.
