@@ -25,6 +25,7 @@ import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
+import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import styles from './NotebookTab.module.css'
 
 // Folders panel resize bounds (px).
@@ -86,6 +87,16 @@ export default function NotebookTab() {
   })
 
   useEffect(() => { _logNotebookVisit() }, [])
+
+  // Wave Q1 — THE DENOMINATOR. "Zero blocked-baseline events" is worthless
+  // without knowing how many browsers ran the offline layer at all, and with
+  // the flag off in production that population may be nobody. This reports the
+  // transition into an opted-in state, once per browser, and is structurally
+  // silent for everyone else: the condition is `key === '1'`, which production
+  // never reaches on its own.
+  // ⛔ Best-effort and never awaited into the render path — an instrument that
+  // can break the Notebook is worse than no instrument.
+  useEffect(() => { reportOptIn().catch(() => {}) }, [])
 
   // Wave B: reads ?folder= (e.g. __trash__) -- the command palette's "Open
   // Trash" destination. NOT a lazy one-time initializer: NotebookTab does

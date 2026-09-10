@@ -93,6 +93,14 @@ _J2_TELEMETRY_EVENTS = {
     # Railed both sides: app/.../blockedBaselineEvent.test.js pins the key set,
     # tests/test_j2_telemetry_allowlist.py pins acceptance here.
     "notebook_blocked_no_baseline",
+    # Wave Q1 — THE DENOMINATOR for the line above. "Zero blocked-baseline
+    # events" is not evidence unless something says how many browsers ran the
+    # offline layer at all, and with OFFLINE_DEFAULT_ON false that population
+    # may be nobody. Fires once per browser on the transition into an opted-in
+    # state (localStorage 'uct.j2.offline.enabled' becoming '1').
+    #
+    # ⛔ NEVER note content: a per-session id, the flag state, a timestamp.
+    "notebook_offline_opt_in",
 }
 
 

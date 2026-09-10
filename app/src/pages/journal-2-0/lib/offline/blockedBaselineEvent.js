@@ -27,7 +27,12 @@
  * TELEMETRY sink, not an error pipeline; this app has no client error pipeline,
  * and inventing a transport was not the smallest thing that works.
  */
-import { OFFLINE_DEFAULT_ON, OFFLINE_FLAG_KEY, offlineEnabled } from './offlineFlag'
+import { flagState, postJ2Telemetry } from './telemetry'
+
+// ⭐ Re-exported so this module stays the one import site for everything about
+// this event, while the implementation lives once in `telemetry.js` — a second
+// copy of `flagState` would be a second authority over "what was the flag".
+export { flagState }
 
 /** ⛔ Must also be present in `_J2_TELEMETRY_EVENTS` (api/routers/journal_two.py)
  *  or the POST is rejected with 400. Railed on the backend side. */
@@ -46,15 +51,6 @@ export function describeBaseline(v) {
   if (v === '') return 'empty-string'
   if (v.trim() === '') return 'whitespace'
   return 'other'
-}
-
-/** What the flag was at the moment of the refusal — the state, and how it got
- *  there, because "off by default" and "explicitly off" are different facts
- *  (`project_feature_flag_ledger`). */
-export function flagState(storage = globalThis.localStorage) {
-  let key = null
-  try { key = storage?.getItem(OFFLINE_FLAG_KEY) ?? null } catch { key = null }
-  return { key, enabled: offlineEnabled(storage), byDefault: key === null, def: OFFLINE_DEFAULT_ON }
 }
 
 /**
@@ -78,14 +74,5 @@ export function blockedBaselineProps(report, { now = Date.now, storage } = {}) {
  *  thing it measures is worse than no instrument. */
 export async function postBlockedBaseline(report, { fetchImpl, now, storage } = {}) {
   const props = blockedBaselineProps(report, { now, storage })
-  const f = fetchImpl || globalThis.fetch
-  try {
-    await f('/api/j2/telemetry', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: BLOCKED_BASELINE_EVENT, props }),
-    })
-  } catch { /* the refusal already happened; the report is not the guard */ }
-  return props
+  return postJ2Telemetry(BLOCKED_BASELINE_EVENT, props, { fetchImpl })
 }

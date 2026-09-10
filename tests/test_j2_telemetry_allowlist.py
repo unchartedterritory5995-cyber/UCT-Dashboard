@@ -27,9 +27,42 @@ from api.routers.journal_two import _J2_TELEMETRY_EVENTS
 EVENT = "notebook_blocked_no_baseline"
 CLIENT = Path("app/src/pages/journal-2-0/lib/offline/blockedBaselineEvent.js")
 
+OPT_IN_EVENT = "notebook_offline_opt_in"
+OPT_IN_CLIENT = Path("app/src/pages/journal-2-0/lib/offline/offlineOptInEvent.js")
+
 
 def test_the_blocked_baseline_event_is_accepted():
     assert EVENT in _J2_TELEMETRY_EVENTS
+
+
+def test_the_opt_in_event_is_accepted():
+    """The DENOMINATOR for the event above.
+
+    ⛔ If this name is not accepted, every opt-in POST is a 400 and the count is
+    silently zero — which reads exactly like "nobody opted in", the very fact it
+    exists to measure. A rejected denominator is worse than none: it makes an
+    empty population indistinguishable from a real one.
+    """
+    assert OPT_IN_EVENT in _J2_TELEMETRY_EVENTS
+
+
+def test_the_opt_in_client_and_server_name_the_same_event():
+    src = OPT_IN_CLIENT.read_text(encoding="utf-8")
+    m = re.search(r"OPT_IN_EVENT\s*=\s*'([^']+)'", src)
+    assert m, f"could not read the event name out of {OPT_IN_CLIENT}"
+    assert m.group(1) in _J2_TELEMETRY_EVENTS
+
+
+def test_the_opt_in_payload_never_carries_note_content():
+    """Three fields: a session id, the flag state, a timestamp.
+
+    ⛔ Pinned by reading the builder, so an "enrichment" pass that adds a title
+    fails here rather than shipping member text into `activity_log`.
+    """
+    src = OPT_IN_CLIENT.read_text(encoding="utf-8")
+    body = src.split("export function optInProps", 1)[1].split("\n}", 1)[0]
+    for forbidden in ("title", "bodyJson", "subtitle", "patch", "notedraft"):
+        assert forbidden not in body, f"optInProps references {forbidden!r}"
 
 
 def test_the_allowlist_is_still_a_list_and_not_a_pass_through():

@@ -1056,6 +1056,42 @@ reading it as though it were is how this wave got a green matrix over an
 uncovered mount path in the first place. ⭐ Record how many opted-in browsers the
 clock actually observed, or the number means nothing.
 
+### ⭐ THE DENOMINATOR — `notebook_offline_opt_in`
+
+Built and shipped, because **zero events over zero opted-in browsers is not
+evidence of anything.** With the flag off, `notebook_blocked_no_baseline` can
+only fire from a browser that has opted in; without a count of those browsers,
+a week of zeros is indistinguishable from a week in which nobody ran the offline
+layer at all. That is the same shape as a green browser matrix over a mount path
+nobody covered — which is how this wave got its incident.
+
+**When it fires:** the transition into an opted-in state, once per browser.
+
+```
+unset → '1'   fires        the opt-in
+'0'   → '1'   fires        a genuine re-opt-in, and worth counting
+'1'   → '1'   silent       a reload is not a new browser
+'1'   → '0'   silent       records the opt-out, so a later '1' still counts
+unset → unset silent       PRODUCTION'S STATE — it can never fire here
+```
+
+⛔ **There is no opt-in UI to instrument** — the flag is a `localStorage` key set
+by hand, deliberately, so certification runs against the real production build.
+So the transition is **detected, not intercepted**: the last observed state is
+remembered in `uct.j2.offline.optInReported`, and the event fires when the key
+has become `'1'` and the last observed state was not. ⭐ The marker is written
+even when nothing is sent — otherwise an opt-out would freeze it at `'1'` and a
+genuine later opt-in would be invisible, under-reporting exactly the population
+it exists to size.
+
+**Payload:** `sessionId` · `flag` · `at`. Three fields, pinned as a set. **No
+member content** — the session id is a random per-tab value.
+
+**Rails** (`lib/offline/offlineOptInEvent.test.jsx`, 14): every silent case has
+its own test, including production's. Mutation-proved on the wire (delete the
+effect in `NotebookTab` ⇒ 1 red), on the allow-list (remove the name ⇒ 2 red),
+and on the "once" property (fire on every mount ⇒ 2 red).
+
 ### Check-2 row template — copy this, fill it in
 
 ```
@@ -1102,6 +1138,35 @@ unchanged** — a log with only interesting entries cannot distinguish "quiet"
 from "nobody looked" (`lesson_uptime_is_not_a_sleep_signal_during_deploy_churn`,
 in log form).
 
+## ⭐⭐ A CHECK IS ONE COMMAND — `tools/window_check.py`
+
+```bash
+python tools/window_check.py                 # run a check and stamp a row
+python tools/window_check.py --self-check    # prove it REFUSES a bad run (5/5)
+python tools/window_check.py --dry-run       # everything except writing the doc
+python tools/window_check.py --label "check 4"
+```
+
+It spawns its own Chrome on a **fresh** profile and a port it has proved free,
+verifies the CDP endpoint's identity before driving it, proves offline **both
+ways**, signs in from `.env`, takes every reading below, tears down **by profile
+marker** (never by count), confirms the owner's browser by command line, deletes
+the profile, and appends one stamped row here. The check number is **derived
+from this document**, so two runs cannot both be "check 3".
+
+⛔⛔ **IT REFUSES TO STAMP A ROW IF ANY READ FAILED**, including a run with no
+reads at all. A log whose rows might be partial reads as evidence, and that is
+worse than no log. `--self-check` proves the refusal fires and that a failed
+read still renders as **FAILED** rather than blank — a gate nobody has seen fire
+is not a gate.
+
+⛔ It creates nothing, opts in to nothing, and **never writes the offline flag**.
+Credentials are read from `.env` only and never printed, stored, or put in a
+command line; identity is asserted by **account id**, never by echoing an
+address. ⚠️ `GET /api/admin/activity` is admin-gated: if the canary account is
+not an admin, those two reads come back **failed** and the row is refused rather
+than quietly dropping the instrument counts.
+
 ### Check 1 — **2026-09-10T04:16:51Z** (window opens)
 
 | what | reading | |
@@ -1126,27 +1191,36 @@ would read the key **unset** — which is production's default and equals off, b
 is a *different reading*, not the same one confirmed again. ⛔ Re-stating `'0'`
 here without a browser would be inventing a measurement.
 
-### Check 2 — **RIG UP, PARKED AT SIGN-IN** (2026-09-10, ~05:15 UTC)
+### Check 2 — ⛔ **NOT RUN: `.env` IS MISSING** (2026-09-10T05:2x UTC)
 
-Rebuilt from the recorded launch command with a **fresh** profile
-(`.worktrees/canary-chrome-profile-2`): the original directory still exists,
-awaiting the owner's delete, so reusing it would not have been fresh and might
-have been handle-locked. ⭐ The new name still contains `canary-chrome-profile`,
-so the teardown marker is unchanged.
+The rig was up and parked at the login page. The owner's instruction named the
+credentials as `CANARY_EMAIL` / `CANARY_PASSWORD` **in the worktree's `.env`**,
+authorised reading them from **that file only**, and said to STOP if it was
+missing. It is missing — `git check-ignore` confirms `.gitignore:1` would cover
+it, so it is expected to exist and simply does not on this machine.
 
 | | reading |
 |---|---|
-| spawned PID | **19752** · owner's browser **10896** untouched · exactly two BROWSER processes (no `--type=`): `canary=True` and `canary=False` |
-| CDP endpoint | `127.0.0.1:9411` → Chrome/152.0.7977.83 |
-| offline **proven both ways** | offline ⇒ `fetch('/api/health')` **FAILED: TypeError**, `navigator.onLine=false` · online ⇒ **ONLINE 200**, `navigator.onLine=true` |
-| `/api/auth/me` | **401 — not signed in** |
-| parked at | `https://uctintelligence.com/login` |
+| rig | PID **19752**, Chrome/152.0.7977.83, CDP `127.0.0.1:9411`, fresh profile |
+| offline **proven both ways** | offline ⇒ **FAILED: TypeError**, `navigator.onLine=false` · online ⇒ **ONLINE 200**, `true` |
+| `/api/auth/me` | **401** — never signed in |
+| every production read | ⛔ **NOT TAKEN** — they all require the session |
+| teardown | **8** processes killed **by the `canary-chrome-profile` marker**, 0 left, CDP endpoint gone, owner's browser **10896** alive |
 
-⛔ **STOPPED HERE, as instructed. The agent enters no credentials.** After
-sign-in: read the four stores, the `uct.nb.sync.*` locks and the opt-in key —
-recording the key as **what it actually is, naming which** (`unset` vs `'0'`) —
-confirm no `sync-conflict` or canary notes remain, then tear down by the profile
-marker (never by count) and stamp this row with a UTC timestamp.
+⛔ **No credential search anywhere else, as instructed.** Drop the file in place
+and check 2 is one command (below).
+
+### Check 3 — ⛔ **NOT RUN, same cause**
+
+`tools/window_check.py` was written, and its `--self-check` **passes 5/5**. The
+real run stops before spawning anything:
+
+> `STOP: …\.env is missing. The canary credentials live there as CANARY_EMAIL /
+> CANARY_PASSWORD. This script does not look anywhere else.` (exit 1)
+
+⭐ That refusal IS the proving run for the credential path — it stops at the
+right place, writes nothing, and leaves no browser behind. The production reads
+remain unproved end to end, and that is stated rather than implied.
 
 **To close this row on the next check**, the owner stands up an authenticated
 session (or says to build the CDP rig again and signs in, exactly as on
@@ -1423,7 +1497,30 @@ observation window watches the deployed fix first.
 
 ---
 
-## Cleanup owed
+## ✅ Cleanup owed — **DONE 2026-09-10**
+
+All three directories deleted, and `.worktrees` itself with them:
+
+| directory | files | result |
+|---|---|---|
+| `canary-chrome-profile` | 1,724 | **DELETED** |
+| `canary-chrome-profile-2` | 1,325 | **DELETED** |
+| `master-baseline` | 3,913 | **DELETED** |
+| `.worktrees` itself | — | **DELETED** |
+
+⭐ **What actually unblocked it:** the handles were the rig's own Chrome. Once
+the browser was torn down by its profile marker, every directory deleted on the
+first attempt — no force, no survivors, nothing to record as held.
+⚠️ `handle64.exe` (Sysinternals) is **not installed on this box**, so the
+"what holds it" step could not run; it was not needed, and the delete's own exit
+status is the evidence. ⛔ Nothing else under the worktree was touched —
+`git status` clean before and after.
+
+The record of what these were, kept because a future session will make them
+again:
+
+<details>
+<summary>the two rigs and the scratch worktree</summary>
 
 - ⚠️ **`.worktrees/canary-chrome-profile` — ~1,700 files, needs a manual delete.**
   The CDP rig's throwaway Chrome profile. The browser itself is fully torn down —
@@ -1473,6 +1570,15 @@ observation window watches the deployed fix first.
 
   ⛔ Do NOT `git worktree remove` it — that is already done; only the directory
   remains.
+
+</details>
+
+⚠️ **One thing the recorded commands do NOT survive: Git Bash.** `cmd /c "rmdir
+…"` from Bash opens an interactive shell and runs nothing — it prints the
+Windows banner and exits 0, which looks like success and deletes nothing.
+Measured twice, including with the `//c` escape. Run it from **PowerShell**
+(`cmd.exe /c "rmdir /s /q \"<path>\""`) or use `Remove-Item -Recurse -Force`,
+and **verify with `Test-Path` afterwards** rather than trusting the exit code.
 
 ## Quick orientation for a fresh session
 
