@@ -256,6 +256,39 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  */
 
 /**
+ * The context object every mode callback receives — `onTap`, `onDoubleTap`, `onScrub`,
+ * `onScrubCommit`, `readout`, and every action's `run` / `confirmText` / `enabled`.
+ *
+ * Built in ONE place (`HubRoot.jsx`, the `ctx` useMemo) and read-only apart from `navigate`.
+ *
+ * ⭐ R-G, 2026-09-10 — `navigate` IS THE ONE ADDITION THAT ACTS. Everything else here is a value
+ * or a ref. Before it, a registry-declared mode could not navigate at all: `App.jsx` uses
+ * `BrowserRouter`, so there is no `router.navigate` singleton to import, and navigation existed
+ * only inside `HubRoot.runAction`. Every section that wanted to DO something had to be mounted
+ * from its own page — which blocked §3.8's Home scrub outright, and is why `lastSection` was
+ * built, persisted and threaded into this object with zero readers.
+ *
+ * ⛔ IT IS THE SAME FUNCTION `runAction` CALLS, not a second one. `HubRoot`'s `navigateTo` is used
+ * by the navigate branch, by `goHome`, and by this field — so there is exactly ONE navigation
+ * authority, and it carries `resolveNavTarget` so "what path does mode X live at" is not
+ * re-answered by whichever caller happened to pass a mode id. Rails:
+ * `hub/navigationAuthority.test.jsx` proves the identity and that no second navigation path
+ * exists anywhere under `app/src/hub/**`.
+ *
+ * @typedef {object} HubActionCtx
+ * @property {string|null} mode              The active mode id.
+ * @property {string|null} symbol            The shared symbol, or null.
+ * @property {string|null} timeframe
+ * @property {*} activeScan
+ * @property {*} selectedPosition
+ * @property {{current: *}} chartRef
+ * @property {*} livePrice
+ * @property {boolean} isStreaming
+ * @property {string|null} lastSection       Most recently visited SECTION mode id (never `home`).
+ * @property {(to: string) => void} navigate  Mode id OR path; `resolveNavTarget` normalises it.
+ */
+
+/**
  * @typedef {Object} HubSectionConfig
  * What a page registers with `useHubMode` to become the hub's controller while it is mounted.
  * @property {string} id                      A registry mode id (`registry.js` `modes`).
