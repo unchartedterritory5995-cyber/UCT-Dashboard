@@ -2341,6 +2341,7 @@ def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list
 
     if diagnostics is not None:
         diagnostics.setdefault("dropped_stale", [])
+        diagnostics.setdefault("dropped_no_bars", [])
         diagnostics.setdefault("hygiene_skipped", None)
 
     def _fail_open(reason: str) -> list[str]:
@@ -2361,16 +2362,22 @@ def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list
         return _fail_open(f"no_bars_store:{type(e).__name__}")
     if not floor:
         return _fail_open("no_session_floor")
-    kept, dropped = [], []
+    kept, dropped, no_bars = [], [], []
     for u in out:
         try:
             last = bars_sqlite.get_last_ts(u, "D")
         except Exception:
             last = None
-        # `last is None` means no bars at all, which candidates_for already
-        # returns [] for. Kept deliberately: absent is not the same as stale,
-        # and this filter only ever claims to drop STALE symbols.
-        if last is not None and int(last) < int(floor):
+        # ⛔ TWO CAUSES, TWO PATHS, DELIBERATELY NOT MERGED. "Stale" and "no
+        # bars at all" are different facts about a symbol and a single counter
+        # would make them indistinguishable in `vision_slot_ticker` -- the same
+        # collapse this instrument exists to undo. PXD (Pioneer Natural
+        # Resources, acquired and delisted) returns None here; SQ returned a
+        # 2025-01-16 date. Both are dead symbols, neither arrived that way.
+        if last is None:
+            no_bars.append(u)
+            continue
+        if int(last) < int(floor):
             dropped.append((u, _ymd_to_iso(last)))
             continue
         kept.append(u)
@@ -2378,6 +2385,7 @@ def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list
         return _fail_open("would_empty_universe")   # a bug, not a result
     if diagnostics is not None:
         diagnostics["dropped_stale"].extend(dropped)
+        diagnostics["dropped_no_bars"].extend(no_bars)
     return kept
 
 
@@ -2659,7 +2667,8 @@ def register_pattern_vision_jobs(scheduler):
         slot_start = datetime.now(_ET).replace(
             minute=0, second=0, microsecond=0).isoformat()
         agg = {"judged": 0, "skipped": 0, "capped": 0, "render_failed": 0, "errored": 0,
-               "dropped_stale": 0, "truncated": 0, "hygiene_skipped": None}
+               "dropped_stale": 0, "dropped_no_bars": 0, "truncated": 0,
+               "hygiene_skipped": None}
         problems, asofs, active_n, cur, err = [], [], 0, None, None
         try:
             # ⛔ MUST run before the active-set fetch, not lazily inside the
@@ -2690,6 +2699,12 @@ def register_pattern_vision_jobs(scheduler):
                     "path": "dropped_stale",
                     "message": f"latest daily bar {_last} older than "
                                f"{PV_STALE_MAX_SESSIONS} sessions"})
+            for _sym in diag.get("dropped_no_bars", []):
+                agg["dropped_no_bars"] += 1
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
+                    "path": "dropped_no_bars",
+                    "message": "no stored daily bars at all"})
             for _sym in truncated:
                 agg["truncated"] += 1
                 problems.append({
@@ -2714,6 +2729,17 @@ def register_pattern_vision_jobs(scheduler):
             try:
                 fin = _t.time()
                 uniq = sorted({a for a in asofs if a})
+                # ⛔ THE HISTOGRAM COVERS SKIPPED CANDIDATES TOO, which is the
+                # whole point. `judge_ticker` appends each candidate's asof_date
+                # BEFORE the skip check, so `asofs` already represents every
+                # candidate the slot saw -- and reducing it to min/max/distinct
+                # threw that detail away. On 2026-09-10 the 10:00 slot's 82
+                # skipped candidates had to be reasoned about from production
+                # bar tails because the instrument did not record them.
+                hist = {}
+                for _a in asofs:
+                    if _a:
+                        hist[_a] = hist.get(_a, 0) + 1
                 paid, spend = pv_store.slot_spend(int(started), int(fin) + 1)
                 pv_store.log_slot({
                     "slot_start": slot_start, "source": "cron",
@@ -2725,7 +2751,9 @@ def register_pattern_vision_jobs(scheduler):
                     "active_set_n": active_n, "judged": agg["judged"],
                     "skipped": agg["skipped"], "capped": agg["capped"],
                     "render_failed": agg["render_failed"], "errored": agg["errored"],
+                    "evidence_hist": json.dumps(hist, sort_keys=True) if hist else None,
                     "dropped_stale": agg["dropped_stale"], "truncated": agg["truncated"],
+                    "dropped_no_bars": agg["dropped_no_bars"],
                     "hygiene_skipped": agg["hygiene_skipped"],
                     "aborted": 1 if err is not None else 0,
                     "abort_ticker": cur if err is not None else None,
