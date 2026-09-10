@@ -155,7 +155,21 @@ evidence. Do not manufacture activity to fill this hold period.
   and this file uses explicit supersession language elsewhere when it means
   it (lines "supersedes the priority stack below", "superseded, kept for
   history"). Owner ruling 2026-09-09: **absent explicit supersession, the
-  TERNARY GOVERNS.** The conflict is a defect, not a resolved question.
+  TERNARY GOVERNS.**
+
+  ✅ **RESOLVED 2026-09-10 — ONE AUTHORITY, and no edit was needed to get
+  there.** Measured across this whole file: the binary phrasing no longer
+  appears in any live sentence. Its only surviving instance is the quotation
+  inside THIS note, where it is describing the historical conflict rather than
+  classifying anything. Every operative use is the ternary
+  (`LIVE + ACCEPTED / LIVE WITH CONDITIONS / ROLLED BACK`).
+  - **The quotation stays.** Deleting it would erase the record of the conflict
+    and leave a resolution nobody can audit — the point of one authority is that
+    the losing vocabulary is visibly marked, not vanished.
+  - **The ternary is normative; the quoted binary is history and is NOT to be
+    used to classify a session.** Anything that reads as a classification
+    vocabulary elsewhere in this file and is not the ternary is a regression of
+    this defect.
 - **PRIORITY INTERRUPT ON ACCEPTANCE (LIVE + ACCEPTED):** move immediately
   to **Technical Research Release Review** (currently IMPLEMENTED +
   TESTED, PARKED — do NOT auto-merge solely because Pattern Vision
@@ -1786,6 +1800,14 @@ max_per_run `84`, active_set_only `on`, skip_if_stable `on`, confirmed_only
 `on`, confidence floor 60, `day_of_week="mon-fri", hour="9-16", minute=0` ET
 (8 slots). **Do not alter any of these. Never flip `confirmed_only`.**
 
+⛔⛔ **NO PUSH TO MASTER OF ANY KIND, Mon-Fri 09:00-16:00 ET.** Every push
+redeploys `web` and RESTARTS the pod; APScheduler's job store is in memory, so
+a slot whose time passes during the swap is **never scheduled at all** — lost
+outright, not merely run late. **This binds docs-only pushes** — a docs push is
+a prod deploy here. The same window applies to any flag flip, because
+`railway variables --set` restarts the service on `web`. See CLAUDE.md's
+repo-wide rule, which also covers other workstreams pushing to the same pod.
+
 **The rubric below was ratified by the owner BEFORE any evidence was read.**
 Thresholds were not fitted to the result.
 
@@ -1935,6 +1957,250 @@ working-tree writes; fetch and read only.
    adjudicated as Seam 23/28 (raw or stale pattern data narrated as the firm's
    present read).
 
+### SHIPPED 2026-09-09 evening — four deploys, all artifact-verified
+
+**D1 — confirmed-verdict recency + latest-per-key (`c7b0686e4`).**
+`get_confirmed` served every `confirmed=1` row for a ticker/tf with no
+`asof_date` filter and no LIMIT. Now: latest `asof_date` per (ticker, tf, setup)
+FIRST, then the `confirmed` filter on that row only, then a recency bound.
+**Order is load-bearing** — filter `confirmed=1` first and a stale confirm that a
+newer REJECT already superseded is what the consumer narrates as the current
+read. `CONFIRMED_MAX_AGE_DAYS = 7`, CALENDAR days, floor off
+`datetime.date.today()` = **UTC** in the pod (immaterial at K=7). Calendar rather
+than trading sessions deliberately: three NYSE tables exist already and Seam 7
+ruled against a fourth consumer. `today` is injectable **for tests only**. No
+schema change, no new index.
+
+**Observability — one slot row per judge run (`590e88084`).** `vision_slot_log`
++ `vision_slot_ticker`.
+- Written from a **`finally`**: one bad ticker aborts the whole loop, so a row
+  written at the end of the `try` is skipped on exactly the run worth recording.
+  The insert has its own `try/except` so logging can never mask the real error.
+  The aborting ticker comes from a `cur` variable, NOT a per-ticker
+  `try/except`, which would have silently changed abort semantics.
+- ⛔ **`slot_start` is deliberately NOT UNIQUE.** A unique constraint would make
+  a second run for one slot FAIL its insert and vanish — re-creating the
+  invisibility this table removes. **Two rows sharing a `slot_start` IS the
+  double-run detection.**
+- Evidence dates per slot as min/max/distinct, never one column: `_evidence_bar()`
+  runs per ticker, so lag can be PARTIAL within a slot. (2026-09-10 proved this
+  the load-bearing choice — see that day's section.)
+- **Path 2 closed:** `POST /api/patterns/judge/{sym}` writes `source="manual"`.
+
+**Follow-up 14 — tables created before the row can be written (`b41b4ed07`).**
+`init_db()` ran only inside `judge_ticker`, so an EMPTY active set never created
+the tables and the `finally`'s write was swallowed — the instrument reproducing
+its own blind spot for one of the four paths it exists to expose. Now the first
+statement of `_run()`'s `try`.
+- ⚠️ The first-approved member-impact paragraph said "created at startup" and was
+  WRONG; the `_run()` placement creates them at the first cron slot. The commit
+  message itself carries no such claim — the permanent record was accurate; only
+  the paragraph was wrong.
+- ⛔ **RESIDUAL EDGE, recorded not fixed:** if `init_db()` itself fails inside
+  `_run()`, the slot aborts, `log_slot` then fails on the missing table, and that
+  is swallowed. **That single mode stays invisible.** Accepted.
+
+**Technical Research merged DARK (`f58383e69`, 2026-09-09 22:56 ET).** Three
+commits: Phase B, the `selectedKey` fix, and the flag. 9 files. Rebased onto
+`cd674ef56` (25 behind, ZERO file overlap) per the CLAUDE.md rebase rule.
+
+**— the flag, and why it is shaped this way —**
+- **`RESEARCH_TECHNICAL_TAB_ENABLED`, default OFF, declared `dark` in
+  `docs/feature_flags.json`.** The undeclared-gate count is unchanged at six.
+- **Runtime, not build-time**, riding `_access_payload` (the `HUB_PREVIEW_ENABLED`
+  mechanism) because the whole reason for the flag was an off switch that is not
+  revert-and-redeploy. **No new endpoint** — the client already polls
+  `/api/auth/me`.
+- **Polarity is deliberately INVERTED vs the hub switch.** That one is a KILL
+  switch on a shipped feature (unset = "not killed", defaults ON). This is an
+  ENABLEMENT gate on a feature shipping dark (unset = "not released yet"). A
+  forgotten variable can never expose a surface nobody released.
+- **`auth.py` footprint is one dict entry**, which signup, login and
+  `/api/auth/me` all build — blast radius is the whole auth path, not one tab. It
+  **cannot raise**: `os.environ.get(k, "0")` always returns `str`.
+- **Members re-read it on PAGE LOAD, not per request** (`fetchUser` is
+  `useCallback(…, [])`, fired once per `AuthProvider` mount). Next full page load
+  or sign-in — **not** next click, **not** SPA navigation.
+
+**✅ FLAG FLIPPED ON 2026-09-09 23:22:30 ET.** Verified in the running process.
+Coverage at flip time: 15 tickers with content / 68 empty of 83 judged (~82%).
+Re-measured 2026-09-10 10:0x ET: **17 tickers / 18 served rows / 66 empty of 83.**
+
+**Gate 7 instrument rewrite — for ANY future acceptance session.** Slot coverage
+becomes **slots that WROTE A ROW**, never slots with paid calls. As applied on
+2026-09-09 it measured candidate ARRIVAL, not system health.
+
+**`grade_ticker` re-enablement remains NOT AUTHORIZED.** D1 is deployed, so the
+`_default_patterns_fn` docstring's "once that classification lands" condition is
+met on paper. **That is not a go signal.**
+
+### 2026-09-10 — THE INSTRUMENT'S FIRST REAL DAY, AND WHAT IT FOUND
+
+The slot tables shipped the night of 09-09 and had never run. Their first day
+produced three findings, one of which is a correctness defect in the judge that
+had been misread as a scheduling problem for two sessions.
+
+**The day's slot rows** (the validation record for the instrument itself):
+
+| Slot | dur | active | judged | skip | evidence min→max (distinct) | paid | spend |
+|---|---|---|---|---|---|---|---|
+| 09:00 | 184.41s | 84 | 43 | 40 | 2025-01-16→2026-09-08 (2) | 43 | $0.6439 |
+| 10:00 | 32.17s | 84 | 1 | 82 | 2025-01-16→2026-09-09 (3) | 1 | $0.0233 |
+| **11:00** | — | — | — | — | **NO ROW — SLOT LOST** | **1** | **$0.0113** |
+| 12:00 | 167.63s | 84 | 10 | 74 | 2025-01-16→2026-09-09 (3) | 10 | $0.1591 |
+| 13:00 | 17.53s | 84 | 2 | 83 | 2025-01-16→2026-09-09 (3) | 2 | $0.0241 |
+| 14:00 | 12.51s | 84 | 0 | 85 | 2025-01-16→2026-09-09 (3) | 0 | $0.0000 |
+| 15:00 | 15.15s | 84 | 0 | 85 | 2025-01-16→2026-09-09 (3) | 0 | $0.0000 |
+| 16:00 | 46.39s | 84 | 0 | 85 | 2025-01-16→2026-09-09 (3) | 0 | $0.0000 |
+
+**Per-hour cross-check — cost rows vs verdict rows** (an hour where cost exceeds verdicts means a slot paid and then died):
+
+| ET hour | cost rows | verdict rows | spend | slot row |
+|---|---|---|---|---|
+| 09 | 43 | 43 | $0.6439 | yes |
+| 10 | 1 | 1 | $0.0233 | yes |
+| 11 | 1 | 1 | $0.0113 | **MISSING** |
+| 12 | 10 | 10 | $0.1591 | yes |
+| 13 | 2 | 2 | $0.0241 | yes |
+| 14 | 0 | 0 | $0.0000 | yes |
+| 15 | 0 | 0 | $0.0000 | yes |
+| 16 | 0 | 0 | $0.0000 | yes |
+
+**⛔⛔ FOLLOW-UP 2 WAS NEVER A SCHEDULING PROBLEM. It is a correctness defect in
+`_evidence_bar`.**
+
+`_evidence_bar` returned `bars[-2]` unconditionally, on the assumption that
+`bars[-1]` is always today's developing candle. That assumption holds only once
+today's bar has been ingested **for that ticker** — and today's bar is a PARTIAL
+intraday candle written per-ticker on refresh, staggered through the session, not
+a scheduled universal write. Measured on prod at 10:10 ET:
+
+| Ticker | stored bar tail | `bars[-2]` | last bar vol vs 20d avg |
+|---|---|---|---|
+| GILD | 20260908, 20260909, **20260910** | 2026-09-09 ✓ | **6%** — a partial |
+| META | 20260904, 20260908, 20260909 | 2026-09-08 ✗ | 222% |
+| ASML | 20260904, 20260908, 20260909 | 2026-09-08 ✗ | 91% |
+| OXY | 20260904, 20260908, 20260909 | 2026-09-08 ✗ | 129% |
+| TGT | 20260904, 20260908, 20260909 | 2026-09-08 ✗ | 71% |
+| NVDA | 20260904, 20260908, 20260909 | 2026-09-08 ✗ | 64% |
+| XYZ | 20260904, 20260908, 20260909 | 2026-09-08 ✗ | 34% |
+
+For 83 of 84 tickers `bars[-1]` was a fully CLOSED prior session, and returning
+`bars[-2]` discarded it and judged a bar one session older. **All 43 of the 09:00
+slot's paid calls recorded `asof_date` 2026-09-08 on 2026-09-10.** The function's
+own docstring said it returned "the last CLOSED bar"; it did not.
+
+**⭐ The refinement that corrects the earlier reading: the roll is PER-TICKER on
+refresh, not a slot event.** The 10:00 slot judged exactly ONE candidate —
+GILD/bull_flag at asof 2026-09-09 — because GILD was the only ticker whose
+partial had arrived. Wednesday's larger 10:00 wave was refresh timing, not a
+mechanism. There was never a moment when "the market rolled over": the evidence
+bar was wrong from the first slot, and each ticker stopped being wrong at
+whatever minute its own partial landed. The "10:00 re-judge wave" was this defect
+resolving itself one ticker at a time.
+
+**Two candidate fixes were scoped and BOTH are dead.** (a) gating the 09:00 slot
+on evidence having advanced, and (b) moving the cron to `hour="10-16"`. (b) is
+worse than dead: at 10:00, 82 of 83 candidates still carried stale evidence, so
+it would have shipped the same defect an hour later minus an hour of coverage.
+Both were symptom management.
+
+**⛔ A correction to a claim made earlier the same day.** It was argued that D1's
+latest-per-key made the 09:00 rows provably unreachable because 10:00 supersedes
+them. At 10:00, **1 of 43** was superseded. Supersession trickles as ingestion
+catches up; it is not a wave, and Wednesday's ~39%-of-spend figure is a shape
+that may not repeat.
+
+**⛔⛔ THE STARTUP CONTRACT LINE WAS NOT AN INSTRUMENT.** Four of its six tokens
+— `model`, `active_set_only`, `skip_if_stable`, `confirmed_only` — were string
+literals inside the `print()`. Only `cost_hard_cap` and `max_per_run` were
+interpolated. **Every "flag contract byte-identical" check this program ran
+therefore verified that a format string was unchanged**, and could not have
+detected a real drift in four of the six values it appeared to report. The
+contract was in fact consistent with the code defaults, but that was established
+by reading the source, never by the line. Fixed: every value is now read from the
+place the running code reads it, each tagged `[env]`/`[default]`/`[code]`/
+`[resolved]`/`[force_default]`/`[api_default]`.
+
+**Also found:** `PATTERN_VISION_COST_HARD_CAP` is **unset** in Railway — $10.0 is
+the code default, not configuration. Behaviour is correct; provenance was
+invisible. Declared in the ledger as "unset, code default 10.0, deliberate"
+rather than set, which would have cost a second restart for no behaviour change.
+
+**Active-set hygiene (follow-ups 5 + 19, one defect).** The `evidence_min` of
+2025-01-16 on the 09:00 row and the "pre-existing wrong-year row" of follow-up 5
+are the same event: **SQ**, retired in the SQ→XYZ rename, bars frozen at
+2025-01-16, judged once on 09-07 against a 20-month-old chart. The judge read its
+evidence bar correctly — the defect was upstream, in the active set. Edge 1's
+"a wrong-year row is a defect" stands; the defect is **active-set hygiene, not
+judge correctness**.
+- **The more important half:** `leader_universe.json` held **SQ** and did **not**
+  hold **XYZ**, while `cap_universe.json` (3,742) holds XYZ and not SQ. The broad
+  universe was refreshed after the rename; the curated leader file was not. Block
+  Inc had never once been judged. Swapped in place; XYZ verified on prod to hold
+  412 daily bars through 2026-09-09 first.
+- **⚠️ A trap for anyone growing that file:** `PATTERN_VISION_MAX_PER_RUN=84`
+  **exactly equals** `len(leader_universe.json)=84`, and the resolver slices
+  `[:cap]`. Today the slice is a no-op. An 85th leader would be **silently
+  dropped with no log line** — `capped` counts COST-cap events, not this. That
+  fifth silent path is now counted and named (`truncated`), and the SQ→XYZ swap
+  keeps the count at 84 rather than growing it.
+- Hygiene drops any symbol whose latest daily bar is older than **5 trading
+  sessions**, coupled to D1's 7-CALENDAR-day serve window rather than invented:
+  anything staler can only produce verdicts `get_confirmed` already refuses to
+  serve. Measured the same day, the two coincide exactly —
+  `nth_recent_trading_date(5)` = 20260903 and D1's floor = 2026-09-03.
+- **Fails open on every path**, and says so: `hygiene_skipped` records WHICH path
+  declined (`empty_universe` / `no_bars_store:<Exc>` / `no_session_floor` /
+  `would_empty_universe`), NULL when the filter ran. A fail-open that left no
+  mark would have been a sixth silent path — a broken bars store would have
+  looked exactly like a clean universe.
+
+**⛔⛔ THE 11:00 SLOT WAS LOST TO AN EXTERNAL PUSH — the APScheduler finding
+(#17) demonstrated, on the instrument's first day, by another workstream.**
+
+Timeline, all Eastern:
+
+| Time | Event |
+|---|---|
+| 10:14:27 | `web` deploy (another workstream) |
+| 10:58:16 | `web` deploy (another workstream) |
+| **11:00:00** | **the 11:00 judge slot fires** |
+| 11:00:14 | **`web` deploy begins — fourteen seconds later** |
+| 11:01:22 | the slot pays for and stores ONE verdict: `AMD / remount / asof 2026-09-09` ($0.0113) |
+| ~11:02 | the pod swap completes (deployment status SUCCESS); the process is replaced |
+| — | **`vision_slot_log` has NO row for `2026-09-10T11:00:00-04:00`** |
+
+The surviving state is exactly the pay-then-abort signature the per-hour
+cross-check exists to catch: **hour 11 holds 1 cost row and 1 verdict row, and
+no slot row beside them.**
+
+⭐ **Two things this establishes that were previously only argued.**
+1. **A `finally` does not survive process death.** The slot row is written from a
+   `finally` precisely so an aborted run still records — but a deploy replaces
+   the process, and no `finally` runs then. That is a real limit of this
+   instrument, now observed rather than reasoned about, and it is the one abort
+   mode it cannot self-report.
+2. **The append-only cost log is what preserved the evidence.** `slot_spend`
+   reads `vision_cost_log` rather than the judge's return value, because a cost
+   row is committed BEFORE the verdict and cannot be lost on the abort path.
+   That decision is the only reason this loss is visible at all — without it,
+   a slot killed by a deploy would be indistinguishable from a slot that never
+   fired.
+
+Three pushes landed on `web` inside the 09:00-16:00 window this day, none from
+this workstream. This is why the no-push rule is stated repo-wide in CLAUDE.md
+rather than in one program's notes: the session most likely to break it is the
+one that does not know a scheduled job shares the pod.
+
+**⚠⚠ `vision_slot_log` was already live on the prod volume**, and
+`CREATE TABLE IF NOT EXISTS` cannot add a column to it. Without an `ALTER TABLE`
+migration the new counters would have silently never been written — the same
+class of invisibility the table exists to remove. The migration is guarded by a
+`not in` check and proven idempotent, because `init_db()` runs at the top of
+EVERY judge run: a once-only migration would raise `duplicate column name` on the
+second slot of the day and abort the run before a single ticker was judged.
+
 ### Follow-up defects — SCOPED ONLY, NONE AUTHORIZED
 
 1. **Observability of the four silent write-nothing paths (PRIMARY).**
@@ -1951,7 +2217,28 @@ working-tree writes; fetch and read only.
    verbatim, so EVERY confirmed verdict ever written for that ticker/tf is
    served, not merely lagged ones. **This is the exact read path Technical
    Research consumes.**
-4. **Cron ignores the exchange calendar.** `day_of_week="mon-fri"` with no
+4. **Cron ignores the exchange calendar. — HYPOTHESIS: ALREADY CLOSED BY THE
+   `_evidence_bar` FIX. Pre-registered 2026-09-10, to be tested by the next
+   market holiday's slot rows. NO CALENDAR IS TO BE BUILT.**
+
+   The reasoning, written down BEFORE the observation so it cannot be fitted to
+   the result: on a holiday no bar closes, so every ticker's `bars[-1]` is the
+   same already-closed bar it was the previous session. Under the corrected
+   `_evidence_bar` the evidence date therefore does not advance, the signals
+   hash does not move, `get_verdict` finds a prior verdict at that identical
+   asof_date + hash, and skip-if-stable skips every candidate. **Expected
+   holiday slot row: `judged` 0, `skipped` ≈ the full candidate count,
+   `paid_calls` 0, `spend_usd` $0.0000, and an `evidence_max` identical to the
+   prior trading day's final slot.**
+
+   ⛔ **If a holiday slot instead shows paid calls, this hypothesis is WRONG
+   and the calendar question reopens** — record it and do not paper over it.
+   Seam 7 already ruled against a fourth hand-maintained NYSE calendar
+   consumer, which is exactly why the fix-by-side-effect is worth testing before
+   anything is built. The 2026-09-07 Labor Day run that spent $1.5357 on 97
+   judgments is the pre-fix baseline this is measured against.
+
+   Original defect text: `day_of_week="mon-fri"` with no holiday check. `day_of_week="mon-fri"` with no
    holiday check: Monday 2026-09-07 (Labor Day) ran and spent **$1.5357 on 97
    judgments** against Thursday's evidence bar with the market closed.
 5. **Pre-existing wrong-year row:** Monday 2026-09-07 holds one verdict at
@@ -1959,8 +2246,407 @@ working-tree writes; fetch and read only.
    remediated.
 6. **B1 vocabulary conflict** in this file (see FORMAL HOLD section above).
 7. **The `bars[-2]` over-claim**, recorded above as a modeling finding.
-8. **`min_conf` is silently ignored on the `confirmed_only` read path** — it is
-   accepted as a query parameter and never applied on that branch.
+8. **`min_conf` silently ignored on the `confirmed_only` read path.** **Status:
+   explicitly DEFERRED by D1**, not overlooked — the analogous field there is
+   `vision_confidence`, already floor-gated at write time, so honouring
+   `min_conf` is a semantic decision, not a bug fix.
+9. **`test_no_shadowed_definitions` (backend, INHERITED).**
+   `ticker_explain._DOMAIN_FETCHERS` bound twice. Verified failing identically on
+   untouched master. **Never claim repo-green.**
+10. **`test_feature_flag_ledger` (backend, INHERITED).** Six undeclared
+   off-by-default gates, all flow/optionsflow/news. **Re-verified as still six
+   after the Technical-tab flag was declared.**
+11. **`grade_ticker` re-enablement decision** — gated on a deliberate owner call,
+   NOT on D1 having deployed. **The member-impact paragraph it would need,
+   drafted 2026-09-10 so the decision can be made from it:**
+
+   > *Compass begins answering "should I buy X" with a single decisive
+   > GO / HOLD / SKIP instead of declining or hedging. The verdict is COMPUTED
+   > from tools — regime gate, quote, pattern detections, playbook win-rate,
+   > position sizing — not narrated by the model, so it cannot hedge and cannot
+   > invent a number. Members see entry, stop, size as a percent of account, and
+   > account risk, each with a named basis. Two things change for them: the
+   > assistant becomes DIRECTIVE where it was advisory, and any defect in the
+   > underlying pattern detections now reaches a member as a specific trade
+   > instruction rather than as a description. Gated by `BRAIN_TOOLS_ENABLED` +
+   > `COMPASS_MENTOR_MODE`; rollback is unsetting either, no code change.*
+
+   ⛔⛔ **FOLLOW-UP 21 IS ARGUABLY A PRECONDITION FOR THIS ONE.** Detections can
+   currently fire on a partial intraday candle (see #21). Today that reaches a
+   member as a described setup on the Technical tab. Under `grade_ticker` the
+   same detection becomes an entry and a stop — a number to act on, derived from
+   a bar that has not finished forming and whose "breakout" can un-happen before
+   the close. Decide 21 before, or alongside, 11.
+12. **Technical Research — CLOSED, merged dark `f58383e69`, flag ON 09-09
+   23:22:30 ET.**
+13. **Cap-test fixture fidelity.** `test_cost_cap_is_recorded` has every ticker
+   return `cost_capped`, so it never models the cap tripping partway through.
+14. **`init_db` on an empty active set — SHIPPED `b41b4ed07`**, residual edge
+   above still invisible.
+15. **10 inherited vitest failures, characterized 2026-09-09.** Measured
+   identical (9 files / 12 tests / 116 passed) on `origin/master` AND on the TR
+   branch under the same load — zero caused by the rebase. ⚠️
+   `enumerationSites.test.js` is the load-sensitive one CLAUDE.md documents — it
+   PASSES alone. **A single full run's count is not a baseline.**
+16. **`selectedKey` carried across tickers — FIXED, shipped in `f58383e69`.**
+17. **APScheduler's job store is IN MEMORY.** A restart during a slot does not
+   interrupt that slot — the slot is **never scheduled at all**, lost outright,
+   and `misfire_grace_time` cannot see it. This is why no push to master happens
+   Mon-Fri 09:00-16:00 ET, docs-only included. The chart digest's `catch_up()` is
+   THAT workstream's mitigation, not a platform guarantee; pattern_vision has
+   none.
+18. **Tuesday 2026-09-08 had no 09:00 slot at all** (first cost row is hour 10).
+   Consistent with a lost slot per #17. **Whether a boot occurred near 09:00 ET
+   that day is UNKNOWN and not determinable** — `railway deployment list` caps at
+   20 entries and its oldest reaches only Wed 12:58 ET. Recorded as
+   instrument-limited, NOT as a negative.
+19. **SQ retired-symbol in the active set — MERGED INTO #5, FIXED.** See the
+   2026-09-10 section: one defect, not two.
+20. **The startup contract line verified a print statement — FIXED.** Four of six
+   tokens were literals. Every prior "byte-identical" check was vacuous for
+   those four. See the 2026-09-10 section.
+21. **Detectors read `bars[-1]` as the current bar — RECORDED, NOT FIXED.**
+   `candidates_for` passes the FULL bars list to `detect_all`, and detectors
+   index `bars[-1]` directly (`bull_flag.py:337`,
+   `donchian_breakout.py:138`'s `"breakout_close": bars[-1]["c"]`, ~10 others).
+   On any ticker holding a partial intraday candle, detection fires on an
+   in-progress bar — GILD's was **6% of its average volume** — while
+   `asof_date` names the prior session. **This is a verdict-QUALITY question on a
+   member-facing surface: a "breakout" measured on 6% of a session's volume can
+   reach the Technical tab as confirmed.** Pre-existing; untouched by the
+   `_evidence_bar` fix.
+
+   **SCOPED 2026-09-10 (no code, no branch).**
+   - **Smallest change:** `candidates_for` builds `bars_list` from the FULL
+     series. Truncate it at the evidence bar — the bars list handed to
+     `detect_all` (and to `build_context`) ends at the same bar `_evidence_bar`
+     returns — so a detector's `bars[-1]` IS the evidence bar by construction and
+     detection can no longer disagree with `asof_date`. One slice in one
+     function; no detector is touched, which matters because there are ~50 of
+     them and they are shared with the screener.
+   - **What it costs in sensitivity:** a setup only visible once today's partial
+     forms is detected the day that bar CLOSES, not intraday. Breakout-shaped
+     detectors (`donchian_breakout`, `bull_flag`'s trigger) stop firing on an
+     in-progress bar. That is a real loss of immediacy — but this surface
+     already reports `asof_date` as a prior session and is judged hourly, not
+     streamed, so it was never an intraday product. The honest framing: today
+     the surface is intraday for the minority of tickers that happen to hold a
+     partial and end-of-day for the rest. **The inconsistency is the defect;
+     picking either behaviour uniformly is an improvement.**
+   - **Test that proves it:** capture the argument `detect_all` is called with;
+     given a series whose last bar is dated today, assert the captured list's
+     final element is the evidence bar, and that the returned candidates'
+     `asof_date` equals that bar's date. Control: with no partial present the
+     list is passed unchanged. Mutation: remove the slice → the captured last
+     bar is the partial → red.
+   **✅ REPLAY RUN 2026-09-10 — WITHIN THRESHOLD, NO HARD STOP.** 82 of 84
+   tickers (2 skipped for short history) x 10 sessions, replayed against a
+   READ-ONLY connection to the local bars store. Method: historical bars are all
+   complete, so a real partial cannot be replayed — the proxy treats bar N as
+   the developing candle, `OLD = detect_all(bars[..N])` vs
+   `NEW = detect_all(bars[..N-1])`, which is exactly the difference the change
+   makes on a ticker that HAS a partial.
+
+   | setup | OLD | NEW | delta | pct |
+   |---|---|---|---|---|
+   | bull_flag | 382 | 384 | +2 | +0.5% |
+   | u_and_r | 165 | 161 | -4 | -2.4% |
+   | bullish_engulfing | 96 | 89 | -7 | -7.3% |
+   | pullback_to_10ema | 92 | 94 | +2 | +2.2% |
+   | remount | 65 | 62 | -3 | -4.6% |
+   | vcp | 61 | 61 | 0 | 0.0% |
+   | hammer | 48 | 44 | -4 | -8.3% |
+   | flat_base | 42 | 46 | +4 | +9.5% |
+   | episodic_pivot | 23 | 24 | +1 | +4.3% |
+   | pullback_to_21ema | 15 | 15 | 0 | 0.0% |
+   | power_earnings_gap | 14 | 13 | -1 | -7.1% |
+   | **pullback_to_50sma** | **4** | **5** | **+1** | **+25.0%** |
+   | cup_handle_uct | 0 | 0 | 0 | — |
+   | high_tight_flag | 0 | 0 | 0 | — |
+   | **TOTAL** | **1007** | **998** | **-9** | **-0.9%** |
+
+   - **Largest move is 25.0%, under the 30% stop — but read it correctly.**
+     That is `pullback_to_50sma` going from FOUR detections to FIVE across 820
+     ticker-sessions. One detection moves a base that small by a quarter; it is
+     a base-rate artifact, not a sensitivity shift. Cf.
+     `lesson_a_hit_rate_is_meaningless_without_its_base_rate`. Every setup with
+     a meaningful base moves by single-digit percentages, and the total moves
+     **-0.9%**.
+   - ⭐ **The proxy OVERSTATES production impact, deliberately.** It applies the
+     change to every ticker on every replayed session. In production only
+     tickers holding a partial are affected — 1 of 84 at 10:10 ET, 12 by 11:35
+     (see the arrival curve, #25). Real-world impact is a fraction of the above.
+   - ⚠️ **Two setups fired ZERO times in 820 ticker-sessions**: `cup_handle_uct`
+     and `high_tight_flag`. Under both behaviours, so this change neither causes
+     nor hides it. Recorded as an observation, not chased: it is either a
+     genuinely rare setup or a detector that cannot fire, and telling those
+     apart is separate work.
+   - **Sequencing:** implementation touches
+     `pattern_vision/orchestrator.py`, which commit C also touches, so it is
+     held behind the A/B/C push rather than branched from master in parallel.
+   - **Open question for the owner, not decidable here:** whether the RENDERED
+     chart should also stop at the evidence bar. Judging a chart that shows a
+     partial candle the verdict does not account for is a second mismatch, and
+     it is a product/display call rather than a correctness one.
+22. **The slot instrument records per-ticker evidence only for JUDGED
+   candidates — RECORDED, NOT FIXED.** A skipped candidate leaves no row, so its
+   evidence date is inferred from `evidence_min/max/distinct` plus the bar
+   tails, never read directly. **This was hit for real on 2026-09-10**: the
+   10:00 slot's 82 skipped candidates had to be reasoned about from prod bar
+   tails rather than read from the instrument.
+
+   **SCOPED 2026-09-10 (no code, no branch).**
+   - **The data already exists.** `judge_ticker` appends `cand["asof_date"]` to
+     `out["asof_dates"]` BEFORE the skip check, so skipped candidates are
+     already represented; `_run()` collects them and then throws the detail away
+     by reducing to min/max/distinct.
+   - **Change:** store the full histogram — `json.dumps(Counter(asofs))` into a
+     new `evidence_hist TEXT` column on `vision_slot_log`, added through the
+     SAME guarded `ALTER TABLE` loop the three current columns use (the table is
+     live on the prod volume; `CREATE TABLE IF NOT EXISTS` cannot add to it).
+   - **Test that proves it:** a slot whose candidates carry mixed asof dates
+     writes a histogram whose counts SUM to the candidate count and whose key
+     count equals `evidence_distinct`. That second assertion is the load-bearing
+     one — it makes the histogram and the distinct counter unable to disagree,
+     so the new column cannot drift away from the old one the way a second
+     authority normally does.
+   - **Cost:** one JSON column per slot row, bounded by distinct dates (2-3
+     observed in practice). No new query, no new write path.
+23. **Confirmed-verdict COVERAGE re-read — scheduled 2026-09-16**, when D1's
+   7-day window has fully filled since the flag flip. Baseline 2026-09-09
+   22:5x ET: 15 tickers with content / 68 empty of 83. Measured 2026-09-10
+   10:0x ET: **17 with content / 18 served rows / 66 empty of 83 (~80% empty).**
+
+   **SCOPED 2026-09-10 — what number means what, decided BEFORE the read so the
+   threshold cannot be fitted to the result:**
+   - **≥50% populated:** healthy. A member opening the Technical tab on a
+     randomly chosen leader sees content more often than not.
+   - **25-50%:** defensible ONLY if the empty state explains itself — "no
+     confirmed setup in the last 7 sessions" — rather than rendering as a blank
+     panel. At that rate the copy is doing the work, and the copy must be
+     checked before the number is accepted.
+   - **<25%:** the tab reads as broken rather than selective, regardless of the
+     verdicts being correct. That is a product problem even with a perfect judge.
+   - ⛔⛔ **THE 09-16 READ IS NOT COMPARABLE TO THE 09-09 BASELINE, and must not
+     be trended against it.** Two changes shipped in between alter the inputs:
+     fix C changes judging CADENCE (once per day per candidate rather than
+     re-judged as partials arrive), and fix B changes the UNIVERSE (XYZ in, SQ
+     out). A movement in the coverage number between those two dates carries no
+     information about verdict quality. Measure it against the thresholds above,
+     never against the 15/83.
+24. **`PXD` holds ZERO stored bars and the hygiene filter will NOT drop it —
+   RECORDED, NOT FIXED, and deliberately so.** Measured across all 84 leader
+   symbols on prod 2026-09-10 11:3x ET: `PXD` (Pioneer Natural Resources,
+   acquired and delisted) returns `get_last_ts(…, "D") is None`. The stale
+   filter shipped in #5/#19 tests `last is not None and last < floor`, so a
+   symbol with no bars at all is KEPT.
+   - **That was an explicit choice, not an oversight:** absent is not the same
+     as stale, and a filter that silently widened from "stale" to "stale or
+     unknown" would be doing something its own name does not describe. It also
+     fails in the safe direction — `candidates_for` returns `[]` below 30 bars,
+     so PXD costs zero paid calls.
+   - **What it does cost:** one slot of the 84-ticker cap, permanently, for a
+     symbol that can never produce a candidate. Same class as SQ, different
+     mechanism.
+   - **Scope if authorized:** extend the drop to `last is None` and record it
+     under a DISTINCT path (`dropped_no_bars`, not `dropped_stale`) so the two
+     causes stay separable in `vision_slot_ticker`. Test: a symbol with no bars
+     is dropped and logged under the new path, and a symbol with fresh bars is
+     untouched — plus the existing empty-universe guard still returns the
+     unfiltered list, so a bars store that answers `None` for EVERYTHING cannot
+     starve the judge.
+25. **The partial-bar arrival curve, measured 2026-09-10** — the evidence behind
+   the per-ticker-refresh model, recorded so it is not re-derived. Tickers in
+   the 84-symbol active set holding that day's own (partial) bar:
+
+   | ET | tickers with today's bar |
+   |---|---|
+   | 10:10 | 1 (GILD) |
+   | 11:01 | 2 (GILD, AMD — AMD judged in the 11:00 slot) |
+   | 11:35 | **12** |
+
+   Last-stored-bar histogram at 11:35 ET: `2026-09-09: 70 · 2026-09-10: 12 ·
+   2025-01-16: 1 (SQ) · none: 1 (PXD)`. **Ingestion is a trickle across the
+   session, not an event** — which is why the "10:00 roll" reading was wrong and
+   why `_evidence_bar` had to be fixed by date rather than the schedule moved.
+
+### Autonomous-execution log — decisions taken without asking (2026-09-10)
+
+The owner granted execution autonomy with a named stop list. Decisions made
+under it are recorded here with their rationale, per that grant.
+
+- **Sequential branches, not one worktree per item.** A single agent executing
+  serially gains no parallelism from worktrees, and this repo documents real
+  hazards around the shared stash stack and worktree removal walking through a
+  junction. File-ownership discipline is preserved either way.
+- **Item 13 (cap-test fixture) deferred behind the A/B/C push.** It edits
+  `tests/test_pattern_vision_slotlog.py`, which commit B also edits. Branching
+  it from master before B lands would manufacture the exact conflict the
+  file-ownership rule exists to prevent.
+- **Items 22 and 24 sequenced together, behind the same push.** Both edit
+  `api/main.py` and `pattern_vision/store.py`. They are one worktree's work, in
+  order, not two parallel ones.
+- ⛔ **BATCH 3's own overlap gate FIRED on three of four items.** The rule was
+  "no commit on master in the last 7 days touched the same files; if one did,
+  stop that item and log it." Measured against `origin/master`:
+
+  | Item | File | Commits, last 7 days | Outcome |
+  |---|---|---|---|
+  | 9 — duplicate `_DOMAIN_FETCHERS` | `api/services/ticker_explain.py` | **4** | **STOPPED** |
+  | 10 — declare six flag-ledger gates | `docs/feature_flags.json` | **3** | **STOPPED** |
+  | 17 — breadth `Query` vs `str` | `api/main.py` | **34** | **STOPPED** |
+  | 15 — 10 inherited vitest reds | 3 of 10 files active; `app/src` **414** | characterization deferred |
+
+  ⚠️ **`api/main.py` is permanently contended** — 34 commits in a week from
+  several workstreams. That is not a reason to never touch it (A and B do, under
+  explicit authorization); it IS a reason that a drive-by fix inside another
+  workstream's function there must be sequenced deliberately rather than picked
+  up opportunistically. Item 17 stays stopped until it is scheduled against a
+  known-quiet window or the owner sequences it.
+
+- ✅ **BOTH DOCUMENTED INHERITED BACKEND REDS ARE CLOSED (2026-09-10).** This
+  file and the session memory both carry "never claim repo-green" because of
+  them; that instruction stands for the FULL suite (~9,600 tests, never run
+  here), but the two named reds are fixed:
+  - `test_no_shadowed_definitions` — `ticker_explain._DOMAIN_FETCHERS` was bound
+    twice at module level: a forward declaration
+    `_DOMAIN_FETCHERS: dict[str, tuple] = {}` about seventy lines above the real
+    registry, which then rebound it. Python keeps the last binding, so the
+    placeholder never reached a caller — but the file carried two authorities
+    for one name and the dead one MISDESCRIBED the live one (it annotates
+    `tuple`; the values are callables). Its stated rationale ("populated below
+    `_build_evidence` to avoid import cycles") did not hold either: the registry
+    is defined BEFORE `_build_evidence`, and every fetcher already imports
+    lazily inside its own body. Placeholder removed; 11 tests green.
+  - `test_feature_flag_ledger` — the six undeclared gates are declared. ⭐ **All
+    six turned out to be ARMED, not dark**: read live via
+    `railway variables --service <svc> --kv`, every one is set to `1`
+    (`web`: COMPANY_NEWS_INGEST, PANEL_PREWARM, OPTIONSFLOW_ETF_REPLICA_PUSH;
+    `flow-worker`: FLOW_BOOTSTRAP, FLOW_PREPARE,
+    OPTIONSFLOW_ETF_REPLICA_RECEIVE). Their CODE default is off; their DEPLOYED
+    state is on — exactly the distinction the ledger exists to record, and it
+    had never been written down for any of them. 135 tests green.
+26. **A GUARD IN THE OPTIONS-FLOW SUITE COULD NEVER FAIL — FOUND AND FIXED
+   2026-09-10.** `app/src/pages/optionsFlow/wiring.guard.test.js` held two RAW
+   `0x08` (backspace) bytes inside a regex literal where the word-boundary
+   escape was meant:
+
+   `block.match(/<BS>(?:p|c|m|pick)\.contracts<BS>/g)`
+
+   A raw backspace in a regex matches a literal backspace CHARACTER, which never
+   occurs in JavaScript source, so the match result was unconditionally `[]` and
+   the assertion `.toEqual([])` could not fail. The test is named *"3b: nothing
+   in the TOP 10 block reads `.contracts` off a pick"* and it guards a real
+   invariant — the served product drops that map, so a renderer reading it makes
+   the SERVED path silently differ from the LOCAL fallback path: same table, two
+   populations, no error. **It has been unable to detect that the whole time.**
+   - The same bytes made the file BINARY to git and ripgrep, which is what
+     `src/__tests__/sourcesAreText.test.js` exists to catch — one of the
+     inherited frontend reds. That rail is green now.
+   - ⭐ **Repairing a vacuous guard can turn it red, so it was measured FIRST**,
+     read-only: replicating the test's own comment-stripping and 24,000-char
+     slice against `OptionsFlow.jsx`, the control (`topCDisplayPrem`) is present
+     and the REPAIRED regex matches ZERO occurrences. The guard becomes
+     functional and stays green; it is not masking a live violation today.
+   - ⚠️ **Partner adjacency, logged not hidden:** the file sits under
+     `app/src/pages/optionsFlow/`. It is NOT one of the three co-edited files on
+     record (`OptionsFlow.jsx`, `schwab_router.py`, `live_massive_router.py`),
+     the change is two bytes in a test, and the runtime string is identical.
+   - ⚰️ **The first attempt at this edit failed silently in a way worth
+     recording:** a shell heredoc ate a backslash, so the "replace 0x08 with
+     backslash-b" instruction became "replace 0x08 with 0x08" — a no-op that
+     asserted its way out rather than corrupting the file. Same trap this repo
+     already records for `pine.js`. The fix was applied from a written file.
+- ⛔ **ITEM 17 IS SEAM 27, AND THIS FILE'S DIAGNOSIS OF IT NAMES THE WRONG
+  PARAMETER.** Seam 27 says `anchor`'s `Query(...)` default reaches
+  `bisect_right`. Measured 2026-09-10 against `api/routers/breadth_monitor.py`:
+  **`anchor` is already defended** — line 476 is
+  `anchor = anchor if anchor in ("le", "ge") else "le"`, and a `Query` instance
+  is not in that tuple, so a direct call normalises it to `"le"` before it can
+  reach anything. The undefended parameters are **`end`** (passed on as
+  `end=end or None`, and a `Query` object is TRUTHY, so the sentinel is what
+  travels) and **`days`** (passed positionally, unvalidated). The fix is the
+  same one-liner already sitting one line above, applied to `end` and `days`.
+  ⭐ Anyone who picks this up from the old text will spend their time on the one
+  parameter that is already correct.
+  **STOPPED under the same 7-day gate** (`api/routers/breadth_monitor.py`: 3
+  commits; the alternative fix site, the caller in `api/main.py`, has 34).
+  Real cost while it stays open: two boot tracebacks and a breadth-history cache
+  that is never pre-warmed, so the first request after every deploy pays full
+  cold compute.
+- ✅ **SEAM 8 WAS ALREADY FULLY RESOLVED** (merge `22452cff7`/`dbd08ece6`,
+  2026-09-07) and was briefly mis-enumerated as open on 2026-09-10 by reading
+  its header line without its resolution clause. Recorded because the same
+  mistake is easy to repeat: several seam entries open with the DEFECT
+  description and carry their resolution mid-paragraph.
+
+- ✅ **ITEM 15 CHARACTERIZED 2026-09-10** — each of the ten inherited vitest
+  reds run ALONE, which is the only way to separate a broken test from a
+  load-sensitive one.
+
+  ⚰️ **THE FIRST CHARACTERIZATION RUN WAS WRONG, AND ITS ERROR WAS MINE.**
+  Invoking `npx --prefix app vitest run --root app <file>` from the repo root
+  breaks relative path resolution inside the tests: three files reported
+  `Tests no tests` with `ENOENT` on directories like
+  `C:/Users/Patrick/uct-worktrees/tests/fixtures/pine_blind` — a path one level
+  ABOVE the repo. I nearly classified all three as collection-broken. Run from
+  `app/` (as CLAUDE.md says) every one of them RUNS, and `manifestProse` even
+  changes from 2 failures to 1. ⭐ **A harness that resolves paths differently
+  manufactures failures that look exactly like product defects** — and this is
+  the second time today an instrument produced a confident wrong answer about
+  its own subject.
+
+  | file | alone | classification |
+  |---|---|---|
+  | `sourcesAreText.test.js` | **now passes** | deterministic — **FIXED**, see #26 |
+  | `enumerationSites.test.js` | 41 passed | **load-sensitive** (as CLAUDE.md documents) |
+  | `NoteEditorPage.durable.test.jsx` | 15 passed | **load-sensitive** |
+  | `tapFloor.test.js` | 1 failed / 4 passed | deterministic |
+  | `ImportBox.thinkscript.test.jsx` | 1 failed / 24 passed | deterministic |
+  | `pine.blindCorpus.test.js` | 1 failed / 15 passed | deterministic |
+  | `manifestProse.test.js` | 1 failed / 5 passed | deterministic |
+  | `pollingSites.rail.test.js` | 1 failed / 3 passed | deterministic |
+  | `ThemeTrackerPage.chartmount.test.jsx` | 2 failed / 1 passed | deterministic |
+  | `reachable.test.js` | 1 failed / 11 passed | deterministic — **design judgment** |
+
+  - ⛔ **`reachable.test.js` is NOT to be "fixed".** It names **18 unreachable
+    modules**, most of them an entire feature (`pages/community/*` — `ChatView`,
+    `CommunityPage`, `AckGate`, `CardRenderer`, `FloorAvatar`, …) plus
+    `floor2/main.jsx`, `lib/chatStreamManager.js` and
+    `charts/widgets/DockFundamentals.jsx`. The rail's own message states the
+    remedy: *mount them, delete them, or record the decision with a reason*.
+    That is a product call on a whole Community surface, not a test fix. Logged
+    under the "do not chase anything needing design judgment" rule.
+  - ⚠️ **`pollingSites.rail.test.js` CONTRADICTS this file and CLAUDE.md.** Both
+    say the `jsonFetcher`/`pollingSites` rails "fire ONLY in the FULL suite". It
+    fails ALONE (1 of 4). Either the documentation is stale or the rail changed;
+    recorded, not resolved.
+  - ✅ **`ImportBox.thinkscript.test.jsx` — FIXED (1 failed/24 passed → 25
+    passed).** It read a ThinkScript fixture verbatim and compared it against a
+    `<textarea>`'s value. **A textarea CRLF-normalises to LF per the HTML spec**,
+    so on any checkout producing CRLF — every Windows checkout with
+    `core.autocrlf` on — the two could never be equal. Identical bytes,
+    different terminators, and a diff that renders as two visually identical
+    strings. Normalised on read, which also models what the DOM actually
+    stores. ⭐ **This red was an artifact of the platform the suite ran on, not
+    a product defect** — worth knowing before anyone treats the remaining
+    Windows-only reds as real.
+  - ⏸️ **`tapFloor.test.js` — cause is local and obvious, but HELD as
+    member-visible.** `journal-2-0/components/notebook/CaptureDialog.module.css`
+    declares a finger target for `.actions` at ≤640px and not at ≤1024px, which
+    is precisely the documented rule *the touch tier is ≤1024, not ≤640 — a
+    floor restored only at ≤640 leaves TABLET broken*. The fix is one media
+    query. It is withheld because changing a tap-target size on tablet IS a
+    member-visible rendering change and is not paragraphed in the standing
+    directive. One line, ready, needs a word.
+  - ⏸️ **`manifestProse.test.js`** — the manifest key `_session` is READ but
+    would be stripped. Whether it belongs on the keep-list is a contract
+    question about the manifest, not a typo. Logged.
+  - ⛔ **`pine.blindCorpus.test.js` — NOT eligible.** `ACCEPTED.length` is 21
+    against an `ACCEPT_FLOOR` of 28: a deliberate quality floor on a blind
+    corpus. "Fixing" it means making the Pine engine accept seven more scripts,
+    which is the renderer program's work and explicitly not authorized. The
+    corpus is a regression net, never a target.
 
 ## CURRENT PARKED (implemented, tested, NOT merged — do not reconcile without explicit authorization)
 
