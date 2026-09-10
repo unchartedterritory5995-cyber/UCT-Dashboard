@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } fr
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
-import { anchorsForDrawing } from './chart/drawingAlertAnchors'
+import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -509,6 +509,7 @@ import ScreenshotPopover from './chart/ScreenshotPopover'
 import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
 import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
+import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
 import { FIRST_PAINT_BARS, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
 
@@ -3962,13 +3963,24 @@ export default function StockChart({
   activeToolRef.current = activeTool
   const [positionTool, setPositionTool] = useState({ entry: '', stop: '', target: '', risk: 200, direction: 'long' })
   const positionPriceLines = useRef([])
-  const [drawColor, setDrawColor] = useState(canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color)
-  // Sunrise defaults the drawing color to black (reads on the bright canvas); other
-  // themes use the user's configured default. A manual palette pick persists until the
-  // theme (or the saved default) changes.
+  const [drawColor, setDrawColor] = useState(cs.drawingDefaults.color || UCT_DRAW_GOLD)
+  // THE COLOUR FOLLOWS THE USER'S SAVED DEFAULT AND NOTHING ELSE.
+  //
+  // This used to read `canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color`
+  // with `canvasTheme` IN THE DEPENDENCY ARRAY, which cost two things:
+  //   1. on the light (Sunrise) canvas, new drawings were BLACK no matter what
+  //      default the user had saved - their setting was simply overruled;
+  //   2. worse, because the effect re-ran on every theme change, switching theme
+  //      SILENTLY DISCARDED a colour the user had just picked from the palette.
+  //      Pick red, change theme, draw - you get black.
+  //
+  // Now: the default is the saved default (UCT gold out of the box), a manual
+  // palette pick survives a theme switch, and someone who genuinely wants black
+  // on Sunrise picks black and saves it as their default - which now sticks,
+  // because nothing overrides it.
   useEffect(() => {
-    setDrawColor(canvasTheme === 'sunrise' ? '#000000' : cs.drawingDefaults.color)
-  }, [canvasTheme, cs.drawingDefaults.color])
+    setDrawColor(cs.drawingDefaults.color || UCT_DRAW_GOLD)
+  }, [cs.drawingDefaults.color])
   const [drawWidth, setDrawWidth] = useState(cs.drawingDefaults.width)
   const [magnet, setMagnet] = useState(false)  // snap drawings to nearest O/H/L/C
   const [selectedId, setSelectedId] = useState(null)
@@ -4362,7 +4374,7 @@ export default function StockChart({
     const drawLineItem = hasPrice ? {
       id: 'draw-hline',
       label: <><UIcon name="ruler" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />{`Draw line at $${fmtPrice(clickPrice)}`}</>,
-      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c'), lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
+      onSelect: () => { try { addDrawingRef.current?.({ type: 'horizontal', points: [{ price: clickPrice }], color: cs.drawingDefaults?.color || UCT_DRAW_GOLD, lineWidth: cs.drawingDefaults?.width || 1 }) } catch {} },
     } : null
     const copyPriceItem = hasPrice ? {
       id: 'copy-price',
@@ -4835,7 +4847,7 @@ export default function StockChart({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
   clearAllRef.current = clearAll
   drawingCountRef.current = drawings.length
@@ -4865,19 +4877,30 @@ export default function StockChart({
    * disagree silently at the first edit. */
   // MOB-05 — keep every "follow this line" alert glued to its drawing. Dormant
   // unless this chart actually carries a line-ish drawing; see the hook header.
-  useBoundDrawingAlerts({
+  // ⭐ THE HOOK'S RETURN IS THE SYMBOL'S LIVE ALERT LIST, and the Fib level
+  // editor reads it to mark which levels already carry one. Derived, never
+  // stored on the drawing: an alert is server state another browser can change,
+  // and a copy on the drawing would go stale AND would mean a style write every
+  // time an alert was set.
+  const boundAlerts = useBoundDrawingAlerts({
     sym, drawings, tf: resolvedTf, etOffset: _ET_OFFSET,
     getBars: useCallback(() => drawBarsRef.current || [], []),
   })
 
   const handleSetDrawingAlert = useCallback(async (drawing, direction, opts) => {
     if (!sym || !drawing) return
+    // ⭐ `opts.level` IS THE ONLY THING A FIB ALERT ADDS. The geometry call
+    // resolves that level to a price, and the level rides into the bound id so
+    // the resync can recompute it after the drawing moves. Everything else —
+    // the body, the endpoint, the direction vocabulary, the cache update — is
+    // the path every other drawing alert already takes.
+    const level = opts?.level
     const geom = anchorsForDrawing(drawing, {
-      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET,
+      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET, level,
     })
     if (!geom) return
     const body = { sym, direction, ...geom }
-    if (opts?.bound !== false && drawing.id) body.drawing_id = drawing.id
+    if (opts?.bound !== false && drawing.id) body.drawing_id = boundIdFor(drawing.id, level ?? null)
     try {
       const res = await fetch('/api/watchlist-alerts', {
         method: 'POST',
@@ -13313,7 +13336,7 @@ export default function StockChart({
       const ctx = c.getContext('2d'); if (!ctx) return
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
+      const col = cs.drawingDefaults?.color || UCT_DRAW_GOLD
       ctx.strokeStyle = col; ctx.lineWidth = cs.drawingDefaults?.width || 1
       // Match the toolbar Trendline tool exactly: a clean line, NO endpoint dots,
       // honoring the saved dash style.
@@ -13353,7 +13376,7 @@ export default function StockChart({
       const p = getPos(e)
       if (Math.abs(p.x - st.startX) < 4 && Math.abs(p.y - st.startY) < 4) return
       const b = ptAt(p.x, p.y); if (!b) return
-      const col = canvasTheme === 'sunrise' ? '#000000' : (cs.drawingDefaults?.color || '#c9a84c')
+      const col = cs.drawingDefaults?.color || UCT_DRAW_GOLD
       addDrawingRef.current?.({
         type: 'trendline',
         points: [st.a, b],
@@ -15862,6 +15885,7 @@ export default function StockChart({
           <ChartDrawingOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             activeTool={null}
             setActiveTool={NOOP}
@@ -15887,6 +15911,7 @@ export default function StockChart({
           <ChartDrawingOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
@@ -15899,15 +15924,35 @@ export default function StockChart({
             addDrawing={addDrawing}
             updateDrawing={updateDrawing}
             removeDrawing={removeDrawing}
-            reorderDrawing={reorderDrawing}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
             repeatMode={repeatMode}
             undo={undo}
             redo={redo}
             snapshotHistory={snapshotHistory}
-            onSaveDefaults={(d) => handleUpdateChartSettings({ ...cs, drawingDefaults: { ...cs.drawingDefaults, ...d } })}
+            toolDefaults={cs.drawingDefaults?.byTool || null}
+            /* ⛔ `byTool` MERGES ONE LEVEL DEEP; EVERYTHING ELSE STILL SPREADS FLAT.
+               A plain `{...cs.drawingDefaults, ...d}` would replace the whole
+               byTool map with the one tool that just saved — so saving a
+               Rectangle's fill would silently drop the Arrow size someone saved
+               last week. The flat half (color/width/style/fontSize) keeps its
+               shipped shared behaviour; only the per-tool half is nested. */
+            onSaveDefaults={(d) => {
+              const { byTool, ...flat } = d || {}
+              const prev = cs.drawingDefaults || {}
+              const nextByTool = byTool
+                ? Object.entries(byTool).reduce(
+                  (acc, [tool, props]) => ({ ...acc, [tool]: { ...(acc[tool] || {}), ...props } }),
+                  { ...(prev.byTool || {}) },
+                )
+                : prev.byTool
+              handleUpdateChartSettings({
+                ...cs,
+                drawingDefaults: { ...prev, ...flat, ...(nextByTool ? { byTool: nextByTool } : {}) },
+              })
+            }}
             onSetAlert={handleSetDrawingAlert}
+            boundAlerts={boundAlerts}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
@@ -16074,6 +16119,7 @@ export default function StockChart({
             readOnly={!annotationsEditable}
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             hidePriceLabels
             redrawHandleRef={annRedrawRef}
@@ -16143,6 +16189,7 @@ export default function StockChart({
             readOnly
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
+            volumeSeriesRef={volumeSeriesRef}
             bars={bars}
             activeTool={null}
             setActiveTool={NOOP}

@@ -50,6 +50,10 @@ export function objectTypeName(type) {
 
 const LEVEL_ONE = new Set(['horizontal', 'hray'])
 const LEVEL_TWO = new Set(['trendline', 'ray', 'extended', 'channel', 'fib', 'fibext', 'rect', 'measure', 'position'])
+// ⛔ A RULER'S SUMMARY IS NOT A PRICE. Bars & Time measures horizontally, so
+// "412.50 → 418.00" would be two readings of the same level dressed up as a
+// range. It falls through to the single-level branch below, which prints the row
+// it sits on — the one price it actually has.
 
 /** A one-line summary that tells you WHICH object this row is. */
 export function objectSummary(d) {

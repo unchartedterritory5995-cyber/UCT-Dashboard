@@ -22,8 +22,17 @@ describe('alertKindFor', () => {
     expect(alertKindFor('extended')).toBe('trendline')
   })
   it('a shape that has no level cannot carry an alert', () => {
-    for (const t of ['rect', 'circle', 'text', 'fib', 'measure', 'arrow', undefined])
+    for (const t of ['rect', 'circle', 'text', 'measure', 'arrow', undefined])
       expect(alertKindFor(t)).toBeNull()
+  })
+
+  it('⭐ A FIB IS A PRICE LINE, which is the whole of the Phase 8 integration', () => {
+    // A Fibonacci LEVEL is a horizontal price level and the server already knows
+    // how to evaluate one — so there is no new alert semantics, no second engine
+    // and no schema change. What a Fib adds is only WHICH level, and that rides
+    // in the bound id (see `boundIdFor`).
+    expect(alertKindFor('fib')).toBe('line')
+    expect(alertKindFor('fibext')).toBe('line')
   })
 })
 

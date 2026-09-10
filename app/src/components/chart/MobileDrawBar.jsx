@@ -41,14 +41,16 @@ export const DRAW_TOOLS = [
   { id: 'channel',    label: 'Channel' },
   { id: 'pitchfork',  label: 'Pitchfork' },
   { id: 'avwap',      label: 'AVWAP' },
-  { id: 'advance',    label: 'Advance %' },
+  { id: 'advance',    label: 'Price Move' },
   { id: 'vertical',   label: 'Vertical' },
   { id: 'extended',   label: 'Extended' },
   { id: 'arrow',      label: 'Arrow' },
   { id: 'circle',     label: 'Circle' },
   { id: 'text',       label: 'Text' },
   { id: 'measure',    label: 'Measure' },
-  { id: 'position',   label: 'Position' },
+  { id: 'dateRange',  label: 'Bars & Time' },
+  // The calculator panel, not the retired drawing — see ChartToolbar.
+  { id: 'position',   label: 'Position Calc' },
   { id: 'cup',        label: 'Cup' },
 ]
 

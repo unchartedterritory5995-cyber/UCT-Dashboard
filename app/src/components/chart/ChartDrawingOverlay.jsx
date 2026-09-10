@@ -1,11 +1,43 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
 import { matchOverlayTool } from './keyboardShortcuts'
-import { isCoarsePointer, hitThreshold, handleRadius, crossedDragSlop, useCoarsePointer } from './coarsePointer'
+import { hitThreshold, crossedDragSlop, useCoarsePointer } from './coarsePointer'
 import { fmtLevel, visibleOnly } from './drawingObjects'
+import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
+import {
+  computeAdvanceMove, constrainPoints, handleDragGain, handlePointsFor,
+  hitTestDrawing, offsetPoints, pointInBox,
+} from './drawingGeometry'
+import {
+  advanceLines, fieldsFor, inferBarSeconds, labelPosOf, measureLines, measurementFor,
+} from './drawingMeasure'
+import { dashFor } from './drawingStyle'
+import { priceFormatterFor } from './drawingLabels'
+import { drawingProp } from './drawingSchema'
+import {
+  FONT_OPTIONS, editorTextStyle, fontLabelFor, fontStringFor, fontStackOf,
+  textBoxFor, PAD_X, PAD_Y, BORDER_W, LINE_HEIGHT,
+} from './drawingText'
+import {
+  RESET_FIB_STYLE, bandState, bandsFor, defaultBandColor, levelKey,
+  resolveLevels, withBand, withLevel,
+} from './drawingFib'
+import { parseBoundId } from './drawingAlertAnchors'
+import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
+import {
+  PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
+  toPaneFraction, fromPaneFraction,
+} from './drawingPanes'
+import {
+  renderTrendline, renderRay, renderExtended, renderHorizontal, renderHRay, renderVertical,
+  renderRect, renderCircle, renderArrow, renderCup, renderText, renderAdvance,
+  renderFib, renderFibExtension, renderPitchfork, renderChannel, renderMeasure,
+  renderPosition, renderAnchoredVwap, renderSelectionHandles, renderCrosshair,
+  renderBarsTime, wrapTextLines,
+} from './drawingRenderers'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -25,55 +57,41 @@ const POINT_COUNT = {
 // far-right click can't fling a point thousands of bars into the void.
 const FUTURE_BARS_CAP = 500
 
-const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
-const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa']
+// ⛔ THE RENDERERS, THE GEOMETRY, THE HIT TESTS AND THE COLOUR RULES USED TO
+// LIVE HERE — roughly 750 lines of them, module-private inside a React
+// component whose canvas maps no coordinates under jsdom. That is why this
+// layer's tests read SOURCE TEXT instead of running anything, and why the audit
+// could describe the Pitchfork and Parallel Channel geometry bugs but no test
+// could fail on them. They now live beside this file as plain functions over
+// plain numbers, MOVED VERBATIM (Phase 0 is behaviour-neutral by contract), and
+// `drawingGeometry.test.js` / `drawingRenderers.test.js` execute them.
+//
+// What deliberately did NOT move: `resolveCatalystAnchor` and
+// `placeCalloutPoint` below. They are News-widget callout PLACEMENT, not drawing
+// tools, they are outside this project's blast radius, and one of them already
+// has its own test importing it from here.
+/**
+ * Narrow the current clip to a pane rect.
+ *
+ * THE CALLER MUST ALREADY HAVE CALLED ctx.save(). Canvas clips only ever
+ * INTERSECT - there is no "unclip" - so the only way back out is the matching
+ * restore(), and this helper deliberately does not save() for you: a helper that
+ * saved without restoring would be a stack leak that shows up three drawings
+ * later, or in the share PNG and nowhere on screen.
+ *
+ * A null rect is a no-op rather than an error: the fallbacks in drawingPanes all
+ * resolve to the whole plot, and "clip to nothing" would make a drawing vanish -
+ * which is indistinguishable, to the user, from having lost it.
+ */
+function clipToPane(ctx, rect) {
+  if (!rect) return
+  const w = rect.x1 - rect.x0, h = rect.y1 - rect.y0
+  if (!(w > 0) || !(h > 0)) return
+  ctx.beginPath()
+  ctx.rect(rect.x0, rect.y0, w, h)
+  ctx.clip()
+}
 
-const FIB_EXT_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618]
-const FIB_EXT_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa', '#e879f9', '#f472b6', '#22d3ee', '#818cf8']
-
-// Render-time color remap so existing drawings pop on the dark chart without
-// rewriting stored data: the palette reds brighten, and the palette greens snap
-// to the exact bold candle green (#1ae51a) so a green level matches the candles.
-const _ANNOTATION_REMAP = {
-  '#e74c3c': '#ff5b5b', '#ef4444': '#ff5b5b',   // brighter red
-  '#4ade80': '#1ae51a', '#3cb868': '#1ae51a', '#22c55e': '#1ae51a',   // match the bold candle green
-}
-function brightenAnnotationColor(color) {
-  return (color && _ANNOTATION_REMAP[color.toLowerCase()]) || color
-}
-// Perceived luminance (0..1) of a CSS hex or rgb()/rgba() color; null if unparseable.
-function _colorLuminance(c) {
-  if (!c || typeof c !== 'string') return null
-  const s = c.trim()
-  let r, g, b
-  if (s[0] === '#') {
-    let hex = s.slice(1)
-    if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('')
-    if (hex.length < 6) return null
-    r = parseInt(hex.slice(0, 2), 16); g = parseInt(hex.slice(2, 4), 16); b = parseInt(hex.slice(4, 6), 16)
-  } else {
-    const m = s.match(/rgba?\(([^)]+)\)/i)
-    if (!m) return null
-    const parts = m[1].split(',').map(x => parseFloat(x))
-    ;[r, g, b] = parts
-  }
-  if (![r, g, b].every(Number.isFinite)) return null
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
-}
-// Auto-ink for BARE text labels (the advance % label): black on a light canvas,
-// white on a dark one, so the label always contrasts the background without the
-// old shadow/outline. Reads the chart's ACTUAL applied background so a custom,
-// gradient, or light (sunrise) theme all resolve correctly. White when unreadable.
-function autoLabelInk(chart) {
-  try {
-    const bg = chart?.options?.().layout?.background
-    const lum = _colorLuminance(bg?.color ?? bg?.topColor)
-    if (lum == null) return '#ffffff'
-    return lum > 0.5 ? '#000000' : '#ffffff'
-  } catch { return '#ffffff' }
-}
-// Line tools whose right-click menu offers "Set level" (type an exact price) and,
-// for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
 const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
 const ALERT_BIND_KEY = 'uct.chart.alertBind'   // 'bound' (default) | 'fixed'
 const SLOPED_LINE_TYPES = new Set(['trendline', 'ray', 'extended'])
@@ -96,772 +114,13 @@ const HIT_THRESHOLD = () => hitThreshold()
 // Same shape as HIT_THRESHOLD: a FUNCTION, never a module-load constant — the
 // pointer answer must be read when the gesture happens, not when the file loads.
 const CROSSED_SLOP = (startPixel, pos) => crossedDragSlop(startPixel, pos)
-const HANDLE_R = () => handleRadius()
 // One-time "tap two points" coach chip for multi-point tools on touch —
 // single flag across all tools (the voice.dictation.hintSeen idiom).
 const TAP_HINT_LS = 'uct.drawings.tapHintSeen'
 
-// ─── Geometry helpers ────────────────────────────────────────────────────────
-
-function distToSegment(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1, dy = y2 - y1
-  const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) return Math.hypot(px - x1, py - y1)
-  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq
-  t = Math.max(0, Math.min(1, t))
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
-}
-
-function distToLine(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1, dy = y2 - y1
-  const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) return Math.hypot(px - x1, py - y1)
-  return Math.abs(dy * px - dx * py + x2 * y1 - y2 * x1) / Math.sqrt(lenSq)
-}
-
-function extendToEdges(p1, p2, w, h) {
-  const dx = p2.x - p1.x, dy = p2.y - p1.y
-  if (dx === 0) return [{ x: p1.x, y: 0 }, { x: p1.x, y: h }]
-  if (dy === 0) return [{ x: 0, y: p1.y }, { x: w, y: p1.y }]
-  const m = dy / dx, b = p1.y - m * p1.x
-  const pts = []
-  const yAt0 = b, yAtW = m * w + b
-  const xAt0 = -b / m, xAtH = (h - b) / m
-  if (yAt0 >= -100 && yAt0 <= h + 100) pts.push({ x: 0, y: yAt0 })
-  if (yAtW >= -100 && yAtW <= h + 100) pts.push({ x: w, y: yAtW })
-  if (xAt0 >= -100 && xAt0 <= w + 100 && pts.length < 2) pts.push({ x: xAt0, y: 0 })
-  if (xAtH >= -100 && xAtH <= w + 100 && pts.length < 2) pts.push({ x: xAtH, y: h })
-  return pts.length >= 2 ? pts : [p1, p2]
-}
-
-function extendRay(p1, p2, w, h) {
-  const dx = p2.x - p1.x, dy = p2.y - p1.y
-  if (dx === 0 && dy === 0) return [p1, p2]
-  // Extend from p1 through p2 to edge
-  const edges = extendToEdges(p1, p2, w, h)
-  // Pick the edge point on the p2 side of p1
-  const dotA = (edges[0].x - p1.x) * dx + (edges[0].y - p1.y) * dy
-  const dotB = edges[1] ? (edges[1].x - p1.x) * dx + (edges[1].y - p1.y) * dy : -1
-  const farPt = dotA >= dotB ? edges[0] : edges[1]
-  return [p1, farPt || p2]
-}
-
-function drawArrowhead(ctx, from, to, size = 8) {
-  const angle = Math.atan2(to.y - from.y, to.x - from.x)
-  ctx.beginPath()
-  ctx.moveTo(to.x, to.y)
-  ctx.lineTo(to.x - size * Math.cos(angle - 0.4), to.y - size * Math.sin(angle - 0.4))
-  ctx.lineTo(to.x - size * Math.cos(angle + 0.4), to.y - size * Math.sin(angle + 0.4))
-  ctx.closePath()
-  ctx.fill()
-}
-
-// ─── Render functions ────────────────────────────────────────────────────────
-
-function renderTrendline(ctx, pts) {
-  if (pts.length < 2) return
-  ctx.beginPath()
-  ctx.moveTo(pts[0].x, pts[0].y)
-  ctx.lineTo(pts[1].x, pts[1].y)
-  ctx.stroke()
-}
-
-function renderRay(ctx, pts, w, h) {
-  if (pts.length < 2) return
-  const [a, b] = extendRay(pts[0], pts[1], w, h)
-  ctx.beginPath()
-  ctx.moveTo(a.x, a.y)
-  ctx.lineTo(b.x, b.y)
-  ctx.stroke()
-}
-
-function renderExtended(ctx, pts, w, h) {
-  if (pts.length < 2) return
-  const [a, b] = extendToEdges(pts[0], pts[1], w, h)
-  ctx.beginPath()
-  ctx.moveTo(a.x, a.y)
-  ctx.lineTo(b.x, b.y)
-  ctx.stroke()
-}
-
-function renderHorizontal(ctx, pts, w, showLabel = true) {
-  if (!pts.length) return
-  ctx.beginPath()
-  ctx.moveTo(0, pts[0].y)
-  ctx.lineTo(w, pts[0].y)
-  ctx.stroke()
-  // Price label
-  if (showLabel && pts[0].price != null) {
-    const label = pts[0].price.toFixed(2)
-    ctx.font = '10px "Instrument Sans", sans-serif'
-    ctx.fillStyle = ctx.strokeStyle
-    ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
-  }
-}
-
-function renderHRay(ctx, pts, w, showLabel = true) {
-  if (!pts.length) return
-  const x = pts[0].x ?? 0
-  ctx.beginPath()
-  ctx.moveTo(x, pts[0].y)
-  ctx.lineTo(w, pts[0].y)
-  ctx.stroke()
-  // Price label — placed just ABOVE the ray's anchor (the setup bar/start of
-  // the ray), not at the right price scale, so it sits over the candle it marks.
-  if (showLabel && pts[0].price != null) {
-    const label = pts[0].price.toFixed(2)
-    ctx.font = '10px "Instrument Sans", sans-serif'
-    ctx.fillStyle = ctx.strokeStyle
-    ctx.textBaseline = 'bottom'
-    ctx.fillText(label, x, pts[0].y - 5)
-    ctx.textBaseline = 'alphabetic'
-  }
-}
-
-function renderVertical(ctx, pts, h) {
-  if (!pts.length) return
-  ctx.beginPath()
-  ctx.moveTo(pts[0].x, 0)
-  ctx.lineTo(pts[0].x, h)
-  ctx.stroke()
-}
-
-function renderRect(ctx, pts) {
-  if (pts.length < 2) return
-  const x = Math.min(pts[0].x, pts[1].x)
-  const y = Math.min(pts[0].y, pts[1].y)
-  const w = Math.abs(pts[1].x - pts[0].x)
-  const h = Math.abs(pts[1].y - pts[0].y)
-  ctx.fillStyle = ctx.strokeStyle.replace(')', ', 0.08)').replace('rgb', 'rgba').replace('#', '')
-  // Parse hex to rgba fill
-  const sc = ctx.strokeStyle
-  ctx.save()
-  ctx.globalAlpha = 0.08
-  ctx.fillStyle = sc
-  ctx.fillRect(x, y, w, h)
-  ctx.restore()
-  ctx.strokeRect(x, y, w, h)
-}
-
-function renderCircle(ctx, pts) {
-  if (pts.length < 2) return
-  const cx = (pts[0].x + pts[1].x) / 2
-  const cy = (pts[0].y + pts[1].y) / 2
-  const rx = Math.abs(pts[1].x - pts[0].x) / 2
-  const ry = Math.abs(pts[1].y - pts[0].y) / 2
-  ctx.beginPath()
-  ctx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2)
-  ctx.save()
-  ctx.globalAlpha = 0.08
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.fill()
-  ctx.restore()
-  ctx.stroke()
-}
-
-function renderArrow(ctx, pts) {
-  if (pts.length < 2) return
-  ctx.beginPath()
-  ctx.moveTo(pts[0].x, pts[0].y)
-  ctx.lineTo(pts[1].x, pts[1].y)
-  ctx.stroke()
-  ctx.fillStyle = ctx.strokeStyle
-  drawArrowhead(ctx, pts[0], pts[1], 10)
-}
-
-// Cup curve (for cup & handle patterns): a smooth arc through three anchors —
-// left rim, bottom, right rim (clicked in that order). Drawn as a single
-// quadratic Bézier whose control point is placed so the curve passes EXACTLY
-// through the bottom anchor at its midpoint, giving a clean U regardless of
-// where the bottom sits horizontally. Two placed points (mid-draw) fall back
-// to a straight guide line.
-function cupControlPoint(L, B, R) {
-  // Quadratic B(0.5) = 0.25·L + 0.5·C + 0.25·R; solve C so B(0.5) === bottom.
-  return { x: 2 * B.x - 0.5 * (L.x + R.x), y: 2 * B.y - 0.5 * (L.y + R.y) }
-}
-
-function renderCup(ctx, pts) {
-  if (pts.length < 2) return
-  const L = pts[0]
-  const R = pts[pts.length - 1]
-  if (pts.length < 3) {
-    ctx.beginPath()
-    ctx.moveTo(L.x, L.y)
-    ctx.lineTo(R.x, R.y)
-    ctx.stroke()
-    return
-  }
-  const c = cupControlPoint(L, pts[1], R)
-  ctx.beginPath()
-  ctx.moveTo(L.x, L.y)
-  ctx.quadraticCurveTo(c.x, c.y, R.x, R.y)
-  ctx.stroke()
-}
-
-// Wrap `text` to `maxWidth` (canvas px) using `ctx`'s current font — honoring
-// explicit newlines AND soft-wrapping long lines the way the edit textarea does
-// (word wrap, with a character-level break for a single token wider than the box,
-// e.g. a pasted no-space string). `maxWidth` falsy → split on \n only (legacy notes
-// with no stored box width keep their old single-line-per-\n rendering).
-function wrapTextLines(ctx, text, maxWidth) {
-  const out = []
-  for (const para of String(text ?? '').split('\n')) {
-    if (!maxWidth || maxWidth <= 0) { out.push(para); continue }
-    let cur = ''
-    for (let token of para.split(/(\s+)/)) {   // keep whitespace tokens so words rejoin
-      if (token === '') continue
-      while (token.length) {
-        const test = cur + token
-        if (ctx.measureText(test).width <= maxWidth) { cur = test; token = ''; break }
-        if (cur.trim()) { out.push(cur.replace(/\s+$/, '')); cur = ''; continue }  // flush, retry on new line
-        // cur empty and this single token is wider than the box → break it by chars.
-        let i = 1
-        while (i < token.length && ctx.measureText(token.slice(0, i + 1)).width <= maxWidth) i++
-        out.push(token.slice(0, i))
-        token = token.slice(i)
-      }
-    }
-    out.push(cur.replace(/\s+$/, ''))
-  }
-  return out
-}
-
-function renderText(ctx, pts, drawing, opacity = 1) {
-  if (!pts.length || !drawing.text || opacity <= 0.02) return
-  const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
-  const prevAlpha = ctx.globalAlpha
-  ctx.globalAlpha = prevAlpha * opacity
-  ctx.font = `${fs}px "Instrument Sans", sans-serif`
-  ctx.fillStyle = ctx.strokeStyle
-  // Wrap to the width the box was resized to, so the on-chart text reads EXACTLY
-  // like it did in the edit box (matches lineHeight 1.4 too).
-  const lines = wrapTextLines(ctx, drawing.text, drawing.boxWidth)
-  lines.forEach((line, i) => {
-    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.4)
-  })
-  ctx.globalAlpha = prevAlpha
-}
-
-// Directional price move between two candles, using the TRUE extremes so the
-// label reflects the real swing (independent of log/linear scale):
-//   • advance (B sits higher than A): A's LOW → B's HIGH   → the full run-up
-//   • decline (B sits lower  than A): A's HIGH → B's LOW    → the full draw-down
-// Returns a signed % (negative = decline), or null if it can't be computed.
-function computeAdvancePct(A, B) {
-  if (!A || !B) return null
-  const aHi = A.h, aLo = A.l, bHi = B.h, bLo = B.l
-  if ([aHi, aLo, bHi, bLo].some(v => v == null)) return null
-  const isDecline = (bHi + bLo) < (aHi + aLo)   // B lower than A on average
-  if (isDecline) return aHi > 0 ? (bLo - aHi) / aHi * 100 : null
-  return aLo > 0 ? (bHi - aLo) / aLo * 100 : null
-}
-
-// User-placed "+X%" advance label (manual version of the auto setup-advance label).
-// % = directional move between the 1st and 2nd clicked candles (see computeAdvancePct).
-function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null, autoInk = '#ffffff') {
-  if (!pts.length || drawing.advPct == null) return
-  const p = pts[pts.length - 1]   // the "to" candle
-  if (p.x == null) return
-  // If the anchor candle is itself scrolled OUTSIDE the plot area (e.g. a setup
-  // months to the right while zoomed in on a different setup), don't render —
-  // otherwise the on-canvas clamp below would pin the label to the screen edge
-  // instead of letting it scroll away with its candle. Only labels whose anchor
-  // is on-screen (but whose centered text overflows the edge) get nudged inward.
-  if (canvasW != null && (p.x < -1 || p.x > canvasW + 1)) return
-  // Advance → label ABOVE the candle's HIGH; decline → BELOW its LOW, so a drop
-  // reads "-24%" tucked under the trough. Anchoring a decline to the LOW (not the
-  // high) gives it the SAME clearance from the candle as an advance gets above the
-  // high — otherwise "below the high" lands on the candle body, looking closer.
-  const isDecline = drawing.advPct < 0
-  const anchorPrice = (isDecline && drawing.advLow != null) ? drawing.advLow : drawing.advHigh
-  const anchorY = anchorPrice != null ? toPixelY(null, anchorPrice) : null
-  const baseY = anchorY != null ? anchorY : p.y
-  const y = isDecline ? baseY + offset : baseY - offset
-  ctx.save()
-  // Match the swing price labels exactly (swingLabelsPrimitive): 600 11px
-  // Instrument Sans, no outline/shadow — just a clean fill.
-  ctx.font = '600 11px "Instrument Sans", sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = isDecline ? 'top' : 'bottom'
-  // Thousands separator for big moves: +1,156% (toLocaleString carries the sign).
-  const n = Math.round(drawing.advPct)
-  const text = `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}%`
-  // Keep the (center-aligned) label fully on-canvas: if a label on one of the
-  // last candles would overflow the right edge (the plot area, price-axis
-  // excluded) or the left, shift it inward so it's never clipped.
-  let px = Math.round(p.x)
-  if (canvasW) {
-    const half = ctx.measureText(text).width / 2 + 3
-    px = Math.max(half, Math.min(px, canvasW - half))
-  }
-  const py = Math.round(y)
-  // Color: a user-chosen color (right-click → Color) wins; otherwise auto-ink
-  // (black on a light canvas, white on a dark one). No stroke/shadow.
-  ctx.fillStyle = drawing.labelColor || autoInk
-  ctx.fillText(text, px, py)
-  ctx.restore()
-}
-
-function renderFib(ctx, pts, w, toPixel) {
-  if (pts.length < 2) return
-  const highPrice = Math.max(pts[0].rawPrice, pts[1].rawPrice)
-  const lowPrice = Math.min(pts[0].rawPrice, pts[1].rawPrice)
-  const range = highPrice - lowPrice
-  if (range <= 0) return
-
-  ctx.font = '10px "Instrument Sans", sans-serif'
-  FIB_LEVELS.forEach((level, i) => {
-    const price = highPrice - range * level
-    const y = toPixel(null, price)
-    if (y == null) return
-    ctx.strokeStyle = FIB_COLORS[i] || ctx.strokeStyle
-    ctx.setLineDash(level === 0 || level === 1 ? [] : [4, 3])
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(w, y)
-    ctx.stroke()
-    // Label
-    ctx.fillStyle = FIB_COLORS[i] || '#a8a290'
-    const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
-    ctx.fillText(label, 4, y - 3)
-  })
-  ctx.setLineDash([])
-}
-
-function renderFibExtension(ctx, pts, w, toPixel) {
-  if (pts.length < 2) return
-  // P0 = swing start, P1 = swing end. Extensions project beyond P1 in P0→P1 direction.
-  const p0Price = pts[0].rawPrice
-  const p1Price = pts[1].rawPrice
-  const range = p1Price - p0Price  // positive = upward swing
-  if (range === 0) return
-
-  ctx.font = '10px "Instrument Sans", sans-serif'
-  FIB_EXT_LEVELS.forEach((level, i) => {
-    // level=0 → p0Price, level=1 → p1Price, level>1 → extensions beyond p1
-    const price = p0Price + range * level
-    const y = toPixel(null, price)
-    if (y == null) return
-    ctx.strokeStyle = FIB_EXT_COLORS[i] || '#a8a290'
-    ctx.setLineDash(level > 1 ? [6, 3] : level === 0 || level === 1 ? [] : [4, 3])
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(w, y)
-    ctx.stroke()
-    ctx.fillStyle = FIB_EXT_COLORS[i] || '#a8a290'
-    const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
-    ctx.fillText(label, 4, y - 3)
-  })
-  ctx.setLineDash([])
-}
-
-function renderPitchfork(ctx, pts, w, h) {
-  if (pts.length < 3) return
-  // P1 = pivot, P2 = left shoulder, P3 = right shoulder
-  const [p1, p2, p3] = pts
-  // Median line anchor = midpoint of P2–P3
-  const mid = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 }
-
-  // Extend all three lines to canvas edges
-  const [ma1, ma2] = extendToEdges(p1, mid, w, h)
-  const [ua1, ua2] = extendToEdges(p2, { x: p2.x + (mid.x - p1.x), y: p2.y + (mid.y - p1.y) }, w, h)
-  const [la1, la2] = extendToEdges(p3, { x: p3.x + (mid.x - p1.x), y: p3.y + (mid.y - p1.y) }, w, h)
-
-  // Median line (solid)
-  ctx.setLineDash([])
-  ctx.beginPath()
-  ctx.moveTo(ma1.x, ma1.y)
-  ctx.lineTo(ma2.x, ma2.y)
-  ctx.stroke()
-
-  // Upper and lower prongs (dashed)
-  ctx.setLineDash([5, 3])
-  ctx.beginPath()
-  ctx.moveTo(ua1.x, ua1.y)
-  ctx.lineTo(ua2.x, ua2.y)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(la1.x, la1.y)
-  ctx.lineTo(la2.x, la2.y)
-  ctx.stroke()
-  ctx.setLineDash([])
-
-  // Handle bar connecting P2–P3
-  ctx.globalAlpha = 0.4
-  ctx.beginPath()
-  ctx.moveTo(p2.x, p2.y)
-  ctx.lineTo(p3.x, p3.y)
-  ctx.stroke()
-  ctx.globalAlpha = 1
-
-  // Fill between upper and lower prongs
-  ctx.save()
-  ctx.globalAlpha = 0.04
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.beginPath()
-  ctx.moveTo(ua1.x, ua1.y)
-  ctx.lineTo(ua2.x, ua2.y)
-  ctx.lineTo(la2.x, la2.y)
-  ctx.lineTo(la1.x, la1.y)
-  ctx.closePath()
-  ctx.fill()
-  ctx.restore()
-}
-
-function renderChannel(ctx, pts, w, h) {
-  if (pts.length < 2) return
-  // First line: p1 to p2
-  const [a1, b1] = extendToEdges(pts[0], pts[1], w, h)
-  ctx.beginPath()
-  ctx.moveTo(a1.x, a1.y)
-  ctx.lineTo(b1.x, b1.y)
-  ctx.stroke()
-  // Second line: parallel through p3
-  if (pts.length >= 3) {
-    const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y
-    const p3a = { x: pts[2].x, y: pts[2].y }
-    const p3b = { x: pts[2].x + dx, y: pts[2].y + dy }
-    const [a2, b2] = extendToEdges(p3a, p3b, w, h)
-    ctx.setLineDash([4, 3])
-    ctx.beginPath()
-    ctx.moveTo(a2.x, a2.y)
-    ctx.lineTo(b2.x, b2.y)
-    ctx.stroke()
-    ctx.setLineDash([])
-    // Fill between
-    ctx.save()
-    ctx.globalAlpha = 0.04
-    ctx.fillStyle = ctx.strokeStyle
-    ctx.beginPath()
-    ctx.moveTo(a1.x, a1.y)
-    ctx.lineTo(b1.x, b1.y)
-    ctx.lineTo(b2.x, b2.y)
-    ctx.lineTo(a2.x, a2.y)
-    ctx.closePath()
-    ctx.fill()
-    ctx.restore()
-  }
-}
-
-function renderMeasure(ctx, pts, drawing, pctOnly = false) {
-  if (pts.length < 2) return
-  const x1 = Math.min(pts[0].x, pts[1].x)
-  const y1 = Math.min(pts[0].y, pts[1].y)
-  const x2 = Math.max(pts[0].x, pts[1].x)
-  const y2 = Math.max(pts[0].y, pts[1].y)
-  // Dashed rect
-  ctx.setLineDash([3, 3])
-  ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
-  ctx.setLineDash([])
-  // Fill
-  ctx.save()
-  ctx.globalAlpha = 0.06
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
-  ctx.restore()
-  // Labels
-  const p1Price = pts[0].rawPrice, p2Price = pts[1].rawPrice
-  if (p1Price != null && p2Price != null) {
-    const diff = p2Price - p1Price
-    const pct = ((diff / p1Price) * 100).toFixed(2)
-    const bars = drawing.barCount || ''
-    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
-    const type = drawing.type
-    ctx.font = 'bold 11px "Instrument Sans", sans-serif'
-    ctx.textAlign = 'center'
-    // Legibility chip: the measure color is tuned bright for the dark canvas and
-    // washes out as plain text on a LIGHT canvas (the readability complaint).
-    // Back each line with the same neutral dark chip the crosshair legend uses —
-    // it disappears into a dark canvas (so that look is unchanged) but gives the
-    // colored text solid contrast on a light one.
-    const labelColor = ctx.strokeStyle
-    const putLabel = (t, x, y) => {
-      if (!t) return
-      const tw = ctx.measureText(t).width
-      const padX = 5
-      ctx.fillStyle = 'rgba(20, 22, 18, 0.82)'
-      ctx.beginPath()
-      ctx.roundRect(x - tw / 2 - padX, y - 11, tw + padX * 2, 15, 3)
-      ctx.fill()
-      ctx.fillStyle = labelColor
-      ctx.fillText(t, x, y)
-    }
-    if (pctOnly) {
-      // Just the % move — for marking the size of an index correction.
-      putLabel(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
-    } else if (type === 'priceRange') {
-      // Price delta only: $ move + %.
-      putLabel(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
-    } else if (type === 'dateRange') {
-      // Horizontal span only: bar count.
-      putLabel(bars ? `${bars} bars` : '', cx, cy + 4)
-    } else {
-      const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
-      const line2 = bars ? `${bars} bars` : ''
-      putLabel(line1, cx, cy - 4)
-      putLabel(line2, cx, cy + 12)
-    }
-    ctx.textAlign = 'start'
-  }
-}
-
-// Long/short position (risk-reward): 3 points — entry, stop, target. Shades the
-// risk zone (entry→stop) red and the reward zone (entry→target) green, and labels
-// the R multiple + per-share risk/reward.
-function renderPosition(ctx, pts) {
-  if (pts.length < 3) return
-  const [entry, stop, target] = pts
-  const xs = pts.map(p => p.x)
-  const xL = Math.min(...xs), xR = Math.max(...xs)
-  const wBox = Math.max(40, xR - xL)
-  ctx.save()
-  ctx.globalAlpha = 0.10
-  ctx.fillStyle = '#ef4444'
-  ctx.fillRect(xL, Math.min(entry.y, stop.y), wBox, Math.abs(stop.y - entry.y))
-  ctx.fillStyle = '#22c55e'
-  ctx.fillRect(xL, Math.min(entry.y, target.y), wBox, Math.abs(target.y - entry.y))
-  ctx.restore()
-  const line = (y, color) => {
-    ctx.strokeStyle = color; ctx.lineWidth = 1.5
-    ctx.beginPath(); ctx.moveTo(xL, y); ctx.lineTo(xL + wBox, y); ctx.stroke()
-  }
-  line(entry.y, '#c9a84c'); line(stop.y, '#ef4444'); line(target.y, '#22c55e')
-  const e = entry.rawPrice, s = stop.rawPrice, t = target.rawPrice
-  if (e != null && s != null && t != null) {
-    const risk = Math.abs(e - s), reward = Math.abs(t - e)
-    const rr = risk > 0 ? (reward / risk).toFixed(2) : '∞'
-    ctx.font = 'bold 11px "Instrument Sans", sans-serif'
-    ctx.fillStyle = '#e8e6e0'
-    ctx.textAlign = 'left'
-    ctx.fillText(`R:R ${rr} · risk ${risk.toFixed(2)} · reward ${reward.toFixed(2)}`, xL + 6, Math.min(entry.y, stop.y, target.y) - 6)
-    ctx.textAlign = 'start'
-  }
-}
-
-function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
-  if (!anchorPt || anchorPt.time == null) return
-  const anchorIdx = timeToIndex.get(anchorPt.time)
-  if (anchorIdx == null || !bars?.length) return
-
-  // Compute full VWAP series from anchor forward (regardless of visibility)
-  let cumPV = 0, cumV = 0
-  const vwapSeries = [] // { time, vwap } for every bar from anchor onward
-
-  for (let i = anchorIdx; i < bars.length; i++) {
-    const b = bars[i]
-    const tp = (b.h + b.l + b.c) / 3
-    const vol = b.v || 0
-    cumPV += tp * vol
-    cumV += vol
-    if (cumV === 0) continue
-    vwapSeries.push({ time: b.t, vwap: cumPV / cumV })
-  }
-
-  if (vwapSeries.length < 1) return
-
-  // Convert to pixels — include all points (even off-screen) so the line
-  // clips naturally at canvas edges instead of disappearing
-  const points = []
-  for (const v of vwapSeries) {
-    const px = toPixelFn(v.time, v.vwap)
-    // Allow off-screen x (null) — interpolate from neighbors later
-    // But y must exist (price axis doesn't scroll)
-    if (px?.y != null) {
-      points.push({ x: px.x, y: px.y, vwap: v.vwap })
-    }
-  }
-
-  // Filter to points with valid x for drawing
-  const drawable = points.filter(p => p.x != null)
-  if (drawable.length < 1) return
-
-  // Draw VWAP line
-  ctx.beginPath()
-  ctx.moveTo(drawable[0].x, drawable[0].y)
-  for (let i = 1; i < drawable.length; i++) {
-    ctx.lineTo(drawable[i].x, drawable[i].y)
-  }
-  ctx.stroke()
-
-  // Price label at rightmost visible point
-  const last = drawable[drawable.length - 1]
-  const lastVwap = cumV > 0 ? cumPV / cumV : 0
-  ctx.font = '10px "Instrument Sans", sans-serif'
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.fillText(`VWAP ${lastVwap.toFixed(2)}`, last.x + 6, last.y - 4)
-
-  // Anchor dot — place on the VWAP line at anchor bar (not at user click price)
-  const anchorVwap = vwapSeries[0]
-  if (anchorVwap) {
-    const anchorPx = toPixelFn(anchorVwap.time, anchorVwap.vwap)
-    if (anchorPx?.x != null && anchorPx?.y != null) {
-      ctx.beginPath()
-      ctx.arc(anchorPx.x, anchorPx.y, 4, 0, Math.PI * 2)
-      ctx.fillStyle = ctx.strokeStyle
-      ctx.fill()
-
-      // "A" label at anchor
-      ctx.font = 'bold 9px "Instrument Sans", sans-serif'
-      ctx.fillText('A', anchorPx.x - 3, anchorPx.y - 8)
-    }
-  }
-}
-
-function renderSelectionHandles(ctx, pts) {
-  // Pure canvas painter — no hook available here, so it asks the store directly.
-  // That is precisely why coarsePointer.js exposes a synchronous read as well as
-  // a hook: one fact, two doors, and they cannot disagree.
-  const coarse = isCoarsePointer()
-  for (const p of pts) {
-    if (coarse) {
-      // Halo = the actual grab zone (HIT_THRESHOLD + the handle slack), so a
-      // finger sees exactly how close is close enough.
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, HIT_THRESHOLD() + 2, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(201, 168, 76, 0.16)'
-      ctx.fill()
-    }
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, HANDLE_R(), 0, Math.PI * 2)
-    ctx.fillStyle = '#c9a84c'
-    ctx.fill()
-    ctx.strokeStyle = '#1a1c17'
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
-}
-
-function renderCrosshair(ctx, x, y, price, w, h) {
-  ctx.save()
-  ctx.strokeStyle = 'rgba(168, 162, 144, 0.35)'
-  ctx.lineWidth = 0.5
-  ctx.setLineDash([3, 3])
-  ctx.beginPath()
-  ctx.moveTo(x, 0); ctx.lineTo(x, h)
-  ctx.moveTo(0, y); ctx.lineTo(w, y)
-  ctx.stroke()
-  ctx.setLineDash([])
-  // No floating "$price" label at the cursor while a tool is armed — it read as
-  // clutter next to the crosshair; the price scale's own crosshair label already
-  // shows it. (`price` kept in the signature for the existing call site.)
-  ctx.restore()
-}
-
-// ─── Hit testing ─────────────────────────────────────────────────────────────
-
-function hitTestDrawing(d, pts, mx, my, w, h) {
-  if (!pts.length) return false
-  switch (d.type) {
-    case 'trendline':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
-    case 'ray': {
-      if (pts.length < 2) return false
-      const [a, b] = extendRay(pts[0], pts[1], w, h)
-      return distToSegment(mx, my, a.x, a.y, b.x, b.y) < HIT_THRESHOLD()
-    }
-    case 'extended': {
-      if (pts.length < 2) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
-    }
-    case 'horizontal':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD()
-    case 'hray':
-      return Math.abs(my - pts[0].y) < HIT_THRESHOLD() && mx >= (pts[0].x || 0) - HIT_THRESHOLD()
-    case 'vertical':
-      return Math.abs(mx - pts[0].x) < HIT_THRESHOLD()
-    case 'rect':
-    case 'circle': {
-      if (pts.length < 2) return false
-      const x1 = Math.min(pts[0].x, pts[1].x) - HIT_THRESHOLD()
-      const y1 = Math.min(pts[0].y, pts[1].y) - HIT_THRESHOLD()
-      const x2 = Math.max(pts[0].x, pts[1].x) + HIT_THRESHOLD()
-      const y2 = Math.max(pts[0].y, pts[1].y) + HIT_THRESHOLD()
-      return mx >= x1 && mx <= x2 && my >= y1 && my <= y2
-    }
-    case 'arrow':
-      return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
-    case 'text': {
-      // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
-      // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
-      // = estimated wrapped line count. Approximation is fine for hit-testing.
-      const fs = d.fontSize || 13
-      const lineH = fs * 1.4
-      let nLines = 0
-      for (const para of String(d.text || '').split('\n')) {
-        if (d.boxWidth) {
-          const w = (para.length || 1) * (fs * 0.55)   // ~avg char width
-          nLines += Math.max(1, Math.ceil(w / d.boxWidth))
-        } else nLines += 1
-      }
-      const textW = d.boxWidth || (d.text?.length || 1) * 8
-      const textH = Math.max(1, nLines) * lineH
-      return mx >= pts[0].x - 4 && mx <= pts[0].x + textW + 4 && my >= pts[0].y - 4 && my <= pts[0].y + textH + 4
-    }
-    case 'advance': {
-      // Label sits above the 2nd point's candle; box a vertical strip above it.
-      const p = pts[pts.length - 1]
-      if (!p || p.x == null || p.y == null) return false
-      return mx >= p.x - 26 && mx <= p.x + 26 && my >= p.y - 70 && my <= p.y + 10
-    }
-    case 'fib':
-    case 'fibext':
-      if (pts.length < 2) return false
-      return mx >= 0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
-    case 'pitchfork':
-      if (pts.length < 3) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD() * 2
-    case 'channel':
-      if (pts.length < 2) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD() * 2
-    case 'cup': {
-      if (pts.length < 3) return pts.length >= 2 && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
-      const L = pts[0], R = pts[2]
-      const c = cupControlPoint(L, pts[1], R)
-      // Sample the quadratic and test each chord against the cursor.
-      let px = L.x, py = L.y
-      for (let i = 1; i <= 20; i++) {
-        const t = i / 20, u = 1 - t
-        const qx = u * u * L.x + 2 * u * t * c.x + t * t * R.x
-        const qy = u * u * L.y + 2 * u * t * c.y + t * t * R.y
-        if (distToSegment(mx, my, px, py, qx, qy) < HIT_THRESHOLD()) return true
-        px = qx; py = qy
-      }
-      return false
-    }
-    case 'measure':
-    case 'priceRange':
-    case 'dateRange': {
-      if (pts.length < 2) return false
-      const bx1 = Math.min(pts[0].x, pts[1].x), by1 = Math.min(pts[0].y, pts[1].y)
-      const bx2 = Math.max(pts[0].x, pts[1].x), by2 = Math.max(pts[0].y, pts[1].y)
-      return mx >= bx1 && mx <= bx2 && my >= by1 && my <= by2
-    }
-    case 'position': {
-      if (pts.length < 3) return false
-      const xs = pts.map(p => p.x), ys = pts.map(p => p.y)
-      return mx >= Math.min(...xs) && mx <= Math.max(...xs) && my >= Math.min(...ys) && my <= Math.max(...ys)
-    }
-    case 'avwap':
-      return pts.length >= 1 && Math.hypot(mx - pts[0].x, my - pts[0].y) < HIT_THRESHOLD() * 2
-    default: return false
-  }
-}
-
 // In-memory clipboard for copy/paste of a drawing — module-level so a copy on one
 // chart can be pasted onto another (any symbol). Holds a drawing minus its id.
 let _drawingClipboard = null
-
-// Clone a drawing's points with a small visible offset (price −0.5%, or +0.03 of the
-// volume-pane fraction), keeping the time anchors. Shared by Duplicate + Paste so a
-// clone never lands exactly on top of the original.
-function offsetPoints(points) {
-  return (points || []).map(p => ({
-    ...p,
-    ...(p.paneRelY != null
-      ? { paneRelY: Math.min(1, p.paneRelY + 0.03) }
-      : (p.price != null ? { price: p.price * 0.995 } : {})),
-  }))
-}
 
 // 'YYYY-MM-DD' in America/New_York for a unix-seconds bar time. Formatter built
 // once (Intl construction is the expensive part).
@@ -1060,11 +319,24 @@ function placeCalloutPoint({ ctx, bars, toPixel, nearestIndex, drawings, anchorT
 
 export default function ChartDrawingOverlay({
   chartRef, seriesRef, bars,
+  volumeSeriesRef = null,    // the ONLY way to know where the volume pane/band is.
+                             // Volume has two layouts (its own pane, or an overlay
+                             // BAND inside pane 0 - and the band is the DEFAULT),
+                             // and only the volume series itself knows which one it
+                             // is in. Absent -> the chart has no volume zone and the
+                             // whole plot is the price pane, which is right for the
+                             // Model Book index pane and every embed.
   activeTool, setActiveTool,
   color, lineWidth,
   lineStyle = 'solid',
   magnet = false,
-  drawings, addDrawing, updateDrawing, removeDrawing, reorderDrawing = null,
+  drawings, addDrawing, updateDrawing, removeDrawing,
+  // ⛔ `reorderDrawing` IS GONE FROM THIS SIGNATURE. It arrived from StockChart
+  // solely to feed the menu's `canReorder` / `onBringFront` / `onSendBack`
+  // props — which this component never read (eslint has flagged all three as
+  // unused on every run). There is no z-order row in the drawing menu and
+  // never has been. `drawingsStore.reorderDrawing` stays: it is tested and a
+  // later surface may want it; what is removed is a thread that went nowhere.
   onMigrate = null,          // (drawings[]) => void — re-anchor legacy volume-pane points to paneRelY (called once when the view settles)
   selectedId, setSelectedId,
   repeatMode = true,
@@ -1079,10 +351,18 @@ export default function ChartDrawingOverlay({
   redo = null,               //   overlay (useChartDrawings). Annotation overlays omit them
   snapshotHistory = null,    //   (no-op), so Ctrl+Z there does nothing.
   onSaveDefaults = null,     // (”Save as default”) persist {color,width,style} to cs.drawingDefaults
+  toolDefaults = null,       // cs.drawingDefaults.byTool — the PER-TOOL half of the saved
+                             //   defaults ({ rect: {fillColor}, arrow: {arrowSize}, … }).
+                             //   Read only when a new drawing of that tool is created, so a
+                             //   Rectangle's saved fill can never reach a Circle. Absent on
+                             //   every read-only/annotation surface, which want the built-ins.
   savedColors = [],          // shared saved-color swatches (same list as Chart Settings)
   onSaveColor = null,        //   → the drawing color picker (ColorPanel) reuses them
   onDeleteColor = null,
-  onSetAlert = null,         // (drawing, 'above'|'below') => void — "Set alert" on a line/trendline's
+  boundAlerts = null,        // the symbol's live bound alerts, so the Fib level editor can
+                             //   show WHICH levels already carry one. Read-only; absent on
+                             //   every surface that does not own alerts.
+  onSetAlert = null,         // (drawing, 'above'|'below', opts) => void — "Set alert" on a line/trendline's
                              //   right-click menu. Provided only by the MAIN chart (it knows the symbol).
   readOnly = false,          // display-only layer (multi-chart grid cells): skip the window
                              //   keydown handler entirely — a NOOP-wired instance would still
@@ -1135,6 +415,21 @@ export default function ChartDrawingOverlay({
   // ── Drag state ──
   // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
   const dragRef = useRef(null)
+  // ⭐ WHICH DRAWING HAS ITS MEASUREMENT ANCHORS TEMPORARILY EXPOSED.
+  //
+  // Price Move's anchors are DATA — two candles whose low→high is the run — and
+  // they are usually nowhere near the label. Showing handles on them whenever
+  // the label is selected put two gold dots in empty space, and a drag of one
+  // silently restated the measurement the user thought they were just moving.
+  // So they are off by default and revealed on request, for ONE drawing at a
+  // time. A plain id, not a mode object: there is nothing else to remember, and
+  // selecting anything else clears it.
+  const [adjustingId, setAdjustingId] = useState(null)
+  // The label boxes the LAST frame actually painted, per drawing id. Hit testing
+  // and the selection handle both read this, so what you click and what you see
+  // cannot drift apart — the alternative is a second derivation of "where is the
+  // label", which is how an invisible hitbox is born.
+  const labelBoxRef = useRef(new Map())
   // Touch support: track concurrent pointers (so a 2nd finger aborts a draw and
   // lets the chart pinch) + a long-press timer that opens the context menu.
   const activePointersRef = useRef(new Set())
@@ -1193,13 +488,109 @@ export default function ChartDrawingOverlay({
     return res < 0 ? 0 : res   // before the first bar → first bar
   }, [bars, timeToIndex])
 
-  // Bottom edge (CSS px) of the price pane = pane-0 height. Annotations below it
-  // live in the volume (or index) pane, which the candle price scale doesn't map.
+  // Bottom edge (CSS px) of the price pane = pane-0 height. Kept because the
+  // instant-snap transient in `toPixel` needs the pane height directly.
   const pricePaneBottomPx = useCallback(() => {
     try { const h = seriesRef?.current?.getPane?.()?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
     try { const h = chartRef?.current?.panes?.()?.[0]?.getHeight?.(); if (h > 0) return h } catch { /* older API */ }
     return null
   }, [chartRef, seriesRef])
+
+  // -- Pane geometry ----------------------------------------------------------
+  //
+  // MEASURED FROM THE RENDERER, ONCE PER REDRAW, AND CACHED IN A REF.
+  // `redraw` runs on every frame the visible range changes; asking
+  // lightweight-charts for pane heights and axis widths per DRAWING would repeat
+  // half a dozen cross-boundary reads ~60 times a second x 50 drawings. It is
+  // measured at the top of `redraw` and every drawing reads the same answer, so
+  // it is also impossible for two drawings in one frame to disagree about where
+  // the divider is.
+  //
+  // The ref is ALSO what pointer handlers read: a click has to resolve to the
+  // same zones the last paint used, or a drawing could be created in a pane it
+  // was not drawn in.
+  const paneGeomRef = useRef(null)
+  const measurePanes = useCallback(() => {
+    const chart = chartRef?.current
+    const series = seriesRef?.current
+    const { w, h } = sizeRef.current
+    let axisWidth = 0, timeAxisHeight = 0, candlePaneIndex = 0
+    const paneHeights = []
+    let volumePaneIndex = null, volumeBandTop = null
+    try { axisWidth = series?.priceScale?.()?.width?.() ?? 0 } catch { /* default 0 */ }
+    try { timeAxisHeight = chart?.timeScale?.()?.height?.() ?? 0 } catch { /* default 0 */ }
+    let panes = []
+    try { panes = chart?.panes?.() || [] } catch { panes = [] }
+    for (const pane of panes) {
+      let ph = 0
+      try { ph = pane.getHeight() } catch { ph = 0 }
+      // ⚠️ A SUB-PANE CAN REPORT HEIGHT 0 WHILE IT IS STILL BEING LAID OUT.
+      // Measured in-browser: right after mount `chart.panes()` gave `[668, 0]`
+      // for a chart that settles at `[622, 85]`, and during that window the
+      // volume zone has no height. `rectForKey` treats a zero-height zone as
+      // "not laid out yet" and falls back to the plot, so drawings stay on
+      // screen through the transient rather than blinking out.
+      //
+      // The element read below is a second opinion for the same window (it is
+      // usually null then too). It costs a layout flush, so it runs ONLY when the
+      // cheap answer is unusable, and `measurePanes` runs once per FRAME, never
+      // once per drawing.
+      if (!(ph > 0)) {
+        try { ph = pane.getHTMLElement?.()?.clientHeight || 0 } catch { ph = 0 }
+      }
+      paneHeights.push(ph)
+    }
+    // WHICH PANE IS A SERIES IN? ASK `paneIndex()`, NOT `indexOf`.
+    //
+    // `chart.panes()` hands back a FRESH wrapper object on every call, so
+    // `panes.indexOf(series.getPane())` compares two different wrappers around
+    // the same pane and answers -1. It fails SILENTLY and it fails CONSISTENTLY:
+    // the volume pane is simply never found, `zones` degrades to price-only, and
+    // every volume-pane drawing resolves its `paneY` against the whole plot -
+    // i.e. it renders up in the candles. (Measured in-browser: 106,152 ink pixels
+    // in the price pane for six volume-pane drawings, 5 in the volume pane.)
+    //
+    // `paneIndex()` is the identity lightweight-charts actually exposes for this,
+    // and it is what StockChart's own index-pane code uses. `indexOf` stays only
+    // as a fallback for an older API that lacks it.
+    const paneIdxOf = (sref) => {
+      if (!sref) return -1
+      try {
+        const pane = sref.getPane?.()
+        if (!pane) return -1
+        const idx = pane.paneIndex?.()
+        if (Number.isFinite(idx)) return idx
+        return panes.indexOf(pane)
+      } catch { return -1 }
+    }
+    const cIdx = paneIdxOf(series)
+    if (cIdx >= 0) candlePaneIndex = cIdx
+    // Which volume layout is this chart in? Ask the volume series, not the
+    // settings: a chart can be forced into a separate pane by its HOST (grid
+    // cells, Review cards) regardless of what cs.volume.separatePane says.
+    const vs = volumeSeriesRef?.current
+    if (vs) {
+      const vIdx = paneIdxOf(vs)
+      if (vIdx >= 0 && vIdx !== candlePaneIndex) volumePaneIndex = vIdx
+      else {
+        try {
+          // Band layout: the overlay price scale's own top margin IS the divider.
+          const m = vs.priceScale?.()?.options?.()?.scaleMargins
+          if (m && Number.isFinite(m.top)) volumeBandTop = m.top
+        } catch { /* no volume zone; price owns the plot */ }
+      }
+    }
+    return resolveZones({
+      width: w, height: h, axisWidth, timeAxisHeight,
+      paneHeights, volumePaneIndex, volumeBandTop, candlePaneIndex,
+    })
+  }, [chartRef, seriesRef, volumeSeriesRef])
+
+  /** The zones the last paint used; measured on demand if a pointer arrives first. */
+  const paneGeom = useCallback(() => {
+    if (!paneGeomRef.current) paneGeomRef.current = measurePanes()
+    return paneGeomRef.current
+  }, [measurePanes])
 
   // ── Coordinate conversion: chart → pixel ──
   // Uses refs at call-time so always gets latest chart/series
@@ -1265,18 +656,62 @@ export default function ChartDrawingOverlay({
     return { x, y }
   }, [chartRef, seriesRef, bars, nearestIndex, pricePaneBottomPx])
 
-  // Helper: convert to pixel, returning { x, y, rawPrice } with nulls handled.
-  // A point with `paneRelY` (placed below the price pane — see toChart) is
-  // anchored to a fraction of the canvas height, NOT the candle price scale, so
-  // it stays in the volume pane across a Setup⇄Result rescale.
-  const resolvePixels = useCallback((points) => {
+  /**
+   * Stored anchors -> pixels, ONE OUTPUT SLOT PER INPUT ANCHOR.
+   *
+   * TWO BUGS DIED HERE, AND BOTH WERE SILENT.
+   *
+   * 1. `.filter(p => p.x != null || p.y != null)` - note the OR. A point whose
+   *    time could not be mapped kept `x: null`, passed the filter on the strength
+   *    of its y, and every downstream expression (`p2.x - p1.x`) then read that
+   *    null as **0**, because that is what JS does. The anchor snapped to the
+   *    chart's left edge and snapped back when the mapping recovered: the
+   *    Pitchfork "lines jump / skip around" report, and a whole class of
+   *    "my drawing flew to the left" reports besides.
+   * 2. When the filter DID drop a point the array shortened, so `pts[i]` stopped
+   *    corresponding to `points[i]`. A three-point tool silently became a
+   *    two-point one, and `handleIdx` - an index into the STORED points - started
+   *    dragging the wrong anchor.
+   *
+   * SO NOTHING IS EVER DROPPED. Every anchor gets a slot, carrying an explicit
+   * `valid`. Painters and hit tests ask (`ok(pts, n)`); nobody coerces.
+   *
+   * AND `paneY` IS PANE-RELATIVE WHILE `paneRelY` IS CANVAS-RELATIVE. They are
+   * different units and both are live. `paneRelY` is the legacy field: a fraction
+   * of the WHOLE CANVAS, which is why dragging the volume divider used to slide
+   * every volume-pane drawing across the bars it was marking. It is read exactly
+   * as it always was, so no existing drawing moves. `paneY` is the new one - a
+   * fraction of the OWNING ZONE - and a drawing upgrades to it the first time the
+   * user moves it. Nothing is rewritten on load.
+   */
+  const resolvePixels = useCallback((points, paneRect = null) => {
     const H = sizeRef.current.h || 0
-    return points.map(p => {
+    return (points || []).map((p) => {
       const px = toPixel(p.time, p.price, p.futureBars)
-      const y = (p.paneRelY != null && H) ? p.paneRelY * H : px?.y
-      return { x: px?.x, y, rawPrice: p.price, price: p.price, time: p.time, futureBars: p.futureBars }
-    }).filter(p => p.x != null || p.y != null)
+      let y = px?.y
+      if (p.paneY != null && paneRect) y = fromPaneFraction(paneRect, p.paneY)
+      else if (p.paneRelY != null && H) y = p.paneRelY * H
+      const x = px?.x
+      // `valid` is the BOTH-AXES answer most tools want; `pointsUsable(pts, n,
+      // 'x'|'y')` asks for one axis where a tool genuinely only has one (a
+      // Horizontal Line is a price with no time; a Vertical Line the reverse).
+      const hasX = Number.isFinite(x)
+      const hasY = Number.isFinite(y)
+      return {
+        x, y, hasX, hasY, valid: hasX && hasY,
+        rawPrice: p.price, price: p.price, time: p.time, futureBars: p.futureBars,
+      }
+    })
   }, [toPixel])
+
+  /** The pane rect a drawing owns. Legacy drawings (no `pane`) are inferred from
+   *  their lowest resolved anchor - see `inferPaneKey` for why the LOWEST. */
+  const rectForDrawing = useCallback((d, geom) => {
+    const g = geom || paneGeom()
+    if (!g) return null
+    if (d?.pane) return rectForKey(g, d.pane)
+    return rectForKey(g, inferPaneKey(g, resolvePixels(d?.points || [])))
+  }, [paneGeom, resolvePixels])
 
   // One-time migration of LEGACY volume-pane annotations (saved before paneRelY
   // existed): they're price-anchored and jump onto the chart after a rescale.
@@ -1366,22 +801,35 @@ export default function ChartDrawingOverlay({
     let price = null
     try { price = series.coordinateToPrice(pixelY) } catch {}
 
-    // Vertical anchor for annotations placed BELOW the price pane (volume / index
-    // pane). The candle price scale doesn't cover those rows, so a price stored
-    // there gets re-extrapolated onto the price pane after a rescale (Setup⇄Result)
-    // and the label jumps up onto the chart. Pin such points to a fraction of the
-    // canvas height instead — the pane layout is stable across rescales, so they
-    // stay put in the volume pane.
-    let paneRelY = null
-    const pb = pricePaneBottomPx()
-    const H = sizeRef.current.h || 0
-    if (pb != null && H && pixelY > pb + 1) paneRelY = pixelY / H
+    // Vertical anchor.
+    //
+    // OWNERSHIP IS DECIDED HERE, ONCE, FOR THE WHOLE DRAWING. It used to be
+    // re-derived per POINT on every frame from "is this y below the price pane",
+    // which is how a two-point line could end up with one anchor in each pane and
+    // how dragging an endpoint across the divider silently converted half a
+    // drawing. The caller stamps the returned `pane` onto the drawing at creation
+    // and every later resolution reads that, not the pixels.
+    //
+    // `paneY` IS A FRACTION OF THE OWNING ZONE, not of the canvas. That is the
+    // whole difference between a volume-pane drawing that stays on its bars when
+    // the divider moves and one that slides across them. Only non-price zones get
+    // it: a price-pane drawing is anchored to a PRICE, which is better than any
+    // fraction because it tracks the data through a rescale.
+    const geom = paneGeom()
+    const paneKey = geom ? paneKeyAtY(geom, pixelY) : PRICE
+    let paneY = null
+    if (paneKey !== PRICE) {
+      const rect = rectForKey(geom, paneKey)
+      paneY = toPaneFraction(rect, pixelY)
+    }
 
     // Allow partial coords: horizontal only needs price, vertical only needs time
-    if (!time && price == null && paneRelY == null) return null
+    if (!time && price == null && paneY == null) return null
     const fb = futureBars ? { futureBars } : null
-    return paneRelY != null ? { time, price, paneRelY, ...fb } : { time, price, ...fb }
-  }, [chartRef, seriesRef, bars, pricePaneBottomPx])
+    return paneY != null
+      ? { time, price, paneY, pane: paneKey, ...fb }
+      : { time, price, pane: paneKey, ...fb }
+  }, [chartRef, seriesRef, bars, paneGeom])
 
   // Line mode (index pane): time → line value, for magnet-snap-to-line + advance %.
   const timeToLineValue = useMemo(() => {
@@ -1529,11 +977,20 @@ export default function ChartDrawingOverlay({
     // Clip everything to the plot area (exclude the right price axis) so no line,
     // ray, or label ever renders over the price scale — e.g. an hray streaking to
     // the edge while transitioning between setups. Restored at the end of redraw.
-    let axisW = 0
-    try { axisW = seriesRef?.current?.priceScale?.()?.width?.() ?? 0 } catch { /* default 0 */ }
+    // PANE GEOMETRY IS MEASURED EXACTLY ONCE PER FRAME. Every drawing below reads
+    // the same object, so N drawings cost one set of cross-boundary reads into
+    // lightweight-charts rather than N, and two drawings in one frame cannot
+    // disagree about where the divider is.
+    const geom = measurePanes()
+    paneGeomRef.current = geom
+    const plotRight = geom.plot.x1
+
+    // Clip everything to the plot area (exclude the right price axis) so no line,
+    // ray, or label ever renders over the price scale. Phase 1 adds a SECOND,
+    // per-drawing clip INSIDE this one for the pane; this outer clip is unchanged
+    // and still the thing that keeps drawings off the price scale.
     ctx.save()
     ctx.beginPath()
-    const plotRight = Math.max(0, w - axisW - 1)   // right edge of the plot area (price axis excluded)
     ctx.rect(0, 0, plotRight, h)
     ctx.clip()
 
@@ -1592,7 +1049,7 @@ export default function ChartDrawingOverlay({
       const asPoint = (p) => p && ({
         time: p.time, price: p.price,
         ...(p.futureBars != null ? { futureBars: p.futureBars } : {}),
-        ...(p.paneRelY != null ? { paneRelY: p.paneRelY } : {}),
+        ...(p.paneY != null ? { paneY: p.paneY } : {}),
       })
       for (const d of drawings) {
         if (d.type !== 'text' || d.calloutRole !== 'label' || !d.calloutAutoPlace || d.calloutAnchorTime == null) continue
@@ -1648,6 +1105,25 @@ export default function ChartDrawingOverlay({
       }
     }
 
+    // ⭐ ONE SPACING ESTIMATE PER FRAME, shared by every measurement on the
+    // chart. Only used to extrapolate anchors that sit in empty future space.
+    const barSeconds = inferBarSeconds(bars)
+    // The label boxes this frame paints, keyed by drawing id and rebuilt from
+    // scratch: a drawing deleted or scrolled away must not leave a hitbox behind.
+    // (Distinct from `labelBoxes` below, which is the anti-overlap reservation
+    // list for price tags and has no identity attached to its entries.)
+    const paintedBoxes = new Map()
+
+    // ── Label state for THIS frame ────────────────────────────────────────
+    // ⭐ ONE FORMATTER PER FRAME, NOT PER LABEL. `priceFormatterFor` asks the
+    // series for its own `IPriceFormatter`, so a drawing's price reads exactly
+    // like the axis tag beside it. Built once here and handed down.
+    const priceText = priceFormatterFor(seriesRef?.current)
+    // Boxes already placed, so two price labels at nearly the same level step
+    // apart instead of printing on top of each other. Per frame, thrown away
+    // with the frame — see `avoidOverlap`, which is deliberately not a solver.
+    const labelBoxes = []
+
     // Draw completed drawings
     for (const d of visibleDrawings) {
       // A text note being edited is HIDDEN on the canvas while its editor box is
@@ -1656,20 +1132,25 @@ export default function ChartDrawingOverlay({
       if (textInput?.editId === d.id) continue
       // AVWAP uses time-based lookup, doesn't need resolved pixels to render
       if (d.type === 'avwap' && d.points?.[0]?.time != null) {
+        const rect = rectForDrawing(d, geom)
+        const ink = brightenAnnotationColor(d.color) || UCT_DRAW_GOLD
         ctx.save()
-        ctx.strokeStyle = brightenAnnotationColor(d.color) || '#c9a84c'
+        clipToPane(ctx, rect)
+        ctx.strokeStyle = ink
         ctx.lineWidth = d.lineWidth || 1
         ctx.setLineDash([])
         renderAnchoredVwap(ctx, d.points[0], bars, timeToIndex, toPixel)
         if (d.id === selectedId) {
-          const pts = resolvePixels(d.points)
-          if (pts.length) renderSelectionHandles(ctx, pts)
+          renderSelectionHandles(ctx, resolvePixels(d.points, rect), ink)
         }
         ctx.restore()
         continue
       }
 
-      const pts = resolvePixels(d.points || [])
+      // The drawing's OWN pane rect, and the anchors resolved against it. Both are
+      // needed before anything is painted: `paneY` is a fraction of this rect.
+      const rect = rectForDrawing(d, geom)
+      const pts = resolvePixels(d.points || [], rect)
       if (!pts.length) continue
       // Off-screen guard (Model Book): if this drawing's anchor bar — its setup
       // candle (rightmost point / rightBoundTime) — is outside the visible range,
@@ -1685,46 +1166,107 @@ export default function ChartDrawingOverlay({
         }
       }
       ctx.save()
-      ctx.strokeStyle = brightenAnnotationColor(d.color) || '#c9a84c'
+      // THE PANE CLIP. One call, here, for every tool - not a per-renderer
+      // special case. It nests inside the plot-area clip established above, so a
+      // drawing is bounded by BOTH: never over the price scale, never across the
+      // volume divider. `ctx.restore()` at the bottom of this loop iteration is
+      // what balances it, and `drawingRenderers.test.js` pins that every painter
+      // leaves the stack even so the share/screenshot capture cannot be corrupted.
+      clipToPane(ctx, rect)
+      const ink = brightenAnnotationColor(d.color) || UCT_DRAW_GOLD
+      ctx.strokeStyle = ink
       ctx.lineWidth = d.lineWidth || 1
-      // Per-drawing dashed style (e.g. a dashed horizontal level). Most shapes
-      // set their own dash internally; lines respect this before they draw.
-      ctx.setLineDash(d.lineStyle === 'dashed' ? [6, 4] : [])
+      // Per-drawing line style (e.g. a dashed horizontal level). Most shapes set
+      // their own dash internally; lines respect this before they draw.
+      // ⭐ RESOLVED THROUGH `dashFor`, WHICH KNOWS ABOUT DOTTED — but nothing can
+      // hand it 'dotted' yet, because `numToDrawStyle` (below) still turns the
+      // picker's dotted code into 'dashed'. That is Phase 1's one-line fix; the
+      // dash pattern it will need is already here and already under test. For
+      // every value reachable today this is byte-identical to the ternary it
+      // replaced: solid/undefined → [], dashed → [6, 4].
+      ctx.setLineDash(dashFor(d.lineStyle))
 
       switch (d.type) {
         case 'trendline': renderTrendline(ctx, pts); break
-        case 'ray': renderRay(ctx, pts, w, h); break
-        case 'extended': renderExtended(ctx, pts, w, h); break
-        case 'horizontal': renderHorizontal(ctx, pts, w, !hidePriceLabels); break
+        case 'ray': renderRay(ctx, pts, rect); break
+        case 'extended': renderExtended(ctx, pts, rect); break
+        // ⛔ TWO GATES, AND `hidePriceLabels` IS THE HARD ONE. The SURFACE can
+        // veto the label outright (Model Book setup lines are line-only, by
+        // design and not by the user's choice); only if it does not does the
+        // DRAWING's own toggle get asked. Surface override wins, always.
+        case 'horizontal':
+          renderHorizontal(ctx, pts, rect, {
+            showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel'),
+            ink, fmt: priceText, avoid: labelBoxes,
+          })
+          break
         case 'hray': {
           // Optional right bound (time-anchored): stop the ray at this bar
           // instead of running to the canvas edge. Model Book uses it so that,
           // when all setups are shown on the zoomed-out chart, each ray ends at
           // its setup candle rather than streaking across the whole year.
-          let hrayRight = w
+          let hrayRight = rect.x1
           if (d.rightBoundTime != null) {
             const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
-            if (bx != null) hrayRight = Math.max(pts[0].x ?? 0, Math.min(w, bx))
+            if (bx != null) hrayRight = Math.max(pts[0].x ?? rect.x0, Math.min(rect.x1, bx))
           }
-          // No price label on a horizontal ray — the bare line is what the user
-          // wants; the price is already read from the axis/crosshair. (The
-          // full-width horizontal line keeps its right-edge label.)
-          renderHRay(ctx, pts, hrayRight, false)
+          renderHRay(ctx, pts, hrayRight, {
+            showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel'),
+            ink, fmt: priceText, bounds: rect, avoid: labelBoxes,
+          })
           break
         }
-        case 'vertical': renderVertical(ctx, pts, h); break
-        case 'rect': renderRect(ctx, pts); break
+        case 'vertical': renderVertical(ctx, pts, rect); break
+        case 'rect':
+          renderRect(ctx, pts, d, {
+            showPercent: !!drawingProp(d, 'showPercentChange'),
+            bounds: rect,
+          })
+          break
         case 'circle': renderCircle(ctx, pts); break
-        case 'arrow': renderArrow(ctx, pts); break
-        case 'text': renderText(ctx, pts, d, textOpacity); break
-        case 'fib': renderFib(ctx, pts, w, toPixelY); break
-        case 'fibext': renderFibExtension(ctx, pts, w, toPixelY); break
-        case 'pitchfork': renderPitchfork(ctx, pts, w, h); break
-        case 'channel': renderChannel(ctx, pts, w, h); break
+        case 'arrow': renderArrow(ctx, pts, d); break
+        case 'text': {
+          // ⭐ THE NOTE'S REAL BOX, published for the hit test and the editor.
+          // Three surfaces used to guess at it independently; now one of them
+          // measures and the other two read.
+          const box = renderText(ctx, pts, d, textOpacity)
+          if (box) paintedBoxes.set(d.id, box)
+          break
+        }
+        // ⭐ THE PAINTER RETURNS THE LEVEL LINES IT DREW, and they are cached
+        // for the hit test — so a Fib is grabbable at every visible level and
+        // NOT grabbable at one the user has hidden.
+        case 'fib':
+        case 'fibext': {
+          const paint = d.type === 'fibext' ? renderFibExtension : renderFib
+          const lines = paint(ctx, pts, rect, toPixelY, { drawing: d, fmt: priceText })
+          if (lines && lines.length) paintedBoxes.set(d.id, lines)
+          break
+        }
+        case 'pitchfork': renderPitchfork(ctx, pts, rect); break
+        case 'channel': renderChannel(ctx, pts, rect); break
         case 'cup': renderCup(ctx, pts); break
-        case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
-        case 'priceRange': renderMeasure(ctx, pts, d); break
-        case 'dateRange': renderMeasure(ctx, pts, d); break
+        // ⛔ THE PAINTER NO LONGER DECIDES WHAT IT SAYS. It used to branch on
+        // `d.type` to choose between four hard-coded text layouts; the content
+        // is now resolved here, from one shared measurement, and the painter
+        // draws whatever lines it is handed. That is what lets a Measure show
+        // any of the sixteen combinations instead of the one its type implied.
+        case 'measure':
+        case 'priceRange': {
+          const m = measurementFor(d.points, pts, { bars, indexOf: nearestIndex, barSeconds })
+          // Model Book's index pane asks for the percentage alone — a SURFACE
+          // override, so it wins over whatever the drawing itself says.
+          const shown = measurePctOnly
+            ? { ...d, showDollar: false, showPercent: true, showBars: false, showTime: false }
+            : d
+          renderMeasure(ctx, pts, d, { lines: measureLines(shown, m, priceText), bounds: rect })
+          break
+        }
+        case 'dateRange': {
+          const m = measurementFor(d.points, pts, { bars, indexOf: nearestIndex, barSeconds })
+          renderBarsTime(ctx, pts, d, { lines: measureLines(d, m, priceText), bounds: rect })
+          break
+        }
         case 'position': renderPosition(ctx, pts); break
         case 'advance': {
           // Recompute the % from the live bars (candle mode) so EXISTING labels are
@@ -1737,16 +1279,57 @@ export default function ChartDrawingOverlay({
             const ai = timeToIndex.get(d.points[0].time)
             const bi = timeToIndex.get(d.points[d.points.length - 1].time)
             if (ai != null && bi != null && bars[ai] && bars[bi]) {
-              const pct = computeAdvancePct(bars[ai], bars[bi])
-              if (pct != null) ad = { ...d, advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }
+              const mv = computeAdvanceMove(bars[ai], bars[bi])
+              if (mv) ad = { ...d, advPct: mv.pct, advDelta: mv.delta, advHigh: bars[bi].h, advLow: bars[bi].l }
             }
+          } else if (lineData && d.points?.length >= 2) {
+            const a = d.points[0].price, b = d.points[d.points.length - 1].price
+            if (a > 0 && b != null) ad = { ...d, advPct: ((b - a) / a) * 100, advDelta: b - a }
           }
-          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk)
+          // ⭐ THE DOLLAR FIGURE IS ON THE SAME BASIS AS THE PERCENT. `advPct` is
+          // measured low→high for a run and high→low for a drop, so deriving the
+          // dollar move from the two ANCHOR prices instead would print a
+          // percentage and an amount that do not describe the same move. It is
+          // recovered from the percentage and its own start price, which is the
+          // only way the two can agree by construction.
+          const lines = advanceLines(ad, priceText)
+          // Where the user PUT the label, if they have moved it. Resolved to
+          // pixels through the same mapping as any other anchor, so it pans and
+          // zooms with the chart rather than floating in screen space.
+          const lp = d.labelPoint ? resolvePixels([d.labelPoint], rect)[0] : null
+          const at = lp && lp.valid !== false ? { x: lp.x, y: lp.y } : null
+          const box = renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk, { lines, at })
+          if (box) paintedBoxes.set(d.id, box)
           break
         }
       }
 
-      if (d.id === selectedId) renderSelectionHandles(ctx, pts)
+      // Handles inherit the drawing's RENDERED ink (the brightened value the
+      // stroke used), so a green line gets green handles - and they are painted
+      // inside the same pane clip, so a handle cannot sit in the other pane
+      // either.
+      // ⭐ AND THEY ARE NOT ALWAYS THE ANCHORS. `handlePointsFor` is the single
+      // place a tool can put its handles somewhere the user can actually see
+      // them — today that is the Circle, whose stored corners sit outside its own
+      // ellipse. The hit test asks the SAME function, so what you grab is always
+      // what you see.
+      if (d.id === selectedId) {
+        // ⛔ PRICE MOVE'S SELECTION BELONGS TO ITS LABEL. The visible object is
+        // the label; the anchors are the measurement. A handle on each anchor
+        // says "drag me to move this drawing" about two points that are not the
+        // drawing and whose movement changes the number. One handle, on the
+        // thing the user can see — and the anchors only while adjusting.
+        if (d.type === 'advance') {
+          const box = paintedBoxes.get(d.id)
+          if (adjustingId === d.id) {
+            renderSelectionHandles(ctx, pts, ink)
+          } else if (box) {
+            renderSelectionHandles(ctx, [{ x: box.cx, y: box.cy, valid: true }], ink)
+          }
+        } else {
+          renderSelectionHandles(ctx, handlePointsFor(d.type, pts), ink)
+        }
+      }
       ctx.restore()
     }
 
@@ -1758,8 +1341,20 @@ export default function ChartDrawingOverlay({
     // polyline once two are down (a 3-point tool's first segment). Desktop is
     // unchanged in practice: the mouse is always moving, so the live preview
     // draws right over these.
-    if (activeTool && pendingPoints.length > 0) {
-      const anchorPts = resolvePixels(pendingPoints)
+    // The pane the tool is currently placing INTO - taken from the first anchor,
+    // so a half-finished drawing previews inside the pane it will be created in.
+    const previewRect = rectForKey(geom, pendingPoints[0]?.pane || mouseCoords?.pane || PRICE)
+
+    // ⛔ EXCEPT FOR THE CIRCLE ON A MOUSE. The Circle's first anchor is a bbox
+    // corner that ends up OUTSIDE the finished ellipse, so its marker read as a
+    // stray dot the tool had left behind — the owner's "creation dot". A mouse
+    // never needed it: the live preview under a moving cursor already shows the
+    // ellipse being placed. A FINGER does — it lifts between taps, so with the
+    // dot suppressed tap 1 would draw nothing at all and look like it had not
+    // registered. Pointer type, not platform, decides.
+    const hidePendingDots = activeTool === 'circle' && !coarsePointer
+    if (activeTool && pendingPoints.length > 0 && !hidePendingDots) {
+      const anchorPts = resolvePixels(pendingPoints, previewRect)
       if (anchorPts.length) {
         ctx.save()
         const ink = brightenAnnotationColor(color)
@@ -1786,9 +1381,10 @@ export default function ChartDrawingOverlay({
 
     // Draw in-progress preview
     if (activeTool && pendingPoints.length > 0 && mouseCoords) {
-      const previewPts = resolvePixels([...pendingPoints, mouseCoords])
+      const previewPts = resolvePixels([...pendingPoints, mouseCoords], previewRect)
       if (previewPts.length) {
         ctx.save()
+        clipToPane(ctx, previewRect)
         ctx.strokeStyle = brightenAnnotationColor(color)
         ctx.lineWidth = lineWidth
         ctx.globalAlpha = 0.7
@@ -1796,55 +1392,79 @@ export default function ChartDrawingOverlay({
 
         switch (activeTool) {
           case 'trendline': renderTrendline(ctx, previewPts); break
-          case 'ray': renderRay(ctx, previewPts, w, h); break
-          case 'extended': renderExtended(ctx, previewPts, w, h); break
-          case 'horizontal': renderHorizontal(ctx, previewPts, w); break
-          case 'vertical': renderVertical(ctx, previewPts, h); break
-          case 'rect': renderRect(ctx, previewPts); break
+          case 'ray': renderRay(ctx, previewPts, previewRect); break
+          case 'extended': renderExtended(ctx, previewPts, previewRect); break
+          // The preview shows the label the FINISHED drawing will have, so what
+          // you see while placing is what you get when you let go.
+          case 'horizontal':
+            renderHorizontal(ctx, previewPts, previewRect, {
+              showLabel: !hidePriceLabels && !!newDrawingProps('horizontal', toolDefaults)?.showPriceLabel,
+              ink: brightenAnnotationColor(color), fmt: priceText,
+            })
+            break
+          case 'vertical': renderVertical(ctx, previewPts, previewRect); break
+          case 'rect': renderRect(ctx, previewPts, newDrawingProps('rect', toolDefaults)); break
           case 'circle': renderCircle(ctx, previewPts); break
-          case 'arrow': renderArrow(ctx, previewPts); break
-          case 'fib': renderFib(ctx, previewPts, w, toPixelY); break
-          case 'fibext': renderFibExtension(ctx, previewPts, w, toPixelY); break
-          case 'pitchfork': renderPitchfork(ctx, previewPts, w, h); break
-          case 'channel': renderChannel(ctx, previewPts, w, h); break
+          case 'arrow': renderArrow(ctx, previewPts, newDrawingProps('arrow', toolDefaults)); break
+          // The preview shows the levels the finished drawing will have, so a
+          // user with a saved Fib preset sees it while placing.
+          case 'fib':
+          case 'fibext': {
+            const proto = { type: activeTool, ...(newDrawingProps(activeTool, toolDefaults) || {}) }
+            const paint = activeTool === 'fibext' ? renderFibExtension : renderFib
+            paint(ctx, previewPts, previewRect, toPixelY, { drawing: proto, fmt: priceText })
+            break
+          }
+          case 'pitchfork': renderPitchfork(ctx, previewPts, previewRect); break
+          case 'channel': renderChannel(ctx, previewPts, previewRect); break
           case 'cup': renderCup(ctx, previewPts); break
-          case 'measure': {
-            const md = {
-              barCount: pendingPoints[0] && mouseCoords
-                ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
-                : 0
-            }
-            renderMeasure(ctx, previewPts, md, measurePctOnly)
+          // ⭐ THE PREVIEW SHOWS THE FINISHED DRAWING'S FIELDS, not a reduced
+          // placeholder — what you read while dragging is what you get when you
+          // let go. Same measurement call, same formatter, same label builder.
+          case 'measure':
+          case 'priceRange': {
+            const proto = { type: activeTool, ...(newDrawingProps(activeTool, toolDefaults) || {}) }
+            const shown = measurePctOnly
+              ? { ...proto, showDollar: false, showPercent: true, showBars: false, showTime: false }
+              : proto
+            const m = measurementFor([...pendingPoints, mouseCoords], previewPts, { bars, indexOf: nearestIndex, barSeconds })
+            renderMeasure(ctx, previewPts, proto, { lines: measureLines(shown, m, priceText), bounds: previewRect })
             break
           }
-          case 'priceRange': renderMeasure(ctx, previewPts, { type: 'priceRange' }); break
           case 'dateRange': {
-            const md = {
-              type: 'dateRange',
-              barCount: pendingPoints[0] && mouseCoords
-                ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
-                : 0,
-            }
-            renderMeasure(ctx, previewPts, md)
+            const proto = { type: 'dateRange', ...(newDrawingProps('dateRange', toolDefaults) || {}) }
+            const flat = constrainPoints('dateRange', [...pendingPoints, mouseCoords])
+            const flatPx = resolvePixels(flat, previewRect)
+            const m = measurementFor(flat, flatPx, { bars, indexOf: nearestIndex, barSeconds })
+            renderBarsTime(ctx, flatPx, proto, { lines: measureLines(proto, m, priceText), bounds: previewRect })
             break
           }
-          case 'position': renderPosition(ctx, previewPts); break
+          // ⚰️ No preview for a retired type — the branch is unreachable (the
+          // creation gate above never lets `pendingPoints` fill), and leaving a
+          // call here would suggest otherwise to the next reader.
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
           case 'advance': {
-            renderTrendline(ctx, previewPts)   // faint connector so the span is visible while placing
+            // ⭐ THE CONNECTOR IS CONSTRUCTION GEOMETRY AND LIVES ONLY HERE. It
+            // shows the span being measured WHILE placing; the finished drawing
+            // is the label alone, and nothing draws a line between the anchors
+            // once the second click lands. That was already true and Phase 5
+            // keeps it — the audit's "no persistent construction line" is a
+            // property of where this call sits, not of a flag.
+            renderTrendline(ctx, previewPts)
+            const proto = newDrawingProps('advance', toolDefaults) || {}
+            let ad = null
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
-              if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight, autoInk)
-              }
+              if (a > 0 && b != null) ad = { type: 'advance', ...proto, advPct: ((b - a) / a) * 100, advDelta: b - a, advHigh: b }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
               if (ai != null && bi != null && bars[ai] && bars[bi]) {
-                const pct = computeAdvancePct(bars[ai], bars[bi])
-                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight, autoInk)
+                const mv = computeAdvanceMove(bars[ai], bars[bi])
+                if (mv) ad = { type: 'advance', ...proto, advPct: mv.pct, advDelta: mv.delta, advHigh: bars[bi].h, advLow: bars[bi].l }
               }
             }
+            if (ad) renderAdvance(ctx, previewPts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk, { lines: advanceLines(ad, priceText) })
             break
           }
         }
@@ -1852,15 +1472,18 @@ export default function ChartDrawingOverlay({
       }
     }
 
+    // What this frame painted, for the hit test that runs between frames.
+    labelBoxRef.current = paintedBoxes
+
     // Crosshair when tool active
     if (activeTool && mouseCoords) {
       const px = toPixel(mouseCoords.time, mouseCoords.price)
       if (px?.x != null && px?.y != null) {
-        renderCrosshair(ctx, px.x, px.y, mouseCoords.price, w, h)
+        renderCrosshair(ctx, px.x, px.y, mouseCoords.price, geom.plot)
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId])
+  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId, measurePanes, rectForDrawing, coarsePointer, hidePriceLabels, toolDefaults, seriesRef, adjustingId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1896,6 +1519,72 @@ export default function ChartDrawingOverlay({
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
+  /**
+   * Where a note's editor must open, in CLIENT coordinates, and how wide.
+   *
+   * ⚰️ THE BUG THIS REPLACES. Double-clicking a note opened the textarea at the
+   * DOUBLE-CLICK POINT — click its last word and the box appeared over the last
+   * word, nowhere near the note's own corner. Nothing moved in the data, but the
+   * note visibly jumped away from its editor and back again, which is
+   * indistinguishable from the note having moved.
+   *
+   * ⭐ THE CLICK CHOOSES WHICH NOTE; THE NOTE CHOOSES WHERE ITS EDITOR GOES. The
+   * box comes from `textBoxFor` — the same call the painter makes — so the
+   * editor lands exactly on the ink under both the new and the legacy layout
+   * rule.
+   */
+  const editorBoxFor = useCallback((d) => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext?.('2d')
+    if (!ctx || !d) return null
+    const rect = rectForDrawing(d)
+    const pts = resolvePixels(d.points || [], rect)
+    if (!pts.length || pts[0].valid === false) return null
+    ctx.save()
+    ctx.font = fontStringFor(d)
+    const box = textBoxFor(ctx, d, pts[0].x, pts[0].y, wrapTextLines)
+    ctx.restore()
+    const cr = canvas.getBoundingClientRect()
+    return {
+      x: cr.left + box.x,
+      y: cr.top + box.y,
+      // The CONTENT width the textarea should carry, so a note that has been
+      // resized reopens at the width it was resized to rather than at the
+      // element's minimum.
+      contentWidth: box.w - (PAD_X + BORDER_W) * 2,
+    }
+  }, [rectForDrawing, resolvePixels])
+
+  /**
+   * Which of a Fib's levels already carry an alert.
+   *
+   * ⭐ DERIVED FROM THE LIVE ALERT LIST, not from anything stored on the drawing.
+   * An alert is server state that another browser can create or clear, so a copy
+   * on the drawing would be a second truth that goes stale — and would also mean
+   * a STYLE write every time an alert was set, which is exactly the coupling
+   * Phase 8 must not create (hiding a level must not touch alerts, and setting an
+   * alert must not touch style).
+   */
+  const levelAlertsFor = useCallback((d) => {
+    if (!d || !boundAlerts || !boundAlerts.length) return null
+    const out = new Set()
+    for (const a of boundAlerts) {
+      if (!a || !a.is_active || !a.drawing_id) continue
+      const { drawingId, level } = parseBoundId(a.drawing_id)
+      if (drawingId === d.id && level != null) out.add(levelKey(level))
+    }
+    return out.size ? out : null
+  }, [boundAlerts])
+
+  // Screen box → the chart coordinate at its centre. Used once, at the moment a
+  // never-moved Price Move label is first grabbed, so the drag has somewhere to
+  // start from.
+  const labelStartFrom = useCallback((box) => {
+    if (!box) return null
+    const c = toChart(box.cx, box.cy)
+    return c ? { time: c.time, price: c.price, ...(c.paneY != null ? { paneY: c.paneY } : {}), ...(c.futureBars ? { futureBars: c.futureBars } : {}) } : null
+  }, [toChart])
+
   // ── Hit test all drawings ──
   // Advance/decline % labels render above the candle's HIGH or below its LOW —
   // and frequently sit ON the candles. A point-only hit box misses them, so make
@@ -1903,50 +1592,90 @@ export default function ChartDrawingOverlay({
   // right-clickable. Uses the same anchors the renderer does, backfilling the
   // low for older decline labels so they're deletable too.
   const hitTestAdvance = useCallback((d, pts, mx, my) => {
-    const p = pts[pts.length - 1]
-    if (!p || p.x == null) return false
-    const hiY = d.advHigh != null ? toPixel(null, d.advHigh)?.y : null
-    let loPrice = d.advLow
-    if (loPrice == null && d.points?.length) {
-      const bi = timeToIndex.get(d.points[d.points.length - 1].time)
-      if (bi != null && bars[bi]) loPrice = bars[bi].l
-    }
-    const loY = loPrice != null ? toPixel(null, loPrice)?.y : null
-    const ys = [hiY, loY, p.y].filter(v => v != null)
-    if (!ys.length) return false
-    const PAD = 30, HALF_W = 30   // label margin past the wick + generous click width
-    return mx >= p.x - HALF_W && mx <= p.x + HALF_W
-      && my >= Math.min(...ys) - PAD && my <= Math.max(...ys) + PAD
-  }, [toPixel, bars, timeToIndex])
+    // ⭐ THE LABEL IS THE TARGET, because the label is the drawing.
+    //
+    // ⚰️ WHAT THIS REPLACES was a 60×(wick+60) rectangle around the anchor
+    // CANDLE — a hitbox big enough to swallow clicks on the candles themselves,
+    // on any trendline crossing them, and on a neighbouring drawing, in a region
+    // where the Price Move tool draws nothing at all. It existed because the
+    // label's real position was not knowable outside the painter. It is now:
+    // the painter returns the box it drew and the last frame's boxes are right
+    // here, so the grab area is exactly the ink.
+    const box = labelBoxRef.current.get(d.id)
+    if (box) return pointInBox(box, mx, my, HIT_THRESHOLD() - 2)
+    // No box this frame means the label was not painted (anchor off-screen, or
+    // every field switched off) — and what is not drawn cannot be clicked.
+    return false
+  }, [])
+
+  // ⛔ ADJUST MODE BELONGS TO ONE DRAWING AND ENDS WHEN THAT DRAWING IS NO
+  // LONGER THE SELECTED ONE. Without this the anchors of a Price Move you have
+  // moved on from stay live on the canvas, and a stray drag on one of them
+  // edits a measurement you are not even looking at.
+  useEffect(() => {
+    if (adjustingId && selectedId !== adjustingId) setAdjustingId(null)
+  }, [selectedId, adjustingId])
 
   const hitTestAll = useCallback((mx, my) => {
-    const { w, h } = sizeRef.current
-    // You cannot select what you cannot see — a hidden object must not steal a
-    // tap from the visible one underneath it.
+    const geom = paneGeom()
+    // You cannot select what you cannot see - a hidden object must not steal a
+    // tap from the visible one underneath it. THE SAME NOW GOES FOR THE CLIPPED
+    // HALF OF A DRAWING: `hitTestDrawing` rejects a cursor outside the pane rect,
+    // so a price trendline cannot keep swallowing clicks in the volume pane it is
+    // no longer painted in. A clip without a matching hit test is an invisible
+    // hitbox, which is the worse of the two bugs.
     for (let i = visibleDrawings.length - 1; i >= 0; i--) {
       const d = visibleDrawings[i]
-      const pts = resolvePixels(d.points || [])
+      const rect = rectForDrawing(d, geom)
+      const pts = resolvePixels(d.points || [], rect)
       const hit = d.type === 'advance'
         ? hitTestAdvance(d, pts, mx, my)
-        : hitTestDrawing(d, pts, mx, my, w, h)
+        // ⛔ TEXT IS GRABBED BY THE BOX THAT WAS PAINTED, not by an estimate of
+        // it. The estimate guessed a line count from an assumed average
+        // character width, so a bold note, a monospace note or one long word
+        // all had a hitbox the wrong size — and the note is the only thing there
+        // is to grab.
+        // ⭐ ONE CACHE, TWO SHAPES, ONE RULE: what the painter drew is what the
+        // user can grab. A Text Note publishes its box; a Fib publishes its
+        // visible level lines. Neither is re-derived here, because a second
+        // derivation is exactly how an invisible hitbox is born.
+        : hitTestDrawing(d, pts, mx, my, rect,
+          (d.type === 'text' || d.type === 'fib' || d.type === 'fibext')
+            ? labelBoxRef.current.get(d.id) : null)
       if (hit) return d.id
     }
     return null
-  }, [visibleDrawings, resolvePixels, hitTestAdvance])
+  }, [visibleDrawings, resolvePixels, hitTestAdvance, paneGeom, rectForDrawing])
 
   // ── Hit test handles (control points) — returns { drawingId, handleIdx } or null ──
   const hitTestHandle = useCallback((mx, my) => {
     if (!selectedId) return null
     const d = drawings.find(d => d.id === selectedId)
     if (!d) return null
-    const pts = resolvePixels(d.points || [])
+    // ⭐ THE VISIBLE HANDLE IS THE TARGET. `handlePointsFor` moves the Circle's
+    // dots onto its border for painting; grabbing has to use the same positions
+    // or the cursor would change over one place and the drag start at another.
+    // Index correspondence survives the mapping, so `handleIdx` still names the
+    // stored anchor the drag will move.
+    let pts = handlePointsFor(d.type, resolvePixels(d.points || [], rectForDrawing(d)))
+    if (d.type === 'advance') {
+      // ⛔ AND THE ANCHORS ARE NOT GRABBABLE UNLESS THEY ARE VISIBLE. Outside
+      // adjust mode a Price Move has exactly one handle — the label — and it is
+      // moved by the body-drag path, not by a handle drag, because moving it
+      // must write `labelPoint` and never touch the measurement.
+      if (adjustingId !== d.id) return null
+    }
     for (let i = 0; i < pts.length; i++) {
+      // INDEX-STABLE: `i` is an index into the STORED points, which is exactly
+      // what `handleIdx` means to the drag path. Skipping an unresolvable anchor
+      // (rather than filtering it out of the array) is what keeps that true.
+      if (!pts[i].valid) continue
       if (Math.hypot(mx - pts[i].x, my - pts[i].y) < HIT_THRESHOLD() + 2) {
         return { drawingId: d.id, handleIdx: i }
       }
     }
     return null
-  }, [selectedId, drawings, resolvePixels])
+  }, [selectedId, drawings, resolvePixels, rectForDrawing, adjustingId])
 
   // ── Latest-value refs for the long-lived native listeners below ──
   // (window/canvas listeners are attached once with []; read live state via refs
@@ -2110,6 +1839,17 @@ export default function ChartDrawingOverlay({
             startPixel: pos,
             startCoords: coords,
             originalPoints: d.points.map(p => ({ ...p })),
+            // ⭐ WHERE PRICE MOVE'S LABEL IS RIGHT NOW, in chart coordinates.
+            //
+            // A label the user has never moved has no stored position — it is
+            // derived from the run's high or low. Dragging it therefore has to
+            // start from where it is ON SCREEN, or the first pixel of movement
+            // would teleport it to wherever a default happened to be. The
+            // painter published the box it drew, so the answer is exact and the
+            // drag is continuous from the very first frame.
+            labelStart: d.type === 'advance'
+              ? (d.labelPoint ? { ...d.labelPoint } : labelStartFrom(labelBoxRef.current.get(d.id)))
+              : null,
           }
           setIsDragging(true)
           e.preventDefault()
@@ -2127,12 +1867,22 @@ export default function ChartDrawingOverlay({
 
     // Text tool: place text input (use fixed position via clientX/clientY to avoid overflow clip)
     if (activeTool === 'text') {
-      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price, paneRelY: coords.paneRelY ?? null })
+      setTextInput({ x: e.clientX, y: e.clientY, canvasX: pos.x, canvasY: pos.y, time: coords.time, price: coords.price, paneY: coords.paneY ?? null, pane: coords.pane || PRICE })
       return
     }
 
     // Add point for drawing tools
-    if (activeTool && activeTool !== 'cursor') {
+    //
+    // ⛔ A RETIRED TYPE IS NOT PLACEABLE, AND THIS IS THE ONE GATE THAT MATTERS.
+    //
+    // ⭐ `position` KEEPS ITS TOOLBAR BUTTON ON PURPOSE, because that button is
+    // also the only door to the Position CALCULATOR — a completely separate
+    // feature (a numeric panel plus three price lines) that StockChart gates on
+    // this same `activeTool === 'position'`. The two share an id and nothing
+    // else. Retiring the DRAWING therefore cannot mean removing the tool id; it
+    // means the overlay stops turning clicks into a drawing, which is exactly
+    // what this line does. The panel is untouched.
+    if (activeTool && activeTool !== 'cursor' && !isRetired(activeTool)) {
       const newPending = [...pendingPoints, coords]
       const needed = POINT_COUNT[activeTool] || 2
 
@@ -2142,13 +1892,30 @@ export default function ChartDrawingOverlay({
           points: newPending,
           color,
           lineWidth,
-          lineStyle,   // 'solid' | 'dashed' — honored for line-type drawings
+          lineStyle,   // 'solid' | 'dashed' | 'dotted'
+          // PANE OWNERSHIP IS A PROPERTY OF THE DRAWING, SET ONCE, HERE.
+          // It comes from the FIRST anchor: that is the pane the user aimed at,
+          // and using the first (rather than, say, the lowest) means a drawing
+          // started in the candles stays a price drawing even if the second click
+          // strays over the divider. A drawing can no longer be half-and-half.
+          pane: newPending[0]?.pane || PRICE,
+          // ⛔ NEW DRAWINGS CARRY THEIR OWN SETTINGS; OLD ONES CARRY NOTHING, AND
+          // THAT IS THE DIFFERENCE. A new Horizontal Line is stamped
+          // `showPriceLabel: true` here, while a line drawn last year has no such
+          // property and resolves to the `false` in DRAWING_DEFAULTS. Same code
+          // path, two answers, no migration — and the user's own saved tool
+          // defaults override the built-in.
+          ...(newDrawingProps(activeTool, toolDefaults) || {}),
         }
-        if ((activeTool === 'measure' || activeTool === 'dateRange') && newPending.length >= 2) {
-          const idx0 = timeToIndex.get(newPending[0].time) || 0
-          const idx1 = timeToIndex.get(newPending[newPending.length - 1].time) || 0
-          drawingData.barCount = Math.abs(idx1 - idx0)
-        }
+        // ⚰️ `barCount` IS NO LONGER WRITTEN, AND NO LONGER READ.
+        //
+        // It was frozen here at creation and printed forever: resize the box and
+        // it stayed put, switch daily→weekly and a 25-bar measurement went on
+        // claiming 25 bars while spanning five. `measurementFor` derives it from
+        // the live anchors every frame instead. The property is not stripped
+        // from drawings that already carry it — nothing writes on load — it is
+        // simply no longer consulted.
+        drawingData.points = constrainPoints(activeTool, drawingData.points)
         // Advance label: % from the OPEN of the FIRST clicked candle to the HIGH
         // of the SECOND — same basis as the auto setup-advance labels. Stored at
         // creation so it survives reload without needing a bar lookup. In line
@@ -2159,14 +1926,15 @@ export default function ChartDrawingOverlay({
             const a = newPending[0].price, b = newPending[1].price
             if (a > 0 && b != null) {
               drawingData.advPct = ((b - a) / a) * 100
+              drawingData.advDelta = b - a
               drawingData.advHigh = b
             }
           } else {
             const ai = timeToIndex.get(newPending[0].time)
             const bi = timeToIndex.get(newPending[1].time)
             if (ai != null && bi != null && bars[ai] && bars[bi]) {
-              const pct = computeAdvancePct(bars[ai], bars[bi])
-              if (pct != null) drawingData.advPct = pct
+              const mv = computeAdvanceMove(bars[ai], bars[bi])
+              if (mv) { drawingData.advPct = mv.pct; drawingData.advDelta = mv.delta }
               drawingData.advHigh = bars[bi].h
               drawingData.advLow = bars[bi].l   // decline labels anchor below this
             }
@@ -2189,7 +1957,10 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId, markTapHintSeen])
+  // `toolDefaults` IS A REAL DEPENDENCY, not a lint appeasement: it is read when
+  // a drawing is created, so a stale copy would mean "Save as default" did not
+  // take effect until something unrelated happened to rebuild this callback.
+  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId, markTapHintSeen, toolDefaults])
 
   const handlePointerMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -2237,32 +2008,45 @@ export default function ChartDrawingOverlay({
         const base = c?.time != null ? (nearestIndex(c.time) ?? 0) : 0
         return base + (Number.isFinite(c?.futureBars) ? c.futureBars : 0)
       }
+      // ⭐ HOW FAR THE ANCHOR MOVES PER PIXEL OF POINTER. It is 1 for every tool
+      // and for every whole-body move; the Circle's border handles are the one
+      // case where the dot the user grabbed is a BLEND of both anchors, so moving
+      // the anchor 1:1 would leave the dot trailing the mouse. See
+      // `handleDragGain` — this is the only place the correction is applied, and
+      // it multiplies the DELTA, so the drag still starts exactly where it was
+      // grabbed and nothing jumps.
+      const gain = handleDragGain(d.type, drag.handleIdx)
       const timeDelta = coords.time && drag.startCoords.time
-        ? effLogical(coords) - effLogical(drag.startCoords)
+        ? Math.round((effLogical(coords) - effLogical(drag.startCoords)) * gain)
         : 0
-      const priceDelta = (coords.price || 0) - (drag.startCoords.price || 0)
+      const priceDelta = ((coords.price || 0) - (drag.startCoords.price || 0)) * gain
       // Vertical anchor handling. Price-pane points keep the existing (log-safe)
       // priceDelta move; volume-pane points move by a pixel-fraction so they stay
       // in the volume pane. A point dragged ACROSS the pane boundary re-anchors to
       // the side it lands on — so an old price-anchored volume label fixes itself
       // permanently once nudged. The boundary is the price pane's bottom edge.
-      const ser = seriesRef?.current
       const H = sizeRef.current.h || 0
-      const pb = pricePaneBottomPx()
-      const pixelDY = (drag.startPixel) ? (pos.y - drag.startPixel.y) : 0
+      const pixelDY = (drag.startPixel) ? (pos.y - drag.startPixel.y) * gain : 0
       const clamp01 = v => Math.max(0, Math.min(1, v))
+      // The drawing keeps the pane it was created in for the whole gesture. A
+      // drag can no longer convert an anchor - or worse, HALF a drawing - into
+      // the other pane; that was only ever possible because ownership was
+      // re-derived per point from the pixel it happened to land on.
+      const dragRect = rectForDrawing(d)
       const moveY = (p) => {
-        if (p.paneRelY != null) {
-          const ny = p.paneRelY + (H ? pixelDY / H : 0)
-          if (pb != null && H && ny * H <= pb + 1) {       // dragged up into the price pane
-            let np = null; try { np = ser?.coordinateToPrice(ny * H) } catch { /* disposed */ }
-            if (np != null) return { price: np }
-          }
-          return { paneRelY: clamp01(ny), price: p.price }
-        }
-        let oy = null; try { oy = ser?.priceToCoordinate(p.price) } catch { /* disposed */ }
-        if (pb != null && H && oy != null && oy + pixelDY > pb + 1) {   // dragged down into the volume pane
-          return { paneRelY: clamp01((oy + pixelDY) / H) }
+        // Pane-fraction anchors (new `paneY`, and legacy `paneRelY` on its way to
+        // becoming one) move by a fraction of THEIR OWN PANE, so the drawing keeps
+        // its place among the volume bars when the divider moves.
+        if (p.paneY != null || p.paneRelY != null) {
+          const zoneH = dragRect ? (dragRect.y1 - dragRect.y0) : 0
+          const cur = p.paneY != null
+            ? p.paneY
+            : (dragRect && H ? toPaneFraction(dragRect, p.paneRelY * H) : 0)
+          const next = clamp01(cur + (zoneH > 0 ? pixelDY / zoneH : 0))
+          // A legacy canvas-fraction point UPGRADES to a pane fraction the first
+          // time it is moved - the one moment a rewrite is legitimate, because the
+          // user is already changing the geometry. Nothing is migrated on load.
+          return { paneY: next, paneRelY: null, price: p.price }
         }
         return { price: (p.price ?? 0) + priceDelta }
       }
@@ -2274,15 +2058,53 @@ export default function ChartDrawingOverlay({
       // exactly as before.
       const _lastIdx = bars.length - 1
       const moveX = (p) => {
+        // NO HORIZONTAL MOVEMENT MEANS NO HORIZONTAL WRITE.
+        //
+        // This guard is the whole of the "vertical drag moved my drawing
+        // sideways" fix. Without it, a purely vertical nudge still ran the point
+        // through `nearestIndex(p.time)` and wrote back `bars[thatIndex].t` - and
+        // on any timeframe where the stored anchor is not an EXACT bar (a
+        // daily-anchored drawing viewed weekly; an intraday chart whose buckets
+        // were re-sanitised), `nearestIndex` returns the CONTAINING bar. So a 3px
+        // vertical drag silently re-anchored the drawing to the start of the
+        // containing week, permanently, and it had visibly moved the next time the
+        // user looked at it on the daily.
+        //
+        // Time is data. It changes when the user drags along the time axis, and at
+        // no other moment.
+        if (timeDelta === 0) return { ...p, ...moveY(p) }
         const origIdx = (Number.isFinite(p.futureBars) && p.futureBars > 0)
           ? _lastIdx + p.futureBars
-          : (nearestIndex(p.time) ?? 0)   // nearest, not exact — see effLogical note
+          : (nearestIndex(p.time) ?? 0)   // nearest, not exact - see effLogical note
         const rawIdx = origIdx + timeDelta
         if (rawIdx > _lastIdx) {
-          return { time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
+          return { ...p, time: bars[_lastIdx].t, futureBars: Math.min(FUTURE_BARS_CAP, rawIdx - _lastIdx), ...moveY(p) }
         }
-        return { time: bars[Math.max(0, rawIdx)]?.t || p.time, ...moveY(p) }
+        // `...p` FIRST so fields this function does not know about survive a drag.
+        // The old version built a fresh {time, ...moveY(p)} object, so anything
+        // else on a point was dropped by the first person who moved the drawing -
+        // which is exactly how a new per-point property gets silently lost.
+        const next = { ...p, time: bars[Math.max(0, rawIdx)]?.t || p.time, ...moveY(p) }
+        if (!(Number.isFinite(p.futureBars) && p.futureBars > 0)) delete next.futureBars
+        return next
       }
+      // ⛔ DRAGGING A PRICE MOVE MOVES ITS LABEL, NOT ITS MEASUREMENT.
+      //
+      // ⚰️ THE BUG THIS FIXES. A body drag ran every anchor through `moveX`, so
+      // nudging the label two candles to the right re-anchored the run to two
+      // different candles and silently restated the number the label existed to
+      // report. The user asked to move a caption and got a different
+      // measurement. Anchors are DATA here; only `labelPoint` is geometry the
+      // user is allowed to push around, and the anchors are edited deliberately,
+      // through Adjust anchors.
+      if (d.type === 'advance' && drag.handleIdx == null) {
+        if (!drag.labelStart) return
+        if (!drag.snapped) { snapshotHistory?.(); drag.snapped = true }
+        updateDrawing(drag.drawingId, { labelPoint: moveX(drag.labelStart) }, { record: false })
+        requestRedraw()
+        return
+      }
+
       let newPoints
       if (drag.handleIdx != null) {
         // Move single control point
@@ -2291,6 +2113,10 @@ export default function ChartDrawingOverlay({
         // Move entire drawing
         newPoints = drag.originalPoints.map(moveX)
       }
+      // The shape's own invariant, re-applied after every edit — a Bars & Time
+      // ruler cannot be tilted by dragging one end of it. Identity for every
+      // other tool.
+      newPoints = constrainPoints(d.type, newPoints)
 
       // First move of a drag → snapshot the pre-drag state ONCE so the whole drag
       // collapses into a single undo step; per-move writes then skip history.
@@ -2314,7 +2140,7 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
+  }, [activeTool, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle, rectForDrawing])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
@@ -2466,8 +2292,16 @@ export default function ChartDrawingOverlay({
         }
       }
       if (dPx) {
-        if (p.paneRelY != null) {
-          np.paneRelY = clamp01(p.paneRelY + (H ? dPx / H : 0))
+        if (p.paneY != null || p.paneRelY != null) {
+          // Mirrors the drag's moveY: pane fractions move within their own pane,
+          // and a legacy canvas fraction upgrades on the first deliberate move.
+          const rect = rectForDrawing(sel)
+          const zoneH = rect ? (rect.y1 - rect.y0) : 0
+          const cur = p.paneY != null
+            ? p.paneY
+            : (rect && H ? toPaneFraction(rect, p.paneRelY * H) : 0)
+          np.paneY = clamp01(cur + (zoneH > 0 ? dPx / zoneH : 0))
+          delete np.paneRelY
         } else if (p.price != null) {
           let y = null; try { y = ser?.priceToCoordinate(p.price) } catch { /* disposed */ }
           if (y != null) {
@@ -2597,23 +2431,43 @@ export default function ChartDrawingOverlay({
   }, [activeTool])
 
   // ── Text input submit ──
-  const handleTextSubmit = (text, boxWidth = null) => {
+  const handleTextSubmit = (text, boxWidth = null, resized = false) => {
     if (!textInput) return
     // Editing an existing note (double-click): update its text; empty leaves it.
     if (textInput.editId) {
-      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim(), ...(boxWidth ? { boxWidth } : {}) })
+      // ⛔ ENTERING EDIT MODE IS NOT A RESIZE, AND NEITHER IS LEAVING IT.
+      //
+      // ⚰️ This used to write `boxWidth` on EVERY commit, from the textarea's
+      // current `clientWidth`. A note reopened for editing came up at the
+      // element's own minimum width, so simply double-clicking a wide note and
+      // pressing Enter re-wrapped it to ~144px — the note's layout changed
+      // because it had been LOOKED at. `resized` is true only when the user
+      // actually dragged the resize corner.
+      if (text.trim()) {
+        updateDrawing(textInput.editId, {
+          text: text.trim(),
+          ...(resized && boxWidth ? { boxWidth } : {}),
+        })
+      }
       setTextInput(null)
       return
     }
     if (!text.trim()) { setTextInput(null); return }
     addDrawing({
       type: 'text',
-      points: [{ time: textInput.time, price: textInput.price, ...(textInput.paneRelY != null ? { paneRelY: textInput.paneRelY } : {}) }],
+      pane: textInput.pane || PRICE,
+      points: [{ time: textInput.time, price: textInput.price, ...(textInput.paneY != null ? { paneY: textInput.paneY } : {}) }],
       color,
       lineWidth,
       text: text.trim(),
       fontSize: fontSize || 13,
       boxWidth: boxWidth || null,   // wrap width so the chart matches the edit box
+      // ⭐ THE ANCHOR IS THE EDITOR'S TOP-LEFT, and this says so. The click that
+      // opened the editor is both the editor's `left/top` and the stored point,
+      // so with the marker the painter draws the note exactly where the user
+      // just watched themselves type it. Without it (every note that already
+      // exists) the shipped placement is preserved untouched.
+      ...(newDrawingProps('text', toolDefaults) || {}),
     })
     setTextInput(null)
     if (!repeatMode) setActiveTool(null)
@@ -2627,7 +2481,18 @@ export default function ChartDrawingOverlay({
     const d = drawings.find(dd => dd.id === hitTestAll(pos.x, pos.y))
     if (d?.type === 'text') {
       setSelectedId(d.id)
-      setTextInput({ x: e.clientX, y: e.clientY, editId: d.id, initialValue: d.text || '' })
+      const box = editorBoxFor(d)
+      setTextInput({
+        x: box ? box.x : e.clientX,
+        y: box ? box.y : e.clientY,
+        contentWidth: box ? box.contentWidth : null,
+        editId: d.id,
+        initialValue: d.text || '',
+        // ⭐ THE EDITOR WEARS THE NOTE'S OWN STYLE, not the toolbar's. Editing a
+        // 22px red note in a 13px gold box is the same class of lie as opening
+        // it in the wrong place.
+        style: d,
+      })
     }
   }
 
@@ -2754,8 +2619,11 @@ export default function ChartDrawingOverlay({
         <TextInputOverlay
           x={textInput.x}
           y={textInput.y}
-          color={color}
-          fontSize={fontSize || 13}
+          // ⭐ EDITING A NOTE USES THE NOTE'S OWN STYLE; creating one uses the
+          // toolbar's, because there is no note yet. One prop, resolved by the
+          // caller, so the editor never has to know which case it is in.
+          style={textInput.style || { color, fontSize: fontSize || 13 }}
+          contentWidth={textInput.contentWidth || null}
           initialValue={textInput.initialValue || ''}
           onSubmit={handleTextSubmit}
           onCancel={() => setTextInput(null)}
@@ -2817,10 +2685,7 @@ export default function ChartDrawingOverlay({
             y={ctxMenu.y}
             sheet={coarsePointer}
             drawing={d}
-            levelSupported={LEVEL_LINE_TYPES.has(d.type)}
-            horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
-            alertSupported={!!onSetAlert && LEVEL_LINE_TYPES.has(d.type)}
-            onSetAlert={(direction, opts) => { onSetAlert?.(d, direction, opts); setCtxMenu(null) }}
+            onSetAlert={onSetAlert ? ((direction, opts) => { onSetAlert(d, direction, opts); setCtxMenu(null) }) : null}
             currentLevel={leftLevel}
             onSetLevel={(price) => {
               // Flatten the whole line onto the typed price — a clean horizontal
@@ -2840,11 +2705,36 @@ export default function ChartDrawingOverlay({
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
+            // ⭐ ONE HANDLER FOR EVERY PER-DRAWING SETTING. A schema control that
+            // edits a named property gets this; adding the next toggle or picker
+            // needs a table entry and nothing here. It goes through the ordinary
+            // `updateDrawing`, so every setting change is one undo step and is
+            // persisted by the same writer as a geometry change.
+            onSetProp={(name, value) => updateDrawing(ctxMenu.drawingId, { [name]: value })}
+            // ⛔ RESET REMOVES OVERRIDES; IT DOES NOT WRITE DEFAULTS. Setting both
+            // maps to null returns the Fib to inheriting the canonical table —
+            // and touches neither its anchors nor its alerts.
+            onResetFib={() => { updateDrawing(ctxMenu.drawingId, { ...RESET_FIB_STYLE }); setCtxMenu(null) }}
+            // ⭐ THE SAME `onSetAlert` HANDLER EVERY OTHER TOOL USES — it is
+            // given the level, and the level rides into the bound id. No second
+            // alert path, no Fib-only direction vocabulary.
+            onSetLevelAlert={onSetAlert ? ((level) => { onSetAlert(d, 'above', { bound: true, level }); setCtxMenu(null) }) : null}
+            levelAlerts={levelAlertsFor(d)}
+            // ⭐ A TOGGLE, NOT A MODE STACK. "Adjust anchors" reveals this one
+            // drawing's measurement anchors and makes them grabbable; choosing
+            // it again — or selecting anything else — puts them away. There is
+            // no state to enter or leave beyond an id, which is why this needed
+            // no mode system at all.
+            adjusting={adjustingId === ctxMenu.drawingId}
+            onAdjustAnchors={d.type === 'advance'
+              ? (() => {
+                setAdjustingId((cur) => (cur === ctxMenu.drawingId ? null : ctxMenu.drawingId))
+                setSelectedId(ctxMenu.drawingId)
+                setCtxMenu(null)
+              })
+              : null}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             onToggleHide={() => { updateDrawing(ctxMenu.drawingId, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null); setCtxMenu(null) }}
-            canReorder={!!reorderDrawing && drawings.length > 1}
-            onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
-            onSendBack={() => { reorderDrawing?.(ctxMenu.drawingId, 'back'); setCtxMenu(null) }}
             onDuplicate={() => {
               const { id: _id, ...rest } = d
               const nid = addDrawing({ ...rest, points: offsetPoints(d.points), locked: false })
@@ -2871,15 +2761,34 @@ export default function ChartDrawingOverlay({
 // the rendered note reads exactly like the box.
 const TEXTBOX_PAD_X = 16
 
-function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSubmit, onCancel }) {
+/**
+ * The Text Note editor.
+ *
+ * ⛔ IT IS NOT A SEPARATE OPINION ABOUT TYPOGRAPHY. Every layout value here
+ * — family, size, weight, style, line height, padding, border width — comes
+ * from `drawingText.js`, which is the same module the canvas painter reads. That
+ * is the whole mechanism behind "the note does not move when you edit it": the
+ * two engines are not being kept in sync, they are being given the same numbers.
+ *
+ * ⚰️ WHAT THAT REPLACES: the textarea hard-coded `'Instrument Sans'`,
+ * `lineHeight: 1.4` and `padding: '6px 8px'` while the painter hard-coded a
+ * different font string and no padding at all, and the editor took its colour
+ * and size from the TOOLBAR rather than from the note — so double-clicking a
+ * 22px red note opened a 13px gold box.
+ */
+function TextInputOverlay({ x, y, style, contentWidth = null, initialValue = '', onSubmit, onCancel }) {
   const [value, setValue] = useState(initialValue)
   const ref = useRef(null)
   const readyRef = useRef(false)
+  // The width the box OPENED at. Anything else at commit time means the user
+  // dragged the resize corner, and only then is the note's wrap width rewritten.
+  const openWidthRef = useRef(null)
 
   useEffect(() => {
     // Focus after a tick to avoid immediate blur from the mousedown that spawned us
     const t = setTimeout(() => {
       ref.current?.focus()
+      if (ref.current) openWidthRef.current = ref.current.clientWidth
       readyRef.current = true
     }, 50)
     return () => clearTimeout(t)
@@ -2887,11 +2796,17 @@ function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSub
 
   const submit = () => {
     if (!readyRef.current) return // ignore blur before we're ready
-    // Capture the CONTENT width (box width minus padding) so the chart wraps the
-    // text to the exact width the user sized the box to → WYSIWYG.
-    const boxWidth = ref.current ? Math.max(1, ref.current.clientWidth - TEXTBOX_PAD_X) : null
-    onSubmit(value, boxWidth)
+    const el = ref.current
+    // The CONTENT width (box width minus padding + border) is what the chart
+    // wraps to, so the note reads exactly as it did in the box.
+    const boxWidth = el ? Math.max(1, el.clientWidth - (PAD_X + BORDER_W) * 2) : null
+    const resized = !!(el && openWidthRef.current != null
+      && Math.abs(el.clientWidth - openWidthRef.current) > 1)
+    onSubmit(value, boxWidth, resized)
   }
+
+  const ts = editorTextStyle(style)
+  const ink = style?.color || UCT_DRAW_GOLD
 
   return (
     <textarea
@@ -2911,19 +2826,22 @@ function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSub
         left: x,
         top: y,
         zIndex: 20,
-        minWidth: 160,
+        // ⛔ THE BOX OPENS AT THE NOTE'S OWN WIDTH when it has one. Falling back
+        // to the element's minimum is what silently re-wrapped a wide note the
+        // moment somebody opened it.
+        ...(contentWidth
+          ? { width: contentWidth + (PAD_X + BORDER_W) * 2, minWidth: 0 }
+          : { minWidth: 160 }),
         minHeight: 32,
         maxWidth: 480,
-        padding: '6px 8px',
+        boxSizing: 'border-box',
         // Transparent so it blends with the canvas — the box just previews the note
         // over the chart. Border marks the editable bounds; text is the note colour.
         background: 'transparent',
-        border: `1px dashed ${color}`,
+        border: `${BORDER_W}px dashed ${ink}`,
         borderRadius: 4,
-        color,
-        fontFamily: "'Instrument Sans', sans-serif",
-        fontSize,
-        lineHeight: 1.4,
+        color: ink,
+        ...ts,
         resize: 'both',
         outline: 'none',
         overflowWrap: 'break-word',
@@ -2935,10 +2853,59 @@ function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSub
 
 // ─── Right-click context menu ───────────────────────────────────────────────
 
-// Drawings store lineStyle as a string ('solid' | 'dashed'); ColorPanel's `line`
-// prop uses the numeric code (0 solid / 2 dashed / 1 dotted). Map between them.
-const DRAW_STYLE_TO_NUM = { solid: 0, dashed: 2 }
-const numToDrawStyle = (n) => (n === 0 ? 'solid' : 'dashed')
+// Drawings store lineStyle as a STRING; ColorPanel's `line` prop speaks the
+// numeric code (0 solid / 2 dashed / 1 dotted).
+//
+// THIS PAIR IS WHY "DOTTED" APPEARED DEAD. `numToDrawStyle` was
+// `(n) => (n === 0 ? 'solid' : 'dashed')`, so clicking Dotted (code 1) STORED
+// 'dashed'; and `DRAW_STYLE_TO_NUM` had no 'dotted' key, so reopening the menu
+// read the stored 'dashed' back and highlighted Dashed. The button was always
+// clickable and always did something - it wrote the wrong value, twice, in a way
+// that looked exactly like an inert control.
+//
+// BOTH DIRECTIONS ARE NOW TOTAL, AND DERIVED FROM ONE TABLE. `LINE_DASH` in
+// drawingStyle.js is the authority for what styles exist; these two maps are its
+// numeric spelling for the picker. A style added there and forgotten here is a
+// test failure, not a silent fallback.
+//
+// The Chart Settings CROSSHAIR picker uses the same ColorPanel with the same
+// codes and is deliberately untouched: those go to lightweight-charts' own
+// LineStyle enum, where 1 has always meant dotted and always worked.
+const DRAW_STYLE_TO_NUM = { solid: 0, dotted: 1, dashed: 2 }
+const NUM_TO_DRAW_STYLE = { 0: 'solid', 1: 'dotted', 2: 'dashed' }
+const numToDrawStyle = (n) => NUM_TO_DRAW_STYLE[n] || 'solid'
+
+/**
+ * The glyph for each schema control.
+ *
+ * ⛔ ICONS LIVE HERE, NOT IN THE SCHEMA. `drawingSettingsSchema.js` is a plain
+ * data module with no JSX and no React import — that is what lets it be imported
+ * by a test, by the save-defaults path, and (later) by anything that needs to ask
+ * "what does this tool support?" without dragging the menu in with it. A `label`
+ * is data; a `<path d="…">` is presentation.
+ *
+ * Two entries are FUNCTIONS because their glyph depends on the drawing's state
+ * (a closed vs open padlock, an eye vs a struck-through eye) — the same pair
+ * whose LABEL the schema also computes from the drawing.
+ */
+const CONTROL_ICONS = {
+  setLevel: <><line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 2" /><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none" /></>,
+  makeHorizontal: <><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>,
+  setAlert: <><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>,
+  duplicate: <><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>,
+  lock: (d) => (d?.locked
+    ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
+    : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>),
+  hide: (d) => (d?.hidden
+    ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
+    : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>),
+  saveDefault: <path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />,
+  // Two anchor points with a span between them — the thing the row reveals.
+  adjustAnchors: <><circle cx="3.5" cy="11" r="1.8" /><circle cx="12.5" cy="5" r="1.8" /><line x1="5" y1="10" x2="11" y2="6" strokeDasharray="2 1.5" /></>,
+  // A counter-clockwise arrow — "put it back", not "delete it".
+  resetFib: <><path d="M3 8a5 5 0 1 0 1.6-3.7" /><polyline points="2.5,2.5 2.5,5.5 5.5,5.5" /></>,
+  remove: <><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>,
+}
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
@@ -3040,10 +3007,31 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
 // Exported for its own rail: the alert-mode choice is a decision the overlay
 // only PASSES ON, so testing it through canvas hit-testing in jsdom (which does
 // no layout) would measure the harness, not the menu.
+/**
+ * ⛔ THE `*Supported` BOOLEANS ARE GONE, AND SO ARE THREE DEAD PROPS.
+ *
+ * `levelSupported` / `horizontalSupported` / `alertSupported` moved into
+ * `drawingSettingsSchema.js`: a tool declares its controls, and a control that
+ * needs a handler the caller did not pass simply is not rendered. The caller no
+ * longer has to know that a Trend Line can be flattened and a Rectangle cannot.
+ *
+ * `canReorder` / `onBringFront` / `onSendBack` were passed by the overlay and
+ * never read by this component — z-ordering has no row in this menu. They were
+ * flagged as unused by eslint on every run; the migration is the moment to stop
+ * threading them through.
+ */
 export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
-  canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+  onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal,
+  onSetProp, onAdjustAnchors, adjusting = false, onResetFib, onSetLevelAlert, levelAlerts = null }) {
   const menuRef = useRef(null)
-  const [colorOpen, setColorOpen] = useState(false)
+  // ⛔ WHICH COLOUR PANEL, NOT WHETHER ONE IS OPEN. A Rectangle has two colour
+  // rows (Border and Fill) and they share one ColorPanel instance, so the state
+  // has to name the control that opened it. Holding the schema ITEM rather than
+  // its id means the panel reads its own title, target property and whether it
+  // shows line controls straight off the table.
+  const [colorPanel, setColorPanel] = useState(null)
+  const [fontOpen, setFontOpen] = useState(false)
+  const [fibOpen, setFibOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
   /* ⭐ TWO ALERT SEMANTICS, AND THE CHOICE IS REMEMBERED (MOB-05). A trader
@@ -3091,10 +3079,30 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   const locked = !!drawing?.locked
   const curColor = (drawing?.type === 'advance' ? drawing?.labelColor : drawing?.color) || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
-  const dashed = drawing?.lineStyle === 'dashed'
+  const curStyle = drawing?.lineStyle || 'solid'
   const isText = drawing?.type === 'text'
   const curFontSize = Math.round(drawing?.fontSize || 13)
   const bumpFont = (delta) => onSetFontSize?.(Math.max(8, Math.min(64, curFontSize + delta)))
+  // What a colour row shows, and what its panel edits. A property-backed row
+  // (Fill) falls back to the drawing's colour when it has no value of its own —
+  // which is exactly what it RENDERS as, so the swatch never lies.
+  const swatchOf = (item) => {
+    // ⭐ A LEVEL OR BAND SWATCH CARRIES ITS OWN VALUE, because it is not a
+    // property of the drawing — it is one entry inside a sparse map, and
+    // resolving it a second time here would be a second source of truth.
+    if (item && item.value) return item.value
+    return item?.prop ? (drawing?.[item.prop] || item.fallbackColor || curColor) : curColor
+  }
+
+  /** Where a colour chosen in the shared panel is written. One place, so the
+   *  panel itself stays a plain colour picker for every caller. */
+  const applyColor = (panel, hex) => {
+    if (!panel) return
+    if (panel.fibLevel !== undefined) return onSetProp?.('levels', withLevel(drawing, panel.fibLevel, { color: hex }))
+    if (panel.fibBand) return onSetProp?.('fills', withBand(drawing, panel.fibBand[0], panel.fibBand[1], { enabled: true, color: hex }))
+    if (panel.prop) return onSetProp?.(panel.prop, hex)
+    return onSetColor(hex)
+  }
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
@@ -3134,6 +3142,549 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
       }
 
+  // ── The rows, from the schema ──────────────────────────────────────────────
+  //
+  // ⛔ THE BOOLEAN LADDER IS GONE. This used to be a run of
+  // `{levelSupported && …}` / `{horizontalSupported && …}` / `{alertSupported &&
+  // …}` / `{isText && onSetFontSize && …}` blocks, with the conditions
+  // themselves computed a thousand lines away at the call site. The tool now
+  // DECLARES its controls in `drawingSettingsSchema.js` and this walks whatever
+  // it finds — so adding a setting in Phase 4+ is a table entry plus (only if it
+  // is a new widget) one renderer below, and never another branch here.
+  const sections = sectionsFor({
+    drawing,
+    points: drawing?.points,
+    handlers: {
+      onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert, onSetProp,
+      onAdjustAnchors, onResetFib,
+      onDuplicate, onToggleLock, onToggleHide, onSaveDefaults, onDelete,
+    },
+    // Only `adjustAnchors` reads this — it is the one control whose LABEL
+    // depends on something that is not the drawing (are we in that mode now).
+    adjusting,
+  })
+
+  // Widgets that are not rows. Each body is the shipped JSX, unchanged — the
+  // migration moved WHERE they are chosen, not what they look like.
+  const WIDGETS = {
+    // ⭐ ONE ROW SERVES "Color", "Border" AND "Fill". What differs is the LABEL,
+    // the property it writes and whether a fill has a line preview — all three
+    // declared in the schema. The body is the shipped row, unchanged.
+    colorRow: (item) => {
+      const open = colorPanel?.id === item.id
+      const showLine = item.line !== false
+      const val = swatchOf(item)
+      return (
+        <button
+          key={item.id}
+          onClick={() => setColorPanel(p => (p?.id === item.id ? null : item))}
+          style={{
+            ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+            fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+            background: open ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+          }}
+          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'none' }}
+        >
+          <span style={labelStyle}>{item.label}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <span style={{ width: sw, height: sw, borderRadius: '50%', background: val, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
+            {/* ⛔ THE SPACER IS NOT DECORATION. The row is right-aligned, so without
+                it the Fill swatch slides over into the gap where Border's line
+                preview sits and the two swatches in one section sit at different
+                x — which reads as a mistake long before anyone works out why. */}
+            <span
+              aria-hidden="true"
+              style={showLine
+                ? { display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: curStyle === 'solid' ? 'solid' : curStyle, borderTopColor: val }
+                : { display: 'block', width: 22 }}
+            />
+            <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
+          </span>
+        </button>
+      )
+    },
+
+    // ⭐ A GENERIC ON/OFF ROW. Every later "show the …" setting is a table entry
+    // and reuses this — the widget knows a property name and nothing about which
+    // tool it belongs to.
+    toggle: (item) => {
+      // ⭐ `resolve` WINS OVER THE FLAT DEFAULT WHERE A CONTROL DECLARES ONE.
+      // The measurement toggles default per TYPE (a legacy Measure shows its
+      // dollar figure; a legacy Price Move does not), so asking `drawingProp`
+      // would make the switch say "off" while the canvas showed the number.
+      const on = item.resolve ? !!item.resolve(drawing) : !!drawingProp(drawing, item.prop)
+      // ⛔ AND THE LAST ONE CANNOT BE SWITCHED OFF where the schema says so —
+      // a Price Move with neither figure showing is an invisible drawing.
+      const locked = !!item.locked
+      return (
+        <button
+          key={item.id}
+          role="switch"
+          aria-checked={on}
+          aria-disabled={locked || undefined}
+          title={locked ? item.lockedHint : undefined}
+          onClick={() => { if (!locked) onSetProp?.(item.prop, !on) }}
+          style={{
+            ...rowStyle, width: '100%', border: 'none', cursor: locked ? 'default' : 'pointer', borderRadius: 6,
+            fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left', background: 'none',
+            opacity: locked ? 0.55 : 1,
+          }}
+          onMouseEnter={(e) => { if (!locked) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+        >
+          <span style={labelStyle}>{item.label}</span>
+          <span
+            aria-hidden="true"
+            style={{
+              marginLeft: 'auto', width: sheet ? 40 : 30, height: sheet ? 22 : 17, borderRadius: 999,
+              background: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-bg, #0e0e10)',
+              border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+              position: 'relative', transition: 'background 120ms ease',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 1, left: on ? (sheet ? 19 : 14) : 1,
+              width: sheet ? 18 : 13, height: sheet ? 18 : 13, borderRadius: '50%',
+              background: on ? '#0e0e10' : 'var(--menu-text-dim, #8a8a8f)',
+              transition: 'left 120ms ease',
+            }} />
+          </span>
+        </button>
+      )
+    },
+
+    /**
+     * ⭐ ONE ROW IN THE MENU, A SCROLLING LIST BEHIND IT. The approved set is 23
+     * families (shared with the Notebook — see `utils/fontFamilies.js`), which
+     * is a wall of rows if it is poured into a context menu and a second,
+     * diverging list if it is trimmed. So the ROW stays one line showing the
+     * current face, and the list opens under it with a cap on its height —
+     * exactly the shape the colour row already uses.
+     *
+     * ⭐ EACH ENTRY PREVIEWS IN ITS OWN FACE, which costs nothing (the fonts are
+     * already on the machine) and turns "Cambria" from a word into a decision.
+     */
+    fontPicker: (item) => {
+      const cur = drawing?.[item.prop] || ''
+      const open = fontOpen
+      return (
+        <React.Fragment key={item.id}>
+          <button
+            onClick={() => setFontOpen((o) => !o)}
+            style={{
+              ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+              fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+              background: open ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+            }}
+            onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+            onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'none' }}
+          >
+            <span style={labelStyle}>{item.label}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11, fontFamily: fontStackOf(drawing), maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {fontLabelFor(cur)}
+              </span>
+              <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
+            </span>
+          </button>
+          {open && (
+            <div
+              role="listbox"
+              aria-label="Font"
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{ maxHeight: sheet ? 220 : 190, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid var(--menu-divider, #202022)', borderBottom: '1px solid var(--menu-divider, #202022)' }}
+            >
+              {FONT_OPTIONS.map((f) => {
+                const on = (f.value || '') === cur
+                return (
+                  <button
+                    key={f.label}
+                    role="option"
+                    aria-selected={on}
+                    onClick={() => { onSetProp?.(item.prop, f.value || null); setFontOpen(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      padding: sheet ? '10px 18px' : '6px 11px', minHeight: sheet ? 40 : undefined,
+                      border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left',
+                      color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text, #ededed)',
+                      fontFamily: f.value || 'inherit', fontSize: sheet ? 14 : 13,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                  >
+                    <span aria-hidden="true" style={{ width: 12, flex: '0 0 12px', fontFamily: 'inherit' }}>{on ? '✓' : ''}</span>
+                    <span>{f.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </React.Fragment>
+      )
+    },
+
+    /**
+     * The Fib level editor.
+     *
+     * ⛔ DENSE ON PURPOSE — THIS IS A TRADING TERMINAL. Eleven levels and ten
+     * bands at the menu's normal 36px row height is a 750px wall; at 22px it is
+     * a table you can read at a glance and hit with a mouse. The three things a
+     * row carries are the three things the user came for: is it on, which level
+     * is it, what colour is it.
+     *
+     * ⭐ AND IT IS ONE PANEL, NOT TWO. Lines and bands are different concepts and
+     * are separated by a caption rather than by a second door — the whole point
+     * of opening this is to see the Fib's configuration in one place.
+     */
+    fibEditor: (item) => {
+      const type = drawing?.type
+      const levels = resolveLevels(drawing)
+      const bands = bandsFor(type)
+      const num = (v) => (v === 0 ? '0' : v === 1 ? '1' : String(v).replace(/^0/, ''))
+      const setLevel = (lv, patch) => onSetProp?.('levels', withLevel(drawing, lv, patch))
+      const setBand = (a, b, patch) => onSetProp?.('fills', withBand(drawing, a, b, patch))
+      const rowH = sheet ? 34 : 22
+      const cap = { padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600 }
+      const swatch = (color, onClick, title) => (
+        <button
+          type="button" title={title} onClick={onClick}
+          style={{
+            width: sheet ? 22 : 14, height: sheet ? 22 : 14, borderRadius: '50%', flex: 'none',
+            background: color, border: '1px solid var(--menu-border, #2c2c30)',
+            boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)', cursor: 'pointer', padding: 0,
+          }}
+        />
+      )
+      return (
+        <React.Fragment key={item.id}>
+          <button
+            onClick={() => setFibOpen((o) => !o)}
+            style={{
+              ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+              fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+              background: fibOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+            }}
+            onMouseEnter={(e) => { if (!fibOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+            onMouseLeave={(e) => { if (!fibOpen) e.currentTarget.style.background = 'none' }}
+          >
+            <span style={labelStyle}>{item.label}</span>
+            <span style={{ marginLeft: 'auto', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{fibOpen ? '▾' : '▸'}</span>
+          </button>
+          {fibOpen && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{ maxHeight: sheet ? 300 : 330, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid var(--menu-divider, #202022)', borderBottom: '1px solid var(--menu-divider, #202022)' }}
+            >
+              <div style={cap}>Levels</div>
+              {levels.map((lv) => (
+                <div key={lv.key} style={{ display: 'flex', alignItems: 'center', gap: 8, height: rowH, padding: sheet ? '0 18px' : '0 11px' }}>
+                  <button
+                    type="button" role="switch" aria-checked={lv.visible}
+                    aria-label={`Level ${num(lv.level)}`}
+                    onClick={() => setLevel(lv.level, { visible: !lv.visible })}
+                    style={{
+                      width: 13, height: 13, flex: 'none', padding: 0, cursor: 'pointer', borderRadius: 3,
+                      border: `1px solid ${lv.visible ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                      background: lv.visible ? 'var(--menu-accent, #f0b23a)' : 'transparent',
+                      color: '#0e0e10', fontSize: 10, lineHeight: 1, fontWeight: 700,
+                    }}
+                  >{lv.visible ? '✓' : ''}</button>
+                  <span style={{
+                    minWidth: 40, fontSize: sheet ? 13 : 12, fontVariantNumeric: 'tabular-nums',
+                    color: lv.visible ? 'var(--menu-text, #ededed)' : 'var(--menu-text-faint, #6b6b6b)',
+                  }}>{num(lv.level)}</span>
+                  {/* ⭐ THE ALERT MARK SITS BETWEEN THE LEVEL AND ITS COLOUR, and is
+                      only ink when there IS an alert — see Phase 8. */}
+                  <button
+                    type="button"
+                    title={levelAlerts?.has(lv.key) ? `Alert set on ${num(lv.level)}` : `Set an alert on ${num(lv.level)}`}
+                    aria-label={`Alert on level ${num(lv.level)}`}
+                    aria-pressed={!!levelAlerts?.has(lv.key)}
+                    onClick={() => onSetLevelAlert?.(lv.level)}
+                    style={{
+                      marginLeft: 'auto', width: 18, height: 18, flex: 'none', padding: 0, cursor: 'pointer',
+                      border: 'none', background: 'none', lineHeight: 1,
+                      color: levelAlerts?.has(lv.key) ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-faint, #4b4b4b)',
+                    }}
+                  >
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" />
+                      <path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" />
+                    </svg>
+                  </button>
+                  {swatch(lv.color, () => setColorPanel({ id: `fib:${lv.key}`, label: `Level ${num(lv.level)}`, line: false, fibLevel: lv.level, value: lv.color }), `Colour of level ${num(lv.level)}`)}
+                </div>
+              ))}
+
+              <div style={cap}>Fills</div>
+              {bands.map(([a, b]) => {
+                const st = bandState(drawing, a, b)
+                const key = `${a}>${b}`
+                return (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, height: rowH, padding: sheet ? '0 18px' : '0 11px' }}>
+                    <button
+                      type="button" role="switch" aria-checked={st.enabled}
+                      aria-label={`Fill ${num(a)} to ${num(b)}`}
+                      onClick={() => setBand(a, b, st.enabled ? { enabled: false } : { enabled: true, color: st.color || defaultBandColor(drawing, a) })}
+                      style={{
+                        width: 13, height: 13, flex: 'none', padding: 0, cursor: 'pointer', borderRadius: 3,
+                        border: `1px solid ${st.enabled ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                        background: st.enabled ? 'var(--menu-accent, #f0b23a)' : 'transparent',
+                        color: '#0e0e10', fontSize: 10, lineHeight: 1, fontWeight: 700,
+                      }}
+                    >{st.enabled ? '✓' : ''}</button>
+                    <span style={{
+                      fontSize: sheet ? 13 : 12, fontVariantNumeric: 'tabular-nums',
+                      color: st.enabled ? 'var(--menu-text, #ededed)' : 'var(--menu-text-faint, #6b6b6b)',
+                    }}>{num(a)} → {num(b)}</span>
+                    <span style={{ marginLeft: 'auto', display: 'flex' }}>
+                      {swatch(st.enabled ? st.color : 'transparent',
+                        () => setColorPanel({ id: `fill:${key}`, label: `Fill ${num(a)} → ${num(b)}`, line: false, fibBand: [a, b], value: st.color || defaultBandColor(drawing, a) }),
+                        `Colour of the ${num(a)} to ${num(b)} band`)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </React.Fragment>
+      )
+    },
+
+    // ⭐ A SEGMENTED PICKER FOR A SHORT, NAMED SCALE. Small / Medium / Large,
+    // never a number field — see the schema's note on why.
+    choice: (item) => {
+      const cur = item.resolve ? item.resolve(drawing) : (drawingProp(drawing, item.prop) ?? item.fallback)
+      return (
+        <div key={item.id} style={{ ...rowStyle }}>
+          <span style={labelStyle}>{item.label}</span>
+          <span
+            style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}
+            onPointerDown={(e) => e.stopPropagation()}
+            role="radiogroup"
+            aria-label={item.label}
+          >
+            {item.choices.map((c) => {
+              const on = c.value === cur
+              return (
+                <button
+                  key={c.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  title={c.title}
+                  onClick={() => onSetProp?.(item.prop, c.value)}
+                  style={{
+                    width: sheet ? 34 : 24, height: sheet ? 34 : 24,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                    borderRadius: 6,
+                    background: on ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                    color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #8a8a8f)',
+                    cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1,
+                    fontSize: sheet ? 13 : 11,
+                  }}
+                >{c.label}</button>
+              )
+            })}
+          </span>
+        </div>
+      )
+    },
+
+    fontStepper: () => (
+      <div key="fontSize" style={{ ...rowStyle }}>
+        <span style={labelStyle}>Text size</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => bumpFont(-1)}
+            title="Smaller"
+            aria-label="Smaller text"
+            style={{
+              width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+              color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
+            }}
+          >A−</button>
+          <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
+          <button
+            onClick={() => bumpFont(1)}
+            title="Bigger"
+            aria-label="Bigger text"
+            style={{
+              width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+              color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
+            }}
+          >A+</button>
+        </span>
+      </div>
+    ),
+
+    levelInput: (item) => (
+      <React.Fragment key="setLevel">
+        <MenuAction label={item.label} onClick={openLevel} big={sheet} icon={CONTROL_ICONS.setLevel} />
+        {levelOpen && (
+          <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              autoFocus
+              value={levelVal}
+              onChange={(e) => setLevelVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); submitLevel() }
+                else if (e.key === 'Escape') { e.preventDefault(); setLevelOpen(false) }
+                e.stopPropagation()
+              }}
+              placeholder="Price…"
+              style={{
+                flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
+                background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
+                borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
+                fontSize: sheet ? 14 : 12, outline: 'none',
+              }}
+            />
+            <button
+              onClick={submitLevel}
+              style={{
+                padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
+                background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
+                borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
+              }}
+            >Set</button>
+          </div>
+        )}
+      </React.Fragment>
+    ),
+
+    alertPicker: (item) => (
+      <React.Fragment key="setAlert">
+        <MenuAction label={item.label} onClick={() => setAlertOpen(o => !o)} big={sheet} icon={CONTROL_ICONS.setAlert} />
+        {alertOpen && (
+          <div
+            style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 6px' : '2px 12px 4px' }}
+            onPointerDown={(e) => e.stopPropagation()}
+            role="radiogroup"
+            aria-label="Alert follows the drawing or stays at a fixed level"
+          >
+            {[
+              { bound: true, label: 'Follows the line', hint: 'Move the line and the alert moves with it. Delete the line and the alert goes too.' },
+              { bound: false, label: 'Fixed level', hint: 'Takes the price where the line is now, then stops caring about the line.' },
+            ].map((m) => (
+              <button
+                key={m.label}
+                type="button"
+                role="radio"
+                aria-checked={alertBound === m.bound}
+                onClick={() => chooseBind(m.bound)}
+                title={m.hint}
+                style={{
+                  flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
+                  background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                  border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                  borderRadius: 6,
+                  color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
+                  cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
+                  fontWeight: alertBound === m.bound ? 700 : 500,
+                }}
+              >{m.label}</button>
+            ))}
+          </div>
+        )}
+        {alertOpen && (
+          <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+            {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
+                surface, so theme-variable colors (which flip dark on light) would
+                be unreadable here. */}
+            {[
+              { dir: 'above', label: '▲ Above', col: '#3cb868' },
+              { dir: 'below', label: '▼ Below', col: '#ff5b5b' },
+            ].map(b => (
+              <button
+                key={b.dir}
+                onClick={() => onSetAlert?.(b.dir, { bound: alertBound })}
+                title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
+                style={{
+                  flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
+                  background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
+                  borderRadius: 6, color: b.col, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 700,
+                }}
+              >{b.label}</button>
+            ))}
+          </div>
+        )}
+      </React.Fragment>
+    ),
+  }
+
+  // Plain rows. `saveDefault` is the one action with transient state ("Saved ✓").
+  const ACTION_HANDLERS = {
+    adjustAnchors: onAdjustAnchors,
+    resetFib: onResetFib,
+    duplicate: onDuplicate,
+    lock: onToggleLock,
+    hide: onToggleHide,
+    remove: onDelete,
+    saveDefault: () => {
+      // ⛔ EVERY VALUE THE TOOL *COULD* PERSIST IS OFFERED; `defaultsPayloadFor`
+      // decides which of them this tool actually owns. Booleans go through
+      // `drawingProp` so "off" is a real, savable answer; the optional ones are
+      // omitted when unset, because "no fill" is the absence of a choice rather
+      // than a choice to save.
+      const values = {
+        color: curColor, lineWidth: curWidth, lineStyle: curStyle, fontSize: curFontSize,
+        showPriceLabel: !!drawingProp(drawing, 'showPriceLabel'),
+        showPercentChange: !!drawingProp(drawing, 'showPercentChange'),
+      }
+      // ⭐ THE MEASUREMENT TOGGLES GO THROUGH `fieldsFor`, for the same reason
+      // the switches do: a legacy Measure's dollar field is ON without the
+      // property being set, and "save as default" must save what the user is
+      // looking at, not what happens to be stored.
+      const f = fieldsFor(drawing)
+      Object.assign(values, {
+        showDollar: f.dollar, showPercent: f.percent, showBars: f.bars, showTime: f.time,
+        labelPos: labelPosOf(drawing),
+      })
+      // ⛔ TEXT NOTE'S BOOLEANS ARE ALWAYS OFFERED so that "off" is savable; its
+      // two optional colours are offered only when set, because "no background
+      // colour" is the absence of a choice rather than a choice. What keeps
+      // `lineWidth`/`lineStyle` out of the payload is not this list — it is the
+      // schema: the Text Note's colour row declares `persists: ['color']` alone.
+      Object.assign(values, {
+        bold: !!drawing?.bold, italic: !!drawing?.italic,
+        bgEnabled: !!drawing?.bgEnabled, borderEnabled: !!drawing?.borderEnabled,
+        fontFamily: drawing?.fontFamily ?? null,
+      })
+      for (const p of ['fillColor', 'fillOpacity', 'arrowSize', 'bgColor', 'borderColor', 'levels', 'fills']) {
+        if (drawing?.[p] !== undefined && drawing?.[p] !== null) values[p] = drawing[p]
+      }
+      onSaveDefaults(defaultsPayloadFor(drawing?.type, values))
+      setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
+    },
+  }
+
+  const renderItem = (item) => {
+    if (item.kind === 'custom') return WIDGETS[item.widget]?.(item) ?? null
+    const label = item.id === 'saveDefault' && savedFlash ? 'Saved as default ✓' : item.label
+    return (
+      <MenuAction
+        key={item.id}
+        label={label}
+        onClick={ACTION_HANDLERS[item.id]}
+        danger={item.danger}
+        big={sheet}
+        icon={typeof CONTROL_ICONS[item.id] === 'function' ? CONTROL_ICONS[item.id](drawing) : CONTROL_ICONS[item.id]}
+      />
+    )
+  }
+
+  const divider = (key) => <div key={key} style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+
   const inner = (
     <div
       ref={menuRef}
@@ -3145,245 +3696,38 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--menu-border, #2c2c30)' }} />
         </div>
       )}
-      {/* Color & style — one row that opens the shared grid picker (color grid +
-          opacity + custom hex + line width + line style), matching Chart Settings. */}
-      <button
-        onClick={() => setColorOpen(o => !o)}
-        style={{
-          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
-          fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-          background: colorOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
-        }}
-        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
-        onMouseLeave={(e) => { if (!colorOpen) e.currentTarget.style.background = 'none' }}
-      >
-        <span style={labelStyle}>Color</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          <span style={{ width: sw, height: sw, borderRadius: '50%', background: curColor, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
-          <span style={{ display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: dashed ? 'dashed' : 'solid', borderTopColor: curColor }} />
-          <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
-        </span>
-      </button>
 
-      <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
-
-      {/* Text size — text annotations only. Steps the selected label's font size;
-          "Save as default" (below) then persists it as the size for NEW text. */}
-      {isText && onSetFontSize && (
-        <>
-          <div style={{ ...rowStyle }}>
-            <span style={labelStyle}>Text size</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => bumpFont(-1)}
-                title="Smaller"
-                aria-label="Smaller text"
-                style={{
-                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
-                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
-                }}
-              >A−</button>
-              <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
-              <button
-                onClick={() => bumpFont(1)}
-                title="Bigger"
-                aria-label="Bigger text"
-                style={{
-                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
-                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
-                }}
-              >A+</button>
-            </span>
-          </div>
-          <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
-        </>
-      )}
-
-      {levelSupported && (
-        <>
-          <MenuAction
-            label="Set level…"
-            onClick={openLevel}
-            big={sheet}
-            icon={<><line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 2" /><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none" /></>}
-          />
-          {levelOpen && (
-            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                autoFocus
-                value={levelVal}
-                onChange={(e) => setLevelVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); submitLevel() }
-                  else if (e.key === 'Escape') { e.preventDefault(); setLevelOpen(false) }
-                  e.stopPropagation()
-                }}
-                placeholder="Price…"
-                style={{
-                  flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
-                  background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
-                  borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
-                  fontSize: sheet ? 14 : 12, outline: 'none',
-                }}
-              />
-              <button
-                onClick={submitLevel}
-                style={{
-                  padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
-                  background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
-                  borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
-                  fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
-                }}
-              >Set</button>
+      {sections.map((section, i) => (
+        <React.Fragment key={section.id}>
+          {i > 0 && divider(`sep-${section.id}`)}
+          {section.title && (
+            <div style={{ padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600 }}>
+              {section.title}
             </div>
           )}
-        </>
-      )}
-      {horizontalSupported && (
-        <MenuAction
-          label="Make horizontal"
-          onClick={onMakeHorizontal}
-          big={sheet}
-          icon={<><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>}
-        />
-      )}
-      {alertSupported && (
-        <>
-          <MenuAction
-            label="Set alert…"
-            onClick={() => setAlertOpen(o => !o)}
-            big={sheet}
-            icon={<><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>}
-          />
-          {alertOpen && (
-            <div
-              style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 6px' : '2px 12px 4px' }}
-              onPointerDown={(e) => e.stopPropagation()}
-              role="radiogroup"
-              aria-label="Alert follows the drawing or stays at a fixed level"
-            >
-              {[
-                { bound: true, label: 'Follows the line', hint: 'Move the line and the alert moves with it. Delete the line and the alert goes too.' },
-                { bound: false, label: 'Fixed level', hint: 'Takes the price where the line is now, then stops caring about the line.' },
-              ].map((m) => (
-                <button
-                  key={m.label}
-                  type="button"
-                  role="radio"
-                  aria-checked={alertBound === m.bound}
-                  onClick={() => chooseBind(m.bound)}
-                  title={m.hint}
-                  style={{
-                    flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
-                    background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
-                    border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-                    borderRadius: 6,
-                    color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
-                    cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
-                    fontWeight: alertBound === m.bound ? 700 : 500,
-                  }}
-                >{m.label}</button>
-              ))}
-            </div>
-          )}
-          {alertOpen && (
-            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
-              {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
-                  surface, so theme-variable colors (which flip dark on light) would
-                  be unreadable here. */}
-              {[
-                { dir: 'above', label: '▲ Above', col: '#3cb868' },
-                { dir: 'below', label: '▼ Below', col: '#ff5b5b' },
-              ].map(b => (
-                <button
-                  key={b.dir}
-                  onClick={() => onSetAlert?.(b.dir, { bound: alertBound })}
-                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
-                  style={{
-                    flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
-                    background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
-                    borderRadius: 6, color: b.col, cursor: 'pointer',
-                    fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 700,
-                  }}
-                >{b.label}</button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-      {(levelSupported || horizontalSupported || alertSupported) && (
-        <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
-      )}
+          {section.items.map(renderItem)}
+        </React.Fragment>
+      ))}
 
-      <MenuAction
-        label="Duplicate"
-        onClick={onDuplicate}
-        big={sheet}
-        icon={<><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>}
-      />
-      <MenuAction
-        label={locked ? 'Unlock' : 'Lock'}
-        onClick={onToggleLock}
-        big={sheet}
-        icon={locked
-          ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
-          : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
-      />
-      {/* ⛔ HIDE SHIPS ONLY BECAUSE RECOVERY DOES. On its own this control makes
-          an object vanish with no surface that can name it again — the user's
-          own instruction was not to ship it that way, and it is right: an
-          invisible, unselectable object you cannot list is indistinguishable
-          from one you deleted by accident. The Objects sheet lists every hidden
-          object, says how many there are, and restores them all in one tap. */}
-      {onToggleHide && (
-        <MenuAction
-          label={drawing?.hidden ? 'Show' : 'Hide'}
-          onClick={onToggleHide}
-          big={sheet}
-          icon={drawing?.hidden
-            ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
-            : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>}
-        />
-      )}
-      {onSaveDefaults && (
-        <MenuAction
-          label={savedFlash ? 'Saved as default ✓' : 'Save as default'}
-          onClick={() => {
-            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid', ...(isText ? { fontSize: curFontSize } : {}) })
-            setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
-          }}
-          big={sheet}
-          icon={<path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />}
-        />
-      )}
-      <MenuAction
-        label="Delete Drawing"
-        onClick={onDelete}
-        danger
-        big={sheet}
-        icon={<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>}
-      />
-
-      {colorOpen && createPortal(
+      {colorPanel && createPortal(
         <div
           data-color-panel
           onPointerDown={(e) => e.stopPropagation()}
           style={{ position: 'fixed', left: panelLeft, top: panelTop, zIndex: 22 }}
         >
           <ColorPanel
-            title="Drawing"
-            value={curColor}
-            onChange={(hex) => onSetColor(hex)}
-            onClose={() => setColorOpen(false)}
+            title={colorPanel.prop ? colorPanel.label : 'Drawing'}
+            value={swatchOf(colorPanel)}
+            onChange={(hex) => applyColor(colorPanel, hex)}
+            onClose={() => setColorPanel(null)}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
-            line={{
+            /* ⛔ A FILL HAS NO WIDTH AND NO DASH. Passing the line controls to it
+               would show two sliders that belong to the outline under a heading
+               that says Fill — the "confusing duplicate control" the brief warns
+               about. `line: false` in the schema is what turns them off. */
+            line={colorPanel.line === false ? null : {
               width: curWidth,
               style: DRAW_STYLE_TO_NUM[drawing?.lineStyle] ?? 0,
               onWidth: (w) => onSetWidth(w),

@@ -264,8 +264,10 @@ Full session detail: user memory `project_broker_sync_2026_06_15.md`.
 `SNAPTRADE_CLIENT_ID` (`UNCHARTED-TERRITORY-REAQG`) · `SNAPTRADE_CONSUMER_KEY` ·
 `BROKER_ENCRYPTION_KEY` (Fernet — PERMANENT, backed up) · `SNAPTRADE_WEBHOOK_SECRET` ·
 `BROKER_SYNC_ENABLED=1` (scheduler: 20-min incremental + 2:30am ET nightly reconcile).
-Inert with these unset. `railway variables --set` STAGES → must `railway redeploy
---service web --yes` to apply.
+Inert with these unset. ⚠️ For how `railway variables --set` behaves, read
+**"`railway variables --set` — measured BOTH ways"** below — this line's flat
+"STAGES → must redeploy" was measured on `chart-renderer` and did NOT hold on
+`web` on 2026-09-09. Verify the boot.
 
 ### Schema (j2_broker_* tables in db.py)
 `j2_broker_users` (encrypted secret), `j2_broker_accounts` (1:1 → a `j2_accounts` row,
@@ -593,7 +595,9 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 > contention (see the 8/day limitation below) and blast radius against a system they
 > believed was dark. **Never assert a flag state from a code default or a past
 > decision — `railway variables --service web --kv` is the only authority, and it is
-> one command.** (⚠️ `railway variables --set` AUTO-REDEPLOYS; the read form does not.)
+> one command.** (⚠️ For `--set`'s restart behaviour see **"`railway variables
+> --set` — measured BOTH ways"** below; this line's flat "AUTO-REDEPLOYS" is one
+> of two measurements, not the rule. The read form never restarts.)
 
 ### Known limitations / tuning backlog (surfaced by the final review, deferred to M2)
 - **Shared 8/day insight cap:** `add_insight`'s per-user daily cap is global across
@@ -1378,8 +1382,10 @@ someone forgot to set indistinguishable from a deliberate shutdown — the ambig
 - **Rollback:** set `HUB_PREVIEW_ENABLED=false` in Railway → takes effect on each user's next
   authenticated request, **no redeploy**. ⚠️ An already-open page keeps its hub until its next
   `/api/auth/me` — in practice a reload or route change, not a background poll.
-  ⚠️ `railway variables --set` **stages and redeploys**; confirm with
-  `railway variables --service web --kv`.
+  ⚠️ `railway variables --set`'s restart behaviour is NOT settled — see
+  **"`railway variables --set` — measured BOTH ways"** below. `--kv` confirms the
+  SERVICE's config, which is not evidence the RUNNING process has it; verify the
+  boot and read the value in-process.
 - Rails: `tests/test_hub_preview_flag.py` — `test_the_flag_is_read_per_request` (the
   load-bearing one: a module-level capture passes every other test and makes the no-redeploy
   rollback a fiction) and `test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed`
@@ -1572,6 +1578,77 @@ comm -12 <(git diff --name-only $BASE..origin/master | sort -u)          <(git d
 ```
 
 Empty overlap and fewer than six behind ⇒ push and open the PR as-is.
+
+### ⛔⛔ NO PUSH TO MASTER, Mon-Fri 09:00-16:00 ET — THIS BINDS EVERY SESSION
+
+> **A push to master is a production deploy. It rebuilds and RESTARTS the web
+> pod. APScheduler's job store is IN MEMORY, so a scheduled slot whose time
+> passes during the swap is never scheduled at all — lost outright, not merely
+> run late, and `misfire_grace_time` cannot see it.**
+
+A repo-wide rule, not one workstream's preference:
+
+- **Docs-only pushes are included.** A three-file docs push rebuilds web and
+  deploys (`f321e5e7b`, 2026-09-10). "It's only markdown" is not an exemption.
+- **A flag flip is a restart too.** `railway variables --set` was measured
+  auto-redeploying on `web` — see the `--set` section below.
+- **Not every job has a catch-up.** The chart digest's `catch_up()` is THAT
+  workstream's mitigation, not a platform guarantee. `pattern_vision` has none:
+  a slot lost to a restart is simply never judged, and the only trace is a
+  missing hour in `vision_slot_log`.
+- **Other sessions push too.** Three deploys landed on `web` overnight on
+  2026-09-09/10 from an unrelated workstream. Run `railway deployment list
+  --service web` before assuming the pod you measured is the pod now running.
+- ⚰️ **A MARKET-HOURS CASE, 2026-09-10 — this is what it costs.** Three more
+  pushes landed on `web` at **10:14, 10:58 and 11:00:14 ET**, none of them from
+  the workstream that owned the scheduled job. The last arrived **fourteen
+  seconds after a judge slot fired**. That run had already paid for an Opus call
+  and written its verdict when the swap replaced the process, so its `finally`
+  never ran and `vision_slot_log` holds **no row for the slot at all**. The only
+  surviving trace is the append-only cost log: one paid call in that hour, no
+  slot row beside it. ⭐ **A `finally` does not survive process death** — if you
+  are relying on one to record an aborted run, a deploy is the case it cannot
+  cover.
+
+If a push inside the window is genuinely urgent, that is an owner decision, and
+the cost to state is WHICH scheduled slots are lost — not whether a restart
+happens. It does.
+
+### ⛔ `railway variables --set` — measured BOTH ways. Verify the BOOT, not the CLI.
+
+> **Whether `--set` restarts the service is not settled, and this file asserted
+> three different answers in three places. The rule that survives either
+> behaviour: after setting a variable, verify a NEW BOOT by startup-line
+> timestamp. Never assume which behaviour you got.**
+
+Two measurements, both real, both kept:
+
+| Date | Service | What happened |
+|---|---|---|
+| 2026-08-30 | `chart-renderer` | `--set` **STAGED only**. `--kv` read the new value back immediately while `/proc/1/environ` still held the old one; only an explicit `railway redeploy` applied it. |
+| 2026-09-09 | `web` | `--set` **auto-redeployed**. An explicit `railway redeploy` issued 16s later was REFUSED — *"cannot be redeployed... currently building"*. The new value was live in the running process after the boot. |
+
+It may be per-service, or the CLI changed between those dates. **Do not
+re-litigate it from either data point alone** — that is how this file ended up
+with three contradictory sentences (the lines that now point here).
+
+**The procedure, either way:**
+1. `railway variables --service <svc> --set "K=V"`
+2. Watch for a **new boot** — a startup line stamped AFTER the `--set`.
+3. **Only if no boot appears within ~3 minutes**, `railway redeploy --service <svc> --yes`.
+4. Confirm the RUNNING process, not the service config: `--kv` shows what the
+   service is configured with, which is **not evidence the process has it**.
+   Read it in-process (`os.environ.get(...)` over `railway ssh`) or from
+   `/proc/1/environ`.
+
+⚠️ **A flip is therefore a RESTART either way**, so it is bound by the push
+window above.
+
+⭐ **One probe during a swap is not a verdict.** Right after a redeploy the old
+pod can still answer; re-probe. Cf.
+`lesson_a_railway_var_set_stages_it_does_not_restart` (the 2026-08-30
+measurement, still accurate for what it measured) and
+`lesson_two_points_do_not_establish_a_rate`.
 
 ### Tooling — GitHub MCP reads `GITHUB_PERSONAL_ACCESS_TOKEN`
 
