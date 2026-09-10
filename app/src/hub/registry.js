@@ -559,26 +559,48 @@ export const PREVIEW = PREVIEW_MODES.size > 0;
 export const isPreviewMode = (modeId) => PREVIEW_MODES.has(modeId);
 
 /**
- * Home's preview fan (owner ruling, 2026-09-09).
+ * Home's preview fan (owner ruling, 2026-09-09; Calendar restored 2026-09-10 under R-C).
  *
- *   outer — Screener · Charts · Flow · Breadth
- *   inner — Journal · Notebook · Wire · Voice
+ *   outer — Screener · Charts · Flow · Breadth · Journal
+ *   inner — Notebook · Wire · Calendar · Voice
  *
- * ⚠️ Two deliberate differences from the full Home fan above, both owner decisions:
- * **Wire moves outer -> inner** (`/morning-wire` is a real route; this is placement, not
- * scope), and **Calendar is dropped from the preview** — still reachable through ordinary nav,
- * and it returns in Phase 3 with its in-section actions.
+ * ⚠️ Three deliberate differences from the full Home fan above:
+ * 1. **Wire sits inner, not outer** (`/morning-wire` is a real route; this is placement, not
+ *    scope) — owner, 2026-09-09. Unchanged.
+ * 2. **Calendar is back, on the inner ring beside Wire** — R-C (`RESUME-inc3.md:24-26`:
+ *    "Calendar is a §6 omission, not a §7 error … §6 is amended to add calendar after 3.8
+ *    Home. **It stays dark until its own increment.**"). ⛔ THIS RESTORES A DOOR, NOT A MODE:
+ *    `calendar` stays in `PREVIEW_MODES`, so arriving there still gets `[Voice, Home]`. The
+ *    bubble is how you REACH the dark section, which is what "reachable through ordinary nav"
+ *    already meant everywhere except the hub.
+ * 3. **Journal moves inner -> outer**, and it is the ring cap that forces a third difference at
+ *    all: `INNER_MAX` is 4, and Wire + Calendar + Voice + one more is the whole inner budget.
+ *    ⭐ JOURNAL RATHER THAN NOTEBOOK, on an accessibility reading, not a taste one. The master
+ *    spec's own contrast analysis (`00-master-spec-v1.6.md:152-156`) says the pair that
+ *    actually co-occurs is "Wire (outer ring) beside Journal (inner ring) in Home's fan, and
+ *    their luminance separation from each other is only **1.74** — weak for a hue-blind
+ *    viewer", mitigated by "ring radius, by bubble size (46px vs 36px) and by icon". This
+ *    preview had put BOTH on the inner ring, which spends that mitigation; demoting Notebook
+ *    instead would have kept them together. Journal out restores the two-ring separation the
+ *    spec's 1.74 finding depends on.
  * **Catalysts is absent because it has no route at all** (Wave 0: an in-place dashboard tile
  * mode), so it could not be a navigate target even if it were wanted.
+ *
+ * ⚠️ This projection and `home.fan` above now disagree on Wire's and Journal's rings, which is
+ * what a projection is for — but it means Home's eventual `PREVIEW_MODES` exit MOVES two
+ * bubbles unless §C3 is amended first. Flagged for the owner rather than silently changing the
+ * declared fan, which §C3 owns ("Outer: Scan · Chart · Breadth · Wire · Flow. Inner: Journal ·
+ * Notebook · Calendar · Voice" — `00-master-spec-v1.6.md:890`).
  */
 const PREVIEW_HOME = [
   { id: 'home.scan', ring: 0 },
   { id: 'home.chart', ring: 0 },
   { id: 'home.flow', ring: 0 },
   { id: 'home.breadth', ring: 0 },
-  { id: 'home.journal', ring: 1 },
+  { id: 'home.journal', ring: 0 },
   { id: 'home.notebook', ring: 1 },
   { id: 'home.wire', ring: 1 },
+  { id: 'home.calendar', ring: 1 },
   { id: 'home.voice', ring: 1 },
 ];
 
