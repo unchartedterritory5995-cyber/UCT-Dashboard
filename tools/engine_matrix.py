@@ -1482,6 +1482,208 @@ LOCKS_JS = """async () => {
 }"""
 
 
+# ⛔ THE SAME REQUEST SHAPE THE EDITOR ISSUES: PUT the note endpoint with a
+# `baseUpdatedAt` CAS and a real `bodyJson`. A GET or an /api/health ping measures
+# the edge, not the write path, and the write path is what the drain waits on.
+# ⭐ Timed with `performance.now()` INSIDE the page, so no CDP round-trip is in
+# the number. Paced, so the samples are a latency distribution and not a burst.
+PUT_LATENCY_JS = """async ({id, base, text, reps, n, gap, title}) => {
+  const para = (t) => ({type:'paragraph', content:[{type:'text', text:t}]});
+  const body = {type:'doc', content: Array.from({length: reps}, () => para(text))};
+  const payload = JSON.stringify({title, baseUpdatedAt: base, bodyJson: body});
+  const bytes = new TextEncoder().encode(payload).length;
+  const out = {bytes, samples: [], base};
+  for (let i = 0; i < n; i++) {
+    const p = JSON.stringify({title, baseUpdatedAt: out.base, bodyJson: body});
+    const t0 = performance.now();
+    let status = 0, updatedAt = null, err = null;
+    try {
+      const r = await fetch('/api/j2/notes/' + id, {method:'PUT', credentials:'include',
+        headers:{'Content-Type':'application/json'}, body: p});
+      status = r.status;
+      const j = await r.json().catch(() => null);
+      updatedAt = j?.note?.updatedAt ?? null;
+    } catch (e) { err = String(e && e.name || e); }
+    const ms = performance.now() - t0;
+    out.samples.push({ms: Math.round(ms * 100) / 100, status, err});
+    // ⛔ CHAIN THE CAS. A stale baseUpdatedAt 409s and the next sample would be
+    // measuring a rejection, not a write.
+    if (updatedAt) out.base = updatedAt;
+    await new Promise(res => setTimeout(res, gap));
+  }
+  return out;
+}"""
+
+GET_LATENCY_JS = """async ({id, n, gap}) => {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t0 = performance.now();
+    let status = 0, bytes = null;
+    try {
+      const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+      status = r.status;
+      const t = await r.text();
+      bytes = new TextEncoder().encode(t).length;
+    } catch (e) { status = -1; }
+    out.push({ms: Math.round((performance.now() - t0) * 100) / 100, status, bytes});
+    await new Promise(res => setTimeout(res, gap));
+  }
+  return out;
+}"""
+
+
+def _pct(values: list, q: float) -> float:
+    """Nearest-rank percentile, stated so the method is not a guess either."""
+    if not values:
+        return float("nan")
+    s = sorted(values)
+    import math
+    k = max(1, math.ceil(q * len(s)))
+    return s[k - 1]
+
+
+def _summarise(ms: list) -> dict:
+    ok = [m for m in ms if isinstance(m, (int, float))]
+    return {"n": len(ok), "p50": _pct(ok, 0.50), "p95": _pct(ok, 0.95),
+            "max": max(ok) if ok else None, "min": min(ok) if ok else None,
+            "method": "nearest-rank percentile over the raw list"}
+
+
+def put_latency(out_path: pathlib.Path | None = None) -> int:
+    """Measure REAL note-update PUT latency against production, from the rig.
+
+    ⛔ NO OPT-IN AND NO NOTEBOOK. Every request is issued by `fetch` from
+    `/api/health` — a JSON document on the origin where no app code runs — so the
+    offline layer is never mounted and the drain is never engaged. The number
+    wanted is the write path's, and the write path does not need the editor.
+
+    ⛔ ONE scratch note, reused for every sample, deleted at the end. It is titled
+    `LATENCY-PROBE …` and carries no tags, so it cannot be mistaken for the
+    preserved artifacts. NOTHING tagged `sync-conflict`, no forked note and no
+    trashed original is read, written, restored or deleted.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"put-latency-{stamp}.json")
+    rec = {"at": utc(), "mode": "put-latency", "origin": PROD, "profile": str(w.PROFILE),
+           "method": ("PUT /api/j2/notes/{id} with a baseUpdatedAt CAS and a real bodyJson, "
+                      "issued by fetch from /api/health (no app code, no opt-in, no notebook)"),
+           "timing": "performance.now() inside the page, around the fetch only",
+           "status": "INCOMPLETE — the probe did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        return 1
+    note_id = None
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — CDP never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.set_default_timeout(180000)
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+
+            me = page.evaluate(AUTH_ONLY_JS)
+            rec["auth"] = me
+            if me.get("status") != 200 or me.get("id") != ACCOUNT_ID:
+                _write_json(out, dict(rec, status=f"STOPPED — auth {me.get('status')}"))
+                return 1
+            before = page.evaluate(w.NOTES_JS)
+            rec["notes_before"] = before.get("total")
+            print(f"signed in as the canary · notes before: {rec['notes_before']}", flush=True)
+
+            title = f"LATENCY-PROBE {utc()}"
+            created = page.evaluate("""async (t) => {
+                const t0 = performance.now();
+                const r = await fetch('/api/j2/notes', {method:'POST', credentials:'include',
+                  headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({title:t, bodyJson:{type:'doc',content:[]}})});
+                const j = await r.json();
+                return {ok:r.ok, id: j.note?.id ?? j.id, updatedAt: j.note?.updatedAt,
+                        ms: Math.round((performance.now() - t0) * 100) / 100};
+            }""", title)
+            if not created.get("ok"):
+                _write_json(out, dict(rec, status=f"STOPPED — could not create the scratch note"))
+                return 1
+            note_id, base = created["id"], created["updatedAt"]
+            rec["scratch_note"] = {"id": note_id, "title": title, "create_ms": created.get("ms")}
+            print(f"scratch note {note_id} created in {created.get('ms')}ms\n", flush=True)
+
+            # ── the three payload tiers. Size is part of latency, so an empty body
+            #    alone would understate the drain's real cost.
+            tiers = [
+                ("small  (~1 short paragraph)", "The quick brown fox jumps over the lazy dog.", 1, 10),
+                ("medium (~a real note)", "A realistic notebook paragraph of prose. " * 12, 6, 10),
+                ("large  (~a long note)", "A realistic notebook paragraph of prose. " * 12, 40, 10),
+            ]
+            rec["tiers"] = []
+            for label, text, reps, n in tiers:
+                res = page.evaluate(PUT_LATENCY_JS, {"id": note_id, "base": base, "text": text,
+                                                     "reps": reps, "n": n, "gap": 300,
+                                                     "title": title})
+                base = res.get("base") or base
+                ms = [s["ms"] for s in res["samples"] if s.get("status") == 200]
+                bad = [s for s in res["samples"] if s.get("status") != 200]
+                tier = {"tier": label, "payload_bytes": res["bytes"], "raw_ms": [s["ms"] for s in res["samples"]],
+                        "non_200": bad, "summary": _summarise(ms)}
+                rec["tiers"].append(tier)
+                _write_json(out, rec)
+                s = tier["summary"]
+                print(f"{label:30} {res['bytes']:>7}B  n={s['n']:>2}  p50={s['p50']:>7.1f}  "
+                      f"p95={s['p95']:>7.1f}  max={s['max']:>7.1f}"
+                      + (f"  ⛔ {len(bad)} non-200" if bad else ""), flush=True)
+
+            # ── the GET guard 2 pays on EVERY 409.
+            gets = page.evaluate(GET_LATENCY_JS, {"id": note_id, "n": 30, "gap": 250})
+            gms = [g["ms"] for g in gets if g.get("status") == 200]
+            rec["get_one_note"] = {"raw_ms": [g["ms"] for g in gets],
+                                   "bytes": (gets[-1] or {}).get("bytes") if gets else None,
+                                   "non_200": [g for g in gets if g.get("status") != 200],
+                                   "summary": _summarise(gms)}
+            gs = rec["get_one_note"]["summary"]
+            print(f"{'GET one note (the 409 path)':30} {rec['get_one_note']['bytes'] or 0:>7}B  "
+                  f"n={gs['n']:>2}  p50={gs['p50']:>7.1f}  p95={gs['p95']:>7.1f}  max={gs['max']:>7.1f}",
+                  flush=True)
+
+            # ── ORDINARY cleanup: the scratch note only, by id.
+            page.evaluate("""async (id) => { await fetch('/api/j2/notes/' + id,
+                             {method:'DELETE', credentials:'include'}) }""", note_id)
+            page.wait_for_timeout(1500)
+            after = page.evaluate(w.NOTES_JS)
+            rec["notes_after"] = after.get("total")
+            rec["scratch_note_removed"] = rec["notes_after"] == rec["notes_before"]
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["teardown"] = {"killed": killed, "survivors": left, "lock_released": released}
+
+    all_put = [m for t in rec.get("tiers", []) for m in t["raw_ms"]]
+    rec["put_overall"] = _summarise(all_put)
+    o = rec["put_overall"]
+    rec["threshold_options"] = {
+        "p95_x10_ms": round((o["p95"] or 0) * 10),
+        "max_x10_ms": round((o["max"] or 0) * 10),
+        "note": ("a p95 over a few dozen samples IS a handful of samples; the max is the "
+                 "worst thing actually observed on this path"),
+    }
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nPUT overall: n={o['n']} p50={o['p50']:.1f} p95={o['p95']:.1f} max={o['max']:.1f} ms")
+    print(f"  p95 x10 = {rec['threshold_options']['p95_x10_ms']} ms · "
+          f"max x10 = {rec['threshold_options']['max_x10_ms']} ms")
+    print(f"notes {rec.get('notes_before')} -> {rec.get('notes_after')} "
+          f"(scratch removed: {rec.get('scratch_note_removed')})")
+    print(f"artifact: {out}")
+    return 0
+
+
 def live_stores_probe(out_path: pathlib.Path | None = None) -> int:
     """Does mounting the notebook on a profile WITH LIVE STORES change the key —
     and does it take a `uct.nb.sync.*` LOCK?
@@ -1829,6 +2031,9 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="READ-ONLY: auth · offline both ways · cookie provenance · "
                          "Web Locks · cleanup, per engine. Creates nothing.")
+    ap.add_argument("--put-latency", action="store_true",
+                    help="measure REAL note-update PUT latency (and the 409 path's GET) "
+                         "against production from the rig. One scratch note, cleaned up.")
     ap.add_argument("--live-stores-probe", action="store_true",
                     help="does mounting the notebook on the RIG (live stores present) "
                          "change the opt-in key, and is a uct.nb.sync.* lock taken and "
@@ -1873,6 +2078,8 @@ def main() -> int:
         return flush_probe(_out)
     if args.mount_probe:
         return mount_probe(_out)
+    if args.put_latency:
+        return put_latency(_out)
     if args.live_stores_probe:
         return live_stores_probe(_out)
     if args.clear_probe_key:
