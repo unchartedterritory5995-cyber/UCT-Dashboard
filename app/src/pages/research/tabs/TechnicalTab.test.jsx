@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { renderWithProviders, screen, fireEvent } from '../../../test-utils'
 
@@ -67,6 +68,32 @@ describe('TechnicalTab', () => {
     fireEvent.click(screen.getByText('Vcp'))
     const chart = screen.getByTestId('stock-chart')
     expect(JSON.parse(chart.dataset.priceLines)[0].price).toBe(205.0)
+  })
+
+  it('clears a manual selection when the ticker changes', () => {
+    // Regression: `selectedKey` is a `setup|asof_date` pair and two securities
+    // can share one, so a carried-over key marked a DIFFERENT company's verdict
+    // as selected and drove the chart from it. Modelled as a prop change rather
+    // than a remount, because a remount would reset the state anyway and hide
+    // the bug -- the non-remount path is the one at risk.
+    mockReturn = { data: { verdicts: [bullFlag, vcp] }, isLoading: false }
+    function Harness() {
+      const [sym, setSym] = useState('AAPL')
+      return (
+        <>
+          <button onClick={() => setSym('NVDA')}>go-nvda</button>
+          <TechnicalTab sym={sym} />
+        </>
+      )
+    }
+    renderWithProviders(<Harness />, { route: '/research/AAPL' })
+
+    fireEvent.click(screen.getByText('Vcp'))
+    expect(JSON.parse(screen.getByTestId('stock-chart').dataset.priceLines)[0].price).toBe(205.0)
+
+    fireEvent.click(screen.getByText('go-nvda'))
+    // Without the reset the vcp key still matches and the chart stays on 205.0.
+    expect(JSON.parse(screen.getByTestId('stock-chart').dataset.priceLines)[0].price).toBe(191.5)
   })
 
   it('emphasizes and confirms a scanner-origin hint that is still currently confirmed', () => {

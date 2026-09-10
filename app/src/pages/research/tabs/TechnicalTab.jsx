@@ -70,6 +70,15 @@ export default function TechnicalTab({ sym }) {
   const verdicts = data?.verdicts || []
   const [selectedKey, setSelectedKey] = useState(null)
 
+  // ⛔ Clear the manual selection when the TICKER changes. `selectedKey` is a
+  // `setup|asof_date` pair, and two different securities can legitimately
+  // share one -- so a carried-over key silently marks a DIFFERENT company's
+  // verdict as this member's active choice, and drives the chart's key level
+  // and callout from it. The `verdicts[0]` fallback hides this whenever the
+  // pair does NOT collide, which is exactly what makes it worth an explicit
+  // reset rather than trusting the fallback.
+  useEffect(() => { setSelectedKey(null) }, [sym])
+
   // Scanner-origin continuity: the hint only ever picks WHICH already-fetched,
   // currently-confirmed verdict to emphasize — it never asserts a verdict
   // exists on its own. If the hinted setup isn't in the current confirmed
