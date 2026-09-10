@@ -1358,6 +1358,19 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     def_hash = spec["def_hash"]
 
     tf_code = scan_store._normalise_tf(tf)
+    # ⭐ ONE INSTANT FOR THE WHOLE CALL, HANDED IN. `tick` is the sweep's own
+    # `int(started.timestamp())` -- both modes pass it -- so every row of one
+    # cycle is evaluated against the SAME `now`. Two rows disagreeing about
+    # whether the newest bar had closed would be a second authority over it.
+    #
+    # ⛔ AND IT IS NOT READ FROM A CLOCK HERE, DELIBERATELY.
+    # `test_NOTHING_inside_evaluate_one_READS_THE_CLOCK__BY_AST` forbids it: the
+    # instant belongs to `run_sweep`, which is the only thing that knows how long
+    # the sweep has run. A `_now_et()` fallback was written here and that rail
+    # caught it -- correctly, and the fix was to make the nightly caller pass one
+    # rather than to weaken the rail. Absent, the four CLOCK_REALTIME columns
+    # blank, which is the honest answer to "nobody told me".
+    _eval_now = float(tick) if tick is not None else None
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
 
@@ -1651,25 +1664,39 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # confident 1 on a five-minute chart. ⛔ THE NORMALISED CODE, not the
             # caller's spelling: `scan_store._TF_CODES` and
             # `indicator_compute.CLOCK_TIMEFRAMES` are the same set of words.
-            # ⭐⭐ THE TRI-STATE IS STATED, NOT GUESSED, AND THIS LANE IS THE ONLY
-            # ONE THAT KNOWS IT. `newest_bar_is_forming` decides the four
-            # CLOCK_REALTIME columns; absent, they blank, and
+            # ⭐⭐ THE EVALUATING INSTANT, HANDED IN, AND `ast_interpret` DERIVES
+            # THE BAR-CLOSE TRI-STATE FROM IT via `indicator_compute.bar_close_state`
+            # -- the one place either NYSE set is read. That tri-state decides the
+            # four CLOCK_REALTIME columns; absent, they blank, and
             # `barstate.islastconfirmedhistory` -- which the Pine door does NOT
             # fold, unlike `isconfirmed`/`ishistory`/`isrealtime` -- comes back
             # `not_computable` on every saved scan that reads it.
             #
-            # ⛔ AND `False` WOULD BE A LIE UNDER `mode='live'`. `live_bars_for`
-            # APPENDS today's forming bar a few lines up, so the newest bar is
-            # genuinely open on that path and the nightly sweep's newest bar is
-            # genuinely closed. The flag is exactly that fact, which is why it is
-            # read off `mode` rather than off a clock: manufacturing a `now` here
-            # to re-derive something this function already knows would be a second
-            # authority over it.
+            # ⚰⚰ THIS PASSED `mode == LIVE` FOR ONE COMMIT AND THAT WAS WRONG.
+            # It answers "is the live sweep running", and the seam asks "is the
+            # newest bar still forming". Those coincide only while the session is
+            # OPEN, and this cycle's window does not end when the session does:
+            # `_live_window_reason` gates on `open <= now < open + REGULAR_SESSION_
+            # LENGTH`, a FIXED 6h30m, and its trading-day test is
+            # `bars_fetch._is_nyse_holiday` -- FULL CLOSURES ONLY, whose own
+            # docstring says half-days are "intentionally NOT included". So on a
+            # 1pm ET half-day the window runs to 16:00, the sweep keeps firing,
+            # `live_bars_for` keeps appending a bar the exchange settled at 13:00,
+            # and `mode == LIVE` would have called it FORMING for three hours --
+            # a confident wrong answer on a closed bar, which is the exact failure
+            # the tri-state exists to prevent and the exact case
+            # `_NYSE_EARLY_CLOSES_YYYYMMDD` was wired in for.
+            #
+            # ⭐ `tick` IS THE CYCLE'S OWN INSTANT (`int(started.timestamp())`),
+            # so every symbol in one cycle is evaluated against ONE `now` rather
+            # than a clock read per row. The nightly sweep passes none, so it
+            # falls back to this module's single clock -- and answers `False`
+            # correctly there, because last session's close is behind that
+            # instant by derivation rather than by assertion.
             column = ast_interpret.interpret(tree, bars, scalars=scalars,
                                              opts={"tf": tf_code,
                                                    "symbols": symbol_series,
-                                                   "newest_bar_is_forming":
-                                                       mode == LIVE})
+                                                   "now": _eval_now})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -2040,7 +2067,11 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     swept_handles, unswept, refused2, refusals2, stopped = _sweep_entries(
         entries,
         evaluate=lambda definition: evaluate_one(
-            definition, tf, universe=universe, as_of=session),
+            definition, tf, universe=universe, as_of=session,
+            # ⭐ THE SWEEP'S OWN INSTANT, so `evaluate_one` never reads a clock
+            # and the bar-close tri-state is DERIVED rather than assumed. Without
+            # it every CLOCK_REALTIME column in every nightly scan blanks.
+            tick=int(started.timestamp())),
         stop_reason=lambda: UNSWEPT_REASON if _now_et() >= deadline else None,
         on_result=_tally)
     swept = len(swept_handles)

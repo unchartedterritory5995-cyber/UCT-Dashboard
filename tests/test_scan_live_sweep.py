@@ -1224,18 +1224,21 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # dict is everything the caller knows that the tree does not, so a key added
     # silently is a channel nobody reviewed.
     #
-    # ⭐ `newest_bar_is_forming` JOINED THEM 2026-09-09, AND THIS RAIL IS WHY IT
-    # WAS REVIEWED. It is the bar-close TRI-STATE (`True`/`False`/`None`) that
-    # decides the four CLOCK_REALTIME columns. Without it they blank, and
-    # `barstate.islastconfirmedhistory` — which the Pine door does NOT fold,
-    # unlike `isconfirmed`/`ishistory`/`isrealtime` — came back `not_computable`
-    # on every saved scan that read it. Measured 1 -> None before the fix.
-    # ⛔ AND ITS VALUE IS `mode == LIVE`, NOT A CONSTANT `False`: `live_bars_for`
-    # APPENDS today's forming bar on the live path, so the newest bar genuinely is
-    # open there and genuinely closed on the nightly sweep. This lane is the only
-    # one that knows which, which is exactly why the key belongs in this dict.
+    # ⭐ `now` JOINED THEM 2026-09-09, AND THIS RAIL IS WHY IT WAS REVIEWED. It is
+    # the cycle's evaluating instant, and `ast_interpret` derives the bar-close
+    # TRI-STATE from it through `indicator_compute.bar_close_state`. Without it the
+    # four CLOCK_REALTIME columns blank, and `barstate.islastconfirmedhistory` —
+    # which the Pine door does NOT fold, unlike `isconfirmed`/`ishistory`/
+    # `isrealtime` — came back `not_computable` on every saved scan reading it.
+    # Measured 1 -> None before the fix.
+    #
+    # ⚰⚰ IT WAS `newest_bar_is_forming: mode == LIVE` FOR ONE COMMIT. A mode is
+    # not a clock: this cycle's window is `open + REGULAR_SESSION_LENGTH`, a FIXED
+    # 6h30m gated on FULL closures only, so on a 1pm ET half-day it keeps firing
+    # until 16:00 and would have called a settled bar "forming" for three hours.
+    # Pinned by `tests/test_scan_sweep_bar_close_state.py`.
     keys = {k.value for k in opts.keys}
-    assert keys == {"tf", "symbols", "newest_bar_is_forming"}, keys
+    assert keys == {"tf", "symbols", "now"}, keys
     handed = dict(zip([k.value for k in opts.keys], opts.values))
     assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
