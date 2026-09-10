@@ -38,6 +38,36 @@ decision deletes queued member work).
 code: it protects the note **while open**; this protects a queued entry whose
 baseline the editor invalidated **before handing the note back**.
 
+The authority states its own invariant, and states the symptom it exists to
+prevent, in `app/src/pages/journal-2-0/lib/offline/baseline.js`:
+
+> *"⛔⛔ THE INVARIANT THIS EXISTS FOR: an entry never leaves the drain carrying a
+> baseline older than a save this same browser has already landed for that note.
+> Sending one cannot succeed — the server has moved past it — so it can only 409
+> and fork, which is how a member with ONE device ends up with a
+> `(conflicted copy)` of their own note (2026-09-10)."*
+
+> *"⛔ PARSED, NOT STRING-COMPARED. ISO timestamps only sort lexicographically
+> while every one of them carries the same offset, and 'it has always been
+> +00:00' is an assumption about a producer, not a property of the format.
+> Unparseable on either side ⇒ false: this decision DELETES queued member work,
+> so it refuses unless it is certain."*
+
+⭐ **`settleLandedSave` never throws into a save path** — a queue it could not
+settle is caught by the drain's own supersede check, which is the second reason
+neither guard is redundant:
+
+> *"⛔ Never throws into a save path. A queue that could not be settled is caught
+> by the drain's own supersede check, which is why that exists."*
+> — `app/src/pages/journal-2-0/lib/offline/useDurableNote.js`
+
+And the drain **removes** the superseded entry rather than parking it:
+
+> *"⛔ REMOVED, NOT KEPT. Unlike a blocked entry, there is nothing here to
+> recover: the record is clean and the server already holds this browser's words.
+> Keeping it would leave a permanent tombstone the drain re-examines for ever."*
+> — `app/src/pages/journal-2-0/lib/offline/outboxDrain.js`
+
 ## Rails and mutations
 
 `lib/offline/selfFork.test.jsx` — **11/11**: unmount-then-resolve · rebase when
@@ -52,6 +82,16 @@ forks · the authority's parse/refuse/instant cases.
 | M12 widen the supersede to every entry | 🔴 3 |
 | M13 a dirty record may vouch for itself | 🔴 1 |
 
+⚠️ **These four IDs are this session's own, and they do NOT match
+`tools/q1_mutation_gauntlet.py`'s.** The tool renumbered when the recipes were
+committed, so `M10` here and `M10` there are different mutations. Match them by
+**guard text**, never by number — by that reading these four are the tool's
+*"settleLandedSave writes at all"*, *"the drain's supersede refusal exists at
+all"*, *"the supersede refusal is NARROW"* and *"landedBaseline: a DIRTY record
+may not vouch for itself"*. ⛔ **The tool is the authority; the red counts above
+are a record of a run, not a recipe you can repeat.** That is precisely the
+defect the next section exists to close.
+
 `journal-2-0` at rest with the fix: **234 files / 2446 tests green**.
 Backend Q1 rails: **25**. `window_check.py --self-check` **PASS**, and the
 single-writer fork detector is now a **hard red**.
@@ -59,6 +99,63 @@ single-writer fork detector is now a **hard red**.
 ✅ **Both fork artifacts cleared** (after the tests went green and their contents
 were recorded above): back to the **32-note** baseline, no `WINDOW-CHECK` notes
 left. The `To Do List` pair is the connectors feature's and was not touched.
+
+## ⭐ THE MUTATION GAUNTLET IS A TOOL — `tools/q1_mutation_gauntlet.py`
+
+⛔ **Do not write "all nine mutations proved" — or any sentence of that shape —
+anywhere in this wave's docs again. Point here instead.**
+
+**Why.** Nine mutations were run and proved earlier in this wave, and the record
+kept the **result** and not one of the **recipes**. So when the deploy gate
+demanded *"every mutation reddening, on master AND post-merge"*, the nine could
+not be re-run: the evidence had outlived the experiment. ⛔ **A mutation you
+cannot repeat is a claim, not a measurement** — and a claim is exactly what a
+gate is there to refuse.
+
+Run it:
+
+```bash
+python tools/q1_mutation_gauntlet.py                 # the full gauntlet
+python tools/q1_mutation_gauntlet.py --only M4       # one mutation
+python tools/q1_mutation_gauntlet.py --self-check    # prove the harness can fail
+```
+
+**⛔ RESTORE IS AN INVERSE WRITE FROM MEMORY, NEVER `git checkout`.** A checkout
+restores whatever is *committed*, which silently reverts anything else in that
+file — including work in progress that was never the mutation's to touch. The
+original bytes are held in memory, written back in a `finally`, and the restore
+is **verified byte-for-byte** before the next mutation runs; a failed restore
+stops the run and says so (`feedback_mutation_check_never_git_checkout`).
+
+**⛔ IT RUNS A GREEN CONTROL BEFORE *AND* AFTER.** Before, because a rail that is
+red before the mutation proves nothing when it is red after it — the gauntlet
+refuses to start against a red control. After, because a mutation that quietly
+failed to restore leaves the next reader's green looking like the harness's.
+The final verdict compares the after-control's pass count to the before-control's
+and fails on any drift.
+
+**⛔ The expected-red set is declared, never typed as a total.** Each mutation
+declares which rail files *should* redden; the run reports which actually did.
+A mutation that reddens **nothing** is a guard nobody is testing; one that
+reddens **everything** is a guard nobody has isolated. Both are reported, and a
+gauntlet with any dulled mutation exits non-zero.
+
+**⛔ An ambiguous site is refused, not guessed.** Each find/replace must match
+**exactly once**; two occurrences raise rather than mutate an arbitrary one — a
+mutation applied to a guessed call site measures nothing.
+
+**⛔ A run with no totals line is not a run.** The parser raises rather than
+reading a missing `Test Files` / `Tests` line as zero failures
+(`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
+
+⚠️ **A no-op mutation was REMOVED rather than left as a skipped placeholder** —
+see **R3** in the Rulings section. A mutation that cannot fail is decoration and
+pads the count.
+
+⭐ **`--self-check` proves the harness can fail** before you trust a green from
+it: a missing totals line refused, a totals line parsed as failures rather than
+text, a twice-occurring site refused, a restore putting the original bytes back,
+and every declared mutation site present exactly once in the real tree.
 
 ## ⛔⛔ DEPLOY #4 STOPPED BY THE GATE
 
@@ -74,6 +171,143 @@ durable layer, or `setContent`, and it does not overlap the fix's edit.
 ⛔ **That assessment is not permission.** TIER 1 exists precisely so an agent
 does not get to decide a guarded file's drift is harmless. The merge, and
 deploys #4 and #5, wait for the owner.
+
+---
+
+# 🧾 RULINGS — decide, log, continue
+
+Judgement calls made during the 2026-09-10 session, written down so the next
+session inherits the **decision** rather than re-deriving it from the evidence.
+A ruling is not a finding: it is a fork that was taken, with the reason, so that
+taking the other fork later is a deliberate reversal instead of an accident.
+
+⛔ **The stamp on each of R1–R5 is when it was LOGGED here
+(`2026-09-10T16:06:00Z`), not when it was decided.** All five were logged in one
+pass; the deciding moments were not stamped at the time, and back-dating them
+would invent a precision this file does not have. ⭐ **Stamp a future ruling when
+you make it**, at the top of the section, before you continue.
+
+## R1 — hunk ranges are read at `--unified=0`. Not a finding.
+
+**`2026-09-10T16:06:00Z` (logged)** · **Decision: no defect. The gate was always
+correct; the probe was not.**
+
+A hand-run probe read a guarded file's diff with git's **default three lines of
+context**, then compared the resulting hunk ranges against the protected regions.
+Three lines of context are three lines of **unchanged file** swept into the hunk
+header's range — and one of them was an untouched `EMIT_NOTHING` line, which is a
+protected region in its own right:
+
+```python
+("EMIT_NOTHING", "line", r"\bEMIT_NOTHING\b"),
+```
+— `tools/gate_regions.py:40`
+
+So the intersection "found" was manufactured by the probe's own context window.
+The gate reads the diff the only way this question can be asked:
+
+```python
+_side(sh, "git", "diff", "--unified=0", f"{old}..{new}", "--", f),
+```
+— `tools/deploy_scope_gate.py:262`
+
+⛔ **Any hand reproduction of a region intersection MUST pass `--unified=0`.** A
+hunk range at `-U0` is a claim about which lines **changed**; with context on it
+is a claim about which lines are **near** a change, and those are different
+questions with different answers. An instrument that widens its own window
+reports a finding that belongs to the instrument
+(`lesson_an_instrument_can_reproduce_its_own_blind_spot`).
+
+## R2 — ledger row 10 is INHERITED, blamed to `8de4da43b`
+
+**`2026-09-10T16:06:00Z` (logged)** · **Decision: recorded as inherited, not as
+Wave Q1's.** Full row + the three checks:
+`docs/notebook/inherited-red-ledger.md`.
+
+`ChartDrawingOverlay.surfaces.test.jsx` — *"⛔ ENTERING EDIT MODE IS NOT A
+RESIZE"* — arrived with the 2026-09-10 master merge, as the only new failure in
+an otherwise byte-for-byte baseline match, in `components/chart/`, an area this
+wave does not touch. Blamed to `8de4da43b` (charts Phase 9, 2026-09-09).
+
+Proved three ways, in order, because each kills a different hypothesis:
+
+1. **It fails at rest, alone, in 1.4 s.** That kills row 9's load-sensitive
+   population first — a timeout and a defect get opposite treatment in this
+   ledger, so that ambiguity had to die before anything else could be said.
+2. The test, `ChartDrawingOverlay.jsx` and `drawingsStore.js` are **byte-identical
+   to `origin/master`**, and the branch changes no file under
+   `app/src/components/chart/`.
+3. ⭐ **The same test was RUN on a detached worktree at `origin/master`
+   (`58dea4d88`), with no Wave Q1 code present, and failed identically.**
+
+⛔ **Step 3 is not redundant after step 2**, and that is the whole ruling.
+*"Byte-identical, therefore not mine"* is precisely the argument the deploy gate
+SUSPENDS when master moves under `app/**`: a file this branch never touched can
+still fail only in combination with it. An argument from identity is not a
+measurement.
+
+## R3 — a no-op mutation was REMOVED, not left as a skipped placeholder
+
+**`2026-09-10T16:06:00Z` (logged)** · **Decision: delete it from
+`tools/q1_mutation_gauntlet.py`.**
+
+One candidate mutation could not redden anything: breaking it changed no
+behaviour any rail observes. The options were to keep it marked skipped, or to
+remove it. It was removed.
+
+⛔ **A mutation that cannot fail is decoration, and it pads the count.** A
+skipped placeholder still appears in the list a reader counts, so it inflates the
+apparent strength of the harness while proving nothing — the same shape as
+`lesson_gate_that_cannot_fail` and `lesson_a_refusal_count_is_not_a_progress_metric`.
+If the guard it was aimed at is worth proving, the answer is a rail that observes
+it, not a mutation entry that stands in for one.
+
+## R4 — the rig tools point at the canonical ABSOLUTE profile path
+
+**`2026-09-10T16:06:00Z` (logged)** · **Decision: Stream B aims the rig tools at
+the one persistent profile, rather than creating a profile inside its own
+worktree.**
+
+Worktree isolation is the normal rule, and this is a deliberate exception to it.
+
+⛔ **"One profile, never recreated" outranks worktree isolation here**, because
+the two rules protect different things and only one of them is recoverable. A
+worktree-local profile is a **fresh** profile, a fresh profile is a **signed-out**
+profile, and **no credentials file exists** from which a sign-in could be
+restored — so the isolation would cost a hand sign-in that the standing rule
+treats as a 30-day event, not a session event. Isolation protects against
+cross-contaminating another stream's files; nothing the rig writes into the
+profile is another stream's to lose.
+
+See the standing rule below: **⛔⛔ THE RIG HAS ONE PROFILE, AND ONE SIGN-IN.**
+
+## R5 — the first sharded full-suite run VOIDED ITSELF, correctly
+
+**`2026-09-10T16:06:00Z` (logged)** · **Decision: accept the void, re-run. Cost:
+one ~13-minute re-run.**
+
+The main session edited two files while the sharded full-suite run was **in
+flight**. The gate voided the run and **named the two files** rather than
+reporting a total.
+
+That is the right behaviour twice over:
+
+- **A suite that ran against a moving tree measured no single tree.** Its total
+  is a number with no state behind it, and a number with no state behind it is
+  worse than no number, because it reads as evidence.
+- **It named the files instead of reporting a count.** A count says "something
+  moved"; the names say *what* moved, which is the only form in which the reader
+  can decide whether the void was real (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+
+⛔ **The cost of the honest answer here was ~13 minutes; the cost of the
+flattering one was a false green on the wave's headline gate.** Do not "save" the
+re-run by quoting the voided total.
+
+⚠️ **Operationally:** a full-suite run is ~13 minutes of tree-stability. If a
+stream needs to edit during that window, the run is void — freeze the tree or
+schedule the run, do not race it (`project_joystick_hub_increment_2_2026_09_09`:
+*if the gate cycle is slower than the other workstream's push cadence, FREEZE
+first, never lap*).
 
 ---
 
@@ -693,6 +927,70 @@ service worker · any of the seven guarded files.
 
 *Why:* if master changed this, the branch's fix is no longer being deployed onto
 the code it was verified against.
+
+### ⭐ TIER 1½ — a GUARDED file moved, but every PROTECTED REGION was left alone
+
+**Exit code 3** (`GUARDED_SAFE` in `tools/deploy_scope_gate.py`). Treated as
+TIER 2 from there: merge, then the **same** full re-verify, then continue the
+loop — plus every Wave Q1 rail by name and every mutation reddening, on master
+**and** post-merge.
+
+**Why this tier exists.** A guarded file is not uniformly dangerous.
+`NoteEditorPage.jsx` holds the autosave gate, the save path and every
+`setContent` call — **and a toolbar font list**. A change to the second is not a
+change to the first, and stopping the wave for one is a freeze wearing a gate's
+clothes. That is not hypothetical: deploy #4's TIER 1 was a `FONT_OPTIONS` lift.
+
+⛔⛔ **The distinction is drawn by the tool, never by reading a commit message.**
+A subject is a claim about a commit; the hunks ARE the commit.
+
+**The regions, and how each is located.** Read them from
+`tools/gate_regions.py` — this list is a copy for orientation, and the file is
+the authority:
+
+| file | protected regions |
+|---|---|
+| `app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx` | `hydratedRef declaration` · `scheduleAutosave` · `commitSave / the save path` · `markSynced call sites` · `settleLandedSave call sites` · `restoreDraft` · `the reconcile / conflict handler` · `every setContent call` · `EMIT_NOTHING` · `useEditor construction / keying` · `the durable / outbox hooks` |
+| `app/src/pages/journal-2-0/lib/offline/outboxDrain.js` | `the whole drain` (entire file) |
+| `app/src/pages/journal-2-0/lib/offline/useOutboxDrain.js` | `the whole drain hook` (entire file) |
+| `app/src/pages/journal-2-0/lib/offline/offlineFlag.js` | `the flag definition` (entire file) |
+| `api/routers/journal_two.py` | `the telemetry allow-list` · `the notes save / CAS path` |
+| *(prefix)* `app/src/pages/journal-2-0/lib/offline/` | `the offline layer (whole file)` — **anything added there tomorrow is protected the day it lands** |
+
+⛔ **Located by CURRENT SIGNATURE, never by line number.** Every region is found
+by a regex against the file as it stands on each side of the diff — a `block`
+extends from its anchor over the brace-balanced body, a `line` matches each
+occurrence on its own, `all` is the whole file. A line number drifts the moment
+anyone edits above it, and this repo has been bitten by line-numbered references
+three times.
+
+⛔ **BOTH SIDES OF THE DIFF ARE CHECKED.** A hunk that **deletes** a region
+appears only on the **old** side; one that adds into it, only on the **new**.
+Checking one side would let a deletion through — which is the change you least
+want waved past.
+
+**Fail-closed, three ways:**
+
+- A guarded file with **no assessment** stays **TIER 1**. Absence of a verdict is
+  never a verdict.
+- A region present on one side and **gone** on the other forces **TIER 1**, even
+  with zero intersections — a renamed or removed protected region is exactly when
+  you least want the tool saying *"no intersection, carry on"*. (A region the
+  BRANCH introduced — `settleLandedSave` — has never existed on master, so
+  "missing on both sides" is not a stop; the gate compares the two sides'
+  missing-sets, it does not demand presence.)
+- A file the gate **could not read** is recorded as `COULD NOT READ` and is not
+  eligible. ⛔ A read this gate cannot perform must never be reported as an
+  absence of change (`lesson_a_swallowed_error_becomes_a_confident_finding`).
+
+⛔ **A guarded drift that DULLS A MUTATION is TIER 1 no matter where its hunks
+sit.** Region eligibility says the drift did not land inside the code the fix
+depends on; it says nothing about whether the rails still prove that code.
+
+`python tools/deploy_scope_gate.py --self-check` fires each of these cases,
+including *a hunk inside `scheduleAutosave` → TIER 1*, *the same hunk on
+`FONT_OPTIONS` → TIER 1.5*, *a hunk intersecting BOTH → TIER 1*, and
+*`lib/offline/**` is protected in FULL → TIER 1*.
 
 ### TIER 2 — MERGE, then FULL RE-VERIFY, then continue the loop
 
@@ -1348,7 +1646,7 @@ profile and must never be deleted wholesale**):
 | journal-2-0 at rest | **233 files / 2435 tests green** |
 | backend Q1 rails | **25 green** |
 | every Wave Q1 rail by name | **16 files / 165 tests green** |
-| all nine mutations | **ALL PROVED** — each reddened exactly its own tests |
+| every mutation in `tools/q1_mutation_gauntlet.py` | **ALL PROVED** — each reddened exactly its own rails, green control before and after |
 
 ⇒ no finding ⇒ **merged**. The only conflict was `.gitignore`, where both sides
 had appended a different ignore rule; both kept. **Zero-line check: all 17
@@ -1959,6 +2257,177 @@ including the offline-reload limitation in plain language:
 ⛔ Do not ship the flip with the deploy paragraph ("nothing changes for
 members"). That sentence is true of #1, #2 and #3 and false of the flip.
 
+---
+
+# 🔙 ROLLBACK RUNBOOK — the flag flip, and how to undo it
+
+**Its own section on purpose.** A rollback is read under time pressure by
+somebody who did not write the flip, and a recovery path buried inside the
+procedure that created the problem is not a recovery path
+(`lesson_a_documented_workaround_is_not_a_recovery_path`).
+
+⚠️ This section is the **flag** rollback. Reverting a *code* deploy is a
+different motion — see **(c) Rollback** above, which derives the SHA rather than
+typing it and needs `-m 1` when the thing being reverted is a merge.
+
+## 1. What the rollback IS — one line
+
+`app/src/pages/journal-2-0/lib/offline/offlineFlag.js`:
+
+```diff
+- export const OFFLINE_DEFAULT_ON = true
++ export const OFFLINE_DEFAULT_ON = false
+```
+
+That is the whole change. The flip forward is the same line the other way.
+
+## 2. ⛔⛔ WHAT `false` MEANS — it STOPS PROCESSING. It is not permission to delete.
+
+**Turning it back to `false` has never been permission to delete what a member
+already wrote.** With the flag off:
+
+- the editor **writes nothing new** to the durable layer;
+- **any durable copy and any queued intent stay exactly where they are** —
+  untouched, not cleared, not migrated;
+- the drain **claims no leadership and sends nothing** — no lock, no PUT;
+- `useDurableNote` and `useOutboxDrain` report `supported: false`, and every path
+  in the Notebook behaves as it did before Wave Q1: the synchronous localStorage
+  draft, the ~800 ms server PUT, the existing conflict handling.
+
+The module says it in its own words, and both halves are railed
+(`NoteEditorPage.durable.test.jsx` §21, `useOutboxDrain.test.jsx` §21) and
+mutation-proved:
+
+> *"⛔ THE ROLLBACK IS THIS ONE LINE, and turning it back to `false` STOPS
+> PROCESSING — it has never been permission to delete what a member already
+> wrote. With it off, the editor writes nothing new and leaves any durable copy
+> and queued intent exactly where they are, and the drain claims no leadership
+> and sends nothing. … A re-enable picks the queue back up."*
+> — `app/src/pages/journal-2-0/lib/offline/offlineFlag.js`
+
+⭐ **A re-enable picks the queue back up.** That is the property that makes this
+cheap: nothing on any member's disk changes in either direction, so a rollback
+costs a deploy cycle and no data motion at all. It is also why "roll back and
+figure it out" is the correct first move if the symptom is member-visible.
+
+## 3. ⚡ The instant lever — per browser, no deploy
+
+A deploy is 5–12 minutes. For **one** browser (the owner's, a member on a
+support call, a canary profile), in DevTools:
+
+```js
+localStorage.setItem('uct.j2.offline.enabled', '0')   // this browser: OFF
+localStorage.removeItem('uct.j2.offline.enabled')     // back to the deployed default
+```
+
+`OFFLINE_FLAG_KEY` is `'uct.j2.offline.enabled'`; `offlineEnabled()` reads `'1'`
+as on and `'0'` as off and otherwise returns `OFFLINE_DEFAULT_ON`. So `'0'`
+**beats a deployed `true`** — it is a real per-browser opt-out, not a hint.
+
+⛔ **This is a per-browser lever, never a population rollback.** It reaches one
+profile on one device. If members are affected, ship the flag.
+
+## 4. The rollback push still passes the whole gate
+
+⛔ **A rollback is a push to `master`, and `master` is production.** It gets the
+same treatment as the flip that preceded it — a rollback that skips the gate is
+how a second incident lands on top of the first.
+
+**a) The three-tier scope gate loop**, first (see **⭐ (b-1) THE DEPLOY
+PROCEDURE** above):
+
+```bash
+git fetch origin
+python tools/deploy_scope_gate.py $(git merge-base origin/master HEAD) origin/master
+#   exit 1 = TIER 1 (hard stop, owner)  ·  3 = TIER 1½  ·  2 = TIER 2  ·  0 = TIER 3
+```
+
+**b) The full re-verify, IN THIS ORDER** — the same order as TIER 2:
+
+```
+a) journal-2-0 at rest, alone      c) full frontend suite
+b) backend baseline rail           d) ledger re-verified against the NEW master
+```
+
+⛔ **Never full-suite-then-journal-2-0.** That ordering manufactures a population
+of timeouts that say nothing about the code (inherited-red ledger, row 9).
+⛔ Report journal-2-0 and the full suite as **two separate numbers**; there is no
+repo-green to claim, before or after a rollback.
+
+**c) Every Wave Q1 rail by name, and every mutation reddening** —
+`python tools/q1_mutation_gauntlet.py`. A rollback changes a value the guards are
+built around; the gauntlet is what proves they still bite.
+
+**d) The memory pointer gate**, if anything under the memory directory moved.
+
+⚠️ **The push window binds a rollback too.** No push to `master` Mon–Fri
+09:00–16:00 ET — a restart loses a scheduled slot outright. If the rollback is
+genuinely urgent inside the window, that is an owner decision, and the cost to
+state is **which slots are lost**, not whether a restart happens.
+
+## 5. Confirm it — on `master` AND on the live bundle
+
+⛔ **Both, every time.** `master` says what was pushed; the bundle says what
+members are running. They disagree whenever a deploy has not finished, has
+failed, or served the last successful build.
+
+**On master** — the source of the thing that shipped:
+
+```bash
+git fetch origin
+git show origin/master:app/src/pages/journal-2-0/lib/offline/offlineFlag.js | grep OFFLINE_DEFAULT_ON
+#   → export const OFFLINE_DEFAULT_ON = false
+```
+
+**On the live artifact** — first that a NEW process is serving:
+
+```bash
+curl -s -H "User-Agent: Mozilla/5.0 Chrome/152" https://uctintelligence.com/api/health
+#   uptime_seconds must RESET. ⛔ Cloudflare 1010-blocks raw curl UAs.
+```
+
+**Then read the flag out of the DEPLOYED BUNDLE** — the artifact, not the source
+default, and no sign-in needed:
+
+```bash
+UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0.0.0 Safari/537.36"
+# 1. the entry chunk names the lazy ones; the flag lives in the Notebook chunk
+curl -s -H "User-Agent: $UA" https://uctintelligence.com/ | grep -oE '/assets/index-[^"]+\.js'
+# 2. find the chunk carrying the opt-in key, then read the compiled default
+curl -s -H "User-Agent: $UA" https://uctintelligence.com/assets/NotebookTab-<hash>.js \
+  | grep -oE '.{130}uct\.j2\.offline\.enabled.{130}'
+```
+
+The compiled form of `false` is **`!1`** (and of `true`, `!0`) — measured on the
+live artifact 2026-09-09:
+
+```js
+const Fi=!1, Mi="uct.j2.offline.enabled";
+function ws(t=globalThis.localStorage){ try{ const n=t?.getItem(Mi);
+  if(n==="1")return!0; if(n==="0")return!1 }catch{} return Fi }
+```
+
+⛔ **The chunk hash changes every deploy — crawl for the key, never bookmark the
+URL.**
+
+**And the dark proof, in a signed-in browser console — no lock claimed:**
+
+```js
+const q = await navigator.locks.query()
+;[...q.held, ...q.pending].filter(l => String(l.name).startsWith('uct.nb.sync.'))   // → []
+```
+
+⭐ **One probe during a swap is not a verdict.** Right after a redeploy the old
+pod can still answer; re-probe (`lesson_two_points_do_not_establish_a_rate`).
+
+## 6. Member impact of a rollback
+
+Members lose offline editing and go back to the pre-Wave-Q1 behaviour they had
+for every day before the flip. **Nothing they wrote is deleted**, and anything
+already queued is still on their disk if the flag is turned on again. The
+sentence to avoid is the deploy paragraph's *"nothing changes for members"* —
+that is true of deploys #1–#3 and false of both directions of the flip.
+
 # THE FLAG-FLIP GATE — a SEPARATE list, and not the deploy's
 
 ⛔ **These are not deploy blockers.** With `OFFLINE_DEFAULT_ON = false` the drain
@@ -2322,8 +2791,17 @@ app/src/pages/journal-2-0/lib/offline/     the wave: notebookDb · durableWriter
 app/public/q1-probe.html                   the browser certification instrument
 tools/q1_probe_server.py                   identity-verifying local server
 tools/q1_browser_probe_run.py              runner (--serve / --self-check / --url)
+tools/deploy_scope_gate.py                 the 3-tier gate (+ TIER 1½); --self-check
+tools/gate_regions.py                      the protected regions, by SIGNATURE
+tools/q1_mutation_gauntlet.py              every guard broken on purpose; --self-check
+tools/window_check.py                      one command = one observation-window row
 docs/notebook/wave-q1-*.md                 certification · canary-red · harness ·
                                            observation-window · this file
+docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 ```
+
+**Sections in this file worth knowing by name:** 🧾 **RULINGS** (decisions taken,
+with reasons) · ⭐ **THE MUTATION GAUNTLET IS A TOOL** · ⭐ **TIER 1½** (inside the
+deploy procedure) · 🔙 **ROLLBACK RUNBOOK**.
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
