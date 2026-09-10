@@ -440,8 +440,16 @@ describe('🔴 a documentation-blocked study OFFERS the conventional call', () =
 // unnecessary. The two-`def` case tells them apart, because resolution order is
 // not source order.
 
+// ⛔ NORMALISE THE LINE ENDINGS ON READ. A <textarea>'s `value` is CRLF-
+// normalised to LF by the HTML spec, so any assertion comparing the DOM value
+// against this fixture read verbatim CANNOT hold on a checkout that produced
+// CRLF -- which is every Windows checkout with core.autocrlf on. The failure
+// looked like a product defect and was an artifact of the platform the suite
+// happened to run on: identical bytes, different terminators, and a diff that
+// renders as two visually identical strings.
 const FIVE = readFileSync(path.resolve(process.cwd(), '..',
   'tests/fixtures/thinkscript/05-bollinger-rsi-buy-arrow.ts'), 'utf8')
+  .replace(/\r\n/g, '\n')
 
 const PINE_WMA = `//@version=5
 indicator("t")
