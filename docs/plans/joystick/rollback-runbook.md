@@ -3,25 +3,38 @@
 **On this repo a push to master is a production deploy.** This is what to do when Increment 2 is
 live and something is wrong.
 
-> 🔲 **PLACEHOLDER A — `HUB_PREVIEW_ENABLED` SCOPE. UNRESOLVED. Read §1 before using §2.**
-> 🔲 **PLACEHOLDER B — members already opted in: `____` as of `____`.** See §6 for the query.
+> ✅ **A — RESOLVED 2026-09-09: `HUB_PREVIEW_ENABLED` is WEB-SCOPED.** Verified via read-only CLI
+> listing (`railway variables --service <svc> --kv`): present on **web** as a literal `true`,
+> **absent** on `worker` (57 vars listed) and `flow-worker` (66 vars listed) — so the absences
+> are real, not a failed call. No `${{shared.…}}` reference anywhere. **§1A applies; §1B is
+> struck.**
+> 
+> ✅ **B — RESOLVED 2026-09-09: `0` members had opted in.** Read-only production SELECT via the
+> documented `railway ssh` recipe, opened `mode=ro`. Nobody is stranded by B6.
 
 ---
 
-## 1. ⛔ FIRST: which scope is `HUB_PREVIEW_ENABLED` in?
+## 1. ✅ RESOLVED: `HUB_PREVIEW_ENABLED` is WEB-SCOPED
 
-**This decides whether the kill switch is the fast path or a hazard, and it cannot be answered from
-this repository.** The variable appears in no committed file except its read site
-(`api/routers/auth.py:144-146`), and `railway.json` is shared by all services and deliberately
-carries no variables at all. Only the Railway dashboard knows.
+This decides whether the kill switch is the fast path or a hazard. It could not be answered from
+this repository — the variable appears in no committed file except its read site
+(`api/routers/auth.py:144-146`), and `railway.json` is shared by all services and carries no
+variables. It was settled by a **read-only** CLI listing on 2026-09-09:
 
-⚠️ `railway variables --service web --kv` shows what **web sees**, which includes project-level
-shared variables — so it **cannot distinguish the safe case from the dangerous one**. The dashboard
-is the only authority.
+```
+railway variables --service web         --kv   ->  HUB_PREVIEW_ENABLED=true   (literal)
+railway variables --service worker      --kv   ->  absent  (57 variables listed)
+railway variables --service flow-worker --kv   ->  absent  (66 variables listed)
+```
 
-**Strike the branch below that does not apply once the scope is known.**
+⭐ **The two absences are real, not a failed call** — both listings returned dozens of other
+variables. A project-level shared variable would have appeared on all three. It appears on web
+only, as a literal with no `${{shared.…}}` reference, so it is web-scoped.
 
-### 1A — IF IT IS A WEB-SERVICE VARIABLE → the kill switch is the fast path
+**Consequence: flipping it cannot bounce `flow-worker`, so the OPRA-tape hazard does not arise and
+the kill switch IS the fast path.** §1B is struck below, kept collapsed for its reasoning.
+
+### ✅ 1A — CONFIRMED WEB-SCOPED → the kill switch IS the fast path
 
 Set it on the web service only:
 
@@ -42,20 +55,31 @@ railway variables --service web --kv | findstr HUB_PREVIEW_ENABLED
 once the new value is live it applies to every member on their next authenticated request. The
 per-request read is what makes this fast; the `--set` redeploy is the cost of changing it.
 
-### 1B — IF IT IS A PROJECT-LEVEL SHARED VARIABLE → **THE KILL SWITCH IS NOT THE FAST PATH**
+<details>
+<summary>⚰️ <b>1B — STRUCK 2026-09-09. Did not apply; kept for the reasoning.</b> (verified in dashboard by owner + read-only CLI listing)</summary>
 
-> **⛔ DO NOT FLIP IT. Changing a project-level shared variable can redeploy EVERY service,
-> including `flow-worker`. Bouncing flow-worker drops the Massive OPRA feed, and Massive does NOT
-> replay — that gap in the options tape is PERMANENT until the T+1 flat file.**
+> Verified via `railway variables --service {web,worker,flow-worker} --kv`:
+> `HUB_PREVIEW_ENABLED` is present ONLY on web, as a literal. It is not a project-level
+> shared variable, so flipping it cannot bounce `flow-worker` and the OPRA-tape hazard
+> below does not arise. The reasoning is kept because if the variable is ever moved to
+> shared scope, this becomes live again.
 
-In this case the fast path is **§3, revert-and-push**, which rebuilds web only and cannot touch
-flow-worker. The runbook says so plainly rather than pretending the switch is available.
+> ### 1B — IF IT IS A PROJECT-LEVEL SHARED VARIABLE → **THE KILL SWITCH IS NOT THE FAST PATH**
+>
+> > **⛔ DO NOT FLIP IT. Changing a project-level shared variable can redeploy EVERY service,
+> > including `flow-worker`. Bouncing flow-worker drops the Massive OPRA feed, and Massive does NOT
+> > replay — that gap in the options tape is PERMANENT until the T+1 flat file.**
+>
+> In this case the fast path is **§3, revert-and-push**, which rebuilds web only and cannot touch
+> flow-worker. The runbook says so plainly rather than pretending the switch is available.
+>
+> **Open item to make the switch usable:** move `HUB_PREVIEW_ENABLED` to web scope in a separate,
+> standalone change — set it on the web service, confirm web sees the same value, then delete the
+> shared one. It touches no code; the risk is entirely in the ordering (set the new one first, so
+> there is never a window where neither exists and the default-ON kicks in). Do it on a quiet day,
+> not during an incident.
 
-**Open item to make the switch usable:** move `HUB_PREVIEW_ENABLED` to web scope in a separate,
-standalone change — set it on the web service, confirm web sees the same value, then delete the
-shared one. It touches no code; the risk is entirely in the ordering (set the new one first, so
-there is never a window where neither exists and the default-ON kicks in). Do it on a quiet day,
-not during an incident.
+</details>
 
 ---
 
@@ -129,7 +153,8 @@ Watch, in the first hour:
 
 ## 6. The opted-in count — **READ-ONLY, run by the owner**
 
-Fills PLACEHOLDER B. It answers "how many members had already switched the hub on before B6", which
+✅ **RESULT 2026-09-09: `0`.** Run read-only against production, `mode=ro`, single
+SELECT. It answers "how many members had already switched the hub on before B6", which
 goes in the member-impact paragraph as *"N members had already opted in as of <date>; they keep
 their toggle."*
 
