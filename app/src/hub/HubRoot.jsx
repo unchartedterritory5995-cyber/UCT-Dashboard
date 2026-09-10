@@ -211,8 +211,27 @@ function HubShell({ setToastMsg }) {
   // `useJoystick`'s `mode` param is the whole HubMode config (it reads
   // `mode.fan`/`mode.onTap`/`mode.onDoubleTap` itself) — NOT the bare mode id
   // string the presentational components below take.
+  // ⛔⛔ THE ENGINE RESOLVES THE FAN THE MEMBER IS LOOKING AT, NOT THE DECLARED ONE.
+  //
+  // This passed `activeModeConfig` raw, and `useJoystick` reads `mode.fan` — the DECLARED fan —
+  // while line 88 above draws `fanFor(activeModeConfig)`, the PROJECTION. For any mode still in
+  // `PREVIEW_MODES` those are different arrays in a different order, so the bubble a thumb landed
+  // on and the action that fired were resolved from two different lists BY INDEX.
+  //
+  // Measured on the deployed tree (`febe8ee67`), Home's fan: TWO of four outer bubbles and ONE of
+  // four inner bubbles navigated somewhere other than their own label — tap "Flow", get Breadth.
+  // Live in production since Increment 2. Found by Stream D while measuring its own ring counts,
+  // in a file it did not own.
+  //
+  // ⭐ The projection must be what the ENGINE sees too, or `fanFor` is a lie told to the renderer
+  // only. Spread rather than mutate: `activeModeConfig` is the registered object a section owns.
+  const engineMode = useMemo(
+    () => (activeModeConfig ? { ...activeModeConfig, fan } : activeModeConfig),
+    [activeModeConfig, fan],
+  )
+
   const { handlers, state, dismiss } = useJoystick({
-    mode: activeModeConfig,
+    mode: engineMode,
     settings,
     padRef,
     onFire: fireResolved,
