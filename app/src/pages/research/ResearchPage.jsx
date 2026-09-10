@@ -10,6 +10,7 @@ import FinancialsTab from './tabs/FinancialsTab'
 import EstimatesTab from './tabs/EstimatesTab'
 import AnalystRatingsTab from './tabs/AnalystRatingsTab'
 import NewsTab from './tabs/NewsTab'
+import TechnicalTab from './tabs/TechnicalTab'
 import RatingsTab from './tabs/RatingsTab'
 import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
@@ -54,6 +55,12 @@ import styles from './ResearchPage.module.css'
 // decide -- see api/services/ticker_explain.py. Placed last, mirroring
 // the calendar modal's own tab ordering (Ask AI is that modal's last
 // group too).
+// 2026-09-05 Chart/Technical Intelligence Convergence (owner-authorized
+// narrow slice, Phase B): "Technical" is a NEW tab, placed right after News —
+// both answer "what's happening / why does this matter right now" before the
+// fundamental-data tabs. Source is the EXISTING /api/patterns/{sym} endpoint's
+// confirmed-only (Opus-vision-verified) output, never the raw scanner
+// firehose the owner already ruled untrustworthy. See TechnicalTab.jsx.
 // 2026-09-07 Wave H (Notebook Research Home + Ticker Research Workspace):
 // "My Research" is a BRIDGE tab, not a re-implementation -- it mounts the
 // exact same `TickerResearchWorkspace` component Notebook's own
@@ -65,13 +72,17 @@ import styles from './ResearchPage.module.css'
 // incidental. Placed last, after Ask AI: this page's existing tab order
 // already reads as "the market's view of this company" first, ending on
 // this member's own working context.
-const TABS = ['Overview', 'News', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI', 'My Research']
+// REBASE RESOLUTION 2026-09-09: both tabs, both intents intact -- Technical
+// sits right after News (its "what's happening now" grouping) and My Research
+// stays LAST (this page reads market-view-first, ending on the member's own
+// working context). Neither ordering rule constrains the other.
+const TABS = ['Overview', 'News', 'Technical', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
-  overview: 'Overview', news: 'News', financials: 'Financials', estimates: 'Estimates',
+  overview: 'Overview', news: 'News', technical: 'Technical', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript',
   filings: 'Filings', ai: 'Ask AI', research: 'My Research',
@@ -80,9 +91,9 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled } = useAuth()
   const [searchParams] = useSearchParams()
-  const [active, setActive] = useState(
+  const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
   )
   // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a member arriving
@@ -91,6 +102,15 @@ export default function ResearchPage() {
   // same convention as `section` above -- this is a one-time entry marker,
   // not live state the tab-switching UI needs to track.
   const [returnTo] = useState(() => parseResearchReturnParam(searchParams.get('from')))
+  // Chart/Technical Intelligence Convergence ships DARK behind
+  // RESEARCH_TECHNICAL_TAB_ENABLED (off by default, read per request off the
+  // auth payload — see api/routers/auth.py::_access_payload). With it off the
+  // tab is absent from the strip AND `?section=technical` falls through to
+  // Overview rather than selecting a tab that is not there, which would render
+  // an empty content area under a strip that never offered it.
+  const tabs = researchTechnicalTabEnabled ? TABS : TABS.filter(t => t !== 'Technical')
+  const active = tabs.includes(rawActive) ? rawActive : 'Overview'
+
   const data = useResearchOverview(rawSym)
   const sym = data.sym
   const { data: ratingsData } = useRatings(sym)
@@ -115,7 +135,7 @@ export default function ResearchPage() {
         onSymbolChange={(s) => s && navigate(`/research/${s.toUpperCase()}`)}
       />
       <nav className={styles.tabs}>
-        {TABS.map(t => (
+        {tabs.map(t => (
           <button
             key={t}
             className={`${styles.tab} ${active === t ? styles.tabOn : ''}`}
@@ -125,6 +145,7 @@ export default function ResearchPage() {
       </nav>
       {active === 'Overview' && <OverviewTab sym={sym} stats={data.stats} analyst={data.analyst} ai={data.ai} row={null} />}
       {active === 'News' && <NewsTab sym={sym} />}
+      {active === 'Technical' && <TechnicalTab sym={sym} />}
       {active === 'Financials' && <FinancialsTab sym={sym} />}
       {active === 'Estimates' && <EstimatesTab sym={sym} />}
       {active === 'Analyst Ratings' && <AnalystRatingsTab sym={sym} />}

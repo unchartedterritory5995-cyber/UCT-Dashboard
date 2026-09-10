@@ -1,3 +1,5 @@
+import UIcon from '../../../../components/ui/UIcon'
+import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
 import styles from './NoteCard.module.css'
 
 function relativeDate(iso) {
@@ -27,7 +29,20 @@ function cardThumb(note) {
 // (a soft-deleted note must be restored before it can be edited — see
 // notes_service.get_note's default filter), so the card is inert rather
 // than a click-to-open button, with an explicit Restore action instead.
-export default function NoteCard({ note, onOpen, onRestore }) {
+// Wave Q1 — the note is holding words the server does not have, and the queue
+// has stopped trying on its own. ⛔ The sentence names the ACTION, because the
+// state alone ("not synced") tells a member something is wrong and nothing
+// about what to do; a later edit is what un-blocks it.
+function BlockedBadge() {
+  return (
+    <span className={styles.unsynced} title={BLOCKED_TITLE}>
+      <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />
+      {BLOCKED_BADGE}
+    </span>
+  )
+}
+
+export default function NoteCard({ note, onOpen, onRestore, blocked = false }) {
   const title = note.title?.trim() || 'Untitled'
   const thumb = cardThumb(note)
 
@@ -40,6 +55,12 @@ export default function NoteCard({ note, onOpen, onRestore }) {
           <div className={styles.metaRow}>
             <span className={styles.date}>{relativeDate(note.updatedAt)}</span>
             {note.ticker && <span className={styles.ticker}>${note.ticker}</span>}
+            {/* ⛔ NO blocked badge on a TRASHED card, deliberately. The sentence
+                names an action — "edit it again" — and a trashed note cannot be
+                opened to edit; it must be restored first. A badge instructing a
+                member to do something the card will not let them do is worse
+                than silence, and this card is already the one surface that is
+                inert by design. */}
           </div>
           <button
             type="button"
@@ -69,6 +90,7 @@ export default function NoteCard({ note, onOpen, onRestore }) {
           {(note.tags || []).slice(0, 3).map((t) => (
             <span key={t} className={styles.tag}>#{t}</span>
           ))}
+          {blocked && <BlockedBadge />}
         </div>
       </div>
       {thumb && (

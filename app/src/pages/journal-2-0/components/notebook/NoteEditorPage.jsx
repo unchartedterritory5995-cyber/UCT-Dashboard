@@ -29,6 +29,9 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { useDurableNote, SESSION_ID } from '../../lib/offline/useDurableNote'
+import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
+import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
+import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -91,6 +94,20 @@ function friendlySaveError(e, status, { retrying = false } = {}) {
 // network save actually lands — the local copy is a safety net, never a
 // second source of truth for content the server already has.
 const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
+
+// ⛔⛔ `setContent(body, false)` STOPPED SUPPRESSING `onUpdate` AT TIPTAP v3, AND
+// SAID NOTHING. In v2 the second argument WAS `emitUpdate`; in v3 it is an
+// options OBJECT, destructured as `{ emitUpdate = true, … } = {}`. A `false`
+// there is not `undefined`, so the default does not apply to the argument — it
+// applies to the missing PROPERTY, and `emitUpdate` comes out **true**. Every
+// call site in this file carried a comment claiming the update was suppressed,
+// and every one of them had been emitting into `scheduleAutosave` since the v3
+// upgrade — turning three deliberate "put the canonical copy on screen" moments
+// (note load, draft restore, conflict reconcile) into autosaves of content the
+// server had just handed us. Measured against the installed TipTap, both ways:
+// `setContent(x, false)` emits, `setContent(x, EMIT_NOTHING)` does not.
+// ⛔ One authority, named, so a fifth call site cannot quietly get it wrong.
+const EMIT_NOTHING = { emitUpdate: false }
 
 // Toolbar Font dropdown — the app's approved family set (each option previews in
 // its own face). Value is a full CSS font-family stack; '' clears.
@@ -327,6 +344,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // filter yields another member's research. It degrades to `supported: false`
   // (private windows, old browsers) without taking the editor with it.
   const durable = useDurableNote({ accountId: user?.id, noteId })
+
+  // Wave Q1 — THE OPEN NOTE CAN ALSO BE BLOCKED, and until now it said nothing.
+  // The sweep never touches the open note (`excludeNoteId`), so this state can
+  // only arrive from a PREVIOUS session: the member closed a note whose queued
+  // write the drain then refused, and opened it again today. The header's
+  // existing "waiting to sync" line is gated on the editor's own save attempt
+  // (`error`/`reconnecting`), which on a freshly-opened note is neither — so
+  // the one surface that was honest was honest only while a save was failing.
+  // ⛔ `durable.status` is the refresh signal: a fresh durable write REPLACES
+  // the outbox entry and the replacement carries no `permanent` flag, so the
+  // badge has to be able to CLEAR itself the moment the member does the thing
+  // it asked them to do.
+  const { blocked: blockedNoteIds } = useBlockedNotes({
+    accountId: user?.id,
+    refreshToken: durable.status,
+  })
+  const noteIsBlocked = blockedNoteIds.has(noteId)
   // Read through a ref for the same reason every other callback here does:
   // TipTap's onUpdate and every scheduled timeout close over an old render.
   const durableRef = useRef(durable)
@@ -411,7 +445,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       updatedAt: restoredNote.updatedAt || null,
     }
     try {
-      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, false)
+      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
     } catch {
       /* editor view not mounted yet -- next note-open effect will still show it */
     }
@@ -578,6 +612,32 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Re-entrancy guard for restoreDraft (see its own comment) — a plain ref,
   // not state, since it must be checked synchronously before any render.
   const restoringDraftRef = useRef(false)
+  // ⛔⛔ NOTHING MAY BE PERSISTED BEFORE THE NOTE IS IN THE EDITOR.
+  //
+  // TipTap's `onUpdate` is NOT "the member typed" — it is "the document
+  // changed", and a document changes without a member the moment an editor is
+  // constructed with an EMPTY doc: `{type:'doc',content:[]}` violates the
+  // schema's `block+`, so ProseMirror appends a repair transaction that inserts
+  // an empty paragraph, synchronously, inside `new Editor(...)`. Measured, both
+  // directions: an editor built with real content emits ZERO updates; one built
+  // empty emits exactly one, and `getJSON()` is then `{doc,[paragraph]}`.
+  //
+  // `useEditor` is keyed on `[note?.id]`, so the editor is REBUILT when the note
+  // arrives — and rebuilt EMPTY whenever the server's copy of that note is empty
+  // (the server sends `{doc,content:[]}`, not null, for a blank body). That
+  // rebuild happens in `useEditor`'s own effect, which is registered BEFORE the
+  // effect below and therefore runs BEFORE it — so the repair fires while the
+  // title/subtitle refs still hold their pre-load values, and the autosave path
+  // ran with them. Reproduced end to end in `NoteEditorPage.slowload.test.jsx`:
+  // an empty title, an empty subtitle and an empty document written to the
+  // localStorage draft, the durable working copy AND the outbox, for a note the
+  // member never touched.
+  //
+  // ⛔ This is a GATE, not a nicety: it is the one place that can distinguish
+  // "the document changed because a person changed it" from "the document
+  // changed because it was constructed". It also closes the long-standing
+  // empty-localStorage-draft bug this predates Wave Q1.
+  const hydratedRef = useRef(false)
 
   useEffect(() => {
     if (!note) return undefined
@@ -691,9 +751,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     titleRef.current = draftTitle
     setSubtitle(draftSubtitle)
     subtitleRef.current = draftSubtitle
-    // `false` (emitUpdate) suppresses onUpdate — same convention as the
-    // note-load sync effect below.
-    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, false)
+    // ⛔ `EMIT_NOTHING`, never a bare `false` — see its declaration. Until this
+    // was fixed, this line ALSO re-armed the 800ms debounce and the durable
+    // write, which is precisely what the comment below says a restore
+    // deliberately does not do.
+    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, EMIT_NOTHING)
     setPendingDraft(null)
     setRecovery(null)
 
@@ -712,13 +774,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // whatever the server holds now. They differ exactly when another device
       // saved in between — and that is the case where a restore must 409 and
       // fork rather than quietly overwrite the newer copy.
-      const base = recovery?.baseUpdatedAt ?? lastSavedRef.current.updatedAt
+      const base = usableBaseline(recovery?.baseUpdatedAt, lastSavedRef.current.updatedAt)
       if (base) patch.baseUpdatedAt = base
       const saved = await update(patch)
       lastSavedRef.current = {
         title: draftTitle, subtitle: draftSubtitle,
         bodyJson: draftBodyJson || lastSavedRef.current.bodyJson,
-        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+        updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
       durableRef.current.markSynced({
         acked: { title: draftTitle, subtitle: draftSubtitle, bodyJson: draftBodyJson },
@@ -753,6 +815,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
 
   const scheduleAutosave = () => {
+    // ⛔ See `hydratedRef`. Before the note is in the editor there is nothing of
+    // the member's to save, and everything to lose — so this refuses BEFORE it
+    // touches the status, the draft, the durable copy or the save timer.
+    if (!hydratedRef.current) return
     setSaveStatus('dirty')
     setSaveErrorMsg('')
     // Wave 0 (P1-10): mirror to localStorage on EVERY edit, synchronously —
@@ -1277,12 +1343,25 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     try {
       const current = JSON.stringify(editor.getJSON())
       const fresh = JSON.stringify(bodyForEditor)
-      if (current !== fresh) editor.commands.setContent(bodyForEditor, false)
+      if (current !== fresh) editor.commands.setContent(bodyForEditor, EMIT_NOTHING)
     } catch {
       /* editor view not mounted yet — content already loaded via useEditor */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, editor])
+
+  // ⛔ The arming half of `hydratedRef` — see its declaration for the defect.
+  // Declared AFTER `useEditor` on purpose: effects run in the order their hooks
+  // were called, so `useEditor`'s own rebuild effect runs first and its
+  // construction-time repair transaction is refused by a ref that is still
+  // false. It is armed here, one effect later, once `editor` and `note` are
+  // both the ones this render is about.
+  // ⛔ NOT gated on `note.bodyJson` (as the sync effect above is): a note the
+  // server holds with no body at all must still be editable, and gating on the
+  // body would leave that member typing into a page that saves nothing.
+  useEffect(() => {
+    hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
+  }, [note?.id, editor, note])
 
   // A15 conflict reconcile: pull the fresh note, append any widgetEmbed the
   // server holds that the local doc lacks (the only server-side bodyJson
@@ -1398,7 +1477,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     titleRef.current = fresh.title || ''
     setSubtitle(fresh.subtitle || '')
     subtitleRef.current = fresh.subtitle || ''
-    if (fresh.bodyJson) editor.commands.setContent(fresh.bodyJson, false)
+    if (fresh.bodyJson) editor.commands.setContent(fresh.bodyJson, EMIT_NOTHING)
     lastSavedRef.current = {
       title: fresh.title || '', subtitle: fresh.subtitle || '',
       bodyJson: fresh.bodyJson, updatedAt: fresh.updatedAt || null,
@@ -1430,14 +1509,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     if (bodyChanged) patch.bodyJson = bodyJson
     // Compare-and-set baseline (A15): the server 409s instead of letting this
     // full-doc PUT silently delete a write that landed after our baseline.
-    if (last.updatedAt) patch.baseUpdatedAt = last.updatedAt
+    if (isUsableBaseline(last.updatedAt)) patch.baseUpdatedAt = last.updatedAt
 
     setSaveStatus(retryAttemptsRef.current === 0 ? 'saving' : 'reconnecting')
     try {
       const saved = await update(patch)
       lastSavedRef.current = {
         title, subtitle, bodyJson,
-        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+        updatedAt: usableBaseline(saved?.updatedAt, lastSavedRef.current.updatedAt),
       }
       // Wave Q1: the server now holds `bodyJson`. ⛔ `current` is read AGAIN
       // here rather than reusing what we sent: if the member typed during the
@@ -1687,12 +1766,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             `persisted() === false` is equally true of a brand-new ordinary
             profile; it means only that persistent-storage protection has not
             been positively granted. No badge, no claim, no behaviour change. */}
-        {durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        {/* ⛔ THE BLOCKED CASE WINS, and it is NOT gated on the editor's own
+            save attempt. The queue has retired this note's write from retrying:
+            that is true whether or not a save is in flight right now, and the
+            member's next edit is what changes it. Two lines at once would read
+            as two different states, so this is an either/or, not an also.
+            ⛔ The words come from `unsyncedCopy` — one authority, so the list
+            and the header can never drift apart. */}
+        {noteIsBlocked ? (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {blockedLabel(durable.persisted)}
+          </div>
+        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {durable.persisted === true
-              ? 'Saved on this device · waiting to sync'
-              : 'Saved in this browser · waiting to sync'}
+            {unsyncedLabel(durable.persisted)}
           </div>
         )}
         {saveStatus === 'conflict' && (

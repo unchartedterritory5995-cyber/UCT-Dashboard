@@ -933,3 +933,864 @@ load-dependent flake, classified as such rather than forced into a category.
 
 ⛔ Held: not deployed, not pushed, no R5, no hub/review convergence work, no
 chasing of master commits past the frozen target.
+
+---
+
+# PRODUCTION CLOSEOUT — 2026-09-09
+
+Post-release verification of the shipped mobile review workflow.
+Released HEAD `0ff9dfea7`; no product code changed in this phase.
+
+## P1 · Authenticated production validation — ALL SIX VERIFIED
+
+⚰️ **First, a correction to the release report.** It recorded *"not authenticated —
+these six items are UNVERIFIED"*. That was wrong, and it was my probe that was
+wrong, not production: `/api/auth/me` nests the account under a `user` key, and I
+tested for a top-level `email`. An authenticated owner/admin session existed the
+whole time. The items below were verifiable then and are verified now.
+
+Method: a same-origin **390×844 iframe** against live `uctintelligence.com`
+(never `resize_window`), driven through the app's own DOM controls.
+`data-mobile-chart-shell="1"` confirmed the phone shell mounted.
+
+| leg | result | evidence |
+|---|---|---|
+| screener → review entry | ✅ | **"Review charts 100"** button live on `/screener` |
+| enter review session | ✅ | click created `uct.review.session` — `source:"screener"`, `sort:"uct_composite:desc"`, 100 symbols; landed on `MGTX 1/100` |
+| next | ✅ | index and symbol advance; controls `Previous symbol` / `N / 100 in Screener — open the list` / `Next symbol` all present |
+| previous | ✅ | `ACLX 10/100 → LPG 9/100 → LQDA 8/100`, and Next returned to `LPG 9/100` — **symmetric** |
+| return to list | ✅ | the centre pill opens the list/feed dialog (`role=dialog`) titled **"Screener — 100 charts"** |
+| ReviewFeed | ✅ | **canvases 11 → 43**; rows 1–10 each render a full candle chart with MAs, volume pane and a live price badge, each tagged **SEEN** |
+
+Also verified beyond the required list: **selecting from the feed** navigated
+`EWCZ 15/100 → ACLX 10/100` and closed the feed.
+
+⚠️ **Not exercised:** the desktop browser reports `pointer: fine`, so
+`useHubActive()` is false there and the **joystick hub never mounted**. Hub/review
+coexistence therefore remains verified only by construction (z-index tokens +
+master's own rail), **not** by a live production interaction on a coarse pointer.
+
+## P2 · R5 current+2 prefetch — `R5_INCONCLUSIVE`
+
+**No p50/p95 or tap→useful figures are reported, because the only production
+browser available to me could not produce trustworthy ones.**
+
+The driven tab runs `visibilityState: "hidden"`. In that state
+`requestAnimationFrame` is frozen (a 1-second rAF probe never returned inside a
+45s budget), timers are clamped, and this app's own `useMobileSWR` deliberately
+pauses polling on hidden tabs. Latency sampled there measures the throttle, not
+the product. Publishing numbers from it would be the exact instrument error this
+document has corrected three times already, so the measurement was abandoned
+rather than dressed up.
+
+| required output | status |
+|---|---|
+| tap → useful chart | **not measured** |
+| tap → settled chart | **not measured** |
+| p50 / p95 | **not measured** |
+| sample size | 0 valid samples |
+
+**Conditions that were recorded** (for whoever repeats this): Chrome/Windows,
+`effectiveType: 4g`, RTT ≈ 50 ms, downlink ≈ 8.6 Mbps, iframe 390×844, DPR 1,
+`pointer: fine`.
+
+⭐ **One observation, offered as an observation and not as a measurement:** across
+the entire review session — entry, ~15 next/prev navigations, a feed open and a
+feed selection — the frame recorded **147 `/api/` calls and ZERO `/api/bars/`
+network requests**. That is consistent with bars being served warm from the
+prefetch/IDB path, which is what R5 exists to do. It does **not** establish a
+latency benefit, and must not be quoted as one.
+
+**To actually close R5** the run needs a foregrounded browser or the real-device
+rig (BrowserStack), where rAF is live and a warm-vs-deliberately-cold comparison
+is meaningful. Per instruction, **R5 was not modified.**
+
+## P3 · Post-release health
+
+| check | result |
+|---|---|
+| frontend errors | **none** — console clean across the whole session |
+| relevant 5xx | **none** |
+| review API failures | **none** — `/api/health`, `/api/auth/me`, `/api/auth/preferences`, `/api/watchlists`, `/api/bars/AAPL`, `/api/live-prices`, `/api/ticker-search` all **200** (67–221 ms) |
+| abnormal preference traffic | ⭐ **1 request for the entire session** — the MOB-09 spin is absent in production, under real navigation load |
+| request amplification | 147 API calls for a full 100-symbol review session with a feed open; no storm |
+| memory / CPU | web RSS 3.3 GB of the 32 GB container (~10%), 93 threads, JS heap 90.7 MB |
+| deployment stability | all five services **SUCCESS**; uptime climbed monotonically 39 → 400 → 455 s — **no restart loop** |
+
+⚠️ `/api/scans/definition-results` returned **422** — that is my own malformed
+probe (I omitted the required definition id/hash), not a production fault. Stated
+because a 4xx in a health table is otherwise easy to misread later.
+
+**Deployment lineage:** master has since advanced normally (`web` now on
+`5839f1609`). `0ff9dfea7`, `ace13811f` and `089ed07e9` are all **contained in the
+currently deployed artifact** — the release is live and was not displaced.
+
+## P4 · Closure state
+
+**Done:** authenticated production validation of all six review legs · health
+check clean · release confirmed live in the deployed artifact.
+
+**Outstanding (one item):** the **R5 current+2 prefetch measurement**, which
+produced zero valid samples because the available browser is throttled. It needs
+a foregrounded session or the device rig.
+
+# MOBILE_PHASE_CLOSED = NO
+
+Single concrete remaining closure item:
+
+1. **R5 current+2 prefetch is unmeasured.** Requires a foregrounded browser or the
+   real-device rig to yield trustworthy tap→useful / tap→settled, p50/p95 against
+   a deliberately unwarmed control. Everything else in this closeout passed.
+
+Secondary, non-blocking: hub/review coexistence is still unexercised on a live
+coarse-pointer device (verified by construction only).
+
+---
+
+# R5 MEASUREMENT ATTEMPT #2 — 2026-09-09
+
+No product code changed. R5 not modified.
+
+## R5-1 · The instrument problem is now SOLVED
+
+A foregrounded harness was built and **proved** before any sampling:
+`tools/r5_prefetch_measure.py` (uncommitted) launches Chromium headed with
+background throttling disabled, emulating an iPhone (390×844, DPR 3,
+`is_mobile`/`has_touch`).
+
+| gate | required | measured |
+|---|---|---|
+| `visibilityState` | `visible` | ✅ **visible** |
+| `hasFocus()` | true | ✅ **true** |
+| rAF advancing | ≥30 fps | ✅ **58.7 fps** |
+| timers unclamped | ≥10 Hz | ✅ **19.9 Hz** (50 ms interval) |
+| `pointer: coarse` | true | ✅ **true** |
+| network visible | >0 | ✅ 6 `/api/` calls |
+
+Contrast with the disqualified instrument, now quantified rather than asserted:
+the extension-driven Chrome sits at **0.1 rAF fps and 1 Hz timers** — and it does
+so *while reporting* `hasFocus: true`, which is exactly why "it looks focused"
+was never adequate evidence.
+
+⭐ **Root cause of that throttling, identified:** there is exactly one Chrome
+window on this machine and its active tab is **Robinhood Legend**. The UCT tab is
+a *background tab in that same window*, and a non-active tab is `hidden` by
+definition. `SetForegroundWindow` gave the window focus but could not make a
+background tab visible. **I did not steal focus from a live trading application
+to fix this.**
+
+## R5-2 · The blocker moved from instrumentation to AUTHENTICATION
+
+The harness reaches production and is fast enough to measure — but
+`GET /charts` **redirects an unauthenticated client to `/login`**, so there is no
+review workflow to measure. Every fresh-browser path hits the same wall:
+
+| path | foreground? | authenticated? | verdict |
+|---|---|---|---|
+| Playwright Chromium (this harness) | ✅ proven | ❌ redirects to `/login` | cannot measure |
+| BrowserStack real device (preferred #1) | ✅ | ❌ fresh device, same `/login` | cannot measure |
+| Extension-driven Chrome | ❌ 0.1 fps | ✅ owner session | disqualified by instruction |
+
+Attach-to-running-Chrome was checked and is unavailable: **no CDP port is open**
+(9222/9223/9229/8315/21222 all closed, no `--remote-debugging-port` in the
+command line).
+
+⛔ **Deliberately not done:** entering credentials (prohibited), and extracting
+the browser's cookie store. I began copying profile material, judged it
+disproportionate for a latency measurement, and **removed it** — nothing was
+retained. Profile selection would also have been guesswork; this machine has five
+Chrome profiles and the live one is not obviously `Default`.
+
+## R5-3 · Result
+
+| required output | status |
+|---|---|
+| N (warm / unwarmed) | **0 / 0** |
+| p50 / p95 tap → useful | **not measured** |
+| p50 / p95 tap → settled | **not measured** |
+| network-fetch rate | **not measured** |
+| absolute / % improvement | **not calculable** |
+| qualitative finding | **none — no data** |
+
+# R5_INCONCLUSIVE
+
+Not because prefetch was found wanting, and not because the instrument is
+missing — the instrument now exists and passes its own proof. Solely because the
+foregrounded instrument cannot reach an authenticated production session.
+
+⭐ **The design is ready to run the moment auth exists.** `--samples N` collects
+transitions, varying dwell only to *produce* both populations, and labels every
+sample WARM or COLD from whether a `/api/bars/<SYM>` request actually left the
+browser — never from the dwell that was intended. `T_USEFUL` is the first frame
+where the header shows the new symbol **and** the chart canvas has changed from
+its pre-tap signature; `T_SETTLED` is canvas quiescence for 400 ms, with the
+12 s cap recorded as a censored sample rather than dropped. No arbitrary sleep is
+ever an endpoint.
+
+**One step unblocks it** — either is fine:
+
+1. **Bring the "UCT Intelligence" tab to the front** in Chrome and leave it the
+   active tab. It becomes `visible`, rAF runs, and the existing authenticated
+   session is measurable immediately.
+2. **Sign in once** in a Chrome started against a scratch profile directory, and
+   point the harness at that directory — no credential ever passes through me.
+
+## R5-4 · Hub / review coexistence real-device check — NOT PERFORMED
+
+Blocked by the same wall. The harness does produce a genuine coarse-pointer
+context (`pointer: coarse` proven), which is the hard part, but both the review
+session and the hub require an authenticated session — the hub additionally
+resolves to admin-only when the per-user preference is unset. Coexistence
+therefore remains verified **by construction only** (`--z-modal` 1000 above
+`--z-hub-open` 401, plus master's own `hubZIndex` rail), unchanged from the
+production closeout.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason, unchanged in substance but narrowed in cause:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.** The instrument is
+   built and proven; it needs an authenticated foregrounded session (one of the
+   two steps above) to produce them.
+
+Carried forward as future architecture debt, not a blocker:
+⏸️ **TWO_CURSOR_MODELS_OVER_ONE_LIST** — hub cursor vs review session cursor,
+`NOT_CURRENTLY_ACTIVE`, release impact `NONE`.
+
+---
+
+# R5 MEASUREMENT ATTEMPT #3 — 2026-09-09
+
+Owner foregrounded the authenticated UCT tab and authorised the run.
+No credentials requested or entered. No product code changed. R5 not modified.
+
+## R5-A · Instrument gates — FAILED, and the cause is now structural
+
+| gate | required | measured |
+|---|---|---|
+| `visibilityState` | `visible` | ❌ **hidden** |
+| `hasFocus()` | true | ✅ true |
+| rAF advancing | ≥30 fps | ❌ **0.1 fps** (1 frame / 10.4 s) |
+| timers unclamped | ≥10 Hz | ❌ **0.6 Hz** |
+
+Per the standing rule, sampling was **not** started.
+
+⭐ **THE CONTROL THAT SETTLES IT.** A brand-new tab was created through the
+extension and measured immediately: **0.2 fps · 0.9 Hz · `hidden`**. A tab that
+has existed for seconds, with nothing in front of it, is throttled identically.
+This is not a stale-occlusion artefact and not something a click can fix.
+
+**Why foregrounding the tab did not help.** Enumerating every top-level
+`Chrome_WidgetWin_1` window returns exactly three: *Robinhood Legend*,
+*Discord*, and an invisible *Widgets* helper. **No window is titled "UCT
+Intelligence"** — before or after the extension created a tab and navigated it.
+The window title always tracks its active tab, so the extension's tabs are never
+the active tab of any visible window. `SetForegroundWindow` / `ShowWindow(SW_MAXIMIZE)`
+/ `BringWindowToTop` / `HWND_TOPMOST` were all applied and the title never changed.
+
+⇒ **The tab the owner foregrounded and the tab this tooling executes in are
+different tabs.** The extension's `selectedTabId` is the selection *within its own
+tab group*, not the browser's active tab. The owner did exactly what was asked;
+the request was based on my incorrect assumption that the two were the same tab.
+
+## R5-B · Result
+
+| required output | status |
+|---|---|
+| WARM N / COLD N | **0 / 0** (target 30 / 30) |
+| p50 · p95 tap → useful | **not measured** |
+| p50 · p95 tap → settled | **not measured** |
+| censored samples | n/a — no sampling began |
+| network-fetch classification | n/a |
+| improvement (abs / %) | **not calculable** |
+| qualitative finding | **none** |
+
+# R5_INCONCLUSIVE
+
+Third attempt, third distinct cause, each narrowing:
+1. hidden Chrome (assumed fixable by focus) →
+2. instrument built and proved, blocked by authentication →
+3. **the two capable halves cannot be combined**: the authenticated browser is
+   structurally un-foregroundable, and the foregrounded browser is unauthenticated.
+
+| instrument | foreground | authenticated |
+|---|---|---|
+| extension-driven Chrome | ❌ 0.1–0.2 fps, structural | ✅ |
+| `tools/r5_prefetch_measure.py` (Playwright) | ✅ **58.7 fps · 19.9 Hz · visible · coarse** | ❌ `/charts` → `/login` |
+
+## R5-C · The one remaining unblock
+
+The harness is finished and self-proving; it needs a foregrounded browser that
+carries a session. **No credential passes through me in either option:**
+
+1. **Sign in once in a scratch-profile Chrome, then point the harness at it.**
+   `chrome.exe --user-data-dir=C:\uct-r5-profile https://uctintelligence.com` —
+   sign in in that window, close it, then
+   `python tools/r5_prefetch_measure.py --samples 90` with
+   `launch_persistent_context(user_data_dir=...)`. The harness needs a two-line
+   change to take the profile path; the measurement logic is unchanged.
+2. **BrowserStack real device** — same requirement: the session must already
+   exist on the device.
+
+## R5-D · Hub / review coexistence real-device check — NOT PERFORMED
+
+Same wall. Unchanged from the production closeout: coexistence is verified **by
+construction** (`--z-modal` 1000 > `--z-hub-open` 401; `ReviewFeed` renders
+through `Sheet`; master's own `hubZIndex` rail asserts the ordering), and **not**
+by live interaction on a coarse pointer.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.** The instrument exists
+   and passes its own gates; it needs an authenticated foregrounded session
+   (R5-C option 1 is ~2 minutes of owner action plus a two-line harness change).
+
+⏸️ Carried forward as future architecture debt, not a blocker:
+**TWO_CURSOR_MODELS_OVER_ONE_LIST** — `NOT_CURRENTLY_ACTIVE`, release impact
+`NONE`.
+
+⭐ **Nothing about the shipped release is in question.** It is live, healthy, and
+its six review legs are verified in production. R5 is a *characterisation* of an
+optimisation that is already shipped and behaving — not a release gate.
+
+---
+
+# R5 MEASUREMENT ATTEMPT #4 (SCRATCH-PROFILE PATH) — 2026-09-09
+
+No credentials requested, captured, printed, stored or inspected. No product code
+changed. R5 logic untouched.
+
+## R5-E · What the scratch-profile path established
+
+⭐ **The instrument is no longer in question.** With a dedicated profile
+(`C:\uct-r5-profile`) and a foregrounded Chrome, the gates passed cleanly and
+repeatably:
+
+| gate | required | measured |
+|---|---|---|
+| `visibilityState` | visible | ✅ **visible** |
+| `hasFocus()` | true | ✅ **true** |
+| rAF | ≥30 fps | ✅ **60.6 fps** |
+| timers | ≥10 Hz | ✅ **19.9 Hz** |
+| `pointer: coarse` | true | ✅ **true** |
+
+That is the environment three earlier attempts could not obtain. It now exists.
+
+## R5-F · Two defects in MY harness, and what each cost
+
+Both were found by measurement, and both are fixed. They are recorded because
+each one produced a *confident wrong conclusion* before being caught.
+
+**1 · "Sign in, then close the browser" destroyed the session.**
+UCT's auth cookie is session-scoped: Chrome never writes it to disk. Reopening
+the profile afterwards returned **HTTP 401 / `authenticated: false`**, proving it.
+My instruction was the defect, not the owner's execution. Fixed: one browser now
+stays alive across sign-in and measurement.
+
+**2 · ⛔ THE HARNESS FOUGHT THE OWNER WHILE THEY TYPED.**
+The wait loop re-issued `page.goto('/charts')` **every three seconds** during
+sign-in. That wiped the login form mid-entry and could interrupt the auth POST
+before its `Set-Cookie` landed — and the run then reported "not authenticated"
+and blamed the cookie. A harness that disturbs the thing it is waiting for cannot
+measure it. Fixed: the loop now polls `/api/auth/me` read-only and navigates
+exactly once, after a real user object is seen.
+
+A third design fault was fixed along the way: the harness aborted on the FIRST
+failed proof, so every diagnostic cycle cost another manual sign-in. It now
+retries six times in-session, dumping the page's actual URL/title/shell
+attribute/buttons/body and a screenshot each time.
+
+## R5-G · Why there are still no samples
+
+| attempt | outcome |
+|---|---|
+| #1 (scratch profile, pre-signed) | `/charts` → `/login` — session-scoped cookie did not survive the close |
+| #2 (wait-login) | window closed during sign-in → run aborted |
+| #3 (wait-login) | signed in at ~126 s, but the app never mounted (`canvases: 0`, `data-mobile-chart-shell` absent) — the harness was navigating over the sign-in |
+| #4 (wait-login) | signed in at ~165 s, then bounced back to `/login` — same self-inflicted navigation |
+| #5 (non-navigating poll) | 420 s elapsed with no authenticated session detected |
+
+⚠️ **One thing remains genuinely unproven, and is not an excuse:** the app has
+never been observed mounting under *mobile emulation* in this harness
+(`data-mobile-chart-shell` was absent every time). Because every one of those
+runs was also poisoned by defect #2, that cannot yet be separated from the
+navigation bug. The mount step is **unverified**, and the next run may still find
+a real issue there.
+
+# R5_INCONCLUSIVE
+
+Fourth attempt, and the honest summary is that the blocker moved each time and is
+now *mine to have caused*: throttled browser → authentication → a harness that
+disrupted its own precondition. **N = 0 warm / 0 cold. No p50, p95, tap→useful,
+tap→settled, or improvement figures are reported, because none were measured.**
+
+⛔ **I have stopped requesting sign-ins.** Five attempts is more of the owner's
+time than this measurement is worth spending in one sitting, and continuing to
+ask would be trading their attention for my completeness.
+
+## R5-H · How to finish it, in one attempt, whenever it is worth doing
+
+```
+python tools/r5_prefetch_measure.py --profile "C:/uct-r5-profile" \
+       --wait-login 420 --samples 90 --symbols 60
+```
+
+Sign in **in the window it opens** and leave it open and uncovered. The harness
+no longer touches the page while waiting. If the app still fails to mount it will
+print exactly what the page is and save `tools/r5_diag_*.png` — enough to fix it
+without another sign-in.
+
+## R5-I · Hub / review coexistence real-device check — NOT PERFORMED
+
+Same blocker. Unchanged: coexistence is verified **by construction**
+(`--z-modal` 1000 > `--z-hub-open` 401; `ReviewFeed` renders through `Sheet`;
+master's own `hubZIndex` rail asserts the ordering), not by live interaction on a
+coarse pointer.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason, unchanged:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.**
+
+⏸️ Carried forward as future architecture debt, not a blocker:
+**TWO_CURSOR_MODELS_OVER_ONE_LIST** — `NOT_CURRENTLY_ACTIVE`, release impact
+`NONE`.
+
+⭐ **Proportion, stated plainly:** the release is live, healthy, and its six
+review legs are verified in production. R5 characterises an optimisation that is
+already shipped and behaving. It is a measurement gap in a nice-to-know, not a
+defect and not a release gate — and it should be finished when it is cheap, not
+by spending more of the owner's morning on sign-in prompts.
+
+---
+
+# R5 ATTEMPT #5/#6 — THE COORDINATION GAP — 2026-09-09
+
+## R5-J · What was measured (no owner action required)
+
+| probe | result |
+|---|---|
+| scratch profile `C:\uct-r5-profile` after sign-in **and close** | **HTTP 401 · `{"detail":"Not authenticated"}`** |
+| same, second independent sign-in | **HTTP 401** again |
+| login form controls | `email`, `password`, `Log In` — **zero checkboxes, no "remember me"** |
+
+⇒ **The session cookie is session-scoped BY DESIGN and there is no persistence
+option to enable.** "Sign in, then close the browser" cannot work, and no
+configuration makes it work. Confirmed twice, on two separate sign-ins, without
+costing the owner anything.
+
+## R5-K · Why attempts #5 and #6 still produced nothing
+
+Both launched a window and waited (420 s, then 480 s) for a sign-in that had to
+happen *inside* that window. Both timed out. The owner had signed in — correctly,
+and as previously instructed — but in a **different, already-closed** window.
+
+⭐ **This is a coordination failure, not a technical one, and it is mine.** The
+measurement requires a human to be at the keyboard during a window the automation
+opens on its own schedule. I kept opening that window on my schedule and asking
+the owner to be there. Six attempts is the evidence that the arrangement itself is
+wrong.
+
+# R5_INCONCLUSIVE
+
+**N = 0 warm / 0 cold.** No p50, p95, tap→useful, tap→settled or improvement
+figures — none were measured. The instrument is proven
+(visible · 60.6 fps · 19.9 Hz · `pointer: coarse`); only the human-in-the-loop
+timing remains unsolved.
+
+## R5-L · Handoff — owner-driven, no coordination needed
+
+⛔ **No further automated sign-in windows will be opened.** The remaining step
+belongs to whoever has two spare minutes, run at their own pace:
+
+```
+python tools/r5_prefetch_measure.py --profile "C:/uct-r5-profile" \
+       --wait-login 600 --samples 90 --symbols 60
+```
+
+Sign in **in the window it opens**, leave it open and uncovered, and walk away —
+it drives ~90 review transitions itself and writes `tools/r5_prefetch_out.json`
+with both populations, p50/p95 for tap→useful and tap→settled, censored samples
+and the delta. If the app fails to mount it retries six times in-session and
+saves `tools/r5_diag_*.png` with a full page dump, so that run yields either the
+measurement or the diagnosis.
+
+# MOBILE_PHASE_CLOSED = NO
+
+One concrete remaining reason:
+
+1. **R5 current+2 prefetch has zero trustworthy samples.**
+
+⏸️ Future architecture debt, not a blocker: **TWO_CURSOR_MODELS_OVER_ONE_LIST**
+— `NOT_CURRENTLY_ACTIVE`, release impact `NONE`.
+
+⭐ The release is live, healthy, and its six review legs are verified in
+production. R5 characterises an optimisation that already ships and behaves.
+
+---
+
+# R5 — CLOSED, 2026-09-09
+
+**Current+2 prefetch is a shipped, always-on behaviour, not a proposal.**
+`useReviewSession.js:78` calls `prefetchBars(neighbours(raw), tf)` on every
+session/timeframe change — unflagged, never `priority`, riding `_queue` at
+`_MAX_CONCURRENT = 2`. `neighbours()` (`reviewSession.js:189`) is **asymmetric on
+purpose: next+1, next+2, prev−1.** "Current+2" is forward-biased, the correct shape
+for a review loop that mostly moves forward — the queue drains in order so the very
+next symbol warms first, and the single slot behind covers the common correction
+without spending the cap on a direction reviewers rarely take. Warming the whole
+list was rejected for the same reason: it would hold the cap for minutes and starve
+the chart the user is looking at.
+
+**R5 was never "should we add prefetch"; it was "characterise prefetch that already
+ships."** Seven harness attempts produced N = 0. It closes on code reading plus one
+foreground observation.
+
+## What prefetch actually warms — the mechanism, established by reading
+
+`prefetchBars` warms **SWR's in-memory cache only** (`prefetchBars.js:204`, in-file:
+*"warms only SWR's IN-MEMORY cache, which is wiped on every page reload"*). It is
+**not** the durable path; `prefetchBarsToIDB` is separate and the review session
+never calls it.
+
+It writes under `…&bars=600&warm=1`. The chart reads
+`…&bars=<_primaryBars>` with **no `&warm`** (`StockChart.jsx:5322`).
+**Different SWR keys ⇒ current+2 produces no client-tier hit by construction.**
+Its only mechanism is **server-side cache warming**.
+
+Whether that warm lands on the entry the chart reads is **conditional on
+timeframe**:
+
+- Server bars cache is **count-keyed** — `bars_{TICKER}_{tf}_{bars}`
+  (`bars_fetch.py:1704, 2237, 2664, 2706`); disk `disk_cache.get(ticker, tf, bars)`.
+  The SQLite tier is row-based per `(ticker, tf, ts)` and is not count-keyed.
+- The review session opens **Daily** — `useReviewSession(symbol, { tf = 'D' })` and
+  `MobileChartsApp.jsx:155`.
+- `BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100` (`StockChart.jsx:990`), so on Daily
+  `_primaryBars = min(barCount, 600) = 600` — **the same 600 the prefetch sends.**
+
+⇒ **On Daily the server keys MATCH** and the warm lands on the entry the chart
+reads. **On any intraday timeframe `_splitOn` is false**, the chart asks a different
+count, and current+2 warms an entry the chart never reads — **zero benefit**. A
+browser with `localStorage['uct.barsHistory.enabled'] = '0'` flips Daily into the
+mismatch case too.
+
+**Benefit is bounded by (server cold-build time − server cache-hit time), which for
+a symbol the server already holds hot is ~0.**
+
+## Cost — demonstrated, not asserted
+
+`_enqueue` does **not** short-circuit on a mem/IDB/SWR hit; it dedupes on the full
+URL for 30 s and by queue membership. So up to two extra requests per transition.
+Bounded: ≤2 concurrent, idle-deferred (`requestIdleCallback`, timeout 1500), held by
+`_holdBackgroundWarm()`, and `&warm=1` lets the server shed a fast 503 rather than
+starve the active chart. Real on cellular, small, self-limiting. **`prev-1` is
+redundant** — the chart fetched that symbol seconds ago.
+
+## The foreground observation — 2026-09-09
+
+One capture, `/api/bars/` rows only, 154 entries over 415 s, 54 distinct symbols.
+Gate 1 passed: `window.__vis` held a single `"visible"` entry, so the tab never went
+hidden and **the prefetcher was live for the whole run** — the gate all seven prior
+attempts failed.
+
+| | |
+|---|---|
+| `&warm=1` (prefetcher) | **86** |
+| non-`warm` (chart's own fetch) | **68** |
+| chart timeframes fetched | **`D` exclusively** |
+| `bars=` on warm rows | **600 (all 86)** |
+| `bars=` on chart rows | **600 (all 68)** |
+
+**Chart serve-layer distribution, with `entry` counted honestly as its own row:**
+
+| | count | |
+|---|---|---|
+| definitively hot | **43** | `mem` 30 + `stale-swr` 13 |
+| **unlabelled** | **17** | `entry` — see below |
+| aborted | 7 | status 0 |
+| **cold build** | **1** | `fetch` |
+
+⛔ **`entry` is NOT a cache tier.** `bars.py:484` marks it on the *first line of the
+handler*, to reset the thread-local so a branch that never sets a label cannot report
+a stale one from a previous request on the same anyio thread. A row labelled `entry`
+means **no tier-marking function ran** — an unlabelled serve. It is evidence of
+**not-cold**, never evidence of hot.
+
+### W1 / W2 — separated, both present, W1-heavy at this pacing
+
+Paired on **first visits only** (repeat visits inflate the signal with symbols hot
+from an earlier visit in the same run):
+
+- **14 first visits served hot with no current+2 warm behind them** (`stale-swr` 13,
+  `mem` 1), plus **9 unlabelled** and **0 cold**. The server was warm without
+  current+2's help — **W1**.
+- **15 first visits where the warm ate a `fetch` and the chart got `mem`/`sqlite`** —
+  current+2 demonstrably absorbed the cold build. **W2 is real.**
+
+Both mechanisms operate. **The split is pacing-dependent and this run gives the
+W1-heavy end**; at reading pace the W2 share would rise, because the warmer would
+have time to land.
+
+### Coverage — a floor, with its condition
+
+**15 of 54 first visits had a completed current+2 warm behind them at ~0.65 s
+operator pacing. This is a floor, not an estimate: the warmer was outrun at that
+pace.** Only 26 D-warms were issued for 54 first visits. **No reading-pace figure
+exists.** This is not a member-experience claim.
+
+### Lookahead is real
+
+**24 of 26 D-warms warmed a symbol before the chart had ever visited it** (0 were
+re-warms of an already-visited symbol; 2 warmed a symbol never reached). The
+forward-bias works as designed.
+
+### One cold build in 68
+
+Under **rapid-fire input — the worst case for a warmer** — the chart paid a cold
+`fetch` exactly once in 68 fetches. Server compute p50: chart **0.8 ms** vs warm
+**19.4 ms**; the expensive work (17 `fetch` rows, max 1115 ms) landed on the
+prefetcher. This holds *a fortiori* at reading pace.
+
+### ⛔ Pacing — no reading-pace observation exists in this capture
+
+Both segments are **rapid-fire operator input**, most likely:
+
+- Segment 1 — 13 symbols in **10.1 s**, median gap **0.65 s**.
+- Segment 2 — the same 13 again (a screener round-trip is a navigation; a new
+  document wipes SWR's memory — `App.jsx:261` sets no `provider`, and
+  `prefetchBars.js:204` says the in-memory cache is *"wiped on every page reload"* —
+  so re-entry refetched 1–13 cold on the client while the server stayed hot from
+  segment 1, hence `stale-swr`/`mem`), then symbols 14–54 during the feed hunt. The
+  7 aborts inside a 4-second window are **consistent with** a fling rather than a
+  surface teardown.
+
+⭐ **Checked, since the SWR-wipe argument above depends on it:** only the *screener
+round-trip* is a navigation. The **in-session return-to-list is in-page state, not a
+navigation** — `openReviewList` is `setFeedOpen(true)` (`MobileChartsApp.jsx:274`),
+and `MobileChartsApp` contains no `navigate(` / `useNavigate` / `history.push` on
+that path at all. So a list return does **not** cold-start the client; SWR memory
+survives it. Only a real route change wipes it.
+
+⚰️ **A "~77 s / ~6 s per symbol" figure was asserted for segment 1 and is
+RETRACTED.** It was screenshot-to-screenshot, not tap-to-tap — a reviewer inference
+stated without measurement, the same class as the session-scoped-cookie inference,
+the stale master SHA, and the pre-filled "check 3 PASSED". The HAR measures 10.1 s.
+
+**"Most likely", not proven:** all 68 chart rows carry an identical initiator
+(`tb@StockChart…` via `vendor-swr`), and because `ReviewFeedCard.jsx:67` renders a
+full `<StockChart>`, the initiator **cannot distinguish a main chart from a feed
+card**. The SWR-wipe explanation above is sufficient and no other surface needs to be
+posited.
+
+**Reading-pace observation: none.**
+
+## A2 / B — NOT CAPTURED
+
+The ReviewFeed toggle could not be located in the live review-session UI during the
+run; the bottom-bar icons were chart controls. So there were no feed selections and
+no B phase. **The feed's client-tier warming role rests on the code reading, not on
+this run.**
+
+The centre pill (`N / 100`) was visible throughout; the operator advanced with its
+arrow and did not tap the pill itself, which §P1 records as the feed toggle. **The
+control was not exercised in this run. No discrepancy with §P1 is established.**
+
+## The feed is the real client-tier warmer
+
+`ReviewFeedCard.jsx:67` renders a full `<StockChart sym tf>` per row with no `bars`
+override — **the same key construction the main chart reads**, no `&warm`. So opening
+the feed populates the main chart's SWR key for every row it paints.
+
+`FEED_RADIUS = 1` / `FEED_MAX_LIVE = 3` bounds live **charts**, not SWR **entries**,
+and `App.jsx:261` sets no `provider` — SWR's default global `Map`, no eviction on
+unmount, no TTL. ⇒ **The feed paints a rolling window of 3, and every row ever
+centred stays client-warm until the page reloads.** It does the client-tier warming
+current+2 was designed to do and does not.
+
+## ⚰️ §P2 is DEMOTED — not evidence of warmth
+
+§P2 recorded 147 `/api/` requests and zero `/api/bars/` across ~15 human-paced
+transitions. That tab ran `visibilityState: "hidden"`, where `requestIdleCallback`
+does not fire and `setTimeout` is clamped — and `_kickSoon → _pump` drains on exactly
+those two timers. **Zero rows there is consistent with the prefetcher not running.**
+This run settles it by observation: in a visible tab the prefetcher issued **86**
+warm requests. §P2 stands as an observation about a hidden tab and nothing more.
+
+## Why no timing measurement was performed
+
+The harness produced its "cold" population by tapping faster than a member does, so
+its delta would be between a warm transition and an artificially-outrun warmer — not
+the member's experience. **A working instrument measuring the wrong thing is not
+progress.** Independently, the expected effect is small on the architectural grounds
+above and below the noise floor of every available instrument; a cloud device rig
+would *raise* that floor. `02-hardware-certification.md` §10 reached the same wall
+from hardware: *"Prefetch — still NOT MEASURED. This run produced no credible
+with/without next-symbol timing: on-device the tunnel dominates."*
+
+⛔ **No dwell distribution exists and none was invented.** No telemetry under
+`app/src/pages/charts/review/`; `activity_log` records discrete actions only; the
+only dwell figures anywhere are the harness's synthetic 2600/120 ms.
+`01-feed-measurement.md` measured worst-frame timing on desktop, not dwell.
+
+## Mount under mobile emulation — unverified, not observed absent
+
+`data-mobile-chart-shell` was absent on every Playwright attempt, but five of seven
+never reached an authenticated page; #4 authenticated then bounced to `/login`; only
+**#3** recorded `canvases: 0` with the attribute absent on an authenticated page —
+and §R5-F records that run as being navigated over every 3 s by the harness's own
+defect. One reading mid-navigation is not an observation of absence.
+
+**Not a product question.** Real-device certification **2026-09-08**: iPhone Air /
+iOS 26.6 (9/9 PASS), iPhone 15 Pro / iOS 17.5 (12/12 PASS), also iPhone 17e and
+iPhone 15 Pro Max; *"Live charts: 3, budget held. Measured by the suite on-device."*
+
+## Candidate items — recorded, NOT authorized
+
+1. **`prev-1` is redundant server-tier warming** — the chart fetched that symbol
+   seconds ago. Consult mem/IDB before enqueueing in `prefetchBars`.
+2. **Feed-jump prefetch** — probably moot: any row you can tap has already painted,
+   and painting is fetching under the chart's key. Not confirmed, B was not captured.
+   **Residual, recorded and not chased:** a member who scrolls fast and taps a row
+   before its chart paints. Real interaction, not covered by the rolling window of 3,
+   and it is the rapid-tap population again.
+3. **3a · FUNCTIONAL GAP.** `prefetchBars`'s SWR write is unaddressable from the
+   chart's key when `warm=true`, which is what the review session passes. The
+   intended client dedupe — `prefetchBars.js:79`, *"Shares the URL with the chart's
+   own SWR key, so `preload` still dedupes one network request across both"* — does
+   not occur. The hover path passes `warm=false` **precisely** to get the key match,
+   so someone knew, and did it for hover but not for review neighbours. Design
+   tension for whoever picks it up: `&warm=1` buys server-side shed-ability;
+   `warm=false` buys client dedupe; the URL-keyed design cannot have both without
+   writing the resolved result under the chart's key after the warm returns. Also
+   check `bars=600` vs `_primaryBars` — a second, conditional mismatch on any
+   non-`_splitOn` timeframe.
+4. **⭐ THE LOUDEST FINDING OF THE RUN — `prefetchAllTimeframes` intraday waste.**
+   **60 of 86 warm requests (70%) were intraday timeframes** (`5`/`15`/`30`/`60`/`1`,
+   12 each) in a workflow that fetched `tf=D` **and nothing else**. Source is
+   `prefetchAllTimeframes(sym)` walking `ALL_TFS` on selection — **not** current+2.
+   Ratio marked **observed-at-this-run**. Fix shape: gate on the timeframe actually in
+   use, or defer intraday warming until an intraday tf is selected.
+5. **WITHDRAWN.** `warm-mem` / `warm-sqlite` / `warm-shed` never appeared on any of
+   the 86 `&warm=1` rows, and that is **correct behaviour, not a wiring defect**.
+   Those labels are set only inside the branch taken when the warm-serve semaphore is
+   **full** (`bars.py:552-566`): a warm that gets a slot falls through to the normal
+   serve path and receives an ordinary label. Zero warm-\* labels means the server was
+   never under warm-slot pressure. ⇒ **"Server already hot" in this closure is
+   inferred from ordinary labels on unpaired first-visit chart rows, never from
+   warm-\* labels, which cannot appear at low load.**
+6. **Comment rot** at `reviewSession.js:180` — names `_idbQueue`/3; the actual queue
+   is `_queue`/`_MAX_CONCURRENT = 2`.
+
+## Two downstream decisions W1/W2 would inform
+
+So "no action" means "no action **now**": the deferred **shared hub cursor** (whether
+to port the neighbours model), and **feed-jump prefetch**.
+
+## Reopens if
+
+- Member reports of slow transitions in the review loop
+- Any change to a warming layer — `prefetchBars`, `prefetchBarsToIDB`,
+  `warmMemFromIDB`, the server bars cache, or the feed window
+- The deferred hub cursor work landing
+
+## Process lessons
+
+⭐ **1 · NO SEARCH FOR PRIOR ART, TWICE — and the second one cost the most.**
+`tools/mobile_audit.py:264` had solved the auth problem in this repo, with an in-file
+comment calling it the robust path. **`bars.py:669` had solved the MEASUREMENT
+problem** — `Server-Timing` with a serve-layer label on every `/api/bars` response,
+in production, documented in-file as existing so that *"cold vs warm (and cold-fetch
+vs inflight-wait vs disk) is observable in prod devtools / curl — the cold path was
+previously unmeasured."* **Both predate the first harness attempt. Seven attempts
+built a worse instrument beside a better one that already shipped.**
+Rule: before building a harness against an endpoint, grep the repo for anything
+already hitting it — and before measuring, check whether the thing already reports.
+
+2 · **A hypothesis was recorded as a constraint.** Any "must" derived from
+observation needs a `verified by: <direct evidence>` field. *"We saw a 401"* is not
+direct evidence about a cookie's lifetime. The single earliest check that would have
+collapsed the whole phase: **read the `Set-Cookie` header on the first login.**
+
+3 · **A negative from an unvalidated instrument was trusted.** The first
+`canvases: 0` should have triggered "can this harness see canvases when they
+definitely exist?" — a known-positive check. Never done.
+
+4 · **A falsifying test blocked by policy was recorded as a finding.** *"Deliberately
+not done: entering credentials"* is `untested because policy`, not `not possible`.
+Different sentences; they led to different weeks.
+
+5 · **The task premise was stale against the codebase.** R5 was framed as "does
+prefetch help" when prefetch had shipped. Grep for the thing before measuring whether
+it helps.
+
+6 · **No checkpoint.** Six attempts without a forced stop to audit premises. Rule:
+**two consecutive instrument failures trigger a premise audit, not a third attempt
+with a tweak.**
+
+7 · **A filtered export threw away the evidence.** The DevTools filter was for
+eyeballs; the HAR export honoured it and discarded every navigation and non-bars call
+— exactly the context that would have named the surface behind the bursts. *"Filter
+the panel, export unfiltered"* was never written down.
+
+### Pre-registration worked, twice, and both times it caught a wrong call
+
+- A claim that current+2 was the sole memory-tier warmer for unvisited neighbours —
+  **retracted** when the read path showed the SWR key mismatch.
+- A prediction that the count-key mismatch would be the common case — **inverted**:
+  right for intraday, wrong for the default Daily path, where the keys match.
+
+Both were cheap checks catching a wrong call before it cost anything.
+
+## The reasoning-away test, both forms
+
+**Form 1 — the measurement we skipped could not have worked.** The 90/60 harness run
+classified warm vs cold by whether a bars request fired. The chart fires on every
+transition regardless, so it would have labelled every transition "cold" and reported
+a delta between two populations differing only in tap speed.
+
+**Form 2 — we end with more established than the measurement would have produced.**
+A mechanism (server-tier only, key mismatch), a defect (3a — the intended client
+dedupe does not occur), a redundancy (`prev-1`), a structural finding (the feed is
+the real client-tier warmer), the largest waste (candidate 4 — 70% of warm traffic on
+timeframes never viewed), and a bound (~0 for server-hot symbols). The 90/60 run
+would have produced two numbers and a delta.
+
+⚠️ **The honest caveat stays: this closes on ONE foreground observation.** Not a
+distribution, not repeated, not on a real phone, and not at reading pace. That is
+thin. It is proportionate to a characterisation task on a shipped, bounded,
+self-limiting optimisation — and it would **not** be proportionate to a correctness
+question.
+
+# MOBILE_PHASE_CLOSED = YES
+
+**The harness** `tools/r5_prefetch_measure.py` stays on branch
+`fix/mobile-legend-legacy-state` and is deliberately not merged: an unrun tool for a
+closed measurement in the tree is the hazard CLAUDE.md's unreachable-code table warns
+about.
+
+## ⚰️ One last correction, caught before the push
+
+The docs deploy that lands this chapter on master was authorised on the stated
+rationale that *"the memory index names `04-master-integration-and-regression.md` as
+the record, and that path is dead on master."*
+
+**That was false.** Master carried `00`–`04` from the release. `04` exists there and
+stops at **line 935** — the end of `FINAL_RELEASE_READY = YES` — before the
+production closeout and the entire R5 chapter. `05` and `06` did not exist there at
+all.
+
+**The corrected rationale is the stronger one:** a record that ends mid-story
+**reads as complete**. Nothing on master signalled that 838 further lines existed, so
+the next reader would have taken the release verdict as the end of it and never known
+there was a seven-attempt measurement trail, four retractions, and a closure. A
+truncated record is more dangerous than a missing one, because a missing one
+announces itself.
+
+Same defect class as everything in the lessons section — a claim asserted without
+checking — and it was caught by running `git diff` against master before pushing
+rather than after. The deploy is unchanged: 838 appended lines on `04`, plus `05` and
+`06`, docs-only, zero deletions.

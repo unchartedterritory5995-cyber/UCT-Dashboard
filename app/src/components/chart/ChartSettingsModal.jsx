@@ -5,6 +5,7 @@ import { CHART_DEFAULTS } from './chartDefaults'
 import ChartThemesModal from './ChartThemesModal'
 import { applyThemeToSettings, themeWithAppSurface } from './chartThemes'
 import { legendModeOf, LEGEND_MODES } from './legendMode'
+import { WM_BOX_WIDTHS, DEFAULT_BOX_W } from './watermarkPrimitive'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
   listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
@@ -548,10 +549,12 @@ export default function ChartSettingsModal({
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const setWmAlign = (v) => setSetting({ watermark: { ...watermark, align: v } })
   const setWmSize = (v) => setSetting({ watermark: { ...watermark, sizeScale: v } })
+  const setWmBoxW = (v) => setSetting({ watermark: { ...watermark, boxW: v } })
   const setWmWeight = (v) => setSetting({ watermark: { ...watermark, weight: v } })
   const wmLines = watermark.lines || {}
   const wmSize = watermark.sizeScale ?? 1.0
   const wmWeight = watermark.weight ?? 700
+  const wmBoxW = watermark.boxW ?? DEFAULT_BOX_W
   // Watermark size scale options (× the base per-role font). Shown as percent.
   const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
   const WM_WEIGHTS = [[300, 'Thin'], [400, 'Light'], [500, 'Regular'], [600, 'Medium'], [700, 'Bold'], [800, 'Heavy']]
@@ -920,6 +923,20 @@ export default function ChartSettingsModal({
                     aria-label="Watermark size"
                   >
                     {WM_SIZES.map((s) => <option key={s} value={s}>{Math.round(s * 100)}%</option>)}
+                  </select>
+                </div>
+                {/* Width of the watermark's fixed layout box. The block occupies the
+                    same rectangle on every symbol; a long company name wraps into
+                    this width instead of stretching the mark sideways. */}
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Width</span>
+                  <select
+                    className={styles.sizeSelect}
+                    value={wmBoxW}
+                    onChange={(e) => setWmBoxW(Number(e.target.value))}
+                    aria-label="Watermark width"
+                  >
+                    {WM_BOX_WIDTHS.map(([w, label]) => <option key={w} value={w}>{label}</option>)}
                   </select>
                 </div>
                 <div className={styles.field}>

@@ -22,7 +22,7 @@ import { crosshairModeOf } from './chart/crosshairMode'
 // added to `LEGEND_MODES` without a label here renders as `undefined` in the
 // right-click menu rather than silently not being offered at all.
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
-import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
+import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
@@ -1897,6 +1897,8 @@ export default function StockChart({
   watermarkOpacity = null,   // override the settings watermark opacity (Model Book uses a brighter mark)
   watermarkX = null,         // override watermark X (0..1 pane fraction; Model Book pins it top-right)
   watermarkY = null,         // override watermark Y (0..1 pane fraction)
+  watermarkAnchor = null,    // saved PIXEL anchor for that position ({ax,dx,ay,dy}) — pins the box's corner inset so a resize / a side panel opening can't slide the mark off the edge. Wins over the x/y fraction.
+  onWatermarkAnchor = null,  // (anchor) => persist an anchor derived for a position saved before anchors existed (fires once)
   watermarkPad = null,       // px inset used for BOTH the left/right gutter and the top when corner-pinned (Setup Library — even top-left gap). null = default (14px sides, flush top).
   watermarkCenterX = null,   // px from the pane's left edge — when set, pins the watermark's horizontal CENTER here on every chart (no edge clamp) so it stays tucked in the top-left corner and never drifts by name width or pane width (Setup Library)
   watermarkPadTop = null,    // px top inset, independent of the side gutter (watermarkPad). Charts workspace uses this to drop the mark below the floating drawing toolbar. Falls back to watermarkPad when null.
@@ -2954,9 +2956,10 @@ export default function StockChart({
     // In adjust mode the drag is UNLOCKED even on a surface that otherwise locks it.
     locked: lockWatermark && !watermarkAdjusting,
     getActiveTool: () => activeToolRef.current,
-    onCommit: ({ x, y }) => {
+    onCommit: ({ x, y, anchor }) => {
       // Adjust mode: hold the spot pending (Confirm persists it, Cancel discards).
-      if (watermarkAdjusting) { setWmPending({ x, y }); return }
+      // The anchor rides along so the confirmed spot is pinned in PIXELS.
+      if (watermarkAdjusting) { setWmPending({ x, y, anchor: anchor || null }); return }
       // Setup Library: persist the new position on THIS example only, never the
       // global chart_settings (so other charts site-wide keep their watermark).
       if (onWatermarkCommit) { onWatermarkCommit({ x, y }); return }
@@ -2971,6 +2974,10 @@ export default function StockChart({
   // move the mark HORIZONTALLY (otherwise x is pinned to the plot centre).
   const wmCustomRef = useRef(false)
   wmCustomRef.current = watermarkAdjusting || wmPending != null || watermarkX != null
+  // The pixel anchor in force for that placement (pending drag wins over the saved
+  // one), read by updateChart — which runs outside React's render scope.
+  const wmAnchorRef = useRef(null)
+  wmAnchorRef.current = wmPending ? wmPending.anchor : watermarkAnchor
   // Adjust mode on/off: seed pending with the mark's CURRENT position (so turning
   // off hard-centering doesn't shift it) + arm it; clear pending when it ends.
   useEffect(() => {
@@ -2980,11 +2987,12 @@ export default function StockChart({
       const r = c?.getRect?.()
       const ms = c?.getMediaSize?.()
       if (r && ms && ms.width && ms.height) {
-        const seed = { x: (r.x + r.w / 2) / ms.width, y: (r.y + r.h / 2) / ms.height }
+        const seed = { x: (r.x + r.w / 2) / ms.width, y: (r.y + r.h / 2) / ms.height, anchor: null }
         setWmPending(seed)
         // Drop hard-centering + place at the seed NOW (not on the next data poll),
-        // so the very first drag can move BOTH axes with no jump.
-        c.setOptions({ x: seed.x, y: seed.y, hardCenterXPx: null })
+        // so the very first drag can move BOTH axes with no jump. The seed fraction
+        // describes the mark's CURRENT pixel spot, so re-anchoring off it is a no-op.
+        c.setOptions({ x: seed.x, y: seed.y, anchor: null, hardCenterXPx: null })
       }
       c?.setArmed?.(true)
     } catch { /* noop */ }
@@ -3011,14 +3019,42 @@ export default function StockChart({
         if (tw > 0) hardCenterXPx = (tw + aw) / 2
       } catch { /* noop */ }
     }
+    // Only PASS the anchor when there is one: pushing `anchor: null` would tell the
+    // primitive to forget the anchor it derived for a pre-anchor saved position, and
+    // that position would go back to drifting on every resize.
+    const wmAnchor = wmPending ? wmPending.anchor : watermarkAnchor
     try {
       c.setOptions({
         x: wmPending?.x ?? watermarkX ?? cs.watermark.x,
         y: wmPending?.y ?? watermarkY ?? cs.watermark.y,
         align, custom, hardCenterXPx,
+        ...(wmAnchor ? { anchor: wmAnchor } : {}),
       })
     } catch { /* noop */ }
-  }, [chartReady, watermarkAdjusting, wmPending, watermarkX, watermarkY, cs.watermark?.align, cs.watermark.x, cs.watermark.y, centerWatermarkOnPlot])
+  }, [chartReady, watermarkAdjusting, wmPending, watermarkX, watermarkY, watermarkAnchor, cs.watermark?.align, cs.watermark.x, cs.watermark.y, centerWatermarkOnPlot])
+  // One-time migration for a position saved BEFORE pixel anchors existed: once the
+  // chart has drawn, persist the anchor the primitive derived for it, so from then
+  // on the mark is pinned in pixels — including across a reload into a pane of a
+  // different size (the company panel open, a narrower widget). Without this the
+  // old fraction would re-resolve on every load and could land the mark half off
+  // the edge again. Fires at most once per chart, only when there is a legacy pos.
+  const wmMigratedRef = useRef(false)
+  useEffect(() => {
+    if (!chartReady || watermarkAdjusting || wmMigratedRef.current) return undefined
+    if (watermarkX == null || watermarkAnchor || !onWatermarkAnchor) return undefined
+    let tries = 0
+    const t = setInterval(() => {
+      tries += 1
+      let a = null
+      try { a = wmCtrlRef.current?.getAnchor?.() } catch { /* noop */ }
+      if (a) {
+        wmMigratedRef.current = true
+        clearInterval(t)
+        onWatermarkAnchor(a)
+      } else if (tries >= 10) clearInterval(t)   // never drawn (hidden widget) — give up
+    }, 300)
+    return () => clearInterval(t)
+  }, [chartReady, watermarkAdjusting, watermarkX, watermarkAnchor, onWatermarkAnchor])
   // Load the company logo when the watermark's "Logo" field is on (default off).
   // Same-origin PNG proxy (/api/ticker-logo) → drawing it can't taint the canvas.
   const wmLogoEnabled = cs.watermark.visible && !hideWatermark && cs.watermark.lines?.logo === true
@@ -3038,6 +3074,16 @@ export default function StockChart({
   // Push the badge state to the primitive (redraws; block re-lays-out to include it).
   // logoEnabled draws the circle even before/without an image, so no layout shift.
   // The brand mark has transparent margins → scale it up to fill the badge circle.
+  //
+  // ⚠️ This effect alone is NOT enough on a cold load: it fires while the chart is
+  // still being built, when `wmCtrlRef.current` is null, so the setOptions is a
+  // no-op — and neither dep changes again, so the badge never reached the primitive
+  // and the Logo field looked ON with no logo until you toggled it off/on. The refs
+  // below let updateChart push the same state the moment it CREATES the primitive.
+  const wmLogoRef = useRef(null)
+  const wmLogoEnabledRef = useRef(false)
+  wmLogoRef.current = wmLogo
+  wmLogoEnabledRef.current = wmLogoEnabled
   useEffect(() => {
     try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogo, logoScale: watermarkBrandMark ? 1.35 : 1 }) } catch { /* noop */ }
   }, [wmLogo, wmLogoEnabled, watermarkBrandMark])
@@ -8746,6 +8792,12 @@ export default function StockChart({
       }
       wmCtrlRef.current.setOptions({
         lines: wmLines,
+        // The ENABLED fields (not merely the ones this ticker has data for) size the
+        // watermark's layout box, so the mark occupies the same rectangle on every
+        // symbol — DIA's long name can't widen it and MU's extra rows can't push its
+        // top edge up under the legend.
+        fields: cs.watermark.lines,
+        boxW: cs.watermark.boxW ?? DEFAULT_BOX_W,
         color: cs.watermark.color,
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
@@ -8759,6 +8811,15 @@ export default function StockChart({
         // justification and the left/right non-custom placement).
         align: cs.watermark.align || 'center',
         custom: wmCustomRef.current,
+        // Pixel anchor for a hand-placed mark (omitted when there is none — see the
+        // placement effect: a null would wipe a derived anchor on every data poll).
+        ...(wmAnchorRef.current ? { anchor: wmAnchorRef.current } : {}),
+        // Re-asserted here (not only in the badge effect) so a primitive created
+        // AFTER the logo loaded still gets it — that race is what left the mark
+        // logo-less after a refresh.
+        logoEnabled: wmLogoEnabledRef.current,
+        logoImg: wmLogoRef.current,
+        logoScale: watermarkBrandMark ? 1.35 : 1,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
         hardCenterXPx: wmCustomRef.current ? null : _wmCenterX,
       })
@@ -15546,7 +15607,7 @@ export default function StockChart({
                 const c = wmCtrlRef.current
                 if (watermarkX != null) {
                   // Had a saved custom position → revert to it (hard-centering stays off).
-                  c?.setOptions?.({ x: watermarkX, y: watermarkY ?? cs.watermark.y })
+                  c?.setOptions?.({ x: watermarkX, y: watermarkY ?? cs.watermark.y, anchor: watermarkAnchor || null })
                 } else {
                   // No saved position → restore the hard-centered default look.
                   const chart = chartRef.current

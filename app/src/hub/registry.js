@@ -32,8 +32,18 @@
  * @property {Function}[confirmText] (ctx) => string. REQUIRED when kind === 'confirm'.
  * @property {HubRequirement[]} [requires]
  * @property {Function}[enabled]     (ctx) => boolean.
+ * @property {boolean} [escalate]    The action leads to a surface that asks the member to COMMIT
+ *                                   — a confirm sheet, a stop sheet, a close form. The fire haptic
+ *                                   then escalates to `warn()` instead of `impact()`
+ *                                   (`useJoystick.js:197`), which is the only escalation in the
+ *                                   set. ⛔ REQUIRED on kind:'confirm' (a confirm always
+ *                                   escalates) and equally legal on kind:'run', which is the whole
+ *                                   point: B3 moved three committing actions to 'run' and the cue
+ *                                   must not move with them. See B5.
  * @property {boolean} [flickable]   Default true. false = deliberate selection only, never a
- *                                   <120ms flick. Only meaningful on kind:'confirm'.
+ *                                   <120ms flick. Meaningful on kind:'confirm' AND kind:'run' —
+ *                                   `useJoystick.js:396` gates on it with no kind check, so it is
+ *                                   live wherever an action can fire. Rejected on 'navigate'/'home'.
  */
 
 /**
@@ -56,6 +66,13 @@ export const INNER_MAX = 4;
 
 /** Every legal `requires` literal. validateRegistry rejects anything else. */
 export const HUB_REQUIREMENTS = ['symbol', 'position', 'list', 'flagged', 'chart'];
+
+/**
+ * The kinds on which `flickable: false` means something — the ones that can FIRE.
+ * 'navigate' and 'home' are absent on purpose: a flick that navigates writes nothing, so a
+ * guard there would be a claim of danger where there is none.
+ */
+export const FLICK_GUARDABLE_KINDS = ['confirm', 'run'];
 
 /**
  * The one mode allowed to end its inner ring with something other than Home.
@@ -138,16 +155,19 @@ const why = (mode, ring = 0) => ({
   requires: ['symbol'],
 });
 
-/** Plan trade — writes to hub_planned_trades. Never a broker. Confirm sheet, always. */
+/** Plan trade — writes to hub_planned_trades. Never a broker. Opens the Plan-trade sheet. */
 const planTrade = (mode) => ({
   id: `${mode}.planTrade`,
   label: 'Plan trade',
   icon: 'equity',
   ring: 0,
   color: '--hub-mode-journal',
-  kind: 'confirm',
+  // ⛔ `run`, NOT `confirm` (R-16). Since R-09 wired the confirm branch, a `confirm` here opened
+  // HubConfirmSheet AND the section opened the Plan-trade sheet — two sheets stacked on one
+  // gesture. Plan trade IS its own sheet; a generic "Plan NVDA?" confirmation in front of it asks
+  // the member to approve opening a form. The plan said `run` all along (§3.3).
+  kind: 'run',
   requires: ['symbol'],
-  confirmText: (ctx) => `Plan ${ctx?.symbol ?? ''}`.trim(),
 });
 
 /** Alert — at LAST price, not crosshair. crosshairData is private to StockChart (deferred D-03). */
@@ -158,6 +178,7 @@ const alert = (mode) => ({
   ring: 0,
   color: `--hub-mode-${mode}`,
   kind: 'confirm',
+  escalate: true,
   requires: ['symbol'],
   confirmText: (ctx) => `Alert on ${ctx?.symbol ?? ''}`.trim(),
 });
@@ -182,24 +203,25 @@ export const modes = [
     label: 'Breadth',
     color: '--hub-mode-breadth',
     route: '/breadth',
-    tapHint: 'tap: next session',
+    // ⚰️ WAS 'tap: next session'. Tap steps the TAB, not a session — nothing in Breadth's hub
+    // binding has ever touched a session. Invisible while `breadth` sits in PREVIEW_MODES (the
+    // chip shows "Preview — more coming"), which is exactly why it survived: copy that no one can
+    // see is copy no one checks, and it would have become wrong the moment the preview exited.
+    // Found by the 3.2 integrator, corrected here because registry.js is Director-owned.
+    tapHint: 'tap: next tab',
     fan: [
-      {
-        id: 'breadth.sizeRule',
-        label: 'Size rule',
-        icon: 'scale',
-        ring: 0,
-        color: '--hub-mode-breadth',
-        kind: 'run',
-      },
-      {
-        id: 'breadth.snapshot',
-        label: 'Snapshot',
-        icon: 'camera',
-        ring: 0,
-        color: '--hub-mode-breadth',
-        kind: 'run',
-      },
+      // ⚰️ `breadth.sizeRule` AND `breadth.snapshot` ARE REMOVED, NOT DEFERRED (B2).
+      //
+      // Both were `kind: 'run'` with NO `run` handler and no `requires`, so they rendered
+      // ALWAYS-ENABLED and did nothing: `HubRoot` does `Promise.resolve(action.run?.(ctx))`,
+      // which on `undefined` resolves silently — no throw, no warn, no toast. The member drags to
+      // "Snapshot", the fan closes, nothing happens. Invisible while `breadth` sat in
+      // PREVIEW_MODES (the projection hid them); live the moment it left.
+      //
+      // Dropped rather than shipped inert, on the R-13 precedent set when the Screener's "Scans"
+      // had no seam. A bubble that answers a deliberate gesture with silence teaches the member
+      // the product is broken — worse than an absent action, which at least tells the truth. They
+      // come back with their handlers, in their own increment.
       voice('breadth'),
       home('breadth'),
     ],
@@ -267,7 +289,8 @@ export const modes = [
     ],
   }),
 
-  // 5 ── journal. Move stop, Breakeven and Close are ALL confirm. Close is not flickable.
+  // 5 ── journal. Move stop, Breakeven and Close are ALL `run` (B3): each one's own sheet is
+  // the confirmation, so a `confirm` in front of it stacked two sheets. Close is not flickable.
   defineMode({
     id: 'journal',
     label: 'Journal',
@@ -278,37 +301,52 @@ export const modes = [
     fan: [
       chartIt('journal'),
       {
+        // ⛔ B3 — `run`, NOT `confirm`. `StopConfirmSheet` IS the confirmation surface: it renders
+        // the value in its primary button (`StopConfirmSheet.jsx:78`, "Set stop 178.10") and
+        // disables that button while the value is invalid. A `confirm` here put `HubConfirmSheet`
+        // in FRONT of it — two sheets on one gesture, the first one labelled from `action.label`
+        // (`HubRoot.jsx:143`), which is why the primary read "Move stop" and not the number.
         id: 'journal.moveStop',
         label: 'Move stop',
         icon: 'moveStop',
         ring: 0,
         color: '--hub-mode-journal',
-        kind: 'confirm',
+        kind: 'run',
+        escalate: true,
         requires: ['position'],
-        confirmText: (ctx) => `Set stop on ${ctx?.selectedPosition?.symbol ?? ''}`.trim(),
       },
       {
+        // ⛔ B3 — same as Move stop. Breakeven is the same PUT with a different seed, and it
+        // reaches the same validated sheet; a second sheet in front of it confirmed nothing.
         id: 'journal.breakeven',
         label: 'Breakeven',
         icon: 'shield',
         ring: 0,
         color: '--hub-mode-journal',
-        kind: 'confirm',
+        kind: 'run',
+        escalate: true,
         requires: ['position'],
-        confirmText: (ctx) => `Stop to breakeven on ${ctx?.selectedPosition?.symbol ?? ''}`.trim(),
       },
       {
-        // ⛔ The highest-stakes action in the hub: it writes a permanent j2_trades row.
-        // flickable:false means a flick in this direction OPENS THE FAN instead of firing.
+        // ⛔ The highest-stakes action in the hub: it ends a position and writes a permanent
+        // j2_trades row. ⛔ B3 — `run`, NOT `confirm`, and the gesture STILL WRITES NOTHING:
+        // `run` reaches `OpenPositionsTab`'s own `ClosePositionModal` (`journalSection.js:581`
+        // -> `OpenPositionsTab.jsx:208` -> `:586`), a six-field form whose write is gated behind
+        // `validate()` and its own primary (`ClosePositionModal.jsx:58-63,71,213`). That form is a
+        // STRONGER confirmation surface than a yes/no sheet, so the hub sheet in front of it was
+        // a tap, not a safeguard.
+        // ⛔⛔ flickable:false STAYS, and it is not decoration: `useJoystick.js:396` gates on
+        // `flickable !== false` with NO kind check, so it is live on a `run` action exactly as it
+        // was on a `confirm` one. A flick in this direction OPENS THE FAN instead of firing.
         id: 'journal.close',
         label: 'Close',
         icon: 'x',
         ring: 0,
         color: '--ut-red',
-        kind: 'confirm',
+        kind: 'run',
+        escalate: true,
         flickable: false,
         requires: ['position'],
-        confirmText: (ctx) => `Close ${ctx?.selectedPosition?.symbol ?? ''}`.trim(),
       },
       {
         id: 'journal.addTrade',
@@ -504,8 +542,14 @@ export const modesById = Object.fromEntries(modes.map((m) => [m.id, m]));
  * is readable at a glance rather than inferred from a boolean plus a comment.
  */
 export const PREVIEW_MODES = new Set([
-  'wire', 'breadth', 'scan', 'chart', 'journal', 'catalysts', 'notebook', 'calendar',
-  'home', 'flow',
+  // ⭐ INCREMENT 2 FLIPPED FOUR TOGETHER: wire, breadth, scan, journal. Together, and not one at a
+  // time, because their fans share actions (Chart it, Flag, Plan trade) and half-finished siblings
+  // would put a bubble in front of an admin that works on one section and dies on the next.
+  //
+  // ⛔ THE REMAINING SIX STAY, and each still returns [Voice, Home] until its own increment.
+  // A mode removed from this set gets its FULL fan the same render — which is how `calendar`
+  // shipped a five-action fan into a navigation-only preview on the first attempt.
+  'chart', 'catalysts', 'notebook', 'calendar', 'home', 'flow',
 ]);
 
 /** True while ANY mode is still on its preview fan — for copy and rails, never for gating. */
@@ -673,13 +717,26 @@ export function validateRegistry(list = modes, opts = {}) {
       if (action.kind === 'confirm' && typeof action.confirmText !== 'function') {
         problems.push(`${action.id}: kind:'confirm' requires a confirmText(ctx) function`);
       }
+      // ⛔ B5 — THE OLD INVARIANT, KEPT AS A RULE INSTEAD OF LOST. Before B3, "escalate" and
+      // "kind:'confirm'" were the same set by accident of implementation, and B3 silently shrank
+      // the haptic set by three when it moved the Journal's writes to 'run'. A confirm sheet is
+      // by definition a surface asking the member to commit, so it always escalates.
+      // ⚠️ THE INVERSE IS DELIBERATELY ABSENT: `escalate` on a 'run' action is the POINT.
+      if (action.kind === 'confirm' && action.escalate !== true) {
+        problems.push(`${action.id}: kind:'confirm' requires escalate:true — a confirm always escalates`);
+      }
       if (action.kind === 'navigate' && !action.to) {
         problems.push(`${action.id}: kind:'navigate' requires a 'to'`);
       }
 
-      // flickable:false is a safety marker; it only means anything on an action that confirms.
-      if (action.flickable === false && action.kind !== 'confirm') {
-        problems.push(`${action.id}: flickable:false is only meaningful on kind:'confirm'`);
+      // flickable:false is a safety marker, and it means something on any action that FIRES:
+      // `useJoystick.js:396` gates on `flickable !== false` without looking at `kind`. It is
+      // therefore legal on 'confirm' and on 'run' (B3: journal.close is a flickable:false 'run'),
+      // and still rejected on 'navigate'/'home', where there is no write to guard.
+      if (action.flickable === false && !FLICK_GUARDABLE_KINDS.includes(action.kind)) {
+        problems.push(
+          `${action.id}: flickable:false is only meaningful on kind:'confirm' or kind:'run'`,
+        );
       }
 
       for (const req of action.requires ?? []) {

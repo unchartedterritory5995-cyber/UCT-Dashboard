@@ -2538,12 +2538,70 @@ def register_pattern_vision_jobs(scheduler):
     from api.services.pattern_vision import orchestrator as pv_orch
 
     def _run():
+        # ⛔ THE SLOT ROW IS WRITTEN IN A `finally`, ON PURPOSE. One bad ticker
+        # aborts this whole loop (the for-loop lives inside the try, and that
+        # behaviour is deliberately NOT changed here) -- so if the row were
+        # written at the end of the try, an aborted slot would record nothing
+        # and reproduce exactly the invisibility this table exists to remove.
+        # The aborting ticker is captured via `cur` rather than a per-ticker
+        # try/except, because catching per ticker would let the loop continue
+        # and silently change the abort semantics.
+        import time as _t
+        from api.services.pattern_vision import store as pv_store
+        started = _t.time()
+        slot_start = datetime.now(_ET).replace(
+            minute=0, second=0, microsecond=0).isoformat()
+        agg = {"judged": 0, "skipped": 0, "capped": 0, "render_failed": 0, "errored": 0}
+        problems, asofs, active_n, cur, err = [], [], 0, None, None
         try:
+            # ⛔ MUST run before the active-set fetch, not lazily inside the
+            # loop. init_db() otherwise only executes inside judge_ticker(), so
+            # an EMPTY active set never creates the tables, the `finally` below
+            # writes to a table that does not exist, and its own try/except
+            # correctly swallows that -- reproducing this instrument's blind
+            # spot for one of the four paths it exists to expose. Idempotent
+            # (CREATE TABLE IF NOT EXISTS), and reached only when the job is
+            # registered, which is already PATTERN_VISION_ENABLED-gated.
+            pv_store.init_db()
             cap = int(os.environ.get("PATTERN_VISION_MAX_PER_RUN", "150"))
-            for t in _resolve_active_set_for_patterns()[:cap]:
-                pv_orch.judge_ticker(t)
+            active = _resolve_active_set_for_patterns()[:cap]
+            active_n = len(active)
+            for t in active:
+                cur = t
+                r = pv_orch.judge_ticker(t) or {}
+                agg["judged"] += r.get("judged", 0)
+                agg["skipped"] += r.get("skipped", 0)
+                agg["capped"] += 1 if r.get("cost_capped") else 0
+                agg["render_failed"] += r.get("render_failed", 0)
+                agg["errored"] += r.get("errored", 0)
+                problems.extend(r.get("problems") or [])
+                asofs.extend(r.get("asof_dates") or [])
+            cur = None
         except Exception as e:
+            err = e
             print(f"[scheduler] pattern_vision job error: {e}")
+        finally:
+            try:
+                fin = _t.time()
+                uniq = sorted({a for a in asofs if a})
+                paid, spend = pv_store.slot_spend(int(started), int(fin) + 1)
+                pv_store.log_slot({
+                    "slot_start": slot_start, "source": "cron",
+                    "started_ts": int(started), "finished_ts": int(fin),
+                    "duration_s": round(fin - started, 2),
+                    "evidence_min": uniq[0] if uniq else None,
+                    "evidence_max": uniq[-1] if uniq else None,
+                    "evidence_distinct": len(uniq),
+                    "active_set_n": active_n, "judged": agg["judged"],
+                    "skipped": agg["skipped"], "capped": agg["capped"],
+                    "render_failed": agg["render_failed"], "errored": agg["errored"],
+                    "aborted": 1 if err is not None else 0,
+                    "abort_ticker": cur if err is not None else None,
+                    "paid_calls": paid, "spend_usd": spend,
+                }, problems)
+            except Exception as le:
+                # Must never replace the real failure with a logging failure.
+                print(f"[scheduler] pattern_vision slot-log failed: {le}")
 
     # Cost tightening: only judge during regular market hours on weekdays
     # (was hourly, 24x/day → most runs happened overnight/weekends when charts

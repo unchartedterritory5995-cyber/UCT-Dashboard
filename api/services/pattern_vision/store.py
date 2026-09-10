@@ -3,6 +3,7 @@
 Own DB (`/data/pattern_vision.db`) so the existing pattern_detections store is
 untouched. Stores one verdict per (ticker, tf, setup, asof_date) + a cost log.
 """
+import datetime
 import json
 import os
 import sqlite3
@@ -68,6 +69,36 @@ def init_db() -> None:
             setup TEXT, ticker TEXT, asof_date TEXT, png BLOB,
             note TEXT, drawings_json TEXT, by_user TEXT, created_at INTEGER)""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_pe_setup ON pattern_exemplars(setup)")
+        # -- Slot observability -------------------------------------------
+        # One row per judge invocation, written UNCONDITIONALLY at the end of
+        # the run including the abort path. Before this existed, four paths
+        # wrote nothing at all -- skip-if-stable, the cost cap, a chart-render
+        # failure (which logs NOTHING), and a judge exception (stdout only) --
+        # so "the 16:00 slot produced no rows" was unresolvable between
+        # all-skipped, all-failed and an empty active set, and could only be
+        # chased through a log buffer that holds ~10 minutes.
+        # ⛔ slot_start is deliberately NOT UNIQUE. A unique constraint would
+        # make a second run for the same slot FAIL its insert and disappear --
+        # re-creating the invisibility this table exists to remove. Two rows
+        # with one slot_start is the detection.
+        c.execute("""CREATE TABLE IF NOT EXISTS vision_slot_log (
+            slot_start TEXT, source TEXT, started_ts INTEGER, finished_ts INTEGER,
+            duration_s REAL,
+            evidence_min TEXT, evidence_max TEXT, evidence_distinct INTEGER,
+            active_set_n INTEGER, judged INTEGER, skipped INTEGER, capped INTEGER,
+            render_failed INTEGER, errored INTEGER,
+            aborted INTEGER, abort_ticker TEXT,
+            paid_calls INTEGER, spend_usd REAL)""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_vsl_slot ON vision_slot_log(slot_start)")
+        # Per-ticker detail for the two paths that are otherwise invisible.
+        # Bounded on purpose: only render_failed and errored rows land here, so
+        # a healthy slot writes none. asof_date is recorded per ticker because
+        # _evidence_bar() runs per ticker -- ingestion lag can be PARTIAL, and a
+        # single per-slot evidence date would hide that.
+        c.execute("""CREATE TABLE IF NOT EXISTS vision_slot_ticker (
+            slot_start TEXT, source TEXT, ticker TEXT, tf TEXT, setup TEXT,
+            asof_date TEXT, path TEXT, message TEXT, logged_at INTEGER)""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_vst_slot ON vision_slot_ticker(slot_start)")
         c.commit()
 
 
@@ -99,10 +130,60 @@ def get_verdict(ticker, tf, setup, asof_date) -> dict | None:
         return _decode(r) if r else None
 
 
-def get_confirmed(ticker, tf="D") -> list[dict]:
+#: How many CALENDAR days of evidence age `get_confirmed` will serve.
+#: Calendar days, not trading sessions, deliberately: the exchange calendar
+#: lives in three separate runtime-local tables (`bars_fetch.py`,
+#: `market_calendar.py`, `liveflow_monitor.py`) and the Seam 7 adjudication
+#: ruled against adding a fourth consumer for precision this bound does not
+#: need. 7 covers a weekend plus a holiday plus a day of bars-ingestion lag.
+#: An exceptional multi-day exchange closure empties the window and serves
+#: NOTHING rather than something stale -- that is the safe direction.
+CONFIRMED_MAX_AGE_DAYS = 7
+
+
+def confirmed_window_floor(today: str | None = None) -> str:
+    """Oldest `asof_date` `get_confirmed` will serve, INCLUSIVE."""
+    d = datetime.date.fromisoformat(today) if today else datetime.date.today()
+    return (d - datetime.timedelta(days=CONFIRMED_MAX_AGE_DAYS)).isoformat()
+
+
+def get_confirmed(ticker, tf="D", today: str | None = None) -> list[dict]:
+    """Confirmed verdicts a consumer may narrate as the CURRENT technical read.
+
+    ⛔ THIS IS NOT "every row with confirmed=1", and the order of the two rules
+    below is load-bearing:
+
+    1. **Latest evidence bar per setup FIRST, confirmed filter second.** A key
+       confirmed on an older bar and REJECTED on a newer one must not be
+       served. Filtering `confirmed=1` first returns the stale confirm and the
+       consumer narrates it as present-tense -- the exact defect this function
+       had, and the same trust-boundary class already adjudicated as Seam
+       23/28. The correlated subquery picks the newest `asof_date` per
+       (ticker, tf, setup); the filter then applies to THAT row only.
+    2. **Recency bound second.** A candidate that stops being detected writes
+       no new row, so nothing else ever retires its last confirm -- without
+       this bound a June verdict is still served today. `judged_at` is NOT
+       usable for this: it records when the judge ran, not which bar it
+       judged, and the two diverge whenever bars ingestion lags.
+
+    `asof_date` is TEXT 'YYYY-MM-DD', so lexicographic MAX() is chronological
+    and `>=` is a valid date comparison. The subquery rides the table's own
+    PRIMARY KEY (ticker, tf, setup, asof_date) autoindex -- no new index.
+
+    `today` is injectable for tests only; production passes nothing.
+    """
+    floor = confirmed_window_floor(today)
     with connect() as c:
-        rows = c.execute("SELECT * FROM pattern_verdicts WHERE ticker=? AND tf=? AND confirmed=1 "
-                         "ORDER BY judged_at DESC", (ticker.upper(), tf)).fetchall()
+        rows = c.execute(
+            "SELECT * FROM pattern_verdicts v "
+            "WHERE v.ticker=? AND v.tf=? "
+            "  AND v.asof_date = (SELECT MAX(v2.asof_date) FROM pattern_verdicts v2 "
+            "                     WHERE v2.ticker=v.ticker AND v2.tf=v.tf "
+            "                       AND v2.setup=v.setup) "
+            "  AND v.confirmed=1 "
+            "  AND v.asof_date >= ? "
+            "ORDER BY v.asof_date DESC, v.setup",
+            (ticker.upper(), tf, floor)).fetchall()
         return [_decode(r) for r in rows]
 
 
@@ -118,6 +199,50 @@ def log_cost(day, ticker, model, in_tok, out_tok, cost_usd) -> None:
         c.execute("INSERT INTO vision_cost_log (day,ticker,model,in_tok,out_tok,cost_usd,logged_at) "
                   "VALUES (?,?,?,?,?,?,?)",
                   (day, ticker, model, in_tok, out_tok, cost_usd, int(time.time())))
+        c.commit()
+
+
+def slot_spend(from_ts: int, to_ts: int) -> tuple:
+    """(paid_calls, spend_usd) from the append-only cost log in a time window.
+
+    Counted from `vision_cost_log` rather than from the judge's own return
+    value because a cost row is committed BEFORE the verdict row: on the abort
+    path a call can be paid for and never counted as judged. The cost log
+    cannot lose it.
+    """
+    with connect() as c:
+        r = c.execute("SELECT COUNT(*), COALESCE(SUM(cost_usd),0) FROM vision_cost_log "
+                      "WHERE logged_at >= ? AND logged_at <= ?", (from_ts, to_ts)).fetchone()
+        return int(r[0] or 0), round(float(r[1] or 0.0), 6)
+
+
+SLOT_COLUMNS = [
+    "slot_start", "source", "started_ts", "finished_ts", "duration_s",
+    "evidence_min", "evidence_max", "evidence_distinct", "active_set_n",
+    "judged", "skipped", "capped", "render_failed", "errored",
+    "aborted", "abort_ticker", "paid_calls", "spend_usd",
+]
+
+
+def log_slot(row: dict, problems: list | None = None) -> None:
+    """Append one slot row (+ any per-ticker problem rows).
+
+    ⛔ CALLERS MUST INVOKE THIS FROM A `finally`, AND WRAP IT so a failure here
+    can never mask the exception that aborted the slot. The whole point is that
+    the row lands on the abort path; if this raised, it would replace the
+    original error with a logging error and lose both.
+    """
+    ph = ", ".join("?" for _ in SLOT_COLUMNS)
+    with _WRITE_LOCK, connect() as c:
+        c.execute(f"INSERT INTO vision_slot_log ({', '.join(SLOT_COLUMNS)}) VALUES ({ph})",
+                  [row.get(k) for k in SLOT_COLUMNS])
+        for p in (problems or []):
+            c.execute("INSERT INTO vision_slot_ticker "
+                      "(slot_start,source,ticker,tf,setup,asof_date,path,message,logged_at) "
+                      "VALUES (?,?,?,?,?,?,?,?,?)",
+                      (row.get("slot_start"), row.get("source"), p.get("ticker"), p.get("tf"),
+                       p.get("setup"), p.get("asof_date"), p.get("path"),
+                       str(p.get("message"))[:500], int(time.time())))
         c.commit()
 
 

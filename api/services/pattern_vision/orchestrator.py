@@ -138,10 +138,17 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
     day = datetime.date.today().isoformat()
-    out = {"judged": 0, "confirmed": 0, "skipped": 0, "cost_capped": False}
+    # `render_failed`, `errored`, `problems` and `asof_dates` exist so the slot
+    # logger can testify about paths that otherwise write nothing anywhere:
+    # a failed chart render logs NOTHING at all, and a judge exception reaches
+    # only stdout. `asof_dates` is collected per ticker because _evidence_bar()
+    # is per ticker -- bars-ingestion lag can be partial within one slot.
+    out = {"judged": 0, "confirmed": 0, "skipped": 0, "cost_capped": False,
+           "render_failed": 0, "errored": 0, "problems": [], "asof_dates": []}
     bars = _read_bars(ticker, tf)
     for cand in candidates_for(ticker, tf):
         setup = cand["setup"]
+        out["asof_dates"].append(cand["asof_date"])
         sig = _signals_hash(ticker, setup, bars)
         if not force:
             prev = store.get_verdict(ticker, tf, setup, cand["asof_date"])
@@ -154,6 +161,11 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
         key_level = cand.get("key_level")
         png = chart_render.render_chart(bars, window=_window_for(setup), key_level=key_level)
         if not png:
+            # Previously the ONLY completely unlogged path in the loop.
+            out["render_failed"] += 1
+            out["problems"].append({"ticker": ticker, "tf": tf, "setup": setup,
+                                    "asof_date": cand["asof_date"], "path": "render_failed",
+                                    "message": "chart_render returned no png"})
             continue
         try:
             examples = _example_pngs(setup)
@@ -161,6 +173,10 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
                                    key_level=key_level, example_pngs=examples)
         except Exception as e:
             log.warning("[pv] judge %s/%s failed: %s", ticker, setup, e)
+            out["errored"] += 1
+            out["problems"].append({"ticker": ticker, "tf": tf, "setup": setup,
+                                    "asof_date": cand["asof_date"], "path": "errored",
+                                    "message": repr(e)})
             continue
         u = v.get("usage", {})
         model = v.get("model", "claude-opus-4-8")

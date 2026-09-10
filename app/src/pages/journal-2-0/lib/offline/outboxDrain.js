@@ -16,6 +16,7 @@
  * tidy queue.
  */
 import { getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import { usableBaseline, isUsableBaseline } from './baseline'
 import { sameAuthoredContent } from './recoverLocalState'
 
 export const SENT = 'sent'
@@ -23,6 +24,12 @@ export const FORKED = 'forked'
 export const KEPT = 'kept'          // transient — still queued, will be retried
 export const BLOCKED = 'blocked'    // permanent — still stored, no longer retried
 export const SKIPPED = 'skipped'    // the open editor owns this note right now
+
+/** Why a BLOCKED result carries a `report`. ⛔ The ONLY reason that does — the
+ *  other two blocks (already-`permanent`, a non-transient server rejection) are
+ *  understood failures with a `lastError` a human can read. This one is the
+ *  unexplained defect the observation window is watching for. */
+export const NO_BASELINE = 'no-baseline'
 
 const isTransient = (e) => !e?.status || e.status >= 500
 
@@ -34,7 +41,7 @@ const isTransient = (e) => !e?.status || e.status >= 500
 async function settleSent(db, entry, saved) {
   const rec = await getNote(db, entry.noteId)
   const caughtUp = !rec || sameAuthoredContent(rec, entry.patch)
-  const baseUpdatedAt = saved?.updatedAt ?? entry.baseUpdatedAt ?? null
+  const baseUpdatedAt = usableBaseline(saved?.updatedAt, entry.baseUpdatedAt)
   const next = {
     noteId: entry.noteId,
     title: entry.patch?.title ?? '',
@@ -68,7 +75,7 @@ async function settleForked(db, entry, serverNote) {
     title: serverNote?.title ?? '',
     subtitle: serverNote?.subtitle ?? '',
     bodyJson: serverNote?.bodyJson ?? null,
-    baseUpdatedAt: serverNote?.updatedAt ?? null,
+    baseUpdatedAt: usableBaseline(serverNote?.updatedAt),
     generation: 0,
     sessionId: null,
     localSavedAt: Date.now(),
@@ -83,7 +90,7 @@ async function settleBlocked(db, entry, error) {
     title: entry.patch?.title ?? '',
     subtitle: entry.patch?.subtitle ?? '',
     bodyJson: entry.patch?.bodyJson ?? null,
-    baseUpdatedAt: entry.baseUpdatedAt ?? null,
+    baseUpdatedAt: usableBaseline(entry.baseUpdatedAt),
     dirty: 1,
   }, {
     ...entry,
@@ -114,6 +121,52 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
     }
     if (entry.permanent) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+      continue
+    }
+    // ⛔⛔ A WRITE THAT CANNOT PROVE IT IS NOT CLOBBERING IS NEVER SENT.
+    //
+    // `baseUpdatedAt` IS the compare-and-set, and `sendNoteUpdate` omits the
+    // field when it is falsy — so a queued entry with no baseline would go out
+    // as a PUT with no CAS at all, and the server would apply it over whatever
+    // is there. Every `note-update` targets a note that already has a server
+    // revision, so there is no legitimate baseline-less entry to protect.
+    //
+    // ⛔ Blocked, not deleted, and not retried: the same posture as `permanent`.
+    // The member's words stay on disk and stay visible; what stops is the one
+    // action that could destroy someone else's. This is DEFENCE IN DEPTH — the
+    // path that produced such an entry is fixed at its source in
+    // `NoteEditorPage`'s `hydratedRef` — and it is here because the next
+    // unforeseen path must fail this way too.
+    if (!isUsableBaseline(entry.baseUpdatedAt)) {
+      // ⭐ INSTRUMENTED, NOT HUNTED. Nine driven paths failed to reproduce this;
+      // the production population is the only remaining witness. The DECISION is
+      // made here, so the description of it is built here — a caller that
+      // re-tested the baseline to decide whether to report would be a second
+      // authority over one value and would disagree the day a third block
+      // reason lands. The transport lives in the hook: this module has no
+      // network and must not grow one.
+      //
+      // ⛔ It cannot double-report. An entry that is already `permanent` takes
+      // the branch above and never reaches here, so `report` marks the
+      // TRANSITION into blocked-for-no-baseline, exactly once per occurrence.
+      // eslint-disable-next-line no-await-in-loop
+      const rec = await getNote(db, entry.noteId)
+      // eslint-disable-next-line no-await-in-loop
+      await settleBlocked(db, entry, new Error('queued without a baseline — refusing to send a write with no compare-and-set'))
+      results.push({
+        mutationId: entry.mutationId,
+        noteId: entry.noteId,
+        outcome: BLOCKED,
+        report: {
+          reason: NO_BASELINE,
+          noteId: entry.noteId,
+          baseUpdatedAt: entry.baseUpdatedAt,
+          generation: entry.generation ?? rec?.generation ?? null,
+          sessionId: rec?.sessionId ?? entry.sessionId ?? null,
+          queuedAt: entry.queuedAt ?? null,
+          attempts: entry.attempts ?? 0,
+        },
+      })
       continue
     }
     try {

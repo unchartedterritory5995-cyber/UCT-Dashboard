@@ -19,6 +19,8 @@
  * back to timestamps and say so, rather than pretending the comparison is exact.
  */
 
+import { usableBaseline } from './baseline'
+
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
   // ⛔ `crypto.randomUUID` is SECURE-CONTEXT ONLY — this repo has already been
@@ -60,14 +62,14 @@ export const sameAuthoredContent = (a, b) =>
  */
 export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null } = {}) {
   const serverState = authored(server)
-  const serverBase = server?.updatedAt ?? null
+  const serverBase = usableBaseline(server?.updatedAt)
 
   const candidates = []
   if (idbRecord) {
     candidates.push({
       source: 'idb',
       state: authored(idbRecord),
-      baseUpdatedAt: idbRecord.baseUpdatedAt ?? serverBase,
+      baseUpdatedAt: usableBaseline(idbRecord.baseUpdatedAt, serverBase),
       generation: Number.isFinite(idbRecord.generation) ? idbRecord.generation : null,
       sessionId: idbRecord.sessionId ?? null,
       at: Number.isFinite(idbRecord.localSavedAt) ? idbRecord.localSavedAt : null,
@@ -79,7 +81,7 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
       state: authored(lsDraft),
       // ⛔ A legacy draft has no base of its own. It belongs to whatever the
       // server said when it was written, and the server is what we have now.
-      baseUpdatedAt: lsDraft.baseUpdatedAt ?? serverBase,
+      baseUpdatedAt: usableBaseline(lsDraft.baseUpdatedAt, serverBase),
       generation: Number.isFinite(lsDraft.generation) ? lsDraft.generation : null,
       sessionId: lsDraft.sessionId ?? null,
       at: Number.isFinite(lsDraft.savedAt) ? lsDraft.savedAt : null,

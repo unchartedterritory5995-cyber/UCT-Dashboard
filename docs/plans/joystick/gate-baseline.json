@@ -1,0 +1,67 @@
+{
+  "measured_at": "2026-09-09 (re-corroborated after rebase onto f58383e69)",
+  "sha": "fee08cf77bda2a9714f851ec0bb5d0ef6660491d",
+  "how": "Extracted by scripts/gate_shards.py::parse_failures from the six shard logs of the 2026-09-09 six-shard run at 0ffe68a14 (1181 files). That run predates the committed wrapper and is NOT of record for a pass/fail verdict, but its logs are a faithful capture.",
+  "provenance_caveat": "⭐ CORROBORATED TWICE, at two different merge-bases. Originally seeded from a run on the branch; corroborated at 78ac8016b, then RE-corroborated at f58383e69 after the rebase. At the new base the two sets are IDENTICAL: master introduced no failure this baseline lacks, and after removing the one entry master FIXED (see removed_because_master_fixed_it, attributed to 4fef130d9) no baseline entry is absent at the base. Nothing here is the hub's. ⛔ If either of the two load-sensitive names recorded under prior_base appears as NEW in a future run, re-run it ALONE before treating it as a regression.",
+  "files": [
+    "src/__tests__/sourcesAreText.test.js",
+    "src/components/chart/builder/ImportBox.thinkscript.test.jsx",
+    "src/components/chart/engine/ast/manifestProse.test.js",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js",
+    "src/components/screener/reachable.test.js",
+    "src/hooks/pollingSites.rail.test.js",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx",
+    "src/styles/tapFloor.test.js"
+  ],
+  "failures": [
+    "src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT > contains no NUL or other C0 control byte",
+    "src/components/chart/builder/ImportBox.thinkscript.test.jsx > 🔴 the offered call can be ACCEPTED from the box > ⛔⛔ it DECLINES while the box is one keystroke behind",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > ⛔⛔ every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > ⭐⭐ an offer a member can TAKE, not retype > ⏳ the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "corroborated_at_merge_base": {
+    "f58383e69_and_earlier": {
+      "base_sha": "f58383e69fc50bf9ab71689739734dae09f907ea",
+      "measured": "2026-09-09",
+      "how": "Full six-shard run in a detached worktree at the merge-base after the branch was rebased onto master, using the SAME fixed _capture/parse_failures code. Base: 1175 test files, 8 files / 9 tests failing.",
+      "result": "ZERO failures at the base are absent from this baseline (master introduced none), and after the removal below ZERO baseline entries are absent at the base. The two sets are now identical, so nothing in this baseline is hub-introduced.",
+      "removed_because_master_fixed_it": [
+        {
+          "entry": "src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx > ⛔ the one-line rollback — OFF still means inert > ⭐ and the same keystroke DOES reach the store by DEFAULT",
+          "attributed_to": "4fef130d9",
+          "attribution_basis": "The ONLY master commit between the old base (78ac8016b) and the new one (f58383e69) that touches this test file: 'Wave Q1: the canary's trigger is a measurement, and the write is gated'. Verified an ancestor of f58383e69, and the file passes ALONE at the new base (15/15), so this is a real fix and not a shard-boundary shift."
+        }
+      ],
+      "prior_base": {
+        "base_sha": "78ac8016bd5572e74e778217d581f7b44e9e0fd3",
+        "note": "Measured 11 files / 12 tests. Two base-only failures there — flowSearchProduct and sharedScreen.route — passed in isolation and were correctly NOT banked; neither fails at the new base either."
+      }
+    },
+    "7ed6b2ce5": "7ed6b2ce5 (2026-09-10): validated INDIRECTLY, not re-measured. The branch was rebased onto this base and the gate at the rebased HEAD returned no_longer_failing = 0 against these nine names, over a population that grew 1188 -> 1190 -> 1191 as master added test files. The single NEW name was a load-sensitive settle timeout (see load_sensitive) and is not banked. The base measurement was deliberately NOT run: the base tree has 32 fewer test files than the branch, so its shards slice differently and it could not have classified a shard-composition failure either way."
+  },
+  "load_sensitive": {
+    "instruction": "⛔ RE-RUN ALONE BEFORE CLASSIFYING. These names have failed a full sharded run and passed in isolation. A timeout is never banked as permitted breakage — banking one leaves a slot in this baseline that a real failure can occupy unnoticed. None of these is a baseline entry.",
+    "names": [
+      {
+        "name": "flowSearchProduct",
+        "seen": "base 78ac8016b",
+        "evidence": "passed in isolation; not banked; does not fail at f58383e69 either"
+      },
+      {
+        "name": "sharedScreen.route",
+        "seen": "base 78ac8016b",
+        "evidence": "passed in isolation; not banked; does not fail at f58383e69 either"
+      },
+      {
+        "name": "src/pages/desk/ArticlesSection.native.test.jsx > clearing the query brings the full archive back",
+        "seen": "branch gate at 6891ac335, base 7ed6b2ce5, population 1191",
+        "evidence": "passes alone 12/12, that test 535 ms and the file 1661 ms, against 5426 ms in-shard; failure is a Testing Library async settle timeout (\"Unable to find an element with the text: The Rest of the Week — March 31, 2026\"), not a wrong assertion; branch and master's three new commits touch zero desk/ files; last modified c6f163b54 (2026-08-19) and f30842782 (2026-08-24); absent from all four prior manifests at 1188 and 1190; shard 3 resliced 198 -> 199 by master's offlineOptInEvent.test.jsx"
+      }
+    ]
+  }
+}

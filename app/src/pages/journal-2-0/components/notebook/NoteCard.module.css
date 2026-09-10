@@ -57,6 +57,21 @@
   font-family: var(--font-mono);
   letter-spacing: 0.5px;
 }
+/* Wave Q1 — "this note is holding words the server does not have".
+   ⛔ Tokens, never literals, and only tokens that EXIST: an undefined custom
+   property is a silent no-op, so the badge would render unstyled and nobody
+   would notice (`lesson_an_undefined_css_var_is_a_silent_no_op`).
+   `--color-warning` is declared in tokens.css. It is a HOLD, not a failure —
+   warning, never danger. */
+.unsynced {
+  color: var(--color-warning);
+  background: rgba(234, 179, 8, 0.10);
+  border: 1px solid rgba(234, 179, 8, 0.22);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  white-space: nowrap;
+}
 .tag {
   color: var(--info);
   background: rgba(147, 197, 253, 0.08);

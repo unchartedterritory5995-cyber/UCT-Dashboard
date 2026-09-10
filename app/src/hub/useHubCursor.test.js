@@ -46,7 +46,7 @@ const positions = (n) => Array.from({ length: n }, (_, i) => ({ id: `pos-${i}`, 
 describe('useHubCursor', () => {
   // ── Requirement 6: an empty list is inert ────────────────────────────────
   it('is inert on an empty list: count 0, item undefined, next/prev/scrubTo are no-ops', () => {
-    const { result } = renderHook(() => useHubCursor('empty', []));
+    const { result } = renderHook(() => useHubCursor('empty', [], { key: (r, i) => (r && r.id != null ? r.id : i) }));
     expect(result.current.count).toBe(0);
     expect(result.current.item).toBeUndefined();
     expect(result.current.index).toBe(-1);
@@ -61,14 +61,14 @@ describe('useHubCursor', () => {
   });
 
   it('is inert when items is omitted entirely (no throw on undefined)', () => {
-    const { result } = renderHook(() => useHubCursor('omitted'));
+    const { result } = renderHook(() => useHubCursor('omitted', undefined, { key: (r, i) => (r && r.id != null ? r.id : i) }));
     expect(result.current.count).toBe(0);
     expect(result.current.item).toBeUndefined();
   });
 
   // ── Basic identity + navigation on a stable list ─────────────────────────
   it('starts at index 0 on a fresh listId', () => {
-    const { result } = renderHook(() => useHubCursor('scan', positions(5)));
+    const { result } = renderHook(() => useHubCursor('scan', positions(5), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     expect(result.current.index).toBe(0);
     expect(result.current.count).toBe(5);
     expect(result.current.item.id).toBe('pos-0');
@@ -76,7 +76,7 @@ describe('useHubCursor', () => {
 
   // ── Requirement 3: next/prev move by one and CLAMP, never wrap ───────────
   it('next() advances by one and clamps at the last item (never wraps)', () => {
-    const { result } = renderHook(() => useHubCursor('journal', positions(3)));
+    const { result } = renderHook(() => useHubCursor('journal', positions(3), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => result.current.next());
     expect(result.current.index).toBe(1);
     act(() => result.current.next());
@@ -87,7 +87,7 @@ describe('useHubCursor', () => {
   });
 
   it('prev() retreats by one and clamps at the first item (never wraps)', () => {
-    const { result } = renderHook(() => useHubCursor('journal', positions(3)));
+    const { result } = renderHook(() => useHubCursor('journal', positions(3), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => result.current.prev()); // already at the start
     expect(result.current.index).toBe(0); // clamped, not wrapped to the end
     act(() => {
@@ -101,7 +101,7 @@ describe('useHubCursor', () => {
 
   // ── Requirement 4: scrubTo(delta) — normalized position, clamps at both ends ──
   it('scrubTo maps a normalized delta to an absolute position in the list', () => {
-    const { result } = renderHook(() => useHubCursor('scrub-list', positions(11))); // indices 0..10
+    const { result } = renderHook(() => useHubCursor('scrub-list', positions(11), { key: (r, i) => (r && r.id != null ? r.id : i) })); // indices 0..10
     act(() => result.current.scrubTo(0));
     expect(result.current.index).toBe(0);
     act(() => result.current.scrubTo(1));
@@ -111,7 +111,7 @@ describe('useHubCursor', () => {
   });
 
   it('scrubTo clamps deltas outside [0, 1] at both ends instead of throwing', () => {
-    const { result } = renderHook(() => useHubCursor('scrub-clamp', positions(5)));
+    const { result } = renderHook(() => useHubCursor('scrub-clamp', positions(5), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => result.current.scrubTo(-2));
     expect(result.current.index).toBe(0);
     act(() => result.current.scrubTo(50));
@@ -122,7 +122,7 @@ describe('useHubCursor', () => {
   it('does NOT reset when a poll hands back a new array wrapping the same rows (by key)', () => {
     const listId = 'poll-journal';
     const { result, rerender } = renderHook(
-      ({ items }) => useHubCursor(listId, items),
+      ({ items }) => useHubCursor(listId, items, { key: (r, i) => (r && r.id != null ? r.id : i) }),
       { initialProps: { items: positions(4) } },
     );
     act(() => result.current.next());
@@ -140,7 +140,7 @@ describe('useHubCursor', () => {
   it('DOES reset to 0 when the list is a genuinely different list (keys change)', () => {
     const listId = 'scan-switch';
     const { result, rerender } = renderHook(
-      ({ items }) => useHubCursor(listId, items),
+      ({ items }) => useHubCursor(listId, items, { key: (r, i) => (r && r.id != null ? r.id : i) }),
       { initialProps: { items: positions(5) } },
     );
     act(() => result.current.next());
@@ -160,13 +160,13 @@ describe('useHubCursor', () => {
     expect(result.current.item.symbol).toBe('AAA');
   });
 
-  it('resets to 0 when the list reorders (order is part of identity)', () => {
+  it('⭐ FOLLOWS the selected item when the list REORDERS (owner ruling, 2026-09-09)', () => {
     const listId = 'reorder-list';
     const a = { id: 'a', symbol: 'AAA' };
     const b = { id: 'b', symbol: 'BBB' };
     const c = { id: 'c', symbol: 'CCC' };
     const { result, rerender } = renderHook(
-      ({ items }) => useHubCursor(listId, items),
+      ({ items }) => useHubCursor(listId, items, { key: (r, i) => (r && r.id != null ? r.id : i) }),
       { initialProps: { items: [a, b, c] } },
     );
     act(() => result.current.next());
@@ -174,15 +174,46 @@ describe('useHubCursor', () => {
     expect(result.current.item.id).toBe('b');
 
     rerender({ items: [c, b, a] }); // same members, different order
+
+    // ⚰️ THIS USED TO ASSERT `index === 0` — "order is part of identity". Right for a genuinely
+    // different list, wrong for a re-SORT: the Screener re-sorts live on every price tick, so the
+    // old rule sent the member home to row 0 several times a minute while the row they had
+    // selected was still on screen, just moved. The cursor now follows the KEY.
+    expect(result.current.item.id, 'the cursor abandoned the row the member selected').toBe('b');
+    expect(result.current.index, 'the index did not follow the item to its new position').toBe(1);
+  });
+
+  it('⛔ a re-fetch of the SAME LENGTH but different keys still resets to 0', () => {
+    // The half that follow-the-item must not weaken. A re-scan returning three different rows is a
+    // different list; holding the index would point at a symbol the member never selected.
+    const listId = 'refetch-same-length';
+    const { result, rerender } = renderHook(
+      ({ items }) => useHubCursor(listId, items, { key: (r, i) => (r && r.id != null ? r.id : i) }),
+      { initialProps: { items: [{ id: 'AAA' }, { id: 'BBB' }, { id: 'CCC' }] } },
+    );
+    act(() => result.current.next());
+    expect(result.current.item.id).toBe('BBB');
+
+    rerender({ items: [{ id: 'XXX' }, { id: 'YYY' }, { id: 'ZZZ' }] });
+
     expect(result.current.index).toBe(0);
-    expect(result.current.item.id).toBe('c');
+    expect(result.current.item.id).toBe('XXX');
+  });
+
+  it('⛔ registering a list WITHOUT an explicit key throws, and names the likely field', () => {
+    // There is no positional fallback any more: it made a re-fetch of the same length read as the
+    // same list. The probe order survives only as the hint in this message.
+    expect(() => renderHook(() => useHubCursor('unkeyed', [{ ticker: 'NVDA' }])))
+      .toThrow(/requires an explicit opts\.key/);
+    expect(() => renderHook(() => useHubCursor('unkeyed2', [{ ticker: 'NVDA' }])))
+      .toThrow(/ticker/);
   });
 
   // ── Requirement 7: a list that shrinks under the cursor clamps, never throws ──
   it('clamps rather than throwing when the list shrinks under the cursor', () => {
     const listId = 'shrink-list';
     const { result, rerender } = renderHook(
-      ({ items }) => useHubCursor(listId, items),
+      ({ items }) => useHubCursor(listId, items, { key: (r, i) => (r && r.id != null ? r.id : i) }),
       { initialProps: { items: positions(5) } }, // pos-0..pos-4
     );
     act(() => {
@@ -202,7 +233,7 @@ describe('useHubCursor', () => {
   it('clamps down to inert (count 0, item undefined) when the list empties out entirely', () => {
     const listId = 'shrink-to-empty';
     const { result, rerender } = renderHook(
-      ({ items }) => useHubCursor(listId, items),
+      ({ items }) => useHubCursor(listId, items, { key: (r, i) => (r && r.id != null ? r.id : i) }),
       { initialProps: { items: positions(3) } },
     );
     act(() => result.current.next());
@@ -217,7 +248,7 @@ describe('useHubCursor', () => {
   // ── Requirement 2: persists across remount (module-level store keyed by listId) ──
   it('persists the index across an unmount + remount of the same listId (fan close/open)', () => {
     const listId = 'persist-list';
-    const first = renderHook(() => useHubCursor(listId, positions(5)));
+    const first = renderHook(() => useHubCursor(listId, positions(5), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => {
       first.result.current.next();
       first.result.current.next();
@@ -228,14 +259,14 @@ describe('useHubCursor', () => {
 
     // A brand-new render of the SAME listId, with the SAME underlying rows (same keys, same
     // order) — as if the fan closed and reopened. The index must survive.
-    const second = renderHook(() => useHubCursor(listId, positions(5)));
+    const second = renderHook(() => useHubCursor(listId, positions(5), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     expect(second.result.current.index).toBe(3);
     expect(second.result.current.item.id).toBe('pos-3');
   });
 
   it('keeps two different listIds fully independent', () => {
-    const a = renderHook(() => useHubCursor('mode-a', positions(5)));
-    const b = renderHook(() => useHubCursor('mode-b', positions(5)));
+    const a = renderHook(() => useHubCursor('mode-a', positions(5), { key: (r, i) => (r && r.id != null ? r.id : i) }));
+    const b = renderHook(() => useHubCursor('mode-b', positions(5), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => {
       a.result.current.next();
       a.result.current.next();
@@ -246,7 +277,7 @@ describe('useHubCursor', () => {
 
   // ── Requirement 5a: itemProps — the declarative path ─────────────────────
   it('itemProps(i) applies data-hub-cursor="active" only to the current row', () => {
-    const { result } = renderHook(() => useHubCursor('itemprops-list', positions(4)));
+    const { result } = renderHook(() => useHubCursor('itemprops-list', positions(4), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => result.current.next());
     expect(result.current.index).toBe(1);
 
@@ -263,7 +294,7 @@ describe('useHubCursor', () => {
       .join('');
     const nodes = wireSegments.map((key) => document.querySelector(`[data-seg="${key}"]`));
 
-    const { result } = renderHook(() => useHubCursor('wire', wireSegments));
+    const { result } = renderHook(() => useHubCursor('wire', wireSegments, { key: (r, i) => (r && r.id != null ? r.id : i) }));
     act(() => result.current.paintCursor(nodes));
     expect(nodes[0].getAttribute('data-hub-cursor')).toBe('active');
     expect(nodes[1].getAttribute('data-hub-cursor')).toBeNull();
@@ -281,7 +312,7 @@ describe('useHubCursor', () => {
   });
 
   it('paintCursor tolerates missing/null nodes without throwing', () => {
-    const { result } = renderHook(() => useHubCursor('wire-sparse', wireSegments));
+    const { result } = renderHook(() => useHubCursor('wire-sparse', wireSegments, { key: (r, i) => (r && r.id != null ? r.id : i) }));
     const sparse = [null, undefined, document.createElement('div')];
     expect(() => act(() => result.current.paintCursor(sparse))).not.toThrow();
   });
@@ -309,7 +340,7 @@ describe('useHubCursor', () => {
 
   // ── jsdom-safety control: nothing above depends on layout or measured geometry ──
   it('never reads layout/geometry APIs (jsdom lays nothing out)', () => {
-    const { result } = renderHook(() => useHubCursor('geometry-control', positions(3)));
+    const { result } = renderHook(() => useHubCursor('geometry-control', positions(3), { key: (r, i) => (r && r.id != null ? r.id : i) }));
     // A pure smoke assertion that the hook's public surface is plain data/functions, not anything
     // that would require getBoundingClientRect-shaped measurement to be meaningful under jsdom.
     expect(typeof result.current.next).toBe('function');

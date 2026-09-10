@@ -32,6 +32,7 @@ import {
 } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
 import { chooseLocalRecovery, newSessionId, sameAuthoredContent } from './recoverLocalState'
+import { usableBaseline, isUsableBaseline } from './baseline'
 
 /** No durable store here at all (a private window, an old browser). Reported,
  *  never papered over — the product degrades truthfully. */
@@ -135,7 +136,7 @@ export function useDurableNote({
         title: state?.title ?? '',
         subtitle: state?.subtitle ?? '',
         bodyJson: state?.bodyJson ?? null,
-        baseUpdatedAt: state?.baseUpdatedAt ?? null,
+        baseUpdatedAt: usableBaseline(state?.baseUpdatedAt),
         generation,
         sessionId: SESSION_ID,
         localSavedAt: Date.now(),
@@ -209,7 +210,7 @@ export function useDurableNote({
     const caughtUp = sameAuthoredContent(acked, current)
     const gen = w.schedule({
       ...current,
-      baseUpdatedAt: updatedAt ?? current?.baseUpdatedAt ?? null,
+      baseUpdatedAt: usableBaseline(updatedAt, current?.baseUpdatedAt),
       synced: caughtUp,
     })
     // Acceleration, not the mechanism: a stale intent left queued would be

@@ -11,6 +11,7 @@
  *   - fixed_percent_distance: entry × (1 − p/100) (Long) or × (1 + p/100) (Short)
  */
 
+import { prefillStop } from '../lib/disciplineGuards'
 import { useState, useCallback, useId, useEffect } from 'react'
 import styles from './ModalShell.module.css'
 import bannerStyles from './AlertBanner.module.css'
@@ -56,43 +57,6 @@ function positionChartWindow(entryDateIso) {
   }
 }
 
-function prefillStop({ side, sharesVal, entryVal, defaultStop, barLow, barHigh }) {
-  const shares = Number(sharesVal)
-  const entry = Number(entryVal)
-  if (!defaultStop || defaultStop.mode === 'custom') return ''
-  if (!Number.isFinite(entry) || entry <= 0) return ''
-
-  // Chart-right-click path: bar low/high available → compute immediately
-  // for bar_low_high mode. No shares needed.
-  if (defaultStop.mode === 'bar_low_high') {
-    const anchor = side === 'Long' ? Number(barLow) : Number(barHigh)
-    if (!Number.isFinite(anchor)) return ''  // manual entry — no bar context
-    const buffer = Number(defaultStop.buffer) || 0
-    const offset = defaultStop.bufferUnit === '%'
-      ? anchor * (buffer / 100)
-      : buffer
-    const raw = side === 'Long' ? anchor - offset : anchor + offset
-    return raw < 0 ? 0 : Math.round(raw * 100) / 100
-  }
-
-  if (defaultStop.mode === 'fixed_percent_distance') {
-    const p = Number(defaultStop.percent) || 0
-    if (p <= 0 || p >= 100) return ''
-    const raw = side === 'Long' ? entry * (1 - p / 100) : entry * (1 + p / 100)
-    return raw < 0 ? 0 : Math.round(raw * 100) / 100
-  }
-
-  // fixed_dollar_risk needs shares to distribute the $ risk across
-  if (defaultStop.mode === 'fixed_dollar_risk') {
-    if (!Number.isFinite(shares) || shares <= 0) return ''
-    const amt = Number(defaultStop.amount) || 0
-    if (amt <= 0) return ''
-    const raw = side === 'Long' ? entry - amt / shares : entry + amt / shares
-    return raw < 0 ? 0 : Math.round(raw * 100) / 100
-  }
-
-  return ''
-}
 
 export default function AddPositionModal({ settings, onSave, onClose, prefill, accountName }) {
   const titleId = useId()

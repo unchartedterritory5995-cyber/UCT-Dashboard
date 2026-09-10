@@ -1,18 +1,25 @@
 // app/src/hub/useHubCursor.js — the shared cursor: every list-bearing section registers its list
 // See docs/plans/joystick/00-master-spec-v1.3.md §2d
 //
-// ⛔ NOT MOUNTED YET — PHASE 1 SHIPS THIS UNWIRED, DELIBERATELY.
-// Today the only thing that imports this file is its own test (or another
-// equally unmounted hub module). It is reached from NO route. Phase 2 wires it:
-// `HubProvider` goes around `<main>` in `Layout.jsx`, and the section
-// integrators call `useHubMode` / `useHubCursor` from their pages.
+// ✅ WIRED IN PHASE 3 WAVE A (2026-09-09). This module is reached from real routes now:
+// `MorningWire.jsx` and `Breadth.jsx` register their sections through it, and the
+// `AWAITING_A_DECISION` entry that declared it unmounted has been deleted from
+// `components/screener/reachable.test.js` per its own stated removal condition.
+
+// ⭐ WHY A RE-SORT FOLLOWS THE SELECTED ITEM (owner ruling, 2026-09-09).
 //
-// It is recorded here rather than left to be discovered because this repo has
-// been bitten by the opposite: an agent read a green test file as the precedent
-// for its own work before noticing the page it tested reached no route. A test
-// is not a door. Until Phase 2, treat this module as a design, not a feature —
-// and if Phase 2 is cancelled, DELETE these files rather than leaving them
-// looking shipped.
+// `reconcile` below treats a changed identity two ways: if the previously-selected KEY is still
+// present the cursor follows it; only if the key is gone does it reset to 0. That asymmetry is not
+// a nicety — it is driven by one measured fact about the Screener:
+//
+//   `ScannerShell` lifts the live re-sort (`sortRowsLive`) ABOVE the renderers and passes
+//   `displayRows` to all three, so the rendered order changes on EVERY PRICE TICK while the
+//   member is looking at it.
+//
+// Under the old "any identity change resets to 0" rule that is a cursor sent home several times a
+// minute, while the row the member selected is still on screen — just moved. Meanwhile the case
+// the reset genuinely exists for (a re-scan returning different tickers) is still handled, because
+// there the old key is absent.
 
 import { useCallback, useLayoutEffect, useSyncExternalStore } from 'react';
 
@@ -74,38 +81,51 @@ function readIndex(listId) {
  */
 
 /**
- * Default key function. Handles the shapes actually in scope for §2d's six sections without
- * requiring every caller to pass `opts.key`:
- *  - Morning Wire's cursor list is the literal `rd-seg` key strings ('tape', 'macro', ...) — a
- *    bare string/number IS its own key.
- *  - Journal positions, Notebook notes carry `id`. Screener/Catalysts rows carry `sym`/`symbol`.
- *  - Calendar's day objects are expected to carry `date`.
- * Falls back to positional identity as a last resort so the hook stays inert (never throws) on an
- * unrecognized shape — but a caller whose items don't match one of the above SHOULD pass its own
- * `opts.key`, or a reorder-only change will read as "same identity" when it should not.
- * @type {HubCursorKeyFn}
+ * ⛔ THERE IS NO DEFAULT KEY ANY MORE, AND THAT IS THE POINT.
+ *
+ * This function used to probe `id` / `sym` / `symbol` / `date` / `key` and then fall back to
+ * POSITIONAL identity so the hook "stays inert (never throws) on an unrecognized shape". That
+ * fallback was not inert — it was silently wrong, and the 3.3a Screener scout caught it before
+ * it shipped:
+ *
+ *   No screener row carries `sym` or `symbol`. Its identity is `ticker` (`screener_rows` is
+ *   `ticker TEXT PRIMARY KEY`, forced first into every projection). So the probe fell through and
+ *   the list's identity became `__pos_0␁__pos_1␁…` — a string that changes ONLY when the LENGTH
+ *   changes. A re-scan returning a completely different 100 rows read as "the same list", and the
+ *   cursor held its index onto a symbol the member never selected. That is precisely the failure
+ *   `reconcile` below exists to prevent, defeated by its own default.
+ *
+ * ⚰️ The docstring made it worse by asserting the false half out loud — "Screener/Catalysts rows
+ * carry `sym`/`symbol`" — so the next reader would have gone to the same wrong place, confidently.
+ *
+ * A positional identity is NEVER correct for a re-fetched list, so there is nothing to fall back
+ * to: `opts.key` is REQUIRED (owner ruling, 2026-09-09). The probe order survives only as a
+ * dev-time HINT in the error message, which is the one thing it was ever good for.
+ *
+ * @param {any} item
+ * @param {number} index
+ * @returns {string} a hint naming the field this item looks like it is keyed by, or '' if none
  */
-function defaultKey(item, index) {
-  if (item == null) return `__null_${index}`;
-  if (typeof item === 'string' || typeof item === 'number') return item;
-  if (typeof item === 'object') {
-    if (item.id != null) return `id:${item.id}`;
-    if (item.sym != null) return `sym:${item.sym}`;
-    if (item.symbol != null) return `sym:${item.symbol}`;
-    if (item.date != null) return `date:${item.date}`;
-    if (item.key != null) return `key:${item.key}`;
+function keyHint(items) {
+  const sample = Array.isArray(items) ? items.find((i) => i && typeof i === 'object') : null;
+  if (!sample) return '';
+  for (const field of ['ticker', 'id', 'sym', 'symbol', 'date', 'key']) {
+    if (sample[field] != null) return ` — rows look like they carry '${field}'`;
   }
-  return `__pos_${index}`;
+  return '';
 }
 
-function computeIdentity(list, keyFn) {
-  let out = '';
-  for (let i = 0; i < list.length; i++) {
-    if (i > 0) out += KEY_SEP;
-    out += String(keyFn(list[i], i));
-  }
-  return out;
+function computeKeys(list, keyFn) {
+  const keys = new Array(list.length);
+  for (let i = 0; i < list.length; i++) keys[i] = String(keyFn(list[i], i));
+  return keys;
 }
+
+/** The ordered join of the item keys — the "is this the same list?" test. */
+function identityOf(keys) {
+  return keys.join(KEY_SEP);
+}
+
 
 /**
  * The identity rule (requirement 1) + the shrink-safety clamp (requirement 7), in one place.
@@ -115,8 +135,10 @@ function computeIdentity(list, keyFn) {
  * (exactly what `useJ2Positions`'s 15s poll does) produces the SAME joined-key string, so this
  * function sees no change and leaves the stored index untouched: the Journal cursor does not jump
  * home every 15 seconds. Any real membership or order change — a row added, removed, or
- * reshuffled — changes the joined string, which IS a genuinely different list, so the index
- * resets to 0.
+ * reshuffled — changes the joined string. What happens NEXT depends on which kind of change it
+ * was: if the previously-selected KEY is still present the cursor FOLLOWS it to its new
+ * position (a live re-sort must not send the member home); if it is gone, this is a genuinely
+ * different list and the index resets to 0. See the note inside `reconcile`.
  *
  * Independently of that, the index is ALWAYS clamped into `[0, count-1]` afterward. This is what
  * keeps a list that shrinks *out from under* the stored index safe to read even before this
@@ -124,14 +146,28 @@ function computeIdentity(list, keyFn) {
  * frame between a props change and this effect) — belt-and-suspenders, not the reset mechanism
  * itself.
  */
-function reconcile(listId, identity, count) {
+function reconcile(listId, keys, identity, count) {
   const store = getStore(listId);
   const prevIndex = store.index;
 
   if (store.identity !== identity) {
+    // ⭐ A REORDER FOLLOWS THE ITEM; A DIFFERENT LIST GOES HOME (owner ruling, 2026-09-09).
+    //
+    // This used to reset to 0 on any identity change, "because order is part of identity". That
+    // is right for a genuinely different list and wrong for a re-SORT: the Screener re-sorts live
+    // on every price tick (`ScannerShell` lifts `sortRowsLive` above the renderers for exactly
+    // this reason), so the old rule sent the member home to row 0 several times a minute while
+    // the row they had selected was still on screen, just moved.
+    //
+    // So the key the member had selected is looked up in the new list first. Found ⇒ the cursor
+    // FOLLOWS it and only the index changes. Absent ⇒ this really is a different list and the
+    // reset is correct — which is the re-fetch case the identity check exists for.
+    const selectedKey = store.keys ? store.keys[prevIndex] : undefined;
+    const movedTo = selectedKey === undefined ? -1 : keys.indexOf(selectedKey);
     store.identity = identity;
-    store.index = 0;
+    store.index = movedTo >= 0 ? movedTo : 0;
   }
+  store.keys = keys;
 
   const maxIndex = Math.max(count - 1, 0);
   if (store.index > maxIndex) store.index = maxIndex;
@@ -174,14 +210,26 @@ const ACTIVE_ITEM_PROPS = { 'data-hub-cursor': 'active' };
  *   — post filter/sort/merge — never the raw fetch: Screener, Journal and Catalysts each locally
  *   re-derive their array, and registering the raw one would make next/prev visit rows that are
  *   not visually adjacent (spec §2d ⚠️).
- * @param {{ key?: HubCursorKeyFn }} [opts]  `key` overrides `defaultKey` above.
+ * @param {{ key: HubCursorKeyFn }} opts  ⛔ REQUIRED. There is no default — a positional
+ *   identity is never correct for a re-fetched list. See the keyHint note above.
  * @returns {HubCursorApi}
  */
 export default function useHubCursor(listId, items, opts) {
   const list = items ?? EMPTY_ITEMS;
-  const keyFn = (opts && opts.key) || defaultKey;
+  const keyFn = opts && opts.key;
+  if (typeof keyFn !== 'function') {
+    // A contract failure, not a fallback. See the keyHint note above: the positional identity
+    // this used to fall back to is never correct for a re-fetched list, so there is nothing
+    // safe to do here except say so, naming the field the rows look keyed by.
+    throw new TypeError(
+      `[hub] useHubCursor('${listId}') requires an explicit opts.key${keyHint(items)}. `
+      + 'A positional identity would make a re-fetch returning different rows read as the same '
+      + 'list, and the cursor would hold an index onto an item the member never selected.',
+    );
+  }
   const count = list.length;
-  const identity = computeIdentity(list, keyFn);
+  const keys = computeKeys(list, keyFn);
+  const identity = identityOf(keys);
 
   const subscribeToStore = useCallback((cb) => subscribe(listId, cb), [listId]);
   const getSnapshot = useCallback(() => readIndex(listId), [listId]);
@@ -196,7 +244,11 @@ export default function useHubCursor(listId, items, opts) {
   // effect) so a just-changed identity resolves to index 0 BEFORE the browser paints — never a
   // visible flash of the wrong row.
   useLayoutEffect(() => {
-    reconcile(listId, identity, count);
+    reconcile(listId, keys, identity, count);
+    // `keys` is deliberately absent from the dep list: `identity` IS its ordered join,
+    // so it changes exactly when `keys` does, and including the array re-runs this every
+    // render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId, identity, count]);
 
   // Defensive clamp for the one render between a props change landing and the layout effect above

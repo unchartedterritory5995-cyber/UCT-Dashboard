@@ -1,0 +1,640 @@
+// app/src/hub/sections/screenerSection.js — the SCREENER section controller (Phase 3 §3.3).
+//
+// Plan: `docs/plans/joystick/60-phase3-plan.md` §3.3 (every binding there was measured by the
+// 3.3a scout on 2026-09-09). Contract: `hub/contracts.js`, "PHASE 3 CONTRACTS"
+// (`HubSectionConfig` + `HubListAdapter`).
+//
+//   tap        -> next result           double-tap -> previous result
+//   scrub (y)  -> fast-scroll the list  readout    -> the ticker under the cursor
+//   chip       -> "<scan name> · <index>/<loaded count>"
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ⛔⛔ `activeTab` DOES NOT EXIST ON THIS PAGE AND NEVER DID.
+// ─────────────────────────────────────────────────────────────────────────────
+// `Screener.jsx` holds ONE piece of state, `shellKey` — an ErrorBoundary remount counter. The
+// page's own header says why: "THIS PAGE IS THE SCANNER NOW — there is no tab strip, because
+// there is nothing to switch between". What the page uses now is `view` (`useScreenSpec.js`),
+// and `view` selects a COLUMN SET, not a tab: only `'charts'` changes the renderer. Per the
+// owner's 3.3a ruling **the hub never touches `view`** — Primary/Reverse step RESULTS.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ⛔⛔ `displayRows`, NEVER `rows`. AND `identityKey` IS EXPLICITLY `r => r.ticker`.
+// ─────────────────────────────────────────────────────────────────────────────
+// `ScannerShell` lifted the live re-sort ABOVE the three renderers (`displayRows`), so the array
+// on screen re-orders on every price tick. Registering `rows` would make the cursor and the list
+// the member is looking at disagree the moment the live toggle is on.
+//
+// And `useHubCursor` REQUIRES `opts.key`: it deleted its positional default precisely because of
+// this page. No screener row carries `sym` or `symbol`; the identity is `ticker`
+// (`screener_rows` is `ticker TEXT PRIMARY KEY`, `snapshot_db.py:416-417`, forced first into
+// every projection and already the React key in all three renderers). A positional identity
+// changes only when the LENGTH changes, so a re-scan returning a completely different 100 rows
+// would read as "the same list" and the cursor would hold an index onto a symbol the member
+// never selected.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ⛔ THE CHIP DENOMINATOR IS THE LOADED LENGTH, NOT `total`.
+// ─────────────────────────────────────────────────────────────────────────────
+// `total` is the SERVER's match count while `PAGE_SIZE` is 100, so a `total` denominator reads
+// "3/3,745" with 100 rows in hand — a cursor promising rows it cannot reach. `ScannerShell`
+// already says this in its own review-button comment ("THE LOADED PAGE, NOT `total`"). Both
+// halves of the plan's remedy are taken: the denominator is `displayRows.length` AND `next`
+// calls `loadMore` at the tail, the way `VirtualResults` already appends near the end.
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚠️ WHAT THIS SECTION CANNOT DO TODAY, recorded rather than faked
+// ─────────────────────────────────────────────────────────────────────────────
+//  * `Scans` is ABSENT, not inert. `ScreensManager` owns its picker in private `open` state and
+//    exposes no seam; an action with `kind:'run'` and no handler is exactly the
+//    "present-and-inert" the registry header forbids. Filed as R-13.
+//  * `Alert`'s price field cannot reach the member. `HubRoot`'s `confirm` branch builds its own
+//    payload and never asks the section for one, so the ± steppers `HubConfirmSheet` already
+//    implements — "the EQUAL path, not a fallback" per `contracts.js` — are unreachable and the
+//    alert lands at the price on screen. `confirmPayload()` below is the section's real answer;
+//    filed as R-14.
+//  * No row is painted with `data-hub-cursor`: the three renderers never spread `itemProps`, and
+//    with virtualization only ~20 of them are in the DOM at once, so `paintCursor` cannot reach
+//    the rest either. Filed as R-15 with the diff. Until then the member's feedback is the chip
+//    and the scroll.
+//  * `Plan trade` is `kind:'confirm'` in the registry while plan §3.3 calls it `run`, so today a
+//    gesture opens a generic "Plan AAA" confirm and THEN the plan sheet. The registry is
+//    Director-owned; filed as R-16 rather than overridden here.
+//
+// ⭐ R-09 LANDED WHILE THIS WAS BEING WRITTEN. `HubRoot.runAction` now dispatches `action.run(ctx)`
+// and opens `HubConfirmSheet` for `kind:'confirm'`, so Flag, Alert and Plan trade are LIVE the
+// day the Director takes `scan` out of `PREVIEW_MODES`.
+
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, createElement, Fragment } from 'react'
+import useHubCursor from '../useHubCursor'
+import useHubMode from '../useHubMode'
+import { useHub } from '../HubContext'
+import { useHubEligible } from '../useHubActive'
+import PlanTradeSheet from '../PlanTradeSheet'
+import { modesById } from '../registry'
+import { chartsLinkPath } from '../../lib/chartDeepLink'
+import { AuthContext } from '../../context/AuthContext'
+import { useFlagged } from '../../hooks/useFlagged'
+import useWatchlistAlerts from '../../hooks/useWatchlistAlerts'
+import { useJournalToast, JournalToast } from '../../pages/journal-2-0/lib/useJournalToast'
+
+/** The registry mode this section controls. */
+export const SCAN_MODE_ID = 'scan'
+
+/**
+ * The cursor's list id — DERIVED from the registry (`modes` -> `scan.cursor.listId`), never
+ * typed here, so the section and the registry cannot disagree about which store this page walks.
+ *
+ * ⚰️ The old plan line keyed it `scan:${scanDefinitionId}:${resultsFingerprint}`. Struck twice:
+ * `listId` keys a module-level Map that is never pruned, so a per-result fingerprint leaks an
+ * entry per scan — and the fingerprint is what the cursor's own identity already derives from
+ * the item keys. The listId is the constant `'scan'`.
+ */
+export const LIST_ID = modesById[SCAN_MODE_ID]?.cursor?.listId ?? SCAN_MODE_ID
+
+/** Stable empty list, so a screen that has not answered yet never churns the cursor identity. */
+const NO_ROWS = Object.freeze([])
+
+/**
+ * ⛔ THE IDENTITY KEY, EXPLICIT AND REQUIRED. See the header.
+ * @param {{ticker?: string}} row
+ * @returns {string}
+ */
+export function identityKey(row) {
+  return row?.ticker
+}
+
+/** The ticker a row is keyed by — one reader, so "which field is the symbol" is said once. */
+export const tickerOf = (row) => row?.ticker ?? null
+
+/**
+ * The active scan's NAME, from the screener's own scan filter.
+ *
+ * `ScannerShell`'s `onUseScan` writes `{op:'in', value: <def_hash>, label: <name>}` into
+ * `filters.scan`, and `ScanFilterChip` renders that same `spec.label` when the server has no
+ * meta entry for the hash — so the label is the page's own answer to "which scan is this", not
+ * a second one invented here. Most screens carry NO scan filter at all (a scan is one optional
+ * filter among many), which is why the caller falls back to "Screener".
+ *
+ * @param {Record<string, {label?: string}>|null|undefined} filters
+ * @returns {string|null}
+ */
+export function activeScanName(filters) {
+  const label = filters?.scan?.label
+  return typeof label === 'string' && label.trim() ? label.trim() : null
+}
+
+/**
+ * The chip's mode text: "<scan name> · <1-based index>/<loaded count>", e.g.
+ * "Powerplay · 3/41", or "Screener · 3/41" when no scan filter is applied.
+ *
+ * ⛔ `count` is the LOADED length. See the header note on `total`.
+ *
+ * @param {{scanName?: string|null, index: number, count: number}} args
+ * @returns {string}
+ */
+export function chipLabel({ scanName, index, count } = {}) {
+  const name = (typeof scanName === 'string' && scanName.trim()) ? scanName.trim() : 'Screener'
+  if (!count || count <= 0 || index < 0) return `${name} · no results`
+  return `${name} · ${index + 1}/${count}`
+}
+
+/**
+ * ⭐ THE PLAN-TRADE HAND-OFF: SYMBOL, PLUS THE LAST PRICE ONLY IF THE STREAM HAS ONE.
+ *
+ * Owner ruling, 2026-09-09 (§3.3, option 1). The Screener cannot supply entry/stop/size and must
+ * not pretend to: entry and stop exist on this page only as DISTANCES
+ * (`pattern_entry_dist_pct` / `pattern_stop_dist_pct`), they live in exactly ONE view
+ * (`patterns`) while the default view is `overview`, they are deliberately blank on stale rows,
+ * and `size` does not exist on the Screener at all. So this returns the symbol and — when the
+ * live stream has a price for it — that price as the sheet's default entry. NOTHING ELSE.
+ *
+ * ⛔ `lastPrice` comes from the STREAM, never from `row.price`. `row.price` is the 03:00
+ * snapshot; handing it over as "the last price" would be a fabricated level wearing a live
+ * label, which is the exact thing blank-means-blank was written to stop.
+ *
+ * @param {{symbol: string|null|undefined, lastPrice?: number|null}} args
+ * @returns {{symbol: string, lastPrice?: number}|null}
+ */
+export function planTradeProps({ symbol, lastPrice } = {}) {
+  const sym = typeof symbol === 'string' ? symbol.trim() : ''
+  if (!sym) return null
+  if (typeof lastPrice === 'number' && Number.isFinite(lastPrice) && lastPrice > 0) {
+    return { symbol: sym, lastPrice }
+  }
+  return { symbol: sym }
+}
+
+/**
+ * The Alert action's `HubConfirmPayload` (`contracts.js`), ready for `HubConfirmSheet`.
+ *
+ * ⭐ The price field defaults to WHAT THE MEMBER IS LOOKING AT. All three renderers overlay the
+ * live price when there is one and fall back to `row.price` otherwise, so `reference` is passed
+ * in already resolved that way — a default taken from a different number than the one on screen
+ * would make the sheet argue with the table.
+ *
+ * ⭐ THE DIRECTION IS DERIVED, NEVER ASKED. An alert above the current price is an "above"
+ * alert and one below it is a "below" alert; making the member state both the level and the
+ * direction lets them state a contradiction (`above 5` on a $99 stock fires instantly).
+ *
+ * @param {{symbol: string, reference: number, createAlert: Function}} args
+ * @returns {import('../contracts').HubConfirmPayload|null} null when no price is known — the
+ *   sheet is not opened rather than opened around a fabricated level.
+ */
+export function alertConfirmPayload({ symbol, reference, createAlert } = {}) {
+  const sym = typeof symbol === 'string' ? symbol.trim() : ''
+  if (!sym) return null
+  if (typeof reference !== 'number' || !Number.isFinite(reference) || reference <= 0) return null
+  const at = Number(reference.toFixed(2))
+  return {
+    title: `Alert on ${sym}`,
+    body: `Alert when ${sym} crosses this price. ${sym} is ${at.toFixed(2)} now.`,
+    primaryLabel: 'Create alert',
+    fields: [{ name: 'price', type: 'number', value: at, min: 0.01, step: 0.01 }],
+    onConfirm: (values) => {
+      const price = Number(values?.price)
+      if (!Number.isFinite(price) || price <= 0) return
+      createAlert?.(sym, price, price >= at ? 'above' : 'below')
+    },
+  }
+}
+
+/**
+ * The section's fan, DERIVED from the registry entry and never re-typed.
+ *
+ * ⛔ ONE AUTHORITY OVER "WHAT ACTIONS DOES SCAN HAVE". `registry.js` owns the ids, labels,
+ * icons, rings, colours, kinds and `requires` — this only attaches handlers and the two dynamic
+ * `to` targets. A second hand-typed list here is the enumeration defect this repo keeps paying
+ * for; an action added to the registry tomorrow arrives here on the day it lands, unhandled,
+ * which is why the unhandled case DROPS rather than passing through inert.
+ *
+ * ⛔ AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT (registry.js header). `scan.scans` has
+ * no seam to open (see the module header) so it is dropped, not shipped as a dead bubble.
+ *
+ * @param {Object} args
+ * @param {string|null} args.symbol      The ticker under the cursor.
+ * @param {number|null} args.streamPrice The stream's price for it, or null.
+ * @param {number|null} args.shownPrice  The price the table is showing for it (stream, else row).
+ * @param {() => void} args.onFlag
+ * @param {(props: object) => void} args.onPlanTrade
+ * @param {Function} args.createAlert
+ * @returns {import('../registry').HubAction[]}
+ */
+export function buildScanFan({
+  symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert,
+} = {}) {
+  const registryFan = modesById[SCAN_MODE_ID]?.fan ?? []
+  const out = []
+  for (const action of registryFan) {
+    switch (action.id) {
+      case 'scan.chartIt':
+        // ⭐ THE SYMBOL RIDES THE URL, because nothing on /charts reads the hub context.
+        // `chartsLinkPath` is the ONE module that knows how to point the charts page at
+        // something (`lib/chartDeepLink.js`); `ChartsWorkspace` reads it and applies it through
+        // `setGroupSym('A', …)`, then strips the params. A hand-typed `?sym=` here would be the
+        // second half of a pair that agrees only on the day it is written.
+        // `resolveNavTarget` in HubRoot falls through to a literal path when `to` is not a mode
+        // id, so a full path carrying a query string is a legal `to`.
+        out.push({ ...action, to: symbol ? chartsLinkPath({ symbol }) : action.to })
+        break
+      case 'scan.why':
+        // `/ai-search?q=…` — the page's own documented deep link ("the FIRST question auto-runs
+        // on mount"). Without a symbol it stays the bare route.
+        out.push({
+          ...action,
+          to: symbol
+            ? `/ai-search?q=${encodeURIComponent(`Why is ${symbol} moving today?`)}`
+            : action.to,
+        })
+        break
+      case 'scan.flag':
+        out.push({ ...action, run: () => onFlag?.() })
+        break
+      case 'scan.alert':
+        out.push({
+          ...action,
+          /**
+           * ⚠️ TWO HANDLERS, AND THE SECOND ONE IS THE GAP. `HubRoot`'s `confirm` branch builds
+           * its OWN payload from `label` + `confirmText(ctx)` and calls `action.run(ctx)` on
+           * confirm — it never asks the section for a payload, so the sheet carries no price
+           * field and the alert lands at the price on screen. `confirmPayload` is the section's
+           * real answer: a `HubConfirmPayload` with the ± steppers and numeric input that
+           * `HubConfirmSheet` already implements and `contracts.js` calls "the EQUAL path, not a
+           * fallback". Filed as R-14; until it lands, `run` is what actually fires.
+           */
+          confirmPayload: () => alertConfirmPayload({ symbol, reference: shownPrice, createAlert }),
+          run: () => {
+            const payload = alertConfirmPayload({ symbol, reference: shownPrice, createAlert })
+            // No price known -> nothing is created. Never an alert at a fabricated level.
+            if (payload) payload.onConfirm({ price: payload.fields[0].value })
+          },
+        })
+        break
+      case 'scan.planTrade':
+        out.push({
+          ...action,
+          // Symbol + the STREAM price, and nothing else. See `planTradeProps`.
+          run: () => {
+            const props = planTradeProps({ symbol, lastPrice: streamPrice })
+            if (props) onPlanTrade?.(props)
+          },
+        })
+        break
+      case 'scan.scans':
+        // ABSENT — see the module header. R-10.
+        break
+      default:
+        // Voice and Home are HubRoot's own; anything the registry grows later arrives here
+        // unhandled and is dropped rather than shipped inert.
+        if (action.kind === 'home' || action.id.endsWith('.voice')) out.push(action)
+        break
+    }
+  }
+  return out
+}
+
+const clamp01 = (n) => (n < 0 ? 0 : n > 1 ? 1 : n)
+
+/** What the bridge below publishes when no provider is mounted: every door closed, none broken. */
+const NO_ACTIONS = Object.freeze({ toggle: null, isFlagged: null, createAlert: null })
+
+/**
+ * ⛔ WHY A BRIDGE COMPONENT AND NOT TWO HOOK CALLS IN THE SECTION HOOK.
+ *
+ * `useFlagged` and `useWatchlistAlerts` both call `useAuth()`, which THROWS outside an
+ * `AuthProvider` — and a hook cannot be called conditionally. `ScannerShell` renders under a
+ * provider in the app, but it is also rendered bare by three of its own suites and embedded as a
+ * `/charts` widget, so taking a hard dependency on auth inside the shell turns "the hub is not
+ * available here" into a crashed page.
+ *
+ * ⭐ THE IDIOM IS ALREADY IN THIS FOLDER: `HubVoiceBridge` solves the identical problem for
+ * `useRealtimeSession` / `VoiceProvider` — read the context with `useContext` (null-safe), and
+ * only mount the component that uses the hook when a provider is actually there. The ref is
+ * cleared on unmount rather than left dangling, so a stale toggler can never fire against a
+ * page that has gone.
+ */
+function ActionsBridge({ apiRef }) {
+  const { toggle, isFlagged } = useFlagged()
+  // ⚠️ COSTS ONE POLL while mounted: `useWatchlistAlerts` carries `refreshInterval: 30000`, so
+  // this adds a 30s GET of `/api/watchlist-alerts` to a signed-in screener. Paid deliberately —
+  // `createAlert` is the app's ONE alert-creation path (it optimistically seeds the Alerts
+  // widget's cache and then revalidates every `/api/watchlist-alerts*` key), and a bare POST
+  // from this module would be a second authority that skips both.
+  const { createAlert } = useWatchlistAlerts()
+  useEffect(() => {
+    apiRef.current = { toggle, isFlagged, createAlert }
+    return () => { apiRef.current = NO_ACTIONS }
+  }, [toggle, isFlagged, createAlert, apiRef])
+  return null
+}
+
+/** Where the section's toast sits: just above the hub's own resting corner. */
+const TOAST_STYLE = Object.freeze({
+  position: 'fixed',
+  top: 'auto',
+  bottom: 'calc(env(safe-area-inset-bottom) + 68px + 84px + 8px)',
+  right: '16px',
+  zIndex: 'var(--z-hub-open)',
+})
+
+/**
+ * ⭐ THE SECTION'S WHOLE MOUNTED FOOTPRINT, ARMED ONLY WHERE THE HUB CAN ACTUALLY RENDER.
+ *
+ * `useHubEligible` is the hub's ONE answer to "could the control exist here at all" (server kill
+ * switch, capability floor, `(max-width: 1023px) and (pointer: coarse)`). Where it says no there
+ * is no pad, no fan, and nothing that can fire Flag or Alert — so mounting the hooks that back
+ * them would buy a desktop screener member a 30-second `/api/watchlist-alerts` poll for an
+ * action they cannot reach, and would add a second `role="status"` live region to a page whose
+ * only announcements come from elsewhere. Gating the whole mount is also what keeps this change
+ * invisible to the shell's own suites, which render `ScannerShell` bare: jsdom fails the
+ * capability floor by construction.
+ *
+ * ⛔ THE TOAST IS PERMANENT WITHIN THAT BRANCH, never mounted-with-text. `useJournalToast`'s own
+ * header records why: a `role="status"` that appears already speaking is SILENT to a screen
+ * reader, which is how "Capture failed — try again" once reached nobody.
+ *
+ * @param {{apiRef: object, msg: string|null}} props
+ */
+export function ScreenerHubMount({ apiRef, msg, onToast, planTrade, onClosePlanTrade }) {
+  const auth = useContext(AuthContext)
+  const eligible = useHubEligible()
+  if (!eligible) return null
+  return createElement(
+    Fragment,
+    null,
+    // No provider -> no bridge, and Flag/Alert no-op rather than throwing. Same shape as
+    // `HubVoiceBridge` on a route with no `VoiceProvider`.
+    auth ? createElement(ActionsBridge, { key: 'bridge', apiRef }) : null,
+    createElement(JournalToast, { key: 'toast', msg, style: TOAST_STYLE }),
+    /**
+     * ⛔ THE SCREENER DOOR ONTO THE JOURNAL'S SHEET — SYMBOL AND A LAST PRICE, NOTHING ELSE.
+     *
+     * `entry`, `stop`, `size`, `side` and `settings` are all DELIBERATELY absent (owner ruling,
+     * 2026-09-09): the Screener holds entry/stop only as distances, in one non-default column
+     * view, blank on stale rows, and it has no account context at all. Passing any of them
+     * would put a fabricated level in a box a member acts on. `sourceMode` / `onToast` /
+     * `onClose` are the sheet's own plumbing, not trade data.
+     */
+    planTrade
+      ? createElement(PlanTradeSheet, {
+        key: 'plan',
+        ...planTrade,
+        sourceMode: SCAN_MODE_ID,
+        onToast,
+        onClose: onClosePlanTrade,
+      })
+      : null,
+  )
+}
+
+/**
+ * Builds the `HubSectionConfig` for one render.
+ *
+ * ⛔ THE REGISTRY ENTRY IS SPREAD IN, AND THAT IS LOAD-BEARING — NOT TIDINESS. A page
+ * registration REPLACES the route-derived default outright (`HubContext`:
+ * `pageModeConfig ?? modesById[mode]`), and `HubRoot` calls `fanFor(activeModeConfig)` whose
+ * last line is `mode.fan.filter(...)` unguarded. Registering a bare `HubSectionConfig` — exactly
+ * the shape `contracts.js` documents — blanks the chip and throws
+ * `Cannot read properties of undefined (reading 'filter')` the moment `/screener` mounts.
+ * `validateSectionConfig` cannot catch it: a bare section config is a VALID section config.
+ *
+ * ⚠️ `label` IS OVERRIDDEN, and it is the only lever a section has on the chip. `HubChip`
+ * renders `activeModeConfig.label` as its bold mode text, so the plan's
+ * "<scan name> · <index>/<count>" has to arrive that way. `HubKnob`'s announcement and
+ * `HubActionsButton`'s heading read the same field, so they say "Screener · 3/41" too.
+ *
+ * @returns {import('../contracts').HubSectionConfig}
+ */
+export function createScreenerSection({
+  rows, scanName, index, count, symbol, streamPrice, shownPrice,
+  next, prev, scrubTo, scrollTo, hasMore, loadMore,
+  onFlag, onPlanTrade, createAlert, scrubRef,
+}) {
+  /**
+   * The scrub's position, accumulated in a ref and seeded lazily from the row already selected.
+   *
+   * ⛔ `delta` IS A STEP, NOT A POSITION. `useJoystick` emits
+   * `{delta: (thisMove - lastMove) / travelPx}` per pointer move, so handing it straight to
+   * `useHubCursor.scrubTo` (which reads 0..1 as an ABSOLUTE position) would pin the cursor to
+   * the first or last row on every drag. The steps accumulate here; `pos` is kept as a float
+   * because re-deriving it from the quantized index each step would swallow any delta smaller
+   * than one row.
+   *
+   * ⛔ THE HELD VALUE IS NOT RE-VALIDATED AGAINST `index`, AND THAT IS THE POINT. It used to be
+   * (`held.at === index`), which looked safer and was wrong: `index` comes from the render that
+   * built THIS config, and a drag calls `onScrub` many times against whichever config is
+   * registered at that moment. Every step whose re-render had not landed yet failed the equality
+   * check, re-seeded from the stale index, and the accumulation silently collapsed to a
+   * single-step scrub. The accumulator's lifetime is the DRAG, and `onScrubCommit` — which
+   * `useJoystick` fires on pointerup AND on pointercancel — is what ends it.
+   */
+  const seed = () => {
+    const held = scrubRef.current
+    // A re-fetch mid-drag can leave the held index off the end of a shorter list; that is a
+    // different list, so start again from where the cursor actually is.
+    if (held && held.at < count) return held
+    return { at: index, pos: count > 1 ? Math.max(index, 0) / (count - 1) : 0 }
+  }
+
+  return {
+    ...modesById[SCAN_MODE_ID],
+    label: chipLabel({ scanName, index, count }),
+    fan: buildScanFan({ symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert }),
+
+    onTap: () => {
+      next()
+      // The tail-append half of the plan's remedy, mirroring `VirtualResults`'s own
+      // near-the-end `onLoadMore()`. Without it the cursor clamps on row 100 of 3,745 and the
+      // member has no way to walk past a page boundary they cannot see.
+      if (hasMore && index >= count - 2) loadMore?.()
+    },
+    onDoubleTap: () => { prev() },
+
+    // ⛔ CONTEXT FIRST. `HubRoot.jsx` calls `onScrub(ctx, scrub)`; `contracts.js` and
+    // `contractArity.test.js` now agree, and that rail DERIVES the shape from the call site
+    // rather than restating it. There is no normaliser here on purpose — a defensive read
+    // against a disagreement that has been resolved teaches the next reader the seam is still
+    // ambiguous (R-05, closed).
+    onScrub: (ctx, scrub) => {
+      if (!scrub || typeof scrub.delta !== 'number' || !Number.isFinite(scrub.delta)) return
+      // Vertical only (plan §3.3, "Result index, vertical"). The engine reports the DOMINANT
+      // axis of each individual move, so a mostly-vertical drag still emits the occasional 'x';
+      // counting those would make the list drift under an unsteady thumb.
+      if (scrub.axis !== 'y') return
+      if (count <= 0) return
+      const from = seed()
+      // Downward drag -> later rows: the scrollbar's direction, not the content's.
+      const pos = clamp01(from.pos + scrub.delta)
+      const at = Math.round(pos * (count - 1))
+      scrubRef.current = { at, pos }
+      scrubTo(pos)
+    },
+
+    // The scrub moves the cursor live (this is a fast-scroll, not a preview), so commit's job is
+    // to land the member ON the row: reveal it, and clear the accumulator so the next drag
+    // re-seeds from wherever they stopped.
+    onScrubCommit: () => {
+      const held = scrubRef.current
+      scrubRef.current = null
+      const target = held ? held.at : index
+      if (target >= 0) scrollTo(target)
+    },
+
+    // What the chip narrates during a drag: the ticker under the cursor. `validateSectionConfig`
+    // refuses an `onScrub` without a `readout` because "a scrub the chip cannot narrate is
+    // invisible" — and an empty string would recreate that inside a config that passed.
+    readout: () => tickerOf(rows[index]) || (count > 0 ? `${index + 1}/${count}` : 'No results'),
+
+    listAdapter: {
+      // The RENDERED array, in display order — `displayRows`, never `rows`. See the header.
+      items: rows,
+      identityKey,
+      scrollTo,
+    },
+  }
+}
+
+/**
+ * Mount point. Called from `ScannerShell.jsx` — the component that owns `displayRows`.
+ *
+ * @param {Object} args
+ * @param {any[]} args.displayRows  The array AS RENDERED (`ScannerShell`'s `displayRows`).
+ * @param {Record<string, object>} [args.filters]  `useScreenSpec`'s raw filter map.
+ * @param {Record<string, {price?: number}>} [args.prices]  The live-stream overlay.
+ * @param {boolean} [args.hasMore]
+ * @param {() => void} [args.loadMore]
+ * @returns {{resultsRef: {current: any}, hubToast: import('react').ReactElement,
+ *   planTradeRef: {current: object|null}, cursor: import('../contracts').HubCursorApi}}
+ *   `resultsRef` goes on whichever results renderer is mounted (both expose `scrollToIndex`
+ *   through `useImperativeHandle`); `hubToast` is the section's feedback host.
+ */
+export default function useScreenerHubSection({
+  displayRows, filters, prices, hasMore = false, loadMore,
+} = {}) {
+  const rows = displayRows && displayRows.length ? displayRows : NO_ROWS
+  const cursor = useHubCursor(LIST_ID, rows, { key: identityKey })
+  const { index, count, next, prev, scrubTo } = cursor
+
+  const { setSymbol } = useHub()
+  // Flag + Alert arrive through the bridge below, never through a hook call here. See
+  // `ScreenerActionsBridge`: both hooks require an `AuthProvider` that this shell does not.
+  const actionsRef = useRef(NO_ACTIONS)
+  const [toastMsg, setToastMsg] = useJournalToast()
+
+  const symbol = tickerOf(rows[index])
+  const streamPrice = symbol ? (prices?.[symbol]?.price ?? null) : null
+  // What the table is showing: the live overlay when there is one, else the row's own snapshot
+  // price — the same resolution all three renderers do.
+  const rowPrice = typeof rows[index]?.price === 'number' ? rows[index].price : null
+  const shownPrice = symbol ? (streamPrice ?? rowPrice) : null
+
+  /**
+   * ⛔ THE HUB'S SHARED SYMBOL HAS TO BE WRITTEN, OR EVERY ACTION RENDERS DISABLED.
+   *
+   * `HubRoot` computes `disabledIds` from `requires` against `useHub().symbol`, and four of
+   * scan's five outer actions declare `requires: ['symbol']`. Measured 2026-09-09: **nothing
+   * outside `app/src/hub/` calls `useHub()` at all**, so that value is null on every route and
+   * every symbol-requiring bubble would be dimmed with the cursor sitting on a ticker.
+   *
+   * ⭐ NOT CLEARED ON UNMOUNT, deliberately. "Chart it" navigates away, which unmounts this
+   * shell; clearing here would race the navigation and blank the symbol the member just chose.
+   * The shared symbol is Part C4 state that outlives one section by design.
+   */
+  useEffect(() => {
+    if (symbol) setSymbol(symbol)
+  }, [symbol, setSymbol])
+
+  /**
+   * `HubListAdapter.scrollTo` — REQUIRED by the contract, because a cursor that advances
+   * off-screen has silently stopped being a cursor.
+   *
+   * ⚠️ IT IS A NO-OP IN THE `'charts'` VIEW, and that is measured, not assumed. `ChartsGallery`
+   * is unvirtualized, paginates internally at 24 with `page` in private state, and is not a
+   * `forwardRef` at all — so there is no ref to attach and no seam to reach page 2. The adapter
+   * still reports the SAME list (`ChartsGallery` receives `displayRows` verbatim) and
+   * `identityKey` stays `ticker`; only the reveal is unavailable there.
+   */
+  const resultsRef = useRef(null)
+  const scrollTo = useCallback((target) => {
+    const api = resultsRef.current
+    if (api && typeof api.scrollToIndex === 'function' && target >= 0) {
+      api.scrollToIndex(target, { align: 'auto' })
+    }
+  }, [])
+
+  const onFlag = useCallback(() => {
+    const { toggle, isFlagged } = actionsRef.current
+    if (!symbol || !toggle) return
+    // Read the CURRENT state before toggling: `isFlagged` reads localStorage fresh, so the
+    // sentence the member sees describes the state they are about to be in, not the one they
+    // just left.
+    const willBeFlagged = !isFlagged?.(symbol)
+    toggle(symbol)
+    setToastMsg(`${willBeFlagged ? 'Flagged' : 'Unflagged'} ${symbol}`)
+  }, [symbol, setToastMsg])
+
+  /** Stable indirection so the fan does not change identity when the bridge mounts. */
+  const createAlert = useCallback(
+    (...args) => actionsRef.current.createAlert?.(...args),
+    [],
+  )
+
+  /**
+   * ⚠️ THE PLAN-TRADE SHEET IS NOT MOUNTED HERE, AND NOT IMPORTED EITHER.
+   *
+   * `app/src/hub/PlanTradeSheet.jsx` is the 3.4 Journal integrator's file and does not exist on
+   * this branch yet (measured 2026-09-09). Vite resolves a static AND a dynamic import at build
+   * time, so importing a path that is not there does not "fail gracefully" — it fails the whole
+   * bundle and every test that touches this module. So the hand-off is a PROPS OBJECT
+   * (`planTradeProps`, unit-tested for exactly `{symbol}` / `{symbol, lastPrice}`) recorded on
+   * `planTradeRef`; mounting the sheet belongs to whoever owns it. Filed as R-09.
+   */
+  const [planTrade, setPlanTrade] = useState(null)
+  const onPlanTrade = useCallback((props) => { setPlanTrade(props) }, [])
+  const closePlanTrade = useCallback(() => { setPlanTrade(null) }, [])
+
+  const scrubRef = useRef(null)
+  const scanName = activeScanName(filters)
+
+  const config = useMemo(() => createScreenerSection({
+    rows,
+    scanName,
+    index,
+    count,
+    symbol,
+    streamPrice,
+    shownPrice,
+    next,
+    prev,
+    scrubTo,
+    scrollTo,
+    hasMore,
+    loadMore,
+    onFlag,
+    onPlanTrade,
+    createAlert,
+    scrubRef,
+  }), [
+    rows, scanName, index, count, symbol, streamPrice, shownPrice,
+    next, prev, scrubTo, scrollTo, hasMore, loadMore, onFlag, onPlanTrade, createAlert,
+  ])
+
+  useHubMode(config)
+
+  /**
+   * ⛔ THE FEEDBACK HOST OUTLIVES THE CONTROL THAT FIRES IT (CLAUDE.md, 2026-09-09). The hub's
+   * own `HubToastHost` lives inside `HubRoot` and is not reachable from a section, so the
+   * screener owns one — rendered by `ScannerShell`, which every screener hub action leaves
+   * mounted. `JournalToast` is the app's ONE toast chip (`msg`, never `message` — the prop name
+   * that shipped a blank toast once already), a permanent `role="status"` whose text toggles.
+   * See `ScreenerHubMount` for why the whole mount is gated on the hub's own mount floor.
+   */
+  const hubMount = createElement(ScreenerHubMount, {
+    apiRef: actionsRef,
+    msg: toastMsg,
+    onToast: setToastMsg,
+    planTrade,
+    onClosePlanTrade: closePlanTrade,
+  })
+
+  return { resultsRef, hubMount, cursor }
+}

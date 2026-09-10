@@ -182,10 +182,19 @@ export default function useJoystick({
   function fireTarget(target) {
     if (hapticsEnabled) {
       // Owner ruling (Phase 2 gate), mirrored in constants.js:
-      //   fan open -> tap() · target change -> tap() · fire -> impact() · confirm sheet -> warn()
-      // A confirm action fires warn() rather than impact(): its triple pulse is the "you are about
-      // to be asked to commit something" cue, and it is the only escalation in the set.
-      if (target?.action?.kind === 'confirm') haptics.warn()
+      //   fan open -> tap() · target change -> tap() · fire -> impact()
+      //   action leads to a COMMIT SHEET -> warn()
+      // The triple pulse is the "you are about to be asked to commit something" cue, and it is the
+      // only escalation in the set.
+      //
+      // ⛔ B5 — THIS BRANCHED ON `kind === 'confirm'` AND THAT WAS A PROXY, NOT THE RULE. The
+      // ruling's own words are "commit sheet -> warn()", and `kind` only happened to name that set.
+      // B3 moved journal.moveStop/breakeven/close to kind:'run' to stop two sheets stacking — they
+      // still open a sheet that asks the member to commit, but the cue silently downgraded to
+      // impact() on all three, including Close, the most destructive action in the hub. The marker
+      // is declared in the registry so the cue stops riding on a `kind` that changes for unrelated
+      // reasons; `validateRegistry` requires it on every kind:'confirm' so the old set cannot shrink.
+      if (target?.action?.escalate) haptics.warn()
       else haptics.impact()
     }
     onFire?.(target)

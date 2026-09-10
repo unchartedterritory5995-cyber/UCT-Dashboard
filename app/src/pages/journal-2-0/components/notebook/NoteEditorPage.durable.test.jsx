@@ -18,7 +18,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/__fixtures__/fakeIndexedDb'
 import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
-import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
+import { OFFLINE_FLAG_KEY, OFFLINE_DEFAULT_ON } from '../../lib/offline/offlineFlag'
 import { dbNameFor } from '../../lib/offline/notebookDb'
 
 Range.prototype.getClientRects = () => []
@@ -258,16 +258,31 @@ describe('⛔ the one-line rollback — OFF still means inert', () => {
     expect(screen.queryByText(/Saved on this device/i)).toBeNull()
   })
 
-  it('⭐ and the same keystroke DOES reach the store by DEFAULT', async () => {
-    // The control, and it now also pins the activation itself: with nothing set
-    // at all, the durable layer runs. Without it the rail above would pass just
-    // as well against a layer that was broken rather than switched off.
-    localStorage.removeItem(OFFLINE_FLAG_KEY)
+  it('⭐ and the same keystroke DOES reach the store when it is switched ON', async () => {
+    // The control: without it the rail above would pass just as well against a
+    // layer that was BROKEN rather than switched off.
+    localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+    __resetNotebookConnections()
     await renderEditor()
     type('typed with the wave switched on')
     await letTheDurableWindowClose()
     expect(factory.databases.size).toBe(1)
     expect(store('notes')[0].title).toBe('typed with the wave switched on')
+  })
+
+  it('⛔ the SHIPPED default is OFF, and a flip has to be deliberate', () => {
+    // ⚰️ This assertion replaces a control that opted out of the flag key and
+    // asserted the layer ran anyway. That was true for the fifteen minutes of
+    // 2026-09-09 when Q1 was activated (`a58530619`); the rollback
+    // (`ee952041c`) flipped `OFFLINE_DEFAULT_ON` back to `false` and did NOT
+    // revert the test, so it has been red on master ever since — an inherited
+    // red that the next person to touch this wave would read as their own.
+    //
+    // ⛔ Pinning the LITERAL, not the behaviour: "off and unset" and "off on
+    // purpose" are indistinguishable from the outside, and a default that can
+    // change without a test changing is how a dark wave goes live unnoticed.
+    // Whoever flips this flag must edit this line in the same commit.
+    expect(OFFLINE_DEFAULT_ON).toBe(false)
   })
 })
 
