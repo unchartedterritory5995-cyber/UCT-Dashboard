@@ -558,6 +558,21 @@ def get_last_ts(ticker: str, tf: str) -> int | None:
     return row[0] if row and row[0] is not None else None
 
 
+def get_first_ts(ticker: str, tf: str) -> int | None:
+    """Return the SMALLEST stored ts for (ticker, tf), or None if no rows.
+
+    The mirror of `get_last_ts`, and the only honest answer to "how far back does
+    this series actually reach?". A row COUNT cannot answer that — see
+    `deep_history_warm._already_deep`, where a count-based depth test silently
+    stopped working once Massive's own 2003-09-10 floor grew past the threshold.
+    """
+    row = _conn().execute(
+        "SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?",
+        (ticker.upper(), tf),
+    ).fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 def get_count(ticker: str, tf: str) -> int:
     row = _conn().execute(
         "SELECT COUNT(*) FROM ohlcv WHERE ticker=? AND tf=?",
