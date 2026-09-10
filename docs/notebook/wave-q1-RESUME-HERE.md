@@ -1,6 +1,129 @@
 # Wave Q1 — RESUME HERE
 
-# ⛔⛔ HARD STOP 2026-09-10 — THE SELF-FORK REPRODUCED AFTER THE FIX SHIPPED
+# ⛔⛔⛔ HARD STOP #2 — 2026-09-10 — **THE MEMBER'S WORDS WERE LOST**
+
+**Read this first. It is worse than HARD STOP #1 below, and it is a different
+failure: not a duplicate, a DELETION.**
+
+On **streak run 1 of 7**, door **`folder`**, at **2026-09-10T20:57:31Z** — **21
+minutes after deploy #4b went live** — two hard stops fired in a single run:
+
+- ⛔⛔ **LOST WORDS.** The member's offline sentence was **DISCARDED, not
+  rebased.** The queued entry was deleted with the words **unsent**.
+- ⛔ **SINGLE-WRITER FORK.** A new `(conflicted copy)` at the same instant.
+
+**The streak is DEAD AT RUN 1 and restarts from ZERO.** ⛔ The fix is committed
+(`998f802ae`) and **NOT DEPLOYED** — deploy #4c's checklist is running. There is
+no #4c record in this file and there must not be one until it lands.
+
+## ⭐ The step that caught it was written that hour — and its neighbour was GREEN
+
+The catching step was Stream B's **new** *"the offline words were REBASED and
+SENT"*. The adjacent, long-standing step passed on the same run:
+
+```
+4 reconnect → drained, re-based, server has the words
+    dirty 0 · outbox 0 · server holds text: True        ← GREEN. And useless.
+```
+
+⛔⛔ **"Server holds text" is satisfied by the words typed ONLINE.** It says
+nothing about the sentence typed **offline** — which is the only one the drain
+can lose. A check that cannot distinguish the two is not a weak check; it is a
+check that will read green through exactly the failure it was written for
+(`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+
+⭐ **The instrument that found this was hours old. The one that missed it had
+been green for days.** Age is not evidence.
+
+## The root cause
+
+`settleMetadataRevision` read `current: captureLocalState() || saved`.
+
+With **no local state**, `current` became `saved` — **which IS `acked`** — so
+`sameAuthoredContent` read *"caught up"*, the intent became `null`, and
+`putNoteWithIntent` **deleted every queued entry for the note**.
+
+⛔ **A test file already pinned that outcome as the WRONG one.** It shipped
+through a **fallback no case covered** — the `|| saved` was never exercised by a
+rail, because every rail supplies local state.
+
+## ⛔⛔ THE OWNER'S INVARIANT — the rule the wave now answers to
+
+> **A QUEUED ENTRY IS NEVER REMOVED UNLESS THE SERVER BODY IS PROVEN TO CONTAIN
+> ITS CONTENT.**
+>
+> Every other outcome is **rebase-and-resend**, or **leave it queued**.
+> **"Ours" is NEVER, by itself, a reason to delete.**
+
+⭐ Read it as a rule about **evidence**, not about correctness: the question is
+never *"do we believe the server has it?"* but *"can we prove it?"*. Absence of
+proof resolves to **keep**, always.
+
+## The fix — `998f802ae`, ⛔ NOT DEPLOYED
+
+**FIX 1 — null local state is NO EVIDENCE, not caught-up.** Refuse to settle. The
+entry stays queued, drains, and guard 2 rebases it. In the code:
+
+> *"⛔⛔ NULL IS 'NO EVIDENCE', NOT 'CAUGHT UP' — AND THE DIFFERENCE COST A
+> MEMBER'S WORDS. … ⭐ REFUSING IS SAFE, and that is why it is the right answer …
+> Doing nothing here costs one drain cycle; guessing here costs the member their
+> work."*
+> — `app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx`
+
+**⭐ AND REFUSING EXPOSED A SECOND HOLE** — found by the property rail in **12 of
+18** cases every mechanism-level rail passed. The door's PUT had still moved the
+revision, and **nothing recorded it as OURS**, so guard 2 answered *"not ours"*
+about our own write and **forked the note**:
+
+> *"⛔⛔ RECORDING A REVISION AS OURS IS NOT THE SAME ACT AS SETTLING THE QUEUE. …
+> settling the queue needs EVIDENCE about local content · recording a landing
+> needs only that WE made the request. Conflating them meant the safe answer to
+> the first silently withheld the second."*
+> — `app/src/pages/journal-2-0/lib/offline/useDurableNote.js`
+
+Split into **`recordLandedRevision`, called UNCONDITIONALLY** — and called
+**first**, before the settle can refuse.
+
+**FIX 2 — guard 2 decides by CONTENT.** Byte-identical ⇒ remove. **Ours but the
+body differs ⇒ REBASE onto the server revision, keep the words, resend once.** A
+second 409 forks, preserving both copies. Both passes.
+
+## ⭐⭐ THE PROPERTY RAIL — `offlineWordsSurvive.property.test.jsx`
+
+**Three doors × six orderings, asserting ONE thing:**
+
+> *"THE MEMBER'S LAST OFFLINE SENTENCE ENDS UP IN THE SERVER'S BODY, AND THE NOTE
+> COUNT DOES NOT CHANGE."*
+>
+> *"Nothing about baselines, markers, rings or outcomes is asserted here — those
+> are the mechanism, and **mechanism-level rails are exactly what stayed green
+> through two shipped defects that lost a member's words**."*
+
+⛔ **Its control drives the shipped defect and REQUIRES the property to fail** —
+a property rail that cannot go red is a slogan.
+
+⭐ **This is the answer to both hard stops at once**, and the file says so in its
+own preamble: #4 shipped a guard wired to the wrong save path with eleven rails
+and four mutations green; #4b deleted a queued entry while the drain's own step
+stayed green. **Both were invisible to every existing rail and visible to this
+property.**
+
+**Gauntlet: 23/23, control 240 green before and after.**
+
+## What this changes about how to read the rest of this file
+
+| | |
+|---|---|
+| Deploys #4 and #4b | ✅ still live, still flag-false. ⚠️ **#4b's round-2 fix was not the whole answer** — the metadata doors could discard queued words. |
+| Deploy #4c | ⛔ **NOT DEPLOYED.** Checklist running. No record here until it lands. |
+| The flag flip | ⛔⛔ **BLOCKED**, and now on a defect that LOST DATA rather than duplicated it. |
+| The seven-run streak | ⛔ **DEAD AT RUN 1.** Restarts from zero, against #4c. |
+| Preserved artifacts | ⛔ **TWO forks now** — 16:54:50Z and 20:57:31Z. Note count **34**. See **R-K**. |
+| Any "server holds text" check | ⚰️ **DELETED, not weakened** — see **R-O** and the annotation under PART A. |
+
+---
+
+# ⛔⛔ HARD STOP #1 — 2026-09-10 — THE SELF-FORK REPRODUCED AFTER THE FIX SHIPPED
 
 **Read this before anything else in this file.** Deploy #4 is live and correct.
 **Four minutes later the rig forked its own note again.** The wave is stopped.
@@ -908,7 +1031,7 @@ starting state of every run in the streak rather than only its verdict.
 
 ---
 
-# 🧾 ROUND-2 RULINGS — R-A … R-K
+# 🧾 ROUND-2 RULINGS — R-A … R-O
 
 ⛔ **Lettered, not numbered, on purpose.** R1–R16 belong to the deploy-#4 round;
 these belong to the round that followed the root cause. Mixing the sequences
@@ -1147,18 +1270,30 @@ ruling edited to have always been right teaches nothing.
 
 ## R-K — the note baseline is **33**, not 32
 
-**`2026-09-10T20:40:00Z` (logged)** · **Decision: 33 is the target, everywhere,
-until the preservation instruction is lifted.**
+**`2026-09-10T20:40:00Z` (logged)** · **AMENDED 2026-09-10T21:05:00Z — the number
+is now 34.** · **Decision: the current count is the target, everywhere, until the
+preservation instruction is lifted.**
 
-**33 = the 32-note baseline + the ONE preserved `(conflicted copy)`** from the
-hard-stop finding.
+⛔⛔ **34 = the 32-note baseline + TWO preserved `(conflicted copy)` notes** — the
+**16:54:50Z** fork (HARD STOP #1) and the **20:57:31Z** fork (HARD STOP #2).
+**Both stay** until the property rail is green **AND** their content is recorded
+in this doc.
+
+⚰️ **This ruling was written at 33 and is amended rather than rewritten**, because
+the amendment is the point: **the number moves every time an artifact is
+preserved**, so a target typed once and trusted is wrong by construction. ⭐ Read
+the count from the preserved-artifact list, not from a remembered figure.
+
+**33 was: the 32-note baseline + the ONE preserved `(conflicted copy)`** from the
+first hard-stop finding.
 
 ⛔⛔ **32 IS ONLY REACHABLE BY DELETING EVIDENCE, and the preservation instruction
 has not been lifted.** Any run, matrix or checklist that targets 32 is asking to
 be "corrected" by someone tidying up an artifact that is still the only physical
 record of the defect reproducing in production.
 
-**Every future run and the matrix target 33.**
+**Every future run and the matrix target the CURRENT count — 34 as of
+2026-09-10T21:05:00Z.**
 
 ⭐ **Recorded precisely so nobody "corrects" the number later.** A baseline that
 drifts by one is exactly the kind of discrepancy a helpful reader fixes on sight
@@ -1166,6 +1301,99 @@ drifts by one is exactly the kind of discrepancy a helpful reader fixes on sight
 instruction *is* lifted, that is a decision with a date and an owner, and the
 baseline returns to 32 in the same motion. It does not return quietly because the
 number looked odd.
+
+---
+
+⛔ **R-L … R-O belong to HARD STOP #2** and are logged `2026-09-10T21:05:00Z` —
+the logging time, not the deciding time, same rule throughout.
+
+## R-L — M22 reddened NOTHING until a SOURCE PIN was written
+
+**Decision: pin the ARGUMENT, the way `EMIT_NOTHING` is pinned on its value.**
+
+Mutation **M22** restores the `|| saved` fallback — the exact line that lost the
+member's words. **It reddened nothing.**
+
+⛔⛔ **Every behavioural rail models the door by calling `settleLandedSave`
+DIRECTLY**, so mutating the argument *the editor passes* touches no test. The
+function was covered; **the call was not**.
+
+⛔ **THIS IS ROUND 1'S ROOT CAUSE AGAIN, ONE LEVEL IN.** Round 1: the guard was
+wired into the wrong save path — the function was tested, the **wire** was not.
+Round 2: the wire exists and is tested, and what nobody pinned is **the ARGUMENT
+that wire carries**. The same shape, one level deeper each time
+(`lesson_built_tested_green_and_unreachable`).
+
+⭐ **The fix is a source pin, not another behavioural test** — assert the literal
+the editor passes, exactly as `EMIT_NOTHING` is pinned to `{ emitUpdate: false }`
+(**R9**). A behavioural test can only observe what the argument *does*; a source
+pin observes what it *is*, which is the thing that changed.
+
+## R-M — three mutations went AMBIGUOUS, and were re-targeted by extraction
+
+**Decision: extract unique context from the file and ASSERT uniqueness before
+writing — never transcribe and hope.**
+
+`M9`, `M11` and `M15` went ambiguous when `recordLandedRevision` **duplicated two
+lines** of `settleLandedSave` and guard 2's site **changed shape**. The gauntlet
+refuses an ambiguous site by design (it must match exactly once), so this surfaced
+as a refusal rather than a silent mis-mutation — which is the harness working.
+
+⭐ **Re-targeted by EXTRACTION**: read the surrounding lines out of the file, prove
+the string occurs exactly once, then write it. ⛔ **Not by transcribing from
+memory and running to see.** Same discipline as **R-F**'s `M20`, and the reason
+is the same: a find-string typed by hand is a guess about which call site is hit.
+
+⚠️ **A refactor that duplicates lines silently ages every mutation aimed at
+them.** The gauntlet's uniqueness check is what converts that from a wrong result
+into a stop.
+
+## R-N — `engine_matrix._cleanup` deleted UNCONDITIONALLY, and has never run
+
+**Decision: fix it now, on inspection, before it ever runs.**
+
+`engine_matrix._cleanup` carried **the canary's identical 2026-09-10 defect** —
+an unconditional delete — and the matrix **HAS NEVER RUN**. On its first
+execution it would have **destroyed the evidence of its own first finding.**
+
+⭐⭐ **Found by INSPECTION, not by loss.** The canary's version of this bug was
+found only *after* it deleted half a fork **9.4 seconds after creating it**. This
+one was caught by reading the code with the canary's defect in mind — which is
+the whole value of writing a defect down as a *shape* rather than as an incident.
+
+⛔⛔ **AND THE DISTINCTION IS THE RULING: a matrix that finds nothing and a matrix
+that DELETED what it found print the same row.** There is no signal that
+separates them after the fact. That is why an unconditional cleanup in an
+evidence-gathering instrument is not a tidiness question — it is a question about
+whether the instrument can report at all.
+
+## R-O — "server holds text" is DELETED, not kept alongside
+
+**Decision: remove the weak check everywhere; replace it, do not supplement it.**
+
+*"Server holds text"* is satisfied by the words typed **ONLINE**, so it is green
+through exactly the failure it exists to catch (**HARD STOP #2**). It has been
+**replaced** — in `tools/window_check.py`, `tools/engine_matrix.py` and **step 10
+of the script of record** — by:
+
+> **the server BODY CONTAINS THE OFFLINE SENTENCE**
+
+with **one authority for the sentence** so the tools cannot drift, and a
+**note-count assertion beside it**.
+
+⛔⛔ **DELETED, NOT KEPT ALONGSIDE.** A weak check retained next to a strong one
+still prints green, still reads as corroboration, and is still the line someone
+quotes when they are in a hurry. Two checks that disagree are worse than one that
+is right.
+
+⭐ **The same defect one layer down was fixed in the same motion** — `record holds
+text` had the identical weakness against the local record. ⛔ **Fixing a check in
+one lane and leaving its mirror weaker is how the next false green gets built**
+(`lesson_rail_the_mirror_not_just_the_lane`).
+
+⚠️ **Step 10 of the script belongs to Stream B and lands underneath this prose.**
+The annotation under the PART A table records what row 10 expected and observed,
+and ⛔ **that row is not edited** — see it above.
 
 ---
 
@@ -1263,10 +1491,18 @@ written down. The cost was not the compute; it was the owner's time.
 
 # ✅✅ DEPLOY #4b — THE SELF-FORK FIX, ROUND 2 — 2026-09-10T20:34:16Z, LIVE 20:36:29Z
 
+⚠️ **the folder/ticker/tags door could discard queued words — see #4c.**
+
 **`23f6ce271` is on `master` and live.** ⛔ `OFFLINE_DEFAULT_ON` is **still
 `false`**, on the branch **and** on `master` — unchanged by this deploy. ⛔⛔ **The
 flip is still BLOCKED and the wave is not closed**: #4b ships the round-2 fix, and
 the seven-run streak restarts **from zero** against it.
+
+⛔⛔ **AND THE STREAK DIED AT RUN 1, 21 MINUTES LATER.** The metadata doors
+(`folder` / `ticker` / `tags`) could **discard** a queued entry with the member's
+words unsent — a deletion, not a duplicate. See **⛔⛔⛔ HARD STOP #2** at the top of
+this file. The rest of this record stands as written; the checklist was green and
+what it lacked was a rail on the **content**, not on the mechanism.
 
 | | |
 |---|---|
@@ -1444,7 +1680,7 @@ hunks landed** instead of stopping on the fact that a guarded file moved at all.
 
 ⛔⛔ **AND THE STREAK DIED AT RUN 3.** Read this row as what it was at the time,
 not as the start of a clean seven: at **16:54:50Z** run 3 **forked its own note**
-and the tool refused to stamp. See **⛔⛔ HARD STOP 2026-09-10** at the top of this
+and the tool refused to stamp. See **⛔⛔ HARD STOP #1 2026-09-10** at the top of this
 file. ⭐ Note the one number that matters in hindsight — **the opt-in key was
 `'0'` at rest here, and `'1'` on runs 2 and 3.**
 
@@ -2434,6 +2670,8 @@ to `wave-q1-activation-canary-red.md`.
 | 9 · **reload with unsynced work** | no empty document, real baseline | **all three layers still hold the member's offline words**; `dirty:1`; baseline still the real timestamp; editor mounted (control); the screen shows the SERVER copy and the banner **"Unsaved changes from a previous session were found for this note. / Restore"** — offered, never auto-applied | ✅ |
 | 10 · reconnect | one PUT with the CAS baseline; `dirty:0`; server has the words | outbox **emptied**, record `dirty:0` re-based on `03:34:19.455110`, **server now carries the offline title AND body**, baseline == server `updatedAt` | ✅ |
 
+> ⚰️ **ANNOTATION, 2026-09-10 — row 10's expectation was satisfiable by the wrong words, and this row is left standing to show it.** *"server has the words"* is true the moment the words typed **online** are on the server, so it says nothing about the sentence typed **offline** — the only one the drain can lose. On **streak run 1 (door `folder`), 2026-09-10T20:57:31Z**, that check read **GREEN** while the queued entry was being DISCARDED and the note forked. It has been replaced everywhere by **"the server BODY CONTAINS THE OFFLINE SENTENCE"** — the exact sentence the run typed while the transport was cut — plus a note-count assertion, in `tools/window_check.py`, `tools/engine_matrix.py` and step 10 of the script of record. ⛔ **The row above is not edited**: it records what was expected and observed that day, and a record rewritten to look correct is worth nothing.
+
 ⭐ **NO NEW FINDING.** No artifact in any step carried a `null` or `''` baseline.
 
 ```
@@ -3388,7 +3626,7 @@ owner and nothing else.
 ⛔⛔ **UPDATED 2026-09-10T16:57:11Z — AND THE REASON HAS CHANGED.** The paragraph
 below said *"not because anything is red — nothing is"*. **Something is red now.**
 The self-fork **reproduced after the fix shipped** (run 3 of 7, 16:54:50Z, with
-deploy #4 live); see **⛔⛔ HARD STOP 2026-09-10** at the top of this file. The
+deploy #4 live); see **⛔⛔ HARD STOP #1 2026-09-10** at the top of this file. The
 NO-GO no longer rests on unmeasured rows alone — it rests on a **measured
 failure**, which is a stronger and much less negotiable reason.
 
@@ -3426,7 +3664,7 @@ distance — only the flip does, which is why the rollback below is one line.
 ## 🔀 THE FLIP ITSELF — ⛔⛔ **BLOCKED**, and here is what it would be
 
 ⛔⛔ **DO NOT RUN THIS.** The flip is **blocked** on the self-fork reproducing
-after deploy #4 — see **⛔⛔ HARD STOP 2026-09-10** at the top of this file. The
+after deploy #4 — see **⛔⛔ HARD STOP #1 2026-09-10** at the top of this file. The
 procedure below is kept because it is correct and will be needed; it is **not an
 instruction to proceed**, and the gate it names is not the only gate any more.
 
@@ -3669,7 +3907,7 @@ which is what proves they test different lines.
 
 ⛔⛔ **THIS GATE IS NOT CLOSED, AND THE ROWS BELOW ARE NO LONGER THE BINDING
 CONSTRAINT.** A new row sits above all of them, and it blocks the flip on its
-own regardless of what the others say — see **⛔⛔ HARD STOP 2026-09-10** at the
+own regardless of what the others say — see **⛔⛔ HARD STOP #1 2026-09-10** at the
 top of this file.
 
 | | status |
@@ -4013,13 +4251,17 @@ docs/notebook/wave-q1-*.md                 certification · canary-red · harnes
 docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 ```
 
-**Sections in this file worth knowing by name:** ⛔⛔ **HARD STOP 2026-09-10**
-(read it first — root cause found, the flip is BLOCKED) · 🔧 **ROUND 2 — THE FINAL
-DESIGN (R-A)** (✅ shipped as **#4b**) · ✅✅ **DEPLOY #4b** then ✅✅ **DEPLOY #4**
-(⚠️ #4 narrowed, did not close) · 🧾 **RULINGS** R1–R16 and 🧾 **ROUND-2 RULINGS**
-R-A…R-K (decisions taken, with reasons) · ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
+**Sections in this file worth knowing by name:** ⛔⛔⛔ **HARD STOP #2** (read it
+FIRST — the member's words were LOST; the fix is committed, ⛔ NOT deployed) ·
+⛔⛔ **HARD STOP #1** (the self-fork reproduced after #4) · 🔧 **ROUND 2 — THE
+FINAL DESIGN (R-A)** (shipped as **#4b**, and #4b was not the end) · ✅✅ **DEPLOY
+#4b** then ✅✅ **DEPLOY #4** (⚠️ both annotated, neither rewritten) · 🧾 **RULINGS**
+R1–R16 and 🧾 **ROUND-2 RULINGS** R-A…R-O · ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
 ⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not
 indicated — both deploys stay).
-⛔ **The note baseline is 33, not 32** (**R-K**) — do not "correct" it.
+⛔ **The note baseline is 34, not 32** (**R-K**) — 32 + TWO preserved forks. Do not
+"correct" it.
+⛔ **"Server holds text" is DELETED everywhere** (**R-O**) — the check is *the
+server BODY CONTAINS THE OFFLINE SENTENCE*.
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
