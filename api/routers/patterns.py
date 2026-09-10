@@ -755,10 +755,53 @@ def patterns_judge(sym: str, tf: str = "D", user=Depends(require_admin)):
     """Admin: run the Opus-vision judge for a symbol in the background."""
     import threading
     from api.services.pattern_vision import orchestrator as pv_orch
-    threading.Thread(
-        target=lambda: pv_orch.judge_ticker(sym, tf, force=True),
-        daemon=True, name=f"pv-judge-{sym}",
-    ).start()
+
+    def _manual():
+        # This path calls judge_ticker DIRECTLY and never touches the cron's
+        # _run(), so without this it would write no slot row and a manual
+        # re-judge would be invisible to the slot log -- the same blind spot
+        # that made the Session #2 contamination check incomplete. Recording
+        # it with source="manual" makes vision_slot_log the complete record of
+        # every judge invocation, cron or manual.
+        import time as _t
+        import datetime as _dt
+        from zoneinfo import ZoneInfo
+        from api.services.pattern_vision import store as pv_store
+        started = _t.time()
+        cur, err, r = sym, None, {}
+        try:
+            r = pv_orch.judge_ticker(sym, tf, force=True) or {}
+            cur = None
+        except Exception as e:
+            err = e
+            print(f"[pv] manual judge {sym} failed: {e}")
+        finally:
+            try:
+                fin = _t.time()
+                uniq = sorted({a for a in (r.get("asof_dates") or []) if a})
+                paid, spend = pv_store.slot_spend(int(started), int(fin) + 1)
+                pv_store.log_slot({
+                    "slot_start": _dt.datetime.now(
+                        ZoneInfo("America/New_York")).isoformat(),
+                    "source": "manual",
+                    "started_ts": int(started), "finished_ts": int(fin),
+                    "duration_s": round(fin - started, 2),
+                    "evidence_min": uniq[0] if uniq else None,
+                    "evidence_max": uniq[-1] if uniq else None,
+                    "evidence_distinct": len(uniq),
+                    "active_set_n": 1, "judged": r.get("judged", 0),
+                    "skipped": r.get("skipped", 0),
+                    "capped": 1 if r.get("cost_capped") else 0,
+                    "render_failed": r.get("render_failed", 0),
+                    "errored": r.get("errored", 0),
+                    "aborted": 1 if err is not None else 0,
+                    "abort_ticker": cur if err is not None else None,
+                    "paid_calls": paid, "spend_usd": spend,
+                }, r.get("problems") or [])
+            except Exception as le:
+                print(f"[pv] manual slot-log failed: {le}")
+
+    threading.Thread(target=_manual, daemon=True, name=f"pv-judge-{sym}").start()
     return {"started": True}
 
 
