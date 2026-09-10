@@ -1,0 +1,193 @@
+{
+  "_": "⭐⭐ THE FOUR PROBES AS SAVED TRADINGVIEW SCRIPTS. Read ids from HERE, not from a prose table.",
+  "_why": "Once a probe is a saved script it is addressable by id, so a capture visit is createStudy-by-id with no Pine editor, no paste, and no binding hazard at all. This file is the id map that makes that possible.",
+  "_scope": "⛔ scriptId is ACCOUNT-scoped and stable across layouts. onChartSourceId_this_layout_only is NOT — it is a per-layout handle for the disposable layout below and is worthless anywhere else. Never key anything durable on it.",
+  "capturedAtUTC": "2026-09-10T20:17:58Z",
+  "capturedAtET": "2026-09-10T16:17:58-04:00",
+  "sessionClock": {
+    "regularHoursEndedET": "16:00",
+    "_": "⚠️ THE SAVE/ADD RUN FINISHED AFTER THE CLOSE. Every probe here is saved and on the chart, but any capture whose meaning depends on an OPEN session — the D-realtime run, and tuple N23 (HTF_minus_close, 0 means still running) — was outside the window and must be re-read during RTH. ⭐ Recorded as an instant rather than a verdict: barstate-full read isrealtime=1 and isconfirmed=0 on the newest daily bar at 16:17:58 ET, i.e. the daily bar was still unconfirmed 18 minutes after the close, which is itself the answer to when the tri-state flips and is NOT the same as 'the market is open'."
+  },
+  "repoHeadAtCapture": "84148478cc19973f605e413f05a631d77a9bfe7e",
+  "layout": {
+    "name": "UCT AGENT VISIT 2026-09-10 (disposable)",
+    "url": "https://www.tradingview.com/chart/e3cTXatd/",
+    "symbol": "AMEX:SPY",
+    "resolution": "1D"
+  },
+  "how": "Per probe: script-title dropdown -> Create new -> Indicator (the unbind; yields a fresh Monaco model whose action button reads 'Add to chart'), then the committed bytes were written straight into the model via the Monaco editor API and sha256-verified IN THE EDITOR against the committed file before anything was clicked, then Save script (the name is pre-filled from the indicator() declaration, so nothing was typed), then Add to chart.",
+  "gates": {
+    "bytes": "sha256 of the editor's own getValue() == sha256 of the committed file, checked before Save.",
+    "roster": "vendor _metaInfo.plots order == the committed source's plot() order, derived by a balanced-paren scan. ⛔ NEVER a regex: plot(str.contains(a, b) ? 1 : 0, \"name\") has commas inside its first argument and the obvious pattern silently drops it, returning 11 names for a 12-plot file.",
+    "compiled": "⛔⛔ isFailed === false AND plot count == the committed source's. A study that fails to compile keeps a ONE-PLOT STUB _metaInfo titled \"Plot\" with the shared placeholder digest 0366beecad3fa344b185adf5e6ac9b35f5419485 and an EMPTY _data._items. Read a roster off that stub and you will record a 1-plot study that never ran as though it answered.",
+    "identity": "scriptId must not be 787899e2… — that is TradingView's shared UNSAVED-BUFFER slot, not a saved script (pine-facade GET on it returns 404 against 200s for real ids). The assertion means 'genuinely saved', not 'not the owner's'."
+  },
+  "ownerScriptsUntouched": {
+    "_": "⭐ H1 evidence, read from the account's own saved list AFTER the run, not inferred.",
+    "uct-oracle-cmf-adl-pvt-falling-kcw-v1": {
+      "version": "4.0",
+      "lastModified": "2026-09-07T04:00:52Z"
+    },
+    "Uncharted Scanners": {
+      "version": "2.0",
+      "lastModified": "2026-03-17T02:23:11Z"
+    }
+  },
+  "scripts": {
+    "UCTPROBE_FOLD": {
+      "savedAs": "UCTPROBE_FOLD",
+      "scriptId": "Script$USER;77714867cb714f3c929e225f183266ee@tv-scripting",
+      "scriptIdPart": "USER;77714867cb714f3c929e225f183266ee",
+      "version": "1.0",
+      "source": "fold-pass.pine",
+      "sourceBytes": 635,
+      "sourceChars": 629,
+      "sourceSha256": "1059d08b138e60b54fa2ca7702bab360eb664db632f87bdf376264dcd19dbed7",
+      "compiles": true,
+      "vendorPineDigest": "19e64af9b3b63266fdcb22c1c7339c08abcd7d07",
+      "onChartSourceId_this_layout_only": "S47CqH",
+      "plotRoster_PLOTS_ORDER": [
+        "fold",
+        "sma20",
+        "sma5",
+        "isweekly",
+        "isdaily"
+      ],
+      "rosterMatchedVendorAtAdd": true,
+      "storedAtVendor": {
+        "sha256": "9aa796b1067161743dafd1c62ecc2cf5b0dd20183bb0e4769fa3c4a620e3ac73",
+        "chars": 642,
+        "equalsCommittedModuloEOL": true,
+        "trailingNewlineKept": false
+      }
+    },
+    "UCTPROBE_TUPLE": {
+      "savedAs": "UCTPROBE_TUPLE",
+      "scriptId": "Script$USER;36fc58d24e5b4f5aa440a4e899bf16cb@tv-scripting",
+      "scriptIdPart": "USER;36fc58d24e5b4f5aa440a4e899bf16cb",
+      "version": "1.0",
+      "source": "tuple-security.pine",
+      "sourceBytes": 8154,
+      "sourceChars": 7414,
+      "sourceSha256": "272d8803915879d7d3afd9c74056c6bf7797d0324a7e4bd061a6ac71d84dd521",
+      "compiles": true,
+      "vendorPineDigest": "458828a527f37483c9c1441f52179174bc08617d",
+      "onChartSourceId_this_layout_only": "6GcYEh",
+      "plotRoster_PLOTS_ORDER": [
+        "N00_close_CONTROL",
+        "N01_bar_index",
+        "N02_ORDER_f1_expect_1",
+        "N03_ORDER_f2_expect_2",
+        "N04_ORDER_f3_expect_3",
+        "N05_ORDER_f4_expect_4",
+        "N06_ORDER_f5_expect_5",
+        "N07_ORDER_f6_expect_6",
+        "N08_ORDER_f7_expect_7",
+        "N09_ORDER_f8_expect_8",
+        "N10_gapsON_lookaheadON",
+        "N11_gapsON_lookaheadOFF",
+        "N12_gapsOFF_lookaheadON",
+        "N13_gapsOFF_lookaheadOFF",
+        "N14_BOTH_OMITTED_the_defaults",
+        "N15_IS_NA_gapsON_lookaheadON",
+        "N16_IS_NA_gapsON_lookaheadOFF",
+        "N17_IS_NA_gapsOFF_lookaheadON",
+        "N18_IS_NA_gapsOFF_lookaheadOFF",
+        "N19_IS_NA_BOTH_OMITTED",
+        "N20_DEFAULT_minus_gapsOFF_lookaheadOFF_expect_0",
+        "N21_DEFAULT_minus_gapsON_lookaheadOFF",
+        "N22_bar_index_WHILE_still_na",
+        "N23_HTF_minus_close_0_means_running",
+        "N24_SAMETF_minus_close_expect_0",
+        "N25_IS_NA_SAMETF"
+      ],
+      "rosterMatchedVendorAtAdd": true,
+      "storedAtVendor": {
+        "sha256": "7de824f1c05699c60e18d442f24d435d417bcfb69d87b3f607aacd35fc70fad0",
+        "chars": 7539,
+        "equalsCommittedModuloEOL": true,
+        "trailingNewlineKept": true
+      }
+    },
+    "UCTPROBE_BARSTATE_FULL": {
+      "savedAs": "UCTPROBE_BARSTATE_FULL",
+      "scriptId": "Script$USER;1c367abc1e1548a7886ba6cf623e533f@tv-scripting",
+      "scriptIdPart": "USER;1c367abc1e1548a7886ba6cf623e533f",
+      "version": "1.0",
+      "source": "barstate-full.pine",
+      "sourceBytes": 1542,
+      "sourceChars": 1542,
+      "sourceSha256": "c0db412da395261a27bc710118bfc4cbb1c20505188e17cdb21aba7c4e738c11",
+      "compiles": true,
+      "vendorPineDigest": "ad12631250223e5c9958697a8b8fd96aca76f899",
+      "onChartSourceId_this_layout_only": "G1FTcQ",
+      "plotRoster_PLOTS_ORDER": [
+        "N01_bar_index",
+        "N02_cum_na_contributes",
+        "N03_cum_one",
+        "N04_cum_late_start",
+        "N05_isdaily",
+        "N06_isweekly",
+        "N07_ismonthly",
+        "N08_tv",
+        "N09_num_0_00",
+        "N10_len_0_00",
+        "N11_num_hash_hash",
+        "N12_len_hash_hash",
+        "N13_num_hash",
+        "N14_len_hash",
+        "N15_neg_num_0_00",
+        "N16_neg_len_hash",
+        "N17_ticker_slash",
+        "N18_tickerid_slash",
+        "N19_ticker_len",
+        "N20_tickerid_len",
+        "N21_isconfirmed",
+        "N22_islast",
+        "N23_ishistory",
+        "N24_isrealtime",
+        "N25_isnew",
+        "N26_islastconfirmedhistory"
+      ],
+      "rosterMatchedVendorAtAdd": true,
+      "storedAtVendor": {
+        "sha256": "9c8da2dfda089638a6334d3a298e260509da20f085e7d2618a3e62113677c79f",
+        "chars": 1573,
+        "equalsCommittedModuloEOL": true,
+        "trailingNewlineKept": true
+      }
+    },
+    "UCTPROBE_EXCHANGE": {
+      "savedAs": "UCTPROBE_EXCHANGE",
+      "scriptId": "Script$USER;631d746765c044fa86e7de4ed8004941@tv-scripting",
+      "scriptIdPart": "USER;631d746765c044fa86e7de4ed8004941",
+      "version": "1.0",
+      "source": "exchange-spelling.pine",
+      "sourceBytes": 9120,
+      "sourceChars": 8792,
+      "sourceSha256": "19e69d1d8aa37972ee62507f86369fbedc4e6cd27e75ff91c94444ced347dfcc",
+      "compiles": false,
+      "compileError": {
+        "code": "CE10272",
+        "message": "Undeclared identifier \"syminfo.exchange\"",
+        "line": 36,
+        "colStart": 6,
+        "colEnd": 21,
+        "_": "The study SAVES fine and fails to COMPILE. See the open ruling in README.md."
+      },
+      "storedAtVendor": {
+        "sha256": "e2feb28718ccfa3d09f8db806bfaf8934612eb8e7652054a934ca0101ef94226",
+        "chars": 8931,
+        "equalsCommittedModuloEOL": true,
+        "trailingNewlineKept": true
+      }
+    }
+  },
+  "vendorStorageNormalisation": {
+    "_": "⭐⭐ WHAT TRADINGVIEW STORES IS NOT BYTE-EQUAL TO THE COMMITTED FILE, AND THAT IS EXPECTED. Measured 2026-09-10 by reading each saved script back from pine-facade and hashing it.",
+    "rule": "stored == committed.replace('\n', '\r\n')  — a pure LF->CRLF normalisation. Content identical; no character of the source is altered, added or removed.",
+    "howToCompare": "⛔ A NAIVE sha256(committed) == sha256(stored) COMPARISON FAILS ON ALL FOUR AND MEANS NOTHING. Normalise first, and allow the trailing newline to be absent: stored == committed.replace('\n','\r\n') OR stored == committed.rstrip('\n').replace('\n','\r\n'). Anything else is real content drift and the capture must be refused.",
+    "deltasObserved": "+13 / +125 / +31 / +139 chars — NOT a constant, which is why this looked at first like an injected header. It is (number of line breaks) minus (1 if the trailing newline was dropped).",
+    "trailingNewline": "⚠️ UCTPROBE_FOLD is stored WITHOUT its trailing newline; the other three keep it. That is not a vendor behaviour — it is the earlier injection procedure, which measured and wrote the source with the trailing LF stripped (the 628-char and 8791-char figures in the superseded notes are exactly charsNoTrailingLF). Today's three wrote the file whole. Semantically nil for Pine: same roster, same values, same compile. Left as-is rather than re-saving, because re-saving means binding the editor to a saved script and the gain is a trailing newline."
+  }
+}
