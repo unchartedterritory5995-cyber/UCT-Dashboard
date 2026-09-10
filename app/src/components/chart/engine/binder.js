@@ -654,7 +654,15 @@ export function createBinder({ chart, LWC }) {
         // line registered, enabled and permanently blank — a definition that
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
-        const r = attempt(() => registry.computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf }))
+        const r = attempt(() => registry.computeFor(def, bars, inst.inputs,
+          // ⭐⭐ `newestBarIsForming` RIDES THE CTX, like `sym` and `tf`. It is
+          // Python's `bar_close_state` answer, carried from the /api/bars payload
+          // the SAME bars came from — so the tri-state and the series it describes
+          // can never be from two different fetches.
+          // ⛔ FAIL CLOSED: `?? null` keeps UNKNOWN as UNKNOWN. `false` would mean
+          // SETTLED and blank nothing, which is the one wrong answer these columns
+          // exist to prevent.
+          { sym: ctx.sym, tf: ctx.tf, newestBarIsForming: ctx.newestBarIsForming ?? null }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least

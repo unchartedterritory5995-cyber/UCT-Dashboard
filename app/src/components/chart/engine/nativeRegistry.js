@@ -1276,7 +1276,11 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // The REASON is preserved instead — see `columnErrors`.
       try {
         out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
-          undefined, { tf: ctx && ctx.tf, crossMemo })
+          // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
+          // the same way. `ctx` absent -> `null` -> UNKNOWN -> the four
+          // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
+          undefined, { tf: ctx && ctx.tf,
+            newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null, crossMemo })
       } catch (err) {
         errors[key] = {
           guard: (err && err.guard) || 'compute:error',
@@ -1309,7 +1313,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // different route and reads identically at the call site.
   return {
     [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget,
-      undefined, { tf: ctx && ctx.tf }),
+      undefined, { tf: ctx && ctx.tf,
+        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null }),
   }
 }
 

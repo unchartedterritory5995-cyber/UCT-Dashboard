@@ -10100,6 +10100,18 @@ export default function StockChart({
         // differently from the request the hook actually makes.
         sym,
         tf: resolvedTf,
+        // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
+        // from `bar_close_state` because that is the side the NYSE calendar lives
+        // on; the browser is handed one tri-state and never a date set. Without it
+        // the four CLOCK_REALTIME columns render BLANK — correct under the
+        // fail-closed contract, and useless.
+        // ⛔ `?? null` IS THE FAIL-CLOSED DEFAULT AND MUST STAY. A server that has
+        // not shipped the field yet sends `undefined`; `null` means UNKNOWN and
+        // blanks the columns, whereas `false` would assert the newest bar is
+        // SETTLED and hand the column layer a confident `isconfirmed = 1`.
+        // ⭐ It rides WITH the payload it describes, so a cached or delta response
+        // carries the state of ITS OWN newest bar rather than of the wall clock.
+        newestBarIsForming: data?.newest_bar_is_forming ?? null,
         adjustTime,
         applyData: _applyData,
         // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
