@@ -22,10 +22,10 @@ the gate       jt=()=>{if(!vt.current)return;x("dirty"),...}   ← refuses BEFOR
 the flag       zi=!1  →  OFFLINE_DEFAULT_ON === false          ← still dark
 ```
 
-⚠️ **The §15 canary is PARTIAL — see the canary record below.** Steps 1–6, 10 and
-11 ran green against production; **steps 7–9 (the offline half, the step that
-originally went red) did NOT run**, and neither did the conflict path. The
-seven-day observation window is therefore **NOT started**.
+✅✅ **THE §15 CANARY IS COMPLETE AND GREEN** — online half, offline half
+(including the step that went red on 2026-09-09), and the conflict path through
+the drain's fork. No `null` or `''` baseline in any artifact. The seven-day
+observation window is **STARTED: 2026-09-10 → 2026-09-17.**
 
 ---
 
@@ -191,8 +191,10 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Deploy attempt 2** | scope-gated loop authorised; **gate FIRED on iteration 1** — six commits incl. chart-watermark work touching six files under `app/`. Did not merge, did not deploy. See §(b-1). ⛔ **Nothing was pushed to master.** |
 | **DEPLOYED** | **`cd674ef56`** on `master`, 2026-09-10 **02:40:01 UTC**, live **02:42:29**. Gate classified the chart work TIER 2 → merged, full re-verify, ledger unchanged → 0 behind → deployed. Verified on the live bundle. |
 | **Canary** | **`9b28cedf0`** — PARTIAL: steps 1–6/10/11 green incl. the fix's own signature; **steps 7–9 (offline) and the conflict path NOT run**; observation window NOT started |
-| **Canary, offline half** | **`c604aa899`** — BLOCKED 2026-09-10: no CDP executor, Chrome has no `--remote-debugging-port`. Amendment recorded; stopped rather than improvise. Keyboard recipe written. |
-| **Branch tip** | `c604aa899` **plus one docs-only commit stamping this table**. `master` is at `cd674ef56` (the deploy). ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
+| **Canary, offline half — attempt 1** | **`c604aa899`** — BLOCKED 2026-09-10: no CDP executor, Chrome has no `--remote-debugging-port`. Amendment recorded; stopped rather than improvise. Keyboard recipe written. ⭐ Superseded by the two rows below — kept because *what was tried and why it stopped* is the part a next session would otherwise repeat. |
+| **The CDP rig** | **`59612df1c`** + **`22c4e1be3`** — a SECOND Chrome with its own throwaway profile, `--remote-debugging-port=9411` on 127.0.0.1, driven by Playwright `connect_over_cdp`; offline proven both ways before use. The second commit is the correction that the owner's Chrome is checked by the BROWSER process and the profile marker, **never by a process COUNT** (a count false-alarmed at 14/15 on a reaped child). |
+| **✅ CANARY COMPLETE** | **`22c4e1be3` + this Part-D docs commit** — offline half incl. **the step that was 9/9 red**, and the conflict path through the drain's fork. All green. **No `null`/`''` baseline in any artifact ⇒ no NEW FINDING.** Observation window started. |
+| **Branch tip** | `22c4e1be3` **plus the Part-D docs commit and one docs-only commit stamping this table**. `master` is at `cd674ef56` (the deploy). ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
 | **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` → `590e88084` → `b41b4ed07` → `4879d4d02` inside one session — eleven commits, three authors. The first eight touched **zero** files under `app/`; the last six included chart-watermark work that did. All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
@@ -682,8 +684,60 @@ where it is the first item.
 
 # THE §15 CANARY — RUN 2026-09-10, AGAINST THE DEPLOYED FIX
 
-⛔ **PARTIAL. Green on everything that ran; two halves did not run.** Recorded
-step by step so it is comparable to `wave-q1-activation-canary-red.md`.
+✅✅ **COMPLETE AND GREEN.** Happy path 2026-09-10 (online half) · offline half
+and conflict path 2026-09-10 (CDP rig). Recorded step by step so it is comparable
+to `wave-q1-activation-canary-red.md`.
+
+## ⭐⭐ PART A — THE OFFLINE HALF, AND THE 9/9 RED STEP IS GREEN
+
+| step | expected | observed | |
+|---|---|---|---|
+| 7 · offline via CDP | a probe must actually fail | `fetch('/api/health')` → **FAILED: TypeError in 1 ms**, `navigator.onLine=false` | ✅ |
+| 8 · type offline | words in all three layers, `dirty:1`, REAL baseline | draft + durable + outbox all carry the typed title and body; `dirty:1`; **`baseUpdatedAt:"2026-09-10T03:30:28.959081+00:00"`**. Header, as rendered text: **"Saved on this device · waiting to sync · Reconnecting…"** | ✅ |
+| 9 · **reload with unsynced work** | no empty document, real baseline | **all three layers still hold the member's offline words**; `dirty:1`; baseline still the real timestamp; editor mounted (control); the screen shows the SERVER copy and the banner **"Unsaved changes from a previous session were found for this note. / Restore"** — offered, never auto-applied | ✅ |
+| 10 · reconnect | one PUT with the CAS baseline; `dirty:0`; server has the words | outbox **emptied**, record `dirty:0` re-based on `03:34:19.455110`, **server now carries the offline title AND body**, baseline == server `updatedAt` | ✅ |
+
+⭐ **NO NEW FINDING.** No artifact in any step carried a `null` or `''` baseline.
+
+```
+9/9  INCIDENT  all three layers: {title:"", subtitle:"", body:{doc,[paragraph]}}
+                                  baseUpdatedAt: null
+9/10 CANARY    all three layers: the member's OFFLINE words
+                                  baseUpdatedAt: "2026-09-10T03:30:28.959081+00:00"
+```
+
+### ⚠️ Two things the reconstructed script got wrong, corrected here
+
+⛔ **"Reload the page" cannot be done WHILE OFFLINE.** Wave Q1 deliberately has
+**no service worker**, so an offline reload cannot fetch `index.html`: the SPA
+never loads, Chrome shows its own error page, and `localStorage`/IndexedDB are
+not even readable from that context (`draft:"ERR"`, `dbMissing:true`). Measured.
+**That step proves nothing about the product** — the dangerous rebuild path never
+runs. The meaningful ordering is the incident's own: *open → edit offline →
+reload → recover*, with the network available for the reload itself. That is what
+ran, and that is what is green.
+
+⛔ **Step 10 does not drain while the note is OPEN.** `excludeNoteId` hands the
+open note to the editor, never the sweep — two writers on one note is exactly
+what this wave forbids. The queued entry correctly waits until the member accepts
+the banner, edits, or **navigates away**. The first step-10 reading looked like a
+stalled drain and was not: navigating away drained it immediately.
+
+## ⭐⭐ PART B — THE CONFLICT PATH, THROUGH THE DRAIN'S FORK
+
+Not an online-409 substitute: the editor was **offline** (CDP), typed, and the
+work was **queued**; a second client then moved the server; the drain sent the
+stale-baseline entry on reconnect.
+
+| | |
+|---|---|
+| B0 server | `updatedAt 03:34:19.455110` — the baseline the editor holds |
+| B1 offline | probe **FAILED: TypeError** |
+| B2 queued offline | `dirty:1`, patch = the member's words, baseline `03:34:19` (now stale) |
+| B3 second writer | a different tab, online, direct API PUT → server moves to `03:35:41.000485` |
+| B4 reconnect + hand back | **server STILL the second writer's words, byte-unchanged** · a real note **`"… (conflicted copy)"` tagged `sync-conflict`** created, and its body **contains `MEMBER-OFFLINE-SENTINEL`** and *not* the second writer's · local record adopted the SERVER copy (`dirty:0`, `generation:0`, `sessionId:null` — `settleForked`) · **outbox empty** |
+
+✅ **No clobber in either direction. No baseline-less send. No lost words.**
 
 | step | expected | observed | |
 |---|---|---|---|
@@ -871,6 +925,29 @@ console.log(JSON.stringify({
 ⚠️ **Both need a person at the keyboard for about five minutes.** Until they run,
 the canary is partial and the seven-day observation window stays unstarted.
 
+# ⏱️ THE SEVEN-DAY OBSERVATION WINDOW — STARTED 2026-09-10
+
+| | |
+|---|---|
+| start | **2026-09-10** (canary green, deploy `cd674ef56` live) |
+| end | **2026-09-17** |
+| state | `OFFLINE_DEFAULT_ON = false` — **the window observes the DEPLOYED FIX, not the offline layer** |
+
+**What is watched, and what each would mean:**
+
+1. **Any member report of a note reading blank after a reload.** The defect this
+   deploy fixes. One report ⇒ stop and re-open, do not explain it away.
+2. **Any `null` or `''` `baseUpdatedAt` in any artifact.** ⛔ That is a **NEW
+   FINDING**, not the old one — the old one is fixed at source, railed at the
+   server, and refused at the drain. Say so loudly.
+3. **The inherited-red ledger** — same nine rows, no new offenders. Re-check on
+   any master merge that touches `app/` (tier 2).
+4. **The drain**, once the flag is ever on: `(conflicted copy)` creation rate and
+   any `permanent:true` outbox entries.
+
+⛔ **The window is not a reason to flip the flag.** Flipping is a separate
+decision against the gate below, and two of its items are still open.
+
 # THE FLAG-FLIP GATE — a SEPARATE list, and not the deploy's
 
 ⛔ **These are not deploy blockers.** With `OFFLINE_DEFAULT_ON = false` the drain
@@ -907,8 +984,8 @@ which is what proves they test different lines.
 |---|---|
 | A blocked entry is surfaced to the member | ❌ **it is not** — see below |
 | `baseUpdatedAt: null` explained | ❌ not closed (harmless — the drain refuses it) |
-| A fresh §15 canary on the deployed fix | ⚠️ **STILL PARTIAL** — steps 1–6/10/11 green (2026-09-10). Steps 7–9 + conflict path **attempted 2026-09-10 and BLOCKED**: no CDP executor in the toolset, Chrome has no `--remote-debugging-port`, no listener on 9220–9340. Stopped rather than improvise. Keyboard recipe is in the canary section. |
-| Seven-day observation window armed | ⛔ **NOT started** — deliberately. It waits on a complete canary, not a partial one (`wave-q1-observation-window.md`) |
+| A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. |
+| Seven-day observation window armed | ✅ **STARTED 2026-09-10, ends 2026-09-17** — see below |
 
 ### The blocked-entry finding, in full (measured, `blockedEntryIsVisible.test.jsx`)
 
@@ -964,6 +1041,12 @@ again, for a reason nothing on screen ever gives them.
 
 ## Cleanup owed
 
+- ⚠️ **`.worktrees/canary-chrome-profile` — ~1,700 files, needs a manual delete.**
+  The CDP rig's throwaway Chrome profile. The browser itself is fully torn down —
+  0 canary-profile processes, CDP endpoint gone, `chrome.exe` back to its baseline
+  15, only the owner's browser (`44184`) left — but Windows still holds a handle
+  on the profile directory. Gitignored; cannot reach a commit or a deploy.
+
 - ⚠️ **`.worktrees/master-baseline` — ~3,900 files, needs a manual delete.**
   A scratch worktree checked out at `184a7e77b` to run the eight inherited-red
   files directly against the new master. The run was **abandoned as invalid** (a
@@ -977,6 +1060,9 @@ again, for a reason nothing on screen ever gives them.
   ```
   cmd /c "rmdir /s /q C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees"
   ```
+
+  ⭐ That one command clears both leftovers — the whole `.worktrees` directory is
+  gitignored and holds nothing but throwaway rigs.
 
   ⛔ Do NOT `git worktree remove` it — that is already done; only the directory
   remains.
