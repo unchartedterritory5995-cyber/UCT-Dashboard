@@ -22,7 +22,7 @@ import { crosshairModeOf } from './chart/crosshairMode'
 // added to `LEGEND_MODES` without a label here renders as `undefined` in the
 // right-click menu rather than silently not being offered at all.
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
-import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
+import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
@@ -8723,6 +8723,12 @@ export default function StockChart({
       }
       wmCtrlRef.current.setOptions({
         lines: wmLines,
+        // The ENABLED fields (not merely the ones this ticker has data for) size the
+        // watermark's layout box, so the mark occupies the same rectangle on every
+        // symbol — DIA's long name can't widen it and MU's extra rows can't push its
+        // top edge up under the legend.
+        fields: cs.watermark.lines,
+        boxW: cs.watermark.boxW ?? DEFAULT_BOX_W,
         color: cs.watermark.color,
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,

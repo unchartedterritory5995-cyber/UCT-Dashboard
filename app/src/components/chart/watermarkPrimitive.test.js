@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { composeWatermarkLines, watermarkFontPx, computeWatermarkRect } from './watermarkPrimitive'
+import { composeWatermarkLines, watermarkFontPx, computeWatermarkRect, createWatermarkPrimitive, reservedBlock, wrapToRows } from './watermarkPrimitive'
 
 describe('composeWatermarkLines', () => {
   const meta = { name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers' }
@@ -83,5 +83,116 @@ describe('computeWatermarkRect', () => {
     expect(huge.x).toBeLessThan(24)         // deliberately no left clamp
     // Vertical still top-pins with padTop.
     expect(wide.y).toBe(24)
+  })
+})
+
+// A canvas stub whose text width is a fixed px-per-char — enough to exercise the
+// wrap/ellipsize maths deterministically.
+function ctxStub(perChar = 10) {
+  return { measureText: (t) => ({ width: String(t).length * perChar }) }
+}
+
+describe('wrapToRows', () => {
+  const ctx = ctxStub()
+  it('keeps a short line on one row', () => {
+    expect(wrapToRows(ctx, 'Micron Technology, Inc.', 400, 2)).toEqual(['Micron Technology, Inc.'])
+  })
+  it('wraps a long company name onto two rows instead of widening it', () => {
+    const rows = wrapToRows(ctx, 'State Street SPDR Dow Jones Industrial Average ETF Trust', 300, 2)
+    expect(rows).toHaveLength(2)
+    rows.forEach((r) => expect(r.length * 10).toBeLessThanOrEqual(300))
+    expect(rows.join(' ')).toBe('State Street SPDR Dow Jones Industrial Average ETF Trust')
+  })
+  it('ellipsizes what still will not fit rather than spilling outside the box', () => {
+    const rows = wrapToRows(ctx, 'one two three four five six seven eight nine ten', 80, 2)
+    expect(rows).toHaveLength(2)
+    expect(rows[1].endsWith('…')).toBe(true)
+    rows.forEach((r) => expect(r.length * 10).toBeLessThanOrEqual(80))
+  })
+  it('leaves an unbreakable word intact', () => {
+    expect(wrapToRows(ctx, 'Supercalifragilistic', 50, 1)).toEqual(['Supercalifragilistic'])
+  })
+  it('empty text → no rows', () => {
+    expect(wrapToRows(ctx, '', 200, 2)).toEqual([])
+  })
+})
+
+describe('reservedBlock', () => {
+  const ALL = { ticker: true, company: true, sector: true, industry: true, theme: true }
+  it('reserves rows for every ENABLED field, so height is ticker-independent', () => {
+    // ticker 54 + company 2x20 + sector 14 + industry 13 + theme 13 = 134, 6 rows → 5 gaps
+    expect(reservedBlock(ALL, 1)).toBe(134 + 5 * 6)
+  })
+  it('scales with the size scale', () => {
+    expect(reservedBlock(ALL, 2)).toBe(268 + 5 * 12)
+  })
+  it('drops the rows of disabled fields', () => {
+    expect(reservedBlock({ ticker: true, company: true }, 1)).toBe(54 + 40 + 2 * 6)
+    expect(reservedBlock({ ticker: true }, 1)).toBe(54)
+  })
+  it('unknown fields → 0 (caller falls back to measured content height)', () => {
+    expect(reservedBlock(null, 1)).toBe(0)
+    expect(reservedBlock({}, 1)).toBe(0)
+  })
+})
+
+describe('watermark box stability (draw → getRect)', () => {
+  const ALL = { ticker: true, company: true, sector: true, industry: true, theme: true }
+  // Canvas stub: width = chars x 10 x (font px / 20), so bigger fonts measure wider.
+  function drawCtx() {
+    return {
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 0,
+      globalAlpha: 1,
+      _px: 20,
+      set _font(v) { /* noop */ },
+      measureText(t) {
+        const px = parseFloat(/(\d+(?:\.\d+)?)px/.exec(this.font)?.[1] || '20')
+        return { width: String(t).length * 10 * (px / 20) }
+      },
+      save() {}, restore() {}, fillText() {}, beginPath() {}, arc() {}, fill() {},
+      clip() {}, drawImage() {}, setLineDash() {}, strokeRect() {},
+    }
+  }
+  const drawWith = (ctrl, media = { width: 1400, height: 800 }) => {
+    ctrl.primitive.paneViews()[0].renderer().draw({
+      useMediaCoordinateSpace: (fn) => fn({ context: drawCtx(), mediaSize: media }),
+    })
+    return ctrl.getRect()
+  }
+  const make = (meta, sym) => createWatermarkPrimitive({
+    lines: composeWatermarkLines(sym, meta, ALL, '1D'),
+    fields: ALL,
+    boxW: 380,
+    opacity: 0.5,
+    x: 0.25,
+    y: 0.3,
+    align: 'left',
+    custom: true,
+  })
+
+  it('a long-named ETF and a short-named stock land in the IDENTICAL rect', () => {
+    const dia = drawWith(make({ name: 'State Street SPDR Dow Jones Industrial Average ETF Trust' }, 'DIA'))
+    const mu = drawWith(make({ name: 'Micron Technology, Inc.', sector: 'Technology', industry: 'Semiconductors', theme: 'Memory & HBM' }, 'MU'))
+    expect(dia).toEqual(mu)
+    // ...and it is the configured box, not the text's own extent.
+    expect(dia.w).toBe(380)
+    expect(dia.h).toBe(reservedBlock(ALL, 1))
+  })
+
+  it('a ticker with NO sector/industry keeps the same top edge (no creep into the legend)', () => {
+    const bare = drawWith(make({ name: 'Acme' }, 'ACME'))
+    const full = drawWith(make({ name: 'Acme', sector: 'Tech', industry: 'Software', theme: 'AI' }, 'ACME'))
+    expect(bare.y).toBe(full.y)
+  })
+
+  it('the box never spills past the pane on a narrow widget', () => {
+    const r = drawWith(make({ name: 'Micron Technology, Inc.' }, 'MU'), { width: 300, height: 400 })
+    expect(r.x).toBeGreaterThanOrEqual(14)
+    expect(r.x + r.w).toBeLessThanOrEqual(300 - 14)
   })
 })
