@@ -44,52 +44,70 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url))
 const SRC = path.resolve(HERE, '..', '..', '..', '..')      // app/src
 const SUBJECT = path.resolve(HERE, '..', 'ast', 'pineRuntimeFrontend.js')
 
-/** Every `.js`/`.jsx` under `app/src`, excluding the subject itself. */
-function sources(dir, out = []) {
+/** ⭐⭐ ONE PASS OVER THE TREE, SHARED BY EVERY ASSERTION BELOW.
+ *
+ *  ⚰️ THIS READ EVERY FILE'S CONTENTS ONCE PER TEST and timed out at vitest's
+ *  15 s default on 1 run in 20 — measured, not guessed: the captured failure was
+ *  `Test timed out in 15000ms` inside the CONTROL, which walks all of `app/src`.
+ *  Three tests × ~1,400 files × a full `readFileSync` is the cost, and a cold
+ *  filesystem cache is what tips it over.
+ *
+ *  ⛔ THE FIX IS THE COST, NOT THE LIMIT. Raising `testTimeout` would leave a
+ *  gate that still flakes whenever the box is busy — and a gate that flakes is a
+ *  gate that gets ignored, which is worse than not having one. Reading the tree
+ *  ONCE takes the whole file to well under a second. */
+const FILES = (function scan(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    // ⚠️ SYMLINKED DIRECTORIES ARE NOT FOLLOWED. This repo has had
+    // `app/node_modules` be a junction into ANOTHER worktree; a walker that
+    // followed one would leave `app/src` and read someone else's tree.
+    if (e.isSymbolicLink()) continue
     const p = path.join(dir, e.name)
     if (e.isDirectory()) {
-      if (e.name === 'node_modules' || e.name === 'dist') continue
-      sources(p, out)
+      if (['node_modules', 'dist', '.vite', '.vite-temp', '__snapshots__']
+        .includes(e.name)) continue
+      scan(p, out)
     } else if (/\.(jsx?|mjs)$/.test(e.name)) {
-      out.push(p)
+      out.push({
+        rel: path.relative(SRC, p).replace(/\\/g, '/'),
+        text: fs.readFileSync(p, 'utf-8'),
+      })
     }
   }
   return out
-}
+})(SRC).filter((f) => path.resolve(SRC, f.rel) !== path.resolve(SUBJECT))
 
-/** Files that name the module in an import/require/dynamic-import position.
+/** Files naming `mod` in an import / require / dynamic-import position.
  *  ⭐ TEXT, DELIBERATELY, NOT AN AST. This asks "does any file MENTION it in a
  *  module position", which is strictly broader than the import graph — a wiring
- *  attempt through a shape this rail did not anticipate still trips it. Over-
- *  broad is the right direction for a gate. */
-function referrers() {
-  const re = /(?:from\s+|import\s*\(|require\s*\()\s*['"][^'"]*pineRuntimeFrontend[^'"]*['"]/
-  return sources(SRC)
-    .filter((p) => path.resolve(p) !== path.resolve(SUBJECT))
-    .filter((p) => re.test(fs.readFileSync(p, 'utf-8')))
-    .map((p) => path.relative(SRC, p).replace(/\\/g, '/'))
+ *  attempt through a shape this rail did not anticipate still trips it.
+ *  Over-broad is the right direction for a gate. */
+function referrers(mod) {
+  const re = new RegExp(
+    '(?:from\\s+|import\\s*\\(|require\\s*\\()\\s*[\'"][^\'"]*' + mod + '[^\'"]*[\'"]',
+  )
+  return FILES.filter((f) => re.test(f.text)).map((f) => f.rel)
 }
 
 describe('⛔⛔ the pane lane stays unwired until a tri-state producer exists', () => {
   it('⛔ NON-VACUITY FIRST — the subject exists and the scan can see files', () => {
     expect(fs.existsSync(SUBJECT), 'pineRuntimeFrontend.js is gone — if it was '
       + 'deleted on purpose, delete this gate too').toBe(true)
-    expect(sources(SRC).length, 'the source scan found nothing — the walker is '
-      + 'broken and every assertion below is vacuous').toBeGreaterThan(500)
+    expect(FILES.length, 'the source scan found nothing — the walker is broken '
+      + 'and every assertion below is vacuous').toBeGreaterThan(500)
   })
 
   it('⭐ THE CONTROL — the scan really can find a referrer when one exists', () => {
     // Without this, "zero referrers" is indistinguishable from a regex that
     // matches nothing. `indicators.js` is imported all over `app/src`.
-    const re = /(?:from\s+|import\s*\(|require\s*\()\s*['"][^'"]*indicators(?:\.js)?['"]/
-    const seen = sources(SRC).filter((p) => re.test(fs.readFileSync(p, 'utf-8')))
-    expect(seen.length, 'the referrer scan found no importer of indicators.js '
-      + 'either — it is not measuring what it claims').toBeGreaterThan(0)
+    expect(referrers('indicators').length, 'the referrer scan found no importer '
+      + 'of indicators.js either — it is not measuring what it claims')
+      .toBeGreaterThan(0)
   })
 
   it('⛔⛔ pineRuntimeFrontend.js has NO importer outside its own tests', () => {
-    const live = referrers().filter((p) => !/\.test\.[jt]sx?$/.test(p))
+    const live = referrers('pineRuntimeFrontend')
+      .filter((p) => !/\.test\.[jt]sx?$/.test(p))
     expect(live, 'pineRuntimeFrontend.js is now imported by ' + live.join(', ')
       + '.\n\n'
       + 'THE JS LANE RENDERS THE FOUR CLOCK_REALTIME COLUMNS BLANK: nothing '
