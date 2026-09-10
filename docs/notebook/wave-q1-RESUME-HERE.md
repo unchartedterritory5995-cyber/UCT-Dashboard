@@ -158,7 +158,8 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Fix commit #2** | **`8826e8aa7`** — the null-baseline hunt, the `??`-vs-truthy fix (`baseline.js`), the blocked-entry audit, the inherited-red ledger, the memory-pointer gate, the deploy packet |
 | **Reconciliation** | **`9741ddff1`** (merge of `184a7e77b`) + **`b8eedb42f`** — the master merge, the artifact-verified flag, the five index retirements, the corrected packet |
 | **Gate split** | **`32706ecae`** — the drain traced from the flag (§21b rails), the blocked-entry gap moved to the flag-flip gate, the §15 search recorded |
-| **Branch tip** | `32706ecae` **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
+| **Pre-flight** | **`11f3e812f`** — merged master `3b043d0f8`, ledger row 9 (the `ImportWizard` load-sensitive timeout), packet SHAs refreshed. ⛔ Ran under **HOLD**: the directive's DECISION line arrived unfilled. |
+| **Branch tip** | `11f3e812f` **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
 | **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` inside one session (OptionsFlow, then two docs-only). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
