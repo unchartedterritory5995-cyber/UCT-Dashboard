@@ -484,7 +484,11 @@ reuse, never reimplement. Buttons: **"Save plan"** (primary, brand green) and **
 
 ## 6. Phase 3 — Section controllers, ordered by discovered ease
 
-**Morning Wire → Breadth → Screener → Chart → Journal → Catalysts → Notebook → Home → Flow.**
+**Morning Wire → Breadth → Screener → Chart → Journal → Catalysts → Notebook → Home → Calendar → Flow.**
+
+⚰️ **Calendar added to this order 2026-09-10 (R-C).** §7 declares ten mode ids and §C3 carries a
+calendar section with three registry actions, so the mode exists; this build order simply omitted
+it. Ruled a §6 omission, not a §7 error. It stays dark until its own increment.
 
 Wire is first because its segments are already addressable and need no new state. Breadth is second
 because `pages/breadth/BreadthScrubber.jsx` already exists over an in-memory series. Flow is last and is

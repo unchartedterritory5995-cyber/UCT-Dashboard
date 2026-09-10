@@ -303,10 +303,27 @@ Home fan until it ships, because it has no route to navigate to (recorded in
 
 ### 3.7 Notebook (`notebook`) — route `/journal/notebook`
 
-Selection is **URL-driven**: `noteId = searchParams.get('note')` (`NotebookTab.jsx:59`), with
-`clearNoteParam()` at `:353-366`. ⭐ That makes the cursor's identity key the search params
+Selection is **URL-driven**: `const noteId = searchParams.get('note')` (`NotebookTab.jsx:63`,
+under `const [searchParams, setSearchParams] = useSearchParams()` at `:62`), with
+`clearNoteParam()` at `:365-369`. ⭐ That makes the cursor's identity key the search params
 themselves, and means the hub must write through the router, not component state — otherwise
 the back button and the hub disagree about which note is open.
+
+⚰️ **Citations corrected 2026-09-10 (R-E).** This read `:59` and `:353-366`. Line 59 is the closing
+brace of a telemetry `fetch().catch()`; `:353-357` is `closeNote`, a different function with the
+same shape plus three refreshes. Both were quote-verified against `febe8ee67` before correction, per
+CLAUDE.md's "a citation you cannot quote is struck".
+
+⭐ **The seam is `applyTargetToParams(params, target)`** (`journal-2-0/lib/searchNavigation.js:86`) —
+a pure exported builder that deletes `PARAM_DOC`/`PARAM_PAGE`/`PARAM_EXCERPT`/`PARAM_REVIEW` before
+setting `PARAM_NOTE`, so a hub-driven note change cannot leave a stale `?doc=&page=` pointing into a
+different note. The hub imports it; it does not hand-roll `params.set('note', id)`.
+
+⚠️ **A hub-driven selection also changes what the capture doors see, and that is intended.**
+`journal-2-0/lib/captureContext.js:26` (`noteIdFromLocation`) reads the same `?note=` param, so
+moving the hub's cursor moves "which note am I looking at" for capture as well. That is the correct
+behaviour — one URL, one answer — and it is recorded here so the coupling is a decision rather than
+a surprise.
 
 ### 3.8 Home (`home`) — route `/dashboard`
 
