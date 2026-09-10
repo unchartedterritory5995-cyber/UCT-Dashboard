@@ -89,7 +89,8 @@ def init_db() -> None:
             render_failed INTEGER, errored INTEGER,
             aborted INTEGER, abort_ticker TEXT,
             paid_calls INTEGER, spend_usd REAL,
-            dropped_stale INTEGER, truncated INTEGER, hygiene_skipped TEXT)""")
+            dropped_stale INTEGER, truncated INTEGER, hygiene_skipped TEXT,
+            dropped_no_bars INTEGER, evidence_hist TEXT)""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_vsl_slot ON vision_slot_log(slot_start)")
         # Migrate the slot table already live on the prod volume: CREATE TABLE
         # IF NOT EXISTS cannot add a column to a table that already exists, so
@@ -99,7 +100,8 @@ def init_db() -> None:
         # column name" on the second boot, and init_db runs on EVERY judge run.
         slot_cols = {r[1] for r in c.execute("PRAGMA table_info(vision_slot_log)").fetchall()}
         for _c, _type in (("dropped_stale", "INTEGER"), ("truncated", "INTEGER"),
-                          ("hygiene_skipped", "TEXT")):
+                          ("hygiene_skipped", "TEXT"),
+                          ("dropped_no_bars", "INTEGER"), ("evidence_hist", "TEXT")):
             if _c not in slot_cols:
                 c.execute(f"ALTER TABLE vision_slot_log ADD COLUMN {_c} {_type}")
         # Per-ticker detail for the two paths that are otherwise invisible.
@@ -234,6 +236,7 @@ SLOT_COLUMNS = [
     "judged", "skipped", "capped", "render_failed", "errored",
     "aborted", "abort_ticker", "paid_calls", "spend_usd",
     "dropped_stale", "truncated", "hygiene_skipped",
+    "dropped_no_bars", "evidence_hist",
 ]
 
 
