@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { deriveWatermarkAnchor } from '../components/chart/watermarkPrimitive'
 
 const THRESHOLD = 4 // px before a press becomes a drag
 
@@ -126,7 +127,20 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       drag.current = null
       if (d) suppressChart(e) // the chart must not see the gesture's pointerup
       try { el.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
-      if (commit && d && d.moved && d.nx != null && c) onCommitRef.current({ x: d.nx, y: d.ny })
+      if (commit && d && d.moved && d.nx != null && c) {
+        // Commit the pixel ANCHOR alongside the fraction: it's what makes the spot
+        // survive a resize (or a reload into a differently-sized pane) instead of
+        // the fraction re-resolving and sliding the mark toward the middle.
+        // Computed here rather than read back from the controller because the last
+        // drag frame's redraw is async — this is the exact spot just released.
+        let anchor = null
+        try {
+          const ms = c.getMediaSize && c.getMediaSize()
+          const r = c.getRect && c.getRect()
+          if (ms && r) anchor = deriveWatermarkAnchor({ x: d.nx, y: d.ny }, ms, { w: r.w, h: r.h })
+        } catch { /* fall back to the fraction */ }
+        onCommitRef.current({ x: d.nx, y: d.ny, anchor })
+      }
     }
     const onUp = (e) => finishDrag(true, e)
     const onCancel = (e) => finishDrag(false, e)

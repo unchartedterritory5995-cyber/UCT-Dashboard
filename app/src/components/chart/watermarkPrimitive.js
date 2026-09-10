@@ -74,10 +74,49 @@ export function reservedBlock(fields, sizeScale) {
   return rows ? h + (rows - 1) * LINE_GAP * scale : 0
 }
 
+// A hand-placed mark is pinned by PIXEL DISTANCE to its nearest edges, not by the
+// x/y fraction. A fraction re-resolves against the pane, so every resize (opening
+// the company panel, shrinking the widget) slid the fixed-width box toward the
+// middle and shoved its logo off the left edge. `deriveWatermarkAnchor` converts a
+// fraction + the pane it was placed in into that fixed offset once; from then on
+// the box keeps the same corner inset at any pane size, exactly like the legend.
+// Anchoring to the NEAREST edge per axis means a mark parked bottom-right tracks
+// the bottom-right corner instead of drifting with the top-left one.
+// → { ax:'left'|'right', dx, ay:'top'|'bottom', dy }; dx/dy are px from that edge
+//   of the pane to the matching edge of the box (negative = hanging off it).
+export function deriveWatermarkAnchor(pos, mediaSize, block) {
+  const W = mediaSize?.width || 0
+  const H = mediaSize?.height || 0
+  if (!W || !H) return null
+  const left = pos.x * W - block.w / 2
+  const top = pos.y * H - block.h / 2
+  const ax = (left + block.w / 2) <= W / 2 ? 'left' : 'right'
+  const ay = (top + block.h / 2) <= H / 2 ? 'top' : 'bottom'
+  return {
+    ax,
+    dx: ax === 'left' ? left : W - (left + block.w),
+    ay,
+    dy: ay === 'top' ? top : H - (top + block.h),
+  }
+}
+
+// Resolve an anchor back to a box rect in the CURRENT pane.
+export function rectFromAnchor(anchor, mediaSize, block) {
+  return {
+    x: anchor.ax === 'right' ? mediaSize.width - anchor.dx - block.w : anchor.dx,
+    y: anchor.ay === 'bottom' ? mediaSize.height - anchor.dy - block.h : anchor.dy,
+    w: block.w,
+    h: block.h,
+  }
+}
+
 // Keep a small gutter so a wide watermark never sits flush against the pane's
 // left/right edge — for boxes wider than the pane the left gutter wins, so the
 // mark reads from a consistent left inset.
 const EDGE_PAD = 14
+// Below this the pane is mid-mount/collapsed; anchoring against it would freeze a
+// meaningless offset.
+const MIN_ANCHOR_PANE = 60
 
 // padX = left/right gutter (default 14); padTop = top gutter (default 0, i.e.
 // flush to the pane top). Callers can raise padTop to match padX for an even
@@ -94,9 +133,14 @@ const EDGE_PAD = 14
 // The edge-clamped `padX` path (default) instead keeps a fixed gutter.
 // NOTE: `align` does NOT affect placement — it only justifies the TEXT within the
 // box (see the draw). The box position is the same regardless of alignment.
-export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXPx = null, custom = false) {
+export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXPx = null, custom = false, anchor = null) {
   let x
   let y = pos.y * mediaSize.height - block.h / 2
+  // A hand-placed mark with a pixel anchor keeps its corner inset at ANY pane size
+  // — the whole point: it must not move when the chart resizes or a side panel
+  // opens. The fraction below is only the fallback for a position that has no
+  // anchor yet (a freshly-set one, before the first draw derives it).
+  if (custom && anchor) return rectFromAnchor(anchor, mediaSize, block)
   if (custom) {
     // A HAND-PLACED mark is free on both axes: no edge clamp at all, so the box
     // can hang as far off any edge as it was dragged. (The auto-drift this used to
@@ -148,9 +192,17 @@ export function wrapToRows(ctx, text, maxW, maxRows) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:[{text,size,role}], fields, boxW, color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], fields: null, boxW: DEFAULT_BOX_W, color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, logoEnabled: false, logoImg: null, logoScale: 1, ...initial }
+  let opts = { lines: [], fields: null, boxW: DEFAULT_BOX_W, color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, anchor: null, logoEnabled: false, logoImg: null, logoScale: 1, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let lastMediaSize = null       // {width,height} of pane 0 in CSS px from last draw
+  // Pixel anchor for a hand-placed mark. `opts.anchor` (persisted with the position)
+  // wins; without one we DERIVE it on the first draw after x/y changes — i.e. from
+  // the pane the mark was placed in — and hold it, so later resizes move nothing.
+  // `posDirty` is what distinguishes "the owner moved it" (re-derive) from "the
+  // pane changed size" (keep the anchor); a data poll re-pushing the SAME x/y is
+  // neither, so it can't re-anchor the mark either.
+  let derivedAnchor = null
+  let posDirty = true
   let armed = false              // hover/drag highlight
   let requestUpdate = null
 
@@ -225,7 +277,15 @@ export function createWatermarkPrimitive(initial) {
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           const block = layout(ctx, mediaSize)
           const align = opts.align || 'center'
-          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop, opts.hardCenterXPx, opts.custom)
+          // Derive the pixel anchor from the fraction the first time we draw a newly
+          // placed mark (skipping a degenerate mount-time pane, whose offsets would
+          // be nonsense — posDirty stays set so the next real draw does it).
+          if (opts.custom && !opts.anchor && (posDirty || !derivedAnchor) && mediaSize.width > MIN_ANCHOR_PANE && mediaSize.height > MIN_ANCHOR_PANE) {
+            derivedAnchor = deriveWatermarkAnchor({ x: opts.x, y: opts.y }, mediaSize, block)
+            posDirty = false
+          }
+          const anchor = opts.custom ? (opts.anchor || derivedAnchor) : null
+          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop, opts.hardCenterXPx, opts.custom, anchor)
           lastRect = rect
           lastMediaSize = { width: mediaSize.width, height: mediaSize.height }
           const [r, g, b] = hexToRgb(opts.color)
@@ -300,7 +360,18 @@ export function createWatermarkPrimitive(initial) {
 
   return {
     primitive,
-    setOptions(patch) { opts = { ...opts, ...patch }; redraw() },
+    setOptions(patch) {
+      // Only an actual MOVE re-anchors (see posDirty above).
+      const moved = (patch.x != null && patch.x !== opts.x) || (patch.y != null && patch.y !== opts.y)
+      const next = { ...opts, ...patch }
+      // A move whose patch carries no anchor (every drag frame) redefines the spot
+      // from the fraction — the previously saved anchor must not out-vote it.
+      if (moved && patch.anchor === undefined) next.anchor = null
+      if (moved) posDirty = true
+      if (moved || patch.anchor !== undefined) derivedAnchor = null
+      opts = next
+      redraw()
+    },
     setArmed(v) { if (armed !== v) { armed = v; redraw() } },
     getRect() {
       if (!opts.lines.length || opts.opacity <= 0) return null
@@ -310,5 +381,8 @@ export function createWatermarkPrimitive(initial) {
     // x/y fractions are resolved against. The drag MUST normalize to this (not the
     // container), else a smaller price pane scales the mark up-and-left off-cursor.
     getMediaSize() { return lastMediaSize },
+    // The pixel anchor currently in force — what the drag persists so the placement
+    // survives a reload into a differently-sized pane.
+    getAnchor() { return opts.anchor || derivedAnchor },
   }
 }

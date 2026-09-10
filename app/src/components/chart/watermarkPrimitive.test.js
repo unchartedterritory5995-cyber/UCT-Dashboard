@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { composeWatermarkLines, watermarkFontPx, computeWatermarkRect, createWatermarkPrimitive, reservedBlock, wrapToRows } from './watermarkPrimitive'
+import { composeWatermarkLines, watermarkFontPx, computeWatermarkRect, createWatermarkPrimitive, deriveWatermarkAnchor, reservedBlock, wrapToRows } from './watermarkPrimitive'
 
 describe('composeWatermarkLines', () => {
   const meta = { name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers' }
@@ -198,6 +198,63 @@ describe('watermark box stability (draw → getRect)', () => {
     expect(r.x + r.w).toBeLessThanOrEqual(300 - 14)
   })
 
+  it('a hand-placed box STAYS PUT when the pane shrinks (panel opens / widget resize)', () => {
+    // The whole bug: x/y is a fraction, so a narrower pane re-resolved it toward the
+    // middle while the box's width stayed fixed — the logo slid off the left edge.
+    const ctrl = make({ name: 'Hyperliquid Strategies Inc.' }, 'PURR')
+    ctrl.setOptions({ x: 0.16, y: 0.2 })
+    const wide = drawWith(ctrl, { width: 1900, height: 800 })
+    const narrow = drawWith(ctrl, { width: 1200, height: 800 })   // company panel opens
+    const tiny = drawWith(ctrl, { width: 620, height: 520 })      // window shrunk
+    expect(narrow).toEqual(wide)
+    expect(tiny).toEqual(wide)
+    expect(wide.x).toBeGreaterThan(0)                              // nothing cut off
+  })
+
+  it('anchors to the NEAREST corner — a bottom-right mark tracks the bottom-right', () => {
+    const ctrl = make({ name: 'Acme' }, 'ACME')
+    ctrl.setOptions({ x: 0.85, y: 0.85 })
+    const wide = drawWith(ctrl, { width: 1900, height: 800 })
+    const narrow = drawWith(ctrl, { width: 1200, height: 600 })
+    expect(1900 - (wide.x + wide.w)).toBeCloseTo(1200 - (narrow.x + narrow.w), 6)
+    expect(800 - (wide.y + wide.h)).toBeCloseTo(600 - (narrow.y + narrow.h), 6)
+  })
+
+  it('re-anchors when the owner MOVES it, not when a data poll re-pushes the same x/y', () => {
+    const ctrl = make({ name: 'Acme' }, 'ACME')
+    ctrl.setOptions({ x: 0.16, y: 0.2 })
+    const placed = drawWith(ctrl, { width: 1900, height: 800 })
+    drawWith(ctrl, { width: 1200, height: 800 })
+    ctrl.setOptions({ x: 0.16, y: 0.2 })                 // idempotent poll — must not re-anchor
+    expect(drawWith(ctrl, { width: 1200, height: 800 })).toEqual(placed)
+    ctrl.setOptions({ x: 0.5, y: 0.2 })                  // a real drag → new spot
+    const moved = drawWith(ctrl, { width: 1200, height: 800 })
+    expect(moved.x).not.toBe(placed.x)
+    expect(drawWith(ctrl, { width: 700, height: 800 })).toEqual(moved)   // and it stays there
+  })
+
+  it('a saved anchor beats the fraction, and getAnchor() exposes it for persisting', () => {
+    const ctrl = make({ name: 'Acme' }, 'ACME')
+    ctrl.setOptions({ x: 0.9, y: 0.9, anchor: { ax: 'left', dx: 40, ay: 'top', dy: 30 } })
+    const r = drawWith(ctrl, { width: 1900, height: 800 })
+    expect(r.x).toBe(40)
+    expect(r.y).toBe(30)
+    expect(ctrl.getAnchor()).toEqual({ ax: 'left', dx: 40, ay: 'top', dy: 30 })
+    // A drag (x/y with no anchor) overrides the saved one instead of being ignored.
+    ctrl.setOptions({ x: 0.5, y: 0.5 })
+    const dragged = drawWith(ctrl, { width: 1900, height: 800 })
+    expect(dragged.x).toBeCloseTo(1900 * 0.5 - dragged.w / 2, 6)
+  })
+
+  it('the centered DEFAULT still re-centers on resize (anchoring is custom-only)', () => {
+    const ctrl = make({ name: 'Acme' }, 'ACME')
+    ctrl.setOptions({ custom: false, x: 0.5, y: 0.5 })
+    const a = drawWith(ctrl, { width: 1900, height: 800 })
+    const b = drawWith(ctrl, { width: 1200, height: 800 })
+    expect(b.x).toBeLessThan(a.x)
+    expect(b.x).toBeCloseTo(1200 * 0.5 - b.w / 2, 6)
+  })
+
   it('a HAND-PLACED box keeps its full width and may hang off the pane', () => {
     // custom → no width clamp (the box must not resize with the widget) and no
     // edge clamp (the owner may want the mark half off the left edge).
@@ -228,5 +285,23 @@ describe('computeWatermarkRect — a hand-placed mark is not fenced in', () => {
     const r = computeWatermarkRect({ x: 0, y: 0 }, media, block, 14, 0, null, false)
     expect(r.x).toBe(14)
     expect(r.y).toBe(0)
+  })
+})
+
+describe('deriveWatermarkAnchor', () => {
+  const block = { w: 200, h: 100 }
+  it('top-left placement → offsets from the top-left corner', () => {
+    expect(deriveWatermarkAnchor({ x: 0.2, y: 0.25 }, { width: 1000, height: 400 }, block))
+      .toEqual({ ax: 'left', dx: 100, ay: 'top', dy: 50 })
+  })
+  it('bottom-right placement → offsets from the bottom-right corner', () => {
+    expect(deriveWatermarkAnchor({ x: 0.8, y: 0.75 }, { width: 1000, height: 400 }, block))
+      .toEqual({ ax: 'right', dx: 100, ay: 'bottom', dy: 50 })
+  })
+  it('keeps a NEGATIVE offset for a mark deliberately hung off the edge', () => {
+    expect(deriveWatermarkAnchor({ x: 0.05, y: 0.25 }, { width: 1000, height: 400 }, block).dx).toBe(-50)
+  })
+  it('returns null for a degenerate pane', () => {
+    expect(deriveWatermarkAnchor({ x: 0.5, y: 0.5 }, { width: 0, height: 0 }, block)).toBe(null)
   })
 })
