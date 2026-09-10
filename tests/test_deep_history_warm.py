@@ -117,3 +117,29 @@ def test_weekly_and_monthly_floors_are_the_PERIOD_keys_not_the_daily_date():
             assert dhw._already_deep("MSFT", tf) is False
         with patch.object(dhw._sqlite, "get_first_ts", return_value=first - 100),              patch.object(dhw._sqlite, "get_count", return_value=10):
             assert dhw._already_deep("MSFT", tf) is True
+
+
+def test_a_throttled_graft_reports_FAILED_so_the_marker_is_not_written():
+    """Yahoo refusing (rate-limit, "no timezone found") makes the deep merge return
+    Massive alone — a healthy-looking ~5,785-row write. Counting that as warmed is how
+    a bad pass writes the done-marker over an ungrafted universe."""
+    # floor-pinned after the write ⇒ the graft did not land
+    with patch.object(dhw._sqlite, "get_first_ts", return_value=_FLOOR):
+        assert dhw._floor_pinned("MSFT", "D") is True
+    # a real pre-2003 graft is not pinned
+    with patch.object(dhw._sqlite, "get_first_ts", return_value=19860313):
+        assert dhw._floor_pinned("MSFT", "D") is False
+    # neither is a genuine post-2003 listing — "nothing older exists" is success,
+    # and must NOT be reported as a failure or the marker never gets written
+    with patch.object(dhw._sqlite, "get_first_ts", return_value=20120518):
+        assert dhw._floor_pinned("META", "D") is False
+    with patch.object(dhw._sqlite, "get_first_ts", return_value=None):
+        assert dhw._floor_pinned("NEWCO", "D") is False
+
+
+def test_floor_pinned_uses_the_per_tf_floor_like_already_deep():
+    for tf, pinned in (("W", 20030908), ("M", 20030901)):
+        with patch.object(dhw._sqlite, "get_first_ts", return_value=pinned):
+            assert dhw._floor_pinned("MSFT", tf) is True
+        with patch.object(dhw._sqlite, "get_first_ts", return_value=pinned - 100):
+            assert dhw._floor_pinned("MSFT", tf) is False
