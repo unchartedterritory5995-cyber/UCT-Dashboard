@@ -1,10 +1,123 @@
 # Wave Q1 — RESUME HERE
 
-# ✅✅ THE SELF-FORK IS FIXED, AND DEPLOY #4 IS LIVE — flag still `false`
+# ⛔⛔ HARD STOP 2026-09-10 — THE SELF-FORK REPRODUCED AFTER THE FIX SHIPPED
+
+**Read this before anything else in this file.** Deploy #4 is live and correct.
+**Four minutes later the rig forked its own note again.** The wave is stopped.
+There is **no deploy #5**, and there may not be one today.
+
+⛔ **`OFFLINE_DEFAULT_ON` was NOT flipped, and the flip is now BLOCKED on this
+finding.** Nothing below should be read as a wave closing.
+
+## The sequence — all times UTC, 2026-09-10
+
+| time | what happened |
+|---|---|
+| **16:46:28** | **Deploy #4 live.** `master` `f093bf731`. `OFFLINE_DEFAULT_ON` still `false`. |
+| **16:50:13** | `window_check` **run 1 of 7 — GREEN.** Opt-in key **at rest `'0'`**. notes 32 · canary notes 0 · sync-conflict 2. **No fork.** |
+| **16:53:34** | **run 2 of 7 — GREEN.** Opt-in key **at rest `'1'`** — ⚠️ **the tool itself flagged it**: *"unexpected at rest; a previous run did not opt back out"*. **No fork.** |
+| **16:54:50** | ⛔⛔ **run 3 of 7 — FORKED ITS OWN NOTE.** Opt-in key **at rest `'1'`**. |
+| **16:57:11** | Read-only `--no-canary` capture. Artifact intact. |
+
+**The detector's output, verbatim:**
+
+```
+THIS RUN FORKED ITS OWN NOTE — HARD RED: ['WINDOW-CHECK-SENTINEL 2026-09-10T16:54:50Z (conflicted copy)']
+```
+
+The steps that failed were **`5 no fork from a single writer`** and
+**`5 cleanup → stores 0, locks 0, opted out`**. ⭐ **The tool REFUSED TO STAMP the
+row.** The seven-run streak **stopped at 3**.
+
+## The artifact, as captured at 16:57:11 — read-only
+
+```
+notes                              33
+canary notes                        1
+sync-conflict                       3
+four durable stores            all 0
+locks                               0
+j2:notebook_blocked_no_baseline count 0
+opt-in count                       15
+```
+
+⚠️ `sync-conflict` moved **2 → 3**. The `2` recorded on run 1 and on seven prior
+window-check rows is the documented steady state; **the third is this fork**, and
+it is the finding, not the baseline.
+
+## ⛔ STATE — nothing has been touched
+
+- **Nothing cleaned up. Nothing deleted. No note edited.** The forked note and its
+  `(conflicted copy)` are **EVIDENCE** and stay exactly where they are.
+- **The flag was NOT flipped.**
+- **Deploy #4 remains live**, and that is deliberate: it is flag-false and it
+  **strictly reduces** the fork window, so there is **no rollback pressure**. ⛔ Do
+  not reach for the rollback runbook on account of this finding — nothing about it
+  argues for undoing #4.
+- **The wave simply does not flip.**
+
+## ⛔⛔ THIS IS NOT "THE FIX DID NOT WORK"
+
+Runs 2 and 3 **both started already opted in**. Run 2 was clean; run 3 forked.
+That is **intermittent, with the same ~1-in-5 character the original defect had**
+— which is consistent with the fix **closing one ordering while another remains
+open**, and *not* with the fix being inert. A fix that did nothing would not have
+produced a clean run 2 under the same starting state.
+
+⛔ Do not write either of the two easy sentences. *"The fix did not work"* is not
+supported by the evidence, and *"the fix works, this is a rig artifact"* is not
+supported either — the fork is a real `(conflicted copy)` on the server, from a
+single writer.
+
+## 🔬 THE LEADING SUSPECT — a HYPOTHESIS UNDER TEST, not a conclusion
+
+⛔ **Stream B is measuring this. Do not write it down as settled, and do not act
+on it as though it were.**
+
+The shape of the puzzle: **run 1 ended having read the opt-out back as `'0'`, and
+run 2 found `'1'` on disk.** Stream B's `finally` fix **is executing** — that is
+established (**R12**), and it is why this is interesting rather than a known bug.
+
+The suspicion is a **flush**, not a logic error: `'0'` is written to
+`localStorage`, and Chrome is **killed by marker before it flushes to disk**. An
+in-memory read-back passes while the on-disk value stays `'1'`. If that is what
+is happening, then:
+
+- **every run after the first begins ALREADY OPTED IN**, and
+- the offline layer is **engaged from first paint, before the editor mounts** —
+  a materially different ordering from the **fresh opt-in** that run 1 and every
+  pre-deploy canary exercised.
+
+⭐ **And that ordering is the MORE realistic member scenario, not the less.** A
+returning member is *always* already opted in. Every canary this wave has run
+tested the state a member is in **once**; the state they are in **every other
+time** was never exercised.
+
+⚠️ If it holds up, the read-back in `opt_out` is measuring the wrong layer — it
+proves the value reached `localStorage`, not that it reached the profile. That
+would be a third instance of this session's recurring shape (**R1**, **R8**,
+**R14**): an instrument reporting a property of itself as a property of the
+thing it measured.
+
+## What this blocks, and what it does not
+
+| | |
+|---|---|
+| The flag flip | ⛔⛔ **BLOCKED on this finding.** Not "next", not "pending the window" — blocked. |
+| The seven consecutive green runs | ⛔ **STOPPED AT 3.** The streak is not paused; it is broken and restarts from zero once the finding is understood. |
+| The 2026-09-17 decision | ⛔ **NO-GO stands, and now for a measured reason** rather than for unmeasured rows. |
+| Deploy #4 | ✅ **stays live.** Flag-false, strictly narrows the window, no rollback pressure. |
+| Deploy #5 | ⛔ **does not exist.** Do not write a record for one. |
+| The forked artifact | ⛔ **PRESERVED.** Do not clean it up; do not describe cleaning it up. |
+
+---
+
+# ✅ THE SELF-FORK FIX IS LIVE (DEPLOY #4) — and the flip is BLOCKED
 
 **`f093bf731` is on `master` and live (2026-09-10T16:46:28Z).** The full record
 is **✅✅ DEPLOY #4** below. ⛔ `OFFLINE_DEFAULT_ON` is **still `false`** on the
-branch and on `master` — #4 shipped the fix, not the flip.
+branch and on `master` — #4 shipped the fix, not the flip. ⛔⛔ **And the fix did
+not close the question** — read the HARD STOP above before using anything here.
 
 ## The mechanism — it was never a missing supersede
 
@@ -590,6 +703,63 @@ as a property of the thing they measured.
 
 ---
 
+⛔ **R15 and R16 are MY OWN MISTAKES, recorded in the same register as the rest.**
+They are logged at `2026-09-10T16:57:11Z`, and they belong to the HARD STOP at the
+top of this file: both cost evidence at the exact moment the finding appeared.
+
+## R15 — the tally filtered away the run it most needed
+
+**`2026-09-10T16:57:11Z` (logged)** · **Mistake. Recorded so the next tally is not
+built the same way.**
+
+The seven-run tally piped **each run** through `grep`. So when run 3 forked, its
+**step-level detail was filtered away and lost**: the per-step baselines, the PUT
+counts, and the ordering of steps 1–4 — the things that say *where in the sequence
+the fork happened*.
+
+⛔ **A tally that filters its own runs keeps the VERDICT and discards the
+EVIDENCE.** A tally's job is to say which runs passed; it has no business being
+the only place a run's output goes.
+
+⚠️ **Recoverable, and that is the mitigation, not the excuse.** The fork is
+reproducible and the server artifact survives (preserved, untouched). What was
+lost is **the cheapest diagnostic pass there is: the one taken at the moment of
+the failure**, on the run that actually failed, with no re-run needed. Every
+later look costs a reproduction.
+
+⭐ **The fix is not "grep less".** It is that a run's full output goes to a file
+unconditionally, and the tally reads that file. Then filtering is a view, not a
+destructor.
+
+## R16 — the instrument warned me in words, and I read past it
+
+**`2026-09-10T16:57:11Z` (logged)** · **Mistake. The more expensive of the two.**
+
+Run 2's `'1'` at rest was **printed in run 2's own output, with the tool's own
+warning attached** — *"unexpected at rest; a previous run did not opt back out"*.
+I read it as a known rig quirk and moved on. It was **state contamination between
+runs**, and it was the first visible symptom of the finding that stopped the wave
+one run later.
+
+⛔⛔ **SEVEN CONSECUTIVE RUNS ON ONE PERSISTENT PROFILE ARE ONLY "CONSECUTIVE" IF
+EACH STARTS FROM THE SAME STATE — AND I NEVER ESTABLISHED THAT THEY DID.** The
+flip condition is *seven consecutive green runs*; without a same-start-state
+check, "consecutive" is a claim about the clock, not about the experiment. Runs 2
+and 3 started opted in, run 1 did not, and that difference is now the leading
+hypothesis for the fork itself.
+
+⛔ **The instrument said so, in words, and I did not act on it.** That is worse
+than an instrument that stayed silent: the warning was built by the previous
+session for exactly this case (**R12**), it fired correctly, and the cost landed
+anyway because a human read it as noise.
+
+⭐ **The rule this leaves:** a rig warning about **rig state** is not cosmetic —
+it is a statement that the next run's starting conditions are not what the
+protocol assumes. Treat one as a **stop**, not a footnote, and record the
+starting state of every run in the streak rather than only its verdict.
+
+---
+
 # 🚨 THE SELF-FORK, AS FOUND — 2026-09-10
 
 **A SINGLE-WRITER OFFLINE SESSION FORKS ITS OWN NOTE.** Found by the compressed
@@ -766,8 +936,14 @@ hunks landed** instead of stopping on the fact that a guarded file moved at all.
 
 ## Run 1 of 7 — the post-deploy rig run, GREEN
 
+⛔⛔ **AND THE STREAK DIED AT RUN 3.** Read this row as what it was at the time,
+not as the start of a clean seven: at **16:54:50Z** run 3 **forked its own note**
+and the tool refused to stamp. See **⛔⛔ HARD STOP 2026-09-10** at the top of this
+file. ⭐ Note the one number that matters in hindsight — **the opt-in key was
+`'0'` at rest here, and `'1'` on runs 2 and 3.**
+
 **2026-09-10T16:50:13Z.** The flip condition needs seven consecutive green runs;
-this is the first of them.
+this was the first of them, and the only one that started from rest.
 
 ```
 signed in 200 · offline proven both ways
@@ -1060,15 +1236,23 @@ gate (`hydratedRef`), the server guarantee (railed), and the drain refusal
 (mutation-proved). If a null baseline ever appears again in a canary artifact,
 that is a genuine new finding — say so loudly rather than assuming it is this.
 
-## The one decision still waiting for you
+## ⚰️ The one decision that WAS waiting — SUPERSEDED 2026-09-10
 
-**Run the §15 canary again and activate?** The defect that stopped the last
-attempt is fixed and railed; the harness gate is closed; the §32 matrix is green.
-What has NOT happened is a fresh canary against production with the fix
-deployed — and this branch is not on `master`, so nothing has shipped.
+⛔⛔ **This is history now. The decision it asks for has been overtaken by the
+HARD STOP at the top of this file:** the fix shipped (deploy #4) and the self-fork
+**reproduced four minutes later**. There is nothing to activate until that is
+understood. Kept as the record of what was being asked before the finding.
 
-Sequence, unchanged from below: deploy the fix (branch → master) → §15 happy path
-→ §15 conflict path → then, separately, the one-line flip.
+> **Run the §15 canary again and activate?** The defect that stopped the last
+> attempt is fixed and railed; the harness gate is closed; the §32 matrix is
+> green. What has NOT happened is a fresh canary against production with the fix
+> deployed — and this branch is not on `master`, so nothing has shipped.
+>
+> Sequence: deploy the fix (branch → master) → §15 happy path → §15 conflict path
+> → then, separately, the one-line flip.
+
+⭐ **The first three steps all happened and all passed.** The flip did not, and
+now cannot until the reproduction is explained.
 
 ---
 
@@ -1085,7 +1269,9 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | §15 canary | ✅ **COMPLETE AND GREEN**, both halves + the conflict fork |
 | Blocked entries surfaced to the member | ✅ **built and DEPLOYED** — `0d7eee792`, shipped in deploy #2 (`eedb58ac8`) and still an ancestor of `master` |
 | The `null` baseline | ⏳ **instrumented, not explained** — the instrument is DEPLOYED (deploy #2, denominator in #3); what is still missing is an explanation, not a shipment |
-| The self-fork | ✅ **fixed and DEPLOYED** — deploy #4 (`f093bf731`), 2026-09-10T16:46:28Z. Flag unchanged. |
+| The self-fork | ⚠️ **fix DEPLOYED** — deploy #4 (`f093bf731`), 2026-09-10T16:46:28Z, flag unchanged — ⛔⛔ **and it REPRODUCED at 16:54:50Z.** Not closed. See the HARD STOP at the top. |
+| ⛔⛔ **The flag flip** | ⛔⛔ **BLOCKED** on that reproduction. Not "next", not "pending the window". |
+| The seven-run streak | ⛔ **STOPPED AT 3.** Restarts from zero, not from three. |
 | Harness integrity | **green** — identity, ports, controls, mutation-proved |
 | Q2 | **locked** |
 | Service worker | untouched, and stays untouched |
@@ -1940,13 +2126,21 @@ the status.
 Until they run, the canary is partial and the seven-day observation window stays
 unstarted."* **Both ran; the canary is complete; the window is open.**
 
-# ⏱️ THE SEVEN-DAY OBSERVATION WINDOW — STARTED 2026-09-10
+# ⏱️ THE SEVEN-DAY OBSERVATION WINDOW — STARTED 2026-09-10, **RUNNING WITH AN OPEN FINDING**
+
+⛔⛔ **THIS WINDOW HAS NOT ENDED, AND IT IS NOT GREEN.** On 2026-09-10T16:54:50Z
+the rig **reproduced the self-fork with deploy #4 live** — see **⛔⛔ HARD STOP
+2026-09-10** at the top of this file. The seven-consecutive-green-run streak
+**stopped at 3**. ⛔ A window that merely *reaches* 2026-09-17 settles nothing;
+the flip condition is a measurement, and the measurement currently says a fork
+happened.
 
 | | |
 |---|---|
 | start | **2026-09-10** (canary green, deploy `cd674ef56` live) |
 | end | **2026-09-17** |
 | state | `OFFLINE_DEFAULT_ON = false` — **the window observes the DEPLOYED FIX, not the offline layer** |
+| ⛔ open finding | **the self-fork reproduced post-fix, 2026-09-10T16:54:50Z.** Streak reset to zero; artifact preserved; flip **BLOCKED**. |
 
 ## ⏱️ THE INSTRUMENT CLOCK — a SECOND clock, and not this one
 
@@ -2643,11 +2837,23 @@ owner and nothing else.
 
 ## ⛔ THE RECOMMENDATION, AS IT STANDS TODAY: **NO-GO**
 
-Not because anything is red — nothing is. Because **rows 1, 2 and 3 are
-unmeasured**, and the gate's own condition is a measurement, not an absence of
-bad news. Zero events over zero opted-in browsers is not evidence; it is the
-shape of a green browser matrix over a mount path nobody covered, which is
-exactly how this wave produced its incident.
+⛔⛔ **UPDATED 2026-09-10T16:57:11Z — AND THE REASON HAS CHANGED.** The paragraph
+below said *"not because anything is red — nothing is"*. **Something is red now.**
+The self-fork **reproduced after the fix shipped** (run 3 of 7, 16:54:50Z, with
+deploy #4 live); see **⛔⛔ HARD STOP 2026-09-10** at the top of this file. The
+NO-GO no longer rests on unmeasured rows alone — it rests on a **measured
+failure**, which is a stronger and much less negotiable reason.
+
+⚰️ **The original reasoning, kept because it is still true of rows 1–3:**
+
+> Not because anything is red — nothing is. Because **rows 1, 2 and 3 are
+> unmeasured**, and the gate's own condition is a measurement, not an absence of
+> bad news. Zero events over zero opted-in browsers is not evidence; it is the
+> shape of a green browser matrix over a mount path nobody covered, which is
+> exactly how this wave produced its incident.
+
+⛔ **Neither reason alone is now the binding one.** The finding blocks the flip on
+its own, and closing rows 1–3 would not unblock it.
 
 **What would change it to GO**, and nothing less:
 
@@ -2669,7 +2875,12 @@ not seven members on seven devices. The flip is still a step from "it works when
 we drive it" to "it works for people", and no amount of green here closes that
 distance — only the flip does, which is why the rollback below is one line.
 
-## 🔀 THE FLIP ITSELF — one line, the same gate, its own paragraph
+## 🔀 THE FLIP ITSELF — ⛔⛔ **BLOCKED**, and here is what it would be
+
+⛔⛔ **DO NOT RUN THIS.** The flip is **blocked** on the self-fork reproducing
+after deploy #4 — see **⛔⛔ HARD STOP 2026-09-10** at the top of this file. The
+procedure below is kept because it is correct and will be needed; it is **not an
+instruction to proceed**, and the gate it names is not the only gate any more.
 
 ```diff
 - export const OFFLINE_DEFAULT_ON = false
@@ -2908,12 +3119,18 @@ which is what proves they test different lines.
 
 ## The list
 
+⛔⛔ **THIS GATE IS NOT CLOSED, AND THE ROWS BELOW ARE NO LONGER THE BINDING
+CONSTRAINT.** A new row sits above all of them, and it blocks the flip on its
+own regardless of what the others say — see **⛔⛔ HARD STOP 2026-09-10** at the
+top of this file.
+
 | | status |
 |---|---|
+| ⛔⛔ **The self-fork does not recur after the fix** | ⛔⛔ **OPEN — AND IT REPRODUCED.** Run 3 of 7, 2026-09-10T16:54:50Z, forked its own note with deploy #4 live. Streak stopped at 3. Artifact preserved. **The flip is BLOCKED on this**, and no other row can unblock it. |
 | A blocked entry is surfaced to the member | ✅ **CLOSED 2026-09-10** — the notes list (both views) and the open note's header now say it, in the shipped vocabulary, and the sentence names the ACTION. See below. |
 | ~~`baseUpdatedAt: null` explained~~ → **`null` INSTRUMENTED, zero occurrences across the instrument clock** | ⏳ **INSTRUMENT LIVE IN PRODUCTION 2026-09-10T05:06:56Z** (deploy #2 `eedb58ac8`), clock ends 2026-09-17T05:06:56Z. ⛔⛔ **Bounded evidence, not proof** — with the flag off the event can only fire from an OPTED-IN browser, so zero over an empty population says nothing. Record the opted-in count beside it. |
-| A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. |
-| Seven-day observation window armed | ✅ **STARTED 2026-09-10, ends 2026-09-17** — see below |
+| A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. ⚠️ **That canary ran from a FRESH opt-in.** The 16:54:50Z fork came from a run that started **already opted in** — an ordering this canary never exercised. Its green is real and it is not evidence about the new finding. |
+| Seven-day observation window armed | ⚠️ **STARTED 2026-09-10, ends 2026-09-17 — AND IT IS RUNNING WITH AN OPEN FINDING.** ⛔ Armed is not green, and a window that reaches 2026-09-17 does not close this gate by arriving. See below. |
 
 ### The blocked-entry finding, in full (measured, `blockedEntryIsVisible.test.jsx`)
 
@@ -3248,8 +3465,10 @@ docs/notebook/wave-q1-*.md                 certification · canary-red · harnes
 docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 ```
 
-**Sections in this file worth knowing by name:** 🧾 **RULINGS** (decisions taken,
-with reasons) · ⭐ **THE MUTATION GAUNTLET IS A TOOL** · ⭐ **TIER 1½** (inside the
-deploy procedure) · 🔙 **ROLLBACK RUNBOOK**.
+**Sections in this file worth knowing by name:** ⛔⛔ **HARD STOP 2026-09-10**
+(read it first — the flip is BLOCKED) · 🧾 **RULINGS** (decisions taken, with
+reasons) · ⭐ **THE MUTATION GAUNTLET IS A TOOL** · ⭐ **TIER 1½** (inside the
+deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not indicated by the current
+finding — deploy #4 stays).
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
