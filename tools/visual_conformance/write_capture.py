@@ -72,6 +72,10 @@ def main() -> int:
     ap.add_argument("--study-id", default=None,
                     help="vendor identifier, for BUILT-INS that have no .pine")
     ap.add_argument("--tab-state", default=None, help="JSON file: the 0d assertion")
+    ap.add_argument("--columns", default=None,
+                    help="JSON list: payload column names, in payload order")
+    ap.add_argument("--plots-order", default=None,
+                    help="JSON list: titles in _metaInfo.plots order, read off the study")
     ap.add_argument("--note", default=None)
     args = ap.parse_args()
 
@@ -93,6 +97,28 @@ def main() -> int:
         print(f"   fnv1a  page={args.fnv1a}  shell={got_hash}")
         print("   The payload that arrived is not the payload the page staged.")
         return 1
+
+    # ── COLUMN ORDER IS ENFORCED, NOT REMEMBERED ─────────────────────────────
+    # ⛔⛔ THE VALUE ARRAY FOLLOWS `_metaInfo.plots`, NEVER
+    # `Object.keys(_metaInfo.styles)`. On 2026-09-10 Aroon's styles key order was
+    # ["Aroon Down", "Aroon Up"] and its plots order was ["AroonUp", "AroonDown"]
+    # -- THE OPPOSITE -- so a fixture keyed off styles would have shipped the two
+    # series swapped, silently, in the file whose whole job is to be the oracle.
+    # The capture hands both lists; this asserts they agree, so the next person
+    # cannot make that mistake by forgetting a convention.
+    cols = json.loads(args.columns) if args.columns else None
+    plots_order = json.loads(args.plots_order) if args.plots_order else None
+    if (cols is None) != (plots_order is None):
+        print("⛔ REFUSING: --columns and --plots-order must be given together — "
+              "one without the other is an unchecked claim about column order.")
+        return 3
+    if cols is not None and cols != plots_order:
+        print("⛔ COLUMN ORDER MISMATCH — NOTHING WRITTEN")
+        print(f"   payload columns : {cols}")
+        print(f"   _metaInfo.plots : {plots_order}")
+        print("   The value array follows _metaInfo.plots. Re-derive the payload "
+              "columns from that, never from Object.keys(_metaInfo.styles).")
+        return 4
 
     if not args.pine_source and not args.study_id:
         print("⛔ REFUSING: neither --pine-source nor --study-id given. A fixture "
@@ -144,6 +170,13 @@ def main() -> int:
         "layout": args.layout,
         "source": src_block,
         "receipt": {"chars": got_chars, "fnv1a": got_hash, "verified": True},
+        "columns": cols,
+        "_columns": (
+            "⭐ Column names in PAYLOAD order, asserted equal to _metaInfo.plots order "
+            "before this file was written. value[0] is time; value[i+1] is columns[i]. "
+            "⛔ NEVER derive these from Object.keys(_metaInfo.styles) — see the Aroon "
+            "inversion of 2026-09-10 in docs/pine/capture-procedure.md."
+        ) if cols else None,
         "payload": payload,
     }
     if args.tab_state:
