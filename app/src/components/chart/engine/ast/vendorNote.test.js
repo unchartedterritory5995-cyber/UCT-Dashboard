@@ -48,7 +48,7 @@ describe('a vendor note is DERIVED from the manifest, never listed', () => {
     // manifest block rather than with a function entry. Its presence here is the
     // second half of the same claim: the reader walks BOTH shapes, so planting
     // one and keeping the other proves neither branch is a hand-list.
-    expect(Object.keys(found).sort()).toEqual(['atr', 'barstate', 'sma'])
+    expect(Object.keys(found).sort()).toEqual(['atr', 'barssince', 'barstate', 'sma'])
     expect(found.sma).toBe('a planted sentence')
     // …and the CONTROL: the shipped table does not contain the plant.
     expect(Object.keys(VENDOR_NOTES)).not.toContain('sma')
@@ -64,7 +64,7 @@ describe('a vendor note is DERIVED from the manifest, never listed', () => {
     // is worse than silence: it implies a difference and names none.
   })
 
-  it('⭐ the shipped roster is exactly what has been RULED ON — two entries', () => {
+  it('⭐ the shipped roster is exactly what has been RULED ON — three entries', () => {
     // ⛔ NOT AN ARBITRARY COUNT. `_functions_vendor_note` states the rule this
     // pins: a note may only be written from a measurement, never as a hedge. An
     // entry gaining a note without a `divergences.json` row behind it is the
@@ -78,7 +78,26 @@ describe('a vendor note is DERIVED from the manifest, never listed', () => {
     // ⭐ AND IT IS A FAMILY NOTE, NOT A FUNCTION ONE: `barstate.*` reaches the
     // evaluator as CLOCK COLUMNS, so the sentence hangs on the manifest block
     // that owns the family and the tree walk had to learn to see a `series` node.
-    expect(Object.keys(VENDOR_NOTES).sort()).toEqual(['atr', 'barstate'])
+    // ⚰️ TWO -> THREE WITH `barssince` (measured 2026-09-10). It is the first
+    // note about a SIGNATURE rather than a value or a viewer: TradingView's
+    // `ta.barssince` takes one argument and is unbounded, ours takes two because
+    // the second is the window the count saturates at. ⛔ The obvious reading of
+    // that capture — "Pine takes one, we declare two, so our table is wrong and
+    // must narrow" — was committed on the day it was measured (8f1d9836c) and is
+    // WRONG: the second argument is the bound the whole bounded-state design and
+    // its budget rest on. The vendor reading CONFIRMS the engine's existing
+    // refusal; it does not ask for a change. That is why the note explains the
+    // difference instead of promising to close it.
+    expect(Object.keys(VENDOR_NOTES).sort()).toEqual(['atr', 'barssince', 'barstate'])
+    // Same obligation as `atr`'s below: name the SIZE of the difference. Here the
+    // size IS the arity, so the note must carry both counts and the worked window.
+    expect(VENDOR_NOTES.barssince).toMatch(/1 argument/)
+    expect(VENDOR_NOTES.barssince).toMatch(/2/)
+    expect(VENDOR_NOTES.barssince).toMatch(/`na`/)
+    // ⭐ And the barstate note carries its measurement too — it was `measured`
+    // in the ledger for a day while its member sentence held no number at all,
+    // which is the drift `test_vendor_truth` exists to catch.
+    expect(VENDOR_NOTES.barstate).toMatch(/\d/)
     expect(VENDOR_NOTES.barstate).toMatch(/ishistory/)
     expect(VENDOR_NOTES.barstate).toMatch(/isconfirmed/)
     expect(VENDOR_NOTES.atr).toMatch(/wilder/i)
