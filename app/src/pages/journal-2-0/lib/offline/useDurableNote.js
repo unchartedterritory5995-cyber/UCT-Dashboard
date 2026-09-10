@@ -203,6 +203,36 @@ export async function endInFlightSave({ accountId, noteId, connect = connectNote
  *
  * @returns the landed baseline it settled on, or null if it could not
  */
+/**
+ * ⛔⛔ RECORDING A REVISION AS OURS IS NOT THE SAME ACT AS SETTLING THE QUEUE.
+ *
+ * ⚰️ Found by the property rail, 2026-09-10, in 12 of 18 door × ordering cases
+ * that every mechanism-level rail passed. When a door (folder/ticker/tags)
+ * cannot settle -- because the editor could not report local state, and
+ * refusing is the SAFE answer there -- the door's PUT has still moved the
+ * server revision. Nothing recorded that revision, so guard 2 later answered
+ * "not ours", and the drain forked the member's own note.
+ *
+ * ⭐ The two acts have different preconditions and must be callable separately:
+ *   · settling the queue needs EVIDENCE about local content
+ *   · recording a landing needs only that WE made the request
+ * Conflating them meant the safe answer to the first silently withheld the
+ * second.
+ */
+export async function recordLandedRevision({
+  accountId, noteId, updatedAt, connect = connectNotebookDb,
+} = {}) {
+  if (!offlineEnabled()) return null
+  if (!offlineStorageAvailable()) return null
+  const landed = usableBaseline(updatedAt)
+  if (!accountId || !noteId || !landed) return null
+  try {
+    const db = await connect(accountId)
+    await putMeta(db, landedKeyFor(noteId), withLanded(await getMeta(db, landedKeyFor(noteId)), landed))
+    return landed
+  } catch { return null }
+}
+
 export async function settleLandedSave({
   accountId, noteId, acked, current, updatedAt, connect = connectNotebookDb,
 } = {}) {

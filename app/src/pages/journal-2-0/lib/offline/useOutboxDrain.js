@@ -58,14 +58,33 @@ export async function serverCopyIsOursDefault(entry, { landedRevisions = null } 
     throw err          // ⛔ never "not ours" by accident — the drain forks on a throw
   }
   const server = (await res.json()).note
-  if (sameAuthoredContent(server, entry.patch)) {
-    return { ours: true, why: 'the server copy is byte-identical to this entry' }
-  }
   const landed = usableBaseline(server?.updatedAt)
-  if (landed && landedRevisions instanceof Set && landedRevisions.has(landed)) {
-    return { ours: true, why: `the server revision ${landed} is one this browser recorded as landed` }
+
+  // ⛔⛔ TWO OUTCOMES, DECIDED BY CONTENT — NEVER BY AUTHORSHIP ALONE.
+  //
+  // ⚰️ "Ours ⇒ remove" is what discarded a member's offline sentence on
+  // 2026-09-10: a folder change we made moved the revision, the ring said the
+  // server copy was ours, and the entry was deleted even though the server body
+  // did not contain the queued words.
+  //
+  // ⛔ THE INVARIANT: a queued entry is never removed unless the server body is
+  // PROVEN to contain its content. Every other outcome is rebase-and-resend, or
+  // leave it queued.
+  if (sameAuthoredContent(server, entry.patch)) {
+    return {
+      ours: true, identical: true, serverUpdatedAt: landed,
+      why: 'the server copy is byte-identical to this entry',
+    }
   }
-  return { ours: false, why: 'the server copy differs and is not one of ours' }
+  if (landed && landedRevisions instanceof Set && landedRevisions.has(landed)) {
+    // ⭐ Ours, but the server does NOT have these words — this is the door case.
+    // The revision is safe to build on precisely because nobody else wrote it.
+    return {
+      ours: true, identical: false, serverUpdatedAt: landed,
+      why: `the server revision ${landed} is ours, but does not contain this entry's words`,
+    }
+  }
+  return { ours: false, identical: false, serverUpdatedAt: landed, why: 'the server copy differs and is not one of ours' }
 }
 
 /** The same compare-and-set PUT the editor uses, byte for byte. */

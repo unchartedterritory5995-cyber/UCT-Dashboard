@@ -29,7 +29,8 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import {
-  useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave, SESSION_ID,
+  useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
+  recordLandedRevision, SESSION_ID,
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
@@ -1704,10 +1705,34 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    */
   const settleMetadataRevision = async (saved) => {
     if (!saved?.updatedAt) return
+    // ⛔ ALWAYS record the landing FIRST. This PUT was ours, so its revision is
+    // ours, and that is true whether or not we can settle the queue. Withholding
+    // it made guard 2 answer "not ours" about our own write and fork the note.
+    await recordLandedRevision({ accountId: user?.id, noteId, updatedAt: saved.updatedAt })
+    const current = captureLocalState()
+    // ⛔⛔ NULL IS "NO EVIDENCE", NOT "CAUGHT UP" — AND THE DIFFERENCE COST A
+    // MEMBER'S WORDS.
+    //
+    // ⚰️ 2026-09-10, streak run 1, door `folder`. This read
+    // `current: captureLocalState() || saved`. When the editor could not report
+    // its local state, `current` fell back to `saved` — which IS `acked` — so
+    // `sameAuthoredContent` read "caught up", the intent became null, and
+    // `putNoteWithIntent` DELETED every queued entry for the note. The offline
+    // sentence was gone. The drain's own step stayed green throughout, because
+    // "the server holds text" is satisfied by the words typed ONLINE.
+    //
+    // ⛔ THE INVARIANT: a queued entry is never removed unless the server body
+    // is PROVEN to contain its content. Absence of local state proves nothing.
+    //
+    // ⭐ REFUSING IS SAFE, and that is why it is the right answer: the entry
+    // stays queued on its own baseline, the drain picks it up, and guard 2
+    // rebases it onto the revision this door just created. Doing nothing here
+    // costs one drain cycle; guessing here costs the member their work.
+    if (!current) return
     await settleLandedSave({
       accountId: user?.id, noteId,
       acked: saved,
-      current: captureLocalState() || saved,
+      current,
       updatedAt: saved.updatedAt,
     })
   }

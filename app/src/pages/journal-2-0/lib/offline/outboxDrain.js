@@ -116,6 +116,24 @@ async function settleBlocked(db, entry, error) {
  * take the preserving branch: a spurious duplicate is recoverable by the
  * member, a dropped write is not.
  */
+/**
+ * Move a queued entry onto a newer baseline WITHOUT touching its content.
+ *
+ * ⛔⛔ THE ENTRY'S WORDS ARE NOT NEGOTIABLE. Only `baseUpdatedAt` moves. This is
+ * the difference between "the member's edit will now succeed" and "the member's
+ * edit is gone", and on 2026-09-10 the code took the second branch.
+ *
+ * ⛔ The note RECORD is written back unchanged — `putNoteWithIntent` needs one,
+ * and inventing a record here would overwrite the durable working copy with a
+ * reconstruction of the patch.
+ */
+async function rebaseEntry(db, entry, baseUpdatedAt) {
+  const rec = await getNote(db, entry.noteId)
+  const next = { ...entry, baseUpdatedAt, queuedAt: Date.now() }
+  if (rec) await putNoteWithIntent(db, rec, next)
+  return next
+}
+
 async function askServerIfOurs(db, entry, serverCopyIsOurs) {
   if (!serverCopyIsOurs) return null
   const landedRevisions = new Set(await getMeta(db, landedKeyFor(entry.noteId)) || [])
@@ -144,7 +162,11 @@ export async function drainOutbox(db, {
 } = {}) {
   const entries = await listOutbox(db)
   const results = []
-  for (const entry of entries) {
+  for (let entry of entries) {
+    // Per-entry, reset every iteration: a rebase in one entry must not
+    // suppress a rebase in the next.
+    let rebased = null
+    let retriedRebase = false
     if (excludeNoteId && entry.noteId === excludeNoteId) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SKIPPED })
       continue
@@ -269,7 +291,9 @@ export async function drainOutbox(db, {
       try {
         // eslint-disable-next-line no-await-in-loop
         const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)
-        if (mine?.ours) {
+        if (mine?.ours && mine.identical) {
+          // ⛔ REMOVED ONLY BECAUSE THE SERVER BODY IS PROVEN TO CONTAIN THESE
+          // WORDS. Sending again could not change anything.
           // eslint-disable-next-line no-await-in-loop
           await clearOutboxEntry(db, entry.mutationId)
           results.push({
@@ -279,6 +303,18 @@ export async function drainOutbox(db, {
             reason: `an expired in-flight save turned out to have landed (${mine.why}) — removed, not sent`,
           })
           continue
+        }
+        if (mine?.ours && mine.serverUpdatedAt) {
+          // ⭐⭐ OURS, BUT THE SERVER DOES NOT HAVE THESE WORDS ⇒ REBASE AND SEND.
+          //
+          // ⚰️ This branch is the fix for the door case, and its absence cost a
+          // member their offline sentence: a folder change moved the revision,
+          // the ring said "ours", and the entry was DELETED with its words
+          // unsent. "Ours" tells us the revision is safe to build on — nobody
+          // else wrote it — which is a reason to REBASE, never a reason to drop.
+          // eslint-disable-next-line no-await-in-loop
+          entry = await rebaseEntry(db, entry, mine.serverUpdatedAt)
+          rebased = mine.serverUpdatedAt
         }
       } catch {
         // ⛔ Unknown, not "not ours". Fall through and send; a 409 will ask again.
@@ -325,7 +361,8 @@ export async function drainOutbox(db, {
         try {
           // eslint-disable-next-line no-await-in-loop
           const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)
-          if (mine?.ours) {
+          if (mine?.ours && mine.identical) {
+            // ⛔ Removed ONLY because the server body provably holds these words.
             // eslint-disable-next-line no-await-in-loop
             await clearOutboxEntry(db, entry.mutationId)
             results.push({
@@ -335,6 +372,37 @@ export async function drainOutbox(db, {
               reason: `409, but the server copy is this browser's own save (${mine.why}) — removed, not forked`,
             })
             continue
+          }
+          if (mine?.ours && mine.serverUpdatedAt && !retriedRebase) {
+            // ⭐⭐ OURS BUT DIFFERENT ⇒ REBASE AND RESEND ONCE. The 409 said the
+            // server moved; the ring says WE moved it; so the words are still
+            // owed and now have a baseline that can succeed.
+            // ⛔ ONCE. A rebase loop against a server that keeps moving would
+            // spin the network; a second 409 falls through to the fork, which
+            // preserves both copies.
+            // eslint-disable-next-line no-await-in-loop
+            entry = await rebaseEntry(db, entry, mine.serverUpdatedAt)
+            retriedRebase = true
+            rebased = mine.serverUpdatedAt
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const saved = await send(entry)
+              // eslint-disable-next-line no-await-in-loop
+              await settleSent(db, entry, saved)
+              results.push({
+                mutationId: entry.mutationId,
+                noteId: entry.noteId,
+                outcome: SENT,
+                reason: `409 on our own revision — rebased onto ${rebased} and resent`,
+              })
+              continue
+            } catch (re) {
+              if (re?.status !== 409) {
+                results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: KEPT, error: re })
+                continue
+              }
+              // a second 409 ⇒ fall through and fork, preserving both copies
+            }
           }
         } catch {
           // ⛔ THE SERVER CHECK FAILING IS NOT PERMISSION TO DISCARD. Fall

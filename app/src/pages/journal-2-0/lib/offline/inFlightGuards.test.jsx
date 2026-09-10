@@ -119,7 +119,7 @@ describe('⭐ guard 1 — the drain does not claim a note whose save is on the w
     // The save it marked DID land — the server is on T2 with our words.
     const send = vi.fn(async () => { const e = new Error('conflict'); e.status = 409; throw e })
     const fork = vi.fn()
-    const serverCopyIsOurs = vi.fn(async () => ({ ours: true, why: 'byte-identical' }))
+    const serverCopyIsOurs = vi.fn(async () => ({ ours: true, identical: true, why: 'byte-identical' }))
     const results = await drainOutbox(db, {
       send, fork, holders: new Set([SESSION_ID]), serverCopyIsOurs,
     })
@@ -141,7 +141,7 @@ describe('⭐ guard 2 — a 409 asks the server before it forks', () => {
     const fork = vi.fn()
     const results = await drainOutbox(db, {
       send, fork,
-      serverCopyIsOurs: async () => ({ ours: true, why: 'the server copy is byte-identical to this entry' }),
+      serverCopyIsOurs: async () => ({ ours: true, identical: true, why: 'the server copy is byte-identical to this entry' }),
     })
     expect(fork).not.toHaveBeenCalled()
     expect(results.map((r) => r.outcome)).toEqual([SUPERSEDED])
@@ -197,7 +197,7 @@ describe('⭐ the orderings that produced the defect', () => {
 
     // It dies. The lock is released, so the marker is stale at once — and the
     // outcome is decided by the SERVER, not by a guess.
-    const serverCopyIsOurs = vi.fn(async () => ({ ours: true, why: 'byte-identical' }))
+    const serverCopyIsOurs = vi.fn(async () => ({ ours: true, identical: true, why: 'byte-identical' }))
     results = await drainOutbox(db, {
       send: vi.fn(async () => { const e = new Error('conflict'); e.status = 409; throw e }),
       fork: vi.fn(), holders: new Set([SESSION_ID]), serverCopyIsOurs,
@@ -314,6 +314,37 @@ describe('⛔⛔ THE WIRE — every save path must settle, not just the function
     }
     const unsettled = savePaths.filter((n) => !settles(n))
     expect(unsettled).toEqual([])
+  })
+
+  it('⛔⛔ a door NEVER falls back to the server copy for `current` — that deletes queued work', () => {
+    // ⚰️ THE LINE THAT LOST A MEMBER'S WORDS, 2026-09-10, streak run 1:
+    //     current: captureLocalState() || saved
+    // When the editor could not report local state, `current` became `saved`,
+    // which IS `acked`, so `sameAuthoredContent` read "caught up", the intent
+    // became null, and every queued entry for the note was DELETED.
+    //
+    // ⛔ WHY THIS IS A SOURCE PIN AND NOT A BEHAVIOURAL CASE. The behavioural
+    // rails model the door by calling `settleLandedSave` directly, so mutating
+    // the ARGUMENT the editor passes reddens nothing — the mutation gauntlet
+    // proved that: M22 was dull until this case existed. It is the same shape as
+    // the root cause of round 1: the function was tested, the WIRE was not.
+    const body = bodyOf('settleMetadataRevision')
+    expect(body, 'settleMetadataRevision must exist').toBeTruthy()
+
+    // ⛔ No fallback of ANY kind for `current`. Absence of local state is not
+    // evidence about content, and there is no substitute that is.
+    expect(body).not.toMatch(/current:\s*captureLocalState\(\)\s*\|\|/)
+    expect(body).toMatch(/const\s+current\s*=\s*captureLocalState\(\)\s*$/m)
+    expect(body, 'no local state ⇒ refuse to settle').toMatch(/if\s*\(!current\)\s*return/)
+
+    // ⛔ AND THE LANDING IS RECORDED ANYWAY — recording that a revision is ours
+    // needs only that WE made the request, and withholding it made guard 2
+    // answer "not ours" about our own write and fork the note.
+    expect(body).toMatch(/recordLandedRevision\s*\(/)
+    expect(
+      body.indexOf('recordLandedRevision'),
+      'the landing is recorded BEFORE the refuse-to-settle guard, or it is skipped with it',
+    ).toBeLessThan(body.indexOf('if (!current) return'))
   })
 
   it('⛔ the marker is raised BEFORE the PUT, not after it', () => {

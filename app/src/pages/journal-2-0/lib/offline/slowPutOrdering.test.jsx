@@ -68,7 +68,7 @@ describe('⛔⛔ a PUT slower than the TTL must not cost the member a duplicate'
     const serverCopyIsOurs = vi.fn(async (entry, { landedRevisions } = {}) => {
       asked.push(slowPutHasLanded)
       return slowPutHasLanded && landedRevisions?.has(T2)
-        ? { ours: true, why: `the server revision ${T2} is one this browser recorded as landed` }
+        ? { ours: true, identical: true, serverUpdatedAt: T2, why: `the server revision ${T2} is one this browser recorded as landed` }
         : { ours: false, why: 'the server is unmoved' }
     })
 
@@ -120,7 +120,7 @@ describe('⛔⛔ a PUT slower than the TTL must not cost the member a duplicate'
     const send = vi.fn()
     const fork = vi.fn()
     const serverCopyIsOurs = vi.fn(async (entry, { landedRevisions } = {}) => (
-      landedRevisions?.has(T2) ? { ours: true, why: 'recorded as landed' } : { ours: false, why: 'no' }
+      landedRevisions?.has(T2) ? { ours: true, identical: true, serverUpdatedAt: T2, why: 'recorded as landed' } : { ours: false, why: 'no' }
     ))
     const results = await drainOutbox(db, { send, fork, serverCopyIsOurs, holders: new Set(['x']) })
 

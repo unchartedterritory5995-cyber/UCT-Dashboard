@@ -133,11 +133,11 @@ MUTATIONS = [
          repl="const landed = landedBaseline(noteRec) || '9999-01-01T00:00:00.000Z'",
          note="M12 -- widened, it deletes every queued entry unsent"),
 
-    dict(id="M9", guard="settleLandedSave writes at all",
+    dict(id="M9", guard='settleLandedSave writes at all',
          file=f"{OFF}/useDurableNote.js",
-         find="  const landed = usableBaseline(updatedAt)",
-         repl="  const landed = usableBaseline(updatedAt); if (landed) return null",
-         note="M10 -- the store-direct settle that survives unmount"),
+         find='  const landed = usableBaseline(updatedAt)\n  if (!accountId || !noteId || !landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
+         repl='  const landed = usableBaseline(updatedAt)\n  if (landed) return null\n  if (!accountId || !noteId || !landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
+         note='M10 -- the store-direct settle that survives unmount'),
 
     dict(id="M10", guard="settleLandedSave REBASES when still ahead",
          file=f"{OFF}/useDurableNote.js",
@@ -147,13 +147,12 @@ MUTATIONS = [
               "    const state = caughtUp ? (acked || current) : current",
          note="clearing on an ack for OLDER words is how offline systems lose the newest"),
 
-    dict(id="M11", guard="settleLandedSave needs an account AND a note",
+    dict(id="M11", guard='settleLandedSave needs an account AND a note',
          file=f"{OFF}/useDurableNote.js",
-         find="if (!accountId || !noteId || !landed) return null",
-         repl="if (!landed) return null",
+         find='  if (!accountId || !noteId || !landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
+         repl='  if (!landed) return null\n  try {\n    const db = await connect(accountId)\n    const prev = await getNote(db, noteId)',
          note="a settle without an identity writes into the wrong account's store"),
 
-    # ── round 2: the two guards that are actually independent ────────────────
     dict(id="M13", guard="the in-flight marker is WRITTEN at all",
          file=f"{OFF}/useDurableNote.js",
          find="    await putMeta(db, markerKeyFor(noteId), marker)",
@@ -166,11 +165,11 @@ MUTATIONS = [
          repl="  return null  // mutated: never ask the server",
          note="the shared helper -- with it dark, every 409 forks blind"),
 
-    dict(id="M15", guard="the 409 check is NARROW — only OUR copy is superseded",
+    dict(id="M15", guard='the 409 check is NARROW — only a PROVEN-identical body is removed',
          file=f"{OFF}/outboxDrain.js",
-         find="          if (mine?.ours) {",
-         repl="          if (mine?.ours ?? true) {",
-         note="⛔ widened, it silently DISCARDS a genuine second writer's work"),
+         find='          if (mine?.ours && mine.identical) {',
+         repl='          if (mine?.ours || true) {',
+         note='widened, it discards a genuine second writer AND any entry whose words the server never got'),
 
     dict(id="M16", guard="the staleness threshold is a real duration",
          file=f"{OFF}/inFlight.js",
@@ -229,6 +228,23 @@ MUTATIONS = [
          find='          const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)',
          repl="          const mine = null  // mutated: skip the second pass",
          note="the server answer CHANGES across the send; one pass gets one case wrong"),
+
+    # ── the two defects that lost a member's words, 2026-09-10 ───────────────
+    # ⛔ Both of these SHIPPED. Neither was visible to any mechanism-level rail;
+    # both are visible to the property rail, which is why it exists.
+    dict(id="M22", guard="a door treats NO LOCAL STATE as no evidence, not as caught-up",
+         file=f"{NB}/NoteEditorPage.jsx",
+         find="    const current = captureLocalState()",
+         repl="    const current = captureLocalState() || saved",
+         note="the exact shipped line: `|| saved` makes acked === current, reads as "
+              "caught up, and DELETES the queued entry with the member's words in it"),
+
+    dict(id="M23", guard='"ours" alone is NEVER a reason to remove a queued entry',
+         file=f"{OFF}/outboxDrain.js",
+         find="          if (mine?.ours && mine.identical) {",
+         repl="          if (mine?.ours) {",
+         note="the shipped rule. A door moves the revision, the ring says ours, and "
+              "the entry is dropped though the server body never held its words"),
 
     dict(id="M12", guard="the editor emits NOTHING when it sets content itself",
          file=f"{NB}/NoteEditorPage.jsx",

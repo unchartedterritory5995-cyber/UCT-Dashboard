@@ -55,7 +55,16 @@ describe('⭐ guard 2, SECOND ARM — the revision this browser recorded as land
   // bodies. That is precisely the case that does NOT cover the defect: a member
   // who kept typing after the save landed has a body that differs by
   // construction, and the revision is the only remaining evidence.
-  it('⛔ 409, bodies DIFFER, but the server revision is one we landed ⇒ superseded', async () => {
+  it('⛔⛔ 409, revision is OURS but the body DIFFERS ⇒ REBASED AND RESENT, never removed', async () => {
+    // ⚰️ THIS CASE ASSERTED THE OPPOSITE UNTIL 2026-09-10, AND THAT COST A
+    // MEMBER THEIR WORDS. "Ours" was treated as authorisation to delete: a
+    // folder change we made moved the revision, the ring said the copy was
+    // ours, and the queued entry was discarded with the offline sentence unsent.
+    //
+    // ⛔ THE INVARIANT: a queued entry is never removed unless the server body
+    // is PROVEN to contain its content. "Ours" tells us the revision is safe to
+    // BUILD ON — nobody else wrote it — which is a reason to rebase, never a
+    // reason to drop.
     await queued()
     await settleLandedSave({
       accountId: 'a1', noteId: 'n1',
@@ -64,19 +73,47 @@ describe('⭐ guard 2, SECOND ARM — the revision this browser recorded as land
       updatedAt: T2, connect,
     })
     await settleIdb(4)
-    expect(await getMeta(db, landedKeyFor('n1'))).toContain(T2)   // it was recorded
+    expect(await getMeta(db, landedKeyFor('n1'))).toContain(T2)   // the landing was recorded
 
-    const send = vi.fn(async () => { const e = new Error('conflict'); e.status = 409; throw e })
+    let attempt = 0
+    const sent = []
+    const send = vi.fn(async (e) => {
+      attempt += 1
+      sent.push(e.baseUpdatedAt)
+      if (attempt === 1) { const err = new Error('conflict'); err.status = 409; throw err }
+      return { updatedAt: T3 }        // the rebased send succeeds
+    })
     const fork = vi.fn()
     const serverCopyIsOurs = async (entry, { landedRevisions } = {}) => (
       landedRevisions && landedRevisions.has(T2)
-        ? { ours: true, why: 'the server revision is one this browser recorded as landed' }
-        : { ours: false, why: 'differs' }
+        ? { ours: true, identical: false, serverUpdatedAt: T2, why: 'ours, but the server does not hold these words' }
+        : { ours: false, identical: false, why: 'differs' }
     )
     const results = await drainOutbox(db, { send, fork, serverCopyIsOurs })
+
+    expect(fork).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(sent[1]).toBe(T2)                                  // rebased onto OUR revision
+    expect(results.map((r) => r.outcome)).toEqual([SENT])
+    expect(results[0].reason).toMatch(/rebased onto/)
+    expect(await listOutbox(db)).toHaveLength(0)              // sent, not discarded
+    // ⭐ AND THE WORDS WENT: the resend carried the member's newest text.
+    expect(JSON.stringify(send.mock.calls[1][0].patch)).toContain('and more')
+  })
+
+  it('⭐ CONTROL — byte-identical still REMOVES, so the rebase path is not universal', async () => {
+    // Without this, "never remove" would become "always resend", and every
+    // caught-up entry would cost a redundant PUT.
+    await queued()
+    const send = vi.fn(async () => { const e = new Error('conflict'); e.status = 409; throw e })
+    const fork = vi.fn()
+    const results = await drainOutbox(db, {
+      send, fork,
+      serverCopyIsOurs: async () => ({ ours: true, identical: true, serverUpdatedAt: T2, why: 'byte-identical' }),
+    })
+    expect(send).toHaveBeenCalledTimes(1)      // the first send only; no resend
     expect(fork).not.toHaveBeenCalled()
     expect(results.map((r) => r.outcome)).toEqual([SUPERSEDED])
-    expect(results[0].reason).toMatch(/recorded as landed/)
   })
 
   it('⭐ CONTROL — a revision we never landed is NOT ours, and still forks', async () => {
