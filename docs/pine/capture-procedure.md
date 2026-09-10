@@ -205,6 +205,39 @@ study from them (see `barstate-full.pine`); never append in place.
   renders two years of history where 250 bars were asked for. The image looks perfect and is of
   the wrong thing.
 
+## ⛔⛔ A CUSTOM SCRIPT REACHES A CHART ONLY BY A HUMAN PASTE
+
+**Nothing an agent can drive puts Pine source into the editor.** Measured 2026-09-10 by
+exhausting every mechanism available, with Monaco focus asserted before each attempt
+(`document.activeElement` inside `.monaco-editor`):
+
+- **Synthetic `ClipboardEvent('paste')` with a `DataTransfer`** — Monaco ignores it; buffer
+  unchanged across three dispatches.
+- **`textarea.inputarea.value = src` + synthetic `InputEvent`** — ignored; Monaco does not read
+  the input area on a synthesised event.
+- **Real keystrokes via the computer tool** — they do not reach the editor. They land on the
+  CHART, whose type-to-search opened symbol search and set the symbol to
+  `PLOT(TIMEFRAME.ISWEEKLY ? 1 : 0`. ⛔ Assert Monaco focus before *any* keystroke.
+- **Clipboard write + synthesised `ctrl+v`** — the clipboard held the bytes and the paste still
+  did not land. **CDP-synthesised key events do not trigger a native clipboard paste.**
+
+⛔⛔ **AND THE OBVIOUS GATE DOES NOT WORK.** A `navigator.clipboard` `writeText` → `readText`
+round-trip **passes** while the paste fails — it measures *clipboard API access*, nothing more.
+(It does fail for its own reason when `document.hasFocus()` is false: `writeText` hangs, and an
+unguarded call froze the renderer for 45 s. Guard it with `Promise.race`. But passing it proves
+nothing about pasting.) ⚠️ A gate that cannot fail for the reason you care about is worse than
+no gate: it converts "blocked" into "ready".
+
+⭐ **SO THE ONLY ROUTE IS A HUMAN PASTE, ONCE, PER SCRIPT.** After that everything is
+automatable: a script saved under a known name can be added programmatically by id with
+`createStudy`, exactly as `UCTPROBE_NS` and the built-ins are — and reading values, rosters and
+source back out needs no human at all. **Plan around this: any step that ends in "paste a
+script" is planning around a wall.**
+
+⚠️ Verify a pasted buffer against the committed bytes BEFORE "Add to chart" — chars + FNV-1a,
+then sha256. A partial paste is real: one attempt left `fold-pass` concatenated with a stray NS
+fragment (1614 chars against a committed 628), and only the receipt caught it.
+
 ## Moving data out
 
 `fetch` to a localhost sink is **dead** — tradingview.com's CSP `connect-src` stops the request
