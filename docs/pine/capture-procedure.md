@@ -157,8 +157,20 @@ Worked, after two failures worth keeping:
    Chart values / …), **not** the study menu. Wrong target, and it looks like the right one.
 2. ⛔ **A programmatic `element.click()` on the More button does nothing.** TradingView listens
    for real pointer events. **DOM to LOCATE, real pointer events to CLICK.**
-3. Get the button's rect, then scale viewport → screenshot coordinates:
-   `S = screenshotWidth / window.innerWidth` (1568 / 1920 = **0.8167** here), click `(x*S, y*S)`.
+3. Get the button's rect, then scale viewport → screenshot coordinates.
+   ⛔⛔ **RECOMPUTE `S` AT THE MOMENT OF EVERY CLICK. IT IS NOT A CONSTANT.**
+
+       const S = screenshotWidth / window.innerWidth   // read innerWidth NOW
+       click(rect.x + rect.width/2) * S, (rect.y + rect.height/2) * S)
+
+   ⚰️ **THIS PAGE CARRIED `0.8167` AS A FIXED NUMBER FOR ONE DAY AND IT WAS WRONG BY
+   LUNCHTIME.** Opening the editor panel took width off the chart: `window.innerWidth` went
+   **1920 → 1431**, so the true scale went 0.8167 → **1.0** while the recorded constant stayed
+   0.8167. Clicks computed from the stale value landed on the wrong controls — one of them
+   opened the editor panel instead of the Indicators dialog, and the mis-click was read as
+   "the dialog does not open" rather than "the arithmetic is stale". **Any panel, sidebar or
+   watchlist that opens or closes changes it.** A hard-coded scale is the same defect class as
+   a hand-typed count beside the list it describes.
 
        const row  = nsWrap.closest('[class*="legend"]')
        const more = [...row.querySelectorAll('button')]
