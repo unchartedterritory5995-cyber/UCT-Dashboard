@@ -159,10 +159,16 @@ those scripts are blocked by `pine:function` / `pine:request` / `pine:tuple` reg
    nothing (2 cache stores on SAR). The whole **11.6s → 43ms** came from the depth bound, which
    is shipped with its three tests and a 1,000 ms regression ceiling. Re-attempting the memo
    would re-introduce a known-wrong result, so it is **not** being retried without a reason.
-2. **`symbolScope.json::confirmed` is still empty and this wave did not fill it.** The
-   five-symbol capture read `syminfo.tickerid`, which is a **different field** from
-   `syminfo.exchange` that the map is keyed on. Filling it from what we measured would be the
-   *"assertion wearing a data structure"* that file warns against.
+2. ⚰️ **`symbolScope.json::confirmed` IS NO LONGER EMPTY — FILLED 2026-09-10 with six
+   witnessed rows.** This read *"still empty and this wave did not fill it"*, and it was right
+   at the time: the five-symbol capture read `syminfo.tickerid`, a **different field** from the
+   one the map is keyed on, and filling it from that would have been the *"assertion wearing a
+   data structure"* that file warns against. ⛔ **THE FIELD IT NAMED DOES NOT EXIST.**
+   `syminfo.exchange` is not a Pine v6 identifier (CE10272); the exchange is **`syminfo.prefix`**.
+   The binding was renamed everywhere on a measurement — 0 uses of the old name across all 502
+   tracked `.pine` files — and job C's seven witnesses landed six rows, so both vendor fields
+   now SERVE for the yfinance leg of our store and still refuse for the FMP free-text half.
+   Capture: `tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json`.
 
 ---
 

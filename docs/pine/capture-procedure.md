@@ -244,6 +244,22 @@ study's script.** The action button then reads **"Update on chart"**, and clicki
 ⭐ **THE REVERT IS THE REASSURING PART**: it proves the *saved* script was never modified.
 "Save script" was never clicked. Only the chart's in-memory instance ever changed.
 
+⚰️⚰️ **AND `787899e2…` IS NOT A SAVED SCRIPT AT ALL — CORRECTED 2026-09-10.** The block above
+treats it as an account-scoped script whose saved content is "UCT marker parity probe". It is
+not. `pine-facade` `GET .../USER;787899e2…/last` returns **404**, while the same call returns
+200 with real names and source for two known-good ids (the positive control that makes the 404
+mean something), and the account's saved list does not contain it either. **It is TradingView's
+shared UNSAVED-BUFFER slot**: every unsaved script added to a chart is stamped with that same
+id, with a slot revision that ticks (`0.30` → `0.31` observed across two unrelated buffers in
+one session). "UCT marker parity probe" is itself a failed one-plot stub sitting on that slot.
+
+⭐ **SO THE REVERT WAS THE SLOT SHOWING A STUB, NOT A SAVED SCRIPT'S CONTENT — and the
+conclusion still holds, harder.** Nothing of the owner's was written, because at that id there
+was no saved script to write to. ⛔ What this changes is the ASSERTION: `id != 787899e2…` means
+**"genuinely saved"**, not "not the owner's". Two different probes riding the unsaved slot are
+indistinguishable from each other by id, so that check cannot tell you whose script you are
+about to edit — only that you are not on the shared slot.
+
 ✅ **ASSERT THE BUTTON TEXT BEFORE EVERY CLICK.** `Add to chart` = safe, adds a study.
 `Update on chart` = **do not click** — it writes to whatever script the editor is bound to,
 and if that is an account-scoped `Script$USER;…` it is the owner's, in every layout.
@@ -251,16 +267,30 @@ and if that is an account-scoped `Script$USER;…` it is the owner's, in every l
 ⛔⛔ **AND SWAPPING THE MONACO MODEL DOES NOT UNBIND IT.** `editor.createModel(src,'pine_v6')`
 + `editor.setModel(m)` swaps the buffer (uri goes `file:///…` → `inmemory://model/4`) and the
 button **still reads "Update on chart"**. TradingView holds the binding in its own state, not
-in the Monaco model. Measured 2026-09-10. **The unbind is a UI action ("New indicator" in the
-editor's script-title dropdown) and there is no API route to it that this programme has found.**
-So a NEW study from a NEW script still needs one human action — after which `createStudy`
-by id automates every later visit.
+in the Monaco model. Measured 2026-09-10.
 
-## ⛔⛔ A CUSTOM SCRIPT REACHES A CHART ONLY BY A HUMAN PASTE
+⭐⭐ **THE UNBIND IS A UI ACTION AND IT IS NOT A HUMAN ONE — CORRECTED 2026-09-10.** This read
+*"there is no API route to it that this programme has found. So a NEW study from a NEW script
+still needs one human action."* The first sentence is still true; the conclusion was not.
+**script-title dropdown → Create new → Indicator is three ordinary pointer clicks and was
+driven end to end by an agent**, four times in one session. It yields a fresh Monaco model (a
+new `file:///<uuid>.pine` uri) whose action button reads **"Add to chart"**, never *"Update on
+chart"*. ⛔ Needing the UI is not the same as needing a person, and writing it down as the
+latter parked a whole capture programme behind a wall that was not there.
 
-**Nothing an agent can drive puts Pine source into the editor.** Measured 2026-09-10 by
-exhausting every mechanism available, with Monaco focus asserted before each attempt
-(`document.activeElement` inside `.monaco-editor`):
+## ⚰️ THE PASTE WALL — four mechanisms that do NOT work, and why they are still worth knowing
+
+⛔⛔ **THIS SECTION WAS TITLED "A CUSTOM SCRIPT REACHES A CHART ONLY BY A HUMAN PASTE" AND OPENED
+"Nothing an agent can drive puts Pine source into the editor." BOTH ARE FALSE**, and the section
+immediately above this one — the Monaco handle — already contradicted them on the same day. A
+document that states a wall and its own route around it, in that order, teaches whichever half
+the reader stops at. `model.setValue()` put committed source into the editor four times on
+2026-09-10, byte-verified by sha256 each time.
+
+⭐ **KEPT, BECAUSE THE NEGATIVE RESULTS ARE THE VALUABLE PART.** Each mechanism below fails for
+its own reason, and knowing which ones are dead stops the next agent re-deriving them. Measured
+2026-09-10 by exhausting every mechanism available, with Monaco focus asserted before each
+attempt (`document.activeElement` inside `.monaco-editor`):
 
 - **Synthetic `ClipboardEvent('paste')` with a `DataTransfer`** — Monaco ignores it; buffer
   unchanged across three dispatches.
@@ -279,15 +309,62 @@ unguarded call froze the renderer for 45 s. Guard it with `Promise.race`. But pa
 nothing about pasting.) ⚠️ A gate that cannot fail for the reason you care about is worse than
 no gate: it converts "blocked" into "ready".
 
-⭐ **SO THE ONLY ROUTE IS A HUMAN PASTE, ONCE, PER SCRIPT.** After that everything is
-automatable: a script saved under a known name can be added programmatically by id with
-`createStudy`, exactly as `UCTPROBE_NS` and the built-ins are — and reading values, rosters and
-source back out needs no human at all. **Plan around this: any step that ends in "paste a
-script" is planning around a wall.**
+⚰️ **THIS CONCLUDED "SO THE ONLY ROUTE IS A HUMAN PASTE, ONCE, PER SCRIPT." IT IS NOT.** The
+Monaco handle is the route, and the four probes of 2026-09-10 were saved and added with no paste
+and no person. What survives is the second half, which was always the useful part: **a script
+saved under a known name is addable by id with `createStudy`**, and reading values, rosters and
+source back out needs nothing but the chart model.
 
 ⚠️ Verify a pasted buffer against the committed bytes BEFORE "Add to chart" — chars + FNV-1a,
 then sha256. A partial paste is real: one attempt left `fold-pass` concatenated with a stray NS
 fragment (1614 chars against a committed 628), and only the receipt caught it.
+
+## ⛔⛔ FOUR THINGS THAT LOOK LIKE SUCCESS AND ARE NOT (2026-09-10)
+
+Each of these was hit in one session. Every one of them is silent.
+
+**1. A FAILED STUDY KEEPS A ONE-PLOT STUB, AND ITS ROSTER READS FINE.** A study whose script
+fails to COMPILE still lands on the chart and still answers `metaInfo()` — with a single plot
+titled `"Plot"`, the shared placeholder digest `0366beecad3fa344b185adf5e6ac9b35f5419485`, and
+an **empty `_data._items`**. Read a roster off that and you record a study that never evaluated
+as though it had answered. ✅ **Gate every capture on `isFailed() === false` AND a plot count
+equal to the committed source's.** The compile error itself is readable at
+`status().errorDescription.editorError` — code, message, line and column.
+
+**2. WHAT THE VENDOR STORES IS NOT BYTE-EQUAL TO THE COMMITTED FILE.** TradingView stores Pine
+source with **CRLF** line endings; the repo's files are LF. A naive
+`sha256(committed) == sha256(stored)` comparison therefore **fails on every script** and means
+nothing. ✅ Normalise first, and allow the trailing newline to be absent:
+
+    stored == committed.replace('\n', '\r\n')
+    stored == committed.rstrip('\n').replace('\n', '\r\n')
+
+Anything else is real content drift and the capture must be refused. (The deltas look like an
+injected header — +13, +125, +31, +139 chars, not a constant — because they are
+`(number of line breaks) − (1 if the trailing newline was dropped)`.)
+
+**3. DERIVE A PLOT ROSTER WITH A BALANCED-PAREN SCAN, NEVER A REGEX.**
+`plot(str.contains(a, b) ? 1 : 0, "name")` carries commas inside its first argument, so the
+obvious `plot\(...,\s*"([^"]+)"` pattern silently drops it. On `exchange-spelling.pine` that
+returned **11 names for a 12-plot file** — short by one, and plausible. ⛔ This is the THIRD
+regex under-count in two days (the others: a `_metaInfo` roster read from style-key order, and a
+grep that returned 0 for a string present 5,664 times). **Write that down and stop reaching for
+a regex over source.**
+
+**4. THE ACTION BUTTON IS ICON-ONLY IN SOME STATES, AND ITS x MOVES.** In a narrow editor pane
+the control has no text at all, so a scan over leaf nodes for `"Add to chart"` finds **nothing**
+— which reads exactly like *"no action button is present"* and is how one attempt was lost. Its
+`title` attribute is still `"Add to chart"`. ✅ **Assert it by attribute, and re-measure its
+position every single time**: it was at x = 962, 998, 1038 and 1089 within one session on an
+unchanged viewport, because the script name beside it changes width. A coordinate cached from
+the previous probe lands on a different control. (Same defect class as the scale constant.)
+
+⚠️ **AND A CLICK THAT RETURNS CLEANLY IS NOT A SAVE.** Two clicks on the toolbar's Save icon, at
+its correctly-measured position, left the vendor's stored source and `updated` stamp untouched;
+the same action from the script-title dropdown saved within 500 ms. The cause was not isolated.
+✅ **Confirm a save by re-reading the stored source and its `updated` timestamp from
+`pine-facade`** — never by the click succeeding, and never by the status line. Both clicks
+looked exactly like success.
 
 ## Moving data out
 

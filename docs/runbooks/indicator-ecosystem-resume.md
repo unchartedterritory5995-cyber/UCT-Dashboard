@@ -119,9 +119,12 @@ JSON import that node will not load without an import attribute.
 * the live Aroon pane read (Ruling 2c);
 * the fold-pass vendor probe (Ruling 1g);
 * the tuple-security measurements in item 3 above;
-* the `syminfo.exchange` / `tickerid` capture — `symbolScope.json::confirmed` is
-  empty on purpose and those two fields refuse per binding until a witness lands.
-  **A capture turns them on with no code change.**
+* ⚰️ the `syminfo.prefix` / `tickerid` capture — **DONE 2026-09-10, and the prediction held
+  exactly**: `symbolScope.json::confirmed` was empty on purpose, the capture landed six
+  witnessed rows, and both fields now serve **with no code change to the fold**, precisely as
+  this line said they would. ⛔ The field was named `syminfo.exchange` here; no such identifier
+  exists in Pine v6 (CE10272) and the binding is now `syminfo.prefix`. Six store spellings
+  serve; the FMP free-text half still refuses per binding.
 
 ### Smaller open items
 
