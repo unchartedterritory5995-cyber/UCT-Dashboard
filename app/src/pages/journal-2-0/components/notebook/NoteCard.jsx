@@ -48,7 +48,7 @@ export default function NoteCard({ note, onOpen, onRestore, blocked = false }) {
 
   if (onRestore) {
     return (
-      <div className={styles.card} data-trashed="true">
+      <div className={styles.card} data-note-card-id={note.id} data-trashed="true">
         <div className={styles.body}>
           <div className={styles.title}>{title}</div>
           {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
@@ -80,7 +80,7 @@ export default function NoteCard({ note, onOpen, onRestore, blocked = false }) {
   }
 
   return (
-    <button type="button" className={styles.card} onClick={() => onOpen(note)}>
+    <button type="button" className={styles.card} data-note-card-id={note.id} onClick={() => onOpen(note)}>
       <div className={styles.body}>
         <div className={styles.title}>{title}</div>
         {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
