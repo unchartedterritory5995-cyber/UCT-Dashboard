@@ -705,7 +705,15 @@ def get_detections(
         # higher bar sees a difference.
         verdicts = [v for v in verdicts
                     if float(v.get("vision_confidence") or 0.0) >= min_conf]
-        return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts, "count": len(verdicts)}
+        # Seam 24: how many setups were EVALUATED in the same window, confirmed
+        # and rejected alike. A member seeing an empty tab cannot otherwise tell
+        # "we looked and nothing qualified" from "nothing was ever looked at" --
+        # and about 80% of judged tickers showed that empty state on 2026-09-10.
+        # ⛔ THE COUNT ONLY. Rejection rationales stay admin-only; nothing here
+        # exposes what the judge said about a setup it turned down.
+        return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts,
+                "count": len(verdicts),
+                "evaluated": pv_store.count_evaluated(sym, tf)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
     rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)
     return {"sym": sym.upper(), "tf": tf, "detections": rows, "count": len(rows)}
