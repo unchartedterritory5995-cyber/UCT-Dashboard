@@ -2221,6 +2221,43 @@ def warm_ticker_daily_deep(ticker: str, need_before_ymd: int | None = None) -> b
         return False
 
 
+def warm_ticker_deep(ticker: str, tf: str) -> int:
+    """Fetch + persist a ticker's FULL D/W/M history (deep: Massive + the yfinance
+    pre-2003 graft) into SQLite, SYNCHRONOUSLY. Returns the row count written, 0 on
+    failure. The generalization of `warm_ticker_daily_deep` to W/M.
+
+    ⭐ WHY THE WARMER MUST NOT GO THROUGH THE SERVE PATH. `deep_history_warm` used to
+    call `_get_bars_inner(sym, tf, _DEEP_TARGET[tf])` and count the RETURN as "warmed".
+    That is only true for a COLD symbol. For one that already holds shallow rows —
+    which, after the 2026-09-09 skip-test fix, is nearly every symbol the sweep now
+    visits — `_get_bars_inner` serves the stale rows immediately and does the actual
+    deep fetch on a background thread gated by `_bg_delta_sem` (BARS_BG_DELTA_MAX, 3 in
+    prod). Two warmer threads issuing thousands of jobs would have had almost all of
+    that work DROPPED at the semaphore, and reported every drop as a success.
+
+    Synchronous by design: the warmer's own 2-thread pool is the concurrency limit, and
+    the provider client's rate limiter is the politeness limit. Nothing accumulates in
+    memory — one (ticker, tf) at a time, straight to SQLite.
+    """
+    tu = ticker.upper()
+    tfu = (tf or "D").upper()
+    if tfu not in ("D", "W", "M"):
+        return 0
+    try:
+        if tfu == "W":
+            data = _fetch_weekly(tu, 4000, deep=True)
+        elif tfu == "M":
+            data = _fetch_monthly(tu, 1200, deep=True)
+        else:
+            data = _fetch_daily(tu, 12500, deep=True)
+        if not data:
+            return 0
+        _sqlite.put_bars(tu, tfu, data, date_tf=True)
+        return len(data)
+    except Exception:
+        return 0
+
+
 def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) -> JSONResponse:
     """Return only bars newer than `since_str` for the browser's delta sync.
 

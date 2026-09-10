@@ -2554,6 +2554,15 @@ def register_pattern_vision_jobs(scheduler):
         agg = {"judged": 0, "skipped": 0, "capped": 0, "render_failed": 0, "errored": 0}
         problems, asofs, active_n, cur, err = [], [], 0, None, None
         try:
+            # ⛔ MUST run before the active-set fetch, not lazily inside the
+            # loop. init_db() otherwise only executes inside judge_ticker(), so
+            # an EMPTY active set never creates the tables, the `finally` below
+            # writes to a table that does not exist, and its own try/except
+            # correctly swallows that -- reproducing this instrument's blind
+            # spot for one of the four paths it exists to expose. Idempotent
+            # (CREATE TABLE IF NOT EXISTS), and reached only when the job is
+            # registered, which is already PATTERN_VISION_ENABLED-gated.
+            pv_store.init_db()
             cap = int(os.environ.get("PATTERN_VISION_MAX_PER_RUN", "150"))
             active = _resolve_active_set_for_patterns()[:cap]
             active_n = len(active)

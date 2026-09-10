@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { deriveWatermarkAnchor } from '../components/chart/watermarkPrimitive'
 
 const THRESHOLD = 4 // px before a press becomes a drag
 
@@ -88,8 +89,12 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
         const h = ms.height || 1
         // Apply the grab offset (centre − grab point) so the exact spot you grabbed
         // stays under the cursor and the mark tracks the mouse 1:1 (no jump, no lag).
-        const nx = Math.max(0, Math.min(1, (p.x + drag.current.ox) / w))
-        const ny = Math.max(0, Math.min(1, (p.y + drag.current.oy) / h))
+        // NOT clamped to 0..1: the fraction is the BOX CENTRE, so clamping it would
+        // stop the box's edges being dragged off the pane — owner wants the mark
+        // free to hang off any edge. The pointer bounds how far it can actually go;
+        // Settings → Watermark → Reset to center recovers one dragged out of sight.
+        const nx = (p.x + drag.current.ox) / w
+        const ny = (p.y + drag.current.oy) / h
         drag.current.nx = nx
         drag.current.ny = ny
         c.setOptions({ x: nx, y: ny })
@@ -122,7 +127,20 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       drag.current = null
       if (d) suppressChart(e) // the chart must not see the gesture's pointerup
       try { el.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
-      if (commit && d && d.moved && d.nx != null && c) onCommitRef.current({ x: d.nx, y: d.ny })
+      if (commit && d && d.moved && d.nx != null && c) {
+        // Commit the pixel ANCHOR alongside the fraction: it's what makes the spot
+        // survive a resize (or a reload into a differently-sized pane) instead of
+        // the fraction re-resolving and sliding the mark toward the middle.
+        // Computed here rather than read back from the controller because the last
+        // drag frame's redraw is async — this is the exact spot just released.
+        let anchor = null
+        try {
+          const ms = c.getMediaSize && c.getMediaSize()
+          const r = c.getRect && c.getRect()
+          if (ms && r) anchor = deriveWatermarkAnchor({ x: d.nx, y: d.ny }, ms, { w: r.w, h: r.h })
+        } catch { /* fall back to the fraction */ }
+        onCommitRef.current({ x: d.nx, y: d.ny, anchor })
+      }
     }
     const onUp = (e) => finishDrag(true, e)
     const onCancel = (e) => finishDrag(false, e)
