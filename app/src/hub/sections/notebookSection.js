@@ -44,6 +44,28 @@ export function noteCardNodes(root = typeof document === 'undefined' ? null : do
 }
 
 /**
+ * ⛔ THE LIST'S IDENTITY IS THE FILTER, NOT THE SELECTION.
+ *
+ * `useHubCursor` treats a change of identity as "this is a different list" and resets the index.
+ * The first version of this folded the WHOLE query string in — including `note` — so opening a note
+ * changed the identity and reset the cursor to 0. Tap-to-advance then bounced back to the first
+ * card on every single tap, and the member could never get past note one. Its own rail caught it
+ * ("tap did not advance the cursor").
+ *
+ * So the selection params are excluded and the filter params are kept: changing folder or tag IS a
+ * different list and should reset; opening a note is not.
+ */
+const SELECTION_PARAMS = ['note', 'doc', 'page', 'excerpt', 'review']
+
+function listScope(pathname, search) {
+  const params = new URLSearchParams(search)
+  for (const p of SELECTION_PARAMS) params.delete(p)
+  params.sort()   // a stable string regardless of the order the app happened to write them
+  const q = params.toString()
+  return q ? `${pathname}?${q}` : pathname
+}
+
+/**
  * ⭐ THE IDENTITY KEY IS THE NOTE ID, NOT THE POSITION. A member creating a note prepends a row,
  * and a positional identity would leave the cursor pointing at whatever slid into its index. The
  * route is folded in so moving between folders is a genuinely different list.
@@ -58,7 +80,7 @@ export default function useNotebookSection() {
   // The rendered list, read out of the document. Re-read when the route or the query changes,
   // which is when the grid can have re-rendered.
   const [ids, setIds] = useState([])
-  const scope = `${location.pathname}${location.search}`
+  const scope = listScope(location.pathname, location.search)
 
   useEffect(() => {
     if (!onRoute) {
