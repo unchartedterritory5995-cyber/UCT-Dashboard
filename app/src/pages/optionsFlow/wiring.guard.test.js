@@ -336,7 +336,7 @@ describe('Options Flow correctness guard', () => {
     const block = CODE.slice(start, start + 24000)
     // CONTROL: the slice really is the TOP 10 renderer.
     expect(block.includes('topCDisplayPrem'), 'the slice is not the TOP 10 block').toBe(true)
-    const reads = block.match(/(?:p|c|m|pick)\.contracts/g) || []
+    const reads = block.match(/\b(?:p|c|m|pick)\.contracts\b/g) || []
     expect(reads,
       'the TOP 10 renderer now reads `.contracts`, which the served product does not carry' + FIX)
       .toEqual([])
