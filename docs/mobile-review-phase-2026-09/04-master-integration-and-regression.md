@@ -1771,3 +1771,26 @@ question.
 `fix/mobile-legend-legacy-state` and is deliberately not merged: an unrun tool for a
 closed measurement in the tree is the hazard CLAUDE.md's unreachable-code table warns
 about.
+
+## ⚰️ One last correction, caught before the push
+
+The docs deploy that lands this chapter on master was authorised on the stated
+rationale that *"the memory index names `04-master-integration-and-regression.md` as
+the record, and that path is dead on master."*
+
+**That was false.** Master carried `00`–`04` from the release. `04` exists there and
+stops at **line 935** — the end of `FINAL_RELEASE_READY = YES` — before the
+production closeout and the entire R5 chapter. `05` and `06` did not exist there at
+all.
+
+**The corrected rationale is the stronger one:** a record that ends mid-story
+**reads as complete**. Nothing on master signalled that 838 further lines existed, so
+the next reader would have taken the release verdict as the end of it and never known
+there was a seven-attempt measurement trail, four retractions, and a closure. A
+truncated record is more dangerous than a missing one, because a missing one
+announces itself.
+
+Same defect class as everything in the lessons section — a claim asserted without
+checking — and it was caught by running `git diff` against master before pushing
+rather than after. The deploy is unchanged: 838 appended lines on `04`, plus `05` and
+`06`, docs-only, zero deletions.
