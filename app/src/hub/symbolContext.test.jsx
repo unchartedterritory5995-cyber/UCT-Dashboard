@@ -38,13 +38,23 @@ const SHIPPED = {
   wire: { symbol: false, position: false },
   // Sets nothing, and needs nothing — see the assertion below.
   breadth: { symbol: false, position: false },
+  // ⚰️ ADDED BY INCREMENT 4 (B10). Notebook left the preview when §3.7 shipped. It sets nothing and
+  // needs nothing: `newNote` requires no context, and `dailyPlan`/`postMortem` are navigations.
+  // The one action that DID require a symbol — `linkTicker` — was removed rather than shipped
+  // permanently disabled, because the route carries no symbol (R-17).
+  notebook: { symbol: false, position: false },
 }
 
 describe('every shipped mode ships the fan it means to', () => {
-  it('CONTROL: exactly the four Increment 2 modes have left the preview', () => {
+  it('CONTROL: exactly the shipped modes have left the preview', () => {
     // If this drifts, every expectation below is describing a different product.
+    //
+    // ⚰️ WAS "exactly the four Increment 2 modes", listing wire/breadth/scan/journal. B10 flipped
+    // `notebook` live and this control went red — correctly. It is the FIXTURE that became
+    // unrepresentative, not the product: a control that pins a count of four is a control that has
+    // to be edited by every increment that ships a section, which is the point of it.
     const shipped = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id)).sort()
-    expect(shipped).toEqual(['breadth', 'journal', 'scan', 'wire'])
+    expect(shipped).toEqual(['breadth', 'journal', 'notebook', 'scan', 'wire'])
     expect(Object.keys(SHIPPED).sort()).toEqual(shipped)
   })
 
