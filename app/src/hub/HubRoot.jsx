@@ -443,6 +443,12 @@ function HubShell({ setToastMsg }) {
         disabledIds={disabledIds}
         disabledReason={reasonFor}
         onAction={runAction}
+        hapticsEnabled={settings.haptics !== false}
+        // ⛔ ONE AUTHORITY OVER "does this member want haptics". Stream E gave the sheet the
+        // escalate cue the gesture path has, defaulting the prop to true so it was not shipped
+        // built-tested-and-unreachable — but a default is a SECOND answer to a question the member
+        // already answered. Without this line, someone who turned haptics off still feels the
+        // sheet buzz. Same expression `useJoystick` reads (`settings.haptics !== false`).
         onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
       />
       {/* No toast here — see HubToastHost. Every message this feature shows is set by an
