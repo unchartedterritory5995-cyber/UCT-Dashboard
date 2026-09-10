@@ -1,0 +1,86 @@
+# Clock-parity fixture guard.
+#
+# `tests/fixtures/ast/clock_parity.json` is the clock ORACLE: 21 bars and every
+# column both lanes must agree on. Its own header said it was "RECORDED FROM THAT
+# LANE" — and for its whole life the recorder was never committed, so a generated
+# file was maintained by hand. That is how 14 of its 15 conflicts in the
+# 2026-09-09 barstate merge came to be `"c": 100` versus `"c": 100.0`: two people
+# serialising the same numbers two ways, in a 2,314-line artifact nobody could
+# regenerate to settle it.
+#
+# `tools/record_clock_parity.py` exists now, and `--check` exits 1 if the
+# committed fixture is not what the current maths produces. This runs it, so a
+# stale oracle is a red X on the commit that made it stale rather than a puzzle
+# for whoever next touches the clock.
+#
+# ⛔ IT IS A CHECK, NOT A WRITER. CI never regenerates the fixture — a job that
+# fixed the artifact would hide the very drift it exists to report, and the diff
+# belongs in the author's commit where it can be read.
+#
+# Scope is deliberately narrow, for the reason optionsflow-guard.yml states: a
+# workflow that cries wolf gets ignored. The roster is MEASURED, not guessed — a
+# `--check` run imports exactly THREE repo modules: `api` and `api.services` (both
+# empty `__init__.py`) and `api/services/indicator_compute.py`. So the only files
+# that can turn this red are the recorder, the fixture, and that one module.
+#
+# ⚠️ `app/src/components/chart/indicators.js` is deliberately NOT in the paths. It
+# is the lane this fixture EXISTS to hold to account, but `--check` re-derives only
+# the Python side, so a JS edit cannot make the fixture stale. Listing it would fire
+# a job that always passes and read as JS coverage it does not provide — cross-lane
+# divergence is `clockParity.test.js`'s to catch, in the vitest lane.
+name: Clock parity fixture
+
+on:
+  push:
+    paths:
+      - 'tools/record_clock_parity.py'
+      - 'tests/fixtures/ast/clock_parity.json'
+      - 'api/services/indicator_compute.py'
+  pull_request:
+    paths:
+      - 'tools/record_clock_parity.py'
+      - 'tests/fixtures/ast/clock_parity.json'
+      - 'api/services/indicator_compute.py'
+
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # ⭐ THE ONLY INSTALL, AND IT IS NOT A DEPENDENCY OF THE REPO — it is a
+      # dependency of the ANSWER. `compute_clock` reads `zoneinfo` for ET session
+      # boundaries; `zoneinfo` uses the OS tz database when there is one and the
+      # `tzdata` wheel when there is not. Pinning the wheel means this job's ET
+      # answers come from the same tzdb on every runner instead of from whatever
+      # the image happens to ship, and it removes the one way this guard could go
+      # red for a reason that has nothing to do with the fixture. A guard that
+      # cries wolf gets ignored, and a FALSE red spends that credibility fastest.
+      # No requirements.txt: a `--check` run imports stdlib and three repo modules.
+      - name: Install tzdata (the only thing outside stdlib this needs)
+        run: python -m pip install --quiet tzdata
+
+      - name: The committed fixture is what the maths produces
+        run: python tools/record_clock_parity.py --check
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::tests/fixtures/ast/clock_parity.json no longer matches what compute_clock produces."
+          echo ""
+          echo "The fixture is GENERATED. Do not hand-edit it."
+          echo ""
+          echo "  1. Regenerate:  python tools/record_clock_parity.py"
+          echo "  2. READ THE DIFF before committing it. This job going red means the"
+          echo "     clock's answers moved — the question is whether you meant them to."
+          echo "     A fixture updated without reading the diff launders a real change"
+          echo "     into an expected one, which is exactly what this guard is for."
+          echo "  3. Commit the regenerated fixture WITH the change that moved it."
+          echo ""
+          echo "  Inputs (bars, tf, and the tf_booleans / sliced_sessionfirst key sets)"
+          echo "  are read from the fixture and written back unchanged, so regenerating"
+          echo "  never invents a series — only the expected blocks are recomputed."
