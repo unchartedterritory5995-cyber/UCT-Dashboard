@@ -95,18 +95,24 @@ const EDGE_PAD = 14
 // NOTE: `align` does NOT affect placement — it only justifies the TEXT within the
 // box (see the draw). The box position is the same regardless of alignment.
 export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXPx = null, custom = false) {
-  const cy = pos.y * mediaSize.height
-  let y = cy - block.h / 2
-  y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
   let x
-  if (!custom && hardCenterXPx != null) {
+  let y = pos.y * mediaSize.height - block.h / 2
+  if (custom) {
+    // A HAND-PLACED mark is free on both axes: no edge clamp at all, so the box
+    // can hang as far off any edge as it was dragged. (The auto-drift this used to
+    // guard against is gone — the box is a fixed size now, so it only moves when
+    // the owner moves it.) Settings → Watermark → Reset to center recovers one
+    // dragged out of sight.
+    x = pos.x * mediaSize.width - block.w / 2
+  } else if (hardCenterXPx != null) {
     // Exact centre — no horizontal clamp, so the centre never shifts by width.
     x = hardCenterXPx - block.w / 2
+    y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
   } else {
-    // Free drag / saved per-chart position (custom), or the plain fraction.
-    const cx = pos.x * mediaSize.width
-    x = cx - block.w / 2
+    // Default placement from the plain fraction — kept inside the pane.
+    x = pos.x * mediaSize.width - block.w / 2
     x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
+    y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
   }
   return { x, y, w: block.w, h: block.h }
 }
@@ -177,9 +183,11 @@ export function createWatermarkPrimitive(initial) {
     const pad = opts.padX ?? EDGE_PAD
     const paneW = mediaSize?.width || 0
     // The box never exceeds the pane — a narrow widget wraps harder instead of
-    // spilling the mark off both edges.
+    // spilling the mark off both edges. A hand-placed mark is exempt: its whole
+    // point may be to hang off an edge, and a pane-derived width would also make
+    // the box (hence its fixed edges) resize with the widget.
     let boxW = (opts.boxW || DEFAULT_BOX_W) * scale
-    if (paneW > 0) boxW = Math.max(80, Math.min(boxW, paneW - pad * 2))
+    if (paneW > 0 && !opts.custom) boxW = Math.max(80, Math.min(boxW, paneW - pad * 2))
     const rows = []
     let contentW = 0
     let contentH = 0

@@ -3037,6 +3037,16 @@ export default function StockChart({
   // Push the badge state to the primitive (redraws; block re-lays-out to include it).
   // logoEnabled draws the circle even before/without an image, so no layout shift.
   // The brand mark has transparent margins → scale it up to fill the badge circle.
+  //
+  // ⚠️ This effect alone is NOT enough on a cold load: it fires while the chart is
+  // still being built, when `wmCtrlRef.current` is null, so the setOptions is a
+  // no-op — and neither dep changes again, so the badge never reached the primitive
+  // and the Logo field looked ON with no logo until you toggled it off/on. The refs
+  // below let updateChart push the same state the moment it CREATES the primitive.
+  const wmLogoRef = useRef(null)
+  const wmLogoEnabledRef = useRef(false)
+  wmLogoRef.current = wmLogo
+  wmLogoEnabledRef.current = wmLogoEnabled
   useEffect(() => {
     try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogo, logoScale: watermarkBrandMark ? 1.35 : 1 }) } catch { /* noop */ }
   }, [wmLogo, wmLogoEnabled, watermarkBrandMark])
@@ -8742,6 +8752,12 @@ export default function StockChart({
         // justification and the left/right non-custom placement).
         align: cs.watermark.align || 'center',
         custom: wmCustomRef.current,
+        // Re-asserted here (not only in the badge effect) so a primitive created
+        // AFTER the logo loaded still gets it — that race is what left the mark
+        // logo-less after a refresh.
+        logoEnabled: wmLogoEnabledRef.current,
+        logoImg: wmLogoRef.current,
+        logoScale: watermarkBrandMark ? 1.35 : 1,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
         hardCenterXPx: wmCustomRef.current ? null : _wmCenterX,
       })

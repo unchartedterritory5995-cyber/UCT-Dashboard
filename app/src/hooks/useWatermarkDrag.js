@@ -88,8 +88,12 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
         const h = ms.height || 1
         // Apply the grab offset (centre − grab point) so the exact spot you grabbed
         // stays under the cursor and the mark tracks the mouse 1:1 (no jump, no lag).
-        const nx = Math.max(0, Math.min(1, (p.x + drag.current.ox) / w))
-        const ny = Math.max(0, Math.min(1, (p.y + drag.current.oy) / h))
+        // NOT clamped to 0..1: the fraction is the BOX CENTRE, so clamping it would
+        // stop the box's edges being dragged off the pane — owner wants the mark
+        // free to hang off any edge. The pointer bounds how far it can actually go;
+        // Settings → Watermark → Reset to center recovers one dragged out of sight.
+        const nx = (p.x + drag.current.ox) / w
+        const ny = (p.y + drag.current.oy) / h
         drag.current.nx = nx
         drag.current.ny = ny
         c.setOptions({ x: nx, y: ny })

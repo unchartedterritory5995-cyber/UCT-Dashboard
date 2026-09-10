@@ -190,9 +190,43 @@ describe('watermark box stability (draw → getRect)', () => {
     expect(bare.y).toBe(full.y)
   })
 
-  it('the box never spills past the pane on a narrow widget', () => {
-    const r = drawWith(make({ name: 'Micron Technology, Inc.' }, 'MU'), { width: 300, height: 400 })
+  it('a DEFAULT (not hand-placed) box never spills past the pane on a narrow widget', () => {
+    const ctrl = make({ name: 'Micron Technology, Inc.' }, 'MU')
+    ctrl.setOptions({ custom: false, align: 'center' })
+    const r = drawWith(ctrl, { width: 300, height: 400 })
     expect(r.x).toBeGreaterThanOrEqual(14)
     expect(r.x + r.w).toBeLessThanOrEqual(300 - 14)
+  })
+
+  it('a HAND-PLACED box keeps its full width and may hang off the pane', () => {
+    // custom → no width clamp (the box must not resize with the widget) and no
+    // edge clamp (the owner may want the mark half off the left edge).
+    const ctrl = make({ name: 'Micron Technology, Inc.' }, 'MU')
+    ctrl.setOptions({ x: 0 })
+    const r = drawWith(ctrl, { width: 300, height: 400 })
+    expect(r.w).toBe(380)
+    expect(r.x).toBe(-190)
+  })
+})
+
+describe('computeWatermarkRect — a hand-placed mark is not fenced in', () => {
+  const media = { width: 1000, height: 400 }
+  const block = { w: 200, h: 120 }
+  it('custom placement is free on BOTH axes (box may hang off any edge)', () => {
+    const left = computeWatermarkRect({ x: 0, y: 0 }, media, block, 14, 0, null, true)
+    expect(left.x).toBe(-100)          // left edge off the pane, not clamped to +14
+    expect(left.y).toBe(-60)
+    const right = computeWatermarkRect({ x: 1, y: 1 }, media, block, 14, 0, null, true)
+    expect(right.x).toBe(900)          // right edge 100px past the pane
+    expect(right.y).toBe(340)
+  })
+  it('a custom position ignores hardCenterXPx (the drag owns x)', () => {
+    const r = computeWatermarkRect({ x: 0.2, y: 0.5 }, media, block, 14, 0, 500, true)
+    expect(r.x).toBe(100)
+  })
+  it('the DEFAULT placement is still fenced inside the pane', () => {
+    const r = computeWatermarkRect({ x: 0, y: 0 }, media, block, 14, 0, null, false)
+    expect(r.x).toBe(14)
+    expect(r.y).toBe(0)
   })
 })
