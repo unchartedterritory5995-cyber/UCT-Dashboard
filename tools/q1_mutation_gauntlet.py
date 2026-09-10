@@ -246,6 +246,20 @@ MUTATIONS = [
          note="the shipped rule. A door moves the revision, the ring says ours, and "
               "the entry is dropped though the server body never held its words"),
 
+    # ⛔⛔ THE SHIPPED DEFAULT ITSELF. This mutation INVERTS WITH THE FLIP, in the
+    # same commit: while the wave ships OFF it proves false→true reddens the
+    # unset-branch rails; after the flip it becomes true→false and must redden
+    # the post-flip unset-branch rails, which by then assert ON.
+    # ⛔ Without it, the one value that decides what an UNSET key MEANS for every
+    # member is the only constant in this layer with no mutation behind it — and
+    # "off and unset" is indistinguishable from "off on purpose" precisely
+    # because nothing forces the distinction.
+    dict(id="M24", guard="the SHIPPED DEFAULT is what the unset-branch rails assert",
+         file=f"{OFF}/offlineFlag.js",
+         find="export const OFFLINE_DEFAULT_ON = false",
+         repl="export const OFFLINE_DEFAULT_ON = true",
+         note="flipping it silently changes what an unset key means for every member"),
+
     dict(id="M12", guard="the editor emits NOTHING when it sets content itself",
          file=f"{NB}/NoteEditorPage.jsx",
          find="const EMIT_NOTHING = { emitUpdate: false }",
