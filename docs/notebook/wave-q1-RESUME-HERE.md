@@ -162,7 +162,7 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Deploy attempt 1** | **`c2d8f5f58`** — DEPLOY authorised; pre-flight all green; **STOPPED at the pre-deploy re-fetch**, master had moved again (`590e88084`→`b41b4ed07`). Push is mechanically rejected as non-fast-forward. See §(b0). ⛔ **Nothing was pushed to master.** |
 | **Deploy attempt 2** | scope-gated loop authorised; **gate FIRED on iteration 1** — six commits incl. chart-watermark work touching six files under `app/`. Did not merge, did not deploy. See §(b-1). ⛔ **Nothing was pushed to master.** |
 | **Branch tip** | `c2d8f5f58` + the §(b0) note **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
-| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` → `590e88084` inside one session (OptionsFlow, docs, pattern-vision backend — none of it under `app/`). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
+| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` → `590e88084` → `b41b4ed07` → `4879d4d02` inside one session — eleven commits, three authors. The first eight touched **zero** files under `app/`; the last six included chart-watermark work that did. All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
 doc said only *"Last Wave Q commit: `4fef130d9`"*, which was true when written and
@@ -336,42 +336,69 @@ that are already saved.
 outbox, or background syncing from this deploy. The service worker is untouched.
 Nothing is migrated, and no member data is read, moved, or deleted.
 
-## ⭐ (b-1) THE DEPLOY PROCEDURE — a scope-gated reconcile loop, NOT a freeze
+## ⭐ (b-1) THE DEPLOY PROCEDURE — a THREE-TIER scope-gated reconcile loop
 
-**Owner-authorised 2026-09-09, replacing "stop if master moved at all".**
+**Owner-authorised 2026-09-09**, replacing "stop if master moved at all", then
+refined to three tiers after the first version's `app/**` hard stop fired on
+chart-watermark work that could not touch the Notebook.
 
-**Why.** A second session pushed to `master` **eight times in one day** (16:31 ·
-16:57 · 17:11 · 18:25 · 18:25 · 18:44 · 18:55 · 19:41) while a full Wave Q1
-pre-flight takes **30–40 minutes**. **A pre-flight can never win a race against a
-freeze.** And every one of those eight commits touched **zero files under
-`app/`** — the freeze was stopping on *movement*, not on *risk*.
+**Why a gate and not a freeze.** Other sessions pushed to `master` **eight times
+in one day** (16:31 · 16:57 · 17:11 · 18:25 · 18:25 · 18:44 · 18:55 · 19:41)
+while a full Wave Q1 pre-flight takes **30–40 minutes**. **A pre-flight can never
+win a race against a freeze.** Worse, `git push branch:master` is *mechanically*
+rejected as non-fast-forward once master moves — so "deploy without reconciling"
+is not an option that exists, and a freeze that forbids reconcile-and-deploy is a
+deadlock, not a safeguard.
 
-**The loop** (max 5 iterations; run `python tools/deploy_scope_gate.py <old> <new>`):
+**Run it:** `python tools/deploy_scope_gate.py <old> <new>` — exit **1** = tier 1,
+**2** = tier 2, **0** = tier 3. `--self-check` proves each tier can fire.
 
-1. `git fetch`. If the branch is **0 behind**, exit the loop → 4.2.
-2. List every new commit **with its full file list from `git diff --name-only`**.
-   ⛔ Mechanically, never from subjects — a subject is a claim about a commit,
-   the file list *is* the commit.
-3. **HARD STOP** if any path matches: `app/**` · `lib/offline/**` ·
-   `api/**/notes.py` · anything under `journal-2-0` · the outbox/drain · the
-   durable store · the TipTap wiring · the flag definition · any of the seven
-   guarded files. Report the commit and the matching paths, and wait.
-4. Otherwise merge (not rebase), confirm **zero lines changed in the seven
-   guarded files**, push the branch.
-5. **Fast re-verify only** — tree clean · HEAD == remote · flag `false` on branch
-   and new master · backend rail if `api/**` moved · **journal-2-0 at rest, once**
-   · refresh the master SHA in the packet and the rollback target.
-6. Back to 1. If 5 iterations do not reach 0 behind, STOP — master is outrunning
-   even the fast loop.
+### TIER 1 — HARD STOP, wait for the owner
 
-⛔ **Step 5 deliberately does NOT re-run the full frontend suite**, both because
-master changed nothing it reads and because that ordering manufactures row-9
-failures (see the traps section).
+`lib/offline/**` · `api/**/notes.py` · anything under `journal-2-0` · the
+outbox/drain · the durable store · the TipTap wiring · the flag definition · the
+service worker · any of the seven guarded files.
 
-⚰️ **First run, 2026-09-09: the gate FIRED on iteration 1** — six commits
-including chart-watermark work touching six files under `app/`. Stopped, did not
-merge. That is the gate doing its job, and it is the first master movement all
-day that the old freeze and the new gate would have treated the same way.
+*Why:* if master changed this, the branch's fix is no longer being deployed onto
+the code it was verified against.
+
+### TIER 2 — MERGE, then FULL RE-VERIFY, then continue the loop
+
+Any other path under `app/**`.
+
+*Why:* it cannot touch the Notebook sync path, but **the frontend suite reads
+it**, so the inherited-red ledger's "identical by construction" argument stops
+holding and must be re-established:
+
+```
+a) journal-2-0 at rest, alone      c) full frontend suite
+b) backend baseline rail           d) ledger re-verified against the NEW master
+```
+
+⛔ **In that order.** Never full-suite-then-journal-2-0 — that ordering
+manufactures a population of timeouts that say nothing about the code.
+
+### TIER 3 — FAST LOOP, then continue
+
+Everything else (backend, docs, tooling). Merge · flag check · backend rail if
+`api/**` moved · journal-2-0 at rest · refresh the packet SHAs.
+
+### The loop itself
+
+Max **5** iterations. Each: `git fetch` → if **0 behind**, exit to 4.2 → else
+list every new commit **with its full file list from `git diff --name-only`**
+(⛔ mechanically, never from subjects) → classify → act by tier → confirm **zero
+lines changed in the seven guarded files** → push the branch → repeat. On
+exhausting 5 iterations without reaching 0 behind, **STOP** — master is
+outrunning even the fast loop.
+
+### Runs so far
+
+| attempt | outcome |
+|---|---|
+| 1 (freeze) | STOPPED at the pre-deploy re-fetch; master moved; push mechanically rejected |
+| 2 (one-tier gate) | **TIER 1 fired** on six commits touching six `app/` files (chart watermark, bars deep-history) — correct under that rule, but the rule was too broad |
+| 3 (three tiers) | those same commits classify **TIER 2**: merged, full re-verify run, **ledger unchanged — same 8 reds, offender lists byte-identical (26 = 26), all 12 blaming commits still ancestors of the new master** |
 
 ## ⛔⛔ (b0) THE FREEZE THIS REPLACED — kept as the record of why
 
@@ -591,7 +618,7 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 | The `??`-vs-truthy baseline defect fixed + railed | ✅ one authority, mutation-proved |
 | Backend baseline guarantee railed + mutation-proved | ✅ 14 tests, 2 mutations |
 | Full frontend suite green | ❌ **8 files red — all inherited, see `inherited-red-ledger.md`** |
-| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `origin/master` (`590e88084`), and on the deployed artifact (read from the live bundle: `Fi=!1`) |
+| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `origin/master` (`4879d4d02`), and on the deployed artifact (read from the live bundle: `Fi=!1`) |
 | Reconciled with the current master | ✅ merged clean, 0 conflicts, 0 lines changed in the six fix files |
 | Mutations re-run post-merge | ✅ 4/4 red, controls green, restored |
 | Service worker untouched | ✅ |
