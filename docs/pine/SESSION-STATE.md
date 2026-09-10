@@ -19,7 +19,7 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | # | item | state |
 |---:|---|---|
 | 1 | Land Kind 4 | ✅ merged from `worktree-indicator-ecosystem` (`cd078bbd2`), pieces verified |
-| 2 | Barstate per the ruling | ✅ done end to end — semantics, calendar census, both runtimes, door, stability tests, divergence row |
+| 2 | Barstate per the ruling | ✅ done end to end AND **MERGED + LANDED 2026-09-09** — semantics, calendar census, both runtimes, door, stability tests, divergence row, recorder, extended-hours rail |
 | 3 | Volume through strict mode | ✅ measured, list below |
 | 4 | TradingView visit | ⛔ **BLOCKED — needs a visible, focused Chrome window** |
 | 5 | SAR memoisation | ⚠️ **believed already spent — see *Open questions*** |
@@ -192,6 +192,28 @@ boundary and record conflicts touched.
 **Pause on:** member data · a vendor contradiction (Aroon, valuewhen, the fold probe) · the
 other session's files · the calendar census contradicting the screener's session logic · a real
 blocker.
+
+---
+
+# ✅ THE MERGE IS LANDED — the collision below is CLOSED (2026-09-09)
+
+`worktree-indicator-ecosystem` merged into `feat/indicator-r0r1` and pushed. The
+probe worktree and `merge-probe/r0r1-x-ecosystem` are retired; nothing is left to
+replay. Everything from here down is the RECORD of how it was resolved, not work
+in flight.
+
+- Merge commit `b91101ae0`, landed fast-forward; branch tip pushed.
+- 16 files / 47 hunks resolved. Two defects the auto-merge itself created were
+  found and fixed: a second, unreachable barstate dispatch in `pine.js`, and the
+  `pine:window-dependent` guard it took with it.
+- `tools/record_clock_parity.py` is new — `clock_parity.json` is reproducible now,
+  and both prior fixtures turned out to be correct recordings at different forming
+  states (mine `false`, theirs `true`). The conflict was serialization noise.
+- The NYSE sets moved to `api/services/nyse_calendar.py`, a dependency-free leaf.
+  `bars_fetch` and `liveflow_monitor` re-export them; all 55 read sites untouched.
+- ⛔ **Items 6–10 are GATED** — see the gate note above the order table.
+- ⛔ **Routed to the ecosystem session**, not fixed here: `test_definition_concierge`
+  ×2 is red on `35ba654da` itself. Diagnosis in `requests.md`.
 
 ---
 
