@@ -189,3 +189,50 @@ over three mounts is one cursor claiming to be three; (5) gate eligibility on `h
 alone, or the fan opens over a tile that is not rendered every weekend; (6) **3.6 cannot ship
 without editing `CatalystTable.jsx`** — say so and assign ownership before that increment starts;
 (7) keep no-scrub; `selectedDate` is a date picker, not a cursor axis.
+
+## ⛔ H8 — 3.8's Home scrub is BLOCKED, and the reason is structural
+
+Stream D stopped rather than shipping it. The diagnosis is worth more than the feature.
+
+**Two of the three premises in that stream's brief were false, and both came from a plan row.**
+
+1. *"Tap -> Screener and double-tap -> Journal already work."* They do not. `onTap` is declared by
+   `breadthSection.js:166`, `journalSection.js:607`, `notebookSection.js:117`,
+   `screenerSection.js:443`, `wireSection.js:207` — **no `home` entry anywhere** — and
+   `pages/Dashboard.jsx` has zero case-insensitive matches for "hub". On `/dashboard` today,
+   `useJoystick.js:449` calls `mode?.onTap?.()` against a mode that declares neither, so nothing
+   happens. Non-vacuity control: the same grep returns 168 `onScrub` hits.
+2. *"Calendar to the inner ring alongside Wire"* contradicts spec §C3:890, which puts Wire OUTER.
+   The later 2026-09-09 preview ruling was followed; the cost is recorded in-file.
+
+**Why the scrub cannot ship:** its commit has to navigate, and a registry-declared mode structurally
+cannot. `ctx` is `{mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice,
+isStreaming, lastSection}` (`HubRoot.jsx:93-96`) — read-only values plus one ref. `App.jsx:321` uses
+`BrowserRouter`, not a data router, so there is no `router.navigate` singleton to import. Navigation
+exists only inside `runAction` via `useNavigate()`.
+
+**Two ways in, both outside that stream's ownership:**
+- `HubRoot.jsx:93-96` — add `navigate` to `ctx`. **One line**, and then the whole feature lives in
+  `registry.js` + `homeSection.js`.
+- `Layout.jsx:167` — mount a `<HomeHubSection />` beside `<NotebookHubSection />`, the B10 shape.
+
+**What it refused to do, and why each refusal is right:**
+- Ship `homeSection.js` unmounted — `reachable.test.js:504-515` judges every tracked module, so it
+  would go red, and the only fix is an `AWAITING_A_DECISION` entry in a file it does not own: a
+  second H8 to work around the first.
+- Ship the working half (scrub + chip readout) without the commit — `registry.js:614` states the
+  rule it would break: **"⛔ AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT."** A chip naming
+  "Screener" that does nothing on release is a worse lie than today's silence.
+- Navigate via `history.pushState` + a synthetic `popstate` — a second navigation authority beside
+  `resolveNavTarget`, routing around the one seam that owns it.
+
+**⭐ And the thing this uncovered:** `lastSection` is **built, persisted, threaded into ctx and read
+by nobody.** `HubContext.jsx:77` defines `LAST_SECTION_STORAGE_KEY = 'hub.lastSection'`, `:134`
+writes it on every section route change, `HubRoot.jsx:95` puts it in ctx — **zero consumers**. It
+is the data the scrub needs, already there, unreachable for the same reason.
+
+**Recommendation (mine, not the stream's):** put `navigate` in `ctx`. It is one line in a file I
+own, it unblocks Home entirely, it gives `lastSection` its first reader, and it removes the reason
+every acting section has to be mounted from a page — which is the same constraint that forced B10's
+hub-side mount. It is an architectural change to the ctx contract, so it wants an explicit ruling
+rather than a decisions-log entry, and it did not fit before the Increment 3 window.
