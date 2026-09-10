@@ -41,6 +41,27 @@ as two separate numbers, always.
 | 7 | `src/pages/ThemeTrackerPage.chartmount.test.jsx` — 2 tests, "Unable to find an element with the text: AAPL" | `pages/ThemeTrackerPage.jsx` render path | test last touched `7adfdda2b` (2026-08-05) | **No** — Theme Tracker |
 | 9 | **A POPULATION of load-sensitive TIMEOUTS inside `journal-2-0`** — not one test. Observed so far: `ImportWizard.test.jsx` "audit B1" (4,179 ms) · `captureConvergence.test.js` "capture.js is the ONLY module that names the capture endpoint" (**28,705 ms**) · `NoteEditorPage`-adjacent "closing returns the dialog to nothing" (4,055 ms) | ⚠️ **TIMEOUTS, not defects.** Each passes alone; each fails only when run immediately after the full 16,928-test suite | `521cd181a` (2026-09-05, import) · `977c59bc3` (2026-09-08, Wave L capture) — **all byte-identical to `origin/master`** | **No** — import wizard / Wave L capture |
 | 8 | `src/components/chart/builder/ImportBox.thinkscript.test.jsx` — "it DECLINES while the box is one keystroke behind" | ⚠️ **line endings**: the committed test asserts `\r\n`, the code produces `\n` | `d4d5ec00f` (2026-09-01) | **No** — and likely **environment-specific**, see below |
+| 10 | `src/components/chart/ChartDrawingOverlay.surfaces.test.jsx` — "the seven Model Book / surface override props still reach their decisions > ⛔ ENTERING EDIT MODE IS NOT A RESIZE" | `components/chart/ChartDrawingOverlay.jsx` — the edit-mode transition still reaches the resize path | `8de4da43b` (2026-09-09) *"feat(charts): Phase 9 — retire the Position DRAWING, keep the calculator"* | **No** — charts Phase 9 |
+
+**Row 10 arrived with the 2026-09-10 master merge, and it is the row this ledger
+was built to handle correctly.** It appeared as the ONLY new failure in an
+otherwise byte-for-byte baseline match, in `components/chart` — an area Wave Q1
+does not touch. Three checks, in order, and the third is the one that settles it:
+
+1. It fails **at rest, alone, in 1.4 s**. So it is not a member of row 9's
+   load-sensitive population; that hypothesis had to die first, because a
+   timeout and a defect get opposite treatment here.
+2. The test, `ChartDrawingOverlay.jsx` and `drawingsStore.js` are all
+   **byte-identical to `origin/master`**, and the branch changes no file under
+   `app/src/components/chart/`.
+3. ⭐ **The same test was RUN on a detached worktree at `origin/master`
+   (`58dea4d88`) with no Wave Q1 code present, and failed identically.**
+
+⛔ Step 3 is not redundant after step 2. "Byte-identical, therefore not mine"
+is exactly the argument the deploy gate suspends when master moves under
+`app/**`: files this branch never touched can still fail only in combination
+with it. An argument from identity is not a measurement, and this ledger's whole
+purpose is to keep those apart.
 
 ## Two notes worth carrying forward
 
