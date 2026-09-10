@@ -1565,7 +1565,15 @@ Both segments are **rapid-fire operator input**, most likely:
   `prefetchBars.js:204` says the in-memory cache is *"wiped on every page reload"* —
   so re-entry refetched 1–13 cold on the client while the server stayed hot from
   segment 1, hence `stale-swr`/`mem`), then symbols 14–54 during the feed hunt. The
-  7 aborts inside a 4-second window are a fling, not a surface teardown.
+  7 aborts inside a 4-second window are **consistent with** a fling rather than a
+  surface teardown.
+
+⭐ **Checked, since the SWR-wipe argument above depends on it:** only the *screener
+round-trip* is a navigation. The **in-session return-to-list is in-page state, not a
+navigation** — `openReviewList` is `setFeedOpen(true)` (`MobileChartsApp.jsx:274`),
+and `MobileChartsApp` contains no `navigate(` / `useNavigate` / `history.push` on
+that path at all. So a list return does **not** cold-start the client; SWR memory
+survives it. Only a real route change wipes it.
 
 ⚰️ **A "~77 s / ~6 s per symbol" figure was asserted for segment 1 and is
 RETRACTED.** It was screenshot-to-screenshot, not tap-to-tap — a reviewer inference
@@ -1587,11 +1595,9 @@ run; the bottom-bar icons were chart controls. So there were no feed selections 
 no B phase. **The feed's client-tier warming role rests on the code reading, not on
 this run.**
 
-⚠️ Worth its own line: §P1 records that control as verified in production — *"the
-centre pill opens the list/feed dialog (`role=dialog`) titled 'Screener — 100
-charts'"*. Either it renders differently than that evidence implies or it was not
-present. **Unresolved, and a discrepancy between the release record and the live UI
-regardless of what R5 concludes.**
+The centre pill (`N / 100`) was visible throughout; the operator advanced with its
+arrow and did not tap the pill itself, which §P1 records as the feed toggle. **The
+control was not exercised in this run. No discrepancy with §P1 is established.**
 
 ## The feed is the real client-tier warmer
 
