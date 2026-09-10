@@ -28,6 +28,7 @@ import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
 import HubConfirmSheet from './HubConfirmSheet'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
+import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
 import { modesById, fanFor, isPreviewMode } from './registry'
@@ -64,6 +65,10 @@ function resolveNavTarget(to) {
  */
 function HubShell({ setToastMsg }) {
   const keyboardVisible = useKeyboardVisible()
+  // §8 auto-hide. `useKeyboardVisible` infers a keyboard from a viewport resize; this reads the
+  // artifact the spec names — focus in a text field — and covers the cases a resize never reports
+  // (no visualViewport, a hardware keyboard, a contenteditable that raises nothing). Both, OR-ed.
+  const textInputFocused = useTextInputFocus()
   const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
   const { settings, updateHubSettings } = useHubSettings()
   const {
@@ -105,6 +110,21 @@ function HubShell({ setToastMsg }) {
   // implementation (confirm sheets, `hub_planned_trades`, etc. — master spec §6).
   const runAction = useCallback((action) => {
     if (!action) return
+    // TODO(hub-analytics): emit here
+    //
+    // Master spec §8: "No analytics. There is no authenticated in-app event sink in this app.
+    // Leave exactly one such marker in the fire() path and one line in deferred.md. Nothing
+    // else." The line above is that one marker, and D-22 is that one line.
+    //
+    // It sits HERE because this is the single point every action passes through exactly once --
+    // both doors (a gesture via useJoystick's onFire, and the Peek sheet via HubActionsButton's
+    // onAction) resolve through runAction. A marker inside the `run` branch would miss navigate
+    // and home; one per branch would emit twice for a confirm, which fires runAction once and
+    // then performs the write from the sheet.
+    //
+    // The spec says "the registry's fire() path". registry.js has no fire() -- it is DATA plus a
+    // validator, and dispatch has always lived here. Reading taken against the code; the plan's
+    // wording is corrected in this increment's docs commit (R-auto-1).
     if (action.kind === 'home') { goHome(); return }
     if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
     if (action.kind === 'run' && action.id.endsWith('.voice')) {
@@ -191,8 +211,32 @@ function HubShell({ setToastMsg }) {
   // `useJoystick`'s `mode` param is the whole HubMode config (it reads
   // `mode.fan`/`mode.onTap`/`mode.onDoubleTap` itself) — NOT the bare mode id
   // string the presentational components below take.
+  // ⛔⛔ THE ENGINE RESOLVES THE FAN THE MEMBER IS LOOKING AT, NOT THE DECLARED ONE.
+  //
+  // This passed `activeModeConfig` raw, and `useJoystick` reads `mode.fan` — the DECLARED fan —
+  // while line 88 above draws `fanFor(activeModeConfig)`, the PROJECTION. For any mode still in
+  // `PREVIEW_MODES` those are different arrays in a different order, so the bubble a thumb landed
+  // on and the action that fired were resolved from two different lists BY INDEX.
+  //
+  // Measured on the deployed tree (`febe8ee67`) by deriving both lists from that exact registry
+  // blob: Home DRAWS seven bubbles — four outer, three inner — and THREE of the seven fired
+  // someone else's action. Tap "Flow" get Breadth; tap "Breadth" get Wire; tap "Wire" get Calendar.
+  // A fourth mismatch is not a wrong destination but an unreachable one: five outer actions are
+  // declared and only four drawn, so Flow's own action could not be reached from any bubble.
+  // ⭐ Counts stated against a named denominator on purpose — a hand-typed count beside the list
+  // it describes is the drift this repo keeps paying for.
+  // Live in production since Increment 2. Found by Stream D while measuring its own ring counts,
+  // in a file it did not own.
+  //
+  // ⭐ The projection must be what the ENGINE sees too, or `fanFor` is a lie told to the renderer
+  // only. Spread rather than mutate: `activeModeConfig` is the registered object a section owns.
+  const engineMode = useMemo(
+    () => (activeModeConfig ? { ...activeModeConfig, fan } : activeModeConfig),
+    [activeModeConfig, fan],
+  )
+
   const { handlers, state, dismiss } = useJoystick({
-    mode: activeModeConfig,
+    mode: engineMode,
     settings,
     padRef,
     onFire: fireResolved,
@@ -249,7 +293,7 @@ function HubShell({ setToastMsg }) {
     hideForSession()
   }, [setToastMsg])
 
-  const hidden = keyboardVisible || viewportHidden
+  const hidden = keyboardVisible || textInputFocused || viewportHidden
   const selectedId = state.target?.action?.id ?? null
 
   // An action whose `requires` the current context cannot satisfy renders DISABLED, never hidden
