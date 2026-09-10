@@ -10,7 +10,7 @@
 // from this file. If one is missing when a test runs, that test fails on
 // module resolution, not on logic in this file.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useHubSettings from './useHubSettings'
 import useHubActive, { useHubEligible } from './useHubActive'
@@ -32,7 +32,7 @@ import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
 import { modesById, fanFor, isPreviewMode } from './registry'
-import { RING_NAMES } from './constants'
+import { RING_NAMES, EDGE_OFFSET_PX } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
 /**
@@ -90,12 +90,32 @@ function HubShell({ setToastMsg }) {
   // The context object every mode's onTap/onDoubleTap/onScrub/onScrubCommit is
   // called with (registry.js's HubMode JSDoc) — Part C4's shared cross-section
   // values, read-only from here.
+  /**
+   * ⭐ R-G — THE ONE NAVIGATION SEAM, and the reason it is a wrapper rather than `navigate` itself.
+   *
+   * A registry-declared mode could not navigate: `ctx` carried read-only values plus a ref, and
+   * `App.jsx` uses `BrowserRouter`, so there is no `router.navigate` singleton to import. Every
+   * section that wanted to ACT had to be mounted from its page — which is why 3.8's Home scrub was
+   * blocked and why `lastSection` had been built, persisted and threaded into ctx with zero
+   * readers.
+   *
+   * ⛔ BOTH DOORS CALL THIS SAME FUNCTION, so there is still exactly ONE navigation authority.
+   * `runAction`'s navigate branch uses it, `goHome` uses it, and it is what ctx exposes — and it
+   * carries `resolveNavTarget`, so "what path does mode X live at" also stays single-authority
+   * rather than being re-answered by whichever caller happened to pass a mode id.
+   *
+   * Rails: `hub/navigationAuthority.test.jsx` — identity (ctx.navigate IS what runAction calls)
+   * and singularity (no second navigation path anywhere under app/src/hub).
+   */
+  const navigateTo = useCallback((to) => navigate(resolveNavTarget(to)), [navigate])
+
   const ctx = useMemo(() => ({
     mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice,
-    isStreaming, lastSection,
-  }), [mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice, isStreaming, lastSection])
+    isStreaming, lastSection, navigate: navigateTo,
+  }), [mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice, isStreaming,
+    lastSection, navigateTo])
 
-  const goHome = useCallback(() => navigate('/dashboard'), [navigate])
+  const goHome = useCallback(() => navigateTo('/dashboard'), [navigateTo])
 
   // The one place every navigate/run/confirm/home action resolves — fed by
   // BOTH doors an action can fire from: `useJoystick`'s `onFire` (a gesture)
@@ -126,7 +146,7 @@ function HubShell({ setToastMsg }) {
     // validator, and dispatch has always lived here. Reading taken against the code; the plan's
     // wording is corrected in this increment's docs commit (R-auto-1).
     if (action.kind === 'home') { goHome(); return }
-    if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
+    if (action.kind === 'navigate') { navigateTo(action.to); return }
     if (action.kind === 'run' && action.id.endsWith('.voice')) {
       voiceConnectRef.current?.('compass')
       return
@@ -172,7 +192,7 @@ function HubShell({ setToastMsg }) {
       // eslint-disable-next-line no-console
       console.warn('[hub] action with an unhandled kind:', action.id, action.kind)
     }
-  }, [goHome, navigate, ctx, setToastMsg])
+  }, [goHome, navigateTo, ctx, setToastMsg])
 
   // DEVICE-TEST HOOK (Phase 2 device suite). Records which action actually fired
   // so a real-device run can assert the OUTCOME of a gesture without depending on
@@ -208,8 +228,25 @@ function HubShell({ setToastMsg }) {
     activeModeConfig?.onScrubCommit?.(ctx)
   }, [activeModeConfig, ctx])
 
-  // `useJoystick`'s `mode` param is the whole HubMode config (it reads
-  // `mode.fan`/`mode.onTap`/`mode.onDoubleTap` itself) — NOT the bare mode id
+  // ⭐ TAP AND DOUBLE-TAP NOW GET `ctx`, LIKE EVERY OTHER MODE CALLBACK — and that is the whole
+  // point. `useJoystick` used to read these straight off `mode` and invoke them with NO
+  // ARGUMENTS, so a registry-declared mode structurally could not act: the hook owns the
+  // double-tap timing but has no ctx and never will. `homeSection.js` recorded the consequence
+  // in its own header — Home's chip promises "tap: last section" and nothing could keep it.
+  //
+  // Dispatching from here makes ONE rule for all four mode callbacks instead of two, and the
+  // navigation authority is unchanged: ctx.navigate is still the single seam (R-G).
+  const handleTap = useCallback(() => {
+    activeModeConfig?.onTap?.(ctx)
+  }, [activeModeConfig, ctx])
+
+  const handleDoubleTap = useCallback(() => {
+    activeModeConfig?.onDoubleTap?.(ctx)
+  }, [activeModeConfig, ctx])
+
+  // `useJoystick`'s `mode` param is the whole HubMode config (it reads `mode.fan` itself) — NOT
+  // the bare mode id. ⚰️ It used to read `mode.onTap`/`mode.onDoubleTap` too; those are now
+  // dispatched by this file so they can receive ctx, like onScrub always has.
   // string the presentational components below take.
   // ⛔⛔ THE ENGINE RESOLVES THE FAN THE MEMBER IS LOOKING AT, NOT THE DECLARED ONE.
   //
@@ -242,6 +279,8 @@ function HubShell({ setToastMsg }) {
     onFire: fireResolved,
     onScrub: handleScrub,
     onScrubCommit: handleScrubCommit,
+    onTap: handleTap,
+    onDoubleTap: handleDoubleTap,
     onHome: goHome,
   })
 
@@ -344,7 +383,21 @@ function HubShell({ setToastMsg }) {
       hidden={hidden}
       style={{
         position: 'fixed',
-        right: '24px',
+        // ⛔ THE CONTAINER MIRRORS TOO — it was the one piece that did not.
+        //
+        // This read `right: '24px'` unconditionally while every child mirrors, so a
+        // left-handed member got the visible hub on the LEFT and this 84x84 box left behind
+        // on the RIGHT. It has no background, so nothing looked wrong — but it has no
+        // `pointer-events: none` either, and an empty fixed div still receives pointer events
+        // in its own box. That is an invisible 84x84 dead zone over real content at the
+        // bottom-right of every page, for left-handed members only.
+        //
+        // ⭐ Invisible is exactly why it survived: §C2:769 says mirroring "moves the pad, the
+        // fan quadrant and the chip as a unit", and every one of those three DID move. Nobody
+        // enumerates the container that draws nothing. `mirrorsAsAUnit.test.jsx` found it on
+        // its first run by asserting the PROPERTY over every edge-anchored element rather
+        // than checking the three the sentence happens to name.
+        ...(mirrored ? { left: `${EDGE_OFFSET_PX}px` } : { right: `${EDGE_OFFSET_PX}px` }),
         bottom: 'calc(env(safe-area-inset-bottom) + 68px)',
         width: '84px',
         height: '84px',
@@ -438,11 +491,19 @@ function HubShell({ setToastMsg }) {
       <HubActionsButton
         onHide={hideHub}
         mode={activeModeConfig?.label}
+        config={activeModeConfig}
+        ctx={ctx}
         actions={fan}
         mirrored={mirrored}
         disabledIds={disabledIds}
         disabledReason={reasonFor}
         onAction={runAction}
+        hapticsEnabled={settings.haptics !== false}
+        // ⛔ ONE AUTHORITY OVER "does this member want haptics". Stream E gave the sheet the
+        // escalate cue the gesture path has, defaulting the prop to true so it was not shipped
+        // built-tested-and-unreachable — but a default is a SECOND answer to a question the member
+        // already answered. Without this line, someone who turned haptics off still feels the
+        // sheet buzz. Same expression `useJoystick` reads (`settings.haptics !== false`).
         onFeedback={() => navigate('/support?view=new&prefill=%5Bjoystick%20preview%5D%20')}
       />
       {/* No toast here — see HubToastHost. Every message this feature shows is set by an
@@ -514,6 +575,37 @@ export default function HubRoot() {
   const { settings } = useHubSettings()
   const sessionOverride = useHubSessionOverride()
   const [toastMsg, setToastMsg] = useJournalToast()
+
+  // ⛔⛔ THE WRITER FOR `highContrast`. Until this existed, the setting was a control that did
+  // NOTHING: `useHubSettings.js:61` stored it, `JoystickSettingsCard.jsx:136-137` put a checkbox
+  // on screen for it, and `tokens.css:527` defined `[data-hub-contrast="high"]` — but a repo-wide
+  // search for that attribute found it ONLY in tokens.css. Nothing ever set it, so the member
+  // toggled a switch, the preference persisted, and not one pixel changed. That is the same defect
+  // class as the "Hide with no recovery" one this feature already paid for: a control whose
+  // promise the product cannot keep.
+  //
+  // ⭐ IT GOES ON `documentElement`, NOT ON THE HUB ROOT, AND THAT IS DELIBERATE. `HubRoot` renders
+  // a FRAGMENT — `HubShell`'s root div, `HubEdgeTab` and `HubToastHost` are SIBLINGS with no common
+  // wrapper. The edge tab consumes `--hub-glass-tint` and `--hub-rim-width` too (hub.module.css),
+  // so scoping the attribute to the shell would have left the restore tab in low contrast: a
+  // half-fix that looks complete. One writer on the root element covers all three.
+  //
+  // ⚠️ SAFE TO PUT GLOBALLY, MEASURED RATHER THAN ASSUMED: the `[data-hub-contrast="high"]` block
+  // redefines FOUR tokens and all four are `--hub-*`. It READS `--bg-elevated`/`--bg-hover` as
+  // inputs but never redefines them, so nothing outside the hub changes. And a theme island that
+  // pins `--hub-*` at its own values (EarningsResearchModal.module.css) still wins inside itself —
+  // which is exactly what theme islands are for.
+  //
+  // The cleanup is load-bearing: the attribute must not outlive the hub. A member who turns the
+  // hub off, or a viewport that stops being eligible, must not leave a stray modifier on <html>.
+  const highContrast = !!settings.highContrast
+  useEffect(() => {
+    const el = typeof document !== 'undefined' ? document.documentElement : null
+    if (!el) return undefined
+    if (eligible && highContrast) el.setAttribute('data-hub-contrast', 'high')
+    else el.removeAttribute('data-hub-contrast')
+    return () => el.removeAttribute('data-hub-contrast')
+  }, [eligible, highContrast])
 
   // Not eligible = kill switch off, or a browser/viewport that cannot draw the hub. Nothing
   // renders, not even the restore tab: there would be nothing to restore.

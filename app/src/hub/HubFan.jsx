@@ -144,7 +144,11 @@ export default function HubFan({ actions = [], mirrored = false, open = false, s
 
   return (
     <div className={`${styles.fan} ${open ? styles.fanOpen : ''}`.trim()} aria-hidden="true">
-      <div className={styles.fanWedge} style={wedgeContainerStyle({ mirrored, size: FAN_RADIUS_OUTER + WEDGE_MARGIN_PX })}>
+      <div
+        className={styles.fanWedge}
+        data-testid="hub-fan-wedge"
+        style={wedgeContainerStyle({ mirrored, size: FAN_RADIUS_OUTER + WEDGE_MARGIN_PX })}
+      >
         {slices}
       </div>
       {layout.map(({ action, ring, offset }) => {

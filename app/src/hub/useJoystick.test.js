@@ -86,7 +86,7 @@ describe('useJoystick', () => {
 
   it('tap fires mode.onTap after the double-tap window closes', () => {
     const mode = makeMode([])
-    const { result } = renderHook(() => useJoystick({ mode }))
+    const { result } = renderHook(() => useJoystick({ mode, onTap: mode.onTap, onDoubleTap: mode.onDoubleTap }))
 
     act(() => down(result.current.handlers, 0, 0))
     act(() => up(result.current.handlers, 0, 0))
@@ -99,7 +99,7 @@ describe('useJoystick', () => {
 
   it('double-tap fires mode.onDoubleTap and never the pending single tap', () => {
     const mode = makeMode([])
-    const { result } = renderHook(() => useJoystick({ mode }))
+    const { result } = renderHook(() => useJoystick({ mode, onTap: mode.onTap, onDoubleTap: mode.onDoubleTap }))
 
     act(() => down(result.current.handlers, 0, 0))
     act(() => up(result.current.handlers, 0, 0)) // tap 1: schedules the pending single
@@ -181,7 +181,7 @@ describe('useJoystick', () => {
   it('a soft push (past open, under the ring split) selects an inner action', () => {
     const inner = makeAction(1, { id: 'inner.only' })
     const mode = makeMode([inner])
-    const { result } = renderHook(() => useJoystick({ mode }))
+    const { result } = renderHook(() => useJoystick({ mode, onTap: mode.onTap, onDoubleTap: mode.onDoubleTap }))
 
     const { dx, dy } = vecAtAngle(SOFT_DIST, 135)
     act(() => down(result.current.handlers, 0, 0))
@@ -196,7 +196,7 @@ describe('useJoystick', () => {
   it('a hard push (at or past the ring split) selects an outer action', () => {
     const outer = makeAction(0, { id: 'outer.only' })
     const mode = makeMode([outer])
-    const { result } = renderHook(() => useJoystick({ mode }))
+    const { result } = renderHook(() => useJoystick({ mode, onTap: mode.onTap, onDoubleTap: mode.onDoubleTap }))
 
     const { dx, dy } = vecAtAngle(HARD_DIST, 135)
     act(() => down(result.current.handlers, 0, 0))
@@ -249,7 +249,7 @@ describe('useJoystick', () => {
     const VIEWPORT_W = 400
     vi.stubGlobal('innerWidth', VIEWPORT_W)
     const mode = makeMode([])
-    const { result } = renderHook(() => useJoystick({ mode }))
+    const { result } = renderHook(() => useJoystick({ mode, onTap: mode.onTap, onDoubleTap: mode.onDoubleTap }))
 
     // Strictly within EDGE_GUARD_PX of the right edge (derived, never a magic offset).
     const edgeStartX = VIEWPORT_W - (EDGE_GUARD_PX - 2)

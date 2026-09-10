@@ -77,8 +77,12 @@ import { HubProvider, useHub } from '../HubContext'
 import { validateSectionConfig } from '../contracts'
 import { fanFor, modesById } from '../registry'
 import {
-  BREADTH_TAB_ITEMS, resolveBreadthTabs, createBreadthSection, scrubPayloadOf,
+  BREADTH_TAB_ITEMS, resolveBreadthTabs, createBreadthSection,
 } from './breadthSection'
+
+// ⛔ CONTEXT FIRST. `HubRoot.jsx` calls `onScrub(ctx, scrub)` — `contractArity.test.js` derives
+// that from the call site. Every scrub below is driven the way the mounted caller drives it.
+const CTX = { mode: 'breadth', symbol: null, navigate: () => {} }
 
 // ── harness ────────────────────────────────────────────────────────────────
 let registered = null
@@ -207,7 +211,7 @@ describe('the scrub — the range IS the resolved list', () => {
   const sweepLabels = (steps = 20) => {
     const seen = [cfg().readout()]
     for (let i = 0; i < steps; i += 1) {
-      act(() => { cfg().onScrub({ delta: 1 / steps, axis: 'x' }) })
+      act(() => { cfg().onScrub(CTX, { delta: 1 / steps, axis: 'x' }) })
       seen.push(cfg().readout())
     }
     return seen.filter((label, i) => i === 0 || label !== seen[i - 1])
@@ -238,7 +242,7 @@ describe('the scrub — the range IS the resolved list', () => {
   it('a drag PAST the end clamps instead of wrapping', () => {
     openBreadth({ admin: false })
     act(() => {
-      cfg().onScrub({ delta: 5, axis: 'x' })   // five pad-travels to the right
+      cfg().onScrub(CTX, { delta: 5, axis: 'x' })   // five pad-travels to the right
       cfg().onScrubCommit()
     })
     expect(activeTabLabel()).toBe('Data Charts')
@@ -249,7 +253,7 @@ describe('the scrub — the range IS the resolved list', () => {
     tap(4)
     expect(activeTabLabel()).toBe('Data Charts')
     act(() => {
-      cfg().onScrub({ delta: -5, axis: 'x' })
+      cfg().onScrub(CTX, { delta: -5, axis: 'x' })
       cfg().onScrubCommit()
     })
     expect(activeTabLabel()).toBe('Monitor')
@@ -260,7 +264,7 @@ describe('the scrub — the range IS the resolved list', () => {
     // unsteady thumb still emits 'y'. Counting those would make the gesture drift.
     openBreadth({ admin: false })
     act(() => {
-      cfg().onScrub({ delta: 1, axis: 'y' })
+      cfg().onScrub(CTX, { delta: 1, axis: 'y' })
       cfg().onScrubCommit()
     })
     expect(activeTabLabel()).toBe('Monitor')
@@ -331,34 +335,72 @@ describe('the contract', () => {
     expect(cfg().id).toBe('breadth')
   })
 
-  it('⛔ onScrub reads BOTH mounted call shapes — (scrub) and (ctx, scrub)', () => {
-    // `HubRoot.jsx:147` calls `onScrub(ctx, scrub)`; `contracts.js` and the engine harness in
-    // `phase3Contracts.test.jsx` call `onScrub(scrub)`. Binding to one makes this section work
-    // in the suite and do nothing on the page — the severed wire contracts.js exists to end.
-    // Filed as R-05 in requests.md; until one signature wins, both must land.
-    const each = (call) => {
-      let key = 'breadth'
-      const scrubRef = { current: null }
-      const config = createBreadthSection({
-        tabs: resolveBreadthTabs(false),
-        activeTab: key,
-        setActiveTab: (k) => { key = k },
-        scrubRef,
-      })
-      call(config)
-      config.onScrubCommit()
-      return key
-    }
-    expect(each((c) => c.onScrub({ delta: 1, axis: 'x' }))).toBe('charts')
-    expect(each((c) => c.onScrub({ mode: 'breadth', symbol: null }, { delta: 1, axis: 'x' }))).toBe('charts')
+  /**
+   * ⚰️ R-05 IS CLOSED, AND THIS TEST IS WHERE ITS SHIM DIED.
+   *
+   * This used to read `⛔ onScrub reads BOTH mounted call shapes — (scrub) and (ctx, scrub)`, and
+   * beside it sat a unit test for `scrubPayloadOf`, the normaliser that made both land. Both were
+   * correct for as long as `contracts.js` said `onScrub(scrub)` while `HubRoot.jsx` called
+   * `onScrub(ctx, scrub)`. The Director settled that on `(ctx, scrub)` and `contractArity.test.js`
+   * now DERIVES the shape from the call site, so the disagreement cannot come back unnoticed.
+   *
+   * ⭐ A test that accepts BOTH shapes is the thing that lets the wrong one survive. Breadth was
+   * the last section still accepting both; wire, screener and journal closed theirs when the
+   * ruling landed. So the assertion is inverted: the one-argument form must now do NOTHING.
+   */
+  it('⛔ a one-ARGUMENT call is inert — the section reads the second argument only', () => {
+    let key = 'breadth'
+    const config = createBreadthSection({
+      tabs: resolveBreadthTabs(false),
+      activeTab: key,
+      setActiveTab: (k) => { key = k },
+      scrubRef: { current: null },
+    })
+    // With the shim, this moved the cursor a full travel and committed 'charts'.
+    config.onScrub({ delta: 1, axis: 'x' })
+    config.onScrubCommit()
+    expect(key, 'a one-argument onScrub still moved the tab — the payload-sniffing shim is back, '
+      + 'or something re-introduced a rest parameter').toBe('breadth')
   })
 
-  it('scrubPayloadOf finds the scrub and refuses anything that is not one', () => {
-    expect(scrubPayloadOf([{ delta: 0.5, axis: 'x' }])).toEqual({ delta: 0.5, axis: 'x' })
-    expect(scrubPayloadOf([{ mode: 'breadth' }, { delta: -0.25, axis: 'y' }]))
-      .toEqual({ delta: -0.25, axis: 'y' })
-    expect(scrubPayloadOf([{ mode: 'breadth' }])).toBeNull()
-    expect(scrubPayloadOf([{ delta: Number.NaN, axis: 'x' }])).toBeNull()
-    expect(scrubPayloadOf([])).toBeNull()
+  it('CONTROL: the two-argument form DOES move it, so the test above is not vacuous', () => {
+    // Without this, deleting the whole handler would satisfy the inert assertion perfectly.
+    let key = 'breadth'
+    const config = createBreadthSection({
+      tabs: resolveBreadthTabs(false),
+      activeTab: key,
+      setActiveTab: (k) => { key = k },
+      scrubRef: { current: null },
+    })
+    config.onScrub(CTX, { delta: 1, axis: 'x' })
+    config.onScrubCommit()
+    expect(key, 'the mounted call shape does not move the tab either — the scrub is dead, not '
+      + 'merely strict').toBe('charts')
+  })
+
+  it('⛔ a NON-FINITE delta is refused, and does not poison the held position', () => {
+    // ⚰️ THIS COVERAGE CAME OUT WITH THE SHIM AND HAD TO BE PUT BACK DELIBERATELY.
+    // `scrubPayloadOf` tested `Number.isFinite(a.delta)` as part of IDENTIFYING which argument
+    // was the payload, so deleting the shim silently deleted a GUARD as well as a normaliser —
+    // the two jobs were tangled in one function and only one of them was obsolete.
+    //
+    // Untreated, NaN reaches `clamp(pos + NaN)` -> NaN -> `Math.round(NaN)` -> `tabs[NaN]` ->
+    // undefined, which the commit reads as "a hold that never moved". The gesture dies quietly
+    // rather than clamping, and scrubRef is left holding a NaN the next move compounds.
+    const scrubRef = { current: null }
+    let key = 'breadth'
+    const config = createBreadthSection({
+      tabs: resolveBreadthTabs(false),
+      activeTab: key,
+      setActiveTab: (k) => { key = k },
+      scrubRef,
+    })
+    config.onScrub(CTX, { delta: Number.NaN, axis: 'x' })
+    expect(scrubRef.current, 'a NaN delta was written into the held scrub position').toBeNull()
+
+    // A real move afterwards must still work — the refusal rejects the input, not the gesture.
+    config.onScrub(CTX, { delta: 1, axis: 'x' })
+    config.onScrubCommit()
+    expect(key, 'the section stopped responding after refusing one bad delta').toBe('charts')
   })
 })

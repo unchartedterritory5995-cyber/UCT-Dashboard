@@ -14,16 +14,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { validateSectionConfig, validateListAdapter, validateChipReadout } from '../contracts'
 import { modesById, fanFor } from '../registry'
 import { _reset as resetCursors } from '../useHubCursor'
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import useWireSection, { segmentLabelText, segmentKeys } from './wireSection'
-
-/** This module's own source — read for the R-05 shim-removal rail at the bottom of this file. */
-const WIRE_SECTION_SRC = readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), 'wireSection.js'),
-  'utf8',
-)
 
 // The three segments a real rundown carries, in the shape MorningWire renders them.
 const SEGMENTS = [
@@ -357,63 +348,15 @@ describe('scrub — segment index, CONTEXT FIRST', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('R-05 is closed — the scrub-payload shim must not come back', () => {
-  /**
-   * ⛔ A DEFENSIVE READ AGAINST A BUG THAT NO LONGER EXISTS IS ITSELF A DEFECT.
-   *
-   * `readScrubPayload(...args)` existed because `contracts.js` said `onScrub(scrub)` while
-   * `HubRoot.jsx` called `onScrub(ctx, scrub)`. The Director settled it on `(ctx, scrub)` and
-   * `contractArity.test.js` now DERIVES that from the call site, so the disagreement cannot
-   * return silently. The shim can, though — and left standing it teaches the next reader that
-   * the seam is still ambiguous, which is the thing that made two integrators each build one.
-   *
-   * ⭐ THE SOURCE IS READ, NOT THE EXPORT. Asserting `readScrubPayload === undefined` only
-   * catches the shim if it is exported; a private copy inlined in `onScrub` would pass. This
-   * matches the declaration itself, with comments stripped first so the prose above the handler
-   * — which names the deleted helper on purpose — cannot satisfy or trip it
-   * (`contractArity.test.js` learned that one the hard way).
-   */
-  const stripComments = (src) => src
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/[^\n]*/g, '')
-
-  const CODE = stripComments(WIRE_SECTION_SRC)
-
-  it('declares onScrub with TWO parameters, context first', () => {
-    const m = CODE.match(/const\s+onScrub\s*=\s*useCallback\(\s*\(([^)]*)\)/)
-    expect(m, 'onScrub is no longer declared as `useCallback((…) => …)` — re-read the file').toBeTruthy()
-    const params = m[1].split(',').map((p) => p.trim()).filter(Boolean)
-    expect(params).toEqual(['ctx', 'scrub'])
-  })
-
-  it('has no rest-parameter / payload-sniffing normaliser anywhere in the file', () => {
-    expect(CODE).not.toMatch(/readScrubPayload/)
-    // The shape of the shim, not just its name: a rest-parameter handler, or a loop that
-    // searches the arguments for whichever one carries a numeric `delta`.
-    expect(CODE).not.toMatch(/useCallback\(\s*\(\s*\.\.\./)
-    expect(CODE).not.toMatch(/for\s*\(\s*const\s+\w+\s+of\s+args\s*\)/)
-    expect(CODE).not.toMatch(/\barguments\b/)
-  })
-
-  it('this rail can actually fail — the matchers hit the shim as it was written', () => {
-    // Non-vacuity control (`lesson_gate_that_cannot_fail`): the deleted source, verbatim.
-    const OLD = `
-export function readScrubPayload(...args) {
-  for (const arg of args) {
-    if (arg && typeof arg === 'object' && typeof arg.delta === 'number') return arg
-  }
-  return null
-}
-const onScrub = useCallback((...args) => {
-  const scrub = readScrubPayload(...args)
-}, [scrubTo])
-`
-    expect(OLD).toMatch(/readScrubPayload/)
-    expect(OLD).toMatch(/useCallback\(\s*\(\s*\.\.\./)
-    expect(OLD).toMatch(/for\s*\(\s*const\s+\w+\s+of\s+args\s*\)/)
-    expect(OLD.match(/const\s+onScrub\s*=\s*useCallback\(\s*\(([^)]*)\)/)[1]).toBe('...args')
-  })
-})
+// ⚰️ THE R-05 SHIM-REMOVAL RAIL MOVED, IT WAS NOT DROPPED.
+//
+// This file used to carry `describe('R-05 is closed — the scrub-payload shim must not come back')`,
+// reading its own module's source for a payload-sniffing normaliser. Breadth was the last section
+// still holding one; deleting it would have made this a SECOND copy of the same guard, and
+// `lesson_a_guard_repeated_is_a_guard_unproved` is explicit that the weakest copy sets the real
+// bar. It now lives once, over every section at a time, in `sections/noScrubShims.test.js` — which
+// also carries the verbatim wire shim as its non-vacuity control, so nothing this block proved was
+// lost. The BEHAVIOURAL half stays here, where it belongs: see the one-argument test above.
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('the contract', () => {

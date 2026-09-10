@@ -118,6 +118,12 @@ export default function useJoystick({
   onScrub,
   onScrubCommit,
   onHome,
+  // ⛔ TAP AND DOUBLE-TAP ARE THE CALLER'S TO DISPATCH, exactly as onScrub/onScrubCommit are.
+  // They used to be read straight off `mode` and invoked with NO ARGUMENTS, which is why a
+  // registry-declared mode could never act: this hook has no `ctx` and never will. HubRoot owns
+  // ctx, so HubRoot dispatches — one rule for all four mode callbacks instead of two rules.
+  onTap,
+  onDoubleTap,
 } = {}) {
   const travelPx = settings.travelPx ?? TRAVEL_PX
   const holdMs = settings.holdMs ?? HOLD_MS
@@ -442,11 +448,11 @@ export default function useJoystick({
     if (pendingTapRef.current != null) {
       clearTimeout(pendingTapRef.current)
       pendingTapRef.current = null
-      mode?.onDoubleTap?.()
+      onDoubleTap?.()
     } else {
       pendingTapRef.current = setTimeout(() => {
         pendingTapRef.current = null
-        mode?.onTap?.()
+        onTap?.()
       }, doubleTapMs)
     }
     resetGesture()

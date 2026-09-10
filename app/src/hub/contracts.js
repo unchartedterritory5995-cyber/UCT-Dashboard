@@ -256,11 +256,44 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  */
 
 /**
+ * The context object every mode callback receives — `onTap`, `onDoubleTap`, `onScrub`,
+ * `onScrubCommit`, `readout`, and every action's `run` / `confirmText` / `enabled`.
+ *
+ * Built in ONE place (`HubRoot.jsx`, the `ctx` useMemo) and read-only apart from `navigate`.
+ *
+ * ⭐ R-G, 2026-09-10 — `navigate` IS THE ONE ADDITION THAT ACTS. Everything else here is a value
+ * or a ref. Before it, a registry-declared mode could not navigate at all: `App.jsx` uses
+ * `BrowserRouter`, so there is no `router.navigate` singleton to import, and navigation existed
+ * only inside `HubRoot.runAction`. Every section that wanted to DO something had to be mounted
+ * from its own page — which blocked §3.8's Home scrub outright, and is why `lastSection` was
+ * built, persisted and threaded into this object with zero readers.
+ *
+ * ⛔ IT IS THE SAME FUNCTION `runAction` CALLS, not a second one. `HubRoot`'s `navigateTo` is used
+ * by the navigate branch, by `goHome`, and by this field — so there is exactly ONE navigation
+ * authority, and it carries `resolveNavTarget` so "what path does mode X live at" is not
+ * re-answered by whichever caller happened to pass a mode id. Rails:
+ * `hub/navigationAuthority.test.jsx` proves the identity and that no second navigation path
+ * exists anywhere under `app/src/hub/**`.
+ *
+ * @typedef {object} HubActionCtx
+ * @property {string|null} mode              The active mode id.
+ * @property {string|null} symbol            The shared symbol, or null.
+ * @property {string|null} timeframe
+ * @property {*} activeScan
+ * @property {*} selectedPosition
+ * @property {{current: *}} chartRef
+ * @property {*} livePrice
+ * @property {boolean} isStreaming
+ * @property {string|null} lastSection       Most recently visited SECTION mode id (never `home`).
+ * @property {(to: string) => void} navigate  Mode id OR path; `resolveNavTarget` normalises it.
+ */
+
+/**
  * @typedef {Object} HubSectionConfig
  * What a page registers with `useHubMode` to become the hub's controller while it is mounted.
  * @property {string} id                      A registry mode id (`registry.js` `modes`).
- * @property {() => void} [onTap]
- * @property {() => void} [onDoubleTap]
+ * @property {(ctx: object) => void} [onTap]
+ * @property {(ctx: object) => void} [onDoubleTap]
  * @property {(ctx: object, scrub: {delta: number, axis: 'x'|'y'}) => void} [onScrub]
  *   ⛔ **TWO ARGUMENTS, CONTEXT FIRST.** `HubRoot.jsx:147` calls `onScrub(ctx, scrub)` and
  *   `registry.js:49` has documented that shape since Phase 2. This typedef said `onScrub(scrub)`
@@ -270,6 +303,23 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  *   written to prevent it, and `validateSectionConfig` cannot catch it (arity is not a shape).
  *   `contractArity.test.js` now derives this from `HubRoot.jsx` instead of restating it.
  *   `delta` is normalized 0..1 along the pad's travel; `axis` says which way the member dragged.
+ * @property {'x'|'y'} [scrubAxis]
+ *   Which axis this section's scrub responds to. **Defaults to `'y'`.**
+ *
+ *   ⛔ IT EXISTS BECAUSE THE AXIS WAS KNOWN ONLY INSIDE THE HANDLER, AND SOMETHING ELSE NOW NEEDS
+ *   TO ASK. The gesture engine reports the DOMINANT axis of each move and every section filters
+ *   for its own, so the knowledge lived in an `if` and was unreadable from outside. That was fine
+ *   while the only caller was the pad. It is not fine for §C2's no-drag path: a native
+ *   `<input type="range">` has no axis of its own and must emit the one the section will honour.
+ *
+ *   ⛔⛔ AND "JUST EMIT BOTH" IS WRONG — measured, not assumed. `homeSection`, `notebookSection`
+ *   and `wireSection` have NO axis guard at all, so they respond to whichever arrives; emitting
+ *   an `x` and a `y` would apply the same step TWICE on those three while applying it once on
+ *   `breadthSection` (`'x'`) and `screenerSection`/`journalSection` (`'y'`). One authority for
+ *   "which way does this section scrub", declared where the section already declares everything
+ *   else about itself.
+ *
+ *   Enforced by `validateSectionConfig`, not merely documented — a @typedef is a comment.
  * @property {(ctx: object) => void} [onScrubCommit]
  *   Fired once on release, after the last `onScrub`. Also context-first (`HubRoot.jsx:151`).
  * @property {(ctx: object) => (string|{label: string, value: string})} [readout]
@@ -375,6 +425,17 @@ export function validateSectionConfig(config, where = 'section config') {
   if (isFn(config.onScrubCommit) && !isFn(config.onScrub)) {
     p.push('onScrubCommit without onScrub can never fire')
   }
+  // ⭐ The no-drag path reads this to know which axis to emit. A typo lands as an axis no section
+  // honours, and the failure is SILENT — the range moves, `aria-valuetext` updates, and nothing
+  // changes. So the value is checked, and it is refused where it could never be read.
+  if (config.scrubAxis != null) {
+    if (config.scrubAxis !== 'x' && config.scrubAxis !== 'y') {
+      p.push(`scrubAxis must be 'x' or 'y' when present (got ${JSON.stringify(config.scrubAxis)})`)
+    }
+    if (!isFn(config.onScrub)) {
+      p.push('scrubAxis without onScrub declares an axis nothing reads')
+    }
+  }
   report(`${where} (${config?.id ?? 'no id'})`, p)
   if (config.listAdapter != null) validateListAdapter(config.listAdapter, `${where} (${config.id}) listAdapter`)
   return config
@@ -394,6 +455,32 @@ export function validateCursorApi(api, where = 'cursor api') {
   }
   report(where, p)
   return api
+}
+
+/**
+ * @param {HubActionCtx} ctx
+ *
+ * ⛔ THE ONE FIELD THAT CAN BE SILENTLY ABSENT. Every other member of ctx is a value that is
+ * legitimately null — no symbol selected, no position, nothing streaming — so a missing one is
+ * indistinguishable from an empty one and there is nothing to check. `navigate` is different: it is
+ * the seam R-G added, and a mode that receives a ctx without it does not throw, it simply does
+ * NOTHING on release. That is the present-and-inert failure `registry.js:614` forbids, arriving by
+ * omission rather than by design.
+ */
+export function validateActionCtx(ctx, where = 'action ctx') {
+  const p = []
+  if (!ctx || typeof ctx !== 'object') {
+    report(where, ['expected an object'])
+    return ctx
+  }
+  if (!isFn(ctx.navigate)) {
+    p.push('navigate must be a function — without it a mode callback cannot act, and fails silently')
+  }
+  // `chartRef` is a ref container, not a value: a plain object with `current`. A mode that reaches
+  // for `.current` on undefined throws inside a gesture handler, where nothing catches it.
+  if (ctx.chartRef != null && typeof ctx.chartRef !== 'object') p.push('chartRef must be a ref object or null')
+  report(where, p)
+  return ctx
 }
 
 /** @param {HubConfirmPayload} payload */
