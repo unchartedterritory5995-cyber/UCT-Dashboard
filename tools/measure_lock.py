@@ -33,12 +33,44 @@ import pathlib
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 REPO = pathlib.Path(r"C:\Users\Patrick\uct-worktrees\notebook-primary-platform")
-LOCK = REPO / ".measure.lock"
+def _lock_path(repo: pathlib.Path = None) -> pathlib.Path:
+    """⛔ THE LOCK LIVES IN THE GIT DIR, NEVER IN THE WORKING TREE.
+
+    ⚰️ First use, immediate deadlock: the lock file sat at the worktree root, so
+    the tree was dirty, so `gate_shards` refused to start on its own rule that a
+    gate runs on committed code only. The guard and the gate were both right and
+    together they made the measurement impossible.
+
+    ⛔ .gitignore is NOT the fix. An ignored file is still a file in the tree, and
+    the next tool with a cleanliness rule trips on it just as fairly — that buys
+    one green run and leaves a trap for whoever writes the next check.
+
+    The git dir is per-worktree, so two worktrees never share a lock by accident,
+    and `git status` never reports it.
+    """
+    repo = repo or REPO
+    try:
+        gd = subprocess.run(["git", "rev-parse", "--git-dir"], cwd=repo, capture_output=True,
+                            text=True, encoding="utf-8").stdout.strip()
+        if gd:
+            gp = pathlib.Path(gd)
+            if not gp.is_absolute():
+                gp = repo / gp
+            return gp / "measure.lock"
+    except Exception:
+        pass
+    # ⛔ The fallback stays outside the tree as well — system temp, keyed by
+    # worktree, never a path under `repo` itself.
+    return pathlib.Path(tempfile.gettempdir()) / f"measure-{abs(hash(str(repo)))}.lock"
+
+
+LOCK = _lock_path()
 # ⛔ Source only. Never docs/ (Stream C writes prose during a run and that cannot
 # change a measured result) and never .git/ (git must stay able to work).
 GUARDED = ("app/src", "api", "tools", "scripts")
@@ -80,7 +112,7 @@ def _alive(pid: int) -> bool:
 
 
 def acquire(run_id: str, repo: pathlib.Path = REPO) -> int:
-    lock = repo / ".measure.lock"
+    lock = _lock_path(repo)
     if lock.exists():
         held = json.loads(lock.read_text(encoding="utf-8"))
         if _alive(held.get("pid", -1)):
@@ -103,7 +135,7 @@ def acquire(run_id: str, repo: pathlib.Path = REPO) -> int:
 
 
 def release(repo: pathlib.Path = REPO, force: bool = False) -> int:
-    lock = repo / ".measure.lock"
+    lock = _lock_path(repo)
     n = _set_readonly(repo, False)          # ⛔ ALWAYS clear, lock file or not
     if lock.exists():
         held = json.loads(lock.read_text(encoding="utf-8"))
@@ -115,7 +147,7 @@ def release(repo: pathlib.Path = REPO, force: bool = False) -> int:
 
 
 def status(repo: pathlib.Path = REPO) -> int:
-    lock = repo / ".measure.lock"
+    lock = _lock_path(repo)
     if not lock.exists():
         print("unlocked")
         return 0
