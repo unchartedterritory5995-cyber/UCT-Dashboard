@@ -474,6 +474,22 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     year list) and `next_date` (the session after the top row — its ▶ step).
     """
     anchor = anchor if anchor in ("le", "ge") else "le"
+    # ⛔ THIS FUNCTION IS ALSO CALLED DIRECTLY AS A PYTHON FUNCTION, NOT ONLY
+    # THROUGH FASTAPI. `api/main.py`'s boot warm task calls
+    # `get_breadth_history(days=90)`, which bypasses the request pipeline — so
+    # any parameter left at its default holds a `Query(...)` SENTINEL OBJECT
+    # rather than a value. `anchor` survived that because the line above
+    # happens to reject anything outside ("le", "ge"); `end` did not, because
+    # `end or None` sees a Query instance as TRUTHY and passes the sentinel
+    # straight through to a `<` comparison against a date string:
+    #   TypeError: '<' not supported between instances of 'Query' and 'str'
+    # The warm task is wrapped in try/except, so this never broke a request —
+    # it silently meant the breadth-history cache was NEVER pre-warmed, and the
+    # first real request after every deploy paid full cold compute.
+    # (Recorded as Seam 27. That entry blames `anchor`; the measurement says
+    # `end` and `days`. Normalise both the same way `anchor` already is.)
+    days = days if isinstance(days, int) else 90
+    end = end if isinstance(end, str) else ""
     # Request-driven self-heal (cooldown-gated, background): any Monitor view
     # re-checks the newest days so a corrupt collection the scheduled passes missed
     # (or ran too early to fix) gets healed from bars promptly.
