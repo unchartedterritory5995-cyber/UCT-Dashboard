@@ -59,8 +59,16 @@ whichever test happens to be slowest exceeds its budget — so naming any one of
 them as "the flaky test" would be false, and "fixing" it would move the
 failure rather than remove it (`lesson_an_intermittent_red_can_be_a_population_not_a_test`).
 
-Every one of them passes alone, and journal-2-0 passes 2391/2391 in eleven
-consecutive runs at rest. Every file involved is byte-identical to
+Every one of them passes alone, and journal-2-0 passed 2391/2391 in eleven
+consecutive runs at rest.
+
+⚠️ **REFINED 2026-09-10: the trigger is ambient machine load, not only a
+preceding suite.** With a Chrome session running alongside, the same runs
+flickered green / 1-failed / 1-failed / green, and the exposed member was
+`captureConvergence` at **28.4 s** and **28.7 s** — a test that takes ~28 s
+even when it passes. So "at rest" means *the machine is quiet*, not merely
+*no suite ran first*. Judge a red here by re-running the file alone (21/21)
+and by checking `git status` shows no changed source. Every file involved is byte-identical to
 `origin/master`. ⛔ **CLAUDE.md's rule applies — a timeout is never banked as
 permitted breakage** — and each was re-run alone before classification.
 

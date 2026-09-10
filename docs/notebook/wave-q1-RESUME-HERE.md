@@ -1,10 +1,38 @@
 # Wave Q1 — RESUME HERE
 
-**Written 2026-09-09 before a machine restart. UPDATED 2026-09-09 (twice): once
-after the defect was reproduced and fixed in `4fef130d9`, then again after the
-`baseUpdatedAt: null` question was run to ground and the deploy packet written.**
-Everything below is committed to the branch; **nothing is on `master`**, and
-nothing is held in a session, a browser tab, or a running process.
+# ✅✅ DEPLOYED TO PRODUCTION — 2026-09-10 02:40:01 UTC
+
+**`cd674ef56` is on `master` and live.** `OFFLINE_DEFAULT_ON` is still `false`:
+the offline layer did NOT ship on, and this deploy did not touch the flag.
+
+| | |
+|---|---|
+| master before | `4879d4d02` |
+| master after | `cd674ef563edb1c7f2d815a85cd8bf98b5763d9c` |
+| push | 2026-09-10 **02:39:59 → 02:40:01 UTC** |
+| build live | **02:42:29 UTC** — bundle `index-4oJCblT8` → `index-4qGFp_8B`, uptime reset to 38 s |
+| carried | 20 commits, Wave Q1 only |
+
+**Verified on the live artifact, not on the source default:**
+
+```
+EMIT_NOTHING   {emitUpdate:!1} present · ZERO bare setContent(x,!1) remain
+the gate       jt=()=>{if(!vt.current)return;x("dirty"),...}   ← refuses BEFORE
+                                                                 touching status
+the flag       zi=!1  →  OFFLINE_DEFAULT_ON === false          ← still dark
+```
+
+⚠️ **The §15 canary is PARTIAL — see the canary record below.** Steps 1–6, 10 and
+11 ran green against production; **steps 7–9 (the offline half, the step that
+originally went red) did NOT run**, and neither did the conflict path. The
+seven-day observation window is therefore **NOT started**.
+
+---
+
+**Written 2026-09-09 before a machine restart.** Updated repeatedly through
+2026-09-09/10: the defect reproduced and fixed (`4fef130d9`), the
+`baseUpdatedAt: null` question run to ground, the deploy packet written, and
+finally deployed.
 
 ---
 
@@ -649,6 +677,53 @@ where it is the first item.
 
 ---
 
+# THE §15 CANARY — RUN 2026-09-10, AGAINST THE DEPLOYED FIX
+
+⛔ **PARTIAL. Green on everything that ran; two halves did not run.** Recorded
+step by step so it is comparable to `wave-q1-activation-canary-red.md`.
+
+| step | expected | observed | |
+|---|---|---|---|
+| 1 · dark default, key unset | no `uct.nb.sync.*` lock | key `null`, **0 locks** | ✅ |
+| 2 · opt this browser in | key `1` | key `1` | ✅ |
+| 3 · lock claimed | exactly one, held | **1 held EXCLUSIVE**, 0 pending, per-account DB `uct_notebook_<id>` opened | ✅ |
+| 4 · create a new note | a note whose server body is empty | created; server returned **`bodyJson:{type:'doc',content:[]}`** and a real `updatedAt` | ✅ |
+| ⭐ THE FIX'S OWN SIGNATURE | **no PUT** from merely opening such a note | **exactly ONE** request to `/api/j2/notes/<id>` — the GET. **No PUT.** All three local layers **empty**. Control: editor mounted, title rendered, ProseMirror present | ✅✅ |
+| 5–6 · type, three layers hold it | draft + durable + outbox carry the words | all three carried them, and the durable record showed **`baseUpdatedAt: "2026-09-10T02:46:06…"` — a REAL baseline** | ✅ |
+| 7–9 · **offline, type, reload** | the words survive | ⛔ **NOT RUN** — see below | — |
+| 10 · reconnect, queue drains | `dirty:0`, re-based | `dirty:0`, outbox empty, draft cleared, **baseline exactly equals the server's new `updatedAt`** | ✅ |
+| 11 · clean up canonically | note gone, store empty | soft-deleted, list back to **32 notes**, all four stores **0**, no leftover drafts, opted back out, **0 locks** | ✅ |
+| conflict path | server byte-unchanged, local kept as a conflicted copy | ⛔ **NOT RUN** — needs a second signed-in context | — |
+
+## ⭐⭐ The comparison that matters
+
+```
+INCIDENT 2026-09-09  {title:"", subtitle:"", body:{doc,[paragraph]}, dirty:1,
+                      generation:1, sessionId:<new>, baseUpdatedAt:null}
+CANARY   2026-09-10  {title:"…typed by the canary", subtitle:"",
+                      body:{doc,[paragraph]}, dirty:1,
+                      generation:1, sessionId:<new>,
+                      baseUpdatedAt:"2026-09-10T02:46:06.097528+00:00"}
+```
+
+Same shape, same `generation: 1`, same fresh session — but the title is **the
+member's words** instead of empty, and the baseline is **real** instead of null.
+
+⭐ **NO NEW FINDING.** No artifact in this run carried a `null` or `''` baseline.
+
+## ⛔ What did NOT run, and what it would take
+
+- **Steps 7–9 (offline → type → reload → read all three layers).** This is *the
+  step that originally went red*, and it needs the network killed from DevTools.
+  That is not drivable from the automation available here, and substituting a
+  `fetch` stub would be a different experiment wearing the canary's name — the
+  script of record says DevTools offline, and improvising on it is exactly what
+  the script-of-record ruling forbids.
+- **The conflict path**, which needs a second signed-in context.
+
+⚠️ **Both need a person at the keyboard for about five minutes.** Until they run,
+the canary is partial and the seven-day observation window stays unstarted.
+
 # THE FLAG-FLIP GATE — a SEPARATE list, and not the deploy's
 
 ⛔ **These are not deploy blockers.** With `OFFLINE_DEFAULT_ON = false` the drain
@@ -685,8 +760,8 @@ which is what proves they test different lines.
 |---|---|
 | A blocked entry is surfaced to the member | ❌ **it is not** — see below |
 | `baseUpdatedAt: null` explained | ❌ not closed (harmless — the drain refuses it) |
-| A fresh §15 canary on the deployed fix | ⛔ not run |
-| Seven-day observation window armed | ⛔ not started (`wave-q1-observation-window.md`) |
+| A fresh §15 canary on the deployed fix | ⚠️ **PARTIAL, 2026-09-10** — steps 1–6/10/11 green incl. the fix's own signature; **steps 7–9 (offline) and the conflict path NOT run** |
+| Seven-day observation window armed | ⛔ **NOT started** — deliberately. It waits on a complete canary, not a partial one (`wave-q1-observation-window.md`) |
 
 ### The blocked-entry finding, in full (measured, `blockedEntryIsVisible.test.jsx`)
 
