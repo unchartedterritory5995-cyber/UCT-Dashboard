@@ -26,7 +26,67 @@ does not re-derive any of it under time pressure.
 | Gate verdict | **Zero hub-introduced failures.** 1210 files (reconciles), 18,036 tests, 10 failing |
 | Step 6 answered | `OFFLINE_DEFAULT_ON = false` — unchanged, offline layer still off |
 
-### ⛔ OWNER RULINGS, 2026-09-10 ~13:2x ET — both settled before the window
+### ⛔⛔ HELD 2026-09-10 16:35 ET — the window was lost to master, not to the gate
+
+**Increment 3 is gate-clean and NOT merged.** It ships at the next window: tomorrow before 09:00 ET.
+
+| | |
+|---|---|
+| Branch tip | `d27d4e579` — rebased onto master `3c8e5126a`, pushed |
+| Manifest of record | `docs/plans/joystick/gate-runs/2026-09-10T15-34-17.{json,md}` (stamped in LOCAL time = CT) |
+| Verdict | **0 NEW failures**, failing set matches the baseline EXACTLY, 1212 files reconciling, 18,055 tests |
+| State hash | manifest start == end == HEAD == pushed branch — all `d27d4e579` |
+
+### What happened, in order
+
+- 15:57 rebased onto master `1b6f39cfe`, gated. **Green at 16:14: 0 NEW.**
+- Master had moved to `3c8e5126a` DURING that gate (five pattern-vision commits) and redeployed
+  web at **16:04:48 ET**, inside the requested 16:05–17:00 freeze.
+- Per the owner's ruling that is ONE authorized lap: rebased onto `3c8e5126a`, re-gated.
+  **Green at 16:35: 0 NEW, identical numbers.**
+- Master moved AGAIN to `23f6ce271` during the lap gate — ten Wave Q1 notebook files, pushed
+  inside the same freeze hour.
+
+### Why holding is the only correct move, and it is not the gate's fault
+
+⛔ The ruling is explicit: *one lap total, then hold, do not burn a second lap.* Beyond that:
+
+1. **A merge now would ship an UNGATED tree.** Master is no longer an ancestor of the branch, so a
+   `--no-ff` merge onto `23f6ce271` produces a tree carrying master's ten new files — not the tree
+   the manifest describes. The byte-identity proof (condition 1 of the standing authorization)
+   would fail by construction.
+2. **A re-gate could not finish in time anyway.** ~21 minutes from 16:35 lands at ~16:56, leaving
+   no room for the merge, the push conditions and a post-merge check before 17:00.
+
+⭐ **Nothing about the branch is in doubt.** Two independent full gates, on two different bases,
+both returned 0 NEW with the identical failing set. What ran out was the window.
+
+### The freeze did not hold — twice
+
+Both of master's moves landed inside 16:05–17:00 ET. This is not a complaint about the other
+workstream; it is the measurement the next attempt has to plan against. **Plan the next window as
+if master will move**, which is the standing order's own instruction — a freeze is a bonus, never
+an assumption. Tomorrow's pre-09:00 window is structurally better: the repo-wide rule bars master
+pushes from 09:00, so the hour before it is the quietest of the day rather than the moment every
+blocked workstream is released.
+
+### What the next window does — it is a lap from scratch, not a resume
+
+1. `git fetch`; rebase onto master's tip; verify by name (file set, patch-ids, delta == master's
+   new files, rule 12, zero `api/`).
+2. Full gate. **The 15:34:17 manifest is a CHECKPOINT from that moment on**, not the manifest of
+   record — the tree will have moved.
+3. Merge body is written and ready: `scratchpad/merge_body_final.txt`, carrying the owner's
+   verbatim member-impact sentence.
+4. Push before 08:30 ET, leaving room for a second blip.
+
+⚠️ **A filename is not a timestamp you can reason about.** The gate wrapper stamps manifests in
+LOCAL time (CT) while this whole window is reasoned about in ET, and the first merge attempt
+selected the manifest by an hour-glob that matched nothing — reporting "the gate has not produced
+a verdict" seconds after it had. The selector now picks the manifest **by the tree it describes**,
+which is the property that actually matters.
+
+## ⛔ OWNER RULINGS, 2026-09-10 ~13:2x ET — both settled before the window
 
 **1. The fan fix RIDES TONIGHT.** Cherry-picked onto this branch (the pick that was proved clean
 by `git merge-tree` before it was applied), so the window's re-gate covers it and the manifest of
