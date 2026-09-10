@@ -452,3 +452,42 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
+
+/* ── §C2 no-drag scrub — a native range inside the Peek sheet ──────────── */
+/* ⛔ NO transition/animation declared here on purpose. `reducedMotion.test.js` derives the
+   animated-class set from this file and requires every member to be named in the
+   prefers-reduced-motion block; a decorative transition on a control that exists FOR the
+   motor-accommodation population would be the wrong place to add the first one. */
+.scrubRangeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px 14px;
+}
+
+.scrubRangeLabel {
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* min-height carries --tap-min so the thumb is draggable by an imprecise finger as well as
+   adjustable by a screen reader's swipe. */
+.scrubRange {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap-min, 44px);
+  accent-color: var(--hub-rim);
+}
+
+.scrubRangeValue {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

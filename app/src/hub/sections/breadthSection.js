@@ -158,6 +158,12 @@ export function createBreadthSection({ tabs, activeTab, setActiveTab, scrubRef }
     // ruling landed. A defensive read against a bug that no longer exists is itself a defect: it
     // teaches the next reader the seam is still ambiguous, which is what made two integrators
     // build one each in the first place.
+    // ⛔ THE ONE SECTION THAT IS NOT THE DEFAULT. Everything else scrubs vertically; the tab strip
+    // is horizontal (plan §3.2), and the guard below already knew that — but only inside itself.
+    // Declared here so §C2's no-drag range control can emit the axis this section will honour
+    // instead of guessing, and so the two can never disagree.
+    scrubAxis: 'x',
+
     onScrub: (_ctx, scrub) => {
       // Horizontal only (plan §3.2). The engine reports the DOMINANT axis of each individual
       // move, so a mostly-sideways drag still emits the occasional 'y'; counting those as tab

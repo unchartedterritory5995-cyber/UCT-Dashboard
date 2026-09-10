@@ -491,6 +491,8 @@ function HubShell({ setToastMsg }) {
       <HubActionsButton
         onHide={hideHub}
         mode={activeModeConfig?.label}
+        config={activeModeConfig}
+        ctx={ctx}
         actions={fan}
         mirrored={mirrored}
         disabledIds={disabledIds}

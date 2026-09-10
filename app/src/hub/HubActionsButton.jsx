@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import Sheet from '../components/mobile/Sheet'
+import HubScrubRange from './HubScrubRange'
 import UIcon from '../components/ui/UIcon'
 // The app's ONE haptics helper — the same module `useJoystick.js:16` imports for the gesture
 // door. Never a second `navigator.vibrate` call site (constants.js:160).
@@ -70,6 +71,10 @@ function idsHas(ids, id) {
  */
 export default function HubActionsButton({
   mode,
+  // The mounted section config and the shared ctx — passed straight through to the scrub range
+  // so it drives the SECTION'S OWN onScrub/onScrubCommit rather than a second implementation.
+  config,
+  ctx,
   actions = [],
   mirrored = false,
   disabledIds,
@@ -146,6 +151,15 @@ export default function HubActionsButton({
       </button>
 
       <Sheet open={open} onClose={() => setOpen(false)} variant="auto" title={label} ariaLabel={label}>
+        {/* ⭐ SCRUB'S NO-DRAG DOOR, and it belongs HERE rather than on the pad (§C2).
+            Every ACTION already had one — this sheet, opened by a single tap on the Actions
+            button, which is what actually satisfies WCAG 2.5.1. Scrub had none: it is a
+            continuous value, not a list entry, so the only way to move it was a precise drag.
+            Putting the range inside the sheet means the one door a member can already reach
+            without dragging now reaches everything the mode can do, not just its actions.
+            Renders null for a mode with no scrub — an inert slider would announce a capability
+            the section does not have. */}
+        <HubScrubRange config={config} ctx={ctx} label={mode} />
         <ul className={styles.actionList} role="list">
           {actions.map((action) => {
             const disabled = idsHas(disabledIds, action.id)

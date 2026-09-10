@@ -303,6 +303,23 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  *   written to prevent it, and `validateSectionConfig` cannot catch it (arity is not a shape).
  *   `contractArity.test.js` now derives this from `HubRoot.jsx` instead of restating it.
  *   `delta` is normalized 0..1 along the pad's travel; `axis` says which way the member dragged.
+ * @property {'x'|'y'} [scrubAxis]
+ *   Which axis this section's scrub responds to. **Defaults to `'y'`.**
+ *
+ *   ⛔ IT EXISTS BECAUSE THE AXIS WAS KNOWN ONLY INSIDE THE HANDLER, AND SOMETHING ELSE NOW NEEDS
+ *   TO ASK. The gesture engine reports the DOMINANT axis of each move and every section filters
+ *   for its own, so the knowledge lived in an `if` and was unreadable from outside. That was fine
+ *   while the only caller was the pad. It is not fine for §C2's no-drag path: a native
+ *   `<input type="range">` has no axis of its own and must emit the one the section will honour.
+ *
+ *   ⛔⛔ AND "JUST EMIT BOTH" IS WRONG — measured, not assumed. `homeSection`, `notebookSection`
+ *   and `wireSection` have NO axis guard at all, so they respond to whichever arrives; emitting
+ *   an `x` and a `y` would apply the same step TWICE on those three while applying it once on
+ *   `breadthSection` (`'x'`) and `screenerSection`/`journalSection` (`'y'`). One authority for
+ *   "which way does this section scrub", declared where the section already declares everything
+ *   else about itself.
+ *
+ *   Enforced by `validateSectionConfig`, not merely documented — a @typedef is a comment.
  * @property {(ctx: object) => void} [onScrubCommit]
  *   Fired once on release, after the last `onScrub`. Also context-first (`HubRoot.jsx:151`).
  * @property {(ctx: object) => (string|{label: string, value: string})} [readout]
@@ -407,6 +424,17 @@ export function validateSectionConfig(config, where = 'section config') {
   }
   if (isFn(config.onScrubCommit) && !isFn(config.onScrub)) {
     p.push('onScrubCommit without onScrub can never fire')
+  }
+  // ⭐ The no-drag path reads this to know which axis to emit. A typo lands as an axis no section
+  // honours, and the failure is SILENT — the range moves, `aria-valuetext` updates, and nothing
+  // changes. So the value is checked, and it is refused where it could never be read.
+  if (config.scrubAxis != null) {
+    if (config.scrubAxis !== 'x' && config.scrubAxis !== 'y') {
+      p.push(`scrubAxis must be 'x' or 'y' when present (got ${JSON.stringify(config.scrubAxis)})`)
+    }
+    if (!isFn(config.onScrub)) {
+      p.push('scrubAxis without onScrub declares an axis nothing reads')
+    }
   }
   report(`${where} (${config?.id ?? 'no id'})`, p)
   if (config.listAdapter != null) validateListAdapter(config.listAdapter, `${where} (${config.id}) listAdapter`)
