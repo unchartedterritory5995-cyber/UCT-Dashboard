@@ -159,7 +159,8 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Reconciliation** | **`9741ddff1`** (merge of `184a7e77b`) + **`b8eedb42f`** — the master merge, the artifact-verified flag, the five index retirements, the corrected packet |
 | **Gate split** | **`32706ecae`** — the drain traced from the flag (§21b rails), the blocked-entry gap moved to the flag-flip gate, the §15 search recorded |
 | **Pre-flight** | **`11f3e812f`** — merged master `3b043d0f8`, ledger row 9 (the `ImportWizard` load-sensitive timeout), packet SHAs refreshed. ⛔ Ran under **HOLD**: the directive's DECISION line arrived unfilled. |
-| **Branch tip** | `11f3e812f` **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
+| **Deploy attempt 1** | **`c2d8f5f58`** — DEPLOY authorised; pre-flight all green; **STOPPED at the pre-deploy re-fetch**, master had moved again (`590e88084`→`b41b4ed07`). Push is mechanically rejected as non-fast-forward. See §(b0). ⛔ **Nothing was pushed to master.** |
+| **Branch tip** | `c2d8f5f58` + the §(b0) note **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
 | **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` → `590e88084` inside one session (OptionsFlow, docs, pattern-vision backend — none of it under `app/`). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
@@ -333,6 +334,43 @@ that are already saved.
 (`OFFLINE_DEFAULT_ON = false`). No member gets an offline working copy, an
 outbox, or background syncing from this deploy. The service worker is untouched.
 Nothing is migrated, and no member data is read, moved, or deleted.
+
+## ⛔⛔ (b0) THE DEPLOY WINDOW IS THE BLOCKER — read this before trying again
+
+**2026-09-09, attempt 1: STOPPED at the pre-deploy re-fetch. Master moved
+between reconcile and deploy, for the eighth time that day.**
+
+A second session (`Claude Fable 5`, pattern-vision / flow work) was pushing to
+`master` roughly every 15–45 minutes:
+
+```
+16:31 · 16:57 · 17:11 · 18:25 · 18:25 · 18:44 · 18:55 · 19:41
+```
+
+A full Wave Q1 pre-flight takes **~30–40 minutes** (full suite ~6 min, five
+mutations ~15 min, journal-2-0 at rest ~2 min each). So the branch is overtaken
+before the deploy step is reached, every time.
+
+⛔ **AND IT IS NOT ONLY A POLICY STOP — THE PUSH IS MECHANICALLY REJECTED.**
+Measured with `git push --dry-run origin notebook-primary-platform:master`:
+
+```
+ ! [rejected]   notebook-primary-platform -> master (non-fast-forward)
+```
+
+So "deploy without reconciling" is not an option that exists, and "reconcile then
+deploy in one motion" is what the directive forbids. That is a genuine deadlock,
+not a judgement call, and it needs an owner decision to break:
+
+1. **Relax the stop to a SCOPE test** — stop only if master's new commits touch
+   `app/` or an in-scope area. ⭐ **Every one of the eight master commits that
+   day touched ZERO files under `app/`**, so this is the option that reflects the
+   actual risk rather than the mere fact of movement.
+2. **Coordinate** — ask the other session to hold pushes for ~10 minutes.
+3. **Accept a reconcile-and-deploy in one motion**, with the reconcile's scope
+   check as the safety property instead of the freeze.
+
+⚠️ Whichever is chosen, record it here. The next session will hit this again.
 
 ## (b) Exact deploy sequence
 
