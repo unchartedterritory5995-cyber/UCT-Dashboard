@@ -713,6 +713,83 @@ member's words** instead of empty, and the baseline is **real** instead of null.
 
 ⭐ **NO NEW FINDING.** No artifact in this run carried a `null` or `''` baseline.
 
+## ⭐ SCRIPT-OF-RECORD AMENDMENT — owner, 2026-09-10
+
+**Step 7's "Kill the network (DevTools offline)" may be driven via CDP
+`Network.emulateNetworkConditions {offline:true}` against the real browser
+session.**
+
+*Rationale (the owner's):* that is the mechanism the DevTools checkbox itself
+uses, so it is **the same experiment, not a substitute for it**.
+
+⛔ **Explicitly NOT permitted:** a `fetch` stub · a service-worker intercept · a
+mocked transport. Each of those replaces the transport under test with a
+different one and would be a different experiment wearing the canary's name.
+
+⛔ **And no third method.** If CDP cannot be driven against the real session,
+STOP and hand it back — do not invent an alternative.
+
+### ⛔⛔ 2026-09-10: THE AMENDMENT COULD NOT BE EXECUTED. STOPPED, AS INSTRUCTED.
+
+Measured, not assumed:
+
+```
+MCP browser toolset ...... DOM · input · screenshot · network-READ · console.
+                           NO CDP command executor. Nothing can send
+                           Network.emulateNetworkConditions.
+chrome.exe processes ..... 15 running
+  with --remote-debugging  0
+listeners on 9220-9340 ... none
+curl 127.0.0.1:922x/json/version ... no response on any probed port
+```
+
+CDP requires either a tool that speaks the protocol or a Chrome started with
+`--remote-debugging-port`. **Neither exists here.** Relaunching the owner's
+Chrome with the flag was rejected as out of scope: it would close their live
+session, and a relaunched browser is not "the real browser session" the
+amendment names.
+
+**So steps 7–9 and the conflict path remain UNRUN**, and the seven-day
+observation window stays **unstarted**.
+
+### The 5-minute keyboard recipe, for whoever runs it
+
+Same account, same note discipline as the 2026-09-10 happy-path run.
+
+1. Open the Notebook, DevTools → Console:
+   `localStorage.setItem('uct.j2.offline.enabled','1')` then reload.
+2. Confirm the lock: `(await navigator.locks.query()).held.filter(l=>l.name.startsWith('uct.nb.sync.'))` → exactly one, `exclusive`.
+3. Create a note, type a title/subtitle/body, let it save (watch it go `dirty:0`).
+4. **DevTools → Network → Throttling → Offline.** Confirm a probe actually
+   fails: `await fetch('/api/health').then(()=>'ONLINE').catch(()=>'OFFLINE')`.
+5. Type more. Read all three layers (snippet below) — expect the typed words,
+   `dirty:1`, and a **real** `baseUpdatedAt`.
+6. **Reload while still offline.** ⭐⭐ *This is the step that went red on
+   2026-09-09.* Read all three layers again, and read the header text.
+7. Go back online. Expect exactly one PUT carrying the CAS baseline, then
+   `dirty:0` re-based on the new `updatedAt`.
+8. Clean up: soft-delete the note, confirm all four stores are `0`, `0` locks,
+   and set the key back to `'0'`.
+
+Read all three layers in one go:
+
+```js
+const id = '<note id>', acct = '<account id>';
+const db = await new Promise(r=>{const q=indexedDB.open('uct_notebook_'+acct);q.onsuccess=()=>r(q.result)});
+const rd = s => new Promise(r=>{const t=db.transaction(s,'readonly').objectStore(s).getAll();t.onsuccess=()=>r(t.result||[])});
+console.log(JSON.stringify({
+  draft: JSON.parse(localStorage.getItem('uct.j2.notedraft.'+id) || 'null'),
+  note:  (await rd('notes')).filter(n=>n.noteId===id),
+  outbox:(await rd('outbox')).filter(n=>n.noteId===id),
+  headerText: document.body.innerText.match(/waiting to sync|Reconnecting|Save failed/g),
+  editorMounted: !!document.querySelector('input[placeholder="Title"]'),
+}, null, 1))
+```
+
+⛔ **RED if:** any layer holds an empty document · the header does not say
+"waiting to sync" · the editor did not mount. ⛔⛔ **A `null` or `''`
+`baseUpdatedAt` is a NEW FINDING** — say so loudly; it is not the old one.
+
 ## ⛔ What did NOT run, and what it would take
 
 - **Steps 7–9 (offline → type → reload → read all three layers).** This is *the
@@ -762,7 +839,7 @@ which is what proves they test different lines.
 |---|---|
 | A blocked entry is surfaced to the member | ❌ **it is not** — see below |
 | `baseUpdatedAt: null` explained | ❌ not closed (harmless — the drain refuses it) |
-| A fresh §15 canary on the deployed fix | ⚠️ **PARTIAL, 2026-09-10** — steps 1–6/10/11 green incl. the fix's own signature; **steps 7–9 (offline) and the conflict path NOT run** |
+| A fresh §15 canary on the deployed fix | ⚠️ **STILL PARTIAL** — steps 1–6/10/11 green (2026-09-10). Steps 7–9 + conflict path **attempted 2026-09-10 and BLOCKED**: no CDP executor in the toolset, Chrome has no `--remote-debugging-port`, no listener on 9220–9340. Stopped rather than improvise. Keyboard recipe is in the canary section. |
 | Seven-day observation window armed | ⛔ **NOT started** — deliberately. It waits on a complete canary, not a partial one (`wave-q1-observation-window.md`) |
 
 ### The blocked-entry finding, in full (measured, `blockedEntryIsVisible.test.jsx`)
