@@ -159,7 +159,7 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Reconciliation** | **`9741ddff1`** (merge of `184a7e77b`) + **`b8eedb42f`** — the master merge, the artifact-verified flag, the five index retirements, the corrected packet |
 | **Gate split** | **`32706ecae`** — the drain traced from the flag (§21b rails), the blocked-entry gap moved to the flag-flip gate, the §15 search recorded |
 | **Branch tip** | `32706ecae` **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
-| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** It was `78ac8016b` when this session began and `184a7e77b` four hours later (three OptionsFlow commits, no overlap with this branch). What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
+| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` inside one session (OptionsFlow, then two docs-only). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
 doc said only *"Last Wave Q commit: `4fef130d9`"*, which was true when written and
@@ -503,11 +503,11 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 | | status |
 |---|---|
 | The canary defect is reproduced, fixed, mutation-proved | ✅ `4fef130d9` |
-| `journal-2-0` suite green | ✅ **231 files / 2391 tests** |
+| `journal-2-0` suite green | ⚠️ **231 files / 2391 — green AT REST** (9 consecutive runs). One load-sensitive TIMEOUT (`ImportWizard` audit-B1) appears when run straight after the full suite: 2,057 ms alone vs 4,179 ms under load, byte-identical to master, ledger row 9. **Not ours, and not banked.** |
 | The `??`-vs-truthy baseline defect fixed + railed | ✅ one authority, mutation-proved |
 | Backend baseline guarantee railed + mutation-proved | ✅ 14 tests, 2 mutations |
 | Full frontend suite green | ❌ **8 files red — all inherited, see `inherited-red-ledger.md`** |
-| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `184a7e77b`, and on the deployed artifact |
+| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `origin/master` (`3b043d0f8`), and on the deployed artifact (read from the live bundle: `Fi=!1`) |
 | Reconciled with the current master | ✅ merged clean, 0 conflicts, 0 lines changed in the six fix files |
 | Mutations re-run post-merge | ✅ 4/4 red, controls green, restored |
 | Service worker untouched | ✅ |
