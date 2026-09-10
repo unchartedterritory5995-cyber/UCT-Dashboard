@@ -468,7 +468,7 @@ vocabulary, not that route.
 
 ---
 
-## ⛔⛔ Runbook item 1 (the bind-time fold) is NOT a one-line wiring — measured 2026-09-10
+## ⚠️ Runbook item 1 (the bind-time fold) — STAGE BUILT 2026-09-10, DOOR STILL REFUSES
 
 The runbook calls it *"the single change that clears the largest remaining refusal"* and says
 `fold_bound`/`foldBound` are *"built, railed and cross-lane-pinned but not yet called by the
@@ -511,4 +511,46 @@ the vendor really does fold a timeframe-conditional length to a plain integer at
 confirmed and only the placement is open. ⛔ It was NOT attempted here: it is the owner's #1
 item, its failure mode is a wrong number rather than an error, and guessing the placement at
 the end of a long session is how that ships.
+
+### ✅ The bind stage — BUILT AND WIRED (`a6faf65b7`)
+
+`bind.js` no longer has zero importers. The stage runs inside
+`nativeRegistry.astColumnsFor`, keyed on the binding's `(symbol, timeframe)`:
+
+    bindingConstants({ timeframe: timeframeFlags(ctx.tf), inputs, symbol: ctx.sym })
+      -> foldBound(tree, consts)   // a NEW tree; the saved one stays symbolic
+      -> interpret(bound, …)
+
+⭐ **PROVEN END TO END, not just in the unit:** `computeFor` on ONE definition with
+`tf:'D'` and `tf:'W'` produces DIFFERENT columns. Every other assertion in that file
+would hold if `foldBound` were perfect and nothing called it — which was the actual
+state of this repo. Folded integers are **20 daily / 5 weekly**, which is job B's
+measured vendor reading rather than a guess about it.
+
+⭐ `timeframeFlags(tf)` was extracted so ONE derivation decides what `isweekly`
+means; `computeClock` now calls it instead of holding its own copy. `null` on an
+unknown code, never a default.
+
+⛔ **NEITHER R-a NOR R-c's STOP FIRED.** bind.js still had zero live importers when
+the placement was confirmed, and `astColumnsFor` writes nothing back onto `def`, so
+no folded tree can reach the save path and no guard had to be invented.
+
+⛔⛔ **BUT LINE 233 IS STILL REFUSED, AND THE RULING PREDICTED IT WOULD NOT BE.**
+Measured after wiring, on the real fixture:
+
+    translatePine(uncharted-volume.pine) → pine:window @ line 233
+    "a Pine length has to reach the engine as a plain whole number
+     — argument 2 of `ta.sma`"
+
+The DOOR refuses at SAVE time, so such a definition never reaches a bind at all.
+That is design question **(b)** from the scoping above — *what does the door emit
+instead of refusing, so a bind stage can fold it later* — and the ruling settled
+where the fold RUNS, not whether the door should ADMIT a bind-time-foldable length.
+
+⚠️ **THE REMAINING DECISION IS ABOUT WHAT GETS SAVED, NOT ABOUT THE FOLD.** Relaxing
+the door means a definition whose length is not yet a number becomes persistable,
+and the guarantee that has to come with it is that an unfoldable one still refuses
+BY NAME at bind time. The stage already does that half (measured: an unknown
+timeframe refuses naming the window). What is missing is the door's admission rule,
+and R-a explicitly put the fold *not* at the door — so this is a separate ruling.
 
