@@ -911,12 +911,66 @@ def _put_baseline(req):
         return "<unreadable>"
 
 
-def _mini_canary(chk: Check, page, offline, puts) -> str | None:
-    """The §15 happy path, every day, artifact captured at every step."""
+def opt_out(page) -> tuple:
+    """Put the browser back to opted-OUT, and READ IT BACK. Returns (ok, value).
+
+    ⛔⛔ THIS USED TO LIVE INSIDE THE CLEANUP BLOCK, WHICH IS THE ONE BRANCH THAT
+    DOES NOT ALWAYS RUN. Three ways to skip it, and the log has two of them:
+
+      · `if not should_clean_up(chk.findings): return` — cleanup is skipped ON
+        PURPOSE when a finding is on the account, so a run that FOUND something
+        also left the profile opted in;
+      · the `2 create a note` early return, above it and unconditional —
+        `check 11`, 2026-09-10T13:47:22Z, opted in at step 0 and returned;
+      · any exception in between: there was no `finally` at all.
+
+    ⭐ PRESERVING EVIDENCE AND STAYING OPTED IN ARE TWO DIFFERENT DECISIONS, and
+    they were one branch. The note and the stores are evidence and must survive;
+    the browser's opt-in is RIG STATE, and leaving it set silently changes what
+    the next run measures — an opt-in counted per distinct profile is meaningless
+    if one profile starts already opted in.
+
+    ⛔ It reads the value BACK. A cleanup that cannot say whether it happened is
+    the shape of the defect this whole wave keeps re-finding.
+    ⭐ And it uses FLAG_KEY. The old line spelled `'uct.j2.offline.enabled'` in
+    the JS while the opt-in passed FLAG_KEY — two authorities over one value that
+    agreed only by luck.
+    """
+    try:
+        got = page.evaluate(
+            "(k) => { try { localStorage.setItem(k, '0'); return localStorage.getItem(k) }"
+            "        catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY)
+    except Exception as e:  # noqa: BLE001
+        got = f"ERR: {type(e).__name__}"
+    return got == "0", got
+
+
+def _mini_canary(chk: Check, page, offline, puts, body=None) -> str | None:
+    """Opt in, run the §15 path, and opt back out — WHATEVER happened in between.
+
+    ⭐ The `body` seam exists so `--self-check` can drive the REAL control flow
+    (an early return, an exception) instead of restating it. A rail that asserts
+    "there is a finally" proves nothing about whether the finally does the work;
+    this one makes the body return early and makes it raise, and watches.
+    """
     chk.canary_ran = True
+    page.evaluate("(k) => localStorage.setItem(k, '1')", FLAG_KEY)
+    try:
+        return (body or _canary_body)(chk, page, offline, puts)
+    finally:
+        # ⛔ EVERY exit lands here: the happy path, both early returns, and any
+        # exception on its way out.
+        ok, got = opt_out(page)
+        chk.step("5 opted back out — ALWAYS, finding or not", ok,
+                 f"`{FLAG_KEY}` read back as `'0'`",
+                 f"the opt-out did not take (read back {got!r}) — THE RIG PROFILE IS "
+                 "LEFT OPTED IN and the next run does not start from rest")
+
+
+def _canary_body(chk: Check, page, offline, puts) -> str | None:
+    """The §15 happy path, every day, artifact captured at every step."""
     note_id = None
 
-    page.evaluate("(k) => localStorage.setItem(k, '1')", FLAG_KEY)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
     st = page.evaluate(STATE_JS, ACCOUNT_ID)
@@ -1027,9 +1081,13 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
             await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
         }
         for (const k of Object.keys(localStorage)) if (k.startsWith('uct.j2.notedraft.')) localStorage.removeItem(k);
-        localStorage.setItem('uct.j2.offline.enabled','0');
         return {storesCleared: stores.length};
     }""", ACCOUNT_ID)
+    # ⛔ ORDERING, and it is load-bearing: opt out BEFORE the verification reload.
+    # Reloading the notebook while still opted IN re-engages the offline layer and
+    # re-creates the stores this next read is about to call empty. The `finally`
+    # in `_mini_canary` is the guarantee; this call is the ordering.
+    opt_out(page)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
     end = page.evaluate(STATE_JS, ACCOUNT_ID)
@@ -1073,8 +1131,9 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
         reasons.append(f"stores not all zero ({stores!r})")
     if end.get("locks") != 0:
         reasons.append(f"locks={end.get('locks')}")
-    if end.get("optInKey") != "0":
-        reasons.append(f"opt-in key={end.get('optInKey')!r}, expected '0'")
+    # ⭐ The opt-in key is NOT asserted here any more. `_mini_canary`'s `finally`
+    # owns it, asserts it, and runs on every exit — including the two this step
+    # can never be reached from. One authority, at the point of the action.
     if leftovers:
         reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
     chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
@@ -1600,6 +1659,69 @@ def self_check() -> int:
     cases.append(("…and it builds the lock paths from that ARGUMENT, not from PROFILE",
                   'locks = [profile / "lockfile", profile / "SingletonLock"]'
                   in pathlib.Path(__file__).read_text(encoding="utf-8")))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE OPT-OUT RUNS ON EVERY EXIT. ⛔ The defect it fixes: the restore lived
+    # inside the cleanup block — skipped ON PURPOSE when a finding is kept, and
+    # unreachable after the `2 create a note` early return, which is exactly what
+    # fired on 2026-09-10T13:47:22Z. The profile was still opted IN a day later.
+    # Driven through the REAL control flow, not asserted about it.
+    # ══════════════════════════════════════════════════════════════════════════
+    class _OptPage:
+        def __init__(self, sticks=True):
+            self.sticks, self.writes = sticks, []
+
+        def evaluate(self, js, arg=None):
+            if "setItem(k, '0')" in js:
+                self.writes.append("0")
+                return "0" if self.sticks else "1"
+            if "setItem(k, '1')" in js:
+                self.writes.append("1")
+            return None
+
+    def _drive(body, sticks=True):
+        chk = Check(label="t")
+        page = _OptPage(sticks)
+        try:
+            _mini_canary(chk, page, lambda _f: None, [], body=body)
+        except Exception:  # noqa: BLE001
+            pass
+        step = next((s for s in chk.canary if "opted back out" in s.name), None)
+        return page.writes, step
+
+    w, s = _drive(lambda *a: "note-id")
+    cases.append(("CONTROL: the happy path opts in and back out", w == ["1", "0"] and s and s.ok))
+    w, s = _drive(lambda *a: None)                       # the `create a note` early return
+    cases.append(("⛔ an EARLY RETURN still opts back out", w == ["1", "0"] and s and s.ok))
+    def _raiser(*a):
+        raise RuntimeError("the canary blew up mid-run")
+    w, s = _drive(_raiser)
+    cases.append(("⛔ an EXCEPTION still opts back out", w == ["1", "0"] and s and s.ok))
+    # ⛔ A `finally` that also SWALLOWS is worse than none: the run would look
+    # like it completed. The opt-out must happen AND the failure must still fly.
+    _raised = False
+    try:
+        _mini_canary(Check(label="t"), _OptPage(), lambda _f: None, [], body=_raiser)
+    except RuntimeError:
+        _raised = True
+    cases.append(("…and the exception still PROPAGATES (the finally does not swallow it)",
+                  _raised))
+    w, s = _drive(lambda *a: "note-id", sticks=False)
+    cases.append(("⛔ an opt-out that does NOT take is reported, not assumed",
+                  s is not None and not s.ok))
+    cases.append(("…and the failure says the profile is left opted in",
+                  "LEFT OPTED IN" in (s.render() if s else "")))
+    src_wc = pathlib.Path(__file__).read_text(encoding="utf-8")
+    canary_src = src_wc.split("def _mini_canary", 1)[1].split("\ndef _canary_body", 1)[0]
+    cases.append(("the restore is in a `finally`, not on the success branch",
+                  "finally:" in canary_src and "opt_out(page)" in canary_src))
+    body_src = src_wc.split("def _canary_body", 1)[1].split("\n# ═", 1)[0]
+    cases.append(("the cleanup JS no longer spells the flag key a second time",
+                  "'uct.j2.offline.enabled'" not in body_src))
+    cases.append(("CONTROL: that sweep can see the literal when it is there",
+                  "'uct.j2.offline.enabled'" in (body_src + "'uct.j2.offline.enabled'")))
+    cases.append(("the opt-out is asserted in ONE place, not two",
+                  "expected '0'" not in body_src))
 
     bad_ct = 0
     for name, ok in cases:

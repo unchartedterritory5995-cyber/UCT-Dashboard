@@ -137,12 +137,76 @@ CAPS_JS = """async (acct) => {
 }"""
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ENGINE LABELS — ⛔ A ROW NAME IS A CLAIM ABOUT A PLATFORM.
+# ══════════════════════════════════════════════════════════════════════════════
+# Owner rulings, 2026-09-10. Three of these five rows would otherwise be read as
+# something they are not, and this repo has been bitten specifically by names that
+# outlived their wiring ("ON THE TAPE", `upload_unlisted`). The label is what is
+# printed AND what goes in the artifact, so a table copied out of either carries
+# the caveat with it.
+#
+#   · `mobile` is Playwright's iPhone 13 DESCRIPTOR on a CHROMIUM engine. The UA
+#     string reads "iPhone … Safari" and the engine is not Safari. The lane stays
+#     Chromium — it is the Android-shaped answer, a real member configuration
+#     nothing else in the matrix covers — but "mobile ✅" beside an iPhone UA is a
+#     claim about a platform we did not test.
+#   · Edge on this box is Chromium 119, ~2 years behind the Chrome rig's 152.
+#     That is the MORE valuable storage lane (a stale corporate Edge is a real
+#     member), and it must never read as "current Edge passes".
+#   · WebKit is Playwright's build, not Safari on a device. A real-Safari claim is
+#     a DEVICE claim and no local suite can make one.
+IOS_NOTE = ("the iOS-shaped answer is the `webkit` row; `mobile-chromium` is "
+            "Android-shaped and is NOT iOS")
+
+
+def edge_version() -> str:
+    """⛔ MEASURED off the binary, never typed — the whole point of the label."""
+    global _EDGE_VER
+    if _EDGE_VER is None:
+        try:
+            _EDGE_VER = (_ps(f"(Get-Item '{EDGE}').VersionInfo.ProductVersion").strip()
+                         or "version unreadable")
+        except Exception:  # noqa: BLE001
+            _EDGE_VER = "version unreadable"
+    return _EDGE_VER
+
+
+_EDGE_VER = None
+ENGINE_IDS = ("chromium-rig", "edge", "firefox", "webkit", "mobile-chromium")
+# ⭐ `mobile` still resolves, so nothing that typed the old name breaks — but the
+# OUTPUT and the artifact always carry the new label.
+ENGINE_ALIASES = {"mobile": "mobile-chromium"}
+
+
+def engine_label(engine_id: str) -> str:
+    base = engine_id.split("/", 1)[0]
+    suffix = engine_id[len(base):]
+    label = {
+        "chromium-rig": "chromium-rig (real Chrome, the signed-in rig profile)",
+        "edge": f"edge ({edge_version()} — Chromium 119-era; NOT current Edge)",
+        "firefox": "firefox (Gecko)",
+        "webkit": "webkit (Playwright WebKit — NOT Safari on a real device)",
+        "mobile-chromium": "mobile-chromium (Android-shaped; NOT iOS)",
+    }.get(base, base)
+    return label + suffix
+
+
+def resolve_engine(name: str) -> str:
+    n = (name or "").strip()
+    return ENGINE_ALIASES.get(n, n)
+
+
 _QUIET = False
 
 
 class Result:
     def __init__(self, engine):
-        self.engine = engine
+        # ⛔ THE LABEL IS THE NAME EVERYWHERE IT IS READ — printed row, artifact
+        # key, any table copied out of either. Keeping a bare `mobile` anywhere a
+        # human or a later script can read it is how the caveat gets lost.
+        self.id = engine
+        self.engine = engine_label(engine)
         self.steps = []
         self.findings = []
         self.caps = {}
@@ -420,7 +484,7 @@ def session_cookie_from_rig() -> dict:
 # opt-in key is READ and never set, and the note count is re-read at the end
 # against the count read at the start.
 
-DRY_ENGINES = ("chromium-rig", "edge", "firefox", "webkit", "mobile")
+DRY_ENGINES = ENGINE_IDS
 LOCK_PROBE_NAME = "uct.q1.dryrun.probe"   # ⛔ never `uct.nb.sync.*` — see below
 
 # ⛔ EVERY PAGE-SIDE CALL HERE IS A READ. GET /api/auth/me · GET /api/j2/notes ·
@@ -713,7 +777,7 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
 
     # ── 2. EVERY OTHER ENGINE, each authenticated from that one cookie.
     for name in [e for e in engines if e != "chromium-rig"]:
-        print(f"\n{'=' * 70}\n  ENGINE: {name}\n{'=' * 70}", flush=True)
+        print(f"\n{'=' * 70}\n  ENGINE: {engine_label(name)}\n{'=' * 70}", flush=True)
         browser = ctx = None
         try:
             with sync_playwright() as pw:
@@ -726,7 +790,10 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
                     browser = pw.firefox.launch(headless=True); ctx = browser.new_context()
                 elif name == "webkit":
                     browser = pw.webkit.launch(headless=True); ctx = browser.new_context()
-                elif name == "mobile":
+                elif name == "mobile-chromium":
+                    # ⛔ CHROMIUM wearing an iPhone descriptor. Deliberate (owner,
+                    # 2026-09-10): it is the Android-shaped lane and nothing else
+                    # in the matrix covers it. The LABEL carries the caveat.
                     browser = pw.chromium.launch(headless=True)
                     ctx = browser.new_context(**pw.devices["iPhone 13"])
                 else:
@@ -795,18 +862,131 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
     print(f"\n{'=' * 70}\n  DRY RUN\n{'=' * 70}")
     for r in results:
         ok = sum(1 for _, o, _ in r.steps if o)
-        print(f"  {r.engine:24} {'✅' if r.green else '⛔'}  {ok}/{len(r.steps)} steps"
+        print(f"  {r.engine:58} {'✅' if r.green else '⛔'}  {ok}/{len(r.steps)} steps"
               f"  locks={r.caps.get('locks')}")
+    # ⛔ The one sentence that stops the mobile row being read as an iOS result.
+    print(f"\n  ⭐ {IOS_NOTE}.")
     green = all(r.green for r in results)
     _write_json(out, dict(header, status="COMPLETE", green=green,
+                          reading_note=IOS_NOTE,
                           notes_before=notes_first, notes_after=notes_last,
                           engines=[_row(r) for r in results]))
     print(f"\nartifact: {out}")
     return 0 if green else 1
 
 
+# ═══ END OF THE READ-ONLY DRY RUN ════════════════════════════════════════════
+# ⛔ `--self-check`'s read-only sweep is bounded HERE, by name, not by "whatever
+# comes before `def main`". Everything ABOVE this line must contain no write of
+# any kind. `rig_opt_out` below is the ONE deliberate write this tool makes to
+# the rig profile, it is railed separately, and it only ever runs when asked.
+# ⭐ The boundary is a sentinel rather than the next `def` so that reordering the
+# file cannot silently move it — the first version of this sweep swallowed
+# `rig_opt_out` the moment it was added, which is the rail working.
+
+
+def rig_opt_out(out_path: pathlib.Path | None = None) -> int:
+    """⛔⛔ THE ONLY WRITE THIS TOOL EVER MAKES TO THE RIG PROFILE, on request only.
+
+    It sets ONE localStorage key back to `'0'`. Nothing else on that profile is
+    touched and the profile is never recreated.
+
+    ⭐ IT RECORDS THE BEFORE-VALUE FIRST, with a timestamp, so Phase 2 starts from
+    a DOCUMENTED state rather than a tidy one — tidying without recording destroys
+    the evidence that something set it.
+
+    ⛔ And it measures whether the value STICKS across a notebook mount. If the
+    app writes the key back, the rig can never opt out by localStorage alone and
+    that is a product finding, not a rig one. Those two look identical from the
+    outside, which is why this asks instead of assuming.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"rig-opt-in-key-{stamp}.json")
+    rec = {"at": utc(), "action": "restore the rig profile's opt-in key to '0'",
+           "profile": str(w.PROFILE), "key": FLAG_KEY,
+           "status": "INCOMPLETE — the run did not finish"}
+    _write_json(out, rec)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}", flush=True)
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+
+            # ── 1. READ AND RECORD, before touching anything. /dashboard, not the
+            #       notebook: mounting the notebook is what could change the value.
+            page.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+            first = page.evaluate(DRY_READ_JS, FLAG_KEY)
+            rec.update(observed_at_rest=first.get("optInKey"),
+                       observed_at=utc(), notes_before=first.get("notes"),
+                       auth_status=first.get("authStatus"))
+            _write_json(out, dict(rec, status="RECORDED — before the write"))
+            print(f"observed at rest: {FLAG_KEY} = {first.get('optInKey')!r} "
+                  f"(notes={first.get('notes')})", flush=True)
+
+            # ── 2. THE WRITE, read back immediately.
+            wrote = page.evaluate(
+                "(k) => { try { localStorage.setItem(k, '0'); return localStorage.getItem(k) }"
+                "        catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY)
+            rec["after_write"] = wrote
+            print(f"after the write:  {FLAG_KEY} = {wrote!r}", flush=True)
+
+            # ── 3. DOES IT STICK? Mount the very page that could rewrite it. With
+            #      the key at '0' and OFFLINE_DEFAULT_ON false the layer stays
+            #      inert, so this is the safest state to ask the question in.
+            page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+            page.wait_for_timeout(9000)
+            after = page.evaluate(DRY_READ_JS, FLAG_KEY)
+            rec.update(after_notebook_mount=after.get("optInKey"),
+                       notes_after=after.get("notes"))
+            print(f"after a notebook mount: {FLAG_KEY} = {after.get('optInKey')!r}", flush=True)
+
+            rewritten = after.get("optInKey") == "1"
+            if rewritten:
+                rec["finding"] = (
+                    "THE APP REWROTE THE OPT-IN KEY. It was set to '0' and read back "
+                    "'1' after mounting /journal/notebook — the rig cannot opt out by "
+                    "localStorage alone, and this is a PRODUCT finding, not a rig one.")
+                print("\n\U0001f6a8 " + rec["finding"], flush=True)
+
+            # ── 4. Leave it at rest, off the notebook, and prove the final state.
+            page.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+            page.wait_for_timeout(3000)
+            page.evaluate("(k) => { try { localStorage.setItem(k, '0') } catch (e) {} }", FLAG_KEY)
+            final = page.evaluate(DRY_READ_JS, FLAG_KEY)
+            rec.update(final_at_rest=final.get("optInKey"), notes_final=final.get("notes"))
+            ok = (final.get("optInKey") == "0"
+                  and final.get("notes") == first.get("notes")
+                  and not rewritten)
+            _write_json(out, dict(rec, status="COMPLETE" if ok else "COMPLETE WITH A FINDING",
+                                  restored=final.get("optInKey") == "0"))
+            print(f"\nfinal at rest:    {FLAG_KEY} = {final.get('optInKey')!r} · "
+                  f"notes {first.get('notes')} → {final.get('notes')}")
+            print(f"artifact: {out}")
+            return 0 if ok else 1
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        print(f"teardown: killed {killed} by marker · {len(left)} left · "
+              f"owner's browser {others} untouched · lock released={released}", flush=True)
+
+
 def _row(r: Result) -> dict:
-    return {"engine": r.engine, "green": r.green, "caps": r.caps, "facts": r.facts,
+    # ⛔ `engine` carries the LABEL. `engine_id` is beside it for machines; a
+    # reader who copies one row out of this file gets the caveat with it.
+    return {"engine": r.engine, "engine_id": r.id,
+            "green": r.green, "caps": r.caps, "facts": r.facts,
             "steps": [{"name": n, "ok": o, "detail": d} for n, o, d in r.steps],
             "findings": r.findings}
 
@@ -819,7 +999,10 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="READ-ONLY: auth · offline both ways · cookie provenance · "
                          "Web Locks · cleanup, per engine. Creates nothing.")
-    ap.add_argument("--out", default=None, help="where the dry-run results file goes")
+    ap.add_argument("--rig-opt-out", action="store_true",
+                    help="record the rig profile's opt-in key, then restore it to '0' "
+                         "(the only write this tool makes to that profile)")
+    ap.add_argument("--out", default=None, help="where the results file goes")
     ap.add_argument("--profile", default=None,
                     help=f"absolute path to THE chromium rig profile (or ${w.PROFILE_ENV})")
     ap.add_argument("--edge-profile", default=None,
@@ -836,8 +1019,11 @@ def main() -> int:
 
     if args.self_check:
         return self_check()
+    _out = pathlib.Path(args.out).resolve() if args.out else None
+    if args.rig_opt_out:
+        return rig_opt_out(_out)
     if args.dry_run:
-        return dry_run(args.only, pathlib.Path(args.out).resolve() if args.out else None)
+        return dry_run(resolve_engine(args.only) if args.only else None, _out)
 
     from playwright.sync_api import sync_playwright
 
@@ -845,14 +1031,14 @@ def main() -> int:
     cookie = session_cookie_from_rig()
     print(f"  got `uct_session` for {cookie['domain']} (value not printed)\n", flush=True)
 
-    engines = ["edge", "firefox", "webkit", "mobile"]
+    engines = [e for e in ENGINE_IDS if e != "chromium-rig"]
     if args.only:
-        engines = [args.only]
+        engines = [resolve_engine(args.only)]
 
     results = []
     with sync_playwright() as pw:
         for name in engines:
-            print(f"\n{'=' * 70}\n  ENGINE: {name}\n{'=' * 70}", flush=True)
+            print(f"\n{'=' * 70}\n  ENGINE: {engine_label(name)}\n{'=' * 70}", flush=True)
             browser = ctx = None
             try:
                 if name == "edge":
@@ -870,7 +1056,10 @@ def main() -> int:
                 elif name == "webkit":
                     browser = pw.webkit.launch(headless=True)
                     ctx = browser.new_context()
-                elif name == "mobile":
+                elif name == "mobile-chromium":
+                    # ⛔ CHROMIUM under an iPhone descriptor — the Android-shaped
+                    # lane, deliberately (owner, 2026-09-10). NOT iOS; the label
+                    # says so wherever this row is read.
                     browser = pw.chromium.launch(headless=True)
                     ctx = browser.new_context(**pw.devices["iPhone 13"])
                 r = run_path(ctx, name, cookie)
@@ -894,17 +1083,16 @@ def main() -> int:
     findings = []
     for r in results:
         ok = sum(1 for _, o, _ in r.steps if o)
-        print(f"  {r.engine:22} {'✅' if r.green else '🚨' if r.findings else '⛔'}  {ok}/{len(r.steps)} steps"
+        print(f"  {r.engine:58} {'✅' if r.green else '🚨' if r.findings else '⛔'}  {ok}/{len(r.steps)} steps"
               f"  locks={r.caps.get('locks')}")
         findings += r.findings
+    print(f"\n  ⭐ {IOS_NOTE}.")
     if findings:
         print("\n🚨 FINDINGS")
         for f in findings:
             print("   -", f)
-    payload = {"at": utc(),
-               "engines": [{"engine": r.engine, "green": r.green, "caps": r.caps,
-                            "steps": [{"name": n, "ok": o, "detail": d} for n, o, d in r.steps],
-                            "findings": r.findings} for r in results]}
+    payload = {"at": utc(), "reading_note": IOS_NOTE,
+               "engines": [_row(r) for r in results]}
     out = w.ROOT / "docs" / "notebook" / "engine-matrix-result.json"
     out.write_text(json.dumps(payload, indent=1), encoding="utf-8")
     print(f"\nartifact: {out}")
@@ -994,7 +1182,7 @@ def self_check() -> int:
     # THE DRY RUN. Every control below can FAIL — each is driven with a case that
     # is supposed to go red, because a rail nobody has seen fire is not a rail.
     # ══════════════════════════════════════════════════════════════════════════
-    dry_src = src.split("# THE DRY RUN", 1)[-1].split("\ndef main(", 1)[0]
+    dry_src = src.split("# THE DRY RUN", 1)[-1].split("END OF THE READ-ONLY DRY RUN", 1)[0]
 
     # ⛔ READ-ONLY IS A PROPERTY OF THE CODE, not of the operator's intention.
     write_needles = ["method:'POST'", "method:'PUT'", "method:'DELETE'",
@@ -1023,6 +1211,17 @@ def self_check() -> int:
                   LOCK_PROBE_NAME.startswith("uct.q1.") and "uct.nb.sync." not in DRY_READ_JS))
     cases.append(("the results file is CLAIMED before any engine opens",
                   dry_src.index("INCOMPLETE") < dry_src.index("1. THE RIG ITSELF")))
+    # ⛔ The sweep's boundary is a NAMED sentinel — an implicit one ("everything
+    # before `def main`") swallowed `rig_opt_out` the moment it was written.
+    cases.append(("the read-only region is bounded by a named sentinel",
+                  "END OF THE READ-ONLY DRY RUN" in src and "def rig_opt_out" not in dry_src))
+    opt_src = src.split("def rig_opt_out", 1)[1].split("\ndef _row", 1)[0]
+    cases.append(("the ONE deliberate write is the flag key, and nothing else",
+                  opt_src.count("localStorage.setItem") == opt_src.count("(k, '0')")))
+    cases.append(("…and it records the BEFORE value before it writes",
+                  opt_src.index("observed_at_rest") < opt_src.index("2. THE WRITE")))
+    cases.append(("…and it asks whether the app writes the key back",
+                  "after_notebook_mount" in opt_src and "PRODUCT finding" in opt_src))
     # ⛔ A SWEEP THAT CAN MATCH ITS OWN NEEDLE PROVES NOTHING — spelling the
     # forbidden call literally here would make this file contain it. Same trap the
     # `fetch =` sweep above sidesteps; this one caught itself on its first run.
@@ -1032,6 +1231,39 @@ def self_check() -> int:
                   not any(n in body for n in del_needles)))
     cases.append(("CONTROL: that sweep can see a delete when there is one",
                   any(n in (body + del_needles[0]) for n in del_needles)))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE LABELS. ⛔ A row name is a claim about a platform, and three of these
+    # five would otherwise be read as something we did not test. Owner rulings,
+    # 2026-09-10. These are STRUCTURAL — the label is the artifact key — so they
+    # are railed here rather than left to a reviewer's eye.
+    # ══════════════════════════════════════════════════════════════════════════
+    cases.append(("every engine id has a label",
+                  all(engine_label(e) != e for e in ENGINE_IDS)))
+    cases.append(("⛔ the mobile lane cannot be read as iOS",
+                  "NOT iOS" in engine_label("mobile-chromium")
+                  and "mobile-chromium" in engine_label("mobile-chromium")))
+    cases.append(("…and the bare name `mobile` is gone from the id set",
+                  "mobile" not in ENGINE_IDS and "mobile-chromium" in ENGINE_IDS))
+    cases.append(("…but `--only mobile` still resolves, so nothing breaks",
+                  resolve_engine("mobile") == "mobile-chromium"
+                  and resolve_engine("webkit") == "webkit"))
+    cases.append(("⛔ webkit cannot be read as Safari on a device",
+                  "NOT Safari on a real device" in engine_label("webkit")))
+    cases.append(("⛔ edge cannot be read as current Edge",
+                  "NOT current Edge" in engine_label("edge")))
+    cases.append(("…and edge's version is MEASURED off the binary, never typed",
+                  "VersionInfo.ProductVersion" in src and "119.0" not in body))
+    cases.append(("the label reaches the ARTIFACT key, not just the screen",
+                  _row(Result("mobile-chromium"))["engine"] == engine_label("mobile-chromium")
+                  and _row(Result("mobile-chromium"))["engine_id"] == "mobile-chromium"))
+    cases.append(("a sub-row keeps its suffix AND its label",
+                  engine_label("mobile-chromium/cleanup").endswith("/cleanup")
+                  and "NOT iOS" in engine_label("mobile-chromium/cleanup")))
+    cases.append(("the iOS-shaped answer is named, in one sentence",
+                  "webkit" in IOS_NOTE and "NOT iOS" in IOS_NOTE))
+    cases.append(("…and that sentence is printed AND stored, not just defined",
+                  src.count("IOS_NOTE") >= 4))
 
     # ── offline emulation, driven ────────────────────────────────────────────
     class _P:
