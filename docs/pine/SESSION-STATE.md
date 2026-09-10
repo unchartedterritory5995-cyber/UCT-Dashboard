@@ -21,11 +21,11 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 1 | Land Kind 4 | ✅ merged from `worktree-indicator-ecosystem` (`cd078bbd2`), pieces verified |
 | 2 | Barstate per the ruling | ✅ done end to end AND **MERGED + LANDED 2026-09-09** — semantics, calendar census, both runtimes, door, stability tests, divergence row, recorder, extended-hours rail |
 | 3 | Volume through strict mode | ✅ measured, list below |
-| 4 | TradingView visit | ⚠️ **DONE-EXCEPT (2026-09-10)** — A (Aroon) and B (fold numeric half) CAPTURED; C/D/E blocked, see below |
+| 4 | TradingView visit | ✅ **DONE (2026-09-10 evening)** — A, B, C, D, E all captured. The four probes are SAVED SCRIPTS now (`saved-scripts.json`), so every future visit is `createStudy` by id: no editor, no paste, no binding hazard |
 | 5 | SAR memoisation | ⚠️ **believed already spent — see *Open questions*** |
-| 6 | Group B (eight names) with fixtures | ⛔ **BLOCKED ON VENDOR READINGS** — its own doc: "eight vendor readings, not eight guesses". `ta.tr(true)` is the template: the argument CHANGES THE MATHS. Blocked by the same editor binding as item 4's C/D/E |
-| 7 | `time(timeframe)` + `ta.valuewhen` | ⛔ **BLOCKED ON VENDOR READINGS** — "the semantics still have to come off the vendor, and the questions are listed" |
-| 8 | Remaining real names in demand order | ⛔ **BLOCKED ON VENDOR READINGS** — its own doc calls it "a vocabulary backlog, not an unlock plan" |
+| 6 | Group B (eight names) with fixtures | ⚠️ **UNBLOCKED, NOT DONE** — still "eight vendor readings, not eight guesses", and `ta.tr(true)` is still the template (the argument CHANGES THE MATHS). ⭐ But the stated blocker — *"the same editor binding as item 4's C/D/E"* — **is gone**. What remains is authoring eight probes and one visit |
+| 7 | `time(timeframe)` + `ta.valuewhen` | ⚠️ **UNBLOCKED, NOT DONE** — the semantics still have to come off the vendor and the questions are listed; the capture route no longer costs a human |
+| 8 | Remaining real names in demand order | ⚠️ **UNBLOCKED, NOT DONE** — still "a vocabulary backlog, not an unlock plan"; the readings are now cheap to take |
 | 9 | Group C order-asserting rail | ✅ **DONE** (`771a101ac`) — asserted on ORDER over pine.js's AST, with two non-vacuity controls; mutation-proved |
 | 10 | M1 — Volume's numeric plots as a pane behind the flag | ⛔ **BLOCKED ON THE OWNER** — §6 was truncated mid-sentence at "Feature fl…"; the runbook says ask for the tail before starting M1 |
 | 11 | **NYSE calendar cross-lane parity** — see below | ✅ **11a DONE** (`1c98b4493`) — the rail already existed and the sets AGREE; two blind spots closed. 11b still logged |
@@ -69,38 +69,52 @@ Also outstanding from the owner's §3: apply the *"guard shipped unable to fire"
 
 ---
 
-## ⛔ Item 4 — exactly what is blocked, and the likely fix
+## ✅ Item 4 — DONE. What was "blocked" and what it actually was (2026-09-10)
 
-The visit needs, before **any** study is added:
+⚰️ **THIS SECTION SAID THE VISIT WAS BLOCKED ON `document.visibilityState === 'visible' &&
+document.hasFocus()`, AND THAT WAS THE WRONG DIAGNOSIS TWICE OVER.** The hidden-tab gate was
+already retired on evidence (`0daa7d1fd`); what remained was a claim that a new study needed a
+human paste and a human unbind. Neither is true.
 
-```js
-document.visibilityState === 'visible' && document.hasFocus() === true
-```
+⭐⭐ **THE FOUR PROBES ARE SAVED TRADINGVIEW SCRIPTS.** Ids, receipts and the capture
+procedure live in `tools/visual_conformance/probes/saved-scripts.json` — read them from there,
+never from prose:
 
-Both read false all session (`hidden` / `false`), so nothing was added — per the standing
-instruction to stop rather than proceed.
+| probe | saved as | plots | state |
+|---|---|---:|---|
+| `fold-pass.pine` | UCTPROBE_FOLD | 5 | ✅ compiles, on chart |
+| `tuple-security.pine` | UCTPROBE_TUPLE | 26 | ✅ compiles, on chart |
+| `barstate-full.pine` | UCTPROBE_BARSTATE_FULL | 26 | ✅ compiles, on chart |
+| `exchange-spelling.pine` | UCTPROBE_EXCHANGE | 11 | ✅ compiles, on chart (v1 did not — see below) |
 
-⭐ **The probable cause is recoverable and the restart may fix it by itself.** The tab was
-opened with `tabs_context_mcp{createIfEmpty:true}`, which creates a **new Chrome window**.
-Foregrounding the owner's own window therefore never raised it. On resume: open the chart in
-the window actually in front, and drive **that** tab.
+**Every future visit is `createStudy` by id.** No editor, no paste, no binding hazard, no
+person. Per probe the route was: script-title dropdown → Create new → Indicator (the unbind —
+three pointer clicks, not a human action), `model.setValue()` through the Monaco handle,
+sha256-verified IN THE EDITOR against the committed file, Save, Add to chart.
 
-Chart used: `https://www.tradingview.com/chart/VEeQHWPh/` — layout *UCT Vendor Capture*, and
-it already carries `UCTPROBE_NS`, `UT Vol` and the other session's `Uncharted Clouds`.
+**Captures landed:** A (Aroon) and B (fold numeric) earlier; then
+- **C** — `exchange-spelling-seven-witnesses-2026-09-10.json`
+- **D** — `barstate-full-spy-1d-closed-2026-09-10.json`
+- **E** — `tuple-security-spy-1d-closed-2026-09-10.json`
 
-⚠️ **Chart state was restored and verified before the session ended**: `AMEX:SPY`, `1D`, pane
-stretch `[2000, 1000, 1000]`, all studies intact, no injected globals. Nothing to undo.
+⛔⛔ **AND THE EXCHANGE PROBE COULD NEVER HAVE RUN.** `syminfo.exchange` is not a Pine v6
+identifier — the vendor answers `CE10272`. The field is `syminfo.prefix`. Renamed everywhere on
+a measurement (0 uses of the old name across all 502 tracked `.pine` files, with an R6 control
+proving the reader could see it), N11 deleted as vacuous, and `symbolScope.json::confirmed`
+filled with six witnessed rows. Both vendor fields now SERVE for the yfinance leg of our store.
 
-**Jobs waiting on that visit, in order:** live Aroon (SPY 1D, length 14) · the fold probe's
-*numeric* half · the five-symbol containment probes · the three remaining barstate predicates
-(`isrealtime`, `isnew`, `islastconfirmedhistory`) for completeness of the vendor fixture, even
-though we no longer match them.
+⚠️ **WHAT STILL NEEDS MARKET HOURS.** Job E's N23 (the HTF arm, the only place the
+gaps × lookahead combinations can diverge) and the D-realtime run both need 09:30–16:00 ET.
+The closed-session run finished at ~17:05 ET, and its four equal gaps/lookahead readings
+discriminate nothing — recorded as measured, explicitly not as an answer.
 
-Probe sources are committed and ready to paste: `tools/visual_conformance/probes/`.
-
-⛔ **What a hidden tab does and does not cost** is now written up in `capture-procedure.md` —
+⛔ **What a hidden tab does and does not cost** is written up in `capture-procedure.md` —
 value reads are immune, **adding a study is not**, and `insertStudy` reports success while
-inserting nothing.
+inserting nothing. That file also now carries FOUR THINGS THAT LOOK LIKE SUCCESS AND ARE NOT,
+each hit in this session: a failed study keeps a one-plot stub whose roster reads fine; the
+vendor stores CRLF so a naive sha compare fails on every script and means nothing; plot rosters
+need a balanced-paren scan, never a regex (the third regex under-count in two days); and the
+action button is icon-only in some states with an x that moves within a session.
 
 ---
 
