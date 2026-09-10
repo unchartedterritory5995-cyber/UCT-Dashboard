@@ -128,6 +128,37 @@
       },
       "agreesWithOurSeam": false,
       "note": "⭐ THE ARRIVAL CONTROL, 84 seconds after row 3 on the SAME bar. Full page reload; proved real by performance.timeOrigin 21:05:33Z and by all three injected globals (__uctReq, __uctMonaco, __uctPayload) being gone, none of which survive a reload. This document never watched the daily bar form, and it reads IDENTICALLY to the session that did."
+    },
+    {
+      "instantUTC": "2026-09-10T23:22:29Z",
+      "instantET": "2026-09-10T19:22:29-04:00",
+      "symbol": "AMEX:SPY",
+      "tf": "D",
+      "study": "UCTPROBE_BARSTATE_FULL",
+      "chartSession": "regular",
+      "arrival": "late",
+      "newestBarUnix": 1789047000.0,
+      "newestBarET": "2026-09-10T09:30:00-04:00",
+      "session": {
+        "etDate": "2026-09-10",
+        "etClock": "19:22:29",
+        "isNyseHoliday": false,
+        "isNyseEarlyClose": false,
+        "scheduledCloseUnix": 1789070400.0,
+        "scheduledCloseET": "2026-09-10T16:00:00-04:00",
+        "secondsPastScheduledClose": 12149,
+        "ourSeamSaysForming": false
+      },
+      "vendor": {
+        "isrealtime": 1,
+        "isconfirmed": 0,
+        "ishistory": 0,
+        "islast": 1,
+        "islastconfirmedhistory": 0,
+        "isnew": 0
+      },
+      "agreesWithOurSeam": false,
+      "note": "202 minutes past the 16:00 close and STILL isrealtime=1, isconfirmed=0 -- the longest-elapsed row so far, and it rules out every hypothesis where the vendor confirms a daily bar within a few hours of the close. arrival=late is EVIDENCED, not assumed: performance.timeOrigin was 2026-09-10T23:13:08.758Z (9.6 minutes before this reading) with navigation type back_forward, so this session loaded the bar as history rather than watching it form -- and it reads IDENTICALLY to the watched-form rows, which is the second independent arrival control. Still short of the 20:00 ET row the ruling needs, by 38 minutes; not waited for, per T2."
     }
   ],
   "_still_needed": {

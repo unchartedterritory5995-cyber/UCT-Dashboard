@@ -311,9 +311,40 @@ no gate: it converts "blocked" into "ready".
 
 ⚰️ **THIS CONCLUDED "SO THE ONLY ROUTE IS A HUMAN PASTE, ONCE, PER SCRIPT." IT IS NOT.** The
 Monaco handle is the route, and the four probes of 2026-09-10 were saved and added with no paste
-and no person. What survives is the second half, which was always the useful part: **a script
-saved under a known name is addable by id with `createStudy`**, and reading values, rosters and
-source back out needs nothing but the chart model.
+and no person. What survives is the second half, which was always the useful part: reading values,
+rosters and source back out needs nothing but the chart model.
+
+⚰️⚰️ **AND THE OTHER HALF -- "a script saved under a known name is addable by id with
+`createStudy`" -- IS MEASURED FALSE (2026-09-10 evening).** It was written as a forecast on the
+day the editor route worked, never as a measurement, and the NEXT VISIT'S WHOLE PLAN RESTS ON IT
+("every future visit is `createStudy`-by-id with no editor at all"). It does not work. Seven
+variants, each with the roster checked after:
+
+| tried | answer |
+|---|---|
+| `createStudy('Script$USER;<id>@tv-scripting', false, false)` | rejects: `unexpected study id:script$user;<id>@tv-scripting` (it lowercases and validates against built-ins) |
+| same, after `studyMetaIntoRepository(meta)` | same rejection; that method's arity is 0 and it changed nothing |
+| `createStudy(<translate metaInfo>.id, …, {text, pineId, pineVersion})` | same rejection on the `@tv-scripting-101` form |
+| `insertStudyWithoutCheck(id, false, false, inputs)` | `Cannot read properties of undefined (reading 'indexOf')` -- different argument shape |
+| `chartWidget.insertStudy(meta, inputs)` | returns a promise that neither resolves a study nor rejects; roster unchanged |
+| `model.createStudyInserter({metaInfo, inputs})` | rejects `cannot_get_metainfo` -- it resolves metaInfo itself, it does not accept yours |
+| `model.createStudyInserter({type:'pine', pineId, pineVersion})` + `insert()` | gets PAST metaInfo, then dies in `_canApplyStudyToParent` reading `.length` of undefined; with `setParentSources([mainSeries])` it answers `cannot_be_child` |
+
+⭐⭐ **THE HUNT ALSO PRODUCED A MECHANISM THAT DOES WORK, AND IT IS BETTER THAN WHAT IT
+REPLACES FOR ONE JOB.** `GET pine-facade/translate/<id>/last` returns
+`{IL, ilTemplate, metaInfo}` for a saved script, and **`metaInfo.plots.length` is the vendor's
+own plot roster -- so a saved probe's roster can be verified against the committed source
+WITHOUT ADDING THE STUDY TO ANY CHART.** Confirmed on UCTPROBE_GB_HILO: 11, equal to the
+balanced-paren scan of the committed file. `GET pine-facade/get/<id>/last` likewise returns
+`scriptName` + `source` for the byte check. ⚠️ Compare `source` by CHARACTERS, not file bytes --
+these probes are full of multi-byte marks, so `groupb-hilo-default.pine` is 3810 bytes on disk
+and 3557 characters stored.
+
+⛔ **WHAT DOES NOT FOLLOW: that the roster check replaces the capture.** A roster is the
+script's shape; the READINGS still need the study on a chart, because the values are what the
+probe exists for. The editor route (S1-S5, Monaco handle, "Add to chart") remains the only
+proven way to put one there, and it carries THE BINDING HAZARD -- assert the action button's
+`title` before every click.
 
 ⚠️ Verify a pasted buffer against the committed bytes BEFORE "Add to chart" — chars + FNV-1a,
 then sha256. A partial paste is real: one attempt left `fold-pass` concatenated with a stray NS
