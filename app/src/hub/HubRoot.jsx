@@ -105,6 +105,21 @@ function HubShell({ setToastMsg }) {
   // implementation (confirm sheets, `hub_planned_trades`, etc. — master spec §6).
   const runAction = useCallback((action) => {
     if (!action) return
+    // TODO(hub-analytics): emit here
+    //
+    // Master spec §8: "No analytics. There is no authenticated in-app event sink in this app.
+    // Leave exactly one such marker in the fire() path and one line in deferred.md. Nothing
+    // else." The line above is that one marker, and D-22 is that one line.
+    //
+    // It sits HERE because this is the single point every action passes through exactly once --
+    // both doors (a gesture via useJoystick's onFire, and the Peek sheet via HubActionsButton's
+    // onAction) resolve through runAction. A marker inside the `run` branch would miss navigate
+    // and home; one per branch would emit twice for a confirm, which fires runAction once and
+    // then performs the write from the sheet.
+    //
+    // The spec says "the registry's fire() path". registry.js has no fire() -- it is DATA plus a
+    // validator, and dispatch has always lived here. Reading taken against the code; the plan's
+    // wording is corrected in this increment's docs commit (R-auto-1).
     if (action.kind === 'home') { goHome(); return }
     if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
     if (action.kind === 'run' && action.id.endsWith('.voice')) {
