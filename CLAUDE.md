@@ -1132,7 +1132,7 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 
 | Branch | Base | What it carries |
 |---|---|---|
-| `feat/joystick-increment-2` | `origin/master` @ `f58383e69` | Joystick hub **Phase 3 / Increment 2** — Task 0 `contracts.js` (runtime validators + contract tests), then Wave A (Morning Wire + Breadth integrators, Screener drift scout). Worktree `C:\Users\Patrick\uct-worktrees\joystick-hub`. |
+| `feat/joystick-increment-2` | `origin/master` @ `eedb58ac8` | Joystick hub **Phase 3 / Increment 2** — Task 0 `contracts.js` (runtime validators + contract tests), then Wave A (Morning Wire + Breadth integrators, Screener drift scout). Worktree `C:\Users\Patrick\uct-worktrees\joystick-hub`. |
 
 ⚰️ `feat/joystick-hub` is **merged and closed** (PR #101 → `d3bf38f44`, live in production). Keep
 the branch for history; do not add to it.
