@@ -48,6 +48,14 @@ export default function JoystickSettingsCard() {
   const everChose = typeof storedEnabled === 'boolean'
   if (!isAdmin && !everChose) return null
 
+  // ⛔ WRITES ONLY ON CHANGE, NEVER ON MOUNT. `hubHideRestore.test.jsx:205` asserts
+  // `setPrefMerged` is called exactly once after a single toggle click; anything that wrote while
+  // rendering would break that, and — worse — a member opening Settings would silently persist
+  // whatever the defaults happen to be, converting "never chose" into a choice. B6's whole gate
+  // reads `typeof storedEnabled === 'boolean'`, so a write-on-mount would show the card to every
+  // member the moment they opened the page once.
+  const set = (key) => (value) => updateHubSettings((cur) => ({ ...cur, [key]: value }))
+
   const onToggle = (checked) => {
     // ⭐ Clear any session override first. Without this, a member who hid the hub for the
     // session and then turned it ON here would see nothing change — the override would keep
@@ -55,6 +63,8 @@ export default function JoystickSettingsCard() {
     clearSessionOverride()
     updateHubSettings((cur) => ({ ...cur, enabled: checked }))
   }
+
+  const overrideCount = Object.keys(settings.overrides || {}).length
 
   return (
     <TileCard icon="moveStop" title="Joystick">
@@ -73,6 +83,130 @@ export default function JoystickSettingsCard() {
         A drag-and-hold shortcut control in the bottom-right corner, on phones and tablets.
         Turning this off hides it everywhere until you turn it back on here.
       </div>
+
+      {/* ⭐ The rest of §8's schema. Every one of these keys already existed in
+          `useHubSettings`'s defaults and was persisted; none of them was reachable. */}
+      <div style={{ marginTop: 14, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
+
+        <div className={styles.voiceRow}>
+          <label className={styles.voiceLabel} htmlFor="joystick-handedness">Handedness</label>
+          <select
+            id="joystick-handedness"
+            data-testid="joystick-handedness"
+            value={settings.handedness}
+            onChange={(e) => set('handedness')(e.target.value)}
+          >
+            <option value="right">Right — pad on the right</option>
+            <option value="left">Left — pad on the left</option>
+          </select>
+        </div>
+
+        <div className={styles.voiceRow}>
+          <label className={styles.voiceLabel}>
+            <input
+              type="checkbox"
+              data-testid="joystick-haptics"
+              checked={!!settings.haptics}
+              onChange={(e) => set('haptics')(e.target.checked)}
+            />
+            {' '}Haptics
+          </label>
+        </div>
+        <div style={{ opacity: 0.7, fontSize: 12 }}>
+          A short buzz on each step. iOS Safari exposes no vibration API, so this does nothing there.
+        </div>
+
+        <div className={styles.voiceRow}>
+          <label className={styles.voiceLabel}>
+            <input
+              type="checkbox"
+              data-testid="joystick-sticky-fan"
+              checked={!!settings.stickyFan}
+              onChange={(e) => set('stickyFan')(e.target.checked)}
+            />
+            {' '}Keep the fan open after opening it
+          </label>
+        </div>
+
+        <div className={styles.voiceRow}>
+          <label className={styles.voiceLabel}>
+            <input
+              type="checkbox"
+              data-testid="joystick-high-contrast"
+              checked={!!settings.highContrast}
+              onChange={(e) => set('highContrast')(e.target.checked)}
+            />
+            {' '}High contrast
+          </label>
+        </div>
+
+        <NumberSetting
+          id="joystick-hold-ms" label="Hold to open" suffix="ms"
+          min={300} max={1200} step={50}
+          value={settings.holdMs} onChange={set('holdMs')}
+          hint="How long a press waits before the fan opens."
+        />
+        <NumberSetting
+          id="joystick-travel-px" label="Pad travel" suffix="px"
+          min={16} max={48} step={2}
+          value={settings.travelPx} onChange={set('travelPx')}
+          hint="How far the knob moves. The open threshold and the ring split are fractions of this, not fixed pixels."
+        />
+        <NumberSetting
+          id="joystick-double-tap-ms" label="Double-tap window" suffix="ms"
+          min={200} max={600} step={20}
+          value={settings.doubleTapMs} onChange={set('doubleTapMs')}
+          hint="How close two taps must be to count as one double-tap."
+        />
+
+        {/* ⛔ `overrides` IS SHOWN, NOT EDITED — see the file header. */}
+        <div className={styles.voiceRow}>
+          <span className={styles.voiceLabel}>Action overrides</span>
+          <span data-testid="joystick-overrides-count" style={{ opacity: 0.8 }}>
+            {overrideCount === 0 ? 'none' : `${overrideCount} set`}
+          </span>
+          {overrideCount > 0 && (
+            <button
+              type="button"
+              data-testid="joystick-overrides-reset"
+              onClick={() => set('overrides')({})}
+            >
+              Reset to the registry
+            </button>
+          )}
+        </div>
+      </div>
     </TileCard>
+  )
+}
+
+/**
+ * One numeric setting: a range the thumb can drag plus the live value, both labelled.
+ *
+ * ⚠️ `e.target.value` from a range input is a STRING. Persisting it unconverted would put `"500"`
+ * into the preference blob, and `holdMs` is compared numerically by the engine — `"500" > 1200` is
+ * false but `"90" > "1200"` is TRUE under string comparison, so a stray string survives every
+ * boundary check and misbehaves only at some values. Converted here, at the one boundary where the
+ * string exists.
+ */
+function NumberSetting({ id, label, suffix, min, max, step, value, onChange, hint }) {
+  return (
+    <>
+      <div className={styles.voiceRow}>
+        <label className={styles.voiceLabel} htmlFor={id}>{label}</label>
+        <input
+          id={id}
+          data-testid={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+        <span data-testid={`${id}-value`}>{value}{suffix}</span>
+      </div>
+      {hint && <div style={{ opacity: 0.7, fontSize: 12 }}>{hint}</div>}
+    </>
   )
 }
