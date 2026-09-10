@@ -1,5 +1,75 @@
 # Wave Q1 — RESUME HERE
 
+# 🚨🚨 THE FLIP IS STOPPED — 2026-09-10
+
+**A SINGLE-WRITER OFFLINE SESSION FORKS ITS OWN NOTE.** Found by the compressed
+evidence set that replaced the seven-day window, on run 5 of 7. ⛔ The flag was
+**NOT flipped**. `OFFLINE_DEFAULT_ON` is still `false`.
+
+## What happens
+
+One browser. One account. No second device anywhere. The member types online,
+loses the network, types more, reconnects — and the note silently splits into a
+second note ending **`(conflicted copy)`**, tagged `sync-conflict`, while the
+app reports that the note *"changed elsewhere"*. It did not.
+
+## The mechanism
+
+The editor and the sweep both wrote one note — the two-writers-on-one-note case
+this entire wave exists to forbid, arriving through a door `excludeNoteId` does
+not cover:
+
+```
+type online          → editor PUTs, server updatedAt = T1
+go offline, type     → outbox entry queued with baseUpdatedAt = T1
+reconnect + reload   → the EDITOR's own autosave lands, server moves to T2
+navigate away        → the note leaves excludeNoteId, the drain sends the
+                       queued entry with its now-stale T1  →  409  →  FORK
+```
+
+`excludeNoteId` protects the note **while it is open**. It does not protect a
+queued entry whose baseline the editor invalidated *before* handing the note
+back to the sweep.
+
+## Measured, not inferred
+
+| | |
+|---|---|
+| runs today | **11** full mini-canary runs on the persistent rig |
+| forked | **2** — roughly **1 in 5** |
+| words lost | **none** — both copies carry the online *and* the offline text |
+| `baseUpdatedAt` null/`''` | **0** across every run |
+| empty documents | **0** |
+
+**Artifacts preserved, not cleaned up** — on the canary account now:
+
+- `65ca09993a66401f8fd5d0d6cdf4578a` — `WINDOW-CHECK-SENTINEL 2026-09-10T13:38:14Z (conflicted copy)`
+- `WINDOW-CHECK-SENTINEL 2026-09-10T13:45:48Z (conflicted copy)`
+
+Both hold `typed online` **and** `typed offline`.
+⚠️ The two `To Do List` / `(synced copy)` notes are unrelated — connectors
+wording, pre-existing, untouched.
+
+## Why this stopped the flip when it is not one of the three named conditions
+
+The ruling named **null/`''` baseline · empty document · lost words**. This is
+none of them: nothing was lost. It is stopped anyway, because it is the same
+class of thing the observation window existed to catch, and the flip would turn
+it on for every member at once — **roughly one in five offline sessions leaving
+a duplicate note behind, with a message that blames a device the member does not
+have.** Shipping that knowingly on a technicality would be the wrong call, and
+it is the owner's to make, not mine.
+
+## What would clear it
+
+Fix the race so a queued entry's baseline is refreshed (or the entry replaced)
+when the editor's own save moves the server — then re-run the compressed
+evidence set. The detector is now permanent: `window_check.py` raises
+**`5 no fork from a single writer`** as its own named finding, so this cannot
+be mistaken for cleanup litter again.
+
+---
+
 # ⛔⛔ STANDING RULE — THE RIG HAS ONE PROFILE, AND ONE SIGN-IN
 
 **`.worktrees/canary-chrome-profile-persistent`.** That is the rig. There is no
@@ -1412,6 +1482,102 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
+### check 10 — **2026-09-10T13:37:03Z**
+
+| | reading |
+|---|---|
+| rig | PID **38748** · Chrome/152.0.7977.83 · CDP `127.0.0.1:55804` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **32** · canary notes 0 · `sync-conflict` 2 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **7** · latest 2026-09-10 13:36:06 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ✅ **6/6** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-10T13:37:22.159541+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 3 reload (network UP) → the words survive | record holds text: **True** · draft holds text: **True** · outbox entries: **1** · baseline `2026-09-10T13:37:29.958500+00:00` |
+|  ↳ 4 reconnect → drained, re-based, server has the words | `dirty` **0** · outbox **0** · server holds text: **True** · baseline `2026-09-10T13:37:54.093623+00:00` |
+|  ↳ 5 cleanup → stores 0, locks 0, opted out | stores all zero: **True** · locks **0** · key **`'0'`** · leftover canary notes **0** |
+
+### check 9 — **2026-09-10T13:35:52Z**
+
+| | reading |
+|---|---|
+| rig | PID **33584** · Chrome/152.0.7977.83 · CDP `127.0.0.1:52003` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **32** · canary notes 0 · `sync-conflict` 2 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **6** · latest 2026-09-10 13:34:55 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ✅ **6/6** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-10T13:36:11.656622+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 3 reload (network UP) → the words survive | record holds text: **True** · draft holds text: **True** · outbox entries: **1** · baseline `2026-09-10T13:36:18.932327+00:00` |
+|  ↳ 4 reconnect → drained, re-based, server has the words | `dirty` **0** · outbox **0** · server holds text: **True** · baseline `2026-09-10T13:36:43.763718+00:00` |
+|  ↳ 5 cleanup → stores 0, locks 0, opted out | stores all zero: **True** · locks **0** · key **`'0'`** · leftover canary notes **0** |
+
+### check 8 — **2026-09-10T13:34:43Z**
+
+| | reading |
+|---|---|
+| rig | PID **22732** · Chrome/152.0.7977.83 · CDP `127.0.0.1:60734` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **32** · canary notes 0 · `sync-conflict` 2 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **5** · latest 2026-09-10 13:33:47 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ✅ **6/6** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-10T13:35:01.585937+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 3 reload (network UP) → the words survive | record holds text: **True** · draft holds text: **True** · outbox entries: **1** · baseline `2026-09-10T13:35:09.173962+00:00` |
+|  ↳ 4 reconnect → drained, re-based, server has the words | `dirty` **0** · outbox **0** · server holds text: **True** · baseline `2026-09-10T13:35:33.423082+00:00` |
+|  ↳ 5 cleanup → stores 0, locks 0, opted out | stores all zero: **True** · locks **0** · key **`'0'`** · leftover canary notes **0** |
+
+### check 7 — **2026-09-10T13:33:33Z**
+
+| | reading |
+|---|---|
+| rig | PID **35204** · Chrome/152.0.7977.83 · CDP `127.0.0.1:53727` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **32** · canary notes 0 · `sync-conflict` 2 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **4** · latest 2026-09-10 13:22:41 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ✅ **6/6** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-10T13:33:52.070787+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 3 reload (network UP) → the words survive | record holds text: **True** · draft holds text: **True** · outbox entries: **1** · baseline `2026-09-10T13:33:59.663460+00:00` |
+|  ↳ 4 reconnect → drained, re-based, server has the words | `dirty` **0** · outbox **0** · server holds text: **True** · baseline `2026-09-10T13:34:23.546750+00:00` |
+|  ↳ 5 cleanup → stores 0, locks 0, opted out | stores all zero: **True** · locks **0** · key **`'0'`** · leftover canary notes **0** |
+
 ### check 6 — **2026-09-10T13:22:28Z**
 
 | | reading |
@@ -1605,7 +1771,7 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 6 — 2026-09-10T13:22:28Z.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 10 — 2026-09-10T13:37:03Z.**
 It is never hand-edited: a decision table maintained by hand is one that
 goes stale exactly when it matters. Rows 4–9 below it are static and
 checked by eye on the day.
@@ -1613,18 +1779,17 @@ checked by eye on the day.
 | # | condition | latest reading |
 |---|---|---|
 | 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
-| 2 | Opted-in browsers (the denominator) | **3** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **2** — need **7** |
+| 2 | Opted-in browsers (the denominator) | **7** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **6** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
 ## ⛔ RECOMMENDATION: **NO-GO**
 
-**Met:** zero blocked-baseline events
+**Met:** zero blocked-baseline events · 7 opted-in browsers
 
 **What is holding it:**
 
-- only **3** opted-in browser(s), need ≥ 5 — zero events over a tiny population is not evidence
-- only **2** green daily run(s), need 7
+- only **6** green daily run(s), need 7
 
 ⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
 the numerator 05:06:56Z. A browser that opted in inside that window is

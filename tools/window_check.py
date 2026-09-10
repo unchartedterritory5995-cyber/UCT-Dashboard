@@ -939,10 +939,45 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
     # check that passes because it measured nothing.
     stores = end.get("stores") if isinstance(end.get("stores"), dict) else None
     zeroed = bool(stores) and all(v == 0 for v in stores.values())
-    chk.step("5 cleanup \u2192 stores 0, locks 0, opted out",
-             zeroed and end.get("locks") == 0 and end.get("optInKey") == "0" and not (end_notes.get("canary") or []),
-             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(end_notes.get('canary') or [])}**",
-             f"cleanup incomplete: zeroed={zeroed} locks={end.get('locks')} key={end.get('optInKey')}")
+    leftovers = end_notes.get("canary") or []
+
+    # \u26d4\u26d4 A SINGLE-WRITER RUN MUST NOT PRODUCE A CONFLICTED COPY.
+    #
+    # There is exactly one writer in this canary. If a `(conflicted copy)` shows
+    # up, the drain sent an entry whose baseline the EDITOR had already moved \u2014
+    # the editor and the sweep both wrote one note, which is the two-writers-on-
+    # one-note case this whole wave exists to forbid, arriving by a different
+    # door. The member loses nothing, and still finds their note silently split
+    # in two and is told it "changed elsewhere" when it did not.
+    #
+    # \u26d4 This is its own named failure. It used to surface only as "cleanup
+    # incomplete", which reads like leftover litter rather than a defect.
+    forks = [t for t in leftovers if "(conflicted copy)" in t]
+    if forks:
+        chk.findings.append(
+            "**a SINGLE-WRITER offline session produced a `(conflicted copy)`** \u2014 "
+            f"{len(forks)}: {forks}. The editor's own save moved the server after "
+            "the outbox entry captured its baseline, so the drain's send 409'd and "
+            "forked. No second device was involved."
+        )
+    chk.step("5 no fork from a single writer", not forks,
+             "no `(conflicted copy)` created by this run",
+             f"THIS RUN FORKED ITS OWN NOTE: {forks}")
+
+    reasons = []
+    if not zeroed:
+        reasons.append(f"stores not all zero ({stores!r})")
+    if end.get("locks") != 0:
+        reasons.append(f"locks={end.get('locks')}")
+    if end.get("optInKey") != "0":
+        reasons.append(f"opt-in key={end.get('optInKey')!r}, expected '0'")
+    if leftovers:
+        reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
+    chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
+             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}**",
+             # \u26d4 Name the sub-condition that failed. "cleanup incomplete" while
+             # printing three values that all look fine cost a diagnosis today.
+             "cleanup incomplete: " + " \u00b7 ".join(reasons))
     return note_id
 
 
@@ -1342,6 +1377,13 @@ def self_check() -> int:
     found = Check(label="self-check: a finding")
     found.add("rig", True, "fine"); found.canary_ran = True; found.step("3 reload", True, "fine")
     found.findings = baseline_findings("o", {"baseUpdatedAt": None})
+    # ⛔ A single-writer run that forks is its own named failure, not litter.
+    cases.append(("a single-writer fork is a FINDING, named as one",
+                  "SINGLE-WRITER RUN MUST NOT PRODUCE A CONFLICTED COPY"
+                  in pathlib.Path(__file__).read_text(encoding="utf-8")))
+    cases.append(("cleanup names the sub-condition that failed",
+                  "leftover note(s)" in pathlib.Path(__file__).read_text(encoding="utf-8")))
+
     cases.append(("a finding heads the row NEW FINDING", "NEW FINDING" in found.row()))
     cases.append(("the row names the evidence is kept", "NOT deleted" in found.row()))
 
