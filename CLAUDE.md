@@ -1130,12 +1130,17 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 
 ## Active feature branches
 
-| Branch | Base | What it carries |
-|---|---|---|
-| `feat/joystick-increment-2` | `origin/master` @ `eedb58ac8` | Joystick hub **Phase 3 / Increment 2** — Task 0 `contracts.js` (runtime validators + contract tests), then Wave A (Morning Wire + Breadth integrators, Screener drift scout). Worktree `C:\Users\Patrick\uct-worktrees\joystick-hub`. |
+**None.** Both joystick branches are merged and closed:
 
 ⚰️ `feat/joystick-hub` is **merged and closed** (PR #101 → `d3bf38f44`, live in production). Keep
 the branch for history; do not add to it.
+
+⚰️ `feat/joystick-increment-2` is **merged and closed** (`0fcefb649`, 2026-09-10, merged from
+base `7ed6b2ce5`, live in production). It carried B3 (the Journal's three write actions stop
+stacking two sheets), B4 (the write-path invariant becomes a rail), B5 (the commit-sheet haptic
+reads `escalate`, not `kind`), B6 (the Settings card is admin-only except for anyone already
+opted in), the committed gate wrapper `scripts/gate_shards.py` and its rails, and the named
+failure baseline. Keep the branch for history; do not add to it.
 
 ⛔ **Increment 2 gates on "no NEW failures relative to a measured baseline", never on a green
 suite** — the repo is not green and this branch cannot make it so. The baseline is re-measured in
