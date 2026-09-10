@@ -1107,7 +1107,7 @@ export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({})
 export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.ticker': 'ticker',
   'syminfo.tickerid': 'tickerid',
-  'syminfo.exchange': 'exchange',
+  'syminfo.prefix': 'prefix',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off

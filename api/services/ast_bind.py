@@ -206,7 +206,7 @@ def symbol_constants_with(confirmed, symbol=None) -> dict:
     stored = str(symbol.get("exchange") or "").strip()
     if stored and confirmed and stored in confirmed:
         pine = confirmed[stored]
-        out["syminfo.exchange"] = pine
+        out["syminfo.prefix"] = pine
         out["syminfo.tickerid"] = pine + ":" + ticker
     return out
 
@@ -262,7 +262,7 @@ def fold_text(node, consts) -> str:
     every walk that prices, lints and evaluates a tree.
 
     ⭐ AND THE REFUSAL NAMES THE FIELD WITH ITS REASON. A binding whose exchange
-    has no witness stops on ``syminfo.exchange`` carrying the measurement gap --
+    has no witness stops on ``syminfo.prefix`` carrying the measurement gap --
     a member told *"the engine grammar does not hold this name"* would rewrite a
     script that will work unchanged the day a capture lands.
     """

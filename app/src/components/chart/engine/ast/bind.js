@@ -33,7 +33,7 @@ import { REFUSALS } from './interpret.js'
 // ⭐ THE SYMBOL-SCOPED VOCABULARY AS DATA. Everything in it is a fact about the
 // outside world — our store's exchange spellings on one side, TradingView's on
 // the other — so it is edited without reading code, and the capture that turns
-// `syminfo.exchange` on is a data change rather than a deploy of new logic.
+// `syminfo.prefix` on is a data change rather than a deploy of new logic.
 import SYMBOL_SCOPE from './symbolScope.json'
 
 /** ⛔ THE REFUSAL IS BUILT THE WAY `interpret.js` BUILDS ITS OWN — guard prefix
@@ -146,7 +146,7 @@ export function symbolConstantsWith(confirmed, symbol) {
   const stored = typeof symbol.exchange === 'string' ? symbol.exchange.trim() : ''
   if (stored && confirmed && Object.prototype.hasOwnProperty.call(confirmed, stored)) {
     const pine = confirmed[stored]
-    out['syminfo.exchange'] = pine
+    out['syminfo.prefix'] = pine
     out['syminfo.tickerid'] = `${pine}:${ticker}`
   }
   return out
@@ -209,7 +209,7 @@ export function bindingConstants({ timeframe, inputs, symbol } = {}) {
  *  value system in every walk that prices, lints and evaluates a tree.
  *
  *  ⭐ AND THE REFUSAL NAMES THE FIELD, NOT THE NODE KIND. A binding whose
- *  exchange has no witness stops on `syminfo.exchange` with the measurement
+ *  exchange has no witness stops on `syminfo.prefix` with the measurement
  *  reason the manifest carries — a member reading "the engine grammar does not
  *  hold this" would rewrite a script that will work unchanged the day a capture
  *  lands. */

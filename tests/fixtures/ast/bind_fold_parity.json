@@ -176,15 +176,33 @@
     },
     {
       "id": "an_UNWITNESSED_exchange_stops_the_fold_and_says_why",
-      "why": "⭐⭐ THE VENDOR GATE, AND IT IS A GATE IN THE FOLD RATHER THAN AT THE DOOR. `syminfo.tickerid` is `EXCHANGE:SYMBOL`, and the exchange half is a TradingView string this engine has not measured — so it refuses PER BINDING, naming the field and the measurement gap. ⛔ THE FRAGMENTS BELOW ARE THE MEMBER-FACING SENTENCE, pinned in both lanes: a member told *\"the engine grammar does not hold this\"* would rewrite a script that will work unchanged the day a capture lands, and that is the wrong action to have caused.",
+      "why": "⭐⭐ THE VENDOR GATE, AND IT IS A GATE IN THE FOLD RATHER THAN AT THE DOOR. `syminfo.tickerid` is `EXCHANGE:SYMBOL`, and the exchange half is a TradingView string this engine has not measured FOR THIS SPELLING — so it refuses PER BINDING, naming the field and the measurement gap. ⚰️ THIS CASE RODE 'NYSE Arca' UNTIL 2026-09-10, when that spelling was WITNESSED and the case stopped stopping — it went green by never refusing at all. It now rides 'NASDAQ Global Select', a real FMP-leg spelling with no witness. ⛔ IF A CAPTURE EVER WITNESSES THAT ONE, REPOINT THIS CASE AGAIN; do not delete it, or the refusal half of the gate goes unexercised in BOTH lanes at once. ⛔ THE FRAGMENTS BELOW ARE THE MEMBER-FACING SENTENCE, pinned in both lanes: a member told *\"the engine grammar does not hold this\"* would rewrite a script that will work unchanged the day a capture lands, and that is the wrong action to have caused.",
       "tree": {"type": "textop", "name": "contains", "args": [
         {"type": "symtext", "name": "tickerid"}, {"type": "str", "value": "/"}]},
-      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "symbol": {"ticker": "SPY", "exchange": "NASDAQ Global Select"},
       "notFoldableOn": "syminfo.tickerid",
       "notFoldableSays": [
         "the exchange half is a TradingView string this engine has not measured",
         "syminfo.ticker"
       ]
+    },
+    {
+      "id": "a_WITNESSED_exchange_FOLDS_prefix_to_the_MEASURED_string",
+      "why": "⭐⭐ THE OTHER HALF OF THE GATE, AND IT COULD NOT BE WRITTEN UNTIL 2026-09-10 because `confirmed` was empty — every refusal row here was satisfied by a serving path that did not exist. `NYSE Arca` is now witnessed (AMEX:SPY, capture `tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json`), so both lanes must FOLD it, and to the SAME string. ⛔ THE ASSERTION IS THE VALUE, NOT MERELY THAT IT FOLDED: asking `prefix == \"AMEX\"` in the member's own operator means a lane that served OUR store's spelling ('NYSE Arca') answers 0 here and goes RED — which is exactly the silent per-symbol INVERSION this whole gate exists to prevent.",
+      "tree": {"type": "textop", "name": "eq", "args": [
+        {"type": "symtext", "name": "prefix"}, {"type": "str", "value": "AMEX"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "foldScalarTo": 1,
+      "maxLookback": 0
+    },
+    {
+      "id": "a_WITNESSED_exchange_ASSEMBLES_tickerid_as_PREFIX_colon_TICKER",
+      "why": "⭐ `tickerid` IS ASSEMBLED, NOT STORED, so it is exactly as measured as its exchange half. `AMEX` + `:` + `SPY` is 8 characters, and 8 DISCRIMINATES — a lane that assembled 'NYSE Arca:SPY' answers 13, and one that served the bare ticker answers 3. ⭐ It also pins, as a committed number, the fact that retired N11 from the probe: `tickerid` IS `prefix + \":\" + ticker` (8 = 4 + 1 + 3), which is why asking whether the prefix is CONTAINED in the tickerid could only ever answer 1.",
+      "tree": {"type": "textop", "name": "length", "args": [
+        {"type": "symtext", "name": "tickerid"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "foldScalarTo": 8,
+      "maxLookback": 0
     },
     {
       "id": "and_NO_symbol_at_all_stops_it_the_same_way",
