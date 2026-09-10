@@ -125,3 +125,9 @@ app/vite.local.config.js
 app/stripqa2.html
 app/src/stripqa2.jsx
 docs/notebook/wave-q1-probe-results/local-*.json
+
+# Wave Q1 daily window check writes here every morning. Operational, not a
+# record: the durable record is the stamped row in wave-q1-RESUME-HERE.md.
+# Tracking it would leave the worktree permanently dirty and every future
+# pre-flight would have to explain away a modified file.
+docs/notebook/window-check.log

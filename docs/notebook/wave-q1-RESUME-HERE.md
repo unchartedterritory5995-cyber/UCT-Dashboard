@@ -1140,6 +1140,50 @@ its own test, including production's. Mutation-proved on the wire (delete the
 effect in `NotebookTab` ⇒ 1 red), on the allow-list (remove the name ⇒ 2 red),
 and on the "once" property (fire on every mount ⇒ 2 red).
 
+## ⏰ THE SCHEDULED TASK — `UCT Wave Q1 Window Check`
+
+Registered 2026-09-10. Daily **09:00 local (CT)**, expiring after **2026-09-17**,
+as the owner's user, with the worktree as its working directory.
+
+| | |
+|---|---|
+| state | **Ready**, enabled |
+| next run | **2026-09-10 09:00:00** local |
+| end boundary | **2026-09-17T23:59:59** — so 9/17 is the last run |
+| principal | `Patrick`, Interactive, RunLevel Limited |
+| verified by | a manual **Run now**: last result **0x1** (the script's own exit 1 for the missing `.env`) and a matching pair of lines in the log |
+
+```powershell
+$name = "UCT Wave Q1 Window Check"
+$wt   = "C:\Users\Patrick\uct-worktrees\notebook-primary-platform"
+$cmd  = "Set-Location '$wt'; python tools/window_check.py; exit `$LASTEXITCODE"
+$action    = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`"" -WorkingDirectory $wt
+$trigger   = New-ScheduledTaskTrigger -Daily -At 9am
+$trigger.EndBoundary = (Get-Date "2026-09-17T23:59:59").ToString("s")
+$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+$settings  = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -DeleteExpiredTaskAfter (New-TimeSpan -Days 30)
+Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "Wave Q1 daily window-watch check + mini-canary."
+```
+
+**How to remove it:** `Unregister-ScheduledTask -TaskName "UCT Wave Q1 Window Check" -Confirm:$false`
+
+⚠️ **`docs/notebook/window-check.log` is GITIGNORED, deliberately.** It is
+operational, not the record — the record is the stamped row in this document.
+Tracking a file a scheduled task appends to every morning would leave the
+worktree permanently dirty, and every future pre-flight would have to explain
+away a modified file it should have been able to trust.
+
+⛔⛔ **THE LOG HAS EXACTLY ONE WRITER, AND THAT COST TWO ATTEMPTS.** The first
+action used `*>>`, which in Windows PowerShell writes **UTF-16** into a file the
+script appends to as UTF-8 — the log came back as mojibake. The second piped
+stdout into the same file with `Out-File -Append`, and PowerShell then held the
+handle for the whole pipeline, so **every append from the child hit a sharing
+violation and `log_line` swallowed it** — the script's own entries vanished while
+the file still looked populated. That is the failure this repo keeps paying for:
+an instrument that reports healthy because its own output went somewhere else.
+The script owns `docs/notebook/window-check.log`; Task Scheduler's history owns
+the console. ⛔ Do not add a redirection back into that path.
+
 ### Check-2 row template — copy this, fill it in
 
 ```
@@ -1208,7 +1252,38 @@ worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
 
-⛔ It creates nothing, opts in to nothing, and **never writes the offline flag**.
+### ⭐⭐ AND IT RUNS A MINI-CANARY EVERY DAY
+
+After the reads, each run drives the §15 happy path end to end and captures the
+artifact at every step:
+
+| step | what it proves |
+|---|---|
+| 1 | opt in ⇒ exactly **one EXCLUSIVE** lock, **0** pending, the per-account DB opened |
+| 2 | create a note, type online ⇒ **one PUT carrying a real baseline** |
+| 3 | offline (probe must FAIL), type, **reload with the NETWORK UP** ⇒ all three layers still hold the words, baseline real |
+| 4 | reconnect ⇒ **one CAS PUT**, `dirty:0`, the server has the words |
+| 5 | §15 step 11 cleanup ⇒ soft-delete, four stores **0**, locks **0**, opt back out to `'0'` |
+| 6 | teardown by marker, owner's browser verified by command line |
+
+⛔⛔ **ANY `null`/`''` BASELINE, OR ANY EMPTY DOCUMENT, FAILS THE RUN LOUDLY** —
+the row is headed **🚨 NEW FINDING**, names the artifact, and **the canary note
+is deliberately NOT deleted.** A run that finds the thing this wave exists to
+prevent and then tidies the evidence away is worse than no run at all.
+
+⛔ **The reload is performed with the network UP**, per the amended §15: Wave Q1
+has no service worker, so an offline reload cannot fetch `index.html` — the SPA
+never loads and storage is not readable from that context. That ordering would
+prove nothing.
+
+⭐ **The opt-in count climbs by one per run.** Each run uses a fresh profile, so
+each is a genuinely new browser and fires `notebook_offline_opt_in` once — which
+is what makes the denominator move.
+
+⛔ It creates nothing outside that canary note, and **never writes the offline
+flag constant**. The per-browser `localStorage` opt-in it sets lives and dies
+inside its own throwaway profile.
+
 Credentials are read from `.env` only and never printed, stored, or put in a
 command line; identity is asserted by **account id**, never by echoing an
 address. ⚠️ `GET /api/admin/activity` is admin-gated: if the canary account is
@@ -1238,6 +1313,23 @@ canary rig's own Chrome profile; that profile no longer runs. A new browser
 would read the key **unset** — which is production's default and equals off, but
 is a *different reading*, not the same one confirmed again. ⛔ Re-stating `'0'`
 here without a browser would be inventing a measurement.
+
+### Check 4 — ⛔ **NOT STAMPED: `.env` IS STILL MISSING** (2026-09-10T06:28:31Z)
+
+The script now carries the mini-canary and 19 self-check cases, and it is on a
+daily schedule. It still cannot authenticate, so **no row was stamped** — which
+is the refusal working, not a gap in it.
+
+| | reading |
+|---|---|
+| `--self-check` | ✅ **PASS 19/19** — including a synthetic `null` baseline, a synthetic `''` baseline, whitespace, a non-string, a nested baseline, the incident's empty-paragraph shape, both controls, and that a finding **suppresses cleanup** and heads the row **NEW FINDING** |
+| real run | ⛔ **STOP** at the credential read, exit **1**, before spawning a browser |
+| the log | `docs/notebook/window-check.log` — `check 4: starting` then `check 4: STOPPED — …\.env is missing…` |
+| the row | **none** — the doc was not touched |
+| scheduled task | ✅ registered, enabled, next run **2026-09-10 09:00 local**, expires after **2026-09-17** |
+
+⛔ **Event count and opt-in count: still unread.** Both need the session. They
+are absent from this document, not estimated in it.
 
 ### Check 2 — ⛔ **NOT RUN: `.env` IS MISSING** (2026-09-10T05:2x UTC)
 
@@ -1274,6 +1366,89 @@ remain unproved end to end, and that is stated rather than implied.
 session (or says to build the CDP rig again and signs in, exactly as on
 2026-09-10) and the check reads: four stores 0 · 0 `uct.nb.sync.*` locks · the
 opt-in key unset-or-`'0'`.
+
+# 🗳️ THE 2026-09-17 DECISION — DRAFTED IN ADVANCE, ON PURPOSE
+
+⛔⛔ **EVERY ROW BELOW IS "AS OF CHECK 4 (2026-09-10)" AND MUST BE REFRESHED ON
+9/17.** It is drafted now so the decision is made against a form agreed before
+the data arrived, rather than one shaped by whatever the data turns out to be.
+⛔ A row that still reads "as of check 4" on 9/17 has not been checked.
+
+| # | condition | as of check 4 — 2026-09-10 | refresh how |
+|---|---|---|---|
+| 1 | **Zero `notebook_blocked_no_baseline` across the instrument clock** (2026-09-10T05:06:56Z → 2026-09-17T05:06:56Z) | ⛔ **UNREAD** — `.env` missing, so no check has authenticated. Not "zero": *unmeasured*. | `python tools/window_check.py`, read the row |
+| 2 | **Opt-in count ≥ 1 and climbing** | ⛔ **UNREAD**, same cause. Each scheduled run adds one (fresh profile ⇒ new browser). By 9/17 a working schedule should show **~7**. | same row |
+| 3 | **Mini-canary 7/7, every day** | ⛔ **NEVER RUN** against production — 0 runs. `--self-check` **19/19** proves the harness, not the product. | same row, `mini-canary` line |
+| 4 | **A blocked entry is surfaced to the member** | ✅ **CLOSED** — shipped in deploy #2 (`eedb58ac8`), read on the live bundle | already done; re-read the bundle if master moves |
+| 5 | **The `null` is instrumented** | ✅ **CLOSED** — shipped in deploy #2; the denominator followed in #3 (`7ed6b2ce5`) | already done |
+| 6 | **Inherited-red ledger unchanged** | ✅ **8 files, unchanged** across three deploys, none in `journal-2-0` | full frontend suite at rest |
+| 7 | **All three deploys still ancestors of `master`** | ✅ `cd674ef56` · `eedb58ac8` · `7ed6b2ce5` all YES | `git merge-base --is-ancestor` ×3 |
+| 8 | **`OFFLINE_DEFAULT_ON` still `false` on branch, master and the live bundle** | ✅ all three | re-read the Notebook chunk |
+| 9 | **The 36-minute gap** | ⚠️ the denominator starts **05:42:53Z**, the numerator **05:06:56Z**. A browser opting in inside that window is counted by neither. | state it again; it does not shrink |
+
+## ⛔ THE RECOMMENDATION, AS IT STANDS TODAY: **NO-GO**
+
+Not because anything is red — nothing is. Because **rows 1, 2 and 3 are
+unmeasured**, and the gate's own condition is a measurement, not an absence of
+bad news. Zero events over zero opted-in browsers is not evidence; it is the
+shape of a green browser matrix over a mount path nobody covered, which is
+exactly how this wave produced its incident.
+
+**What would change it to GO**, and nothing less:
+
+1. `.env` in the worktree, so a check can authenticate at all.
+2. **Seven consecutive daily runs to 9/17**, each stamping a row, each with the
+   mini-canary **7/7**.
+3. **Zero** `notebook_blocked_no_baseline` events across the clock, read beside
+   an opt-in count of **≥ 5** — a number small enough to be honest about and
+   large enough not to be a single machine.
+4. Rows 4–8 still green on the day.
+
+**What would make it NO-GO regardless:** one 🚨 NEW FINDING row · one member
+report of a blank note · a new ledger offender inside `journal-2-0` · any
+`null`/`''` baseline anywhere.
+
+⚠️ **And one thing the gate cannot buy.** Every opted-in browser in that count is
+a *canary profile on the owner's machine driving the owner's own account*. It is
+not seven members on seven devices. The flip is still a step from "it works when
+we drive it" to "it works for people", and no amount of green here closes that
+distance — only the flip does, which is why the rollback below is one line.
+
+## 🔀 THE FLIP ITSELF — one line, the same gate, its own paragraph
+
+```diff
+- export const OFFLINE_DEFAULT_ON = false
++ export const OFFLINE_DEFAULT_ON = true
+```
+
+**Procedure:** identical to deploys #1–#3. Three-tier gate loop → full pre-flight
+in order (journal-2-0 at rest · backend rails · full suite · ledger · every
+mutation · memory gate) → re-fetch → push to `master` → verify on the **live
+bundle** that the constant now compiles to `!0` and that `offlineEnabled()`
+returns it when the key is unset.
+
+⛔ **The §15 script is the post-flip canary**, not a formality — run it against
+the flipped build, both halves plus the conflict path, exactly as on 2026-09-10.
+The daily mini-canary is not a substitute: it runs on an opted-in *profile*,
+which is the state every member will suddenly be in, and that is the point of
+re-running the real script once the population changes.
+
+**Rollback is the same one line, back to `false`.** It stops processing; it has
+never been permission to delete what a member already wrote. A re-enable picks
+the queue back up. 5–12 minutes, verified by the artifact.
+
+### The member-impact paragraph for the flip — already written, use it verbatim
+
+It is the one under **📣 THE MEMBER-IMPACT PARAGRAPH FOR THE FLAG FLIP** above,
+including the offline-reload limitation in plain language:
+
+> ⛔ *"The one thing that will surprise people: reloading while offline shows the
+> browser's error page. Not a blank note — the app itself does not load. …
+> Nothing you wrote is lost … But 'offline editing' means keep typing in the tab
+> you already have open, not use the app with no internet."*
+
+⛔ Do not ship the flip with the deploy paragraph ("nothing changes for
+members"). That sentence is true of #1, #2 and #3 and false of the flip.
 
 # THE FLAG-FLIP GATE — a SEPARATE list, and not the deploy's
 
