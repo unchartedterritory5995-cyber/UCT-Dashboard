@@ -429,6 +429,32 @@ export function validateCursorApi(api, where = 'cursor api') {
   return api
 }
 
+/**
+ * @param {HubActionCtx} ctx
+ *
+ * ⛔ THE ONE FIELD THAT CAN BE SILENTLY ABSENT. Every other member of ctx is a value that is
+ * legitimately null — no symbol selected, no position, nothing streaming — so a missing one is
+ * indistinguishable from an empty one and there is nothing to check. `navigate` is different: it is
+ * the seam R-G added, and a mode that receives a ctx without it does not throw, it simply does
+ * NOTHING on release. That is the present-and-inert failure `registry.js:614` forbids, arriving by
+ * omission rather than by design.
+ */
+export function validateActionCtx(ctx, where = 'action ctx') {
+  const p = []
+  if (!ctx || typeof ctx !== 'object') {
+    report(where, ['expected an object'])
+    return ctx
+  }
+  if (!isFn(ctx.navigate)) {
+    p.push('navigate must be a function — without it a mode callback cannot act, and fails silently')
+  }
+  // `chartRef` is a ref container, not a value: a plain object with `current`. A mode that reaches
+  // for `.current` on undefined throws inside a gesture handler, where nothing catches it.
+  if (ctx.chartRef != null && typeof ctx.chartRef !== 'object') p.push('chartRef must be a ref object or null')
+  report(where, p)
+  return ctx
+}
+
 /** @param {HubConfirmPayload} payload */
 export function validateConfirmPayload(payload, where = 'confirm payload') {
   const p = []
