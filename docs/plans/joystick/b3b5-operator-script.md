@@ -208,6 +208,94 @@ the three write actions.
 
 ---
 
+---
+
+### D7 — EXPOSURE: who gets the hub at all
+
+⭐ **Everything above assumes the hub is showing. D7 is what a MEMBER hits first**, and it is the
+check the deploy ruling turns on. B6 hides the Settings → Joystick card from members who never
+chose, while leaving it for anyone who ever chose either way — so nobody with the hub ON loses
+their way off.
+
+#### D7a — a member does not get the hub
+Sign out. Sign in as **`hubmember@local.dev`** / `HubDevice2026!`. Go to `/journal/trades`.
+
+**PASS:** no joystick pad anywhere on the page.
+**FAIL:** the pad appears — **stop and report before anything else**; exposure is wider than intended.
+
+**Screenshot:** `D7a-member-no-pad-<device>.png`
+
+#### D7b — a member does not get the Settings card
+Still signed in as the member, open **Settings** and scroll to the Charts section.
+
+**PASS:** there is **no Joystick card**.
+**FAIL:** the card is present — B6 did not land in the build you are testing.
+
+**Screenshot:** `D7b-member-no-card-<device>.png`
+
+#### D7c — an admin does
+Sign out, sign in as **`hubtest@local.dev`**. Open **Settings** → Charts.
+
+**PASS:** the **Joystick card is present**, and its toggle flips (turn it off, reload, the pad is
+gone; turn it back on, reload, the pad is back).
+**FAIL:** the card is missing for an admin.
+
+**Screenshot:** `D7c-admin-card-<device>.png`
+
+#### D7d — the kill switch
+⚠️ **The sandbox reads `HUB_PREVIEW_ENABLED` per request, but from the environment of the RUNNING
+process** — `api/routers/auth.py:144-146` reads `os.environ` at request time, and one process
+cannot change another's environment. So this cannot be flipped live against an already-booted
+sandbox.
+
+**To test it, boot a second sandbox with the flag off** (a different port, so it does not fight the
+first — the launcher refuses a busy port by design):
+
+```
+$env:HUB_PREVIEW_ENABLED="0"
+powershell -ExecutionPolicy Bypass -File scripts\hub-sandbox.ps1 -DataDir C:\data-hubtest -Port 8078
+```
+
+Then as **admin**, on `http://192.168.1.64:8078`: **PASS:** no pad anywhere, even for the admin.
+
+**If you would rather not boot a second sandbox, mark D7d N/A** — the code citation above plus
+`tests/test_hub_preview_flag.py::test_the_flag_is_read_per_request` is the evidence, and that test
+is the load-bearing one (a module-level capture would make the no-redeploy rollback a fiction).
+
+#### D7e — the recovery path, on real glass
+This proves two things at once: that a member who opted in **keeps** their way off (the reason B6
+is shaped the way it is), and that **B6 is a UI default, not a security boundary** — the member's
+own API accepts the write.
+
+**Step 1 — opt the member in, from the PC** (this is the "member sets it directly" path):
+
+```
+python -c "import json,urllib.request as u; cj=u.HTTPCookieProcessor(); o=u.build_opener(cj); h={'Content-Type':'application/json'}; o.open(u.Request('http://127.0.0.1:8077/api/auth/login', json.dumps({'email':'hubmember@local.dev','password':'HubDevice2026!'}).encode(), h)); r=o.open(u.Request('http://127.0.0.1:8077/api/auth/preferences', json.dumps({'key':'joystick_hub','value':json.dumps({'enabled':True})}).encode(), h)); print('preferences POST ->', r.status)"
+```
+
+Expect `preferences POST -> 200`.
+
+**Step 2 — on the phone, as `hubmember@local.dev`:** reload `/journal/trades`.
+**PASS:** the pad is now **present** for a member. (This is the opt-in path, working as designed.)
+
+**Step 3 — Settings.**
+**PASS:** the **Joystick card is now present** for this member — because they have explicitly
+chosen. This is B6's strand-avoidance working: the member who opted in keeps their way out.
+
+**Step 4 — toggle it off in Settings, reload.**
+**PASS:** the pad is gone.
+
+**Screenshot:** `D7e-member-optin-<device>.png` (step 2) and `D7e-member-card-<device>.png` (step 3)
+
+**Step 5 — RESTORE, so D7a is repeatable.** The API can only upsert a preference, never delete one,
+so "never chosen" is restored in the sandbox DB directly:
+
+```
+python -c "import sqlite3;c=sqlite3.connect(r'C:\data-hubtest\auth.db');c.execute(\"delete from user_preferences where pref_key='joystick_hub' and user_id=(select id from users where email='hubmember@local.dev')\");c.commit();print('hubmember restored to never-chosen:', c.execute(\"select count(*) from user_preferences where pref_key='joystick_hub'\").fetchone()[0], 'joystick_hub rows left')"
+```
+
+⛔ Sandbox database only (`C:\data-hubtest`). Never run this against `C:\data`.
+
 ## When you are finished
 
 1. Fill in `b3b5-evidence-form.md` — one row per check per device.

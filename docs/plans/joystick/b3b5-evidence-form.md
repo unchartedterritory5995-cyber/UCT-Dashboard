@@ -32,6 +32,11 @@ Android.** More devices are corroboration.
 | D5 | Flick at Move stop → **fires** (prediction) | ☐ P ☐ F | `D5-flick-fires-____.png` | `___/5 fired (want ≥4)` |
 | D5 | Flick at Breakeven → **fires** (prediction) | ☐ P ☐ F | `D5-flick-fires-____.png` | `___/5 fired (want ≥4)` |
 | D6 | Android only: triple pulse on the three write actions | ☐ P ☐ F ☐ N/A (iOS) | — | |
+| **D7a** | **Member gets NO pad** (`hubmember@local.dev`) | ☐ P ☐ F | `D7a-member-no-pad-____.png` | |
+| D7b | Member gets NO Settings → Joystick card | ☐ P ☐ F | `D7b-member-no-card-____.png` | |
+| D7c | Admin DOES get the card, and it toggles | ☐ P ☐ F | `D7c-admin-card-____.png` | |
+| D7d | Kill switch hides it for everyone | ☐ P ☐ F ☐ N/A | — | needs a 2nd sandbox on :8078 |
+| D7e | Member who opts in KEEPS their way off | ☐ P ☐ F | `D7e-member-card-____.png` | restore step run? ☐ |
 
 ---
 
@@ -46,6 +51,11 @@ Android.** More devices are corroboration.
 | D5 | Flick at Move stop → **fires** (prediction) | ☐ P ☐ F | `D5-flick-fires-____.png` | `___/5 fired (want ≥4)` |
 | D5 | Flick at Breakeven → **fires** (prediction) | ☐ P ☐ F | `D5-flick-fires-____.png` | `___/5 fired (want ≥4)` |
 | D6 | Android only: triple pulse on the three write actions | ☐ P ☐ F ☐ N/A (iOS) | — | |
+| **D7a** | **Member gets NO pad** (`hubmember@local.dev`) | ☐ P ☐ F | `D7a-member-no-pad-____.png` | |
+| D7b | Member gets NO Settings → Joystick card | ☐ P ☐ F | `D7b-member-no-card-____.png` | |
+| D7c | Admin DOES get the card, and it toggles | ☐ P ☐ F | `D7c-admin-card-____.png` | |
+| D7d | Kill switch hides it for everyone | ☐ P ☐ F ☐ N/A | — | needs a 2nd sandbox on :8078 |
+| D7e | Member who opts in KEEPS their way off | ☐ P ☐ F | `D7e-member-card-____.png` | restore step run? ☐ |
 
 ---
 
