@@ -222,3 +222,19 @@ Verified 2026-09-10, all quoted from the tree at `febe8ee67`:
   account up fresh (`role: admin` confirmed in the signup response). Rejected: hand-writing a
   password hash into the sandbox DB — more invasive, and it would leave the sandbox in a state no
   script produces.
+
+- **R-auto-11 — the fold-in merge became a linear commit through the rebase.** `git rebase` drops
+  merge commits and replays their content, so `merge: fold in fix/deploy-watch-probe` became the
+  plain commit `dfbae9517` carrying `scripts/deploy_watch.py` + `tests/test_deploy_watch.py`.
+  Taken: accept the flattening. Rejected: `--rebase-merges` to preserve the merge topology. Why: a
+  feature branch with a merge commit inside it buys nothing here — the content is identical by name
+  (21 files, `diff` of the pre/post file lists empty) and a linear branch is easier to reason about
+  at merge time. Verified the two watcher files survived.
+
+- **R-auto-12 — rebased onto `4c518db97` at 10:0x ET rather than waiting for the window.** Master
+  moved 11 commits (the charts drawing layer, Phases 0-10) while Increment 3 was being gated, which
+  trips rule 13's ">5 behind". Overlap with this branch is EMPTY and no watched hub file is touched;
+  master's one journal-2-0 change (`NoteEditorPage.jsx`) sits in the BASE after the rebase, so the
+  rule-12 rail stays green — verified, 3 passed. Taken: rebase now. Rejected: waiting until 15:50.
+  Why: rule 13 exists precisely so the window is not spent doing a big-bang rebase, and master's
+  15 new test files move the gate population, which the window gate must measure anyway.
