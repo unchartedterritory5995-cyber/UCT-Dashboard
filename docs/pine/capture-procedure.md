@@ -128,6 +128,61 @@ sources, never by the absence of an exception**.
 one.** If a probe needs a study that is not already on the chart, the tab must be foregrounded
 first — there is no in-page remedy.
 
+## ⛔⛔ COLUMN ORDER — `_metaInfo.plots`, NEVER `Object.keys(_metaInfo.styles)`
+
+A study's value array is `[time, v1, v2, …]` and **`v(i+1)` is `_metaInfo.plots[i]`**. The
+titles live in `_metaInfo.styles`, keyed by plot id — and **the key order of that object is not
+the value order.**
+
+⚰️ **MEASURED 2026-09-10, ON AROON.** `Object.keys(styles)` returned `["AroonDown", "AroonUp"]`;
+`plots` returned `["AroonUp", "AroonDown"]` — the exact opposite. A fixture keyed off the styles
+object would have committed the two series **swapped**, silently, in the file whose entire job is
+to be the oracle. Both orders look equally plausible in a dump; nothing downstream can tell them
+apart, because both columns are the right *kind* of number.
+
+    // ✅ correct
+    const cols = (mi.plots || []).map(p => mi.styles[p.id].title)
+    // ⛔ wrong, and it looks fine
+    const cols = Object.keys(mi.styles).map(k => mi.styles[k].title)
+
+⭐ **THIS IS ENFORCED, NOT REMEMBERED.** `write_capture.py` takes `--columns` and
+`--plots-order` and **refuses to write** unless they agree — and refuses if only one is given,
+since one without the other is an unchecked claim.
+
+## ⭐ READING A STUDY'S SOURCE OUT OF THE CHART (the V1 recipe, 2026-09-10)
+
+Worked, after two failures worth keeping:
+
+1. ⛔ **A right-click on the legend opens the legend's DISPLAY-OPTIONS menu** (Symbol title /
+   Chart values / …), **not** the study menu. Wrong target, and it looks like the right one.
+2. ⛔ **A programmatic `element.click()` on the More button does nothing.** TradingView listens
+   for real pointer events. **DOM to LOCATE, real pointer events to CLICK.**
+3. Get the button's rect, then scale viewport → screenshot coordinates:
+   `S = screenshotWidth / window.innerWidth` (1568 / 1920 = **0.8167** here), click `(x*S, y*S)`.
+
+       const row  = nsWrap.closest('[class*="legend"]')
+       const more = [...row.querySelectorAll('button')]
+                      .find(b => (b.getAttribute('aria-label')) === 'More')
+
+4. `More → "Source code…"` **opens a NEW TAB** at `/pine/?id=USER;<scriptId>`. Count it as a tab
+   the visit opened.
+5. Read the text from Monaco's rendered lines — **sorted by CSS `top`**, because DOM order is not
+   line order:
+
+       [...document.querySelectorAll('.view-line')]
+         .map(e => ({top: parseFloat(e.style.top), text: e.innerText.replace(/ /g,' ')}))
+         .sort((a,b) => a.top - b.top).map(l => l.text).join('
+')
+
+⚠️ Stage a receipt (char count + FNV-1a) in the page and recompute it in the shell before
+committing — and cross-check the plot count against `_metaInfo.plots`, which is a **separate
+object**, so the transport is not grading its own homework.
+
+⛔⛔ **NEVER OPEN AN ACCOUNT-SCOPED USER SCRIPT FOR WRITING.** `Script$USER;<id>` belongs to the
+ACCOUNT, not the layout — copying a layout copies the *reference*. Editing it changes every
+layout that uses it, including the owner's. To extend one, commit its bytes and build a **new**
+study from them (see `barstate-full.pine`); never append in place.
+
 ## Screenshots
 
 - `takeClientScreenshot()` renders **explicitly**, so it works even when the tab is hidden and
