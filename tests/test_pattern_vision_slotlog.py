@@ -92,6 +92,35 @@ def test_empty_active_set_is_distinguishable(tmp_path, monkeypatch):
     assert r["evidence_distinct"] == 0 and r["evidence_min"] is None
 
 
+def test_empty_active_set_writes_a_row_on_a_VIRGIN_db(tmp_path, monkeypatch):
+    """Regression, follow-up 14: init_db() used to run ONLY inside
+    judge_ticker(), so an empty active set never created the tables, the
+    `finally` wrote to a table that did not exist, and its own try/except
+    correctly swallowed the failure -- this instrument reproducing its own
+    blind spot, for one of the four paths it exists to expose.
+
+    ⛔ This fixture deliberately does NOT call init_db(). That omission IS the
+    test; adding it back makes this pass against the unfixed code.
+    `test_empty_active_set_is_distinguishable` above is kept as-is on a warm
+    DB -- it pins a different property (active_set_n=0 vs skipped>0) in the
+    realistic steady state, and this case carries the virgin-DB guarantee.
+    """
+    monkeypatch.setenv("PATTERN_VISION_DB_PATH", str(tmp_path / "pv.db"))
+    import api.services.pattern_vision.store as s
+    importlib.reload(s)
+    with s.connect() as c:
+        names = [r[0] for r in c.execute("SELECT name FROM sqlite_master")]
+    assert "vision_slot_log" not in names, "fixture precondition: tables must NOT exist yet"
+
+    run = _capture_run(monkeypatch, [], lambda t, *a, **k: _ok())
+    run()
+
+    rows = _slots(s)
+    assert len(rows) == 1, "an empty slot must still leave exactly one row"
+    assert rows[0]["active_set_n"] == 0 and rows[0]["judged"] == 0
+    assert rows[0]["source"] == "cron" and rows[0]["aborted"] == 0
+
+
 def test_cost_cap_is_recorded(tmp_path, monkeypatch):
     s = _fresh_store(tmp_path, monkeypatch)
     run = _capture_run(monkeypatch, ["NVDA", "AAPL"],
