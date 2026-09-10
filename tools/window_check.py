@@ -202,10 +202,20 @@ DOOR_PATCH = {
     # and nothing this tool creates may wear it.
     "tags": {"tags": ["window-check-door"]},
 }
-# The words typed while the transport was cut. Their arrival on the server IS
-# the assertion; "the server holds text" is not, because the words typed ONLINE
-# satisfy that even when the queued entry was thrown away.
-OFFLINE_MARK = "typed offline."
+def offline_sentence(stamp: str, sentinel: str = SENTINEL) -> str:
+    """THE sentence a run types while the transport is cut — and the EXACT string
+    its landing is asserted against, in every tool that runs this path.
+
+    ⛔⛔ ONE AUTHORITY, and it is written in a member's blood. The canary used to
+    assert `_doc_has_text(server.bodyJson)`, which the words typed ONLINE satisfy
+    — so on 2026-09-10 a run that DISCARDED the queued offline entry read GREEN
+    on that step while the sentence was being lost. A green light with no
+    information in it is worse than no step at all.
+
+    ⭐ Typing and asserting now call this same function, so they cannot drift, and
+    the stamp makes the sentence THIS run's — never a leftover from another.
+    """
+    return f"{sentinel} typed offline @ {stamp}"
 
 
 def door_for(n: int) -> str:
@@ -386,6 +396,10 @@ class Check:
     # in `main`, from the document itself — never chosen by a caller.
     number: int = 0
     door: str = ""
+    # ⛔ The account's note count as this run found it. A fork and a discard are
+    # DIFFERENT failures and both have to be visible: the discard is caught by the
+    # sentence, the fork by this arithmetic.
+    notes_before: int = 0
 
     def add(self, name, ok, value=None, error=""):
         self.reads.append(Read(name, ok, value, error))
@@ -1059,6 +1073,27 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
              "no `(conflicted copy)` created by this run",
              f"THIS RUN FORKED ITS OWN NOTE \u2014 HARD RED: {forks}")
 
+    # \u26d4 THE ARITHMETIC, BESIDE THE FORK AND BEFORE THE DELETE. A fork and a
+    # discard are DIFFERENT failures: the sentence catches the discard, this
+    # catches anything the account GAINED \u2014 including a copy whose title the fork
+    # regex never matched. Exactly one note should exist beyond the baseline: the
+    # one this run created.
+    pre_total = pre_notes.get("total")
+    expected = chk.notes_before + 1 if isinstance(chk.notes_before, int) else None
+    count_ok = isinstance(pre_total, int) and pre_total == expected
+    chk.step("5 note count moved by exactly this run's own note", count_ok,
+             f"**{chk.notes_before} \u2192 {pre_total}** (expected **{expected}**)",
+             f"the account holds **{pre_total}** notes, expected **{expected}** "
+             f"(baseline {chk.notes_before} + this run's one note)"
+             if isinstance(pre_total, int) else
+             f"the note list could not be read: {pre_notes!r}")
+    if isinstance(pre_total, int) and isinstance(expected, int) and pre_total != expected:
+        chk.findings.append(
+            f"**the account's note count is {pre_total}, not {expected}** \u2014 this run's own note "
+            f"accounts for one; the other {pre_total - expected:+d} is unexplained. A fork and a "
+            "discard are different failures and this is the one that counts notes. PRESERVED."
+        )
+
     # \u26d4 EVALUATED HERE, with every finding already appended \u2014 including the fork.
     if not should_clean_up(chk.findings):
         chk.step("5 cleanup", True,
@@ -1115,8 +1150,13 @@ def _canary_tail(chk: Check, page, note_id) -> str | None:
     # can never be reached from. One authority, at the point of the action.
     if leftovers:
         reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
+    # ⛔ AND THE COUNT COMES BACK. A cleanup that leaves the account one note
+    # heavier than it found it is litter; one note lighter is worse.
+    end_total = end_notes.get("total")
+    if isinstance(chk.notes_before, int) and isinstance(end_total, int) and end_total != chk.notes_before:
+        reasons.append(f"note count ended at {end_total}, baseline was {chk.notes_before}")
     chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
-             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}**",
+             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}** \u00b7 notes **{chk.notes_before} \u2192 {end_total}**",
              # \u26d4 Name the sub-condition that failed. "cleanup incomplete" while
              # printing three values that all look fine cost a diagnosis today.
              "cleanup incomplete: " + " \u00b7 ".join(reasons))
@@ -1263,9 +1303,17 @@ def _mini_canary(chk: Check, page, offline, puts, body=None) -> str | None:
 def _canary_body(chk: Check, page, offline, puts) -> str | None:
     """The §15 happy path, every day, artifact captured at every step."""
     note_id = None
+    # ⛔ THE SENTENCE THIS RUN WILL TYPE OFFLINE — decided once, here, and used
+    # both to type and to assert. See `offline_sentence`.
+    sentence = offline_sentence(chk.started)
 
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
+    # ⛔ THE COUNT BEFORE ANYTHING IS CREATED. Read here, not borrowed from the
+    # reads above, so the canary can be driven on its own and so the arithmetic
+    # is anchored to the moment the run starts touching the account.
+    nt0 = page.evaluate(NOTES_JS)
+    chk.notes_before = nt0.get("total") if isinstance(nt0, dict) else None
     st = page.evaluate(STATE_JS, ACCOUNT_ID)
     ok1 = st.get("held") == ["exclusive"] and st.get("pending") == 0 and st.get("dbOpened") is True
     chk.step("1 opt in \u2192 leadership", ok1,
@@ -1309,7 +1357,7 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     try:
         pm = page.query_selector(".ProseMirror")
         if pm:
-            pm.click(); page.keyboard.press("End"); page.keyboard.type(f" {SENTINEL} typed offline.")
+            pm.click(); page.keyboard.press("End"); page.keyboard.type(" " + sentence)
     except Exception:  # noqa: BLE001
         pass
     page.wait_for_timeout(6000)
@@ -1355,17 +1403,22 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     page.wait_for_timeout(8000)
     after = page.evaluate(LAYERS_JS, {"acct": ACCOUNT_ID, "id": note_id})
     rec = after.get("record") if isinstance(after.get("record"), dict) else {}
-    draft_ok = _doc_has_text((after.get("draft") or {}).get("bodyJson")) if isinstance(after.get("draft"), dict) else False
-    rec_ok = _doc_has_text(rec.get("bodyJson"))
+    # ⛔ THE SENTENCE HERE TOO, one layer down. "record holds text" is the same
+    # uninformative green as "server holds text": the words typed ONLINE satisfy
+    # it, so a local layer that dropped the member's offline sentence would read
+    # healthy. Ask for the sentence, in every layer this step speaks for.
+    draft_ok = (sentence in _doc_text((after.get("draft") or {}).get("bodyJson"))
+                if isinstance(after.get("draft"), dict) else False)
+    rec_ok = sentence in _doc_text(rec.get("bodyJson"))
     ob = _as_list(after.get("outbox"))
     # \u26d4 A layer that could not be READ is not a layer that is empty. Fail the
     # step and say which, rather than drawing a conclusion from a failed read.
     unread = layer_read_failed(before) + layer_read_failed(after)
-    chk.step("3 reload (network UP) \u2192 the words survive",
+    chk.step("3 reload (network UP) \u2192 the local layers hold THE OFFLINE SENTENCE",
              rec_ok and (draft_ok or bool(ob)) and not unread,
-             f"record holds text: **{rec_ok}** \u00b7 draft holds text: **{draft_ok}** \u00b7 outbox entries: **{len(ob)}** \u00b7 baseline `{rec.get('baseUpdatedAt')}`",
+             f"record holds the sentence: **{rec_ok}** \u00b7 draft holds the sentence: **{draft_ok}** \u00b7 outbox entries: **{len(ob)}** \u00b7 baseline `{rec.get('baseUpdatedAt')}`",
              ("layers that could not be read: " + ", ".join(unread)) if unread
-             else "a local layer came back without the member's words \u2014 THE INCIDENT'S SHAPE")
+             else f"a local layer came back without `{sentence}` \u2014 THE INCIDENT'S SHAPE")
     for lab, art in (("pre-reload record", before.get("record")), ("post-reload record", rec)):
         if isinstance(art, dict):
             chk.findings += baseline_findings(lab, art) + empty_document_findings(lab, art)
@@ -1378,26 +1431,32 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     settled = page.evaluate(LAYERS_JS, {"acct": ACCOUNT_ID, "id": note_id})
     srec = settled.get("record") if isinstance(settled.get("record"), dict) else {}
     srv = settled.get("server") if isinstance(settled.get("server"), dict) else {}
-    server_has = _doc_has_text(srv.get("bodyJson"))
-    chk.step("4 reconnect \u2192 drained, re-based, server has the words",
+    # \u26d4\u26d4 "server holds text" IS GONE FROM THIS STEP \u2014 DELETED, not kept beside
+    # the real one. It was satisfied by the words typed ONLINE, so it read GREEN
+    # through a run that threw the member's offline sentence away (streak run 1,
+    # door `folder`, 2026-09-10). A step that cannot distinguish success from the
+    # failure it exists to catch is a green light with no information in it.
+    # The body question is asked below, ONCE, against the exact sentence typed.
+    chk.step("4 reconnect \u2192 the queue settled (this step says NOTHING about the body)",
              srec.get("dirty") == 0 and not _as_list(settled.get("outbox"))
-             and server_has and not layer_read_failed(settled),
-             f"`dirty` **{srec.get('dirty')}** \u00b7 outbox **{len(_as_list(settled.get('outbox')))}** \u00b7 server holds text: **{server_has}** \u00b7 baseline `{srec.get('baseUpdatedAt')}`",
+             and not layer_read_failed(settled),
+             f"`dirty` **{srec.get('dirty')}** \u00b7 outbox **{len(_as_list(settled.get('outbox')))}** \u00b7 baseline `{srec.get('baseUpdatedAt')}`",
              ("layers that could not be read: " + ", ".join(layer_read_failed(settled)))
              if layer_read_failed(settled) else
-             f"queue did not settle: dirty={srec.get('dirty')} outbox={len(_as_list(settled.get('outbox')))} serverHasText={server_has}")
+             f"queue did not settle: dirty={srec.get('dirty')} outbox={len(_as_list(settled.get('outbox')))}")
     chk.findings += baseline_findings("settled record", srec)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # ⛔⛔ THE ASSERTION: REBASED AND SENT — never discarded, never forked.
-    #
-    # The step above CANNOT see this one's failure, and that is why this one
-    # exists: "the server holds text" is satisfied by the words typed ONLINE, so
-    # an entry the drain threw away on the 409 leaves it green while the member's
-    # offline sentence is gone. This asks the only question the member has.
-    # (The fork half is answered in `_canary_tail`, before anything is deleted.)
+    # ⛔⛔ THE ASSERTION, AND THE WAVE'S ONE RULE:
+    #   A QUEUED ENTRY IS NEVER REMOVED UNLESS THE SERVER BODY IS PROVEN TO
+    #   CONTAIN ITS CONTENT.
+    # So this is the only body question the canary asks, and it asks it against
+    # the EXACT sentence this run typed while the transport was cut — not "is
+    # there text", which the online words answer for free.
+    # (The fork half is answered in `_canary_tail`, before anything is deleted;
+    # the note-count half is answered there too.)
     # ══════════════════════════════════════════════════════════════════════════
-    landed = OFFLINE_MARK in _doc_text(srv.get("bodyJson"))
+    landed = sentence in _doc_text(srv.get("bodyJson"))
     door_kept, door_note = door_survived(door, srv)
     # ⭐ REPORTED, NOT GATED: a send carrying the post-door baseline is proof the
     # entry was re-based rather than replayed stale. When the drain beat the door
@@ -1406,22 +1465,24 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     rebased = [p for p in puts if note_id in p["url"] and p["baseUpdatedAt"] == dr.get("after")]
     land_reasons = []
     if not landed:
-        land_reasons.append("the member's OFFLINE words are NOT on the server — the queued entry "
-                            "was DISCARDED rather than rebased")
+        land_reasons.append(f"the server BODY DOES NOT CONTAIN the offline sentence `{sentence}` "
+                            "— the queued entry was DISCARDED, not rebased")
     if not door_kept:
         land_reasons.append(f"the door value did not survive the drain's send{door_note}")
-    chk.step(f"4 the offline words were REBASED onto door `{door}` and SENT", not land_reasons,
-             f"offline words on the server: **{landed}** · a send carried the post-door baseline "
-             f"`{dr.get('after')}`: **{bool(rebased)}** · door value kept: **{door_kept}**{door_note}",
+    chk.step(f"4 the server BODY CONTAINS THE OFFLINE SENTENCE (door `{door}`)", not land_reasons,
+             f"`{sentence}` is in the server body: **{landed}** · a send carried the post-door "
+             f"baseline `{dr.get('after')}`: **{bool(rebased)}** · door value kept: "
+             f"**{door_kept}**{door_note}",
              " · ".join(land_reasons))
     if not landed:
-        # ⛔⛔ LOST WORDS IS A HARD STOP. A finding keeps the note on the account:
-        # `should_clean_up` refuses, and the evidence outlives the run.
+        # ⛔⛔ LOST WORDS IS A HARD STOP, PERMANENTLY. A finding keeps the note on
+        # the account: `should_clean_up` refuses and the evidence outlives the run.
         chk.findings.append(
-            "**the member's OFFLINE words never reached the server** — the queued entry was "
-            f"discarded instead of being rebased onto door `{door}`'s revision "
-            f"`{dr.get('after')}`. The words typed ONLINE are still there, which is exactly "
-            "why the drain step above stayed green. The note is PRESERVED."
+            "**the server body does not contain the member's offline sentence** — "
+            f"`{sentence}` is gone. The queued entry was discarded instead of being rebased "
+            f"onto door `{door}`'s revision `{dr.get('after')}`. ⛔ The words typed ONLINE are "
+            "still there, which is exactly why a 'server holds text' step would read green. "
+            "The note is PRESERVED."
         )
 
     # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -2220,8 +2281,8 @@ def self_check() -> int:
                     p.queued, p.offline_text = True, text
                     p.queued_base = p.updated
 
-        def __init__(self, lands=True, door_moves=True):
-            self.lands, self.door_moves = lands, door_moves
+        def __init__(self, lands=True, door_moves=True, forks=False):
+            self.lands, self.door_moves, self.forks = lands, door_moves, forks
             self.online, self.rev = True, 1
             self.updated = "REV-1"
             self.note_id = "note-1"
@@ -2259,6 +2320,10 @@ def self_check() -> int:
                     self.server_text += self.offline_text
                     self.updated = self.bump()
                 # lands=False: the 409 throws the entry away and nothing is sent
+                if self.forks:
+                    # ⭐ A note this run did not create, wearing a title the fork
+                    # regex cannot match — so ONLY the arithmetic can see it.
+                    self.notes.append("SOMETHING-ELSE untitled")
 
         def doc(self, text):
             return {"type": "doc", "content": [{"type": "paragraph",
@@ -2319,8 +2384,8 @@ def self_check() -> int:
                 return "ONLINE 200" if self.online else "FAILED: TypeError"
             return {}
 
-    def _drive_canary(number=10, lands=True, door_moves=True):
-        page = _DrainPage(lands=lands, door_moves=door_moves)
+    def _drive_canary(number=10, lands=True, door_moves=True, forks=False):
+        page = _DrainPage(lands=lands, door_moves=door_moves, forks=forks)
         chk = Check(label="t", number=number)
         _mini_canary(chk, page, page.set_offline, page.puts)
         return chk, page
@@ -2333,9 +2398,11 @@ def self_check() -> int:
                   chk_g.door == "ticker" and all(s.ok for s in chk_g.canary) and not chk_g.findings))
     cases.append(("…the door PUT really moved the baseline under the queued entry",
                   (_step(chk_g, "4 door ") or Read("x", False)).ok and page_g.ticker == "NVDA"))
-    cases.append(("…and the offline words reached the server, rebased onto the new revision",
-                  OFFLINE_MARK in page_g.server_text
-                  and (_step(chk_g, "4 the offline words") or Read("x", False)).ok))
+    cases.append(("…and the server BODY CONTAINS THE OFFLINE SENTENCE, rebased onto the door",
+                  offline_sentence(chk_g.started) in page_g.server_text
+                  and (_step(chk_g, "4 the server BODY") or Read("x", False)).ok))
+    cases.append(("…and the note count moved by exactly one — this run's own note",
+                  (_step(chk_g, "5 note count") or Read("x", False)).ok))
     cases.append(("DRIVEN: the rotation actually varies across n",
                   [_drive_canary(number=n)[0].door for n in (9, 10, 11)]
                   == ["folder", "ticker", "tags"]))
@@ -2343,17 +2410,36 @@ def self_check() -> int:
     cases.append(("…and the tags run really set its tag on the server note",
                   _page_t.tags == ["window-check-door"]))
 
+    # ⛔⛔ THE EXACT FALSE-GREEN OF STREAK RUN 1, DRIVEN: the words typed ONLINE
+    # are on the server, the offline sentence is NOT, the queue is empty and
+    # clean. Every older signal reads healthy; only the sentence sees the loss.
     chk_r, page_r = _drive_canary(number=10, lands=False)
-    landing = _step(chk_r, "4 the offline words")
-    cases.append(("⛔ DRIVEN: a run whose queued words did NOT land is RED",
+    landing = _step(chk_r, "4 the server BODY")
+    cases.append(("⛔ DRIVEN: a run whose offline sentence is NOT in the server body is RED",
                   landing is not None and not landing.ok))
-    cases.append(("…and the drain step CANNOT see it — it stays green on the ONLINE words",
+    cases.append(("…and the ONLINE words ARE on the server in that same run (the false-green)",
+                  f"{SENTINEL} typed online." in page_r.server_text
+                  and offline_sentence(chk_r.started) not in page_r.server_text))
+    cases.append(("…and the drain step CANNOT see it — the queue settled clean",
                   (_step(chk_r, "4 reconnect") or Read("x", False)).ok))
+    cases.append(("…and no step claims the server 'holds text' any more",
+                  not any("holds text" in s.render() for s in chk_r.canary)))
     cases.append(("…so the RED is the only place a member's loss is reported",
                   "DISCARDED" in (landing.render() if landing else "")))
     cases.append(("…it is a FINDING (lost words = hard stop) and the note is PRESERVED",
-                  any("OFFLINE words never reached the server" in f for f in chk_r.findings)
+                  any("does not contain the member's offline sentence" in f for f in chk_r.findings)
                   and page_r.deleted == [] and page_r.notes != []))
+    # ⛔ THE FORK, COUNTED. A copy appearing on the account is a different failure
+    # from a discard, and it must be visible even if its title never matches the
+    # fork regex — so the arithmetic is driven too.
+    chk_f2, page_f2 = _drive_canary(number=10, forks=True)
+    cases.append(("⛔ DRIVEN: a run that GAINS a note is RED on the count",
+                  not (_step(chk_f2, "5 note count") or Read("x", True)).ok))
+    cases.append(("…it is a finding, and BOTH halves stay on the account",
+                  any("note count is" in f for f in chk_f2.findings) and page_f2.deleted == []))
+    cases.append(("…and a discard and a fork are reported as DIFFERENT failures",
+                  any("does not contain the member's offline sentence" in f for f in chk_r.findings)
+                  and not any("note count is" in f for f in chk_r.findings)))
     cases.append(("CONTROL: the green run DID clean up (no litter traded in)",
                   page_g.deleted == [page_g.note_id] and page_g.notes == []))
     chk_d, _page_d = _drive_canary(number=10, door_moves=False)
@@ -2364,6 +2450,23 @@ def self_check() -> int:
     _body_src = src_wc.split("def _canary_body", 1)[1].split("\n# ═", 1)[0]
     cases.append(("the door is chosen INSIDE the canary from the run's own number",
                   "door_for(chk.number)" in _body_src))
+    # ⛔⛔ PERMANENT RAIL. "does the server have any text" is the question that
+    # read green while a member's sentence was being deleted. It is deleted from
+    # this file, and it does not come back. Needle built, body-scoped, controlled.
+    # ⚠️ COMMENTS STRIPPED, AND IT MATCHES THE CALL, NOT THE PHRASE. The first
+    # version failed on the comments that explain why the call was removed —
+    # prose about a defect is not the defect (same trap as the DOOR_JS case
+    # above). The RENDERED-step version of this check is driven, two blocks up.
+    _text_needle = "_doc_has_text(" + "srv"
+    _body_code = "\n".join(l for l in _body_src.splitlines() if not l.strip().startswith("#"))
+    cases.append(("⛔ nothing in the canary asks whether the server merely HAS TEXT",
+                  _text_needle not in _body_code))
+    cases.append(("CONTROL: that sweep can see the call when it is there",
+                  _text_needle in (_body_code + _text_needle)))
+    cases.append(("the sentence is typed and asserted from ONE variable",
+                  "sentence = offline_sentence(chk.started)" in _body_src
+                  and '" " + sentence' in _body_src
+                  and "sentence in _doc_text(srv" in _body_src))
     # ⛔ BUILT NEEDLE, BODY SCOPE, AND A CONTROL — for the FOURTH time in this
     # file. The first version of this case read `"--door" not in src_wc` and went
     # red on ITSELF: the literal it was hunting was the literal it was written

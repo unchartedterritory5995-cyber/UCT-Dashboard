@@ -294,7 +294,11 @@ def run_path(ctx, engine: str, session_cookie: dict | None, offline=None) -> Res
     page.wait_for_timeout(1200)
     pr = page.evaluate(PROBE)
     res.step("offline is real", pr.startswith("FAILED"), pr)
-    _type(page, f" {SENTINEL} typed offline.", end_first=True)
+    # ⛔⛔ ONE AUTHORITY FOR THE SENTENCE — `w.offline_sentence`. It is typed here
+    # and asserted below, so the two cannot drift, and it is THIS run's sentence
+    # rather than a phrase a leftover note could also satisfy.
+    sentence = w.offline_sentence(f"{engine} {utc()}", SENTINEL)
+    _type(page, " " + sentence, end_first=True)
     page.wait_for_timeout(6000)
     before = page.evaluate(w.LAYERS_JS, {"acct": ACCOUNT_ID, "id": nid})
 
@@ -308,9 +312,13 @@ def run_path(ctx, engine: str, session_cookie: dict | None, offline=None) -> Res
     rec = after.get("record") if isinstance(after.get("record"), dict) else {}
     ob = w._as_list(after.get("outbox"))
     unread = w.layer_read_failed(before) + w.layer_read_failed(after)
-    res.step("reload (network UP) → words survive",
-             w._doc_has_text(rec.get("bodyJson")) and not unread,
-             f"record has text={w._doc_has_text(rec.get('bodyJson'))} outbox={len(ob)} baseline={rec.get('baseUpdatedAt')}"
+    # ⛔ THE SENTENCE, not "has text": the words typed ONLINE satisfy "has text"
+    # even when the offline ones were dropped — that green is what let a discard
+    # through on 2026-09-10.
+    rec_has = sentence in w._doc_text(rec.get("bodyJson"))
+    res.step("reload (network UP) → the record holds THE OFFLINE SENTENCE",
+             rec_has and not unread,
+             f"record holds the sentence={rec_has} outbox={len(ob)} baseline={rec.get('baseUpdatedAt')}"
              + (f" UNREAD={unread}" if unread else ""))
     for lab, art in ((f"{engine}/pre-reload", before.get("record")), (f"{engine}/post-reload", rec)):
         if isinstance(art, dict):
@@ -324,12 +332,26 @@ def run_path(ctx, engine: str, session_cookie: dict | None, offline=None) -> Res
     settled = page.evaluate(w.LAYERS_JS, {"acct": ACCOUNT_ID, "id": nid})
     srec = settled.get("record") if isinstance(settled.get("record"), dict) else {}
     srv = settled.get("server") if isinstance(settled.get("server"), dict) else {}
-    res.step("reconnect → drained, server has words",
-             srec.get("dirty") == 0 and not w._as_list(settled.get("outbox")) and w._doc_has_text(srv.get("bodyJson")),
-             f"dirty={srec.get('dirty')} outbox={len(w._as_list(settled.get('outbox')))} server={w._doc_has_text(srv.get('bodyJson'))}")
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE WAVE'S ONE RULE, IN THIS TOOL TOO: a queued entry is never removed
+    # unless the server body is PROVEN to contain its content. "server has words"
+    # was satisfied by the ONLINE half and is DELETED, not kept beside this.
+    # ══════════════════════════════════════════════════════════════════════════
+    landed = sentence in w._doc_text(srv.get("bodyJson"))
+    res.step("reconnect → the server BODY CONTAINS THE OFFLINE SENTENCE",
+             srec.get("dirty") == 0 and not w._as_list(settled.get("outbox")) and landed,
+             f"dirty={srec.get('dirty')} outbox={len(w._as_list(settled.get('outbox')))} "
+             f"sentence-on-server={landed}")
     res.findings += w.baseline_findings(f"{engine}/settled", srec)
+    if not landed:
+        # ⛔⛔ LOST WORDS IS A HARD STOP HERE TOO — the note stays as evidence.
+        res.findings.append(
+            f"**{engine}: the server body does not contain the offline sentence** — "
+            f"`{sentence}` is gone; the queued entry was discarded rather than rebased. "
+            "The note is PRESERVED."
+        )
 
-    _cleanup(page, nid)
+    _cleanup(page, nid, res)
     return res
 
 
@@ -406,7 +428,7 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None, offline=None) ->
              f"copies={len(out.get('copies') or [])} mine present={mine in json.dumps(out.get('copyBody'))}")
 
     if not res.findings:
-        _cleanup(page, nid)
+        _cleanup(page, nid, res)
         for cid in (out.get("copies") or []):
             page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,{method:'DELETE',credentials:'include'}) }""", cid)
     return res
@@ -513,7 +535,19 @@ def _put_base(req):
         return None
 
 
-def _cleanup(page, nid):
+def _cleanup(page, nid, res=None):
+    """⛔⛔ A RUN THAT FINDS SOMETHING AND THEN DELETES THE EVIDENCE IS WORSE THAN
+    NO RUN. Same posture as the canary's `should_clean_up`: when this result
+    carries a finding, the note stays on the account and the skip is recorded so
+    the artifact is not silently missing.
+
+    ⭐ It used to delete unconditionally, which on the canary side cost us half a
+    fork nine seconds after creating it (2026-09-10).
+    """
+    if res is not None and res.findings:
+        res.step("cleanup", True, "🚨 SKIPPED ON PURPOSE — a finding is on the account "
+                                  "and the note stays as evidence")
+        return
     page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,{method:'DELETE',credentials:'include'}) }""", nid)
     page.evaluate("""async (acct) => {
         const known = (await indexedDB.databases()).map(d => d.name);
@@ -2378,6 +2412,55 @@ def self_check() -> int:
          and bool(w.conflict_findings("x", {"t": "B"}, {"t": "B"}, "B", "A"))),
         ("a finding suppresses conflict cleanup", "if not res.findings" in src),
         ("the cookie is never printed", "value not printed" in src),
+    ]
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE WAVE'S ONE RULE, IN THIS TOOL: a queued entry is never removed
+    # unless the server body is PROVEN to contain its content. "server has words"
+    # was satisfied by the words typed ONLINE and read GREEN through a real
+    # discard on 2026-09-10 — it is DELETED here, and it does not come back.
+    # ══════════════════════════════════════════════════════════════════════════
+    _rp = src.split("def run_path", 1)[1].split("\ndef ", 1)[0]
+    # ⚠️ Comments stripped: the first version of this sweep matched the comment
+    # that EXPLAINS the removal. Prose about a defect is not the defect.
+    _rp_code = "\n".join(l for l in _rp.splitlines() if not l.strip().startswith("#"))
+    _text_needle = "_doc_has_text(" + "srv"
+    cases += [
+        ("run_path never asks whether the server merely HAS TEXT",
+         _text_needle not in _rp_code),
+        ("CONTROL: that sweep can see the call when it is there",
+         _text_needle in (_rp_code + _text_needle)),
+        ("…it TYPES and ASSERTS the same sentence, from one authority",
+         "sentence = w.offline_sentence(" in _rp_code
+         and '" " + sentence' in _rp_code
+         and "sentence in w._doc_text(srv" in _rp_code),
+        ("…and the step is named for the property it proves",
+         "the server BODY CONTAINS THE OFFLINE SENTENCE" in _rp_code),
+        ("…and the sentence is the SAME shape the canary types",
+         w.offline_sentence("S", SENTINEL).startswith(SENTINEL)
+         and w.offline_sentence("S", SENTINEL).endswith("S")
+         and "typed offline" in w.offline_sentence("S", SENTINEL)),
+    ]
+
+    class _CleanPage:
+        def __init__(self):
+            self.calls = []
+
+        def evaluate(self, _js, arg=None):
+            self.calls.append(arg)
+            return None
+
+    _keep_res = Result("x")
+    _keep_res.findings.append("the server body does not contain the offline sentence")
+    _keep_page = _CleanPage()
+    _cleanup(_keep_page, "note-1", _keep_res)
+    _del_page = _CleanPage()
+    _cleanup(_del_page, "note-1", Result("x"))
+    cases += [
+        ("⛔ DRIVEN: cleanup DELETES NOTHING when a finding is on the account",
+         _keep_page.calls == []
+         and any("SKIPPED ON PURPOSE" in d for _n, _o, d in _keep_res.steps)),
+        ("CONTROL: a clean result still cleans up", "note-1" in _del_page.calls),
     ]
 
     # ══════════════════════════════════════════════════════════════════════════

@@ -2318,8 +2318,41 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
    the flag is flipped.
 10. Restore the network. Confirm the queue drains and the record goes clean
     (`dirty: 0`), re-based on the revision the save created.
-11. Clean up canonically: soft-delete the canary note through the normal
-    lifecycle; confirm the per-account store is empty on all four stores.
+
+    ⛔⛔ **AND THEN ASK THE ONLY QUESTION THAT MATTERS: does the server BODY
+    CONTAIN THE OFFLINE SENTENCE — the exact words you typed at step 7?**
+
+    > **A QUEUED ENTRY IS NEVER REMOVED UNLESS THE SERVER BODY IS PROVEN TO
+    > CONTAIN ITS CONTENT.** Every other outcome is rebase-and-resend, or leave
+    > it queued. "Ours" is NEVER, by itself, a reason to delete.
+
+    ⚰️ **This step used to read "the server has the words", and that sentence
+    cost a member's writing on 2026-09-10.** "The server holds text" is
+    satisfied by the words typed ONLINE at step 5, so when the drain DISCARDED
+    the queued entry instead of rebasing it, the check read **green** while the
+    offline sentence was gone. Deleted, not softened: do not check for "text",
+    check for **your sentence**.
+
+    ⛔ **And count the notes.** The account's note count must be exactly what it
+    was before step 4, plus the one note this run created. A **fork** and a
+    **discard** are different failures — the sentence catches one, the
+    arithmetic catches the other, and a copy whose title you did not predict is
+    only ever visible to the arithmetic.
+
+    ⛔ **If the sentence is not on the server, STOP.** That is lost words, a hard
+    stop: **keep the note** (do not run step 11), and report it.
+11. Clean up canonically — **only if nothing above found anything.** Soft-delete
+    the canary note through the normal lifecycle; confirm the per-account store
+    is empty on all four stores, and that the note count is back to its
+    pre-run value.
+
+> 📝 **CHANGE RECORDED, per the rule above.** 2026-09-10, at the coordinator's
+> direction after streak run 1 (door `folder`) discarded the offline sentence and
+> forked the note: step 10's body check became *the server body contains the
+> offline sentence* and gained the note-count assertion; step 11 became
+> conditional. Nothing else about the script moved. The same two assertions, in
+> the same words, are now in `tools/window_check.py` and `tools/engine_matrix.py`
+> — one authority for the sentence itself is `window_check.offline_sentence`.
 
 ### Conflict path
 
