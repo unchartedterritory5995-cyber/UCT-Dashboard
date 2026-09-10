@@ -218,8 +218,13 @@ function HubShell({ setToastMsg }) {
   // `PREVIEW_MODES` those are different arrays in a different order, so the bubble a thumb landed
   // on and the action that fired were resolved from two different lists BY INDEX.
   //
-  // Measured on the deployed tree (`febe8ee67`), Home's fan: TWO of four outer bubbles and ONE of
-  // four inner bubbles navigated somewhere other than their own label — tap "Flow", get Breadth.
+  // Measured on the deployed tree (`febe8ee67`) by deriving both lists from that exact registry
+  // blob: Home DRAWS seven bubbles — four outer, three inner — and THREE of the seven fired
+  // someone else's action. Tap "Flow" get Breadth; tap "Breadth" get Wire; tap "Wire" get Calendar.
+  // A fourth mismatch is not a wrong destination but an unreachable one: five outer actions are
+  // declared and only four drawn, so Flow's own action could not be reached from any bubble.
+  // ⭐ Counts stated against a named denominator on purpose — a hand-typed count beside the list
+  // it describes is the drift this repo keeps paying for.
   // Live in production since Increment 2. Found by Stream D while measuring its own ring counts,
   // in a file it did not own.
   //

@@ -6,9 +6,13 @@
  * different order, and both are indexed by wedge position, so a member tapping the third bubble
  * fired the third DECLARED action instead of the third DRAWN one.
  *
- * Measured on the deployed tree before the fix: two of Home's four outer bubbles and one of four
- * inner bubbles navigated somewhere other than their own label. Live in production since
- * Increment 2, and invisible to every existing rail because each one checked a single list —
+ * Measured on the deployed tree before the fix, by deriving both lists from that exact registry
+ * blob: Home draws seven bubbles (four outer, three inner) and THREE of the seven navigated
+ * somewhere other than their own label — Flow->Breadth, Breadth->Wire, Wire->Calendar. Flow's own
+ * action was unreachable besides, five outer being declared against four drawn.
+ *
+ * Live in production since Increment 2, and invisible to every existing rail because each one
+ * checked a single list —
  * `homeFanCalendar.test.jsx`'s Calendar case passed only because Calendar happened to sit at the
  * same inner index in BOTH.
  *
