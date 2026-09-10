@@ -1,0 +1,52 @@
+//@version=6
+indicator("UCTPROBE_R11_TIME_TF", overlay = false)
+
+// ⭐⭐ ITEM 7, THE `time(<timeframe>)` HALF — questions 1, 2 and 4 of
+// `docs/pine/r11-time-and-valuewhen.md`. Read on a 1D chart, where the higher
+// timeframe ("W") genuinely has no bar on most bars — which is the whole point
+// of question 1.
+//
+// ⛔⛔ QUESTION 3 (the SESSION argument) IS DELIBERATELY NOT IN THIS FILE.
+// `time(timeframe.period, "0930-1600")` is a two-argument form this engine has
+// never seen the vendor accept, and a Pine script that fails to COMPILE
+// produces NOTHING — the study lands carrying a one-plot stub titled "Plot"
+// with an empty `_data._items` (measured 2026-09-10). Putting the risky arity
+// in this file would stake questions 1, 2 and 4 on question 3 surviving.
+// It lives in `r11-time-session.pine`. One risky form, one file.
+
+// ── the control ──────────────────────────────────────────────────────────────
+// ⛔ NOT OPTIONAL. Every na-flag below can legitimately read 0, so without a
+// channel known-nonzero on every bar, "nothing is na" and "the study never
+// evaluated" are the same row of zeros.
+plot(bar_index, "N01_bar_index_CONTROL")                                    // N01
+
+// ── Q1: does `time("W")` answer `na` on a bar that is not a week boundary? ──
+// Three candidate answers, and they differ on every non-boundary bar: `na`, the
+// FORMING week's open, or the LAST COMPLETED week's open. N02 settles na-ness;
+// N03/N04 tell the two non-na answers apart by sign against this bar's own time.
+tw = time("W")
+plot(na(tw) ? 1 : 0, "N02_timeW_is_na_1_means_NA")                          // N02
+plot(na(tw) ? 0 : (tw <= time ? 1 : 0), "N03_timeW_le_time_1_means_PAST")   // N03
+plot(na(tw) ? 0 : (tw - time) / 86400000.0, "N04_timeW_minus_time_DAYS")    // N04
+
+// ── Q2: on the chart's OWN timeframe, is `time(timeframe.period)` == `time`? ─
+// ⭐ A delta of 0 is the claim; the na-flag is here so "equal" and "both
+// missing" cannot be confused — which is exactly how a session edge would hide.
+ts = time(timeframe.period)
+plot(na(ts) ? 1 : 0, "N05_timeSELF_is_na_1_means_NA")                       // N05
+plot(na(ts) ? 0 : (ts - time) / 1000.0, "N06_timeSELF_minus_time_SECONDS")  // N06
+
+// ── Q4: does the "new period" idiom fold? ───────────────────────────────────
+// `time("D") != time("D")[1]` is the classic new-day test. On a 1D chart it
+// should be true on EVERY bar; N08 is the channel that says so, and N07 guards
+// it — if `time("D")` is na the comparison is meaningless rather than false,
+// and those two must never be recorded as the same answer.
+td = time("D")
+plot(na(td) ? 1 : 0, "N07_timeD_is_na_1_means_NA")                          // N07
+plot((not na(td)) and (not na(td[1])) and (td != td[1]) ? 1 : 0, "N08_timeD_changed_vs_prev")  // N08
+
+// ── the raw values, so a THIRD answer can be READ rather than inferred ──────
+// ⭐ A flag says "not what we guessed"; these say WHAT it was. Divided to keep
+// the magnitudes plottable — Pine times are milliseconds since the epoch.
+plot(na(tw) ? -1 : tw / 86400000.0, "N09_timeW_RAW_DAYS_neg1_means_NA")     // N09
+plot(time / 86400000.0, "N10_time_RAW_DAYS")                                // N10

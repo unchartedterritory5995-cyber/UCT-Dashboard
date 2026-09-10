@@ -1,0 +1,54 @@
+//@version=6
+indicator("UCTPROBE_R11_VALUEWHEN", overlay = false)
+
+// ⭐⭐ ITEM 7, THE `ta.valuewhen` HALF — all four questions of
+// `docs/pine/r11-time-and-valuewhen.md`. 381 corpus sites ride on the
+// `occurrence` convention, and an off-by-one there "produces a plausible-looking
+// series that is wrong everywhere, which is precisely the failure a green suite
+// cannot see".
+//
+// ⭐⭐ THE CONDITION IS ARITHMETIC ON PURPOSE. `bar_index % 5 == 0` fires on a
+// schedule known in advance, so the RIGHT answer for every occurrence is
+// computable from `bar_index` alone — and it is computed here, as its own plot.
+// A price condition (`close > open`) would make every reading a comparison
+// against a second unknown.
+
+// ── the control ──────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                    // N01
+
+cond = bar_index % 5 == 0
+plot(cond ? 1 : 0, "N02_cond_fires_every_5th_bar")                          // N02
+
+// ── the expected values, computed WITHOUT ta.valuewhen ──────────────────────
+// ⭐ These are the oracle. `EXPECTED_occ0_if_INCLUSIVE` is the most recent
+// firing COUNTING THIS BAR; `_if_EXCLUSIVE` is the most recent firing STRICTLY
+// BEFORE it. On a firing bar the two differ by exactly 5; on every other bar
+// they agree — so the bars where they differ are the ONLY ones that can settle
+// question 4, and N05 marks them.
+exp0_incl = bar_index - (bar_index % 5)
+exp0_excl = cond ? exp0_incl - 5 : exp0_incl
+plot(exp0_incl, "N03_EXPECTED_occ0_if_INCLUSIVE")                           // N03
+plot(exp0_excl, "N04_EXPECTED_occ0_if_EXCLUSIVE")                           // N04
+plot(exp0_incl != exp0_excl ? 1 : 0, "N05_DISCRIMINATING_BAR_only_here")    // N05
+
+// ── Q2/Q3/Q4: what do occurrences 0, 1 and 2 actually return? ──────────────
+// Raw, not deltas: a delta against the wrong oracle hides a two-step error.
+v0 = ta.valuewhen(cond, bar_index, 0)
+v1 = ta.valuewhen(cond, bar_index, 1)
+v2 = ta.valuewhen(cond, bar_index, 2)
+plot(na(v0) ? -1 : v0, "N06_valuewhen_occ0_RAW_neg1_means_NA")              // N06
+plot(na(v1) ? -1 : v1, "N07_valuewhen_occ1_RAW_neg1_means_NA")              // N07
+plot(na(v2) ? -1 : v2, "N08_valuewhen_occ2_RAW_neg1_means_NA")              // N08
+
+// ⭐ …and the STEP between consecutive occurrences. If occurrences count
+// FIRINGS, this is exactly 5 on every bar past the warmup; anything else means
+// `occurrence` does not mean what the name suggests.
+plot(na(v0) or na(v1) ? -1 : v0 - v1, "N09_occ0_minus_occ1_expect_5")       // N09
+plot(na(v1) or na(v2) ? -1 : v1 - v2, "N10_occ1_minus_occ2_expect_5")       // N10
+
+// ── Q1: never fired — `na`, or 0? ──────────────────────────────────────────
+// ⛔ `bar_index < 0` can never be true, and it is ARITHMETIC rather than the
+// literal `false`, so it cannot be folded away before it is ever evaluated.
+never = ta.valuewhen(bar_index < 0, close, 0)
+plot(na(never) ? 1 : 0, "N11_never_fired_is_na_1_means_NA")                 // N11
+plot(na(never) ? -1 : never, "N12_never_fired_RAW_neg1_means_NA")           // N12

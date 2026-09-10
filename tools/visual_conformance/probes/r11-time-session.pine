@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_R11_TIME_SESSION", overlay = false)
+
+// ⭐⭐ ITEM 7, QUESTION 3 — ALONE IN ITS FILE BECAUSE IT IS THE RISKY ARITY.
+// `time(timeframe.period, "0930-1600")` decides whether the corpus's 52
+// two-argument sites are a BOOLEAN test ("are we in the session?") or an
+// ARITHMETIC one ("when did the session start?"). The two readings produce
+// different code, so guessing is not available.
+//
+// ⚠️ AND A COMPILE FAILURE HERE IS ITSELF THE READING. If the vendor rejects
+// this form, the 52 sites are not "an arity we reject" — they are scripts that
+// do not compile at TradingView either, which is a different finding with a
+// different fix, settled by the error text at
+// `status().errorDescription.editorError`. That is precisely why this question
+// is not allowed to take questions 1, 2 and 4 down with it.
+//
+// ⛔ READ THIS ON AN INTRADAY TIMEFRAME (5m or 60m). On a 1D chart every bar
+// IS the session, so "na outside the session" has no bar to be false on, and
+// the probe answers nothing while looking conclusive.
+
+// ── the control ──────────────────────────────────────────────────────────────
+plot(bar_index, "N01_bar_index_CONTROL")                                    // N01
+
+// ── Q3: `na` outside the session, or the session's start time? ──────────────
+tsess = time(timeframe.period, "0930-1600")
+plot(na(tsess) ? 1 : 0, "N02_sessionTime_is_na_1_means_NA")                 // N02
+plot(na(tsess) ? 0 : (tsess - time) / 1000.0, "N03_sess_minus_time_SECONDS")// N03
+plot(na(tsess) ? -1 : tsess / 86400000.0, "N04_sess_RAW_DAYS_neg1_means_NA")// N04
+
+// ── the discriminator's own discriminator ───────────────────────────────────
+// ⛔ IF EVERY CAPTURED BAR IS INSIDE THE SESSION, N02 READS 0 EVERYWHERE AND
+// THE PROBE HAS ANSWERED NOTHING WHILE LOOKING CONCLUSIVE. These channels are
+// the bar's clock: a verdict may only be read from a capture whose bars span
+// BOTH sides of 09:30–16:00 ET, and this is how that gets checked rather than
+// assumed.
+plot(hour, "N05_hour_MUST_span_inside_and_outside")                         // N05
+plot(minute, "N06_minute")                                                  // N06
