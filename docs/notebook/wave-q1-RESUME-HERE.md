@@ -160,6 +160,7 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Gate split** | **`32706ecae`** — the drain traced from the flag (§21b rails), the blocked-entry gap moved to the flag-flip gate, the §15 search recorded |
 | **Pre-flight** | **`11f3e812f`** — merged master `3b043d0f8`, ledger row 9 (the `ImportWizard` load-sensitive timeout), packet SHAs refreshed. ⛔ Ran under **HOLD**: the directive's DECISION line arrived unfilled. |
 | **Deploy attempt 1** | **`c2d8f5f58`** — DEPLOY authorised; pre-flight all green; **STOPPED at the pre-deploy re-fetch**, master had moved again (`590e88084`→`b41b4ed07`). Push is mechanically rejected as non-fast-forward. See §(b0). ⛔ **Nothing was pushed to master.** |
+| **Deploy attempt 2** | scope-gated loop authorised; **gate FIRED on iteration 1** — six commits incl. chart-watermark work touching six files under `app/`. Did not merge, did not deploy. See §(b-1). ⛔ **Nothing was pushed to master.** |
 | **Branch tip** | `c2d8f5f58` + the §(b0) note **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
 | **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` → `590e88084` inside one session (OptionsFlow, docs, pattern-vision backend — none of it under `app/`). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
@@ -335,7 +336,44 @@ that are already saved.
 outbox, or background syncing from this deploy. The service worker is untouched.
 Nothing is migrated, and no member data is read, moved, or deleted.
 
-## ⛔⛔ (b0) THE DEPLOY WINDOW IS THE BLOCKER — read this before trying again
+## ⭐ (b-1) THE DEPLOY PROCEDURE — a scope-gated reconcile loop, NOT a freeze
+
+**Owner-authorised 2026-09-09, replacing "stop if master moved at all".**
+
+**Why.** A second session pushed to `master` **eight times in one day** (16:31 ·
+16:57 · 17:11 · 18:25 · 18:25 · 18:44 · 18:55 · 19:41) while a full Wave Q1
+pre-flight takes **30–40 minutes**. **A pre-flight can never win a race against a
+freeze.** And every one of those eight commits touched **zero files under
+`app/`** — the freeze was stopping on *movement*, not on *risk*.
+
+**The loop** (max 5 iterations; run `python tools/deploy_scope_gate.py <old> <new>`):
+
+1. `git fetch`. If the branch is **0 behind**, exit the loop → 4.2.
+2. List every new commit **with its full file list from `git diff --name-only`**.
+   ⛔ Mechanically, never from subjects — a subject is a claim about a commit,
+   the file list *is* the commit.
+3. **HARD STOP** if any path matches: `app/**` · `lib/offline/**` ·
+   `api/**/notes.py` · anything under `journal-2-0` · the outbox/drain · the
+   durable store · the TipTap wiring · the flag definition · any of the seven
+   guarded files. Report the commit and the matching paths, and wait.
+4. Otherwise merge (not rebase), confirm **zero lines changed in the seven
+   guarded files**, push the branch.
+5. **Fast re-verify only** — tree clean · HEAD == remote · flag `false` on branch
+   and new master · backend rail if `api/**` moved · **journal-2-0 at rest, once**
+   · refresh the master SHA in the packet and the rollback target.
+6. Back to 1. If 5 iterations do not reach 0 behind, STOP — master is outrunning
+   even the fast loop.
+
+⛔ **Step 5 deliberately does NOT re-run the full frontend suite**, both because
+master changed nothing it reads and because that ordering manufactures row-9
+failures (see the traps section).
+
+⚰️ **First run, 2026-09-09: the gate FIRED on iteration 1** — six commits
+including chart-watermark work touching six files under `app/`. Stopped, did not
+merge. That is the gate doing its job, and it is the first master movement all
+day that the old freeze and the new gate would have treated the same way.
+
+## ⛔⛔ (b0) THE FREEZE THIS REPLACED — kept as the record of why
 
 **2026-09-09, attempt 1: STOPPED at the pre-deploy re-fetch. Master moved
 between reconcile and deploy, for the eighth time that day.**
@@ -652,6 +690,15 @@ again, for a reason nothing on screen ever gives them.
   to the hub sandbox** (`scripts/hub_sandbox_boot.py`, another workstream) — it
   will not survive the restart, and restarting it is *their* call, not ours.
 - ⛔ **`vitest` must run from `app/`.** Backend tests from the repo root.
+- ⛔⛔ **RUN THE WAVE'S GATE AT REST — NEVER full-suite-then-journal-2-0.**
+  That ordering manufactures failures that say nothing about the code. Under
+  sustained load a **population** of journal-2-0 tests times out — three
+  different ones observed (`ImportWizard` audit-B1 4.2s · `captureConvergence`
+  **28.7s** · "closing returns the dialog to nothing" 4.1s) — and it is whichever
+  test happens to be slowest, not a specific flaky file. Naming one of them
+  would be false and "fixing" it would move the failure
+  (`lesson_an_intermittent_red_can_be_a_population_not_a_test`). journal-2-0 is
+  **2391/2391 in eleven consecutive runs at rest**. Ledger row 9.
 - ⛔ **EIGHT files fail the full frontend suite on master, and none are ours.**
   Every one is blamed to a SHA in **`docs/notebook/inherited-red-ledger.md`** —
   read that instead of re-deriving it, and add a row rather than re-investigating.
