@@ -123,6 +123,143 @@ property.**
 
 ---
 
+# 🏁 THE CLOSE — **PREPARED, NOT PUBLISHED**
+
+⛔⛔ **THIS SECTION IS A DRAFT OF THE END STATE. THE GATE IS OPEN.** Nothing here
+is a claim that Wave Q1 is finished. It exists so that closing is an act of
+**dating a prepared statement**, not of writing one under time pressure — which is
+how the two hard stops above got their first, wrong write-ups.
+
+⛔ **What is deliberately NOT here:** a deploy #4c or #5 record (their checklists
+have not run), a branch tip, and a date on the CLOSED line. **Tip-stamp is LAST**,
+after the flip is confirmed.
+
+## ⛔⛔ THE INVARIANT — corrected, and the one sentence the wave answers to
+
+> **A QUEUED ENTRY IS NEVER REMOVED UNLESS THE SERVER BODY IS PROVEN TO CONTAIN
+> ITS CONTENT.**
+>
+> **Ours ⇒ REBASE, never delete.** Every other outcome is rebase-and-resend, or
+> leave it queued. **"Ours" is never, by itself, a reason to delete.**
+
+⚰️ **What it replaced, and why the correction matters more than the rule:** the
+round-1 and round-2 designs both reasoned about *whose* revision the server held.
+That question can be answered "ours" while the server body still lacks the
+member's words — which is exactly how HARD STOP #2 deleted them. The corrected
+invariant asks about **CONTENT**, and resolves the absence of proof to **keep**.
+
+## The FOUR doors — every path that advances `updatedAt`
+
+⛔ **A hand-written list of "save paths" misses three of these**, because three of
+them do not look like saves. They were found by the **DERIVED wire rail**, not by
+reading (**R-B**).
+
+| door | what it is | why it can lose words |
+|---|---|---|
+| **body** | `commitSave` — the debounced autosave every keystroke reaches | the original self-fork path (HARD STOP #1); guard 1 was wired to `restoreDraft` and never ran here |
+| **folder** | `onFolderChange` | advances the server revision **without carrying the member's body** |
+| **ticker** | `onTickerChange` | same |
+| **tags** | `onTagsChange` | same — and this is the door that fired on **streak run 1** |
+
+⛔ **The wire rail proves the call EXISTS; it cannot prove the call is CORRECT.** A
+door passing **LOCAL** state as `acked` would satisfy it completely and **DELETE
+the member's queued work** — there is a case pinning exactly that (**R-B**).
+
+⭐ **The property rail is what covers all four at once:**
+`app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx` —
+three doors × six orderings, asserting only that **the offline sentence is in the
+server body and the note count is unchanged.**
+
+## The two REJECTED designs — and the rail that rejected each
+
+⛔⛔ **BOTH WERE KILLED BY PRE-EXISTING RAILS, NOT BY REVIEW.** Nobody argued them
+down; they were built, and rails that already existed went red. Full reasoning:
+**R-A**.
+
+| rejected design | the rail that rejected it | why |
+|---|---|---|
+| **AWAIT the marker write on the save path** | `NoteEditorPage.durable.test.jsx` + `NoteEditorPage.interleavings.test.jsx` | couples the member's ability to save to IndexedDB being responsive — a blocked upgrade stops saves outright, and **to a member whose network is fine it looks like the network is down** |
+| **The marker ON THE NOTE RECORD** | the same two rails | a read-modify-write on `notes` **on the save path**, contending with the durable writer — **the durable copy stopped being written at all** |
+
+⭐ **A different store removes both problems by construction.** A flag that
+sequences two writers is a race with a name.
+
+## The deploy record index
+
+| # | what it shipped | state |
+|---|---|---|
+| **#1** | the autosave / canary-defect fix (`cd674ef56`) | ✅ live |
+| **#2** | blocked-entry surfacing + the `null` instrument (`eedb58ac8`) | ✅ live |
+| **#3** | the opt-in denominator + `window_check.py` (`7ed6b2ce5`) | ✅ live |
+| **#4** | the self-fork fix, round 1 (`f093bf731`) | ✅ live — ⚠️ **narrowed, did not close** |
+| **#4b** | the self-fork fix, round 2 (`23f6ce271`) | ✅ live — ⚠️ **the metadata doors could still discard queued words** |
+| **#4c** | the four-door / content-decides fix (`998f802ae` on the branch) | ⛔ **NOT DEPLOYED — checklist running.** `<record to be written when it lands>` |
+| **#5** | ⛔ **the flag flip** — `OFFLINE_DEFAULT_ON = false → true` | ⛔ **NOT DEPLOYED, and BLOCKED.** `<record to be written when it lands>` |
+
+⛔ **Each record carries its own checklist as checked AT PUSH TIME**, its
+member-impact paragraph verbatim, and — where the suite was measured at a
+different SHA than the tip — **that gap stated plainly**. Do not summarise a
+record into this table; the table is an index.
+
+## The evidence set
+
+| what | where |
+|---|---|
+| This file — state, rulings, deploy records, the two hard stops | `docs/notebook/wave-q1-RESUME-HERE.md` |
+| The inherited reds, blamed row by row + every re-measurement | `docs/notebook/inherited-red-ledger.md` |
+| §32 browser matrix (Chrome/Firefox/WebKit/incognito/private, two real iPhones) | `docs/notebook/wave-q1-browser-certification.md` |
+| Raw per-browser probe artifacts | `docs/notebook/wave-q1-probe-results/*.json` + its `README.md` |
+| The activation red that caused the 2026-09-09 rollback | `docs/notebook/wave-q1-activation-canary-red.md` |
+| Harness integrity — identity, ports, controls | `docs/notebook/wave-q1-harness-integrity.md` |
+| The observation window's own record | `docs/notebook/wave-q1-observation-window.md` |
+| The 18 GB runaway backend pytest (**another session's process**, recorded so its evidence is not lost) | `docs/notebook/runaway-pytest-2026-09-10.md` |
+| ⛔ **The preserved forks** — TWO `(conflicted copy)` notes, 16:54:50Z and 20:57:31Z | **live production data.** Note count **34**. See **R-K** — 32 is only reachable by deleting evidence. |
+
+⭐ **Instruments, not prose:** `tools/window_check.py` (one command = one stamped
+row) · `tools/engine_matrix.py` · `tools/deploy_scope_gate.py` +
+`tools/gate_regions.py` (the three tiers, **⭐ TIER 1½**) ·
+`tools/q1_mutation_gauntlet.py` (⛔ read the total from the tool) ·
+`scripts/gate_shards.py` (⭐ `--max-workers`, **R-P**).
+
+## Where the rest of the close already lives
+
+- 🔙 **ROLLBACK RUNBOOK** — its own standalone section in this file. ⛔ Not
+  indicated by either hard stop; every shipped deploy stays.
+- 🧾 **RULINGS** — `R1`–`R16` (the deploy-#4 round) and **ROUND-2 RULINGS**
+  `R-A`–`R-R`. Complete as of this writing; **R-P/R-Q/R-R are about the machine,
+  and R-Q/R-R also bind through the `uct-conventions` skill.**
+- 📄 The runaway-pytest record is **standalone and owns its own measurements** —
+  cross-referenced from **R-P**, never duplicated.
+
+## ⛔ THE GATE — the line, ready to date
+
+> **WAVE Q1 CERTIFICATION GATE: CLOSED — `<DATE>`.**
+
+⛔⛔ **DO NOT DATE THIS LINE UNTIL ALL OF THE FOLLOWING ARE TRUE**, and each is a
+measurement, not a judgement:
+
+1. **Deploy #4c is LIVE**, with its record written and its checklist recorded as
+   checked at push time.
+2. **SEVEN CONSECUTIVE GREEN RUNS** against the deployed #4c — ⛔ **restarting from
+   ZERO**, not resumed from 3 or 1, and ⛔ **every run's STARTING STATE recorded,
+   not only its verdict** (**R16**).
+3. **The property rail is green** and its control still fails when driven at the
+   shipped defect.
+4. **The flip (#5) is deployed and verified on the LIVE BUNDLE** — `!0`, and
+   `offlineEnabled()` returning it when the key is unset.
+5. **The §15 canary re-run against the flipped build**, both halves plus the
+   conflict path.
+6. **The preserved forks are dealt with by an explicit owner decision** with a date
+   — ⛔ never quietly, and never as tidying.
+7. ⛔ **journal-2-0 and the full suite reported as TWO SEPARATE NUMBERS.** There is
+   no repo-green to claim, and closing does not create one.
+
+⭐ **Tip-stamp is the LAST act, after the flip is confirmed** — a doc cannot name
+its own SHA, and a tip stamped before the final commit is wrong the moment it is
+written.
+
+---
+
 # ⛔⛔ HARD STOP #1 — 2026-09-10 — THE SELF-FORK REPRODUCED AFTER THE FIX SHIPPED
 
 **Read this before anything else in this file.** Deploy #4 is live and correct.
@@ -1031,7 +1168,7 @@ starting state of every run in the streak rather than only its verdict.
 
 ---
 
-# 🧾 ROUND-2 RULINGS — R-A … R-O
+# 🧾 ROUND-2 RULINGS — R-A … R-R
 
 ⛔ **Lettered, not numbered, on purpose.** R1–R16 belong to the deploy-#4 round;
 these belong to the round that followed the root cause. Mixing the sequences
@@ -1397,6 +1534,111 @@ and ⛔ **that row is not edited** — see it above.
 
 ---
 
+⛔ **R-P … R-R are about the MACHINE, not the product**, and they are logged
+`2026-09-10T22:20:00Z`. ⭐ **R-Q and R-R are now in the `uct-conventions` skill on
+the owner's instruction**, so they bind future sessions and not just this file.
+
+## R-P — a gate cycle contends for the MACHINE, not only for `master`
+
+**Decision: reduce your own footprint; never kill another session's work.**
+
+Three sessions ran suites concurrently. Free memory fell to **451 MB of 32 GB**,
+and the host **OOM-killed the full-suite run THREE times**, plus the loop that was
+*waiting* for the others to finish.
+
+⛔ **THE LEVER NOT PULLED: killing another session's work to make room.** It was
+available, it would have worked, and it was not used — because the memory belongs
+to whoever is using it, and a gate cycle is not a claim on the box.
+
+**What was done instead:** `scripts/gate_shards.py` gained `--max-workers`
+(**default unchanged at 2**), so a contended box costs a **slow run rather than a
+lost one**.
+
+⭐ **Same shape as R11's lapping problem, one layer down.** R11 was about
+contending for `master`; this is about contending for the machine `master` is
+gated on. Both resolve the same way: **measure the contention, then reduce your
+own cost — do not evict the neighbour.**
+
+📄 **The standalone record is `docs/notebook/runaway-pytest-2026-09-10.md`** — it
+carries the process table, the ancestry, and the reproduction. ⛔ Do not duplicate
+its content here; that file is the owner of those measurements.
+
+## R-Q — ⛔⛔ PIPE A TEST RUNNER'S EXIT STATUS THROUGH, NEVER `tail`'s
+
+**Decision: `${PIPESTATUS[0]}`, or capture to a file. Never read a pipeline's exit
+code as the runner's.**
+
+`pytest … | tail -2` reports **`tail`'s** status. An OOM-killed run then presents
+as:
+
+- a **653-byte log**,
+- containing only a deprecation warning,
+- **no traceback**,
+- and **exit 0**
+
+— which is **indistinguishable from "finished quietly"**.
+
+⚰️ **One session lost THREE full backend runs that way in a single night without
+ever seeing a failure.** It was diagnosable only from **OUTSIDE**, by another
+session measuring the process.
+
+> ⭐ **THE SENTENCE TO KEEP, from that session: *the evidence of an OOM kill is
+> precisely that there is no evidence.***
+
+**The three rules this leaves, and each fails differently:**
+
+1. Use **`${PIPESTATUS[0]}`** or capture the run to a file and read it back.
+2. **A suspiciously small log is a KILLED RUN until proven otherwise** — size is a
+   signal, and a 653-byte log from a suite that normally prints thousands of lines
+   is the loudest one available.
+3. **A run with no totals line is not a run, whatever the exit code says**
+   (`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`) — this wave
+   already had that rule and it is what would have caught this one too.
+
+## R-R — backend pytest on this box is SCOPED, never repo-wide
+
+**Decision: scope every backend run to named files until the 18 GB cause is
+named.**
+
+`--collect-only` **ALONE reached 6.6 GB**. So it is **import/collection time**, and
+⛔ **neither `-k` nor `--timeout` contains it** — both act after collection.
+
+⭐ **`scripts/gate_shards.py` is CLEARED by MEASUREMENT, not by argument:**
+`grep -n pytest` over it returns **ZERO** occurrences; line 191 runs `npx vitest`
+only. **No gate run carries the bomb.**
+
+⛔⛔ **THE INVESTIGATION IS THE INDICATOR SESSION'S, NOT THIS ONE'S.** That session
+owned the processes, confirmed it, and killed them. Leads for whoever takes it:
+
+- the repo-root `conftest.py` does an **AST census over `api/**`, `scripts/`,
+  `tools/` at import**;
+- `api/main.py` is ~9,800 lines with ~986 routes **walked when `api.main:app` is
+  imported**, so a test module importing it **at module scope pays that per
+  worker**.
+
+⭐ **Corroboration worth recording, because it narrows the search:** the same
+session's full **FRONTEND** suite (vitest, **1213 files, 17,386 tests**) completes
+fine in **~370 s** on this box. So this is **specific to the Python collection
+path**, not general memory pressure.
+
+### ⭐⭐ And the cross-session part — the pattern that actually worked
+
+**THREE sessions independently refused to kill processes they did not own** —
+including on a peer's **relayed** authorisation.
+
+> ⛔ **`patrick-00` named it: a peer relaying an owner's authorisation is not
+> authorisation. It is laundering the permission decision.**
+
+My own classifier blocked me **twice**, and I **stopped rather than hunt for a tool
+that slipped through** — which is the correct response to a block, not an obstacle
+to route around.
+
+⭐ **It resolved by ASKING: the owner identified itself and killed them.** Record
+that as the working pattern, **because it is the one that worked** — not the
+fastest one, the one that ended with the right party making the decision.
+
+---
+
 # 🚨 THE SELF-FORK, AS FOUND — 2026-09-10
 
 **A SINGLE-WRITER OFFLINE SESSION FORKS ITS OWN NOTE.** Found by the compressed
@@ -1488,6 +1730,74 @@ other, and there is never a second one.
 ⚰️ Written 2026-09-10 after three sessions each stood up a throwaway rig, each
 asked for a sign-in, and each re-read by hand what the previous one had already
 written down. The cost was not the compute; it was the owner's time.
+
+# ⛔ DEPLOY #5 — THE FLAG FLIP — **NOT DEPLOYED. BLOCKED.**
+
+**`OFFLINE_DEFAULT_ON = false → true`.** ⛔ This section is a **placeholder**, and
+its presence is not a plan to run it.
+
+| | |
+|---|---|
+| pushed | `<pending>` |
+| live | `<pending>` |
+| master after | `<pending>` |
+| flag | ⛔ **`false`** — this is the ONE deploy that changes it |
+
+⛔⛔ **BLOCKED** on the seven-run streak against deploy #4c, which restarts from
+ZERO. The procedure, the member-impact paragraph (⛔ **not** the "nothing changes
+for members" one) and the post-flip §15 canary are in **🔀 THE FLIP ITSELF** below.
+
+---
+
+# ⛔ DEPLOY #4c — THE FOUR-DOOR / CONTENT-DECIDES FIX — **NOT DEPLOYED**
+
+**Fix committed on the branch as `998f802ae`; its checklist is running.** ⛔ This
+section is a **placeholder** — no record is written until it lands, and the
+checklist values below are **blank on purpose** rather than optimistically filled.
+
+| | |
+|---|---|
+| pushed | `<pending>` |
+| live | `<pending>` |
+| master after | `<pending>` |
+| flag | expected **`false`** — #4c is the fix, not the flip |
+
+**What it carries** (full reasoning: **⛔⛔⛔ HARD STOP #2** at the top):
+
+- **FIX 1** — null local state is **NO EVIDENCE, not caught-up**: refuse to settle;
+  the entry stays queued, drains, and guard 2 rebases it.
+- **`recordLandedRevision`**, split out and called **unconditionally and first** —
+  recording a revision as ours and settling the queue are two acts with different
+  preconditions.
+- **FIX 2** — guard 2 decides by **CONTENT**: byte-identical ⇒ remove;
+  ours-but-body-differs ⇒ **REBASE, keep the words, resend once**; a second 409
+  forks, preserving both copies.
+- **The property rail** — `offlineWordsSurvive.property.test.jsx`, three doors ×
+  six orderings, with a control that drives the shipped defect and REQUIRES the
+  property to fail.
+- **R-O's replacement check** — *"the server BODY CONTAINS THE OFFLINE SENTENCE"* —
+  in `window_check.py`, `engine_matrix.py` and step 10 of the script of record.
+
+**Checklist — to be recorded AS CHECKED AT PUSH TIME:**
+
+| # | check | result |
+|---|---|---|
+| 1 | three-tier gate resolved, 0 behind at the final re-fetch | `<pending>` |
+| 2 | zero-line check on every guarded file | `<pending>` |
+| 3 | `journal-2-0` at rest, alone | `<pending>` |
+| 4 | backend Q1 rails | `<pending>` |
+| 5 | full frontend suite — failures **vs baseline**, NEW regressions, tree hash start→end, file count reconciled | `<pending>` |
+| 6 | every Wave Q1 rail by name (the gauntlet's control) | `<pending>` |
+| 7 | `tools/q1_mutation_gauntlet.py` — every declared mutation reddening its own rails, control green before AND after | `<pending>` |
+| 8 | `tools/verify_memory_pointers.py` | `<pending>` |
+| 9 | flag state | `<pending>` |
+| 10 | member-impact paragraph | `<pending — owner-approved wording, recorded verbatim>` |
+
+⛔ **And the honesty note, if it applies:** if the full suite is measured at a SHA
+other than the tip that ships, **say so plainly and name the delta** — as #4 and
+#4b both did. A gap that shrinks is still a gap.
+
+---
 
 # ✅✅ DEPLOY #4b — THE SELF-FORK FIX, ROUND 2 — 2026-09-10T20:34:16Z, LIVE 20:36:29Z
 
@@ -4253,12 +4563,17 @@ docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 
 **Sections in this file worth knowing by name:** ⛔⛔⛔ **HARD STOP #2** (read it
 FIRST — the member's words were LOST; the fix is committed, ⛔ NOT deployed) ·
+🏁 **THE CLOSE — PREPARED, NOT PUBLISHED** (the end state, undated on purpose) ·
 ⛔⛔ **HARD STOP #1** (the self-fork reproduced after #4) · 🔧 **ROUND 2 — THE
-FINAL DESIGN (R-A)** (shipped as **#4b**, and #4b was not the end) · ✅✅ **DEPLOY
-#4b** then ✅✅ **DEPLOY #4** (⚠️ both annotated, neither rewritten) · 🧾 **RULINGS**
-R1–R16 and 🧾 **ROUND-2 RULINGS** R-A…R-O · ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
+FINAL DESIGN (R-A)** (shipped as **#4b**, and #4b was not the end) · ⛔ **DEPLOY
+#5** and ⛔ **DEPLOY #4c** (placeholders — neither deployed) · ✅✅ **DEPLOY #4b**
+then ✅✅ **DEPLOY #4** (⚠️ both annotated, neither rewritten) · 🧾 **RULINGS**
+R1–R16 and 🧾 **ROUND-2 RULINGS** R-A…R-R · ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
 ⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not
-indicated — both deploys stay).
+indicated — every shipped deploy stays).
+📄 **Standalone records:** `docs/notebook/inherited-red-ledger.md` ·
+`docs/notebook/runaway-pytest-2026-09-10.md` (**R-P**) ·
+`docs/notebook/wave-q1-browser-certification.md` + `wave-q1-probe-results/`.
 ⛔ **The note baseline is 34, not 32** (**R-K**) — 32 + TWO preserved forks. Do not
 "correct" it.
 ⛔ **"Server holds text" is DELETED everywhere** (**R-O**) — the check is *the
