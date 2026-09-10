@@ -184,6 +184,33 @@ def _build_ticker_list() -> list[str]:
     return active
 
 
+def _floor_pinned(sym: str, tf: str) -> bool:
+    """Does the stored series START ON the vendor's floor — the un-grafted signature?
+
+    ⭐ THIS IS HOW A THROTTLED GRAFT IS CAUGHT. `_fetch_daily(..., deep=True)` merges
+    yfinance UNDER Massive and returns the merge; when Yahoo refuses (rate-limited, the
+    "no timezone found" signature — 174 of them in the first minutes of the 2026-09-09
+    sweep) the merge is simply Massive alone. That is a perfectly good-looking return
+    value of ~5,785 rows, so `warm_ticker_deep` reports success, the pass counts it as
+    warmed, and the done-marker is written over a universe that was never grafted —
+    the SAME "one-shot job declares victory" trap that caused the original bug.
+
+    A post-floor listing is NOT pinned: its first bar is its real IPO date, well after
+    the window. So this separates "Yahoo refused" from "there is genuinely nothing
+    older", which a row count cannot do.
+    """
+    tfu = (tf or "D").upper()
+    if tfu not in _VENDOR_FLOOR_YMD:
+        return False
+    try:
+        first = _sqlite.get_first_ts(sym, tfu)
+    except Exception:                                              # noqa: BLE001
+        return False
+    if first is None:
+        return False
+    return _VENDOR_FLOOR_YMD[tfu] <= int(first) <= _VENDOR_FLOOR_WINDOW_END_YMD[tfu]
+
+
 def _already_deep(sym: str, tf: str) -> bool:
     """Has this (ticker, tf) already had the deep pre-2003 graft applied?
 
@@ -255,7 +282,13 @@ def deep_warm_history_once():
             wrote = warm_ticker_deep(sym.upper(), tf)
             if _SLEEP_BETWEEN:
                 time.sleep(_SLEEP_BETWEEN)
-            return "warmed" if wrote else "failed"
+            if not wrote:
+                return "failed"
+            # ⛔ A NON-EMPTY RETURN IS NOT PROOF THE GRAFT LANDED. A throttled Yahoo
+            # yields the Massive-only merge, which looks like a healthy ~5,785-row
+            # write. Still pinned to the floor ⇒ report FAILED, so a bad pass cannot
+            # write the done-marker and the next boot retries.
+            return "failed" if _floor_pinned(sym.upper(), tf) else "warmed"
         except Exception:
             return "failed"
 
