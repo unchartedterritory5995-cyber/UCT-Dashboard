@@ -2201,6 +2201,204 @@ class of invisibility the table exists to remove. The migration is guarded by a
 EVERY judge run: a once-only migration would raise `duplicate column name` on the
 second slot of the day and abort the run before a single ticker was judged.
 
+### 2026-09-10 LATE SHIPMENT — Batch 2 + Batch 3 + item 21, and what is NOT yet verified
+
+The owner directed the whole remaining plan be completed the same day rather
+than staged across Friday and Monday. Everything buildable was built, tested and
+pushed that evening. One thing could not be compressed and is called out here so
+nobody reads this section as more finished than it is.
+
+⛔⛔ **FIXES B AND C ARE SHIPPED BUT NOT YET OBSERVED IN PRODUCTION.** They can
+only be exercised by a judge slot running on the new code, and the last slot of
+2026-09-10 (16:00 ET) had already completed before these landed. **The first
+evidence is Friday 2026-09-11's 09:00 slot.** The verification is unchanged and
+still owed:
+- every 09:00 verdict must carry `asof_date` **2026-09-10** (Thursday's closed
+  bar), NOT 09-09 — that is fix C;
+- `evidence_min` must not be 2025-01-16, `dropped_stale` should be **0** (SQ
+  swapped for XYZ; PXD is invisible to the filter by design), `truncated` 0 —
+  that is fix B;
+- **XYZ** should appear as judged or skipped: the judge seeing Block Inc for the
+  first time.
+- ⛔ If the 09:00 verdicts carry 09-09, fix C did not take effect. Do NOT
+  manually invoke; prepare a single revert of C and hold it.
+
+⚠️ **The ordering risk, recorded because it was accepted deliberately.** Items
+22 and 24 EXTEND the hygiene and slot-log work in B, and they shipped before B
+was observed. That is the opposite of the sequencing this file argued for
+earlier the same day, and it was the owner's call. The practical cost: a revert
+of B on Friday is now a larger operation than it would have been.
+
+**Shipped in the Batch 2 + Batch 3 push** — 20 files, 304 tests green, zero
+overlap with master:
+
+| Item | What | Evidence |
+|---|---|---|
+| 8 | `min_conf` honoured on the confirmed read path | mutation: 2 of 3 red |
+| 13 | cost cap tripping PARTWAY through a slot | non-vacuity assertion |
+| 22 | per-slot evidence histogram incl. skipped candidates | distinct-count cross-check |
+| 24 | `dropped_no_bars` as its own path, never merged with stale | separation test |
+| 9 | one binding for `_DOMAIN_FETCHERS` | **`test_no_shadowed_definitions` GREEN** |
+| 10 | six flag-ledger gates declared | **`test_feature_flag_ledger` GREEN** |
+| 17 | `end`/`days` Query sentinels (Seam 27) | mutation: 3 of 5 red |
+| 15 | 2 of 10 inherited vitest reds | fail-before/pass-after both |
+| Seam 3 | one authority for the mover threshold | derivation test |
+| Seam 4 | one earnings-window walk | equivalence test |
+
+**⭐ BOTH DOCUMENTED INHERITED BACKEND REDS ARE NOW CLOSED.** This file and the
+session memory both carried "never claim repo-green" because of
+`test_no_shadowed_definitions` and `test_feature_flag_ledger`. Both pass. **That
+instruction still stands for the FULL suite** (~9,600 tests, not run here) — two
+named reds closing is not a green repo.
+
+**Item 21 shipped as its own push**, being the only member-visible change.
+
+### Scheduled wake-ups (2026-09-10, owner-authorized) — SESSION-ONLY
+
+Two recurring jobs drive the weekday schedule: `d6858a69` fires 08:10 machine
+time = **09:10 ET** (morning read, then batch work) and `e5410620` fires 15:05 =
+**16:05 ET** (slot record + any push due). Remove with `CronDelete` on each id;
+removal is required when the final report is delivered and must be confirmed in
+it.
+
+⛔⛔ **They do NOT do the thing they were set up to do, and that was reported at
+the time.** They live in the Claude session's memory, not on the machine —
+nothing is written to disk and they die with the session, so they do not survive
+the session-mortality risk that prompted them. They automate the schedule only
+while the session lives. (The upside: nothing persistent was added to the
+owner's machine, which was the other half of the instruction.) They also
+auto-expire after **7 days** (≈2026-09-17), which covers Fri 09-11 through
+Wed 09-16 but not "continuing weekdays" beyond that.
+
+⚠️ The machine clock is CDT = ET−1 and cron uses LOCAL time, hence 08:10/15:05.
+ET and CT shift together for DST so the offset holds; moving the machine to
+another zone would break it. Both prompts carry a missed-wake rule: a wake that
+did not fire has its steps run by the next one, and the miss is logged.
+
+### Batch 3 extras shipped 2026-09-11 — two seams closed, one new follow-up
+
+**✅ SEAM 3 CLOSED — one authority for the "notable move" threshold.** The 3%
+gap was written FIVE times: four bare literals in `massive.py`'s two mover
+functions, plus a hand-typed copy in `watchlist_intelligence.py` whose comment
+said it "matches massive.py::get_movers()'s own gap-filter threshold". It did —
+by coincidence. Nothing imported anything, so tuning either side would have
+shipped two different definitions of a notable move with the comment still
+asserting they agreed. `massive.MOVER_THRESHOLD_PCT` is now the single
+definition; the watchlist derives it through a lazy accessor, matching that
+module's own convention (importing `massive` at module scope would pull an httpx
+client onto its import path).
+- ⚠️ `massive.py` also contains `connect=3.0` in its httpx timeout — same
+  literal, unrelated meaning. The AST sweep in the tests is scoped to the two
+  mover functions so it cannot flag that one, and a control test asserts the
+  timeout literal still exists so the sweep cannot pass because the number
+  vanished everywhere.
+- ⭐ The load-bearing test is the DERIVATION: raise the constant to 10.0 and a
+  5% move stops being notable. An equality assertion between two module
+  attributes would have passed just as happily against two hand-typed copies —
+  which is the state this replaces.
+
+**✅ SEAM 4 CLOSED — one earnings-window walk, and the owner's equivalence
+condition met.** `awareness/engine.py::_collect_earnings_window` and
+`watchlist_intelligence.py::_earnings_facts` each carried the same loop. The
+duplication was deliberate (the watchlist declined to import the engine's
+private memoized version) but the copies had already diverged: only one was
+memoized and the window length was declared twice.
+`calendar_alerts.collect_earnings_window` is now the single walk and
+`EARNINGS_PROXIMITY_DEFAULT_DAYS` the single window length.
+- ⛔ **What is shared is the WALK, and only the walk.** Awareness keeps its
+  memoization and partial-failure TTL; the watchlist keeps its symbol filter and
+  fact phrasing and inherits no memoization — so the reason the original mirror
+  existed is still honoured. Folding either wrapper in would be a behaviour
+  change for the other caller.
+- **The ruling was: memoizing one consumer is a PERFORMANCE change, not a
+  behaviour change, only if the outputs are identical.**
+  `test_both_consumers_agree_across_the_window` drives both call paths over one
+  fixture calendar and asserts an identical symbol → date mapping. If it ever
+  fails, the unification became a behaviour change and reverts to scope-only.
+- The fixture deliberately has one symbol reporting on TWO days, so "earliest
+  wins" is exercised — with one date per symbol that rule is unfalsifiable.
+
+27. **`high_tight_flag` APPEARS UNABLE TO FIRE — RECORDED, NOT CHASED.**
+   (Numbered 27, not 26: 26 is already taken on master by the vacuous
+   OptionsFlow guard.)
+
+   It produced **ZERO detections across 17,880 ticker-sessions** in the widened
+   item-21 replay. In the narrow run that read as "a rare setup"; at this scale
+   it was worth asking whether the population simply contained no HTFs, because
+   "rare" and "broken" need different responses.
+
+   **Measured, read-only.** The detector's defining gate is a pole of **≥90%
+   advance within ≤40 trading days**. Across the same 298 tickers and 520-bar
+   window, **78 of them exhibited a qualifying pole** — SES 796%, VCX 565%,
+   PONY 465%, IPSC 420%, GEVO 377%, OKLO 344%, FCEL 323%. **So "there were none
+   to find" is eliminated, and the zero is the detector's to explain.**
+
+   ⚠️ **The limit of that check, stated honestly:** the pole test is LOOSER than
+   the detector — any low to any later high inside a 40-bar window, versus the
+   detector's pivot-structured swing-low → pivot-high plus flag length, a ≤25%
+   retrace and a ≤60% volume-contraction gate. Qualifying poles existing does
+   not prove a complete HTF existed; it removes the innocent explanation.
+
+   **Why it matters:** `high_tight_flag` is in `FOCUSED_SETUPS`, so Pattern
+   Vision can never produce a verdict for it, no member can ever see it
+   confirmed, and **nothing anywhere reports the absence** — silently missing
+   rather than legitimately never present. `cup_handle_uct` fired 9 times, so it
+   is rare but demonstrably alive; that contrast is what makes this zero worth
+   chasing.
+
+   **SCOPE OF THE INVESTIGATION (not performed):** instrument the detector's own
+   gate chain on the 78 qualifying tickers and record which gate rejects — pole
+   pivot structure, flag bar count, the ≤25% retrace, or the ≤60% volume
+   contraction. A single gate rejecting all 78 is the answer; several rejecting
+   different subsets means the setup is genuinely rare and the zero is honest.
+   ⛔ Do NOT tune a threshold to make it fire: detection counts are a regression
+   net, never a target.
+
+### Remaining open seams — scoped 2026-09-10, none executable under the standing rules
+
+⚰️ **TWO MIS-ENUMERATIONS, ONE CAUSE — corrected here.** Seam 8 AND Seam 7 were
+both listed as open in this session's first enumeration. Both are RESOLVED
+(Seam 8: `22452cff7`, 2026-09-07 · Seam 7: `4c4e19ede`/`141dd978f`, 2026-09-07).
+The cause is the same both times: **a seam entry opens with the DEFECT
+description and carries its resolution mid-paragraph**, so a header-line read
+gets exactly the wrong answer. Making that mistake once is a slip; making it
+twice on the same day means the format invites it. **Read to the end of the
+bullet before recording a seam as open.**
+
+After that correction, every genuinely open seam is a PRODUCT decision, and none
+is executable under the standing rules (backend-only, testable, not
+member-facing):
+
+- **Seam 13 — Position → Notes continuity, PARTIALLY resolved.** The original
+  "fully ABSENT" framing is stale: `PositionDetailPage.jsx` already renders
+  `LinkedNotesPanel`, shipped by a *separate, uncoordinated* program ledger.
+  Remaining scope is narrower than recorded. ⭐ Worth noting the shape: two
+  programs fixed overlapping ground without either ledger knowing.
+- **Seam 18 — news surfaces code-correct but unreachable.** `NewsFeed.jsx`
+  wraps its ticker pills in a genuine door to `/research/{sym}`, but its only
+  importer (`TapeFeed.jsx`) is unmounted; `CatalystFlow.jsx` is the same shape.
+  ⛔⛔ **THIS IS THE SAME ROOT CAUSE AS FOLLOW-UP 15's `reachable.test.js`
+  FAILURE**, which names 18 unreachable modules including an entire Community
+  feature. Two separately-tracked items, one product decision: mount them,
+  delete them, or record the decision. Fixing the news door is moot until that
+  call is made — and whoever makes it closes both at once.
+- **Seam 22 — event context preservation absent.** `ResearchPage.jsx` reads one
+  query param, seeded at mount, never updated; no `from=`/`returnTo`/`backTo`
+  anywhere in the research surfaces. Confirmed NOT NEEDED for V1; a real gap for
+  a future "Back to Calendar".
+- **Seam 24 — rejected verdicts have no non-admin read path.** `confirmed=0`
+  rows are real, stored, and carry a genuine Opus rationale — rejection is a
+  distinct, inspectable state from "never evaluated" — but only the admin review
+  surface can read it. ⚠️ **This one is now more interesting than when it was
+  filed**, because the coverage numbers give it a use: ~80% of judged tickers
+  show an empty Technical tab. Some of those are REJECTED, not unevaluated, and
+  a member currently cannot tell the difference. Whether to surface that is a
+  product call (it means showing members what the judge turned down), but it is
+  the cheapest available answer to "why is this tab empty".
+
+**None of these is picked up.** Each is member-facing or needs a product ruling,
+which the standing directive reserves to the owner.
+
 ### Follow-up defects — SCOPED ONLY, NONE AUTHORIZED
 
 1. **Observability of the four silent write-nothing paths (PRIMARY).**
