@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
-import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
@@ -9,6 +9,7 @@ import { fmtLevel, visibleOnly } from './drawingObjects'
 import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
 import { computeAdvancePct, hitTestDrawing, offsetPoints } from './drawingGeometry'
 import { dashFor } from './drawingStyle'
+import { sectionsFor, defaultsPayloadFor } from './drawingSettingsSchema'
 import {
   PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
   toPaneFraction, fromPaneFraction,
@@ -311,7 +312,13 @@ export default function ChartDrawingOverlay({
   color, lineWidth,
   lineStyle = 'solid',
   magnet = false,
-  drawings, addDrawing, updateDrawing, removeDrawing, reorderDrawing = null,
+  drawings, addDrawing, updateDrawing, removeDrawing,
+  // ⛔ `reorderDrawing` IS GONE FROM THIS SIGNATURE. It arrived from StockChart
+  // solely to feed the menu's `canReorder` / `onBringFront` / `onSendBack`
+  // props — which this component never read (eslint has flagged all three as
+  // unused on every run). There is no z-order row in the drawing menu and
+  // never has been. `drawingsStore.reorderDrawing` stays: it is tested and a
+  // later surface may want it; what is removed is a thread that went nowhere.
   onMigrate = null,          // (drawings[]) => void — re-anchor legacy volume-pane points to paneRelY (called once when the view settles)
   selectedId, setSelectedId,
   repeatMode = true,
@@ -2307,10 +2314,7 @@ export default function ChartDrawingOverlay({
             y={ctxMenu.y}
             sheet={coarsePointer}
             drawing={d}
-            levelSupported={LEVEL_LINE_TYPES.has(d.type)}
-            horizontalSupported={SLOPED_LINE_TYPES.has(d.type) && pts.length >= 2}
-            alertSupported={!!onSetAlert && LEVEL_LINE_TYPES.has(d.type)}
-            onSetAlert={(direction, opts) => { onSetAlert?.(d, direction, opts); setCtxMenu(null) }}
+            onSetAlert={onSetAlert ? ((direction, opts) => { onSetAlert(d, direction, opts); setCtxMenu(null) }) : null}
             currentLevel={leftLevel}
             onSetLevel={(price) => {
               // Flatten the whole line onto the typed price — a clean horizontal
@@ -2332,9 +2336,6 @@ export default function ChartDrawingOverlay({
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             onToggleHide={() => { updateDrawing(ctxMenu.drawingId, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null); setCtxMenu(null) }}
-            canReorder={!!reorderDrawing && drawings.length > 1}
-            onBringFront={() => { reorderDrawing?.(ctxMenu.drawingId, 'front'); setCtxMenu(null) }}
-            onSendBack={() => { reorderDrawing?.(ctxMenu.drawingId, 'back'); setCtxMenu(null) }}
             onDuplicate={() => {
               const { id: _id, ...rest } = d
               const nid = addDrawing({ ...rest, points: offsetPoints(d.points), locked: false })
@@ -2447,6 +2448,34 @@ const DRAW_STYLE_TO_NUM = { solid: 0, dotted: 1, dashed: 2 }
 const NUM_TO_DRAW_STYLE = { 0: 'solid', 1: 'dotted', 2: 'dashed' }
 const numToDrawStyle = (n) => NUM_TO_DRAW_STYLE[n] || 'solid'
 
+/**
+ * The glyph for each schema control.
+ *
+ * ⛔ ICONS LIVE HERE, NOT IN THE SCHEMA. `drawingSettingsSchema.js` is a plain
+ * data module with no JSX and no React import — that is what lets it be imported
+ * by a test, by the save-defaults path, and (later) by anything that needs to ask
+ * "what does this tool support?" without dragging the menu in with it. A `label`
+ * is data; a `<path d="…">` is presentation.
+ *
+ * Two entries are FUNCTIONS because their glyph depends on the drawing's state
+ * (a closed vs open padlock, an eye vs a struck-through eye) — the same pair
+ * whose LABEL the schema also computes from the drawing.
+ */
+const CONTROL_ICONS = {
+  setLevel: <><line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 2" /><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none" /></>,
+  makeHorizontal: <><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>,
+  setAlert: <><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>,
+  duplicate: <><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>,
+  lock: (d) => (d?.locked
+    ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
+    : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>),
+  hide: (d) => (d?.hidden
+    ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
+    : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>),
+  saveDefault: <path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />,
+  remove: <><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>,
+}
+
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
 function MenuAction({ icon, label, onClick, danger = false, big = false }) {
   // Match the chart right-click menu (ChartsWorkspace .chartCtx*): GOLD icons,
@@ -2547,8 +2576,21 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
 // Exported for its own rail: the alert-mode choice is a decision the overlay
 // only PASSES ON, so testing it through canvas hit-testing in jsdom (which does
 // no layout) would measure the harness, not the menu.
+/**
+ * ⛔ THE `*Supported` BOOLEANS ARE GONE, AND SO ARE THREE DEAD PROPS.
+ *
+ * `levelSupported` / `horizontalSupported` / `alertSupported` moved into
+ * `drawingSettingsSchema.js`: a tool declares its controls, and a control that
+ * needs a handler the caller did not pass simply is not rendered. The caller no
+ * longer has to know that a Trend Line can be flattened and a Rectangle cannot.
+ *
+ * `canReorder` / `onBringFront` / `onSendBack` were passed by the overlay and
+ * never read by this component — z-ordering has no row in this menu. They were
+ * flagged as unused by eslint on every run; the migration is the moment to stop
+ * threading them through.
+ */
 export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
-  canReorder, onBringFront, onSendBack, onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, levelSupported = false, horizontalSupported = false, alertSupported = false, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+  onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
   const menuRef = useRef(null)
   const [colorOpen, setColorOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
@@ -2641,20 +2683,30 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
       }
 
-  const inner = (
-    <div
-      ref={menuRef}
-      onPointerDown={(e) => e.stopPropagation()}
-      style={shell}
-    >
-      {sheet && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--menu-border, #2c2c30)' }} />
-        </div>
-      )}
-      {/* Color & style — one row that opens the shared grid picker (color grid +
-          opacity + custom hex + line width + line style), matching Chart Settings. */}
+  // ── The rows, from the schema ──────────────────────────────────────────────
+  //
+  // ⛔ THE BOOLEAN LADDER IS GONE. This used to be a run of
+  // `{levelSupported && …}` / `{horizontalSupported && …}` / `{alertSupported &&
+  // …}` / `{isText && onSetFontSize && …}` blocks, with the conditions
+  // themselves computed a thousand lines away at the call site. The tool now
+  // DECLARES its controls in `drawingSettingsSchema.js` and this walks whatever
+  // it finds — so adding a setting in Phase 4+ is a table entry plus (only if it
+  // is a new widget) one renderer below, and never another branch here.
+  const sections = sectionsFor({
+    drawing,
+    points: drawing?.points,
+    handlers: {
+      onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert,
+      onDuplicate, onToggleLock, onToggleHide, onSaveDefaults, onDelete,
+    },
+  })
+
+  // Widgets that are not rows. Each body is the shipped JSX, unchanged — the
+  // migration moved WHERE they are chosen, not what they look like.
+  const WIDGETS = {
+    colorRow: () => (
       <button
+        key="color"
         onClick={() => setColorOpen(o => !o)}
         style={{
           ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
@@ -2671,210 +2723,191 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
           <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
         </span>
       </button>
+    ),
 
-      <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+    fontStepper: () => (
+      <div key="fontSize" style={{ ...rowStyle }}>
+        <span style={labelStyle}>Text size</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => bumpFont(-1)}
+            title="Smaller"
+            aria-label="Smaller text"
+            style={{
+              width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+              color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
+            }}
+          >A−</button>
+          <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
+          <button
+            onClick={() => bumpFont(1)}
+            title="Bigger"
+            aria-label="Bigger text"
+            style={{
+              width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
+              color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
+            }}
+          >A+</button>
+        </span>
+      </div>
+    ),
 
-      {/* Text size — text annotations only. Steps the selected label's font size;
-          "Save as default" (below) then persists it as the size for NEW text. */}
-      {isText && onSetFontSize && (
-        <>
-          <div style={{ ...rowStyle }}>
-            <span style={labelStyle}>Text size</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => bumpFont(-1)}
-                title="Smaller"
-                aria-label="Smaller text"
-                style={{
-                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
-                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
-                }}
-              >A−</button>
-              <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
-              <button
-                onClick={() => bumpFont(1)}
-                title="Bigger"
-                aria-label="Bigger text"
-                style={{
-                  width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
-                  color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
-                }}
-              >A+</button>
-            </span>
+    levelInput: (item) => (
+      <React.Fragment key="setLevel">
+        <MenuAction label={item.label} onClick={openLevel} big={sheet} icon={CONTROL_ICONS.setLevel} />
+        {levelOpen && (
+          <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="any"
+              autoFocus
+              value={levelVal}
+              onChange={(e) => setLevelVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); submitLevel() }
+                else if (e.key === 'Escape') { e.preventDefault(); setLevelOpen(false) }
+                e.stopPropagation()
+              }}
+              placeholder="Price…"
+              style={{
+                flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
+                background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
+                borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
+                fontSize: sheet ? 14 : 12, outline: 'none',
+              }}
+            />
+            <button
+              onClick={submitLevel}
+              style={{
+                padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
+                background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
+                borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
+              }}
+            >Set</button>
           </div>
-          <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
-        </>
-      )}
+        )}
+      </React.Fragment>
+    ),
 
-      {levelSupported && (
-        <>
-          <MenuAction
-            label="Set level…"
-            onClick={openLevel}
-            big={sheet}
-            icon={<><line x1="2" y1="8" x2="14" y2="8" strokeDasharray="2 2" /><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none" /></>}
-          />
-          {levelOpen && (
-            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                autoFocus
-                value={levelVal}
-                onChange={(e) => setLevelVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); submitLevel() }
-                  else if (e.key === 'Escape') { e.preventDefault(); setLevelOpen(false) }
-                  e.stopPropagation()
-                }}
-                placeholder="Price…"
-                style={{
-                  flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
-                  background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
-                  borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
-                  fontSize: sheet ? 14 : 12, outline: 'none',
-                }}
-              />
+    alertPicker: (item) => (
+      <React.Fragment key="setAlert">
+        <MenuAction label={item.label} onClick={() => setAlertOpen(o => !o)} big={sheet} icon={CONTROL_ICONS.setAlert} />
+        {alertOpen && (
+          <div
+            style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 6px' : '2px 12px 4px' }}
+            onPointerDown={(e) => e.stopPropagation()}
+            role="radiogroup"
+            aria-label="Alert follows the drawing or stays at a fixed level"
+          >
+            {[
+              { bound: true, label: 'Follows the line', hint: 'Move the line and the alert moves with it. Delete the line and the alert goes too.' },
+              { bound: false, label: 'Fixed level', hint: 'Takes the price where the line is now, then stops caring about the line.' },
+            ].map((m) => (
               <button
-                onClick={submitLevel}
+                key={m.label}
+                type="button"
+                role="radio"
+                aria-checked={alertBound === m.bound}
+                onClick={() => chooseBind(m.bound)}
+                title={m.hint}
                 style={{
-                  padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
-                  background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
-                  borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
-                  fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
+                  flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
+                  background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                  border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                  borderRadius: 6,
+                  color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
+                  cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
+                  fontWeight: alertBound === m.bound ? 700 : 500,
                 }}
-              >Set</button>
-            </div>
-          )}
-        </>
-      )}
-      {horizontalSupported && (
-        <MenuAction
-          label="Make horizontal"
-          onClick={onMakeHorizontal}
-          big={sheet}
-          icon={<><line x1="2" y1="11" x2="14" y2="11" /><line x1="2.5" y1="5" x2="9.5" y2="5" opacity="0.45" strokeDasharray="2 2" transform="rotate(-14 2.5 5)" /></>}
-        />
-      )}
-      {alertSupported && (
-        <>
-          <MenuAction
-            label="Set alert…"
-            onClick={() => setAlertOpen(o => !o)}
-            big={sheet}
-            icon={<><path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" /><path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" /></>}
-          />
-          {alertOpen && (
-            <div
-              style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 6px' : '2px 12px 4px' }}
-              onPointerDown={(e) => e.stopPropagation()}
-              role="radiogroup"
-              aria-label="Alert follows the drawing or stays at a fixed level"
-            >
-              {[
-                { bound: true, label: 'Follows the line', hint: 'Move the line and the alert moves with it. Delete the line and the alert goes too.' },
-                { bound: false, label: 'Fixed level', hint: 'Takes the price where the line is now, then stops caring about the line.' },
-              ].map((m) => (
-                <button
-                  key={m.label}
-                  type="button"
-                  role="radio"
-                  aria-checked={alertBound === m.bound}
-                  onClick={() => chooseBind(m.bound)}
-                  title={m.hint}
-                  style={{
-                    flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
-                    background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
-                    border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-                    borderRadius: 6,
-                    color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
-                    cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
-                    fontWeight: alertBound === m.bound ? 700 : 500,
-                  }}
-                >{m.label}</button>
-              ))}
-            </div>
-          )}
-          {alertOpen && (
-            <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
-              {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
-                  surface, so theme-variable colors (which flip dark on light) would
-                  be unreadable here. */}
-              {[
-                { dir: 'above', label: '▲ Above', col: '#3cb868' },
-                { dir: 'below', label: '▼ Below', col: '#ff5b5b' },
-              ].map(b => (
-                <button
-                  key={b.dir}
-                  onClick={() => onSetAlert?.(b.dir, { bound: alertBound })}
-                  title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
-                  style={{
-                    flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
-                    background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
-                    borderRadius: 6, color: b.col, cursor: 'pointer',
-                    fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 700,
-                  }}
-                >{b.label}</button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-      {(levelSupported || horizontalSupported || alertSupported) && (
-        <div style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+              >{m.label}</button>
+            ))}
+          </div>
+        )}
+        {alertOpen && (
+          <div style={{ display: 'flex', gap: 6, padding: sheet ? '2px 18px 12px' : '2px 12px 8px' }} onPointerDown={(e) => e.stopPropagation()}>
+            {/* Fixed bright green/red — the drawing menu is ALWAYS a dark --menu-*
+                surface, so theme-variable colors (which flip dark on light) would
+                be unreadable here. */}
+            {[
+              { dir: 'above', label: '▲ Above', col: '#3cb868' },
+              { dir: 'below', label: '▼ Below', col: '#ff5b5b' },
+            ].map(b => (
+              <button
+                key={b.dir}
+                onClick={() => onSetAlert?.(b.dir, { bound: alertBound })}
+                title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
+                style={{
+                  flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
+                  background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
+                  borderRadius: 6, color: b.col, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 700,
+                }}
+              >{b.label}</button>
+            ))}
+          </div>
+        )}
+      </React.Fragment>
+    ),
+  }
+
+  // Plain rows. `saveDefault` is the one action with transient state ("Saved ✓").
+  const ACTION_HANDLERS = {
+    duplicate: onDuplicate,
+    lock: onToggleLock,
+    hide: onToggleHide,
+    remove: onDelete,
+    saveDefault: () => {
+      onSaveDefaults(defaultsPayloadFor(drawing?.type, {
+        color: curColor, lineWidth: curWidth, lineStyle: curStyle, fontSize: curFontSize,
+      }))
+      setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
+    },
+  }
+
+  const renderItem = (item) => {
+    if (item.kind === 'custom') return WIDGETS[item.widget]?.(item) ?? null
+    const label = item.id === 'saveDefault' && savedFlash ? 'Saved as default ✓' : item.label
+    return (
+      <MenuAction
+        key={item.id}
+        label={label}
+        onClick={ACTION_HANDLERS[item.id]}
+        danger={item.danger}
+        big={sheet}
+        icon={typeof CONTROL_ICONS[item.id] === 'function' ? CONTROL_ICONS[item.id](drawing) : CONTROL_ICONS[item.id]}
+      />
+    )
+  }
+
+  const divider = (key) => <div key={key} style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+
+  const inner = (
+    <div
+      ref={menuRef}
+      onPointerDown={(e) => e.stopPropagation()}
+      style={shell}
+    >
+      {sheet && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px' }}>
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--menu-border, #2c2c30)' }} />
+        </div>
       )}
 
-      <MenuAction
-        label="Duplicate"
-        onClick={onDuplicate}
-        big={sheet}
-        icon={<><rect x="3" y="3" width="8" height="8" rx="1" /><rect x="5.5" y="5.5" width="8" height="8" rx="1" /></>}
-      />
-      <MenuAction
-        label={locked ? 'Unlock' : 'Lock'}
-        onClick={onToggleLock}
-        big={sheet}
-        icon={locked
-          ? <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 5.7-1.2" /></>
-          : <><rect x="3" y="7.5" width="10" height="6.5" rx="1" /><path d="M5 7.5V5a3 3 0 0 1 6 0v2.5" /></>}
-      />
-      {/* ⛔ HIDE SHIPS ONLY BECAUSE RECOVERY DOES. On its own this control makes
-          an object vanish with no surface that can name it again — the user's
-          own instruction was not to ship it that way, and it is right: an
-          invisible, unselectable object you cannot list is indistinguishable
-          from one you deleted by accident. The Objects sheet lists every hidden
-          object, says how many there are, and restores them all in one tap. */}
-      {onToggleHide && (
-        <MenuAction
-          label={drawing?.hidden ? 'Show' : 'Hide'}
-          onClick={onToggleHide}
-          big={sheet}
-          icon={drawing?.hidden
-            ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
-            : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>}
-        />
-      )}
-      {onSaveDefaults && (
-        <MenuAction
-          label={savedFlash ? 'Saved as default ✓' : 'Save as default'}
-          onClick={() => {
-            onSaveDefaults({ color: curColor, width: curWidth, style: drawing?.lineStyle || 'solid', ...(isText ? { fontSize: curFontSize } : {}) })
-            setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
-          }}
-          big={sheet}
-          icon={<path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />}
-        />
-      )}
-      <MenuAction
-        label="Delete Drawing"
-        onClick={onDelete}
-        danger
-        big={sheet}
-        icon={<><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>}
-      />
+      {sections.map((section, i) => (
+        <React.Fragment key={section.id}>
+          {i > 0 && divider(`sep-${section.id}`)}
+          {section.title && (
+            <div style={{ padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600 }}>
+              {section.title}
+            </div>
+          )}
+          {section.items.map(renderItem)}
+        </React.Fragment>
+      ))}
 
       {colorOpen && createPortal(
         <div

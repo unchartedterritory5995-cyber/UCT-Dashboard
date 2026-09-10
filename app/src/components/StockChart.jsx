@@ -4801,7 +4801,7 @@ export default function StockChart({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, reorderDrawing, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
+  const { drawings, addDrawing, removeDrawing, updateDrawing, clearAll, undo, redo, snapshotHistory, canUndo, canRedo } = useChartDrawings(sym)
   addDrawingRef.current = addDrawing
   clearAllRef.current = clearAll
   drawingCountRef.current = drawings.length
@@ -15852,7 +15852,6 @@ export default function StockChart({
             addDrawing={addDrawing}
             updateDrawing={updateDrawing}
             removeDrawing={removeDrawing}
-            reorderDrawing={reorderDrawing}
             selectedId={selectedId}
             setSelectedId={setSelectedId}
             repeatMode={repeatMode}
