@@ -1,0 +1,119 @@
+//@version=6
+indicator("UCTPROBE_EXCHANGE", overlay = false)
+
+// ⭐⭐ THE KEYED FIELD. `symbolScope.json::confirmed` is keyed on OUR store's
+// exchange string and its value is the string TRADINGVIEW's `syminfo.exchange`
+// returns. This probe reads THAT field, and nothing else settles it.
+//
+// ⚰️ WHY THIS FILE EXISTS AT ALL — the five-symbol capture of 2026-09-09
+// (`tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json` ::
+// `tickerid_shape_five_symbols`) read `syminfo.ticker` and `syminfo.tickerid`.
+// Both are real measurements and both are still correct FOR THEIR OWN QUESTION
+// (Volume line 222's slash containment, `tickerid-containment.pine`). Neither is
+// the field the map is keyed on, so `confirmed` could not be filled from them —
+// doing so would be the "assertion wearing a data structure" symbolScope.json
+// warns against. ⛔ THE TWO PROBES ARE NOT INTERCHANGEABLE. That is the whole
+// reason this is a separate file rather than an edit to that one.
+//
+// ⛔⛔ AND THE CAPTURE PROVED THEY CAN DISAGREE. `SP:SPX` was requested and the
+// vendor resolved it to `SP_DLY:SPX` — so the tickerid prefix is not even the
+// text the member typed, let alone guaranteed to equal `syminfo.exchange`.
+// N11 below measures that gap directly instead of assuming it away.
+
+// ── the instrument ──────────────────────────────────────────────────────────
+// ⭐ EQUALITY, NOT CONTAINMENT, AND THAT IS THE POINT. A member's script writes
+// `syminfo.exchange == "AMEX"`, Pine compares strings with `==`, so the probe
+// asks the question in the member's own operator. Containment would answer a
+// DIFFERENT and weaker question: `str.contains("NASDAQ", "SP")` is false but
+// `str.contains("SP_DLY", "SP")` is true, which is exactly how a whitelist built
+// on containment "looks correct on this one example" while being wrong.
+//
+// ⚠️ THE CANDIDATE SET IS A WHITELIST OF WHAT WE EXPECT, NOT AN ENUMERATION OF
+// WHAT THE VENDOR CAN EMIT. It is `store_to_pine`'s distinct values. A symbol
+// whose exchange is none of these reads 0 on every line below — which is an
+// ANSWER (see N10), not a gap, and it must be recorded as unconfirmed rather
+// than rounded to the nearest 1.
+plot(syminfo.exchange == "AMEX"   ? 1 : 0, "eq_AMEX")     // N1
+plot(syminfo.exchange == "NASDAQ" ? 1 : 0, "eq_NASDAQ")   // N2
+plot(syminfo.exchange == "NYSE"   ? 1 : 0, "eq_NYSE")     // N3
+plot(syminfo.exchange == "CBOE"   ? 1 : 0, "eq_CBOE")     // N4
+plot(syminfo.exchange == "OTC"    ? 1 : 0, "eq_OTC")      // N5
+
+// The five feeds the prior capture already visited, so the two runs can be laid
+// side by side on the same symbols rather than compared across different ones.
+plot(syminfo.exchange == "FX"       ? 1 : 0, "eq_FX")       // N6
+plot(syminfo.exchange == "BITSTAMP" ? 1 : 0, "eq_BITSTAMP") // N7
+plot(syminfo.exchange == "SP"       ? 1 : 0, "eq_SP")       // N8
+plot(syminfo.exchange == "SP_DLY"   ? 1 : 0, "eq_SP_DLY")   // N9
+
+// ⭐⭐ N10 IS WHAT MAKES A ZERO ROW READABLE. If every equality above is 0 the
+// length still names how long the real answer is, so an unmeasured spelling
+// arrives as "6 characters, none of my candidates" instead of "none of the
+// above" — the difference between a lead and a shrug.
+plot(str.length(syminfo.exchange), "len_exchange")        // N10
+
+// ⭐⭐ N11 IS THE CROSS-FIELD QUESTION, and it is the one that retires the idea
+// that the old capture could have been reused. 1 = `syminfo.exchange` appears
+// inside `syminfo.tickerid`; 0 = the two fields disagree outright. On SP:SPX the
+// prior capture already showed the tickerid prefix is `SP_DLY`, so this line is
+// where "is the prefix the exchange?" stops being a guess.
+plot(str.contains(syminfo.tickerid, syminfo.exchange) ? 1 : 0, "exch_in_tickerid") // N11
+
+// ⛔ N12 IS THE NON-VACUITY CONTROL AND IT IS NOT OPTIONAL. Every plot above can
+// legitimately read 0. Without a channel that is known-nonzero on every symbol,
+// "this symbol matched nothing" and "the study never evaluated" are the SAME ROW
+// of zeros, and a capture that cannot tell those apart is not evidence.
+// `syminfo.ticker` is served today and is never empty, so a 0 here means the
+// probe is broken and the whole row must be discarded.
+plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
+
+// ── how to run it ───────────────────────────────────────────────────────────
+// ⛔ FOLLOW `docs/pine/capture-procedure.md`. In particular: never add a study
+// while the tab is hidden (`insertStudy` returns cleanly and inserts NOTHING —
+// verify by re-reading `model().dataSources()`, never by the absence of a
+// throw), and restore symbol, resolution, pane stretch factors and study
+// visibility afterwards. The browser is shared with other sessions.
+//
+// ⭐ THIS IS A VALUE CAPTURE, so it is immune to the hidden-tab RENDERING defect
+// once the study is on the chart: read `study._data._items`, which is populated
+// whether or not a pixel was ever drawn. Adding the study still needs a visible
+// tab.
+//
+// WITNESSES — one per DISTINCT STORE SPELLING, because the map is per-exchange
+// and not per-symbol. The bounded half of the store vocabulary is `_YF_EXCHANGE`
+// in `api/services/ticker_meta.py`, measured at SIX distinct values:
+//
+//     store spelling   suggested witness   what it settles
+//     'NYSE Arca'      SPY                 the flagship divergence: our store
+//                                          says 'NYSE Arca' and the 2026-09-09
+//                                          capture already showed the tickerid
+//                                          prefix is AMEX
+//     'NASDAQ'         AAPL
+//     'NYSE'           JPM
+//     'NYSE American'  an NYSE-American-listed name
+//     'Cboe BZX'       a Cboe-BZX-listed ETF
+//     'OTC'            an OTC name
+//
+// ⛔⛔ SIX, NOT FIVE. A five-symbol run cannot cover six spellings, so a repeat
+// of the previous run's symbol count leaves at least one store spelling
+// unwitnessed and its `confirmed` entry unfillable. Record every symbol you
+// actually visit, including the ones that matched nothing.
+//
+// ⚠️ AND SIX IS ONLY THE BOUNDED HALF. `_YF_EXCHANGE` is a closed set; the FMP
+// leg (`row.get('exchange') or row.get('exchangeShortName')`) is free vendor
+// text and cannot be enumerated from here, which is why `store_to_pine` carries
+// spellings — 'NASDAQ Global Select', 'New York Stock Exchange' — that no
+// `_YF_EXCHANGE` value produces. Those need their own witnesses or they stay
+// unconfirmed, and a symbol carrying an unnamed spelling REFUSES rather than
+// guessing. That is the intended failure direction, not a gap to close by
+// filling in the blanks.
+//
+// RECORDING — every `confirmed` entry needs all four of `{pine, witness,
+// captured, how}`. An entry without a witness is an assertion wearing a data
+// structure. Name the invocation in the result JSON the way
+// `tools/record_clock_parity.py` names its own, so the next reader can
+// reproduce the row rather than trust it:
+//
+//     "_invocation": "tools/visual_conformance/probes/exchange-spelling.pine
+//                     pasted into the TradingView editor; plot values read from
+//                     study._data._items per docs/pine/capture-procedure.md"
