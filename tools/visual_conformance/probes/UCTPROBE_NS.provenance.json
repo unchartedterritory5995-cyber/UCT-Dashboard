@@ -33,5 +33,34 @@
   "vendorDigest": {
     "pine.version": "0.28",
     "_note": "metaInfo.pine.digest is the vendor's own hash of these bytes. It is base64 and was elided by the transport's content filter, so it is NOT recorded here rather than recorded wrong. The sha256 above is ours and is reproducible from the file."
+  },
+  "plotRoster_PLOTS_ORDER": {
+    "_": "⭐⭐ THE AUTHORITATIVE COLUMN ORDER. Derived from the committed source: Pine numbers plots plot_0..plot_N in SOURCE ORDER, and the value array follows _metaInfo.plots, which is that same order. value[0] is time, so value[i+1] is the i-th entry here.",
+    "_supersedes": "⚰️ AN EARLIER LISTING OF THIS ROSTER WAS IN STYLE-KEY ORDER — read from Object.keys(_metaInfo.styles) — and that is NOT value order. The names were right and the ORDER was not. Aroon proved the two can disagree on 2026-09-10: styles gave [Aroon Down, Aroon Up] while plots gave [AroonUp, AroonDown], the opposite, which would have shipped the two series swapped. Never key a column by style-key order.",
+    "order": [
+      "N01_bar_index",
+      "N02_cum_na_contributes",
+      "N03_cum_one",
+      "N04_cum_late_start",
+      "N05_isdaily",
+      "N06_isweekly",
+      "N07_ismonthly",
+      "N08_tv",
+      "N09_num_0_00",
+      "N10_len_0_00",
+      "N11_num_hash_hash",
+      "N12_len_hash_hash",
+      "N13_num_hash",
+      "N14_len_hash",
+      "N15_neg_num_0_00",
+      "N16_neg_len_hash",
+      "N17_ticker_slash",
+      "N18_tickerid_slash",
+      "N19_ticker_len",
+      "N20_tickerid_len",
+      "N21_isconfirmed",
+      "N22_islast",
+      "N23_ishistory"
+    ]
   }
 }
