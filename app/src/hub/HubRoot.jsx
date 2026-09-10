@@ -90,12 +90,32 @@ function HubShell({ setToastMsg }) {
   // The context object every mode's onTap/onDoubleTap/onScrub/onScrubCommit is
   // called with (registry.js's HubMode JSDoc) — Part C4's shared cross-section
   // values, read-only from here.
+  /**
+   * ⭐ R-G — THE ONE NAVIGATION SEAM, and the reason it is a wrapper rather than `navigate` itself.
+   *
+   * A registry-declared mode could not navigate: `ctx` carried read-only values plus a ref, and
+   * `App.jsx` uses `BrowserRouter`, so there is no `router.navigate` singleton to import. Every
+   * section that wanted to ACT had to be mounted from its page — which is why 3.8's Home scrub was
+   * blocked and why `lastSection` had been built, persisted and threaded into ctx with zero
+   * readers.
+   *
+   * ⛔ BOTH DOORS CALL THIS SAME FUNCTION, so there is still exactly ONE navigation authority.
+   * `runAction`'s navigate branch uses it, `goHome` uses it, and it is what ctx exposes — and it
+   * carries `resolveNavTarget`, so "what path does mode X live at" also stays single-authority
+   * rather than being re-answered by whichever caller happened to pass a mode id.
+   *
+   * Rails: `hub/navigationAuthority.test.jsx` — identity (ctx.navigate IS what runAction calls)
+   * and singularity (no second navigation path anywhere under app/src/hub).
+   */
+  const navigateTo = useCallback((to) => navigate(resolveNavTarget(to)), [navigate])
+
   const ctx = useMemo(() => ({
     mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice,
-    isStreaming, lastSection,
-  }), [mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice, isStreaming, lastSection])
+    isStreaming, lastSection, navigate: navigateTo,
+  }), [mode, symbol, timeframe, activeScan, selectedPosition, chartRef, livePrice, isStreaming,
+    lastSection, navigateTo])
 
-  const goHome = useCallback(() => navigate('/dashboard'), [navigate])
+  const goHome = useCallback(() => navigateTo('/dashboard'), [navigateTo])
 
   // The one place every navigate/run/confirm/home action resolves — fed by
   // BOTH doors an action can fire from: `useJoystick`'s `onFire` (a gesture)
@@ -126,7 +146,7 @@ function HubShell({ setToastMsg }) {
     // validator, and dispatch has always lived here. Reading taken against the code; the plan's
     // wording is corrected in this increment's docs commit (R-auto-1).
     if (action.kind === 'home') { goHome(); return }
-    if (action.kind === 'navigate') { navigate(resolveNavTarget(action.to)); return }
+    if (action.kind === 'navigate') { navigateTo(action.to); return }
     if (action.kind === 'run' && action.id.endsWith('.voice')) {
       voiceConnectRef.current?.('compass')
       return
@@ -172,7 +192,7 @@ function HubShell({ setToastMsg }) {
       // eslint-disable-next-line no-console
       console.warn('[hub] action with an unhandled kind:', action.id, action.kind)
     }
-  }, [goHome, navigate, ctx, setToastMsg])
+  }, [goHome, navigateTo, ctx, setToastMsg])
 
   // DEVICE-TEST HOOK (Phase 2 device suite). Records which action actually fired
   // so a real-device run can assert the OUTCOME of a gesture without depending on

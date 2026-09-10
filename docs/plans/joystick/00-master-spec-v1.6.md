@@ -532,6 +532,23 @@ see C3). Actions needing a symbol or position are disabled when none is selected
   `// TODO(hub-analytics): emit here` in the registry's `fire()` path and one line in `deferred.md`.
   Nothing else.
 
+### 8a. The action context carries ONE navigation seam (R-G, 2026-09-10)
+
+> **`ctx.navigate(to)` is available to every mode callback, and it is the same function
+> `HubRoot.runAction` uses for `kind:'navigate'`. One navigation authority, two doors.**
+
+⭐ **The pre-approved §-level amendment.** Before it, a registry-declared mode could not navigate:
+`App.jsx` uses `BrowserRouter` so there is no `router.navigate` singleton, and navigation lived
+only inside `runAction`. Every section that wanted to ACT had to be mounted from its own page —
+which blocked §3.8's Home scrub outright, and left `lastSection` built, persisted and threaded into
+`ctx` with **zero readers** for its entire life.
+
+⛔ It resolves through `resolveNavTarget`, so a mode id and a path both work and "what path does
+mode X live at" stays answered in one place (`registry.js`'s `route` field). ⛔ A SECOND navigation
+path anywhere under `app/src/hub/**` — a second `useNavigate()`, a `history.pushState`, a
+`window.location` write — is a rail failure by construction, not a review question:
+`hub/navigationAuthority.test.jsx`.
+
 ## 9. Things not to do
 
 - Do not restyle or relocate existing navigation.
