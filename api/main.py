@@ -2313,6 +2313,45 @@ def _resolve_active_set_for_patterns() -> list[str]:
     return out
 
 
+def _pattern_vision_contract_line() -> str:
+    """The pattern-vision contract, every token read from the SAME place the
+    running code reads it, each suffixed with its provenance.
+
+    ⛔ FOUR OF THE SIX TOKENS USED TO BE STRING LITERALS INSIDE THE print().
+    `model`, `active_set_only`, `skip_if_stable` and `confirmed_only` were typed
+    into the format string, so every "contract byte-identical" check this
+    program ran proved only that this line was unchanged -- it could not have
+    detected a real drift in any of them. Each value now comes from its actual
+    source: vision_judge.judge's signature, judge_ticker's `force` default, the
+    resolved active set, and the /api/patterns endpoint's own Query default.
+    """
+    import inspect
+    from api.routers.patterns import get_detections as _pv_endpoint
+    from api.services.pattern_vision import orchestrator as _pv_orch
+    from api.services.pattern_vision import vision_judge as _pv_judge
+
+    def _prov(key: str, dflt: str) -> str:
+        raw = os.environ.get(key)
+        return f"{raw}[env]" if raw not in (None, "") else f"{dflt}[default]"
+
+    def _sig(fn, name):
+        return inspect.signature(fn).parameters[name].default
+
+    try:
+        active_n = str(len(_resolve_active_set_for_patterns()))
+    except Exception as e:  # a contract line must never be why boot failed
+        active_n = f"unresolved({type(e).__name__})"
+    skip = _sig(_pv_orch.judge_ticker, "force") is False
+    conf_only = getattr(_sig(_pv_endpoint, "confirmed_only"), "default", None)
+    return ("[startup] pattern-vision: on "
+            f"model={_sig(_pv_judge.judge, 'model')}[code] "
+            f"cost_hard_cap=${_prov('PATTERN_VISION_COST_HARD_CAP', '10.0')} "
+            f"max_per_run={_prov('PATTERN_VISION_MAX_PER_RUN', '150')} "
+            f"active_set_only=on:{active_n}[resolved] "
+            f"skip_if_stable={'on' if skip else 'OFF'}[force_default] "
+            f"confirmed_only={'on' if conf_only is True else 'OFF'}[api_default]")
+
+
 def register_call_recap_warm_jobs(scheduler):
     """Pre-generate call recaps so the modal is a point-read, not a ~39s wait.
 
@@ -5825,13 +5864,7 @@ async def lifespan(app: FastAPI):
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
-                import os as _os
-                print(
-                    "[startup] pattern-vision: on model=claude-opus-4-8 "
-                    f"cost_hard_cap=${_os.environ.get('PATTERN_VISION_COST_HARD_CAP', '10.0')} "
-                    f"max_per_run={_os.environ.get('PATTERN_VISION_MAX_PER_RUN', '150')} "
-                    "active_set_only=on skip_if_stable=on confirmed_only=on"
-                )
+                print(_pattern_vision_contract_line())
         except Exception as e:
             print(f"[scheduler] pattern_vision job registration error: {e}")
 
