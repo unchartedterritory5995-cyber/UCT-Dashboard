@@ -453,6 +453,70 @@ def _augment_daily_with_today(response, ticker: str):
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
+def _augment_with_bar_close_state(response, tf: str):
+    """Attach ``newest_bar_is_forming`` — the tri-state the JS lane needs and has
+    never been given.
+
+    ⭐⭐ THIS IS THE PRODUCER. ``interpret.js`` already reads
+    ``opts.newestBarIsForming`` and ``computeClock`` is already a tri-state; what
+    was missing was anything that PRODUCED the value, so the four CLOCK_REALTIME
+    columns rendered blank in the browser. The answer is computed HERE, in Python,
+    because this is the side the NYSE calendar lives on — the browser is handed one
+    tri-state and never a date set.
+
+    ⛔ ``None`` IS AN ANSWER AND IT SERIALISES AS ``null``. "Nobody told me" must
+    never arrive as ``false``: ``false`` means "settled", and a confident
+    ``isconfirmed = 1`` on a bar that may still be open is the single wrong answer
+    these columns exist to prevent.
+
+    ⚠️ THE WIRE FORMAT AND THE CLOCK'S CONTRACT DISAGREE, WHICH IS WHY THE ADAPTER
+    IS HERE. ``bar_close_state`` reads ``bars[-1]["t"]`` in UNIX SECONDS. Intraday
+    bars already carry that, but daily/weekly/monthly are serialised for the wire as
+    ``"YYYY-MM-DD"`` (``bars_fetch`` formats them for Lightweight Charts). The
+    router is the layer that departed from the contract, so the adapter sits at the
+    departure point rather than teaching ``indicator_compute`` about a wire format —
+    a clock that knew about serialisation would be a second authority over what a
+    bar's instant means.
+
+    Returns the response unchanged on ANY problem. A chart serve must never fail
+    because a decorative field could not be computed.
+    """
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    rows = payload.get("bars")
+    if not isinstance(rows, list) or not rows or not isinstance(rows[-1], dict):
+        return response
+    newest = rows[-1].get("t")
+    if isinstance(newest, str):
+        # ⭐ A DAILY BAR'S INSTANT IS ITS SESSION'S START, IN ET. `scheduled_close_seconds`
+        # derives the close from it, so midnight-ET of that date is the right input and
+        # the only one that keeps the derivation the clock's rather than ours.
+        try:
+            from zoneinfo import ZoneInfo
+            y, m, d = (int(x) for x in newest.split("-"))
+            newest = datetime(y, m, d, tzinfo=ZoneInfo("America/New_York")).timestamp()
+        except Exception:
+            return response
+    if not isinstance(newest, (int, float)) or isinstance(newest, bool):
+        return response
+    try:
+        from api.services.indicator_compute import bar_close_state
+        from api.services.nyse_calendar import (
+            NYSE_EARLY_CLOSES_YYYYMMDD, NYSE_HOLIDAYS_YYYYMMDD)
+        # ⚠️ `bar_close_state` reads ONLY `bars[-1]["t"]`, so a one-element list
+        # carrying the instant is the whole input — not a reconstruction of the
+        # series, which would invite the two to drift.
+        state = bar_close_state([{"t": newest}], tf, _time.time(),
+                                NYSE_HOLIDAYS_YYYYMMDD, NYSE_EARLY_CLOSES_YYYYMMDD)
+    except Exception:
+        return response
+    payload["newest_bar_is_forming"] = state
+    return JSONResponse(content=payload,
+                        status_code=getattr(response, "status_code", 200))
+
+
 def serve_bars(
     ticker: str,
     tf: str,
@@ -645,6 +709,15 @@ def serve_bars(
                 response = _augment_daily_with_today(response, ticker)
             except Exception:
                 pass  # never let the developing-bar append break a real serve
+
+        # ⭐⭐ THE PRODUCER FOR THE JS CLOCK SEAM. Runs on EVERY timeframe and after
+        # the daily append, so the tri-state describes the bar the client will
+        # actually see last. Additive: a field appears, nothing changes shape.
+        if getattr(response, "status_code", 200) == 200:
+            try:
+                response = _augment_with_bar_close_state(response, tf)
+            except Exception:
+                pass  # a decorative field must never break a chart serve
 
         # Bars data must never be served from a stale browser/CDN cache. Server-side
         # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
