@@ -2,7 +2,7 @@
   "measured_at": "2026-09-09",
   "sha": "0ffe68a1490b4a30fbd75a6507bee5dd77aa401c",
   "how": "Extracted by scripts/gate_shards.py::parse_failures from the six shard logs of the 2026-09-09 six-shard run at 0ffe68a14 (1181 files). That run predates the committed wrapper and is NOT of record for a pass/fail verdict, but its logs are a faithful capture.",
-  "provenance_caveat": "SEEDED FROM A RUN ON THE BRANCH, NOT THE BRANCH BASE. If the hub had introduced a failure it would have been baked in here. What makes that safe: the nine FILE names below match, name for name, the independently-measured branch-base list recorded in RESUME-inc2.md before this session began (sourcesAreText / ImportBox.thinkscript / manifestProse / pine.blindCorpus / reachable / pollingSites / ThemeTrackerPage.chartmount / tapFloor / NoteEditorPage.durable). The per-TEST identities are new here and are not corroborated by that earlier measurement. Re-measure at the branch base to remove this caveat.",
+  "provenance_caveat": "\u2b50 CORROBORATED AT THE MERGE-BASE \u2014 see `corroborated_at_merge_base`. This was originally seeded from a run ON THE BRANCH, which carried the risk that a hub-introduced failure was baked in. That risk is now retired by measurement rather than by argument: a full run at 78ac8016b shows every one of these entries failing at the base too, so none of them is the hub's. The nine FILE names also match the independently-measured branch-base list recorded in RESUME-inc2.md before this work began.",
   "files": [
     "src/__tests__/sourcesAreText.test.js",
     "src/components/chart/builder/ImportBox.thinkscript.test.jsx",
@@ -25,5 +25,16 @@
     "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
     "src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx > \u26d4 the one-line rollback \u2014 OFF still means inert > \u2b50 and the same keystroke DOES reach the store by DEFAULT",
     "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
-  ]
+  ],
+  "corroborated_at_merge_base": {
+    "base_sha": "78ac8016bd5572e74e778217d581f7b44e9e0fd3",
+    "measured": "2026-09-09",
+    "how": "Full six-shard run in a detached worktree at the merge-base, using the SAME fixed _capture/parse_failures code as the branch run so the two sets are comparable character for character. Base: 1169 test files, 11 files / 12 tests failing.",
+    "result": "ZERO entries in this baseline are absent at the merge-base. Every failure the branch carries also fails at the base, so NOTHING in this baseline is hub-introduced. That is the direction that matters and it is clean.",
+    "base_only_failures": [
+      "src/pages/optionsFlow/flowSearchProduct.test.js > the fixture exercises what the matrix claims > CONTROL: heavy and thin tickers both exist, and differ materially",
+      "src/pages/screener/sharedScreen.route.test.jsx > the controls that keep the rail honest > exactly one module emits the shared-screen markup"
+    ],
+    "base_only_verdict": "\u26d4 NOT 'the branch fixed them'. Both were re-run IN ISOLATION at the base and BOTH PASS (10.2s and 2.2s). They are LOAD-SENSITIVE, and the base shards differently from the branch (1169 files vs 1181 moves every shard boundary), so they drew slower neighbours there. Per this repo's standing rule a timeout is never banked as permitted breakage and is re-run alone before it is called anything \u2014 so they are NOT added to this baseline. If either appears as a NEW failure in a future run, re-run it alone before treating it as a regression."
+  }
 }
