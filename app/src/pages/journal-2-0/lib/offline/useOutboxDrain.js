@@ -23,11 +23,50 @@ import {
 } from './outboxLeader'
 import { connectNotebookDb } from './useDurableNote'
 import { usableBaseline, isUsableBaseline } from './baseline'
+import { sameAuthoredContent } from './recoverLocalState'
+import { liveSessionIds } from './inFlight'
 
 /** How often a leader re-tries what is still queued. ⛔ The `online` event only
  *  fires on a NETWORK transition — a server that came back up produces no event
  *  at all, so something has to ask again. */
 export const RETRY_INTERVAL_MS = 60000
+
+/**
+ * ⛔⛔ A 409 IS NOT PROOF SOMEBODY ELSE WROTE — ASK THE SERVER.
+ *
+ * It proves the server moved past this entry's baseline, and for a member with
+ * ONE device the commonest cause is that this browser's own save landed while
+ * the queue had not caught up. Forking on that manufactures a
+ * `(conflicted copy)` of a note nobody else touched.
+ *
+ * ⛔ NARROW ON PURPOSE. Only two things make the server copy "ours":
+ *   · its authored content is byte-identical to what this entry would send —
+ *     then sending it again could not change anything, so there is nothing to
+ *     preserve and nothing to fork; or
+ *   · its `updatedAt` is a revision this browser has recorded as landed,
+ *     which is the marker's `baseUpdatedAt` written before the PUT went out.
+ * ⛔ Everything else forks. A genuine second writer MUST still produce a
+ * conflicted copy, and widening this test to "any 409" would silently discard
+ * their work — trading a visible duplicate for an invisible data loss, which is
+ * the wrong direction on every axis.
+ */
+export async function serverCopyIsOursDefault(entry, { landedRevisions = null } = {}) {
+  const res = await fetch(`/api/j2/notes/${entry.noteId}`, { credentials: 'include' })
+  if (!res.ok) {
+    const err = new Error(`${res.status}`)
+    err.status = res.status
+    throw err          // ⛔ never "not ours" by accident — the drain forks on a throw
+  }
+  const server = (await res.json()).note
+  if (sameAuthoredContent(server, entry.patch)) {
+    return { ours: true, why: 'the server copy is byte-identical to this entry' }
+  }
+  const landed = usableBaseline(server?.updatedAt)
+  if (landed && landedRevisions instanceof Set && landedRevisions.has(landed)) {
+    return { ours: true, why: `the server revision ${landed} is one this browser recorded as landed` }
+  }
+  return { ours: false, why: 'the server copy differs and is not one of ours' }
+}
 
 /** The same compare-and-set PUT the editor uses, byte for byte. */
 export async function sendNoteUpdate(entry) {
@@ -86,6 +125,8 @@ export function useOutboxDrain({
   /** Wave Q1 — the null is INSTRUMENTED, not hunted. Injected so a rail can
    *  prove it fires on a baseline-less block and on nothing else. */
   report = postBlockedBaseline,
+  /** Injected so a rail can drive the 409 self-supersede without a network. */
+  serverCopyIsOurs = serverCopyIsOursDefault,
   intervalMs = RETRY_INTERVAL_MS,
 } = {}) {
   // ⛔ The same gate. Nothing drains — and nothing even claims leadership —
@@ -116,6 +157,8 @@ export function useOutboxDrain({
   connectRef.current = connect
   const reportRef = useRef(report)
   reportRef.current = report
+  const serverCopyIsOursRef = useRef(serverCopyIsOurs)
+  serverCopyIsOursRef.current = serverCopyIsOurs
 
   // ── leadership ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -175,6 +218,13 @@ export function useOutboxDrain({
       const db = await connectRef.current(accountId)
       const results = await drainOutbox(db, {
         send: sendRef.current, fork: forkRef.current, excludeNoteId: excludeRef.current,
+        // ⛔ Who currently holds the sync lock, so a marker left by a tab that
+        // is GONE expires immediately instead of waiting out its TTL. `null`
+        // when the browser cannot answer — which means "the TTL decides
+        // alone", never "nobody holds it" (that would expire every live marker
+        // on the spot and hand every in-flight note straight to the drain).
+        holders: await liveSessionIds(),
+        serverCopyIsOurs: serverCopyIsOursRef.current,
       })
       // ⭐ One event per refusal, and only for the refusal nobody can explain.
       // The drain decides; this only carries. ⛔ Awaited-but-swallowed: a

@@ -15,8 +15,9 @@
  * RETRYING, but the entry and its patch stay: unsynced member work outranks a
  * tidy queue.
  */
-import { clearOutboxEntry, getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import { clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent } from './notebookDb'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
+import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
 import { sameAuthoredContent } from './recoverLocalState'
 
 export const SENT = 'sent'
@@ -105,6 +106,23 @@ async function settleBlocked(db, entry, error) {
 }
 
 /**
+ * ⛔⛔ ASK THE SERVER WHETHER THE COPY THAT BLOCKS US IS OUR OWN.
+ *
+ * ⭐ ONE IMPLEMENTATION, TWO CALL SITES, deliberately — a guard repeated is a
+ * guard unproved, and two copies of this decision would drift the day the
+ * definition of "ours" changes.
+ *
+ * ⛔ A THROW IS NOT "NOT OURS". The caller must treat a failure as unknown and
+ * take the preserving branch: a spurious duplicate is recoverable by the
+ * member, a dropped write is not.
+ */
+async function askServerIfOurs(db, entry, serverCopyIsOurs) {
+  if (!serverCopyIsOurs) return null
+  const landedRevisions = new Set(await getMeta(db, landedKeyFor(entry.noteId)) || [])
+  return serverCopyIsOurs(entry, { landedRevisions })
+}
+
+/**
  * @param send  async (entry) => savedNote — the compare-and-set PUT
  * @param fork  async (entry) => serverNote — preserve BOTH versions and return
  *              the server's, so the durable copy can stop claiming to be unsent
@@ -112,7 +130,18 @@ async function settleBlocked(db, entry, error) {
  *              one note is the last-write-wins this wave exists to forbid; the
  *              open note is the editor's to save, never the sweep's.
  */
-export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {}) {
+export async function drainOutbox(db, {
+  send, fork, excludeNoteId = null,
+  // ⛔ The sessionIds currently holding the sync Web Lock, or null when the
+  // caller cannot enumerate them. null means "the TTL decides alone" — never
+  // "nobody holds it", which would expire every live marker instantly.
+  holders = null,
+  ttlMs = IN_FLIGHT_TTL_MS,
+  // async (entry) => {ours: boolean, why: string}. Asks the SERVER whether the
+  // copy that caused a 409 is this browser's own landed save. Absent ⇒ the
+  // check is skipped and a 409 forks, which is the pre-existing behaviour.
+  serverCopyIsOurs = null,
+} = {}) {
   const entries = await listOutbox(db)
   const results = []
   for (const entry of entries) {
@@ -191,6 +220,71 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
     // for ever.
     // eslint-disable-next-line no-await-in-loop
     const noteRec = await getNote(db, entry.noteId)
+
+    // ⛔⛔ A SAVE IS ON THE WIRE FOR THIS NOTE — DO NOT CLAIM IT.
+    //
+    // ⚰️ This is the guard that had to exist, because the one below CANNOT do
+    // this job. The supersede refusal asks `landedBaseline`, which refuses a
+    // DIRTY record — correctly — and in the window between issuing a PUT and
+    // its resolving, the record IS dirty. So the answer was always "not
+    // superseded" and the drain sent on a baseline the server had already
+    // passed: 409, fork, and a single-device member told their note "changed
+    // elsewhere". Two guards that share a precondition are one guard.
+    //
+    // ⭐ THE MARKER IS DIFFERENT IN KIND: it records that we ASKED, before we
+    // asked. That is the one fact the drain could never derive for itself,
+    // because it lived in an in-flight promise inside a component that may
+    // already be unmounted.
+    //
+    // ⛔ SKIPPED, NOT BLOCKED. Nothing is wrong with this entry — it is simply
+    // not this sweep's turn. The next drain picks it up.
+    // eslint-disable-next-line no-await-in-loop
+    const marker = await getMeta(db, markerKeyFor(entry.noteId))
+    if (isMarkerLive(marker, { holders, ttlMs })) {
+      results.push({
+        mutationId: entry.mutationId,
+        noteId: entry.noteId,
+        outcome: SKIPPED,
+        reason: `a save started at ${new Date(marker.startedAt).toISOString()} is still in flight`,
+      })
+      continue
+    }
+
+    // ⛔⛔ AN EXPIRED MARKER IS NOT PERMISSION TO SEND — IT IS A QUESTION.
+    //
+    // A marker that exists but has aged out means a save WAS on the wire and we
+    // cannot tell from here whether it landed. The local record cannot answer:
+    // it is still dirty, so `landedBaseline` refuses it, which is the whole
+    // reason the supersede check below cannot cover this case.
+    //
+    // ⚰️ THE ORDERING THIS CLOSES, which sending blind does not:
+    //   the PUT is slower than the TTL → the marker expires → the drain sends →
+    //   the slow PUT lands FIRST → the drain's send 409s → fork. One device, a
+    //   duplicate of the member's own note, and a slow network was the only
+    //   cause.
+    // ⛔ The server is asked BEFORE the send, and asked AGAIN on a 409 — because
+    // the answer can change in between, which is exactly what happens when the
+    // slow PUT lands during our request.
+    if (marker && serverCopyIsOurs) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)
+        if (mine?.ours) {
+          // eslint-disable-next-line no-await-in-loop
+          await clearOutboxEntry(db, entry.mutationId)
+          results.push({
+            mutationId: entry.mutationId,
+            noteId: entry.noteId,
+            outcome: SUPERSEDED,
+            reason: `an expired in-flight save turned out to have landed (${mine.why}) — removed, not sent`,
+          })
+          continue
+        }
+      } catch {
+        // ⛔ Unknown, not "not ours". Fall through and send; a 409 will ask again.
+      }
+    }
+
     const landed = landedBaseline(noteRec)
     if (isSupersededBaseline(entry.baseUpdatedAt, landed)) {
       // eslint-disable-next-line no-await-in-loop
@@ -211,6 +305,43 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SENT })
     } catch (e) {
       if (e?.status === 409) {
+        // ⛔⛔ THE TERMINAL GUARD: A 409 IS NOT PROOF SOMEBODY ELSE WROTE.
+        //
+        // It proves only that the server has moved past this entry's baseline —
+        // and the commonest way that happens, for a member with ONE device, is
+        // that THIS BROWSER'S OWN SAVE LANDED and the queue had not caught up.
+        // Forking on that produces a `(conflicted copy)` of a note nobody else
+        // ever touched, and tells the member it "changed elsewhere". It did not.
+        //
+        // ⭐ SO ASK THE SERVER, RATHER THAN INFERRING FROM LOCAL STATE. This is
+        // the guard that fires regardless of marker state, timing, dirtiness or
+        // ordering — every other guard above is an optimisation that saves this
+        // one a round trip.
+        //
+        // ⛔ AND IT MUST BE NARROW. Discarding on ANY 409 would silently drop a
+        // genuine second-writer conflict, which is the one case that MUST fork.
+        // The test for "ours" is byte-identical content, or a server revision
+        // this browser has already recorded as landed. Anything else forks.
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const mine = await askServerIfOurs(db, entry, serverCopyIsOurs)
+          if (mine?.ours) {
+            // eslint-disable-next-line no-await-in-loop
+            await clearOutboxEntry(db, entry.mutationId)
+            results.push({
+              mutationId: entry.mutationId,
+              noteId: entry.noteId,
+              outcome: SUPERSEDED,
+              reason: `409, but the server copy is this browser's own save (${mine.why}) — removed, not forked`,
+            })
+            continue
+          }
+        } catch {
+          // ⛔ THE SERVER CHECK FAILING IS NOT PERMISSION TO DISCARD. Fall
+          // through to the fork. Preserving both copies is the safe direction:
+          // a spurious duplicate is recoverable by the member, a dropped write
+          // is not. An error here must never read as "not ours".
+        }
         try {
           // eslint-disable-next-line no-await-in-loop
           const serverNote = await fork(entry)
