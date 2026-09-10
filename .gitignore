@@ -129,3 +129,7 @@ app/src/stripqa2.jsx
 tools/r5_prefetch_out.json
 tools/r5_diag_*.png
 tools/r5_diag_*.json
+
+# HAR exports from the R5 foreground run. Even a sanitized HAR is request/response
+# data from an authenticated session — never committable. Deleted after parsing.
+tools/r5_har/

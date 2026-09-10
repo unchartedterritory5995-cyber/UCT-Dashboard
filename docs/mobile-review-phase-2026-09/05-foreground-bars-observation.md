@@ -1,112 +1,88 @@
 # Foreground bars observation — protocol
 
-**One question:** under human-paced review navigation, in a browser tab that is
-genuinely visible, does `/api/bars/<SYM>` fire on transition?
+**⛔ Fire/no-fire is retired as a discriminator.** It was the design when we
+believed a prefetched neighbour would produce a client-side cache hit and skip the
+chart's fetch. The read-path check falsified that: `prefetchBars` writes SWR under
+`…&bars=600&warm=1`, the chart reads `…&bars=<_primaryBars>` with **no `&warm`**
+(`StockChart.jsx:5322`). Different keys. **The chart fetches on transition
+regardless of what the prefetcher did**, so a non-`warm` row is a *transition*, not
+a *cold* one, and counting them discriminates nothing.
 
-This exists to close **caveat (a)** on the §P2 observation. §P2 recorded 147
-`/api/` calls and **zero** `/api/bars/` requests across ~15 transitions — but the
-tab it recorded them in ran `visibilityState: "hidden"`, and this app's
-`useMobileSWR` deliberately pauses polling on hidden tabs. 147 calls did fire, so
-the frame was not network-suppressed wholesale, but a bars fetch specifically
-cannot be ruled out as suppressed. A foreground re-observation settles it.
+**What current+2 actually does is warm the server.** Its `&warm=1` request makes
+the server build and cache the bars, so the chart's later fetch under its own key
+is served from a server cache tier instead of built cold. That difference is
+invisible in a request count.
 
-⛔ **This is not a timing measurement.** No stopwatch, no p50, no fps. It counts
-requests. That is the whole point: a count is immune to the noise floor that makes
-a small latency effect unmeasurable.
-
----
-
-## Decision rule, agreed in advance
-
-### Phase B is the known-positive control — check it FIRST
-
-A genuinely cold target (not opened this session, not viewed in ~26 h) **must**
-produce a non-`warm` `/api/bars/` row: the visible chart has no mem hit, no IDB
-hit, and has to reach the network while the member waits.
-
-| Phase B non-`warm` | Meaning |
-|---|---|
-| **> 0** | Instrument validated. Phase A's number is trustworthy. |
-| **0** | **Run VOID.** Either the targets weren't cold or the filter is blind. Redo with colder targets after re-running the filter-liveness check. **Do not read Phase A.** |
-
-⭐ This is Q6 lesson #2 applied to ourselves: validate the instrument against a
-known positive before believing any negative from it. The first `canvases: 0`
-should have triggered exactly this and never did.
-
-### Then Phase A
-
-| Phase A non-`warm` | Consequence |
-|---|---|
-| **0** (with B > 0) | Network caveat closed. R5 closes — **in-memory benefit recorded as UNMEASURED**, not as "no benefit". |
-| **> 0** | The experiment is valid after all. Sample size from the observed fire rate, not the inherited 90/60. **See the prediction below — this outcome is now more likely than it looked.** |
-
-### The `&warm=1` count is the prefetcher's pulse
-
-⛔ **`&warm=1` rows never count toward either rule above.** But record them:
-**zero `&warm=1` rows in a visible tab across Phase A transitions means the
-prefetcher is not running in the foreground either** — a finding in its own right,
-and the thing that would retroactively explain §P2.
-
-### ⚠️ Prediction, recorded before the run so it can be wrong
-
-`prefetchBars` writes SWR under `…&bars=600&warm=1`. The visible chart reads
-`…&bars=<_primaryBars>` with **no `&warm`** (`StockChart.jsx:5322`). **Different
-keys.** So current+2 cannot produce an SWR hit for the chart's read; its benefit
-is server-side cache warming, and the chart may still have to make a network
-request that is merely *fast*. If that's right, Phase A non-`warm` should be
-**nonzero on most transitions**. If it comes back zero, something else is serving
-the chart — most likely IDB filled by the feed's own per-row charts — and that is
-worth knowing too.
-
-⛔⛔ **The rule no longer says "R5 closes clean".** `prefetchBars` warms **SWR's
-in-memory cache**, not IndexedDB (`prefetchBars.js:204`, in-file). So a prefetched
-neighbour is a memory hit, while a symbol that is IDB-warm-but-not-prefetched
-still costs an IndexedDB read plus deserialize plus render — **and both show zero
-network requests.** A request count is structurally blind to that difference. Zero
-therefore establishes the *network* half only.
-
-**Phase B is a candidate future item if nonzero, not merely annotation** — a
-nonzero Phase B means the ±2 window does not cover feed selection, which is a
-possible future work item. It remains **not** an R5 decision input.
+**It is not invisible in `Server-Timing`.**
 
 ---
 
-## Preconditions
+## ⭐ The instrument: `Server-Timing` names the serving tier, per request
 
-- Desktop Chrome, **normal foreground window**. Not an iframe, not the extension,
-  not a driven tab.
-- Signed in to `uctintelligence.com` as yourself.
-- DevTools open, docked or undocked — either is fine as long as the page stays
-  visible.
+`/api/bars` emits (`api/routers/bars.py:669`):
+
+```
+Server-Timing: bars;desc="<serve-layer>";dur=<server-compute-ms>
+```
+
+The in-file comment states the intent exactly: *"expose server-compute ms + which
+cache tier served, so cold vs warm (and cold-fetch vs inflight-wait vs disk) is
+observable in prod devtools / curl — the cold path was previously unmeasured."*
+
+Complete label set (`_mark_serve` call sites):
+
+| `desc` | Meaning |
+|---|---|
+| `mem` | server in-memory hit — hottest |
+| `sqlite` | served from `bars.db` |
+| `fetch` | **cold upstream provider fetch** — the expensive path |
+| `inflight-wait` | waited on another request's in-flight fetch |
+| `cold-bg` | cold, backgrounded |
+| `delta` / `delta-async-heal` | incremental update path |
+| `stale-swr` | stale-while-revalidate |
+| `warm-mem` / `warm-sqlite` | a `&warm=1` request that found the server **already warm** — it warmed nothing |
+| `warm-shed` | a `&warm=1` request **shed** with a fast 503 under load — it warmed nothing |
+| `index` / `breadth` / `yf-only` | other serve paths |
+
+**This answers W1 vs W2 per request, directly, with no inference and no liquidity
+confound** — which is why the TTFB-comparison design is dropped. Sub-metrics
+localise a slow serve to its phase; they ride the same header.
+
+`Server-Timing` is a response header, so it is captured in the HAR.
+
+---
+
+## Validity gates — all three must pass or the run is void
+
+1. `window.__vis` never contained `"hidden"`
+2. shell attribute `"1"` at start **and** end
+3. **Phase B non-`warm` count > 0** — proves the filter/capture sees on-demand
+   fetches at all
+
+⚠️ Gate 3 no longer means "the targets were cold." The chart fires either way;
+coldness shows in `Server-Timing`, not in the presence of a row. A zero here means
+**the capture is blind**, not that the targets were warm. Void and redo.
+
+⛔ **There is no numeric threshold that decides close vs continue.** The code
+reading already answered *what current+2 does*; this run only annotates *how much*.
+Anyone reading the closure later should not think a number was the deciding factor.
 
 ---
 
 ## Setup
 
-### 1 · Narrow to phone width
+**1 · Phone width.** Resize so the viewport is 390 wide.
 
-Resize the window (or use the DevTools device toolbar) so the **viewport** is
-390 wide. Height doesn't matter for this.
-
-### 2 · Confirm the phone shell actually mounted
-
-The attribute is on the **`<html>` element** — `document.documentElement` — set by
-`MobileChartsApp.jsx:107` when the phone shell mounts and removed on unmount. So
-it is a live indicator, not a one-time flag.
-
-In the Console:
+**2 · Confirm the phone shell.** The attribute is on `<html>` — set by
+`MobileChartsApp.jsx:107`, removed on unmount, so it is live:
 
 ```js
-document.documentElement.getAttribute('data-mobile-chart-shell')
+document.documentElement.getAttribute('data-mobile-chart-shell')   // expect "1"
 ```
 
-Expect `"1"`. **If it returns `null`, stop** — you are on the desktop workspace
-and nothing below means anything. Narrow further and re-check.
+Null ⇒ you're on the desktop workspace; stop and narrow further.
 
-### 3 · Arm the visibility guard
-
-Paste this once, before you start. It records every visibility change so you can
-prove the tab never went hidden rather than trusting memory:
+**3 · Arm the visibility guard.**
 
 ```js
 window.__vis = [document.visibilityState]
@@ -114,148 +90,118 @@ document.addEventListener('visibilitychange',
   () => window.__vis.push(document.visibilityState))
 ```
 
-At the end, read `window.__vis`. **If it contains `"hidden"` anywhere, the run is
-void** — redo it. No alt-tab, no covering the window, no switching desktops.
+**4 · Network tab.** Filter `/api/bars/`. **"Disable cache" UNCHECKED.**
+**"Preserve log" CHECKED** — the HAR must span both phases.
 
-### 4 · Network tab
+**5 · Enter the review session.** `/screener` → Review charts. The cinematic
+intro plays on **every** page load (~9.3s) — click Skip or wait it out. Gate on the
+chart being on screen, never on a count of seconds.
 
-- Filter box: `/api/bars/`
-- **"Disable cache" UNCHECKED.** We want the real caching behavior, not a
-  cache-defeated worst case.
-- Leave "Preserve log" **unchecked** — you'll clear deliberately in step 6.
-
-### 5 · Enter the review session
-
-Go to `/screener`, tap **Review charts**, and let the first chart fully paint.
-
-⚠️ The cinematic intro plays on **every page load** (~9.3s) — click **Skip** or
-wait it out. Gate on the chart being on screen, not on a count of seconds.
-
-### 6 · Clear the log — this is the step that makes or breaks the run
-
-Once the first chart has painted, **clear the Network log** (🚫 icon).
-
-⛔ **The first chart's own bars fetch is a legitimate cold load, not a
-transition.** Counting it would produce a false positive and invalidate the whole
-observation. Everything you count from here is a *transition*.
+**6 · Let the first chart paint, then drop the phase marker.** Do **not** clear the
+log this time — Preserve log is on and the markers separate the phases instead.
 
 ---
 
-## Phase A — human-paced review
+## Phase markers
 
-Do what you'd actually do reviewing charts. Roughly:
+One deliberate request per boundary, findable in the HAR, nothing else touched.
+Paste each into the Console at the moment it says:
 
-- ~10 next/prev transitions **at genuine reading pace** — actually look at each
-  chart. Don't machine-gun it; the entire validity objection to the old harness
-  was that it tapped faster than a member would.
-- Open the feed once.
-- Select a **nearby** symbol from the feed (within a couple of positions).
+```js
+fetch('/api/health?r5=A_START')   // after the first chart has painted
+fetch('/api/health?r5=A_END')     // after the last Phase A interaction
+fetch('/api/health?r5=B_START')   // before the first far jump
+fetch('/api/health?r5=B_END')     // after the last far jump
+```
 
-Then read the Network rows.
-
-## Phase B — far jumps
-
-Clear the log again, then:
-
-- ~3 feed selections to symbols **well outside the current ±2 window** — e.g.
-  from position 3 to position 40, then somewhere else distant, then a third.
-
-⛔ **Pick targets that are actually cold, or Phase B sees nothing.** Two ordinary
-kinds of real-life warmth will mask the signal: a symbol you already opened
-earlier in this session, and a symbol you viewed within roughly the last 26 hours
-(`barsIDB` evicts intraday entries on bar-data freshness, so anything newer than
-~26h is still a cache hit). Neither is a defect — both are the product working —
-but a falsely-warm target makes Phase B look like Phase A for the wrong reason.
-Choose symbols you have not opened this session and, as far as you can tell,
-haven't looked at today; **record in the report whether you used the app earlier
-today at all**, since that's what a later reader needs to judge how cold "cold"
-really was.
-
-`neighbours()` warms next+1, next+2 and prev−1 only (`reviewSession.js:189`), so a
-far jump is by definition outside what current+2 covers.
-
-**Why this is worth the extra minute:** if Phase A is zero and Phase B is nonzero,
-that is the one signal that partially separates W1 from W2 — it shows the other
-warming layers do *not* cover everything, and current+2 is doing real work on the
-neighbours it owns. Still not actionable, but a better sentence in the closure
-than "not separated."
+`/api/health` is unauthenticated and trivial, and the `r5=` query param makes each
+marker unique in the HAR. Everything before `A_START` — including the first chart's
+own legitimate cold load — is excluded by the parse.
 
 ---
 
-## ⛔⛔ FIRST: separate `&warm=1` rows from the rest — this decides the run
+## Phase B first — the capture control
 
-**A `/api/bars/` request is not automatically evidence of a cold transition.** The
-prefetcher issues its own network requests, and they are marked:
+~3 feed selections to symbols **well outside the ±2 window**.
 
-| URL contains | What it is | Counts as |
-|---|---|---|
-| `&warm=1` | **the prefetcher working ahead** — `prefetchBars` → `_enqueue` → `_url(sym, tf, warm=true)`. Server-side this is best-effort and shed with a fast 503 under load. | **prefetch traffic — NOT a cold transition** |
-| no `&warm` | **the visible chart fetching on demand** — the member is waiting for this one | **cold transition** |
+⭐ **Draw them from the same population as the Phase A neighbours** —
+screener-adjacent names of similar liquidity. **Not** deliberately obscure ones.
+Server-cache hotness is driven by all traffic, not just ours, so an obscure name
+would confound "cold because nobody warmed it" with "cold because nobody looks at
+it." Client-side coldness is no longer the requirement; **server-side
+comparability is**.
 
-⛔ **The decision rule keys on the second row only.** Counting `&warm=1` rows as
-"server hits" would make Phase A nonzero for the best possible reason — the
-prefetch doing exactly its job — and would fire the "experiment is valid" branch
-backwards.
+## Then Phase A
 
-**Expect `&warm=1` rows.** Up to two concurrent (`_MAX_CONCURRENT = 2`), idle-
-deferred, deduped per-URL for 30 s. Seeing them is the prefetcher confirming it is
-alive, which is itself useful: §P2 recorded **zero** `/api/bars/` of any kind, and
-the most likely reason is that the hidden tab never fired `requestIdleCallback`
-and clamped `setTimeout`, so the warm queue never drained at all. In other words
-§P2 may have observed *prefetch not running*, not *everything already warm*.
+~10 transitions at genuine reading pace — actually read each chart. Then open the
+feed and select a nearby symbol.
 
-**Report both numbers separately.**
+---
 
-## Counting: server hit vs cache hit
+## What the run produces — findings, not switches
 
-Read the **Size** column:
-
-| Size column shows | Count as |
+| Observable | What it tells us |
 |---|---|
-| a byte figure (e.g. `4.2 kB`) | **server hit** |
-| `(memory cache)` | cache hit |
-| `(disk cache)` | cache hit |
-| `(ServiceWorker)` | cache hit |
-| `(prefetch cache)` | cache hit |
+| Phase A `&warm=1` count | **The prefetcher's pulse.** Zero in a *visible* tab means it isn't running in the foreground either — a finding on its own, and what would retroactively explain §P2. |
+| `Server-Timing` on the `&warm=1` rows | `warm-mem` / `warm-sqlite` ⇒ the server was already warm and prefetch warmed **nothing**. `fetch` / `cold-bg` ⇒ it genuinely built something. `warm-shed` ⇒ shed under load. |
+| `Server-Timing` on Phase A non-`warm` rows | Which tier served the chart's own fetch after a preceding warm |
+| Same for Phase B non-`warm` rows | The comparison population |
+| Phase A non-`warm` count | **Predicted nonzero.** Zero ⇒ something else served the chart — see the feed finding below. |
+| `dur=` values | Server compute ms per tier — bounds the benefit (see below) |
 
-Both are "warm" for our purposes — a cache hit means no network round trip, which
-is the thing that would cost a member time. But they're counted separately because
-they mean different things about *which* layer is doing the work.
-
-⚠️ A row served from IndexedDB by the app's own `barsIDB` layer **will not appear
-in the Network tab at all** — that's an app-level cache, not an HTTP one. So zero
-rows is a genuine possible outcome and is not evidence the filter is broken. If
-you want to confirm the filter works, briefly clear the filter box and check other
-`/api/` rows are flowing.
+**The bound worth writing into the closure:** current+2's benefit is bounded by
+*(server cold-build time − server cache-hit time)* for the symbol in question. For
+a symbol the server already holds hot, that bound is **~0**. That is the strongest
+"expected small" statement available, and it comes from the code rather than from
+reasoning.
 
 ---
 
-## Report back
+## ⚠️ Pre-registered: the feed is a client-tier warmer and current+2 is not
 
-```
-Shell attribute at start / at end:  ___ / ___   (data-mobile-chart-shell === "1")
-window.__vis contained "hidden":    yes / no    (yes ⇒ run void, redo)
-Filter-liveness check passed:       yes / no
-Used the app earlier today:         yes / no
+Established by reading, before the run: `ReviewFeedCard.jsx:67` renders a full
+`<StockChart sym={sym} tf={tf} …>` per row with no `bars` override. So each feed
+row fetches under **the same key construction the main chart reads** — same sym,
+same `tf`, same `_primaryBars`, **no `&warm`**.
 
-Phase A  — non-warm server hits: ___   &warm=1 rows: ___   cache hits: ___
-Phase B  — non-warm server hits: ___   &warm=1 rows: ___   cache hits: ___
-Phase B targets: ___________________________
+⇒ **Opening the feed populates the main chart's SWR key for every visible row.**
+The feed does the client-tier warming current+2 was designed to do and doesn't.
 
-OPTIONAL, if you have another minute — bounds "expected small" with a number
-instead of a hope, now that we know a memory layer exists:
-Performance panel, 3 Phase A transitions, main-thread cost per transition: ___
-```
-
-Approximate transition counts for A and B are useful but not critical — the
-zero/nonzero distinction is what decides.
+This holds as long as the feed's `tf` equals the main chart's; if a run shows
+otherwise, say so. It is a finding regardless of the numbers and belongs in the
+closure.
 
 ---
 
-## What happens next
+## Capture — HAR, not hand-counting
 
-- **Phase A = 0** → I write the closure entry into
-  `04-master-integration-and-regression.md` with your numbers substituted, and R5
-  is done. Nothing is built, launched, or pushed.
-- **Phase A > 0** → we reopen the instrument discussion, and the sample size comes
-  from your observed fire rate rather than the inherited 90/60.
+At the end of the run, Network panel → right-click → **"Export HAR (sanitized)"**,
+which strips cookies and auth headers.
+
+⛔ **If this Chrome build offers only plain "Export HAR", stop and tell me.** An
+unsanitized HAR carries the `uct_session` cookie — a **live 30-day credential** —
+in every request header.
+
+Save to:
+
+```
+C:\Users\Patrick\uct-worktrees\mobile-impl\tools\r5_har\run.har
+```
+
+`tools/r5_har/` is gitignored (`.gitignore:135`, verified with `git check-ignore`)
+and the entry landed **before** the run, so there is no cleanup race. **The HAR is
+deleted once the numbers are in the trail.**
+
+I parse it: warm/non-warm split, per-phase counts, `Server-Timing` tier
+distributions, warm-request durations, TTFB, and any cache headers.
+
+## Paste alongside the HAR
+
+```
+window.__vis                     : ___
+shell attribute at start / end   : ___ / ___
+Phase B targets                  : ___
+Used the app earlier today       : yes / no
+Sanitized HAR available          : yes / no
+OPTIONAL — Performance panel, 3 Phase A transitions, main-thread cost: ___
+```
