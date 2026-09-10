@@ -27,10 +27,46 @@ healthy:
 | its pane's height | 240px |
 | the live chart | **blank** |
 
-⭐ **The one diagnostic that finds it** is the legend:
-`document.querySelectorAll('[data-name="legend-source-title"]')` comes back **empty** for that
-study while other panes have one. Nothing in the study's own state can tell you, because the
-study is not what is broken.
+## ⛔⛔ THE HIDDEN-TAB DIAGNOSTIC — run all three, IN THIS ORDER
+
+⚰️ **THE PREVIOUS DIAGNOSTIC WAS `[data-name="legend-source-title"]`, AND IT IS RETIRED
+BECAUSE IT LIED.** On 2026-09-10 it returned **0 on a fully rendered chart** — three panes
+drawn, candles on screen, live legend text — and a confident "the tab is hidden" was reported
+off it twice before a control caught it. TradingView moved its legends to hashed CSS-module
+classes (`sourcesWrapper-quatTGAC`) and that `data-name` no longer exists anywhere in the DOM.
+⛔ **A stale selector and a real defect are the same reading**, which is why the control below
+is not optional.
+
+**a · CANVAS SIZES — the primary signal, and the only structural one.** Every pane canvas
+should be at its real height; a canvas sitting at the HTML default **300×150** means
+TradingView never sized it and that pane is unrendered.
+
+    [...document.querySelectorAll('canvas')].map(c => c.width + 'x' + c.height)
+    // rendered:   1743x372, 1743x372, 1743x186, ... (matches pane heights)
+    // unrendered: 300x150
+
+⭐ This is vendor-independent: it depends on the canvas element's own geometry, not on a class
+name or a `data-name` the vendor is free to rename. Cross-check the heights against
+`model().panes().map(p => p.height())` and they must agree.
+
+**b · LEGEND WRAPPERS — the corroborating signal.**
+
+    document.querySelectorAll('[class*="sourcesWrapper"]').length   // == pane count
+
+Each should carry live legend text (`Vol | 32.81 M | …`). ⚠️ The substring match is
+deliberate: the suffix is a build hash and WILL change again.
+
+**c · THE CONTROL — MANDATORY, AND IT IS R6 WRITTEN INTO THIS RUNBOOK.**
+
+    document.querySelectorAll('[data-name]').length    // must be > 0
+
+* control **0** → the DOM is dead or the page never loaded. Neither a; nor b; means anything.
+* control **> 0** and **b == 0** → **report "instrument broken", NEVER "tab hidden".** The
+  selector has gone stale, exactly as the retired one did. Fix the selector, then re-measure.
+* control **> 0** and b == pane count and a; shows real sizes → **the chart is rendered.**
+
+⛔ **A search returning zero is not evidence until a positive control proves it can match.**
+That rail exists because of this page.
 
 ⛔ **Do not reach for the model.** `model.fullUpdate()`, `pane.setStretchFactor()` and
 `chartModel.setPaneHeight()` all talk to the model, and the model was never wrong. They will
@@ -44,6 +80,17 @@ renders. The proof it worked: `TradingViewApi.takeClientScreenshot()` goes from 
 873px-wide image to the real full-width one.
 
 ### ⛔⛔ …BUT `_adjustSize()` DOES NOT SAVE A CHART THAT *LOADED* HIDDEN (2026-09-09)
+
+> ⚠️ **ANNOTATION 2026-09-10 — THIS ENTRY'S CAUSE IS UNVERIFIED, AND THE ENTRY IS LEFT
+> STANDING DELIBERATELY.** Every "legend nodes 0" reading below came from
+> `[data-name="legend-source-title"]`, the diagnostic retired above for false-positiving on a
+> rendered chart. So "legends stay at 0" may have measured a stale selector rather than a
+> missing pane widget, and the conclusion that `_adjustSize()` cannot repair a
+> loaded-hidden chart **has not been reproduced with a working instrument**.
+> ⛔ It is annotated rather than rewritten because the observations may still be sound — a
+> blank screenshot is not a selector artifact — and deleting a record because one of its
+> instruments is suspect would destroy the evidence needed to re-test it. Re-measure with the
+> three-part diagnostic before relying on this entry, and record the result here.
 
 The rule above covers a study added to an **already-rendered** chart. It does **not** cover
 opening the chart itself in a hidden tab, and the difference is total:
