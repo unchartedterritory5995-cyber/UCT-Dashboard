@@ -915,6 +915,108 @@ def _render_key(key) -> str:
     return f"**`'{key}'`** \u21d2 **OPTED IN** \u2014 unexpected at rest; a previous run did not opt back out"
 
 
+def _canary_tail(chk: Check, page, note_id) -> str | None:
+    """Decide, THEN clean. Never the other way round.
+
+    ⛔⛔ Split out of `_canary_body` so `--self-check` can drive the REAL
+    decision rather than assert about the order of two lines: a run that forks
+    must reach the end with BOTH halves of the artifact present, and a run that
+    does not fork must still clean up. A rail that only proved the first would
+    have traded a destructive bug for a litter bug.
+    """
+    # \u26d4\u26d4 THE FORK IS DETECTED **BEFORE** ANYTHING IS DELETED.
+    #
+    # It used to be detected AFTER the cleanup block, and `should_clean_up` was
+    # evaluated ABOVE it \u2014 so the guard whose whole job is "a finding is on the
+    # account, keep the evidence" could not see the single-writer fork, because
+    # the fork finding did not exist yet. On 2026-09-10 that cost us HALF the
+    # artifact: the run created a `(conflicted copy)` at 16:55:43Z and deleted its
+    # own ORIGINAL at 16:55:52Z \u2014 nine seconds later \u2014 and only then noticed. The
+    # pair was recoverable solely because the delete is soft (Wave 0 trash).
+    #
+    # \u2b50 This is the same shape as the opt-out defect: A DECISION MADE BEFORE THE
+    # INFORMATION THAT SHOULD DRIVE IT EXISTS. Read the notes first, decide second.
+    # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    pre_notes = page.evaluate(NOTES_JS)
+    pre_canary = pre_notes.get("canary") or []
+    forks = [t for t in pre_canary if "(conflicted copy)" in t]
+    if forks:
+        chk.findings.append(
+            "**a SINGLE-WRITER offline session produced a `(conflicted copy)`** \u2014 "
+            f"{len(forks)}: {forks}. The editor's own save moved the server after "
+            "the outbox entry captured its baseline, so the drain's send 409'd and "
+            "forked. No second device was involved."
+        )
+    # \u26d4\u26d4 HARD RED. Not a warning and not litter: a single-writer fork is the
+    # defect the 2026-09-10 evidence set found, and a run that sees one must
+    # refuse its row and KEEP BOTH HALVES of the artifact.
+    chk.step("5 no fork from a single writer", not forks,
+             "no `(conflicted copy)` created by this run",
+             f"THIS RUN FORKED ITS OWN NOTE \u2014 HARD RED: {forks}")
+
+    # \u26d4 EVALUATED HERE, with every finding already appended \u2014 including the fork.
+    if not should_clean_up(chk.findings):
+        chk.step("5 cleanup", True,
+                 "\U0001f6a8 **SKIPPED ON PURPOSE** \u2014 a finding is on the account and "
+                 "the evidence stays, ORIGINAL AND COPY BOTH")
+        return note_id
+
+    page.evaluate("""async (id) => { await fetch('/api/j2/notes/' + id, {method:'DELETE', credentials:'include'}) }""", note_id)
+    # ⛔ `indexedDB.open(name)` WITH NO VERSION CREATES THE DATABASE IF IT IS
+    # MISSING — an empty one, with zero object stores. So a reader can conjure a
+    # phantom DB as a side effect, and `transaction([])` then throws
+    # InvalidAccessError, which is what killed check 5's second run. Guard on the
+    # store list rather than assuming the layer has initialised.
+    page.evaluate("""async (acct) => {
+        const db = await new Promise(res => { const r = indexedDB.open('uct_notebook_'+acct); r.onsuccess = () => res(r.result) });
+        const stores = [...db.objectStoreNames];
+        if (stores.length) {
+            const tx = db.transaction(stores, 'readwrite');
+            stores.forEach(s => tx.objectStore(s).clear());
+            await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
+        }
+        for (const k of Object.keys(localStorage)) if (k.startsWith('uct.j2.notedraft.')) localStorage.removeItem(k);
+        return {storesCleared: stores.length};
+    }""", ACCOUNT_ID)
+    # ⛔ ORDERING, and it is load-bearing: opt out BEFORE the verification reload.
+    # Reloading the notebook while still opted IN re-engages the offline layer and
+    # re-creates the stores this next read is about to call empty. The `finally`
+    # in `_mini_canary` is the guarantee; this call is the ordering.
+    opt_out(page)
+    page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+    page.wait_for_timeout(7000)
+    end = page.evaluate(STATE_JS, ACCOUNT_ID)
+    end_notes = page.evaluate(NOTES_JS)
+    # \u26a0\ufe0f An EMPTY store map is not the same as "all four stores read 0". A
+    # phantom database (opened with no version, never initialised) has no stores
+    # at all, and `all()` over nothing is vacuously True \u2014 the exact shape of a
+    # check that passes because it measured nothing.
+    stores = end.get("stores") if isinstance(end.get("stores"), dict) else None
+    zeroed = bool(stores) and all(v == 0 for v in stores.values())
+    leftovers = end_notes.get("canary") or []
+
+    # ⭐ POST-cleanup leftovers, for the cleanup RECEIPT only. The fork question
+    # is asked and answered ABOVE, on the PRE-cleanup list, before anything can be
+    # deleted — one authority, and it runs before the delete that used to destroy
+    # half the evidence.
+
+    reasons = []
+    if not zeroed:
+        reasons.append(f"stores not all zero ({stores!r})")
+    if end.get("locks") != 0:
+        reasons.append(f"locks={end.get('locks')}")
+    # ⭐ The opt-in key is NOT asserted here any more. `_mini_canary`'s `finally`
+    # owns it, asserts it, and runs on every exit — including the two this step
+    # can never be reached from. One authority, at the point of the action.
+    if leftovers:
+        reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
+    chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
+             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}**",
+             # \u26d4 Name the sub-condition that failed. "cleanup incomplete" while
+             # printing three values that all look fine cost a diagnosis today.
+             "cleanup incomplete: " + " \u00b7 ".join(reasons))
+    return note_id
+
 def _put_baseline(req):
     try:
         body = req.post_data
@@ -1136,87 +1238,8 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
              f"queue did not settle: dirty={srec.get('dirty')} outbox={len(_as_list(settled.get('outbox')))} serverHasText={server_has}")
     chk.findings += baseline_findings("settled record", srec)
 
-    if not should_clean_up(chk.findings):
-        chk.step("5 cleanup", True,
-                 "\U0001f6a8 **SKIPPED ON PURPOSE** \u2014 a finding is on the account and the evidence stays")
-        return note_id
-
-    page.evaluate("""async (id) => { await fetch('/api/j2/notes/' + id, {method:'DELETE', credentials:'include'}) }""", note_id)
-    # ⛔ `indexedDB.open(name)` WITH NO VERSION CREATES THE DATABASE IF IT IS
-    # MISSING — an empty one, with zero object stores. So a reader can conjure a
-    # phantom DB as a side effect, and `transaction([])` then throws
-    # InvalidAccessError, which is what killed check 5's second run. Guard on the
-    # store list rather than assuming the layer has initialised.
-    page.evaluate("""async (acct) => {
-        const db = await new Promise(res => { const r = indexedDB.open('uct_notebook_'+acct); r.onsuccess = () => res(r.result) });
-        const stores = [...db.objectStoreNames];
-        if (stores.length) {
-            const tx = db.transaction(stores, 'readwrite');
-            stores.forEach(s => tx.objectStore(s).clear());
-            await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
-        }
-        for (const k of Object.keys(localStorage)) if (k.startsWith('uct.j2.notedraft.')) localStorage.removeItem(k);
-        return {storesCleared: stores.length};
-    }""", ACCOUNT_ID)
-    # ⛔ ORDERING, and it is load-bearing: opt out BEFORE the verification reload.
-    # Reloading the notebook while still opted IN re-engages the offline layer and
-    # re-creates the stores this next read is about to call empty. The `finally`
-    # in `_mini_canary` is the guarantee; this call is the ordering.
-    opt_out(page)
-    page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
-    page.wait_for_timeout(7000)
-    end = page.evaluate(STATE_JS, ACCOUNT_ID)
-    end_notes = page.evaluate(NOTES_JS)
-    # \u26a0\ufe0f An EMPTY store map is not the same as "all four stores read 0". A
-    # phantom database (opened with no version, never initialised) has no stores
-    # at all, and `all()` over nothing is vacuously True \u2014 the exact shape of a
-    # check that passes because it measured nothing.
-    stores = end.get("stores") if isinstance(end.get("stores"), dict) else None
-    zeroed = bool(stores) and all(v == 0 for v in stores.values())
-    leftovers = end_notes.get("canary") or []
-
-    # \u26d4\u26d4 A SINGLE-WRITER RUN MUST NOT PRODUCE A CONFLICTED COPY.
-    #
-    # There is exactly one writer in this canary. If a `(conflicted copy)` shows
-    # up, the drain sent an entry whose baseline the EDITOR had already moved \u2014
-    # the editor and the sweep both wrote one note, which is the two-writers-on-
-    # one-note case this whole wave exists to forbid, arriving by a different
-    # door. The member loses nothing, and still finds their note silently split
-    # in two and is told it "changed elsewhere" when it did not.
-    #
-    # \u26d4 This is its own named failure. It used to surface only as "cleanup
-    # incomplete", which reads like leftover litter rather than a defect.
-    forks = [t for t in leftovers if "(conflicted copy)" in t]
-    if forks:
-        chk.findings.append(
-            "**a SINGLE-WRITER offline session produced a `(conflicted copy)`** \u2014 "
-            f"{len(forks)}: {forks}. The editor's own save moved the server after "
-            "the outbox entry captured its baseline, so the drain's send 409'd and "
-            "forked. No second device was involved."
-        )
-    # ⛔⛔ HARD RED. This is not a warning and not litter: a single-writer fork is
-    # the defect the 2026-09-10 evidence set found, and a run that sees one must
-    # refuse its row and keep the artifact.
-    chk.step("5 no fork from a single writer", not forks,
-             "no `(conflicted copy)` created by this run",
-             f"THIS RUN FORKED ITS OWN NOTE — HARD RED: {forks}")
-
-    reasons = []
-    if not zeroed:
-        reasons.append(f"stores not all zero ({stores!r})")
-    if end.get("locks") != 0:
-        reasons.append(f"locks={end.get('locks')}")
-    # ⭐ The opt-in key is NOT asserted here any more. `_mini_canary`'s `finally`
-    # owns it, asserts it, and runs on every exit — including the two this step
-    # can never be reached from. One authority, at the point of the action.
-    if leftovers:
-        reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
-    chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
-             f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(leftovers)}**",
-             # \u26d4 Name the sub-condition that failed. "cleanup incomplete" while
-             # printing three values that all look fine cost a diagnosis today.
-             "cleanup incomplete: " + " \u00b7 ".join(reasons))
-    return note_id
+    # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    return _canary_tail(chk, page, note_id)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1815,6 +1838,94 @@ def self_check() -> int:
                   "'uct.j2.offline.enabled'" in (body_src + "'uct.j2.offline.enabled'")))
     cases.append(("the opt-out is asserted in ONE place, not two",
                   "expected '0'" not in body_src))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE FORK IS DETECTED BEFORE ANYTHING IS DELETED.
+    # The defect: `should_clean_up` was evaluated ABOVE the fork detection, so the
+    # guard whose job is "keep the evidence" could not see the fork finding — it
+    # did not exist yet. On 2026-09-10 the run created a `(conflicted copy)` at
+    # 16:55:43Z and deleted its own ORIGINAL 9.4s later, then noticed.
+    # ⛔ DRIVEN, not asserted about: a run that forks must reach the end with the
+    # artifact still present, and a run that does NOT fork must still clean up —
+    # otherwise a destructive bug has been traded for a litter bug.
+    # ══════════════════════════════════════════════════════════════════════════
+    class _ForkPage:
+        """Models the account. DELETE actually removes the note, so a rail that
+        deletes the evidence cannot pass by accident."""
+
+        def __init__(self, titles):
+            self.notes = list(titles)
+            self.deleted, self.navigations = [], []
+
+        def wait_for_timeout(self, _ms):
+            pass
+
+        def goto(self, url, **_k):
+            self.navigations.append(url)
+
+        def query_selector(self, _sel):
+            return None
+
+        def keyboard(self):
+            return None
+
+        def evaluate(self, js, arg=None):
+            if "method:'DELETE'" in js or 'method:"DELETE"' in js:
+                self.deleted.append(arg)
+                self.notes = [t for t in self.notes if t != arg]
+                return None
+            # ⛔ ORDER MATTERS: STATE_JS also contains `getItem`, so the generic
+            # localStorage branch must come LAST or it swallows the state read and
+            # the rail dies on a string instead of measuring anything.
+            if "canary" in js:                       # NOTES_JS
+                return {"ok": True, "total": len(self.notes),
+                        "canary": [t for t in self.notes if SENTINEL in t]}
+            if "optInKey" in js:                     # STATE_JS
+                return {"optInKey": "0", "locks": 0, "stores": {"notes": 0, "outbox": 0},
+                        "dbOpened": True, "storeNames": ["notes"]}
+            if "objectStoreNames" in js:
+                return {"storesCleared": 0}
+            if "setItem(k, '1')" in js:
+                return None
+            if "getItem" in js:
+                return "0"
+            return {}
+
+    def _drive_fork(titles):
+        chk = Check(label="t")
+        page = _ForkPage(titles)
+        # jump straight to the decision: seed the state step 4 leaves behind
+        _canary_tail(chk, page, SENTINEL + " note")
+        return chk, page
+
+    forked = [SENTINEL + " note", SENTINEL + " note (conflicted copy)"]
+    chk_f, page_f = _drive_fork(forked)
+    cases.append(("⛔ a run that FORKS keeps BOTH halves — nothing is deleted",
+                  page_f.deleted == [] and set(page_f.notes) == set(forked)))
+    cases.append(("…and it names the fork as a finding, not as litter",
+                  any("conflicted copy" in f for f in chk_f.findings)))
+    cases.append(("…and the fork step is RED",
+                  any(s.name.startswith("5 no fork") and not s.ok for s in chk_f.canary)))
+    cases.append(("…and the skip says both halves are kept",
+                  any("ORIGINAL AND COPY BOTH" in s.render() for s in chk_f.canary)))
+    chk_c, page_c = _drive_fork([SENTINEL + " note"])
+    cases.append(("CONTROL: a run with NO fork still CLEANS UP (no litter traded in)",
+                  page_c.deleted == [SENTINEL + " note"] and page_c.notes == []))
+    cases.append(("…and its fork step is green",
+                  any(s.name.startswith("5 no fork") and s.ok for s in chk_c.canary)))
+    tail_src = src_wc.split("def _canary_tail", 1)[1].split("\ndef ", 1)[0]
+    cases.append(("the cleanup decision is made AFTER the fork is appended",
+                  tail_src.index('chk.step("5 no fork') < tail_src.index("should_clean_up(chk.findings)")))
+    cases.append(("…and the DELETE happens after that decision",
+                  tail_src.index("should_clean_up(chk.findings)") < tail_src.index("method:'DELETE'")))
+    # ⛔ SCOPED TO THE BODY, AND THE NEEDLE IS BUILT — a sweep that can match its
+    # own case string counts itself. Third time this session; it is never obvious.
+    _fork_needle = 'chk.step("5 no fork' + ' from a single writer"'
+    _wc_body = src_wc.split("def self_check", 1)[0]
+    cases.append(("there is exactly ONE fork detector, not two",
+                  _wc_body.count(_fork_needle) == 1))
+    cases.append(("CONTROL: that count can see a second one",
+                  (_wc_body + _fork_needle).count(_fork_needle) == 2))
 
     # ⛔ THE WRITE MUST REACH DISK. Measured 2026-09-10: a localStorage write
     # followed by an IMMEDIATE kill-by-marker is lost, and `opt_out` is the last
