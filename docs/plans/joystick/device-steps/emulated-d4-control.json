@@ -1,0 +1,74 @@
+[
+  {
+    "engine": "chromium",
+    "viewport": "393x852",
+    "check": "D4",
+    "pass": true,
+    "fast_ms": [
+      87,
+      64,
+      64,
+      69,
+      71,
+      64,
+      71,
+      75
+    ],
+    "fast_fired": 0,
+    "control_ms": 586,
+    "control_fired": true,
+    "writes": [],
+    "screenshots": [
+      "D4-close-flick-chromium-393x852.png",
+      "D4-control-deliberate-chromium-393x852.png"
+    ]
+  },
+  {
+    "engine": "chromium",
+    "viewport": "360x800",
+    "check": "D4",
+    "pass": true,
+    "fast_ms": [
+      74,
+      73,
+      61,
+      75,
+      72,
+      73,
+      72,
+      71
+    ],
+    "fast_fired": 0,
+    "control_ms": 572,
+    "control_fired": true,
+    "writes": [],
+    "screenshots": [
+      "D4-close-flick-chromium-360x800.png",
+      "D4-control-deliberate-chromium-360x800.png"
+    ]
+  },
+  {
+    "engine": "webkit",
+    "viewport": "393x852",
+    "check": "D4",
+    "pass": true,
+    "fast_ms": [
+      17,
+      15,
+      16,
+      13,
+      14,
+      15,
+      18,
+      15
+    ],
+    "fast_fired": 0,
+    "control_ms": 542,
+    "control_fired": true,
+    "writes": [],
+    "screenshots": [
+      "D4-close-flick-webkit-393x852.png",
+      "D4-control-deliberate-webkit-393x852.png"
+    ]
+  }
+]

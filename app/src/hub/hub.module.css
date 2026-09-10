@@ -387,3 +387,68 @@
   border-right: 0;
   box-shadow: var(--hub-shadow);
 }
+
+/* ── Confirm sheet (Phase 3) ──────────────────────────────────────────────
+   The sheet is the only write path, and the steppers are the EQUAL path to the
+   gesture (WCAG 2.5.1) — so they get a full 44px target, not a compact one. */
+.confirmBody {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.confirmField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.confirmField label {
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.confirmStepper {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.confirmStepper button {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text);
+  background: var(--hub-glass-tint);
+  border: var(--hub-rim-width) solid var(--hub-rim);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.confirmStepper input {
+  flex: 1 1 auto;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font-size: 16px; /* 16px or iOS Safari zooms the page on focus */
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.confirmPrimary {
+  width: 100%;
+  min-height: var(--tap-min);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--ut-gold);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}

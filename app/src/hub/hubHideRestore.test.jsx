@@ -236,7 +236,9 @@ describe('Settings → Joystick', () => {
   })
 
   it('is labelled as a preview, so nobody reads it as a settled feature', () => {
-    renderIn(<JoystickSettingsCard />)
+    // B6 hides this card from a member who never chose, so an admin is the only viewer who
+    // reaches it with NO stored preference — which is the state this copy check is written in.
+    renderIn(<JoystickSettingsCard />, { user: { role: 'admin' } })
     expect(screen.getByText('Joystick shortcuts (preview)')).toBeTruthy()
   })
 })

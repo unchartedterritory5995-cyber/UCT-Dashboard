@@ -1,0 +1,153 @@
+{
+  "at": "2026-09-09T23:01:50",
+  "tree_head_start": "46d2d4a2057330b6e0a087b3d03862736ccf49bd",
+  "tree_head_end": "46d2d4a2057330b6e0a087b3d03862736ccf49bd",
+  "wrapper": "scripts/gate_shards.py",
+  "wrapper_blob": "9351c4ac42582d8cf20bbe1927b0b0008ffa579b",
+  "shards": 6,
+  "per_shard": [
+    {
+      "shard": 1,
+      "files": {
+        "failed": 4,
+        "passed": 194,
+        "skipped": 0,
+        "todo": 0,
+        "total": 198
+      },
+      "tests": {
+        "failed": 5,
+        "passed": 2501,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2506
+      }
+    },
+    {
+      "shard": 2,
+      "files": {
+        "failed": 2,
+        "passed": 195,
+        "skipped": 1,
+        "todo": 0,
+        "total": 198
+      },
+      "tests": {
+        "failed": 2,
+        "passed": 2605,
+        "skipped": 5,
+        "todo": 0,
+        "total": 2612
+      }
+    },
+    {
+      "shard": 3,
+      "files": {
+        "failed": 1,
+        "passed": 197,
+        "skipped": 0,
+        "todo": 0,
+        "total": 198
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 3495,
+        "skipped": 4,
+        "todo": 0,
+        "total": 3500
+      }
+    },
+    {
+      "shard": 4,
+      "files": {
+        "failed": 1,
+        "passed": 197,
+        "skipped": 0,
+        "todo": 0,
+        "total": 198
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2677,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2678
+      }
+    },
+    {
+      "shard": 5,
+      "files": {
+        "failed": 1,
+        "passed": 197,
+        "skipped": 0,
+        "todo": 0,
+        "total": 198
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 2359,
+        "skipped": 0,
+        "todo": 0,
+        "total": 2360
+      }
+    },
+    {
+      "shard": 6,
+      "files": {
+        "failed": 0,
+        "passed": 198,
+        "skipped": 0,
+        "todo": 0,
+        "total": 198
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3561,
+        "skipped": 0,
+        "todo": 0,
+        "total": 3561
+      }
+    }
+  ],
+  "summed": {
+    "files": {
+      "failed": 9,
+      "passed": 1178,
+      "skipped": 1,
+      "todo": 0,
+      "total": 1188
+    },
+    "tests": {
+      "failed": 10,
+      "passed": 17198,
+      "skipped": 9,
+      "todo": 0,
+      "total": 17217
+    }
+  },
+  "test_files_on_disk": 1188,
+  "file_count_reconciles": true,
+  "failures": [
+    "src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT > contains no NUL or other C0 control byte",
+    "src/components/chart/builder/ImportBox.thinkscript.test.jsx > \ud83d\udd34 the offered call can be ACCEPTED from the box > \u26d4\u26d4 it DECLINES while the box is one keystroke behind",
+    "src/components/chart/engine/ast/manifestProse.test.js > the strip is safe, and the rail derives what safe means > \u26d4\u26d4 every key the product READS survives the strip",
+    "src/components/chart/engine/ast/pine.blindCorpus.test.js > \u2b50\u2b50 an offer a member can TAKE, not retype > \u23f3 the accepted floor moves one way too",
+    "src/components/screener/reachable.test.js > \ud83d\udd34 every module under app/src is REACHABLE from an entry point > and nothing committed is connected to nothing",
+    "src/hooks/pollingSites.rail.test.js > polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "src/hub/hubHideRestore.test.jsx > Settings \u2192 Joystick > is labelled as a preview, so nobody reads it as a settled feature",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > passes stored=null with no onStore, and keeps symbol retargeting enabled",
+    "src/pages/ThemeTrackerPage.chartmount.test.jsx > selecting a holding mounts ChartPane with that symbol and the current timeframe",
+    "src/styles/tapFloor.test.js > the 44px touch floor covers TABLET, not just phone > no stylesheet declares a finger target on the PHONE only"
+  ],
+  "baseline_sha": "fee08cf77bda2a9714f851ec0bb5d0ef6660491d",
+  "baseline_measured_at": "2026-09-09 (re-corroborated after rebase onto f58383e69)",
+  "vs_baseline": {
+    "observed_count": 10,
+    "baseline_count": 9,
+    "new": [
+      "src/hub/hubHideRestore.test.jsx > Settings \u2192 Joystick > is labelled as a preview, so nobody reads it as a settled feature"
+    ],
+    "no_longer_failing": [],
+    "matches_baseline": false
+  }
+}

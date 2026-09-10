@@ -14,8 +14,18 @@ import styles from './ScannerShell.module.css'
 // this component already creates — the phone-door half of the same seam
 // VirtualResults opens (joystick-hub spec §2d / exception (d): "both are
 // virtualized, including the phone card list"). Nothing consumes it yet.
+  // ⛔ `itemProps` LANDS `data-hub-cursor="active"` ON THE CURSOR ROW.
+  //
+  // Without it Scan mode's Primary/Reverse moved a selection NOBODY COULD SEE: the index
+  // advanced, the list scrolled, the chip named a ticker — and no row was ever marked, so
+  // the member had to infer the selection from the scroll position. The Journal paints its
+  // carriers; this is the Screener half of the same job (R-15).
+  //
+  // ⭐ SAME exception (d), not a new one. These two files were already in scope for the
+  // hub's `scrollToIndex` seam; spreading the cursor's own props onto the row it already
+  // scrolls to is that seam finishing its sentence, not a second reach into the page.
 const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
-  hasMore, onLoadMore, isLoading, virtualOpts }, ref) {
+  hasMore, onLoadMore, isLoading, virtualOpts, itemProps }, ref) {
   const ta = useTickerActions()
   const scrollRef = useRef(null)
   const statCols = columns.filter(c => !REQUIRED_COLS.includes(c)).slice(0, 3)
@@ -41,6 +51,7 @@ const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
           const chg = lp?.change_pct ?? row.chg_pct_1d
           return (
             <div key={row.ticker} className={styles.card}
+              {...(itemProps ? itemProps(vi.index) : null)}
               style={{ position: 'absolute', top: vi.start, left: 0, right: 0 }}>
               <div className={styles.cardTop}>
                 <span className={lp ? styles.dotLive : styles.dotStatic} />

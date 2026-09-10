@@ -131,3 +131,8 @@ docs/notebook/wave-q1-probe-results/local-*.json
 # Tracking it would leave the worktree permanently dirty and every future
 # pre-flight would have to explain away a modified file.
 docs/notebook/window-check.log
+
+# Gate wrapper shard logs — large, per-run, and regenerated every time. The MANIFESTS
+# (.json/.md) beside them are the evidence and stay tracked.
+docs/plans/joystick/gate-runs/*.log
+docs/plans/joystick/gate-runs/INVALID-*.md

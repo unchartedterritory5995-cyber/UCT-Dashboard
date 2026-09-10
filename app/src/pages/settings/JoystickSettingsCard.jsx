@@ -9,13 +9,44 @@
 // hide has a real re-enable path sitting beside it, which is the condition for allowing a
 // persistent hide at all.
 
+import { useContext } from 'react'
+
+import { AuthContext } from '../../context/AuthContext'
 import TileCard from '../../components/TileCard'
 import useHubSettings from '../../hub/useHubSettings'
 import { clearSessionOverride } from '../../hub/hubSessionVisibility'
 import styles from '../Settings.module.css'
 
 export default function JoystickSettingsCard() {
-  const { settings, updateHubSettings } = useHubSettings()
+  const { settings, storedEnabled, updateHubSettings } = useHubSettings()
+  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+
+  // ⛔ B6 — EXPOSURE, AND THE STRAND CASE THAT SHAPES IT.
+  //
+  // The hub itself is admin-default (`useHubSettings.js:147-150`: unset -> isAdmin), but THIS CARD
+  // shipped to production ungated in PR #101 (`d3bf38f44`), so any member could open Settings and
+  // switch the hub on. Hiding it from every member would therefore strand anyone already ON with
+  // no way off — which is precisely the defect CLAUDE.md records against this feature:
+  // "⛔ A dismissable control needs a recovery path IN THE SAME COMMIT — the joystick 'Hide'
+  // defect". Removing someone's only way back is the same error as never giving them one.
+  //
+  // So: hidden from members who NEVER CHOSE, visible to anyone who has ever chosen either way.
+  // That needs no count of who opted in — a number nobody can see from here — because the
+  // condition is evaluated per user against their own preference.
+  //
+  // ⭐ `typeof === 'boolean'`, NOT `!== undefined`. "Never chosen" reaches this component in FIVE
+  // shapes, all folded to `undefined` by `parsePref` (`usePreferences.js:24-28`) and the
+  // `storedEnabled` derivation (`useHubSettings.js:~145`): the key absent, the value null, a value
+  // that is not valid JSON, a value that parses to a non-object, and an object with no `enabled`.
+  // A sixth — `{"enabled": null}` — yields `null`, which `!== undefined` would wrongly admit as a
+  // deliberate choice. Only an actual boolean is a choice.
+  //
+  // ⚠️ THIS IS AN EXPOSURE DEFAULT, NOT A SECURITY BOUNDARY. `POST /api/auth/preferences`
+  // (`api/routers/auth.py:1707-1711`) accepts any `{key, value}` from any authenticated user with
+  // no validation, so a member can still set `joystick_hub.enabled` directly. Filed as an open
+  // item; it is not this branch's to fix.
+  const everChose = typeof storedEnabled === 'boolean'
+  if (!isAdmin && !everChose) return null
 
   const onToggle = (checked) => {
     // ⭐ Clear any session override first. Without this, a member who hid the hub for the
