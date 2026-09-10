@@ -21,14 +21,14 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 1 | Land Kind 4 | ✅ merged from `worktree-indicator-ecosystem` (`cd078bbd2`), pieces verified |
 | 2 | Barstate per the ruling | ✅ done end to end AND **MERGED + LANDED 2026-09-09** — semantics, calendar census, both runtimes, door, stability tests, divergence row, recorder, extended-hours rail |
 | 3 | Volume through strict mode | ✅ measured, list below |
-| 4 | TradingView visit | ⛔ **BLOCKED — needs a visible, focused Chrome window** |
+| 4 | TradingView visit | ⚠️ **DONE-EXCEPT (2026-09-10)** — A (Aroon) and B (fold numeric half) CAPTURED; C/D/E blocked, see below |
 | 5 | SAR memoisation | ⚠️ **believed already spent — see *Open questions*** |
 | 6 | Group B (eight names) with fixtures | ⬜ not started; measurements in `r11-group-b-arity.md` |
 | 7 | `time(timeframe)` + `ta.valuewhen` | ⬜ not started; measurements in `r11-time-and-valuewhen.md` |
 | 8 | Remaining real names in demand order | ⬜ not started; list in `r11-remaining-nine.md` |
 | 9 | Group C order-asserting rail | ⬜ not started; why the outcome-shaped version is vacuous is in `r11-vocabulary-gap.md` |
 | 10 | M1 — Volume's numeric plots as a pane behind the flag | ⬜ not started |
-| 11 | **NYSE calendar cross-lane parity** — see below | ⬜ logged 2026-09-09, NOT started |
+| 11 | **NYSE calendar cross-lane parity** — see below | ✅ **11a DONE** (`1c98b4493`) — the rail already existed and the sets AGREE; two blind spots closed. 11b still logged |
 
 ⛔⛔ **ITEMS 6–10 ARE GATED.** `pineRuntimeFrontend.js` may not be wired to any
 route until a producer feeds `opts.newestBarIsForming` from Python's
@@ -371,4 +371,32 @@ settle; the rails were preserved in every case.
 5. **`UCTPROBE_NS`'s on-chart variant is left absent rather than restored.** Restoring it
    would require another Update against the bound editor — the exact H1 action. It is
    recoverable from `a57b06986`; noted in `UCTPROBE_NS.provenance.json`.
+
+### Item 4 — what landed and what did not (2026-09-10)
+
+| job | state | evidence |
+|---|---|---|
+| A · Aroon 2c | ✅ **CAPTURED** | `bb486dc36` + `3d845dd94` · `tests/fixtures/vendor/aroon-spy-1d-2026-09-10.json` |
+| B · fold numeric half (1g) | ✅ **CAPTURED** | `e8406af75` · 1D `fold==sma20` 400/400 · 1W `fold==sma5` 400/400 |
+| C · seven witnesses | ⛔ blocked | bytes verified in the buffer (8791 chars, sha256 `e63b4872…e30f`); study never added |
+| D · barstate ×3 | ⛔ blocked | `barstate-full.pine` committed, 26 plots BY SOURCE only |
+| E · tuple-security | ⛔ blocked | probe committed, not attempted |
+| V1 · NS source | ✅ **COMMITTED VERBATIM** | `a57b06986` · sha256 `2b9fecc6…caa3`, receipt agreed four ways |
+
+⛔⛔ **WHAT BLOCKS C/D/E IS ONE HUMAN ACTION, NOT A DECISION.** The Pine editor is
+BOUND to the script whose source was opened, so its action button reads *"Update on
+chart"* — which edits that study in place rather than adding a new one. Clicking it
+against `Script$USER;787899e2…` would write to the owner's account-scoped script.
+Swapping the Monaco model does **not** unbind it (measured: uri changes, button does
+not). The unbind is *New indicator* in the editor's script-title dropdown.
+
+⭐ **ONCE EACH PROBE IS SAVED UNDER ITS NAME, EVERY FUTURE VISIT IS `createStudy`-BY-ID
+WITH NO EDITOR AT ALL** — and the Monaco handle (webpack module scan, see
+`capture-procedure.md`) writes the buffer with no paste, so the rest is unattended.
+
+⭐⭐ **RULING 1g IS SETTLED BY MEASUREMENT.** The vendor folds a timeframe-conditional
+length to a plain integer at bind time: `fold == sma20` on 400/400 daily bars and
+`fold == sma5` on 400/400 weekly. That is the shape at Uncharted Volume line 233 which
+`pine:window` still refuses — so runbook item 1 (wire the bind-time fold into the
+translate path) now has its vendor confirmation.
 
