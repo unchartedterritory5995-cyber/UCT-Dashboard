@@ -67,10 +67,26 @@
 // rather than a dead one — the "present-and-inert" the registry header forbids. That is what
 // keeps `buildScanFan({symbol})` (no page behind it) honest.
 //
-//  * No row is painted with `data-hub-cursor`: the three renderers never spread `itemProps`, and
-//    with virtualization only ~20 of them are in the DOM at once, so `paintCursor` cannot reach
-//    the rest either. Filed as R-15 with the diff. Until then the member's feedback is the chip
-//    and the scroll.
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ R-15 CLOSED (increment 4). THE CURSOR IS PAINTED, AND IT IS REVEALED.
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚰️ THIS SAID "the three renderers never spread `itemProps`". Measured 2026-09-10 and it was
+// false of two of them: `VirtualResults` and `ResultCards` have taken `itemProps` and spread it
+// onto the row since `eeb011c66` — a stale diagnosis in the one artifact a reader consults
+// before deleting "unused" wiring. What was genuinely missing was the other half and the rail:
+//
+//   1. `ChartsGallery` (the `'charts'` view — the third renderer) takes no `itemProps` and is
+//      not this workstream's file. `ScannerShell` paints it through `paintCursor`, the
+//      imperative path `useHubCursor` documents "for markup you do not own".
+//   2. NOTHING REVEALED THE PAINTED ROW ON A TAP. Both renderers are virtualized, so a row
+//      outside the ~20-row window is not merely unpainted — it is not in the DOM at all. `next`
+//      moved the index while the scroll position stayed put, so past the bottom of the viewport
+//      the member saw no marked row anywhere. `onTap`/`onDoubleTap` now call `scrollTo` for the
+//      same reason `onScrubCommit` always has, and for the reason this file already gives for
+//      the adapter: "a cursor that advances off-screen has silently stopped being a cursor".
+//
+// Rail: `screenerCursorPaint.test.jsx` — the real page, all three renderers, asserting the
+// ATTRIBUTE on the rendered row rather than the index in the store.
 //
 // ⭐ R-09 LANDED WHILE THIS WAS BEING WRITTEN. `HubRoot.runAction` now dispatches `action.run(ctx)`
 // and opens `HubConfirmSheet` for `kind:'confirm'`, so Flag, Alert and Plan trade are LIVE the
@@ -460,14 +476,32 @@ export function createScreenerSection({
       symbol, streamPrice, shownPrice, onFlag, onPlanTrade, createAlert, onOpenScans,
     }),
 
+    /**
+     * ⛔ A STEP THAT IS NOT REVEALED IS A STEP NOBODY CAN SEE (R-15).
+     *
+     * Both results renderers are virtualized, so a row outside the ~20-row window is not merely
+     * unpainted — it is not in the DOM at all. `next()` used to move the index while the scroll
+     * position stayed put, so from the ~20th tap onward the member's ONLY feedback was the chip:
+     * no marked row existed anywhere on screen. `scrollTo` is the same reveal `onScrubCommit`
+     * has always performed, for the reason `scrollTo`'s own docstring gives.
+     *
+     * ⛔ THE TARGET IS COMPUTED, NOT RE-READ. `index` is this render's value and `next()` writes
+     * the store synchronously, so re-reading `index` here would reveal the row the cursor just
+     * LEFT. The clamp mirrors `useHubCursor.next`'s exactly (`Math.min(i + 1, count - 1)`) — a
+     * different rule here would scroll somewhere the cursor is not.
+     */
     onTap: () => {
       next()
+      if (count > 0) scrollTo(Math.min(index + 1, count - 1))
       // The tail-append half of the plan's remedy, mirroring `VirtualResults`'s own
       // near-the-end `onLoadMore()`. Without it the cursor clamps on row 100 of 3,745 and the
       // member has no way to walk past a page boundary they cannot see.
       if (hasMore && index >= count - 2) loadMore?.()
     },
-    onDoubleTap: () => { prev() },
+    onDoubleTap: () => {
+      prev()
+      if (count > 0) scrollTo(Math.max(index - 1, 0))
+    },
 
     // ⛔ CONTEXT FIRST. `HubRoot.jsx` calls `onScrub(ctx, scrub)`; `contracts.js` and
     // `contractArity.test.js` now agree, and that rail DERIVES the shape from the call site
