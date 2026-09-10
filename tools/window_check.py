@@ -503,14 +503,32 @@ NOTES_JS = """async () => {
 }"""
 
 ACTIVITY_JS = """async (names) => {
-  const r = await fetch('/api/admin/activity?limit=200', {credentials:'include'});
-  if (!r.ok) return {ok:false, status:r.status};
-  const rows = await r.json();
-  const out = {ok:true};
-  for (const n of names) {
+  // ⭐ TWO SOURCES, AND THEY ANSWER DIFFERENT QUESTIONS.
+  //
+  // /api/admin/activity is population-wide but admin-gated (ADMIN_EMAILS).
+  // /api/auth/export-data is THIS ACCOUNT'S OWN activity_log, gated only by
+  // get_current_user — so it always works for the rig, admin or not.
+  //
+  // ⛔ The scope is REPORTED, never silently swapped: "zero events across every
+  // member" and "zero events on the rig's own account" are different facts, and
+  // reading one as the other is how a gate gets satisfied by the wrong evidence.
+  const count = (rows, n) => {
     const hits = rows.filter(x => x.action === n);
-    out[n] = {count: hits.length, latest: hits.length ? hits[0].created_at : null};
+    return {count: hits.length, latest: hits.length ? hits[0].created_at : null};
+  };
+  const admin = await fetch('/api/admin/activity?limit=200', {credentials:'include'});
+  if (admin.ok) {
+    const rows = await admin.json();
+    const out = {ok:true, scope:'population-wide (admin)', adminStatus:200};
+    for (const n of names) out[n] = count(rows, n);
+    return out;
   }
+  const mine = await fetch('/api/auth/export-data', {credentials:'include'});
+  if (!mine.ok) return {ok:false, status:mine.status, adminStatus:admin.status};
+  const rows = (await mine.json()).activity || [];
+  const out = {ok:true, scope:'this account only (export-data)',
+               adminStatus:admin.status, rowCap: rows.length >= 100};
+  for (const n of names) out[n] = count(rows, n);
   return out;
 }"""
 
@@ -659,16 +677,23 @@ def run_check(label: str, with_canary: bool) -> Check:
 
             act = page.evaluate(ACTIVITY_JS, [BLOCKED_EVENT, OPT_IN_EVENT])
             if act.get("ok"):
+                scope = act.get("scope", "?")
                 bl, oi = act[BLOCKED_EVENT], act[OPT_IN_EVENT]
+                cap = ("  \u26a0\ufe0f the export caps at 100 rows and returned a full page \u2014 "
+                       "an older event may have fallen off" if act.get("rowCap") else "")
+                chk.add("telemetry scope", True,
+                        f"**{scope}**" + ("" if act.get("adminStatus") == 200 else
+                                          f" \u2014 `/api/admin/activity` said **{act.get('adminStatus')}**, so this account is not in `ADMIN_EMAILS`"))
                 chk.add("`j2:notebook_blocked_no_baseline`", True,
-                        f"count **{bl['count']}** \u00b7 latest {bl['latest'] or '**none**'}")
+                        f"count **{bl['count']}** \u00b7 latest {bl['latest'] or '**none**'} \u00b7 scope: {scope}{cap}")
                 chk.add("opted-in browsers (`j2:notebook_offline_opt_in`)", True,
-                        f"count **{oi['count']}** \u00b7 latest {oi['latest'] or '**none**'}"
+                        f"count **{oi['count']}** \u00b7 latest {oi['latest'] or '**none**'} \u00b7 scope: {scope}"
                         + ("  \u26d4\u26d4 **zero events over zero opted-in browsers is not evidence**"
                            if oi["count"] == 0 else ""))
             else:
                 for n in ("`j2:notebook_blocked_no_baseline`", "opted-in browsers (`j2:notebook_offline_opt_in`)"):
-                    chk.add(n, False, error=f"GET /api/admin/activity returned {act.get('status')} (admin-only)")
+                    chk.add(n, False,
+                            error=f"admin said {act.get('adminStatus')} and `/api/auth/export-data` said {act.get('status')}")
 
             if with_canary:
                 note_id = _mini_canary(chk, page, offline, puts)
@@ -1210,6 +1235,14 @@ def self_check() -> int:
     cases.append(("a past NEW FINDING ⇒ NO-GO even with everything else green", v == "NO-GO"))
     cases.append(("…and it says which condition decided it",
                   any("NEW FINDING" in b for b in bl)))
+    # ── the telemetry read must never need admin, and must say its scope ────
+    cases.append(("the counts do NOT depend on admin — export-data is the fallback",
+                  "/api/auth/export-data" in ACTIVITY_JS))
+    cases.append(("the scope is reported, not silently swapped",
+                  "population-wide (admin)" in ACTIVITY_JS and "this account only" in ACTIVITY_JS))
+    cases.append(("a full 100-row export is flagged as a possible truncation",
+                  "rowCap" in ACTIVITY_JS))
+
     blk = decision_block(None, "")
     cases.append(("the packet keeps the 36-minute gap", "36-minute gap" in blk))
     cases.append(("the packet keeps the 'what green cannot buy' caveat verbatim",

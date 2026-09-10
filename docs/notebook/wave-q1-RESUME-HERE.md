@@ -1189,14 +1189,22 @@ that must then be stored somewhere and rotated again later.
 auth-minting endpoint deployed to production to solve a test-rig convenience is
 a permanent attack surface bought for a temporary problem.
 
-### ⭐ The smallest unblock, in order of preference
+### ⭐ The one thing still needed: **one hand sign-in, and that is all**
 
-1. **Sign in once at the parked rig window** — 30 seconds, no production write,
-   no secret anywhere, covers 30 days. The window is already open.
-2. A Bash permission rule for `railway`, if unattended re-issue is wanted later.
-   `mint_session_token()` in `window_check.py` is written and railed against the
-   moment that exists — the script self-heals through it on a 401 and only then
-   falls back to the SIGN-IN REQUIRED row.
+The admin problem is solved (see the counts section above), so a sign-in now
+finishes the job outright — no env change, no deploy, no secret.
+
+1. **Sign in once at the parked rig window** — 30 seconds, covers 30 days.
+2. Optional, later: a Bash permission rule for `railway` would let the rig
+   re-issue its own session unattended. `mint_session_token()` is written and
+   railed against the moment that exists — the script self-heals through it on a
+   401 and only then falls back to the SIGN-IN REQUIRED row.
+
+⛔ **What is NOT a path:** creating a new production account. Beyond being an act
+this agent will not take, it would not work — a fresh signup is not in
+`ADMIN_EMAILS`, would need email verification, and its `export-data` would show
+its own empty history rather than the canary's. The account has to be *the*
+canary account for the reading to mean anything.
 
 ## ⏰ THE SCHEDULED TASK — `UCT Wave Q1 Window Check`
 
@@ -1342,11 +1350,31 @@ is what makes the denominator move.
 flag constant**. The per-browser `localStorage` opt-in it sets lives and dies
 inside its own throwaway profile.
 
-Credentials are read from `.env` only and never printed, stored, or put in a
-command line; identity is asserted by **account id**, never by echoing an
-address. ⚠️ `GET /api/admin/activity` is admin-gated: if the canary account is
-not an admin, those two reads come back **failed** and the row is refused rather
-than quietly dropping the instrument counts.
+Identity is asserted by **account id**, never by echoing an address.
+
+### ⭐⭐ THE COUNTS DO NOT NEED ADMIN — and that nearly went unnoticed
+
+`GET /api/admin/activity` is admin-gated (`ADMIN_EMAILS` + two hardcoded owner
+addresses, `auth.py:104-106`), and the canary is not on that list. Reading the
+two telemetry counts *only* through that endpoint would have meant seven
+mornings of refusals discovered on 9/17.
+
+⭐ **`GET /api/auth/export-data` is gated by `get_current_user` alone** and
+returns this account's own `activity_log` rows (`auth.py:354-364`). The events
+are written under the signed-in user's id, so the rig can always read its own —
+no admin, no env change, no deploy.
+
+⛔ **THE SCOPE IS REPORTED, NEVER SILENTLY SWAPPED.** The run tries admin first
+and falls back, and the row says which it got:
+
+| scope | what a zero means |
+|---|---|
+| `population-wide (admin)` | no member anywhere hit it |
+| `this account only (export-data)` | **the rig** did not hit it — says nothing about members |
+
+Those are different facts, and reading one as the other is how a gate gets
+satisfied by the wrong evidence. ⚠️ The export caps at **100 rows**; a full page
+is flagged as a possible truncation rather than trusted as a complete count.
 
 ### Check 1 — **2026-09-10T04:16:51Z** (window opens)
 
