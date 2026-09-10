@@ -117,3 +117,75 @@ integration branch only.
 `:8077`, so the owner does one phone session rather than three. That session is Increment 4's
 pre-merge requirement — B11, C's cursor and D's scrub are all new consumption paths with no
 Increment 1 carrier.
+
+## Stream B — the 3.5a and 3.6a scouts (read-only, 2026-09-10)
+
+### 3.5a — Chart (§3.5, `/charts`)
+
+**Both plan citations drifted by 6 lines; the surfaces are real.** `StockChart.jsx:1992`
+`onTfChange = null,` (plan says `:1986`); `StockChart.jsx:2000` `onDateNavApi = null,` (plan says
+`:1994`). Publish site `StockChart.jsx:14696` — `onDateNavApi({ goToDate, goToYear, stepBar,
+ensureFullHistory, getDateMeta })`, all five defined at `:14636`, `:14646`, `:14656`, `:14666`,
+`:14670`.
+
+**⛔ TWO OF WAVE 0's THREE EXTRA SURFACES ARE INVENTED CITATIONS — STRIKE, DON'T SOFTEN.**
+`setGroupSymbol` and `scrollPosition` appear **nowhere in `10-wave0-discovery.md`**, and
+`setGroupSymbol` appears nowhere in `app/src`. Non-vacuity controls: `setGroupSym` (the real name)
+returns 27 non-test files, and grepping that same doc for `stepBar|onTfChange|chartApiById` returns
+`:112,:116,:125,:129`. `scrollPosition`'s 15 hits are all lightweight-charts **test mocks**. Only
+the comparison write survives (`10-wave0-discovery.md:129`), still desktop-only.
+
+**⭐ THE DRAWING PROGRAM CHANGED NOTHING THE HUB USES — measured.** Across
+`a98363cf6..919d4c080`, diff hits for all seven hub-relevant names = **zero**; control: the same
+invocation returns 192 changed lines and 53 `drawing` hits. The plan's "~20 new drawing* modules"
+is an overcount: **16 files added, 6 non-test drawing modules**.
+
+**The imperative surface today is ChartPane's handle** (`ChartPane.jsx:616`, eleven members incl.
+`:633` `stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir)`), not StockChart's props.
+`onBarsReady` is genuinely unwired, but `ChartPane.jsx:890` `{...(stockChartProps || {})}` is a
+**zero-edit passthrough**, and `:898` already chains `onDateNavApi` to a host.
+
+**New since Wave 0:** an ordered symbol source exists — `MobileChartsApp.jsx:162`
+`useReviewSession(...)` feeding `:385` `review.prev()` + `setGroupSym`.
+
+**Questions + recommendations:** (1) bind to ChartPane's ref, the surface both hosts already hold;
+(2) take readiness through the existing `stockChartProps` spread, zero edits; (3) **⛔ `onTfChange`
+is a NOTIFICATION, not a setter** — the plan's "next/previous timeframe via `onTfChange`" would be
+a silent no-op, so write the host's tf state instead; (4) scrub-vertical needs `setGroupSym` **and**
+`useReviewSession`, the only ordered source; (5) strike the two invented rows; (6) downgrade the
+⚠️ CRITICAL re-verify block to "measured clean, 2026-09-10"; (7) keep Chart last, but for the real
+reason — largest file in the repo, most hosts — since "pending indicators merge" has expired.
+
+### 3.6a — Catalysts (§3.6, in-place on `/dashboard`)
+
+**The plan's warning is TRUE.** `sortKey|tagFilter` return nothing; control: `useState` returns 16
+lines. **Three axes replaced two:** `:543` `const [sortBy, setSortBy] = useState(compact ? { col:
+'change', dir: 'desc' } : null)` with a three-state toggle (`:549` `return null  // third click
+clears`); `:428` `const [activeTags, setActiveTags] = useState(new Set(ALL_TAGS))`; and one the plan
+never mentions, `:429` `const [aOnly, setAOnly] = useState(false)`. They compose at `:577`.
+
+**⛔ `catalysts.filter` DESCRIBES A UI THAT DOES NOT EXIST.** The registry says it "opens the tile's
+own filter UI" (`registry.js:377-384`), but the chips are **unconditionally inline** whenever rows
+exist (`:723-725`, plus the aOnly button `:736`). Nothing to open — the present-and-inert hazard
+`screenerSection.js:48` already names.
+
+**⛔ NO SEAM OF ANY KIND.** The whole prop surface is `CatalystTable.jsx:414` —
+`{ compact = false, datePicker = false, title = 'STOCK CATALYSTS' }`. No ref, no context, no URL
+param, no `window`/`localStorage` (control: the same pattern against `NotebookTab.jsx` returns 5
+hits). Rows carry no DOM handle: `:806` `key={r.ticker}` is a React key and the `<tr>` at `:805`
+carries only a className, so `data-hub-cursor` cannot land. The one zero-edit seam is **read-only**:
+`useCatalysts()` shares the SWR key (`useCatalysts.js:9`).
+
+**⚠️ REACHABILITY — the plan is half right.** `Dashboard.jsx:187` —
+`const hero = heroState === 'WEEKEND' ? <TheWeek /> : <CatalystTable />`: on a weekend or holiday it
+is **not mounted at all**. `{hero}` mounts **twice** (`:224` desktop, `:247` mobile). And there is a
+**second mount on another route** the plan never records: `MorningWire.jsx:381` —
+`<CatalystTable compact datePicker title="PRE MARKET MOVERS" />`, with a different default sort.
+
+**Questions + recommendations:** (1) redefine `catalysts.filter` as a tag-set cycle or file it
+absent; (2) leave `aOnly` alone — one control, one meaning; (3) file the cursor as the catalysts
+twin of R-15; (4) scope to `/dashboard`, declare the MorningWire mount out of scope — one `listId`
+over three mounts is one cursor claiming to be three; (5) gate eligibility on `heroState`, not route
+alone, or the fan opens over a tile that is not rendered every weekend; (6) **3.6 cannot ship
+without editing `CatalystTable.jsx`** — say so and assign ownership before that increment starts;
+(7) keep no-scrub; `selectedDate` is a date picker, not a cursor axis.
