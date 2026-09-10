@@ -472,6 +472,72 @@ const AWAITING_A_DECISION = {
   // `PineBox.jsx`/`ImportBox` and `pine.js` are all reachable through the real
   // import graph (`BuilderSheet.jsx` imports `ImportBox`, which imports
   // `dialect`), so listing any of them would be the same false claim.
+  // ── SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11) ─────
+  //
+  // ⛔ NOTHING HERE IS BEING DELETED. This rail offers three remedies — mount,
+  // delete, or record the decision — and for a feature somebody built and
+  // tested, recording it is the only one that is reversible. Deleting working
+  // code to turn a rail green is backwards: the rail exists to surface an
+  // undecided question, not to demand destruction. Same idiom as the cockpit
+  // retirement above, and as `api/routers/trades.py`.
+  //
+  // ⚠️ TWO OF THESE WERE NEVER ORPHANS, and that is a defect in what this rail
+  // can see rather than in the code. It walks from `App.jsx`; a module reached
+  // through a DIFFERENT entry point is structurally invisible to it and shows
+  // up here looking abandoned. Both are called out individually below. Before
+  // acting on any future entry in this list, check whether it is reached from
+  // a second HTML entry or a build-side bundle.
+  'app/src/floor2/main.jsx':
+    'NOT AN ORPHAN — it is the Vite entry for app/floor2.html '
+    + '(<script type="module" src="/src/floor2/main.jsx">). This rail walks from '
+    + 'App.jsx only, so a second HTML entry can never appear reachable to it. '
+    + 'Recorded so nobody deletes a live page because a test said so.',
+  'app/src/pages/optionsFlow/flowBootstrap.js':
+    'NOT AN ORPHAN — imported by flowFactsEntry.js (partsFrom) and covered by '
+    + 'its own flowBootstrap.test.js. It is reached through a build-side entry '
+    + 'rather than the App.jsx graph. Partner-owned OptionsFlow code: do not '
+    + 'touch without ack.',
+  'app/src/pages/charts/widgets/DockFundamentals.jsx':
+    'GENUINE ORPHAN, AWAITING A DECISION — in no WIDGET_REGISTRY entry and no '
+    + 'WORKSPACE_WIDGETS binding, so no workspace can mount it. Kept: it is a '
+    + 'built widget, and wiring it is one registry line if anyone wants it.',
+  // ── The Community surface itself: 15 files, one coherent feature ─────────
+  // Built and tested, never mounted. `chatStreamManager.js` is imported ONLY
+  // by these files, so the subgraph is self-contained — mounting CommunityPage
+  // would make the whole set reachable in one edit, and that is the shape of
+  // the decision. Awaiting a product ruling on whether Community ships.
+  'app/src/pages/community/CommunityPage.jsx':
+    'COMMUNITY SURFACE — the feature root. No route mounts it. Kept.',
+  'app/src/pages/community/ChatView.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/ThreadView.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/Composer.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/AckGate.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/components/CardRenderer.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from ChatView. Kept.',
+  'app/src/pages/community/components/FloorAvatar.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from ChatView. Kept.',
+  'app/src/pages/community/components/FloorSearch.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/components/MentionInbox.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from CommunityPage. Kept.',
+  'app/src/pages/community/components/ProfileCard.jsx':
+    'COMMUNITY SURFACE — orphaned by inheritance from ChatView. Kept.',
+  'app/src/pages/community/lib/renderBody.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/pages/community/lib/tickerMention.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/pages/community/lib/userMention.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/pages/community/lib/tiptapExtensions.js':
+    'COMMUNITY SURFACE — orphaned by inheritance. Kept.',
+  'app/src/lib/chatStreamManager.js':
+    'COMMUNITY SURFACE — the pooled EventSource for the chat stream. Its only '
+    + 'importers are the community files above, so it moves with them or not '
+    + 'at all (same pairing rule as buildRail / DeskVideoRail).',
   }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
