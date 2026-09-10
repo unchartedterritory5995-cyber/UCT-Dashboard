@@ -173,6 +173,13 @@ const WRITE_PATHS = [
     what: 'Flag. Plan §3.3 lists the action; the hub calls the app\'s own `toggle`.',
   },
   {
+    endpoint: '/api/j2/notes',
+    method: 'POST',
+    via: 'pages/journal-2-0/lib/noteCreation.js',
+    owner: 'app',
+    what: "New note. §3.7's `notebook.newNote` calls the Notebook's own `createNoteViaApi`; the hub performs no note write of its own. ⚠️ That module ALSO holds `PUT /api/j2/notes/{id}` (noteCreation.js:34), but it is gated on `properties && Object.keys(properties).length` and the hub passes none — structurally unreachable from this call site, so it is not a hub-reachable write and is deliberately not declared.",
+  },
+  {
     endpoint: '/api/watchlist-alerts',
     method: 'POST',
     via: 'hooks/useWatchlistAlerts.js',
@@ -239,16 +246,17 @@ describe('the hub write-path manifest', () => {
     }
   })
 
-  it('the manifest is four paths — two hub-owned, two through pre-existing app clients', () => {
+  it('the manifest is five paths — two hub-owned, three through pre-existing app clients', () => {
     // The count, kept LAST and deliberately weakest: it is a tripwire on the shape of the claim, not
     // the claim itself. The three assertions above are what actually hold.
-    expect(WRITE_PATHS).toHaveLength(4)
+    expect(WRITE_PATHS).toHaveLength(5)
     expect(WRITE_PATHS.filter((p) => p.owner === 'hub').map(key)).toEqual([
       'PUT /api/j2/positions/{param}',
       'POST /api/hub/planned-trades',
     ])
     expect(WRITE_PATHS.filter((p) => p.owner === 'app').map(key)).toEqual([
       'POST /api/watchlists/flagged/sync',
+      'POST /api/j2/notes',
       'POST /api/watchlist-alerts',
     ])
   })
