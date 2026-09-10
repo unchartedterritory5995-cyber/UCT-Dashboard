@@ -44,7 +44,9 @@ as two separate numbers, always.
 | 10 | `src/components/chart/ChartDrawingOverlay.surfaces.test.jsx` — "the seven Model Book / surface override props still reach their decisions > ⛔ ENTERING EDIT MODE IS NOT A RESIZE" | `components/chart/ChartDrawingOverlay.jsx` — the edit-mode transition still reaches the resize path | `8de4da43b` (2026-09-09) *"feat(charts): Phase 9 — retire the Position DRAWING, keep the calculator"* | **No** — charts Phase 9 |
 
 **Row 10 arrived with the 2026-09-10 master merge, and it is the row this ledger
-was built to handle correctly.** It appeared as the ONLY new failure in an
+was built to handle correctly.** Logged as ruling **R2** in
+`docs/notebook/wave-q1-RESUME-HERE.md` → **🧾 RULINGS**; this is the evidence,
+that is the decision. It appeared as the ONLY new failure in an
 otherwise byte-for-byte baseline match, in `components/chart` — an area Wave Q1
 does not touch. Three checks, in order, and the third is the one that settles it:
 
