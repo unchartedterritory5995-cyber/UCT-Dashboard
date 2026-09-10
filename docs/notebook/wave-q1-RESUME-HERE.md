@@ -123,6 +123,72 @@ property.**
 
 ---
 
+# 🧾🔬 THE PRESERVED FORKS — THE EVIDENCE SET, VERBATIM
+
+⛔⛔ **THIS SECTION IS THE RECORD THAT REPLACES THE ARTIFACTS.** The charter permits
+cleaning the preserved forks **only once their CONTENT is in this file**. One of
+these notes is **half the evidence pair for the words-lost finding — the single
+most important measurement of this wave** — and once it is soft-deleted **this is
+all that remains.** Do not summarise these blocks; do not "tidy" the ids or the
+timestamps.
+
+**Captured from** `.worktrees/q1-dry-run/fork-capture-20260910T233538Z.json`
+(⭐ the capture ran **BEFORE** the clean — see **R-X**).
+
+## ⭐ THE DIFFERENCE BETWEEN THE TWO FORKS, IN ONE LINE — and it is the finding
+
+> **At 16:54 the fork was a DUPLICATE — both sides held the same words.**
+> **At 20:57 the fork was a LOSS — the original lost the offline sentence, and it
+> survives ONLY in the copy.**
+
+⛔ That distinction is why HARD STOP #2 is a different failure from HARD STOP #1,
+and it is invisible in any count of notes or of `sync-conflict` tags. **A fork
+count cannot tell them apart.**
+
+## FORK A — 2026-09-10T16:54:50Z — a duplicate, **no words lost**
+
+```
+original  546d91c9babc42cd9bc3818e9b5a210a  "WINDOW-CHECK-SENTINEL 2026-09-10T16:54:50Z"
+          created 16:55:10.440954Z · updated 16:55:32.671567Z
+          deletedAt 16:55:52.969673Z · tags []
+          body: "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline."
+
+copy      8d5c86faa5da41ae9841dcff4428c3dc  "…16:54:50Z (conflicted copy)"
+          created/updated 16:55:43.602737Z · tags ['sync-conflict']
+          body: BYTE-IDENTICAL to the original. NO WORDS LOST.
+```
+
+## FORK B — 2026-09-10T20:57:31Z, door `folder`, streak run 1 — ⛔⛔ **A LOSS**
+
+```
+original  66708b88e0fc4ca5ab9fa47d39e897e9  "WINDOW-CHECK-SENTINEL 2026-09-10T20:57:31Z"
+          created 20:57:52.861838Z · updated 20:58:12.578140Z · tags []
+          ⚠️ STILL LIVE, not trashed
+          body: "WINDOW-CHECK-SENTINEL typed online."
+          ⛔⛔ THE OFFLINE SENTENCE IS ABSENT. This is the note the member had open.
+
+copy      5a4c90a3cd5f497c8ef12fa1c9b7ae05  "…20:57:31Z (conflicted copy)"
+          created/updated 20:58:24.892532Z · tags ['sync-conflict']
+          body: "WINDOW-CHECK-SENTINEL typed online. WINDOW-CHECK-SENTINEL typed offline."
+          ⭐ THE MEMBER'S OFFLINE WORDS EXIST ONLY HERE.
+```
+
+⛔ **Read the two bodies against each other.** The original is what the member was
+looking at, and it is **missing the sentence they typed offline**. The copy — the
+thing the app labelled a *conflict* and tagged `sync-conflict` — is the **only**
+place that sentence exists. That is the whole of HARD STOP #2 in four lines.
+
+## The trash, as captured
+
+**24 captured notes**, all **already trashed** and **none touched**:
+
+- **22 canary-titled originals/copies** from **13:11–16:55**, of which **20 still
+  hold an offline sentence**.
+- **two older non-canary conflicted copies** from certification —
+  `b1c7cf6e…` and `44d796d6…`.
+
+---
+
 # 🏁 THE CLOSE — **PREPARED, NOT PUBLISHED**
 
 ⛔⛔ **THIS SECTION IS A DRAFT OF THE END STATE. THE GATE IS OPEN.** Nothing here
