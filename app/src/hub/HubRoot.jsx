@@ -28,6 +28,7 @@ import HubVoiceBridge from './HubVoiceBridge'
 import HubCoachMark from './HubCoachMark'
 import HubConfirmSheet from './HubConfirmSheet'
 import HubEdgeTab, { restoreToast } from './HubEdgeTab'
+import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
 import { modesById, fanFor, isPreviewMode } from './registry'
@@ -64,6 +65,10 @@ function resolveNavTarget(to) {
  */
 function HubShell({ setToastMsg }) {
   const keyboardVisible = useKeyboardVisible()
+  // §8 auto-hide. `useKeyboardVisible` infers a keyboard from a viewport resize; this reads the
+  // artifact the spec names — focus in a text field — and covers the cases a resize never reports
+  // (no visualViewport, a hardware keyboard, a contenteditable that raises nothing). Both, OR-ed.
+  const textInputFocused = useTextInputFocus()
   const { scrimExcludeBottom, hidden: viewportHidden } = useHubViewport()
   const { settings, updateHubSettings } = useHubSettings()
   const {
@@ -264,7 +269,7 @@ function HubShell({ setToastMsg }) {
     hideForSession()
   }, [setToastMsg])
 
-  const hidden = keyboardVisible || viewportHidden
+  const hidden = keyboardVisible || textInputFocused || viewportHidden
   const selectedId = state.target?.action?.id ?? null
 
   // An action whose `requires` the current context cannot satisfy renders DISABLED, never hidden
