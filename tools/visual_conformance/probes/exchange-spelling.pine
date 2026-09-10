@@ -2,8 +2,18 @@
 indicator("UCTPROBE_EXCHANGE", overlay = false)
 
 // ⭐⭐ THE KEYED FIELD. `symbolScope.json::confirmed` is keyed on OUR store's
-// exchange string and its value is the string TRADINGVIEW's `syminfo.exchange`
+// exchange string and its value is the string TRADINGVIEW's `syminfo.prefix`
 // returns. This probe reads THAT field, and nothing else settles it.
+//
+// ⚰️⚰️ THIS FILE READ `syminfo.exchange` UNTIL 2026-09-10 AND COULD NEVER HAVE RUN.
+// Saving it and adding it to a chart returned, from the vendor:
+//     CE10272   Undeclared identifier "syminfo.exchange"   line 36, col 6-21
+// THERE IS NO SUCH IDENTIFIER IN PINE v6. The exchange is `syminfo.prefix`, which
+// was confirmed by compiling a throwaway against it rather than by remembering.
+// ⛔ The study SAVED cleanly and failed only at COMPILE, and a failed study keeps
+// a ONE-PLOT STUB `_metaInfo` titled "Plot" with an EMPTY `_data._items` — so a
+// capture that reads the roster without first asserting `isFailed === false`
+// records a study that never evaluated as though it had answered.
 //
 // ⚰️ WHY THIS FILE EXISTS AT ALL — the five-symbol capture of 2026-09-09
 // (`tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json` ::
@@ -15,14 +25,19 @@ indicator("UCTPROBE_EXCHANGE", overlay = false)
 // warns against. ⛔ THE TWO PROBES ARE NOT INTERCHANGEABLE. That is the whole
 // reason this is a separate file rather than an edit to that one.
 //
-// ⛔⛔ AND THE CAPTURE PROVED THEY CAN DISAGREE. `SP:SPX` was requested and the
-// vendor resolved it to `SP_DLY:SPX` — so the tickerid prefix is not even the
-// text the member typed, let alone guaranteed to equal `syminfo.exchange`.
-// N11 below measures that gap directly instead of assuming it away.
+// ⚰️ AND THE ARGUMENT THAT USED TO STAND HERE IS RETIRED. It read: `SP:SPX` was
+// requested and the vendor resolved it to `SP_DLY:SPX`, so the tickerid prefix is
+// not even the text the member typed, let alone guaranteed to equal the exchange
+// field — and N11 measured that gap. ⛔ THAT GAP DOES NOT EXIST AT THIS VENDOR.
+// Measured on AMEX:SPY, 2026-09-10: str.length(syminfo.prefix)=4,
+// str.length(syminfo.ticker)=3, str.length(syminfo.tickerid)=8. 8 = 4 + 1 + 3, so
+// `tickerid` IS `prefix + ":" + ticker` by construction. The resolution
+// SP -> SP_DLY is real and still worth knowing, but it rewrites BOTH fields
+// together; it never drives them apart. See N11's tombstone below.
 
 // ── the instrument ──────────────────────────────────────────────────────────
 // ⭐ EQUALITY, NOT CONTAINMENT, AND THAT IS THE POINT. A member's script writes
-// `syminfo.exchange == "AMEX"`, Pine compares strings with `==`, so the probe
+// `syminfo.prefix == "AMEX"`, Pine compares strings with `==`, so the probe
 // asks the question in the member's own operator. Containment would answer a
 // DIFFERENT and weaker question: `str.contains("NASDAQ", "SP")` is false but
 // `str.contains("SP_DLY", "SP")` is true, which is exactly how a whitelist built
@@ -33,31 +48,38 @@ indicator("UCTPROBE_EXCHANGE", overlay = false)
 // whose exchange is none of these reads 0 on every line below — which is an
 // ANSWER (see N10), not a gap, and it must be recorded as unconfirmed rather
 // than rounded to the nearest 1.
-plot(syminfo.exchange == "AMEX"   ? 1 : 0, "eq_AMEX")     // N1
-plot(syminfo.exchange == "NASDAQ" ? 1 : 0, "eq_NASDAQ")   // N2
-plot(syminfo.exchange == "NYSE"   ? 1 : 0, "eq_NYSE")     // N3
-plot(syminfo.exchange == "CBOE"   ? 1 : 0, "eq_CBOE")     // N4
-plot(syminfo.exchange == "OTC"    ? 1 : 0, "eq_OTC")      // N5
+plot(syminfo.prefix == "AMEX"   ? 1 : 0, "eq_AMEX")     // N1
+plot(syminfo.prefix == "NASDAQ" ? 1 : 0, "eq_NASDAQ")   // N2
+plot(syminfo.prefix == "NYSE"   ? 1 : 0, "eq_NYSE")     // N3
+plot(syminfo.prefix == "CBOE"   ? 1 : 0, "eq_CBOE")     // N4
+plot(syminfo.prefix == "OTC"    ? 1 : 0, "eq_OTC")      // N5
 
 // The five feeds the prior capture already visited, so the two runs can be laid
 // side by side on the same symbols rather than compared across different ones.
-plot(syminfo.exchange == "FX"       ? 1 : 0, "eq_FX")       // N6
-plot(syminfo.exchange == "BITSTAMP" ? 1 : 0, "eq_BITSTAMP") // N7
-plot(syminfo.exchange == "SP"       ? 1 : 0, "eq_SP")       // N8
-plot(syminfo.exchange == "SP_DLY"   ? 1 : 0, "eq_SP_DLY")   // N9
+plot(syminfo.prefix == "FX"       ? 1 : 0, "eq_FX")       // N6
+plot(syminfo.prefix == "BITSTAMP" ? 1 : 0, "eq_BITSTAMP") // N7
+plot(syminfo.prefix == "SP"       ? 1 : 0, "eq_SP")       // N8
+plot(syminfo.prefix == "SP_DLY"   ? 1 : 0, "eq_SP_DLY")   // N9
 
 // ⭐⭐ N10 IS WHAT MAKES A ZERO ROW READABLE. If every equality above is 0 the
 // length still names how long the real answer is, so an unmeasured spelling
 // arrives as "6 characters, none of my candidates" instead of "none of the
 // above" — the difference between a lead and a shrug.
-plot(str.length(syminfo.exchange), "len_exchange")        // N10
+plot(str.length(syminfo.prefix), "len_prefix")            // N10
 
-// ⭐⭐ N11 IS THE CROSS-FIELD QUESTION, and it is the one that retires the idea
-// that the old capture could have been reused. 1 = `syminfo.exchange` appears
-// inside `syminfo.tickerid`; 0 = the two fields disagree outright. On SP:SPX the
-// prior capture already showed the tickerid prefix is `SP_DLY`, so this line is
-// where "is the prefix the exchange?" stops being a guess.
-plot(str.contains(syminfo.tickerid, syminfo.exchange) ? 1 : 0, "exch_in_tickerid") // N11
+// ⚰️⚰️ N11 IS DELETED AS VACUOUS — NOT MOVED, NOT DISABLED, DELETED.
+// It plotted `str.contains(syminfo.tickerid, <exchange>) ? 1 : 0`. With the
+// exchange read as `syminfo.prefix` that expression is TRUE BY CONSTRUCTION,
+// because `tickerid` is literally `prefix + ":" + ticker` — proved numerically
+// above (8 = 4 + 1 + 3), not assumed. It could only ever have plotted 1.
+// ⛔ A PLOT THAT CANNOT READ ANYTHING BUT 1 IS NOT A MEASUREMENT; it is a
+// decoration that reads as confirmation, and it would have sat in the roster next
+// to N12 looking like a second control while proving nothing
+// (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). N12 below is the
+// real control, and it is the only one.
+// ⛔ N11 IS NOT REUSED AS A NUMBER. The labels N1-N10 and N12 keep their meaning
+// so this run's columns line up with the previous capture's; renumbering to close
+// the gap would silently re-point every earlier reference.
 
 // ⛔ N12 IS THE NON-VACUITY CONTROL AND IT IS NOT OPTIONAL. Every plot above can
 // legitimately read 0. Without a channel that is known-nonzero on every symbol,
@@ -85,7 +107,7 @@ plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
 // (`api/services/ticker_meta.py`) to get the store spelling this map is keyed on.
 // The `pine` column is what remains UNKNOWN and is exactly what this probe asks.
 //
-//     store spelling    witness   yf code   pine (syminfo.exchange)
+//     store spelling    witness   yf code   pine (syminfo.prefix)
 //     'NYSE Arca'       SPY       PCX       ??  <- the flagship divergence
 //     'NASDAQ'          AAPL      NMS       ??
 //     'NYSE'            JPM       NYQ       ??
@@ -96,8 +118,8 @@ plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
 //
 // ⭐⭐ SPY IS THE ROW THAT PROVES THE FILE'S THESIS. Our store says 'NYSE Arca'
 // (yfinance reports PCX) and the 2026-09-09 capture already showed its TICKERID
-// prefix is AMEX. If `syminfo.exchange` also answers "AMEX", then a script asking
-// `syminfo.exchange == "AMEX"` is TRUE at the vendor and would have been FALSE had
+// prefix is AMEX. If `syminfo.prefix` also answers "AMEX", then a script asking
+// `syminfo.prefix == "AMEX"` is TRUE at the vendor and would have been FALSE had
 // we served our own spelling. That is the silent per-symbol inversion this whole
 // gate exists to prevent, and SPY is where it is cheapest to demonstrate.
 //
@@ -115,7 +137,7 @@ plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
 // map exists to produce, nor a key `store_to_pine` names, so such a symbol REFUSES.
 // ⭐⭐ ADDYY IS THE SEVENTH WITNESS AND IT IS NOT A MISTAKE. It refuses at the
 // STORE fold -- `OQX` is not a `_YF_EXCHANGE` key, so no `confirmed` row can be
-// keyed on it -- but this probe reads `syminfo.exchange` FROM THE VENDOR, which
+// keyed on it -- but this probe reads `syminfo.prefix` FROM THE VENDOR, which
 // does not care what our store holds. So ADDYY answers the tier question anyway:
 // if PNK-tier (LVMUY) and OQX-tier (ADDYY) come back with the SAME pine spelling,
 // the vendor does not distinguish OTC tiers and widening `_YF_EXCHANGE` is a

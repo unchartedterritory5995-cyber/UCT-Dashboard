@@ -163,24 +163,34 @@
       "scriptIdPart": "USER;631d746765c044fa86e7de4ed8004941",
       "version": "1.0",
       "source": "exchange-spelling.pine",
-      "sourceBytes": 9120,
-      "sourceChars": 8792,
-      "sourceSha256": "19e69d1d8aa37972ee62507f86369fbedc4e6cd27e75ff91c94444ced347dfcc",
-      "compiles": false,
-      "compileError": {
-        "code": "CE10272",
-        "message": "Undeclared identifier \"syminfo.exchange\"",
-        "line": 36,
-        "colStart": 6,
-        "colEnd": 21,
-        "_": "The study SAVES fine and fails to COMPILE. See the open ruling in README.md."
-      },
+      "sourceBytes": 10682,
+      "sourceChars": 10328,
+      "sourceSha256": "47577f5ea0737a34197b238e20f4e26a97bf6bcfb4961ef50d30b34169d4a94d",
+      "compiles": true,
       "storedAtVendor": {
-        "sha256": "e2feb28718ccfa3d09f8db806bfaf8934612eb8e7652054a934ca0101ef94226",
-        "chars": 8931,
+        "sha256": null,
+        "chars": 10489,
         "equalsCommittedModuloEOL": true,
-        "trailingNewlineKept": true
-      }
+        "trailingNewlineKept": true,
+        "savedAtUTC": "2026-09-10T20:42:17Z"
+      },
+      "vendorPineDigest": "8d07e1fa2c9ca345b1dd4f8ac2fc2c003e16d040",
+      "onChartSourceId_this_layout_only": "vBCPeq",
+      "plotRoster_PLOTS_ORDER": [
+        "eq_AMEX",
+        "eq_NASDAQ",
+        "eq_NYSE",
+        "eq_CBOE",
+        "eq_OTC",
+        "eq_FX",
+        "eq_BITSTAMP",
+        "eq_SP",
+        "eq_SP_DLY",
+        "len_prefix",
+        "len_ticker_CONTROL"
+      ],
+      "rosterMatchedVendorAtAdd": true,
+      "history": "v1 (saved 20:06:35Z) read `syminfo.exchange` and FAILED TO COMPILE (CE10272) -- there is no such identifier in Pine v6. Corrected in place 20:42:17Z to `syminfo.prefix`, with N11 deleted as vacuous. SAME script id: this is a new version of one script, not a second script."
     }
   },
   "vendorStorageNormalisation": {
@@ -189,5 +199,6 @@
     "howToCompare": "⛔ A NAIVE sha256(committed) == sha256(stored) COMPARISON FAILS ON ALL FOUR AND MEANS NOTHING. Normalise first, and allow the trailing newline to be absent: stored == committed.replace('\n','\r\n') OR stored == committed.rstrip('\n').replace('\n','\r\n'). Anything else is real content drift and the capture must be refused.",
     "deltasObserved": "+13 / +125 / +31 / +139 chars — NOT a constant, which is why this looked at first like an injected header. It is (number of line breaks) minus (1 if the trailing newline was dropped).",
     "trailingNewline": "⚠️ UCTPROBE_FOLD is stored WITHOUT its trailing newline; the other three keep it. That is not a vendor behaviour — it is the earlier injection procedure, which measured and wrote the source with the trailing LF stripped (the 628-char and 8791-char figures in the superseded notes are exactly charsNoTrailingLF). Today's three wrote the file whole. Semantically nil for Pine: same roster, same values, same compile. Left as-is rather than re-saving, because re-saving means binding the editor to a saved script and the gain is a trailing newline."
-  }
+  },
+  "_saveGotcha_2026_09_10": "⚠️ THE TOOLBAR 'Save script' ICON DID NOT SAVE; THE DROPDOWN MENU ITEM DID. Two clicks at the icon's measured position (title=\"Save script\") left the vendor's stored source and `updated` timestamp untouched -- verified on a no-store fetch against TWO endpoints, 35 minutes after the original save. The same action from the script-title dropdown saved within 500ms. ⛔ The cause was NOT isolated (a plausible candidate is that `model.setValue()` leaves the toolbar's handler unarmed until the editor is otherwise interacted with), so this is recorded as OBSERVED, not explained. ⭐ THE LESSON IS THE VERIFICATION, NOT THE BUTTON: a save is confirmed by re-reading the stored source and its `updated` stamp from pine-facade, never by the click returning cleanly or by the status line. Both clicks looked exactly like success."
 }
