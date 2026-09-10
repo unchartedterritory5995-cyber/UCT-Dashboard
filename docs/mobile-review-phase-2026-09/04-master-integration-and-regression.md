@@ -1429,3 +1429,339 @@ One concrete remaining reason:
 
 ⭐ The release is live, healthy, and its six review legs are verified in
 production. R5 characterises an optimisation that already ships and behaves.
+
+---
+
+# R5 — CLOSED, 2026-09-09
+
+**Current+2 prefetch is a shipped, always-on behaviour, not a proposal.**
+`useReviewSession.js:78` calls `prefetchBars(neighbours(raw), tf)` on every
+session/timeframe change — unflagged, never `priority`, riding `_queue` at
+`_MAX_CONCURRENT = 2`. `neighbours()` (`reviewSession.js:189`) is **asymmetric on
+purpose: next+1, next+2, prev−1.** "Current+2" is forward-biased, the correct shape
+for a review loop that mostly moves forward — the queue drains in order so the very
+next symbol warms first, and the single slot behind covers the common correction
+without spending the cap on a direction reviewers rarely take. Warming the whole
+list was rejected for the same reason: it would hold the cap for minutes and starve
+the chart the user is looking at.
+
+**R5 was never "should we add prefetch"; it was "characterise prefetch that already
+ships."** Seven harness attempts produced N = 0. It closes on code reading plus one
+foreground observation.
+
+## What prefetch actually warms — the mechanism, established by reading
+
+`prefetchBars` warms **SWR's in-memory cache only** (`prefetchBars.js:204`, in-file:
+*"warms only SWR's IN-MEMORY cache, which is wiped on every page reload"*). It is
+**not** the durable path; `prefetchBarsToIDB` is separate and the review session
+never calls it.
+
+It writes under `…&bars=600&warm=1`. The chart reads
+`…&bars=<_primaryBars>` with **no `&warm`** (`StockChart.jsx:5322`).
+**Different SWR keys ⇒ current+2 produces no client-tier hit by construction.**
+Its only mechanism is **server-side cache warming**.
+
+Whether that warm lands on the entry the chart reads is **conditional on
+timeframe**:
+
+- Server bars cache is **count-keyed** — `bars_{TICKER}_{tf}_{bars}`
+  (`bars_fetch.py:1704, 2237, 2664, 2706`); disk `disk_cache.get(ticker, tf, bars)`.
+  The SQLite tier is row-based per `(ticker, tf, ts)` and is not count-keyed.
+- The review session opens **Daily** — `useReviewSession(symbol, { tf = 'D' })` and
+  `MobileChartsApp.jsx:155`.
+- `BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100` (`StockChart.jsx:990`), so on Daily
+  `_primaryBars = min(barCount, 600) = 600` — **the same 600 the prefetch sends.**
+
+⇒ **On Daily the server keys MATCH** and the warm lands on the entry the chart
+reads. **On any intraday timeframe `_splitOn` is false**, the chart asks a different
+count, and current+2 warms an entry the chart never reads — **zero benefit**. A
+browser with `localStorage['uct.barsHistory.enabled'] = '0'` flips Daily into the
+mismatch case too.
+
+**Benefit is bounded by (server cold-build time − server cache-hit time), which for
+a symbol the server already holds hot is ~0.**
+
+## Cost — demonstrated, not asserted
+
+`_enqueue` does **not** short-circuit on a mem/IDB/SWR hit; it dedupes on the full
+URL for 30 s and by queue membership. So up to two extra requests per transition.
+Bounded: ≤2 concurrent, idle-deferred (`requestIdleCallback`, timeout 1500), held by
+`_holdBackgroundWarm()`, and `&warm=1` lets the server shed a fast 503 rather than
+starve the active chart. Real on cellular, small, self-limiting. **`prev-1` is
+redundant** — the chart fetched that symbol seconds ago.
+
+## The foreground observation — 2026-09-09
+
+One capture, `/api/bars/` rows only, 154 entries over 415 s, 54 distinct symbols.
+Gate 1 passed: `window.__vis` held a single `"visible"` entry, so the tab never went
+hidden and **the prefetcher was live for the whole run** — the gate all seven prior
+attempts failed.
+
+| | |
+|---|---|
+| `&warm=1` (prefetcher) | **86** |
+| non-`warm` (chart's own fetch) | **68** |
+| chart timeframes fetched | **`D` exclusively** |
+| `bars=` on warm rows | **600 (all 86)** |
+| `bars=` on chart rows | **600 (all 68)** |
+
+**Chart serve-layer distribution, with `entry` counted honestly as its own row:**
+
+| | count | |
+|---|---|---|
+| definitively hot | **43** | `mem` 30 + `stale-swr` 13 |
+| **unlabelled** | **17** | `entry` — see below |
+| aborted | 7 | status 0 |
+| **cold build** | **1** | `fetch` |
+
+⛔ **`entry` is NOT a cache tier.** `bars.py:484` marks it on the *first line of the
+handler*, to reset the thread-local so a branch that never sets a label cannot report
+a stale one from a previous request on the same anyio thread. A row labelled `entry`
+means **no tier-marking function ran** — an unlabelled serve. It is evidence of
+**not-cold**, never evidence of hot.
+
+### W1 / W2 — separated, both present, W1-heavy at this pacing
+
+Paired on **first visits only** (repeat visits inflate the signal with symbols hot
+from an earlier visit in the same run):
+
+- **14 first visits served hot with no current+2 warm behind them** (`stale-swr` 13,
+  `mem` 1), plus **9 unlabelled** and **0 cold**. The server was warm without
+  current+2's help — **W1**.
+- **15 first visits where the warm ate a `fetch` and the chart got `mem`/`sqlite`** —
+  current+2 demonstrably absorbed the cold build. **W2 is real.**
+
+Both mechanisms operate. **The split is pacing-dependent and this run gives the
+W1-heavy end**; at reading pace the W2 share would rise, because the warmer would
+have time to land.
+
+### Coverage — a floor, with its condition
+
+**15 of 54 first visits had a completed current+2 warm behind them at ~0.65 s
+operator pacing. This is a floor, not an estimate: the warmer was outrun at that
+pace.** Only 26 D-warms were issued for 54 first visits. **No reading-pace figure
+exists.** This is not a member-experience claim.
+
+### Lookahead is real
+
+**24 of 26 D-warms warmed a symbol before the chart had ever visited it** (0 were
+re-warms of an already-visited symbol; 2 warmed a symbol never reached). The
+forward-bias works as designed.
+
+### One cold build in 68
+
+Under **rapid-fire input — the worst case for a warmer** — the chart paid a cold
+`fetch` exactly once in 68 fetches. Server compute p50: chart **0.8 ms** vs warm
+**19.4 ms**; the expensive work (17 `fetch` rows, max 1115 ms) landed on the
+prefetcher. This holds *a fortiori* at reading pace.
+
+### ⛔ Pacing — no reading-pace observation exists in this capture
+
+Both segments are **rapid-fire operator input**, most likely:
+
+- Segment 1 — 13 symbols in **10.1 s**, median gap **0.65 s**.
+- Segment 2 — the same 13 again (a screener round-trip is a navigation; a new
+  document wipes SWR's memory — `App.jsx:261` sets no `provider`, and
+  `prefetchBars.js:204` says the in-memory cache is *"wiped on every page reload"* —
+  so re-entry refetched 1–13 cold on the client while the server stayed hot from
+  segment 1, hence `stale-swr`/`mem`), then symbols 14–54 during the feed hunt. The
+  7 aborts inside a 4-second window are a fling, not a surface teardown.
+
+⚰️ **A "~77 s / ~6 s per symbol" figure was asserted for segment 1 and is
+RETRACTED.** It was screenshot-to-screenshot, not tap-to-tap — a reviewer inference
+stated without measurement, the same class as the session-scoped-cookie inference,
+the stale master SHA, and the pre-filled "check 3 PASSED". The HAR measures 10.1 s.
+
+**"Most likely", not proven:** all 68 chart rows carry an identical initiator
+(`tb@StockChart…` via `vendor-swr`), and because `ReviewFeedCard.jsx:67` renders a
+full `<StockChart>`, the initiator **cannot distinguish a main chart from a feed
+card**. The SWR-wipe explanation above is sufficient and no other surface needs to be
+posited.
+
+**Reading-pace observation: none.**
+
+## A2 / B — NOT CAPTURED
+
+The ReviewFeed toggle could not be located in the live review-session UI during the
+run; the bottom-bar icons were chart controls. So there were no feed selections and
+no B phase. **The feed's client-tier warming role rests on the code reading, not on
+this run.**
+
+⚠️ Worth its own line: §P1 records that control as verified in production — *"the
+centre pill opens the list/feed dialog (`role=dialog`) titled 'Screener — 100
+charts'"*. Either it renders differently than that evidence implies or it was not
+present. **Unresolved, and a discrepancy between the release record and the live UI
+regardless of what R5 concludes.**
+
+## The feed is the real client-tier warmer
+
+`ReviewFeedCard.jsx:67` renders a full `<StockChart sym tf>` per row with no `bars`
+override — **the same key construction the main chart reads**, no `&warm`. So opening
+the feed populates the main chart's SWR key for every row it paints.
+
+`FEED_RADIUS = 1` / `FEED_MAX_LIVE = 3` bounds live **charts**, not SWR **entries**,
+and `App.jsx:261` sets no `provider` — SWR's default global `Map`, no eviction on
+unmount, no TTL. ⇒ **The feed paints a rolling window of 3, and every row ever
+centred stays client-warm until the page reloads.** It does the client-tier warming
+current+2 was designed to do and does not.
+
+## ⚰️ §P2 is DEMOTED — not evidence of warmth
+
+§P2 recorded 147 `/api/` requests and zero `/api/bars/` across ~15 human-paced
+transitions. That tab ran `visibilityState: "hidden"`, where `requestIdleCallback`
+does not fire and `setTimeout` is clamped — and `_kickSoon → _pump` drains on exactly
+those two timers. **Zero rows there is consistent with the prefetcher not running.**
+This run settles it by observation: in a visible tab the prefetcher issued **86**
+warm requests. §P2 stands as an observation about a hidden tab and nothing more.
+
+## Why no timing measurement was performed
+
+The harness produced its "cold" population by tapping faster than a member does, so
+its delta would be between a warm transition and an artificially-outrun warmer — not
+the member's experience. **A working instrument measuring the wrong thing is not
+progress.** Independently, the expected effect is small on the architectural grounds
+above and below the noise floor of every available instrument; a cloud device rig
+would *raise* that floor. `02-hardware-certification.md` §10 reached the same wall
+from hardware: *"Prefetch — still NOT MEASURED. This run produced no credible
+with/without next-symbol timing: on-device the tunnel dominates."*
+
+⛔ **No dwell distribution exists and none was invented.** No telemetry under
+`app/src/pages/charts/review/`; `activity_log` records discrete actions only; the
+only dwell figures anywhere are the harness's synthetic 2600/120 ms.
+`01-feed-measurement.md` measured worst-frame timing on desktop, not dwell.
+
+## Mount under mobile emulation — unverified, not observed absent
+
+`data-mobile-chart-shell` was absent on every Playwright attempt, but five of seven
+never reached an authenticated page; #4 authenticated then bounced to `/login`; only
+**#3** recorded `canvases: 0` with the attribute absent on an authenticated page —
+and §R5-F records that run as being navigated over every 3 s by the harness's own
+defect. One reading mid-navigation is not an observation of absence.
+
+**Not a product question.** Real-device certification **2026-09-08**: iPhone Air /
+iOS 26.6 (9/9 PASS), iPhone 15 Pro / iOS 17.5 (12/12 PASS), also iPhone 17e and
+iPhone 15 Pro Max; *"Live charts: 3, budget held. Measured by the suite on-device."*
+
+## Candidate items — recorded, NOT authorized
+
+1. **`prev-1` is redundant server-tier warming** — the chart fetched that symbol
+   seconds ago. Consult mem/IDB before enqueueing in `prefetchBars`.
+2. **Feed-jump prefetch** — probably moot: any row you can tap has already painted,
+   and painting is fetching under the chart's key. Not confirmed, B was not captured.
+   **Residual, recorded and not chased:** a member who scrolls fast and taps a row
+   before its chart paints. Real interaction, not covered by the rolling window of 3,
+   and it is the rapid-tap population again.
+3. **3a · FUNCTIONAL GAP.** `prefetchBars`'s SWR write is unaddressable from the
+   chart's key when `warm=true`, which is what the review session passes. The
+   intended client dedupe — `prefetchBars.js:79`, *"Shares the URL with the chart's
+   own SWR key, so `preload` still dedupes one network request across both"* — does
+   not occur. The hover path passes `warm=false` **precisely** to get the key match,
+   so someone knew, and did it for hover but not for review neighbours. Design
+   tension for whoever picks it up: `&warm=1` buys server-side shed-ability;
+   `warm=false` buys client dedupe; the URL-keyed design cannot have both without
+   writing the resolved result under the chart's key after the warm returns. Also
+   check `bars=600` vs `_primaryBars` — a second, conditional mismatch on any
+   non-`_splitOn` timeframe.
+4. **⭐ THE LOUDEST FINDING OF THE RUN — `prefetchAllTimeframes` intraday waste.**
+   **60 of 86 warm requests (70%) were intraday timeframes** (`5`/`15`/`30`/`60`/`1`,
+   12 each) in a workflow that fetched `tf=D` **and nothing else**. Source is
+   `prefetchAllTimeframes(sym)` walking `ALL_TFS` on selection — **not** current+2.
+   Ratio marked **observed-at-this-run**. Fix shape: gate on the timeframe actually in
+   use, or defer intraday warming until an intraday tf is selected.
+5. **WITHDRAWN.** `warm-mem` / `warm-sqlite` / `warm-shed` never appeared on any of
+   the 86 `&warm=1` rows, and that is **correct behaviour, not a wiring defect**.
+   Those labels are set only inside the branch taken when the warm-serve semaphore is
+   **full** (`bars.py:552-566`): a warm that gets a slot falls through to the normal
+   serve path and receives an ordinary label. Zero warm-\* labels means the server was
+   never under warm-slot pressure. ⇒ **"Server already hot" in this closure is
+   inferred from ordinary labels on unpaired first-visit chart rows, never from
+   warm-\* labels, which cannot appear at low load.**
+6. **Comment rot** at `reviewSession.js:180` — names `_idbQueue`/3; the actual queue
+   is `_queue`/`_MAX_CONCURRENT = 2`.
+
+## Two downstream decisions W1/W2 would inform
+
+So "no action" means "no action **now**": the deferred **shared hub cursor** (whether
+to port the neighbours model), and **feed-jump prefetch**.
+
+## Reopens if
+
+- Member reports of slow transitions in the review loop
+- Any change to a warming layer — `prefetchBars`, `prefetchBarsToIDB`,
+  `warmMemFromIDB`, the server bars cache, or the feed window
+- The deferred hub cursor work landing
+
+## Process lessons
+
+⭐ **1 · NO SEARCH FOR PRIOR ART, TWICE — and the second one cost the most.**
+`tools/mobile_audit.py:264` had solved the auth problem in this repo, with an in-file
+comment calling it the robust path. **`bars.py:669` had solved the MEASUREMENT
+problem** — `Server-Timing` with a serve-layer label on every `/api/bars` response,
+in production, documented in-file as existing so that *"cold vs warm (and cold-fetch
+vs inflight-wait vs disk) is observable in prod devtools / curl — the cold path was
+previously unmeasured."* **Both predate the first harness attempt. Seven attempts
+built a worse instrument beside a better one that already shipped.**
+Rule: before building a harness against an endpoint, grep the repo for anything
+already hitting it — and before measuring, check whether the thing already reports.
+
+2 · **A hypothesis was recorded as a constraint.** Any "must" derived from
+observation needs a `verified by: <direct evidence>` field. *"We saw a 401"* is not
+direct evidence about a cookie's lifetime. The single earliest check that would have
+collapsed the whole phase: **read the `Set-Cookie` header on the first login.**
+
+3 · **A negative from an unvalidated instrument was trusted.** The first
+`canvases: 0` should have triggered "can this harness see canvases when they
+definitely exist?" — a known-positive check. Never done.
+
+4 · **A falsifying test blocked by policy was recorded as a finding.** *"Deliberately
+not done: entering credentials"* is `untested because policy`, not `not possible`.
+Different sentences; they led to different weeks.
+
+5 · **The task premise was stale against the codebase.** R5 was framed as "does
+prefetch help" when prefetch had shipped. Grep for the thing before measuring whether
+it helps.
+
+6 · **No checkpoint.** Six attempts without a forced stop to audit premises. Rule:
+**two consecutive instrument failures trigger a premise audit, not a third attempt
+with a tweak.**
+
+7 · **A filtered export threw away the evidence.** The DevTools filter was for
+eyeballs; the HAR export honoured it and discarded every navigation and non-bars call
+— exactly the context that would have named the surface behind the bursts. *"Filter
+the panel, export unfiltered"* was never written down.
+
+### Pre-registration worked, twice, and both times it caught a wrong call
+
+- A claim that current+2 was the sole memory-tier warmer for unvisited neighbours —
+  **retracted** when the read path showed the SWR key mismatch.
+- A prediction that the count-key mismatch would be the common case — **inverted**:
+  right for intraday, wrong for the default Daily path, where the keys match.
+
+Both were cheap checks catching a wrong call before it cost anything.
+
+## The reasoning-away test, both forms
+
+**Form 1 — the measurement we skipped could not have worked.** The 90/60 harness run
+classified warm vs cold by whether a bars request fired. The chart fires on every
+transition regardless, so it would have labelled every transition "cold" and reported
+a delta between two populations differing only in tap speed.
+
+**Form 2 — we end with more established than the measurement would have produced.**
+A mechanism (server-tier only, key mismatch), a defect (3a — the intended client
+dedupe does not occur), a redundancy (`prev-1`), a structural finding (the feed is
+the real client-tier warmer), the largest waste (candidate 4 — 70% of warm traffic on
+timeframes never viewed), and a bound (~0 for server-hot symbols). The 90/60 run
+would have produced two numbers and a delta.
+
+⚠️ **The honest caveat stays: this closes on ONE foreground observation.** Not a
+distribution, not repeated, not on a real phone, and not at reading pace. That is
+thin. It is proportionate to a characterisation task on a shipped, bounded,
+self-limiting optimisation — and it would **not** be proportionate to a correctness
+question.
+
+# MOBILE_PHASE_CLOSED = YES
+
+**The harness** `tools/r5_prefetch_measure.py` stays on branch
+`fix/mobile-legend-legacy-state` and is deliberately not merged: an unrun tool for a
+closed measurement in the tree is the hazard CLAUDE.md's unreachable-code table warns
+about.
