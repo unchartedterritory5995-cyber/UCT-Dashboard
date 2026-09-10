@@ -85,10 +85,15 @@ better to know before than after.
 
 1. `window.__vis` never contained `"hidden"`
 2. shell attribute `"1"` at start **and** end
-3. **Phase B non-`warm` count > 0** — proves the capture sees on-demand fetches
+3. **Any non-`warm` `/api/bars/` row anywhere after `A1_START`** — proves the
+   capture sees on-demand fetches at all
 
-⚠️ Gate 3 does **not** mean "the targets were cold." The chart fires either way;
-coldness shows in `Server-Timing`. Zero here means the capture is **blind**.
+⚠️ Gate 3 is deliberately **not** "Phase B non-`warm` > 0". A correctly working
+feed paints a row when you centre it to tap it, so B's selection fetches are
+*predicted to be zero* — and the old gate would have voided the run for the feed
+working. A1 should produce non-`warm` rows (the chart fires on transition); if it
+somehow doesn't, A2's feed paint burst will. **Zero across the entire run means
+the capture is blind.** That is the only void condition from this gate.
 
 ⛔ **No numeric threshold decides close vs continue.** The code reading answered
 *what current+2 does*; this run annotates *how much*.
@@ -147,33 +152,81 @@ fetch('/api/health?r5=A1_END')
 fetch('/api/health?r5=A2_START')
 ```
 
-**A2 — open the feed, let visible rows paint, then select ~3 rows that were
-visible.** Feed-warmer territory.
-**Prediction:** those selections produce **no** non-`warm` `/api/bars/` row for the
-main chart, because the feed already fetched under the same key. That confirms the
-`ReviewFeedCard.jsx:67` finding empirically rather than by reading.
+**A2 — open the feed, let the live window paint, then select ~3 painted rows.**
+
+```js
+fetch('/api/health?r5=A2_FEED_PAINTED')   // AFTER painting settles, BEFORE selecting
+```
+
+⛔ **This middle marker is what makes the A2 prediction observable at all.** Feed
+paints and main-chart fetches produce **identical URLs** — same sym, tf, bars, no
+`&warm` — so the parse cannot tell them apart by URL. It tells them apart by
+*which side of this marker they fall on*:
+
+- non-`warm` rows between `A2_START` and `A2_FEED_PAINTED` → **the feed's paints**
+- non-`warm` rows between `A2_FEED_PAINTED` and `A2_END` → **main-chart fetches on
+  selection**, predicted **zero**
+
+That zero is the `ReviewFeedCard.jsx:67` finding, observed rather than read.
 
 ```js
 fetch('/api/health?r5=A2_END')
 fetch('/api/health?r5=B_START')
 ```
 
-**B — ~3 far jumps via the feed to rows that were NOT visible in A2** (scroll past
-without letting them paint, or pick from further down). Screener-adjacent, similar
+**B — ~3 far jumps to rows NOT painted in A2.** Screener-adjacent, similar
 liquidity — **not** deliberately obscure. Server-cache hotness is driven by all
 traffic, so an obscure name would confound "cold because nobody warmed it" with
 "cold because nobody looks at it."
+
+**Per target, three times** — scroll to it, let it paint, then:
+
+```js
+fetch('/api/health?r5=B_SEL_1')   // ... then tap it.  (B_SEL_2, B_SEL_3)
+```
+
+- non-`warm` rows **before** each `B_SEL_n` → scroll paints
+- non-`warm` rows **after** `B_SEL_n`, before the next marker → the main chart's
+  selection fetch, **predicted zero** because the scroll already warmed it
 
 ```js
 fetch('/api/health?r5=B_END')
 ```
 
+### ⭐ Two facts about the feed that set your expectations
+
+**The feed is not mounted at session entry.** `MobileChartsApp.jsx:472` renders it
+under `{feedOpen && review.session && …}`, with the in-file reason: *"a feed
+rendered closed would be N charts nobody asked for."* **So A1 is clean at entry** —
+nothing peeks, nothing pre-paints, and you do not need to close anything before
+`A1_START`.
+
+**The feed does NOT paint every visible row.** `feedWindow.js`: `FEED_RADIUS = 1`,
+`FEED_MAX_LIVE = 3`. Only the centred card ±1 hold live charts — the budget is
+enforced by windowing *before* the staggered-mount queue, deliberately, because
+that hook "NEVER unmounts a live id."
+
+Consequences for the parse: A2's paint burst is a **rolling ≤3**, not "all visible
+rows." And in B, centring a target to tap it paints **that row and its two
+neighbours** — so expect roughly three fetches per B target, not one.
+
 ---
 
 ## The parse — what I do with the HAR
 
-Per phase: warm / non-`warm` counts, `Server-Timing` tier distribution, `dur=`
-values, `timings.wait`.
+Per phase (and per marker interval): warm / non-`warm` counts, `Server-Timing`
+tier distribution, `dur=` values, `timings.wait`.
+
+**Reported, never assumed:**
+
+- **The `tf` observed in the `/api/bars/` URLs.** Do not assume `D`. A persisted
+  non-daily tf on the chart widget puts the **whole run in the count-key mismatch
+  case**, and the parse must say so rather than quietly reading it as Daily.
+- **`uct.barsHistory.enabled`** from the paste-alongside. `"0"` ⇒ the Daily
+  key-match does not hold for this browser; flag it.
+- **The `bars=` value on warm rows vs chart rows.** On Daily with the split on
+  both should read `600`. If they differ, that is the third mismatch — observed,
+  not predicted — and it goes into candidate 3a.
 
 **Plus the pairing, per A1 transition** — pair the preceding `&warm=1` row for a
 symbol with that symbol's own non-`warm` chart row:
