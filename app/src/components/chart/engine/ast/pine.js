@@ -6977,6 +6977,33 @@ export class Resolver {
         // fails closed to `repaints` and the save door refuses it. Refusing here
         // names the length; refusing there would name the badge.
         if (resolved.type !== 'num' || !Number.isInteger(resolved.value)) {
+          // ⛔⛔⛔ THE BIND-TIME ESCAPE BELONGS HERE AND IS NOT WIRED, ON PURPOSE —
+          // MEASURED AND REVERTED 2026-09-10. `bind.js::isBindFoldableLength` says
+          // whether the stage can settle this length per binding, and gating this
+          // throw on it DOES open the door: Uncharted Volume went `ok:false` →
+          // `ok:true`, refusals 5 → 4, the `pine:window` on line 233 gone, outputs
+          // unchanged at 5.
+          //
+          // ⛔ AND IT MADE A SCRIPT STRICTLY WORSE, WHICH IS WHY IT CAME BACK OUT.
+          // THE DOOR IS NOT THE ONLY LITERAL GATE. `lint.js::resolveDeclaration`
+          // returns UNKNOWN for any window argument that is not a `num` node, that
+          // becomes `repaints`, and `canSaveFormula` refuses `repaints` outright.
+          // So deferring here does not deliver the script — it trades this precise
+          // sentence, which NAMES the length, for a badge that names nothing.
+          // `doorScorecard.test.js` measured exactly that: `07-hull-suite.pine`
+          // moved from "refused at translate" to "translates but cannot be saved",
+          // and that suite calls that gap a defect in its own words — "translating
+          // is not the finish line".
+          //
+          // ⭐ SO THE REMAINING WORK IS THE LINTER, NOT THIS LINE. To bound a
+          // bind-foldable window it needs the MAXIMUM over every binding the arms
+          // admit (20 for `isWeekly ? 5 : 20`), because a repaint bound may only
+          // ever OVER-state. ⚠️ That is a new correctness surface with the one
+          // failure direction a budget cannot absorb — under-stating a window —
+          // so it is its own ruling with its own evidence, not a bolt-on to this
+          // one. The predicate and its agreement corpus
+          // (`bindFoldableAgreement.test.js`) are already landed and green, so that
+          // work starts from a proved foundation rather than from scratch.
           const src = own(slot, 'series') ? tok : (args[slot.pine].tok || tok)
           // ⭐⭐ THE ADVICE RIDES AS `suggest`, NOT ONLY AS PROSE IN THE MESSAGE.
           // `PineBox` renders `refusal.suggest` as a code block a member can copy;
