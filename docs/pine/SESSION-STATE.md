@@ -428,19 +428,41 @@ translate path) now has its vendor confirmation.
    commit. The path is now fully mapped (below), but building it under time pressure at the
    end of a long run is how a member-visible regression (H3) or a weakened rail (H4) gets
    shipped. Mapping it and stopping is the honest state.
-### The producer, mapped (Track C task 1)
+### ✅ The producer — BUILT 2026-09-10 (`521a52816` + `9dfe101e0`)
 
 The JS seam ALREADY EXISTS and already consumes the tri-state — what is missing is only
 something that produces it:
 
 | where | today | needs |
 |---|---|---|
-| `api/routers/bars.py` `GET /api/bars/{ticker}` | returns `{ticker, tf, bars, …}` | + `newest_bar_is_forming` from `indicator_compute.bar_close_state` (ADDITIVE — no capability removed) |
-| the JS bars fetch | drops it | carry it onto `ctx` |
-| `binder.js:657` | `computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf })` | + `newestBarIsForming` |
-| `nativeRegistry.computeFor(def, bars, inputs, ctx)` | | thread into `interpretOpts` |
+| `api/routers/bars.py` | ✅ emits `newest_bar_is_forming` via `_augment_with_bar_close_state` |
+| StockChart.jsx bars SWR | ✅ `data?.newest_bar_is_forming ?? null` onto the binder ctx |
+| `binder.js` | ✅ `computeFor(..., { sym, tf, newestBarIsForming })` |
+| `nativeRegistry` | ✅ both `interpret()` call sites thread it |
 | `interpret.js:2777` | already reads `opts.newestBarIsForming` | ✅ nothing to do |
 | `indicators.js:1253` `computeClock(bars, tf, newestBarIsForming = null)` | already tri-state | ✅ nothing to do |
 
 ⛔ The gate test `pineRuntimeFrontendGate.test.js` is retired in the SAME commit that wires
 the route — never before, and never by editing it to keep passing.
+
+⭐⭐ **MEMBER-VISIBLE, AND IT IS AN ADDITION.** `barstate.isrealtime`,
+`isconfirmed`, `ishistory` and `islastconfirmedhistory` had rendered BLANK on every
+chart since the barstate ruling landed — nothing in `app/src` ever set the value the
+column layer was already reading. They now answer. Nothing that worked before stops.
+
+⚠️ **THE WIRE FORMAT NEEDED AN ADAPTER, and its absence would have been silent.**
+`bar_close_state` reads `bars[-1]["t"]` in UNIX SECONDS; the daily/weekly wire format
+is `"YYYY-MM-DD"`. Without the conversion every daily chart answers `None` — a LEGAL
+answer, so nothing complains and the columns stay blank while the producer looks like
+it is working and merely cautious. The adapter lives in the ROUTER because the router
+is the layer that departed from the clock's contract.
+
+⛔ **THE L1 GATE STILL STANDS, DELIBERATELY.** The producer now exists, which is the
+gate's stated precondition — but `pineRuntimeFrontend.js` is still reachable from no
+route, and `pineRuntimeFrontendGate.test.js` is still the thing that says so.
+Retiring it without wiring would leave the module unreachable AND unguarded, which is
+strictly worse. It is retired in the SAME commit that wires the module, and wiring a
+new member-facing surface is a product decision, not a mechanical next step.
+**Items 6–10 are no longer blocked BY THE PRODUCER** — they concern the engine's
+vocabulary, not that route.
+
