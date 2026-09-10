@@ -292,8 +292,8 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
  * @typedef {Object} HubSectionConfig
  * What a page registers with `useHubMode` to become the hub's controller while it is mounted.
  * @property {string} id                      A registry mode id (`registry.js` `modes`).
- * @property {() => void} [onTap]
- * @property {() => void} [onDoubleTap]
+ * @property {(ctx: object) => void} [onTap]
+ * @property {(ctx: object) => void} [onDoubleTap]
  * @property {(ctx: object, scrub: {delta: number, axis: 'x'|'y'}) => void} [onScrub]
  *   ⛔ **TWO ARGUMENTS, CONTEXT FIRST.** `HubRoot.jsx:147` calls `onScrub(ctx, scrub)` and
  *   `registry.js:49` has documented that shape since Phase 2. This typedef said `onScrub(scrub)`

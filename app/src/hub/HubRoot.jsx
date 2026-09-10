@@ -228,8 +228,25 @@ function HubShell({ setToastMsg }) {
     activeModeConfig?.onScrubCommit?.(ctx)
   }, [activeModeConfig, ctx])
 
-  // `useJoystick`'s `mode` param is the whole HubMode config (it reads
-  // `mode.fan`/`mode.onTap`/`mode.onDoubleTap` itself) — NOT the bare mode id
+  // ⭐ TAP AND DOUBLE-TAP NOW GET `ctx`, LIKE EVERY OTHER MODE CALLBACK — and that is the whole
+  // point. `useJoystick` used to read these straight off `mode` and invoke them with NO
+  // ARGUMENTS, so a registry-declared mode structurally could not act: the hook owns the
+  // double-tap timing but has no ctx and never will. `homeSection.js` recorded the consequence
+  // in its own header — Home's chip promises "tap: last section" and nothing could keep it.
+  //
+  // Dispatching from here makes ONE rule for all four mode callbacks instead of two, and the
+  // navigation authority is unchanged: ctx.navigate is still the single seam (R-G).
+  const handleTap = useCallback(() => {
+    activeModeConfig?.onTap?.(ctx)
+  }, [activeModeConfig, ctx])
+
+  const handleDoubleTap = useCallback(() => {
+    activeModeConfig?.onDoubleTap?.(ctx)
+  }, [activeModeConfig, ctx])
+
+  // `useJoystick`'s `mode` param is the whole HubMode config (it reads `mode.fan` itself) — NOT
+  // the bare mode id. ⚰️ It used to read `mode.onTap`/`mode.onDoubleTap` too; those are now
+  // dispatched by this file so they can receive ctx, like onScrub always has.
   // string the presentational components below take.
   // ⛔⛔ THE ENGINE RESOLVES THE FAN THE MEMBER IS LOOKING AT, NOT THE DECLARED ONE.
   //
@@ -262,6 +279,8 @@ function HubShell({ setToastMsg }) {
     onFire: fireResolved,
     onScrub: handleScrub,
     onScrubCommit: handleScrubCommit,
+    onTap: handleTap,
+    onDoubleTap: handleDoubleTap,
     onHome: goHome,
   })
 

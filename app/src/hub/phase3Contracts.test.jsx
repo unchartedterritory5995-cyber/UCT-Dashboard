@@ -292,6 +292,13 @@ function EngineHarness({ config, settings = {}, ctx = { fake: 'ctx' } }) {
     // than letting this harness be the authority.
     onScrub: (scrub) => config.onScrub?.(ctx, scrub),
     onScrubCommit: () => config.onScrubCommit?.(ctx),
+    // ⭐ Tap and double-tap are dispatched HERE now, mirroring HubRoot. They used to be read off
+    // `mode` by the engine and called with no arguments; the section could not reach ctx, so a
+    // registry-declared mode could never navigate from a tap. Same shape as onScrub above — and
+    // the section below now asserts it RECEIVES ctx, so a regression to the argument-less form
+    // fails here rather than silently on a real page.
+    onTap: () => config.onTap?.(ctx),
+    onDoubleTap: () => config.onDoubleTap?.(ctx),
   })
   return <div data-testid="pad" ref={padRef} {...handlers} />
 }
@@ -304,8 +311,8 @@ describe('a fake page + the real engine — the documented call order', () => {
   function makeSection(calls) {
     return validateSectionConfig({
       id: 'scan',
-      onTap: () => calls.push('tap'),
-      onDoubleTap: () => calls.push('doubleTap'),
+      onTap: (ctx) => calls.push(ctx ? 'tap' : 'tap:BAD-ARITY'),
+      onDoubleTap: (ctx) => calls.push(ctx ? 'doubleTap' : 'doubleTap:BAD-ARITY'),
       // Context-first: the section asserts it RECEIVES ctx, so a regression to the
       // one-argument form fails here rather than silently on a real page.
       onScrub: (ctx, s) => calls.push(ctx && s ? `scrub:${s.axis}` : 'scrub:BAD-ARITY'),
