@@ -1100,6 +1100,7 @@ function ChartToolbar({
   const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
   const favBtnRef = useRef(null)
   const DRAW_TOOL_LIST = useMemo(() => TOOLS.filter(t => t !== 'sep'), [])
+
   // The floating favorites toolbar PORTALS to <body>, so it can't inherit the
   // chart-scoped --chart-toolbar-* vars. Compute the exact toolbar-button colours
   // from the canvas here (same helper StockChart uses) and pass them as props so
@@ -1268,7 +1269,11 @@ function ChartToolbar({
     <>
     <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={hiddenHost ? { display: 'none' } : prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
-      {/* Separators removed — every button is evenly spaced by the flex `gap`. */}
+      {/* Every button is evenly spaced by the flex `gap`. TOOLS still carries its
+          'sep' markers and DRAW_TOOL_LIST still drops them: V2 tried rendering them
+          as ~6px of breathing room between lines / shapes / studies / annotation,
+          and the owner's call on the real chart was that the even row reads better.
+          One rhythm the whole way across. */}
       <div className={styles.tools}>
         {(toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => (
           <button
@@ -1313,7 +1318,7 @@ function ChartToolbar({
             aria-label={magnet ? 'Magnet: on' : 'Magnet: off'}
             style={{ fontSize: '13px' }}
           >
-            <UIcon name="magnet" size={15} />
+            <UIcon name="magnet" size={15} gold={false} strokeWidth={1.82} />
           </button>
         )}
 
@@ -1351,7 +1356,7 @@ function ChartToolbar({
               title={`OHLCV legend: ${STATE[mode]} — click for ${NEXT_LABEL[mode]}`}
               aria-label={`OHLCV legend: ${STATE[mode]}`}
             >
-              <UIcon name={ICON[mode]} size={14} />
+              <UIcon name={ICON[mode]} size={14} gold={false} strokeWidth={1.95} />
             </button>
           )
         })()}
@@ -1481,7 +1486,7 @@ function ChartToolbar({
             aria-label="Indicator alerts"
             disabled={!currentSym}
           >
-            <UIcon name="bell" size={14} />
+            <UIcon name="bell" size={14} gold={false} strokeWidth={1.95} />
           </button>
           {alertPopoverOpen && currentSym && (
             <IndicatorAlertPopover
@@ -1510,7 +1515,7 @@ function ChartToolbar({
             onClick={() => { setLibraryOpen(true); closeOthers(null) }}
             title="Indicators — browse and add"
           >
-            <UIcon name="breadth" size={14} /> Indicators
+            <UIcon name="breadth" size={14} gold={false} strokeWidth={1.95} /> Indicators
           </button>
         )}
 

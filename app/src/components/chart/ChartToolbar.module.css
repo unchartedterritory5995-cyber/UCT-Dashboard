@@ -34,10 +34,16 @@
      0.75 keeps the "findable without shouting" intent — it is still visibly
      secondary and still steps to full on hover — while leaving the label readable
      at rest on BOTH canvases. */
-  opacity: 0.75;
-  transition: opacity 0.2s;
-}
-.toolbar:hover {
+  /* VISUAL V2 -- THE GROUP DIMMER IS GONE, AND THAT IS THE WHOLE REDESIGN.
+     A single `opacity` on the row dims the ICONS and their BOXES together, so
+     every attempt to make a tool more legible also made its box more visible.
+     Measured on the default #0e0f0d canvas it put the resting icon at #827D6F
+     (4.68:1) and -- worse -- the ARMED tool at 5.15:1, DIMMER than a merely
+     hovered one at 8.36:1: the selected state was losing to hover.
+     Brightness now lives on the INK (--chart-cmd-icon, ~6.5:1 at rest) and the
+     surface appears only under interaction. That is what lets the row read
+     quieter and be easier to see at the same time -- fewer edges, brighter
+     glyphs -- instead of trading one against the other. */
   opacity: 1;
 }
 
@@ -104,12 +110,16 @@
   justify-content: center;
   border: none;
   border-radius: 3px;
-  /* One small step AWAY from the canvas so controls are findable without shouting.
-     --chart-toolbar-* is published by StockChart from the canvas color, so the step
-     goes lighter on a dark canvas and darker on a light one; the literals below are
-     the original dark values, kept as fallbacks. */
-  background: var(--chart-toolbar-bg, rgba(26, 28, 23, 0.85));
-  color: var(--chart-toolbar-text, #a8a290);
+  /* NO PERMANENT SURFACE. Each control used to carry its own box one step off
+     the canvas; twenty of them in a row is what made the drawing tools read as a
+     strip of keyboard keys. At rest the row is now ink on the chart, and the
+     button's boundary is drawn by the act of reaching for it.
+     --chart-cmd-* is published by StockChart from the CANVAS colour (see
+     commandBarFor), so a white chart inside the dark app still gets dark icons;
+     the literals are the dark-canvas values, kept as fallbacks for any host that
+     does not publish them. */
+  background: transparent;
+  color: var(--chart-cmd-icon, #989791);
   cursor: pointer;
   padding: 0;
   /* width/opacity/margin are animated so show/hide of a drawing tool collapses
@@ -130,11 +140,21 @@
   pointer-events: none;
 }
 .btn:hover {
-  background: var(--chart-toolbar-bg-hover, rgba(46, 49, 39, 0.95));
-  color: var(--chart-toolbar-text-hover, #e2dfd6);
+  background: var(--chart-cmd-surface-hover, rgba(255, 255, 255, 0.07));
+  color: var(--chart-cmd-icon-hover, #c8c7c0);
 }
+/* Pressed reads as a firmer version of the same surface -- no scale, no bounce.
+   This is a trading workstation. */
+.btn:active:not(:disabled) {
+  background: var(--chart-cmd-surface-pressed, rgba(255, 255, 255, 0.12));
+}
+/* CLEARLY SUBDUED, NOT GONE. The shipped rule multiplied 0.25 by the row's own
+   0.75 and composited to 1.34:1 -- an undo arrow you cannot find is not
+   "disabled", it is missing. This is an explicit ink (~2.4:1): plainly
+   unavailable, still legibly a control. */
 .btn:disabled {
-  opacity: 0.25;
+  background: transparent;
+  color: var(--chart-cmd-icon-disabled, #51514d);
   cursor: default;
   pointer-events: none;
 }
@@ -168,17 +188,36 @@
   pointer-events: none;
 }
 
+/* THE ARMED TOOL. Gold ink on a warm-tinted charcoal, plus ONE restrained
+   inset edge -- not icon + fill + border + glow stacked together. Gold means
+   "selected / important" in UCT, so it stays scarce: the surface is 0.12 alpha,
+   the recognition comes from the ink.
+   THE EDGE IS `inset`, SO THE BOX NEVER GROWS. A real border here would add
+   2px and shove every tool to its right by two pixels on selection. */
 .btn.active {
-  background: rgba(220, 187, 94, 0.25);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1px rgba(220, 187, 94, 0.4);
+  background: var(--chart-cmd-surface-active, rgba(220, 187, 94, 0.12));
+  color: var(--chart-cmd-icon-active, #dcbb5e);
+  box-shadow: inset 0 0 0 1px var(--chart-cmd-edge-active, rgba(220, 187, 94, 0.3));
 }
+/* Hovering the already-armed tool lifts the surface, never the gold -- so the
+   selected state cannot be confused with a hover on its neighbour. */
+.btn.active:hover {
+  background: var(--chart-cmd-surface-pressed, rgba(255, 255, 255, 0.12));
+  color: var(--chart-cmd-icon-active, #dcbb5e);
+}
+
 .btn.danger:not(:disabled):hover {
   background: rgba(239, 68, 68, 0.25);
   color: var(--loss);
 }
 
-/* ── Separator ── */
+/* ── Separator ──
+   UNUSED. Nothing has rendered `styles.sep` since the vertical rules were
+   pulled, and Visual V2 did not bring them back in any form: V2 tried the softer
+   version -- ~6px of breathing room on the group boundaries TOOLS already
+   declares -- and the owner's call on the real chart was that ONE EVEN RHYTHM
+   reads better than a row divided into five. Left in place because it is inert
+   and removing it is not this pass's business. */
 .sep {
   width: 1px;
   height: 14px;
@@ -700,6 +739,11 @@
   font-size: 11px;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  /* IT KEEPS ITS WIDTH -- it has a caption, and a caption needs room; that is a
+     semantic difference, not an inconsistency. What it gives up is EXTRA weight:
+     it wears the same resting ink, the same hover surface and the same open/active
+     gold as every icon-only control, so the one labelled button on the row stops
+     reading as the row's headline. */
 }
 
 /* ── "Manage indicators →" — the launcher that replaced fifteen checkbox rows
