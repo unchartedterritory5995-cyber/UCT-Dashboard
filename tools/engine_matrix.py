@@ -3,6 +3,15 @@
     python tools/engine_matrix.py                 # every engine
     python tools/engine_matrix.py --only firefox
     python tools/engine_matrix.py --self-check
+    python tools/engine_matrix.py --dry-run       # READ-ONLY rig proof, writes nothing
+
+⛔⛔ THE PROFILE PATH IS AN OVERRIDE, NOT A DISCOVERY — pass `--profile` (or set
+`UCT_Q1_RIG_PROFILE`) whenever this runs from any worktree but the main one. The
+default resolves against THIS COPY's repo root, and a second worktree's
+`.worktrees/` is empty; an empty profile is a signed-out one and there is no
+credentials file anywhere that could sign it back in. The Edge rig is DERIVED
+from the Chromium one (`<rig>-edge`, its sibling) so one flag moves both and
+there is never a second authority over where the rigs live.
 
 WHY ENGINES AND NOT DAYS. The offline layer stands on three platform primitives
 that differ per engine, not per day: **IndexedDB**, **Web Locks**, and
@@ -30,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -56,9 +66,48 @@ PROD = w.PROD
 ACCOUNT_ID = w.ACCOUNT_ID
 FLAG_KEY = w.FLAG_KEY
 SENTINEL = "ENGINE-MATRIX"
-EDGE = pathlib.Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe")
-EDGE_PROFILE = w.ROOT / ".worktrees" / "canary-chrome-profile-persistent-edge"
-EDGE_MARKER = "canary-chrome-profile-persistent-edge"
+EDGE_CANDIDATES = (
+    pathlib.Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
+    pathlib.Path(r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"),
+)
+EDGE = next((p for p in EDGE_CANDIDATES if p.exists()), EDGE_CANDIDATES[0])
+
+# ⭐ THE EDGE RIG IS DERIVED FROM THE CHROMIUM RIG, never typed a second time.
+# `<rig>-edge` beside `<rig>` means one `--profile` moves both, the two can never
+# disagree about which worktree they live in, and the sibling relationship is
+# mechanically checkable (`edge_profile_is_sibling`). With nothing overridden this
+# resolves to exactly the path this file used before: ROOT/.worktrees/<rig>-edge.
+EDGE_PROFILE_ENV = "UCT_Q1_EDGE_PROFILE"
+EDGE_SUFFIX = "-edge"
+
+
+def resolve_edge_profile(cli: str | None = None) -> pathlib.Path:
+    """CLI beats env beats `<the chromium rig>-edge`. Blank is absent at every level."""
+    for raw in ((cli or ""), os.environ.get(EDGE_PROFILE_ENV, "") or ""):
+        raw = raw.strip()
+        if raw:
+            return pathlib.Path(raw).expanduser().resolve()
+    return w.PROFILE.parent / (w.PROFILE.name + EDGE_SUFFIX)
+
+
+def edge_profile_is_sibling(edge_profile=None) -> bool:
+    """⛔ The one structural check that keeps the Edge rig from being created in
+    whatever worktree happens to be current: it must sit BESIDE the Chromium rig."""
+    p = pathlib.Path(edge_profile if edge_profile is not None else EDGE_PROFILE)
+    return p.parent == pathlib.Path(w.PROFILE).parent
+
+
+def use_edge_profile(path) -> pathlib.Path:
+    """Move the Edge profile and its derived kill marker as ONE."""
+    global EDGE_PROFILE, EDGE_MARKER
+    p = pathlib.Path(path)
+    EDGE_MARKER = w.marker_for(p)      # ⛔ refuse a generic marker BEFORE moving anything
+    EDGE_PROFILE = p
+    return EDGE_PROFILE
+
+
+EDGE_PROFILE = w.PROFILE.parent / (w.PROFILE.name + EDGE_SUFFIX)
+EDGE_MARKER = EDGE_PROFILE.name
 
 
 def utc() -> str:
@@ -88,17 +137,92 @@ CAPS_JS = """async (acct) => {
 }"""
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ENGINE LABELS — ⛔ A ROW NAME IS A CLAIM ABOUT A PLATFORM.
+# ══════════════════════════════════════════════════════════════════════════════
+# Owner rulings, 2026-09-10. Three of these five rows would otherwise be read as
+# something they are not, and this repo has been bitten specifically by names that
+# outlived their wiring ("ON THE TAPE", `upload_unlisted`). The label is what is
+# printed AND what goes in the artifact, so a table copied out of either carries
+# the caveat with it.
+#
+#   · `mobile` is Playwright's iPhone 13 DESCRIPTOR on a CHROMIUM engine. The UA
+#     string reads "iPhone … Safari" and the engine is not Safari. The lane stays
+#     Chromium — it is the Android-shaped answer, a real member configuration
+#     nothing else in the matrix covers — but "mobile ✅" beside an iPhone UA is a
+#     claim about a platform we did not test.
+#   · Edge on this box is Chromium 119, ~2 years behind the Chrome rig's 152.
+#     That is the MORE valuable storage lane (a stale corporate Edge is a real
+#     member), and it must never read as "current Edge passes".
+#   · WebKit is Playwright's build, not Safari on a device. A real-Safari claim is
+#     a DEVICE claim and no local suite can make one.
+IOS_NOTE = ("the iOS-shaped answer is the `webkit` row; `mobile-chromium` is "
+            "Android-shaped and is NOT iOS")
+
+
+def edge_version() -> str:
+    """⛔ MEASURED off the binary, never typed — the whole point of the label."""
+    global _EDGE_VER
+    if _EDGE_VER is None:
+        try:
+            _EDGE_VER = (_ps(f"(Get-Item '{EDGE}').VersionInfo.ProductVersion").strip()
+                         or "version unreadable")
+        except Exception:  # noqa: BLE001
+            _EDGE_VER = "version unreadable"
+    return _EDGE_VER
+
+
+_EDGE_VER = None
+ENGINE_IDS = ("chromium-rig", "edge", "firefox", "webkit", "mobile-chromium")
+# ⭐ `mobile` still resolves, so nothing that typed the old name breaks — but the
+# OUTPUT and the artifact always carry the new label.
+ENGINE_ALIASES = {"mobile": "mobile-chromium"}
+
+
+def engine_label(engine_id: str) -> str:
+    base = engine_id.split("/", 1)[0]
+    suffix = engine_id[len(base):]
+    label = {
+        "chromium-rig": "chromium-rig (real Chrome, the signed-in rig profile)",
+        "edge": f"edge ({edge_version()} — Chromium 119-era; NOT current Edge)",
+        "firefox": "firefox (Gecko)",
+        "webkit": "webkit (Playwright WebKit — NOT Safari on a real device)",
+        "mobile-chromium": "mobile-chromium (Android-shaped; NOT iOS)",
+    }.get(base, base)
+    return label + suffix
+
+
+def resolve_engine(name: str) -> str:
+    n = (name or "").strip()
+    return ENGINE_ALIASES.get(n, n)
+
+
+_QUIET = False
+
+
 class Result:
     def __init__(self, engine):
-        self.engine = engine
+        # ⛔ THE LABEL IS THE NAME EVERYWHERE IT IS READ — printed row, artifact
+        # key, any table copied out of either. Keeping a bare `mobile` anywhere a
+        # human or a later script can read it is how the caveat gets lost.
+        self.id = engine
+        self.engine = engine_label(engine)
         self.steps = []
         self.findings = []
         self.caps = {}
+        self.facts = {}
 
-    def step(self, name, ok, detail=""):
+    def step(self, name, ok, detail="", error=None):
+        # ⭐ Same shape as `window_check.Check.add`: the failing branch gets to say
+        # something DIFFERENT from the passing one. A row that renders the success
+        # sentence beside a red is how a reader mis-reads which half fired.
+        detail = detail if (ok or error is None) else error
         self.steps.append((name, bool(ok), detail))
-        flag = "ok  " if ok else "FAIL"
-        print(f"    {flag} {name}: {detail}", flush=True)
+        # ⛔ QUIET ONLY IN --self-check, where several cases are SUPPOSED to go
+        # red. Printing their reds beside the real ones makes a passing self-check
+        # read like a broken run — the evidence, not the verdict, is what confuses.
+        if not _QUIET:
+            print(f"    {'ok  ' if ok else 'FAIL'} {name}: {detail}", flush=True)
         return ok
 
     @property
@@ -346,14 +470,560 @@ def session_cookie_from_rig() -> dict:
         w.teardown(None)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# THE DRY RUN — READ-ONLY. Five engines, five proofs each, nothing created.
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# What it is for: every later green in this wave rests on four things being true
+# of the engine that produced it — it is signed in, its offline emulation is
+# REAL, its session came from the rig and nowhere else, and its Web Locks answer
+# is the truth rather than an assumption. An engine whose `set_offline` silently
+# no-ops would report a full green matrix while never once going offline.
+#
+# ⛔ NOTHING IS WRITTEN TO THE ACCOUNT. No note is created, nothing is typed, the
+# opt-in key is READ and never set, and the note count is re-read at the end
+# against the count read at the start.
+
+DRY_ENGINES = ENGINE_IDS
+LOCK_PROBE_NAME = "uct.q1.dryrun.probe"   # ⛔ never `uct.nb.sync.*` — see below
+
+# ⛔ EVERY PAGE-SIDE CALL HERE IS A READ. GET /api/auth/me · GET /api/j2/notes ·
+# capability reads off `navigator` · localStorage GET. The lock probe takes a
+# lock under its OWN name and releases it immediately: naming it `uct.nb.sync.*`
+# would contend with the product's own leader election and make the rig a
+# participant in the thing it is measuring.
+DRY_READ_JS = """async (flagKey) => {
+  const out = {authStatus: null, authId: null, notes: null, optInKey: null,
+               locks: typeof navigator.locks !== 'undefined',
+               locksRequestWorks: null,
+               idb: typeof indexedDB !== 'undefined',
+               isSecureContext: !!window.isSecureContext,
+               onLine: navigator.onLine,
+               ua: navigator.userAgent};
+  const me = await fetch('/api/auth/me', {credentials:'include'});
+  out.authStatus = me.status;
+  try { const b = await me.json(); out.authId = b?.user?.id ?? b?.id ?? null } catch { }
+  try {
+    const l = await fetch('/api/j2/notes?limit=300', {credentials:'include'});
+    out.notes = l.ok ? ((await l.json()).notes || []).length : 'HTTP ' + l.status;
+  } catch (e) { out.notes = 'ERR: ' + e.name }
+  try { out.optInKey = localStorage.getItem(flagKey) }
+  catch (e) { out.optInKey = 'ERR: ' + e.name }
+  try {
+    await navigator.locks.request('%LOCK%', {mode:'exclusive'}, async () => {});
+    out.locksRequestWorks = true;
+  } catch (e) { out.locksRequestWorks = 'ERR: ' + e.name }
+  return out;
+}""".replace("%LOCK%", LOCK_PROBE_NAME)
+
+AUTH_ONLY_JS = """async () => {
+  const r = await fetch('/api/auth/me', {credentials:'include'});
+  let b = null; try { b = await r.json() } catch { }
+  return {status: r.status, id: b?.user?.id ?? b?.id ?? null};
+}"""
+
+
+def _ps(cmd: str) -> str:
+    r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return r.stdout or ""
+
+
+def edge_processes() -> list:
+    """Edge BROWSER processes carrying the Edge rig marker (no `--type=` children)."""
+    out = _ps("Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | "
+              "Where-Object { $_.CommandLine -like '*" + EDGE_MARKER + "*' "
+              "-and $_.CommandLine -notlike '*--type=*' } | "
+              "ForEach-Object { $_.ProcessId.ToString() }")
+    return [int(x) for x in out.split() if x.strip().isdigit()]
+
+
+def kill_edge_by_marker() -> int:
+    """⛔ By MARKER, never by name. `Stop-Process -Name msedge` would close the
+    owner's Edge along with the rig's."""
+    out = _ps("$c = Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | "
+              "Where-Object { $_.CommandLine -like '*" + EDGE_MARKER + "*' }; "
+              "($c | Measure-Object).Count; "
+              "$c | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
+    first = (out.strip().splitlines() or ["0"])[0]
+    try:
+        return int(first)
+    except ValueError:
+        return 0
+
+
+def playwright_processes() -> list:
+    """Every Playwright-managed browser runs out of the `ms-playwright` install.
+
+    ⛔ Counting by EXE NAME would sweep the owner's own Chrome into the number —
+    Playwright's chromium is also `chrome.exe`. The install path cannot.
+
+    ⛔⛔ AND IT MATCHES ON `ExecutablePath`, NOT `CommandLine`. The first version
+    matched command lines, and the very PowerShell process running the query has
+    `*ms-playwright*` in ITS command line — so the sweep counted the instrument,
+    reported one browser "left behind" after a clean run, and named `powershell.exe`
+    as the leak. A probe whose needle appears in the probe cannot see past itself
+    (`lesson_an_instrument_can_reproduce_its_own_blind_spot`). `ExecutablePath` is
+    the identity of the BINARY and is not a string this query carries.
+    """
+    out = _ps("Get-CimInstance Win32_Process | "
+              "Where-Object { $_.ExecutablePath -like '*ms-playwright*' } | "
+              "ForEach-Object { $_.ProcessId.ToString() + '|' + $_.Name }")
+    return sorted(line.strip() for line in out.splitlines() if "|" in line)
+
+
+def _write_json(path: pathlib.Path, payload: dict) -> None:
+    """⛔ temp-then-replace: `open('w')` truncates BEFORE your write can fail, and
+    a half-written results file reads like a run that found nothing."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def prove_offline_both_ways(page, set_offline, res: Result) -> dict:
+    """⛔⛔ AN ENGINE WHOSE OFFLINE EMULATION SILENTLY NO-OPS MAKES EVERY LATER
+    GREEN MEANINGLESS — the run would report "offline, typed, reconnected" having
+    never left the network. So each direction carries its own positive control:
+
+      online→offline : the SAME fetch must SUCCEED first (proving the probe can
+                       succeed at all, i.e. it is not simply a broken request)
+                       and then FAIL.
+      offline→online : the failure is the control that emulation engaged, and the
+                       fetch must then SUCCEED AGAIN (proving the engine can also
+                       come BACK — an engine stuck offline fails just as silently).
+
+    Same URL, same options, same page in all three states, so a failure for an
+    unrelated reason (DNS, CORS, a dead origin) cannot masquerade as offline.
+    """
+    facts = {}
+    before = page.evaluate(PROBE)
+    facts["probe_online_before"] = before
+    ok_before = res.step("control · a fetch that MUST succeed while online",
+                         before.startswith("ONLINE"), before)
+
+    set_offline(True)
+    page.wait_for_timeout(1400)
+    during = page.evaluate(PROBE)
+    facts["probe_offline"] = during
+    facts["navigator_onLine_offline"] = page.evaluate("() => navigator.onLine")
+    ok_off = res.step("offline is REAL · the same fetch must now FAIL",
+                      during.startswith("FAILED"),
+                      f"{during} · navigator.onLine={facts['navigator_onLine_offline']}")
+
+    set_offline(False)
+    page.wait_for_timeout(1600)
+    after = page.evaluate(PROBE)
+    facts["probe_online_after"] = after
+    facts["navigator_onLine_after"] = page.evaluate("() => navigator.onLine")
+    ok_after = res.step("control · it must SUCCEED AGAIN after coming back",
+                        after.startswith("ONLINE"),
+                        f"{after} · navigator.onLine={facts['navigator_onLine_after']}")
+
+    facts["offline_proven_both_ways"] = bool(ok_before and ok_off and ok_after)
+    return facts
+
+
+def _dry_reads(page, res: Result, engine: str) -> dict:
+    r = page.evaluate(DRY_READ_JS, FLAG_KEY)
+    res.caps = {"locks": r.get("locks"), "locksRequestWorks": r.get("locksRequestWorks"),
+                "idb": r.get("idb"), "isSecureContext": r.get("isSecureContext")}
+    res.step("AUTH · /api/auth/me is 200 for the canary",
+             r.get("authStatus") == 200 and r.get("authId") == ACCOUNT_ID,
+             f"{r.get('authStatus')} · id={'canary' if r.get('authId') == ACCOUNT_ID else r.get('authId')}")
+    res.step("WEB LOCKS recorded (not assumed)",
+             r.get("locks") is not None,
+             f"navigator.locks {'PRESENT' if r.get('locks') else 'ABSENT'} · "
+             f"request() {r.get('locksRequestWorks')}")
+    # ⭐ READ, NEVER WRITTEN. The flag stays OFF and no opt-in is performed here.
+    # ⛔ A key found already SET is a fact about the RIG, not about the engine —
+    # so it is raised as a named finding and LEFT ALONE. Clearing it would be a
+    # write, and it would destroy the evidence that something set it.
+    key = r.get("optInKey")
+    key_ok = key in (None, "0")
+    res.step("the opt-in key is unset/'0' at rest (the flag stays OFF)", key_ok,
+             f"{FLAG_KEY} = {key!r}",
+             f"{FLAG_KEY} = {key!r} — this profile is ALREADY OPTED IN; the dry run "
+             "does not change it")
+    if not key_ok:
+        res.findings.append(
+            f"`{engine}` carries `{FLAG_KEY}` = {key!r} AT REST — a per-browser "
+            "opt-in left behind by an earlier session, not set by this run. Left in "
+            "place deliberately: clearing it is a write, and it is evidence.")
+    res.step("the note list is readable",
+             isinstance(r.get("notes"), int), f"notes={r.get('notes')}")
+    return r
+
+
+def _cookie_provenance(ctx, page, res: Result, cookie: dict | None, engine: str) -> str:
+    """⛔ THE SESSION COMES FROM THE RIG'S OWN PROFILE OR IT DOES NOT COME AT ALL.
+
+    The control is the 401 BEFORE the install: a context that answers 401, then
+    200 after one cookie from the rig, cannot have picked up a session from any
+    other browser profile on this machine. Without that control a 200 proves only
+    that *something* authenticated it.
+    """
+    if cookie is None:
+        res.step("cookie source · the rig's OWN profile (no install needed)", True,
+                 "this IS the signed-in rig profile")
+        return "rig profile (its own stored session)"
+
+    ctx.clear_cookies()
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_timeout(2500)
+    anon = page.evaluate(AUTH_ONLY_JS)
+    res.step("control · with no cookie this engine is ANONYMOUS (401)",
+             anon.get("status") in (401, 403), f"/api/auth/me {anon.get('status')}")
+    ctx.add_cookies([cookie])
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_timeout(3000)
+    named = f"`{cookie['name']}` for {cookie['domain']} (value not printed)"
+    res.step(f"cookie source · installed from the RIG PROFILE ONLY", True, named)
+    return f"rig profile → {cookie['name']}@{cookie['domain']}"
+
+
+def _dry_pass(ctx, page, engine: str, cookie: dict | None, set_offline) -> Result:
+    res = Result(engine)
+    set_offline(False)
+    page.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+    page.wait_for_timeout(4000)
+    source = _cookie_provenance(ctx, page, res, cookie, engine)
+    reads = _dry_reads(page, res, engine)
+    res.facts = {"cookie_source": source,
+                 "notes": reads.get("notes"),
+                 "opt_in_key": reads.get("optInKey"),
+                 "user_agent": reads.get("ua"),
+                 **prove_offline_both_ways(page, set_offline, res)}
+    return res
+
+
+def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> int:
+    from playwright.sync_api import sync_playwright
+
+    engines = [only] if only else list(DRY_ENGINES)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"dry-run-{stamp}.json")
+    header = {"at": utc(), "mode": "dry-run", "certifying": False, "read_only": True,
+              "origin": PROD, "engines_planned": engines,
+              "rig_profile": str(w.PROFILE), "rig_marker": w.MARKER,
+              "edge_profile": str(EDGE_PROFILE), "edge_marker": EDGE_MARKER}
+    # ⛔ CLAIM THE RESULTS FILE FIRST. A run that dies must leave an explicit
+    # INCOMPLETE; a stale file from a previous run reads exactly like a pass.
+    _write_json(out, dict(header, status="INCOMPLETE — the run did not finish"))
+    print(f"rig profile : {w.PROFILE}\nedge profile: {EDGE_PROFILE}\nresults     : {out}\n", flush=True)
+
+    if not edge_profile_is_sibling():
+        print("⛔ the Edge rig is not a sibling of the Chromium rig — refusing to "
+              f"create a profile at {EDGE_PROFILE}", flush=True)
+        _write_json(out, dict(header, status="REFUSED — edge profile is not beside the chromium rig"))
+        return 1
+
+    pw_before = playwright_processes()
+    results, cookie, notes_first = [], None, None
+
+    # ── 1. THE RIG ITSELF. It runs first because it is the only signed-in
+    #       context, so it supplies both the session and the "before" count.
+    if "chromium-rig" in engines:
+        try:
+            proc, endpoint, version = w.spawn_rig()
+        except SystemExit as e:
+            # ⛔ The refusal is a RESULT, not a traceback: it is the guard against
+            # pointing the rig at an empty (⇒ signed-out) profile doing its job.
+            print(f"⛔ {e}", flush=True)
+            _write_json(out, dict(header, status=f"REFUSED — {e}"))
+            return 1
+        try:
+            if not version:
+                r = Result("chromium-rig"); r.step("rig", False, "CDP never answered")
+                results.append(r)
+            else:
+                print(f"\n{'=' * 70}\n  ENGINE: chromium-rig (real Chrome, the signed-in profile)\n{'=' * 70}", flush=True)
+                with sync_playwright() as pw:
+                    b = pw.chromium.connect_over_cdp(endpoint)
+                    ctx = b.contexts[0]
+                    page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                    cdp = page.context.new_cdp_session(page)
+                    cdp.send("Network.enable")
+                    r = _dry_pass(ctx, page, "chromium-rig", None, w._offliner(cdp))
+                    notes_first = r.facts.get("notes")
+                    for c in ctx.cookies():
+                        if c["name"] == "uct_session":
+                            cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                        "httpOnly", "secure", "sameSite") if k in c}
+                            break
+                    r.step("the session cookie was read out of the rig profile",
+                           cookie is not None,
+                           f"`uct_session` for {cookie['domain']} (value not printed)" if cookie else "not found")
+                    results.append(r)
+        finally:
+            killed, left, others, released, held = w.teardown(None)
+            rt = Result("chromium-rig/cleanup")
+            rt.step("rig browser terminated BY MARKER", not left,
+                    f"killed {killed} · 0 left · owner's browser {others} untouched")
+            rt.step("rig profile KEPT, lock released", released,
+                    f"`{w.PROFILE.name}` retained · lockfile/SingletonLock free",
+                    f"still held: {held}")
+            rt.facts = {"killed": killed, "survivors": left, "untouched_browsers": others,
+                        "lock_released": released, "lock_held": held,
+                        "profile_kept": w.PROFILE.exists()}
+            results.append(rt)
+
+    if cookie is None and [e for e in engines if e != "chromium-rig"]:
+        print("⛔ no session cookie from the rig — the other engines cannot be "
+              "authenticated from any other source, and will not be run.", flush=True)
+        _write_json(out, dict(header, status="STOPPED — no session cookie from the rig",
+                              engines=[_row(r) for r in results]))
+        return 1
+
+    # ── 2. EVERY OTHER ENGINE, each authenticated from that one cookie.
+    for name in [e for e in engines if e != "chromium-rig"]:
+        print(f"\n{'=' * 70}\n  ENGINE: {engine_label(name)}\n{'=' * 70}", flush=True)
+        browser = ctx = None
+        try:
+            with sync_playwright() as pw:
+                if name == "edge":
+                    EDGE_PROFILE.mkdir(parents=True, exist_ok=True)
+                    ctx = pw.chromium.launch_persistent_context(
+                        user_data_dir=str(EDGE_PROFILE), executable_path=str(EDGE),
+                        headless=False, args=["--no-first-run", "--no-default-browser-check"])
+                elif name == "firefox":
+                    browser = pw.firefox.launch(headless=True); ctx = browser.new_context()
+                elif name == "webkit":
+                    browser = pw.webkit.launch(headless=True); ctx = browser.new_context()
+                elif name == "mobile-chromium":
+                    # ⛔ CHROMIUM wearing an iPhone descriptor. Deliberate (owner,
+                    # 2026-09-10): it is the Android-shaped lane and nothing else
+                    # in the matrix covers it. The LABEL carries the caveat.
+                    browser = pw.chromium.launch(headless=True)
+                    ctx = browser.new_context(**pw.devices["iPhone 13"])
+                else:
+                    raise SystemExit(f"unknown engine `{name}`")
+                page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                r = _dry_pass(ctx, page, name, cookie, ctx.set_offline)
+                results.append(r)
+                try:
+                    ctx.close()
+                    if browser:
+                        browser.close()
+                except Exception:  # noqa: BLE001
+                    pass
+        except Exception as e:  # noqa: BLE001
+            r = Result(name); r.step("engine", False, f"{type(e).__name__}: {str(e)[:200]}")
+            results.append(r)
+        finally:
+            if name == "edge":
+                killed = kill_edge_by_marker()
+                time.sleep(2)
+                left = edge_processes()
+                released, held = w.profile_lock_released(timeout=30, profile=EDGE_PROFILE)
+                rt = Result("edge/cleanup")
+                rt.step("edge browser terminated BY MARKER", not left,
+                        f"swept {killed} · 0 left", f"survivors: {left}")
+                rt.step("edge profile KEPT, lock released", released,
+                        f"`{EDGE_PROFILE.name}` retained · lockfile/SingletonLock free",
+                        f"still held: {held}")
+                rt.facts = {"killed": killed, "survivors": left, "lock_released": released,
+                            "lock_held": held, "profile_kept": EDGE_PROFILE.exists()}
+                results.append(rt)
+
+    # ── 3. THE COUNT, RE-READ FROM A FRESH CONTEXT AT THE END.
+    notes_last, verify = None, Result("verify/read-only")
+    try:
+        with sync_playwright() as pw:
+            b = pw.chromium.launch(headless=True)
+            c = b.new_context(); c.add_cookies([cookie])
+            p = c.new_page()
+            p.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+            p.wait_for_timeout(3500)
+            rr = p.evaluate(DRY_READ_JS, FLAG_KEY)
+            notes_last = rr.get("notes")
+            verify.step("note count UNCHANGED across the whole run",
+                        notes_first is not None and notes_last == notes_first,
+                        f"before={notes_first} after={notes_last}")
+            verify.step("the baseline is still 32 notes", notes_last == 32, f"{notes_last}")
+            verify.facts = {"notes_before": notes_first, "notes_after": notes_last}
+            c.close(); b.close()
+    except Exception as e:  # noqa: BLE001
+        verify.step("note count re-read", False, f"{type(e).__name__}: {str(e)[:160]}")
+    results.append(verify)
+
+    # ── 4. NOTHING OF OURS IS LEFT RUNNING.
+    time.sleep(2)
+    pw_after = playwright_processes()
+    sweep = Result("cleanup/playwright")
+    sweep.step("every Playwright-managed browser is gone",
+               pw_after == pw_before,
+               f"{len(pw_before)} before · {len(pw_after)} after (matched by the "
+               "ms-playwright install path, so the owner's Chrome is never counted)",
+               f"left behind: {[p for p in pw_after if p not in pw_before]}")
+    sweep.facts = {"before": pw_before, "after": pw_after}
+    results.append(sweep)
+
+    print(f"\n{'=' * 70}\n  DRY RUN\n{'=' * 70}")
+    for r in results:
+        ok = sum(1 for _, o, _ in r.steps if o)
+        print(f"  {r.engine:58} {'✅' if r.green else '⛔'}  {ok}/{len(r.steps)} steps"
+              f"  locks={r.caps.get('locks')}")
+    # ⛔ The one sentence that stops the mobile row being read as an iOS result.
+    print(f"\n  ⭐ {IOS_NOTE}.")
+    green = all(r.green for r in results)
+    _write_json(out, dict(header, status="COMPLETE", green=green,
+                          reading_note=IOS_NOTE,
+                          notes_before=notes_first, notes_after=notes_last,
+                          engines=[_row(r) for r in results]))
+    print(f"\nartifact: {out}")
+    return 0 if green else 1
+
+
+# ═══ END OF THE READ-ONLY DRY RUN ════════════════════════════════════════════
+# ⛔ `--self-check`'s read-only sweep is bounded HERE, by name, not by "whatever
+# comes before `def main`". Everything ABOVE this line must contain no write of
+# any kind. `rig_opt_out` below is the ONE deliberate write this tool makes to
+# the rig profile, it is railed separately, and it only ever runs when asked.
+# ⭐ The boundary is a sentinel rather than the next `def` so that reordering the
+# file cannot silently move it — the first version of this sweep swallowed
+# `rig_opt_out` the moment it was added, which is the rail working.
+
+
+def rig_opt_out(out_path: pathlib.Path | None = None) -> int:
+    """⛔⛔ THE ONLY WRITE THIS TOOL EVER MAKES TO THE RIG PROFILE, on request only.
+
+    It sets ONE localStorage key back to `'0'`. Nothing else on that profile is
+    touched and the profile is never recreated.
+
+    ⭐ IT RECORDS THE BEFORE-VALUE FIRST, with a timestamp, so Phase 2 starts from
+    a DOCUMENTED state rather than a tidy one — tidying without recording destroys
+    the evidence that something set it.
+
+    ⛔ And it measures whether the value STICKS across a notebook mount. If the
+    app writes the key back, the rig can never opt out by localStorage alone and
+    that is a product finding, not a rig one. Those two look identical from the
+    outside, which is why this asks instead of assuming.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"rig-opt-in-key-{stamp}.json")
+    rec = {"at": utc(), "action": "restore the rig profile's opt-in key to '0'",
+           "profile": str(w.PROFILE), "key": FLAG_KEY,
+           "status": "INCOMPLETE — the run did not finish"}
+    _write_json(out, rec)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}", flush=True)
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+
+            # ── 1. READ AND RECORD, before touching anything. /dashboard, not the
+            #       notebook: mounting the notebook is what could change the value.
+            page.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+            first = page.evaluate(DRY_READ_JS, FLAG_KEY)
+            rec.update(observed_at_rest=first.get("optInKey"),
+                       observed_at=utc(), notes_before=first.get("notes"),
+                       auth_status=first.get("authStatus"))
+            _write_json(out, dict(rec, status="RECORDED — before the write"))
+            print(f"observed at rest: {FLAG_KEY} = {first.get('optInKey')!r} "
+                  f"(notes={first.get('notes')})", flush=True)
+
+            # ── 2. THE WRITE, read back immediately.
+            wrote = page.evaluate(
+                "(k) => { try { localStorage.setItem(k, '0'); return localStorage.getItem(k) }"
+                "        catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY)
+            rec["after_write"] = wrote
+            print(f"after the write:  {FLAG_KEY} = {wrote!r}", flush=True)
+
+            # ── 3. DOES IT STICK? Mount the very page that could rewrite it. With
+            #      the key at '0' and OFFLINE_DEFAULT_ON false the layer stays
+            #      inert, so this is the safest state to ask the question in.
+            page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+            page.wait_for_timeout(9000)
+            after = page.evaluate(DRY_READ_JS, FLAG_KEY)
+            rec.update(after_notebook_mount=after.get("optInKey"),
+                       notes_after=after.get("notes"))
+            print(f"after a notebook mount: {FLAG_KEY} = {after.get('optInKey')!r}", flush=True)
+
+            rewritten = after.get("optInKey") == "1"
+            if rewritten:
+                rec["finding"] = (
+                    "THE APP REWROTE THE OPT-IN KEY. It was set to '0' and read back "
+                    "'1' after mounting /journal/notebook — the rig cannot opt out by "
+                    "localStorage alone, and this is a PRODUCT finding, not a rig one.")
+                print("\n\U0001f6a8 " + rec["finding"], flush=True)
+
+            # ── 4. Leave it at rest, off the notebook, and prove the final state.
+            page.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+            page.wait_for_timeout(3000)
+            page.evaluate("(k) => { try { localStorage.setItem(k, '0') } catch (e) {} }", FLAG_KEY)
+            final = page.evaluate(DRY_READ_JS, FLAG_KEY)
+            rec.update(final_at_rest=final.get("optInKey"), notes_final=final.get("notes"))
+            ok = (final.get("optInKey") == "0"
+                  and final.get("notes") == first.get("notes")
+                  and not rewritten)
+            _write_json(out, dict(rec, status="COMPLETE" if ok else "COMPLETE WITH A FINDING",
+                                  restored=final.get("optInKey") == "0"))
+            print(f"\nfinal at rest:    {FLAG_KEY} = {final.get('optInKey')!r} · "
+                  f"notes {first.get('notes')} → {final.get('notes')}")
+            print(f"artifact: {out}")
+            return 0 if ok else 1
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        print(f"teardown: killed {killed} by marker · {len(left)} left · "
+              f"owner's browser {others} untouched · lock released={released}", flush=True)
+
+
+def _row(r: Result) -> dict:
+    # ⛔ `engine` carries the LABEL. `engine_id` is beside it for machines; a
+    # reader who copies one row out of this file gets the caveat with it.
+    return {"engine": r.engine, "engine_id": r.id,
+            "green": r.green, "caps": r.caps, "facts": r.facts,
+            "steps": [{"name": n, "ok": o, "detail": d} for n, o, d in r.steps],
+            "findings": r.findings}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", default=None)
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument("--no-conflict", action="store_true")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="READ-ONLY: auth · offline both ways · cookie provenance · "
+                         "Web Locks · cleanup, per engine. Creates nothing.")
+    ap.add_argument("--rig-opt-out", action="store_true",
+                    help="record the rig profile's opt-in key, then restore it to '0' "
+                         "(the only write this tool makes to that profile)")
+    ap.add_argument("--out", default=None, help="where the results file goes")
+    ap.add_argument("--profile", default=None,
+                    help=f"absolute path to THE chromium rig profile (or ${w.PROFILE_ENV})")
+    ap.add_argument("--edge-profile", default=None,
+                    help=f"the Edge rig profile (or ${EDGE_PROFILE_ENV}); "
+                         "defaults to `<chromium rig>-edge`, its sibling")
+    ap.add_argument("--allow-new-profile", action="store_true",
+                    help="permit CREATING a missing chromium rig profile "
+                         "(a fresh profile is a signed-out one)")
     args = ap.parse_args()
+
+    w.ALLOW_NEW_PROFILE = bool(args.allow_new_profile)
+    w.use_profile(w.resolve_profile(args.profile))
+    use_edge_profile(resolve_edge_profile(args.edge_profile))
+
     if args.self_check:
         return self_check()
+    _out = pathlib.Path(args.out).resolve() if args.out else None
+    if args.rig_opt_out:
+        return rig_opt_out(_out)
+    if args.dry_run:
+        return dry_run(resolve_engine(args.only) if args.only else None, _out)
 
     from playwright.sync_api import sync_playwright
 
@@ -361,14 +1031,14 @@ def main() -> int:
     cookie = session_cookie_from_rig()
     print(f"  got `uct_session` for {cookie['domain']} (value not printed)\n", flush=True)
 
-    engines = ["edge", "firefox", "webkit", "mobile"]
+    engines = [e for e in ENGINE_IDS if e != "chromium-rig"]
     if args.only:
-        engines = [args.only]
+        engines = [resolve_engine(args.only)]
 
     results = []
     with sync_playwright() as pw:
         for name in engines:
-            print(f"\n{'=' * 70}\n  ENGINE: {name}\n{'=' * 70}", flush=True)
+            print(f"\n{'=' * 70}\n  ENGINE: {engine_label(name)}\n{'=' * 70}", flush=True)
             browser = ctx = None
             try:
                 if name == "edge":
@@ -386,7 +1056,10 @@ def main() -> int:
                 elif name == "webkit":
                     browser = pw.webkit.launch(headless=True)
                     ctx = browser.new_context()
-                elif name == "mobile":
+                elif name == "mobile-chromium":
+                    # ⛔ CHROMIUM under an iPhone descriptor — the Android-shaped
+                    # lane, deliberately (owner, 2026-09-10). NOT iOS; the label
+                    # says so wherever this row is read.
                     browser = pw.chromium.launch(headless=True)
                     ctx = browser.new_context(**pw.devices["iPhone 13"])
                 r = run_path(ctx, name, cookie)
@@ -410,17 +1083,16 @@ def main() -> int:
     findings = []
     for r in results:
         ok = sum(1 for _, o, _ in r.steps if o)
-        print(f"  {r.engine:22} {'✅' if r.green else '🚨' if r.findings else '⛔'}  {ok}/{len(r.steps)} steps"
+        print(f"  {r.engine:58} {'✅' if r.green else '🚨' if r.findings else '⛔'}  {ok}/{len(r.steps)} steps"
               f"  locks={r.caps.get('locks')}")
         findings += r.findings
+    print(f"\n  ⭐ {IOS_NOTE}.")
     if findings:
         print("\n🚨 FINDINGS")
         for f in findings:
             print("   -", f)
-    payload = {"at": utc(),
-               "engines": [{"engine": r.engine, "green": r.green, "caps": r.caps,
-                            "steps": [{"name": n, "ok": o, "detail": d} for n, o, d in r.steps],
-                            "findings": r.findings} for r in results]}
+    payload = {"at": utc(), "reading_note": IOS_NOTE,
+               "engines": [_row(r) for r in results]}
     out = w.ROOT / "docs" / "notebook" / "engine-matrix-result.json"
     out.write_text(json.dumps(payload, indent=1), encoding="utf-8")
     print(f"\nartifact: {out}")
@@ -428,6 +1100,8 @@ def main() -> int:
 
 
 def self_check() -> int:
+    global _QUIET
+    _QUIET = True                       # several cases below MUST go red; see Result.step
     src = pathlib.Path(__file__).read_text(encoding="utf-8")
     # ⛔ A SOURCE SWEEP THAT CAN MATCH ITS OWN NEEDLE PROVES NOTHING. Spelling
     # the forbidden pattern literally here would make this file contain it, and
@@ -450,6 +1124,242 @@ def self_check() -> int:
         ("a finding suppresses conflict cleanup", "if not res.findings" in src),
         ("the cookie is never printed", "value not printed" in src),
     ]
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE PROFILE-PATH OVERRIDE. ⛔ The bug it exists for: the default resolves
+    # against THIS COPY's repo root, so a second worktree points both rigs at its
+    # own empty `.worktrees/` — and an empty profile is a signed-out one.
+    # ══════════════════════════════════════════════════════════════════════════
+    _saved = (w.PROFILE, w.MARKER, EDGE_PROFILE, EDGE_MARKER,
+              os.environ.get(EDGE_PROFILE_ENV))
+    try:
+        os.environ.pop(EDGE_PROFILE_ENV, None)
+        w.use_profile(w.DEFAULT_PROFILE)
+        cases.append(("CONTROL: with nothing set, the Edge rig lands exactly where it used to",
+                      resolve_edge_profile(None)
+                      == w.ROOT / ".worktrees" / "canary-chrome-profile-persistent-edge"))
+        cases.append(("the Edge rig is DERIVED from the chromium rig, so ONE flag moves both",
+                      resolve_edge_profile(None).parent == w.DEFAULT_PROFILE.parent))
+        moved = pathlib.Path(os.environ.get("TEMP", ".")) / "canary-chrome-profile-persistent"
+        w.use_profile(moved)
+        cases.append(("…moving the chromium rig moves the Edge rig with it",
+                      resolve_edge_profile(None) == moved.parent / (moved.name + "-edge")))
+        env_e = moved.parent / "canary-chrome-profile-persistent-edge-env"
+        os.environ[EDGE_PROFILE_ENV] = str(env_e)
+        cases.append((f"${EDGE_PROFILE_ENV} overrides the derived path",
+                      resolve_edge_profile(None) == env_e.resolve()))
+        cli_e = moved.parent / "canary-chrome-profile-persistent-edge-cli"
+        cases.append(("--edge-profile beats the env var",
+                      resolve_edge_profile(str(cli_e)) == cli_e.resolve()))
+        cases.append(("a blank override is not an override",
+                      resolve_edge_profile("  ") == env_e.resolve()))
+        os.environ.pop(EDGE_PROFILE_ENV, None)
+
+        use_edge_profile(cli_e)
+        cases.append(("use_edge_profile moves the profile AND its kill marker together",
+                      EDGE_PROFILE == cli_e and EDGE_MARKER == cli_e.name))
+        cases.append(("the sibling check PASSES for a profile beside the rig",
+                      edge_profile_is_sibling(moved.parent / "canary-chrome-profile-persistent-edge")))
+        cases.append(("CONTROL: …and FAILS for one in some other worktree",
+                      not edge_profile_is_sibling(
+                          pathlib.Path("C:/somewhere/else/.worktrees/canary-chrome-profile-persistent-edge"))))
+        try:
+            use_edge_profile(moved.parent / "Default")
+            generic_refused = False
+        except SystemExit:
+            generic_refused = True
+        cases.append(("a GENERIC Edge profile name is refused as a kill marker", generic_refused))
+        cases.append(("…and the refusal happens BEFORE either global moves",
+                      EDGE_PROFILE == cli_e and EDGE_MARKER == cli_e.name))
+    finally:
+        os.environ.pop(EDGE_PROFILE_ENV, None)
+        if _saved[4] is not None:
+            os.environ[EDGE_PROFILE_ENV] = _saved[4]
+        w.PROFILE, w.MARKER = _saved[0], _saved[1]
+        globals()["EDGE_PROFILE"], globals()["EDGE_MARKER"] = _saved[2], _saved[3]
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE DRY RUN. Every control below can FAIL — each is driven with a case that
+    # is supposed to go red, because a rail nobody has seen fire is not a rail.
+    # ══════════════════════════════════════════════════════════════════════════
+    dry_src = src.split("# THE DRY RUN", 1)[-1].split("END OF THE READ-ONLY DRY RUN", 1)[0]
+
+    # ⛔ READ-ONLY IS A PROPERTY OF THE CODE, not of the operator's intention.
+    write_needles = ["method:'POST'", "method:'PUT'", "method:'DELETE'",
+                     "localStorage.setItem", "keyboard.type"]
+    cases.append(("the dry run contains no write of any kind",
+                  not any(n in dry_src for n in write_needles)))
+    cases.append(("CONTROL: the sweep can SEE a write when there is one",
+                  any(n in (dry_src + "localStorage.setItem") for n in write_needles)))
+    value_needle = "cookie[" + "'value']"
+    cases.append(("the dry run never reads the cookie VALUE out to anywhere",
+                  value_needle not in dry_src))
+    cases.append(("CONTROL: that sweep can see the value being touched",
+                  value_needle in (dry_src + value_needle)))
+    # ⛔ The sweep counted ITSELF on its first live run: the PowerShell process
+    # running the query carried `ms-playwright` in its command line and was
+    # reported as a browser left behind. Matched on the BINARY now, and driven.
+    cases.append(("the process sweep matches the BINARY, not a string it carries",
+                  "$_.ExecutablePath -like '*ms-playwright*'" in dry_src))
+    _live = playwright_processes()
+    cases.append(("CONTROL: the sweep does not count the instrument running it",
+                  not any(n.split("|", 1)[1].lower()
+                          in ("powershell.exe", "pwsh.exe", "python.exe", "cmd.exe",
+                              "conhost.exe", "node.exe")
+                          for n in _live)))
+    cases.append(("the lock probe uses its OWN name, never the product's",
+                  LOCK_PROBE_NAME.startswith("uct.q1.") and "uct.nb.sync." not in DRY_READ_JS))
+    cases.append(("the results file is CLAIMED before any engine opens",
+                  dry_src.index("INCOMPLETE") < dry_src.index("1. THE RIG ITSELF")))
+    # ⛔ The sweep's boundary is a NAMED sentinel — an implicit one ("everything
+    # before `def main`") swallowed `rig_opt_out` the moment it was written.
+    cases.append(("the read-only region is bounded by a named sentinel",
+                  "END OF THE READ-ONLY DRY RUN" in src and "def rig_opt_out" not in dry_src))
+    opt_src = src.split("def rig_opt_out", 1)[1].split("\ndef _row", 1)[0]
+    cases.append(("the ONE deliberate write is the flag key, and nothing else",
+                  opt_src.count("localStorage.setItem") == opt_src.count("(k, '0')")))
+    cases.append(("…and it records the BEFORE value before it writes",
+                  opt_src.index("observed_at_rest") < opt_src.index("2. THE WRITE")))
+    cases.append(("…and it asks whether the app writes the key back",
+                  "after_notebook_mount" in opt_src and "PRODUCT finding" in opt_src))
+    # ⛔ A SWEEP THAT CAN MATCH ITS OWN NEEDLE PROVES NOTHING — spelling the
+    # forbidden call literally here would make this file contain it. Same trap the
+    # `fetch =` sweep above sidesteps; this one caught itself on its first run.
+    del_needles = ["shutil." + "rmtree", "os." + "rmdir", ".unl" + "ink()"]
+    body = src.split("def self_check", 1)[0]
+    cases.append(("no profile is ever deleted by this tool",
+                  not any(n in body for n in del_needles)))
+    cases.append(("CONTROL: that sweep can see a delete when there is one",
+                  any(n in (body + del_needles[0]) for n in del_needles)))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE LABELS. ⛔ A row name is a claim about a platform, and three of these
+    # five would otherwise be read as something we did not test. Owner rulings,
+    # 2026-09-10. These are STRUCTURAL — the label is the artifact key — so they
+    # are railed here rather than left to a reviewer's eye.
+    # ══════════════════════════════════════════════════════════════════════════
+    cases.append(("every engine id has a label",
+                  all(engine_label(e) != e for e in ENGINE_IDS)))
+    cases.append(("⛔ the mobile lane cannot be read as iOS",
+                  "NOT iOS" in engine_label("mobile-chromium")
+                  and "mobile-chromium" in engine_label("mobile-chromium")))
+    cases.append(("…and the bare name `mobile` is gone from the id set",
+                  "mobile" not in ENGINE_IDS and "mobile-chromium" in ENGINE_IDS))
+    cases.append(("…but `--only mobile` still resolves, so nothing breaks",
+                  resolve_engine("mobile") == "mobile-chromium"
+                  and resolve_engine("webkit") == "webkit"))
+    cases.append(("⛔ webkit cannot be read as Safari on a device",
+                  "NOT Safari on a real device" in engine_label("webkit")))
+    cases.append(("⛔ edge cannot be read as current Edge",
+                  "NOT current Edge" in engine_label("edge")))
+    cases.append(("…and edge's version is MEASURED off the binary, never typed",
+                  "VersionInfo.ProductVersion" in src and "119.0" not in body))
+    cases.append(("the label reaches the ARTIFACT key, not just the screen",
+                  _row(Result("mobile-chromium"))["engine"] == engine_label("mobile-chromium")
+                  and _row(Result("mobile-chromium"))["engine_id"] == "mobile-chromium"))
+    cases.append(("a sub-row keeps its suffix AND its label",
+                  engine_label("mobile-chromium/cleanup").endswith("/cleanup")
+                  and "NOT iOS" in engine_label("mobile-chromium/cleanup")))
+    cases.append(("the iOS-shaped answer is named, in one sentence",
+                  "webkit" in IOS_NOTE and "NOT iOS" in IOS_NOTE))
+    cases.append(("…and that sentence is printed AND stored, not just defined",
+                  src.count("IOS_NOTE") >= 4))
+
+    # ── offline emulation, driven ────────────────────────────────────────────
+    class _P:
+        def __init__(self, probes):
+            self.probes, self.i = list(probes), 0
+
+        def wait_for_timeout(self, _ms):
+            pass
+
+        def evaluate(self, js, *_a):
+            if js.strip() == "() => navigator.onLine":
+                return None
+            v = self.probes[self.i]
+            self.i += 1
+            return v
+
+    def _offline_verdict(probes):
+        r = Result("t")
+        f = prove_offline_both_ways(_P(probes), lambda _f: None, r)
+        return f["offline_proven_both_ways"]
+
+    cases.append(("CONTROL: a healthy engine proves offline BOTH ways",
+                  _offline_verdict(["ONLINE 200", "FAILED: TypeError", "ONLINE 200"]) is True))
+    cases.append(("⛔ an engine whose offline emulation SILENTLY NO-OPS is caught",
+                  _offline_verdict(["ONLINE 200", "ONLINE 200", "ONLINE 200"]) is False))
+    cases.append(("⛔ an engine that cannot come BACK online is caught",
+                  _offline_verdict(["ONLINE 200", "FAILED: TypeError", "FAILED: TypeError"]) is False))
+    cases.append(("⛔ a probe that fails for its own reasons cannot pass as offline",
+                  _offline_verdict(["FAILED: TypeError", "FAILED: TypeError", "FAILED: TypeError"]) is False))
+
+    # ── cookie provenance, driven ────────────────────────────────────────────
+    class _Ctx:
+        def __init__(self):
+            self.calls = []
+
+        def clear_cookies(self):
+            self.calls.append("clear")
+
+        def add_cookies(self, _c):
+            self.calls.append("add")
+
+    class _CP:
+        def __init__(self, status):
+            self.status = status
+
+        def reload(self, **_k):
+            pass
+
+        def wait_for_timeout(self, _ms):
+            pass
+
+        def evaluate(self, _js, *_a):
+            return {"status": self.status, "id": None}
+
+    fake_cookie = {"name": "uct_session", "value": "never-printed", "domain": ".x"}
+    c1, r1 = _Ctx(), Result("t")
+    _cookie_provenance(c1, _CP(401), r1, fake_cookie, "t")
+    cases.append(("CONTROL: a context with no session answers 401, then takes the rig cookie",
+                  r1.green and c1.calls == ["clear", "add"]))
+    cases.append(("…and the cookie is cleared BEFORE it is installed, never after",
+                  c1.calls.index("clear") < c1.calls.index("add")))
+    c2, r2 = _Ctx(), Result("t")
+    _cookie_provenance(c2, _CP(200), r2, fake_cookie, "t")
+    cases.append(("⛔ an AMBIENT session from some other profile is caught, not credited",
+                  not r2.green))
+
+    # ── the per-engine reads, driven ─────────────────────────────────────────
+    class _R:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def evaluate(self, _js, *_a):
+            return dict(self.payload)
+
+    base_read = {"authStatus": 200, "authId": ACCOUNT_ID, "notes": 32, "optInKey": None,
+                 "locks": True, "locksRequestWorks": True, "idb": True,
+                 "isSecureContext": True, "onLine": True, "ua": "x"}
+
+    def _read_verdict(**over):
+        r = Result("t")
+        _dry_reads(_R({**base_read, **over}), r, "t")
+        return r
+
+    cases.append(("CONTROL: a signed-in engine at rest reads green", _read_verdict().green))
+    cases.append(("⛔ a 401 is caught", not _read_verdict(authStatus=401, authId=None).green))
+    cases.append(("⛔ a 200 for the WRONG account is caught",
+                  not _read_verdict(authId="someone-else").green))
+    cases.append(("⛔ an opt-in key that is SET is caught (the flag must stay OFF)",
+                  not _read_verdict(optInKey="1").green))
+    cases.append(("⛔ a note list that could not be read is caught",
+                  not _read_verdict(notes="HTTP 500").green))
+    cases.append(("Web Locks ABSENT is RECORDED, not failed — the truth, not an assumption",
+                  _read_verdict(locks=False, locksRequestWorks="ERR: TypeError").green))
+    cases.append(("…and the absence reaches the row",
+                  _read_verdict(locks=False, locksRequestWorks="ERR: TypeError").caps["locks"] is False))
+
     bad = 0
     for n, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {n}")

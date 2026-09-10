@@ -82,8 +82,88 @@ ACCOUNT_ID = "7a6d0299-fd98-4017-b8dc-51b849d1ab1d"
 # ⭐ The profile IS the marker: its path is in the spawned browser's command
 # line, so teardown can target it without ever guessing at a PID, and it cannot
 # match the owner's Chrome.
-PROFILE = ROOT / ".worktrees" / "canary-chrome-profile-persistent"
-MARKER = "canary-chrome-profile-persistent"
+#
+# ⛔⛔ THE PROFILE PATH IS AN OVERRIDE, NOT A DISCOVERY. `ROOT` is the repo root
+# of whichever WORKTREE holds this copy of the file, and every other worktree has
+# its own empty `.worktrees/` — so this default silently resolves to a DIFFERENT
+# directory the moment the tool is run from a second checkout, and a different
+# directory is a SIGNED-OUT one. There is no credentials file anywhere on this
+# machine, so nothing can sign a fresh profile back in. Pass `--profile` (or set
+# `UCT_Q1_RIG_PROFILE`) to the ONE canonical rig profile when running from
+# anywhere but the main worktree. The default below is byte-for-byte yesterday's
+# behaviour, so nothing that already worked changes.
+DEFAULT_PROFILE = ROOT / ".worktrees" / "canary-chrome-profile-persistent"
+PROFILE_ENV = "UCT_Q1_RIG_PROFILE"
+
+# ⛔ A MARKER IS A SUBSTRING MATCH OVER EVERY chrome.exe COMMAND LINE, and the
+# match decides what gets killed. A short or generic profile directory name would
+# match the OWNER'S browser, which this rig must never touch. So the marker is
+# DERIVED from the profile directory name and refused when it is not distinctive.
+MIN_MARKER_LEN = 12
+_GENERIC_MARKERS = {"user data", "default", "chrome", "profile", "profiles",
+                    "browser", "temp", "tmp", "data", "worktrees"}
+
+
+def marker_for(profile) -> str:
+    name = pathlib.Path(profile).name
+    if len(name) < MIN_MARKER_LEN or name.strip().lower() in _GENERIC_MARKERS:
+        raise SystemExit(
+            f"STOP: `{name}` is too generic to serve as a kill marker. The marker is "
+            "matched as a substring against every chrome.exe command line on this "
+            "machine, so a generic one would match — and kill — the owner's own browser."
+        )
+    return name
+
+
+def resolve_profile(cli: str | None = None) -> pathlib.Path:
+    """CLI beats env beats today's default. Absolute, so no worktree can move it.
+
+    ⛔ BLANK IS ABSENT AT EVERY LEVEL. A `--profile ""` chosen with `or` and then
+    consumed with truthiness is `lesson_chosen_with_nullish_consumed_with_truthiness`:
+    it would select the empty string, resolve it to the CWD, and point the rig at a
+    directory nobody named. Each level is stripped and skipped when empty.
+    """
+    for raw in ((cli or ""), os.environ.get(PROFILE_ENV, "") or ""):
+        raw = raw.strip()
+        if raw:
+            return pathlib.Path(raw).expanduser().resolve()
+    return DEFAULT_PROFILE
+
+
+def use_profile(profile) -> pathlib.Path:
+    """Point the rig at ONE profile. MARKER is derived, never typed a second time
+    (`lesson_a_second_authority_over_one_value`)."""
+    global PROFILE, MARKER
+    p = pathlib.Path(profile)
+    MARKER = marker_for(p)          # ⛔ refuse BEFORE either global moves
+    PROFILE = p
+    return PROFILE
+
+
+PROFILE = DEFAULT_PROFILE
+MARKER = DEFAULT_PROFILE.name
+
+# ⛔ A MISSING PROFILE IS NOT AN EMPTY ONE TO FILL IN. `mkdir` on a wrong path
+# yields a signed-out profile that nothing here can sign back in, and the run then
+# fails for a reason that looks like the product. Refuse, and name the fix.
+ALLOW_NEW_PROFILE = False
+
+
+def profile_refusal(profile, exists: bool, allow_new: bool) -> str | None:
+    """Pure, so `--self-check` can prove the refusal fires AND that it stays
+    silent for the canonical profile. Returns the refusal text, or None."""
+    if exists or allow_new:
+        return None
+    return (
+        f"STOP: no rig profile at {profile}\n"
+        "  \u26d4 A FRESH PROFILE IS A SIGNED-OUT PROFILE, and there is no credentials "
+        "file anywhere on this machine, so nothing can sign it back in.\n"
+        f"  Point the tool at the canonical rig profile (--profile <path>, or {PROFILE_ENV}=<path>), "
+        "or pass --allow-new-profile if you are deliberately creating one to sign in by hand "
+        "with --park."
+    )
+
+
 CHROME = pathlib.Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 
 ANCHOR = "## \U0001f4cb THE WINDOW-WATCH LOG"
@@ -307,7 +387,7 @@ def port_is_busy(port: int) -> bool:
         s.close()
 
 
-def profile_lock_released(timeout: int = 30) -> tuple:
+def profile_lock_released(timeout: int = 30, profile=None) -> tuple:
     """Can the NEXT run open this profile?
 
     ⛔ Chrome keeps `lockfile` (and `SingletonLock`) inside the user-data dir and
@@ -315,8 +395,13 @@ def profile_lock_released(timeout: int = 30) -> tuple:
     lock is still held means tomorrow's 09:00 run finds the profile busy and
     fails for a reason that has nothing to do with the product. So this waits and
     REPORTS, rather than assuming the kill was instantaneous.
+
+    ⚠️ `SingletonLock` is the POSIX name; on Windows the artifact is `lockfile`.
+    Both are checked so the answer is the same sentence on either platform.
+    `profile` defaults to the rig's, and is passed explicitly for the Edge rig.
     """
-    locks = [PROFILE / "lockfile", PROFILE / "SingletonLock"]
+    profile = PROFILE if profile is None else pathlib.Path(profile)
+    locks = [profile / "lockfile", profile / "SingletonLock"]
     deadline = time.time() + timeout
     while True:
         held = []
@@ -617,7 +702,11 @@ def spawn_rig():
     """Launch Chrome on the PERSISTENT profile and return (proc, endpoint)."""
     if not CHROME.exists():
         raise SystemExit(f"STOP: no Chrome at {CHROME}")
+    refusal = profile_refusal(PROFILE, PROFILE.exists(), ALLOW_NEW_PROFILE)
+    if refusal:
+        raise SystemExit(refusal)
     PROFILE.mkdir(parents=True, exist_ok=True)
+    print(f"rig profile: {PROFILE}  · marker `{MARKER}`", flush=True)
     released, held = profile_lock_released(timeout=5)
     if not released:
         raise SystemExit(
@@ -822,12 +911,66 @@ def _put_baseline(req):
         return "<unreadable>"
 
 
-def _mini_canary(chk: Check, page, offline, puts) -> str | None:
-    """The §15 happy path, every day, artifact captured at every step."""
+def opt_out(page) -> tuple:
+    """Put the browser back to opted-OUT, and READ IT BACK. Returns (ok, value).
+
+    ⛔⛔ THIS USED TO LIVE INSIDE THE CLEANUP BLOCK, WHICH IS THE ONE BRANCH THAT
+    DOES NOT ALWAYS RUN. Three ways to skip it, and the log has two of them:
+
+      · `if not should_clean_up(chk.findings): return` — cleanup is skipped ON
+        PURPOSE when a finding is on the account, so a run that FOUND something
+        also left the profile opted in;
+      · the `2 create a note` early return, above it and unconditional —
+        `check 11`, 2026-09-10T13:47:22Z, opted in at step 0 and returned;
+      · any exception in between: there was no `finally` at all.
+
+    ⭐ PRESERVING EVIDENCE AND STAYING OPTED IN ARE TWO DIFFERENT DECISIONS, and
+    they were one branch. The note and the stores are evidence and must survive;
+    the browser's opt-in is RIG STATE, and leaving it set silently changes what
+    the next run measures — an opt-in counted per distinct profile is meaningless
+    if one profile starts already opted in.
+
+    ⛔ It reads the value BACK. A cleanup that cannot say whether it happened is
+    the shape of the defect this whole wave keeps re-finding.
+    ⭐ And it uses FLAG_KEY. The old line spelled `'uct.j2.offline.enabled'` in
+    the JS while the opt-in passed FLAG_KEY — two authorities over one value that
+    agreed only by luck.
+    """
+    try:
+        got = page.evaluate(
+            "(k) => { try { localStorage.setItem(k, '0'); return localStorage.getItem(k) }"
+            "        catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY)
+    except Exception as e:  # noqa: BLE001
+        got = f"ERR: {type(e).__name__}"
+    return got == "0", got
+
+
+def _mini_canary(chk: Check, page, offline, puts, body=None) -> str | None:
+    """Opt in, run the §15 path, and opt back out — WHATEVER happened in between.
+
+    ⭐ The `body` seam exists so `--self-check` can drive the REAL control flow
+    (an early return, an exception) instead of restating it. A rail that asserts
+    "there is a finally" proves nothing about whether the finally does the work;
+    this one makes the body return early and makes it raise, and watches.
+    """
     chk.canary_ran = True
+    page.evaluate("(k) => localStorage.setItem(k, '1')", FLAG_KEY)
+    try:
+        return (body or _canary_body)(chk, page, offline, puts)
+    finally:
+        # ⛔ EVERY exit lands here: the happy path, both early returns, and any
+        # exception on its way out.
+        ok, got = opt_out(page)
+        chk.step("5 opted back out — ALWAYS, finding or not", ok,
+                 f"`{FLAG_KEY}` read back as `'0'`",
+                 f"the opt-out did not take (read back {got!r}) — THE RIG PROFILE IS "
+                 "LEFT OPTED IN and the next run does not start from rest")
+
+
+def _canary_body(chk: Check, page, offline, puts) -> str | None:
+    """The §15 happy path, every day, artifact captured at every step."""
     note_id = None
 
-    page.evaluate("(k) => localStorage.setItem(k, '1')", FLAG_KEY)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
     st = page.evaluate(STATE_JS, ACCOUNT_ID)
@@ -938,9 +1081,13 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
             await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
         }
         for (const k of Object.keys(localStorage)) if (k.startsWith('uct.j2.notedraft.')) localStorage.removeItem(k);
-        localStorage.setItem('uct.j2.offline.enabled','0');
         return {storesCleared: stores.length};
     }""", ACCOUNT_ID)
+    # ⛔ ORDERING, and it is load-bearing: opt out BEFORE the verification reload.
+    # Reloading the notebook while still opted IN re-engages the offline layer and
+    # re-creates the stores this next read is about to call empty. The `finally`
+    # in `_mini_canary` is the guarantee; this call is the ordering.
+    opt_out(page)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
     end = page.evaluate(STATE_JS, ACCOUNT_ID)
@@ -984,8 +1131,9 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
         reasons.append(f"stores not all zero ({stores!r})")
     if end.get("locks") != 0:
         reasons.append(f"locks={end.get('locks')}")
-    if end.get("optInKey") != "0":
-        reasons.append(f"opt-in key={end.get('optInKey')!r}, expected '0'")
+    # ⭐ The opt-in key is NOT asserted here any more. `_mini_canary`'s `finally`
+    # owns it, asserts it, and runs on every exit — including the two this step
+    # can never be reached from. One authority, at the point of the action.
     if leftovers:
         reasons.append(f"{len(leftovers)} leftover note(s): {leftovers}")
     chk.step("5 cleanup \u2192 stores 0, locks 0, opted out", not reasons,
@@ -1449,6 +1597,132 @@ def self_check() -> int:
     cases.append(("green runs are counted from the doc, not from memory",
                   count_green_checks("| **mini-canary** | ✅ **6/6** |\n| **mini-canary** | ✅ **6/6** |") == 2))
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE PROFILE-PATH OVERRIDE. ⛔ The bug it exists for: `ROOT` is the repo root
+    # of THIS COPY of the file, so a second worktree resolves the default to its
+    # own empty `.worktrees/` — a signed-out profile nothing can sign back in.
+    # ══════════════════════════════════════════════════════════════════════════
+    _saved = (PROFILE, MARKER, os.environ.get(PROFILE_ENV))
+    try:
+        os.environ.pop(PROFILE_ENV, None)
+        cases.append(("CONTROL: with nothing set, the default is UNCHANGED",
+                      resolve_profile(None) == DEFAULT_PROFILE))
+        cases.append(("…and the default marker is the canonical directory name",
+                      DEFAULT_PROFILE.name == "canary-chrome-profile-persistent"))
+        env_p = pathlib.Path(tempfile.gettempdir()) / "canary-chrome-profile-persistent"
+        os.environ[PROFILE_ENV] = str(env_p)
+        cases.append((f"${PROFILE_ENV} overrides the default",
+                      resolve_profile(None) == env_p.resolve()))
+        cli_p = pathlib.Path(tempfile.gettempdir()) / "canary-chrome-profile-persistent-cli"
+        cases.append(("--profile beats the env var",
+                      resolve_profile(str(cli_p)) == cli_p.resolve()))
+        cases.append(("a blank override is not an override",
+                      resolve_profile("   ") == env_p.resolve()))
+        os.environ.pop(PROFILE_ENV, None)
+
+        # the two globals move as ONE — a marker that lags the profile would kill
+        # the wrong browser, or none at all.
+        use_profile(cli_p)
+        cases.append(("use_profile moves the profile AND its derived marker together",
+                      PROFILE == cli_p and MARKER == cli_p.name))
+        try:
+            use_profile(pathlib.Path(tempfile.gettempdir()) / "Default")
+            generic_refused = False
+        except SystemExit:
+            generic_refused = True
+        cases.append(("a GENERIC profile name is refused as a kill marker", generic_refused))
+        cases.append(("…and the refusal happens BEFORE either global moves",
+                      PROFILE == cli_p and MARKER == cli_p.name))
+        cases.append(("CONTROL: the canonical name is accepted as a marker",
+                      marker_for(DEFAULT_PROFILE) == "canary-chrome-profile-persistent"))
+    finally:
+        os.environ.pop(PROFILE_ENV, None)
+        if _saved[2] is not None:
+            os.environ[PROFILE_ENV] = _saved[2]
+        globals()["PROFILE"], globals()["MARKER"] = _saved[0], _saved[1]
+
+    # ⛔ Creating a missing profile is the failure this override exists to prevent.
+    cases.append(("a MISSING profile is refused, never created",
+                  profile_refusal(DEFAULT_PROFILE, False, False) is not None))
+    cases.append(("…and the refusal says a fresh profile cannot be signed in",
+                  "SIGNED-OUT PROFILE" in (profile_refusal(DEFAULT_PROFILE, False, False) or "")))
+    cases.append(("…and it names the flag that fixes it",
+                  "--profile" in (profile_refusal(DEFAULT_PROFILE, False, False) or "")))
+    cases.append(("CONTROL: an EXISTING profile is not refused",
+                  profile_refusal(DEFAULT_PROFILE, True, False) is None))
+    cases.append(("CONTROL: --allow-new-profile is the deliberate escape hatch",
+                  profile_refusal(DEFAULT_PROFILE, False, True) is None))
+    cases.append(("spawn_rig actually CONSULTS the refusal",
+                  "profile_refusal(PROFILE" in pathlib.Path(__file__).read_text(encoding="utf-8")))
+    cases.append(("the lock check can be pointed at ANOTHER profile (the Edge rig)",
+                  profile_lock_released(timeout=0, profile=pathlib.Path(tempfile.gettempdir()))[0] is True))
+    cases.append(("…and it builds the lock paths from that ARGUMENT, not from PROFILE",
+                  'locks = [profile / "lockfile", profile / "SingletonLock"]'
+                  in pathlib.Path(__file__).read_text(encoding="utf-8")))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # THE OPT-OUT RUNS ON EVERY EXIT. ⛔ The defect it fixes: the restore lived
+    # inside the cleanup block — skipped ON PURPOSE when a finding is kept, and
+    # unreachable after the `2 create a note` early return, which is exactly what
+    # fired on 2026-09-10T13:47:22Z. The profile was still opted IN a day later.
+    # Driven through the REAL control flow, not asserted about it.
+    # ══════════════════════════════════════════════════════════════════════════
+    class _OptPage:
+        def __init__(self, sticks=True):
+            self.sticks, self.writes = sticks, []
+
+        def evaluate(self, js, arg=None):
+            if "setItem(k, '0')" in js:
+                self.writes.append("0")
+                return "0" if self.sticks else "1"
+            if "setItem(k, '1')" in js:
+                self.writes.append("1")
+            return None
+
+    def _drive(body, sticks=True):
+        chk = Check(label="t")
+        page = _OptPage(sticks)
+        try:
+            _mini_canary(chk, page, lambda _f: None, [], body=body)
+        except Exception:  # noqa: BLE001
+            pass
+        step = next((s for s in chk.canary if "opted back out" in s.name), None)
+        return page.writes, step
+
+    w, s = _drive(lambda *a: "note-id")
+    cases.append(("CONTROL: the happy path opts in and back out", w == ["1", "0"] and s and s.ok))
+    w, s = _drive(lambda *a: None)                       # the `create a note` early return
+    cases.append(("⛔ an EARLY RETURN still opts back out", w == ["1", "0"] and s and s.ok))
+    def _raiser(*a):
+        raise RuntimeError("the canary blew up mid-run")
+    w, s = _drive(_raiser)
+    cases.append(("⛔ an EXCEPTION still opts back out", w == ["1", "0"] and s and s.ok))
+    # ⛔ A `finally` that also SWALLOWS is worse than none: the run would look
+    # like it completed. The opt-out must happen AND the failure must still fly.
+    _raised = False
+    try:
+        _mini_canary(Check(label="t"), _OptPage(), lambda _f: None, [], body=_raiser)
+    except RuntimeError:
+        _raised = True
+    cases.append(("…and the exception still PROPAGATES (the finally does not swallow it)",
+                  _raised))
+    w, s = _drive(lambda *a: "note-id", sticks=False)
+    cases.append(("⛔ an opt-out that does NOT take is reported, not assumed",
+                  s is not None and not s.ok))
+    cases.append(("…and the failure says the profile is left opted in",
+                  "LEFT OPTED IN" in (s.render() if s else "")))
+    src_wc = pathlib.Path(__file__).read_text(encoding="utf-8")
+    canary_src = src_wc.split("def _mini_canary", 1)[1].split("\ndef _canary_body", 1)[0]
+    cases.append(("the restore is in a `finally`, not on the success branch",
+                  "finally:" in canary_src and "opt_out(page)" in canary_src))
+    body_src = src_wc.split("def _canary_body", 1)[1].split("\n# ═", 1)[0]
+    cases.append(("the cleanup JS no longer spells the flag key a second time",
+                  "'uct.j2.offline.enabled'" not in body_src))
+    cases.append(("CONTROL: that sweep can see the literal when it is there",
+                  "'uct.j2.offline.enabled'" in (body_src + "'uct.j2.offline.enabled'")))
+    cases.append(("the opt-out is asserted in ONE place, not two",
+                  "expected '0'" not in body_src))
+
     bad_ct = 0
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
@@ -1473,7 +1747,17 @@ def main() -> int:
     ap.add_argument("--label", default=None)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-canary", action="store_true")
+    ap.add_argument("--profile", default=None,
+                    help=f"absolute path to THE rig profile (or ${PROFILE_ENV}); "
+                         "required from any worktree but the main one")
+    ap.add_argument("--allow-new-profile", action="store_true",
+                    help="permit CREATING a profile directory that does not exist "
+                         "(a fresh profile is a signed-out one — only for --park)")
     args = ap.parse_args()
+
+    global ALLOW_NEW_PROFILE
+    ALLOW_NEW_PROFILE = bool(args.allow_new_profile)
+    use_profile(resolve_profile(args.profile))
 
     if args.self_check:
         return self_check()
