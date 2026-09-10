@@ -753,6 +753,51 @@ amendment names.
 **So steps 7–9 and the conflict path remain UNRUN**, and the seven-day
 observation window stays **unstarted**.
 
+### ⭐ THE CDP RIG — the amendment's mechanism, and it WORKS
+
+**Owner clarification, 2026-09-10:** *"the real browser session" means a real
+Chrome instance driving production over CDP — it does not require my current
+window. A second Chrome instance with its own profile qualifies.* Fetch stubs,
+service-worker intercepts and mocked transports remain forbidden.
+
+⛔ **Never touch the owner's running Chrome.** Spawn a dedicated instance, own
+exactly that PID, and kill only that PID at teardown.
+
+**The exact launch command — use it verbatim on every re-run:**
+
+```powershell
+Start-Process -FilePath 'C:\Program Files\Google\Chrome\Application\chrome.exe' -PassThru -ArgumentList `
+  '--user-data-dir=C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees\canary-chrome-profile', `
+  '--remote-debugging-port=9411', `
+  '--remote-debugging-address=127.0.0.1', `
+  '--no-first-run','--no-default-browser-check','--new-window','about:blank'
+```
+
+Then `curl 127.0.0.1:9411/json/version`, and connect with
+`playwright.chromium.connect_over_cdp("http://127.0.0.1:9411")`.
+
+**Offline is driven by CDP, and it is PROVEN to cut the transport** — measured
+2026-09-10 *before any sign-in*, so the rig is validated independently of the
+canary it carries:
+
+```
+Network.emulateNetworkConditions {offline:true}
+   fetch('/api/health')  ->  FAILED: TypeError in 2 ms · navigator.onLine = false
+Network.emulateNetworkConditions {offline:false}
+   fetch('/api/health')  ->  ONLINE                    · navigator.onLine = true
+```
+
+⛔ **Always prove the probe fails before typing.** An "offline" step that is
+silently still online turns the canary's decisive assertion into a tautology.
+
+⚠️ **A fresh profile is NOT signed in** (`/api/auth/me` → 401). The owner signs
+in in that window; the agent never enters credentials. Budget for that pause.
+
+**Teardown, always, green or red:** kill ONLY the spawned PID · delete
+`.worktrees/canary-chrome-profile` · confirm the owner's Chrome process set is
+unchanged (by PID, not by count, before and after) · confirm the production end
+state (32 notes · all four stores 0 · 0 locks · key `'0'`).
+
 ### The 5-minute keyboard recipe, for whoever runs it
 
 Same account, same note discipline as the 2026-09-10 happy-path run.
