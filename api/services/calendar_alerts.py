@@ -17,7 +17,7 @@ import os
 import sqlite3
 import threading
 import time
-from datetime import date
+from datetime import date, timedelta as _td
 from zoneinfo import ZoneInfo
 
 _logger = logging.getLogger(__name__)
@@ -173,6 +173,55 @@ def _get_reporters_for_date_with_status(market_date: str) -> tuple[set[str], boo
     # 429 does not silently drop the whole day's alerts.
     fmp_result, fmp_ok = _fmp_reporters_for_date_with_status(market_date)
     return fmp_result, ok and fmp_ok
+
+
+#: Default "reporting soon" window, in calendar days.
+#: ⛔ ONE DECLARATION. This was written twice -- `_EARNINGS_PROXIMITY_DAYS` in
+#: watchlist_intelligence and `EARNINGS_PROXIMITY_DEFAULT_DAYS` in
+#: awareness/rules -- each with a comment saying it matched the other. They did,
+#: by coincidence; nothing imported anything (Seam 4).
+EARNINGS_PROXIMITY_DEFAULT_DAYS = 3
+
+
+def collect_earnings_window(today, days: int) -> tuple[dict[str, str], bool]:
+    """{SYMBOL: EARLIEST report date, YYYY-MM-DD} across the next `days`
+    calendar days, plus whether every day in the window answered cleanly.
+
+    ⛔ ONE WALK, TWO CALLERS. `awareness/engine.py::_collect_earnings_window`
+    and `watchlist_intelligence.py::_earnings_facts` each carried their own
+    copy of this loop. That was deliberate at the time -- the watchlist side's
+    docstring explains it declined to import the engine's private, memoized
+    version -- but two copies of one algorithm drift, and these already had:
+    only one of them was memoized, and the window length was declared twice as
+    separate literals.
+
+    This owns the WALK ONLY. What the callers do around it stays theirs:
+    awareness memoizes the result per (today, days) with a partial-failure TTL,
+    and the watchlist filters to a requested symbol set and builds fact dicts.
+    Sharing the walk is a de-duplication; folding in either caller's wrapper
+    would be a behaviour change, and is deliberately not done here.
+
+    Uses the `_with_status` sibling rather than the plain lookup, which never
+    raises -- so a real source failure on any day stays distinguishable from a
+    genuinely quiet day (S9/S10, 2026-09-06). Without it `any_failed` could
+    never become True.
+    """
+    out: dict[str, str] = {}
+    any_failed = False
+    for offset in range(0, max(0, int(days)) + 1):
+        d_str = (today + _td(days=offset)).isoformat()
+        try:
+            reporters, ok = _get_reporters_for_date_with_status(d_str)
+        except Exception as e:  # noqa: BLE001 -- defensive; callee's contract is "never raises"
+            _logger.debug("[cal-alerts] earnings window lookup failed for %s: %s", d_str, e)
+            any_failed = True
+            continue
+        if not ok:
+            any_failed = True
+        for sym in reporters:
+            if sym not in out:      # earliest offset wins
+                out[sym] = d_str
+    return out, any_failed
 
 
 def _get_reporters_for_date(market_date: str) -> set[str]:
