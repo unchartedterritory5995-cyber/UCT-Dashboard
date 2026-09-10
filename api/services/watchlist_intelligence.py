@@ -21,10 +21,22 @@ from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
 
-# Matches api/services/massive.py::get_movers()'s own gap-filter threshold --
-# "only stocks with abs(change_pct) >= 3.0% are shown". Not re-derived here;
-# just reused so the two "notable move" definitions in this codebase agree.
-_PRICE_MOVE_THRESHOLD_PCT = 3.0
+def _price_move_threshold_pct() -> float:
+    """The gap that makes a move "notable" — DERIVED from the movers feed, not
+    restated here.
+
+    ⛔ This used to be a hand-typed `3.0` with a comment claiming it "matches
+    massive.py::get_movers()'s own gap-filter threshold". It matched by
+    coincidence — nothing imported anything — so tuning either one would have
+    shipped two different definitions of a notable move with the comment still
+    asserting they agreed. Now there is one constant and this reads it (Seam 3).
+
+    Imported lazily inside the function, matching this module's convention for
+    every other cross-module use: `massive` builds an httpx client at import
+    time, and this file deliberately keeps that off its import path.
+    """
+    from api.services.massive import MOVER_THRESHOLD_PCT
+    return MOVER_THRESHOLD_PCT
 
 # Matches api/services/awareness/rules.py::EARNINGS_PROXIMITY_DEFAULT_DAYS --
 # reused so "reporting soon" means the same thing here as it does in the
@@ -46,7 +58,7 @@ def _fact(kind: str, label: str, as_of: Optional[str], source: str, freshness: s
 def _price_move_fact(sym: str, change_pct: Optional[float], observed_at: Optional[float] = None) -> Optional[dict]:
     if change_pct is None or not isinstance(change_pct, (int, float)):
         return None
-    if abs(change_pct) < _PRICE_MOVE_THRESHOLD_PCT:
+    if abs(change_pct) < _price_move_threshold_pct():
         return None
     sign = "+" if change_pct >= 0 else ""
     # Seam 8 (2026-09-07): `observed_at` is the vendor's own epoch-seconds
