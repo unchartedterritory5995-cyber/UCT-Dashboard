@@ -4,6 +4,11 @@
 from `origin/master` is Wave Q1 work. **Re-verified against `184a7e77b`** after
 master moved mid-session — see "Re-verification" below.
 
+⭐ **NEWEST MEASUREMENT: deploy #4's pre-flight, at `aee7922b5`** — see
+**"Re-measured for deploy #4"** at the end of this file. The numbers below are
+the 2026-09-09 reading and are kept because the row-by-row blame was done against
+them; ⛔ do not quote them as current.
+
 ```
 Test Files   8 failed | 1164 passed | 1 skipped  (1173)
      Tests   9 failed | 16899 passed | 9 skipped (16917)
@@ -147,3 +152,44 @@ and the junction recipe still left Vite resolving its temp config from the paren
 repo — the result was `ERR_MODULE_NOT_FOUND`, **a startup error, not a test
 result**, which CLAUDE.md warns about explicitly. It is recorded here rather than
 quietly dropped, and the `app/`-diff proof above is what the claim rests on.
+
+## Re-measured for deploy #4, at `aee7922b5` (2026-09-10)
+
+The deploy-#4 pre-flight ran the full frontend suite as a sharded run. What it
+read:
+
+```
+1207 files / 18020 tests
+  10 failed   vs baseline 10
+  NEW regressions: 0
+```
+
+⛔ **This is "no new failures against a measured baseline", and it is NOT a green
+suite.** There is no repo-green to claim here and there never has been. Report
+`journal-2-0` and the full suite as **two separate numbers**, always —
+`journal-2-0` at rest on the reconciled tip read **234 files / 2448 tests green**,
+which is a different measurement of a different scope.
+
+**Two things made the run admissible, and both are worth copying:**
+
+- ⭐ **The tree hash was identical start→end** (`aee7922b5…` → `aee7922b5…`). That
+  is what says no file moved while the suite was running. The first sharded
+  attempt of this wave **voided itself** for exactly that reason, and voiding it
+  was correct — see **R5** in `docs/notebook/wave-q1-RESUME-HERE.md`.
+- ⭐ **The file count reconciled**: files on disk (1207) against the summed shard
+  totals. ⛔ A chunked run fails in the **flattering** direction — fewer files
+  run, fewer failures found — so a shard total that nobody reconciled against the
+  file list is not a suite result (CLAUDE.md: *"Count the files, not just the
+  passes"*).
+
+⚠️ **Stated plainly: the suite was measured at `aee7922b5` and the tip pushed was
+`f093bf731`.** The whole delta is two Python files under `tools/` that no JS test
+imports (`tools/engine_matrix.py`, `tools/window_check.py`), and `journal-2-0`
+**was** re-run at rest on the reconciled tip. So this ledger's claim is about
+`aee7922b5`, and the sentence *"the suite passed on what shipped"* is one nobody
+should write.
+
+⚠️ **`docs/plans/joystick/gate-baseline.json` moved in the same motion** (9 → 10,
+sha to `58dea4d88`), because row 10 is a measurement of master and master moved.
+That file belongs to a closed workstream; the reason for the edit rides in its
+own `provenance_caveat` field, and the decision is logged as **R7**.
