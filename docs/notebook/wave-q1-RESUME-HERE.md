@@ -1,6 +1,54 @@
 # Wave Q1 — RESUME HERE
 
-# ✅✅ DEPLOYED TO PRODUCTION — 2026-09-10 02:40:01 UTC
+# ✅✅ DEPLOY #2 — 2026-09-10 05:04:43 UTC, LIVE 05:06:56 UTC
+
+**`eedb58ac8` is on `master` and live.** `OFFLINE_DEFAULT_ON` is still `false`.
+
+| | |
+|---|---|
+| master before | `f321e5e7b` |
+| master after | `eedb58ac89a21beb254b3496eb1649bfe3f2dffb` |
+| push | 2026-09-10 **05:04:41 → 05:04:43 UTC** |
+| build live | **05:06:56 UTC** (uptime 13 s at 05:07:09) — entry `index-1FmvMCkY` → `index-CrkXflNE`, Notebook chunk `NotebookTab-CMePJ5Sn` → `NotebookTab-BMNXXwjE` |
+| carried | 12 commits: the complete §15 canary record, the CDP rig, the flag-flip gate work, two master merges |
+
+## The member-impact paragraph — **approved by the owner, recorded verbatim**
+
+> "Nothing changes for members. Offline editing stays switched off. This release
+> adds two things that are inactive while it is off: a small 'Edit again to sync'
+> badge that can only appear once offline editing is on, and a diagnostic signal
+> that can only fire on a condition offline editing has to be on to reach. No
+> member data is read, moved, or deleted. If it were wrong, the symptom would be
+> a badge or a log line where none should be — visible, not silent."
+
+## Verified on the LIVE ARTIFACT, not on the source default
+
+```
+1 the flag       Bs=!1 · fn() returns Bs when the key is unset      ← still dark
+2 the gate       bt=()=>{if(!wt.current)return;b("dirty"),…}        ← refuses BEFORE
+                 armed by  wt.current=!!(H&&!H.isDestroyed&&r)         touching status
+3 EMIT_NOTHING   emitUpdate:!1 present ×1 · bare setContent(x,!1) ×0
+4 usableBaseline for(const n of t)if(typeof n=="string"&&n.trim()!=="")return n;return null
+5 the copy       "Saved on this device" · "Saved in this browser" · "waiting to sync"
+                 · "edit it again to sync" · "Edit again to sync"
+                 · "…have not reached the server, and will not until you edit it again"
+6 the event      "notebook_blocked_no_baseline" · reason "no-baseline"
+```
+
+**Post-deploy smoke, flag OFF** — `/api/health` `ok` · the Notebook chunk serves
+**200**, 171,727 bytes · **zero** badge strings in the served HTML · and
+`POST /api/j2/telemetry` with an unlisted event name answers **401** to an
+unauthenticated caller. ⚠️ Stated exactly: **401 is the AUTH gate, not the
+allow-list** — the endpoint takes `Depends(get_current_user)` before it looks at
+the name, so an unauthenticated probe cannot reach the rejection it is aiming
+at. The allow-list itself is proved by `tests/test_j2_telemetry_allowlist.py`
+against the source now on `master` (`journal_two.py:95`).
+
+⛔ The §15 canary was **not** re-run for this deploy: nothing under test changed.
+
+---
+
+# ✅✅ DEPLOY #1 — 2026-09-10 02:40:01 UTC
 
 **`cd674ef56` is on `master` and live.** `OFFLINE_DEFAULT_ON` is still `false`:
 the offline layer did NOT ship on, and this deploy did not touch the flag.
@@ -27,10 +75,12 @@ the flag       zi=!1  →  OFFLINE_DEFAULT_ON === false          ← still dark
 the drain's fork. No `null` or `''` baseline in any artifact. The seven-day
 observation window is **STARTED: 2026-09-10 → 2026-09-17.**
 
-## ⏭️ AND THE FLAG-FLIP GATE IS BEING WORKED — 2026-09-10, on the branch
+## ⏭️ AND THE FLAG-FLIP GATE IS BEING WORKED — 2026-09-10
 
-⛔⛔ **NONE OF THIS IS DEPLOYED.** It is on `notebook-primary-platform` only, and
-`OFFLINE_DEFAULT_ON` is untouched. Read the **FLAG-FLIP GATE** section, not this
+✅ **SHIPPED IN DEPLOY #2** (`eedb58ac8`, live 05:06:56 UTC). ⛔⛔ Shipped is not
+switched on: `OFFLINE_DEFAULT_ON` is still `false`, so both additions below are
+**inert for every member** — the badge cannot appear and the instrument cannot
+fire until a browser opts in. Read the **FLAG-FLIP GATE** section, not this
 summary, before acting on any of it.
 
 - ✅ **A blocked entry is surfaced to the member** — the gate's last open row.
@@ -38,8 +88,10 @@ summary, before acting on any of it.
   sync"** in the shipped vocabulary. Item 1 below.
 - ⏳ **The `null` is INSTRUMENTED, not explained** — nine driven paths failed to
   reproduce it, so the gate condition CHANGED: from *"explained"* to *"zero
-  occurrences during the window"*. Item 2 below. ⛔ The count is not measurable
-  until this deploys.
+  occurrences across the instrument clock"* (**2026-09-10T05:06:56Z →
+  2026-09-17T05:06:56Z**, a SECOND clock, not the deploy-#1 window). Item 2
+  below. ⛔⛔ Zero is bounded evidence: the flag is off, so it can only fire from
+  an opted-in browser.
 - ⛔ **An offline reload cannot load the Notebook at all** (no service worker, by
   design). Written down as a KNOWN LIMITATION and as an expected §15
   observation — **never a red**. Item 3 below.
@@ -974,6 +1026,49 @@ unstarted."* **Both ran; the canary is complete; the window is open.**
 | end | **2026-09-17** |
 | state | `OFFLINE_DEFAULT_ON = false` — **the window observes the DEPLOYED FIX, not the offline layer** |
 
+## ⏱️ THE INSTRUMENT CLOCK — a SECOND clock, and not this one
+
+| | |
+|---|---|
+| what it measures | `notebook_blocked_no_baseline` occurrences (Item 2) |
+| start | **2026-09-10T05:06:56Z** — when deploy #2 went LIVE. ⛔ Not the push (05:04:43Z): an instrument that is not yet serving cannot fire, and dating the clock from the push would credit it with 2 m 13 s it did not observe. |
+| end | **2026-09-17T05:06:56Z** |
+
+⛔ **Two clocks, deliberately.** The 2026-09-10 → 2026-09-17 window above watches
+**deploy #1** (the autosave fix) and is unchanged by this deploy. This one starts
+today and watches the instrument. Do not merge them: they answer different
+questions and started on different artifacts.
+
+### The flip condition, and exactly how strong it is
+
+> **Zero `notebook_blocked_no_baseline` events across the instrument clock.**
+
+⛔⛔ **THIS IS BOUNDED EVIDENCE, NOT PROOF, AND THE GATE SAYS SO.** With
+`OFFLINE_DEFAULT_ON` false in production, the drain cannot execute for a member
+who has not opted in — so the event can only ever fire from an **opted-in
+browser**. A week of zeros therefore means *"nobody who ran the offline layer hit
+it"*, and the population that ran the offline layer may be **nobody at all**.
+Zero over an empty population is not the same fact as zero over a real one, and
+reading it as though it were is how this wave got a green matrix over an
+uncovered mount path in the first place. ⭐ Record how many opted-in browsers the
+clock actually observed, or the number means nothing.
+
+### Check-2 row template — copy this, fill it in
+
+```
+| instrument | reading |
+|---|---|
+| GET /api/admin/activity?limit=200   (admin session; filter action == 'j2:notebook_blocked_no_baseline') |
+|   count over the clock              | N        |
+|   most recent timestamp             | <UTC> or none |
+|   opted-in browsers observed        | <how many, and how you know> |
+```
+
+⛔ Read it with the action name, not by eyeballing a list: `log_activity` writes
+these as `j2:<event>`, so the row you are looking for is
+**`j2:notebook_blocked_no_baseline`**, and its `details` column holds the seven
+fields. A count of zero is only meaningful beside the opted-in-browser count.
+
 **What is watched, and what each would mean:**
 
 1. **Any member report of a note reading blank after a reload.** The defect this
@@ -984,8 +1079,10 @@ unstarted."* **Both ran; the canary is complete; the window is open.**
    ⭐ **This one no longer depends on somebody noticing.** The drain reports its
    own refusal as `notebook_blocked_no_baseline` (Item 2 below); read it with
    `GET /api/admin/activity` and look for `j2:notebook_blocked_no_baseline`.
-   ⛔ It only counts once the instrument is on `master` — until then the number
-   is "not measurable", not "zero".
+   ✅ **It is on `master` and live since 2026-09-10T05:06:56Z** (deploy #2). The
+   instrument clock runs to 2026-09-17T05:06:56Z. ⛔⛔ Zero is BOUNDED evidence:
+   with the flag off the event can only fire from an opted-in browser, so record
+   how many opted-in browsers the clock observed or the number means nothing.
 3. **The inherited-red ledger** — same nine rows, no new offenders. Re-check on
    any master merge that touches `app/` (tier 2).
 4. **The drain**, once the flag is ever on: `(conflicted copy)` creation rate and
@@ -1025,6 +1122,28 @@ canary rig's own Chrome profile; that profile no longer runs. A new browser
 would read the key **unset** — which is production's default and equals off, but
 is a *different reading*, not the same one confirmed again. ⛔ Re-stating `'0'`
 here without a browser would be inventing a measurement.
+
+### Check 2 — **RIG UP, PARKED AT SIGN-IN** (2026-09-10, ~05:15 UTC)
+
+Rebuilt from the recorded launch command with a **fresh** profile
+(`.worktrees/canary-chrome-profile-2`): the original directory still exists,
+awaiting the owner's delete, so reusing it would not have been fresh and might
+have been handle-locked. ⭐ The new name still contains `canary-chrome-profile`,
+so the teardown marker is unchanged.
+
+| | reading |
+|---|---|
+| spawned PID | **19752** · owner's browser **10896** untouched · exactly two BROWSER processes (no `--type=`): `canary=True` and `canary=False` |
+| CDP endpoint | `127.0.0.1:9411` → Chrome/152.0.7977.83 |
+| offline **proven both ways** | offline ⇒ `fetch('/api/health')` **FAILED: TypeError**, `navigator.onLine=false` · online ⇒ **ONLINE 200**, `navigator.onLine=true` |
+| `/api/auth/me` | **401 — not signed in** |
+| parked at | `https://uctintelligence.com/login` |
+
+⛔ **STOPPED HERE, as instructed. The agent enters no credentials.** After
+sign-in: read the four stores, the `uct.nb.sync.*` locks and the opt-in key —
+recording the key as **what it actually is, naming which** (`unset` vs `'0'`) —
+confirm no `sync-conflict` or canary notes remain, then tear down by the profile
+marker (never by count) and stamp this row with a UTC timestamp.
 
 **To close this row on the next check**, the owner stands up an authenticated
 session (or says to build the CDP rig again and signs in, exactly as on
@@ -1066,7 +1185,7 @@ which is what proves they test different lines.
 | | status |
 |---|---|
 | A blocked entry is surfaced to the member | ✅ **CLOSED 2026-09-10** — the notes list (both views) and the open note's header now say it, in the shipped vocabulary, and the sentence names the ACTION. See below. |
-| ~~`baseUpdatedAt: null` explained~~ → **`null` INSTRUMENTED, zero occurrences in the window** | ⏳ **INSTRUMENT LIVE 2026-09-10, count starts at 0** — the condition CHANGED, deliberately; see below |
+| ~~`baseUpdatedAt: null` explained~~ → **`null` INSTRUMENTED, zero occurrences across the instrument clock** | ⏳ **INSTRUMENT LIVE IN PRODUCTION 2026-09-10T05:06:56Z** (deploy #2 `eedb58ac8`), clock ends 2026-09-17T05:06:56Z. ⛔⛔ **Bounded evidence, not proof** — with the flag off the event can only fire from an OPTED-IN browser, so zero over an empty population says nothing. Record the opted-in count beside it. |
 | A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. |
 | Seven-day observation window armed | ✅ **STARTED 2026-09-10, ends 2026-09-17** — see below |
 
