@@ -324,8 +324,31 @@ describe('the seven Model Book / surface override props still reach their decisi
     expect(SRC).toContain('style={textInput.style || { color, fontSize: fontSize || 13 }}')
   })
 
-  it('a note is hit-tested by the box the painter drew', () => {
-    expect(SRC).toContain("d.type === 'text' ? labelBoxRef.current.get(d.id) : null")
+  it('⭐ ONE CACHE, ONE RULE: what the painter drew is what you can grab', () => {
+    // A Text Note publishes its box; a Fib publishes its VISIBLE level lines.
+    // Neither is re-derived at hit-test time, because a second derivation is
+    // exactly how an invisible hitbox is born.
+    expect(SRC).toContain("(d.type === 'text' || d.type === 'fib' || d.type === 'fibext')")
+    expect(SRC).toContain('labelBoxRef.current.get(d.id) : null')
+    expect(SRC).toContain('if (lines && lines.length) paintedBoxes.set(d.id, lines)')
+  })
+
+  it('the Fib painter is handed the drawing and the series formatter', () => {
+    const block = near("case 'fib':", 700)
+    expect(block).toContain('{ drawing: d, fmt: priceText }')
+    expect(block).toContain('paintedBoxes.set(d.id, lines)')
+  })
+
+  it('resetting a Fib removes overrides and touches nothing else', () => {
+    expect(SRC).toContain('updateDrawing(ctxMenu.drawingId, { ...RESET_FIB_STYLE })')
+  })
+
+  it('⭐ A FIB LEVEL ALERT GOES THROUGH THE ONE ALERT HANDLER', () => {
+    expect(SRC).toContain("onSetAlert(d, 'above', { bound: true, level })")
+    // …and which levels already carry one is DERIVED from the live alert list,
+    // never stored on the drawing (an alert is server state, and storing it
+    // would mean a style write every time one was set).
+    expect(near('const levelAlertsFor = useCallback', 700)).toContain('parseBoundId(a.drawing_id)')
   })
 
   it('the measurement anchors are revealed only on request, for one drawing', () => {

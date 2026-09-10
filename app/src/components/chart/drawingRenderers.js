@@ -49,6 +49,10 @@ import {
 } from './drawingLabels'
 import { labelPosOf, resolveLabelY } from './drawingMeasure'
 import { bgColorOf, fontStringFor, textBoxFor } from './drawingText'
+import {
+  FIB_LEVELS, FIB_COLORS, FIB_EXT_LEVELS, FIB_EXT_COLORS,
+  fibLevelPrice, resolveBands, resolveLevels,
+} from './drawingFib'
 import { arrowSizeFor, borderFor, fillFor } from './drawingStyle'
 
 /** Index-stable resolution keeps a slot for every stored anchor and marks the
@@ -60,11 +64,11 @@ const ok = pointsUsable
 const HIT_THRESHOLD = () => hitThreshold()
 const HANDLE_R = () => handleRadius()
 
-export const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1]
-export const FIB_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa']
-
-export const FIB_EXT_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2, 2.618]
-export const FIB_EXT_COLORS = ['#ef4444', '#fb923c', '#c9a84c', '#a8a290', '#4ade80', '#60a5fa', '#a78bfa', '#e879f9', '#f472b6', '#22d3ee', '#818cf8']
+// ⚰️ THE FOUR FIB TABLES MOVED TO `drawingFib.js` and are re-exported here.
+// They are data, not painting, and Phase 7 gave three more callers a reason to
+// read them — the settings editor, the hit test and the alert anchors. Every
+// existing importer of `FIB_LEVELS`/`FIB_COLORS` from this module still works.
+export { FIB_LEVELS, FIB_COLORS, FIB_EXT_LEVELS, FIB_EXT_COLORS }
 
 export function drawArrowhead(ctx, from, to, size = 8) {
   const angle = Math.atan2(to.y - from.y, to.x - from.x)
@@ -502,60 +506,89 @@ export function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW 
  *  (every level overwrites `strokeStyle`). Phase 7 moves the ladder onto the
  *  drawing, defaulted from exactly these arrays so an existing Fib renders
  *  identically until somebody edits it. */
-export function renderFib(ctx, pts, rect, toPixel) {
-  if (!ok(pts, 2)) return
-  const { x0, x1: w } = rect
-  const highPrice = Math.max(pts[0].rawPrice, pts[1].rawPrice)
-  const lowPrice = Math.min(pts[0].rawPrice, pts[1].rawPrice)
-  const range = highPrice - lowPrice
-  if (range <= 0) return
-
-  ctx.font = '10px "Instrument Sans", sans-serif'
-  FIB_LEVELS.forEach((level, i) => {
-    const price = highPrice - range * level
-    const y = toPixel(null, price)
-    if (y == null) return
-    ctx.strokeStyle = FIB_COLORS[i] || ctx.strokeStyle
-    ctx.setLineDash(level === 0 || level === 1 ? [] : [4, 3])
-    ctx.beginPath()
-    ctx.moveTo(x0, y)
-    ctx.lineTo(w, y)
-    ctx.stroke()
-    // Label
-    ctx.fillStyle = FIB_COLORS[i] || '#a8a290'
-    const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
-    ctx.fillText(label, x0 + 4, y - 3)
-  })
-  ctx.setLineDash([])
+/**
+ * Fibonacci Retracement.
+ *
+ * ⭐ BOTH FIB TOOLS ARE ONE PAINTER NOW. They differ in exactly one thing — how a
+ * level ratio becomes a price — and that difference lives in `fibLevelPrice`.
+ * Everything else (which levels are visible, what colour each is, which bands
+ * are filled, how the labels read) is the same question asked of the same model,
+ * so keeping two copies of it was two places for a Phase 8 alert or a Phase 10
+ * fix to be applied to only one tool.
+ *
+ * ⛔ A DRAWING WITH NO OVERRIDES IS PIXEL-IDENTICAL TO WHAT SHIPPED. `resolveLevels`
+ * returns the canonical table for it, `resolveBands` returns nothing (the shipped
+ * tool had no band fill at all), and the dash ladder and label wording are the
+ * ones that were here. Every Fib on every chart is untouched.
+ *
+ * Returns the level lines it drew — `[{level, key, y, color}]` — so the hit test
+ * grabs the lines the user can see and cannot grab the ones they hid.
+ */
+export function renderFib(ctx, pts, rect, toPixel, o = null) {
+  return paintFib(ctx, pts, rect, toPixel, o, 'fib')
 }
 
-export function renderFibExtension(ctx, pts, rect, toPixel) {
-  if (!ok(pts, 2)) return
+/** Fibonacci Extension — the same painter, projecting past the swing end. */
+export function renderFibExtension(ctx, pts, rect, toPixel, o = null) {
+  return paintFib(ctx, pts, rect, toPixel, o, 'fibext')
+}
+
+function paintFib(ctx, pts, rect, toPixel, o, fallbackType) {
+  if (!ok(pts, 2)) return null
   const { x0, x1: w } = rect
-  // P0 = swing start, P1 = swing end. Extensions project beyond P1 in P0→P1 direction.
-  const p0Price = pts[0].rawPrice
-  const p1Price = pts[1].rawPrice
-  const range = p1Price - p0Price  // positive = upward swing
-  if (range === 0) return
+  const drawing = (o && o.drawing) || { type: fallbackType }
+  const type = drawing.type || fallbackType
+  const a = pts[0].rawPrice, b = pts[1].rawPrice
+
+  const levels = resolveLevels(drawing)
+  // ⭐ RESOLVED ONCE, then used by the bands, the lines and the labels. A Fib is
+  // up to eleven lines and ten bands; asking the override map per element would
+  // be ~30 lookups and as many key formats inside the paint loop.
+  const rows = []
+  for (const lv of levels) {
+    const price = fibLevelPrice(type, lv.level, a, b)
+    const y = price == null ? null : toPixel(null, price)
+    rows.push({ ...lv, price, y })
+  }
+  if (!rows.some((r) => r.y != null)) return null
+
+  // ── bands first, so no fill ever sits over a line or a label ──
+  const byLevel = new Map(rows.map((r) => [r.level, r]))
+  for (const band of resolveBands(drawing)) {
+    const ra = byLevel.get(band.from), rb = byLevel.get(band.to)
+    if (!ra || !rb || ra.y == null || rb.y == null) continue
+    // ⛔ THE BAND IS ITS TWO BOUNDARIES, NOT ITS TWO LINES. Hiding a level is a
+    // statement about a line; a configured fill survives it, because losing a
+    // band to a visibility click would make styling destructive.
+    ctx.fillStyle = band.color
+    ctx.fillRect(x0, Math.min(ra.y, rb.y), w - x0, Math.abs(rb.y - ra.y))
+  }
 
   ctx.font = '10px "Instrument Sans", sans-serif'
-  FIB_EXT_LEVELS.forEach((level, i) => {
-    // level=0 → p0Price, level=1 → p1Price, level>1 → extensions beyond p1
-    const price = p0Price + range * level
-    const y = toPixel(null, price)
-    if (y == null) return
-    ctx.strokeStyle = FIB_EXT_COLORS[i] || '#a8a290'
-    ctx.setLineDash(level > 1 ? [6, 3] : level === 0 || level === 1 ? [] : [4, 3])
+  const drawn = []
+  for (const r of rows) {
+    if (!r.visible || r.y == null) continue
+    ctx.strokeStyle = r.color
+    ctx.setLineDash(r.dash)
     ctx.beginPath()
-    ctx.moveTo(x0, y)
-    ctx.lineTo(w, y)
+    ctx.moveTo(x0, r.y)
+    ctx.lineTo(w, r.y)
     ctx.stroke()
-    ctx.fillStyle = FIB_EXT_COLORS[i] || '#a8a290'
-    const label = `${(level * 100).toFixed(1)}% — $${price.toFixed(2)}`
-    ctx.fillText(label, x0 + 4, y - 3)
-  })
+    // ⚰️ THE LABEL'S WORDING AND PLACEMENT ARE THE SHIPPED ONES — ratio as a
+    // percentage to 1dp, an em dash, the price, 4px in and 3px above the line.
+    // What changed is that the price goes through the SERIES' own formatter when
+    // the caller supplies one, so a Fib on a sub-dollar name stops reading
+    // `$0.00`, and that the text takes THIS level's colour rather than the
+    // table's — so a recoloured level's readout follows it.
+    ctx.fillStyle = r.color
+    const money = o && o.fmt ? o.fmt(r.price) : `$${r.price.toFixed(2)}`
+    ctx.fillText(`${(r.level * 100).toFixed(1)}% — ${money}`, x0 + 4, r.y - 3)
+    drawn.push({ level: r.level, key: r.key, y: r.y, color: r.color })
+  }
   ctx.setLineDash([])
+  return drawn
 }
+
 
 // ─── Multi-line tools ────────────────────────────────────────────────────────
 

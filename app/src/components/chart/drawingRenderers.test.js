@@ -624,48 +624,126 @@ describe('renderAdvance', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
-describe('⚠️ CHARACTERISATION — Fibonacci as it ships (Phase 7 rebuilds this)', () => {
-  const toPixel = (_, price) => 400 - price * 10
+describe('⭐ fibonacci — one painter, two tools, and a sparse override model', () => {
+  const pts = [P(100, 300, { rawPrice: 100 }), P(400, 100, { rawPrice: 200 })]
+  const toPixelY = (_, price) => 500 - price * 2
 
-  it('renderFib draws one full-width line per level, ignoring the drawing’s own colour', () => {
-    const ctx = makeCtx({ strokeStyle: '#ff00ff' })
-    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(100, 100, { rawPrice: 20 })], W, toPixel)
+  it('⛔ A FIB WITH NO OVERRIDES IS THE SHIPPED TOOL, line for line', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    renderFib(ctx, pts, R, toPixelY)
     expect(ctx.__find('stroke')).toHaveLength(FIB_LEVELS.length)
-    const strokes = ctx.__find('set:strokeStyle').map((c) => c.args[0])
-    expect(strokes).toEqual(FIB_COLORS)               // the drawing colour never appears
-    expect(strokes).not.toContain('#ff00ff')
+    expect(ctx.__find('set:strokeStyle').map((c) => c.args[0])).toEqual([...FIB_COLORS])
+    expect(ctx.__find('fillRect')).toHaveLength(0)      // the shipped tool had no band fill
   })
 
-  it('renderFib places 0% at the HIGH and 100% at the LOW, whichever way it was drawn', () => {
-    const up = makeCtx(); renderFib(up, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], R, toPixel)
-    const down = makeCtx(); renderFib(down, [P(0, 0, { rawPrice: 20 }), P(1, 1, { rawPrice: 10 })], R, toPixel)
-    const labels = (c) => c.__find('fillText').map((k) => k.args[0])
-    expect(labels(up)).toEqual(labels(down))
-    expect(labels(up)[0]).toBe('0.0% — $20.00')
-    expect(labels(up).at(-1)).toBe('100.0% — $10.00')
-  })
-
-  it('renderFib leaves the dash array clean for the next painter', () => {
+  it('…and its labels read exactly as they did', () => {
     const ctx = makeCtx()
-    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], R, toPixel)
-    expect(ctx.__state.lineDash).toEqual([])
+    renderFib(ctx, pts, R, toPixelY)
+    const texts = ctx.__find('fillText').map((c) => c.args[0])
+    expect(texts[0]).toBe('0.0% — $200.00')
+    expect(texts.at(-1)).toBe('100.0% — $100.00')
   })
 
-  it('renderFib bails on a zero or inverted range instead of dividing by it', () => {
+  it('the extension projects past the swing end, with its own table', () => {
     const ctx = makeCtx()
-    renderFib(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 10 })], R, toPixel)
-    expect(ctx.__ops()).toEqual([])
-  })
-
-  it('renderFibExtension projects BEYOND the swing and dashes those levels differently', () => {
-    const ctx = makeCtx()
-    renderFibExtension(ctx, [P(0, 0, { rawPrice: 10 }), P(1, 1, { rawPrice: 20 })], R, toPixel)
+    renderFibExtension(ctx, pts, R, toPixelY)
     expect(ctx.__find('stroke')).toHaveLength(FIB_EXT_LEVELS.length)
+    const texts = ctx.__find('fillText').map((c) => c.args[0])
+    expect(texts[0]).toBe('0.0% — $100.00')
+    expect(texts.at(-1)).toBe('261.8% — $361.80')
+  })
+
+  it('⭐ A HIDDEN LEVEL DRAWS NO LINE AND NO LABEL', () => {
+    const drawing = { type: 'fib', levels: { 0.382: { visible: false }, 0.786: { visible: false } } }
+    const ctx = makeCtx()
+    const lines = renderFib(ctx, pts, R, toPixelY, { drawing })
+    expect(ctx.__find('stroke')).toHaveLength(FIB_LEVELS.length - 2)
+    expect(ctx.__find('fillText').map((c) => c.args[0]).join()).not.toContain('38.2%')
+    // …and it is not in what the hit test is handed, so it cannot be grabbed.
+    expect(lines.map((l) => l.level)).not.toContain(0.382)
+    expect(lines).toHaveLength(FIB_LEVELS.length - 2)
+  })
+
+  it('a per-level colour reaches the line AND its readout', () => {
+    const drawing = { type: 'fib', levels: { 0.618: { color: '#ff5b5b' } } }
+    const ctx = makeCtx()
+    renderFib(ctx, pts, R, toPixelY, { drawing })
+    expect(ctx.__find('set:strokeStyle').map((c) => c.args[0])).toContain('#ff5b5b')
+    // the fill colour before the 61.8% label is that level's colour
+    const calls = ctx.__calls
+    const i = calls.findIndex((c) => c.op === 'fillText' && String(c.args[0]).startsWith('61.8%'))
+    const prevFill = [...calls.slice(0, i)].reverse().find((c) => c.op === 'set:fillStyle')
+    expect(prevFill.args[0]).toBe('#ff5b5b')
+  })
+
+  it('⭐ A BAND IS PAINTED BETWEEN ITS TWO LEVELS, BEFORE any line', () => {
+    const drawing = { type: 'fib', fills: { '0.5>0.618': { enabled: true, color: '#3f7fe033' } } }
+    const ctx = makeCtx()
+    renderFib(ctx, pts, R, toPixelY, { drawing })
+    const rects = ctx.__find('fillRect')
+    expect(rects).toHaveLength(1)
+    const [x, y, w, h] = rects[0].args
+    expect(x).toBe(R.x0)
+    expect(w).toBe(R.x1 - R.x0)
+    // 0.5 → $150 → y 200; 0.618 → $138.2 → y 223.6
+    expect(y).toBeCloseTo(200, 6)
+    expect(h).toBeCloseTo(23.6, 6)
+    const ops = ctx.__ops()
+    expect(ops.indexOf('fillRect')).toBeLessThan(ops.indexOf('stroke'))
+  })
+
+  it('⛔ HIDING A BOUNDARY LINE DOES NOT REMOVE ITS BAND', () => {
+    // Line visibility and band visibility are separate facts about separate
+    // things; conflating them would make a styling click destructive.
+    const drawing = {
+      type: 'fib',
+      levels: { 0.618: { visible: false } },
+      fills: { '0.5>0.618': { enabled: true, color: '#3f7fe033' } },
+    }
+    const ctx = makeCtx()
+    renderFib(ctx, pts, R, toPixelY, { drawing })
+    expect(ctx.__find('fillRect')).toHaveLength(1)
+    expect(ctx.__find('stroke')).toHaveLength(FIB_LEVELS.length - 1)
+  })
+
+  it('takes the series’ own price formatter when one is given', () => {
+    const ctx = makeCtx()
+    renderFib(ctx, pts, R, toPixelY, { drawing: { type: 'fib' }, fmt: (v) => `${v.toFixed(4)}` })
+    expect(ctx.__find('fillText')[0].args[0]).toBe('0.0% — 200.0000')
+  })
+
+  it('⛔ THE DASH LADDER IS THE SHIPPED ONE', () => {
+    const ctx = makeCtx()
+    renderFib(ctx, pts, R, toPixelY)
     const dashes = ctx.__find('setLineDash').map((c) => c.args[0])
-    expect(dashes[0]).toEqual([])          // 0    → solid
-    expect(dashes[1]).toEqual([4, 3])      // .236 → retracement dash
-    expect(dashes[7]).toEqual([6, 3])      // 1.272 → extension dash
-    expect(ctx.__find('fillText').at(-1).args[0]).toBe('261.8% — $36.18')
+    expect(dashes[0]).toEqual([])          // 0 solid
+    expect(dashes[1]).toEqual([4, 3])      // 0.236 dashed
+    expect(dashes[6]).toEqual([])          // 1 solid
+    const ext = makeCtx()
+    renderFibExtension(ext, pts, R, toPixelY)
+    expect(ext.__find('setLineDash').map((c) => c.args[0])[8]).toEqual([6, 3])   // 1.618
+  })
+
+  it('returns the level lines it drew, for the hit test', () => {
+    const ctx = makeCtx()
+    const lines = renderFib(ctx, pts, R, toPixelY, { drawing: { type: 'fib' } })
+    expect(lines).toHaveLength(FIB_LEVELS.length)
+    expect(lines[0]).toMatchObject({ level: 0, key: '0', color: FIB_COLORS[0] })
+    expect(lines.every((l) => Number.isFinite(l.y))).toBe(true)
+  })
+
+  it('draws nothing for a degenerate swing or an unresolvable anchor', () => {
+    const flat = makeCtx()
+    expect(renderFib(flat, [P(1, 1, { rawPrice: 100 }), P(2, 2, { rawPrice: 100 })], R, toPixelY)).toBeNull()
+    expect(flat.__ops()).toEqual([])
+    const bad = makeCtx()
+    expect(renderFib(bad, [P(1, 1), { valid: false }], R, toPixelY)).toBeNull()
+  })
+
+  it('restores the dash it set, so the next drawing is unaffected', () => {
+    const ctx = makeCtx()
+    renderFib(ctx, pts, R, toPixelY)
+    expect(ctx.__state.lineDash).toEqual([])
   })
 })
 

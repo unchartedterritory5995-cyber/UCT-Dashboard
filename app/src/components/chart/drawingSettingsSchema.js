@@ -50,6 +50,7 @@
 import { ARROW_SIZES, DEFAULT_ARROW_SIZE } from './drawingStyle'
 import { DEFAULT_LABEL_POS, LABEL_POSITIONS, fieldOn, labelPosOf } from './drawingMeasure'
 import { DEFAULT_TEXT_BG } from './drawingText'
+import { hasFibOverrides } from './drawingFib'
 
 /** Fixed render order. A tool's sections are emitted in this order regardless of
  *  how its entry is written, so no tool can accidentally invent its own layout. */
@@ -203,6 +204,27 @@ export const CONTROLS = Object.freeze({
   },
 
   // ── arrow ──
+  // ── fibonacci ──
+  //
+  // ⛔ ONE ROW, NOT TWENTY-ONE. A Fib has up to eleven levels and ten bands; a
+  // visibility switch, a colour and a fill for each would be sixty rows in a
+  // right-click menu. The root menu gets a single `Levels…` row and the whole
+  // configuration lives behind it in a dense editor — the same shape the colour
+  // row already uses, and the only shape that scales.
+  fibLevels: {
+    id: 'fibLevels', kind: 'custom', widget: 'fibEditor', label: 'Levels…',
+    needs: 'onSetProp',
+    // ⭐ EVERYTHING THE EDITOR WRITES PERSISTS AS ONE PAIR OF MAPS. Save as
+    // default therefore captures a user's whole preferred Fib — which levels
+    // they use, in what colours, with which bands filled.
+    persists: ['levels', 'fills'],
+  },
+  resetFib: {
+    id: 'resetFib', kind: 'action', label: 'Reset levels', needs: 'onResetFib',
+    // Offered only when there is something to reset, so the row is never a no-op.
+    available: (ctx) => hasFibOverrides(ctx.drawing),
+  },
+
   // ── advanced ──
   //
   // ⛔ A MODE, BECAUSE THE ALTERNATIVE IS A WORSE DEFAULT. Price Move's anchors
@@ -396,8 +418,12 @@ export const SCHEMA = Object.freeze({
   // for is also how a rectangle's saved fill would end up on one.
   circle: { style: STYLE, actions: ACTIONS },
   arrow: { style: STYLE, appearance: ['arrowSize'], actions: ACTIONS },
-  fib: { style: STYLE, actions: ACTIONS },
-  fibext: { style: STYLE, actions: ACTIONS },
+  // ⭐ THE TWO FIB TOOLS DECLARE THE SAME CONTROLS, because they are the same
+  // concept with different geometry. Their DEFAULTS are per-tool (see
+  // `byTool`), so a user's retracement palette and their extension palette stay
+  // separate — which is what people actually want.
+  fib: { style: STYLE, appearance: ['fibLevels'], advanced: ['resetFib'], actions: ACTIONS },
+  fibext: { style: STYLE, appearance: ['fibLevels'], advanced: ['resetFib'], actions: ACTIONS },
   pitchfork: { style: STYLE, actions: ACTIONS },
   channel: { style: STYLE, actions: ACTIONS },
   cup: { style: STYLE, actions: ACTIONS },

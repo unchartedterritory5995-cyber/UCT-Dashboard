@@ -143,7 +143,14 @@ export const DRAWING_DEFAULTS = Object.freeze({
   labelPoint: null,
 
   // ── fibonacci (Phase 7) ──
-  levels: null,        // follow FIB_LEVELS / FIB_EXT_LEVELS + their colour arrays
+  //
+  // ⛔ `null` MEANS "FOLLOW THE CANONICAL TABLE", and it must keep meaning that.
+  // Materialising the level list onto a drawing would freeze a copy of the
+  // palette, turn adding a canonical level into a migration, and triple the size
+  // of every saved Fib to record its defaults. A drawing stores ONLY the levels
+  // it overrides — see `drawingFib.js`.
+  levels: null,        // sparse: { '0.618': { visible, color } }
+  fills: null,         // sparse: { '0.5>0.618': { enabled, color } }
 
   // ── text (Phase 6) ──
   // `null` = the drawing layer's own face, which is what every note drawn

@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } fr
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
-import { anchorsForDrawing } from './chart/drawingAlertAnchors'
+import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -4831,19 +4831,30 @@ export default function StockChart({
    * disagree silently at the first edit. */
   // MOB-05 — keep every "follow this line" alert glued to its drawing. Dormant
   // unless this chart actually carries a line-ish drawing; see the hook header.
-  useBoundDrawingAlerts({
+  // ⭐ THE HOOK'S RETURN IS THE SYMBOL'S LIVE ALERT LIST, and the Fib level
+  // editor reads it to mark which levels already carry one. Derived, never
+  // stored on the drawing: an alert is server state another browser can change,
+  // and a copy on the drawing would go stale AND would mean a style write every
+  // time an alert was set.
+  const boundAlerts = useBoundDrawingAlerts({
     sym, drawings, tf: resolvedTf, etOffset: _ET_OFFSET,
     getBars: useCallback(() => drawBarsRef.current || [], []),
   })
 
   const handleSetDrawingAlert = useCallback(async (drawing, direction, opts) => {
     if (!sym || !drawing) return
+    // ⭐ `opts.level` IS THE ONLY THING A FIB ALERT ADDS. The geometry call
+    // resolves that level to a price, and the level rides into the bound id so
+    // the resync can recompute it after the drawing moves. Everything else —
+    // the body, the endpoint, the direction vocabulary, the cache update — is
+    // the path every other drawing alert already takes.
+    const level = opts?.level
     const geom = anchorsForDrawing(drawing, {
-      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET,
+      bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET, level,
     })
     if (!geom) return
     const body = { sym, direction, ...geom }
-    if (opts?.bound !== false && drawing.id) body.drawing_id = drawing.id
+    if (opts?.bound !== false && drawing.id) body.drawing_id = boundIdFor(drawing.id, level ?? null)
     try {
       const res = await fetch('/api/watchlist-alerts', {
         method: 'POST',
@@ -15880,6 +15891,7 @@ export default function StockChart({
               })
             }}
             onSetAlert={handleSetDrawingAlert}
+            boundAlerts={boundAlerts}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}

@@ -21,6 +21,11 @@ import {
   FONT_OPTIONS, editorTextStyle, fontLabelFor, fontStringFor, fontStackOf,
   textBoxFor, PAD_X, PAD_Y, BORDER_W, LINE_HEIGHT,
 } from './drawingText'
+import {
+  RESET_FIB_STYLE, bandState, bandsFor, defaultBandColor, levelKey,
+  resolveLevels, withBand, withLevel,
+} from './drawingFib'
+import { parseBoundId } from './drawingAlertAnchors'
 import { sectionsFor, defaultsPayloadFor, newDrawingProps } from './drawingSettingsSchema'
 import {
   PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
@@ -354,7 +359,10 @@ export default function ChartDrawingOverlay({
   savedColors = [],          // shared saved-color swatches (same list as Chart Settings)
   onSaveColor = null,        //   → the drawing color picker (ColorPanel) reuses them
   onDeleteColor = null,
-  onSetAlert = null,         // (drawing, 'above'|'below') => void — "Set alert" on a line/trendline's
+  boundAlerts = null,        // the symbol's live bound alerts, so the Fib level editor can
+                             //   show WHICH levels already carry one. Read-only; absent on
+                             //   every surface that does not own alerts.
+  onSetAlert = null,         // (drawing, 'above'|'below', opts) => void — "Set alert" on a line/trendline's
                              //   right-click menu. Provided only by the MAIN chart (it knows the symbol).
   readOnly = false,          // display-only layer (multi-chart grid cells): skip the window
                              //   keydown handler entirely — a NOOP-wired instance would still
@@ -1225,8 +1233,16 @@ export default function ChartDrawingOverlay({
           if (box) paintedBoxes.set(d.id, box)
           break
         }
-        case 'fib': renderFib(ctx, pts, rect, toPixelY); break
-        case 'fibext': renderFibExtension(ctx, pts, rect, toPixelY); break
+        // ⭐ THE PAINTER RETURNS THE LEVEL LINES IT DREW, and they are cached
+        // for the hit test — so a Fib is grabbable at every visible level and
+        // NOT grabbable at one the user has hidden.
+        case 'fib':
+        case 'fibext': {
+          const paint = d.type === 'fibext' ? renderFibExtension : renderFib
+          const lines = paint(ctx, pts, rect, toPixelY, { drawing: d, fmt: priceText })
+          if (lines && lines.length) paintedBoxes.set(d.id, lines)
+          break
+        }
         case 'pitchfork': renderPitchfork(ctx, pts, rect); break
         case 'channel': renderChannel(ctx, pts, rect); break
         case 'cup': renderCup(ctx, pts); break
@@ -1390,8 +1406,15 @@ export default function ChartDrawingOverlay({
           case 'rect': renderRect(ctx, previewPts, newDrawingProps('rect', toolDefaults)); break
           case 'circle': renderCircle(ctx, previewPts); break
           case 'arrow': renderArrow(ctx, previewPts, newDrawingProps('arrow', toolDefaults)); break
-          case 'fib': renderFib(ctx, previewPts, previewRect, toPixelY); break
-          case 'fibext': renderFibExtension(ctx, previewPts, previewRect, toPixelY); break
+          // The preview shows the levels the finished drawing will have, so a
+          // user with a saved Fib preset sees it while placing.
+          case 'fib':
+          case 'fibext': {
+            const proto = { type: activeTool, ...(newDrawingProps(activeTool, toolDefaults) || {}) }
+            const paint = activeTool === 'fibext' ? renderFibExtension : renderFib
+            paint(ctx, previewPts, previewRect, toPixelY, { drawing: proto, fmt: priceText })
+            break
+          }
           case 'pitchfork': renderPitchfork(ctx, previewPts, previewRect); break
           case 'channel': renderChannel(ctx, previewPts, previewRect); break
           case 'cup': renderCup(ctx, previewPts); break
@@ -1530,6 +1553,27 @@ export default function ChartDrawingOverlay({
     }
   }, [rectForDrawing, resolvePixels])
 
+  /**
+   * Which of a Fib's levels already carry an alert.
+   *
+   * ⭐ DERIVED FROM THE LIVE ALERT LIST, not from anything stored on the drawing.
+   * An alert is server state that another browser can create or clear, so a copy
+   * on the drawing would be a second truth that goes stale — and would also mean
+   * a STYLE write every time an alert was set, which is exactly the coupling
+   * Phase 8 must not create (hiding a level must not touch alerts, and setting an
+   * alert must not touch style).
+   */
+  const levelAlertsFor = useCallback((d) => {
+    if (!d || !boundAlerts || !boundAlerts.length) return null
+    const out = new Set()
+    for (const a of boundAlerts) {
+      if (!a || !a.is_active || !a.drawing_id) continue
+      const { drawingId, level } = parseBoundId(a.drawing_id)
+      if (drawingId === d.id && level != null) out.add(levelKey(level))
+    }
+    return out.size ? out : null
+  }, [boundAlerts])
+
   // Screen box → the chart coordinate at its centre. Used once, at the moment a
   // never-moved Price Move label is first grabbed, so the drag has somewhere to
   // start from.
@@ -1589,7 +1633,13 @@ export default function ChartDrawingOverlay({
         // character width, so a bold note, a monospace note or one long word
         // all had a hitbox the wrong size — and the note is the only thing there
         // is to grab.
-        : hitTestDrawing(d, pts, mx, my, rect, d.type === 'text' ? labelBoxRef.current.get(d.id) : null)
+        // ⭐ ONE CACHE, TWO SHAPES, ONE RULE: what the painter drew is what the
+        // user can grab. A Text Note publishes its box; a Fib publishes its
+        // visible level lines. Neither is re-derived here, because a second
+        // derivation is exactly how an invisible hitbox is born.
+        : hitTestDrawing(d, pts, mx, my, rect,
+          (d.type === 'text' || d.type === 'fib' || d.type === 'fibext')
+            ? labelBoxRef.current.get(d.id) : null)
       if (hit) return d.id
     }
     return null
@@ -2649,6 +2699,15 @@ export default function ChartDrawingOverlay({
             // `updateDrawing`, so every setting change is one undo step and is
             // persisted by the same writer as a geometry change.
             onSetProp={(name, value) => updateDrawing(ctxMenu.drawingId, { [name]: value })}
+            // ⛔ RESET REMOVES OVERRIDES; IT DOES NOT WRITE DEFAULTS. Setting both
+            // maps to null returns the Fib to inheriting the canonical table —
+            // and touches neither its anchors nor its alerts.
+            onResetFib={() => { updateDrawing(ctxMenu.drawingId, { ...RESET_FIB_STYLE }); setCtxMenu(null) }}
+            // ⭐ THE SAME `onSetAlert` HANDLER EVERY OTHER TOOL USES — it is
+            // given the level, and the level rides into the bound id. No second
+            // alert path, no Fib-only direction vocabulary.
+            onSetLevelAlert={onSetAlert ? ((level) => { onSetAlert(d, 'above', { bound: true, level }); setCtxMenu(null) }) : null}
+            levelAlerts={levelAlertsFor(d)}
             // ⭐ A TOGGLE, NOT A MODE STACK. "Adjust anchors" reveals this one
             // drawing's measurement anchors and makes them grabbable; choosing
             // it again — or selecting anything else — puts them away. There is
@@ -2831,6 +2890,8 @@ const CONTROL_ICONS = {
   saveDefault: <path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />,
   // Two anchor points with a span between them — the thing the row reveals.
   adjustAnchors: <><circle cx="3.5" cy="11" r="1.8" /><circle cx="12.5" cy="5" r="1.8" /><line x1="5" y1="10" x2="11" y2="6" strokeDasharray="2 1.5" /></>,
+  // A counter-clockwise arrow — "put it back", not "delete it".
+  resetFib: <><path d="M3 8a5 5 0 1 0 1.6-3.7" /><polyline points="2.5,2.5 2.5,5.5 5.5,5.5" /></>,
   remove: <><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>,
 }
 
@@ -2949,7 +3010,7 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
  */
 export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
   onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal,
-  onSetProp, onAdjustAnchors, adjusting = false }) {
+  onSetProp, onAdjustAnchors, adjusting = false, onResetFib, onSetLevelAlert, levelAlerts = null }) {
   const menuRef = useRef(null)
   // ⛔ WHICH COLOUR PANEL, NOT WHETHER ONE IS OPEN. A Rectangle has two colour
   // rows (Border and Fill) and they share one ColorPanel instance, so the state
@@ -2958,6 +3019,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // shows line controls straight off the table.
   const [colorPanel, setColorPanel] = useState(null)
   const [fontOpen, setFontOpen] = useState(false)
+  const [fibOpen, setFibOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
   /* ⭐ TWO ALERT SEMANTICS, AND THE CHOICE IS REMEMBERED (MOB-05). A trader
@@ -3012,7 +3074,23 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // What a colour row shows, and what its panel edits. A property-backed row
   // (Fill) falls back to the drawing's colour when it has no value of its own —
   // which is exactly what it RENDERS as, so the swatch never lies.
-  const swatchOf = (item) => (item?.prop ? (drawing?.[item.prop] || item.fallbackColor || curColor) : curColor)
+  const swatchOf = (item) => {
+    // ⭐ A LEVEL OR BAND SWATCH CARRIES ITS OWN VALUE, because it is not a
+    // property of the drawing — it is one entry inside a sparse map, and
+    // resolving it a second time here would be a second source of truth.
+    if (item && item.value) return item.value
+    return item?.prop ? (drawing?.[item.prop] || item.fallbackColor || curColor) : curColor
+  }
+
+  /** Where a colour chosen in the shared panel is written. One place, so the
+   *  panel itself stays a plain colour picker for every caller. */
+  const applyColor = (panel, hex) => {
+    if (!panel) return
+    if (panel.fibLevel !== undefined) return onSetProp?.('levels', withLevel(drawing, panel.fibLevel, { color: hex }))
+    if (panel.fibBand) return onSetProp?.('fills', withBand(drawing, panel.fibBand[0], panel.fibBand[1], { enabled: true, color: hex }))
+    if (panel.prop) return onSetProp?.(panel.prop, hex)
+    return onSetColor(hex)
+  }
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
@@ -3066,7 +3144,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     points: drawing?.points,
     handlers: {
       onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert, onSetProp,
-      onAdjustAnchors,
+      onAdjustAnchors, onResetFib,
       onDuplicate, onToggleLock, onToggleHide, onSaveDefaults, onDelete,
     },
     // Only `adjustAnchors` reads this — it is the one control whose LABEL
@@ -3226,6 +3304,134 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                     <span aria-hidden="true" style={{ width: 12, flex: '0 0 12px', fontFamily: 'inherit' }}>{on ? '✓' : ''}</span>
                     <span>{f.label}</span>
                   </button>
+                )
+              })}
+            </div>
+          )}
+        </React.Fragment>
+      )
+    },
+
+    /**
+     * The Fib level editor.
+     *
+     * ⛔ DENSE ON PURPOSE — THIS IS A TRADING TERMINAL. Eleven levels and ten
+     * bands at the menu's normal 36px row height is a 750px wall; at 22px it is
+     * a table you can read at a glance and hit with a mouse. The three things a
+     * row carries are the three things the user came for: is it on, which level
+     * is it, what colour is it.
+     *
+     * ⭐ AND IT IS ONE PANEL, NOT TWO. Lines and bands are different concepts and
+     * are separated by a caption rather than by a second door — the whole point
+     * of opening this is to see the Fib's configuration in one place.
+     */
+    fibEditor: (item) => {
+      const type = drawing?.type
+      const levels = resolveLevels(drawing)
+      const bands = bandsFor(type)
+      const num = (v) => (v === 0 ? '0' : v === 1 ? '1' : String(v).replace(/^0/, ''))
+      const setLevel = (lv, patch) => onSetProp?.('levels', withLevel(drawing, lv, patch))
+      const setBand = (a, b, patch) => onSetProp?.('fills', withBand(drawing, a, b, patch))
+      const rowH = sheet ? 34 : 22
+      const cap = { padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600 }
+      const swatch = (color, onClick, title) => (
+        <button
+          type="button" title={title} onClick={onClick}
+          style={{
+            width: sheet ? 22 : 14, height: sheet ? 22 : 14, borderRadius: '50%', flex: 'none',
+            background: color, border: '1px solid var(--menu-border, #2c2c30)',
+            boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)', cursor: 'pointer', padding: 0,
+          }}
+        />
+      )
+      return (
+        <React.Fragment key={item.id}>
+          <button
+            onClick={() => setFibOpen((o) => !o)}
+            style={{
+              ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+              fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+              background: fibOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+            }}
+            onMouseEnter={(e) => { if (!fibOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+            onMouseLeave={(e) => { if (!fibOpen) e.currentTarget.style.background = 'none' }}
+          >
+            <span style={labelStyle}>{item.label}</span>
+            <span style={{ marginLeft: 'auto', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{fibOpen ? '▾' : '▸'}</span>
+          </button>
+          {fibOpen && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{ maxHeight: sheet ? 300 : 330, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid var(--menu-divider, #202022)', borderBottom: '1px solid var(--menu-divider, #202022)' }}
+            >
+              <div style={cap}>Levels</div>
+              {levels.map((lv) => (
+                <div key={lv.key} style={{ display: 'flex', alignItems: 'center', gap: 8, height: rowH, padding: sheet ? '0 18px' : '0 11px' }}>
+                  <button
+                    type="button" role="switch" aria-checked={lv.visible}
+                    aria-label={`Level ${num(lv.level)}`}
+                    onClick={() => setLevel(lv.level, { visible: !lv.visible })}
+                    style={{
+                      width: 13, height: 13, flex: 'none', padding: 0, cursor: 'pointer', borderRadius: 3,
+                      border: `1px solid ${lv.visible ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                      background: lv.visible ? 'var(--menu-accent, #f0b23a)' : 'transparent',
+                      color: '#0e0e10', fontSize: 10, lineHeight: 1, fontWeight: 700,
+                    }}
+                  >{lv.visible ? '✓' : ''}</button>
+                  <span style={{
+                    minWidth: 40, fontSize: sheet ? 13 : 12, fontVariantNumeric: 'tabular-nums',
+                    color: lv.visible ? 'var(--menu-text, #ededed)' : 'var(--menu-text-faint, #6b6b6b)',
+                  }}>{num(lv.level)}</span>
+                  {/* ⭐ THE ALERT MARK SITS BETWEEN THE LEVEL AND ITS COLOUR, and is
+                      only ink when there IS an alert — see Phase 8. */}
+                  <button
+                    type="button"
+                    title={levelAlerts?.has(lv.key) ? `Alert set on ${num(lv.level)}` : `Set an alert on ${num(lv.level)}`}
+                    aria-label={`Alert on level ${num(lv.level)}`}
+                    aria-pressed={!!levelAlerts?.has(lv.key)}
+                    onClick={() => onSetLevelAlert?.(lv.level)}
+                    style={{
+                      marginLeft: 'auto', width: 18, height: 18, flex: 'none', padding: 0, cursor: 'pointer',
+                      border: 'none', background: 'none', lineHeight: 1,
+                      color: levelAlerts?.has(lv.key) ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-faint, #4b4b4b)',
+                    }}
+                  >
+                    <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4.4 7a3.6 3.6 0 0 1 7.2 0c0 2.9 1.1 3.8 1.1 3.8H3.3S4.4 9.9 4.4 7Z" />
+                      <path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" />
+                    </svg>
+                  </button>
+                  {swatch(lv.color, () => setColorPanel({ id: `fib:${lv.key}`, label: `Level ${num(lv.level)}`, line: false, fibLevel: lv.level, value: lv.color }), `Colour of level ${num(lv.level)}`)}
+                </div>
+              ))}
+
+              <div style={cap}>Fills</div>
+              {bands.map(([a, b]) => {
+                const st = bandState(drawing, a, b)
+                const key = `${a}>${b}`
+                return (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, height: rowH, padding: sheet ? '0 18px' : '0 11px' }}>
+                    <button
+                      type="button" role="switch" aria-checked={st.enabled}
+                      aria-label={`Fill ${num(a)} to ${num(b)}`}
+                      onClick={() => setBand(a, b, st.enabled ? { enabled: false } : { enabled: true, color: st.color || defaultBandColor(drawing, a) })}
+                      style={{
+                        width: 13, height: 13, flex: 'none', padding: 0, cursor: 'pointer', borderRadius: 3,
+                        border: `1px solid ${st.enabled ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                        background: st.enabled ? 'var(--menu-accent, #f0b23a)' : 'transparent',
+                        color: '#0e0e10', fontSize: 10, lineHeight: 1, fontWeight: 700,
+                      }}
+                    >{st.enabled ? '✓' : ''}</button>
+                    <span style={{
+                      fontSize: sheet ? 13 : 12, fontVariantNumeric: 'tabular-nums',
+                      color: st.enabled ? 'var(--menu-text, #ededed)' : 'var(--menu-text-faint, #6b6b6b)',
+                    }}>{num(a)} → {num(b)}</span>
+                    <span style={{ marginLeft: 'auto', display: 'flex' }}>
+                      {swatch(st.enabled ? st.color : 'transparent',
+                        () => setColorPanel({ id: `fill:${key}`, label: `Fill ${num(a)} → ${num(b)}`, line: false, fibBand: [a, b], value: st.color || defaultBandColor(drawing, a) }),
+                        `Colour of the ${num(a)} to ${num(b)} band`)}
+                    </span>
+                  </div>
                 )
               })}
             </div>
@@ -3407,6 +3613,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // Plain rows. `saveDefault` is the one action with transient state ("Saved ✓").
   const ACTION_HANDLERS = {
     adjustAnchors: onAdjustAnchors,
+    resetFib: onResetFib,
     duplicate: onDuplicate,
     lock: onToggleLock,
     hide: onToggleHide,
@@ -3441,7 +3648,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         bgEnabled: !!drawing?.bgEnabled, borderEnabled: !!drawing?.borderEnabled,
         fontFamily: drawing?.fontFamily ?? null,
       })
-      for (const p of ['fillColor', 'fillOpacity', 'arrowSize', 'bgColor', 'borderColor']) {
+      for (const p of ['fillColor', 'fillOpacity', 'arrowSize', 'bgColor', 'borderColor', 'levels', 'fills']) {
         if (drawing?.[p] !== undefined && drawing?.[p] !== null) values[p] = drawing[p]
       }
       onSaveDefaults(defaultsPayloadFor(drawing?.type, values))
@@ -3499,7 +3706,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
           <ColorPanel
             title={colorPanel.prop ? colorPanel.label : 'Drawing'}
             value={swatchOf(colorPanel)}
-            onChange={(hex) => (colorPanel.prop ? onSetProp?.(colorPanel.prop, hex) : onSetColor(hex))}
+            onChange={(hex) => applyColor(colorPanel, hex)}
             onClose={() => setColorPanel(null)}
             savedColors={savedColors}
             onSaveColor={onSaveColor}

@@ -106,6 +106,17 @@ const PHASE5_ADD = {
 // between the label rows and the actions, so it is keyed by what comes after it.
 const PHASE5_BEFORE = { advance: { duplicate: ['adjustAnchors'] } }
 
+// ── what Phase 7 added to the two Fib tools ───────────────────────────────
+//
+//   Fib Retracement / Extension  + "Levels…"     (appearance — the whole editor)
+//                                + "Reset levels" (advanced, only when overridden)
+//
+// ⛔ ONE ROW FOR THE EDITOR, NOT SIXTY. Eleven levels × (visible, colour) plus
+// ten bands would be a wall in a right-click menu; the configuration lives
+// behind a single row. That is the assertion, not an implementation detail.
+const PHASE7_ADD = { fib: { color: ['fibLevels'] }, fibext: { color: ['fibLevels'] } }
+const PHASE7_BEFORE = { fib: { duplicate: ['resetFib'] }, fibext: { duplicate: ['resetFib'] } }
+
 // ── what Phase 6 did to the Text Note ──────────────────────────────────────
 //
 // ⛔ IT IS A REPLACEMENT, NOT AN ADDITION, WHICH IS WHY IT HAS ITS OWN TABLE.
@@ -138,7 +149,14 @@ function menuFor(type, opts = {}) {
       add[k] = [...(add[k] || []), ...v]
     }
   }
-  const before = opts.hasAdjust === false ? {} : (PHASE5_BEFORE[type] || {})
+  const before = { ...(opts.hasAdjust === false ? {} : (PHASE5_BEFORE[type] || {})) }
+  if (!noProp) {
+    for (const [k, v] of Object.entries(PHASE7_ADD[type] || {})) add[k] = [...(add[k] || []), ...v]
+  }
+  // Reset is offered only when the drawing has something to reset.
+  if (opts.fibOverridden) {
+    for (const [k, v] of Object.entries(PHASE7_BEFORE[type] || {})) before[k] = [...(before[k] || []), ...v]
+  }
   const out = []
   for (const id of oldMenuFor(type, opts)) {
     for (const pre of before[id] || []) out.push(pre)
@@ -153,11 +171,11 @@ const ALL_HANDLERS = {
   onSetFontSize: () => {}, onSetLevel: () => {}, onMakeHorizontal: () => {},
   onSetAlert: () => {}, onDuplicate: () => {}, onToggleLock: () => {},
   onToggleHide: () => {}, onSaveDefaults: () => {}, onDelete: () => {},
-  onSetProp: () => {}, onAdjustAnchors: () => {},
+  onSetProp: () => {}, onAdjustAnchors: () => {}, onResetFib: () => {},
 }
 const flatIds = (sections) => sections.flatMap((s) => s.items.map((i) => i.id))
 const resolve = (type, opts = {}) => flatIds(sectionsFor({
-  drawing: { type, ...(opts.drawing || {}) },
+  drawing: { type, ...(opts.fibOverridden ? { levels: { 0.5: { visible: false } } } : {}), ...(opts.drawing || {}) },
   points: opts.points ?? [{}, {}],
   handlers: { ...ALL_HANDLERS, ...(opts.handlers || {}) },
 }))
@@ -165,7 +183,7 @@ const resolve = (type, opts = {}) => flatIds(sectionsFor({
 // ═══════════════════════════════════════════════════════════════════════════
 describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type', () => {
   for (const type of ALL_TYPES) {
-    it(`${type} — the Phase-3 controls plus its declared Phase-4 additions`, () => {
+    it(`${type} — the Phase-3 controls plus every declared addition since`, () => {
       expect(resolve(type)).toEqual(menuFor(type))
     })
   }
@@ -179,7 +197,7 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
 
   it('matches the old menu when the caller wires NOTHING optional', () => {
     // The Model Book / grid-cell shape: no alert handler, no save-defaults.
-    const opts = { handlers: { onSetAlert: null, onSaveDefaults: null, onToggleHide: null, onAdjustAnchors: null } }
+    const opts = { handlers: { onSetAlert: null, onSaveDefaults: null, onToggleHide: null, onAdjustAnchors: null, onResetFib: null } }
     for (const type of ALL_TYPES) {
       expect(resolve(type, opts), type).toEqual(
         menuFor(type, { hasAlert: false, hasSaveDefaults: false, hasHide: false, hasAdjust: false }),
@@ -195,7 +213,7 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
       const got = resolve(type, { handlers: { onSetProp: null } })
       expect(got, type).toEqual(menuFor(type, { hasSetProp: false, hasAdjust: true }))
       for (const id of ['showPriceLabel', 'showPercentChange', 'fill', 'arrowSize', ...MEASURE_ROWS,
-        'fontFamily', 'bold', 'italic', 'bgEnabled', 'borderEnabled']) {
+        'fontFamily', 'bold', 'italic', 'bgEnabled', 'borderEnabled', 'fibLevels']) {
         expect(got, `${type} leaked ${id}`).not.toContain(id)
       }
     }
@@ -388,6 +406,25 @@ describe('SAVE AS DEFAULT — the payload follows the tool’s own controls', ()
     }
   })
 
+  it('⭐ A FIB SAVES ITS WHOLE CONFIGURATION, under its own tool', () => {
+    // A user's preferred Fib is which levels they use, in what colours, with
+    // which bands filled — one pair of sparse maps, so it stays small.
+    const cfg = {
+      ...VALUES,
+      levels: { 0.382: { visible: false }, 0.618: { color: '#ff5b5b' } },
+      fills: { '0.5>0.618': { enabled: true, color: '#3f7fe033' } },
+    }
+    expect(defaultsPayloadFor('fib', cfg).byTool).toEqual({ fib: { levels: cfg.levels, fills: cfg.fills } })
+    // ⛔ AND RETRACEMENT AND EXTENSION KEEP SEPARATE DEFAULTS, because people
+    // want different level sets for the two.
+    expect(defaultsPayloadFor('fibext', cfg).byTool).toEqual({ fibext: { levels: cfg.levels, fills: cfg.fills } })
+    expect(newDrawingProps('fibext', defaultsPayloadFor('fib', cfg).byTool)).toBeNull()
+  })
+
+  it('a Fib with no overrides saves no level configuration at all', () => {
+    expect(defaultsPayloadFor('fib', VALUES).byTool).toBeUndefined()
+  })
+
   it('⭐ a Text Note saves its typography and its box, under its own tool', () => {
     const p = defaultsPayloadFor('text', {
       ...VALUES, bold: true, italic: false, fontFamily: 'Georgia, serif',
@@ -535,6 +572,8 @@ describe('NEW vs LEGACY — what a freshly drawn tool is stamped with', () => {
 
   it('every other tool is stamped with nothing at all', () => {
     const stamped = new Set(['horizontal', 'hray', 'measure', 'dateRange', 'advance', 'text'])
+    // A Fib is stamped only by a SAVED default — it has no built-in starting
+    // configuration, because the canonical table already is one.
     for (const type of ALL_TYPES) {
       if (stamped.has(type)) continue
       expect(newDrawingProps(type), type).toBeNull()

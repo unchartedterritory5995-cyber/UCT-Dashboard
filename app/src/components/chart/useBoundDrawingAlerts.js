@@ -23,7 +23,7 @@
  */
 import { useEffect, useMemo } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { anchorsForDrawing, alertKindFor, geometrySignature } from './drawingAlertAnchors'
+import { anchorsForDrawing, alertKindFor, geometrySignature, parseBoundId } from './drawingAlertAnchors'
 
 // ⛔ MODULE-LEVEL ON PURPOSE. N charts on one symbol mount N copies of this hook
 // and see the SAME store snapshot, so per-instance state would send N identical
@@ -70,7 +70,12 @@ export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOf
       if (String(a.sym || '').toUpperCase() !== symU) continue
       if (_inflight.has(did)) continue
 
-      const d = byId.get(did)
+      // ⭐ A FIB LEVEL ALERT'S BOUND ID IS `<drawingId>#<level>`. Splitting it
+      // here is the whole of the Fib integration on this side: the drawing is
+      // found the same way, the geometry is recomputed for THAT level, and the
+      // existing signature/PATCH/DELETE machinery is untouched.
+      const { drawingId, level } = parseBoundId(did)
+      const d = byId.get(drawingId)
 
       if (!d) {
         // Only a seen→absent transition counts as a delete (see the header).
@@ -84,7 +89,7 @@ export default function useBoundDrawingAlerts({ sym, drawings, getBars, tf, etOf
       }
 
       _seen.add(did)
-      const geom = anchorsForDrawing(d, { bars, tf, etOffset })
+      const geom = anchorsForDrawing(d, { bars, tf, etOffset, level })
       if (!geom) continue
       const sig = geometrySignature(geom)
       if (_lastPushed.get(did) === sig) continue

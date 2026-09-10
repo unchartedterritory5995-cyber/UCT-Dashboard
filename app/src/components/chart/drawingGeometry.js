@@ -365,9 +365,23 @@ export function hitTestDrawing(d, pts, mx, my, rect, box = null) {
       return mx >= p.x - 26 && mx <= p.x + 26 && my >= p.y - 70 && my <= p.y + 10
     }
     case 'fib':
-    case 'fibext':
+    case 'fibext': {
       if (!ok(pts, 2)) return false
-      return mx >= rect.x0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
+      if (mx < rect.x0 || mx > w) return false
+      // ⭐ EVERY VISIBLE LEVEL IS GRABBABLE, AND ONLY THE VISIBLE ONES.
+      //
+      // ⚰️ This used to test the two ANCHOR rows alone, so a Fib's nine other
+      // lines could be seen and not selected — the same complaint Phase 2 fixed
+      // for the Pitchfork's prongs, under the principle that hit testing should
+      // match what the user can see. Phase 7 adds the other half of it: a level
+      // the user has HIDDEN is not there, so it must not keep swallowing clicks.
+      // `lines` is what the painter actually drew; without it (a caller that has
+      // not painted yet) the anchors remain the answer.
+      if (box && box.length) {
+        return box.some((l) => Math.abs(my - l.y) < HIT_THRESHOLD() * 2)
+      }
+      return Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2
+    }
     // ⭐ BOTH MULTI-LINE TOOLS HIT-TEST THE SEGMENTS THAT WERE ACTUALLY DRAWN.
     //
     // They used to measure against the INFINITE line through their anchors, which

@@ -594,3 +594,42 @@ describe('⭐ CIRCLE HANDLES — on the border, where the drawing actually is', 
     }
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ FIB — you can grab every level you can see, and no level you cannot', () => {
+  const P2 = (x, y, extra = {}) => ({ x, y, ...extra })
+  const pts = [P2(100, 100), P2(300, 300)]
+  const rect = { x0: 0, y0: 0, x1: 800, y1: 400 }
+  const hitFib = (lines, my) => hitTestDrawing({ type: 'fib' }, pts, 400, my, rect, lines)
+
+  it('hits a level line the painter drew', () => {
+    // ⚰️ The old test measured the two ANCHOR rows alone, so a Fib's other nine
+    // lines could be seen and not selected — the same complaint Phase 2 fixed
+    // for the Pitchfork's prongs.
+    const lines = [{ level: 0, y: 100 }, { level: 0.5, y: 200 }, { level: 1, y: 300 }]
+    expect(hitFib(lines, 200)).toBe(true)
+    expect(hitFib(lines, 100)).toBe(true)
+    expect(hitFib(lines, 250)).toBe(false)      // between levels — nothing there
+  })
+
+  it('⛔ DOES NOT HIT A LEVEL THE USER HID', () => {
+    // The painter does not return a hidden level, so it is not in the list — a
+    // level that is not drawn must not keep swallowing clicks.
+    const withMid = [{ level: 0, y: 100 }, { level: 0.5, y: 200 }, { level: 1, y: 300 }]
+    const without = [{ level: 0, y: 100 }, { level: 1, y: 300 }]
+    expect(hitFib(withMid, 200)).toBe(true)
+    expect(hitFib(without, 200)).toBe(false)
+  })
+
+  it('falls back to the anchors when nothing has been painted yet', () => {
+    expect(hitFib(null, 100)).toBe(true)
+    expect(hitFib(null, 300)).toBe(true)
+    expect(hitFib([], 200)).toBe(false)
+  })
+
+  it('stays inside its pane, like every other tool', () => {
+    const lines = [{ level: 0.5, y: 200 }]
+    expect(hitTestDrawing({ type: 'fib' }, pts, 900, 200, rect, lines)).toBe(false)
+    expect(hitTestDrawing({ type: 'fib' }, pts, -5, 200, rect, lines)).toBe(false)
+  })
+})
