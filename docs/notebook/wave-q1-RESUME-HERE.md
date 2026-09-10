@@ -69,46 +69,177 @@ supported by the evidence, and *"the fix works, this is a rig artifact"* is not
 supported either — the fork is a real `(conflicted copy)` on the server, from a
 single writer.
 
-## 🔬 THE LEADING SUSPECT — a HYPOTHESIS UNDER TEST, not a conclusion
+## ✅✅ ROOT CAUSE — FOUND. Deploy #4's main guard was never on the path.
 
-⛔ **Stream B is measuring this. Do not write it down as settled, and do not act
-on it as though it were.**
+⛔⛔ **THIS SUPERSEDES THE "leading suspect" THAT STOOD HERE.** The fork is
+explained, and the explanation is not a subtle race in a guard that ran. **Guard 1
+never ran for the defect at all.**
 
-The shape of the puzzle: **run 1 ended having read the opt-out back as `'0'`, and
-run 2 found `'1'` on disk.** Stream B's `finally` fix **is executing** — that is
-established (**R12**), and it is why this is interesting rather than a known bug.
+### Defect 1 — the guard was wired to the wrong save
 
-The suspicion is a **flush**, not a logic error: `'0'` is written to
-`localStorage`, and Chrome is **killed by marker before it flushes to disk**. An
-in-memory read-back passes while the on-disk value stays `'1'`. If that is what
-is happening, then:
+`settleLandedSave` was added by `b41c26f29` at **exactly one call site**: inside
+**`restoreDraft`** — the rare, deliberate draft-restore. It is **not** inside
+**`commitSave`**, the debounced autosave that every keystroke reaches, and
+`commitSave` is **the only path the defect rides**.
 
-- **every run after the first begins ALREADY OPTED IN**, and
-- the offline layer is **engaged from first paint, before the editor mounts** —
-  a materially different ordering from the **fresh opt-in** that run 1 and every
-  pre-deploy canary exercised.
+Measure it rather than take it on trust — the file says so plainly:
 
-⭐ **And that ordering is the MORE realistic member scenario, not the less.** A
-returning member is *always* already opted in. Every canary this wave has run
-tested the state a member is in **once**; the state they are in **every other
-time** was never exercised.
+```bash
+grep -n "settleLandedSave\|const restoreDraft\|const commitSave" \
+  app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx
+#   31:  import { useDurableNote, settleLandedSave, SESSION_ID } from ...
+#  735:  const restoreDraft = async () => {
+#  800:        settleLandedSave({          ← inside restoreDraft
+# 1506:  const commitSave = async () => {  ← no settle anywhere in it
+```
 
-⚠️ If it holds up, the read-back in `opt_out` is measuring the wrong layer — it
-proves the value reached `localStorage`, not that it reached the profile. That
-would be a third instance of this session's recurring shape (**R1**, **R8**,
-**R14**): an instrument reporting a property of itself as a property of the
-thing it measured.
+⛔⛔ **ELEVEN RAILS AND FOUR MUTATIONS ALL EXERCISED THE FUNCTION. NOTHING
+EXERCISED THE WIRE.** That is exactly
+[[lesson_built_tested_green_and_unreachable]] — *"built, tested, green, and
+unreachable"* — **with a mutation suite on top**. A mutation proves a guard's
+logic is observed by a rail; it says nothing about whether the guard is called
+from the place that needs it. The suite was green and the fix was not on the
+path.
+
+⭐ **Cite that lesson by name in any future review of this class.** The wave's
+own instrument culture caught three self-blind instruments this session (**R1**,
+**R8**, **R14**) and still shipped a guard reachable from one rare branch,
+because every test called it directly.
+
+### Defect 2 — independent, and it makes the two guards ONE guard
+
+The drain's supersede refusal asks `landedBaseline(record)`, which returns `null`
+for a **DIRTY** record. That refusal is **correct** — a dirty record's baseline is
+what its next send will *claim*, not what the server has acknowledged.
+
+But in **exactly the window that guard's own comment says it closes**, nothing has
+settled yet, so the record **is** dirty, the answer is **always** *"not
+superseded"*, and **the drain sends**. The reproduction says it, and it is
+committed:
+
+> *"It cannot. The refusal asks `landedBaseline(noteRec)`, and `landedBaseline`
+> returns null for a DIRTY record … But in exactly the window the comment
+> describes, nothing has settled yet, so the record IS still dirty. `landed` is
+> null, `isSupersededBaseline` refuses on a null side, and the drain SENDS. The
+> server has moved on, so the PUT 409s, and a 409 forks."*
+>
+> *"⭐ THE DEEPER POINT: the browser does not locally KNOW a save landed until
+> `settleLandedSave` writes it. That knowledge lives in an in-flight promise. So
+> the second guard is not defence in depth for this window — it is a FOLLOW-UP
+> CHECK that can only fire after the first guard has already won."*
+>
+> — `app/src/pages/journal-2-0/lib/offline/selfForkGap.repro.test.jsx`
+
+⛔⛔ **TWO GUARDS THAT SHARE A PRECONDITION ARE ONE GUARD.** What actually stood
+between a member and a duplicate of their own note was **whether the settle beat
+the drain**. ⛔ **A race is not a guard.**
+
+⭐ **Proved DETERMINISTICALLY in jsdom before any fix was written** — no second
+reproduction on the live canary account was needed. ⚠️ That file asserts the
+**current** behaviour, so it is green today and **must be deleted or inverted by
+whatever fix lands**: *"a test that pins a defect is a measurement with an expiry
+date."*
+
+### Why this matched what the rig saw
+
+Runs 2 and 3 both started already opted in; run 2 was clean and run 3 forked.
+**Intermittent is exactly what "whether the settle beats the drain" predicts.**
+The earlier reading — one ordering closed, another open — was right in shape and
+wrong in detail: the ordering was not narrowly open, it was **wide open, because
+guard 1 was not there at all**.
+
+### ⚰️ The superseded hypothesis, kept as the record
+
+⛔ **The flush suspicion is NO LONGER the explanation of the fork.** It was: *the
+opt-out's `'0'` reaches `localStorage` but Chrome is killed by marker before it
+flushes, so every run after the first starts already opted in.*
+
+⚠️ **It is not thereby disproved, and it is not the same question.** It was
+offered to explain **why the rig's opt-in key read `'1'` at rest between runs**,
+which is a fact about the RIG (**R16**), not about the product. The root cause
+above explains the **fork**. ⛔ Do not record the flush hypothesis as settled in
+either direction; if nobody measures it, it stays open as a rig question.
+
+⭐ **One observation from it survives intact and is worth more than the
+hypothesis was:** runs 2 and 3 exercised the **already-opted-in** ordering, and
+**a returning member is always already opted in.** Every canary in this wave
+tested the state a member is in *once*.
 
 ## What this blocks, and what it does not
 
 | | |
 |---|---|
-| The flag flip | ⛔⛔ **BLOCKED on this finding.** Not "next", not "pending the window" — blocked. |
-| The seven consecutive green runs | ⛔ **STOPPED AT 3.** The streak is not paused; it is broken and restarts from zero once the finding is understood. |
+| The root cause | ✅ **FOUND** — guard 1 was wired only into `restoreDraft`, and guard 2 cannot fire in the window it claims. See above. |
+| The fix for it | 🔧 **DESIGNED AND BEING BUILT (round 2, R-A)** — ⛔ **NOT DEPLOYED.** See the design section below. |
+| The flag flip | ⛔⛔ **BLOCKED.** Not "next", not "pending the window" — blocked, and now blocked on a *known* defect rather than an unknown one. |
+| The seven consecutive green runs | ⛔ **STOPPED AT 3.** The streak is not paused; it is broken and restarts from zero — and it restarts against the round-2 fix, not against #4. |
 | The 2026-09-17 decision | ⛔ **NO-GO stands, and now for a measured reason** rather than for unmeasured rows. |
-| Deploy #4 | ✅ **stays live.** Flag-false, strictly narrows the window, no rollback pressure. |
+| Deploy #4 | ✅ **stays live.** Flag-false, strictly narrows the window, no rollback pressure. ⚠️ It is not the fix; it is a partial one that was never on the path. |
+| Deploy #4b | ⛔ **has NOT happened.** No record exists for it here, deliberately. |
 | Deploy #5 | ⛔ **does not exist.** Do not write a record for one. |
 | The forked artifact | ⛔ **PRESERVED.** Do not clean it up; do not describe cleaning it up. |
+
+---
+
+# 🔧 ROUND 2 — THE FINAL DESIGN (R-A), CONFIRMED BY THE OWNER
+
+⛔ **This is the design. It is NOT deployed.** Deploy #4b has not happened; there
+is no record for it in this file and there should not be one until it does.
+
+## GUARD 1 — a durable in-flight marker, in the **meta** store
+
+Key **`inflight:<noteId>`**. Written **store-direct, BEFORE the PUT, and NOT
+awaited**. The drain **SKIPS** a note that has a live marker.
+
+⛔ **SKIPS, not blocks.** A skip leaves the entry queued for the next pass; a
+block is a state something has to come along and clear. The drain has enough
+terminal states already.
+
+**Two independent expiries, and they answer different questions:**
+
+| expiry | what it knows |
+|---|---|
+| the **TTL** | the save cannot still plausibly be in flight (see **R-D**) |
+| a **PER-TAB Web Lock**, `uct.nb.session.<sessionId>` | the tab that wrote the marker is gone |
+
+⛔⛔ **THE PER-TAB LOCK EXISTS BECAUSE `navigator.locks.query()` REPORTS OPAQUE
+`clientId`s**, so it cannot tell you *which* tab holds what — and ⛔ **the LEADER
+lock answers a different question entirely** (*who drains*, not *who is
+mid-save*). Reusing the leader lock here would be a second authority over a value
+it does not own.
+
+⛔ **`holders: null` means "the TTL decides alone", NEVER "nobody is alive".** An
+unreadable answer is not a negative answer — that distinction is the one this
+wave keeps paying for.
+
+## GUARD 2 — the 409 self-supersede, and it is TERMINAL
+
+On a 409, the entry is **superseded, removed, and logged — NO fork** when either:
+
+- the **server body is byte-identical** to what this browser sent, **or**
+- the **server's `updatedAt` is in this browser's own landed-revision ring**.
+
+**Anything else FORKS, and that is a CONTROL, not a fallback.** ⛔ A throwing
+check forks. ⛔ An absent check forks. **Preserving both copies is the safe
+direction**, and the design is arranged so every failure mode lands on it.
+
+## TWO PASSES, not one
+
+Guard 2 is asked **BEFORE the send when a marker has EXPIRED**, and **AGAIN on a
+409**.
+
+⭐ **Because the server's answer CHANGES across the send.** In the slow-PUT
+ordering the honest answer before the send is *"no"* and the honest answer after
+it is *"yes"* — and both are truthful readings of the same server at different
+moments. **One implementation, two call sites.**
+
+## What is deliberately NOT changing
+
+- **`excludeNoteId` is untouched.** It protects the note **while open**; none of
+  this is about that window.
+- **`landedBaseline` keeps its dirty-record refusal.** ⛔ That refusal was
+  **correct**. The mistake was **asking it a question it cannot answer in that
+  window** — see defect 2 above. Do not "fix" `landedBaseline`.
 
 ---
 
@@ -760,6 +891,209 @@ starting state of every run in the streak rather than only its verdict.
 
 ---
 
+# 🧾 ROUND-2 RULINGS — R-A … R-I
+
+⛔ **Lettered, not numbered, on purpose.** R1–R16 belong to the deploy-#4 round;
+these belong to the round that followed the root cause. Mixing the sequences
+would imply an ordering between two different investigations.
+
+⛔ **All logged `2026-09-10T20:12:45Z`** — the logging time, not the deciding
+time, same rule as R1–R16.
+
+## R-A — the marker lives in the **meta** store, and two designs were REJECTED
+
+**Decision: `inflight:<noteId>` in the meta store, store-direct, not awaited.
+Confirmed by the owner.** The design is written out in full above.
+
+⛔⛔ **BOTH REJECTED DESIGNS WERE KILLED BY PRE-EXISTING RAILS, NOT BY REVIEW.**
+That is the load-bearing fact about this ruling: nobody argued them down. They
+were built, and rails that already existed went red.
+
+**REJECTED 1 — AWAIT the marker write on the save path.**
+Rejected by `NoteEditorPage.durable.test.jsx` and
+`NoteEditorPage.interleavings.test.jsx`. ⛔ It **couples the member's ability to
+save to IndexedDB being responsive**: a blocked upgrade or a stalled store stops
+saves outright — and to a member whose network is fine, *it looks like the network
+is down*. ⭐ **"A save must not wait on bookkeeping" is a rule this file already
+lived by**; the rejection was the rails enforcing a rule the design had forgotten.
+
+**REJECTED 2 — the marker ON THE NOTE RECORD.**
+Rejected by the same rails. It meant a **read-modify-write on `notes` ON THE SAVE
+PATH**, contending with the durable writer's own writes to that store — and the
+observed result was that **the durable copy stopped being written at all**. It
+also forced an awkward flag so that lowering the marker could not clobber the
+settle. ⭐ **A different store removes both problems by construction**, which is
+why the meta store is the answer rather than a workaround.
+
+⭐ **The general shape:** when two writers contend for one store on a hot path,
+moving one of them to a different store is a *structural* fix; a flag that
+sequences them is a *race with a name*.
+
+## R-B — three more doors onto the same defect, found by the DERIVED wire rail
+
+**Decision: cover folder, ticker and tags changes as first-class cases.**
+
+Folder / ticker / tags changes **advance `updatedAt` without carrying the
+member's body** — so the same defect arrives through three more doors.
+
+⭐ **Found by the DERIVED wire rail, not by reading the code.** That is the direct
+answer to defect 1: the thing that was missing was a rail on the **wire**, and the
+first thing the wire rail did was find three call sites nobody had enumerated.
+
+Each door gets **its own deterministic case, its own control, and its own
+mutation** (`M17` / `M18` / `M19`).
+
+⛔⛔ **AND THE RAIL'S OWN LIMIT IS WRITTEN DOWN BESIDE IT: the wire rail proves
+the call EXISTS; it cannot prove the call is CORRECT.** A door that passed
+**LOCAL** state as `acked` would satisfy the wire rail completely — and would
+**DELETE the member's queued work**. There is a case pinning exactly that.
+
+⭐ That is `lesson_a_guard_that_tests_the_adjacent_thing` in its most expensive
+form: a rail that answers *"is it wired?"* reads, to a tired reviewer, like a rail
+that answers *"is it right?"*.
+
+## R-C — guard 2's SECOND ARM SHIPPED DEAD
+
+**Decision: record it as a shipped-dead arm, and give the ring a real
+implementation.**
+
+`serverCopyIsOursDefault` **accepted `landedRevisions`**, and the drain **called
+it with one argument**. So the second arm **could never fire**, and guard 2
+recognised **only byte-identical bodies**.
+
+⛔⛔ **That is precisely the case that does NOT cover the defect.** A member who
+**keeps typing** has a body that differs **by construction** — so the only arm
+that was alive was the one guaranteed to be useless for the scenario the guard
+exists for.
+
+**Now:** `settleLandedSave` records each landing in a **bounded newest-first ring**
+(`landed:<noteId>`, cap 5, deduped, and unusable revisions **refused through the
+baseline authority** rather than through a second opinion).
+
+⚠️ **Same family as R8 and defect 1**: a thing that exists, reads correctly, and
+is not reachable from where it matters — an arity mismatch is
+`lesson_built_tested_green_and_unreachable` at the level of a single argument.
+A validator cannot see it; a function of the wrong arity is still a function.
+
+## R-D — `IN_FLIGHT_TTL_MS = 10 s`, and why it is p99×10 and not p95×10
+
+**Decision: 10 s = p99 997.6 ms × 10.**
+
+**n = 30 real CAS PUTs against production, from the rig:**
+
+```
+min   81.3 ms
+p50  111.2 ms
+p95  526.0 ms
+p99  997.6 ms   (= max)
+```
+
+⛔ **NOT p95×10 (5.26 s), and the reason is the distribution, not the caution.**
+At n = 30, **nearest-rank p95 IS a single sample**. The distribution is
+**bimodal** — 24 samples inside an 81–127 ms band, six in a tail — so "p95" here
+names the gap between two clusters rather than a percentile of one population.
+
+⭐ **The asymmetry decides it.** Too high, and a stuck marker delays a drain.
+**Too low, and the heal PRE-EMPTS a PUT that is still in flight** — which is the
+failure the marker exists to prevent. The tail is the population the threshold
+must **TOLERATE**, so the tail sets it.
+
+⚠️⚠️ **KNOW WHAT THIS NUMBER IS.** One machine, one network, one 15-minute
+off-hours window. It is **a latency floor for a HEALTHY origin**, not a
+characterisation of the service.
+⛔ **A breach is a reason to RE-MEASURE, never to shrink it.** Shrinking a
+threshold because it was exceeded turns a signal into silence
+(`lesson_two_points_do_not_establish_a_rate`).
+
+## R-E — four pre-existing rails were the judge, and NONE were edited
+
+**Decision: let the rails arbitrate, and change none of them.**
+
+Four rails were **RED under both rejected designs and GREEN under the final one**:
+
+- durable — *"a failed save leaves the work durable, queued, and HONESTLY
+  labelled"*
+- durable — *"says 'in this browser' when it was not"*
+- durable — *"a refused `persist()` never blocks offline editing"*
+- interleavings — *"C — the NEWEST words survive"*
+
+⛔⛔ **NOT ONE OF THEM WAS EDITED.** A rail edited to accommodate a design under
+evaluation stops being evidence about that design.
+
+⭐ **And a hypothesis was tested against them and REFUTED:** a pump-count
+explanation was tried, did not hold, and **the experiment was REVERTED rather
+than left as a rail bent to fit the change**. That is the whole discipline in one
+sentence — the cheap move is to adjust the rail until the design passes, and it
+destroys the only instrument you had.
+
+## R-F — §21 inertness: all three store-direct entry points honour the flag
+
+**Decision: re-establish the one-line rollback's guarantee, and rail it.**
+
+**All three store-direct entry points honour `offlineEnabled()`.**
+
+⭐ **Found because wiring the settle into the autosave path BROKE the guarantee
+the one-line rollback rests on** — the rollback runbook in this file promises that
+with the flag off *the editor writes nothing new*, and defect 1's fix put a new
+store-direct write on the hottest path in the product. The fix for one defect
+walked straight into the invariant of another.
+
+**Mutation `M20` targets the settle's flag gate.** ⛔ **Its find-string was
+EXTRACTED from the file and proved unique before being written**, because
+`if (!offlineEnabled()) return null` appears **identically in three functions** —
+an ambiguous mutation site is a guess about which call site was hit, and the
+gauntlet refuses one by design.
+
+## R-G — the slow-PUT ordering, and why one pass is not enough
+
+**Decision: two passes, from one implementation.**
+
+The ordering, with **no second device and no unusual browser**: a PUT slower than
+the TTL → the marker **expires** → the server is **unmoved**, so a pre-send check
+truthfully says *"not superseded"* → the entry is **sent** → the **slow PUT lands
+first** → **409**.
+
+⛔ **Both readings of the server are honest.** The answer simply **changes across
+the send**. That is why guard 2 is asked before the send *and* on the 409, and why
+it must be **one implementation with two call sites** rather than two checks that
+can drift (`lesson_a_second_authority_over_one_value`).
+
+Closed by the two-pass design; **five cases, each with a control.**
+
+## R-H — `patchNote` was REMOVED, not orphaned
+
+**Decision: record the removal, so nobody records a ghost.**
+
+`patchNote` was **ADDED by this work** and **removed when the marker moved
+stores**. It is **gone** — verified absent from `lib/offline/**` in this tree, not
+merely unreferenced.
+
+⛔ **The distinction matters here more than usual.** This repo carries a whole
+section of things that were *documented as live and are unreachable*; the reverse
+error — recording a **deleted** symbol as a **dead export** — sends the next
+reader hunting for a file that does not exist. A one-line entry is added to that
+section saying it was removed, on purpose, in the same work that introduced it.
+
+## R-I — the heredoc mangled backticked content TWICE, in one session
+
+**Decision: record it as a process failure, not a typo.**
+
+A `new RegExp` template literal became `consts+commitSaves*=s*asyncs*(`, and a
+whole test block **failed to parse**. Twice, in one session.
+
+⛔⛔ **THE STANDING CONSTRAINT — "Edit, not heredocs, for backticked content" —
+WAS VIOLATED BY THE AGENT THAT WROTE IT DOWN.** That is the part worth recording.
+A rule an agent authored and then broke is evidence that the rule is not
+self-enforcing, and the answer is a mechanical one: use the Edit tool for
+anything containing a backtick, `$`, or a shell metacharacter, without judging
+whether *this* string looks risky.
+
+⚠️ **The failure mode is loud here and silent elsewhere.** A mangled regex failed
+to parse, so it was caught immediately. The same mangling inside a string literal
+would have compiled, run, and quietly matched nothing.
+
+---
+
 # 🚨 THE SELF-FORK, AS FOUND — 2026-09-10
 
 **A SINGLE-WRITER OFFLINE SESSION FORKS ITS OWN NOTE.** Found by the compressed
@@ -890,7 +1224,7 @@ words, not of the gist.
 | 3 | backend Q1 rails | **25 passed** |
 | 4 | full frontend suite | **1207 files / 18020 tests** · **10 failed vs baseline 10** · **NEW regressions 0** · tree hash `aee7922b5…` → `aee7922b5…` **identical start→end** · files on disk **1207** reconciles with the summed shard total |
 | 5 | every Wave Q1 rail by name | **184 green** (this is the gauntlet's control) |
-| 6 | `tools/q1_mutation_gauntlet.py` | **12/12 redden**, each **naming its own rails**; control **184 green before AND after** |
+| 6 | `tools/q1_mutation_gauntlet.py` | **every declared mutation reddened**, each **naming its own rails**; control **184 green before AND after**. ⛔ **The total is read from the tool, never typed here** — round 2 adds `M17`–`M20` (**R-B**, **R-F**) and the number has already moved once since this row was written. |
 | 7 | `tools/verify_memory_pointers.py` | **exit 0** · 175 pointers · **0 LOST, 0 DANGLING** |
 | 8 | flag state | **`false`** on branch and master, as #4 expects |
 | 9 | member-impact paragraph | above, previously approved |
@@ -1269,9 +1603,11 @@ now cannot until the reproduction is explained.
 | §15 canary | ✅ **COMPLETE AND GREEN**, both halves + the conflict fork |
 | Blocked entries surfaced to the member | ✅ **built and DEPLOYED** — `0d7eee792`, shipped in deploy #2 (`eedb58ac8`) and still an ancestor of `master` |
 | The `null` baseline | ⏳ **instrumented, not explained** — the instrument is DEPLOYED (deploy #2, denominator in #3); what is still missing is an explanation, not a shipment |
-| The self-fork | ⚠️ **fix DEPLOYED** — deploy #4 (`f093bf731`), 2026-09-10T16:46:28Z, flag unchanged — ⛔⛔ **and it REPRODUCED at 16:54:50Z.** Not closed. See the HARD STOP at the top. |
+| The self-fork | ⚠️ **partial fix DEPLOYED** — deploy #4 (`f093bf731`), 2026-09-10T16:46:28Z, flag unchanged — ⛔⛔ **and it REPRODUCED at 16:54:50Z.** Not closed. |
+| The root cause | ✅ **FOUND** — guard 1 wired only into `restoreDraft`, never into `commitSave`; guard 2 shares a precondition with it, so the two are one. See the HARD STOP at the top. |
+| The round-2 fix | 🔧 **designed (R-A) and being built** — ⛔ **NOT DEPLOYED.** No deploy #4b record exists here. |
 | ⛔⛔ **The flag flip** | ⛔⛔ **BLOCKED** on that reproduction. Not "next", not "pending the window". |
-| The seven-run streak | ⛔ **STOPPED AT 3.** Restarts from zero, not from three. |
+| The seven-run streak | ⛔ **STOPPED AT 3.** Restarts from zero, not from three, and against the round-2 fix. |
 | Harness integrity | **green** — identity, ports, controls, mutation-proved |
 | Q2 | **locked** |
 | Service worker | untouched, and stays untouched |
@@ -3126,7 +3462,7 @@ top of this file.
 
 | | status |
 |---|---|
-| ⛔⛔ **The self-fork does not recur after the fix** | ⛔⛔ **OPEN — AND IT REPRODUCED.** Run 3 of 7, 2026-09-10T16:54:50Z, forked its own note with deploy #4 live. Streak stopped at 3. Artifact preserved. **The flip is BLOCKED on this**, and no other row can unblock it. |
+| ⛔⛔ **The self-fork does not recur after the fix** | ⛔⛔ **OPEN — IT REPRODUCED, AND THE CAUSE IS NOW KNOWN.** Run 3 of 7, 2026-09-10T16:54:50Z, forked its own note with deploy #4 live. **Root cause: guard 1 was wired only into `restoreDraft`, never into `commitSave`; guard 2 cannot fire in the window it claims.** Round-2 fix designed (**R-A**) and ⛔ **NOT DEPLOYED**. Streak stopped at 3, restarts from zero against the round-2 fix. Artifact preserved. **The flip is BLOCKED on this**, and no other row can unblock it. |
 | A blocked entry is surfaced to the member | ✅ **CLOSED 2026-09-10** — the notes list (both views) and the open note's header now say it, in the shipped vocabulary, and the sentence names the ACTION. See below. |
 | ~~`baseUpdatedAt: null` explained~~ → **`null` INSTRUMENTED, zero occurrences across the instrument clock** | ⏳ **INSTRUMENT LIVE IN PRODUCTION 2026-09-10T05:06:56Z** (deploy #2 `eedb58ac8`), clock ends 2026-09-17T05:06:56Z. ⛔⛔ **Bounded evidence, not proof** — with the flag off the event can only fire from an OPTED-IN browser, so zero over an empty population says nothing. Record the opted-in count beside it. |
 | A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. ⚠️ **That canary ran from a FRESH opt-in.** The 16:54:50Z fork came from a run that started **already opted in** — an ordering this canary never exercised. Its green is real and it is not evidence about the new finding. |
@@ -3466,9 +3802,10 @@ docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 ```
 
 **Sections in this file worth knowing by name:** ⛔⛔ **HARD STOP 2026-09-10**
-(read it first — the flip is BLOCKED) · 🧾 **RULINGS** (decisions taken, with
-reasons) · ⭐ **THE MUTATION GAUNTLET IS A TOOL** · ⭐ **TIER 1½** (inside the
-deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not indicated by the current
-finding — deploy #4 stays).
+(read it first — root cause found, the flip is BLOCKED) · 🔧 **ROUND 2 — THE FINAL
+DESIGN (R-A)** (designed, ⛔ not deployed) · 🧾 **RULINGS** R1–R16 and 🧾 **ROUND-2
+RULINGS** R-A…R-I (decisions taken, with reasons) · ⭐ **THE MUTATION GAUNTLET IS
+A TOOL** · ⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK**
+(⛔ not indicated by the current finding — deploy #4 stays).
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
