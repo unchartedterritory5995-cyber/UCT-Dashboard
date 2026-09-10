@@ -7,6 +7,7 @@ import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
+import HomeHubSection from '../hub/sections/HomeHubSection'
 import useHubActive from '../hub/useHubActive'
 import { HubProvider } from '../hub/HubContext'
 import MoreSheet from './mobile/MoreSheet'
@@ -165,6 +166,12 @@ export default function Layout({ children }) {
                 'hub cannot own an index into a list it cannot see' reason above does not
                 apply to it. Renders nothing. See hub/sections/notebookSection.js. */}
             <NotebookHubSection />
+            {/* §3.8a — Home's controller, the second hub-side mount and for a different reason:
+                its list is the REGISTRY's own route-backed section order (plus `lastSection`
+                promoted), not anything Dashboard.jsx renders, so the "hub cannot own an index into
+                a list it cannot see" rule above has nothing to bite on. Renders nothing; registers
+                only while the route resolves to the home mode. See hub/sections/homeSection.js. */}
+            <HomeHubSection />
             <HubRoot />
           </HubProvider>
           <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
