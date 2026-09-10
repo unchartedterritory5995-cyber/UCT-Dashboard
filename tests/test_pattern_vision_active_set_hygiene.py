@@ -191,6 +191,22 @@ def test_migration_adds_the_counters_to_an_already_shipped_table(tmp_path, monke
             skipped INTEGER, capped INTEGER, render_failed INTEGER, errored INTEGER,
             aborted INTEGER, abort_ticker TEXT, paid_calls INTEGER, spend_usd REAL)""")
         c.commit()
+
+    # ⭐ THE FIXTURE IS A VERIFIED MODEL OF PRODUCTION, NOT AN ASSUMED ONE.
+    # Read read-only off the live volume 2026-09-10 11:3x ET, before the deploy
+    # that adds the new columns. A migration test whose "old shape" is invented
+    # proves only that the migration handles the shape its author imagined.
+    PROD_SHAPE_2026_09_10 = [
+        "slot_start", "source", "started_ts", "finished_ts", "duration_s",
+        "evidence_min", "evidence_max", "evidence_distinct", "active_set_n",
+        "judged", "skipped", "capped", "render_failed", "errored",
+        "aborted", "abort_ticker", "paid_calls", "spend_usd",
+    ]
+    with s.connect() as c:
+        shape = [r[1] for r in c.execute("PRAGMA table_info(vision_slot_log)").fetchall()]
+    assert shape == PROD_SHAPE_2026_09_10, (
+        "fixture no longer matches the production table this migration must run against"
+    )
     s.init_db()
     with s.connect() as c:
         cols = {r[1] for r in c.execute("PRAGMA table_info(vision_slot_log)").fetchall()}
