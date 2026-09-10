@@ -1178,6 +1178,23 @@ def capture_fork(out_path: pathlib.Path | None = None,
             "not available to us."),
         "do_not_restate_as": "harmless",
     }
+    # ⛔ RECOMMENDATION ONLY — NOT IMPLEMENTED, deliberately, mid-investigation.
+    # `tools/window_check.py` appends its rows INTO docs/notebook/wave-q1-RESUME-HERE.md,
+    # which the docs stream owns and rewrites. Two writers, one file: an agent editing
+    # prose and a TOOL appending measurements. The ownership split was drawn around who
+    # EDITS, and a tool is not a who. The near-miss cost was real — the rows sat
+    # uncommitted while a docs merge could have eaten them.
+    rec["recommendation_not_implemented"] = {
+        "problem": "window_check.py writes measurements into a prose file another stream owns",
+        "shape": ("give the tool a file it SOLELY owns — an append-only rows artifact "
+                  "beside window-check.log — and have the resume doc POINT at it rather "
+                  "than contain it. The doc keeps the narrative; the tool keeps the rows."),
+        "why_it_is_clean": ("the tool already owns window-check.log in that directory, so "
+                            "the precedent and the path exist; and `next_check_number()` "
+                            "already parses rows back out of the doc, which is the only "
+                            "read coupling to sever."),
+        "why_not_now": "changing where evidence lands mid-investigation loses comparability",
+    }
     # ⛔ THE HONEST UNKNOWN. Runs 2 and 3 reading the opt-in key as '1' AT REST is
     # NOT explained by anything measured here, and the flush fix is not evidence
     # about it. Written into the artifact rather than left to a summary, because an
@@ -1191,10 +1208,44 @@ def capture_fork(out_path: pathlib.Path | None = None,
         "ruled_out_2": ("the app writing '1' on notebook mount — measured on deploy #4 "
                         "from both unset and '0', in throwaway contexts: the key does not "
                         "change and no IndexedDB is created"),
-        "not_corroborated": ("no stamped row exists for those runs; the newest row in "
-                             "wave-q1-RESUME-HERE.md is check 10 @ 13:37:03Z, pre-deploy. "
-                             "The readings exist only in grep-filtered terminal output."),
-        "status": "UNEXPLAINED — the flush fix is real, located, and is NOT evidence about this",
+        # ⛔ CORRECTED 2026-09-10. This slot previously read "no stamped row exists;
+        # the readings exist only in grep-filtered terminal output". THAT WAS MY
+        # INSTRUMENT, NOT THE FILE. The rows were on disk in the very file I read;
+        # my listing regex was `^### check ` and a `--label`led row is headed
+        # `### deploy #4 live — run 2 of 7 — …`, which that pattern cannot match.
+        # I reported an absence my own filter manufactured — the same defect class
+        # this investigation is chasing, committed by the instrument reporting it.
+        "corroborated": {
+            "source": "docs/notebook/wave-q1-RESUME-HERE.md, committed a73feec6a",
+            "run_1": ("### deploy #4 live — run 1 of 7 — 2026-09-10T16:50:13Z · "
+                      "opt-in key **'0'** at rest · notebook locks **0** · notes 32 · "
+                      "sync-conflict 2 · no fork · cleanup key '0' · opted back out '0'"),
+            "run_2": ("### deploy #4 live — run 2 of 7 — 2026-09-10T16:53:34Z · "
+                      "opt-in key **'1'** ⇒ OPTED IN, \"unexpected at rest; a previous "
+                      "run did not opt back out\" · notebook locks **1** `uct.nb.sync.*` · "
+                      "notes 32 · sync-conflict 2 · no fork · cleanup key '0' · "
+                      "opted back out '0'"),
+            "run_3": "NO ROW BY DESIGN — it refused to stamp. The absence is the record.",
+        },
+        "window_narrowed_by_the_rows": (
+            "run 1's cleanup AND its opt-out both read back '0', and run 2 began at "
+            "'1'. So the '1' arrived between run 1's cleanup (~16:51) and run 2's "
+            "start (16:53:34) — corroborated on disk, not from a lost buffer."),
+        "two_further_facts_the_rows_carry": [
+            "run 2 read notebook locks = 1 `uct.nb.sync.*` AT REST; run 1 read 0. The "
+            "offline layer was ENGAGED at run 2's read.",
+            "the opt-in telemetry went 14 -> 15 with latest 2026-09-10 16:50:37 — that "
+            "is run 1's OWN opt-in, so run 1 registered as a new distinct opt-in event.",
+        ],
+        "untested_variable_NOT_an_explanation": (
+            "The mount probe refuted 'mount writes the key' in a THROWAWAY context, "
+            "which by construction had NO `uct_notebook_<acct>` IndexedDB (db_after=[]). "
+            "The rig HAS one, with 4 stores. Whether an existing local database changes "
+            "that answer is UNTESTED. Recording it as the next probe to run, NOT as a "
+            "cause — a story that fits the mechanism but not the data is the defect this "
+            "wave already shipped once."),
+        "status": ("UNEXPLAINED — both hypotheses remain refuted by measurement, and the "
+                   "flush fix is real, located, and NOT evidence about this"),
     }
 
     _write_json(out, dict(rec, status="COMPLETE"))
