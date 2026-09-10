@@ -106,8 +106,30 @@ const PHASE5_ADD = {
 // between the label rows and the actions, so it is keyed by what comes after it.
 const PHASE5_BEFORE = { advance: { duplicate: ['adjustAnchors'] } }
 
+// ── what Phase 6 did to the Text Note ──────────────────────────────────────
+//
+// ⛔ IT IS A REPLACEMENT, NOT AN ADDITION, WHICH IS WHY IT HAS ITS OWN TABLE.
+// Text is the one tool whose Phase-3 row set did not survive intact: its generic
+// `color` row became `textColor` ("Color" is not a useful word on a tool with
+// three colours) and its `style` section is now empty, because a note has no
+// line to style. Stating the whole new order here rather than as a diff is the
+// honest description of that.
+const PHASE6_TEXT = [
+  'textColor', 'fontFamily', 'fontSize', 'bold', 'italic',
+  'bgEnabled', 'bgColor', 'borderEnabled', 'borderColor',
+]
+// Without `onSetProp` only the two rows that need no handler survive.
+const PHASE6_TEXT_NO_PROP = ['textColor', 'fontSize']
+
 /** The old menu, plus every declared addition since, in render order. */
 function menuFor(type, opts = {}) {
+  if (type === 'text') {
+    const rows = opts.hasSetProp === false ? [...PHASE6_TEXT_NO_PROP] : [...PHASE6_TEXT]
+    // The two conditional colour rows appear only when their toggle is on.
+    const d = opts.drawing || {}
+    const out = rows.filter((id) => (id === 'bgColor' ? !!d.bgEnabled : id === 'borderColor' ? !!d.borderEnabled : true))
+    return [...out, ...oldMenuFor(type, opts).filter((id) => !['color', 'fontSize'].includes(id))]
+  }
   const rename = PHASE4_RENAME[type] || {}
   const noProp = opts.hasSetProp === false
   const add = noProp ? {} : { ...(PHASE4_ADD[type] || {}) }
@@ -172,7 +194,8 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
     for (const type of ALL_TYPES) {
       const got = resolve(type, { handlers: { onSetProp: null } })
       expect(got, type).toEqual(menuFor(type, { hasSetProp: false, hasAdjust: true }))
-      for (const id of ['showPriceLabel', 'showPercentChange', 'fill', 'arrowSize', ...MEASURE_ROWS]) {
+      for (const id of ['showPriceLabel', 'showPercentChange', 'fill', 'arrowSize', ...MEASURE_ROWS,
+        'fontFamily', 'bold', 'italic', 'bgEnabled', 'borderEnabled']) {
         expect(got, `${type} leaked ${id}`).not.toContain(id)
       }
     }
@@ -234,14 +257,17 @@ describe('the table is well-formed', () => {
     }
   })
 
-  it('gives every tool a Delete and a colour row', () => {
+  it('gives every tool a Delete and exactly one colour row for its own ink', () => {
+    // ⛔ EACH TOOL NAMES ITS COLOUR AFTER WHAT THE COLOUR DOES. A line has a
+    // `color`, a shape has a `border`, a note has a `textColor` — and no tool
+    // has two of them, because two rows setting one property is the ambiguity
+    // this naming exists to remove. (A note's background and border colours are
+    // different properties, not second opinions about its ink.)
+    const INK_ROWS = ['color', 'border', 'textColor']
     for (const type of ALL_TYPES) {
-      expect(resolve(type), type).toContain('remove')
-      // ⛔ THE RECTANGLE'S COLOUR ROW IS CALLED `border` — it MOVED rather than
-      // being duplicated, which is the whole reason the shape has no `color`.
       const ids = resolve(type)
-      expect(ids.includes('color') || ids.includes('border'), type).toBe(true)
-      expect(ids.includes('color') && ids.includes('border'), `${type} has TWO colour rows`).toBe(false)
+      expect(ids, type).toContain('remove')
+      expect(ids.filter((id) => INK_ROWS.includes(id)), type).toHaveLength(1)
     }
   })
 
@@ -335,8 +361,53 @@ describe('SAVE AS DEFAULT — the payload follows the tool’s own controls', ()
     // …so exactly text gains a fontSize and nothing else differs.
     for (const type of ALL_TYPES) {
       const expected = { color: '#1ae51a', width: 3, style: 'dotted' }
-      if (type === 'text') expected.fontSize = 22
+      if (type === 'text') {
+        // ⛔ AND THE TEXT NOTE NO LONGER SAVES A LINE WIDTH OR A LINE STYLE.
+        // A note is not a line: neither control did anything to it, and "Save
+        // as default" was writing both into the shared store every time. Its
+        // colour row declares `persists: ['color']` alone, which is what stops
+        // it — see the dedicated block below.
+        delete expected.width
+        delete expected.style
+        expected.fontSize = 22
+      }
       expect(defaultsPayloadFor(type, VALUES), type).toEqual(expected)
+    }
+  })
+
+  it('⛔ A TEXT NOTE SAVES NO lineWidth AND NO lineStyle, EVER', () => {
+    const everything = { ...VALUES, bold: true, italic: true, fontFamily: 'Georgia, serif', bgEnabled: true, bgColor: '#00000080' }
+    const p = defaultsPayloadFor('text', everything)
+    expect(p).not.toHaveProperty('width')
+    expect(p).not.toHaveProperty('style')
+    expect(p).not.toHaveProperty('lineWidth')
+    expect(p).not.toHaveProperty('lineStyle')
+    // …and every tool that IS a line still saves them.
+    for (const t of ['trendline', 'rect', 'arrow', 'measure']) {
+      expect(defaultsPayloadFor(t, everything), t).toHaveProperty('width', 3)
+    }
+  })
+
+  it('⭐ a Text Note saves its typography and its box, under its own tool', () => {
+    const p = defaultsPayloadFor('text', {
+      ...VALUES, bold: true, italic: false, fontFamily: 'Georgia, serif',
+      bgEnabled: true, bgColor: '#0e0e10cc', borderEnabled: false, borderColor: '#c9a84c',
+    })
+    expect(p.color).toBe('#1ae51a')          // shared half: the text's ink
+    expect(p.fontSize).toBe(22)
+    expect(p.byTool).toEqual({
+      text: {
+        bold: true, italic: false, fontFamily: 'Georgia, serif',
+        bgEnabled: true, bgColor: '#0e0e10cc', borderEnabled: false, borderColor: '#c9a84c',
+      },
+    })
+  })
+
+  it('saving a Text Note default leaves every other tool alone', () => {
+    const p = defaultsPayloadFor('text', { ...VALUES, bold: true, fontFamily: 'Georgia, serif' })
+    expect(Object.keys(p.byTool)).toEqual(['text'])
+    for (const t of ['trendline', 'rect', 'arrow', 'circle']) {
+      expect(newDrawingProps(t, p.byTool), t).toBeNull()
     }
   })
 
@@ -454,8 +525,16 @@ describe('NEW vs LEGACY — what a freshly drawn tool is stamped with', () => {
     expect(fieldsFor({ type: 'advance' })).toEqual({ dollar: false, percent: true, bars: false, time: false })
   })
 
+  it('⭐ a NEW Text Note declares which layout rule it was drawn under', () => {
+    // The whole of Text Note's legacy/new distinction: with the marker the
+    // painter honours the anchor as the box's top-left (what it always meant);
+    // without it, a note drawn before Phase 6 keeps its shipped placement and
+    // does not slide across somebody's chart.
+    expect(newDrawingProps('text')).toEqual({ textOrigin: 'box' })
+  })
+
   it('every other tool is stamped with nothing at all', () => {
-    const stamped = new Set(['horizontal', 'hray', 'measure', 'dateRange', 'advance'])
+    const stamped = new Set(['horizontal', 'hray', 'measure', 'dateRange', 'advance', 'text'])
     for (const type of ALL_TYPES) {
       if (stamped.has(type)) continue
       expect(newDrawingProps(type), type).toBeNull()

@@ -48,6 +48,7 @@ import {
   READOUT_BG, drawLabel, drawLabelBlock, formatPercent, formatPrice, inkOn, labelBox,
 } from './drawingLabels'
 import { labelPosOf, resolveLabelY } from './drawingMeasure'
+import { bgColorOf, fontStringFor, textBoxFor } from './drawingText'
 import { arrowSizeFor, borderFor, fillFor } from './drawingStyle'
 
 /** Index-stable resolution keeps a slot for every stored anchor and marks the
@@ -342,20 +343,71 @@ export function wrapTextLines(ctx, text, maxWidth) {
  *  below the same anchor. That ~10px disagreement is one of the three causes of
  *  the "text note moves after I place it" report. Phase 6 makes both sides
  *  render from one origin; Phase 0 changes neither. */
+/**
+ * A Text Note.
+ *
+ * ⚰️ WHAT THIS USED TO BE: one hard-coded font string built inline, and a
+ * `fillText` per line at `(i + 1) * fs * 1.4`. One face, one weight, no box —
+ * and because the string was built here, nothing else could agree with it.
+ * Every layout number now comes from `drawingText.js`, which the DOM editor
+ * reads too, so the two engines cannot drift apart.
+ *
+ * ⛔ THE BOX IS PAINTED FIRST AND THE TEXT LAST, so a background can never sit
+ * over its own text — and both come from the SAME `textBoxFor` result the editor,
+ * the hit test and the selection use. One geometry, four consumers.
+ *
+ * ⭐ BACKGROUND AND BORDER ARE INDEPENDENT. A hairline around unfilled text over
+ * candles is a real choice, so they are two properties and two draws rather than
+ * one "boxed" flag.
+ *
+ * Returns the box it drew, so the overlay can hit-test the ink instead of an
+ * estimate of it.
+ */
 export function renderText(ctx, pts, drawing, opacity = 1) {
-  if (!ok(pts, 1) || !drawing.text || opacity <= 0.02) return
-  const fs = drawing.fontSize || 13   // rendered at its true size; visibility fades with zoom
+  if (!ok(pts, 1) || !drawing.text || opacity <= 0.02) return null
   const prevAlpha = ctx.globalAlpha
   ctx.globalAlpha = prevAlpha * opacity
-  ctx.font = `${fs}px "Instrument Sans", sans-serif`
-  ctx.fillStyle = ctx.strokeStyle
-  // Wrap to the width the box was resized to, so the on-chart text reads EXACTLY
-  // like it did in the edit box (matches lineHeight 1.4 too).
-  const lines = wrapTextLines(ctx, drawing.text, drawing.boxWidth)
-  lines.forEach((line, i) => {
-    ctx.fillText(line, pts[0].x, pts[0].y + (i + 1) * fs * 1.4)
+  ctx.font = fontStringFor(drawing)
+  const ink = ctx.strokeStyle
+  const box = textBoxFor(ctx, drawing, pts[0].x, pts[0].y, wrapTextLines)
+
+  if (drawing.bgEnabled) {
+    // ⭐ THE COLOUR'S OWN ALPHA IS THE OPACITY. ColorPanel emits `#rrggbbaa`, so
+    // a separate slider would be a second source of truth for one fact — the
+    // same call Phase 4 made for Rectangle fill.
+    ctx.fillStyle = bgColorOf(drawing)
+    roundRectPath(ctx, box.x, box.y, box.w, box.h, TEXT_RADIUS)
+    ctx.fill()
+  }
+  if (drawing.borderEnabled) {
+    // ⛔ SUBTLE ON PURPOSE — 1px, a small radius, no shadow and no glow. This
+    // marks the bounds of a note; it is not a callout bubble.
+    ctx.save()
+    ctx.strokeStyle = drawing.borderColor || ink
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    roundRectPath(ctx, box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1, TEXT_RADIUS)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  ctx.fillStyle = ink
+  box.lines.forEach((line, i) => {
+    ctx.fillText(line, box.textX, box.firstBaseline + i * box.lineH)
   })
   ctx.globalAlpha = prevAlpha
+  return box
+}
+
+/** The note's corner radius — the editor's, so the two match. */
+const TEXT_RADIUS = 4
+
+/** A rounded rect that works whether or not the context has `roundRect`
+ *  (jsdom's recorder does not, and neither do older Safaris). */
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, w, h, r)
+  else ctx.rect(x, y, w, h)
 }
 
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).

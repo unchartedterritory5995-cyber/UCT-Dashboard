@@ -300,6 +300,34 @@ describe('the seven Model Book / surface override props still reach their decisi
     expect(SRC).toContain('renderSelectionHandles(ctx, [{ x: box.cx, y: box.cy, valid: true }], ink)')
   })
 
+  it('⭐ A TEXT NOTE IS EDITED WHERE IT IS, not where it was clicked', () => {
+    // ⚰️ The editor opened at the double-click POINT — click a note's last word
+    // and the box appeared over the last word. Nothing moved in the data, but
+    // the note visibly jumped away from its editor and back, which is
+    // indistinguishable from the note having moved.
+    expect(SRC).toContain('const box = editorBoxFor(d)')
+    expect(near('const editorBoxFor = useCallback', 900)).toContain('textBoxFor(ctx, d, pts[0].x, pts[0].y, wrapTextLines)')
+  })
+
+  it('⛔ ENTERING EDIT MODE IS NOT A RESIZE', () => {
+    // `boxWidth` used to be rewritten on EVERY commit from the textarea's
+    // current width — so opening a wide note and pressing Enter re-wrapped it to
+    // the element's minimum. Only an actual drag of the resize corner writes it.
+    expect(near('if (textInput.editId) {', 700)).toContain('...(resized && boxWidth ? { boxWidth } : {})')
+    expect(SRC).toContain('const resized = !!(el && openWidthRef.current != null')
+  })
+
+  it('the editor and the painter read ONE typography module', () => {
+    // Not "kept in sync" — handed the same numbers. That is the mechanism.
+    expect(SRC).toContain("from './drawingText'")
+    expect(SRC).toContain('const ts = editorTextStyle(style)')
+    expect(SRC).toContain('style={textInput.style || { color, fontSize: fontSize || 13 }}')
+  })
+
+  it('a note is hit-tested by the box the painter drew', () => {
+    expect(SRC).toContain("d.type === 'text' ? labelBoxRef.current.get(d.id) : null")
+  })
+
   it('the measurement anchors are revealed only on request, for one drawing', () => {
     expect(SRC).toContain('const [adjustingId, setAdjustingId] = useState(null)')
     expect(near('const hitTestHandle = useCallback', 1400)).toContain('if (adjustingId !== d.id) return null')

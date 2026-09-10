@@ -17,6 +17,10 @@ import {
 import { dashFor } from './drawingStyle'
 import { priceFormatterFor } from './drawingLabels'
 import { drawingProp } from './drawingSchema'
+import {
+  FONT_OPTIONS, editorTextStyle, fontLabelFor, fontStringFor, fontStackOf,
+  textBoxFor, PAD_X, PAD_Y, BORDER_W, LINE_HEIGHT,
+} from './drawingText'
 import { sectionsFor, defaultsPayloadFor, newDrawingProps } from './drawingSettingsSchema'
 import {
   PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
@@ -27,7 +31,7 @@ import {
   renderRect, renderCircle, renderArrow, renderCup, renderText, renderAdvance,
   renderFib, renderFibExtension, renderPitchfork, renderChannel, renderMeasure,
   renderPosition, renderAnchoredVwap, renderSelectionHandles, renderCrosshair,
-  renderBarsTime,
+  renderBarsTime, wrapTextLines,
 } from './drawingRenderers'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
@@ -1213,7 +1217,14 @@ export default function ChartDrawingOverlay({
           break
         case 'circle': renderCircle(ctx, pts); break
         case 'arrow': renderArrow(ctx, pts, d); break
-        case 'text': renderText(ctx, pts, d, textOpacity); break
+        case 'text': {
+          // ⭐ THE NOTE'S REAL BOX, published for the hit test and the editor.
+          // Three surfaces used to guess at it independently; now one of them
+          // measures and the other two read.
+          const box = renderText(ctx, pts, d, textOpacity)
+          if (box) paintedBoxes.set(d.id, box)
+          break
+        }
         case 'fib': renderFib(ctx, pts, rect, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, rect, toPixelY); break
         case 'pitchfork': renderPitchfork(ctx, pts, rect); break
@@ -1483,6 +1494,42 @@ export default function ChartDrawingOverlay({
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
+  /**
+   * Where a note's editor must open, in CLIENT coordinates, and how wide.
+   *
+   * ⚰️ THE BUG THIS REPLACES. Double-clicking a note opened the textarea at the
+   * DOUBLE-CLICK POINT — click its last word and the box appeared over the last
+   * word, nowhere near the note's own corner. Nothing moved in the data, but the
+   * note visibly jumped away from its editor and back again, which is
+   * indistinguishable from the note having moved.
+   *
+   * ⭐ THE CLICK CHOOSES WHICH NOTE; THE NOTE CHOOSES WHERE ITS EDITOR GOES. The
+   * box comes from `textBoxFor` — the same call the painter makes — so the
+   * editor lands exactly on the ink under both the new and the legacy layout
+   * rule.
+   */
+  const editorBoxFor = useCallback((d) => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext?.('2d')
+    if (!ctx || !d) return null
+    const rect = rectForDrawing(d)
+    const pts = resolvePixels(d.points || [], rect)
+    if (!pts.length || pts[0].valid === false) return null
+    ctx.save()
+    ctx.font = fontStringFor(d)
+    const box = textBoxFor(ctx, d, pts[0].x, pts[0].y, wrapTextLines)
+    ctx.restore()
+    const cr = canvas.getBoundingClientRect()
+    return {
+      x: cr.left + box.x,
+      y: cr.top + box.y,
+      // The CONTENT width the textarea should carry, so a note that has been
+      // resized reopens at the width it was resized to rather than at the
+      // element's minimum.
+      contentWidth: box.w - (PAD_X + BORDER_W) * 2,
+    }
+  }, [rectForDrawing, resolvePixels])
+
   // Screen box → the chart coordinate at its centre. Used once, at the moment a
   // never-moved Price Move label is first grabbed, so the drag has somewhere to
   // start from.
@@ -1537,7 +1584,12 @@ export default function ChartDrawingOverlay({
       const pts = resolvePixels(d.points || [], rect)
       const hit = d.type === 'advance'
         ? hitTestAdvance(d, pts, mx, my)
-        : hitTestDrawing(d, pts, mx, my, rect)
+        // ⛔ TEXT IS GRABBED BY THE BOX THAT WAS PAINTED, not by an estimate of
+        // it. The estimate guessed a line count from an assumed average
+        // character width, so a bold note, a monospace note or one long word
+        // all had a hitbox the wrong size — and the note is the only thing there
+        // is to grab.
+        : hitTestDrawing(d, pts, mx, my, rect, d.type === 'text' ? labelBoxRef.current.get(d.id) : null)
       if (hit) return d.id
     }
     return null
@@ -2317,11 +2369,24 @@ export default function ChartDrawingOverlay({
   }, [activeTool])
 
   // ── Text input submit ──
-  const handleTextSubmit = (text, boxWidth = null) => {
+  const handleTextSubmit = (text, boxWidth = null, resized = false) => {
     if (!textInput) return
     // Editing an existing note (double-click): update its text; empty leaves it.
     if (textInput.editId) {
-      if (text.trim()) updateDrawing(textInput.editId, { text: text.trim(), ...(boxWidth ? { boxWidth } : {}) })
+      // ⛔ ENTERING EDIT MODE IS NOT A RESIZE, AND NEITHER IS LEAVING IT.
+      //
+      // ⚰️ This used to write `boxWidth` on EVERY commit, from the textarea's
+      // current `clientWidth`. A note reopened for editing came up at the
+      // element's own minimum width, so simply double-clicking a wide note and
+      // pressing Enter re-wrapped it to ~144px — the note's layout changed
+      // because it had been LOOKED at. `resized` is true only when the user
+      // actually dragged the resize corner.
+      if (text.trim()) {
+        updateDrawing(textInput.editId, {
+          text: text.trim(),
+          ...(resized && boxWidth ? { boxWidth } : {}),
+        })
+      }
       setTextInput(null)
       return
     }
@@ -2335,6 +2400,12 @@ export default function ChartDrawingOverlay({
       text: text.trim(),
       fontSize: fontSize || 13,
       boxWidth: boxWidth || null,   // wrap width so the chart matches the edit box
+      // ⭐ THE ANCHOR IS THE EDITOR'S TOP-LEFT, and this says so. The click that
+      // opened the editor is both the editor's `left/top` and the stored point,
+      // so with the marker the painter draws the note exactly where the user
+      // just watched themselves type it. Without it (every note that already
+      // exists) the shipped placement is preserved untouched.
+      ...(newDrawingProps('text', toolDefaults) || {}),
     })
     setTextInput(null)
     if (!repeatMode) setActiveTool(null)
@@ -2348,7 +2419,18 @@ export default function ChartDrawingOverlay({
     const d = drawings.find(dd => dd.id === hitTestAll(pos.x, pos.y))
     if (d?.type === 'text') {
       setSelectedId(d.id)
-      setTextInput({ x: e.clientX, y: e.clientY, editId: d.id, initialValue: d.text || '' })
+      const box = editorBoxFor(d)
+      setTextInput({
+        x: box ? box.x : e.clientX,
+        y: box ? box.y : e.clientY,
+        contentWidth: box ? box.contentWidth : null,
+        editId: d.id,
+        initialValue: d.text || '',
+        // ⭐ THE EDITOR WEARS THE NOTE'S OWN STYLE, not the toolbar's. Editing a
+        // 22px red note in a 13px gold box is the same class of lie as opening
+        // it in the wrong place.
+        style: d,
+      })
     }
   }
 
@@ -2475,8 +2557,11 @@ export default function ChartDrawingOverlay({
         <TextInputOverlay
           x={textInput.x}
           y={textInput.y}
-          color={color}
-          fontSize={fontSize || 13}
+          // ⭐ EDITING A NOTE USES THE NOTE'S OWN STYLE; creating one uses the
+          // toolbar's, because there is no note yet. One prop, resolved by the
+          // caller, so the editor never has to know which case it is in.
+          style={textInput.style || { color, fontSize: fontSize || 13 }}
+          contentWidth={textInput.contentWidth || null}
           initialValue={textInput.initialValue || ''}
           onSubmit={handleTextSubmit}
           onCancel={() => setTextInput(null)}
@@ -2605,15 +2690,34 @@ export default function ChartDrawingOverlay({
 // the rendered note reads exactly like the box.
 const TEXTBOX_PAD_X = 16
 
-function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSubmit, onCancel }) {
+/**
+ * The Text Note editor.
+ *
+ * ⛔ IT IS NOT A SEPARATE OPINION ABOUT TYPOGRAPHY. Every layout value here
+ * — family, size, weight, style, line height, padding, border width — comes
+ * from `drawingText.js`, which is the same module the canvas painter reads. That
+ * is the whole mechanism behind "the note does not move when you edit it": the
+ * two engines are not being kept in sync, they are being given the same numbers.
+ *
+ * ⚰️ WHAT THAT REPLACES: the textarea hard-coded `'Instrument Sans'`,
+ * `lineHeight: 1.4` and `padding: '6px 8px'` while the painter hard-coded a
+ * different font string and no padding at all, and the editor took its colour
+ * and size from the TOOLBAR rather than from the note — so double-clicking a
+ * 22px red note opened a 13px gold box.
+ */
+function TextInputOverlay({ x, y, style, contentWidth = null, initialValue = '', onSubmit, onCancel }) {
   const [value, setValue] = useState(initialValue)
   const ref = useRef(null)
   const readyRef = useRef(false)
+  // The width the box OPENED at. Anything else at commit time means the user
+  // dragged the resize corner, and only then is the note's wrap width rewritten.
+  const openWidthRef = useRef(null)
 
   useEffect(() => {
     // Focus after a tick to avoid immediate blur from the mousedown that spawned us
     const t = setTimeout(() => {
       ref.current?.focus()
+      if (ref.current) openWidthRef.current = ref.current.clientWidth
       readyRef.current = true
     }, 50)
     return () => clearTimeout(t)
@@ -2621,11 +2725,17 @@ function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSub
 
   const submit = () => {
     if (!readyRef.current) return // ignore blur before we're ready
-    // Capture the CONTENT width (box width minus padding) so the chart wraps the
-    // text to the exact width the user sized the box to → WYSIWYG.
-    const boxWidth = ref.current ? Math.max(1, ref.current.clientWidth - TEXTBOX_PAD_X) : null
-    onSubmit(value, boxWidth)
+    const el = ref.current
+    // The CONTENT width (box width minus padding + border) is what the chart
+    // wraps to, so the note reads exactly as it did in the box.
+    const boxWidth = el ? Math.max(1, el.clientWidth - (PAD_X + BORDER_W) * 2) : null
+    const resized = !!(el && openWidthRef.current != null
+      && Math.abs(el.clientWidth - openWidthRef.current) > 1)
+    onSubmit(value, boxWidth, resized)
   }
+
+  const ts = editorTextStyle(style)
+  const ink = style?.color || UCT_DRAW_GOLD
 
   return (
     <textarea
@@ -2645,19 +2755,22 @@ function TextInputOverlay({ x, y, color, fontSize = 13, initialValue = '', onSub
         left: x,
         top: y,
         zIndex: 20,
-        minWidth: 160,
+        // ⛔ THE BOX OPENS AT THE NOTE'S OWN WIDTH when it has one. Falling back
+        // to the element's minimum is what silently re-wrapped a wide note the
+        // moment somebody opened it.
+        ...(contentWidth
+          ? { width: contentWidth + (PAD_X + BORDER_W) * 2, minWidth: 0 }
+          : { minWidth: 160 }),
         minHeight: 32,
         maxWidth: 480,
-        padding: '6px 8px',
+        boxSizing: 'border-box',
         // Transparent so it blends with the canvas — the box just previews the note
         // over the chart. Border marks the editable bounds; text is the note colour.
         background: 'transparent',
-        border: `1px dashed ${color}`,
+        border: `${BORDER_W}px dashed ${ink}`,
         borderRadius: 4,
-        color,
-        fontFamily: "'Instrument Sans', sans-serif",
-        fontSize,
-        lineHeight: 1.4,
+        color: ink,
+        ...ts,
         resize: 'both',
         outline: 'none',
         overflowWrap: 'break-word',
@@ -2844,6 +2957,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // its id means the panel reads its own title, target property and whether it
   // shows line controls straight off the table.
   const [colorPanel, setColorPanel] = useState(null)
+  const [fontOpen, setFontOpen] = useState(false)
   const [levelOpen, setLevelOpen] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
   /* ⭐ TWO ALERT SEMANTICS, AND THE CHOICE IS REMEMBERED (MOB-05). A trader
@@ -2898,7 +3012,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // What a colour row shows, and what its panel edits. A property-backed row
   // (Fill) falls back to the drawing's colour when it has no value of its own —
   // which is exactly what it RENDERS as, so the swatch never lies.
-  const swatchOf = (item) => (item?.prop ? (drawing?.[item.prop] || curColor) : curColor)
+  const swatchOf = (item) => (item?.prop ? (drawing?.[item.prop] || item.fallbackColor || curColor) : curColor)
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
@@ -3047,6 +3161,76 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
             }} />
           </span>
         </button>
+      )
+    },
+
+    /**
+     * ⭐ ONE ROW IN THE MENU, A SCROLLING LIST BEHIND IT. The approved set is 23
+     * families (shared with the Notebook — see `utils/fontFamilies.js`), which
+     * is a wall of rows if it is poured into a context menu and a second,
+     * diverging list if it is trimmed. So the ROW stays one line showing the
+     * current face, and the list opens under it with a cap on its height —
+     * exactly the shape the colour row already uses.
+     *
+     * ⭐ EACH ENTRY PREVIEWS IN ITS OWN FACE, which costs nothing (the fonts are
+     * already on the machine) and turns "Cambria" from a word into a decision.
+     */
+    fontPicker: (item) => {
+      const cur = drawing?.[item.prop] || ''
+      const open = fontOpen
+      return (
+        <React.Fragment key={item.id}>
+          <button
+            onClick={() => setFontOpen((o) => !o)}
+            style={{
+              ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+              fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+              background: open ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+            }}
+            onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+            onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'none' }}
+          >
+            <span style={labelStyle}>{item.label}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11, fontFamily: fontStackOf(drawing), maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {fontLabelFor(cur)}
+              </span>
+              <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
+            </span>
+          </button>
+          {open && (
+            <div
+              role="listbox"
+              aria-label="Font"
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{ maxHeight: sheet ? 220 : 190, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid var(--menu-divider, #202022)', borderBottom: '1px solid var(--menu-divider, #202022)' }}
+            >
+              {FONT_OPTIONS.map((f) => {
+                const on = (f.value || '') === cur
+                return (
+                  <button
+                    key={f.label}
+                    role="option"
+                    aria-selected={on}
+                    onClick={() => { onSetProp?.(item.prop, f.value || null); setFontOpen(false) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      padding: sheet ? '10px 18px' : '6px 11px', minHeight: sheet ? 40 : undefined,
+                      border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left',
+                      color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text, #ededed)',
+                      fontFamily: f.value || 'inherit', fontSize: sheet ? 14 : 13,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+                  >
+                    <span aria-hidden="true" style={{ width: 12, flex: '0 0 12px', fontFamily: 'inherit' }}>{on ? '✓' : ''}</span>
+                    <span>{f.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </React.Fragment>
       )
     },
 
@@ -3247,7 +3431,17 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         showDollar: f.dollar, showPercent: f.percent, showBars: f.bars, showTime: f.time,
         labelPos: labelPosOf(drawing),
       })
-      for (const p of ['fillColor', 'fillOpacity', 'arrowSize']) {
+      // ⛔ TEXT NOTE'S BOOLEANS ARE ALWAYS OFFERED so that "off" is savable; its
+      // two optional colours are offered only when set, because "no background
+      // colour" is the absence of a choice rather than a choice. What keeps
+      // `lineWidth`/`lineStyle` out of the payload is not this list — it is the
+      // schema: the Text Note's colour row declares `persists: ['color']` alone.
+      Object.assign(values, {
+        bold: !!drawing?.bold, italic: !!drawing?.italic,
+        bgEnabled: !!drawing?.bgEnabled, borderEnabled: !!drawing?.borderEnabled,
+        fontFamily: drawing?.fontFamily ?? null,
+      })
+      for (const p of ['fillColor', 'fillOpacity', 'arrowSize', 'bgColor', 'borderColor']) {
         if (drawing?.[p] !== undefined && drawing?.[p] !== null) values[p] = drawing[p]
       }
       onSaveDefaults(defaultsPayloadFor(drawing?.type, values))

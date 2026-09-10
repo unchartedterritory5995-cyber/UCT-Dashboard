@@ -146,12 +146,28 @@ export const DRAWING_DEFAULTS = Object.freeze({
   levels: null,        // follow FIB_LEVELS / FIB_EXT_LEVELS + their colour arrays
 
   // ── text (Phase 6) ──
-  fontFamily: null,    // follow '"Instrument Sans", sans-serif'
+  // `null` = the drawing layer's own face, which is what every note drawn
+  // before Phase 6 uses. An empty string is the picker's "Default" entry and
+  // means the same thing.
+  fontFamily: null,
   bold: false,
   italic: false,
+  // ⛔ TEXT-ONLY IS THE CLEAN DEFAULT, for legacy notes AND new ones. A
+  // background is a readability aid for a note over busy candles, not the
+  // normal way a note looks — turning it on by default would restyle nothing
+  // (legacy notes resolve `false` here) but would make every NEW note a plate.
   bgEnabled: false,
   bgColor: null,
+  // ⭐ THE BORDER COLOUR IS THE SAME PROPERTY THE RECTANGLE USES. "The colour of
+  // this thing's outline" is one idea, and a `borderColorText` would be two
+  // names for it that a future reader would have to tell apart.
   borderEnabled: false,
+
+  // ⭐ WHICH LAYOUT RULE THIS NOTE WAS DRAWN UNDER. `'box'` = the anchor is the
+  // box's top-left, which is what it always meant and what the painter now
+  // honours. Absent = the shipped placement, kept so that no existing note
+  // moves. See `drawingText.js`.
+  textOrigin: null,
 })
 
 /** Is this a drawing written before the schema version existed? */

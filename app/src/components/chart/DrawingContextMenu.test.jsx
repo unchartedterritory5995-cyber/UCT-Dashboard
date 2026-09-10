@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { DrawingContextMenu } from './ChartDrawingOverlay'
+import { FONT_OPTIONS } from '../../utils/fontFamilies'
 
 const HANDLERS = () => ({
   onSetColor: vi.fn(), onSetWidth: vi.fn(), onSetStyle: vi.fn(), onSetFontSize: vi.fn(),
@@ -36,8 +37,16 @@ function open(type, { sheet = false, drawing = {}, props = {} } = {}) {
  *  The colour row's text carries its disclosure caret, and the font stepper's
  *  A− / A+ are controls inside a row rather than rows — neither is a label. */
 const STEPPER = new Set(['A−', 'A+', '✕', 'Set', 'S', 'M', 'L', 'T', 'C', 'B'])
+/** A row's LABEL is its first text-bearing span — the rest of the row is the
+ *  control (a swatch, a caret, the current font's name previewed in its own
+ *  face). Rows with no span at all are plain action rows and read whole. */
 const rowLabels = () => [...document.querySelectorAll('button')]
-  .map((b) => (b.textContent || '').trim().replace(/[▸▾]$/, '').trim())
+  .filter((b) => b.getAttribute('role') !== 'option')
+  .map((b) => {
+    const span = b.querySelector('span')
+    const t = (span?.textContent || b.textContent || '').trim()
+    return t.replace(/[▸▾]$/, '').trim()
+  })
   .filter((t) => t && !STEPPER.has(t))
 
 beforeEach(() => {
@@ -60,10 +69,13 @@ describe('the rows come from the schema', () => {
     expect(rowLabels()).toContain('Set level…')
   })
 
-  it('a Text Note gets Text size and no level/alert rows', () => {
+  it('a Text Note gets typography and no level/alert rows', () => {
     open('text')
     const rows = rowLabels()
-    expect(rows).toContain('Color')
+    // ⛔ "Color" IS GONE — a tool with three colours cannot have a row called
+    // that. Its ink row is "Text color", beside the typography it belongs with.
+    expect(rows).not.toContain('Color')
+    expect(rows).toContain('Text color')
     expect(rows).not.toContain('Set level…')
     expect(rows).not.toContain('Set alert…')
     expect(screen.getByLabelText('Bigger text')).toBeTruthy()
@@ -510,5 +522,117 @@ describe('⭐ PHASE 5 — the measurement family, in the menu', () => {
       open(type)
       expect(rowLabels().at(-1), type).toBe('Delete Drawing')
     }
+  })
+})
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ PHASE 6 — the Text Note menu', () => {
+  it('reads Text first, then the box it can draw around itself', () => {
+    open('text')
+    expect(rowLabels()).toEqual([
+      'Text color', 'Font', 'Bold', 'Italic',
+      'Background', 'Border',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+    expect(screen.getByText('Text')).toBeTruthy()
+    expect(screen.getByText('Appearance')).toBeTruthy()
+    expect(screen.getByText('Text size')).toBeTruthy()
+  })
+
+  it('⛔ A COLOUR ROW WITH NO LINE CONTROLS — a note has no width and no dash', () => {
+    open('text')
+    fireEvent.click(screen.getByText('Text color'))
+    const panel = document.querySelector('[data-color-panel]')
+    expect(panel).toBeTruthy()
+    for (const st of ['solid', 'dashed', 'dotted']) {
+      expect(panel.querySelector(`button[aria-label="${st}"]`), st).toBeNull()
+    }
+  })
+
+  it('⭐ THE COLOUR ROWS APPEAR ONLY WITH THEIR TOGGLE ON', () => {
+    open('text')
+    expect(rowLabels()).not.toContain('Background color')
+    expect(rowLabels()).not.toContain('Border color')
+    cleanup()
+    open('text', { drawing: { bgEnabled: true } })
+    expect(rowLabels()).toContain('Background color')
+    expect(rowLabels()).not.toContain('Border color')
+    cleanup()
+    open('text', { drawing: { bgEnabled: true, borderEnabled: true } })
+    expect(rowLabels()).toContain('Background color')
+    expect(rowLabels()).toContain('Border color')
+  })
+
+  it('background and border are independent — border alone is a real note', () => {
+    open('text', { drawing: { borderEnabled: true } })
+    expect(rowLabels()).toContain('Border color')
+    expect(rowLabels()).not.toContain('Background color')
+  })
+
+  it('the toggles write their own property', () => {
+    const { h } = open('text')
+    const [bold, italic, bg, border] = screen.getAllByRole('switch')
+    fireEvent.click(bold); expect(h.onSetProp).toHaveBeenCalledWith('bold', true)
+    fireEvent.click(italic); expect(h.onSetProp).toHaveBeenCalledWith('italic', true)
+    fireEvent.click(bg); expect(h.onSetProp).toHaveBeenCalledWith('bgEnabled', true)
+    fireEvent.click(border); expect(h.onSetProp).toHaveBeenCalledWith('borderEnabled', true)
+  })
+
+  it('bold and italic report their stored state', () => {
+    open('text', { drawing: { bold: true, italic: true } })
+    const [bold, italic] = screen.getAllByRole('switch')
+    expect(bold.getAttribute('aria-checked')).toBe('true')
+    expect(italic.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('⭐ THE FONT LIST IS THE APP\u2019S APPROVED SET, opened from one compact row', () => {
+    open('text')
+    // The root menu shows ONE font row, not 23.
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.click(screen.getByText('Font'))
+    const list = screen.getByRole('listbox')
+    const opts = [...list.querySelectorAll('[role="option"]')]
+    expect(opts).toHaveLength(FONT_OPTIONS.length)
+    expect(opts.map((o) => o.textContent.replace('✓', '').trim()))
+      .toEqual(FONT_OPTIONS.map((f) => f.label))
+    // …and it is capped in height rather than allowed to run off the screen.
+    expect(parseInt(list.style.maxHeight, 10)).toBeGreaterThan(0)
+  })
+
+  it('choosing a family stores its full CSS stack; Default stores nothing', () => {
+    const { h } = open('text')
+    fireEvent.click(screen.getByText('Font'))
+    fireEvent.click(screen.getByText('Georgia'))
+    expect(h.onSetProp).toHaveBeenCalledWith('fontFamily', 'Georgia, serif')
+    cleanup()
+    const d = open('text', { drawing: { fontFamily: 'Georgia, serif' } })
+    fireEvent.click(screen.getByText('Font'))
+    fireEvent.click(screen.getByText('Default'))
+    expect(d.h.onSetProp).toHaveBeenCalledWith('fontFamily', null)
+  })
+
+  it('the row names the current family, and the list ticks it', () => {
+    open('text', { drawing: { fontFamily: 'Consolas, monospace' } })
+    expect(screen.getByText('Consolas')).toBeTruthy()
+    fireEvent.click(screen.getByText('Font'))
+    const ticked = [...document.querySelectorAll('[role="option"]')].filter((o) => o.getAttribute('aria-selected') === 'true')
+    expect(ticked).toHaveLength(1)
+    expect(ticked[0].textContent).toContain('Consolas')
+  })
+
+  it('⛔ SAVE AS DEFAULT CARRIES NO LINE WIDTH AND NO LINE STYLE', () => {
+    const { h } = open('text', { drawing: { fontSize: 22, bold: true, fontFamily: 'Georgia, serif', lineWidth: 4, lineStyle: 'dashed' } })
+    fireEvent.click(screen.getByText('Save as default'))
+    const p = h.onSaveDefaults.mock.calls[0][0]
+    expect(p).not.toHaveProperty('width')
+    expect(p).not.toHaveProperty('style')
+    expect(p.fontSize).toBe(22)
+    expect(p.byTool.text).toMatchObject({ bold: true, italic: false, fontFamily: 'Georgia, serif' })
+  })
+
+  it('Delete is still the last row', () => {
+    open('text')
+    expect(rowLabels().at(-1)).toBe('Delete Drawing')
   })
 })

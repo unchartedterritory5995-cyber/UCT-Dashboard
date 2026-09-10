@@ -294,7 +294,7 @@ export const pointsUsable = (pts, n, axis = 'both') => {
  */
 const ok = pointsUsable
 
-export function hitTestDrawing(d, pts, mx, my, rect) {
+export function hitTestDrawing(d, pts, mx, my, rect, box = null) {
   if (!pts.length || !rect) return false
   // ⛔ THE CLIP AND THE HIT TEST MUST AGREE. Phase 1 clips a drawing to its pane;
   // if hit-testing did not, a price trendline would keep stealing clicks from the
@@ -335,9 +335,16 @@ export function hitTestDrawing(d, pts, mx, my, rect) {
       return ok(pts, 2) && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
     case 'text': {
       if (!ok(pts, 1)) return false
-      // Bounding box for a possibly-WRAPPED, multi-line note (rendered downward
-      // from pts[0].y at lineHeight fs*1.4). Width = the stored box width; height
-      // = estimated wrapped line count. Approximation is fine for hit-testing.
+      // ⭐ THE BOX THE PAINTER ACTUALLY DREW, when the caller has it.
+      //
+      // ⚰️ The estimate below guessed the line count from
+      // `para.length * fs * 0.55` ("~avg char width") — wrong for any face that
+      // is not the one it assumed, wrong for bold, wrong for a wrapped
+      // paragraph, and wrong for one long word. It was the only thing between a
+      // click and the right note. `renderText` now publishes its box and the
+      // overlay passes it in; this stays as the answer for a caller that has
+      // not painted yet.
+      if (box) return pointInBox(box, mx, my, HIT_THRESHOLD() - 4)
       const fs = d.fontSize || 13
       const lineH = fs * 1.4
       let nLines = 0

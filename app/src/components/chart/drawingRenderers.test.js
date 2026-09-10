@@ -32,6 +32,7 @@ import {
   FIB_LEVELS, FIB_COLORS, FIB_EXT_LEVELS,
 } from './drawingRenderers'
 import { ARROW_SIZES } from './drawingStyle'
+import { DEFAULT_TEXT_BG } from './drawingText'
 
 // ── the recorder ────────────────────────────────────────────────────────────
 /** A CanvasRenderingContext2D stand-in that remembers everything.
@@ -1121,5 +1122,133 @@ describe('renderCrosshair', () => {
     const ctx = makeCtx()
     renderCrosshair(ctx, 100, 50, 123, R)
     expect(ctx.__find('fillText')).toHaveLength(0)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ renderText — one note, two engines, one set of numbers', () => {
+  const at = [P(100, 200)]
+  const NEW = { type: 'text', text: 'hello', fontSize: 10, textOrigin: 'box' }
+  const LEGACY = { type: 'text', text: 'hello', fontSize: 10 }
+
+  it('⛔ A LEGACY NOTE IS DRAWN EXACTLY WHERE IT ALWAYS WAS', () => {
+    // The shipped painter's formula, to the pixel: x = anchor.x, first baseline
+    // = anchor.y + fontSize * 1.4. Nothing on anyone's chart moves.
+    const ctx = makeCtx()
+    renderText(ctx, at, LEGACY)
+    expect(ctx.__find('fillText')[0].args).toEqual(['hello', 100, 200 + 14])
+  })
+
+  it('a new note is drawn from its box corner, inside the padding', () => {
+    const ctx = makeCtx()
+    renderText(ctx, at, NEW)
+    const [, tx, ty] = ctx.__find('fillText')[0].args
+    expect(tx).toBe(100 + 8 + 1)          // PAD_X + BORDER_W
+    expect(ty).toBeGreaterThan(200)
+    expect(ty).toBeLessThan(200 + 14 + 8)
+  })
+
+  it('⭐ THE FONT STRING CARRIES FAMILY, WEIGHT AND SLANT', () => {
+    // ⚰️ It used to be `${fs}px "Instrument Sans", sans-serif`, built inline —
+    // one face, one weight, and nothing else could agree with it.
+    const ctx = makeCtx()
+    renderText(ctx, at, { ...NEW, bold: true, italic: true, fontFamily: 'Georgia, serif' })
+    expect(ctx.__find('set:font').at(-1).args[0]).toBe('italic 700 10px Georgia, serif')
+  })
+
+  it('multi-line notes step by one line height', () => {
+    const ctx = makeCtx()
+    renderText(ctx, at, { ...NEW, text: 'a\nb\nc' })
+    const ys = ctx.__find('fillText').map((c) => c.args[2])
+    expect(ys).toHaveLength(3)
+    expect(ys[1] - ys[0]).toBeCloseTo(14, 6)
+    expect(ys[2] - ys[1]).toBeCloseTo(14, 6)
+  })
+
+  it('wraps to the stored box width, as the edit box did', () => {
+    const ctx = makeCtx()
+    renderText(ctx, at, { ...NEW, text: 'aaaa bbbb cccc dddd', boxWidth: 30 })
+    expect(ctx.__find('fillText').length).toBeGreaterThan(1)
+  })
+
+  it('⭐ BACKGROUND AND BORDER ARE INDEPENDENT — all four combinations draw', () => {
+    const shapes = (d) => {
+      const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+      renderText(ctx, at, { ...NEW, ...d })
+      return { fills: ctx.__find('fill').length, strokes: ctx.__find('stroke').length, texts: ctx.__find('fillText').length }
+    }
+    expect(shapes({})).toEqual({ fills: 0, strokes: 0, texts: 1 })
+    expect(shapes({ bgEnabled: true, bgColor: '#00000080' })).toEqual({ fills: 1, strokes: 0, texts: 1 })
+    expect(shapes({ bgEnabled: true })).toEqual({ fills: 1, strokes: 0, texts: 1 })
+    expect(shapes({ borderEnabled: true })).toEqual({ fills: 0, strokes: 1, texts: 1 })
+    expect(shapes({ bgEnabled: true, bgColor: '#00000080', borderEnabled: true })).toEqual({ fills: 1, strokes: 1, texts: 1 })
+  })
+
+  it('⛔ THE PLATE IS PAINTED BEFORE THE TEXT, never over it', () => {
+    const ctx = makeCtx()
+    renderText(ctx, at, { ...NEW, bgEnabled: true, bgColor: '#000000' })
+    const ops = ctx.__ops()
+    expect(ops.indexOf('fill')).toBeLessThan(ops.indexOf('fillText'))
+  })
+
+  it('the background’s own alpha is its opacity — no second slider', () => {
+    const ctx = makeCtx()
+    renderText(ctx, at, { ...NEW, bgEnabled: true, bgColor: '#3f7fe033' })
+    expect(ctx.__find('set:fillStyle').map((c) => c.args[0])).toContain('#3f7fe033')
+    // …and the layer's own alpha is not touched to fake it.
+    expect(ctx.__find('set:globalAlpha').map((c) => c.args[0])).not.toContain(0.2)
+  })
+
+  it('⛔ THE BACKGROUND SWITCH DOES SOMETHING THE MOMENT IT IS FLIPPED', () => {
+    // A toggle whose effect waits on a second decision reads as broken, and the
+    // user's next move is to flip it back rather than to find the colour row
+    // that just appeared under it. On means a plate; choosing a colour replaces
+    // it — the same neutral panel the measurement readouts already use.
+    const ctx = makeCtx()
+    renderText(ctx, at, { ...NEW, bgEnabled: true })
+    expect(ctx.__find('fill')).toHaveLength(1)
+    expect(ctx.__find('set:fillStyle').map((c) => c.args[0])).toContain(DEFAULT_TEXT_BG)
+    // …and an explicit colour wins over it.
+    const chosen = makeCtx()
+    renderText(chosen, at, { ...NEW, bgEnabled: true, bgColor: '#3f7fe033' })
+    expect(chosen.__find('set:fillStyle').map((c) => c.args[0])).toContain('#3f7fe033')
+    expect(chosen.__find('set:fillStyle').map((c) => c.args[0])).not.toContain(DEFAULT_TEXT_BG)
+  })
+
+  it('the border is 1px and solid, whatever the drawing’s line settings say', () => {
+    const ctx = makeCtx({ lineWidth: 6 })
+    renderText(ctx, at, { ...NEW, borderEnabled: true, borderColor: '#ff5b5b', lineWidth: 6, lineStyle: 'dashed' })
+    expect(ctx.__find('set:lineWidth').at(-1).args[0]).toBe(1)
+    expect(ctx.__find('setLineDash').at(-1).args[0]).toEqual([])
+    expect(ctx.__find('set:strokeStyle').map((c) => c.args[0])).toContain('#ff5b5b')
+    // …and it puts the caller's line width back.
+    expect(ctx.__state.lineWidth).toBe(6)
+  })
+
+  it('⭐ RETURNS THE BOX IT DREW, so the hit test grabs the ink', () => {
+    const ctx = makeCtx()
+    const box = renderText(ctx, at, NEW)
+    expect(box.x).toBe(100)
+    expect(box.y).toBe(200)
+    expect(box.w).toBe(5 * 6 + 18)
+    expect(box.lines).toEqual(['hello'])
+  })
+
+  it('draws nothing for an empty note, a faded layer, or an unresolvable anchor', () => {
+    for (const [pts, d, op] of [
+      [at, { ...NEW, text: '' }, 1],
+      [at, NEW, 0],
+      [[{ valid: false }], NEW, 1],
+    ]) {
+      const ctx = makeCtx()
+      expect(renderText(ctx, pts, d, op)).toBeNull()
+      expect(ctx.__find('fillText')).toHaveLength(0)
+    }
+  })
+
+  it('restores the layer alpha it was handed (Model Book’s focus fade)', () => {
+    const ctx = makeCtx({ globalAlpha: 0.5 })
+    renderText(ctx, at, NEW, 0.4)
+    expect(ctx.__state.globalAlpha).toBe(0.5)
   })
 })

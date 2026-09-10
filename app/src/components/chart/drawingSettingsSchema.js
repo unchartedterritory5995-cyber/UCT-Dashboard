@@ -49,10 +49,16 @@
 
 import { ARROW_SIZES, DEFAULT_ARROW_SIZE } from './drawingStyle'
 import { DEFAULT_LABEL_POS, LABEL_POSITIONS, fieldOn, labelPosOf } from './drawingMeasure'
+import { DEFAULT_TEXT_BG } from './drawingText'
 
 /** Fixed render order. A tool's sections are emitted in this order regardless of
  *  how its entry is written, so no tool can accidentally invent its own layout. */
-export const SECTION_ORDER = ['style', 'appearance', 'label', 'text', 'advanced', 'actions']
+// ⭐ `text` SITS BEFORE `appearance` BECAUSE OF WHAT THEY MEAN, not because of
+// who uses them. A tool's own substance comes first — the note's words and how
+// they are set — and the box drawn AROUND that substance comes after. Text Note
+// is the only tool that declares both, so this reorders nothing else; it is
+// stated here rather than special-cased there.
+export const SECTION_ORDER = ['style', 'text', 'appearance', 'label', 'advanced', 'actions']
 
 /** Headings. ⛔ ONLY WHERE A SECTION NEEDS ONE. `style` and `actions` are the
  *  menu's spine and have never carried a caption; a shape's Border/Fill pair and
@@ -61,6 +67,7 @@ export const SECTION_ORDER = ['style', 'appearance', 'label', 'text', 'advanced'
 export const SECTION_TITLES = Object.freeze({
   appearance: 'Appearance',
   label: 'Label',
+  text: 'Text',
 })
 
 /**
@@ -226,6 +233,68 @@ export const CONTROLS = Object.freeze({
   },
 
   // ── text ──
+  //
+  // ⛔ "COLOR" IS NOT A USEFUL WORD ON A TOOL WITH THREE COLOURS. A Text Note can
+  // now colour its text, its background and its border; a row called Color would
+  // be asking the user to guess. Same widget and same stored property as every
+  // other tool's colour row — only the label changes, exactly as `border` does
+  // for the Rectangle.
+  textColor: {
+    id: 'textColor', kind: 'custom', widget: 'colorRow', label: 'Text color',
+    // ⛔ AND IT DOES NOT PERSIST `lineWidth` OR `lineStyle`. A note is not a
+    // line: the width slider did nothing to it and the dash picker did nothing
+    // to it, and "Save as default" was quietly writing both into the shared
+    // store every time somebody saved a note. `line: false` hides them in the
+    // picker; the short `persists` is what stops them being saved.
+    line: false,
+    persists: ['color'],
+  },
+  fontFamily: {
+    id: 'fontFamily', kind: 'custom', widget: 'fontPicker', label: 'Font',
+    prop: 'fontFamily', needs: 'onSetProp',
+    persists: ['fontFamily'],
+  },
+  bold: {
+    id: 'bold', kind: 'custom', widget: 'toggle', label: 'Bold',
+    prop: 'bold', needs: 'onSetProp', persists: ['bold'],
+  },
+  italic: {
+    id: 'italic', kind: 'custom', widget: 'toggle', label: 'Italic',
+    prop: 'italic', needs: 'onSetProp', persists: ['italic'],
+  },
+
+  // ── text appearance ──
+  //
+  // ⭐ THE TWO COLOUR ROWS APPEAR ONLY WHEN THEIR TOGGLE IS ON. `available` is
+  // the schema's own conditional — the same seam `makeHorizontal` uses for
+  // "needs two points" — so the menu renderer never learns that a background
+  // has a colour. Without it the alternative is
+  // `if (type === 'text' && bgEnabled)` inside the renderer, which is the ladder
+  // Phase 3 tore out.
+  bgEnabled: {
+    id: 'bgEnabled', kind: 'custom', widget: 'toggle', label: 'Background',
+    prop: 'bgEnabled', needs: 'onSetProp', persists: ['bgEnabled'],
+  },
+  bgColor: {
+    id: 'bgColor', kind: 'custom', widget: 'colorRow', label: 'Background color',
+    prop: 'bgColor', needs: 'onSetProp', line: false,
+    // The swatch shows the plate the canvas is ACTUALLY painting, so a note whose
+    // background is on but uncoloured does not show its text colour here.
+    fallbackColor: DEFAULT_TEXT_BG,
+    available: (ctx) => !!ctx.drawing?.bgEnabled,
+    persists: ['bgColor'],
+  },
+  borderEnabled: {
+    id: 'borderEnabled', kind: 'custom', widget: 'toggle', label: 'Border',
+    prop: 'borderEnabled', needs: 'onSetProp', persists: ['borderEnabled'],
+  },
+  borderColor: {
+    id: 'borderColor', kind: 'custom', widget: 'colorRow', label: 'Border color',
+    prop: 'borderColor', needs: 'onSetProp', line: false,
+    available: (ctx) => !!ctx.drawing?.borderEnabled,
+    persists: ['borderColor'],
+  },
+
   fontSize: {
     id: 'fontSize', kind: 'custom', widget: 'fontStepper', label: 'Text size',
     needs: 'onSetFontSize',
@@ -306,8 +375,16 @@ export const SCHEMA = Object.freeze({
   // flat lines — level, alert (already horizontal)
   horizontal: { style: STYLE, label: PRICE_LABEL, advanced: LEVEL, actions: ACTIONS },
   hray: { style: STYLE, label: PRICE_LABEL, advanced: LEVEL, actions: ACTIONS },
-  // text — the only tool with typography today
-  text: { style: STYLE, text: ['fontSize'], actions: ACTIONS },
+  // ⭐ TEXT IS THE ONE TOOL WHOSE `style` SECTION IS EMPTY, and that is the
+  // point: it has no line to style. Its colour row lives in `text` as "Text
+  // color", beside the typography it belongs with, and the box it can draw
+  // around itself lives in `appearance` with the two colours that are only
+  // meaningful when their toggle is on.
+  text: {
+    text: ['textColor', 'fontFamily', 'fontSize', 'bold', 'italic'],
+    appearance: ['bgEnabled', 'bgColor', 'borderEnabled', 'borderColor'],
+    actions: ACTIONS,
+  },
   // everything else: colour + the shared actions
   vertical: { style: STYLE, actions: ACTIONS },
   // ⛔ THE RECTANGLE HAS NO `style` SECTION. Its colour row moved WHOLESALE into
@@ -470,6 +547,13 @@ export const NEW_DRAWING_PROPS = Object.freeze({
 
   // The ruler's whole purpose, both halves on.
   dateRange: Object.freeze({ showBars: true, showTime: true }),
+
+  // ⛔ A NEW NOTE DECLARES WHICH LAYOUT RULE IT WAS DRAWN UNDER. This is the
+  // whole of the legacy/new distinction for Text Note: with the marker the
+  // painter honours the anchor as the box's top-left (what it always meant);
+  // without it, a note drawn before Phase 6 keeps the placement it has had all
+  // along and does not slide across somebody's chart. See `drawingText.js`.
+  text: Object.freeze({ textOrigin: 'box' }),
 
   // ⛔ AND PRICE MOVE GAINS THE DOLLAR IT NEVER HAD. "+18%" is the shape of a
   // run; "+$50.68 (+18.90%)" is the shape AND the size, and on a chart where

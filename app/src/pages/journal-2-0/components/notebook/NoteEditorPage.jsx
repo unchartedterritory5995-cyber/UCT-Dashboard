@@ -44,6 +44,7 @@ import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteEditorPage.module.css'
+import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -91,33 +92,13 @@ function friendlySaveError(e, status, { retrying = false } = {}) {
 // second source of truth for content the server already has.
 const DRAFT_KEY = (noteId) => `uct.j2.notedraft.${noteId}`
 
-// Toolbar Font dropdown — a broad set of common web-safe families (each option
-// previews in its own face). Value is a full CSS font-family stack; '' clears.
-const FONT_OPTIONS = [
-  { label: 'Default', value: '' },
-  { label: 'Sans Serif', value: 'Instrument Sans, Arial, sans-serif' },
-  { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
-  { label: 'Monospace', value: 'Consolas, "Courier New", monospace' },
-  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
-  { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
-  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-  { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
-  { label: 'Trebuchet MS', value: '"Trebuchet MS", Helvetica, sans-serif' },
-  { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
-  { label: 'Century Gothic', value: '"Century Gothic", sans-serif' },
-  { label: 'Georgia', value: 'Georgia, serif' },
-  { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
-  { label: 'Garamond', value: 'Garamond, serif' },
-  { label: 'Palatino', value: '"Palatino Linotype", "Book Antiqua", Palatino, serif' },
-  { label: 'Cambria', value: 'Cambria, Georgia, serif' },
-  { label: 'Baskerville', value: 'Baskerville, "Baskerville Old Face", serif' },
-  { label: 'Courier New', value: '"Courier New", Courier, monospace' },
-  { label: 'Consolas', value: 'Consolas, monospace' },
-  { label: 'Lucida Sans', value: '"Lucida Sans Unicode", "Lucida Grande", sans-serif' },
-  { label: 'Comic Sans MS', value: '"Comic Sans MS", "Comic Sans", cursive' },
-  { label: 'Impact', value: 'Impact, Haettenschweiler, sans-serif' },
-  { label: 'Brush Script MT', value: '"Brush Script MT", cursive' },
-]
+// Toolbar Font dropdown — the app's approved family set (each option previews in
+// its own face). Value is a full CSS font-family stack; '' clears.
+//
+// ⭐ THE TABLE MOVED TO `utils/fontFamilies.js`. The chart's Text Note gained a
+// font picker in Phase 6, and a second hand-typed list is how two surfaces end
+// up offering "Helvetica" and "Helvetica Neue" with nobody able to say which is
+// approved. Imported under its own name, so nothing else in this file changed.
 const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
 
 // The capture inbox tray: hotkey captures banked during the session, offered
