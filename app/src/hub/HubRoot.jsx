@@ -32,7 +32,7 @@ import useTextInputFocus from './useTextInputFocus'
 import useHubSessionOverride, { hideForSession, showForSession, resolveVisible }
   from './hubSessionVisibility'
 import { modesById, fanFor, isPreviewMode } from './registry'
-import { RING_NAMES } from './constants'
+import { RING_NAMES, EDGE_OFFSET_PX } from './constants'
 import { useJournalToast, JournalToast } from '../pages/journal-2-0/lib/useJournalToast'
 
 /**
@@ -383,7 +383,21 @@ function HubShell({ setToastMsg }) {
       hidden={hidden}
       style={{
         position: 'fixed',
-        right: '24px',
+        // ⛔ THE CONTAINER MIRRORS TOO — it was the one piece that did not.
+        //
+        // This read `right: '24px'` unconditionally while every child mirrors, so a
+        // left-handed member got the visible hub on the LEFT and this 84x84 box left behind
+        // on the RIGHT. It has no background, so nothing looked wrong — but it has no
+        // `pointer-events: none` either, and an empty fixed div still receives pointer events
+        // in its own box. That is an invisible 84x84 dead zone over real content at the
+        // bottom-right of every page, for left-handed members only.
+        //
+        // ⭐ Invisible is exactly why it survived: §C2:769 says mirroring "moves the pad, the
+        // fan quadrant and the chip as a unit", and every one of those three DID move. Nobody
+        // enumerates the container that draws nothing. `mirrorsAsAUnit.test.jsx` found it on
+        // its first run by asserting the PROPERTY over every edge-anchored element rather
+        // than checking the three the sentence happens to name.
+        ...(mirrored ? { left: `${EDGE_OFFSET_PX}px` } : { right: `${EDGE_OFFSET_PX}px` }),
         bottom: 'calc(env(safe-area-inset-bottom) + 68px)',
         width: '84px',
         height: '84px',
