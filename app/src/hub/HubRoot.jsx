@@ -10,7 +10,7 @@
 // from this file. If one is missing when a test runs, that test fails on
 // module resolution, not on logic in this file.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useHubSettings from './useHubSettings'
 import useHubActive, { useHubEligible } from './useHubActive'
@@ -540,6 +540,37 @@ export default function HubRoot() {
   const { settings } = useHubSettings()
   const sessionOverride = useHubSessionOverride()
   const [toastMsg, setToastMsg] = useJournalToast()
+
+  // ⛔⛔ THE WRITER FOR `highContrast`. Until this existed, the setting was a control that did
+  // NOTHING: `useHubSettings.js:61` stored it, `JoystickSettingsCard.jsx:136-137` put a checkbox
+  // on screen for it, and `tokens.css:527` defined `[data-hub-contrast="high"]` — but a repo-wide
+  // search for that attribute found it ONLY in tokens.css. Nothing ever set it, so the member
+  // toggled a switch, the preference persisted, and not one pixel changed. That is the same defect
+  // class as the "Hide with no recovery" one this feature already paid for: a control whose
+  // promise the product cannot keep.
+  //
+  // ⭐ IT GOES ON `documentElement`, NOT ON THE HUB ROOT, AND THAT IS DELIBERATE. `HubRoot` renders
+  // a FRAGMENT — `HubShell`'s root div, `HubEdgeTab` and `HubToastHost` are SIBLINGS with no common
+  // wrapper. The edge tab consumes `--hub-glass-tint` and `--hub-rim-width` too (hub.module.css),
+  // so scoping the attribute to the shell would have left the restore tab in low contrast: a
+  // half-fix that looks complete. One writer on the root element covers all three.
+  //
+  // ⚠️ SAFE TO PUT GLOBALLY, MEASURED RATHER THAN ASSUMED: the `[data-hub-contrast="high"]` block
+  // redefines FOUR tokens and all four are `--hub-*`. It READS `--bg-elevated`/`--bg-hover` as
+  // inputs but never redefines them, so nothing outside the hub changes. And a theme island that
+  // pins `--hub-*` at its own values (EarningsResearchModal.module.css) still wins inside itself —
+  // which is exactly what theme islands are for.
+  //
+  // The cleanup is load-bearing: the attribute must not outlive the hub. A member who turns the
+  // hub off, or a viewport that stops being eligible, must not leave a stray modifier on <html>.
+  const highContrast = !!settings.highContrast
+  useEffect(() => {
+    const el = typeof document !== 'undefined' ? document.documentElement : null
+    if (!el) return undefined
+    if (eligible && highContrast) el.setAttribute('data-hub-contrast', 'high')
+    else el.removeAttribute('data-hub-contrast')
+    return () => el.removeAttribute('data-hub-contrast')
+  }, [eligible, highContrast])
 
   // Not eligible = kill switch off, or a browser/viewport that cannot draw the hub. Nothing
   // renders, not even the restore tab: there would be nothing to restore.
