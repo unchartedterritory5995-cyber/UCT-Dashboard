@@ -386,10 +386,26 @@ describe('the fan', () => {
     expect(decodeURIComponent(to.slice('/ai-search?q='.length))).toContain('AAA')
   })
 
-  it('⛔ Scans is ABSENT, not a dead bubble — ScreensManager exposes no open seam', () => {
+  it('Scans SHIPS, because the page hands the section a seam onto its picker (R-13)', () => {
+    // ⚰️ THIS ASSERTED THE OPPOSITE — "Scans is ABSENT, ScreensManager exposes no open seam" —
+    // and it was true until increment 4 gave `ScannerShell` an `openScansPicker` seam and passed
+    // it in as `onOpenScans`. The picker itself is deliberately NOT reachable from this file:
+    // `ScreensManager` is stubbed to null above, so a door assertion here would pass over a
+    // component that renders nothing. The door is measured against the REAL manager in
+    // `screenerScansDoor.test.jsx`; what belongs HERE is that the action is present and carries
+    // a handler, which is the registry's "never present-and-inert" rule.
     openScreener()
     expect(modesById[SCAN_MODE_ID].fan.some((a) => a.id === 'scan.scans')).toBe(true)
-    expect(cfg().fan.some((a) => a.id === 'scan.scans')).toBe(false)
+    const scans = cfg().fan.find((a) => a.id === 'scan.scans')
+    expect(scans).toBeTruthy()
+    expect(typeof scans.run).toBe('function')
+    // With the manager stubbed out there is no trigger to press; the seam must refuse quietly
+    // rather than throw into `HubRoot.runAction`.
+    expect(() => act(() => { scans.run(ctx()) })).not.toThrow()
+  })
+
+  it('⛔ …and is ABSENT, not a dead bubble, when no seam is supplied', () => {
+    expect(buildScanFan({ symbol: 'AAA' }).some((a) => a.id === 'scan.scans')).toBe(false)
   })
 
   it('keeps Voice and Home, and every id it ships is one the REGISTRY declared', () => {

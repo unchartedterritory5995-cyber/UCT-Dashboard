@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import StructureProvenance from '../../../components/screener/StructureProvenance'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
@@ -25,6 +25,47 @@ import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import styles from './ScannerShell.module.css'
 
 const densityKey = 'uct.screener.density'
+
+/**
+ * ⭐ THE HUB'S DOOR ONTO THE SAVED-SCREEN PICKER (R-13) — A SEAM, NOT A SECOND PICKER.
+ *
+ * `ScreensManager` keeps its menu in private `open` state and exposes no prop for it, and that
+ * file belongs to another workstream. So the seam lives HERE, in the component that renders it:
+ * `root` is the element this shell wraps the manager in, and the trigger is the manager's own
+ * "Screens ▾" button — the same control a member taps. Opening the member's own door is what
+ * makes this a seam rather than a second authority over what a saved screen is; a copy of the
+ * picker mounted from the hub would be two menus disagreeing the day one of them changed.
+ *
+ * ⛔ IT OPENS; IT NEVER TOGGLES. The trigger is `onClick={() => setOpen(o => !o)}`, so clicking
+ * it while the menu is already up would CLOSE the picker the member just asked for. The
+ * already-open case is real: the hub's own press lands as a document `mousedown` first, which
+ * `ScreensManager`'s outside-click handler acts on, and the ordering of compatibility mouse
+ * events after a touch is not ours to rely on. So the menu is asked for by its ARIA role — the
+ * one thing about that markup this file is entitled to know — and a menu already on screen is
+ * left alone.
+ *
+ * ⛔ THE TRIGGER IS THE WRAPPER'S FIRST BUTTON, and that is pinned rather than assumed:
+ * `ScreensManager` renders it as the first child of `.saveMenuWrap`, ahead of the popover, so
+ * document order settles it. If that ever stops being true this reaches the wrong control
+ * silently — which is why `screenerScansDoor.test.jsx` drives the REAL manager and asserts the
+ * REAL menu opened, and fails by name rather than by a green no-op.
+ *
+ * @param {Element|null|undefined} root  The element wrapping `ScreensManager`.
+ * @returns {boolean} whether the picker is open (or was already) as a result of this call.
+ */
+export function openScansPicker(root) {
+  if (!root || typeof root.querySelector !== 'function') return false
+  if (root.querySelector('[role="menu"]')) return true
+  const trigger = root.querySelector('button')
+  if (!trigger) return false
+  trigger.click()
+  return true
+}
+
+/** The one identifier ChartsGallery puts on a card, and therefore the only handle the cursor
+ *  paint below has. It lives in that file, which is not this workstream's to change — the rail
+ *  reds if it moves. */
+const galleryCardSelector = (ticker) => `[data-testid="gallery-card-${ticker}"]`
 
 // ScannerShell — the drop-in replacement for ScannerPro (same `embedded` prop).
 // Composes every landed shell piece into one orchestrator: honest loading/
@@ -150,9 +191,40 @@ export default function ScannerShell({ embedded = false }) {
    * mount point: its feedback toast (which must outlive the control that fires it) plus the
    * auth-guarded bridge its Flag/Alert actions reach through. Everything else — the cursor, the
    * fan, the chip — lives in `hub/sections/screenerSection.js`. */
+  /* R-13: the seam above, bound to the element this shell wraps `ScreensManager` in. Stable
+   * identity so the section's fan does not change every render. */
+  const scansDoorRef = useRef(null)
+  const openScans = useCallback(() => { openScansPicker(scansDoorRef.current) }, [])
+
   const hub = useScreenerHubSection({
     displayRows, filters: s.filters, prices, hasMore, loadMore: s.loadMore,
+    onOpenScans: openScans,
   })
+
+  /* ⭐ R-15, THE THIRD RENDERER. `ChartsGallery` takes no `itemProps` and is not this
+   * workstream's file, so the cursor is painted the other way `useHubCursor` offers:
+   * `paintCursor`, "the imperative path, for markup you do not own".
+   *
+   * ⛔ THE NODES ARE MAPPED BY TICKER, NOT BY POSITION. `paintCursor` reads `nodes[i]` as the
+   * node for `items[i]`, and the gallery paginates INTERNALLY at 24 with `page` in private
+   * state — so the 24 cards on screen are some contiguous slice whose offset this file cannot
+   * see. Handing it the cards in DOM order would paint the wrong row on every page but the
+   * first. Looking each row's own card up by ticker (`ticker` is the row's primary key, and
+   * `identityKey` in the section) is correct whatever page the gallery is on; rows that are not
+   * on the current page resolve to `null`, which `paintCursor` skips.
+   *
+   * ⚠️ AND THAT IS THE HONEST LIMIT OF IT: a cursor sitting on a row the gallery has not paged
+   * to is still invisible here, because there is no seam to reach page 2 (the same measured gap
+   * `screenerSection.js` records for `scrollTo` in this view). Painting what IS on screen is
+   * strictly better than painting nothing; it is not the whole answer. */
+  const galleryRef = useRef(null)
+  const { paintCursor } = hub.cursor
+  useEffect(() => {
+    if (s.view !== 'charts') return
+    const root = galleryRef.current
+    if (!root) return
+    paintCursor(displayRows.map(r => root.querySelector(galleryCardSelector(r.ticker))))
+  }, [s.view, displayRows, paintCursor])
 
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
@@ -188,7 +260,11 @@ export default function ScannerShell({ embedded = false }) {
                 : null}
             />
           )}
-          saveBar={<ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
+          /* ⛔ THE WRAPPER IS THE SEAM'S ANCHOR, and `display:contents` is load-bearing: the
+             toolbar's `.toolGroup` is a flex row and `.saveMenuWrap` positions the popover
+             against itself, so the wrapper must add a queryable node and NO box. */
+          saveBar={<span ref={scansDoorRef} data-hub-scans-door="" style={{ display: 'contents' }}>
+            <ScreensManager currentSpec={s.baseSpec} onApply={s.applySpec}
             onUseScan={(hash, name) => {
               // useScreenSpec already exposes `filters` as the raw map keyed
               // by filter key (see shell/useScreenSpec.js's return object) —
@@ -198,7 +274,8 @@ export default function ScannerShell({ embedded = false }) {
               const value = have.includes(hash) ? have : [...have, hash]
               s.setFilter('scan', { op: 'in', value: value.length === 1 ? value[0] : value,
                                     label: name })
-            }} />} />
+            }} />
+          </span>} />
         <div className={styles.underbar}>
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
@@ -233,7 +310,7 @@ export default function ScannerShell({ embedded = false }) {
             toolbar and views stay live.
           </div>
         ) : s.view === 'charts' ? (
-          <div className={styles.gridScroll}>
+          <div className={styles.gridScroll} ref={galleryRef}>
             <ChartsGallery rows={displayRows} livePrices={prices} />
             {hasMore && (
               <div className={styles.loadMoreRow}>
