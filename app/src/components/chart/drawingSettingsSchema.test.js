@@ -19,7 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   SECTION_ORDER, CONTROLS, SCHEMA, schemaFor, controlIdsFor,
-  sectionsFor, defaultsPayloadFor, newDrawingProps,
+  sectionsFor, defaultsPayloadFor, newDrawingProps, RETIRED_TYPES, isRetired,
 } from './drawingSettingsSchema'
 import { drawingProp } from './drawingSchema'
 import { fieldsFor } from './drawingMeasure'
@@ -132,6 +132,16 @@ const PHASE6_TEXT = [
 // Without `onSetProp` only the two rows that need no handler survive.
 const PHASE6_TEXT_NO_PROP = ['textColor', 'fontSize']
 
+// ── what Phase 9 took away ────────────────────────────────────────────────
+//
+// ⚰️ The 3-point Position drawing is retired. An EXISTING one keeps a full,
+// working menu — it renders, selects, moves, locks, hides and deletes, because
+// a saved drawing is the user's. What it loses is the two actions that would
+// make MORE of it: Duplicate (a right-click backdoor around "cannot create from
+// the toolbar") and Save as default (which only ever reaches a new drawing, and
+// there are none).
+const PHASE9_REMOVED = { position: ['duplicate', 'saveDefault'] }
+
 /** The old menu, plus every declared addition since, in render order. */
 function menuFor(type, opts = {}) {
   if (type === 'text') {
@@ -164,7 +174,8 @@ function menuFor(type, opts = {}) {
     out.push(nid)
     for (const extra of add[nid] || []) out.push(extra)
   }
-  return out
+  const gone = new Set(PHASE9_REMOVED[type] || [])
+  return gone.size ? out.filter((id) => !gone.has(id)) : out
 }
 
 const ALL_HANDLERS = {
@@ -614,5 +625,47 @@ describe('NEW vs LEGACY — what a freshly drawn tool is stamped with', () => {
     expect(newDrawingProps('rect', saved)).toEqual({ fillColor: '#d24ba8' })
     expect(newDrawingProps('circle', saved)).toBeNull()
     expect(newDrawingProps('trendline', saved)).toBeNull()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⚰️ RETIRED TYPES — still drawn, still yours, no longer creatable', () => {
+  it('the Position drawing is the one retired type', () => {
+    expect([...RETIRED_TYPES]).toEqual(['position'])
+    expect(isRetired('position')).toBe(true)
+    for (const t of ALL_TYPES) if (t !== 'position') expect(isRetired(t), t).toBe(false)
+  })
+
+  it('⛔ IT KEEPS EVERY ACTION THAT OPERATES ON WHAT ALREADY EXISTS', () => {
+    // A saved drawing is the user's. Turning it into an unknown object would be
+    // the application losing their work to tidy its own toolbar.
+    const ids = resolve('position')
+    for (const keep of ['color', 'lock', 'hide', 'remove']) expect(ids, keep).toContain(keep)
+  })
+
+  it('⛔ AND LOSES EXACTLY THE TWO THAT WOULD MAKE MORE OF IT', () => {
+    const ids = resolve('position')
+    // Duplicate would be a backdoor — "cannot create from the toolbar" is not a
+    // retirement if a right-click clones one.
+    expect(ids).not.toContain('duplicate')
+    // Save as default has nothing to act on: a default only reaches a NEW
+    // drawing, and there are none.
+    expect(ids).not.toContain('saveDefault')
+  })
+
+  it('every other tool still has both', () => {
+    for (const t of ALL_TYPES) {
+      if (t === 'position') continue
+      expect(resolve(t), t).toContain('duplicate')
+      expect(resolve(t), t).toContain('saveDefault')
+    }
+  })
+
+  it('⭐ ITS TOOL ID SURVIVES, because the toolbar button is a different feature', () => {
+    // `activeTool === 'position'` is also what opens the Position CALCULATOR —
+    // a numeric panel plus entry/stop/target price lines. The two shared an id
+    // and nothing else; retiring the drawing must not close the panel's door.
+    expect(SCHEMA.position).toBeTruthy()
+    expect(TOOL_ICONS.position).toBeTruthy()
   })
 })

@@ -360,6 +360,34 @@ export const CONTROLS = Object.freeze({
 /** Every tool gets these, in this order, at the bottom of its menu. */
 const ACTIONS = ['duplicate', 'lock', 'hide', 'saveDefault', 'remove']
 
+/**
+ * ⛔ A RETIRED TYPE: STILL DRAWN, STILL YOURS, NO LONGER CREATABLE.
+ *
+ * The 3-point Position drawing is retired in Phase 9. Everything about an
+ * EXISTING one keeps working — it renders, selects, moves, locks, hides and
+ * deletes — because a saved drawing is the user's, and turning it into an
+ * unknown object would be the application losing their work to tidy its own
+ * toolbar.
+ *
+ * ⭐ WHAT IT LOSES IS THE TWO ACTIONS THAT WOULD MAKE MORE OF IT.
+ *   • DUPLICATE would be a backdoor: "cannot create from the toolbar" is not a
+ *     retirement if a right-click clones one.
+ *   • SAVE AS DEFAULT has nothing to act on — a default only ever reaches a NEW
+ *     drawing, and there are no new ones. (Any default already in a user's
+ *     settings is left alone. Deleting it would be a migration to remove data
+ *     that is doing no harm.)
+ *
+ * ⛔ AND IT IS DECLARED, NOT BRANCHED ON. `available` is the same seam
+ * `makeHorizontal` and the Text Note's colour rows use, so `DrawingContextMenu`
+ * never learns that a type can be retired — which is the whole reason the
+ * capability table exists.
+ */
+export const RETIRED_TYPES = Object.freeze(new Set(['position']))
+export const isRetired = (type) => RETIRED_TYPES.has(type)
+
+/** The actions a retired type keeps: everything except the two that make more. */
+const RETIRED_ACTIONS = ['lock', 'hide', 'remove']
+
 /** Colour is the one control every drawing has. */
 const STYLE = ['color']
 
@@ -433,7 +461,10 @@ export const SCHEMA = Object.freeze({
   priceRange: { style: STYLE, label: MEASURE_LABEL, actions: ACTIONS },
   dateRange: { style: STYLE, label: RULER_LABEL, actions: ACTIONS },
   advance: { style: STYLE, label: MOVE_LABEL, advanced: ['adjustAnchors'], actions: ACTIONS },
-  position: { style: STYLE, actions: ACTIONS },
+  // ⚰️ RETIRED IN PHASE 9 — see `RETIRED_TYPES`. Its entry stays so an existing
+  // drawing still gets a full, working menu; what it does not get is Duplicate
+  // or Save as default.
+  position: { style: STYLE, actions: RETIRED_ACTIONS },
 })
 
 /** A type the table does not know still gets a usable menu. An unknown drawing

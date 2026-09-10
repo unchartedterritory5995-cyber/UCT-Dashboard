@@ -60,7 +60,8 @@ export const TOOL_ALIASES = {
   dateRange:  ['bars', 'time', 'duration', 'elapsed', 'span', 'how long', 'weeks', 'months', 'horizontal ruler'],
   text:       ['note', 'label', 'comment', 'annotation', 'write'],
   measure:    ['ruler', 'distance', 'how far', 'range', 'percent move'],
-  position:   ['risk', 'reward', 'r multiple', 'stop', 'target', 'size', 'long', 'short', 'trade'],
+  // Still the words people reach for; the tool they now reach is the calculator.
+  position:   ['risk', 'reward', 'r multiple', 'stop', 'target', 'size', 'long', 'short', 'trade', 'position calculator', 'sizing'],
 }
 
 const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, '')

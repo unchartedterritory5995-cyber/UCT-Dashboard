@@ -164,7 +164,12 @@ export const TOOLS = [
   // Model Book row a rewrite, to change a word.
   { id: 'advance',    label: 'Price Move — click the setup candle, then the candle where the move tops' },
   'sep',
-  { id: 'position',   label: chorded('position', 'Position Tool') },
+  // ⚰️ THE 3-POINT POSITION DRAWING IS RETIRED (Phase 9) — but this button is
+  // NOT the drawing tool, it is the door to the Position CALCULATOR: a numeric
+  // panel plus entry/stop/target price lines that StockChart shows while this
+  // tool is armed. The two shared an id and nothing else. The label now says
+  // which of them it opens.
+  { id: 'position',   label: chorded('position', 'Position Calculator') },
 ]
 
 const WIDTHS = [1, 2, 3]

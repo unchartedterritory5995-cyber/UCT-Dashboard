@@ -26,7 +26,7 @@ import {
   resolveLevels, withBand, withLevel,
 } from './drawingFib'
 import { parseBoundId } from './drawingAlertAnchors'
-import { sectionsFor, defaultsPayloadFor, newDrawingProps } from './drawingSettingsSchema'
+import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
 import {
   PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
   toPaneFraction, fromPaneFraction,
@@ -1439,7 +1439,9 @@ export default function ChartDrawingOverlay({
             renderBarsTime(ctx, flatPx, proto, { lines: measureLines(proto, m, priceText), bounds: previewRect })
             break
           }
-          case 'position': renderPosition(ctx, previewPts); break
+          // ⚰️ No preview for a retired type — the branch is unreachable (the
+          // creation gate above never lets `pendingPoints` fill), and leaving a
+          // call here would suggest otherwise to the next reader.
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
           case 'advance': {
             // ⭐ THE CONNECTOR IS CONSTRUCTION GEOMETRY AND LIVES ONLY HERE. It
@@ -1870,7 +1872,17 @@ export default function ChartDrawingOverlay({
     }
 
     // Add point for drawing tools
-    if (activeTool && activeTool !== 'cursor') {
+    //
+    // ⛔ A RETIRED TYPE IS NOT PLACEABLE, AND THIS IS THE ONE GATE THAT MATTERS.
+    //
+    // ⭐ `position` KEEPS ITS TOOLBAR BUTTON ON PURPOSE, because that button is
+    // also the only door to the Position CALCULATOR — a completely separate
+    // feature (a numeric panel plus three price lines) that StockChart gates on
+    // this same `activeTool === 'position'`. The two share an id and nothing
+    // else. Retiring the DRAWING therefore cannot mean removing the tool id; it
+    // means the overlay stops turning clicks into a drawing, which is exactly
+    // what this line does. The panel is untouched.
+    if (activeTool && activeTool !== 'cursor' && !isRetired(activeTool)) {
       const newPending = [...pendingPoints, coords]
       const needed = POINT_COUNT[activeTool] || 2
 

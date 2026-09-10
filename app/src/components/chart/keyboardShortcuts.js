@@ -121,7 +121,7 @@ export const SHORTCUTS = [
   { keys: 'Alt+E', command: 'tool:fibext', description: 'Fibonacci extension' },
   { keys: 'Alt+W', command: 'tool:avwap', description: 'Anchored VWAP' },
   { keys: 'Alt+X', command: 'tool:text', description: 'Text annotation' },
-  { keys: 'Alt+P', command: 'tool:position', description: 'Position tool (long / short R:R)' },
+  { keys: 'Alt+P', command: 'tool:position', description: 'Position calculator (size / R:R)' },
   { keys: 'Alt+Shift+P', command: 'tool:priceRange', description: 'Price range' },
   // ⭐ THE CHORD ALREADY EXISTED AND IS PRESERVED. `Alt+Shift+D` has armed
   // `tool:dateRange` since before the tool had a button; giving Bars & Time a

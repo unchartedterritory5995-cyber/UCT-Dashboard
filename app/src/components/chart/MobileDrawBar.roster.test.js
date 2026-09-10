@@ -46,4 +46,16 @@ describe('MobileDrawBar roster parity', () => {
     expect(desktopIds).toEqual(expect.arrayContaining(['advance', 'cup']))
     expect(phoneIds).toEqual(expect.arrayContaining(['advance', 'cup']))
   })
+
+  // ⚰️ `position` IS STILL IN BOTH ROSTERS AND THAT IS CORRECT. Phase 9 retired
+  // the 3-point Position DRAWING; the button that shares its id opens the
+  // Position CALCULATOR — a numeric panel plus entry/stop/target price lines,
+  // which StockChart gates on this same `activeTool`. Removing the entry would
+  // have deleted a live feature to retire a different one.
+  test('the retired Position DRAWING keeps its tool id, because the calculator uses it', () => {
+    expect(desktopIds).toContain('position')
+    expect(phoneIds).toContain('position')
+    const label = TOOLS.find((t) => t !== 'sep' && t.id === 'position').label
+    expect(label).toContain('Position Calculator')
+  })
 })

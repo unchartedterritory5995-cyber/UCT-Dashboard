@@ -49,7 +49,8 @@ export const DRAW_TOOLS = [
   { id: 'text',       label: 'Text' },
   { id: 'measure',    label: 'Measure' },
   { id: 'dateRange',  label: 'Bars & Time' },
-  { id: 'position',   label: 'Position' },
+  // The calculator panel, not the retired drawing — see ChartToolbar.
+  { id: 'position',   label: 'Position Calc' },
   { id: 'cup',        label: 'Cup' },
 ]
 

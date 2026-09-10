@@ -351,6 +351,20 @@ describe('the seven Model Book / surface override props still reach their decisi
     expect(near('const levelAlertsFor = useCallback', 700)).toContain('parseBoundId(a.drawing_id)')
   })
 
+  it('⚰️ A RETIRED TOOL CANNOT PLACE A DRAWING', () => {
+    // The one gate. Not the toolbar entry, not the roster, not the shortcut —
+    // the line that turns clicks into a drawing.
+    expect(SRC).toContain("if (activeTool && activeTool !== 'cursor' && !isRetired(activeTool)) {")
+  })
+
+  it('⭐ …BUT ITS RENDERER, HIT TEST AND DRAG ARE UNTOUCHED', () => {
+    // A saved drawing is the user's. It must still render, select, move and
+    // delete — turning it into an unknown object would be the application
+    // losing their work to tidy its own toolbar.
+    expect(SRC).toContain("case 'position': renderPosition(ctx, pts); break")
+    expect(SRC).not.toContain("case 'position': renderPosition(ctx, previewPts)")
+  })
+
   it('the measurement anchors are revealed only on request, for one drawing', () => {
     expect(SRC).toContain('const [adjustingId, setAdjustingId] = useState(null)')
     expect(near('const hitTestHandle = useCallback', 1400)).toContain('if (adjustingId !== d.id) return null')
