@@ -104,3 +104,114 @@ unchanged and this note is the routing.
 ⚠️ Also worth knowing: your worktree's `app/node_modules` is what
 `uct-worktrees/indicator-r0r1` (and, through it, a temporary merge probe) symlinks to,
 and it is **missing `pdfjs-dist`** — see the note below if present, or ask.
+
+---
+
+## OPEN · 2026-09-10 · both demand censuses measure 129 scripts against a floor of 150
+
+**Raised by:** the `indicator-r0r1` session (scan-evaluator / NYSE calendar work).
+**Territory:** the Pine corpus roster and the census instruments. Not ours.
+**Blocking us:** no. We route around them and do not claim repo-green.
+
+### The two tests
+
+```
+app/src/components/chart/engine/ast/capabilityDemandCensus.test.js
+  > ⭐⭐⭐ capability demand — total, not just first blocker (§7)
+  > reports both numbers for every family                        (line 267)
+
+app/src/components/chart/engine/ast/historyDemandCensus.test.js
+  > 2F-2 — runtime history demand across every corpus
+  > reports both numbers, and they are different questions       (line 140)
+```
+
+Both fail with the SAME message:
+
+```
+AssertionError: expected 129 to be greater than 150
+```
+
+from `expect(REPORT.scripts).toBeGreaterThan(150)` and
+`expect(REPORT.totals.scripts).toBeGreaterThan(150)` respectively.
+
+### Repro — RED
+
+```
+cd C:/Users/Patrick/uct-worktrees/indicator-r0r1/app
+./node_modules/.bin/vitest run \
+  src/components/chart/engine/ast/capabilityDemandCensus.test.js \
+  src/components/chart/engine/ast/historyDemandCensus.test.js
+```
+
+prints `Tests 2 failed | 5 passed (7)` and, above it, the census's own header line
+`129 scripts, 27 executing end-to-end`. When it passes, that count is over 150 and
+the two `reports both numbers…` cases go green with the other five.
+
+### Evidence it is PRE-EXISTING and not ours
+
+* ⛔ **NEITHER TEST FILE IS TOUCHED BY THIS WORK.** `git status --short` names
+  neither, and `git log origin/master..HEAD -- <both files>` reaches no commit of
+  ours — the last one to touch either is `0df2dd951`, which is the commit that
+  WROTE the floor.
+* ⛔ **THE FLOOR WAS RED ON THE COMMIT THAT INTRODUCED IT.** Counted at that
+  commit rather than inferred, `git ls-tree -r --name-only 0df2dd951 -- <dir>`:
+  `pine_oos` 30 · `pine_blind` 48 · `pine_community` 30 · `oos2_parity` **0** ·
+  `pine` 21 = **129**. So `> 150` has never been satisfiable by the `CORPORA`
+  list as written, and this predates `corpus/committed` existing at all.
+* The same five counts hold at `HEAD` today, measured the same way.
+
+### Diagnosis, so you do not have to re-derive it
+
+`CORPORA` is declared identically in both files and lists five directories,
+resolved as `path.resolve(process.cwd(), rel)` with vitest's cwd at `app/`:
+
+```
+['oos1',      '../tests/fixtures/pine_oos']         30 .pine
+['blind',     '../tests/fixtures/pine_blind']       48 .pine
+['community', '../tests/fixtures/pine_community']   30 .pine
+['parity',    '../tests/fixtures/oos2_parity']       0 .pine   ← contributes nothing
+['curated',   '../tests/fixtures/pine']             21 .pine
+                                                   ─────
+                                                    129
+```
+
+* **`tests/fixtures/oos2_parity` holds no `.pine` files at all** — verified with
+  `find tests/fixtures/oos2_parity -type f`, which returns exactly two paths,
+  `README.md` and `.gitignore` (positive control: the same command on
+  `tests/fixtures/ast` returns 12). ⭐ **AND THAT IS BY DESIGN, NOT AN ACCIDENT
+  TO REPAIR** — its `.gitignore` is `*.pine`, because six of the ten members'
+  recorded licences do not contemplate redistribution and a copy is still a
+  redistribution, so all ten are withheld rather than six. A directory whose
+  contract is "the scripts are never committed here" cannot contribute to a
+  census that reads committed `.pine` files, on any machine but the one that
+  re-materialised it.
+* **`corpus/committed` is not in `CORPORA` at all.** It holds **266** `.pine`
+  files, flat (no subdirectories), so it is directly compatible with the
+  census's non-recursive `fs.readdirSync(dir).filter(x => x.endsWith('.pine'))`.
+  It was added by `6bb44ea5e` ("R1 corpus: 266 commit-eligible, not 202"), after
+  the floor was written. **129 + 266 = 395.**
+
+### Both remedies, and the choice is yours
+
+We are deliberately not picking one — the census population is a measurement
+decision about YOUR instrument, and guessing it would put a second opinion on
+something that is yours to rule on.
+
+* **(A) Widen the census inputs.** Add `['committed', '../corpus/committed']` to
+  `CORPORA` in both files; `REPORT.scripts` becomes 395 and both floors clear.
+  ⚠️ What it costs: every family's `totalDemand` / `firstBlocker` / `byCorpus`
+  number then describes a three-times-larger population, so any figure quoted
+  from a previous census report is superseded rather than extended, and the
+  `byCorpus` breakdown gains a member that dominates it.
+* **(B) Lower or retire the floor.** The instruments' own headers say
+  *"⛔ IT PINS NO NUMBER (`lesson_an_arming_condition_that_names_a_test_expires`).
+  The assertions are non-vacuity and internal consistency; the report is the
+  output."* — and `> 150` is the one number they do pin. A floor that has been
+  red since the commit that wrote it is arguably the case that lesson names.
+  ⚠️ What it costs: nothing then catches a `CORPORA` entry silently resolving to
+  an empty directory, which is exactly what `oos2_parity` does today — so if you
+  take (B), the non-vacuity check probably wants to move down a level and assert
+  that **every** corpus in `CORPORA` contributed at least one script, naming the
+  one that did not.
+
+⛔ **We changed neither census test.** This entry is the routing.
