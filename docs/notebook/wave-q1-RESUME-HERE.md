@@ -1,5 +1,50 @@
 # Wave Q1 — RESUME HERE
 
+# ✅✅ DEPLOY #3 — 2026-09-10 05:41:03 UTC, LIVE 05:42:53 UTC
+
+**`7ed6b2ce5` is on `master` and live.** `OFFLINE_DEFAULT_ON` is still `false`.
+
+| | |
+|---|---|
+| master before | `eedb58ac8` |
+| master after | `7ed6b2ce522ff1edc0f155ba4e7c0648434dc84c` |
+| push | 2026-09-10 **05:41:01 → 05:41:03 UTC** |
+| build live | **05:42:53 UTC** (uptime 42 s at 05:43:35) — entry `index-CrkXflNE` → `index-C5gtX35p`, Notebook chunk `NotebookTab-BMNXXwjE` → `NotebookTab-D3VlIhpn` |
+| carried | 3 commits: the opt-in denominator, `tools/window_check.py`, the deploy-#2 record |
+
+## The member-impact paragraph — **approved by the owner, recorded verbatim**
+
+> "Nothing changes for members. Offline editing stays switched off. This release
+> records, once, when a browser turns offline editing on, so we can tell how
+> many have. No member content is recorded and no member data is read, moved, or
+> deleted."
+
+## Verified on the LIVE ARTIFACT — seven reads
+
+```
+1 the flag       Ds=!1 · _n() returns it when the key is unset      ← still dark
+2 the gate       bt=()=>{if(!wt.current)return;b("dirty")           ← refuses BEFORE status
+  armed by       .current=!!(H&&!H.isDestroyed&&r)
+3 EMIT_NOTHING   emitUpdate:!1 ×1 · bare setContent(x,!1) ×0
+4 usableBaseline if(typeof n=="string"&&n.trim()!=="")return n;return null
+5 the copy       badge ×1 · header ×1 · "waiting to sync" ×1
+6 blocked event  "notebook_blocked_no_baseline"
+7 OPT-IN event   "notebook_offline_opt_in" · marker "uct.j2.offline.optInReported"
+                 compiled condition:  n==="1" && s!=="1"      ← the transition, once
+```
+
+**Smoke, flag OFF** — `/api/health` `ok` · Notebook chunk **200** · **zero** badge
+strings in the served HTML · unauthenticated `POST /api/j2/telemetry` **401**
+(⚠️ again: that is the **auth gate**, not the allow-list — the allow-list is
+proved by its rail against the source on `master`, lines 95 and 103).
+
+⛔ **Neither clock restarted.** The observation window and the instrument clock
+both stand. ⭐ **The opt-in count starts at this deploy's LIVE timestamp,
+2026-09-10T05:42:53Z** — a third date, and deliberately not a third clock: it is
+the denominator for the instrument clock, not a separate question.
+
+---
+
 # ✅✅ DEPLOY #2 — 2026-09-10 05:04:43 UTC, LIVE 05:06:56 UTC
 
 **`eedb58ac8` is on `master` and live.** `OFFLINE_DEFAULT_ON` is still `false`.
@@ -1036,6 +1081,7 @@ unstarted."* **Both ran; the canary is complete; the window is open.**
 | what it measures | `notebook_blocked_no_baseline` occurrences (Item 2) |
 | start | **2026-09-10T05:06:56Z** — when deploy #2 went LIVE. ⛔ Not the push (05:04:43Z): an instrument that is not yet serving cannot fire, and dating the clock from the push would credit it with 2 m 13 s it did not observe. |
 | end | **2026-09-17T05:06:56Z** |
+| the denominator | **`notebook_offline_opt_in` counts from 2026-09-10T05:42:53Z** (deploy #3 live). ⛔ It starts 36 minutes AFTER the numerator, so a browser that opted in inside that gap is counted by neither — say so if the counts are ever close to zero, rather than treating the two as covering the same span. |
 
 ⛔ **Two clocks, deliberately.** The 2026-09-10 → 2026-09-17 window above watches
 **deploy #1** (the autosave fix) and is unchanged by this deploy. This one starts
