@@ -129,20 +129,24 @@ describe('a run action never reaches a member without a handler', () => {
       + 'mode was declared with a fan and nothing behind it.\n'
       + '⛔ Taking any of these out of PREVIEW_MODES REQUIRES shipping its controller in the SAME '
       + 'commit, or dropping the listed actions.')
-      .toEqual([
-        // ⚰️ `calendar` LEFT THIS LIST in Increment 5, by a controller arriving — which is the
-        // departure this rail was written to require. Both of its naked run actions were resolved
-        // in that same commit, and in the two different ways the ruling allows: `calendar.macro`
-        // got a real body (a genuine event-type toggle), and `calendar.earnings` was REMOVED,
-        // because `CalendarHeader.jsx:347` locks that type (`if (locked) return`) and the bubble
-        // could therefore only ever have been silent.
-        // ⚰️ `chart` LEFT THIS LIST in Increment 5. Three of its five naked run actions got real
-        // bodies (Flag, Note, Plan trade); the other two were DROPPED BY THE CONTROLLER rather
-        // than deleted from the registry, because both are unreachable from THIS surface rather
-        // than impossible: `chart.compare`'s only write path cannot mount on a hub viewport, and
-        // `chart.logTrade` lives under a rule-12 path. `catalysts` is the last mode here.
-        'catalysts: catalysts.flag, catalysts.filter, catalysts.note',
-      ])
+      // ⭐⭐ EMPTY. No preview-hidden mode carries a naked run action any more — every one either
+      // has a controller that gives them bodies or drops what it cannot do.
+      //
+      // ⚰️ The three departures, and the THREE DIFFERENT resolutions the ruling allows, all of
+      // which appear here:
+      //   · `calendar` — `calendar.macro` got a real body; `calendar.earnings` was DELETED FROM
+      //     THE REGISTRY, because `CalendarHeader.jsx:347` locks that event type and the bubble
+      //     could only ever have been silent.
+      //   · `chart` — Flag, Note and Plan trade got bodies; `chart.compare` and `chart.logTrade`
+      //     were DROPPED BY THE CONTROLLER but left declared, because they are unreachable from
+      //     that surface rather than impossible.
+      //   · `catalysts` — Flag and Note got bodies; `catalysts.filter` was dropped, because the
+      //     tag chips render unconditionally and there is no closed filter UI for it to open.
+      //
+      // ⛔ The non-vacuity assertions above are what keep this from being a rail that cannot
+      // fail: they require the registry to still declare run actions and PREVIEW_MODES to be
+      // non-empty. So an empty list here means "all handled", never "nothing measured".
+      .toEqual([])
   })
 
   it('⛔ the projection really is what hides them — the mechanism is checked, not assumed', () => {
