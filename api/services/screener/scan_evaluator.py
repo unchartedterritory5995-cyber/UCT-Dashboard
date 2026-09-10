@@ -1651,9 +1651,25 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # confident 1 on a five-minute chart. ⛔ THE NORMALISED CODE, not the
             # caller's spelling: `scan_store._TF_CODES` and
             # `indicator_compute.CLOCK_TIMEFRAMES` are the same set of words.
+            # ⭐⭐ THE TRI-STATE IS STATED, NOT GUESSED, AND THIS LANE IS THE ONLY
+            # ONE THAT KNOWS IT. `newest_bar_is_forming` decides the four
+            # CLOCK_REALTIME columns; absent, they blank, and
+            # `barstate.islastconfirmedhistory` -- which the Pine door does NOT
+            # fold, unlike `isconfirmed`/`ishistory`/`isrealtime` -- comes back
+            # `not_computable` on every saved scan that reads it.
+            #
+            # ⛔ AND `False` WOULD BE A LIE UNDER `mode='live'`. `live_bars_for`
+            # APPENDS today's forming bar a few lines up, so the newest bar is
+            # genuinely open on that path and the nightly sweep's newest bar is
+            # genuinely closed. The flag is exactly that fact, which is why it is
+            # read off `mode` rather than off a clock: manufacturing a `now` here
+            # to re-derive something this function already knows would be a second
+            # authority over it.
             column = ast_interpret.interpret(tree, bars, scalars=scalars,
                                              opts={"tf": tf_code,
-                                                   "symbols": symbol_series})
+                                                   "symbols": symbol_series,
+                                                   "newest_bar_is_forming":
+                                                       mode == LIVE})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
