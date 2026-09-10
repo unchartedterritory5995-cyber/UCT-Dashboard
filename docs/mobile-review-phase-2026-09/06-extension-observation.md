@@ -1,8 +1,13 @@
 # Foreground bars observation — extension-driven variant
 
-**Supersedes `05-foreground-bars-observation.md` ONLY if this run validates.** 05
-stays frozen at `c710ce4c2` as the manual fallback. If any gate here fails, we do
-05 by hand and this document is a record of an attempt, not a method.
+# ⚰️ ATTEMPTED 2026-09-09 AND ABANDONED. THIS IS A RECORD OF AN ATTEMPT, NOT A METHOD.
+
+**05 is the instrument.** It stays frozen at `c710ce4c2` and the observation is
+done by hand. See "What actually happened" at the end of this file — three
+findings came out of the attempt and they are the reason to keep the document.
+
+**Supersedes `05-foreground-bars-observation.md` ONLY if this run validates.** It
+did not.
 
 Everything 05 established by *reading* — the key mismatch, the count-keyed server
 cache, the Daily/intraday conditional, the feed's role, the `&warm=1` split, the
@@ -277,3 +282,82 @@ do not truncate it, do not reformat it. Then state, in one line each:
   - anything that did not go as described above
 
 END OF RUN INSTRUCTIONS
+
+---
+
+# What actually happened — 2026-09-09
+
+The run never reached STEP 1. Three findings, all worth more than the attempt cost.
+
+## ⚰️ 1 · "Check 3 PASSED" was never measured
+
+This document's own justification for the extension path — *"Checked 2026-09-09:
+Claude in Chrome read `document.visibilityState === "visible"` twice, 10 s apart"*
+— **was a claim carried forward without a measurement.** It arrived pre-filled in a
+prompt template and was sent without the test having run. Source named so it can be
+traced: reviewer's template.
+
+⭐ It was caught the same way the cookie inference should have been: by refusing to
+accept a result this session did not produce. When the reading was finally taken in
+the tab that would actually be driven, **it came back `hidden`** — the opposite of
+the claim the whole path was authorised on.
+
+Same class as the session-scoped-cookie inference and the stale master SHA.
+**A result nobody produced is not a result.**
+
+## ⚰️ 2 · §R5-A extends to a user-profile tab — a created tab reads `hidden`
+
+§R5-A scoped its throttling finding to a Playwright-launched window fighting Win32
+foregrounding. **That scoping was too narrow.** Measured here, in the owner's own
+Chrome, own profile, own authenticated session, tab created by the extension:
+
+```
+vis: "hidden"   hidden: true   hasFocus: false
+href: https://uctintelligence.com/dashboard
+```
+
+⛔ **A screenshot capture does not activate the tab.** `computer:screenshot`
+returned a correct, fully-rendered 1568×698 image of the live authenticated
+dashboard **while the browser still reported the tab hidden**. Rendering for the
+extension and being visible to the page are different things — so a capture that
+"looks right" is not evidence the page is running.
+
+⭐ **A human click fixes it and nothing programmatic does.** After the owner
+clicked the tab: `visible`, `hidden: false`, rAF **23 fps**, and — the gate that
+actually matters — **`requestIdleCallback` fired at 1 ms**. That is the mechanism
+`_kickSoon → _pump` needs, dead in every prior attempt and alive here. So the
+throttling is not inherent to extension-driven tabs; it is inherent to *nobody
+having clicked one*.
+
+⇒ Any future browser automation on this project must treat "the tab is visible" as
+**something a human did**, not something the tooling can arrange.
+
+## ⚰️ 3 · `resize_window` reports success on a maximized window and does nothing
+
+```
+resize_window(390×844) → "Successfully resized window ... to 390x844 pixels"
+outerWidth: 1920   innerWidth: 1920   (unchanged, across two calls)
+```
+
+Chrome ignores programmatic resize on a **maximized** window; the tool reports
+success regardless. This is the class of defect this project keeps paying for —
+`BARS_PREWARM_DISABLED` matching no read site, three gate runs reporting exit 0
+having run nothing. **A success string is not an effect.**
+
+It mattered because at 1920 wide the app renders the desktop workspace:
+`data-mobile-chart-shell` was `null` and `pointer: coarse` was `false`. Proceeding
+would have measured the wrong surface entirely.
+
+## Incidental confirmation
+
+Navigating to `uctintelligence.com` redirected to `/dashboard` with live positions
+rendering — **the profile was already authenticated, no sign-in step anywhere.**
+That is the 30-day persistent-cookie finding confirmed by observation rather than
+by reading `auth.py`.
+
+## Verdict
+
+The extension path is abandoned, not deferred. Two independent blockers, each
+requiring a physical action from the owner, and the second only surfaced after the
+first was cleared — which is the shape of a path that will keep producing a third.
+**05 by hand is two minutes and is the instrument.**
