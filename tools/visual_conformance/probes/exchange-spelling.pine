@@ -80,33 +80,41 @@ plot(str.length(syminfo.ticker), "len_ticker_CONTROL")    // N12
 // tab.
 //
 // WITNESSES — one per DISTINCT STORE SPELLING, because the map is per-exchange
-// and not per-symbol. The bounded half of the store vocabulary is `_YF_EXCHANGE`
-// in `api/services/ticker_meta.py`, measured at SIX distinct values:
+// and not per-symbol. ⭐ EVERY ROW BELOW WAS MEASURED, not guessed: the yfinance
+// code was read live on 2026-09-10 and pushed through `_YF_EXCHANGE`
+// (`api/services/ticker_meta.py`) to get the store spelling this map is keyed on.
+// The `pine` column is what remains UNKNOWN and is exactly what this probe asks.
 //
-//     store spelling   suggested witness   what it settles
-//     'NYSE Arca'      SPY                 the flagship divergence: our store
-//                                          says 'NYSE Arca' and the 2026-09-09
-//                                          capture already showed the tickerid
-//                                          prefix is AMEX
-//     'NASDAQ'         AAPL
-//     'NYSE'           JPM
-//     'NYSE American'  an NYSE-American-listed name
-//     'Cboe BZX'       a Cboe-BZX-listed ETF
-//     'OTC'            an OTC name
+//     store spelling    witness   yf code   pine (syminfo.exchange)
+//     'NYSE Arca'       SPY       PCX       ??  <- the flagship divergence
+//     'NASDAQ'          AAPL      NMS       ??
+//     'NYSE'            JPM       NYQ       ??
+//     'NYSE American'   IMO       ASE       ??
+//     'Cboe BZX'        ARKK      BTS       ??
+//     'OTC'             LVMUY     PNK       ??
 //
-// ⛔⛔ SIX, NOT FIVE. A five-symbol run cannot cover six spellings, so a repeat
-// of the previous run's symbol count leaves at least one store spelling
-// unwitnessed and its `confirmed` entry unfillable. Record every symbol you
-// actually visit, including the ones that matched nothing.
+// ⭐⭐ SPY IS THE ROW THAT PROVES THE FILE'S THESIS. Our store says 'NYSE Arca'
+// (yfinance reports PCX) and the 2026-09-09 capture already showed its TICKERID
+// prefix is AMEX. If `syminfo.exchange` also answers "AMEX", then a script asking
+// `syminfo.exchange == "AMEX"` is TRUE at the vendor and would have been FALSE had
+// we served our own spelling. That is the silent per-symbol inversion this whole
+// gate exists to prevent, and SPY is where it is cheapest to demonstrate.
 //
-// ⚠️ AND SIX IS ONLY THE BOUNDED HALF. `_YF_EXCHANGE` is a closed set; the FMP
-// leg (`row.get('exchange') or row.get('exchangeShortName')`) is free vendor
-// text and cannot be enumerated from here, which is why `store_to_pine` carries
-// spellings — 'NASDAQ Global Select', 'New York Stock Exchange' — that no
-// `_YF_EXCHANGE` value produces. Those need their own witnesses or they stay
-// unconfirmed, and a symbol carrying an unnamed spelling REFUSES rather than
-// guessing. That is the intended failure direction, not a gap to close by
-// filling in the blanks.
+// ⛔⛔ SIX, NOT FIVE. `_YF_EXCHANGE` has 11 entries collapsing to SIX distinct
+// store spellings, so a repeat of the previous run's five-symbol count leaves at
+// least one spelling unwitnessed and its `confirmed` entry unfillable.
+//
+// ⚠️⚠️ AND THE OTC ROW IS THINNER THAN IT LOOKS — a finding from choosing these
+// witnesses, recorded here because it is the kind of thing that is invisible until
+// someone tries. `_YF_EXCHANGE` maps only PNK and OTC on the OTC side, but yfinance
+// also emits OQX (OTCQX), OQB (OTCQB) and OID for OTC-tier names. Measured
+// 2026-09-10: NSRGY→OID, BAYRY/RHHBY/OTCM/ADDYY→OQX, FMCC→OQB. Those codes are NOT
+// in the map, so they fall through `_YF_EXCHANGE.get(exch, exch)` UNMAPPED and the
+// store holds the raw code ("OQX") — which is neither the trader-friendly name the
+// map exists to produce, nor a key `store_to_pine` names, so such a symbol REFUSES.
+// ⛔ LVMUY (PNK) was chosen precisely because it lands on a mapped code. That means
+// this capture witnesses the 'OTC' SPELLING, not the whole OTC tier. Fixing the map
+// is a separate decision and is NOT part of the capture.
 //
 // RECORDING — every `confirmed` entry needs all four of `{pine, witness,
 // captured, how}`. An entry without a witness is an assertion wearing a data
