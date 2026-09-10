@@ -8,11 +8,14 @@ import json
 import logging
 import os
 import time
+from zoneinfo import ZoneInfo
 
 from . import store, chart_render, vision_judge
 from .rubrics import FOCUSED_SETUPS
 
 log = logging.getLogger(__name__)
+
+_ET = ZoneInfo("America/New_York")
 
 _PRICE = {"claude-opus-4-8": (5.0, 25.0)}  # ($/Mtok input, output)
 
@@ -50,16 +53,59 @@ def _read_bars(ticker, tf):
     return bars_sqlite.get_bars(ticker, tf, 400) or []
 
 
+def _bar_ymd(bar):
+    """The bar's session date as a YYYYMMDD int, or None when the ts is not
+    daily-shaped (intraday timeframes store unix seconds, not YYYYMMDD)."""
+    try:
+        s = str(int(bar[0]))
+    except (TypeError, ValueError, IndexError):
+        return None
+    return int(s) if len(s) == 8 else None
+
+
+def _today_ymd_et():
+    """Today's SESSION date in ET as a YYYYMMDD int.
+
+    ⛔ ET, never UTC. After 20:00 ET the UTC date is already tomorrow, so a UTC
+    "today" would judge the live session's own developing bar as if it had
+    closed -- wrong for every late slot.
+    """
+    return int(datetime.datetime.now(_ET).strftime("%Y%m%d"))
+
+
 def _evidence_bar(bars):
-    """The last CLOSED bar (bars[-2]), not the developing candle (bars[-1],
-    which mutates every hour during a live session) -- the single source of
-    truth for both the signals hash and the evidence date, so the two can
-    never disagree about which bar is actually being judged."""
-    if len(bars) >= 2:
-        return bars[-2]
-    if bars:
+    """The last CLOSED bar -- identified BY DATE, not by position.
+
+    The single source of truth for both the signals hash and the evidence date,
+    so the two can never disagree about which bar is being judged.
+
+    ⛔ THIS USED TO RETURN bars[-2] UNCONDITIONALLY, which assumed bars[-1] is
+    always the developing candle. That assumption is false until today's bar has
+    been ingested for THAT ticker, and ingestion is per-ticker and staggered
+    through the session. Measured on prod 2026-09-10 at 10:10 ET: GILD held
+    [09-08, 09-09, 09-10] while META/ASML/OXY/TGT/NVDA/XYZ all still ended at
+    09-09. So for 83 of 84 tickers bars[-1] WAS a fully closed prior session,
+    and returning bars[-2] threw it away and judged a bar one session older --
+    2026-09-08 evidence on 2026-09-10, on every one of the 09:00 slot's 43 paid
+    calls. Then, as each ticker's partial arrived, its hash changed and it was
+    re-judged: the "10:00 re-judge wave" was this defect resolving itself one
+    ticker at a time, not the market rolling over.
+
+    By date, both states answer the same: bars[-1] when it has already closed,
+    bars[-2] when bars[-1] is today's live candle. No trading calendar is
+    needed -- a weekend or holiday simply makes bars[-1] older than today, which
+    is exactly the condition being tested.
+    """
+    if not bars:
+        return None
+    if len(bars) == 1:
+        return bars[0]
+    ymd = _bar_ymd(bars[-1])
+    # A non-daily ts keeps the original positional behaviour rather than
+    # guessing at a format this orchestrator never runs on.
+    if ymd is not None and ymd < _today_ymd_et():
         return bars[-1]
-    return None
+    return bars[-2]
 
 
 def _evidence_date(bars) -> str:

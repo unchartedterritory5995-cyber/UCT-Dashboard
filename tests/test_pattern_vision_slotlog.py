@@ -33,7 +33,9 @@ def _capture_run(monkeypatch, active, judge):
     import api.main as main
     from api.services.pattern_vision import orchestrator as pv_orch
     monkeypatch.setenv("PATTERN_VISION_ENABLED", "1")
-    monkeypatch.setattr(main, "_resolve_active_set_for_patterns", lambda: list(active))
+    # `**kw` because the resolver takes an optional `diagnostics` out-param that
+    # the job now passes; these tests exercise paths where nothing is dropped.
+    monkeypatch.setattr(main, "_resolve_active_set_for_patterns", lambda **kw: list(active))
     monkeypatch.setattr(pv_orch, "judge_ticker", judge)
     sched = _StubScheduler()
     assert main.register_pattern_vision_jobs(sched) is True

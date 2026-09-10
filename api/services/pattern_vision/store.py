@@ -88,8 +88,20 @@ def init_db() -> None:
             active_set_n INTEGER, judged INTEGER, skipped INTEGER, capped INTEGER,
             render_failed INTEGER, errored INTEGER,
             aborted INTEGER, abort_ticker TEXT,
-            paid_calls INTEGER, spend_usd REAL)""")
+            paid_calls INTEGER, spend_usd REAL,
+            dropped_stale INTEGER, truncated INTEGER, hygiene_skipped TEXT)""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_vsl_slot ON vision_slot_log(slot_start)")
+        # Migrate the slot table already live on the prod volume: CREATE TABLE
+        # IF NOT EXISTS cannot add a column to a table that already exists, so
+        # without this the hygiene columns would silently never be written --
+        # the same class of invisibility the table was built to remove.
+        # Idempotent by the `not in` guard: ADD COLUMN would raise "duplicate
+        # column name" on the second boot, and init_db runs on EVERY judge run.
+        slot_cols = {r[1] for r in c.execute("PRAGMA table_info(vision_slot_log)").fetchall()}
+        for _c, _type in (("dropped_stale", "INTEGER"), ("truncated", "INTEGER"),
+                          ("hygiene_skipped", "TEXT")):
+            if _c not in slot_cols:
+                c.execute(f"ALTER TABLE vision_slot_log ADD COLUMN {_c} {_type}")
         # Per-ticker detail for the two paths that are otherwise invisible.
         # Bounded on purpose: only render_failed and errored rows land here, so
         # a healthy slot writes none. asof_date is recorded per ticker because
@@ -221,6 +233,7 @@ SLOT_COLUMNS = [
     "evidence_min", "evidence_max", "evidence_distinct", "active_set_n",
     "judged", "skipped", "capped", "render_failed", "errored",
     "aborted", "abort_ticker", "paid_calls", "spend_usd",
+    "dropped_stale", "truncated", "hygiene_skipped",
 ]
 
 

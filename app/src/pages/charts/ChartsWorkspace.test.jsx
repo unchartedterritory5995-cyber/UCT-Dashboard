@@ -35,8 +35,12 @@ vi.mock('react-grid-layout', () => ({
 // here drives the grid mode through the REAL hook.)
 const setPref = vi.fn()
 let mockPrefs = {}
+// The prefs fetch is ASYNC in the real app, and that gap is where a layout can
+// be overwritten by a board that has not loaded yet — so tests need to be able
+// to hold the workspace in that state.
+let mockPrefsLoading = false
 vi.mock('../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: mockPrefs, setPref, loading: false }),
+  default: () => ({ prefs: mockPrefs, setPref, loading: mockPrefsLoading }),
   // Named export used by ChartsWorkspace to read chart_settings when saving a
   // template — mirror the real parse-defensively implementation.
   parsePref: (raw, fallback) => {
@@ -139,6 +143,7 @@ function clickToolbar(name) {
 beforeEach(() => {
   setPref.mockReset()
   mockPrefs = {}
+  mockPrefsLoading = false
   mqMatches = false
   mockUser = { id: 1, role: 'user' }
   mockLayouts = { global: [], mine: [], isLoading: false, saveLayout: vi.fn(async () => ({})), deleteLayout: vi.fn(async () => {}) }
@@ -847,4 +852,74 @@ test('leaving a prebuilt layout never writes to it, however dirty the board is',
   renderWS()
   act(() => { dockButton('Breadth').click() })
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+})
+
+// ── auto-save may never persist a board that is not really there ────────────
+// The owner's Calendar layout lost its UCT Terminal widget across refreshes.
+// ⚠️ The exact sequence was never reproduced, so there is deliberately NO test
+// here asserting the hydration gate: two attempts passed with the gate removed
+// (the prefs mock hands back a full board even while "loading", so the empty-
+// board window never opened) and a test that cannot fail reads as coverage it
+// does not have. The gate stays as hardening; the guard below is the part with
+// a rail under it.
+
+// The belt-and-braces guard: even fully hydrated, a board that has LOST widgets
+// is not written unless the user actually closed one. Auto-save turns any
+// transient bad board into permanent loss, so the failure direction must be
+// "we did not save", never "we saved the damage".
+test('auto-save refuses to shrink a layout the user did not shrink', () => {
+  const stored = {
+    widgets: [
+      { i: 'w1', id: 'w1', type: 'calendar', x: 0, y: 0, w: 12, h: 10 },
+      { i: 'w2', id: 'w2', type: 'chart', x: 12, y: 0, w: 12, h: 10 },
+    ],
+    cols: 24,
+  }
+  // The board came back with only one of the two widgets.
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({ widgets: [stored.widgets[1]], cols: 24 }),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Calendar', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Calendar', scope: 'user', layout: stored },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { vi.advanceTimersByTime(3000) })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+
+  // ...and switching away must not launder it through the flush either.
+  act(() => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
+})
+
+// The guard must not block ordinary work: a board that GAINED a widget saves.
+test('auto-save still persists a board that grew', () => {
+  const stored = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  const grown = { widgets: [stored.widgets[0], { i: 'w2', id: 'w2', type: 'calendar', x: 12, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(grown),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Calendar', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Calendar', scope: 'user', layout: stored },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+  renderWS()
+  act(() => { dockButton('Breadth').click() })
+  expect(mockLayouts.saveLayout).toHaveBeenCalledWith(expect.objectContaining({ name: 'Calendar' }))
+  const saved = mockLayouts.saveLayout.mock.calls.at(-1)[0]
+  expect(saved.layout.widgets.map(w => w.id).sort()).toEqual(['w1', 'w2'])
 })
