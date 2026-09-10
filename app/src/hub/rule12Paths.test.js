@@ -89,8 +89,68 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
   it('the rail can actually see this branch\'s changes — the non-vacuity control', () => {
     const { sha } = mergeBase()
     expect(sha).toMatch(/^[0-9a-f]{7,40}$/)
-    expect(changedPaths().length, 'the file list came back empty — the rail is looking at nothing')
+
+    // ⚰️ THIS CONTROL FIRED ON MASTER, AND IT WAS RIGHT TO — the fix is to tell the two empty
+    // states apart, NOT to soften it.
+    //
+    // The rail guards a BRANCH. Run on master after that branch merges, `changedPaths()` is
+    // legitimately empty: there is no branch left to measure. The control could not distinguish
+    // that from the failure it exists for — a diff invocation that silently returns nothing (the
+    // `app/app/src/...` pathspec bug, `0 === 0`) — so it reported master's own gate red for a
+    // guard that had simply run out of subject. Increment 3's master gate is where that surfaced.
+    //
+    // ⛔ THE DISTINCTION IS A POSITIVE IDENTIFICATION, NEVER AN INFERENCE FROM EMPTINESS. "Empty
+    // therefore skip" is precisely the blind-watcher shape this file's header refuses. HEAD being
+    // BYTE-EQUAL to the merge base is a different, checkable fact: it says this checkout contains
+    // no commits the base lacks, so zero changed paths is arithmetic rather than a broken command.
+    // On any real branch HEAD differs from the base, so a broken diff still fails here.
+    const head = git(['rev-parse', 'HEAD'])
+    const onBase = head === sha
+
+    if (onBase) {
+      // ⛔ NOT `expect(changedPaths()).toEqual([])`. That was the first attempt and it is wrong:
+      // a master checkout routinely carries untracked scratch (this gate writes its own manifest
+      // into the tree before anyone commits it), so the assertion failed on a perfectly healthy
+      // checkout — swapping one false red for another.
+      //
+      // ⭐ What the control is FOR is proving the machinery can see things, so the forbidden-path
+      // check below is not passing over a dead command. Point that machinery at a range that
+      // cannot legitimately be empty — the last commit — and the whole chain (git -C at the repo
+      // root, the pathspec, the parsing) is exercised without needing a branch to exist.
+      const parents = git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').slice(1)
+      if (parents.length === 0) return // a root commit has no previous state to diff against
+      const lastCommit = git(['diff', '--name-only', 'HEAD~1..HEAD'])
+        .split('\n').map((s) => s.trim()).filter(Boolean)
+      expect(lastCommit.length, 'HEAD is the merge base (no branch to measure), and the diff '
+        + 'machinery ALSO returned nothing for the last commit — which cannot legitimately be '
+        + 'empty. So the commands themselves are broken here, exactly the failure this control '
+        + 'exists for, and the forbidden-path check below would pass vacuously.')
+        .toBeGreaterThan(0)
+      return
+    }
+
+    expect(changedPaths().length, 'the file list came back empty while HEAD is AHEAD of the merge '
+      + `base (${sha.slice(0, 9)}) — so this branch has commits and the rail can see none of them. `
+      + 'The rail is looking at nothing and the forbidden-path check below would pass vacuously.')
       .toBeGreaterThan(0)
+  })
+
+  it('⛔ the on-base branch is IDENTIFIED, not guessed — the control keeps its teeth', () => {
+    // Non-vacuity for the branch above (`lesson_gate_that_cannot_fail`). If `onBase` were somehow
+    // true on a real feature branch, the strict assertion would be skipped everywhere and this
+    // rail would never fail again. So pin the two facts that decide it, from git itself.
+    const { sha } = mergeBase()
+    const head = git(['rev-parse', 'HEAD'])
+    expect(head).toMatch(/^[0-9a-f]{40}$/)
+    expect(sha).toMatch(/^[0-9a-f]{40}$/)
+
+    // And the equality is a real discriminator: HEAD's parent is never HEAD, so a checkout with
+    // any commit at all distinguishes the two.
+    const parents = git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').slice(1)
+    if (parents.length > 0) {
+      expect(parents, 'HEAD lists itself as its own parent — the comparison that decides `onBase` '
+        + 'cannot discriminate anything').not.toContain(head)
+    }
   })
 
   it('⛔ no file under the Notebook workstream\'s paths is touched, except the one permitted card', () => {
