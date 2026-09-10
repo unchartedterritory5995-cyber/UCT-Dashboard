@@ -495,18 +495,33 @@ describe('⚠️ CHARACTERISATION — multi-line tools (Phase 2 rebuilds the geo
     expect(ctx.__find('fill')).toHaveLength(1)
   })
 
-  it('⚰️ renderPitchfork WRITES globalAlpha = 1 instead of restoring what it found', () => {
-    // Under Model Book's focus-zoom fade the layer alpha can be < 1. After the
-    // handle bar, this painter hard-sets 1, so the rest of ITS drawing paints at
-    // full strength. Contained by the caller's save/restore, so it cannot leak
-    // into the next drawing — which is why it is small, and why it is pinned
-    // rather than fixed inside a behaviour-neutral phase.
+  it('✅ renderPitchfork now MULTIPLIES the layer alpha instead of overwriting it', () => {
+    // WAS: after the handle bar it wrote `globalAlpha = 1` — not the value it
+    // found. On the normal chart the layer alpha IS 1, so nothing looked wrong;
+    // under Model Book's focus-zoom fade everything after that point (the bar,
+    // then the prong fill) painted at full strength while the rest of the drawing
+    // faded around it.
     const ctx = makeCtx({ globalAlpha: 0.3 })
     renderPitchfork(ctx, [P(50, 300), P(200, 100), P(200, 200)], R)
     const alphas = ctx.__find('set:globalAlpha').map((c) => c.args[0])
-    expect(alphas).toContain(0.4)
-    expect(alphas).toContain(1)            // ← not 0.3
-    expect(ctx.__state.globalAlpha).toBe(1)
+    expect(alphas).toContain(0.3 * 0.4)     // handle bar, faded
+    expect(alphas).toContain(0.3 * 0.04)    // prong fill, faded
+    expect(alphas).not.toContain(1)         // never hard-resets the layer
+    expect(ctx.__state.globalAlpha).toBe(0.3)
+  })
+
+  it('✅ renderChannel’s fill fades with the layer too', () => {
+    const ctx = makeCtx({ globalAlpha: 0.5 })
+    renderChannel(ctx, [P(50, 300), P(200, 100), P(60, 350)], R)
+    expect(ctx.__find('set:globalAlpha').map((c) => c.args[0])).toContain(0.5 * 0.04)
+    expect(ctx.__state.globalAlpha).toBe(0.5)
+  })
+
+  it('on the normal chart (layer alpha 1) both are byte-identical to the shipped values', () => {
+    const f = makeCtx(); renderPitchfork(f, [P(50, 300), P(200, 100), P(200, 200)], R)
+    expect(f.__find('set:globalAlpha').map((c) => c.args[0])).toEqual([0.4, 1, 0.04])
+    const c = makeCtx(); renderChannel(c, [P(50, 300), P(200, 100), P(60, 350)], R)
+    expect(c.__find('set:globalAlpha').map((c2) => c2.args[0])).toEqual([0.04])
   })
 
   it('renderChannel draws only the first line until the third point exists', () => {

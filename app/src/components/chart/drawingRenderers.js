@@ -431,13 +431,20 @@ export function renderPitchfork(ctx, pts, rect) {
   }
   ctx.setLineDash([])
 
-  // Handle bar connecting P2–P3
-  ctx.globalAlpha = 0.4
+  // Handle bar connecting P2–P3.
+  // ⚰️ THIS USED TO WRITE `globalAlpha = 1` AFTERWARDS, NOT RESTORE WHAT IT
+  // FOUND. On the normal chart the layer alpha IS 1, so nothing changed — but
+  // under Model Book's focus-zoom fade the layer alpha is < 1, and everything
+  // this painter drew after the handle bar (the bar itself, then the prong fill)
+  // ignored the fade and painted at full strength while the rest of the drawing
+  // faded around it. Multiply, never overwrite.
+  const layerAlpha = ctx.globalAlpha
+  ctx.globalAlpha = layerAlpha * 0.4
   ctx.beginPath()
   ctx.moveTo(p2.x, p2.y)
   ctx.lineTo(p3.x, p3.y)
   ctx.stroke()
-  ctx.globalAlpha = 1
+  ctx.globalAlpha = layerAlpha
 
   // Fill between upper and lower prongs.
   // ⭐ BUILT FROM UNCLIPPED, FAR-EXTENDED LINES AND TRIMMED BY `ctx.clip()`.
@@ -449,7 +456,7 @@ export function renderPitchfork(ctx, pts, rect) {
   const lf = extendLineFar(p3, along(p3), rect)
   if (uf && lf) {
     ctx.save()
-    ctx.globalAlpha = 0.04
+    ctx.globalAlpha = layerAlpha * 0.04
     ctx.fillStyle = ctx.strokeStyle
     ctx.beginPath()
     ctx.moveTo(uf[0].x, uf[0].y)
@@ -500,7 +507,10 @@ export function renderChannel(ctx, pts, rect) {
     const fb = extendLineFar(p3a, p3b, rect)
     if (fa && fb) {
       ctx.save()
-      ctx.globalAlpha = 0.04
+      // Multiplied, not absolute — see renderPitchfork. A faded layer must fade
+      // the tint too, and on the normal chart the layer alpha is 1 so this is
+      // byte-identical to the shipped 0.04.
+      ctx.globalAlpha = ctx.globalAlpha * 0.04
       ctx.fillStyle = ctx.strokeStyle
       ctx.beginPath()
       ctx.moveTo(fa[0].x, fa[0].y)

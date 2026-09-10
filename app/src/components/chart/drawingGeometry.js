@@ -342,12 +342,47 @@ export function hitTestDrawing(d, pts, mx, my, rect) {
     case 'fibext':
       if (!ok(pts, 2)) return false
       return mx >= rect.x0 && mx <= w && (Math.abs(my - pts[0].y) < HIT_THRESHOLD() * 2 || Math.abs(my - pts[1].y) < HIT_THRESHOLD() * 2)
-    case 'pitchfork':
+    // ⭐ BOTH MULTI-LINE TOOLS HIT-TEST THE SEGMENTS THAT WERE ACTUALLY DRAWN.
+    //
+    // They used to measure against the INFINITE line through their anchors, which
+    // was wrong in two directions once Phase 1 started clipping:
+    //   • a line that does not cross this pane draws nothing, yet the infinite
+    //     line could still pass within the grab radius of a corner — an invisible
+    //     hitbox in empty space, which is the one outcome the clipping work must
+    //     not introduce;
+    //   • only ONE of each tool's lines was tested at all (the pitchfork's median,
+    //     the channel's first boundary), so the other visible lines could be seen
+    //     and not selected.
+    // `extendToEdges` returns exactly what the renderer draws, so asking it here
+    // makes "what I can click" and "what I can see" the same set by construction.
+    case 'pitchfork': {
       if (!ok(pts, 3)) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, (pts[1].x + pts[2].x) / 2, (pts[1].y + pts[2].y) / 2) < HIT_THRESHOLD() * 2
-    case 'channel':
+      const [p1, p2, p3] = pts
+      const mid = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 }
+      const d = { x: mid.x - p1.x, y: mid.y - p1.y }
+      const along = (q) => ({ x: q.x + d.x, y: q.y + d.y })
+      const grab = HIT_THRESHOLD() * 2
+      for (const seg of [
+        extendToEdges(p1, mid, rect),          // median
+        extendToEdges(p2, along(p2), rect),    // upper prong
+        extendToEdges(p3, along(p3), rect),    // lower prong
+      ]) {
+        if (seg && distToSegment(mx, my, seg[0].x, seg[0].y, seg[1].x, seg[1].y) < grab) return true
+      }
+      // The handle bar joins the two shoulders and is drawn between the raw
+      // anchors, so it is a plain segment.
+      return distToSegment(mx, my, p2.x, p2.y, p3.x, p3.y) < grab
+    }
+    case 'channel': {
       if (!ok(pts, 2)) return false
-      return distToLine(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD() * 2
+      const grab = HIT_THRESHOLD() * 2
+      const first = extendToEdges(pts[0], pts[1], rect)
+      if (first && distToSegment(mx, my, first[0].x, first[0].y, first[1].x, first[1].y) < grab) return true
+      if (!ok(pts, 3)) return false
+      const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y
+      const second = extendToEdges(pts[2], { x: pts[2].x + dx, y: pts[2].y + dy }, rect)
+      return !!second && distToSegment(mx, my, second[0].x, second[0].y, second[1].x, second[1].y) < grab
+    }
     case 'cup': {
       if (!ok(pts, 3)) return ok(pts, 2) && distToSegment(mx, my, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < HIT_THRESHOLD()
       const L = pts[0], R = pts[2]
