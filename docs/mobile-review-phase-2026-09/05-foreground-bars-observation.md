@@ -152,22 +152,31 @@ fetch('/api/health?r5=A1_END')
 fetch('/api/health?r5=A2_START')
 ```
 
-**A2 — open the feed, let the live window paint, then select ~3 painted rows.**
+**A2 — three open→paint→select cycles.** Selecting **closes and unmounts** the
+feed (`pickFromFeed` → `setFeedOpen(false)`, and the mount is gated on `feedOpen`),
+so each selection needs the feed reopened:
 
-```js
-fetch('/api/health?r5=A2_FEED_PAINTED')   // AFTER painting settles, BEFORE selecting
+```
+open feed → window paints → r5=A2_SEL_1 → tap it  (feed closes)
+reopen    → window paints → r5=A2_SEL_2 → tap it  (feed closes)
+reopen    → window paints → r5=A2_SEL_3 → tap it  (feed closes)
 ```
 
-⛔ **This middle marker is what makes the A2 prediction observable at all.** Feed
-paints and main-chart fetches produce **identical URLs** — same sym, tf, bars, no
-`&warm` — so the parse cannot tell them apart by URL. It tells them apart by
-*which side of this marker they fall on*:
+⛔ **Interval position alone cannot separate feed paints from main-chart
+fetches** — they produce **identical URLs** (same sym, tf, bars, no `&warm`). And
+a reopen repaints a fresh window around the new index, so paints land *after* a
+marker too. **The parse discriminates by SYMBOL, not by time:**
 
-- non-`warm` rows between `A2_START` and `A2_FEED_PAINTED` → **the feed's paints**
-- non-`warm` rows between `A2_FEED_PAINTED` and `A2_END` → **main-chart fetches on
-  selection**, predicted **zero**
+| after `A2_SEL_n` / `B_SEL_n` | Reading |
+|---|---|
+| non-`warm` fetch for **the symbol you tapped** | **the main chart's own fetch** — predicted **zero**, it was already painted |
+| non-`warm` fetch for **any other symbol** | the feed repainting its window |
 
-That zero is the `ReviewFeedCard.jsx:67` finding, observed rather than read.
+Everything before `A2_SEL_1` is the initial paint burst. **Paste which symbol you
+tapped at each marker** — that is what makes the pairing possible.
+
+The predicted zero on the tapped symbol is the `ReviewFeedCard.jsx:67` finding,
+observed rather than read.
 
 ```js
 fetch('/api/health?r5=A2_END')
@@ -186,8 +195,9 @@ fetch('/api/health?r5=B_SEL_1')   // ... then tap it.  (B_SEL_2, B_SEL_3)
 ```
 
 - non-`warm` rows **before** each `B_SEL_n` → scroll paints
-- non-`warm` rows **after** `B_SEL_n`, before the next marker → the main chart's
-  selection fetch, **predicted zero** because the scroll already warmed it
+- after `B_SEL_n`: **same symbol-pairing rule as A2** — a fetch for the symbol you
+  tapped is the main chart's (**predicted zero**); a fetch for any other symbol is
+  the feed repainting. Paste the tapped symbol for each `B_SEL_n` too.
 
 ```js
 fetch('/api/health?r5=B_END')
@@ -206,9 +216,21 @@ nothing peeks, nothing pre-paints, and you do not need to close anything before
 enforced by windowing *before* the staggered-mount queue, deliberately, because
 that hook "NEVER unmounts a live id."
 
-Consequences for the parse: A2's paint burst is a **rolling ≤3**, not "all visible
-rows." And in B, centring a target to tap it paints **that row and its two
-neighbours** — so expect roughly three fetches per B target, not one.
+⭐ **But the WARMING footprint is far wider than 3.** `FEED_MAX_LIVE` bounds live
+*charts*, not SWR *cache entries*. `App.jsx:261`'s `SWR_CONFIG` sets no `provider`
+— SWR's default global `Map`, no eviction on unmount, no TTL — and it is the only
+`<SWRConfig>` in the app. So when the window rolls and a row unmounts, **its bars
+stay in SWR under the chart's key for the rest of the session**.
+
+⇒ The record's sentence is the wide one: **the feed paints a rolling window of 3,
+and every row ever centred stays client-warm until the page reloads.**
+(`prefetchBars.js:204` confirms the in-memory cache is "wiped on every page
+reload".)
+
+Consequences for the parse: A2's paint burst is a rolling ≤3, not "all visible
+rows"; in B, centring a target paints **that row and its two neighbours** — expect
+~3 fetches per B target, not one; and a symbol centred earlier in the run will
+**not** refetch later, which the symbol-pairing rule already handles.
 
 ---
 
@@ -268,6 +290,8 @@ window.__vis                        : ___
 shell attribute start / end         : ___ / ___
 uct.barsHistory.enabled             : ___   (null | "1" | "0")
 Phase B targets                     : ___
+Symbol tapped at A2_SEL_1 / 2 / 3   : ___ / ___ / ___
+Symbol tapped at B_SEL_1 / 2 / 3    : ___ / ___ / ___
 Used the app earlier today          : yes / no
 Sanitized HAR available             : yes / no
 OPTIONAL — Performance panel, 3 A1 transitions, main-thread cost: ___
