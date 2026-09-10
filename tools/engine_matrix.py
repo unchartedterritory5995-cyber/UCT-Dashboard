@@ -1215,6 +1215,16 @@ def capture_fork(out_path: pathlib.Path | None = None,
         # `### deploy #4 live — run 2 of 7 — …`, which that pattern cannot match.
         # I reported an absence my own filter manufactured — the same defect class
         # this investigation is chasing, committed by the instrument reporting it.
+        "how_the_error_happened_verbatim": (
+            "I searched for the shape of a row I expected instead of the shape of a "
+            "row, got silence, and wrote the silence down as a fact."),
+        "the_fourth_self_blind_instrument_today": [
+            "the process sweep that counted itself (matched `ms-playwright` in its own "
+            "PowerShell command line)",
+            "the source sweeps that matched their own needles (three of them)",
+            "a rail set derived on DIRECTORY MEMBERSHIP instead of the property it stood for",
+            "this one: a heading regex that could not match the heading it was looking for",
+        ],
         "corroborated": {
             "source": "docs/notebook/wave-q1-RESUME-HERE.md, committed a73feec6a",
             "run_1": ("### deploy #4 live — run 1 of 7 — 2026-09-10T16:50:13Z · "
@@ -1463,6 +1473,168 @@ def flush_probe(out_path: pathlib.Path | None = None) -> int:
     return 0
 
 
+LOCKS_JS = """async () => {
+  try {
+    const q = await navigator.locks.query();
+    return {held: (q.held || []).map(l => ({name: l.name, mode: l.mode, clientId: l.clientId})),
+            pending: (q.pending || []).map(l => ({name: l.name, mode: l.mode}))};
+  } catch (e) { return 'ERR: ' + e.name }
+}"""
+
+
+def live_stores_probe(out_path: pathlib.Path | None = None) -> int:
+    """Does mounting the notebook on a profile WITH LIVE STORES change the key —
+    and does it take a `uct.nb.sync.*` LOCK?
+
+    ⛔⛔ WHY THIS RUNS ON THE RIG AND NOT A FIXTURE. The earlier mount probe
+    refuted the claim in throwaway contexts that, BY CONSTRUCTION, had no
+    `uct_notebook_<acct>` database at all — so it refuted a NARROWER claim than the
+    one on the table. The rig has the real thing: the database, its four stores,
+    and whatever state three runs left in them. Fabricating that in a throwaway
+    context would mean an instrument CREATING the database, which this codebase
+    has a standing prohibition against — an open-with-no-version conjures a
+    zero-store phantom and permanently breaks the layer.
+
+    ⛔ ZERO WRITES. The rig's key is already `'0'` at rest, which is the transition
+    actually on the table (run 1 read `'0'`, run 2 read `'1'`). Nothing is set,
+    removed, opted in, deleted or trashed. The `unset` case is NOT tested here: it
+    would need a removal plus a restore on the rig, and removals were just measured
+    to be flush-fragile. That is a different experiment.
+
+    ⭐ AND IT CHASES THE LOCK. A held lock at rest means the DRAIN WAS ALIVE, which
+    is closer to the mechanism than the key: the key says the layer was enabled, the
+    lock says it was running. Locks are sampled before the mount, repeatedly during
+    it, and after navigating away — so "taken" and "released" are separate answers.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"live-stores-probe-{stamp}.json")
+    rec = {
+        "at": utc(), "mode": "live-stores-probe", "profile": str(w.PROFILE),
+        "question": ("does mounting /journal/notebook on a profile WITH LIVE STORES "
+                     "write or change uct.j2.offline.enabled, and is a uct.nb.sync.* "
+                     "lock taken (and released)?"),
+        "writes": "none — no set, no remove, no opt-in, no delete, no trash",
+        "unset_case": "NOT TESTED — would need a removal+restore on the rig; different experiment",
+        "status": "INCOMPLETE — the probe did not finish",
+    }
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    # ── 0. THE DISK, BEFORE. Chrome is not running.
+    before_disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["key_on_disk_before"] = {"value": before_disk.get("value"),
+                                 "appends": before_disk.get("appends"),
+                                 "tail": (before_disk.get("sequence") or "")[-12:]}
+    print(f"on disk BEFORE (Chrome dead): {rec['key_on_disk_before']}", flush=True)
+
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — CDP never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+
+            # ── 1. AT REST. `/api/health` runs NO app code, so this is the profile
+            #       as it sits, not the profile plus a notebook.
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(3000)
+            rec["at_rest"] = {"state": page.evaluate(w.STATE_JS, ACCOUNT_ID),
+                              "locks": page.evaluate(LOCKS_JS),
+                              "notes": page.evaluate(w.NOTES_JS)}
+            st = rec["at_rest"]["state"]
+            print(f"AT REST   key={st.get('optInKey')!r} locks={st.get('locks')} "
+                  f"stores={st.get('stores')} db={'present' if st.get('dbOpened') else 'MISSING'}",
+                  flush=True)
+            if st.get("optInKey") == "1":
+                # ⛔ Refuse rather than measure a transition that has already happened.
+                _write_json(out, dict(rec, status="STOPPED — the key is ALREADY '1' at rest; "
+                                                  "this probe measures the 0->1 transition"))
+                print("⛔ the key is already '1' at rest — that is a different question", flush=True)
+                return 1
+
+            # ── 2. THE MOUNT. The notebook LIST only — no `?note=`, nothing opened,
+            #       nothing typed, no opt-in. Locks sampled throughout: a lock that
+            #       is taken and dropped inside a second is invisible to one read.
+            page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
+            samples = []
+            for ms in (1000, 2000, 3000, 4000, 5000):
+                page.wait_for_timeout(ms)
+                samples.append({"t_ms": sum(s["t_ms"] for s in samples) + ms if samples else ms,
+                                "key": page.evaluate(
+                                    "(k) => { try { return localStorage.getItem(k) } "
+                                    "catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY),
+                                "locks": page.evaluate(LOCKS_JS)})
+            rec["during_mount_samples"] = samples
+            rec["after_mount"] = {"state": page.evaluate(w.STATE_JS, ACCOUNT_ID),
+                                  "locks": page.evaluate(LOCKS_JS)}
+            am = rec["after_mount"]["state"]
+            print(f"AFTER MOUNT key={am.get('optInKey')!r} locks={am.get('locks')} "
+                  f"held={am.get('held')} stores={am.get('stores')}", flush=True)
+
+            # ── 3. NAVIGATE AWAY. Was any lock RELEASED?
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(4000)
+            rec["after_leaving"] = {"state": page.evaluate(w.STATE_JS, ACCOUNT_ID),
+                                    "locks": page.evaluate(LOCKS_JS),
+                                    "notes": page.evaluate(w.NOTES_JS)}
+            al = rec["after_leaving"]["state"]
+            print(f"AFTER AWAY key={al.get('optInKey')!r} locks={al.get('locks')}", flush=True)
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["teardown"] = {"killed": killed, "survivors": left, "lock_released": released}
+
+    # ── 4. THE DISK, AFTER. Chrome is dead again.
+    after_disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["key_on_disk_after"] = {"value": after_disk.get("value"),
+                                "appends": after_disk.get("appends"),
+                                "tail": (after_disk.get("sequence") or "")[-12:]}
+
+    a, z = rec.get("at_rest", {}), rec.get("after_leaving", {})
+    key_before = (a.get("state") or {}).get("optInKey")
+    key_after = (z.get("state") or {}).get("optInKey")
+    any_sample_flipped = any(s.get("key") != key_before for s in rec.get("during_mount_samples") or [])
+    lock_taken = any((s.get("locks") or {}).get("held")
+                     for s in rec.get("during_mount_samples") or []
+                     if isinstance(s.get("locks"), dict))
+    lock_after = (z.get("locks") or {}).get("held") if isinstance(z.get("locks"), dict) else "ERR"
+
+    notes_before = (a.get("notes") or {}).get("total")
+    notes_after = (z.get("notes") or {}).get("total")
+    rec["answer"] = {
+        "key_changed_by_the_mount": key_after != key_before or any_sample_flipped,
+        "key_before": key_before, "key_after": key_after,
+        "key_on_disk_unchanged": rec["key_on_disk_before"] == rec["key_on_disk_after"],
+        "a_sync_lock_was_taken_during_mount": bool(lock_taken),
+        "locks_held_after_leaving": lock_after,
+        "notes_before": notes_before, "notes_after": notes_after,
+        "notes_unchanged": notes_before == notes_after,
+    }
+    # ⛔ STATED AS NARROWLY AS IT WAS MEASURED. This is one profile, one starting
+    # value, one bundle. It is not "the app never writes the key".
+    scope = ("with live stores present, starting from '0', on the rig profile, "
+             "notebook LIST only, no opt-in")
+    rec["verdict"] = (
+        f"⛔ MOUNTING CHANGED THE KEY ({scope})" if rec["answer"]["key_changed_by_the_mount"]
+        else f"mounting did NOT change the key — {scope}. This refutes THAT claim and no wider one.")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nVERDICT: {rec['verdict']}")
+    print(f"lock taken during mount: {rec['answer']['a_sync_lock_was_taken_during_mount']} · "
+          f"held after leaving: {lock_after}")
+    print(f"notes {notes_before} -> {notes_after} · disk {rec['key_on_disk_before']['value']!r} "
+          f"-> {rec['key_on_disk_after']['value']!r}")
+    print(f"artifact: {out}")
+    return 0
+
+
 def clear_probe_key(out_path: pathlib.Path | None = None) -> int:
     """RECORD the probe key's value with a timestamp, THEN remove it.
 
@@ -1657,6 +1829,10 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="READ-ONLY: auth · offline both ways · cookie provenance · "
                          "Web Locks · cleanup, per engine. Creates nothing.")
+    ap.add_argument("--live-stores-probe", action="store_true",
+                    help="does mounting the notebook on the RIG (live stores present) "
+                         "change the opt-in key, and is a uct.nb.sync.* lock taken and "
+                         "released? Zero writes; nothing is deleted or trashed.")
     ap.add_argument("--clear-probe-key", action="store_true",
                     help="RECORD then REMOVE the rig-owned probe key. A profile with "
                          "unexplained keys on it is the thing we cannot reason about.")
@@ -1697,6 +1873,8 @@ def main() -> int:
         return flush_probe(_out)
     if args.mount_probe:
         return mount_probe(_out)
+    if args.live_stores_probe:
+        return live_stores_probe(_out)
     if args.clear_probe_key:
         return clear_probe_key(_out)
     if args.rig_opt_out:
