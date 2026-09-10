@@ -482,6 +482,43 @@ translate path) now has its vendor confirmation.
    commit. The path is now fully mapped (below), but building it under time pressure at the
    end of a long run is how a member-visible regression (H3) or a weakened rail (H4) gets
    shipped. Mapping it and stopping is the honest state.
+
+### Later the same day — the directive of 2026-09-10 evening (R7 / Rulings A-C / browser)
+
+10. **⛔⛔ RULING C WAS GIVEN TWO BRANCHES AND THE MEASUREMENT FITTED NEITHER.** The directive
+    said: if `barssince` serves the Pine lane only, pin `na` semantics and a 1-arg signature;
+    if it also serves native features, split it. Both branches presuppose our 2-arg
+    declaration is a mis-transcription. The census (R6 control: 712 occurrences / 111 files,
+    then narrowed) says it is not — `barssince(condition, n)` is one of the FIVE BOUNDED STATE
+    entries and `n` is the WINDOW the count saturates at, the bound the budget is priced on.
+    Narrowing to Pine's arity would DELETE that bound. So neither branch was taken; the
+    divergence row was written at MEASURED tier as the directive required, and the third
+    answer was reported rather than forced into one of the two offered. ⚰️ It also corrects
+    `8f1d9836c`, which wrote the obvious reading down on the day of the capture.
+
+11. **A PRE-EXISTING RED WAS FIXED RATHER THAN ROUTED, because the rail was right.**
+    `barstate-viewer-dependent-on-vendor` claimed `confidence: measured` while its `measured`
+    block was a bare sentence holding no number, so the note-vs-ledger rail had nothing to
+    hold the member's sentence against. Proved older than tonight by running the rail against
+    the committed tree BEFORE editing. Both halves were repaired, never relaxed: numbers
+    DERIVED from the captures, and the member note given the same numbers.
+
+12. **THE `createStudy`-BY-ID HUNT WAS STOPPED AT SEVEN VARIANTS AND WRITTEN DOWN.** Each was
+    measured with the roster checked afterwards; the furthest reached
+    `_canApplyStudyToParent`. Continuing was the rabbit hole, and switching to the editor
+    route at the tail of a mechanism hunt is how the binding hazard (H1) gets tripped. What
+    the hunt DID produce is better than what it replaced for one job:
+    `pine-facade/translate/<id>/last` gates a saved probe's roster with no chart at all.
+
+13. **Item 7 was advanced by the half that does not need the browser.** All eight questions
+    are committed as three probes, split so one risky arity cannot sink the others. Item 8's
+    "the readings are now cheap to take" was WITHDRAWN rather than left standing — it rested
+    on the by-id add, and items 6, 7 and 8 are now all queued behind that one mechanism.
+
+14. **The JS lane was HELD while the chunked Python lane ran.** Another session's pytest was
+    also live on this box at ~1 GB. R7 exists because three unscoped runs OOM-killed the host
+    tonight and took a peer session's work down with them; stacking a 220-file vitest run on
+    top of two live pytest processes is the same mistake wearing a different runtime.
 ### ✅ The producer — BUILT 2026-09-10 (`521a52816` + `9dfe101e0`)
 
 The JS seam ALREADY EXISTS and already consumes the tri-state — what is missing is only
