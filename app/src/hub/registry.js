@@ -483,6 +483,14 @@ export const modes = [
     color: '--hub-mode-home',
     route: '/dashboard',
     tapHint: 'tap: last section',
+    // ⭐ §3.8a — Home's scrub walks the RECENT-SECTION list, so it is list-bearing like every other
+    // cursor mode and declares its listId here rather than letting the controller hand-type one
+    // (`homeSection.js` derives `LIST_ID` from this field, the same way wire/scan/journal/notebook
+    // derive theirs). ⚠️ Its list is SYNTHETIC — the registry's own route-backed section order with
+    // `lastSection` promoted — so unlike the others it has no rendered rows and therefore no
+    // `listAdapter`; the chip is the whole surface. `flow` still declares no cursor, which is what
+    // `flowNavigateOnly.test.js` pins: "flow has no list, so it must declare no cursor".
+    cursor: { listId: 'home' },
     fan: [
       { id: 'home.scan', label: 'Scan', icon: 'screener', ring: 0, color: '--hub-mode-scan', kind: 'navigate', to: 'scan' },
       { id: 'home.chart', label: 'Chart', icon: 'chart', ring: 0, color: '--hub-mode-chart', kind: 'navigate', to: 'chart' },
