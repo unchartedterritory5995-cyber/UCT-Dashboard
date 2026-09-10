@@ -793,10 +793,32 @@ silently still online turns the canary's decisive assertion into a tautology.
 ⚠️ **A fresh profile is NOT signed in** (`/api/auth/me` → 401). The owner signs
 in in that window; the agent never enters credentials. Budget for that pause.
 
-**Teardown, always, green or red:** kill ONLY the spawned PID · delete
-`.worktrees/canary-chrome-profile` · confirm the owner's Chrome process set is
-unchanged (by PID, not by count, before and after) · confirm the production end
-state (32 notes · all four stores 0 · 0 locks · key `'0'`).
+**Teardown, always, green or red:** kill the spawned browser process and any
+straggler carrying `canary-chrome-profile` in its command line · delete
+`.worktrees/canary-chrome-profile` · confirm the owner's BROWSER process is
+unchanged · confirm the production end state (32 notes · all four stores 0 ·
+0 locks · key `'0'`).
+
+⛔⛔ **DO NOT CHECK THE OWNER'S CHROME BY PROCESS COUNT — IT WILL FALSE-ALARM.**
+Measured 2026-09-10: the baseline was 15 `chrome.exe` PIDs; twenty minutes later
+14 of those 15 were alive, and the missing one (`25772`) was a **renderer/utility
+child Chrome had reaped on its own**. Nothing killed it. Chrome churns children
+constantly.
+
+The check that actually means something is the **browser** process — the one
+whose command line has **no `--type=`**:
+
+```powershell
+$now  = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'"
+$main = $now | Where-Object { $_.CommandLine -notlike '*--type=*' }
+$main | ForEach-Object { "pid=$($_.ProcessId) mine=$($_.CommandLine -like '*canary-chrome-profile*')" }
+```
+
+Exactly two browser processes should appear while the rig is up: the owner's
+(`mine=False`) and the canary's (`mine=True`). ⭐ **`canary-chrome-profile` is the
+unambiguous marker** — it cannot match the owner's Chrome, so teardown can target
+it without ever guessing at a PID.
+
 
 ### The 5-minute keyboard recipe, for whoever runs it
 
