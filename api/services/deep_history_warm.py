@@ -79,8 +79,23 @@ _VENDOR_FLOOR_YMD = {"D": 20030910, "W": 20030908, "M": 20030901}
 # idempotent) deep attempt per sweep for the rare name that genuinely listed in
 # September 2003; the cost of NOT having it is another permanent truncation.
 _VENDOR_FLOOR_WINDOW_END_YMD = {"D": 20030930, "W": 20030930, "M": 20030901}
-_WORKERS = 2          # gentle — fewer concurrent deep fetches = less memory/CPU churn
-_SLEEP_BETWEEN = 0.0  # per-job politeness handled by the provider client's limiter
+# Politeness, read from the environment at job start so an operator can dial the
+# sweep down without a code change.
+#
+# ⚠️ THIS JOB IS OUTSIDE EVERY SERVE-PATH BRAKE. `_cold_fetch_sem`,
+# `_warm_serve_sem` (BARS_WARM_SERVE_MAX) and `_bg_delta_sem` (BARS_BG_DELTA_MAX) —
+# the semaphores added after the 2026-08-19 warm-storm — all guard the REQUEST path.
+# The warmer calls `warm_ticker_deep` directly, so its only brake is `_WORKERS`. That
+# was survivable when the worker was a private box; since BARS_HISTORY_ORIGIN_ENABLED
+# it is also the ORIGIN for /api/bars-history, so the sweep now runs alongside a serve
+# path. bars.db is WAL (readers never block on a writer) and Cloudflare absorbs almost
+# every history read, so the exposure is worker CPU/disk rather than lock contention —
+# but "turn it down" should not require a code edit to find out.
+_WORKERS = max(1, int(os.environ.get("DEEP_HISTORY_WARM_WORKERS", "2")))
+try:
+    _SLEEP_BETWEEN = float(os.environ.get("DEEP_HISTORY_WARM_SLEEP_SECONDS", "0"))
+except (TypeError, ValueError):
+    _SLEEP_BETWEEN = 0.0
 
 
 def _marker_path() -> str:
