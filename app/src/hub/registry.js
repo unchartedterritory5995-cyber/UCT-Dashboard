@@ -681,14 +681,42 @@ export function validateRegistry(list = modes, opts = {}) {
     if (seenModeIds.has(mode.id)) problems.push(`duplicate mode id: ${mode.id}`);
     seenModeIds.add(mode.id);
 
+    // ⛔ R-H — THE CAPS ARE CHECKED ON WHAT THE MEMBER SEES, AND ON WHAT IS DECLARED.
+    //
+    // This read `mode.fan` only, which means the ring caps — the registry's one structural
+    // invariant — had NEVER been applied to the projection `fanFor()` returns. For a preview mode
+    // the two are different objects entirely, and Stream D's homeFanCalendar rail is what surfaced
+    // it: `PREVIEW_HOME` is a hand-written second ring layout that nothing was checking.
+    //
+    // Both are checked, with distinct messages, because they fail for different reasons:
+    //   PROJECTED  is what is on screen today. Over the cap = bubbles a thumb cannot separate.
+    //   DECLARED   is what ships the day that mode leaves the preview. Checking only the
+    //              projection would let an over-cap declared fan sit dormant and break on the flip,
+    //              which is precisely how `calendar` shipped a five-action fan into a
+    //              navigation-only preview.
+    // ⚠️ `outer` / `inner` stay the DECLARED fan, because every invariant below them is about the
+    // declaration: "the inner ring ends with Home" is a rule about what this mode SAYS, and the
+    // projection strips it away. Pointing these two at `fanFor()` made the Home invariant read the
+    // real registry's projection instead of the fan it was handed — a synthetic mode in a test got
+    // someone else's rings. Caught by `registry.test.js`'s "rejects a Home action inside the home
+    // mode itself".
     const outer = mode.fan.filter((a) => a.ring === 0);
     const inner = mode.fan.filter((a) => a.ring === 1);
+    const projected = fanFor(mode);
+    const projectedOuter = projected.filter((a) => a.ring === 0);
+    const projectedInner = projected.filter((a) => a.ring === 1);
 
+    if (projectedOuter.length > OUTER_MAX) {
+      problems.push(`${mode.id}: PROJECTED outer ring has ${projectedOuter.length}, max ${OUTER_MAX} — this is what a member sees`);
+    }
+    if (projectedInner.length > INNER_MAX) {
+      problems.push(`${mode.id}: PROJECTED inner ring has ${projectedInner.length}, max ${INNER_MAX} — this is what a member sees`);
+    }
     if (outer.length > OUTER_MAX) {
-      problems.push(`${mode.id}: outer ring has ${outer.length}, max ${OUTER_MAX}`);
+      problems.push(`${mode.id}: DECLARED outer ring has ${outer.length}, max ${OUTER_MAX} — breaks the day it leaves the preview`);
     }
     if (inner.length > INNER_MAX) {
-      problems.push(`${mode.id}: inner ring has ${inner.length}, max ${INNER_MAX}`);
+      problems.push(`${mode.id}: DECLARED inner ring has ${inner.length}, max ${INNER_MAX} — breaks the day it leaves the preview`);
     }
 
     // Inner ring ends with Home — every mode but home, which is already there.
