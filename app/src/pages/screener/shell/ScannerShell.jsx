@@ -62,6 +62,11 @@ export function openScansPicker(root) {
   return true
 }
 
+/** The one identifier ChartsGallery puts on a card, and therefore the only handle the cursor
+ *  paint below has. It lives in that file, which is not this workstream's to change — the rail
+ *  reds if it moves. */
+const galleryCardSelector = (ticker) => `[data-testid="gallery-card-${ticker}"]`
+
 // ScannerShell — the drop-in replacement for ScannerPro (same `embedded` prop).
 // Composes every landed shell piece into one orchestrator: honest loading/
 // empty/error states (all present at once by construction — no `!data ?
@@ -196,6 +201,31 @@ export default function ScannerShell({ embedded = false }) {
     onOpenScans: openScans,
   })
 
+  /* ⭐ R-15, THE THIRD RENDERER. `ChartsGallery` takes no `itemProps` and is not this
+   * workstream's file, so the cursor is painted the other way `useHubCursor` offers:
+   * `paintCursor`, "the imperative path, for markup you do not own".
+   *
+   * ⛔ THE NODES ARE MAPPED BY TICKER, NOT BY POSITION. `paintCursor` reads `nodes[i]` as the
+   * node for `items[i]`, and the gallery paginates INTERNALLY at 24 with `page` in private
+   * state — so the 24 cards on screen are some contiguous slice whose offset this file cannot
+   * see. Handing it the cards in DOM order would paint the wrong row on every page but the
+   * first. Looking each row's own card up by ticker (`ticker` is the row's primary key, and
+   * `identityKey` in the section) is correct whatever page the gallery is on; rows that are not
+   * on the current page resolve to `null`, which `paintCursor` skips.
+   *
+   * ⚠️ AND THAT IS THE HONEST LIMIT OF IT: a cursor sitting on a row the gallery has not paged
+   * to is still invisible here, because there is no seam to reach page 2 (the same measured gap
+   * `screenerSection.js` records for `scrollTo` in this view). Painting what IS on screen is
+   * strictly better than painting nothing; it is not the whole answer. */
+  const galleryRef = useRef(null)
+  const { paintCursor } = hub.cursor
+  useEffect(() => {
+    if (s.view !== 'charts') return
+    const root = galleryRef.current
+    if (!root) return
+    paintCursor(displayRows.map(r => root.querySelector(galleryCardSelector(r.ticker))))
+  }, [s.view, displayRows, paintCursor])
+
   const rail = meta && (
     <FilterRail meta={meta} activeFilters={s.filters} onChange={s.setFilter}
       onClear={s.clearFilters} variant={isPhone ? 'sheet' : 'rail'} />
@@ -280,7 +310,7 @@ export default function ScannerShell({ embedded = false }) {
             toolbar and views stay live.
           </div>
         ) : s.view === 'charts' ? (
-          <div className={styles.gridScroll}>
+          <div className={styles.gridScroll} ref={galleryRef}>
             <ChartsGallery rows={displayRows} livePrices={prices} />
             {hasMore && (
               <div className={styles.loadMoreRow}>
