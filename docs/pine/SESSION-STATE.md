@@ -29,6 +29,8 @@ Delete or rewrite it when the wave closes; it describes work in flight, not a ru
 | 9 | Group C order-asserting rail | ⬜ not started; why the outcome-shaped version is vacuous is in `r11-vocabulary-gap.md` |
 | 10 | M1 — Volume's numeric plots as a pane behind the flag | ⬜ not started |
 | 11 | **NYSE calendar cross-lane parity** — see below | ✅ **11a DONE** (`1c98b4493`) — the rail already existed and the sets AGREE; two blind spots closed. 11b still logged |
+| 12 | `record_clock_parity.py --check` in CI | ✅ **DONE** (`86e31c706`) — red observed on a perturbed fixture, then reverted |
+| 13 | live window reads the calendar leaf | ✅ **DONE** (`2a89bf997`) — half-days shorten the window to 13:00 ET; discriminator + control mutation-proved |
 
 ⛔⛔ **ITEMS 6–10 ARE GATED.** `pineRuntimeFrontend.js` may not be wired to any
 route until a producer feeds `opts.newestBarIsForming` from Python's
@@ -399,4 +401,46 @@ length to a plain integer at bind time: `fold == sma20` on 400/400 daily bars an
 `fold == sma5` on 400/400 weekly. That is the shape at Uncharted Volume line 233 which
 `pine:window` still refuses — so runbook item 1 (wire the bind-time fold into the
 translate path) now has its vendor confirmation.
+6. **Track B's helper was made PRIVATE (`_session_length_et`) rather than public.**
+   Named public it turned `test_scan_evaluator_off_request_path.py` red — a rail requiring
+   every PUBLIC function of `scan_evaluator` to be explicitly ruled either "the sweep" or
+   "proven free of universe-scale work". Editing that rail's declared list for an internal
+   helper would have been a reach ruling taken unilaterally; renaming was the smaller,
+   truer change. The module's ruled public surface is byte-for-byte unchanged.
 
+7. **⚰️ `_live_window_reason` DOES NOT EXIST AND NEVER DID.** Three artifacts named it —
+   a comment in `scan_evaluator.py`, one in `test_scan_sweep_bar_close_state.py`, and the
+   directive that sent this work. The real gate is `_live_session_state`. The two in-repo
+   copies were corrected. ⛔ A function name repeated across three artifacts reads as
+   corroboration; none of them was checked against the module.
+
+8. **The census floors were routed, not fixed, and the "repopulate the fixture" remedy was
+   explicitly closed off.** `tests/fixtures/oos2_parity` contributes 0 scripts *by
+   deliberate licence policy* — its `.gitignore` is `*.pine` because six of ten members are
+   redistribution-restricted, so all ten are withheld. Counted at the commit that wrote the
+   floor, the census was **129** then too: `> 150` has never been satisfiable and this is
+   not a regression from the corpus expansion. Both remedies are in `requests.md` with
+   their costs and neither is recommended — the census population is their measurement
+   decision.
+
+9. **Track C (items 6–10) was NOT started.** Its first task is a producer that wires
+   `pineRuntimeFrontend.js` to a member-visible route and retires the L1 gate in the same
+   commit. The path is now fully mapped (below), but building it under time pressure at the
+   end of a long run is how a member-visible regression (H3) or a weakened rail (H4) gets
+   shipped. Mapping it and stopping is the honest state.
+### The producer, mapped (Track C task 1)
+
+The JS seam ALREADY EXISTS and already consumes the tri-state — what is missing is only
+something that produces it:
+
+| where | today | needs |
+|---|---|---|
+| `api/routers/bars.py` `GET /api/bars/{ticker}` | returns `{ticker, tf, bars, …}` | + `newest_bar_is_forming` from `indicator_compute.bar_close_state` (ADDITIVE — no capability removed) |
+| the JS bars fetch | drops it | carry it onto `ctx` |
+| `binder.js:657` | `computeFor(def, bars, inst.inputs, { sym: ctx.sym, tf: ctx.tf })` | + `newestBarIsForming` |
+| `nativeRegistry.computeFor(def, bars, inputs, ctx)` | | thread into `interpretOpts` |
+| `interpret.js:2777` | already reads `opts.newestBarIsForming` | ✅ nothing to do |
+| `indicators.js:1253` `computeClock(bars, tf, newestBarIsForming = null)` | already tri-state | ✅ nothing to do |
+
+⛔ The gate test `pineRuntimeFrontendGate.test.js` is retired in the SAME commit that wires
+the route — never before, and never by editing it to keep passing.
