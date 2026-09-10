@@ -2281,10 +2281,38 @@ def register_wire_watchdog_job(scheduler):
     return True
 
 
-def _resolve_active_set_for_patterns() -> list[str]:
+PV_STALE_MAX_SESSIONS = 5
+
+
+def _ymd_to_iso(ymd) -> str:
+    s = str(int(ymd))
+    return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 else s
+
+
+def _resolve_active_set_for_patterns(*, diagnostics: dict | None = None) -> list[str]:
     """Active set for the vision judge: the curated leader_universe (same active
     set the pattern scan prioritizes), falling back to the head of cap_universe.
-    Kept small + curated so the Opus judge never runs the full ~3,700 universe."""
+    Kept small + curated so the Opus judge never runs the full ~3,700 universe.
+
+    Hygiene: a symbol whose latest DAILY bar is older than PV_STALE_MAX_SESSIONS
+    trading sessions is dropped, and recorded in `diagnostics["dropped_stale"]`
+    as (symbol, last-bar-date) so the caller can write it to vision_slot_ticker.
+    N=5 is coupled to D1's 7-CALENDAR-day serve window rather than invented:
+    anything staler can only produce verdicts `get_confirmed` already refuses to
+    serve, so the drop forfeits nothing a member could ever reach.
+
+    This exists because SQ -- retired in the SQ->XYZ rename, bars frozen at
+    2025-01-16 -- sat in the leader file being judged against a 20-month-old
+    chart. The judge read its evidence bar correctly; the defect was upstream.
+
+    ⛔ FAILS OPEN ON EVERY PATH. The session floor comes from
+    nth_recent_trading_date, which derives the calendar from DISTINCT daily-bar
+    dates across ALL tickers -- so if ingestion itself breaks, the floor moves
+    back with it and nothing is dropped. No calendar dependency is introduced
+    (Seam 7 ruled against a fourth consumer). If the filter would empty a
+    non-empty universe, the UNFILTERED list is returned: a hygiene filter that
+    can starve the judge is worse than no filter at all.
+    """
     tickers: list[str] = []
     for fname in ("leader_universe.json", "cap_universe.json"):
         path = os.path.join(os.path.dirname(__file__), "data", fname)
@@ -2310,7 +2338,47 @@ def _resolve_active_set_for_patterns() -> list[str]:
         if u not in seen:
             seen.add(u)
             out.append(u)
-    return out
+
+    if diagnostics is not None:
+        diagnostics.setdefault("dropped_stale", [])
+        diagnostics.setdefault("hygiene_skipped", None)
+
+    def _fail_open(reason: str) -> list[str]:
+        # ⛔ A FAIL-OPEN THAT LEAVES NO MARK WOULD BE THE SIXTH SILENT PATH.
+        # Every branch that declines to filter names itself on the slot row, so
+        # a broken bars store surfaces in the SAME query as every other
+        # failure -- not as a suspiciously untouched universe.
+        if diagnostics is not None:
+            diagnostics["hygiene_skipped"] = reason
+        return out
+
+    if not out:
+        return _fail_open("empty_universe")
+    try:
+        from api.services import bars_sqlite
+        floor = bars_sqlite.nth_recent_trading_date(PV_STALE_MAX_SESSIONS, 99999999)
+    except Exception as e:
+        return _fail_open(f"no_bars_store:{type(e).__name__}")
+    if not floor:
+        return _fail_open("no_session_floor")
+    kept, dropped = [], []
+    for u in out:
+        try:
+            last = bars_sqlite.get_last_ts(u, "D")
+        except Exception:
+            last = None
+        # `last is None` means no bars at all, which candidates_for already
+        # returns [] for. Kept deliberately: absent is not the same as stale,
+        # and this filter only ever claims to drop STALE symbols.
+        if last is not None and int(last) < int(floor):
+            dropped.append((u, _ymd_to_iso(last)))
+            continue
+        kept.append(u)
+    if not kept:
+        return _fail_open("would_empty_universe")   # a bug, not a result
+    if diagnostics is not None:
+        diagnostics["dropped_stale"].extend(dropped)
+    return kept
 
 
 def _pattern_vision_contract_line() -> str:
@@ -2590,7 +2658,8 @@ def register_pattern_vision_jobs(scheduler):
         started = _t.time()
         slot_start = datetime.now(_ET).replace(
             minute=0, second=0, microsecond=0).isoformat()
-        agg = {"judged": 0, "skipped": 0, "capped": 0, "render_failed": 0, "errored": 0}
+        agg = {"judged": 0, "skipped": 0, "capped": 0, "render_failed": 0, "errored": 0,
+               "dropped_stale": 0, "truncated": 0, "hygiene_skipped": None}
         problems, asofs, active_n, cur, err = [], [], 0, None, None
         try:
             # ⛔ MUST run before the active-set fetch, not lazily inside the
@@ -2603,8 +2672,30 @@ def register_pattern_vision_jobs(scheduler):
             # registered, which is already PATTERN_VISION_ENABLED-gated.
             pv_store.init_db()
             cap = int(os.environ.get("PATTERN_VISION_MAX_PER_RUN", "150"))
-            active = _resolve_active_set_for_patterns()[:cap]
+            # ⛔ THE [:cap] SLICE WAS THE FIFTH SILENT PATH. It drops the tail of
+            # the universe with no counter and no log line, and `capped` above
+            # counts COST-cap events, not this. It is currently a no-op only
+            # because max_per_run (84) happens to equal the leader file's length
+            # (84) -- an 85th leader would vanish. Both hygiene drops and this
+            # truncation are recorded before anything can abort the loop.
+            diag: dict = {}
+            resolved = _resolve_active_set_for_patterns(diagnostics=diag)
+            active, truncated = resolved[:cap], resolved[cap:]
             active_n = len(active)
+            agg["hygiene_skipped"] = diag.get("hygiene_skipped")
+            for _sym, _last in diag.get("dropped_stale", []):
+                agg["dropped_stale"] += 1
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": _last,
+                    "path": "dropped_stale",
+                    "message": f"latest daily bar {_last} older than "
+                               f"{PV_STALE_MAX_SESSIONS} sessions"})
+            for _sym in truncated:
+                agg["truncated"] += 1
+                problems.append({
+                    "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
+                    "path": "truncated",
+                    "message": f"beyond PATTERN_VISION_MAX_PER_RUN={cap}"})
             for t in active:
                 cur = t
                 r = pv_orch.judge_ticker(t) or {}
@@ -2634,6 +2725,8 @@ def register_pattern_vision_jobs(scheduler):
                     "active_set_n": active_n, "judged": agg["judged"],
                     "skipped": agg["skipped"], "capped": agg["capped"],
                     "render_failed": agg["render_failed"], "errored": agg["errored"],
+                    "dropped_stale": agg["dropped_stale"], "truncated": agg["truncated"],
+                    "hygiene_skipped": agg["hygiene_skipped"],
                     "aborted": 1 if err is not None else 0,
                     "abort_ticker": cur if err is not None else None,
                     "paid_calls": paid, "spend_usd": spend,
