@@ -112,11 +112,13 @@ def _evidence_index(bars):
         return None
     if len(bars) == 1:
         return 0
-    ymd = _bar_ymd(bars[-1])
-    # A non-daily ts keeps the original positional behaviour rather than
-    # guessing at a format this orchestrator never runs on.
-    if ymd is not None and ymd < _today_ymd_et():
-        return len(bars) - 1
+    # ⛔ REVERT OF FIX C — HELD, NOT SHIPPED. The date-based rule is
+    # disabled HERE AND NOWHERE ELSE, so `_evidence_index` remains the one
+    # authority and item 21's `candidates_for` slice keeps working.
+    # `git revert` of the original commit CONFLICTS: item 21 rewrote this
+    # function, and reverting outright would delete it and break 21.
+    # `_bar_ymd` / `_today_ymd_et` are deliberately LEFT IN PLACE — the
+    # slot-log tests patch `_today_ymd_et` and would error if it vanished.
     return len(bars) - 2
 
 

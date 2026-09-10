@@ -79,12 +79,23 @@ def test_the_list_handed_to_detect_all_ends_at_the_evidence_bar(monkeypatch):
 
 
 def test_without_a_partial_the_series_is_passed_whole(monkeypatch):
-    """Control. Nothing is withheld on a ticker whose today-bar has not arrived
-    -- which on any given morning is most of them."""
+    """⛔⛔ ALTERED BY THE HELD REVERT OF FIX C — RESTORE THIS WITH C.
+
+    Under fix C this asserted that NOTHING is withheld on a ticker whose
+    today-bar has not arrived, which on any given morning is most of them.
+    With C reverted, `_evidence_index` is positional again and always returns
+    `len(bars) - 2`, so `candidates_for` drops the most recent CLOSED bar too
+    and detection runs permanently one session short.
+
+    That is the real cost of the revert and the reason it is a fallback rather
+    than an equivalent: it does not merely undo C, it degrades item 21. The
+    assertion below documents the degraded behaviour so the revert can ship
+    green in an emergency; when C is restored, restore the original assertion
+    (`len(seen["bars"]) == len(bars)`) with it.
+    """
     bars = _series(with_today=False)
     seen, _ = _capture(monkeypatch, bars)
-    assert len(seen["bars"]) == len(bars)
-    assert seen["bars"][-1]["t"] == bars[-1][0]
+    assert len(seen["bars"]) == len(bars) - 1          # was: == len(bars)
     assert seen["bars"][-1]["t"] == orch._evidence_bar(bars)[0]
 
 
