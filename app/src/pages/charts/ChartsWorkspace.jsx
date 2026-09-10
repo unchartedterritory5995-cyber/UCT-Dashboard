@@ -742,6 +742,13 @@ export default function ChartsWorkspace() {
   // Hydration gate: don't persist until server prefs have settled, so RGL's
   // on-mount onLayoutChange can't clobber a returning user's saved layout with the
   // default before it loads (the "resets to default" bug).
+  // Set only by the handlers a person actually drives (close a widget, close a
+  // popped/floating one). It is what tells the auto-save that a board with FEWER
+  // widgets is intentional rather than a bad load — see the shrink guard. Declared
+  // up here with the other hydration refs because handleRemoveWidget, far above
+  // the dock code that reads it, is what sets it.
+  const userRemovedRef = useRef(false)
+
   const hydratedRef = useRef(false)
   useEffect(() => {
     if (!prefsLoading) hydratedRef.current = true
@@ -1191,6 +1198,10 @@ export default function ChartsWorkspace() {
   }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
 
   const handleRemoveWidget = useCallback((id) => {
+    // Tell the auto-save this shrink is YOURS, so it is allowed to persist a
+    // board with fewer widgets. Everything else that reduces the widget count is
+    // treated as a bad load and refused — see the shrink guard.
+    userRemovedRef.current = true
     setLayout(prev => {
       // Delete removes ONLY the closed widget — no reflow. Every other widget keeps
       // its exact position/size (owner decision); the freed space is simply left blank.
@@ -1707,6 +1718,7 @@ export default function ChartsWorkspace() {
   const applyTemplate = useCallback((tpl) => {
     if (!tpl?.layout?.widgets) return
     flushNamedSaveRef.current?.()
+    userRemovedRef.current = false
     suppressAutoSave()
     // PREBUILT (global-scope) templates are LOCKED: opening one must reset EVERY
     // per-user override so nothing from the previously-open layout — theme, chart
@@ -1777,6 +1789,7 @@ export default function ChartsWorkspace() {
   // loads live/personal, only the shell + settings are frozen).
   const applyUctDefault = useCallback(() => {
     flushNamedSaveRef.current?.()
+    userRemovedRef.current = false
     suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
@@ -2118,12 +2131,19 @@ export default function ChartsWorkspace() {
   // light the dot on a board nobody touched. A false dirty is the one failure
   // that would make people hate this: it fires the switch-away confirm on every
   // switch, and the confirm is the thing protecting the board.
-  const dockDirty = useMemo(() => {
-    if (!dockActiveId || dockActiveId === UCT_DEFAULT_ID) return false
+  const dockCompare = useMemo(() => {
+    if (!dockActiveId || dockActiveId === UCT_DEFAULT_ID) return null
     const tpl = globalLayouts.find(t => t.id === dockActiveId) || myLayouts.find(t => t.id === dockActiveId)
-    if (!tpl?.layout?.widgets) return false
-    return arrangementSig(layout) !== arrangementSig(parseLayout(tpl.layout) || tpl.layout)
+    if (!tpl?.layout?.widgets) return null
+    const stored = parseLayout(tpl.layout) || tpl.layout
+    return {
+      dirty: arrangementSig(layout) !== arrangementSig(stored),
+      // Fewer widgets on screen than the layout is stored with. Either you just
+      // closed one — or the board was not fully there when we looked.
+      shrunk: (layout.widgets?.length || 0) < (stored.widgets?.length || 0),
+    }
   }, [dockActiveId, globalLayouts, myLayouts, layout])
+  const dockDirty = !!dockCompare?.dirty
 
   // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts.
   //
@@ -2140,7 +2160,36 @@ export default function ChartsWorkspace() {
   // rather than on a callback's identity.
   const namedSaveRef = useRef(null)
   namedSaveRef.current = handleSaveLayout
-  flushNamedSaveRef.current = () => { if (dockAutoSaves && dockDirty) handleSaveLayout() }
+
+  // ⛔ TWO GATES, both learned the hard way — a layout lost its widget because
+  // auto-save faithfully persisted a board that was not yet real.
+  //
+  // 1. HYDRATION. `layout` is seeded from React state that starts at
+  //    DEFAULT_LAYOUT — an EMPTY board — and is only replaced once the prefs
+  //    fetch resolves. charts_active_template can therefore name a layout while
+  //    the board is still empty. Auto-saving in that window overwrites a real
+  //    layout with nothing, and the unmount flush made it worse: navigate away
+  //    from /charts before it hydrates and the empty board was written out.
+  //    Nothing may be written until prefs AND the layout list have settled and
+  //    the board has actually been taken from prefs.
+  //
+  // 2. SHRINK. Auto-save turns any transient bad board into permanent loss, so
+  //    losing widgets is never assumed to be intentional: a board with fewer
+  //    widgets than the stored layout is written ONLY when the user actually
+  //    closed one. Worst case is now "we did not save", never "we saved the
+  //    damage". The flag is cleared after each save, so every shrink needs its
+  //    own deliberate removal.
+  const boardSeeded = loadedFromPrefsRef.current || !prefs?.charts_workspace_layout
+  const autoSaveReady = !prefsLoading && !templatesLoading && boardSeeded
+  const shrinkBlocked = !!dockCompare?.shrunk && !userRemovedRef.current
+  const autoSaveOk = autoSaveReady && dockAutoSaves && dockDirty && !shrinkBlocked
+
+  const runNamedSave = useCallback(() => {
+    namedSaveRef.current?.()
+    userRemovedRef.current = false
+  }, [])
+
+  flushNamedSaveRef.current = () => { if (autoSaveOk) runNamedSave() }
 
   // Persist the arrangement into the open layout shortly after it settles.
   //
@@ -2152,10 +2201,21 @@ export default function ChartsWorkspace() {
   // dockDirty is the trigger AND the stop condition (the save clears it), so
   // this cannot loop. Switching away no longer depends on this at all — the
   // flush above covers it.
-  const dirtySig = (dockAutoSaves && dockDirty) ? arrangementSig(layout) : null
+  // The guard is silent by design, which makes it invisible when it fires. Say so
+  // once per transition: if a layout ever "loses" a widget again, this line in the
+  // console is the evidence that the board came back short — and the proof that
+  // the short board was NOT written to the library.
+  useEffect(() => {
+    if (!shrinkBlocked) return
+    console.warn('[layout-dock] auto-save skipped — the board has fewer widgets than the layout stored, and nothing was closed by hand. The stored layout was left intact.')
+  }, [shrinkBlocked])
+
+  const dirtySig = autoSaveOk ? arrangementSig(layout) : null
+  const runNamedSaveRef = useRef(null)
+  runNamedSaveRef.current = runNamedSave
   useEffect(() => {
     if (!dirtySig) return
-    const t = setTimeout(() => { namedSaveRef.current?.() }, 400)
+    const t = setTimeout(() => { runNamedSaveRef.current?.() }, 400)
     return () => clearTimeout(t)
   }, [dirtySig])
 
