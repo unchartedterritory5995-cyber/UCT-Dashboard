@@ -144,6 +144,29 @@ def _access_payload(user: dict, plan: str) -> dict:
         "hub_preview_enabled": os.environ.get(
             "HUB_PREVIEW_ENABLED", "1"
         ).strip().lower() not in ("0", "false", "no", "off"),
+        # ── Research "Technical" tab (Chart/Technical Intelligence Convergence) ──
+        # Same request-time mechanism as the hub flag above: read HERE, per
+        # request, never captured at module import. That is what lets the flag be
+        # flipped without shipping code.
+        #
+        # ⚠️ IT IS NOT "no restart", and the comment above once said so. Measured
+        # 2026-08-30: `railway variables --set` STAGES the value — `--kv` reads it
+        # back immediately while the RUNNING process still has the old one, until
+        # an explicit `railway redeploy`. So a flip is: set the var, restart the
+        # service, and from then on every member's next /api/auth/me reflects it
+        # with no code change. Because a restart also clears APScheduler's
+        # in-memory job store and can kill an in-flight run, FLIP THIS OUTSIDE
+        # 09:00-16:00 ET so it cannot land on a Pattern Vision slot.
+        #
+        # ⛔ DEFAULT OFF, the OPPOSITE polarity to the hub switch, and that is
+        # deliberate. The hub flag is a KILL switch on a shipped feature, so unset
+        # means "not killed". This is an ENABLEMENT gate on a feature that ships
+        # dark: unset means "not turned on yet", so an unset variable can never
+        # silently expose a surface no one has decided to release. Only an
+        # explicit "1"/"true"/"yes"/"on" enables it.
+        "research_technical_tab_enabled": os.environ.get(
+            "RESEARCH_TECHNICAL_TAB_ENABLED", "0"
+        ).strip().lower() in ("1", "true", "yes", "on"),
     }
 
 
