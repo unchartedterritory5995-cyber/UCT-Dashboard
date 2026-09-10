@@ -163,3 +163,46 @@ and in the last report; say the word and the screener fold is restored.
 * Merge `origin/master` into the branch at least weekly, each merge its own
   commit with a conflict summary.
 * Deploy checklist: `docs/runbooks/indicator-ecosystem-deploy.md`.
+
+## R7 — PYTHON LANE DISCIPLINE (owner, 2026-09-10, verbatim)
+
+> Never run a bare `pytest tests/`. The full Python lane runs ONLY via the repo's
+> chunked config (the 12-chunk mode used for the F9/L4 runs), chunks sequential,
+> never in parallel. Named files for anything targeted. Never read pytest's status
+> through a pipe: redirect to a file, then read the file and `${PIPESTATUS[0]}` /
+> the process's own exit code. A run that 'finished quietly' with a tiny log and no
+> exit code is an OOM kill until proven otherwise. Same for vitest: a reporter that
+> 'passed' without running is caught by asserting the test count moved. Record R7 in
+> SESSION-STATE and the runbook with tonight's three kills as the reason.
+
+**Tonight's three kills are the reason.** 2026-09-10: three unscoped `pytest tests/`
+runs were OOM-killed by the host -- pid 5024, then pid 12872 at **15.9 GB** and pid 33464
+at 6.6 GB, the last two found and reported by ANOTHER SESSION whose background work they
+took down with them. All three were invisible here, and the same mistake hid each one: the
+run was piped to `tail`, so the shell reported TAIL's exit code. A killed pytest behind a
+pipe leaves an empty log and a zero exit, which reads first as "still running" and then as
+"finished quietly". Two of the three were read that way on the same night.
+
+⭐⭐ **The memory goes on COLLECTION, not execution** (measured by the peer session:
+`--collect-only` alone reaches ~4.5 GB), because `api/main.py` is ~9,800 lines mounting
+~986 routes and the repo-root `conftest.py` runs an AST census over `api/**`, `scripts/`
+and `tools/` at import. So `-k` and `--timeout` cannot contain it -- they filter AFTER
+collection. Only giving pytest FEWER FILES does, which is what makes chunking work.
+
+⛔ The runner is `tools/pytest_chunks.py` (committed with this rail -- the repo had SAID
+"chunked suite runners" in `pytest.ini` and `tools/tests_reaching.py` for months while no
+chunk runner existed; a rule that lives only in prose is one that gets skipped by whoever
+has not read the prose). It walks `pytest.ini::testpaths` off the FILESYSTEM rather than
+asking pytest to enumerate the suite -- that enumeration is the very thing that blows up --
+keeps each chunk's own `returncode`, and reports a chunk with no summary line as **KILLED**
+rather than folding it into "0 failed".
+
+```bash
+# the FULL Python lane -- the ONLY sanctioned way to run it
+python tools/pytest_chunks.py            # 12 chunks, sequential, per-chunk logs
+python tools/pytest_chunks.py --only 3   # re-run one chunk after a fix
+
+# anything targeted: NAME THE FILES, redirect, then read the exit code
+python -m pytest tests/test_vendor_truth.py -q > /tmp/vt.log 2>&1; echo "EXIT: $?"
+```
+
