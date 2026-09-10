@@ -139,3 +139,82 @@ describe('opening a note writes the URL', () => {
     expect(new URLSearchParams(seen.search).get('note')).toBe('old')
   })
 })
+
+describe('B11 — the cursor is painted, and tap advances it', () => {
+  const grid = (ids) => {
+    document.body.innerHTML = `<div>${ids.map((id) => `<div data-note-card-id="${id}"></div>`).join('')}</div>`
+  }
+  const painted = () => [...document.querySelectorAll('[data-hub-cursor="active"]')]
+    .map((el) => el.getAttribute('data-note-card-id'))
+
+  it('⛔ exactly ONE card carries data-hub-cursor, and it is the one the index names', () => {
+    grid(['a', 'b', 'c'])
+    const seen = harness(NOTEBOOK_ROUTE)
+    expect(painted(), 'the cursor is not painted on any card — it is invisible to the member')
+      .toHaveLength(1)
+    expect(painted()[0]).toBe(seen.api.ids[seen.api.index])
+  })
+
+  it('advancing moves the paint, and never paints two at once', () => {
+    grid(['a', 'b', 'c'])
+    const seen = harness(NOTEBOOK_ROUTE)
+    const first = painted()[0]
+    act(() => { seen.api.next() })
+    expect(painted()).toHaveLength(1)
+    expect(painted()[0], 'the paint did not move with the index').not.toBe(first)
+  })
+
+  it('⛔ tap ADVANCES and OPENS — the registry promises "tap: next note"', async () => {
+    // The mode declares `tapHint: 'tap: next note'`. A tap that advanced without opening, or
+    // opened without advancing, would make that chip a lie the member reads every time.
+    const { modesById } = await import('../registry')
+    expect(modesById.notebook.tapHint, 'the hint changed — this rail pins the promise it makes')
+      .toBe('tap: next note')
+
+    grid(['a', 'b', 'c'])
+    const seen = harness(`${NOTEBOOK_ROUTE}?note=a`)
+    const before = seen.api.index
+    act(() => { seen.api.next(); seen.api.openNote(seen.api.ids[before + 1]) })
+    expect(seen.api.index, 'tap did not advance the cursor').toBe(before + 1)
+    expect(new URLSearchParams(seen.search).get('note'), 'tap advanced but opened nothing')
+      .toBe('b')
+  })
+
+  it('an empty grid paints nothing and does not throw', () => {
+    document.body.innerHTML = '<div></div>'
+    const seen = harness(NOTEBOOK_ROUTE)
+    expect(painted()).toEqual([])
+    expect(seen.api.count).toBe(0)
+  })
+})
+
+describe('⛔ the list identity is the FILTER, not the selection', () => {
+  const grid = (ids) => {
+    document.body.innerHTML = `<div>${ids.map((id) => `<div data-note-card-id="${id}"></div>`).join('')}</div>`
+  }
+
+  it('opening a note does NOT reset the cursor — the bug that made tap useless', () => {
+    // The first version folded the whole query string into the cursor's identity, so writing
+    // `?note=` changed the identity and reset the index to 0. Tap-to-advance bounced back to the
+    // first card on every tap and the member could never reach note two.
+    grid(['a', 'b', 'c'])
+    const seen = harness(NOTEBOOK_ROUTE)
+    act(() => { seen.api.next() })
+    const advanced = seen.api.index
+    expect(advanced).toBe(1)
+    act(() => { seen.api.openNote('b') })
+    expect(seen.api.index, 'opening a note reset the cursor — tap can never get past the first note')
+      .toBe(advanced)
+  })
+
+  it('changing the FILTER does reset it — a different folder is a different list', () => {
+    grid(['a', 'b', 'c'])
+    const seen = harness(`${NOTEBOOK_ROUTE}?folder=f-1`)
+    act(() => { seen.api.next() })
+    expect(seen.api.index).toBe(1)
+    // A different folder is genuinely a different list; holding the old index would point at a
+    // note the member never selected.
+    const other = harness(`${NOTEBOOK_ROUTE}?folder=f-2`)
+    expect(other.api.index).toBe(0)
+  })
+})
