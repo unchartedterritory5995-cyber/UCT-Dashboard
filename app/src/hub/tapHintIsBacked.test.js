@@ -133,18 +133,21 @@ describe('a tapHint that promises a tap is backed by an onTap', () => {
       + 'means tap must NAVIGATE, and useJoystick.js:449 calls onTap() with NO ARGUMENTS — so a '
       + 'registry-declared mode structurally cannot reach ctx.navigate from a tap until that arity '
       + 'changes.')
-      .toEqual([
-        // ⚰️ `home` LEFT THIS LIST when HubRoot began passing ctx to onTap and homeSection
-        // declared one, and ⚰️ `calendar` LEFT IT in Increment 5 when `calendarSection.js` shipped
-        // the `tap: next day` its chip had promised since Phase 2. Two departures, both by a
-        // handler arriving rather than by an edit here — which is the proof this list is a live
-        // measurement and not a copied set.
-        // ⚰️ `chart` LEFT THIS LIST in Increment 5 alongside `calendar`, both by a controller
-        // arriving. `catalysts` is the LAST one — and its blockers are not a missing handler:
-        // the tile does not exist on weekends or market holidays (~114 days/yr), and no row
-        // carries a DOM identity attribute. See the 3.6a scout.
-        'catalysts: "tap: next row"',
-      ])
+      // ⭐⭐ THIS LIST IS EMPTY NOW, and that is the end state Phase 3 existed for. Every mode
+      // whose chip promises a tap can perform one.
+      //
+      // ⚰️ Four departures, in order, and every one of them by a HANDLER ARRIVING rather than by
+      // an edit here: `home` when HubRoot began passing ctx to onTap and homeSection declared one;
+      // `calendar` and `chart` when their controllers shipped in Increment 5; `catalysts` last of
+      // all, once the tile's rows became addressable. That is the proof this was a live
+      // measurement and never a copied set.
+      //
+      // ⛔ AN EMPTY LIST IS NOT A DEAD RAIL. Declare a new mode with a "tap: …" hint and no
+      // onTap, or un-back an existing one, and it appears here and this goes red. The
+      // non-vacuity assertions above are what stop it being empty for the WRONG reason — they
+      // require real tap promises to exist and some to be genuinely satisfied, so "empty" can
+      // only mean "all backed", never "the detector broke".
+      .toEqual([])
   })
 
   it('⛔ the hiding mechanism is checked, not assumed', () => {

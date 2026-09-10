@@ -83,8 +83,23 @@ export default function HubActionsButton({
   onFeedback,
   onHide,
   hapticsEnabled = true,
+  // ⭐ OPTIONALLY CONTROLLED, so the two-finger Peek gesture can open the SAME sheet this button
+  // opens (§C1). Uncontrolled by default — pass neither and the button keeps its own state, which
+  // is what every existing caller and every existing test does.
+  //
+  // ⛔ ONE SHEET, NOT TWO. The gesture must not open a second copy: §C2's whole argument is that
+  // the button is the compliant door and the gesture is a shortcut TO IT. Two sheets would mean
+  // two `role="dialog"` regions and two focus traps racing.
+  open: openProp,
+  onOpenChange,
 }) {
-  const [open, setOpen] = useState(false)
+  const [openState, setOpenState] = useState(false)
+  const controlled = openProp !== undefined
+  const open = controlled ? openProp : openState
+  const setOpen = (next) => {
+    if (!controlled) setOpenState(next)
+    onOpenChange?.(next)
+  }
   const label = `${mode} actions`
 
   // "On the inner side of the knob (left of it when right-handed, right of

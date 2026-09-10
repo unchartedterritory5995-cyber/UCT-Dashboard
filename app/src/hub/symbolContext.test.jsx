@@ -50,6 +50,9 @@ const SHIPPED = {
   // ⚰️ ADDED BY INCREMENT 5 (§3.5). Chart needs the SYMBOL — Flag, Note and Plan trade all act on
   // the chart's current ticker — and no position: the chart holds a price series, not a trade.
   chart: { symbol: true, position: false },
+  // ⚰️ ADDED BY INCREMENT 5 (§3.6) — the LAST section. Catalysts needs the SYMBOL: Chart it, Why,
+  // Flag and Note all act on the cursor's row ticker. No position; the tile is a read of the tape.
+  catalysts: { symbol: true, position: false },
 }
 
 describe('every shipped mode ships the fan it means to', () => {
@@ -61,7 +64,8 @@ describe('every shipped mode ships the fan it means to', () => {
     // unrepresentative, not the product: a control that pins a count of four is a control that has
     // to be edited by every increment that ships a section, which is the point of it.
     const shipped = modes.map((m) => m.id).filter((id) => !PREVIEW_MODES.has(id)).sort()
-    expect(shipped).toEqual(['breadth', 'calendar', 'chart', 'journal', 'notebook', 'scan', 'wire'])
+    expect(shipped).toEqual(
+      ['breadth', 'calendar', 'catalysts', 'chart', 'journal', 'notebook', 'scan', 'wire'])
     expect(Object.keys(SHIPPED).sort()).toEqual(shipped)
   })
 

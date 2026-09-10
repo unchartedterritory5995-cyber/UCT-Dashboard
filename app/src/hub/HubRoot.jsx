@@ -79,6 +79,8 @@ function HubShell({ setToastMsg }) {
   const padRef = useRef(null)
   // The pending `confirm` action's sheet payload, or null. See runAction below (R-09).
   const [confirmPayload, setConfirmPayload] = useState(null)
+  // §C1 — the two-finger tap opens the SAME Peek sheet the Actions button opens.
+  const [peekOpen, setPeekOpen] = useState(false)
 
   const mirrored = settings.handedness === 'left'
   // ⛔ THE PREVIEW PROJECTION, not `mode.fan`. Phase 2.5 ships navigation-only plus Voice, so
@@ -279,6 +281,8 @@ function HubShell({ setToastMsg }) {
     onFire: fireResolved,
     onScrub: handleScrub,
     onScrubCommit: handleScrubCommit,
+    // Opens the Actions sheet — the one Peek surface. See HubActionsButton's `open` prop.
+    onPeek: () => setPeekOpen(true),
     onTap: handleTap,
     onDoubleTap: handleDoubleTap,
     onHome: goHome,
@@ -493,6 +497,8 @@ function HubShell({ setToastMsg }) {
         mode={activeModeConfig?.label}
         config={activeModeConfig}
         ctx={ctx}
+        open={peekOpen}
+        onOpenChange={setPeekOpen}
         actions={fan}
         mirrored={mirrored}
         disabledIds={disabledIds}
