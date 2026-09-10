@@ -230,18 +230,25 @@ class Result:
         return bool(self.steps) and all(ok for _, ok, _ in self.steps) and not self.findings
 
 
-def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
-    """create · type · offline · type · reload(online) · reconnect · conflict."""
+def run_path(ctx, engine: str, session_cookie: dict | None, offline=None) -> Result:
+    """create · type · offline · type · reload(online) · reconnect · conflict.
+
+    ⭐ `offline` seam: the CDP-connected rig cannot use `ctx.set_offline` (it is a
+    default browser context), so the rig passes `window_check._offliner(cdp)` and
+    every launched engine passes nothing and gets `ctx.set_offline`. Without this
+    the rig could not run the §15 path at all — it could only lend its cookie.
+    """
     res = Result(engine)
     if session_cookie:
         ctx.add_cookies([session_cookie])
+    set_offline = offline or ctx.set_offline
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
 
     puts = []
     page.on("request", lambda r: puts.append(_put_base(r))
             if r.method == "PUT" and "/api/j2/notes/" in r.url else None)
 
-    ctx.set_offline(False)
+    set_offline(False)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(6000)
 
@@ -283,7 +290,7 @@ def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
     if bases:
         res.findings += w.baseline_findings(f"{engine}/online PUT", {"baseUpdatedAt": bases[0]})
 
-    ctx.set_offline(True)
+    set_offline(True)
     page.wait_for_timeout(1200)
     pr = page.evaluate(PROBE)
     res.step("offline is real", pr.startswith("FAILED"), pr)
@@ -293,7 +300,7 @@ def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
 
     # ⛔ NETWORK UP BEFORE THE RELOAD — no service worker, so an offline reload
     #    cannot load the SPA and proves nothing.
-    ctx.set_offline(False)
+    set_offline(False)
     page.wait_for_timeout(1500)
     page.goto(f"{PROD}/journal/notebook?note={nid}", wait_until="domcontentloaded")
     page.wait_for_timeout(8000)
@@ -326,13 +333,14 @@ def run_path(ctx, engine: str, session_cookie: dict | None) -> Result:
     return res
 
 
-def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
+def run_conflict(ctx, engine: str, session_cookie: dict | None, offline=None) -> Result:
     """The fork, both directions: server keeps the winner, the loser survives."""
     res = Result(engine + "/conflict")
     if session_cookie:
         ctx.add_cookies([session_cookie])
+    set_offline = offline or ctx.set_offline
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
-    ctx.set_offline(False)
+    set_offline(False)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(5000)
     page.evaluate("(k) => localStorage.setItem(k, '1')", FLAG_KEY)
@@ -350,7 +358,7 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
 
     page.goto(f"{PROD}/journal/notebook?note={nid}", wait_until="domcontentloaded")
     page.wait_for_timeout(6000)
-    ctx.set_offline(True)
+    set_offline(True)
     page.wait_for_timeout(1200)
     res.step("offline is real", page.evaluate(PROBE).startswith("FAILED"), "probe failed")
     _type(page, f" {mine}.", end_first=True)
@@ -371,7 +379,7 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
     other.close()
     res.step("second writer moved the server", moved.get("ok"), f"{moved.get('status')} → {moved.get('updatedAt')}")
 
-    ctx.set_offline(False)
+    set_offline(False)
     page.wait_for_timeout(1500)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(16000)
@@ -402,6 +410,87 @@ def run_conflict(ctx, engine: str, session_cookie: dict | None) -> Result:
         for cid in (out.get("copies") or []):
             page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,{method:'DELETE',credentials:'include'}) }""", cid)
     return res
+
+
+def run_metadata_doors(page, engine: str) -> Result:
+    """⛔ THE THREE DOORS THAT ADVANCE `updatedAt` WITHOUT CARRYING THE BODY.
+
+    Folder, ticker and tags each move the server's `updatedAt` while saying
+    nothing about the member's words — so each one can move the baseline out from
+    under a queued outbox entry exactly the way a second writer would, without a
+    second writer existing. Round 2 settles them; the matrix must actually walk
+    through them rather than only editing bodies.
+
+    ⭐ Read-modify-write per door, and the note is deleted at the end. This creates
+    ONE note titled `ENGINE-MATRIX doors …` — never touched by the fork detector's
+    preserved set, never tagged `sync-conflict`.
+    """
+    res = Result(engine + "/metadata-doors")
+    made = page.evaluate("""async (t) => {
+        const r = await fetch('/api/j2/notes', {method:'POST', credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({title:t, bodyJson:{type:'doc',content:[
+            {type:'paragraph', content:[{type:'text', text:'doors probe body'}]}]}})});
+        const j = await r.json();
+        return {ok:r.ok, id: j.note?.id ?? j.id, updatedAt: j.note?.updatedAt};
+    }""", f"{SENTINEL} doors {engine} {utc()}")
+    if not res.step("create the doors note", made.get("ok"), f"id={made.get('id')}"):
+        return res
+    nid = made["id"]
+    try:
+        for door, patch in (("ticker", {"ticker": "NVDA"}),
+                            ("tags", {"tags": ["engine-matrix-door"]}),
+                            ("folder", {"folderId": None})):
+            r = page.evaluate("""async ({id, patch}) => {
+                const before = await fetch('/api/j2/notes/' + id, {credentials:'include'})
+                                     .then(r => r.json());
+                const prev = before.note?.updatedAt ?? null;
+                const body = Object.assign({title: before.note?.title,
+                                            baseUpdatedAt: prev,
+                                            bodyJson: before.note?.bodyJson}, patch);
+                const w = await fetch('/api/j2/notes/' + id, {method:'PUT', credentials:'include',
+                  headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+                const j = await w.json().catch(() => null);
+                return {status: w.status, before: prev, after: j?.note?.updatedAt ?? null,
+                        bodyStillHasText: JSON.stringify(j?.note?.bodyJson ?? null).includes('doors probe body')};
+            }""", {"id": nid, "patch": patch})
+            moved = bool(r.get("after")) and r.get("after") != r.get("before")
+            res.step(f"door `{door}` advances updatedAt, body intact",
+                     r.get("status") == 200 and moved and r.get("bodyStillHasText"),
+                     f"{r.get('status')} · {r.get('before')} → {r.get('after')} · "
+                     f"body kept={r.get('bodyStillHasText')}")
+            if isinstance(r, dict):
+                res.findings += w.baseline_findings(f"{engine}/door-{door}",
+                                                    {"baseUpdatedAt": r.get("after")})
+    finally:
+        # ⛔ Ordinary cleanup of an ordinary probe note — never the preserved set.
+        if not res.findings:
+            page.evaluate("""async (id) => { await fetch('/api/j2/notes/'+id,
+                             {method:'DELETE', credentials:'include'}) }""", nid)
+    return res
+
+
+def read_telemetry(page) -> dict:
+    """Opt-ins BY DISTINCT ENGINE/PROFILE and BY SESSION, plus the blocked count.
+
+    ⛔ THEY ARE DIFFERENT NUMBERS AND BOTH GET REPORTED. A distinct browser
+    profile emits its own `notebook_offline_opt_in`; one profile driven twice in
+    one matrix emits two events from ONE engine. Reporting only the event count
+    would inflate the denominator that ">= 5 distinct engines" is measured against.
+    """
+    raw = page.evaluate(w.ACTIVITY_JS, [w.BLOCKED_EVENT, w.OPT_IN_EVENT])
+    if not isinstance(raw, dict):
+        return {"ok": False, "raw": raw}
+    return {
+        "scope": raw.get("scope"),
+        "opt_in_events_BY_SESSION": raw.get(w.OPT_IN_EVENT),
+        "blocked_no_baseline": raw.get(w.BLOCKED_EVENT),
+        "row_cap_hit": raw.get("rowCap"),
+        "admin_status": raw.get("adminStatus"),
+        "note": ("`opt_in_events_BY_SESSION` counts EVENTS (one per browser session that "
+                 "opted in). The BY-ENGINE number is counted by this matrix from the "
+                 "engines that actually opted in this run — they are different numbers."),
+    }
 
 
 def _type(page, text, end_first=False):
@@ -1532,6 +1621,36 @@ GET_LATENCY_JS = """async ({id, n, gap}) => {
 }"""
 
 
+def matrix_verdict(rail_no_fork: bool, control_ran: bool, control_forked: bool) -> tuple:
+    """⛔⛔ A RUN WHERE NOTHING FORKS IS NOT AUTOMATICALLY A PASS.
+
+    Two claims, and they are different claims:
+      · THE RAIL    — a single writer must NEVER fork.
+      · THE CONTROL — a REAL second writer MUST STILL fork.
+
+    Guard 2 answers a 409 by asking the server whether the conflict is really the
+    browser's own landed save. Over-broad, it would answer "mine" to a genuine
+    conflict and silently discard another writer's words — and that failure looks
+    EXACTLY like success from the rail's side: nothing forks, everything green.
+    The control is the only thing that can tell the two apart, so a green rail
+    without a control that forked IN THE SAME SESSION is INCONCLUSIVE, never a pass.
+
+    Returns (verdict, why). Reported as TWO LINES, never collapsed into one.
+    """
+    if not control_ran:
+        return ("INCONCLUSIVE", "no genuine-conflict control ran in this session — a "
+                                "green rail alone cannot distinguish 'never forks' from "
+                                "'discards real conflicts'")
+    if not control_forked:
+        return ("⛔ FAIL", "THE CONTROL DID NOT FORK — a real second writer was not "
+                          "preserved as a conflicted copy. Guard 2 is over-broad and is "
+                          "discarding genuine conflicts; this is worse than the fork.")
+    if not rail_no_fork:
+        return ("⛔ FAIL", "a SINGLE WRITER forked — the defect this wave exists to remove")
+    return ("PASS", "single writer never forked AND a real second writer still forked, "
+                    "both observed in this session")
+
+
 def _pct(values: list, q: float) -> float:
     """Nearest-rank percentile, stated so the method is not a guess either."""
     if not values:
@@ -2095,15 +2214,22 @@ def main() -> int:
     cookie = session_cookie_from_rig()
     print(f"  got `uct_session` for {cookie['domain']} (value not printed)\n", flush=True)
 
-    engines = [e for e in ENGINE_IDS if e != "chromium-rig"]
+    # ⛔ chromium-rig runs the FULL §15 path, not just the cookie handoff — the
+    # signed-in profile is a distinct engine and the matrix certifies five.
+    # ⛔ The genuine-conflict CONTROL runs on Chromium AND WebKit (owner ruling,
+    # 2026-09-10): a green rail without a control that forked in the same session
+    # cannot distinguish "never forks" from "discards real conflicts".
+    engines = list(ENGINE_IDS)
     if args.only:
         engines = [resolve_engine(args.only)]
+    CONTROL_ENGINES = ("chromium-rig", "webkit")
 
-    results = []
+    results, telemetry = [], None
     with sync_playwright() as pw:
         for name in engines:
             print(f"\n{'=' * 70}\n  ENGINE: {engine_label(name)}\n{'=' * 70}", flush=True)
-            browser = ctx = None
+            browser = ctx = rig_offline = None
+            rig_open = False
             try:
                 if name == "edge":
                     # ⛔ A persistent context, not `launch(args=[--user-data-dir])`:
@@ -2126,20 +2252,53 @@ def main() -> int:
                     # says so wherever this row is read.
                     browser = pw.chromium.launch(headless=True)
                     ctx = browser.new_context(**pw.devices["iPhone 13"])
-                r = run_path(ctx, name, cookie)
+                elif name == "chromium-rig":
+                    # ⛔ THE SIGNED-IN RIG, over CDP. Its own cookie, so nothing is
+                    # installed; and `ctx.set_offline` does not work on a default
+                    # browser context, so it passes the CDP offliner through the seam.
+                    rig_proc, rig_ep, rig_ver = w.spawn_rig()
+                    rig_open = True
+                    if not rig_ver:
+                        raise SystemExit("the rig's CDP endpoint never answered")
+                    b = pw.chromium.connect_over_cdp(rig_ep)
+                    ctx = b.contexts[0]
+                    _p = ctx.pages[0] if ctx.pages else ctx.new_page()
+                    _cdp = _p.context.new_cdp_session(_p)
+                    _cdp.send("Network.enable")
+                    rig_offline = w._offliner(_cdp)
+
+                off = rig_offline if name == "chromium-rig" else None
+                cook = None if name == "chromium-rig" else cookie
+                r = run_path(ctx, name, cook, offline=off)
                 results.append(r)
-                if r.green and not args.no_conflict and name in ("webkit",):
-                    results.append(run_conflict(ctx, name, None))
+                # ⛔⛔ THE CONTROL. A real second writer MUST still fork. Run it
+                # regardless of whether the rail was green — if the rail failed we
+                # need to know whether conflicts still work even more, not less.
+                if not args.no_conflict and name in CONTROL_ENGINES:
+                    results.append(run_conflict(ctx, name, cook, offline=off))
+                # ⭐ The metadata doors, once, somewhere in the matrix.
+                if name == "chromium-rig":
+                    _pg = ctx.pages[0] if ctx.pages else ctx.new_page()
+                    results.append(run_metadata_doors(_pg, name))
+                    telemetry = read_telemetry(_pg)
             except Exception as e:  # noqa: BLE001
                 r = Result(name)
                 r.step("engine", False, f"{type(e).__name__}: {str(e)[:160]}")
                 results.append(r)
             finally:
                 try:
-                    if ctx:
-                        ctx.close()
-                    if browser:
-                        browser.close()
+                    # ⛔ THE RIG IS TORN DOWN BY MARKER, NEVER BY ctx.close() —
+                    # closing a CDP-connected context does not kill the browser it
+                    # is attached to, and the profile lock would stay held.
+                    if name == "chromium-rig":
+                        if rig_open:
+                            w.teardown(None)
+                            rig_open = False
+                    else:
+                        if ctx:
+                            ctx.close()
+                        if browser:
+                            browser.close()
                 except Exception:  # noqa: BLE001
                     pass
 
@@ -2151,11 +2310,43 @@ def main() -> int:
               f"  locks={r.caps.get('locks')}")
         findings += r.findings
     print(f"\n  ⭐ {IOS_NOTE}.")
+
+    # ⛔⛔ TWO CLAIMS, TWO LINES, NEVER COLLAPSED. A green rail is only a pass if
+    # the genuine-conflict control forked IN THE SAME SESSION — otherwise a
+    # guard-2 that is over-broad and discarding real conflicts looks identical to
+    # one that works.
+    rails = [r for r in results if "/conflict" not in r.id and "/" not in r.id]
+    controls = [r for r in results if r.id.endswith("/conflict")]
+    rail_no_fork = bool(rails) and not any(
+        "conflicted copy" in f.lower() for r in rails for f in r.findings)
+    control_ran = bool(controls)
+    control_forked = any(
+        any(s[0].startswith("the loser survives") and s[1] for s in r.steps) for r in controls)
+    verdict, why = matrix_verdict(rail_no_fork, control_ran, control_forked)
+    print(f"\n  RAIL    (a single writer must NEVER fork): "
+          f"{'✅ no fork' if rail_no_fork else '⛔ A SINGLE WRITER FORKED'}"
+          f"  [{len(rails)} engine(s)]")
+    print(f"  CONTROL (a real second writer MUST fork) : "
+          f"{'✅ forked' if control_forked else ('⛔ DID NOT FORK' if control_ran else '— not run')}"
+          f"  [{len(controls)} engine(s)]")
+    print(f"  ⇒ {verdict} — {why}")
+    if telemetry:
+        print(f"\n  opt-ins BY SESSION (events): {telemetry.get('opt_in_events_BY_SESSION')} · "
+              f"scope {telemetry.get('scope')}")
+        print(f"  opt-ins BY DISTINCT ENGINE : {len(rails)} (the engines that opted in this run)")
+        print(f"  `{w.BLOCKED_EVENT}`: {telemetry.get('blocked_no_baseline')} "
+              f"· scope {telemetry.get('scope')} — must be 0")
     if findings:
         print("\n🚨 FINDINGS")
         for f in findings:
             print("   -", f)
     payload = {"at": utc(), "reading_note": IOS_NOTE,
+               "rail_single_writer_never_forks": rail_no_fork,
+               "control_real_second_writer_still_forks": control_forked,
+               "control_ran": control_ran,
+               "verdict": verdict, "verdict_why": why,
+               "telemetry": telemetry,
+               "opt_ins_by_distinct_engine": len(rails),
                "engines": [_row(r) for r in results]}
     out = w.ROOT / "docs" / "notebook" / "engine-matrix-result.json"
     out.write_text(json.dumps(payload, indent=1), encoding="utf-8")
@@ -2328,6 +2519,38 @@ def self_check() -> int:
                   "webkit" in IOS_NOTE and "NOT iOS" in IOS_NOTE))
     cases.append(("…and that sentence is printed AND stored, not just defined",
                   src.count("IOS_NOTE") >= 4))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ A RUN WHERE NOTHING FORKS IS NOT AUTOMATICALLY A PASS. Guard 2 answers
+    # a 409 by asking whether the conflict is the browser's own landed save;
+    # OVER-BROAD, it answers "mine" to a genuine conflict and silently discards
+    # another writer's words — and from the rail's side that looks like success.
+    # Driven through every combination, including the one that must be a FAIL.
+    # ══════════════════════════════════════════════════════════════════════════
+    cases.append(("CONTROL: rail clean + control forked ⇒ PASS",
+                  matrix_verdict(True, True, True)[0] == "PASS"))
+    cases.append(("⛔ rail clean + control DID NOT fork ⇒ FAIL, not a pass",
+                  matrix_verdict(True, True, False)[0] == "⛔ FAIL"))
+    cases.append(("…and it names guard 2 discarding real conflicts",
+                  "discarding genuine conflicts" in matrix_verdict(True, True, False)[1]))
+    cases.append(("⛔ rail clean + NO control ⇒ INCONCLUSIVE, never a pass",
+                  matrix_verdict(True, False, False)[0] == "INCONCLUSIVE"))
+    cases.append(("…and it says why a green rail alone cannot decide",
+                  "cannot distinguish" in matrix_verdict(True, False, False)[1]))
+    cases.append(("⛔ a single-writer fork ⇒ FAIL even with a good control",
+                  matrix_verdict(False, True, True)[0] == "⛔ FAIL"))
+    cases.append(("the control is required on Chromium AND WebKit",
+                  'CONTROL_ENGINES = ("chromium-rig", "webkit")' in src))
+    cases.append(("the matrix runs ALL FIVE engines, rig included",
+                  "engines = list(ENGINE_IDS)" in src))
+    cases.append(("the rig is torn down BY MARKER, not by ctx.close()",
+                  "THE RIG IS TORN DOWN BY MARKER" in src))
+    cases.append(("opt-ins are reported BY SESSION *and* BY DISTINCT ENGINE",
+                  "opt_in_events_BY_SESSION" in src and "opt_ins_by_distinct_engine" in src))
+    cases.append(("the blocked-baseline count carries its SCOPE",
+                  "blocked_no_baseline" in src and "scope" in src))
+    cases.append(("the metadata doors are exercised somewhere in the matrix",
+                  "run_metadata_doors(_pg, name)" in src))
 
     # ── offline emulation, driven ────────────────────────────────────────────
     class _P:
