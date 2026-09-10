@@ -1479,6 +1479,37 @@ flattering direction: fewer files run, fewer failures found. Count the files, no
 find src -name "*.test.js*" | wc -l      # and compare against the chunks actually run
 ```
 
+### ⛔ An empty result is a failed invocation until proven otherwise (Testing)
+
+> **Any rail that shells out — git, a subprocess, the network — carries a NON-VACUITY CONTROL: a
+> case proving the command returned something before any assertion over its output means anything.
+> Its mutation proof is run BEFORE the rail is called done, not after.**
+
+Owner ruling, 2026-09-10 (rule 14). Same disease as the totals-line rule above, different organ: a
+command that returns nothing produces an assertion that passes over an empty set, and an empty set
+satisfies almost every check anyone writes.
+
+**Three instances in two days, each caught only by the mutation proof, never by review:**
+
+| Rail | What the command actually returned | Why it read green |
+|---|---|---|
+| `hub/rule12Paths.test.js` v1 | `git status --porcelain` sliced at a fixed offset, eating the first character of every MODIFIED path — `pp/src/pages/...` | the forbidden-prefix filter matched nothing, so a real violation passed |
+| `hub/rule12Paths.test.js` v2 | `git diff -- app/src/...` run from vitest's cwd (`app/`), so the PATHSPEC resolved to `app/app/src/...` | zero added lines compared against zero removed lines: `0 === 0` |
+| `scripts/deploy_watch.py` v1 | `subprocess.run(["railway", ...])` cannot resolve a `.cmd`/`.exe` shim on Windows without `shutil.which` | forty consecutive `FileNotFoundError`s, then **exit 0** |
+
+⭐ **The three fixes generalise.** Pin the working directory (`git -C $(git rev-parse
+--show-toplevel)`) rather than trusting the caller's cwd — git resolves pathspecs relative to the
+cwd and `--porcelain` paths relative to the repo, and the two disagreeing is invisible. Resolve
+executables with `shutil.which` and exec the resolved path, never `shell=True`, which fixes the
+symptom by handing an interpolated string to a shell. Parse nothing you can avoid parsing: prefer
+commands whose output needs no offset arithmetic (`git ls-files --others --exclude-standard` over
+slicing status codes).
+
+⚠️ **The control must be able to fail.** `expect(files.length).toBeGreaterThan(0)` is only a control
+if a broken invocation would actually make it zero — assert on something the command CANNOT
+legitimately return empty (this repo's branch always changes at least its own resume file), and
+prefer naming a specific expected member (`expect(files).toContain('HubRoot.jsx')`) over a count.
+
 ### ⛔ Contracts — verify against the RUNTIME CALL SITE, not a harness
 
 > **A contract is verified against the runtime call site, never against a harness that restates
