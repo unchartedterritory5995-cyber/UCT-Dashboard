@@ -15,9 +15,10 @@ therefore uncommittable. This one lives in the repo so it can be committed, as r
 
 ## Rulings this increment is built under
 
-- **R-A** — Increment 3 = **3.7 Notebook** + **#1 hub-analytics emit** + **#2 auto-hide while a
-  text input is focused**. #1 and #2 are spec-mandated (§8), under an hour each, currently just
-  missing, and ride along.
+- **R-A (AMENDED 2026-09-10 after H1)** — Increment 3 = **B7 rule-12 rail + B8 §8 analytics marker
+  + B9 §8 auto-hide + docs**. **3.7 Notebook is OUT**, deferred to Increment 4 and gated on the
+  notebook side adding a card identity attribute (see *Blocked on the notebook side* below).
+  The original R-A read "3.7 Notebook + #1 + #2"; #1 and #2 shipped, 3.7 did not.
 - **R-B** — The real-glass bugs are **not blocking**. Filed in `requests.md` verbatim when they
   arrive.
 - **R-C** — Calendar is a **§6 omission, not a §7 error**. §7 declares the mode and C3 has the
@@ -137,3 +138,60 @@ The Notebook cannot be wired as ruled without editing a rule-12 path. Two indepe
 **Smallest notebook-side change that unblocks it:** one attribute on the card root —
 `data-note-id={note.id}` in `NoteCard.jsx`. That is additive, renders nothing visible, and gives
 the hub both the identity and the selector Q4's rail needs.
+
+- **R-auto-7 — no B10 work to revert.** Taken: nothing. Why: B10 never produced a file. The scout
+  was read-only, and the mount/identity blocker surfaced before any controller, registry edit,
+  `PREVIEW_MODES` flip or manifest change was written. Verified: `git diff febe8ee67..HEAD` touches
+  `registry.js` by **zero lines**, and the working tree is clean. The five notebook actions,
+  `PREVIEW_MODES` and `linkTicker` are exactly as they are on master. **H1: no card identity in
+  the DOM.**
+
+## ⛔ BLOCKED ON THE NOTEBOOK SIDE — what Increment 4 needs
+
+**One additive attribute on `NoteCard`'s root, carrying the note id:**
+
+    data-note-card-id={note.id}
+
+⛔ **NOT `data-note-id`.** That name is already taken by TipTap's inline note-LINK node inside note
+bodies (`app/src/pages/journal-2-0/lib/noteLinkNode.jsx:36-37`, which renders
+`{ 'data-note-id': attrs.noteId }` and parses `span[data-note-id]`). A hub selector on
+`[data-note-id]` would match every inline link in an open note as well as every grid card — the Q4
+selector would be ambiguous the day it was written, and it would silently over-count on exactly the
+screen where the cursor matters most.
+
+**Why it is needed.** `NoteCard.jsx` renders `<div className={styles.card}>` with no id-bearing
+attribute; the only per-note identity is `key={n.id}` at `NotebookTab.jsx:848`, and a React key
+does not render into the DOM. The hub can PAINT a cursor over cards (`useHubCursor.paintCursor`,
+the Morning Wire precedent for markup the hub does not own) but cannot learn WHICH note a card is —
+and the rulings require selection to write `?note=<id>` through `applyTargetToParams`, while
+`useHubCursor` requires an explicit identity key. Rejected workarounds: deriving identity from card
+title text (needs a hub-side fetch of the notebook's own list to map back to an id — a second
+authority, and titles are not unique); dispatching a synthetic click on the card (works, but
+bypasses `applyTargetToParams`, which is the thing Q2 exists to guarantee).
+
+## The 3.7a scout — STILL VALID, Increment 4 starts from it
+
+Verified 2026-09-10, all quoted from the tree at `febe8ee67`:
+
+- **The read** is `NotebookTab.jsx:62-63` — `const [searchParams, setSearchParams] = useSearchParams()`
+  / `const noteId = searchParams.get('note')`. Param name `note`, a raw string id; absent or unknown
+  is not handled at the read site (`noteId` is simply `null`).
+- **`clearNoteParam`** is `NotebookTab.jsx:365-369`, `{ replace: false }` → **push**. It fires when a
+  folder or tag is chosen from the sidebar while a note is open. `closeNote` (`:352-361`) is a
+  different function with the same shape plus three refreshes. Four `note` writers in that file:
+  `:340` set, `:355`/`:367`/`:387` delete.
+- **The seam is `applyTargetToParams(params, target)`** (`journal-2-0/lib/searchNavigation.js:86`),
+  a pure exported builder that DELETES `PARAM_DOC`/`PARAM_PAGE`/`PARAM_EXCERPT`/`PARAM_REVIEW`
+  before setting `PARAM_NOTE`. Hand-rolling `params.set('note', id)` would leave a stale
+  `?doc=&page=47` pointing into a different note.
+- **Other readers**: `journal-2-0/lib/captureContext.js:26` (`noteIdFromLocation`), `j2tabRedirect`
+  preserves the param, plus tests.
+- **The five actions** (`registry.js:393-447`): `newNote`/`linkTicker`/`templates` are `kind:'run'`
+  with no run body; `dailyPlan`/`postMortem` are `kind:'navigate'` to `?new=daily-prep` and
+  `?new=trade-review`, both **stable template keys** (`lib/notebookTemplates.js:19`), so those two
+  already work with no controller.
+- **Rulings Q1-Q8 stand**: push; use `applyTargetToParams`; `newNote`+`templates` write and the B4
+  manifest grows by one `POST /api/j2/notes`, `owner:'app'`, via `lib/noteCreation.js`;
+  `linkTicker` deferred (no symbol source on the route); `paintCursor` accepted with a selector
+  rail; no off-route guard, a rail instead; Home needs nothing; flip `PREVIEW_MODES` at the end.
+
