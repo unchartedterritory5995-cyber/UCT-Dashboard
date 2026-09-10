@@ -160,7 +160,7 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | **Gate split** | **`32706ecae`** — the drain traced from the flag (§21b rails), the blocked-entry gap moved to the flag-flip gate, the §15 search recorded |
 | **Pre-flight** | **`11f3e812f`** — merged master `3b043d0f8`, ledger row 9 (the `ImportWizard` load-sensitive timeout), packet SHAs refreshed. ⛔ Ran under **HOLD**: the directive's DECISION line arrived unfilled. |
 | **Branch tip** | `11f3e812f` **plus one docs-only commit stamping this table**. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
-| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` inside one session (OptionsFlow, then two docs-only). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
+| **`origin/master`** | ⛔ **MOVES — do not quote it, measure it.** Observed `78ac8016b` → `184a7e77b` → `3b043d0f8` → `590e88084` inside one session (OptionsFlow, docs, pattern-vision backend — none of it under `app/`). All merged in; the branch is **level with master** as of the last pre-flight. What is invariant, and what to actually check: **no commit above is an ancestor of `origin/master`**, and `OFFLINE_DEFAULT_ON` is `false` there. |
 
 ⛔ **Do not collapse these two into "the commit".** An earlier version of this
 doc said only *"Last Wave Q commit: `4fef130d9`"*, which was true when written and
@@ -406,7 +406,7 @@ only thing the revert restores is the old autosave behaviour.
 revert first. The failure mode of the gate is a refusal, and a refusal is not
 something to debug in front of members.
 
-## (d) The §15 canary script
+## (d) The §15 canary script — SCRIPT OF RECORD, accepted 2026-09-09
 
 ⛔⛔ **THE ORIGINAL §15 SCRIPT DOES NOT EXIST ANYWHERE REACHABLE. SEARCHED
 2026-09-09, AND THE SEARCH IS RECORDED SO NOBODY REPEATS IT:**
@@ -426,10 +426,17 @@ something to debug in front of members.
   `wave-q1-activation-canary-red.md`: *"Step 9 of the §15 happy path is reload /
   tab reopen"* and *"§15's ordering — open → edit → reload → recover"*.
 
-**So what follows is RECONSTRUCTED** from that fragment plus the certified
-Chrome 152 path. ⛔ **Check it against your own directive before running it** —
-the value of a canary is that it is run identically to last time, and this
-version cannot prove that it is.
+## ⭐ SCRIPT OF RECORD — accepted 2026-09-09
+
+**The owner read this script and accepted it as the script of record**, in the
+deploy directive of 2026-09-09, in place of the original that no longer exists.
+It was reconstructed from the surviving fragment above plus the certified
+Chrome 152 path; that provenance is kept because it is true, but the script is
+no longer provisional. **This is what runs.**
+
+⛔ It follows that a future session may not quietly "improve" it. A canary is
+only comparable to the last one if it is the same script — change it only with
+the owner's word, and record the change here.
 
 Preconditions: production, signed in, Chrome. The offline layer is off by
 default, so opt this browser in exactly as certification did:
@@ -504,11 +511,11 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 | | status |
 |---|---|
 | The canary defect is reproduced, fixed, mutation-proved | ✅ `4fef130d9` |
-| `journal-2-0` suite green | ⚠️ **231 files / 2391 — green AT REST** (9 consecutive runs). One load-sensitive TIMEOUT (`ImportWizard` audit-B1) appears when run straight after the full suite: 2,057 ms alone vs 4,179 ms under load, byte-identical to master, ledger row 9. **Not ours, and not banked.** |
+| `journal-2-0` suite green | ⚠️ **230 files / 2391 — green AT REST**, eleven consecutive runs. Under sustained load a POPULATION of timeouts appears (three different tests observed, all byte-identical to master) — ledger row 9. ⛔ Run the gate AT REST; a full-suite-then-journal-2-0 ordering manufactures failures that say nothing about the code. **Not ours, not banked.** |
 | The `??`-vs-truthy baseline defect fixed + railed | ✅ one authority, mutation-proved |
 | Backend baseline guarantee railed + mutation-proved | ✅ 14 tests, 2 mutations |
 | Full frontend suite green | ❌ **8 files red — all inherited, see `inherited-red-ledger.md`** |
-| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `origin/master` (`3b043d0f8`), and on the deployed artifact (read from the live bundle: `Fi=!1`) |
+| `OFFLINE_DEFAULT_ON` untouched | ✅ `false` on the reconciled branch, on `origin/master` (`590e88084`), and on the deployed artifact (read from the live bundle: `Fi=!1`) |
 | Reconciled with the current master | ✅ merged clean, 0 conflicts, 0 lines changed in the six fix files |
 | Mutations re-run post-merge | ✅ 4/4 red, controls green, restored |
 | Service worker untouched | ✅ |

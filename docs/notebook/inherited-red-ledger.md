@@ -39,7 +39,7 @@ as two separate numbers, always.
 | 5 | `src/components/chart/engine/ast/manifestProse.test.js` — "every key the product READS survives the strip" | manifest key `_session` | `b280131b8` (2026-08-29) | **No** — Pine manifest |
 | 6 | `src/components/chart/engine/ast/pine.blindCorpus.test.js` — "the accepted floor moves one way too" | 21 accepted vs `ACCEPT_FLOOR` 28 — a **ratchet threshold**, not a broken file | `b1a901970` (2026-09-04) | **No** — Pine corpus ratchet |
 | 7 | `src/pages/ThemeTrackerPage.chartmount.test.jsx` — 2 tests, "Unable to find an element with the text: AAPL" | `pages/ThemeTrackerPage.jsx` render path | test last touched `7adfdda2b` (2026-08-05) | **No** — Theme Tracker |
-| 9 | `journal-2-0/.../import/ImportWizard.test.jsx` — "surfaces a warning when the server could not check every note for duplicates (audit B1)" | ⚠️ **a TIMEOUT, not a defect** — 2,057 ms alone, **4,179 ms under sustained load**, then `Unable to find an element with the text: /1 note/i` | `521cd181a` (2026-09-05) *"fix(import): yield with MessageChannel — a chained setTimeout is clamped when hidden"* | **No** — Notebook import wizard, **byte-identical to `origin/master`** |
+| 9 | **A POPULATION of load-sensitive TIMEOUTS inside `journal-2-0`** — not one test. Observed so far: `ImportWizard.test.jsx` "audit B1" (4,179 ms) · `captureConvergence.test.js` "capture.js is the ONLY module that names the capture endpoint" (**28,705 ms**) · `NoteEditorPage`-adjacent "closing returns the dialog to nothing" (4,055 ms) | ⚠️ **TIMEOUTS, not defects.** Each passes alone; each fails only when run immediately after the full 16,928-test suite | `521cd181a` (2026-09-05, import) · `977c59bc3` (2026-09-08, Wave L capture) — **all byte-identical to `origin/master`** | **No** — import wizard / Wave L capture |
 | 8 | `src/components/chart/builder/ImportBox.thinkscript.test.jsx` — "it DECLINES while the box is one keystroke behind" | ⚠️ **line endings**: the committed test asserts `\r\n`, the code produces `\n` | `d4d5ec00f` (2026-09-01) | **No** — and likely **environment-specific**, see below |
 
 ## Two notes worth carrying forward
@@ -50,15 +50,23 @@ a Windows-checkout artifact (`core.autocrlf`), and it may well be green in a
 Linux CI. ⛔ Do not "fix" it by changing the code to emit CRLF — check the
 checkout first.
 
-**Row 9 is load-sensitive, and it is INSIDE journal-2-0 — which is why the
-wave's own gate has to be stated carefully.** It passes alone (27/27, twice)
-and passes in nine consecutive journal-2-0 runs at rest. It fails only when
-run immediately after the full 16,928-test suite, on a timeout: 2,057 ms solo
-against 4,179 ms under load. ⛔ **CLAUDE.md's rule applies — a timeout is
-never banked as permitted breakage**, and it was re-run alone before being
-classified. The file is byte-identical to `origin/master`, and the commit that
-last touched it is itself about timer clamping, so timing sensitivity here is
-pre-existing and known.
+**Row 9 is a POPULATION, not a test — and that distinction is the whole
+finding.** The first sighting looked like one flaky file (`ImportWizard`).
+Driving it again under the same load produced a DIFFERENT test
+(`captureConvergence`, 28.7 s), and a third run produced a THIRD
+("closing returns the dialog to nothing", 4.1 s). ⛔ Under sustained load,
+whichever test happens to be slowest exceeds its budget — so naming any one of
+them as "the flaky test" would be false, and "fixing" it would move the
+failure rather than remove it (`lesson_an_intermittent_red_can_be_a_population_not_a_test`).
+
+Every one of them passes alone, and journal-2-0 passes 2391/2391 in eleven
+consecutive runs at rest. Every file involved is byte-identical to
+`origin/master`. ⛔ **CLAUDE.md's rule applies — a timeout is never banked as
+permitted breakage** — and each was re-run alone before classification.
+
+⚠️ **What this costs:** the wave's gate cannot be a full-suite-then-journal-2-0
+run, because that ordering manufactures failures that say nothing about the
+code. Run journal-2-0 AT REST for the gate, and read the full suite separately.
 
 ⛔ **Report the wave's gate as "journal-2-0 green at rest"**, not as an
 unqualified green, until this is either given more time or made deterministic.
