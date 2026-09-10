@@ -115,10 +115,10 @@ property.**
 | | |
 |---|---|
 | Deploys #4 and #4b | ✅ still live, still flag-false. ⚠️ **#4b's round-2 fix was not the whole answer** — the metadata doors could discard queued words. |
-| Deploy #4c | ⛔ **NOT DEPLOYED.** Checklist running. No record here until it lands. |
+| Deploy #4c | ✅ **LIVE** — `6db8ba93a`, 2026-09-10T23:28:42Z. The four-door / content-decides fix. Flag unchanged. Record below. |
 | The flag flip | ⛔⛔ **BLOCKED**, and now on a defect that LOST DATA rather than duplicated it. |
 | The seven-run streak | ⛔ **DEAD AT RUN 1.** Restarts from zero, against #4c. |
-| Preserved artifacts | ⛔ **TWO forks now** — 16:54:50Z and 20:57:31Z. Note count **34**. See **R-K**. |
+| Preserved artifacts | ⛔ **TWO forks** — 16:54:50Z (a DUPLICATE) and 20:57:31Z (**a LOSS**). Their CONTENT is now recorded verbatim — see 🧾🔬 **THE PRESERVED FORKS** at the top, which is what releases the clean. Live notes: **35** (**R-Y**). |
 | Any "server holds text" check | ⚰️ **DELETED, not weakened** — see **R-O** and the annotation under PART A. |
 
 ---
@@ -259,7 +259,7 @@ sequences two writers is a race with a name.
 | **#3** | the opt-in denominator + `window_check.py` (`7ed6b2ce5`) | ✅ live |
 | **#4** | the self-fork fix, round 1 (`f093bf731`) | ✅ live — ⚠️ **narrowed, did not close** |
 | **#4b** | the self-fork fix, round 2 (`23f6ce271`) | ✅ live — ⚠️ **the metadata doors could still discard queued words** |
-| **#4c** | the four-door / content-decides fix (`998f802ae` on the branch) | ⛔ **NOT DEPLOYED — checklist running.** `<record to be written when it lands>` |
+| **#4c** | the four-door / content-decides fix (`6db8ba93a`) | ✅ live 2026-09-10T23:28:42Z — ⭐ **every check on ONE SHA**, so no honesty note was needed |
 | **#5** | ⛔ **the flag flip** — `OFFLINE_DEFAULT_ON = false → true` | ⛔ **NOT DEPLOYED, and BLOCKED.** `<record to be written when it lands>` |
 
 ⛔ **Each record carries its own checklist as checked AT PUSH TIME**, its
@@ -279,7 +279,7 @@ record into this table; the table is an index.
 | Harness integrity — identity, ports, controls | `docs/notebook/wave-q1-harness-integrity.md` |
 | The observation window's own record | `docs/notebook/wave-q1-observation-window.md` |
 | The 18 GB runaway backend pytest (**another session's process**, recorded so its evidence is not lost) | `docs/notebook/runaway-pytest-2026-09-10.md` |
-| ⛔ **The preserved forks** — TWO `(conflicted copy)` notes, 16:54:50Z and 20:57:31Z | **live production data.** Note count **34**. See **R-K** — 32 is only reachable by deleting evidence. |
+| ⛔ **The preserved forks** — their CONTENT, verbatim (ids, bodies, timestamps, tags) | 🧾🔬 **THE PRESERVED FORKS** at the top of this file. ⛔ **This record REPLACES the artifacts** once they are cleaned. Live notes **35** (**R-Y**); the capture is `.worktrees/q1-dry-run/fork-capture-20260910T233538Z.json`. |
 
 ⭐ **Instruments, not prose:** `tools/window_check.py` (one command = one stamped
 row) · `tools/engine_matrix.py` · `tools/deploy_scope_gate.py` +
@@ -1234,7 +1234,7 @@ starting state of every run in the streak rather than only its verdict.
 
 ---
 
-# 🧾 ROUND-2 RULINGS — R-A … R-R
+# 🧾 ROUND-2 RULINGS — R-A … R-R, plus R-X … R-Z
 
 ⛔ **Lettered, not numbered, on purpose.** R1–R16 belong to the deploy-#4 round;
 these belong to the round that followed the root cause. Mixing the sequences
@@ -1495,8 +1495,8 @@ has not been lifted.** Any run, matrix or checklist that targets 32 is asking to
 be "corrected" by someone tidying up an artifact that is still the only physical
 record of the defect reproducing in production.
 
-**Every future run and the matrix target the CURRENT count — 34 as of
-2026-09-10T21:05:00Z.**
+**Every future run and the matrix target the CURRENT count — 35 as of
+2026-09-10T23:40:00Z (R-Y — it was 33, then 34, then 35).**
 
 ⭐ **Recorded precisely so nobody "corrects" the number later.** A baseline that
 drifts by one is exactly the kind of discrepancy a helpful reader fixes on sight
@@ -1705,6 +1705,100 @@ fastest one, the one that ended with the right party making the decision.
 
 ---
 
+⚠️ **THE LETTERS SKIP: `R-S` … `R-W` ARE NOT IN THIS FILE, AND THAT IS NOT AN
+ERROR.** They belong to other streams and to the coordinator. `R-S` is on the
+branch as `1f7cfd500` — *"lock the tree while it is measured, and fix a rail that
+guarded the wrong party"* — and `R-W` (the freeze/release) is cited by the deploy
+#4c record below. ⛔ **Do not renumber to close the gap**, and do not restate a
+ruling whose text this file has never held: a citation you cannot quote is struck.
+
+⛔ **R-X … R-Z are logged `2026-09-10T23:40:00Z`.** R-X and R-Y come out of the
+fork capture; R-Z is attributed to a peer session.
+
+## R-X — a TAG describes what HAPPENED to a note, never WHO MADE IT
+
+**Decision: the cleanup's delete set is selected by TITLE only.**
+
+The cleanup selected live notes by **canary title OR the tag `sync-conflict`**.
+**Two notes carrying that tag are THE OWNER'S:**
+
+```
+a09fc55abc024cfabc067f502ad13aa0  "To Do List"                  2026-09-04
+ff547947888e45579a86a9ab81be4894  "To Do List (synced copy)"    2026-09-04
+```
+
+Both sit **INSIDE the 32-note baseline**, and both are **the pre-existing pair
+this wave was explicitly asked to identify and not touch.**
+
+⛔⛔ **THE CLEANUP WOULD HAVE SOFT-DELETED A MEMBER'S OWN NOTES TO MAKE A COUNT
+COME OUT RIGHT.** That is the sentence to keep. The tag `sync-conflict` records
+*what happened to* a note — it says nothing about who wrote it, and using it as a
+proxy for authorship is the same substitution the drain made when it read "ours"
+as permission to delete.
+
+⭐ **Authorship is the title the tool wrote, and nothing else.** Fixed to
+title-only, **driven by three cases carrying those two real ids and titles
+verbatim** — including one where they sit **beside real artifacts and only the
+artifacts are selected**, which is the case that proves the selector still works
+rather than merely refusing everything.
+
+⭐⭐ **IT WAS CAUGHT BECAUSE THE CAPTURE RAN BEFORE THE CLEAN.** That ordering was
+insisted on for a different reason entirely, and **paid for itself on its first
+outing** — the general form being that a read-then-write ordering buys you a
+chance to notice, and a write-then-read ordering buys you a postmortem.
+
+## R-Y — the account holds **35** live notes, not 34, and the instruction was wrong
+
+**Decision: the count is DERIVED from the capture, not from a sentence.**
+
+Streak run 1's **ORIGINAL** (`66708b88…`) is **LIVE** — it had been recorded as
+trashed. So:
+
+> **35 = 32 baseline + 3 canary artifacts.**
+
+⭐ **Stream B did not act on the discrepancy**, and that is the ruling:
+
+> ⛔ **"A disagreement about state is not reconciled by acting on it."**
+
+⚰️ **This is R-K amended a second time** — 33 → 34 → 35 — and the drift is the
+point, exactly as R-K said it would be: a target typed once and trusted is wrong
+by construction. ⛔ **Read the count from the capture.** Every number in this
+paragraph will be wrong the moment the preserved artifacts are cleaned, and the
+correct response then is to re-derive it, not to edit it to taste.
+
+## R-Z — absence of evidence resolves to KEEP, never to discard
+
+**Attributed to `patrick-c7`.**
+
+On the rule12 rail that two sessions each fixed one instance of:
+
+> *"between us that rail now knows three things it did not know this morning:
+> where it is running, whose branch it is on, and whether it has a subject at
+> all."*
+
+⭐ **Each of us fixed an instance; neither saw the CLASS until the other's failure
+exposed it.** That is the argument for writing a defect down as a *shape* rather
+than as an incident — and for reading the other session's write-up.
+
+**And its generalisation of #4c's invariant, which is the better statement of it:**
+
+> ⛔⛔ **"A queued entry is never removed unless the server body is PROVEN to
+> contain its content"** and **"an absent measurement is never a pass"** are **the
+> same rule**.
+>
+> **ABSENCE OF EVIDENCE RESOLVES TO KEEP, NEVER TO DISCARD.**
+>
+> ⭐ **Deleting on "probably fine" and passing on "nothing failed" are one mistake
+> in two costumes.**
+
+⭐ **Adopt R-Z's phrasing as the wave's statement of the invariant.** The version
+in the CLOSE section is the product-specific instance; this is the rule it is an
+instance of, and it is the one that also covers **R-Q** (an OOM-killed run that
+prints nothing is not a pass) and **R-X** (a tag that does not prove authorship is
+not permission to delete).
+
+---
+
 # 🚨 THE SELF-FORK, AS FOUND — 2026-09-10
 
 **A SINGLE-WRITER OFFLINE SESSION FORKS ITS OWN NOTE.** Found by the compressed
@@ -1815,18 +1909,42 @@ for members" one) and the post-flip §15 canary are in **🔀 THE FLIP ITSELF** 
 
 ---
 
-# ⛔ DEPLOY #4c — THE FOUR-DOOR / CONTENT-DECIDES FIX — **NOT DEPLOYED**
+# ✅✅ DEPLOY #4c — THE FOUR-DOOR / CONTENT-DECIDES FIX — 2026-09-10T23:26:13Z, LIVE 23:28:42Z
 
-**Fix committed on the branch as `998f802ae`; its checklist is running.** ⛔ This
-section is a **placeholder** — no record is written until it lands, and the
-checklist values below are **blank on purpose** rather than optimistically filled.
+**`6db8ba93a` is on `master` and live.** ⛔ `OFFLINE_DEFAULT_ON` is **still
+`false`** on the branch **and** on `master` — #4c is the **fix**, not the flip.
 
 | | |
 |---|---|
-| pushed | `<pending>` |
-| live | `<pending>` |
-| master after | `<pending>` |
-| flag | expected **`false`** — #4c is the fix, not the flip |
+| pushed | `258c5609d..6db8ba93a` on `master`, **2026-09-10T23:26:13Z** |
+| live | **2026-09-10T23:28:42Z** — uptime **1890 → 29** |
+| master after | `6db8ba93a` |
+| bundle | entry `index-oA59BqtD.js` → `index-3fsyskgR.js` · Notebook chunk `NotebookTab-6d3RPQPD.js` |
+| flag | `OFFLINE_DEFAULT_ON = false`, branch and master |
+| freeze | requested ~**22:5x Z**, **RELEASED 23:29Z after ONE push** — see **R-W** |
+
+⚠️ **`R-W` is the freeze/release ruling and its text is NOT in this file** — it
+belongs to the coordinator. ⛔ Recorded here as a pointer, not paraphrased: a
+citation this file cannot quote is struck, not softened.
+
+## Verified on the LIVE BUNDLE — 14/14 PASS
+
+⭐ **Read on the artifact, not on the source default.** The reads that matter,
+because each names a mechanism this wave built:
+
+```
+inflight:                 the in-flight marker key           (guard 1, R-A)
+landed:                   the landed-revision ring           (R-C)
+rebased onto              guard 2 keeps the words            (FIX 2)
+removed, not forked       the terminal supersede             (FIX 2)
+flag                      !1  — off when the key is unset    (§21)
+setContent bare boolean   count 0                            (EMIT_NOTHING, R9)
+```
+
+⭐ **`setContent` bare-boolean count 0 is the one worth pausing on** — it is the
+compiled proof that `EMIT_NOTHING` is still the only thing passed to
+`setContent`, which is the guard **R9** pinned by literal after a mutation found
+nothing to break.
 
 **What it carries** (full reasoning: **⛔⛔⛔ HARD STOP #2** at the top):
 
@@ -1844,24 +1962,40 @@ checklist values below are **blank on purpose** rather than optimistically fille
 - **R-O's replacement check** — *"the server BODY CONTAINS THE OFFLINE SENTENCE"* —
   in `window_check.py`, `engine_matrix.py` and step 10 of the script of record.
 
-**Checklist — to be recorded AS CHECKED AT PUSH TIME:**
+## The checklist, as checked AT PUSH TIME — ⭐⭐ ALL ON ONE SHA
 
-| # | check | result |
+| # | check | result at push time |
 |---|---|---|
-| 1 | three-tier gate resolved, 0 behind at the final re-fetch | `<pending>` |
-| 2 | zero-line check on every guarded file | `<pending>` |
-| 3 | `journal-2-0` at rest, alone | `<pending>` |
-| 4 | backend Q1 rails | `<pending>` |
-| 5 | full frontend suite — failures **vs baseline**, NEW regressions, tree hash start→end, file count reconciled | `<pending>` |
-| 6 | every Wave Q1 rail by name (the gauntlet's control) | `<pending>` |
-| 7 | `tools/q1_mutation_gauntlet.py` — every declared mutation reddening its own rails, control green before AND after | `<pending>` |
-| 8 | `tools/verify_memory_pointers.py` | `<pending>` |
-| 9 | flag state | `<pending>` |
-| 10 | member-impact paragraph | `<pending — owner-approved wording, recorded verbatim>` |
+| 1 | three-tier gate — 0 behind at the final re-fetch, **under freeze** | ✅ **0 behind** |
+| 2 | `journal-2-0` at rest, alone | **238 files / 2504 tests green** |
+| 3 | backend Q1 rails — **SCOPED**, never repo-wide (**R-R**) | **25 passed** |
+| 4 | full frontend suite | **1242 files / 18346 tests** · **0 NEW vs baseline** · **tree hash identical** start→end |
+| 5 | every Wave Q1 rail by name | **22 files / 240 tests** |
+| 6 | ⭐ the **property rail** — `offlineWordsSurvive.property.test.jsx` | **19/19** |
+| 7 | `tools/q1_mutation_gauntlet.py` | **PASS** — ⛔ read the total from the tool |
+| 8 | `tools/verify_memory_pointers.py` | **exit 0** |
+| 9 | flag state | **`false`** on branch and master |
+| 10 | live-bundle reads | **14/14 PASS** — see above |
 
-⛔ **And the honesty note, if it applies:** if the full suite is measured at a SHA
-other than the tip that ships, **say so plainly and name the delta** — as #4 and
-#4b both did. A gap that shrinks is still a gap.
+⭐⭐ **EVERY CHECK RAN ON ONE SHA — so R-J's honesty note was NOT needed here, and
+that is the first time in this wave.** #4 and #4b both had to state a gap between
+the SHA the suite measured and the tip that shipped. This one has none, so there
+is nothing to disclose — ⛔ and the absence of the disclosure is itself the claim:
+*there was no gap*, not *nobody looked*.
+
+⛔ **Row 4 is still not a green suite.** *"0 NEW vs baseline"* is the only claim
+available; the inherited reds are unchanged and journal-2-0 and the full suite
+remain **two separate numbers**.
+
+⭐ **Row 6 is the row that did not exist for #4 or #4b.** The property rail is the
+rail both earlier fixes lacked — three doors × six orderings asserting only that
+the offline sentence reaches the server body and the note count does not move.
+Its control drives the shipped defect and **requires** the property to fail.
+
+⭐ **The freeze was requested, used once, and released.** ~22:5x Z → **23:29Z**,
+**one push**. That is the shape a freeze should have: taken for a named window,
+spent on a single action, and given back — not held because it was convenient
+(**R11**, **R-P**).
 
 ---
 
@@ -2389,7 +2523,7 @@ now cannot until the reproduction is explained.
 | The `null` baseline | ⏳ **instrumented, not explained** — the instrument is DEPLOYED (deploy #2, denominator in #3); what is still missing is an explanation, not a shipment |
 | The self-fork | ⚠️ **round-1 fix DEPLOYED** — #4 (`f093bf731`), 16:46:28Z — ⛔⛔ **it REPRODUCED at 16:54:50Z**; ✅ **round-2 fix DEPLOYED** — #4b (`23f6ce271`), 20:36:29Z. Flag unchanged by both. ⛔ Not closed: the streak restarts from zero against #4b. |
 | The root cause | ✅ **FOUND** — guard 1 wired only into `restoreDraft`, never into `commitSave`; guard 2 shares a precondition with it, so the two are one. See the HARD STOP at the top. |
-| The round-2 fix | ✅ **SHIPPED** — deploy #4b, `23f6ce271`, live 2026-09-10T20:36:29Z. Design: **R-A**. Record: **✅✅ DEPLOY #4b**. |
+| The round-2 fix | ✅ **SHIPPED** — #4b `23f6ce271` (20:36:29Z), then ✅ **#4c `6db8ba93a` (23:28:42Z)** — the four-door / content-decides fix. |
 | The note baseline | ⚠️ **33, not 32** — 32 plus the ONE preserved `(conflicted copy)`. ⛔ 32 is only reachable by deleting evidence. See **R-K**. |
 | ⛔⛔ **The flag flip** | ⛔⛔ **BLOCKED** on that reproduction. Not "next", not "pending the window". |
 | The seven-run streak | ⛔ **STOPPED AT 3.** Restarts from zero, not from three, and against the round-2 fix. |
@@ -4634,14 +4768,16 @@ FIRST — the member's words were LOST; the fix is committed, ⛔ NOT deployed) 
 FINAL DESIGN (R-A)** (shipped as **#4b**, and #4b was not the end) · ⛔ **DEPLOY
 #5** and ⛔ **DEPLOY #4c** (placeholders — neither deployed) · ✅✅ **DEPLOY #4b**
 then ✅✅ **DEPLOY #4** (⚠️ both annotated, neither rewritten) · 🧾 **RULINGS**
-R1–R16 and 🧾 **ROUND-2 RULINGS** R-A…R-R · ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
+R1–R16 and 🧾 **ROUND-2 RULINGS** R-A…R-R + R-X…R-Z (⚠️ R-S…R-W are other streams') ·
+🧾🔬 **THE PRESERVED FORKS** (the evidence set that replaces the artifacts) ·
+⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
 ⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not
 indicated — every shipped deploy stays).
 📄 **Standalone records:** `docs/notebook/inherited-red-ledger.md` ·
 `docs/notebook/runaway-pytest-2026-09-10.md` (**R-P**) ·
 `docs/notebook/wave-q1-browser-certification.md` + `wave-q1-probe-results/`.
-⛔ **The note baseline is 34, not 32** (**R-K**) — 32 + TWO preserved forks. Do not
-"correct" it.
+⛔ **Live notes: 35** (**R-Y**) — 32 baseline + 3 canary artifacts. ⛔ **DERIVE it from
+the capture, never from a sentence**; it has moved 33 → 34 → 35.
 ⛔ **"Server holds text" is DELETED everywhere** (**R-O**) — the check is *the
 server BODY CONTAINS THE OFFLINE SENTENCE*.
 
