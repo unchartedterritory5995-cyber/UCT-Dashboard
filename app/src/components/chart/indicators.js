@@ -1154,6 +1154,28 @@ const ET_CLOCK_PARTS = new Intl.DateTimeFormat('en-US', {
 const CLOCK_INTRADAY_TFS = ['1', '5', '15', '30', '60']
 const CLOCK_TIMEFRAMES = [...CLOCK_INTRADAY_TFS, 'D', 'W', 'M']
 
+/** The four timeframe booleans for a code — or `null` when the code is unknown.
+ *
+ *  ⛔ ONE DERIVATION, TWO READERS. `computeClock` writes these into columns, and
+ *  the BIND STAGE folds a timeframe-conditional length with them
+ *  (`bind.js::bindingConstants`). A second place that decided what `isweekly`
+ *  means would be a second authority over a value both lanes compare — and the
+ *  two would disagree on exactly the day someone added a timeframe to one.
+ *
+ *  ⛔ `null` FOR AN UNKNOWN CODE, NEVER A GUESSED DEFAULT. A guessed `isdaily`
+ *  is a confident 1 on a 5-minute chart: a wrong answer wearing a right one's
+ *  clothes. The callers fail closed on `null` — blank columns for the clock, an
+ *  unfolded length for the bind stage. */
+export function timeframeFlags(tf) {
+  if (!CLOCK_TIMEFRAMES.includes(tf)) return null
+  return {
+    isintraday: CLOCK_INTRADAY_TFS.includes(tf),
+    isdaily: tf === 'D',
+    isweekly: tf === 'W',
+    ismonthly: tf === 'M',
+  }
+}
+
 /** The eight columns that read the bar's `t`, and therefore the eight the unit
  *  gate below refuses together. Derived from nothing: it IS the partition, and
  *  `computeClock` reads it in both directions so the two halves cannot drift. */
@@ -1258,11 +1280,11 @@ export function computeClock(bars, tf, newestBarIsForming = null) {
 
   // The timeframe half reads no bar at all, so it is decided ONCE and written
   // flat. `known` is a membership test over the declared codes — never a parse.
-  const known = CLOCK_TIMEFRAMES.includes(tf)
-  cols.isintraday.fill(known ? (CLOCK_INTRADAY_TFS.includes(tf) ? 1 : 0) : NA)
-  cols.isdaily.fill(known ? (tf === 'D' ? 1 : 0) : NA)
-  cols.isweekly.fill(known ? (tf === 'W' ? 1 : 0) : NA)
-  cols.ismonthly.fill(known ? (tf === 'M' ? 1 : 0) : NA)
+  const flags = timeframeFlags(tf)
+  cols.isintraday.fill(flags ? (flags.isintraday ? 1 : 0) : NA)
+  cols.isdaily.fill(flags ? (flags.isdaily ? 1 : 0) : NA)
+  cols.isweekly.fill(flags ? (flags.isweekly ? 1 : 0) : NA)
+  cols.ismonthly.fill(flags ? (flags.ismonthly ? 1 : 0) : NA)
 
   // `barindex` is the loop counter and nothing else. It is HERE rather than in
   // `interpret` so the clock has ONE owner: a second place that knew what bar

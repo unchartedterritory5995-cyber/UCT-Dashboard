@@ -90,6 +90,17 @@ import {
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
 import { interpret } from './ast/interpret'
+// ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
+// `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
+// so a timeframe-conditional length refused at the door and nothing ever folded
+// it. This is where it stops being unwired.
+// ⛔ IT BELONGS HERE AND NOT AT THE DOOR. `translatePine` runs at SAVE time, with
+// no symbol and no timeframe, so folding there would bake ONE binding's answer
+// into a shared definition — and `foldBound`'s header names the cost: the next
+// symbol folds it differently, so the second symbol of a sweep would inherit the
+// first's lengths. That shows as a WRONG NUMBER, not an error.
+import { foldBound, bindingConstants } from './ast/bind'
+import { timeframeFlags } from '../indicators'
 import { checkBudget } from './ast/budget'
 import { lintRepaint, declaredInputs } from './ast/lint'
 import { freshnessFor } from './ast/freshness'
@@ -1203,6 +1214,25 @@ export function columnErrors(columns) {
 function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
+  // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
+  // into the integers THIS binding needs. `Uncharted Volume` line 233's
+  // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
+  // daily one — measured against the vendor on 2026-09-10 (job B: `fold==sma20`
+  // on 400/400 daily bars, `fold==sma5` on 400/400 weekly).
+  // ⛔ COMPUTE-SCOPED AND DISCARDED. `foldBound` returns a NEW tree and mutates
+  // nothing, and `bound` is a local — the SAVED definition stays symbolic, which
+  // is the only thing that keeps the next binding free to fold it differently.
+  // ⛔ AN UNFOLDABLE LENGTH IS LEFT EXACTLY AS IT WAS, never guessed: the window
+  // check downstream then refuses the member's own expression, naming the field
+  // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
+  // returns null rather than a default, because a guessed `isdaily` is a
+  // confident wrong length.
+  const bindConsts = bindingConstants({
+    timeframe: timeframeFlags(ctx && ctx.tf),
+    inputs,
+    symbol: ctx && ctx.sym,
+  })
+  const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
   // MACD's three lines are three trees, not one column reshaped. The single-tree
@@ -1275,7 +1305,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // would allocate for nothing and read as a column that computed.
       // The REASON is preserved instead — see `columnErrors`.
       try {
-        out[key] = interpret(trees[key], bars, inputs, def.compute.budget,
+        out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
           // the same way. `ctx` absent -> `null` -> UNKNOWN -> the four
           // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
@@ -1312,7 +1342,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
   return {
-    [keys[0]]: interpret(def.compute.ast, bars, inputs, def.compute.budget,
+    [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
       undefined, { tf: ctx && ctx.tf,
         newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null }),
   }
