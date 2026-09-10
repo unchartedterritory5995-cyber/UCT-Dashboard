@@ -123,3 +123,100 @@ mutation-proved. The unrailed set is six items, five of them one test each.
 `PREVIEW_MODES` and flagged 23 healthy actions; the next looked up controllers by handled-id prefix
 and still flagged `wire`, because `wireSection.js` matches by SUFFIX and never contains the string
 `'wire.`. **A rail that cries wolf gets muted, and a muted rail is worse than none.**
+
+## Landed since the last report
+
+- **`scripts/mutate.py` + `tests/test_mutate.py`** (`f05a164f2`) — the tool that closes the
+  false-green mutation class. A mutation asserts its own match count BEFORE it writes; the search
+  text is normalised to the FILE's line endings; `revert --verify-clean` proves byte-identity with
+  git HEAD. Dogfooded on the real CRLF `HubChip.jsx` with LF snippets: applied, 3 named tests went
+  red, reverted byte-identical. 9 rails, two of them rule-14 controls proving the git call HAPPENED.
+
+- **`app/src/hub/mirrorsAsAUnit.test.jsx`** — §C2:769, "moves the pad, the fan quadrant and the
+  chip as a unit". Before this, mirroring had ONE assertion in the whole suite
+  (`hubComponents.test.jsx:249`, `<HubPad mirrored />` alone) against SEVEN mirror-aware
+  components. ⭐ The defect it exists for is in none of them: every component mirrors correctly in
+  isolation, and `HubRoot` hands `mirrored` down seven separate times — dropping one strands the
+  chip on the wrong edge with every component test still green. Two halves that fail for different
+  reasons: a real `HubRoot` render asserting every edge-anchored element picks the SAME edge in
+  both handedness settings, and a source derivation requiring `HubRoot` to pass `mirrored` to every
+  mirror-aware component (derived, never typed, so tomorrow's component is covered today).
+  Two identity attributes added to carry it: `data-testid="hub-chip"` and `"hub-fan-wedge"`, the
+  same idiom `HubPad`/`HubEdgeTab` already use.
+
+- **`app/src/hub/reducedMotion.test.js`** — and the measurement changed what it asserts.
+  `hub.module.css:180` looked like the hub's reduced-motion protection. It is not: `tokens.css:650`
+  declares a UNIVERSAL `*, *::before, *::after` reset zeroing animation- and transition-duration
+  with `!important`, which outranks the hub's block on every property it sets. So the hub's block
+  is a FALLBACK, and a rail watching only it would stay green while someone scoped or deleted the
+  reset that does the actual work. The rail pins the universal reset (with a control proving a
+  SCOPED reset fails the check) and separately keeps the fallback complete by DERIVING the animated
+  class set each run — 5 of 5 covered today, fails by name on the sixth.
+  Also measured so the file's scope is honest: the hub drives **no motion from JavaScript** — no
+  rAF, no timer-driven animation; `useJoystick`'s two `setTimeout`s are the hold-to-home and
+  double-tap GESTURE windows, which are input timing and must never be shortened for reduced
+  motion. If a rAF animation is ever added, this rail does not cover it.
+
+## ⛔ WINDOW-JOB STATE — 2026-09-10 17:30 ET
+
+**INCREMENT 3 IS LIVE.** Merged `--no-ff` as `0179079d5`, pushed to master 17:25:46 ET Thursday.
+Deploy confirmed BY THE ARTIFACT, not by the push succeeding: `/api/health` uptime reset
+3069s -> 19s at 17:28:57 ET, `status: ok`. Manifest of record
+`docs/plans/joystick/gate-runs/2026-09-10T16-21-50.md` (banked in `43be47f82`): HEAD `e660041c8`
+rebased onto master `23f6ce271`, recorded identical start and end, 1215 test files on disk
+reconciling with the summed shard total, 10 failing vs a baseline of 10, **0 NEW**, failing set
+matching the baseline exactly. Master gate on the merge commit is running in a detached worktree;
+the branch and backup refs are deleted only after it is green.
+
+⭐ **Why it shipped Thursday evening rather than at the armed 07:08 Friday job.** The owner's
+ruling was "one lap, then hold for tomorrow's pre-09:00 window" — that lap was burned inside the
+requested 16:05-17:00 freeze, master moved twice anyway (`3c8e5126a`, then `23f6ce271`), and the
+increment was correctly held. The freeze hour then ENDED, opening a fresh window at 17:00 with the
+standing order's own rule in force: every window that opens with a gate-clean increment waiting
+gets used, and idle is a bug. The rebase onto `23f6ce271` and its gate were run as BUILD work
+inside that new window; master did not move during them; all seven deploy conditions held at
+17:25. Shipping then also removed the risk the owner's own clarification was written about — a
+Friday-morning gate or rebase lap pushing the actual push past the ~08:15 cutoff and crowding the
+market open. The overnight soak before Friday's open is a bonus, not the argument.
+
+**Cron `bdf9867f` is armed for 06:08 CT / 07:08 ET Friday, and it is now INCREMENT 4's window.**
+It carries base hash `0179079d5`, both branch tips, the seven conditions, the ~08:15 hard cutoff,
+and an explicit warning not to re-deploy Increment 3.
+
+### Next in the pipeline
+
+- **Increment 4** (`feat/joystick-increment-4`, tip `80d147a6f`) — gate-clean on an OLD base. It
+  still carries Increment 3's commits, which drop out on rebase now that they are in master. Needs
+  a rebase onto current master and a fresh gate before it can ship. NOT shipped tonight on purpose:
+  Increment 3 deployed four minutes earlier, and a window needs room for a second blip — spending
+  that blip on another increment spends Increment 3's rollback headroom.
+- **Increment 5** — building. All six of the done-ness scout's SHIPPED-BUT-UNRAILED items are now
+  closed (coach mark, ring name, `highContrast` writer, mirroring as a unit, reduced motion,
+  tapHint↔onTap). Remaining core: the three section controllers (Chart, Catalysts, Calendar) and
+  the two accessibility features (two-finger Peek, native range-input scrub).
+
+### R-auto — 3.5 Chart: what the preview flip costs, decided before building
+
+Measured 2026-09-10: `chart` is still in `PREVIEW_MODES`, and `chart.compare` / `chart.logTrade`
+are both `kind: 'run'` with **no `run` handler**. They pass `runActionsHaveHandlers.test.js` today
+only because the projection hides them — the same standing-on-borrowed-time position `home` was in
+before its `onTap` landed, and byte-for-byte the `breadth.sizeRule` / `breadth.snapshot` shape that
+B2 REMOVED rather than shipped.
+
+⛔ **A mode removed from `PREVIEW_MODES` gets its FULL fan the same render.** So the moment 3.5's
+controller ships, both actions become live bubbles that answer a deliberate gesture with silence —
+`HubRoot` does `Promise.resolve(action.run?.(ctx))`, and on `undefined` that resolves quietly: no
+throw, no warn, no toast. Decided now, so it cannot be discovered at flip time:
+
+- **`chart.compare` is DROPPED, not deferred.** Its only write path is `setComparison` on
+  `chartApiById`, whose sole caller `CompareSymbolsPanel` mounts at `ChartsWorkspace.jsx:2811` —
+  *after* the `if (isMobile)` return at `:2224`. Every viewport that passes the hub gate
+  (`useHubActive.js:84`, coarse pointer ≤1023px) also passes `isMobile` with no gap, so the panel
+  **structurally cannot mount on any viewport the hub runs on**. This is not a missing handler; it
+  is an action with no reachable implementation on its own surface.
+- **`chart.logTrade` ships a handler or it is dropped in the same commit.** The hub already owns
+  `PlanTradeSheet.jsx`, so the seam exists; it is a wire, not a build. Ties to R-8
+  (`journal.planTrade`) — one sheet, one authority, never a second opinion in a gesture handler.
+- 3.5 targets `MobileChartsApp` only and must **no-op in phone grid mode**. `stepBar(dir)` is
+  confirmed reachable (`StockChart.jsx:14672` via `ChartPane.jsx:633`); ⛔ `onTfChange` is a
+  NOTIFICATION, not a setter, so nothing may drive the timeframe through it.

@@ -77,31 +77,6 @@ export function resolveBreadthTabs(isAdmin) {
   return isAdmin ? [...BREADTH_TAB_ITEMS, ...BREADTH_ADMIN_TAB_ITEMS] : BREADTH_TAB_ITEMS
 }
 
-/**
- * ⛔ THE TWO MOUNTED CONSUMERS CALL `onScrub` WITH DIFFERENT ARGUMENTS.
- *
- *   `HubRoot.jsx:147`                -> `onScrub(ctx, {delta, axis})`  (registry.js's HubMode JSDoc)
- *   `contracts.js` HubSectionConfig  -> `onScrub({delta, axis})`       (and `phase3Contracts.test.jsx`
- *                                                                      wires the real engine that way)
- *
- * Binding to one of them makes the section work in the suite and do nothing on the page, or the
- * reverse — the exact severed-wire class `contracts.js` was written after Phase 2 to end, and it
- * is invisible to BOTH sides' unit tests. So the payload is IDENTIFIED rather than positioned:
- * the scrub is the argument carrying a finite numeric `delta`. Filed for the Director as R-05
- * in `docs/plans/joystick/requests.md`; until one signature wins, this reads either.
- *
- * @param {unknown[]} args
- * @returns {{delta: number, axis: 'x'|'y'}|null}
- */
-export function scrubPayloadOf(args) {
-  for (const a of args) {
-    if (a && typeof a === 'object' && typeof a.delta === 'number' && Number.isFinite(a.delta)) {
-      return /** @type {{delta: number, axis: 'x'|'y'}} */ (a)
-    }
-  }
-  return null
-}
-
 const clamp = (n, lo, hi) => (n < lo ? lo : n > hi ? hi : n)
 
 /**
@@ -172,12 +147,31 @@ export function createBreadthSection({ tabs, activeTab, setActiveTab, scrubRef }
     // Applying every intermediate index of one drag would mount and tear down two or three
     // chart libraries per gesture and quietly burn a shared link on the way past. What the
     // member reads while dragging is the chip — which is precisely what `readout` is for.
-    onScrub: (...args) => {
-      const scrub = scrubPayloadOf(args)
+    // ⛔ CONTEXT FIRST, AND NO NORMALISER. `HubRoot.jsx` calls `onScrub(ctx, scrub)`;
+    // `contracts.js` says the same; `contractArity.test.js` DERIVES that from the call site
+    // rather than restating it, so the three cannot drift apart again.
+    //
+    // ⚰️ This used to run every argument through a `scrubPayloadOf(args)` shim that picked
+    // whichever one carried a finite numeric `delta`, because the typedef and the mounted caller
+    // disagreed (R-05). They no longer do — the Director settled it on `(ctx, scrub)`. Breadth was
+    // the LAST section still carrying its shim; wire, screener and journal deleted theirs when the
+    // ruling landed. A defensive read against a bug that no longer exists is itself a defect: it
+    // teaches the next reader the seam is still ambiguous, which is what made two integrators
+    // build one each in the first place.
+    onScrub: (_ctx, scrub) => {
       // Horizontal only (plan §3.2). The engine reports the DOMINANT axis of each individual
       // move, so a mostly-sideways drag still emits the occasional 'y'; counting those as tab
       // movement would make the gesture drift under an unsteady thumb.
-      if (!scrub || scrub.axis !== 'x' || count === 0) return
+      //
+      // ⛔ THE FINITE CHECK IS NOT INHERITED — it came out with the shim, and it goes back in
+      // here. `scrubPayloadOf` tested `Number.isFinite(a.delta)` as part of IDENTIFYING the
+      // payload, so deleting it silently deleted the guard too. Without it a NaN delta reaches
+      // `clamp(pos + NaN)` -> NaN -> `Math.round(NaN)` -> `tabs[NaN]` -> undefined, which the
+      // commit then treats as "a hold that never moved" — the gesture dies quietly instead of
+      // clamping, and `scrubRef` is left holding a NaN position for the next move to compound.
+      // Same guard wire/screener/journal each write out (`wireSection.js:239`).
+      if (!scrub || typeof scrub.delta !== 'number' || !Number.isFinite(scrub.delta)) return
+      if (scrub.axis !== 'x' || count === 0) return
       const from = scrubStart()
       const pos = clamp(from.pos + scrub.delta, 0, 1) // clamps both ends; an overshoot is normal
       scrubRef.current = { fromKey: from.fromKey, pos, index: Math.round(pos * (count - 1)) }

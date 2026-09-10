@@ -327,8 +327,30 @@ a surprise.
 
 ### 3.8 Home (`home`) — route `/dashboard`
 
-Tap → Screener, double-tap → Journal (already true in the preview). Phase 3 adds the scrub
-(recent sections) and restores `Calendar` to the inner ring alongside `Wire`.
+⚰️ **STRUCK — three of this line's four claims were measurably false.** It read:
+
+> ~~Tap → Screener, double-tap → Journal (already true in the preview). Phase 3 adds the scrub
+> (recent sections) and restores `Calendar` to the inner ring alongside `Wire`.~~
+
+The spec is the authority and it says something else. **§C3:905: "Primary: last-used section.
+Reverse: Morning Wire."** Not Screener, and not Journal — and the difference is not cosmetic:
+§C3 goes on to REJECT defaulting Primary, on the stated grounds that a new account would have
+Primary and Reverse firing the same destination, "which reads as a bug rather than a design".
+
+⭐ **The parenthetical was the worst of the three.** "(already true in the preview)" described a
+gesture that could not exist: `homeSection.js`'s own header said `TAP IS DELIBERATELY NOT WIRED`,
+and `useJoystick` invoked `mode.onTap` with NO ARGUMENTS, so a registry-declared mode structurally
+could not reach `ctx.navigate` from a tap. Nothing was already true. A plan claiming a behaviour
+already ships is the citation defect one level up — nobody re-checks a box someone has ticked
+(`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+
+**What actually shipped, against the spec:** `onTap` → the last-used section, inert on a first-ever
+visit with nothing stored; `onDoubleTap` → Morning Wire, never inert. Rails in
+`homePrimaryReverse.test.jsx`, including the `items[0]` trap that makes the inert case a real
+decision rather than an accident.
+
+**The fourth claim was TRUE and stands:** Phase 3 adds the scrub (recent sections) and restores
+`Calendar` to the inner ring alongside `Wire`. Both shipped.
 
 ### 3.9 Flow (`flow`) — route `/options-flow` — **verify only**
 
