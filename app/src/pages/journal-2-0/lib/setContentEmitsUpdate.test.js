@@ -159,6 +159,40 @@ describe('the source contract — no call site may pass a bare boolean', () => {
     expect(files.some((f) => f.endsWith('NoteEditorPage.jsx'))).toBe(true)
   })
 
+  it('⛔ the NAMED authority is pinned to its LITERAL — `EMIT_NOTHING = { emitUpdate: false }`', () => {
+    // ⚰️ THIS RAIL EXISTS BECAUSE A MUTATION FOUND NOTHING TO BREAK.
+    // Flipping the constant to `{ emitUpdate: true }` left every test in this
+    // repo green. The sweep below accepts `EMIT_NOTHING` as a lawful last
+    // argument and never asks what it IS; the behavioural cases above pass the
+    // literal `{ emitUpdate: false }` and never touch the constant. So the one
+    // value that four call sites all defer to was the only one nothing checked.
+    //
+    // ⛔ NAMING AN AUTHORITY CONCENTRATES THE BLAST RADIUS. The comment above
+    // the declaration says it exists "so a fifth call site cannot quietly get it
+    // wrong" — and that is true, but it also means getting the authority itself
+    // wrong gets all five wrong AT ONCE, silently, with the call sites still
+    // reading correctly. That is strictly worse than four independent literals,
+    // unless the authority is pinned. This pins it.
+    //
+    // ⛔ The LITERAL, not the behaviour, for the same reason `OFFLINE_DEFAULT_ON`
+    // is pinned by literal: a default that can change without a test changing is
+    // how a wave goes live unnoticed.
+    const editor = files.find((f) => f.endsWith('NoteEditorPage.jsx'))
+    expect(editor).toBeTruthy()
+    const src = stripComments(readFileSync(editor, 'utf8'))
+
+    const decl = src.match(/const\s+EMIT_NOTHING\s*=\s*(\{[^}]*\})/)
+    expect(decl, 'EMIT_NOTHING is declared in NoteEditorPage.jsx').toBeTruthy()
+
+    // Normalised so whitespace and a trailing comma are not a failure, but the
+    // BINDING is exact: the key is emitUpdate and the value is false.
+    const body = decl[1].replace(/\s+/g, ' ').replace(/,\s*\}/, ' }').trim()
+    expect(body).toBe('{ emitUpdate: false }')
+
+    // ...and it is declared exactly once, so there is no second authority.
+    expect(src.match(/const\s+EMIT_NOTHING\s*=/g)).toHaveLength(1)
+  })
+
   it('⛔ no `setContent(…, true|false)` anywhere under journal-2-0', () => {
     const offenders = []
     for (const file of files) {

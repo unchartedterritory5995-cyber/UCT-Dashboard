@@ -47,15 +47,33 @@ APP = REPO / "app"
 OFF = "src/pages/journal-2-0/lib/offline"
 NB = "src/pages/journal-2-0/components/notebook"
 
-# The rail set, DERIVED the same way the gate derives it: every test in the
-# offline layer, plus every notebook test that imports it.
+# The rail set. ⛔ DERIVING IT AS "the offline directory plus the notebook tests"
+# WAS TOO NARROW AND SILENTLY DULLED A MUTATION. `EMIT_NOTHING`'s only rail is
+# `lib/setContentEmitsUpdate.test.js`, which lives one directory UP from
+# `lib/offline/` because it is about a TipTap v2-vs-v3 API change rather than
+# about the offline layer. Breaking the constant reddened nothing, and the
+# conclusion "this guard is untested" was wrong — the guard was tested by a file
+# the harness never ran.
+#
+# ⭐ A DERIVED SET IS ONLY AS GOOD AS THE PROPERTY IT DERIVES ON. Directory
+# membership is a proxy for "is this a Wave Q1 rail"; naming a Wave Q1 module or
+# guard is the property itself. Both are used below, and their UNION is the set.
 RAIL_DIRS = [f"{OFF}"]
 RAIL_FILES = [
     f"{NB}/NoteEditorPage.durable.test.jsx",
     f"{NB}/NoteEditorPage.interleavings.test.jsx",
     f"{NB}/NoteEditorPage.nullbaseline.test.jsx",
     f"{NB}/NoteEditorPage.slowload.test.jsx",
+    "src/pages/journal-2-0/lib/setContentEmitsUpdate.test.js",
 ]
+
+# The property the directory proxy misses. Any journal-2-0 test naming one of
+# these must be in the rail set no matter which directory it sits in.
+GUARD_NAMES = (
+    "lib/offline", "settleLandedSave", "EMIT_NOTHING", "emitUpdate",
+    "usableBaseline", "landedBaseline", "isSupersededBaseline",
+    "outboxDrain", "useDurableNote", "offlineFlag", "hydratedRef",
+)
 
 # ── the guards, and how to break each one ────────────────────────────────────
 #   find/replace are exact and must match EXACTLY ONCE -- an ambiguous mutation
@@ -91,11 +109,17 @@ MUTATIONS = [
          repl="if (a === null || b === null) return true",
          note="no baseline is not evidence of being superseded"),
 
+    # ⚰️ THIS MUTATION WAS A NO-OP AND REPORTED A GUARD AS UNTESTED.
+    # It added a field to the `report` PAYLOAD -- `reason: NO_BASELINE,` ->
+    # `reason: NO_BASELINE, __mutated_send_anyway: true,` -- which no control
+    # flow reads. The drain still refused, every rail stayed green, and the
+    # harness concluded the refusal was unrailed. A mutation has to change a
+    # DECISION; decorating the description of one changes nothing.
     dict(id="M6", guard="the drain REFUSES a baseline-less entry",
          file=f"{OFF}/outboxDrain.js",
-         find="reason: NO_BASELINE,",
-         repl="reason: NO_BASELINE, __mutated_send_anyway: true,",
-         note="control: proves the NO_BASELINE branch is the one under test"),
+         find="if (!isUsableBaseline(entry.baseUpdatedAt)) {",
+         repl="if (false && !isUsableBaseline(entry.baseUpdatedAt)) {",
+         note="baseUpdatedAt IS the compare-and-set; without it the PUT has none"),
 
     dict(id="M7", guard="the drain's supersede refusal exists at all",
          file=f"{OFF}/outboxDrain.js",
@@ -154,8 +178,14 @@ def run_rails(run) -> tuple[int, int, list[str]]:
             "line is not a run, and a mutation judged on one is worse than none.")
     failed = int(re.search(r"(\d+) failed", m_tests.group(1)).group(1)) if "failed" in m_tests.group(1) else 0
     passed = int(re.search(r"(\d+) passed", m_tests.group(1)).group(1)) if "passed" in m_tests.group(1) else 0
-    files = sorted(set(re.findall(r"FAIL\s+(\S+?\.test\.jsx?)", clean)))
-    return failed, passed, files
+    # ⛔ NAMES, NOT A COUNT. "3 red" tells you a guard is railed; WHICH rails went
+    # red tells you whether it is railed in the right place. The first version of
+    # this matched only vitest's `FAIL <path>` banner and printed "(unnamed)" for
+    # every mutation, which is the same names-not-counts defect the ledger and the
+    # shard gate each had to fix.
+    files = set(re.findall(r"(?:FAIL|❯)\s+(\S*?[\w.-]+\.test\.jsx?)", clean))
+    files |= set(re.findall(r"^\s*(?:FAIL|×|✗)\s+(\S*?[\w.-]+\.test\.jsx?)", clean, re.M))
+    return failed, passed, sorted(files)
 
 
 def apply(path: pathlib.Path, find: str, repl: str) -> str:
@@ -208,6 +238,31 @@ def self_check() -> int:
         orig = apply(t, "keep me", "broken")
         restore(t, orig)
         case("restore puts the ORIGINAL bytes back", t.read_text(encoding="utf-8") == "keep me\n")
+
+    # ⛔ THE RAIL SET MUST COVER EVERY TEST THAT NAMES A GUARD, wherever it sits.
+    # This case exists because the directory-only derivation missed
+    # `lib/setContentEmitsUpdate.test.js` and reported EMIT_NOTHING as untested.
+    # A harness that under-reports coverage is worse than one that under-reports
+    # failures: it invites you to delete a guard that was fine.
+    j2 = APP / "src/pages/journal-2-0"
+    covered = set()
+    for d in RAIL_DIRS:
+        covered |= {p.resolve() for p in (APP / d).glob("*.test.js*")}
+    covered |= {(APP / f).resolve() for f in RAIL_FILES}
+    naming = set()
+    for p_ in j2.rglob("*.test.js*"):
+        try:
+            body = p_.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if any(g in body for g in GUARD_NAMES):
+            naming.add(p_.resolve())
+    missed = sorted(p_.name for p_ in naming - covered)
+    case(f"the rail set covers every test naming a guard{'' if not missed else ' — MISSED ' + ', '.join(missed)}",
+         not missed)
+    # ...and a control: the property must actually select files, or the case above
+    # passes because it found nothing to check.
+    case("the guard-name sweep is not vacuous (it selects real files)", len(naming) >= 10)
 
     # Every declared mutation site must exist exactly once in the real tree.
     for m in MUTATIONS:

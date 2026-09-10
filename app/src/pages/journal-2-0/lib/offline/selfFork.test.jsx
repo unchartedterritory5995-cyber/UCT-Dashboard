@@ -85,6 +85,42 @@ describe('⭐⭐ THE FIX — the supersede survives unmount', () => {
     expect(results).toHaveLength(0)
   })
 
+  it('⛔ a settle with NO IDENTITY writes nothing — it cannot guess whose store', async () => {
+    // ⚰️ THIS RAIL EXISTS BECAUSE A MUTATION FOUND NOTHING TO BREAK.
+    // `settleLandedSave` opens the durable store BY ACCOUNT. Its guard is
+    // `if (!accountId || !noteId || !landed) return null`, and the mutation
+    // gauntlet reduced that to `if (!landed)` — every rail stayed green. Eleven
+    // tests drove this function and every one of them passed a full identity,
+    // so the half of the guard that keeps one member's save out of another
+    // member's store was never exercised.
+    //
+    // ⛔ The dangerous direction is not "returns null". It is the WRITE that a
+    // missing identity would let through: `connect(undefined)` resolves to some
+    // store, and a save then lands in it under a note id of `undefined`. So the
+    // assertion is that the connection is NEVER OPENED and the existing record
+    // is untouched — not merely that the return value is null.
+    await queueOfflineWork()
+    const before = await getNote(db, 'n1')
+    const opened = vi.fn(async () => db)
+
+    for (const identity of [
+      { noteId: 'n1' },                                // no accountId
+      { accountId: 'a1' },                             // no noteId
+      { accountId: '', noteId: 'n1' },                 // empty is not an identity
+      { accountId: 'a1', noteId: '' },
+      {},                                              // neither
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      const out = await settleLandedSave({ ...identity, acked: state(), current: state(), updatedAt: T2, connect: opened })
+      expect(out).toBeNull()
+    }
+
+    expect(opened).not.toHaveBeenCalled()              // ⛔ the store was never opened
+    const after = await getNote(db, 'n1')
+    expect(after).toEqual(before)                      // ...and nothing moved
+    expect(await listOutbox(db)).toHaveLength(1)       // the member's queued work is still queued
+  })
+
   it('⭐ still AHEAD of the server ⇒ the entry is REBASED, not deleted', async () => {
     // ⛔ Clearing the outbox on the strength of an ack for older words is how
     // offline systems lose the newest ones. The member kept typing; those words
