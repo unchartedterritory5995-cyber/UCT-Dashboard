@@ -40,6 +40,18 @@ from datetime import datetime, timezone
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import window_check as w  # noqa: E402
 
+# ⛔ WINDOWS STDOUT IS cp1252 AND THIS TOOL REPORTS IN ⛔/⭐/·. The deploy gate
+# died mid-verdict on exactly this; a rig that crashes while printing a RED is
+# strictly worse, because the run it was reporting on has already happened and
+# the evidence goes with it. Guarded: a pipe that cannot be reconfigured must
+# not take the tool down either.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
 PROD = w.PROD
 ACCOUNT_ID = w.ACCOUNT_ID
 FLAG_KEY = w.FLAG_KEY

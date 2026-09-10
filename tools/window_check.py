@@ -61,6 +61,18 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+# ⛔ WINDOWS STDOUT IS cp1252 AND THIS TOOL REPORTS IN ⛔/⭐/·. The deploy gate
+# died mid-verdict on exactly this; a rig that crashes while printing a RED is
+# strictly worse, because the run it was reporting on has already happened and
+# the evidence goes with it. Guarded: a pipe that cannot be reconfigured must
+# not take the tool down either.
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOC = ROOT / "docs" / "notebook" / "wave-q1-RESUME-HERE.md"
 LOG = ROOT / "docs" / "notebook" / "window-check.log"
