@@ -27,7 +27,7 @@ import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
-import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
+import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
 // every column is computed once, by the definition that declares it, at bind
@@ -2296,6 +2296,12 @@ export default function StockChart({
     const p = panelFor(solidTop)
     const pLow = panelFor(solidLow) || p
     const t = toolbarFor(solidTop)
+    // The chart command bar's own state system (see commandBarFor). Published
+    // ALONGSIDE --chart-toolbar-* rather than replacing it: those tokens are also
+    // worn by the collapse button in StockChart.module.css and by the widget
+    // add-tab menu via menuVarsForCanvas, so repointing them would have moved
+    // three surfaces to change one.
+    const cb = commandBarFor(solidTop)
     if (!p) return undefined
     return {
       ...(t ? {
@@ -2303,6 +2309,16 @@ export default function StockChart({
         '--chart-toolbar-bg-hover': t.bgHover,
         '--chart-toolbar-text': t.text,
         '--chart-toolbar-text-hover': t.textHover,
+      } : {}),
+      ...(cb ? {
+        '--chart-cmd-icon': cb.icon,
+        '--chart-cmd-icon-hover': cb.iconHover,
+        '--chart-cmd-icon-active': cb.iconActive,
+        '--chart-cmd-icon-disabled': cb.iconDisabled,
+        '--chart-cmd-surface-hover': cb.surfaceHover,
+        '--chart-cmd-surface-active': cb.surfaceActive,
+        '--chart-cmd-surface-pressed': cb.surfacePressed,
+        '--chart-cmd-edge-active': cb.edgeActive,
       } : {}),
       '--chart-panel-bg': p.bg,
       '--chart-panel-bg-soft': p.bgSoft,

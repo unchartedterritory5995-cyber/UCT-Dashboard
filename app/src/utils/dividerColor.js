@@ -94,6 +94,60 @@ export function toolbarFor(canvasColor) {
   }
 }
 
+/** ⭐ THE CHART COMMAND BAR — one state system for the WHOLE toolbar row.
+ *
+ *  `toolbarFor` above gives every control a permanent surface one step off the
+ *  canvas. Twenty of those in a row is what makes the drawing toolbar read as a
+ *  strip of keyboard keys, and because the row is also dimmed as a GROUP
+ *  (`.toolbar { opacity }`), the only way to brighten an icon was to brighten its
+ *  box with it. Measured on the default #0e0f0d canvas, that landed the resting
+ *  icon at #827D6F — 4.68:1, well under the ~6.5:1 the owner asked for — while
+ *  the ARMED tool came out at 5.15:1, DIMMER than a merely hovered one (8.36:1).
+ *  The selected state was losing to hover.
+ *
+ *  ⛔ SO THE SURFACE AND THE INK ARE SEPARATED HERE. The icon carries the
+ *  brightness; the surface appears only under interaction. That is what lets the
+ *  row get quieter and MORE legible at the same time — fewer edges, brighter
+ *  glyphs — instead of trading one against the other.
+ *
+ *  ⭐ AND IT IS DERIVED FROM THE CANVAS, not from the theme. A chart's background
+ *  is user-chosen (44 skins, gradients, custom hex), so "light theme" is not a
+ *  reliable proxy for "light chart". Every value below is mixed from the actual
+ *  canvas toward a warm ink, so a white chart inside the dark app still gets dark
+ *  icons. The mix amounts are calibrated to the owner's stated targets:
+ *  resting ≈ #989791 (6.5:1), hover ≈ #C8C7C0 (11.3:1).
+ *
+ *  Gold stays the per-theme brand gold rather than a new value — #dcbb5e reads at
+ *  10.4:1 on the dark canvas, and the light theme's #7a5c16 at 6.2:1 on white,
+ *  which is the one that keeps the active state off muddy-brown-on-beige.
+ *
+ *  Returns null when unparseable → the CSS fallbacks (dark) apply. */
+export function commandBarFor(canvasColor) {
+  const rgb = parseColor(canvasColor)
+  if (!rgb) return null
+  const light = luminance(rgb) > 0.5
+  // Warm, not neutral: UCT charcoal is warm, and a pure-white ink reads clinical
+  // against the gold. On a light canvas the ink is a warm near-black.
+  const ink = light ? [26, 28, 24] : [236, 234, 226]
+  const gold = light ? '#7a5c16' : '#dcbb5e'
+  return {
+    icon: rgbStr(mix(rgb, ink, light ? 0.66 : 0.62)),
+    iconHover: rgbStr(mix(rgb, ink, light ? 0.88 : 0.84)),
+    // Clearly subdued, but NOT gone: the shipped disabled state composited to
+    // 1.34:1, which is invisible rather than unavailable.
+    iconDisabled: rgbStr(mix(rgb, ink, light ? 0.34 : 0.30)),
+    // Surfaces are alpha over the canvas, not opaque mixes, so a control that
+    // happens to sit over a candle tints it instead of punching a hole in it.
+    surfaceHover: light ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.07)',
+    surfaceActive: light ? 'rgba(122, 92, 22, 0.12)' : 'rgba(220, 187, 94, 0.12)',
+    surfacePressed: light ? 'rgba(0, 0, 0, 0.11)' : 'rgba(255, 255, 255, 0.12)',
+    iconActive: gold,
+    // One restrained edge on the armed control — inset so it can never change a
+    // button's box and shift its neighbours.
+    edgeActive: light ? 'rgba(122, 92, 22, 0.34)' : 'rgba(220, 187, 94, 0.30)',
+  }
+}
+
 /** Styling for the small floating panels drawn ON the chart canvas — the crosshair
  *  OHLC legend, the volume legend, and the range-selector bar.
  *
