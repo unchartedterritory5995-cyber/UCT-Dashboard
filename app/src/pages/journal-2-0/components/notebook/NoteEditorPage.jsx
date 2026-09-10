@@ -29,6 +29,8 @@ import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { useDurableNote, SESSION_ID } from '../../lib/offline/useDurableNote'
+import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
+import { blockedLabel, unsyncedLabel } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
@@ -361,6 +363,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // filter yields another member's research. It degrades to `supported: false`
   // (private windows, old browsers) without taking the editor with it.
   const durable = useDurableNote({ accountId: user?.id, noteId })
+
+  // Wave Q1 — THE OPEN NOTE CAN ALSO BE BLOCKED, and until now it said nothing.
+  // The sweep never touches the open note (`excludeNoteId`), so this state can
+  // only arrive from a PREVIOUS session: the member closed a note whose queued
+  // write the drain then refused, and opened it again today. The header's
+  // existing "waiting to sync" line is gated on the editor's own save attempt
+  // (`error`/`reconnecting`), which on a freshly-opened note is neither — so
+  // the one surface that was honest was honest only while a save was failing.
+  // ⛔ `durable.status` is the refresh signal: a fresh durable write REPLACES
+  // the outbox entry and the replacement carries no `permanent` flag, so the
+  // badge has to be able to CLEAR itself the moment the member does the thing
+  // it asked them to do.
+  const { blocked: blockedNoteIds } = useBlockedNotes({
+    accountId: user?.id,
+    refreshToken: durable.status,
+  })
+  const noteIsBlocked = blockedNoteIds.has(noteId)
   // Read through a ref for the same reason every other callback here does:
   // TipTap's onUpdate and every scheduled timeout close over an old render.
   const durableRef = useRef(durable)
@@ -1766,12 +1785,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             `persisted() === false` is equally true of a brand-new ordinary
             profile; it means only that persistent-storage protection has not
             been positively granted. No badge, no claim, no behaviour change. */}
-        {durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
+        {/* ⛔ THE BLOCKED CASE WINS, and it is NOT gated on the editor's own
+            save attempt. The queue has retired this note's write from retrying:
+            that is true whether or not a save is in flight right now, and the
+            member's next edit is what changes it. Two lines at once would read
+            as two different states, so this is an either/or, not an also.
+            ⛔ The words come from `unsyncedCopy` — one authority, so the list
+            and the header can never drift apart. */}
+        {noteIsBlocked ? (
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {blockedLabel(durable.persisted)}
+          </div>
+        ) : durable.unsynced && (saveStatus === 'error' || saveStatus === 'reconnecting') && (
           <div className={styles.saveStatus} role="status">
             <UIcon name="check" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {durable.persisted === true
-              ? 'Saved on this device · waiting to sync'
-              : 'Saved in this browser · waiting to sync'}
+            {unsyncedLabel(durable.persisted)}
           </div>
         )}
         {saveStatus === 'conflict' && (

@@ -27,6 +27,24 @@ the flag       zi=!1  →  OFFLINE_DEFAULT_ON === false          ← still dark
 the drain's fork. No `null` or `''` baseline in any artifact. The seven-day
 observation window is **STARTED: 2026-09-10 → 2026-09-17.**
 
+## ⏭️ AND THE FLAG-FLIP GATE IS BEING WORKED — 2026-09-10, on the branch
+
+⛔⛔ **NONE OF THIS IS DEPLOYED.** It is on `notebook-primary-platform` only, and
+`OFFLINE_DEFAULT_ON` is untouched. Read the **FLAG-FLIP GATE** section, not this
+summary, before acting on any of it.
+
+- ✅ **A blocked entry is surfaced to the member** — the gate's last open row.
+  Both notes-list views and the open note's header now say **"Edit again to
+  sync"** in the shipped vocabulary. Item 1 below.
+- ⏳ **The `null` is INSTRUMENTED, not explained** — nine driven paths failed to
+  reproduce it, so the gate condition CHANGED: from *"explained"* to *"zero
+  occurrences during the window"*. Item 2 below. ⛔ The count is not measurable
+  until this deploys.
+- ⛔ **An offline reload cannot load the Notebook at all** (no service worker, by
+  design). Written down as a KNOWN LIMITATION and as an expected §15
+  observation — **never a red**. Item 3 below.
+- 📋 **The window-watch log** starts at check 1, 2026-09-10T04:16:51Z.
+
 ---
 
 **Written 2026-09-09 before a machine restart.** Updated repeatedly through
@@ -173,7 +191,10 @@ Sequence, unchanged from below: deploy the fix (branch → master) → §15 happ
 | §32 browser matrix | **complete and green**, incl. Safari on two real iPhones |
 | Activation | attempted 16:05 UTC, **rolled back 16:20 UTC** — canary red |
 | The canary defect | **reproduced, fixed, mutation-proved** (`4fef130d9`) |
-| That fix | **on the branch, NOT on master** — it has not deployed |
+| That fix | ✅ **DEPLOYED** `cd674ef56`, 2026-09-10 — verified on the live bundle |
+| §15 canary | ✅ **COMPLETE AND GREEN**, both halves + the conflict fork |
+| Blocked entries surfaced to the member | ✅ **built 2026-09-10 — on the branch, NOT deployed** |
+| The `null` baseline | ⏳ **instrumented, not explained** — on the branch, NOT deployed, so the window's count is not measurable yet |
 | Harness integrity | **green** — identity, ports, controls, mutation-proved |
 | Q2 | **locked** |
 | Service worker | untouched, and stays untouched |
@@ -599,8 +620,18 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 8. Confirm the header says **"Reconnecting…"** *and* **"Saved on this
    device/in this browser · waiting to sync"**. ⛔ Assert the rendered text, not
    a devtools state.
-9. **Reload the page.** ⭐⭐ **THIS IS THE STEP THAT WENT RED.** Then read all
-   three layers again.
+9. **Reload the page** — ⛔ **WITH THE NETWORK BACK UP.** ⭐⭐ **THIS IS THE STEP
+   THAT WENT RED.** Then read all three layers again.
+
+   ⛔⛔ **AN OFFLINE RELOAD IS AN EXPECTED OBSERVATION, NOT A RED.** Wave Q1 has
+   **no service worker**, by design, so reloading while the network is down
+   cannot fetch `index.html`: the SPA never loads, the browser shows its own
+   error page, and storage is not even readable from that context
+   (`draft:"ERR"`, `dbMissing:true` — measured 2026-09-10). Nothing is lost, and
+   nothing is proved either — the rebuild path this step exists to exercise
+   never runs. **If you reload while offline, you have not performed step 9.**
+   Restore the network first; the incident's own ordering is *open → edit
+   offline → reload → recover*, and the reload was online.
 
    | | before the fix | expected now |
    |---|---|---|
@@ -635,7 +666,8 @@ localStorage.setItem('uct.j2.offline.enabled', '0')
 ### What the fix changes about what you should expect
 
 - Step 9 is the only step whose expected result changed — from "all three layers
-  empty" to "the member's words intact".
+  empty" to "the member's words intact". Its **preconditions** also changed: the
+  reload is performed with the network **up** (see the ⛔⛔ block on that step).
 - A note whose **server copy is empty** (a brand-new note) no longer triggers an
   autosave on open. If you watch the network, you should see **no PUT at all**
   from merely opening such a note. Before the fix there was one.
@@ -912,7 +944,13 @@ console.log(JSON.stringify({
 "waiting to sync" · the editor did not mount. ⛔⛔ **A `null` or `''`
 `baseUpdatedAt` is a NEW FINDING** — say so loudly; it is not the old one.
 
-## ⛔ What did NOT run, and what it would take
+## ⚰️ What did NOT run — **SUPERSEDED: both halves ran on 2026-09-10**
+
+⛔ **Kept as the record of why a session STOPPED rather than improvised.** The two
+items below were true when written and are not true now: the owner amended the
+script to permit CDP, a second Chrome with its own profile was stood up, and
+Part A and Part B above are the result. Read this for the reasoning, never for
+the status.
 
 - **Steps 7–9 (offline → type → reload → read all three layers).** This is *the
   step that originally went red*, and it needs the network killed from DevTools.
@@ -922,8 +960,9 @@ console.log(JSON.stringify({
   the script-of-record ruling forbids.
 - **The conflict path**, which needs a second signed-in context.
 
-⚠️ **Both need a person at the keyboard for about five minutes.** Until they run,
-the canary is partial and the seven-day observation window stays unstarted.
+⚰️ It then read: *"Both need a person at the keyboard for about five minutes.
+Until they run, the canary is partial and the seven-day observation window stays
+unstarted."* **Both ran; the canary is complete; the window is open.**
 
 # ⏱️ THE SEVEN-DAY OBSERVATION WINDOW — STARTED 2026-09-10
 
@@ -940,13 +979,55 @@ the canary is partial and the seven-day observation window stays unstarted.
 2. **Any `null` or `''` `baseUpdatedAt` in any artifact.** ⛔ That is a **NEW
    FINDING**, not the old one — the old one is fixed at source, railed at the
    server, and refused at the drain. Say so loudly.
+   ⭐ **This one no longer depends on somebody noticing.** The drain reports its
+   own refusal as `notebook_blocked_no_baseline` (Item 2 below); read it with
+   `GET /api/admin/activity` and look for `j2:notebook_blocked_no_baseline`.
+   ⛔ It only counts once the instrument is on `master` — until then the number
+   is "not measurable", not "zero".
 3. **The inherited-red ledger** — same nine rows, no new offenders. Re-check on
    any master merge that touches `app/` (tier 2).
 4. **The drain**, once the flag is ever on: `(conflicted copy)` creation rate and
    any `permanent:true` outbox entries.
 
 ⛔ **The window is not a reason to flip the flag.** Flipping is a separate
-decision against the gate below, and two of its items are still open.
+decision against the gate below.
+
+## 📋 THE WINDOW-WATCH LOG — one row per check, stamped in UTC
+
+⛔ **Three checks, and the schedule is the owner's:** today (open), once
+mid-window, and at close. ⛔ **Record a check even when everything is
+unchanged** — a log with only interesting entries cannot distinguish "quiet"
+from "nobody looked" (`lesson_uptime_is_not_a_sleep_signal_during_deploy_churn`,
+in log form).
+
+### Check 1 — **2026-09-10T04:16:51Z** (window opens)
+
+| what | reading | |
+|---|---|---|
+| deploy `cd674ef56` still an ancestor of `master` | **YES**, `master` = `f58383e69` | ✅ |
+| `OFFLINE_DEFAULT_ON` on the LIVE bundle | **`false`** — `assets/NotebookTab-CMePJ5Sn.js` compiles it to `const zi=!1`, returned whenever the opt-in key is unset. The fix is live in the same chunk (`Ue` = `usableBaseline`). | ✅ |
+| Item-2 events fired | **0, by construction** — the instrument is on the branch, NOT on `master`. Until it deploys, "zero occurrences" means "not yet measurable", not "measured zero". ⛔ Do not read the first deployed check as a continuation of this row. | ⚠️ |
+| member reports of an empty document | **none reached this session** | ✅ |
+| inherited-red ledger | **UNCHANGED** — the same 8 files fail the full frontend suite after merging `origin/master` (`f58383e69`); no new offenders, nothing inside `journal-2-0` | ✅ |
+| production Notebook end state (4 stores 0 · 0 locks · key `'0'`) | ⛔ **NOT RE-DRIVEN — and it cannot be, as written.** See below. | ⛔ |
+| `/api/health` | `ok`, `uptime_seconds` 3264 (≈54 min). Not a deploy: `master` has not moved and the bundle hashes are byte-identical to the canary's. | ✅ |
+
+⛔ **Why the production-store row is honest rather than green.** That reading
+needs an AUTHENTICATED browser session against production, and the rig that took
+it is fully torn down — deliberately, and verified. Its profile directory is one
+of the two leftovers below. **A fresh profile would not be signed in, and this
+session does not enter credentials.**
+
+⚠️ **And the target was per-profile anyway.** `key '0'` was `localStorage` in the
+canary rig's own Chrome profile; that profile no longer runs. A new browser
+would read the key **unset** — which is production's default and equals off, but
+is a *different reading*, not the same one confirmed again. ⛔ Re-stating `'0'`
+here without a browser would be inventing a measurement.
+
+**To close this row on the next check**, the owner stands up an authenticated
+session (or says to build the CDP rig again and signs in, exactly as on
+2026-09-10) and the check reads: four stores 0 · 0 `uct.nb.sync.*` locks · the
+opt-in key unset-or-`'0'`.
 
 # THE FLAG-FLIP GATE — a SEPARATE list, and not the deploy's
 
@@ -982,8 +1063,8 @@ which is what proves they test different lines.
 
 | | status |
 |---|---|
-| A blocked entry is surfaced to the member | ❌ **it is not** — see below |
-| `baseUpdatedAt: null` explained | ❌ not closed (harmless — the drain refuses it) |
+| A blocked entry is surfaced to the member | ✅ **CLOSED 2026-09-10** — the notes list (both views) and the open note's header now say it, in the shipped vocabulary, and the sentence names the ACTION. See below. |
+| ~~`baseUpdatedAt: null` explained~~ → **`null` INSTRUMENTED, zero occurrences in the window** | ⏳ **INSTRUMENT LIVE 2026-09-10, count starts at 0** — the condition CHANGED, deliberately; see below |
 | A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. |
 | Seven-day observation window armed | ✅ **STARTED 2026-09-10, ends 2026-09-17** — see below |
 
@@ -997,11 +1078,190 @@ which is what proves they test different lines.
 | Do later writes for that note still drain? | ✅ **a later edit UN-BLOCKS it.** The outbox is keyed `note:<id>`, so a fresh durable write replaces the entry and the replacement carries no `permanent` flag. A hold, not a dead end. |
 | Does it wedge other notes? | ✅ no — another note still sends (`blocked: 1, sent: 1`) |
 | Does it retry itself? | ❌ no, by design — that is the point of the refusal |
-| **Is it surfaced anywhere else?** | ⛔⛔ **NO.** `summarize()` has ZERO consumers in the app and `BLOCKED` appears in no component. For a note the member is not looking at, the hold is **completely silent.** |
+| **Is it surfaced anywhere else?** | ✅ **YES, since 2026-09-10** — it was ⛔⛔ **NO**. See the section below. |
 
-⛔ **That last row is the one to close before the flag.** The words are safe and
-the hold is recoverable — but only by a member who happens to edit that note
-again, for a reason nothing on screen ever gives them.
+⚰️ **That last row used to read: "`summarize()` has ZERO consumers in the app and
+`BLOCKED` appears in no component — for a note the member is not looking at, the
+hold is completely silent."** The words were safe and the hold was recoverable,
+but only by a member who happened to edit that note again, for a reason nothing
+on screen ever gave them. It was the last open row of this gate.
+
+---
+
+## ✅ ITEM 1 — THE BLOCKED ENTRY IS SURFACED (closed 2026-09-10)
+
+**What a member now sees, as rendered text.**
+
+| where | what it says |
+|---|---|
+| Notes list — **card grid** | a warning-toned chip on the note's meta row: **"Edit again to sync"** |
+| Notes list — **table view** | the same chip, beside the title |
+| Either badge, on hover | **"This note has words that have not reached the server, and will not until you edit it again."** |
+| The **open note's** header | **"Saved on this device · edit it again to sync"** (or "in this browser" — the noun narrows exactly as it already did) |
+
+⭐ **The sentence names the ACTION, not the state.** "Not synced" tells a member
+something is wrong and nothing about what to do. A later edit is what un-blocks
+it — the outbox is keyed `note:<id>`, so a fresh durable write REPLACES the
+entry and the replacement carries no `permanent` flag — so the copy says that.
+
+⛔ **ONE VOCABULARY, ONE AUTHORITY.** The strings live in
+`lib/offline/unsyncedCopy.js` and nowhere else; the editor header stopped
+inlining them. Two surfaces describing one state in two vocabularies is how a
+member learns to read them as two different states.
+
+⛔ **THE OPEN NOTE WAS ONLY HALF-HONEST.** Its existing "waiting to sync" line is
+gated on the editor's own save attempt (`error`/`reconnecting`). A note blocked
+in a PREVIOUS session and opened today is neither, so the one surface that was
+described as honest said nothing in exactly the case that matters. The blocked
+line is not gated on the save attempt, and it wins over the "waiting" line —
+two lines at once would read as two states.
+
+**Mechanism.** `lib/offline/blockedNotes.js` reads the ONE predicate the drain
+already persists (`permanent === true`) — it does not re-classify, because a
+second copy of "what counts as blocked" would disagree the day a third block
+reason lands. `lib/offline/useBlockedNotes.js` is the hook, **behind the same
+gate as the drain**: with `OFFLINE_DEFAULT_ON` false it opens no database and
+reads nothing, so this surface is not the one place the dark wave touches
+IndexedDB.
+
+**Rails** — `lib/offline/blockedNoteSurface.test.jsx` (11) +
+`lib/offline/blockedEntryIsVisible.test.jsx` (rewritten: the pin that recorded
+the gap is replaced by an assertion that reads the surface, plus a no-cross-talk
+control). Every assertion is rendered TEXT. Controls: a still-retrying entry
+says nothing · an empty outbox says nothing · the flag off says nothing · no
+cross-talk between notes. Mutation-proved four ways, each hitting exactly one
+test: cut the card wire · cut the table wire · widen the predicate · swap the
+copy. ⛔ The table assertion is driven through the tab's own **Table view**
+button, because a component test rendering `NotesTableView` directly is
+structurally blind to a severed wire.
+
+---
+
+## ⏳ ITEM 2 — THE `null` IS INSTRUMENTED, NOT HUNTED (live 2026-09-10)
+
+⛔ **THE GATE CONDITION CHANGED, ON PURPOSE.** It was *"`baseUpdatedAt: null`
+explained"*. Nine paths were driven trying to reproduce it and none did; a tenth
+guess is not evidence, and an unfalsifiable item cannot gate anything. It is now:
+
+> **`null` instrumented; ZERO occurrences during the observation window.**
+
+**What fires.** When the drain refuses a baseline-less entry it now emits ONE
+structured event — `notebook_blocked_no_baseline` — to
+`POST /api/j2/telemetry`, the Notebook's existing allow-listed client→server
+channel (already used by this tab for `notebook_tab_visit`). It lands in
+`activity_log` and is read back with `GET /api/admin/activity`.
+⚠️ Stated plainly: that is a **telemetry** sink, not an error pipeline. This app
+has no client error pipeline, and inventing a transport was not the smallest
+thing that works.
+
+**What it carries** — exactly seven fields, pinned as a SET, never note content:
+`noteId` · `generation` · `sessionId` · `baseline` · `entryAgeMs` · `attempts` ·
+`flag`.
+
+⛔ **The baseline is DESCRIBED, never sent raw**: `null` · `undefined` ·
+`empty-string` · `whitespace` · `non-string:<type>`. Every value that reaches
+the reporter has already failed `isUsableBaseline`, so the shape is strictly
+more information than the value — and it is the one field through which a
+member's words could ever ride along if a future bug put text there.
+⭐ `null` and `empty-string` stay distinguishable: they are two different
+defects (the incident, and the `??`-vs-truthiness bug found hunting it).
+
+**What does NOT fire** — and each has its own rail: a sent entry · a transient
+failure · a 409 that forks · a non-transient rejection (blocked, but with a
+`lastError` a human can already read) · **a re-drain of an already-blocked
+entry**. That last one is load-bearing: the `permanent` branch runs before the
+baseline check, so the event marks the TRANSITION into blocked, once. Without
+it the retry interval would manufacture an occurrence every tick and the window
+would read as a storm of incidents that never happened.
+
+**Rails** — `lib/offline/blockedBaselineEvent.test.jsx` (17) +
+`tests/test_j2_telemetry_allowlist.py` (8, the server-side mirror: a client rail
+proving "we posted it" is green against a server that 400s every one). The event
+name is DERIVED from the client source in the backend test rather than retyped.
+Mutation-proved: delete the hook's reporting loop → the wire test alone goes
+red; remove the name from the server allow-list → the two acceptance tests go
+red while the "it is still an allow-list" control stays green.
+
+⛔ **The instrument cannot break what it measures.** A reporter that throws
+leaves the queue settling exactly as it would have — railed.
+
+---
+
+## ⛔ ITEM 3 — KNOWN LIMITATIONS (write these down; do not "fix" them)
+
+### An offline reload cannot load the Notebook at all
+
+Wave Q1 has **no service worker**, deliberately, and the owner's standing
+constraint is that it stays untouched. So a page reload while the network is
+down cannot fetch `index.html`: the SPA never loads, the browser shows its own
+error page, and from that context storage is not even readable (`draft:"ERR"`,
+`dbMissing:true` — measured 2026-09-10 through the CDP rig).
+
+**Nothing is lost.** The words are in IndexedDB, in the outbox, and in the
+localStorage draft; the next load with a network present finds all three. What
+is *unavailable* is the app, for as long as the network is down and the page has
+been thrown away.
+
+⛔ **This is an EXPECTED OBSERVATION, never a red**, and the §15 script now says
+so at step 9. It is also not an argument for a service worker: that is a
+separate decision, with its own cache-invalidation and update-path costs, and
+proposing one is out of scope here.
+
+### The drain never touches the note that is open
+
+`excludeNoteId` hands the open note to the editor, never to the sweep — two
+writers on one note is the last-write-wins this wave exists to forbid. A queued
+entry for the open note waits until the member accepts the recovery banner,
+edits, or **navigates away**. A reading that looks like a stalled drain is the
+design working.
+
+### A blocked entry is a HOLD, and only the member can release it
+
+By design it is never retried. The surface built for Item 1 is what makes that
+survivable; without it the hold was silent, which is why it gated the flag.
+
+---
+
+## 📣 THE MEMBER-IMPACT PARAGRAPH **FOR THE FLAG FLIP**
+
+⛔ **This is NOT the deploy's paragraph** (that one is §(a), and it says
+"nothing about this changes what a member sees"). This one is for the decision
+that has not been made: turning `OFFLINE_DEFAULT_ON` to `true`. Written now, in
+plain language, so the flip is judged against what a member would actually
+experience rather than against a description of the code.
+
+**What a member would get.** Your notes keep working when your connection
+drops. What you type is written to a durable copy in your browser as you go,
+queued, and sent when you are back. If two devices edit the same note while one
+is offline, neither version is thrown away: the server keeps the one that
+arrived first, and yours is saved beside it as a note titled "(conflicted
+copy)".
+
+**What a member would see that is new.**
+- A line in the note header while work is unsent: **"Saved on this device ·
+  waiting to sync"** — and **"Reconnecting…"** while it retries.
+- Occasionally, on a note in your list: **"Edit again to sync"**. That means we
+  are holding words that never reached the server, and we have deliberately
+  stopped retrying because sending them could have overwritten a newer version
+  from another device. Your words are safe; opening the note and editing it
+  releases them.
+- Sometimes, a real note in your library ending in **"(conflicted copy)"**.
+
+**⛔ The one thing that will surprise people: reloading while offline shows the
+browser's error page.** Not a blank note — the app itself does not load. UCT
+Intelligence has no offline app cache, so if you lose connection and then
+refresh the tab, you get your browser's "no internet" screen until the
+connection is back. **Nothing you wrote is lost**: everything typed offline is
+still there the next time the page loads with a connection. But "offline
+editing" means *keep typing in the tab you already have open*, not *use the app
+with no internet*. If that gap matters to members, it is a service-worker
+project and a separate decision — it is not part of this flip.
+
+**Blast radius if the flip is wrong.** Every Notebook user, every note, and the
+failure mode is data-shaped rather than loud: the 2026-09-09 activation went
+wrong in twenty-five minutes and the symptom was a note reading blank. That is
+why the flip has a gate, why the gate is not the deploy's gate, and why the
+observation window watches the deployed fix first.
 
 ---
 
@@ -1063,6 +1323,29 @@ again, for a reason nothing on screen ever gives them.
 
   ⭐ That one command clears both leftovers — the whole `.worktrees` directory is
   gitignored and holds nothing but throwaway rigs.
+
+  ### ⛔ THE OWNER RUNS THESE. This session does not.
+
+  Both directories are held open by a Windows handle, and **which process holds
+  it is not knowable from here** — killing a guess is how another workstream
+  loses its work (`feedback_agent_authority_and_worktree_isolation`).
+
+  ```
+  # 1. See what is holding them (Sysinternals handle.exe, if installed):
+  handle64.exe -nobanner "C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees"
+
+  # 2. Delete both leftovers — ONE command, the whole directory:
+  cmd /c "rmdir /s /q C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees"
+
+  # 3. Confirm it is gone (prints nothing if clear):
+  cmd /c "dir /b C:\Users\Patrick\uct-worktrees\notebook-primary-platform\.worktrees" 2>nul
+  ```
+
+  ⛔ If step 2 reports *"The process cannot access the file"*, the holder is still
+  running — that is information, not a reason to force it. ⛔ Do NOT
+  `git worktree remove`: the registry is already pruned; only the directories
+  remain. Nothing here is tracked, so neither can reach a commit or a deploy and
+  neither is urgent.
 
   ⛔ Do NOT `git worktree remove` it — that is already done; only the directory
   remains.

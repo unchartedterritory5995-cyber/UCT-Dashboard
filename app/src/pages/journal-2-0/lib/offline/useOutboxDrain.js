@@ -16,7 +16,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createNoteViaApi } from '../noteCreation'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
-import { drainOutbox, summarize } from './outboxDrain'
+import { NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
+import { postBlockedBaseline } from './blockedBaselineEvent'
 import {
   FOLLOWER, LEADER, READ_ONLY_FOR_SYNC, awaitSyncLeadership, claimSyncLeadership,
 } from './outboxLeader'
@@ -82,6 +83,9 @@ export function useOutboxDrain({
   send = sendNoteUpdate,
   fork = forkConflictedCopy,
   connect = connectNotebookDb,
+  /** Wave Q1 — the null is INSTRUMENTED, not hunted. Injected so a rail can
+   *  prove it fires on a baseline-less block and on nothing else. */
+  report = postBlockedBaseline,
   intervalMs = RETRY_INTERVAL_MS,
 } = {}) {
   // ⛔ The same gate. Nothing drains — and nothing even claims leadership —
@@ -110,6 +114,8 @@ export function useOutboxDrain({
   forkRef.current = fork
   const connectRef = useRef(connect)
   connectRef.current = connect
+  const reportRef = useRef(report)
+  reportRef.current = report
 
   // ── leadership ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -170,6 +176,17 @@ export function useOutboxDrain({
       const results = await drainOutbox(db, {
         send: sendRef.current, fork: forkRef.current, excludeNoteId: excludeRef.current,
       })
+      // ⭐ One event per refusal, and only for the refusal nobody can explain.
+      // The drain decides; this only carries. ⛔ Awaited-but-swallowed: a
+      // telemetry POST must never change whether the queue advanced, and a
+      // rejected promise here would surface as a failed drain.
+      for (const r of results) {
+        if (r?.report?.reason !== NO_BASELINE) continue
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await reportRef.current(r.report)
+        } catch { /* an instrument is not a guard */ }
+      }
       const s = summarize(results)
       setLastSummary(s)
       await countPending()

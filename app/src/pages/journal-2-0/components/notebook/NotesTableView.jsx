@@ -1,5 +1,6 @@
 import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
+import { BLOCKED_BADGE, BLOCKED_TITLE } from '../../lib/offline/unsyncedCopy'
 import styles from './NotesTableView.module.css'
 
 function formatCellValue(def, value) {
@@ -38,7 +39,13 @@ export default function NotesTableView({
   onPropertySortChange,
   onQuickFilter,
   onOpenNote,
+  /** Wave Q1 — note ids whose queued work the drain has retired from retrying.
+   *  ⛔ The table is the OTHER list view. A surface built only on the card grid
+   *  would be invisible to every member who prefers this one, and "we told
+   *  them" would be true of half the product. */
+  blockedNoteIds = null,
 }) {
+  const isBlocked = (id) => Boolean(blockedNoteIds && blockedNoteIds.has(id))
   const userDefs = (propertyDefs || []).filter((d) => d.source === 'user_set')
   const usedDefs = userDefs.filter((d) =>
     notes.some((n) => n.propertiesJson && n.propertiesJson[d.id] !== undefined && n.propertiesJson[d.id] !== null),
@@ -70,7 +77,17 @@ export default function NotesTableView({
   const columns = [
     {
       key: 'title', header: titleHeader, primary: true,
-      render: (n) => <span className={styles.titleCell}>{n.title || 'Untitled'}</span>,
+      render: (n) => (
+        <span className={styles.titleCell}>
+          {n.title || 'Untitled'}
+          {isBlocked(n.id) && (
+            <span className={styles.unsynced} title={BLOCKED_TITLE}>
+              <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />
+              {BLOCKED_BADGE}
+            </span>
+          )}
+        </span>
+      ),
     },
     { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
     ...usedDefs.map((def) => ({

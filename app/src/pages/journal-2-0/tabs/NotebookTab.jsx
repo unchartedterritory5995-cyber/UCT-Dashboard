@@ -24,6 +24,7 @@ import useAppFocus from '../../../hooks/useAppFocus'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
+import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
 import styles from './NotebookTab.module.css'
 
 // Folders panel resize bounds (px).
@@ -71,7 +72,18 @@ export default function NotebookTab() {
   // per-account database and nothing to drain, which is a degradation, not a
   // reason to take the Notebook down.
   const auth = useContext(AuthContext)
-  useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
+  const drain = useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
+
+  // Wave Q1 — and the member has to be able to SEE it. A blocked entry is
+  // honest on the open note and was completely silent everywhere else: the
+  // words were held safely and told nobody, recoverable only by a member who
+  // happened to edit that note again for a reason nothing on screen gave them.
+  // ⛔ `drain.lastSummary` is the refresh signal, not `drain.pending`: a blocked
+  // entry is KEPT, so the queue length does not move when one becomes blocked.
+  const { blocked: blockedNoteIds } = useBlockedNotes({
+    accountId: auth?.user?.id,
+    refreshToken: drain.lastSummary,
+  })
 
   useEffect(() => { _logNotebookVisit() }, [])
 
@@ -816,6 +828,7 @@ export default function NotebookTab() {
                 onPropertySortChange={handlePropertySort}
                 onQuickFilter={handleQuickFilter}
                 onOpenNote={openNote}
+                blockedNoteIds={blockedNoteIds}
               />
             ) : (
               <div className={styles.grid}>
@@ -825,6 +838,7 @@ export default function NotebookTab() {
                     note={n}
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
+                    blocked={blockedNoteIds.has(n.id)}
                   />
                 ))}
               </div>

@@ -25,6 +25,12 @@ export const KEPT = 'kept'          // transient — still queued, will be retri
 export const BLOCKED = 'blocked'    // permanent — still stored, no longer retried
 export const SKIPPED = 'skipped'    // the open editor owns this note right now
 
+/** Why a BLOCKED result carries a `report`. ⛔ The ONLY reason that does — the
+ *  other two blocks (already-`permanent`, a non-transient server rejection) are
+ *  understood failures with a `lastError` a human can read. This one is the
+ *  unexplained defect the observation window is watching for. */
+export const NO_BASELINE = 'no-baseline'
+
 const isTransient = (e) => !e?.status || e.status >= 500
 
 /**
@@ -132,9 +138,35 @@ export async function drainOutbox(db, { send, fork, excludeNoteId = null } = {})
     // `NoteEditorPage`'s `hydratedRef` — and it is here because the next
     // unforeseen path must fail this way too.
     if (!isUsableBaseline(entry.baseUpdatedAt)) {
+      // ⭐ INSTRUMENTED, NOT HUNTED. Nine driven paths failed to reproduce this;
+      // the production population is the only remaining witness. The DECISION is
+      // made here, so the description of it is built here — a caller that
+      // re-tested the baseline to decide whether to report would be a second
+      // authority over one value and would disagree the day a third block
+      // reason lands. The transport lives in the hook: this module has no
+      // network and must not grow one.
+      //
+      // ⛔ It cannot double-report. An entry that is already `permanent` takes
+      // the branch above and never reaches here, so `report` marks the
+      // TRANSITION into blocked-for-no-baseline, exactly once per occurrence.
+      // eslint-disable-next-line no-await-in-loop
+      const rec = await getNote(db, entry.noteId)
       // eslint-disable-next-line no-await-in-loop
       await settleBlocked(db, entry, new Error('queued without a baseline — refusing to send a write with no compare-and-set'))
-      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+      results.push({
+        mutationId: entry.mutationId,
+        noteId: entry.noteId,
+        outcome: BLOCKED,
+        report: {
+          reason: NO_BASELINE,
+          noteId: entry.noteId,
+          baseUpdatedAt: entry.baseUpdatedAt,
+          generation: entry.generation ?? rec?.generation ?? null,
+          sessionId: rec?.sessionId ?? entry.sessionId ?? null,
+          queuedAt: entry.queuedAt ?? null,
+          attempts: entry.attempts ?? 0,
+        },
+      })
       continue
     }
     try {

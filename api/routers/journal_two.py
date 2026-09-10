@@ -80,6 +80,19 @@ _J2_TELEMETRY_EVENTS = {
     # funnels through (sendToJournal.js::sendCaptureToJournal), covering all
     # three destinations (current note / new note / inbox) uniformly.
     "notebook_tab_visit", "notebook_capture_saved",
+    # Wave Q1 — the outbox drain refused to send a write with no compare-and-set
+    # (`baseUpdatedAt` missing/blank). Nine driven paths failed to reproduce the
+    # 2026-09-09 incident's `null` baseline, so it is INSTRUMENTED instead of
+    # hunted: this fires once per transition into that block, during the
+    # observation window, and zero occurrences is the flip condition that
+    # replaced "explained".
+    #
+    # ⛔ NEVER note content. The client sends ids, counters, the flag state, and
+    # an ENUMERATED description of the baseline (`null` / `empty-string` /
+    # `whitespace` / `non-string:<type>`) — never the raw value, never the patch.
+    # Railed both sides: app/.../blockedBaselineEvent.test.js pins the key set,
+    # tests/test_j2_telemetry_allowlist.py pins acceptance here.
+    "notebook_blocked_no_baseline",
 }
 
 

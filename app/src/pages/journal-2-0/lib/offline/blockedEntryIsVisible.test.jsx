@@ -176,30 +176,48 @@ describe('⛔ WHAT THE MEMBER IS TOLD', () => {
     expect(screen.getByText(/Saved (on this device|in this browser)/i)).toBeInTheDocument()
   })
 
-  it('⛔⛔ THE FINDING: a blocked entry for a note the member is NOT looking at is SILENT', async () => {
-    // There is no consumer of `summarize()` anywhere in the app, and the string
-    // BLOCKED appears in no component. The only "waiting to sync" surface is the
-    // OPEN note's header, driven by that note's own save status.
+  it('⭐⭐ THE OPEN NOTE says so when ITS OWN queued write was refused', async () => {
+    // ⚰️ THIS ASSERTION USED TO PIN THE GAP. It read: "a blocked entry for a
+    // note the member is NOT looking at is SILENT" — `summarize()` had zero
+    // consumers, `BLOCKED` appeared in no component, and the only surface was
+    // the open note's header driven by that note's own save status. The gap was
+    // real, it was the last row of the flag-flip gate, and it is now closed;
+    // the file said the pin should be replaced by an assertion that READS the
+    // surface the day one existed, so here it is.
     //
-    // ⛔ So a note blocked by the sweep — the member has navigated away, or it
-    // was recovered from a previous session — holds its words safely and tells
-    // nobody. This test PINS that gap so it cannot be discovered twice, and it
-    // fails the day someone builds the surface (which is the point: then this
-    // assertion gets replaced by one that reads the surface).
-    const componentsSrc = await import('./outboxDrain')
-    expect(typeof componentsSrc.summarize).toBe('function')
-
+    // The open note can be blocked only from a PREVIOUS session — the sweep
+    // never touches the note the editor owns (`excludeNoteId`) — which is
+    // exactly the case the old header missed: on a freshly-opened note the save
+    // status is neither `error` nor `reconnecting`, so the honest line never
+    // rendered.
     const db = await openNotebookDb('u42', { factory })
-    await seed(db, 'n2', 'work the member cannot see', null)
+    await seed(db, 'n1', 'work from last night', null)
+    const results = await drainOutbox(db, { send: vi.fn(), fork: vi.fn(), excludeNoteId: null })
+    expect(summarize(results)).toMatchObject({ blocked: 1 })
+
+    await renderEditor()
+    await act(async () => { vi.advanceTimersByTime(1200); await settleIdb(8) })
+
+    // Rendered TEXT, and it names the action rather than only the state.
+    await waitFor(() => expect(screen.getByText(/edit it again to sync/i)).toBeInTheDocument())
+    expect(screen.getByText(/Saved (on this device|in this browser)/i)).toBeInTheDocument()
+  })
+
+  it('⛔ CONTROL: ANOTHER note’s block does not badge the note on screen', async () => {
+    // No cross-talk. The header is about the note the member is reading; the
+    // surface for every other note is the list, railed in
+    // `blockedNoteSurface.test.jsx`. Without this control the assertion above
+    // would pass just as well for a header that lights up on any blocked entry
+    // anywhere, which would be a lie about the document in front of them.
+    const db = await openNotebookDb('u42', { factory })
+    await seed(db, 'n2', 'work the member cannot see from here', null)
     const results = await drainOutbox(db, { send: vi.fn(), fork: vi.fn(), excludeNoteId: 'n1' })
     expect(summarize(results)).toMatchObject({ blocked: 1 })
 
     await renderEditor()
     await act(async () => { vi.advanceTimersByTime(1200); await settleIdb(8) })
 
-    // Nothing on screen mentions it. Not a badge, not a count, not a warning.
-    expect(screen.queryByText(/blocked/i)).toBeNull()
-    expect(screen.queryByText(/could not sync/i)).toBeNull()
+    expect(screen.queryByText(/edit it again to sync/i)).toBeNull()
     expect(screen.queryByText(/n2/i)).toBeNull()
   })
 })
