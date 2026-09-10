@@ -1143,6 +1143,69 @@ def _ls_on_disk(profile: pathlib.Path, key: str) -> dict:
 
 SENTINEL_PREFIX = "WINDOW-CHECK-SENTINEL"
 
+STORES_DUMP_JS = """async (acct) => {
+""" + w.OPEN_IF_EXISTS + """
+  const out = {db: 'uct_notebook_' + acct, stores: {}, rows: {}};
+  const h = await openIfExists('uct_notebook_' + acct);
+  if (h.missing)  return Object.assign(out, {missing: true});
+  if (h.phantom)  return Object.assign(out, {phantom: true});
+  for (const s of h.stores) {
+    const all = await new Promise(res => {
+      const t = h.db.transaction(s, 'readonly').objectStore(s).getAll();
+      t.onsuccess = () => res(t.result || []); t.onerror = () => res('ERR');
+    });
+    out.stores[s] = Array.isArray(all) ? all.length : all;
+    out.rows[s] = all;
+  }
+  return out;
+}"""
+
+
+def stores_dump(out_path: pathlib.Path | None = None) -> int:
+    """READ-ONLY: every row in the rig's per-account IndexedDB, verbatim.
+
+    ⛔ Rows left in these stores are the LOCAL half of a fork's evidence — the
+    server half is already in the record, and half a record is not a record. So
+    they are captured before anyone decides whether they may be cleared. Same
+    rule as the notes, one layer down.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"stores-dump-{stamp}.json")
+    rec = {"at": utc(), "mode": "stores-dump", "read_only": True, "writes": "none",
+           "profile": str(w.PROFILE), "account": ACCOUNT_ID,
+           "status": "INCOMPLETE — the dump did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            # ⛔ `/api/health` — JSON, no app code. The notebook is never mounted.
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            dump = page.evaluate(STORES_DUMP_JS, ACCOUNT_ID)
+    finally:
+        k, left, others, rel, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": k, "survivors": left, "lock_released": rel}
+    rec["dump"] = dump
+    rec["counts"] = dump.get("stores")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"stores: {rec['counts']}")
+    print(f"artifact: {out}")
+    return 0
+
 
 def notes_from_capture(cap: dict) -> dict:
     """One note → one record. ⭐ ONE AUTHORITY, used by the CAPTURE and by the
@@ -1245,11 +1308,22 @@ def baseline_verdict(expect: int, api: dict, rig: dict) -> tuple:
         reasons.append(f"the rig's own read says **{r_total}** notes, expected **{expect}**")
     if a_total != r_total:
         reasons.append(f"⛔ THE TWO WAYS DISAGREE: API {a_total} vs rig {r_total}")
+    # ⛔⛔ AUTHORSHIP IS THE TITLE, NOT THE TAG — HERE TOO. The delete set learned
+    # this on 2026-09-10 (it nearly removed the owner's `To Do List` pair, which
+    # is tagged `sync-conflict` and belongs to the baseline). The VERDICT was left
+    # believing the tag, so it went red on those same two member notes and would
+    # have kept going red for ever — a permanent red is a muted red.
+    # ⭐ Fixing a check in one lane and leaving its mirror weaker is how the next
+    # false green gets built. Same rule, both lanes: a `sync-conflict` note THIS
+    # TOOL MADE is a defect; a member's own is expected, and is NAMED rather than
+    # counted, so it can never quietly become the reason a run reads clean.
     for lab, d in (("API", api), ("rig", rig)):
         if d.get("canary_notes"):
             reasons.append(f"{lab}: {len(d['canary_notes'])} canary note(s) still live: {d['canary_notes']}")
-        if d.get("sync_conflict_notes"):
-            reasons.append(f"{lab}: {len(d['sync_conflict_notes'])} `sync-conflict` note(s) still live")
+        ours = [t for t in (d.get("sync_conflict_notes") or [])
+                if str(t).startswith(SENTINEL_PREFIX)]
+        if ours:
+            reasons.append(f"{lab}: {len(ours)} `sync-conflict` note(s) THIS TOOL MADE still live: {ours}")
     if rig.get("locks") != 0:
         reasons.append(f"rig locks = {rig.get('locks')!r}, expected 0")
     if rig.get("opt_in_key_in_browser") != "0":
@@ -1258,6 +1332,16 @@ def baseline_verdict(expect: int, api: dict, rig: dict) -> tuple:
         reasons.append(f"opt-in key ON DISK (Chrome dead) = {rig.get('opt_in_key_on_disk')!r}, expected '0'")
     if not rig.get("stores_ok"):
         reasons.append(f"stores: {rig.get('stores_text')}")
+    # ⛔ AND THE STORES MUST BE AT REST, NOT MERELY READABLE. `render_stores` says
+    # "ok" for a healthy DB whatever its row counts, so rows left behind by a run
+    # that PRESERVED its evidence would sail past it. They are named, never
+    # cleared here: local rows are the other half of a fork's evidence.
+    counts = rig.get("store_counts")
+    if isinstance(counts, dict):
+        rows = {k: v for k, v in counts.items() if isinstance(v, int) and v > 0}
+        if rows:
+            reasons.append(f"rig stores are NOT at rest: {rows} — rows from a run that "
+                           "kept its evidence; they are named, not cleared")
     return (not reasons), reasons
 
 
@@ -1654,6 +1738,84 @@ def preserve_clean(capture_path: pathlib.Path | None = None,
           f"{rec['rig_after'].get('opt_in_key_in_browser')!r} · on disk "
           f"{rec['rig_after'].get('opt_in_key_on_disk')!r}")
     print(f"       stores: {rec['rig_after'].get('stores_text')}")
+    print(f"VERDICT: {'✅ BASELINE PROVEN BOTH WAYS' if ok else '⛔ ' + ' · '.join(reasons)}")
+    print(f"artifact: {out}")
+    return 0 if ok else 1
+
+
+def verify_baseline(out_path: pathlib.Path | None = None,
+                    expect_notes: int = 32,
+                    prefix: str = SENTINEL_PREFIX) -> int:
+    """The two-way baseline proof, READ-ONLY — no capture, no deletes, no writes.
+
+    ⭐ The same two readings and the SAME verdict function the cleanup uses, so a
+    re-check can never be a friendlier instrument than the one that ran first.
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"baseline-{stamp}.json")
+    rec = {"at": utc(), "mode": "verify-baseline", "read_only": True, "writes": "none",
+           "origin": PROD, "profile": str(w.PROFILE), "expect_notes": expect_notes,
+           "status": "INCOMPLETE — the verification did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    cookie = None
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}")
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            rec["rig"] = _rig_read(page)
+            for c in ctx.cookies():
+                if c["name"] == "uct_session":
+                    cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                "httpOnly", "secure", "sameSite") if k in c}
+                    break
+    finally:
+        k, left, others, rel, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": k, "survivors": left, "lock_released": rel,
+                               "untouched_browsers": others}
+    if cookie is None:
+        _write_json(out, dict(rec, status="STOPPED — no session cookie in the rig profile"))
+        return 1
+
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(headless=True)
+        c = br.new_context()
+        c.add_cookies([cookie])
+        p = c.new_page()
+        p.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        p.wait_for_timeout(1500)
+        rec["api"] = _api_read(p.evaluate(CAPTURE_JS, prefix))
+        c.close()
+        br.close()
+
+    disk = w.localstorage_on_disk(FLAG_KEY)
+    rec["rig"]["opt_in_key_on_disk"] = disk.get("value")
+    ok, reasons = baseline_verdict(expect_notes, rec["api"], rec["rig"])
+    rec["baseline_ok"], rec["baseline_reasons"] = ok, reasons
+    rec["status"] = "COMPLETE" if ok else "⛔ BASELINE NOT PROVEN"
+    _write_json(out, rec)
+    print(f"API  : notes {rec['api'].get('notes_total')} · canary "
+          f"{len(rec['api'].get('canary_notes') or [])} · sync-conflict titles "
+          f"{rec['api'].get('sync_conflict_notes')}")
+    print(f"RIG  : notes {rec['rig'].get('notes_total')} · locks {rec['rig'].get('locks')} · "
+          f"key in-browser {rec['rig'].get('opt_in_key_in_browser')!r} · on disk "
+          f"{rec['rig'].get('opt_in_key_on_disk')!r}")
+    print(f"       stores: {rec['rig'].get('store_counts')}")
     print(f"VERDICT: {'✅ BASELINE PROVEN BOTH WAYS' if ok else '⛔ ' + ' · '.join(reasons)}")
     print(f"artifact: {out}")
     return 0 if ok else 1
@@ -2494,6 +2656,13 @@ def main() -> int:
                     help="soft-delete the preserved canary artifacts and prove the "
                          "baseline TWO WAYS. ⛔ REFUSES unless a finished capture on "
                          "disk already holds the words of every note it would remove.")
+    ap.add_argument("--stores-dump", action="store_true",
+                    help="READ-ONLY: dump every row in the rig's per-account "
+                         "IndexedDB — the LOCAL half of a fork's evidence.")
+    ap.add_argument("--verify-baseline", action="store_true",
+                    help="READ-ONLY: prove the baseline TWO WAYS (API from an "
+                         "independent context; the rig's own stores/locks/key + the "
+                         "on-disk key with Chrome dead). No capture, no deletes.")
     ap.add_argument("--capture", default=None,
                     help="the capture artifact --preserve-clean must answer to "
                          "(default: the newest fork-capture-*.json)")
@@ -2519,6 +2688,10 @@ def main() -> int:
     _out = pathlib.Path(args.out).resolve() if args.out else None
     if args.capture_fork:
         return capture_fork(_out)
+    if args.stores_dump:
+        return stores_dump(_out)
+    if args.verify_baseline:
+        return verify_baseline(_out, expect_notes=args.expect_notes)
     if args.preserve_clean:
         return preserve_clean(
             pathlib.Path(args.capture).resolve() if args.capture else None,
@@ -2829,6 +3002,23 @@ def self_check() -> int:
         ("⛔ a leftover canary note fails it, named",
          not baseline_verdict(32, dict(_good_api, canary_notes=["WINDOW-CHECK-SENTINEL z"]),
                               _good_rig)[0]),
+        # ⛔⛔ THE MIRROR OF THE DELETE-SET RULE. The owner's `To Do List` pair is
+        # tagged `sync-conflict` and lives in the baseline for ever; a verdict that
+        # reds on the TAG is red for ever, and a permanent red is a muted red.
+        ("⛔⛔ the owner's `sync-conflict` notes do NOT fail the baseline",
+         baseline_verdict(32, dict(_good_api, sync_conflict_notes=[
+             "To Do List", "To Do List (synced copy)"]), _good_rig)[0]),
+        ("…while a `sync-conflict` note THIS TOOL made does, by name",
+         "THIS TOOL MADE" in " ".join(baseline_verdict(32, dict(
+             _good_api, sync_conflict_notes=["To Do List",
+                                             SENTINEL_PREFIX + " z (conflicted copy)"]),
+             _good_rig)[1])),
+        ("⛔ store ROWS left behind fail it, and are named not cleared",
+         "NOT at rest" in " ".join(baseline_verdict(32, _good_api, dict(
+             _good_rig, store_counts={"notes": 1, "meta": 2, "outbox": 0}))[1])),
+        ("CONTROL: all-zero stores pass",
+         baseline_verdict(32, _good_api, dict(_good_rig, store_counts={
+             "notes": 0, "meta": 0, "outbox": 0, "conflicts": 0}))[0]),
         ("⛔ a held lock fails it", not baseline_verdict(32, _good_api, dict(_good_rig, locks=1))[0]),
         ("⛔ the opt-in key ON DISK is checked, not just in the browser",
          not baseline_verdict(32, _good_api, dict(_good_rig, opt_in_key_on_disk="1"))[0]),
