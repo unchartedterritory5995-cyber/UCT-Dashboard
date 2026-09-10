@@ -1223,8 +1223,19 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # assertion stays an EXACT set rather than becoming a containment check: this
     # dict is everything the caller knows that the tree does not, so a key added
     # silently is a channel nobody reviewed.
+    #
+    # ⭐ `newest_bar_is_forming` JOINED THEM 2026-09-09, AND THIS RAIL IS WHY IT
+    # WAS REVIEWED. It is the bar-close TRI-STATE (`True`/`False`/`None`) that
+    # decides the four CLOCK_REALTIME columns. Without it they blank, and
+    # `barstate.islastconfirmedhistory` — which the Pine door does NOT fold,
+    # unlike `isconfirmed`/`ishistory`/`isrealtime` — came back `not_computable`
+    # on every saved scan that read it. Measured 1 -> None before the fix.
+    # ⛔ AND ITS VALUE IS `mode == LIVE`, NOT A CONSTANT `False`: `live_bars_for`
+    # APPENDS today's forming bar on the live path, so the newest bar genuinely is
+    # open there and genuinely closed on the nightly sweep. This lane is the only
+    # one that knows which, which is exactly why the key belongs in this dict.
     keys = {k.value for k in opts.keys}
-    assert keys == {"tf", "symbols"}, keys
+    assert keys == {"tf", "symbols", "newest_bar_is_forming"}, keys
     handed = dict(zip([k.value for k in opts.keys], opts.values))
     assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
