@@ -173,6 +173,66 @@ BLOCKED_EVENT = "j2:notebook_blocked_no_baseline"
 OPT_IN_EVENT = "j2:notebook_offline_opt_in"
 SENTINEL = "WINDOW-CHECK-SENTINEL"
 
+# ⭐ THE SHAPE OF A ROW — and every count of rows derives from this one literal.
+#
+# ⚰️ 2026-09-10, mine: I searched for the shape of a row I EXPECTED —
+# `^### check (\d+)` — instead of the shape of a ROW, got silence, and wrote the
+# silence down as a fact. A `--label`led row (`### deploy #4 live — run 1 of 7 —
+# …`) carries no check number at all, so anything keyed off that regex cannot
+# see it. A door rotation keyed off it would have printed ONE door on all seven
+# rows of a labelled streak while calling itself a rotation.
+ROW_MARK = "| **mini-canary** |"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# THE DOOR ROTATION — round 2's three metadata doors, one per run
+# ══════════════════════════════════════════════════════════════════════════════
+# ⛔ Folder, ticker and tags each move the server's `updatedAt` while saying
+# NOTHING about the member's words, so each one moves the baseline out from under
+# a queued outbox entry exactly the way a second writer would — without a second
+# writer existing. That is the shape the fix has to survive.
+#
+# ⭐ THE DOOR IS DERIVED FROM THE RUN'S OWN NUMBER, NEVER PASSED IN. A rotation
+# the caller has to remember to vary is a rotation that silently stops varying,
+# and seven rows would then say the same word while claiming to rotate.
+DOORS = ("folder", "ticker", "tags")
+DOOR_PATCH = {
+    "folder": {"folderId": None},
+    "ticker": {"ticker": "NVDA"},
+    # ⛔ NEVER `sync-conflict` — that tag belongs to the preserved evidence set,
+    # and nothing this tool creates may wear it.
+    "tags": {"tags": ["window-check-door"]},
+}
+# The words typed while the transport was cut. Their arrival on the server IS
+# the assertion; "the server holds text" is not, because the words typed ONLINE
+# satisfy that even when the queued entry was thrown away.
+OFFLINE_MARK = "typed offline."
+
+
+def door_for(n: int) -> str:
+    """Which door THIS run walks through. Pure, so the rotation can be driven."""
+    return DOORS[n % len(DOORS)]
+
+
+def door_survived(door: str, server_note) -> tuple:
+    """Did the value this run's door set survive the drain's send?
+
+    ⚠️ `folder` is N/A BY CONSTRUCTION and says so, rather than returning a green
+    it never measured: the canary note has no folder, so `folderId: null` is
+    still a real write (the server appends a SET and stamps `updated_at`) but its
+    VALUE reads the same on both sides. That door is proved by the baseline move,
+    and the row prints the caveat instead of a hollow tick.
+    """
+    if not isinstance(server_note, dict):
+        return False, " — the server note could not be read"
+    if door == "ticker":
+        got = server_note.get("ticker")
+        return got == DOOR_PATCH["ticker"]["ticker"], f" (`ticker` = {got!r})"
+    if door == "tags":
+        tags = server_note.get("tags") if isinstance(server_note.get("tags"), list) else []
+        return DOOR_PATCH["tags"]["tags"][0] in tags, f" (`tags` = {tags!r})"
+    return True, (" — `folder`'s VALUE check is N/A by construction (this note has no "
+                  "folder); the door is proved by the baseline move above")
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -212,14 +272,24 @@ def baseline_findings(label: str, artifact) -> list:
     return out
 
 
-def _doc_has_text(node) -> bool:
+def _doc_text(node) -> str:
+    """Every text run in a ProseMirror document, concatenated.
+
+    ⭐ ONE authority: `_doc_has_text` is this, asked whether it found anything.
+    The two questions — "is there any text" and "is MY sentence in it" — must not
+    be answered by two different walks that can drift apart.
+    """
     if isinstance(node, dict):
-        if node.get("type") == "text" and str(node.get("text", "")).strip():
-            return True
-        return any(_doc_has_text(c) for c in node.get("content", []) or [])
+        if node.get("type") == "text":
+            return str(node.get("text", ""))
+        return "".join(_doc_text(c) for c in node.get("content", []) or [])
     if isinstance(node, list):
-        return any(_doc_has_text(c) for c in node)
-    return False
+        return "".join(_doc_text(c) for c in node)
+    return ""
+
+
+def _doc_has_text(node) -> bool:
+    return bool(_doc_text(node).strip())
 
 
 def empty_document_findings(label: str, artifact, expect_text: bool = True) -> list:
@@ -312,6 +382,10 @@ class Check:
     findings: list = field(default_factory=list)
     canary_ran: bool = False
     needs_signin: bool = False
+    # ⭐ The run's own row number, and the door it derives. `number` is set ONCE,
+    # in `main`, from the document itself — never chosen by a caller.
+    number: int = 0
+    door: str = ""
 
     def add(self, name, ok, value=None, error=""):
         self.reads.append(Read(name, ok, value, error))
@@ -348,6 +422,12 @@ class Check:
         lines += ["| | reading |", "|---|---|"]
         for r in self.reads:
             lines.append(f"| {r.name} | {r.render()} |")
+        # ⭐ STAMPED, so the seven rows SHOW the rotation instead of a sentence
+        # claiming there is one. A row that names its own door is falsifiable by
+        # eye; "the door rotates" is not.
+        if self.canary_ran and self.door:
+            lines.append(f"| door this run | **`{self.door}`** — `DOORS[{self.number} % 3]`, "
+                         "derived from this run's own row number |")
         if self.canary_ran:
             lines.append("| **mini-canary** | " + (
                 "\U0001f6a8 **NEW FINDING — see above**" if self.findings
@@ -650,6 +730,31 @@ NOTES_JS = """async () => {
     conflicts: notes.filter(n => (n.tags || []).includes('sync-conflict')).map(n => n.title)};
 }"""
 
+DOOR_JS = """async ({id, patch}) => {
+  // ⛔ METADATA ONLY — no title, no bodyJson. The server patches exactly the
+  // keys it is sent, so this write moves `updatedAt` while saying nothing about
+  // the member's words, which is the whole point of a metadata door. Sending the
+  // body back would make this an ordinary save and would prove nothing.
+  // ⛔ ONE retry on a 409, and the attempt count is REPORTED. The GET→PUT window
+  // is one round trip wide and the drain is racing us BY DESIGN: a 409 there
+  // means the queue moved the revision in between, which is not a defect and
+  // must not read as one. A second attempt on the fresh baseline is honest;
+  // looping past that would hide a real conflict behind a retry.
+  let prev = null, w = null, j = null, tries = 0;
+  while (tries < 2) {
+    tries++;
+    const before = await fetch('/api/j2/notes/' + id, {credentials:'include'})
+                     .then(r => r.ok ? r.json() : null).catch(() => null);
+    prev = before?.note?.updatedAt ?? null;
+    const body = Object.assign({baseUpdatedAt: prev}, patch);
+    w = await fetch('/api/j2/notes/' + id, {method:'PUT', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    j = await w.json().catch(() => null);
+    if (w.status !== 409) break;
+  }
+  return {status: w.status, before: prev, after: j?.note?.updatedAt ?? null, attempts: tries};
+}"""
+
 ACTIVITY_JS = """async (names) => {
   // ⭐ TWO SOURCES, AND THEY ANSWER DIFFERENT QUESTIONS.
   //
@@ -776,10 +881,10 @@ def teardown(chk: Check | None = None):
     return killed, mine_left, others, released, held
 
 
-def run_check(label: str, with_canary: bool) -> Check:
+def run_check(label: str, with_canary: bool, number: int = 0) -> Check:
     from playwright.sync_api import sync_playwright
 
-    chk = Check(label=label)
+    chk = Check(label=label, number=number)
     proc, endpoint, version = spawn_rig()
     chk.add("rig", bool(version),
             f"PID **{proc.pid}** \u00b7 {version['Browser']} \u00b7 CDP `{endpoint.split('//')[1]}` \u00b7 **persistent profile**" if version else None,
@@ -1211,7 +1316,41 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
     before = page.evaluate(LAYERS_JS, {"acct": ACCOUNT_ID, "id": note_id})
 
     # ⛔ NETWORK UP FIRST — no service worker, so an offline reload proves nothing.
-    offline(False); page.wait_for_timeout(1500)
+    offline(False)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⭐ THE DOOR. Back online, and BEFORE the drain gets its chance, ONE metadata
+    # PUT moves the server's `updatedAt` out from under the queued entry. No
+    # second device, no second writer — the member's own editor changing a field
+    # that says nothing about the words.
+    #
+    # ⛔ No wait in front of it. This PUT and the drain are in a race by nature,
+    # so the race is BIASED and then REPORTED, never assumed: `sends_before_door`
+    # counts this note's PUTs that already flew, so a run where the drain won says
+    # so instead of quietly claiming a rebase that never had to happen.
+    # ══════════════════════════════════════════════════════════════════════════
+    door = door_for(chk.number)
+    chk.door = door
+    sends_before_door = len([p for p in puts if note_id in p["url"]]) - len(online_puts)
+    dr = page.evaluate(DOOR_JS, {"id": note_id, "patch": DOOR_PATCH[door]})
+    if not isinstance(dr, dict):
+        dr = {"status": None, "before": None, "after": None}
+    door_moved = (dr.get("status") == 200 and isinstance(dr.get("after"), str)
+                  and dr.get("after").strip() != "" and dr.get("after") != dr.get("before"))
+    chk.step(f"4 door `{door}` moved the baseline under the queued entry", door_moved,
+             f"run **#{chk.number}** ⇒ `DOORS[{chk.number} % 3]` = **`{door}`** · "
+             f"PUT **{dr.get('status')}** in **{dr.get('attempts')}** attempt(s) · "
+             f"baseline `{dr.get('before')}` → `{dr.get('after')}` · "
+             f"queued sends that beat it: **{sends_before_door}**",
+             f"the metadata PUT did not move the baseline (status {dr.get('status')}, "
+             f"{dr.get('before')} → {dr.get('after')}) — this run did NOT exercise the rebase")
+    # ⛔ Only when the write actually landed: a 200 whose note carries no
+    # timestamp is the finding this tool hunts; a failed PUT is a red step, and
+    # calling it a baseline finding would preserve evidence of nothing.
+    if dr.get("status") == 200:
+        chk.findings += baseline_findings(f"door-{door}", {"baseUpdatedAt": dr.get("after")})
+
+    page.wait_for_timeout(1500)
     page.goto(f"{PROD}/journal/notebook?note={note_id}", wait_until="domcontentloaded")
     page.wait_for_timeout(8000)
     after = page.evaluate(LAYERS_JS, {"acct": ACCOUNT_ID, "id": note_id})
@@ -1248,6 +1387,42 @@ def _canary_body(chk: Check, page, offline, puts) -> str | None:
              if layer_read_failed(settled) else
              f"queue did not settle: dirty={srec.get('dirty')} outbox={len(_as_list(settled.get('outbox')))} serverHasText={server_has}")
     chk.findings += baseline_findings("settled record", srec)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⛔⛔ THE ASSERTION: REBASED AND SENT — never discarded, never forked.
+    #
+    # The step above CANNOT see this one's failure, and that is why this one
+    # exists: "the server holds text" is satisfied by the words typed ONLINE, so
+    # an entry the drain threw away on the 409 leaves it green while the member's
+    # offline sentence is gone. This asks the only question the member has.
+    # (The fork half is answered in `_canary_tail`, before anything is deleted.)
+    # ══════════════════════════════════════════════════════════════════════════
+    landed = OFFLINE_MARK in _doc_text(srv.get("bodyJson"))
+    door_kept, door_note = door_survived(door, srv)
+    # ⭐ REPORTED, NOT GATED: a send carrying the post-door baseline is proof the
+    # entry was re-based rather than replayed stale. When the drain beat the door
+    # (see `sends_before_door`) there was nothing to rebase, and gating on it
+    # would turn a race we lost into a red that means nothing.
+    rebased = [p for p in puts if note_id in p["url"] and p["baseUpdatedAt"] == dr.get("after")]
+    land_reasons = []
+    if not landed:
+        land_reasons.append("the member's OFFLINE words are NOT on the server — the queued entry "
+                            "was DISCARDED rather than rebased")
+    if not door_kept:
+        land_reasons.append(f"the door value did not survive the drain's send{door_note}")
+    chk.step(f"4 the offline words were REBASED onto door `{door}` and SENT", not land_reasons,
+             f"offline words on the server: **{landed}** · a send carried the post-door baseline "
+             f"`{dr.get('after')}`: **{bool(rebased)}** · door value kept: **{door_kept}**{door_note}",
+             " · ".join(land_reasons))
+    if not landed:
+        # ⛔⛔ LOST WORDS IS A HARD STOP. A finding keeps the note on the account:
+        # `should_clean_up` refuses, and the evidence outlives the run.
+        chk.findings.append(
+            "**the member's OFFLINE words never reached the server** — the queued entry was "
+            f"discarded instead of being rebased onto door `{door}`'s revision "
+            f"`{dr.get('after')}`. The words typed ONLINE are still there, which is exactly "
+            "why the drain step above stayed green. The note is PRESERVED."
+        )
 
     # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
     return _canary_tail(chk, page, note_id)
@@ -1298,7 +1473,7 @@ def recommend(events, optins, green_runs, findings_seen) -> tuple:
 
 
 def count_green_checks(text: str) -> int:
-    return len(re.findall(r"\| \*\*mini-canary\*\* \| ✅", text))
+    return len(re.findall(re.escape(ROW_MARK) + " ✅", text))
 
 
 def findings_ever(text: str) -> bool:
@@ -1957,6 +2132,248 @@ def self_check() -> int:
     cases.append(("…and it reads the profile it is GIVEN, not only the rig's",
                   "profile = PROFILE if profile is None" in src_wc))
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # ⭐ THE DOOR ROTATION — derived, varying, and DRIVEN.
+    # ══════════════════════════════════════════════════════════════════════════
+    cases.append(("the door is derived from the run's own number",
+                  [door_for(n) for n in (9, 10, 11)] == ["folder", "ticker", "tags"]))
+    cases.append(("no two consecutive runs walk the same door",
+                  all(door_for(n) != door_for(n + 1) for n in range(0, 40))))
+    cases.append(("every door comes up inside any three consecutive runs",
+                  all({door_for(k) for k in range(n, n + 3)} == set(DOORS) for n in range(0, 40))))
+    # ⚰️ THE SHAPE OF A ROW, not the shape of a label. My own defect, driven:
+    # the regex I trusted cannot see a `--label`led row, so a rotation keyed to it
+    # would print ONE door across a whole labelled streak.
+    _rows_doc = "\n".join([
+        "### check 10 — **2026-09-10T13:37:03Z**", "", "| | reading |", "|---|---|",
+        "| **mini-canary** | ✅ **6/6** steps green |", "",
+        "### deploy #4 live — run 1 of 7 — **2026-09-10T20:40:00Z**", "", "| | reading |",
+        "|---|---|", "| **mini-canary** | ✅ **6/6** steps green |", ""])
+    cases.append(("rows are counted by the shape of a ROW, so a --labelled row counts too",
+                  rows_stamped(_rows_doc) == 2))
+    cases.append(("⚰️ CONTROL: the regex I once trusted sees only ONE of those two rows",
+                  len(re.findall(r"^### check (\d+)", _rows_doc, re.M)) == 1))
+    cases.append(("…so a --labelled streak still rotates its door",
+                  len({door_for(rows_stamped(_rows_doc * k) + 1) for k in (1, 2, 3)}) == 3))
+    cases.append(("`folder`'s value check says N/A rather than a green it never measured",
+                  door_survived("folder", {})[0] is True and "N/A" in door_survived("folder", {})[1]))
+    cases.append(("…while `ticker` and `tags` are checked against the server's own note",
+                  door_survived("ticker", {"ticker": "NVDA"})[0]
+                  and not door_survived("ticker", {"ticker": None})[0]
+                  and door_survived("tags", {"tags": ["window-check-door"]})[0]
+                  and not door_survived("tags", {"tags": []})[0]))
+    cases.append(("…and an unreadable server note is never counted as survival",
+                  not door_survived("ticker", "ERR: NotFoundError")[0]))
+    cases.append(("the door tag is never `sync-conflict` — that label is the evidence set's",
+                  "sync-conflict" not in json.dumps(DOOR_PATCH)))
+    # ⛔ COMMENTS STRIPPED FIRST. The first version of this case matched the blob's
+    # OWN comment — the line that says "no title, no bodyJson" — and went red on
+    # the prose describing the property it was checking. A sweep that reads the
+    # explanation instead of the code is measuring the claim, not the request.
+    _door_code = "\n".join(l for l in DOOR_JS.splitlines() if not l.strip().startswith("//"))
+    cases.append(("the door PUT carries metadata ONLY — never the member's body back",
+                  "bodyJson" not in _door_code and "baseUpdatedAt" in _door_code))
+    cases.append(("CONTROL: the comment-stripped blob is still the real request",
+                  "method:'PUT'" in _door_code))
+    cases.append(("…it retries ONCE on a 409 (the drain races it by design), never loops",
+                  "tries < 2" in DOOR_JS and "attempts: tries" in DOOR_JS))
+    cases.append(("…and the row prints how many attempts it took",
+                  "dr.get('attempts')" in src_wc))
+    _door_row = Check(label="check 10", number=10, canary_ran=True, door="ticker").row()
+    cases.append(("the row STAMPS the door, so seven rows show the rotation",
+                  "`ticker`" in _door_row and "DOORS[10 % 3]" in _door_row))
+    cases.append(("CONTROL: a run with no door prints no door line",
+                  "DOORS[" not in Check(label="check 10", canary_ran=True).row()))
+
+    class _DrainPage:
+        """Models the SERVER, the door and the drain — so the assertion is DRIVEN.
+
+        ⭐ The drain fires on the navigation to the BARE notebook, because that is
+        the real rule (the drain never touches the note that is open) — not on a
+        call counter, which would model nothing.
+
+        ⛔ BRANCH ORDER IS LOAD-BEARING, for the third time in this file:
+        `OPEN_IF_EXISTS` puts `objectStoreNames` inside BOTH state and layer
+        reads, and the store-clear JS also mentions `notedraft`. Match on the
+        marker that is unique to each blob, most specific first.
+        """
+
+        class _El:
+            def click(self):
+                pass
+
+        class _Keys:
+            def __init__(self, page):
+                self.page = page
+
+            def press(self, _k):
+                pass
+
+            def type(self, text):
+                p = self.page
+                p.local_text += text            # the member's words, always local
+                if p.online:
+                    p.put(p.updated)            # the editor's own CAS save
+                    p.server_text += text
+                    p.updated = p.bump()
+                else:
+                    p.queued, p.offline_text = True, text
+                    p.queued_base = p.updated
+
+        def __init__(self, lands=True, door_moves=True):
+            self.lands, self.door_moves = lands, door_moves
+            self.online, self.rev = True, 1
+            self.updated = "REV-1"
+            self.note_id = "note-1"
+            self.server_text = ""
+            self.local_text = ""
+            self.offline_text = ""
+            self.queued, self.queued_base = False, None
+            self.ticker, self.tags = None, []
+            self.puts, self.notes, self.deleted, self.navigations = [], [], [], []
+            self.store = {}
+            self.keyboard = _DrainPage._Keys(self)
+
+        def bump(self):
+            self.rev += 1
+            return f"REV-{self.rev}"
+
+        def put(self, base):
+            self.puts.append({"url": f"/api/j2/notes/{self.note_id}", "baseUpdatedAt": base})
+
+        def set_offline(self, flag):
+            self.online = not flag
+
+        def wait_for_timeout(self, _ms):
+            pass
+
+        def query_selector(self, _sel):
+            return _DrainPage._El()
+
+        def goto(self, url, **_k):
+            self.navigations.append(url)
+            if url.endswith("/journal/notebook") and self.queued and self.online:
+                self.queued = False
+                if self.lands:
+                    self.put(self.updated)          # REBASED onto the current revision
+                    self.server_text += self.offline_text
+                    self.updated = self.bump()
+                # lands=False: the 409 throws the entry away and nothing is sent
+
+        def doc(self, text):
+            return {"type": "doc", "content": [{"type": "paragraph",
+                                                "content": [{"type": "text", "text": text}]}]}
+
+        def server_note(self):
+            return {"id": self.note_id, "updatedAt": self.updated, "ticker": self.ticker,
+                    "tags": list(self.tags), "bodyJson": self.doc(self.server_text)}
+
+        def evaluate(self, js, arg=None):
+            if "method:'DELETE'" in js:
+                self.deleted.append(arg)
+                if arg == self.note_id:
+                    self.notes = []
+                return None
+            if "method:'PUT'" in js:                       # DOOR_JS
+                before = self.updated
+                if not self.door_moves:
+                    # the blob retries once and gives up — it reports both.
+                    return {"status": 409, "before": before, "after": before, "attempts": 2}
+                patch = (arg or {}).get("patch") or {}
+                if "ticker" in patch:
+                    self.ticker = patch["ticker"]
+                if "tags" in patch:
+                    self.tags = list(patch["tags"])
+                self.put(before)
+                self.updated = self.bump()
+                return {"status": 200, "before": before, "after": self.updated, "attempts": 1}
+            if "method:'POST'" in js:                      # create the note
+                self.notes.append(arg)
+                return {"ok": True, "id": self.note_id}
+            if "storesCleared" in js:
+                return {"storesCleared": 1}
+            if "limit=300" in js:                          # NOTES_JS
+                return {"ok": True, "total": len(self.notes),
+                        "canary": [t for t in self.notes if SENTINEL in t], "conflicts": []}
+            if "notedraft" in js:                          # LAYERS_JS
+                return {"draft": {"bodyJson": self.doc(self.local_text)},
+                        "record": {"bodyJson": self.doc(self.local_text),
+                                   "baseUpdatedAt": self.updated,
+                                   "dirty": 1 if self.queued else 0},
+                        "outbox": ([{"noteId": self.note_id, "baseUpdatedAt": self.queued_base}]
+                                   if self.queued else []),
+                        "server": self.server_note() if self.online else "OFFLINE"}
+            if "optInKey" in js:                           # STATE_JS
+                return {"optInKey": self.store.get(FLAG_KEY, "0"), "locks": 0,
+                        "held": ["exclusive"], "pending": 0, "dbOpened": True,
+                        "storeNames": ["notes"], "stores": {"notes": 0}}
+            if "setItem(k, '1')" in js:
+                self.store[FLAG_KEY] = "1"
+                return None
+            if "setItem(k, '0')" in js:
+                self.store[FLAG_KEY] = "0"
+                return "0"
+            if "getItem" in js:
+                return self.store.get(FLAG_KEY)
+            if "/api/health" in js:                        # PROBE
+                return "ONLINE 200" if self.online else "FAILED: TypeError"
+            return {}
+
+    def _drive_canary(number=10, lands=True, door_moves=True):
+        page = _DrainPage(lands=lands, door_moves=door_moves)
+        chk = Check(label="t", number=number)
+        _mini_canary(chk, page, page.set_offline, page.puts)
+        return chk, page
+
+    def _step(chk, prefix):
+        return next((s for s in chk.canary if s.name.startswith(prefix)), None)
+
+    chk_g, page_g = _drive_canary(number=10)              # 10 % 3 = 1 → ticker
+    cases.append(("DRIVEN: the canary walks its derived door and the run is green",
+                  chk_g.door == "ticker" and all(s.ok for s in chk_g.canary) and not chk_g.findings))
+    cases.append(("…the door PUT really moved the baseline under the queued entry",
+                  (_step(chk_g, "4 door ") or Read("x", False)).ok and page_g.ticker == "NVDA"))
+    cases.append(("…and the offline words reached the server, rebased onto the new revision",
+                  OFFLINE_MARK in page_g.server_text
+                  and (_step(chk_g, "4 the offline words") or Read("x", False)).ok))
+    cases.append(("DRIVEN: the rotation actually varies across n",
+                  [_drive_canary(number=n)[0].door for n in (9, 10, 11)]
+                  == ["folder", "ticker", "tags"]))
+    _chk_t, _page_t = _drive_canary(number=11)            # tags
+    cases.append(("…and the tags run really set its tag on the server note",
+                  _page_t.tags == ["window-check-door"]))
+
+    chk_r, page_r = _drive_canary(number=10, lands=False)
+    landing = _step(chk_r, "4 the offline words")
+    cases.append(("⛔ DRIVEN: a run whose queued words did NOT land is RED",
+                  landing is not None and not landing.ok))
+    cases.append(("…and the drain step CANNOT see it — it stays green on the ONLINE words",
+                  (_step(chk_r, "4 reconnect") or Read("x", False)).ok))
+    cases.append(("…so the RED is the only place a member's loss is reported",
+                  "DISCARDED" in (landing.render() if landing else "")))
+    cases.append(("…it is a FINDING (lost words = hard stop) and the note is PRESERVED",
+                  any("OFFLINE words never reached the server" in f for f in chk_r.findings)
+                  and page_r.deleted == [] and page_r.notes != []))
+    cases.append(("CONTROL: the green run DID clean up (no litter traded in)",
+                  page_g.deleted == [page_g.note_id] and page_g.notes == []))
+    chk_d, _page_d = _drive_canary(number=10, door_moves=False)
+    cases.append(("⛔ a door PUT that does not move the baseline is RED, not assumed",
+                  not (_step(chk_d, "4 door ") or Read("x", True)).ok))
+    cases.append(("…and the door is opted back out of anyway",
+                  (_step(chk_d, "5 opted back out") or Read("x", False)).ok))
+    _body_src = src_wc.split("def _canary_body", 1)[1].split("\n# ═", 1)[0]
+    cases.append(("the door is chosen INSIDE the canary from the run's own number",
+                  "door_for(chk.number)" in _body_src))
+    # ⛔ BUILT NEEDLE, BODY SCOPE, AND A CONTROL — for the FOURTH time in this
+    # file. The first version of this case read `"--door" not in src_wc` and went
+    # red on ITSELF: the literal it was hunting was the literal it was written
+    # with. A sweep over a source that contains the sweep counts the searcher.
+    _door_flag = "--" + "door"
+    _main_src = src_wc.split("def main(", 1)[1].split("\n    args = ap.parse_args()", 1)[0]
+    cases.append(("…and no flag lets an operator choose it", _door_flag not in _main_src))
+    cases.append(("CONTROL: that sweep can see a flag when one is there",
+                  "--label" in _main_src))
+
     bad_ct = 0
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
@@ -1966,12 +2383,38 @@ def self_check() -> int:
 
 
 def next_check_number() -> int:
+    """The NAME of the next unlabelled run — `check N`, N above the highest one
+    already written. ⚠️ It answers a different question from `this_run_number`
+    below, and the two are not interchangeable: a `--label`led row carries no
+    check number, so this one cannot count it."""
     try:
         text = DOC.read_text(encoding="utf-8")
     except OSError:
         return 1
     nums = [int(m) for m in re.findall(r"^### check (\d+)", text, re.M | re.I)]
     return (max(nums) + 1) if nums else 1
+
+
+def rows_stamped(text: str) -> int:
+    """How many check rows this document already holds — LABELLED OR NOT.
+
+    ⭐ Counted by the shape of a ROW (`ROW_MARK`), never by the shape of a label.
+    """
+    return text.count(ROW_MARK)
+
+
+def this_run_number() -> int:
+    """The ordinal of the row THIS run will write — the door's only input.
+
+    ⛔ Derived from the document, so it advances on every stamped run whatever
+    the row is called. Keying the rotation to `next_check_number` would freeze it
+    the moment a streak is run under `--label`, which is precisely when the seven
+    rows are supposed to SHOW the rotation.
+    """
+    try:
+        return rows_stamped(DOC.read_text(encoding="utf-8")) + 1
+    except OSError:
+        return 1
 
 
 def main() -> int:
@@ -1999,9 +2442,12 @@ def main() -> int:
         return park()
 
     label = args.label or f"check {next_check_number()}"
-    log_line(f"{label}: starting")
+    # ⭐ Read ONCE, here, from the document — and there is deliberately no flag
+    # for it. The door a run walks through is not the operator's to choose.
+    number = this_run_number()
+    log_line(f"{label}: starting (row #{number}, door `{door_for(number)}`)")
     try:
-        chk = run_check(label, with_canary=not args.no_canary)
+        chk = run_check(label, with_canary=not args.no_canary, number=number)
     except SystemExit as e:
         log_line(f"{label}: STOPPED — {e}")
         raise
