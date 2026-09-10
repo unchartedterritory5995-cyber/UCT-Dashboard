@@ -1,0 +1,219 @@
+================================================================================
+UCT OPTIONS FLOW - ROLL GATE RUNBOOK - Thursday 2026-09-10 - all times ET
+================================================================================
+Sampler dir : C:\Users\Patrick\flow-gate-sampler\
+Data files  : C:\Users\Patrick\flow-gate-sampler\captures.jsonl
+              C:\Users\Patrick\flow-gate-sampler\rolls_union.jsonl
+Both files are APPEND-ONLY. summary.py is READ-ONLY against them, makes no
+network calls, and cannot perturb the sampler or the service. Safe any time.
+
+THE THREE COMMANDS (each is one line, paste whole)
+
+  SUMMARY (safe any time):
+python C:\Users\Patrick\flow-gate-sampler\summary.py
+
+  RESTART THE SAMPLER (only if it died; dedup means you lose only the gap):
+python C:\Users\Patrick\flow-gate-sampler\sample_flow_gate.py
+
+  BUMP (browser console, in a logged-in tab on https://uctintelligence.com):
+await (await fetch('/api/flow/bump-version', {method:'POST', credentials:'include'})).json()
+
+  AUTH PROBE - read-only, no side effects (same console, same tab):
+(await fetch('/api/flow/_diag/pod', {credentials:'include'})).status
+
+================================================================================
+07:45  CHECK THE SAMPLER IS ALIVE  +  PRE-CHECK AUTH
+================================================================================
+RUN:
+python C:\Users\Patrick\flow-gate-sampler\summary.py
+
+LOOK FOR:
+  "last capture ET" within the last 2 minutes
+  "captures ok=" roughly 750-800
+  generations=[0, 1]
+  gen 0 line says "BASELINE - criterion does not apply"   <- expected, ignore it
+  gen 1 startup_catchup=1  -> OK
+  steady count:
+      IF last night's bump happened  -> expect >= 1
+      IF it did NOT happen (build stuck, auth issue, anything) -> expect 0.
+      ZERO IS NOT A FAILURE HERE. It only means tonight's exercise did not run.
+      The 08:00 bump below is what matters.
+
+IF WRONG:
+  last capture is stale  -> the script died. Restart it:
+python C:\Users\Patrick\flow-gate-sampler\sample_flow_gate.py
+  generations=[0,1,2]    -> flow-worker restarted again overnight. NOT a failure.
+                            Expect startup_catchup=1 in EACH of gen 1 and gen 2.
+  "*** POSSIBLE FAIL-OPEN ***" banner -> do not trust the roll distribution.
+                            Tell me before the open.
+
+THEN RUN THE AUTH PROBE (browser console, logged-in tab):
+(await fetch('/api/flow/_diag/pod', {credentials:'include'})).status
+
+  200  -> your session has role == "admin". Cleared for the 08:00 bump.
+  403  -> NOT admin. STOP and tell me now. You have 15 minutes of margin
+          instead of discovering it at bump time.
+  401  -> not logged in. Log in and retry.
+
+================================================================================
+08:00  MANUAL BUMP  (survival check after ~14 idle hours)
+================================================================================
+RUN (browser console, logged-in tab on https://uctintelligence.com):
+await (await fetch('/api/flow/bump-version', {method:'POST', credentials:'include'})).json()
+
+LOOK FOR:
+  {"ok": true, "new_version": <a number larger than the last one}   -> proceed
+
+IF WRONG:
+  HTTP 403 with {"detail":"Admin session or service token required"}
+        -> AUTH problem, not the fix. Stop, tell me.
+  HTTP 200 with {"ok": false, "error": ...}
+        -> the bump itself failed. Stop, tell me.
+
+================================================================================
+08:05  READ THE RESULT  (wait for 2 captures after the bump)
+================================================================================
+RUN:
+python C:\Users\Patrick\flow-gate-sampler\summary.py
+
+FOUR OUTCOMES:
+
+  GREEN     gen 1 steady count went UP by 1
+            gen 1 startup_catchup still 1
+            no new RESTART line
+            -> the fixed classifier works in production.
+            NOTE: observed_s may be much higher than 6-9s on this roll, because
+            a manual bump forces a cold CSV rebuild (~20s). THAT IS NOT RED.
+            The failure bound is 60s, not 9s.
+
+  RED       the new roll appears as startup_catchup (gen 1 catchup = 2)
+            with no restart line
+            OR no roll recorded at all while the sampler clearly shows
+            current_version moved.
+
+  DECLINED  current_version moved, "declined" incremented, "prepared" did NOT,
+            no new roll.
+            -> THIS IS NO SIGNAL, NOT RED. It is lock contention, and the
+            preparer retries on its own every 2 seconds.
+            ACTION: wait one more capture. If still nothing, bump once more.
+
+  NO SIGNAL current_version did not move at all.
+            -> the bump did not land. Check the response body. Retry once.
+
+================================================================================
+08:10  GO / NO-GO
+================================================================================
+GREEN, or DECLINED-then-GREEN  -> proceed into the open. Nothing further to do.
+
+!! PRE-OPEN REMEDIATION IS NOT RELIABLE. On 2026-09-09 a flow-worker build sat
+   in BUILDING for 35+ minutes emitting nothing while three sibling services
+   finished in ~5. A fix pushed at 08:15 MAY NOT BE SERVING BY 09:30.
+   Consequence: if TONIGHT's bump reads RED, the fix starts TONIGHT - it is not
+   deferrable to the morning. And it strengthens the rule below.
+
+RED -> DO NOT REVERT. This was decided in advance. Do not re-litigate at 08:10:
+       - Nothing member-facing reads these ledgers. The only two readers are
+         /api/flow/aggregate-health and /api/flow/_diag/pod, both diagnostic.
+       - A wrong classifier therefore costs bad gate data and NOTHING ELSE.
+       - Reverting costs a second FULL-SITE bounce (see the freeze rule below)
+         and buys a known-BLIND ledger instead of a known-WRONG one, which is
+         strictly less informative.
+       - Let the session run. Collect the data. Fix after the close.
+       ONLY EXCEPTION: signs of member-facing breakage - warm=False persisting
+       across many captures, or errors on every capture. That is a different
+       signal entirely and you should tell me immediately.
+
+================================================================================
+09:30 - 16:00  HANDS OFF
+================================================================================
+NO deploys. NO reverts. NO bumps. NO pushes to master - INCLUDING the two docs
+commits sitting on the branch. However tidy it feels, do not.
+
+WHY: ANY push to master is a FULL-SITE bounce, not a flow-worker event.
+  web has an EMPTY watchPatterns list, which on Railway means NO FILTER, so it
+  redeploys on every push including docs-only and test-only ones.
+  - flow-worker: OPRA consumer drops 4-7 min, and that tape gap is PERMANENT
+    until the overnight T+1 flat file.
+  - web: /api/* blips ~1 minute for live members.
+  - worker, bars-api: restart; jobs and chart-data serving cycle.
+
+SAFE during the session: summary.py. It is read-only and cannot interfere.
+
+09:30  If the sampler died overnight and you did not catch it at 07:45,
+       restart it NOW. It is read-only against the endpoint and cannot
+       interfere with the session:
+python C:\Users\Patrick\flow-gate-sampler\sample_flow_gate.py
+
+================================================================================
+09:45 / 11:00 / 13:00 / 15:00  PERIODIC READS
+================================================================================
+RUN each time:
+python C:\Users\Patrick\flow-gate-sampler\summary.py
+
+ROUGH EXPECTATIONS (upper estimates at ~1 roll/min; a quiet tape legitimately
+produces fewer, so a lower number is not automatically a problem):
+  09:45  ~15 steady rolls
+  11:00  ~90 steady rolls
+  13:00  ~210 steady rolls
+  15:00  ~330 steady rolls
+
+CONCERNS AT ANY OF THESE:
+  steady still 0 while current_version is visibly changing
+        -> the fix did not take. Note it. DO NOT ACT. Fix after the close.
+  observed_s max climbing toward 60s, or pass2_skipped becoming common
+        -> preparation losing the race. Note it. DO NOT ACT mid-session.
+  a "*** POSSIBLE FAIL-OPEN ***" banner
+        -> the version may be advancing ungated because the database is
+           unreadable, which makes a flawless-looking distribution an
+           artifact rather than a measurement. Note it, do not call it a PASS.
+  gen count increasing (a new generation appearing)
+        -> flow-worker restarted mid-session. Expect exactly one
+           startup_catchup in the NEW generation. That is benign.
+
+================================================================================
+16:05  FINAL READ
+================================================================================
+RUN:
+python C:\Users\Patrick\flow-gate-sampler\summary.py
+
+QUOTE BACK TO ME, verbatim:
+  1. the generations list
+  2. startup_catchup per generation (gen 0 is the baseline, it does not count)
+  3. the steady count
+  4. observed_s: n / min / med / max, and the ">=60s" count
+  5. pass2_skipped ratio
+  6. captures ok / errors
+  7. the whole "slow-roll attribution" block - for every roll >= 60s, whether
+     the declined delta says LOCK CONTENTION or THE PREPARER ITSELF.
+     These are two different problems with two different fixes; do not let
+     them be conflated in the verdict.
+  8. the fail-open check line (longest gapless run, warm=False count)
+
+THE CHECKLIST
+
+PASS requires ALL of:
+  - startup_catchup is EXACTLY 1 per fully-observed generation (not gen 0)
+  - >= 20 steady rolls, spread across the session rather than clustered
+  - max observed_s < 60s
+  - median observed_s roughly 7-9s
+  - handoff_ms in single-digit milliseconds
+  - pass2_skipped rare
+  - no fail-open banner
+
+FAIL on ANY of:
+  - a second startup_catchup in one generation with NO restart line
+    (on its own, regardless of how healthy the timing numbers look)
+  - observed_s regularly at or above 60s
+  - frequent pass2_skipped
+  - rolls_steady still 0 after the sampler has shown current_version moving
+
+AMBIGUOUS:
+  - fewer than ~20 steady rolls
+  - all rolls inside one or two minutes (that is one build, not a distribution)
+
+!! observed_s IS NOT "data change -> first paint". It starts at the DETECTOR'S
+   SIGHTING, and the sighting is itself delayed by the _SIG_PROBE_SEC (5s)
+   probe cache. This gate validates HANDOFF + PREPARATION ONLY. The up-to-5s
+   probe latency and the up-to-60s bucket ambiguity are OUTSIDE it.
+   Quote it as "sighting -> first paint published". Never as end-to-end latency.
+================================================================================

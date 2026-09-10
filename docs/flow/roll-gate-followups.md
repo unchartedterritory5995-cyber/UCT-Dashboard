@@ -348,3 +348,74 @@ from the steady distribution. That is exactly what the classification is for.
 A binary whose classifier works, so `startup_catchup == 1` is a live criterion
 rather than an uninformative one. The blind-ledger fallback in `summary.py` stays
 in place regardless — it costs nothing and covers a restart onto anything else.
+
+---
+
+## E12 — `build_failures` RETURNS NOTHING, AND CARRIES NO ERROR STRING
+
+Two `build_failures` on the fresh container, and they are worth understanding
+before tomorrow's RTH read.
+
+**Both landed exactly on a version change** — 19:51:03 (the boot roll) and
+19:59:03 (the manual bump). Not random, not load-driven.
+
+**It is NOT the preparer.** `prepare.failed = 0` and `prepare.last_error = None`
+at both instants, and `warm` was `True` throughout, so first paint stayed healthy.
+The failure is on the aggregate build path for a NON-default view — the
+`last_build` at 19:59 records `date_filter=Last5` while the preparer's default is
+`Last1`.
+
+⛔ **A build failure is closer to member-facing than a decline.** Both paths in
+`flow_aggregate.py` do the same thing:
+
+    built = build_parts(csv_text, date_filter, only=only)
+    if not built:
+        _STATS["build_failures"] += 1
+        return None          # <- the caller gets NOTHING
+
+A DECLINE returns `cached if cached else None`, so it can still serve a previous
+generation. A FAILURE returns `None` unconditionally. The member gets nothing and
+falls to the raw tape.
+
+⛔ **AND NO ERROR STRING IS CAPTURED ANYWHERE.** `build_failures` is a bare
+counter; the falsy return from the node subprocess is discarded. `prepare.last_error`
+covers only the preparer, which is not this path. So "why did it fail" is currently
+unanswerable from any surface. **Add a `last_build_error` beside the counter** —
+post-close, cheap, and it is the difference between a number and a diagnosis.
+
+Watch it at the 16:05 read: if `build_failures` scales with RTH load rather than
+staying at one-per-roll, that is a real member-facing concern.
+
+---
+
+## E13 — THE FOREIGN-WRITER COLLISION (measured, not hypothetical — yet)
+
+A second Claude session (`session_01HWGkvQ2snrfWTGH5bXEL2K`, "Claude Fable 5",
+Pattern Vision / S7 Terminal) pushed to master four times on the evening of
+2026-09-09, after our authorized flow-worker deploy. Checked each diff against
+every service's live `watchPatterns`:
+
+| commit | flow-worker | worker | bars-api | web |
+|---|---|---|---|---|
+| `590e88084` api/main.py + pattern_vision | **no rebuild** | rebuilt | rebuilt | rebuilt |
+| `c7b0686e4` pattern_vision/store.py | **no rebuild** | rebuilt | rebuilt | rebuilt |
+| `3b043d0f8` docs only | **no rebuild** | no | no | rebuilt |
+| `8a7c23ec6` docs only | **no rebuild** | no | no | rebuilt |
+
+**flow-worker was not rebuilt by any of them, and it is still running
+`184a7e77b`** (deployment `2c768029`, verified against the live serviceInstance,
+not a status badge).
+
+⚠️ **The collision is theoretical only because of which files they happened to
+touch.** `api/main.py` is not on flow-worker's 23-file list, but it is one file
+away from being. An RTH master push touching any of those 23 rebuilds flow-worker
+mid-session and gaps the OPRA tape permanently — the exact failure the freeze
+exists to prevent, caused by a writer the freeze does not reach.
+
+⭐ Note also that the two docs-only commits rebuilt **web** — the member-facing
+service — for zero benefit, which is E6's empty-`watchPatterns` defect firing
+twice in one evening.
+
+**Coordination is the owner's to do, across sessions. A pre-push guard would
+reverse an explicit owner decision (`143cabd3a`, 2026-08-24, "ship when ready")
+and is itself a master change. Surfaced as a DECISION, not taken.**
