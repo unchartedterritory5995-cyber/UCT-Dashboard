@@ -312,3 +312,39 @@ While the hung build was being rescued, a *different* Claude session pushed two
 docs commits to master. `web` has an empty `watchPatterns` (= no filter), so it
 redeployed on a docs-only change; `flow-worker`, `worker` and `bars-api` correctly
 did not. **Coordinate before touching master — more than one agent may be pushing.**
+
+---
+
+## E11 — THE FIX IS PROVEN IN PRODUCTION (2026-09-09 ~20:00 ET)
+
+`184a7e77b` deployed to flow-worker via `serviceInstanceDeployV2` (deployment
+`2c768029`), after the first attempt hung 60+ minutes and was cancelled (E9/E10).
+
+**Before** — the unfixed binary, over ~18 hours: **437 prepares, ZERO steady rolls.**
+`rolls_steady: []` with the ledger structurally unable to record one.
+
+**After** — one manual `POST /api/flow/bump-version` (`{"ok":true,
+"new_version":49816638}`, offset 1 -> 2):
+
+    gen 1  startup_catchup    1      <- the boot roll, correctly filed
+    gen 1  steady_state_roll  1      <- THE FIRST STEADY ROLL THIS LEDGER HAS EVER HELD
+    steady observed_s: n=1 med=10.04 max=10.04  (>=60s: 0)
+    handoff_ms med=2   declined=0   pass2_skipped=0/1
+    gen 1: startup_catchup=1  OK
+
+GREEN on all three criteria: steady +1, catch-up still exactly 1, `restart=False`.
+
+⚠️ **`observed_s` 10.04 s is ABOVE the 6-9 s band and that is expected, not a
+regression** — a manual bump changes the version without changing data, so the CSV
+cache (keyed `(source, days, version)`) is cold and rebuilds inside the measured
+window. The FAIL bound is 60 s. `declined=0` confirms it was not lock contention.
+
+⚠️ The gen-1 **boot** catch-up shows `observed_s` **97.66 s** — a cold container
+plus a cold CSV, and it is correctly classified as a catch-up, so it is excluded
+from the steady distribution. That is exactly what the classification is for.
+
+### What tomorrow's gate now measures
+
+A binary whose classifier works, so `startup_catchup == 1` is a live criterion
+rather than an uninformative one. The blind-ledger fallback in `summary.py` stays
+in place regardless — it costs nothing and covers a restart onto anything else.
