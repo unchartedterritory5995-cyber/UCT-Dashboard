@@ -16,7 +16,7 @@ const HANDLERS = () => ({
   onDuplicate: vi.fn(), onToggleLock: vi.fn(), onToggleHide: vi.fn(),
   onDelete: vi.fn(), onSaveDefaults: vi.fn(), onClose: vi.fn(),
   onSetAlert: vi.fn(), onSetLevel: vi.fn(), onMakeHorizontal: vi.fn(),
-  onSetProp: vi.fn(),
+  onSetProp: vi.fn(), onAdjustAnchors: vi.fn(),
 })
 
 const draw = (type, extra = {}) => ({
@@ -35,7 +35,7 @@ function open(type, { sheet = false, drawing = {}, props = {} } = {}) {
 /** Row labels, in DOM order.
  *  The colour row's text carries its disclosure caret, and the font stepper's
  *  A− / A+ are controls inside a row rather than rows — neither is a label. */
-const STEPPER = new Set(['A−', 'A+', '✕', 'Set', 'S', 'M', 'L'])
+const STEPPER = new Set(['A−', 'A+', '✕', 'Set', 'S', 'M', 'L', 'T', 'C', 'B'])
 const rowLabels = () => [...document.querySelectorAll('button')]
   .map((b) => (b.textContent || '').trim().replace(/[▸▾]$/, '').trim())
   .filter((t) => t && !STEPPER.has(t))
@@ -383,6 +383,129 @@ describe('⭐ PHASE 4 WIDGETS — two generic ones, no tool-specific branching',
 
   it('Delete is still the last row on every Phase 4 tool', () => {
     for (const type of ['horizontal', 'hray', 'rect', 'arrow']) {
+      cleanup()
+      open(type)
+      expect(rowLabels().at(-1), type).toBe('Delete Drawing')
+    }
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ PHASE 5 — the measurement family, in the menu', () => {
+  it('a Measure gets four independent field switches and a position picker', () => {
+    open('measure')
+    expect(rowLabels()).toEqual([
+      'Color', 'Show dollar change', 'Show percent change', 'Show bars', 'Show time',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+    expect(screen.getByText('Label position')).toBeTruthy()
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['T', 'C', 'B'])
+  })
+
+  it('⛔ A LEGACY MEASURE\u2019S SWITCHES SHOW WHAT THE CANVAS SHOWS', () => {
+    // The drawing carries no toggles at all, and still prints its dollar,
+    // percent and bar count. A menu reading a flat default would say "off" for
+    // all three while the user looks straight at them.
+    open('measure')
+    const state = () => screen.getAllByRole('switch').map((b) => b.getAttribute('aria-checked'))
+    expect(state()).toEqual(['true', 'true', 'true', 'false'])   // $ % bars · not time
+  })
+
+  it('flipping a switch writes that one property', () => {
+    const { h } = open('measure')
+    fireEvent.click(screen.getAllByRole('switch')[3])            // Show time
+    expect(h.onSetProp).toHaveBeenCalledWith('showTime', true)
+  })
+
+  it('a Bars & Time ruler offers only the two questions it can answer', () => {
+    open('dateRange')
+    expect(rowLabels()).toEqual([
+      'Color', 'Show bars', 'Show time',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+    expect(screen.queryByText('Show dollar change')).toBeNull()
+    expect(screen.getByText('Label position')).toBeTruthy()
+  })
+
+  it('the position picker reports the stored position and sets a new one', () => {
+    const { h } = open('measure', { drawing: { labelPos: 'top' } })
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false'])
+    fireEvent.click(radios[2])
+    expect(h.onSetProp).toHaveBeenCalledWith('labelPos', 'bottom')
+  })
+
+  it('…and defaults to centre for a drawing that names none', () => {
+    open('measure')
+    expect(screen.getAllByRole('radio').map((r) => r.getAttribute('aria-checked')))
+      .toEqual(['false', 'true', 'false'])
+  })
+
+  it('a Price Move gets its two figures and Adjust anchors', () => {
+    open('advance')
+    expect(rowLabels()).toEqual([
+      'Color', 'Show dollar change', 'Show percent change', 'Adjust anchors…',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+  })
+
+  it('⛔ THE LAST VISIBLE FIGURE REFUSES TO SWITCH OFF', () => {
+    // A Price Move showing neither figure is an invisible, unclickable drawing.
+    const { h } = open('advance')                 // legacy: percent only
+    const sw = screen.getAllByRole('switch')
+    expect(sw[1].getAttribute('aria-checked')).toBe('true')
+    expect(sw[1].getAttribute('aria-disabled')).toBe('true')
+    fireEvent.click(sw[1])
+    expect(h.onSetProp).not.toHaveBeenCalled()
+    // …and it unlocks the moment the other one is on.
+    cleanup()
+    const both = open('advance', { drawing: { showDollar: true, showPercent: true } })
+    for (const b of screen.getAllByRole('switch')) expect(b.getAttribute('aria-disabled')).toBeNull()
+    fireEvent.click(screen.getAllByRole('switch')[0])
+    expect(both.h.onSetProp).toHaveBeenCalledWith('showDollar', false)
+  })
+
+  it('⭐ MEASURE IS NOT LOCKED — its box survives every switch being off', () => {
+    const { h } = open('measure', { drawing: { showDollar: true, showPercent: false, showBars: false, showTime: false } })
+    const sw = screen.getAllByRole('switch')
+    expect(sw[0].getAttribute('aria-disabled')).toBeNull()
+    fireEvent.click(sw[0])
+    expect(h.onSetProp).toHaveBeenCalledWith('showDollar', false)
+  })
+
+  it('Adjust anchors calls its handler and renames itself while active', () => {
+    const { h } = open('advance')
+    fireEvent.click(screen.getByText('Adjust anchors…'))
+    expect(h.onAdjustAnchors).toHaveBeenCalled()
+    cleanup()
+    render(<DrawingContextMenu x={0} y={0} drawing={draw('advance')} adjusting {...HANDLERS()} />)
+    expect(screen.getByText('Done adjusting')).toBeTruthy()
+  })
+
+  it('a caller with no anchor handler simply has no such row', () => {
+    open('advance', { props: { onAdjustAnchors: null } })
+    expect(rowLabels()).not.toContain('Adjust anchors…')
+    expect(rowLabels()).toContain('Show percent change')
+  })
+
+  it('Save as default files the measurement settings under the tool', () => {
+    const { h } = open('measure', { drawing: { showTime: true, labelPos: 'top' } })
+    fireEvent.click(screen.getByText('Save as default'))
+    expect(h.onSaveDefaults.mock.calls[0][0].byTool).toEqual({
+      measure: { showDollar: true, showPercent: true, showBars: true, showTime: true, labelPos: 'top' },
+    })
+  })
+
+  it('⛔ …and a Bars & Time saves only what IT offers', () => {
+    const { h } = open('dateRange')
+    fireEvent.click(screen.getByText('Save as default'))
+    const payload = h.onSaveDefaults.mock.calls[0][0]
+    expect(payload.byTool).toEqual({ dateRange: { showBars: true, showTime: false, labelPos: 'center' } })
+    expect(payload.byTool.dateRange).not.toHaveProperty('showDollar')
+  })
+
+  it('Delete is still the last row on every Phase 5 tool', () => {
+    for (const type of ['measure', 'dateRange', 'advance']) {
       cleanup()
       open(type)
       expect(rowLabels().at(-1), type).toBe('Delete Drawing')

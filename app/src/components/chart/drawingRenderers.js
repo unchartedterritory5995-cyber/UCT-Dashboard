@@ -44,7 +44,10 @@ import { UCT_DRAW_GOLD } from './drawingColors'
 import {
   boundsOf, cupControlPoint, extendLineFar, extendRay, extendToEdges, pointsUsable,
 } from './drawingGeometry'
-import { drawLabel, formatPercent, formatPrice, inkOn, labelBox } from './drawingLabels'
+import {
+  READOUT_BG, drawLabel, drawLabelBlock, formatPercent, formatPrice, inkOn, labelBox,
+} from './drawingLabels'
+import { labelPosOf, resolveLabelY } from './drawingMeasure'
 import { arrowSizeFor, borderFor, fillFor } from './drawingStyle'
 
 /** Index-stable resolution keeps a slot for every stored anchor and marks the
@@ -357,48 +360,88 @@ export function renderText(ctx, pts, drawing, opacity = 1) {
 
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).
 // % = directional move between the 1st and 2nd clicked candles (computeAdvancePct).
-export function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null, autoInk = '#ffffff') {
-  if (!pts.length || drawing.advPct == null) return
-  const p = pts[pts.length - 1]   // the "to" candle
-  if (!p || p.valid === false || !Number.isFinite(p.x)) return
-  // If the anchor candle is itself scrolled OUTSIDE the plot area (e.g. a setup
-  // months to the right while zoomed in on a different setup), don't render —
-  // otherwise the on-canvas clamp below would pin the label to the screen edge
-  // instead of letting it scroll away with its candle. Only labels whose anchor
-  // is on-screen (but whose centered text overflows the edge) get nudged inward.
-  if (canvasW != null && (p.x < -1 || p.x > canvasW + 1)) return
-  // Advance → label ABOVE the candle's HIGH; decline → BELOW its LOW, so a drop
-  // reads "-24%" tucked under the trough. Anchoring a decline to the LOW (not the
-  // high) gives it the SAME clearance from the candle as an advance gets above the
-  // high — otherwise "below the high" lands on the candle body, looking closer.
-  const isDecline = drawing.advPct < 0
-  const anchorPrice = (isDecline && drawing.advLow != null) ? drawing.advLow : drawing.advHigh
-  const anchorY = anchorPrice != null ? toPixelY(null, anchorPrice) : null
-  const baseY = anchorY != null ? anchorY : p.y
-  const y = isDecline ? baseY + offset : baseY - offset
+/**
+ * Price Move — a compact annotation of how big a run was.
+ *
+ * ⭐ THE LABEL IS THE DRAWING. The two anchors define the MEASUREMENT; they are
+ * data, not geometry, and nothing is drawn between them. That was already true
+ * of this painter and Phase 5 keeps it — what Phase 5 adds is the ability for the
+ * label to sit somewhere the user PUT it rather than only where the anchors
+ * happen to imply.
+ *
+ * ⛔ WHERE THE LABEL GOES, IN PRECEDENCE ORDER:
+ *   1. `o.at` — the user dragged it there. Absolute, honoured exactly.
+ *   2. Derived: above the run's HIGH for an advance, below its LOW for a
+ *      decline, offset by a fixed number of screen pixels.
+ * A legacy drawing has no stored position and therefore takes branch 2, which is
+ * the code that has always run — so every existing Price Move label is where it
+ * was, to the pixel.
+ *
+ * ⭐ A DECLINE ANCHORS TO THE LOW, NOT THE HIGH, so a drop reads tucked under the
+ * trough with the same clearance an advance gets above the peak. Anchoring both
+ * to the high would land a decline's label on the candle body.
+ */
+export function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null, autoInk = '#ffffff', o = null) {
+  const lines = (o && o.lines && o.lines.length) ? o.lines : null
+  if (!pts.length) return null
+  if (!lines && drawing.advPct == null) return null
+  const p = pts[pts.length - 1]
+  if (!p || p.valid === false || !Number.isFinite(p.x)) return null
+
+  const at = (o && o.at) || null
+  // Off-screen guard: an anchor scrolled outside the plot must take its label
+  // with it rather than being pinned to the edge by the clamp below. A label the
+  // user has explicitly placed is exempt — its position is its own fact.
+  if (!at && canvasW != null && (p.x < -1 || p.x > canvasW + 1)) return null
+
+  const isDecline = (drawing.advPct ?? 0) < 0
+  let px, py
+  if (at && Number.isFinite(at.x) && Number.isFinite(at.y)) {
+    px = at.x; py = at.y
+  } else {
+    const anchorPrice = (isDecline && drawing.advLow != null) ? drawing.advLow : drawing.advHigh
+    const anchorY = anchorPrice != null ? toPixelY(null, anchorPrice) : null
+    const baseY = anchorY != null ? anchorY : p.y
+    px = p.x
+    py = isDecline ? baseY + offset : baseY - offset
+  }
+
   ctx.save()
-  // Match the swing price labels exactly (swingLabelsPrimitive): 600 11px
-  // Instrument Sans, no outline/shadow — just a clean fill.
   ctx.font = '600 11px "Instrument Sans", sans-serif'
   ctx.textAlign = 'center'
-  ctx.textBaseline = isDecline ? 'top' : 'bottom'
-  // Thousands separator for big moves: +1,156% (toLocaleString carries the sign).
-  const n = Math.round(drawing.advPct)
-  const text = `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}%`
-  // Keep the (center-aligned) label fully on-canvas: if a label on one of the
-  // last candles would overflow the right edge (the plot area, price-axis
-  // excluded) or the left, shift it inward so it's never clipped.
-  let px = Math.round(p.x)
+  ctx.textBaseline = at ? 'middle' : (isDecline ? 'top' : 'bottom')
+  // ⚰️ THE ROUNDED PERCENT AND ITS THOUSANDS SEPARATOR ARE PRESERVED. A run is
+  // reported as `+1,156%`, not `+1156.00%` — the decimals on a number that size
+  // are noise, and the separator is what makes it readable at a glance. The
+  // caller builds the string now, so this is the fallback for a drawing whose
+  // fields have not been resolved (the placement preview).
+  const text = lines ? null : `${Math.round(drawing.advPct) >= 0 ? '+' : ''}${Math.round(drawing.advPct).toLocaleString('en-US')}%`
+  const rows = lines || [text]
+  let w = 0
+  for (const r of rows) w = Math.max(w, ctx.measureText(r).width)
+  let x = Math.round(px)
   if (canvasW) {
-    const half = ctx.measureText(text).width / 2 + 3
-    px = Math.max(half, Math.min(px, canvasW - half))
+    const half = w / 2 + 3
+    x = Math.max(half, Math.min(x, canvasW - half))
   }
-  const py = Math.round(y)
-  // Color: a user-chosen color (right-click → Color) wins; otherwise auto-ink
-  // (black on a light canvas, white on a dark one). No stroke/shadow.
   ctx.fillStyle = drawing.labelColor || autoInk
-  ctx.fillText(text, px, py)
+  const lh = 13
+  const base = ctx.textBaseline
+  const top = base === 'middle' ? Math.round(py) - ((rows.length - 1) * lh) / 2
+    : base === 'top' ? Math.round(py)
+      : Math.round(py) - (rows.length - 1) * lh
+  rows.forEach((r, i) => ctx.fillText(r, x, top + i * lh))
   ctx.restore()
+  // The box the label actually occupies, so hit testing and the selection
+  // handle can use the thing the user can SEE rather than the anchors they
+  // cannot. ⛔ Returned rather than recomputed by the caller: two independent
+  // derivations of "where is the label" is exactly how a hitbox drifts.
+  // Visual height: the rows' spacing plus one cap height for the glyphs.
+  const h = (rows.length - 1) * lh + 11
+  const cy = base === 'middle' ? Math.round(py)
+    : base === 'top' ? Math.round(py) + h / 2
+      : Math.round(py) - h / 2
+  return { x: x - w / 2 - 3, y: cy - h / 2 - 2, w: w + 6, h: h + 4, cx: x, cy }
 }
 
 // ─── Fibonacci ───────────────────────────────────────────────────────────────
@@ -603,63 +646,90 @@ export function renderChannel(ctx, pts, rect) {
  *  creation and the drag path writes only `{points}`, so resizing a Measure
  *  leaves a stale count and changing timeframe leaves one that was never right
  *  for the new bars. Phase 5 derives it here instead. */
-export function renderMeasure(ctx, pts, drawing, pctOnly = false) {
+/**
+ * The Measure box.
+ *
+ * ⚰️ WHAT MOVED OUT OF HERE. This function used to compute the percentage
+ * inline, print `toFixed(2)`, read a bar count the OVERLAY had frozen at
+ * creation, and choose its text with a four-branch `if (type === …)` ladder over
+ * `measure` / `priceRange` / `dateRange` / pctOnly. All four of those are now
+ * decided before the painter is called: the caller hands it finished `lines`,
+ * so this draws a box and a readout and knows nothing about what is in it.
+ *
+ * ⭐ THE BOX IS UNCHANGED — dashed border, 6% fill, same colours. Only the
+ * readout inside it moved: one chip instead of two stacked plates, and it can
+ * now sit at the top or the bottom of the box instead of always dead centre.
+ */
+export function renderMeasure(ctx, pts, drawing, o = null) {
   if (!ok(pts, 2)) return
   const { x1, y1, x2, y2 } = boundsOf(pts)
-  // Dashed rect
   ctx.setLineDash([3, 3])
   ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
   ctx.setLineDash([])
-  // Fill
   ctx.save()
   ctx.globalAlpha = 0.06
   ctx.fillStyle = ctx.strokeStyle
   ctx.fillRect(x1, y1, x2 - x1, y2 - y1)
   ctx.restore()
-  // Labels
-  const p1Price = pts[0].rawPrice, p2Price = pts[1].rawPrice
-  if (p1Price != null && p2Price != null) {
-    const diff = p2Price - p1Price
-    const pct = ((diff / p1Price) * 100).toFixed(2)
-    const bars = drawing.barCount || ''
-    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2
-    const type = drawing.type
-    ctx.font = 'bold 11px "Instrument Sans", sans-serif'
-    ctx.textAlign = 'center'
-    // Legibility chip: the measure color is tuned bright for the dark canvas and
-    // washes out as plain text on a LIGHT canvas (the readability complaint).
-    // Back each line with the same neutral dark chip the crosshair legend uses —
-    // it disappears into a dark canvas (so that look is unchanged) but gives the
-    // colored text solid contrast on a light one.
-    const labelColor = ctx.strokeStyle
-    const putLabel = (t, x, y) => {
-      if (!t) return
-      const tw = ctx.measureText(t).width
-      const padX = 5
-      ctx.fillStyle = 'rgba(20, 22, 18, 0.82)'
-      ctx.beginPath()
-      ctx.roundRect(x - tw / 2 - padX, y - 11, tw + padX * 2, 15, 3)
-      ctx.fill()
-      ctx.fillStyle = labelColor
-      ctx.fillText(t, x, y)
-    }
-    if (pctOnly) {
-      // Just the % move — for marking the size of an index correction.
-      putLabel(`${diff >= 0 ? '+' : ''}${pct}%`, cx, cy + 4)
-    } else if (type === 'priceRange') {
-      // Price delta only: $ move + %.
-      putLabel(`${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`, cx, cy + 4)
-    } else if (type === 'dateRange') {
-      // Horizontal span only: bar count.
-      putLabel(bars ? `${bars} bars` : '', cx, cy + 4)
-    } else {
-      const line1 = `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} (${diff >= 0 ? '+' : ''}${pct}%)`
-      const line2 = bars ? `${bars} bars` : ''
-      putLabel(line1, cx, cy - 4)
-      putLabel(line2, cx, cy + 12)
-    }
-    ctx.textAlign = 'start'
-  }
+
+  const lines = (o && o.lines) || []
+  if (!lines.length) return
+  const bounds = o && o.bounds
+  // Measured before placing, because where the label goes depends on how tall
+  // it is: "top" means "its top edge just inside the box", not "at y1".
+  const h = lines.length * 14 + 6
+  const y = resolveLabelY(labelPosOf(drawing), { y0: y1, y1: y2 }, h, bounds)
+  drawLabelBlock(ctx, lines, {
+    x: (x1 + x2) / 2, y, align: 'center', baseline: 'top',
+    color: ctx.strokeStyle, bg: READOUT_BG, bounds,
+  })
+}
+
+/**
+ * Bars & Time — the horizontal ruler.
+ *
+ * ⭐ IT IS DELIBERATELY NOT A MEASURE BOX. Measure asks a two-dimensional
+ * question (this much price, over this much time) and a box is the honest shape
+ * for it. Bars & Time asks a one-dimensional one, so it draws a one-dimensional
+ * object: a span between two caps, at one price row, with no fill and no height.
+ * Dropped on the same two anchors the two tools should look like different
+ * instruments, not like the same instrument with different text — which is the
+ * whole reason the half-landed `dateRange` (a measure box printing only a bar
+ * count) never felt like a real tool.
+ *
+ * ⛔ ONE PRICE ROW, TAKEN FROM THE FIRST ANCHOR. A ruler that can tilt is a
+ * trend line with numbers on it. The stored points are kept horizontal by
+ * `constrainPoints`, and this reads `pts[0].y` for both ends anyway, so a legacy
+ * `dateRange` with two different prices still renders as a proper ruler.
+ */
+export function renderBarsTime(ctx, pts, drawing, o = null) {
+  if (!ok(pts, 2)) return
+  const y = pts[0].y
+  const xa = Math.min(pts[0].x, pts[1].x), xb = Math.max(pts[0].x, pts[1].x)
+  const CAP = 5
+  ctx.beginPath()
+  ctx.moveTo(xa, y); ctx.lineTo(xb, y)
+  ctx.moveTo(xa, y - CAP); ctx.lineTo(xa, y + CAP)
+  ctx.moveTo(xb, y - CAP); ctx.lineTo(xb, y + CAP)
+  ctx.stroke()
+
+  const lines = (o && o.lines) || []
+  if (!lines.length) return
+  const bounds = o && o.bounds
+  const h = lines.length * 14 + 6
+  const pos = labelPosOf(drawing)
+  // The band a ruler's label positions within is the CAPS, not a box — so "top"
+  // is above the line and "bottom" below it, and centre sits ON the span (the
+  // chip's own plate covering the middle of the rule, which is what a ruler
+  // looks like).
+  const band = pos === 'center'
+    ? { y0: y - h / 2, y1: y + h / 2 }
+    : { y0: y - CAP - 3 - h, y1: y + CAP + 3 + h }
+  const at = resolveLabelY(pos, band, h, bounds)
+  drawLabelBlock(ctx, lines, {
+    x: (xa + xb) / 2, y: at, align: 'center', baseline: 'top',
+    color: ctx.strokeStyle, bg: READOUT_BG, bounds,
+  })
 }
 
 /** Long/short position (risk-reward): 3 points — entry, stop, target.

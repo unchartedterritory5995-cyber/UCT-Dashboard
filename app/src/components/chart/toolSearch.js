@@ -53,7 +53,11 @@ export const TOOL_ALIASES = {
   pitchfork:  ['andrews', 'median line', 'fork'],
   cup:        ['cup and handle', 'rounded', 'saucer', 'curve', 'arc'],
   avwap:      ['vwap', 'anchored vwap', 'volume weighted', 'average price'],
-  advance:    ['percent', 'gain', 'move', 'run', 'advance label', 'how much'],
+  // ⭐ THE OLD VOCABULARY IS KEPT ON PURPOSE. The tool is now called Price Move,
+  // but somebody who has used it for a year will still type "advance" — and a
+  // search that fails once teaches you not to search. Aliases cost nothing.
+  advance:    ['percent', 'gain', 'move', 'run', 'advance', 'advanced percent', 'percent label', 'advance label', 'how much'],
+  dateRange:  ['bars', 'time', 'duration', 'elapsed', 'span', 'how long', 'weeks', 'months', 'horizontal ruler'],
   text:       ['note', 'label', 'comment', 'annotation', 'write'],
   measure:    ['ruler', 'distance', 'how far', 'range', 'percent move'],
   position:   ['risk', 'reward', 'r multiple', 'stop', 'target', 'size', 'long', 'short', 'trade'],

@@ -8,8 +8,12 @@ import { hitThreshold, crossedDragSlop, useCoarsePointer } from './coarsePointer
 import { fmtLevel, visibleOnly } from './drawingObjects'
 import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
 import {
-  computeAdvancePct, handleDragGain, handlePointsFor, hitTestDrawing, offsetPoints,
+  computeAdvanceMove, constrainPoints, handleDragGain, handlePointsFor,
+  hitTestDrawing, offsetPoints, pointInBox,
 } from './drawingGeometry'
+import {
+  advanceLines, fieldsFor, inferBarSeconds, labelPosOf, measureLines, measurementFor,
+} from './drawingMeasure'
 import { dashFor } from './drawingStyle'
 import { priceFormatterFor } from './drawingLabels'
 import { drawingProp } from './drawingSchema'
@@ -23,6 +27,7 @@ import {
   renderRect, renderCircle, renderArrow, renderCup, renderText, renderAdvance,
   renderFib, renderFibExtension, renderPitchfork, renderChannel, renderMeasure,
   renderPosition, renderAnchoredVwap, renderSelectionHandles, renderCrosshair,
+  renderBarsTime,
 } from './drawingRenderers'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
@@ -398,6 +403,21 @@ export default function ChartDrawingOverlay({
   // ── Drag state ──
   // { drawingId, handleIdx (null=whole, 0/1/2=specific point), startPixel, originalPoints }
   const dragRef = useRef(null)
+  // ⭐ WHICH DRAWING HAS ITS MEASUREMENT ANCHORS TEMPORARILY EXPOSED.
+  //
+  // Price Move's anchors are DATA — two candles whose low→high is the run — and
+  // they are usually nowhere near the label. Showing handles on them whenever
+  // the label is selected put two gold dots in empty space, and a drag of one
+  // silently restated the measurement the user thought they were just moving.
+  // So they are off by default and revealed on request, for ONE drawing at a
+  // time. A plain id, not a mode object: there is nothing else to remember, and
+  // selecting anything else clears it.
+  const [adjustingId, setAdjustingId] = useState(null)
+  // The label boxes the LAST frame actually painted, per drawing id. Hit testing
+  // and the selection handle both read this, so what you click and what you see
+  // cannot drift apart — the alternative is a second derivation of "where is the
+  // label", which is how an invisible hitbox is born.
+  const labelBoxRef = useRef(new Map())
   // Touch support: track concurrent pointers (so a 2nd finger aborts a draw and
   // lets the chart pinch) + a long-press timer that opens the context menu.
   const activePointersRef = useRef(new Set())
@@ -1073,6 +1093,15 @@ export default function ChartDrawingOverlay({
       }
     }
 
+    // ⭐ ONE SPACING ESTIMATE PER FRAME, shared by every measurement on the
+    // chart. Only used to extrapolate anchors that sit in empty future space.
+    const barSeconds = inferBarSeconds(bars)
+    // The label boxes this frame paints, keyed by drawing id and rebuilt from
+    // scratch: a drawing deleted or scrolled away must not leave a hitbox behind.
+    // (Distinct from `labelBoxes` below, which is the anti-overlap reservation
+    // list for price tags and has no identity attached to its entries.)
+    const paintedBoxes = new Map()
+
     // ── Label state for THIS frame ────────────────────────────────────────
     // ⭐ ONE FORMATTER PER FRAME, NOT PER LABEL. `priceFormatterFor` asks the
     // series for its own `IPriceFormatter`, so a drawing's price reads exactly
@@ -1190,9 +1219,27 @@ export default function ChartDrawingOverlay({
         case 'pitchfork': renderPitchfork(ctx, pts, rect); break
         case 'channel': renderChannel(ctx, pts, rect); break
         case 'cup': renderCup(ctx, pts); break
-        case 'measure': renderMeasure(ctx, pts, d, measurePctOnly); break
-        case 'priceRange': renderMeasure(ctx, pts, d); break
-        case 'dateRange': renderMeasure(ctx, pts, d); break
+        // ⛔ THE PAINTER NO LONGER DECIDES WHAT IT SAYS. It used to branch on
+        // `d.type` to choose between four hard-coded text layouts; the content
+        // is now resolved here, from one shared measurement, and the painter
+        // draws whatever lines it is handed. That is what lets a Measure show
+        // any of the sixteen combinations instead of the one its type implied.
+        case 'measure':
+        case 'priceRange': {
+          const m = measurementFor(d.points, pts, { bars, indexOf: nearestIndex, barSeconds })
+          // Model Book's index pane asks for the percentage alone — a SURFACE
+          // override, so it wins over whatever the drawing itself says.
+          const shown = measurePctOnly
+            ? { ...d, showDollar: false, showPercent: true, showBars: false, showTime: false }
+            : d
+          renderMeasure(ctx, pts, d, { lines: measureLines(shown, m, priceText), bounds: rect })
+          break
+        }
+        case 'dateRange': {
+          const m = measurementFor(d.points, pts, { bars, indexOf: nearestIndex, barSeconds })
+          renderBarsTime(ctx, pts, d, { lines: measureLines(d, m, priceText), bounds: rect })
+          break
+        }
         case 'position': renderPosition(ctx, pts); break
         case 'advance': {
           // Recompute the % from the live bars (candle mode) so EXISTING labels are
@@ -1205,11 +1252,27 @@ export default function ChartDrawingOverlay({
             const ai = timeToIndex.get(d.points[0].time)
             const bi = timeToIndex.get(d.points[d.points.length - 1].time)
             if (ai != null && bi != null && bars[ai] && bars[bi]) {
-              const pct = computeAdvancePct(bars[ai], bars[bi])
-              if (pct != null) ad = { ...d, advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }
+              const mv = computeAdvanceMove(bars[ai], bars[bi])
+              if (mv) ad = { ...d, advPct: mv.pct, advDelta: mv.delta, advHigh: bars[bi].h, advLow: bars[bi].l }
             }
+          } else if (lineData && d.points?.length >= 2) {
+            const a = d.points[0].price, b = d.points[d.points.length - 1].price
+            if (a > 0 && b != null) ad = { ...d, advPct: ((b - a) / a) * 100, advDelta: b - a }
           }
-          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk)
+          // ⭐ THE DOLLAR FIGURE IS ON THE SAME BASIS AS THE PERCENT. `advPct` is
+          // measured low→high for a run and high→low for a drop, so deriving the
+          // dollar move from the two ANCHOR prices instead would print a
+          // percentage and an amount that do not describe the same move. It is
+          // recovered from the percentage and its own start price, which is the
+          // only way the two can agree by construction.
+          const lines = advanceLines(ad, priceText)
+          // Where the user PUT the label, if they have moved it. Resolved to
+          // pixels through the same mapping as any other anchor, so it pans and
+          // zooms with the chart rather than floating in screen space.
+          const lp = d.labelPoint ? resolvePixels([d.labelPoint], rect)[0] : null
+          const at = lp && lp.valid !== false ? { x: lp.x, y: lp.y } : null
+          const box = renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk, { lines, at })
+          if (box) paintedBoxes.set(d.id, box)
           break
         }
       }
@@ -1223,7 +1286,23 @@ export default function ChartDrawingOverlay({
       // them — today that is the Circle, whose stored corners sit outside its own
       // ellipse. The hit test asks the SAME function, so what you grab is always
       // what you see.
-      if (d.id === selectedId) renderSelectionHandles(ctx, handlePointsFor(d.type, pts), ink)
+      if (d.id === selectedId) {
+        // ⛔ PRICE MOVE'S SELECTION BELONGS TO ITS LABEL. The visible object is
+        // the label; the anchors are the measurement. A handle on each anchor
+        // says "drag me to move this drawing" about two points that are not the
+        // drawing and whose movement changes the number. One handle, on the
+        // thing the user can see — and the anchors only while adjusting.
+        if (d.type === 'advance') {
+          const box = paintedBoxes.get(d.id)
+          if (adjustingId === d.id) {
+            renderSelectionHandles(ctx, pts, ink)
+          } else if (box) {
+            renderSelectionHandles(ctx, [{ x: box.cx, y: box.cy, valid: true }], ink)
+          }
+        } else {
+          renderSelectionHandles(ctx, handlePointsFor(d.type, pts), ink)
+        }
+      }
       ctx.restore()
     }
 
@@ -1305,49 +1384,60 @@ export default function ChartDrawingOverlay({
           case 'pitchfork': renderPitchfork(ctx, previewPts, previewRect); break
           case 'channel': renderChannel(ctx, previewPts, previewRect); break
           case 'cup': renderCup(ctx, previewPts); break
-          case 'measure': {
-            const md = {
-              barCount: pendingPoints[0] && mouseCoords
-                ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
-                : 0
-            }
-            renderMeasure(ctx, previewPts, md, measurePctOnly)
+          // ⭐ THE PREVIEW SHOWS THE FINISHED DRAWING'S FIELDS, not a reduced
+          // placeholder — what you read while dragging is what you get when you
+          // let go. Same measurement call, same formatter, same label builder.
+          case 'measure':
+          case 'priceRange': {
+            const proto = { type: activeTool, ...(newDrawingProps(activeTool, toolDefaults) || {}) }
+            const shown = measurePctOnly
+              ? { ...proto, showDollar: false, showPercent: true, showBars: false, showTime: false }
+              : proto
+            const m = measurementFor([...pendingPoints, mouseCoords], previewPts, { bars, indexOf: nearestIndex, barSeconds })
+            renderMeasure(ctx, previewPts, proto, { lines: measureLines(shown, m, priceText), bounds: previewRect })
             break
           }
-          case 'priceRange': renderMeasure(ctx, previewPts, { type: 'priceRange' }); break
           case 'dateRange': {
-            const md = {
-              type: 'dateRange',
-              barCount: pendingPoints[0] && mouseCoords
-                ? Math.abs((timeToIndex.get(mouseCoords.time) || 0) - (timeToIndex.get(pendingPoints[0].time) || 0))
-                : 0,
-            }
-            renderMeasure(ctx, previewPts, md)
+            const proto = { type: 'dateRange', ...(newDrawingProps('dateRange', toolDefaults) || {}) }
+            const flat = constrainPoints('dateRange', [...pendingPoints, mouseCoords])
+            const flatPx = resolvePixels(flat, previewRect)
+            const m = measurementFor(flat, flatPx, { bars, indexOf: nearestIndex, barSeconds })
+            renderBarsTime(ctx, flatPx, proto, { lines: measureLines(proto, m, priceText), bounds: previewRect })
             break
           }
           case 'position': renderPosition(ctx, previewPts); break
           case 'avwap': renderAnchoredVwap(ctx, pendingPoints[0] || mouseCoords, bars, timeToIndex, toPixel); break
           case 'advance': {
-            renderTrendline(ctx, previewPts)   // faint connector so the span is visible while placing
+            // ⭐ THE CONNECTOR IS CONSTRUCTION GEOMETRY AND LIVES ONLY HERE. It
+            // shows the span being measured WHILE placing; the finished drawing
+            // is the label alone, and nothing draws a line between the anchors
+            // once the second click lands. That was already true and Phase 5
+            // keeps it — the audit's "no persistent construction line" is a
+            // property of where this call sits, not of a flag.
+            renderTrendline(ctx, previewPts)
+            const proto = newDrawingProps('advance', toolDefaults) || {}
+            let ad = null
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
-              if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight, autoInk)
-              }
+              if (a > 0 && b != null) ad = { type: 'advance', ...proto, advPct: ((b - a) / a) * 100, advDelta: b - a, advHigh: b }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
               if (ai != null && bi != null && bars[ai] && bars[bi]) {
-                const pct = computeAdvancePct(bars[ai], bars[bi])
-                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight, autoInk)
+                const mv = computeAdvanceMove(bars[ai], bars[bi])
+                if (mv) ad = { type: 'advance', ...proto, advPct: mv.pct, advDelta: mv.delta, advHigh: bars[bi].h, advLow: bars[bi].l }
               }
             }
+            if (ad) renderAdvance(ctx, previewPts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk, { lines: advanceLines(ad, priceText) })
             break
           }
         }
         ctx.restore()
       }
     }
+
+    // What this frame painted, for the hit test that runs between frames.
+    labelBoxRef.current = paintedBoxes
 
     // Crosshair when tool active
     if (activeTool && mouseCoords) {
@@ -1357,7 +1447,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId, measurePanes, rectForDrawing, coarsePointer, hidePriceLabels, toolDefaults, seriesRef])
+  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId, measurePanes, rectForDrawing, coarsePointer, hidePriceLabels, toolDefaults, seriesRef, adjustingId])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1393,6 +1483,15 @@ export default function ChartDrawingOverlay({
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
+  // Screen box → the chart coordinate at its centre. Used once, at the moment a
+  // never-moved Price Move label is first grabbed, so the drag has somewhere to
+  // start from.
+  const labelStartFrom = useCallback((box) => {
+    if (!box) return null
+    const c = toChart(box.cx, box.cy)
+    return c ? { time: c.time, price: c.price, ...(c.paneY != null ? { paneY: c.paneY } : {}), ...(c.futureBars ? { futureBars: c.futureBars } : {}) } : null
+  }, [toChart])
+
   // ── Hit test all drawings ──
   // Advance/decline % labels render above the candle's HIGH or below its LOW —
   // and frequently sit ON the candles. A point-only hit box misses them, so make
@@ -1400,21 +1499,29 @@ export default function ChartDrawingOverlay({
   // right-clickable. Uses the same anchors the renderer does, backfilling the
   // low for older decline labels so they're deletable too.
   const hitTestAdvance = useCallback((d, pts, mx, my) => {
-    const p = pts[pts.length - 1]
-    if (!p || p.x == null) return false
-    const hiY = d.advHigh != null ? toPixel(null, d.advHigh)?.y : null
-    let loPrice = d.advLow
-    if (loPrice == null && d.points?.length) {
-      const bi = timeToIndex.get(d.points[d.points.length - 1].time)
-      if (bi != null && bars[bi]) loPrice = bars[bi].l
-    }
-    const loY = loPrice != null ? toPixel(null, loPrice)?.y : null
-    const ys = [hiY, loY, p.y].filter(v => v != null)
-    if (!ys.length) return false
-    const PAD = 30, HALF_W = 30   // label margin past the wick + generous click width
-    return mx >= p.x - HALF_W && mx <= p.x + HALF_W
-      && my >= Math.min(...ys) - PAD && my <= Math.max(...ys) + PAD
-  }, [toPixel, bars, timeToIndex])
+    // ⭐ THE LABEL IS THE TARGET, because the label is the drawing.
+    //
+    // ⚰️ WHAT THIS REPLACES was a 60×(wick+60) rectangle around the anchor
+    // CANDLE — a hitbox big enough to swallow clicks on the candles themselves,
+    // on any trendline crossing them, and on a neighbouring drawing, in a region
+    // where the Price Move tool draws nothing at all. It existed because the
+    // label's real position was not knowable outside the painter. It is now:
+    // the painter returns the box it drew and the last frame's boxes are right
+    // here, so the grab area is exactly the ink.
+    const box = labelBoxRef.current.get(d.id)
+    if (box) return pointInBox(box, mx, my, HIT_THRESHOLD() - 2)
+    // No box this frame means the label was not painted (anchor off-screen, or
+    // every field switched off) — and what is not drawn cannot be clicked.
+    return false
+  }, [])
+
+  // ⛔ ADJUST MODE BELONGS TO ONE DRAWING AND ENDS WHEN THAT DRAWING IS NO
+  // LONGER THE SELECTED ONE. Without this the anchors of a Price Move you have
+  // moved on from stay live on the canvas, and a stray drag on one of them
+  // edits a measurement you are not even looking at.
+  useEffect(() => {
+    if (adjustingId && selectedId !== adjustingId) setAdjustingId(null)
+  }, [selectedId, adjustingId])
 
   const hitTestAll = useCallback((mx, my) => {
     const geom = paneGeom()
@@ -1446,7 +1553,14 @@ export default function ChartDrawingOverlay({
     // or the cursor would change over one place and the drag start at another.
     // Index correspondence survives the mapping, so `handleIdx` still names the
     // stored anchor the drag will move.
-    const pts = handlePointsFor(d.type, resolvePixels(d.points || [], rectForDrawing(d)))
+    let pts = handlePointsFor(d.type, resolvePixels(d.points || [], rectForDrawing(d)))
+    if (d.type === 'advance') {
+      // ⛔ AND THE ANCHORS ARE NOT GRABBABLE UNLESS THEY ARE VISIBLE. Outside
+      // adjust mode a Price Move has exactly one handle — the label — and it is
+      // moved by the body-drag path, not by a handle drag, because moving it
+      // must write `labelPoint` and never touch the measurement.
+      if (adjustingId !== d.id) return null
+    }
     for (let i = 0; i < pts.length; i++) {
       // INDEX-STABLE: `i` is an index into the STORED points, which is exactly
       // what `handleIdx` means to the drag path. Skipping an unresolvable anchor
@@ -1457,7 +1571,7 @@ export default function ChartDrawingOverlay({
       }
     }
     return null
-  }, [selectedId, drawings, resolvePixels, rectForDrawing])
+  }, [selectedId, drawings, resolvePixels, rectForDrawing, adjustingId])
 
   // ── Latest-value refs for the long-lived native listeners below ──
   // (window/canvas listeners are attached once with []; read live state via refs
@@ -1621,6 +1735,17 @@ export default function ChartDrawingOverlay({
             startPixel: pos,
             startCoords: coords,
             originalPoints: d.points.map(p => ({ ...p })),
+            // ⭐ WHERE PRICE MOVE'S LABEL IS RIGHT NOW, in chart coordinates.
+            //
+            // A label the user has never moved has no stored position — it is
+            // derived from the run's high or low. Dragging it therefore has to
+            // start from where it is ON SCREEN, or the first pixel of movement
+            // would teleport it to wherever a default happened to be. The
+            // painter published the box it drew, so the answer is exact and the
+            // drag is continuous from the very first frame.
+            labelStart: d.type === 'advance'
+              ? (d.labelPoint ? { ...d.labelPoint } : labelStartFrom(labelBoxRef.current.get(d.id)))
+              : null,
           }
           setIsDragging(true)
           e.preventDefault()
@@ -1668,11 +1793,15 @@ export default function ChartDrawingOverlay({
           // defaults override the built-in.
           ...(newDrawingProps(activeTool, toolDefaults) || {}),
         }
-        if ((activeTool === 'measure' || activeTool === 'dateRange') && newPending.length >= 2) {
-          const idx0 = timeToIndex.get(newPending[0].time) || 0
-          const idx1 = timeToIndex.get(newPending[newPending.length - 1].time) || 0
-          drawingData.barCount = Math.abs(idx1 - idx0)
-        }
+        // ⚰️ `barCount` IS NO LONGER WRITTEN, AND NO LONGER READ.
+        //
+        // It was frozen here at creation and printed forever: resize the box and
+        // it stayed put, switch daily→weekly and a 25-bar measurement went on
+        // claiming 25 bars while spanning five. `measurementFor` derives it from
+        // the live anchors every frame instead. The property is not stripped
+        // from drawings that already carry it — nothing writes on load — it is
+        // simply no longer consulted.
+        drawingData.points = constrainPoints(activeTool, drawingData.points)
         // Advance label: % from the OPEN of the FIRST clicked candle to the HIGH
         // of the SECOND — same basis as the auto setup-advance labels. Stored at
         // creation so it survives reload without needing a bar lookup. In line
@@ -1683,14 +1812,15 @@ export default function ChartDrawingOverlay({
             const a = newPending[0].price, b = newPending[1].price
             if (a > 0 && b != null) {
               drawingData.advPct = ((b - a) / a) * 100
+              drawingData.advDelta = b - a
               drawingData.advHigh = b
             }
           } else {
             const ai = timeToIndex.get(newPending[0].time)
             const bi = timeToIndex.get(newPending[1].time)
             if (ai != null && bi != null && bars[ai] && bars[bi]) {
-              const pct = computeAdvancePct(bars[ai], bars[bi])
-              if (pct != null) drawingData.advPct = pct
+              const mv = computeAdvanceMove(bars[ai], bars[bi])
+              if (mv) { drawingData.advPct = mv.pct; drawingData.advDelta = mv.delta }
               drawingData.advHigh = bars[bi].h
               drawingData.advLow = bars[bi].l   // decline labels anchor below this
             }
@@ -1844,6 +1974,23 @@ export default function ChartDrawingOverlay({
         if (!(Number.isFinite(p.futureBars) && p.futureBars > 0)) delete next.futureBars
         return next
       }
+      // ⛔ DRAGGING A PRICE MOVE MOVES ITS LABEL, NOT ITS MEASUREMENT.
+      //
+      // ⚰️ THE BUG THIS FIXES. A body drag ran every anchor through `moveX`, so
+      // nudging the label two candles to the right re-anchored the run to two
+      // different candles and silently restated the number the label existed to
+      // report. The user asked to move a caption and got a different
+      // measurement. Anchors are DATA here; only `labelPoint` is geometry the
+      // user is allowed to push around, and the anchors are edited deliberately,
+      // through Adjust anchors.
+      if (d.type === 'advance' && drag.handleIdx == null) {
+        if (!drag.labelStart) return
+        if (!drag.snapped) { snapshotHistory?.(); drag.snapped = true }
+        updateDrawing(drag.drawingId, { labelPoint: moveX(drag.labelStart) }, { record: false })
+        requestRedraw()
+        return
+      }
+
       let newPoints
       if (drag.handleIdx != null) {
         // Move single control point
@@ -1852,6 +1999,10 @@ export default function ChartDrawingOverlay({
         // Move entire drawing
         newPoints = drag.originalPoints.map(moveX)
       }
+      // The shape's own invariant, re-applied after every edit — a Bars & Time
+      // ruler cannot be tilted by dragging one end of it. Identity for every
+      // other tool.
+      newPoints = constrainPoints(d.type, newPoints)
 
       // First move of a drag → snapshot the pre-drag state ONCE so the whole drag
       // collapses into a single undo step; per-move writes then skip history.
@@ -2413,6 +2564,19 @@ export default function ChartDrawingOverlay({
             // `updateDrawing`, so every setting change is one undo step and is
             // persisted by the same writer as a geometry change.
             onSetProp={(name, value) => updateDrawing(ctxMenu.drawingId, { [name]: value })}
+            // ⭐ A TOGGLE, NOT A MODE STACK. "Adjust anchors" reveals this one
+            // drawing's measurement anchors and makes them grabbable; choosing
+            // it again — or selecting anything else — puts them away. There is
+            // no state to enter or leave beyond an id, which is why this needed
+            // no mode system at all.
+            adjusting={adjustingId === ctxMenu.drawingId}
+            onAdjustAnchors={d.type === 'advance'
+              ? (() => {
+                setAdjustingId((cur) => (cur === ctxMenu.drawingId ? null : ctxMenu.drawingId))
+                setSelectedId(ctxMenu.drawingId)
+                setCtxMenu(null)
+              })
+              : null}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             onToggleHide={() => { updateDrawing(ctxMenu.drawingId, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null); setCtxMenu(null) }}
             onDuplicate={() => {
@@ -2552,6 +2716,8 @@ const CONTROL_ICONS = {
     ? <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>
     : <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>),
   saveDefault: <path d="M8 2.3l1.72 3.49 3.85.56-2.79 2.72.66 3.84L8 11.37 4.56 13.19l.66-3.84L2.43 6.35l3.85-.56z" />,
+  // Two anchor points with a span between them — the thing the row reveals.
+  adjustAnchors: <><circle cx="3.5" cy="11" r="1.8" /><circle cx="12.5" cy="5" r="1.8" /><line x1="5" y1="10" x2="11" y2="6" strokeDasharray="2 1.5" /></>,
   remove: <><polyline points="3,5 4,14 12,14 13,5" /><line x1="2" y1="5" x2="14" y2="5" /><line x1="6" y1="3" x2="10" y2="3" /><line x1="7" y1="7" x2="7" y2="12" /><line x1="9" y1="7" x2="9" y2="12" /></>,
 }
 
@@ -2670,7 +2836,7 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
  */
 export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
   onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal,
-  onSetProp }) {
+  onSetProp, onAdjustAnchors, adjusting = false }) {
   const menuRef = useRef(null)
   // ⛔ WHICH COLOUR PANEL, NOT WHETHER ONE IS OPEN. A Rectangle has two colour
   // rows (Border and Fill) and they share one ColorPanel instance, so the state
@@ -2786,8 +2952,12 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     points: drawing?.points,
     handlers: {
       onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert, onSetProp,
+      onAdjustAnchors,
       onDuplicate, onToggleLock, onToggleHide, onSaveDefaults, onDelete,
     },
+    // Only `adjustAnchors` reads this — it is the one control whose LABEL
+    // depends on something that is not the drawing (are we in that mode now).
+    adjusting,
   })
 
   // Widgets that are not rows. Each body is the shipped JSX, unchanged — the
@@ -2835,18 +3005,28 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     // and reuses this — the widget knows a property name and nothing about which
     // tool it belongs to.
     toggle: (item) => {
-      const on = !!drawingProp(drawing, item.prop)
+      // ⭐ `resolve` WINS OVER THE FLAT DEFAULT WHERE A CONTROL DECLARES ONE.
+      // The measurement toggles default per TYPE (a legacy Measure shows its
+      // dollar figure; a legacy Price Move does not), so asking `drawingProp`
+      // would make the switch say "off" while the canvas showed the number.
+      const on = item.resolve ? !!item.resolve(drawing) : !!drawingProp(drawing, item.prop)
+      // ⛔ AND THE LAST ONE CANNOT BE SWITCHED OFF where the schema says so —
+      // a Price Move with neither figure showing is an invisible drawing.
+      const locked = !!item.locked
       return (
         <button
           key={item.id}
           role="switch"
           aria-checked={on}
-          onClick={() => onSetProp?.(item.prop, !on)}
+          aria-disabled={locked || undefined}
+          title={locked ? item.lockedHint : undefined}
+          onClick={() => { if (!locked) onSetProp?.(item.prop, !on) }}
           style={{
-            ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+            ...rowStyle, width: '100%', border: 'none', cursor: locked ? 'default' : 'pointer', borderRadius: 6,
             fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left', background: 'none',
+            opacity: locked ? 0.55 : 1,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseEnter={(e) => { if (!locked) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
         >
           <span style={labelStyle}>{item.label}</span>
@@ -2873,7 +3053,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     // ⭐ A SEGMENTED PICKER FOR A SHORT, NAMED SCALE. Small / Medium / Large,
     // never a number field — see the schema's note on why.
     choice: (item) => {
-      const cur = drawingProp(drawing, item.prop) ?? item.fallback
+      const cur = item.resolve ? item.resolve(drawing) : (drawingProp(drawing, item.prop) ?? item.fallback)
       return (
         <div key={item.id} style={{ ...rowStyle }}>
           <span style={labelStyle}>{item.label}</span>
@@ -3042,6 +3222,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
 
   // Plain rows. `saveDefault` is the one action with transient state ("Saved ✓").
   const ACTION_HANDLERS = {
+    adjustAnchors: onAdjustAnchors,
     duplicate: onDuplicate,
     lock: onToggleLock,
     hide: onToggleHide,
@@ -3057,6 +3238,15 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         showPriceLabel: !!drawingProp(drawing, 'showPriceLabel'),
         showPercentChange: !!drawingProp(drawing, 'showPercentChange'),
       }
+      // ⭐ THE MEASUREMENT TOGGLES GO THROUGH `fieldsFor`, for the same reason
+      // the switches do: a legacy Measure's dollar field is ON without the
+      // property being set, and "save as default" must save what the user is
+      // looking at, not what happens to be stored.
+      const f = fieldsFor(drawing)
+      Object.assign(values, {
+        showDollar: f.dollar, showPercent: f.percent, showBars: f.bars, showTime: f.time,
+        labelPos: labelPosOf(drawing),
+      })
       for (const p of ['fillColor', 'fillOpacity', 'arrowSize']) {
         if (drawing?.[p] !== undefined && drawing?.[p] !== null) values[p] = drawing[p]
       }

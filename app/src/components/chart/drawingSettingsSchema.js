@@ -48,6 +48,7 @@
  */
 
 import { ARROW_SIZES, DEFAULT_ARROW_SIZE } from './drawingStyle'
+import { DEFAULT_LABEL_POS, LABEL_POSITIONS, fieldOn, labelPosOf } from './drawingMeasure'
 
 /** Fixed render order. A tool's sections are emitted in this order regardless of
  *  how its entry is written, so no tool can accidentally invent its own layout. */
@@ -80,6 +81,24 @@ export const SECTION_TITLES = Object.freeze({
  * saved payload has to stop carrying it, and it will, without anyone
  * remembering to go and look.
  */
+/**
+ * ⛔ A LABEL TOOL SHOWING NOTHING IS NOT A TOOL. Price Move IS its label — turn
+ * off both the dollar and the percent and the drawing still exists, still takes
+ * up a slot in the Objects manager, and is completely invisible and
+ * unselectable on the chart. So the last visible field refuses to switch off.
+ *
+ * ⭐ MEASURE IS EXEMPT, AND THAT IS NOT AN INCONSISTENCY. Its box is drawn
+ * whatever the toggles say, so a Measure with every field off is still a
+ * perfectly usable region marker — a thing people actually want. The rule
+ * follows "can you still see and grab it", not "is this the same control".
+ */
+const MOVE_FIELDS = ['showDollar', 'showPercent']
+const isLastVisibleMoveField = (drawing, prop) => {
+  if (drawing?.type !== 'advance') return false
+  const on = MOVE_FIELDS.filter((p) => fieldOn(drawing, p))
+  return on.length <= 1 && on[0] === prop
+}
+
 export const CONTROLS = Object.freeze({
   // ── style ──
   color: {
@@ -116,6 +135,54 @@ export const CONTROLS = Object.freeze({
     persists: ['fillColor', 'fillOpacity'],
   },
 
+  // ── label: the measurement family ──
+  //
+  // ⭐ FOUR INDEPENDENT FIELDS, NOT THREE BUNDLED PRESETS. The shipped Measure
+  // decided its own content from its TYPE — `measure` printed price and bars,
+  // `priceRange` printed price, `dateRange` printed bars — so a user who wanted
+  // "percent and time, nothing else" had no combination of tools that produced
+  // it. Each field is now its own switch and every one of the sixteen
+  // combinations is reachable.
+  //
+  // ⛔ `resolve` EXISTS BECAUSE THE DEFAULT IS PER TYPE. A plain
+  // `drawingProp(d, 'showDollar')` would report OFF for every Measure drawn
+  // before Phase 5 — and then the menu would say "off" while the canvas showed
+  // the number. `fieldOn` asks the same authority the painter asks.
+  showDollar: {
+    id: 'showDollar', kind: 'custom', widget: 'toggle', label: 'Show dollar change',
+    prop: 'showDollar', needs: 'onSetProp', resolve: (d) => fieldOn(d, 'showDollar'),
+    lockedWhen: (ctx) => isLastVisibleMoveField(ctx.drawing, 'showDollar'),
+    lockedHint: 'A Price Move must show at least one figure',
+    persists: ['showDollar'],
+  },
+  showPercentMove: {
+    id: 'showPercentMove', kind: 'custom', widget: 'toggle', label: 'Show percent change',
+    prop: 'showPercent', needs: 'onSetProp', resolve: (d) => fieldOn(d, 'showPercent'),
+    lockedWhen: (ctx) => isLastVisibleMoveField(ctx.drawing, 'showPercent'),
+    lockedHint: 'A Price Move must show at least one figure',
+    persists: ['showPercent'],
+  },
+  showBars: {
+    id: 'showBars', kind: 'custom', widget: 'toggle', label: 'Show bars',
+    prop: 'showBars', needs: 'onSetProp', resolve: (d) => fieldOn(d, 'showBars'),
+    persists: ['showBars'],
+  },
+  showTime: {
+    id: 'showTime', kind: 'custom', widget: 'toggle', label: 'Show time',
+    prop: 'showTime', needs: 'onSetProp', resolve: (d) => fieldOn(d, 'showTime'),
+    persists: ['showTime'],
+  },
+  labelPos: {
+    id: 'labelPos', kind: 'custom', widget: 'choice', label: 'Label position',
+    prop: 'labelPos', needs: 'onSetProp',
+    choices: LABEL_POSITIONS.map((v) => ({
+      value: v, label: v === 'top' ? 'T' : v === 'center' ? 'C' : 'B',
+      title: v[0].toUpperCase() + v.slice(1),
+    })),
+    fallback: DEFAULT_LABEL_POS, resolve: labelPosOf,
+    persists: ['labelPos'],
+  },
+
   // ── label ──
   showPriceLabel: {
     id: 'showPriceLabel', kind: 'custom', widget: 'toggle', label: 'Show price label',
@@ -129,6 +196,20 @@ export const CONTROLS = Object.freeze({
   },
 
   // ── arrow ──
+  // ── advanced ──
+  //
+  // ⛔ A MODE, BECAUSE THE ALTERNATIVE IS A WORSE DEFAULT. Price Move's anchors
+  // are DATA — two candles whose low→high defines the run — and they are
+  // usually nowhere near the label. Showing handles on them every time the user
+  // selects the label put two gold dots in empty space, invited a drag that
+  // silently restated the measurement, and made "move this label" the one thing
+  // selection did not offer. So normal selection belongs to the label, and the
+  // anchors appear only when they are asked for.
+  adjustAnchors: {
+    id: 'adjustAnchors', kind: 'action', needs: 'onAdjustAnchors',
+    label: (ctx) => (ctx.adjusting ? 'Done adjusting' : 'Adjust anchors…'),
+  },
+
   arrowSize: {
     id: 'arrowSize', kind: 'custom', widget: 'choice', label: 'Arrow size',
     prop: 'arrowSize', needs: 'onSetProp',
@@ -198,6 +279,13 @@ const PRICE_LABEL = ['showPriceLabel']
 /** A shape's outline + inside tint. */
 const SHAPE = ['border', 'fill']
 
+/** The measurement family's label section. ⭐ ONE ORDER FOR ALL THREE — price
+ *  first, then span, then where to put it — so the menus read the same way even
+ *  though no two of the tools offer the same subset. */
+const MEASURE_LABEL = ['showDollar', 'showPercentMove', 'showBars', 'showTime', 'labelPos']
+const RULER_LABEL = ['showBars', 'showTime', 'labelPos']
+const MOVE_LABEL = ['showDollar', 'showPercentMove']
+
 /** Line tools that can be flattened to an exact price, and can carry an alert. */
 const LEVEL = ['setLevel', 'setAlert']
 /** …and the sloped ones can additionally be made horizontal. */
@@ -237,10 +325,11 @@ export const SCHEMA = Object.freeze({
   channel: { style: STYLE, actions: ACTIONS },
   cup: { style: STYLE, actions: ACTIONS },
   avwap: { style: STYLE, actions: ACTIONS },
-  measure: { style: STYLE, actions: ACTIONS },
-  priceRange: { style: STYLE, actions: ACTIONS },
-  dateRange: { style: STYLE, actions: ACTIONS },
-  advance: { style: STYLE, actions: ACTIONS },
+  // the measurement family — same vocabulary, different questions
+  measure: { style: STYLE, label: MEASURE_LABEL, actions: ACTIONS },
+  priceRange: { style: STYLE, label: MEASURE_LABEL, actions: ACTIONS },
+  dateRange: { style: STYLE, label: RULER_LABEL, actions: ACTIONS },
+  advance: { style: STYLE, label: MOVE_LABEL, advanced: ['adjustAnchors'], actions: ACTIONS },
   position: { style: STYLE, actions: ACTIONS },
 })
 
@@ -285,7 +374,13 @@ export function sectionsFor(ctx) {
       if (!control) continue
       if (control.needs && !handlers[control.needs]) continue
       if (control.available && !control.available(ctx)) continue
-      items.push({ ...control, label: labelOf(control, ctx) })
+      items.push({
+        ...control,
+        label: labelOf(control, ctx),
+        // Resolved HERE so the renderer stays a renderer: it reads `locked` and
+        // draws a disabled switch, and never learns why.
+        locked: control.lockedWhen ? !!control.lockedWhen(ctx) : false,
+      })
     }
     // ⛔ A SECTION WITH NO ITEMS IS ABSENT, not a heading over nothing.
     if (items.length) sections.push({ id, title: SECTION_TITLES[id], items })
@@ -365,6 +460,23 @@ export function defaultsPayloadFor(type, values) {
 export const NEW_DRAWING_PROPS = Object.freeze({
   horizontal: Object.freeze({ showPriceLabel: true }),
   hray: Object.freeze({ showPriceLabel: true }),
+
+  // ⭐ A NEW MEASURE ANSWERS THE WHOLE QUESTION. Someone reaching for a ruler
+  // wants to know what the move was and how long it took; making them find four
+  // switches to get there is the tool being coy. Two rows, four figures, and
+  // every one of them is why they drew it. Existing Measure drawings carry
+  // nothing and keep their price-and-bars appearance exactly (LEGACY_FIELDS).
+  measure: Object.freeze({ showDollar: true, showPercent: true, showBars: true, showTime: true }),
+
+  // The ruler's whole purpose, both halves on.
+  dateRange: Object.freeze({ showBars: true, showTime: true }),
+
+  // ⛔ AND PRICE MOVE GAINS THE DOLLAR IT NEVER HAD. "+18%" is the shape of a
+  // run; "+$50.68 (+18.90%)" is the shape AND the size, and on a chart where
+  // you already know the price the second is strictly more useful. Existing
+  // 'advance' drawings stay percent-only — they carry nothing, and LEGACY_FIELDS
+  // says percent-only is what an unstamped one means.
+  advance: Object.freeze({ showDollar: true, showPercent: true }),
 })
 
 export function newDrawingProps(type, toolDefaults = null) {

@@ -123,7 +123,10 @@ export const SHORTCUTS = [
   { keys: 'Alt+X', command: 'tool:text', description: 'Text annotation' },
   { keys: 'Alt+P', command: 'tool:position', description: 'Position tool (long / short R:R)' },
   { keys: 'Alt+Shift+P', command: 'tool:priceRange', description: 'Price range' },
-  { keys: 'Alt+Shift+D', command: 'tool:dateRange', description: 'Date range' },
+  // ⭐ THE CHORD ALREADY EXISTED AND IS PRESERVED. `Alt+Shift+D` has armed
+  // `tool:dateRange` since before the tool had a button; giving Bars & Time a
+  // new chord would have orphaned it and risked a collision for nothing.
+  { keys: 'Alt+Shift+D', command: 'tool:dateRange', description: 'Bars & Time (bar count + elapsed time)' },
   { keys: 'Alt+Shift+E', command: 'tool:eraser', description: 'Eraser (click to delete)' },
   // ⛔ THESE TWO MOVED OFF `Shift+<letter>` ON 2026-08-28. `Shift+F` armed the
   // Fibonacci extension and `Shift+P` the pitchfork, straight into the

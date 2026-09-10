@@ -126,12 +126,21 @@ export function formatPercent(pct, dp = 2) {
   return `${v >= 0 ? '+' : ''}${v.toFixed(dp)}%`
 }
 
-/** A signed price delta. */
+/**
+ * A signed price delta.
+ *
+ * ⭐ `opts.fmt` LETS A CALLER HAND IN THE SERIES' OWN FORMATTER, so a measured
+ * move is written with the same precision as the price axis it was measured
+ * against. Without it the magnitude default applies, as before. The sign is
+ * added here and the magnitude by the formatter, so a formatter that emits its
+ * own minus sign cannot produce `+-5.00`.
+ */
 export function formatDelta(value, opts) {
   if (value === null || value === undefined || value === '') return ''
   const v = Number(value)
   if (!Number.isFinite(v)) return ''
-  return `${v >= 0 ? '+' : ''}${formatPrice(v, opts)}`
+  const body = (opts && typeof opts.fmt === 'function') ? opts.fmt(Math.abs(v)) : formatPrice(Math.abs(v), opts)
+  return `${v < 0 ? '-' : '+'}${body}`
 }
 
 // ─── ink contrast ───────────────────────────────────────────────────────────
@@ -231,6 +240,94 @@ export function drawLabel(ctx, o) {
   }
   ctx.fillStyle = color || (bg ? inkOn(bg) : '#ffffff')
   ctx.fillText(str, box.x + padX, box.y + box.h / 2)
+  ctx.restore()
+  return box
+}
+
+// ─── multi-line readouts ────────────────────────────────────────────────────
+
+/**
+ * The plate a MEASUREMENT reads on.
+ *
+ * ⛔ TWO PLATE TREATMENTS, AND THE DIFFERENCE IS WHAT THE LABEL IS FOR.
+ *
+ *   • A PRICE TAG (Phase 4's horizontal line and ray) is painted ON the drawing's
+ *     colour with contrast ink, because its whole job is "this line, at this
+ *     price" — the colour is half the message and it has to be findable at a
+ *     glance among a dozen levels.
+ *
+ *   • A READOUT (Measure, Bars & Time) sits on this neutral dark plate with the
+ *     drawing's colour as the TEXT, because it is several numbers the user is
+ *     reading, over their own translucent fill, and a saturated plate that size
+ *     in the middle of the chart is a billboard. This exact value is the one
+ *     `renderMeasure` has always used, so the shipped Measure look is unchanged.
+ *
+ * They share the font, the padding, the radius and the contrast rules — one
+ * typographic language, two weights of emphasis.
+ */
+export const READOUT_BG = 'rgba(20, 22, 18, 0.82)'
+
+/** Line height for a stacked readout. Tight enough that two rows still read as
+ *  one object rather than as two labels that happen to be near each other. */
+export const LINE_H = 14
+
+/**
+ * Draw N lines of text on ONE chip.
+ *
+ * ⚰️ WHAT THIS REPLACES: `renderMeasure`'s `putLabel`, called twice, which drew
+ * TWO separate rounded plates four pixels apart. At a glance that reads as two
+ * labels rather than one two-line readout, and the two plates were different
+ * widths, so the measurement looked ragged. One chip sized to the widest line
+ * fixes both and costs one fewer fill per frame.
+ *
+ * @param {string[]} lines      already-formatted; empty array draws nothing
+ * @param {object} o
+ * @param {number} o.x, o.y     anchor
+ * @param {string} [o.align]    left | center | right
+ * @param {string} [o.baseline] top | middle | bottom
+ * @param {string} [o.bg]       plate; null for bare text
+ * @param {object} [o.bounds]   pane rect to stay inside
+ * @returns {object|null} the box drawn
+ */
+export function drawLabelBlock(ctx, lines, o = {}) {
+  const rows = (lines || []).filter((l) => l != null && l !== '')
+  if (!rows.length) return null
+  const {
+    x = 0, y = 0, align = 'center', baseline = 'middle',
+    font = LABEL_FONT, color = null, bg = READOUT_BG, radius = 3,
+    padX = PAD_X, padY = PAD_Y, lineH = LINE_H,
+    bounds = null, clampToBounds = true,
+  } = o
+  let textW = 0
+  for (const r of rows) textW = Math.max(textW, measuredWidth(ctx, r, font))
+  const w = textW + padX * 2
+  const h = rows.length * lineH + padY * 2
+  let bx = x
+  if (align === 'center') bx = x - w / 2
+  else if (align === 'right') bx = x - w
+  let by = y
+  if (baseline === 'middle') by = y - h / 2
+  else if (baseline === 'bottom') by = y - h
+  const box = { x: bx, y: by, w, h, textW }
+  if (bounds && clampToBounds) {
+    box.x = Math.min(Math.max(box.x, bounds.x0), Math.max(bounds.x0, bounds.x1 - box.w))
+    box.y = Math.min(Math.max(box.y, bounds.y0), Math.max(bounds.y0, bounds.y1 - box.h))
+  }
+
+  ctx.save()
+  ctx.font = font
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  if (bg) {
+    ctx.fillStyle = bg
+    ctx.beginPath()
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(box.x, box.y, box.w, box.h, radius)
+    else ctx.rect(box.x, box.y, box.w, box.h)
+    ctx.fill()
+  }
+  ctx.fillStyle = color || (bg ? inkOn(bg) : '#ffffff')
+  const cx = box.x + box.w / 2
+  rows.forEach((r, i) => ctx.fillText(r, cx, box.y + padY + lineH * i + lineH / 2))
   ctx.restore()
   return box
 }

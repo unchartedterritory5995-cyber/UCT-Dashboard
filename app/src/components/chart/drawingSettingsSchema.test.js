@@ -22,6 +22,7 @@ import {
   sectionsFor, defaultsPayloadFor, newDrawingProps,
 } from './drawingSettingsSchema'
 import { drawingProp } from './drawingSchema'
+import { fieldsFor } from './drawingMeasure'
 import { TOOL_ICONS } from './ChartToolbar'
 
 // Every drawing type that can exist on a chart. `ray` has no toolbar button but
@@ -85,12 +86,40 @@ const PHASE4_ADD = {
   arrow: { color: ['arrowSize'] },
 }
 
-/** The old menu, plus Phase 4's declared additions, in render order. */
+// ── what Phase 5 added, transcribed from the brief ─────────────────────────
+//
+//   Measure / Price Range  + Show dollar · Show percent · Show bars ·
+//                            Show time · Label position
+//   Bars & Time            + Show bars · Show time · Label position
+//   Price Move             + Show dollar · Show percent, and Adjust anchors
+//
+// The five label rows need `onSetProp`; Adjust anchors needs its own handler,
+// so a surface that offers one and not the other still resolves correctly.
+const MEASURE_ROWS = ['showDollar', 'showPercentMove', 'showBars', 'showTime', 'labelPos']
+const PHASE5_ADD = {
+  measure: { color: MEASURE_ROWS },
+  priceRange: { color: MEASURE_ROWS },
+  dateRange: { color: ['showBars', 'showTime', 'labelPos'] },
+  advance: { color: ['showDollar', 'showPercentMove'] },
+}
+// Rows that land in a LATER section than the one they follow — `advanced` sits
+// between the label rows and the actions, so it is keyed by what comes after it.
+const PHASE5_BEFORE = { advance: { duplicate: ['adjustAnchors'] } }
+
+/** The old menu, plus every declared addition since, in render order. */
 function menuFor(type, opts = {}) {
   const rename = PHASE4_RENAME[type] || {}
-  const add = (opts.hasSetProp === false) ? {} : (PHASE4_ADD[type] || {})
+  const noProp = opts.hasSetProp === false
+  const add = noProp ? {} : { ...(PHASE4_ADD[type] || {}) }
+  if (!noProp) {
+    for (const [k, v] of Object.entries(PHASE5_ADD[type] || {})) {
+      add[k] = [...(add[k] || []), ...v]
+    }
+  }
+  const before = opts.hasAdjust === false ? {} : (PHASE5_BEFORE[type] || {})
   const out = []
   for (const id of oldMenuFor(type, opts)) {
+    for (const pre of before[id] || []) out.push(pre)
     const nid = rename[id] || id
     out.push(nid)
     for (const extra of add[nid] || []) out.push(extra)
@@ -102,7 +131,7 @@ const ALL_HANDLERS = {
   onSetFontSize: () => {}, onSetLevel: () => {}, onMakeHorizontal: () => {},
   onSetAlert: () => {}, onDuplicate: () => {}, onToggleLock: () => {},
   onToggleHide: () => {}, onSaveDefaults: () => {}, onDelete: () => {},
-  onSetProp: () => {},
+  onSetProp: () => {}, onAdjustAnchors: () => {},
 }
 const flatIds = (sections) => sections.flatMap((s) => s.items.map((i) => i.id))
 const resolve = (type, opts = {}) => flatIds(sectionsFor({
@@ -128,10 +157,10 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
 
   it('matches the old menu when the caller wires NOTHING optional', () => {
     // The Model Book / grid-cell shape: no alert handler, no save-defaults.
-    const opts = { handlers: { onSetAlert: null, onSaveDefaults: null, onToggleHide: null } }
+    const opts = { handlers: { onSetAlert: null, onSaveDefaults: null, onToggleHide: null, onAdjustAnchors: null } }
     for (const type of ALL_TYPES) {
       expect(resolve(type, opts), type).toEqual(
-        menuFor(type, { hasAlert: false, hasSaveDefaults: false, hasHide: false }),
+        menuFor(type, { hasAlert: false, hasSaveDefaults: false, hasHide: false, hasAdjust: false }),
       )
     }
   })
@@ -142,8 +171,8 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
     // a drawing does not grow rows it could not action.
     for (const type of ALL_TYPES) {
       const got = resolve(type, { handlers: { onSetProp: null } })
-      expect(got, type).toEqual(menuFor(type, { hasSetProp: false }))
-      for (const id of ['showPriceLabel', 'showPercentChange', 'fill', 'arrowSize']) {
+      expect(got, type).toEqual(menuFor(type, { hasSetProp: false, hasAdjust: true }))
+      for (const id of ['showPriceLabel', 'showPercentChange', 'fill', 'arrowSize', ...MEASURE_ROWS]) {
         expect(got, `${type} leaked ${id}`).not.toContain(id)
       }
     }
@@ -410,11 +439,49 @@ describe('NEW vs LEGACY — what a freshly drawn tool is stamped with', () => {
     expect(drawingProp({ type: 'horizontal', showPriceLabel: true }, 'showPriceLabel')).toBe(true)
   })
 
+  it('⭐ a NEW measurement answers the whole question, and a new ruler both halves', () => {
+    expect(newDrawingProps('measure'))
+      .toEqual({ showDollar: true, showPercent: true, showBars: true, showTime: true })
+    expect(newDrawingProps('dateRange')).toEqual({ showBars: true, showTime: true })
+    expect(newDrawingProps('advance')).toEqual({ showDollar: true, showPercent: true })
+  })
+
+  it('⛔ …while the LEGACY appearance of each is untouched', () => {
+    // Nothing is written to an existing drawing, so an unstamped one still
+    // resolves to what its type has always shown.
+    expect(fieldsFor({ type: 'measure' })).toEqual({ dollar: true, percent: true, bars: true, time: false })
+    expect(fieldsFor({ type: 'dateRange' })).toEqual({ dollar: false, percent: false, bars: true, time: false })
+    expect(fieldsFor({ type: 'advance' })).toEqual({ dollar: false, percent: true, bars: false, time: false })
+  })
+
   it('every other tool is stamped with nothing at all', () => {
+    const stamped = new Set(['horizontal', 'hray', 'measure', 'dateRange', 'advance'])
     for (const type of ALL_TYPES) {
-      if (type === 'horizontal' || type === 'hray') continue
+      if (stamped.has(type)) continue
       expect(newDrawingProps(type), type).toBeNull()
     }
+  })
+
+  it('⛔ A PRICE MOVE CANNOT BE LEFT SHOWING NOTHING', () => {
+    // The label IS the drawing: with neither figure on it would exist, occupy a
+    // row in the Objects manager, and be invisible and unclickable on the chart.
+    const lockedOf = (drawing) => sectionsFor({
+      drawing, points: [{}, {}], handlers: ALL_HANDLERS,
+    }).flatMap((s) => s.items).filter((i) => i.locked).map((i) => i.id)
+
+    expect(lockedOf({ type: 'advance', showDollar: true, showPercent: true })).toEqual([])
+    expect(lockedOf({ type: 'advance', showDollar: false, showPercent: true })).toEqual(['showPercentMove'])
+    expect(lockedOf({ type: 'advance', showDollar: true, showPercent: false })).toEqual(['showDollar'])
+    // A legacy Price Move is percent-only, so its percent switch is the last one.
+    expect(lockedOf({ type: 'advance' })).toEqual(['showPercentMove'])
+  })
+
+  it('⭐ MEASURE IS EXEMPT — its box is still there with every field off', () => {
+    const locked = sectionsFor({
+      drawing: { type: 'measure', showDollar: true, showPercent: false, showBars: false, showTime: false },
+      points: [{}, {}], handlers: ALL_HANDLERS,
+    }).flatMap((s) => s.items).filter((i) => i.locked)
+    expect(locked).toEqual([])
   })
 
   it('the user\u2019s saved tool defaults beat the built-in', () => {

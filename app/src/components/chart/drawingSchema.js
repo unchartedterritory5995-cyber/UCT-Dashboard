@@ -113,11 +113,20 @@ export const DRAWING_DEFAULTS = Object.freeze({
   // price-axis strip so it has never been visible.
   showPriceLabel: false,
   showPercentChange: false,
+
+  // ⛔ THESE FOUR ARE RESOLVED BY `drawingMeasure.fieldsFor`, NOT FROM HERE.
+  // "Does this drawing show a dollar change?" has a different right answer per
+  // TYPE — a legacy Measure shows dollar + percent + bars, a legacy Price Move
+  // shows percent alone, the half-landed dateRange showed bars alone — and a
+  // flat default cannot say four things at once. `LEGACY_FIELDS` is that table.
+  // The entries stay here so `withDefaults` still yields a defined value for
+  // code that reads the shape generically, but nothing on the render path uses
+  // them; `drawingMeasure.test.js` pins the per-type answers instead.
   showDollar: false,
   showPercent: false,
-  showBars: true,      // renderMeasure prints "N bars" whenever barCount is set
-  showTime: false,     // no elapsed-time output exists yet
-  labelPos: 'center',  // renderMeasure centres its chip
+  showBars: true,
+  showTime: false,
+  labelPos: 'center',  // renderMeasure centred its chip; now one of top/center/bottom
 
   // ── fills + borders (Phase 4) ──
   borderColor: null,   // follow `color`
@@ -126,6 +135,12 @@ export const DRAWING_DEFAULTS = Object.freeze({
 
   // ── arrow (Phase 4) ──
   arrowSize: 10,       // renderArrow's literal
+
+  // ── Price Move (Phase 5) ──
+  // Where the user dragged the label to. `null` = nowhere yet, so the label is
+  // derived from the run's high/low exactly as it always has been. THE ANCHORS
+  // ARE NOT THIS: moving the label must never restate the measurement.
+  labelPoint: null,
 
   // ── fibonacci (Phase 7) ──
   levels: null,        // follow FIB_LEVELS / FIB_EXT_LEVELS + their colour arrays

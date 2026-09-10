@@ -198,12 +198,31 @@ export function cupControlPoint(L, B, R) {
 //   • decline (B sits lower  than A): A's HIGH → B's LOW    → the full draw-down
 // Returns a signed % (negative = decline), or null if it can't be computed.
 export function computeAdvancePct(A, B) {
+  const m = computeAdvanceMove(A, B)
+  return m ? m.pct : null
+}
+
+/**
+ * The full run between two candles: where it started, where it ended, the
+ * amount and the percentage.
+ *
+ * ⭐ ONE FUNCTION SO THE DOLLAR AND THE PERCENT CANNOT DESCRIBE DIFFERENT MOVES.
+ * A run is measured low→high when price advanced and high→low when it fell —
+ * the extremes of the move, not the closes — so deriving a dollar figure from
+ * the two anchors' own prices instead would print an amount and a percentage
+ * that disagree about what was measured. `computeAdvancePct` now delegates here,
+ * so the percentage every existing label shows is byte-for-byte the one it
+ * showed before.
+ */
+export function computeAdvanceMove(A, B) {
   if (!A || !B) return null
   const aHi = A.h, aLo = A.l, bHi = B.h, bLo = B.l
   if ([aHi, aLo, bHi, bLo].some(v => v == null)) return null
   const isDecline = (bHi + bLo) < (aHi + aLo)   // B lower than A on average
-  if (isDecline) return aHi > 0 ? (bLo - aHi) / aHi * 100 : null
-  return aLo > 0 ? (bHi - aLo) / aLo * 100 : null
+  const from = isDecline ? aHi : aLo
+  const to = isDecline ? bLo : bHi
+  if (!(from > 0)) return null
+  return { from, to, delta: to - from, pct: (to - from) / from * 100, isDecline }
 }
 
 // Clone a drawing's points with a small visible offset (price −0.5%, or +0.03 of the
@@ -399,12 +418,25 @@ export function hitTestDrawing(d, pts, mx, my, rect) {
       return false
     }
     case 'measure':
-    case 'priceRange':
-    case 'dateRange': {
+    case 'priceRange': {
       if (!ok(pts, 2)) return false
       const bx1 = Math.min(pts[0].x, pts[1].x), by1 = Math.min(pts[0].y, pts[1].y)
       const bx2 = Math.max(pts[0].x, pts[1].x), by2 = Math.max(pts[0].y, pts[1].y)
       return mx >= bx1 && mx <= bx2 && my >= by1 && my <= by2
+    }
+    // ⛔ BARS & TIME IS GRABBED BY ITS RULE, NOT BY A BOX. It shares a stored
+    // shape with Measure but not a silhouette: it paints a single horizontal
+    // span, so a rectangular hitbox between the two anchors would swallow every
+    // click in a tall empty region the tool does not occupy — the invisible
+    // hitbox this layer spent Phase 1 removing. A legacy `dateRange` whose two
+    // anchors differ in price is handled by reading `pts[0].y` for the row,
+    // exactly as the painter does.
+    case 'dateRange': {
+      if (!ok(pts, 2)) return false
+      const y = pts[0].y
+      const xa = Math.min(pts[0].x, pts[1].x), xb = Math.max(pts[0].x, pts[1].x)
+      const t = HIT_THRESHOLD()
+      return mx >= xa - t && mx <= xb + t && Math.abs(my - y) < t + 5
     }
     case 'position': {
       if (!ok(pts, 3)) return false
@@ -483,4 +515,45 @@ export function handleDragGain(type, handleIdx) {
 export function handlePointsFor(type, pts) {
   if (type === 'circle') return circleHandlePoints(pts)
   return pts
+}
+
+/**
+ * The invariant a tool's stored points must satisfy, applied after any edit.
+ *
+ * ⭐ A CONSTRAINT BELONGS TO THE SHAPE, NOT TO THE GESTURE. Bars & Time is
+ * horizontal by definition — that is what makes it a duration ruler rather than
+ * a trend line with numbers on it. Enforcing that in the drag handler alone
+ * would leave four other doors open (paste, duplicate, "set level", a drawing
+ * arriving from an older client), and each would need to remember. Stating it
+ * once, here, and running it wherever points are written means the shape cannot
+ * be tilted by any route.
+ *
+ * ⛔ THE FIRST ANCHOR WINS, AND THAT MAKES BOTH HANDLES BEHAVE. Dragging the
+ * left cap moves the row and the right cap follows; dragging the right cap
+ * changes only the span and cannot tilt it. Whatever vertical anchor the point
+ * carries is copied wholesale — `price` for a price-pane drawing, `paneY` for
+ * one living among the volume bars — so a ruler in the volume pane stays level
+ * there too.
+ *
+ * Returns the SAME array when nothing needed changing, so callers can use it as
+ * a cheap no-op on every other tool.
+ */
+export function constrainPoints(type, points) {
+  if (type !== 'dateRange') return points
+  const pts = points || []
+  if (pts.length < 2 || !pts[0] || !pts[1]) return points
+  const a = pts[0], b = pts[1]
+  const same = a.price === b.price && a.paneY === b.paneY && a.paneRelY === b.paneRelY
+  if (same) return points
+  const out = pts.slice()
+  out[1] = { ...b, price: a.price, paneY: a.paneY ?? null, paneRelY: a.paneRelY ?? null }
+  return out
+}
+
+/** Is this point inside a label box? Used where the visible object is a label
+ *  and the anchors are data — see Price Move. */
+export function pointInBox(box, mx, my, pad = 0) {
+  if (!box) return false
+  return mx >= box.x - pad && mx <= box.x + box.w + pad
+    && my >= box.y - pad && my <= box.y + box.h + pad
 }

@@ -259,8 +259,52 @@ describe('the seven Model Book / surface override props still reach their decisi
     expect(SRC).toContain('toolDefaults = null,')
   })
 
-  it('measurePctOnly still reaches renderMeasure', () => {
-    expect(SRC).toContain('renderMeasure(ctx, pts, d, measurePctOnly)')
+  it('⛔ measurePctOnly IS A SURFACE OVERRIDE and outranks the drawing', () => {
+    // Model Book's index pane wants the percentage alone, whatever the drawing
+    // itself is set to — the same shape as `hidePriceLabels`. It is applied by
+    // REPLACING the four field toggles for that one render, so it cannot be
+    // half-honoured by a drawing that has opinions of its own.
+    const block = near('case \'measure\':', 900)
+    expect(block).toContain('measurePctOnly')
+    expect(block).toContain('showDollar: false, showPercent: true, showBars: false, showTime: false')
+  })
+
+  it('⭐ the measurement is DERIVED, and both tools read the same one', () => {
+    // ⚰️ `barCount` was frozen at creation and printed forever: resize the box
+    // and it stayed put; switch daily→weekly and it went on claiming 25 bars
+    // while spanning five. Nothing writes it and nothing reads it now.
+    expect(SRC).toContain('measurementFor(d.points, pts, { bars, indexOf: nearestIndex, barSeconds })')
+    expect(SRC).not.toContain('drawingData.barCount =')
+    expect(SRC).not.toContain('drawing.barCount')
+  })
+
+  it('⛔ dragging a Price Move writes labelPoint and NEVER its anchors', () => {
+    const block = near("if (d.type === 'advance' && drag.handleIdx == null)", 600)
+    expect(block).toContain('updateDrawing(drag.drawingId, { labelPoint: moveX(drag.labelStart) }')
+    expect(block).not.toContain('points: newPoints')
+  })
+
+  it('the ruler cannot be tilted, by any route that writes points', () => {
+    expect(SRC).toContain('newPoints = constrainPoints(d.type, newPoints)')
+    expect(SRC).toContain('drawingData.points = constrainPoints(activeTool, drawingData.points)')
+  })
+
+  it('⭐ Price Move is hit-tested and handled at its LABEL', () => {
+    // ⚰️ The old hit test was a 60×(wick+60) box around the anchor CANDLE — a
+    // region the tool draws nothing in, swallowing clicks meant for the candles
+    // and for anything crossing them.
+    const block = near('const hitTestAdvance = useCallback', 900)
+    expect(block).toContain('labelBoxRef.current.get(d.id)')
+    expect(block).toContain('pointInBox(box, mx, my')
+    expect(block).not.toContain('HALF_W')
+    expect(SRC).toContain('renderSelectionHandles(ctx, [{ x: box.cx, y: box.cy, valid: true }], ink)')
+  })
+
+  it('the measurement anchors are revealed only on request, for one drawing', () => {
+    expect(SRC).toContain('const [adjustingId, setAdjustingId] = useState(null)')
+    expect(near('const hitTestHandle = useCallback', 1400)).toContain('if (adjustingId !== d.id) return null')
+    // …and selecting anything else puts them away again.
+    expect(SRC).toContain('if (adjustingId && selectedId !== adjustingId) setAdjustingId(null)')
   })
 
   it('lineData still selects the line-mode advance %', () => {

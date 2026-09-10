@@ -27,7 +27,7 @@ import {
   drawArrowhead, renderTrendline, renderRay, renderExtended, renderHorizontal,
   renderHRay, renderVertical, renderRect, renderCircle, renderArrow, renderCup,
   wrapTextLines, renderText, renderAdvance, renderFib, renderFibExtension,
-  renderPitchfork, renderChannel, renderMeasure, renderPosition,
+  renderPitchfork, renderChannel, renderMeasure, renderBarsTime, renderPosition,
   renderAnchoredVwap, renderSelectionHandles, renderCrosshair,
   FIB_LEVELS, FIB_COLORS, FIB_EXT_LEVELS,
 } from './drawingRenderers'
@@ -770,57 +770,219 @@ describe('⚠️ CHARACTERISATION — multi-line tools (Phase 2 rebuilds the geo
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
-describe('renderMeasure', () => {
+describe('renderMeasure — the box, and whatever the caller says goes in it', () => {
   const pts = [P(10, 10, { rawPrice: 100 }), P(90, 60, { rawPrice: 118.9 })]
+  const L = (lines) => ({ lines })
 
-  it('prints $ move, % move and bar count on two lines by default', () => {
+  it('⛔ THE PAINTER NO LONGER CHOOSES THE TEXT', () => {
+    // ⚰️ It used to branch on `d.type` across four hard-coded layouts and read a
+    // bar count the overlay had frozen at creation. Content is resolved before
+    // the call now, which is the whole reason a Measure can show any of the
+    // sixteen field combinations instead of the one its type implied.
     const ctx = makeCtx()
-    renderMeasure(ctx, pts, { type: 'measure', barCount: 25 })
-    const texts = ctx.__find('fillText').map((c) => c.args[0])
-    expect(texts).toEqual(['+18.90 (+18.90%)', '25 bars'])
+    renderMeasure(ctx, pts, { type: 'measure', barCount: 999 }, L(['+18.90 (+18.90%)', '25 bars · 6w 2d']))
+    expect(ctx.__find('fillText').map((c) => c.args[0]))
+      .toEqual(['+18.90 (+18.90%)', '25 bars · 6w 2d'])
+    // …and the stale stored count is not consulted, even when it is sitting there.
+    expect(ctx.__find('fillText').map((c) => c.args[0]).join()).not.toContain('999')
   })
 
-  it('pctOnly collapses it to a single % chip (Model Book index pane)', () => {
+  it('⭐ ONE CHIP BEHIND BOTH ROWS, not two plates four pixels apart', () => {
     const ctx = makeCtx()
-    renderMeasure(ctx, pts, { type: 'measure', barCount: 25 }, true)
-    expect(ctx.__find('fillText').map((c) => c.args[0])).toEqual(['+18.90%'])
-  })
-
-  it('priceRange drops the bar count; dateRange drops the price', () => {
-    const a = makeCtx(); renderMeasure(a, pts, { type: 'priceRange', barCount: 25 })
-    const b = makeCtx(); renderMeasure(b, pts, { type: 'dateRange', barCount: 25 })
-    expect(a.__find('fillText').map((c) => c.args[0])).toEqual(['+18.90 (+18.90%)'])
-    expect(b.__find('fillText').map((c) => c.args[0])).toEqual(['25 bars'])
-  })
-
-  it('carries the sign of the drawn direction', () => {
-    const ctx = makeCtx()
-    renderMeasure(ctx, [P(10, 10, { rawPrice: 118.9 }), P(90, 60, { rawPrice: 100 })], { type: 'measure' })
-    expect(ctx.__find('fillText')[0].args[0]).toMatch(/^-18\.90 \(-15\.90%\)$/)
-  })
-
-  it('⚰️ reads barCount from the STORED value and never recomputes it', () => {
-    // The drag path writes only `{points}`, so a resized Measure keeps a stale
-    // count and a timeframe change keeps one that was never right. Phase 5
-    // derives it here instead.
-    const ctx = makeCtx()
-    renderMeasure(ctx, pts, { type: 'measure', barCount: 999 })
-    expect(ctx.__find('fillText').map((c) => c.args[0])).toContain('999 bars')
-  })
-
-  it('backs each chip with the neutral dark plate, then restores textAlign', () => {
-    const ctx = makeCtx()
-    renderMeasure(ctx, pts, { type: 'measure', barCount: 4 })
-    expect(ctx.__find('roundRect')).toHaveLength(2)
+    renderMeasure(ctx, pts, { type: 'measure' }, L(['+18.90 (+18.90%)', '25 bars']))
+    expect(ctx.__find('roundRect')).toHaveLength(1)
     expect(ctx.__find('set:fillStyle').map((c) => c.args[0])).toContain('rgba(20, 22, 18, 0.82)')
-    expect(ctx.__state.textAlign).toBe('start')
   })
 
-  it('draws the box but no labels when the points carry no price', () => {
+  it('the chip is as wide as its WIDEST row', () => {
     const ctx = makeCtx()
-    renderMeasure(ctx, [P(10, 10), P(90, 60)], { type: 'measure' })
-    expect(ctx.__find('strokeRect')).toHaveLength(1)
-    expect(ctx.__find('fillText')).toHaveLength(0)
+    renderMeasure(ctx, pts, { type: 'measure' }, L(['short', 'a much longer second row']))
+    const [, , w] = ctx.__find('roundRect')[0].args
+    expect(w).toBe('a much longer second row'.length * 6 + 10)
+  })
+
+  it('the box is drawn whatever the label says — including nothing at all', () => {
+    for (const o of [null, L([]), L(['x'])]) {
+      const ctx = makeCtx()
+      renderMeasure(ctx, pts, { type: 'measure' }, o)
+      expect(ctx.__find('strokeRect')).toHaveLength(1)
+      expect(ctx.__find('fillRect')).toHaveLength(1)      // the 6% tint
+    }
+    const bare = makeCtx()
+    renderMeasure(bare, pts, { type: 'measure' }, L([]))
+    expect(bare.__find('fillText')).toHaveLength(0)
+    expect(bare.__find('roundRect')).toHaveLength(0)      // no empty chip
+  })
+
+  it('⭐ LABEL POSITION MOVES THE CHIP INSIDE THE BOX', () => {
+    const y = (pos) => {
+      const ctx = makeCtx()
+      renderMeasure(ctx, pts, { type: 'measure', labelPos: pos }, L(['a']))
+      return ctx.__find('roundRect')[0].args[1]
+    }
+    expect(y('top')).toBeLessThan(y('center'))
+    expect(y('center')).toBeLessThan(y('bottom'))
+    // …and the default is centre, for a drawing that names no position.
+    const dflt = makeCtx()
+    renderMeasure(dflt, pts, { type: 'measure' }, L(['a']))
+    expect(dflt.__find('roundRect')[0].args[1]).toBe(y('center'))
+  })
+
+  it('⛔ FLIP, DON\u2019T CLIP — a position that would leave the pane takes the other end', () => {
+    // A measure box hard against the top of its pane cannot honour "top": the
+    // chip would be painted into the pane above. It flips to the bottom rather
+    // than being cut in half, because the number IS the tool.
+    const bounds = { x0: 0, y0: 8, x1: W, y1: 300 }
+    const ctx = makeCtx()
+    renderMeasure(ctx, [P(10, 10, { rawPrice: 100 }), P(90, 120, { rawPrice: 110 })],
+      { type: 'measure', labelPos: 'top' }, { lines: ['a'], bounds })
+    const [, by, , bh] = ctx.__find('roundRect')[0].args
+    expect(by).toBeGreaterThanOrEqual(bounds.y0)
+    expect(by + bh).toBeLessThanOrEqual(bounds.y1)
+  })
+
+  it('the dashed box and its 6% tint are exactly what shipped', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    renderMeasure(ctx, pts, { type: 'measure' }, L(['a']))
+    expect(ctx.__find('setLineDash')[0].args[0]).toEqual([3, 3])
+    expect(ctx.__find('strokeRect')[0].args).toEqual([10, 10, 80, 50])
+    expect(ctx.__find('set:globalAlpha')[0].args[0]).toBe(0.06)
+    expect(ctx.__state.globalAlpha).toBe(1)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ renderBarsTime — a ruler, deliberately not a box', () => {
+  const pts = [P(100, 200, { rawPrice: 50 }), P(300, 200, { rawPrice: 50 })]
+
+  it('draws a span with two end caps, and NO box and NO fill', () => {
+    const ctx = makeCtx()
+    renderBarsTime(ctx, pts, { type: 'dateRange' }, { lines: ['25 bars'] })
+    expect(ctx.__find('strokeRect')).toHaveLength(0)
+    expect(ctx.__find('fillRect')).toHaveLength(0)
+    // one horizontal + two vertical caps, in a single path
+    const moves = ctx.__find('moveTo').map((c) => c.args)
+    const lines = ctx.__find('lineTo').map((c) => c.args)
+    expect(moves).toEqual([[100, 200], [100, 195], [300, 195]])
+    expect(lines).toEqual([[300, 200], [100, 205], [300, 205]])
+  })
+
+  it('⛔ ONE PRICE ROW — a legacy dateRange with two prices still reads level', () => {
+    const ctx = makeCtx()
+    renderBarsTime(ctx, [P(100, 200), P(300, 260)], { type: 'dateRange' }, { lines: ['25 bars'] })
+    const ys = [...ctx.__find('moveTo'), ...ctx.__find('lineTo')].map((c) => c.args[1])
+    // Every y is within a cap of the FIRST anchor's row; none is near 260.
+    for (const y of ys) expect(Math.abs(y - 200)).toBeLessThanOrEqual(5)
+  })
+
+  it('is drawn left-to-right whichever way it was placed', () => {
+    const a = makeCtx(); renderBarsTime(a, pts, {}, { lines: ['x'] })
+    const b = makeCtx(); renderBarsTime(b, [pts[1], pts[0]], {}, { lines: ['x'] })
+    expect(a.__find('moveTo')[0].args[0]).toBe(b.__find('moveTo')[0].args[0])
+  })
+
+  it('centres its readout on the span, and can sit above or below it', () => {
+    const y = (pos) => {
+      const ctx = makeCtx()
+      renderBarsTime(ctx, pts, { type: 'dateRange', labelPos: pos }, { lines: ['25 bars'] })
+      const [bx, by] = ctx.__find('roundRect')[0].args
+      return { bx, by }
+    }
+    expect(y('center').bx + ('25 bars'.length * 6 + 10) / 2).toBeCloseTo(200, 6)
+    expect(y('top').by).toBeLessThan(y('center').by)
+    expect(y('bottom').by).toBeGreaterThan(y('center').by)
+  })
+
+  it('draws the rule even with nothing to say', () => {
+    const ctx = makeCtx()
+    renderBarsTime(ctx, pts, {}, { lines: [] })
+    expect(ctx.__find('stroke')).toHaveLength(1)
+    expect(ctx.__find('roundRect')).toHaveLength(0)
+  })
+
+  it('skips a ruler whose anchors cannot be resolved', () => {
+    const ctx = makeCtx()
+    renderBarsTime(ctx, [P(100, 200), { valid: false }], {}, { lines: ['x'] })
+    expect(ctx.__ops()).toEqual([])
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ renderAdvance — the label IS the drawing', () => {
+  const pts = [P(100, 300, { rawPrice: 100 }), P(400, 200, { rawPrice: 118 })]
+  const toPixelY = (_, price) => 500 - price * 2
+
+  it('⛔ NOTHING IS DRAWN BETWEEN THE ANCHORS — no persistent construction line', () => {
+    const ctx = makeCtx()
+    renderAdvance(ctx, pts, { advPct: 18 }, toPixelY, 16, W)
+    expect(ctx.__ops()).not.toContain('stroke')
+    expect(ctx.__find('lineTo')).toHaveLength(0)
+    expect(ctx.__find('fillText')).toHaveLength(1)
+  })
+
+  it('keeps the shipped rounded percent, with its thousands separator', () => {
+    const ctx = makeCtx()
+    renderAdvance(ctx, pts, { advPct: 1156.4, advHigh: 118 }, toPixelY, 16, W)
+    expect(ctx.__find('fillText')[0].args[0]).toBe('+1,156%')
+  })
+
+  it('an advance sits ABOVE the high; a decline BELOW the low', () => {
+    // Read the baseline the painter SET, not the one left behind: it draws
+    // inside save/restore, so the end state is the one it was handed.
+    const baseline = (c) => c.__find('set:textBaseline').at(-1).args[0]
+    const up = makeCtx()
+    renderAdvance(up, pts, { advPct: 18, advHigh: 118 }, toPixelY, 16, W)
+    expect(baseline(up)).toBe('bottom')
+    const down = makeCtx()
+    renderAdvance(down, pts, { advPct: -18, advLow: 90 }, toPixelY, 16, W)
+    expect(baseline(down)).toBe('top')
+    expect(down.__find('fillText')[0].args[2]).toBeGreaterThan(toPixelY(null, 90))
+  })
+
+  it('⭐ AN EXPLICIT LABEL POSITION IS HONOURED EXACTLY', () => {
+    const ctx = makeCtx()
+    renderAdvance(ctx, pts, { advPct: 18, advHigh: 118 }, toPixelY, 16, W, '#fff', { at: { x: 250, y: 120 } })
+    const [, tx, ty] = ctx.__find('fillText')[0].args
+    expect(tx).toBe(250)
+    expect(ty).toBe(120)
+  })
+
+  it('…and a drawing that has never been moved falls back to the derived spot', () => {
+    const a = makeCtx(); renderAdvance(a, pts, { advPct: 18, advHigh: 118 }, toPixelY, 16, W)
+    const b = makeCtx(); renderAdvance(b, pts, { advPct: 18, advHigh: 118 }, toPixelY, 16, W, '#fff', { at: null })
+    expect(a.__find('fillText')[0].args).toEqual(b.__find('fillText')[0].args)
+  })
+
+  it('⭐ RETURNS THE BOX IT DREW, so the hit test and the handle use the ink', () => {
+    const ctx = makeCtx()
+    const box = renderAdvance(ctx, pts, { advPct: 18, advHigh: 118 }, toPixelY, 16, W)
+    const [text, tx, ty] = ctx.__find('fillText')[0].args
+    expect(box.w).toBeCloseTo(text.length * 6 + 6, 6)
+    expect(box.cx).toBe(tx)
+    // the box brackets the text it drew
+    expect(box.y).toBeLessThan(ty)
+    expect(box.y + box.h).toBeGreaterThan(ty - 11)
+  })
+
+  it('draws both figures on ONE line when the caller asks for both', () => {
+    const ctx = makeCtx()
+    renderAdvance(ctx, pts, { advPct: 18 }, toPixelY, 16, W, '#fff', { lines: ['+18.00 (+18%)'] })
+    expect(ctx.__find('fillText').map((c) => c.args[0])).toEqual(['+18.00 (+18%)'])
+  })
+
+  it('an anchor scrolled off the plot takes its label with it — unless it was placed', () => {
+    const off = makeCtx()
+    expect(renderAdvance(off, [P(-40, 300), P(-30, 200)], { advPct: 18 }, toPixelY, 16, W)).toBeNull()
+    expect(off.__find('fillText')).toHaveLength(0)
+    // A label the user positioned is its own fact and stays put.
+    const placed = makeCtx()
+    expect(renderAdvance(placed, [P(-40, 300), P(-30, 200)], { advPct: 18 }, toPixelY, 16, W, '#fff', { at: { x: 200, y: 100 } })).toBeTruthy()
+  })
+
+  it('a user colour wins over the auto ink', () => {
+    const ctx = makeCtx()
+    renderAdvance(ctx, pts, { advPct: 18, labelColor: '#1ae51a' }, toPixelY, 16, W, '#000000')
+    expect(ctx.__find('set:fillStyle').at(-1).args[0]).toBe('#1ae51a')
   })
 })
 
