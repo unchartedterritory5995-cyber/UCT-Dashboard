@@ -38,6 +38,20 @@ from __future__ import annotations
 
 import pathlib
 import re
+import sys as _sys
+
+# ⛔ THE GATE PRINTS ITS OWN VERDICT IN ⛔/⭐/· AND WINDOWS STDOUT IS cp1252.
+# Reading a file with the locale codec was already a bug here (it turned an
+# UNREADABLE guarded file into one that looked unchanged); this is the same
+# defect pointed the other way, and it is worse: the gate assessed every region
+# correctly and then died mid-sentence while SAYING SO. A verdict nobody can
+# read is not a verdict, and a crash at the print is indistinguishable, to a
+# caller reading an exit code, from a gate that refused the deploy.
+for _s in (_sys.stdout, _sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # a pipe or a stream that cannot be reconfigured
+        pass
 import subprocess
 import sys
 
