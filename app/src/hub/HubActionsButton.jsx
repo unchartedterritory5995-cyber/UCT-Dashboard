@@ -4,6 +4,9 @@
 import { useState } from 'react'
 import Sheet from '../components/mobile/Sheet'
 import UIcon from '../components/ui/UIcon'
+// The app's ONE haptics helper — the same module `useJoystick.js:16` imports for the gesture
+// door. Never a second `navigator.vibrate` call site (constants.js:160).
+import haptics from '../components/mobile/haptics.js'
 import styles from './hub.module.css'
 import { PAD_PX, EDGE_OFFSET_PX, BOTTOM_OFFSET_PX } from './constants'
 
@@ -52,6 +55,18 @@ function idsHas(ids, id) {
  *   Optional human reason surfaced next to a disabled action (e.g. "Needs a symbol").
  * @param {(action: import('./registry').HubAction) => void} [props.onAction] Fired when an enabled action is picked.
  * @param {() => void} [props.onFeedback] Fired when the Feedback entry is picked.
+ * @param {boolean} [props.hapticsEnabled] The member's `joystick_hub.haptics` preference.
+ *   Defaults to `true` — the SAME "unset means on" rule the gesture door applies
+ *   (`useJoystick.js:126`, `const hapticsEnabled = settings.haptics !== false`) and the same
+ *   value `HUB_SETTINGS_DEFAULTS.haptics` starts a fresh account with (`useHubSettings.js:56`).
+ *
+ *   ⛔ UNWIRED AT THE ONE CALL SITE. `HubRoot.jsx:414-423` does not pass this prop, so a member
+ *   who has explicitly turned haptics OFF still feels the sheet's cue. Closing that needs ONE
+ *   line in `HubRoot.jsx` — `hapticsEnabled={settings.haptics !== false}` — where `settings` is
+ *   already in scope (`HubRoot.jsx:73`) and already handed to `useJoystick` (`HubRoot.jsx:216`).
+ *   Left undone here only because this stream does not own `HubRoot.jsx` (H8, Increment 4
+ *   Stream E). Default `true` was chosen over `false` deliberately: `false` would have shipped
+ *   the cue built, tested green and unreachable, which is the worse of the two failures.
  */
 export default function HubActionsButton({
   mode,
@@ -62,6 +77,7 @@ export default function HubActionsButton({
   onAction,
   onFeedback,
   onHide,
+  hapticsEnabled = true,
 }) {
   const [open, setOpen] = useState(false)
   const label = `${mode} actions`
@@ -76,6 +92,28 @@ export default function HubActionsButton({
 
   const handlePick = (action) => {
     if (idsHas(disabledIds, action.id)) return
+    if (hapticsEnabled) {
+      // §C2's equal-path rule is about the CUE too, not only the outcome. The gesture door has
+      // fired a cue on every action since Phase 2 and escalated on `escalate` since B5
+      // (`useJoystick.js:197-198`: `if (target?.action?.escalate) haptics.warn()` / `else
+      // haptics.impact()`); this door — the ONLY door a VoiceOver or TalkBack user has, because
+      // both screen readers eat the two-finger Peek — fired nothing at all. A member who cannot
+      // perform the drag got a silently quieter product on the most destructive actions in the
+      // hub (journal.close among them).
+      //
+      // ⚠️ THIS IS A SECOND COPY OF THE BRANCH AT `useJoystick.js:197`, and that is a known cost,
+      // not an oversight: the shared extraction would have to live in a module `useJoystick.js`
+      // imports, and this stream does not own that file. What keeps the two from drifting is
+      // `actionsSheetHaptic.test.jsx`, which derives the expected cue for EVERY action of a mode
+      // from `registry`'s own `escalate` flag — the same authority line 197 reads — rather than
+      // from a list re-typed next to either copy.
+      //
+      // ⚠️ Fires the HELPER, and asserts nothing about a vibration: iOS Safari exposes no
+      // `navigator.vibrate` at all, so `haptics.warn()` there is a no-op that returns `false`
+      // (`components/mobile/haptics.js:9`). The contract this path owes the member is the CALL.
+      if (action?.escalate) haptics.warn()
+      else haptics.impact()
+    }
     setOpen(false)
     onAction?.(action)
   }
