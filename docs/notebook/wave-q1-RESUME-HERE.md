@@ -170,21 +170,24 @@ tested the state a member is in *once*.
 | | |
 |---|---|
 | The root cause | ✅ **FOUND** — guard 1 was wired only into `restoreDraft`, and guard 2 cannot fire in the window it claims. See above. |
-| The fix for it | 🔧 **DESIGNED AND BEING BUILT (round 2, R-A)** — ⛔ **NOT DEPLOYED.** See the design section below. |
-| The flag flip | ⛔⛔ **BLOCKED.** Not "next", not "pending the window" — blocked, and now blocked on a *known* defect rather than an unknown one. |
-| The seven consecutive green runs | ⛔ **STOPPED AT 3.** The streak is not paused; it is broken and restarts from zero — and it restarts against the round-2 fix, not against #4. |
-| The 2026-09-17 decision | ⛔ **NO-GO stands, and now for a measured reason** rather than for unmeasured rows. |
-| Deploy #4 | ✅ **stays live.** Flag-false, strictly narrows the window, no rollback pressure. ⚠️ It is not the fix; it is a partial one that was never on the path. |
-| Deploy #4b | ⛔ **has NOT happened.** No record exists for it here, deliberately. |
+| The fix for it | ✅ **SHIPPED — deploy #4b, `23f6ce271`, live 2026-09-10T20:36:29Z.** The design is **R-A** below; the record is **✅✅ DEPLOY #4b**. |
+| The flag flip | ⛔⛔ **STILL BLOCKED.** ⭐ A fix shipping is not the gate closing — the gate is **seven consecutive green runs**, and shipping the fix is what makes those runs worth counting. |
+| The seven consecutive green runs | ⛔ **RESTARTS FROM ZERO**, against #4b. It is not resumed at 3, and runs taken against #4 do not count toward it. |
+| The 2026-09-17 decision | ⛔ **NO-GO stands.** |
+| Deploy #4 | ✅ **stays live**, and is now an ancestor of #4b. ⚠️ It was not the fix; it narrowed the window and its main guard was never on the path. |
+| Deploy #4b | ✅ **LIVE** — the round-2 fix. Flag unchanged. |
 | Deploy #5 | ⛔ **does not exist.** Do not write a record for one. |
-| The forked artifact | ⛔ **PRESERVED.** Do not clean it up; do not describe cleaning it up. |
+| The forked artifact | ⛔ **PRESERVED.** Do not clean it up; do not describe cleaning it up. ⭐ **It is why the note baseline is 33, not 32** — see **R-K**. |
 
 ---
 
 # 🔧 ROUND 2 — THE FINAL DESIGN (R-A), CONFIRMED BY THE OWNER
 
-⛔ **This is the design. It is NOT deployed.** Deploy #4b has not happened; there
-is no record for it in this file and there should not be one until it does.
+✅ **SHIPPED — deploy #4b, `23f6ce271`, live 2026-09-10T20:36:29Z.** The record is
+**✅✅ DEPLOY #4b** above; this section is the design it implements, kept as the
+statement of *why each piece is shaped the way it is*.
+⛔ **Shipping it does NOT unblock the flip** — the gate is seven consecutive green
+runs, and those restart from zero against this build.
 
 ## GUARD 1 — a durable in-flight marker, in the **meta** store
 
@@ -243,12 +246,22 @@ moments. **One implementation, two call sites.**
 
 ---
 
-# ✅ THE SELF-FORK FIX IS LIVE (DEPLOY #4) — and the flip is BLOCKED
+# ✅ THE SELF-FORK FIX IS LIVE (DEPLOY #4 → #4b) — and the flip is BLOCKED
 
-**`f093bf731` is on `master` and live (2026-09-10T16:46:28Z).** The full record
-is **✅✅ DEPLOY #4** below. ⛔ `OFFLINE_DEFAULT_ON` is **still `false`** on the
-branch and on `master` — #4 shipped the fix, not the flip. ⛔⛔ **And the fix did
-not close the question** — read the HARD STOP above before using anything here.
+**Round 1: `f093bf731`, live 2026-09-10T16:46:28Z** (**✅✅ DEPLOY #4**) — ⚠️ it
+narrowed the window and **did not close it**; its main guard was never on the path
+that forks, and the defect reproduced eight minutes later.
+**Round 2: `23f6ce271`, live 2026-09-10T20:36:29Z** (**✅✅ DEPLOY #4b**) — the
+round-2 fix, built on the root cause.
+
+⛔ `OFFLINE_DEFAULT_ON` is **still `false`** on the branch and on `master` —
+neither deploy is the flip. ⛔⛔ **And the flip is still BLOCKED**: the gate is
+seven consecutive green runs and they restart **from zero** against #4b. Read the
+HARD STOP above before using anything here.
+
+⚠️ **The mechanism section below describes ROUND 1's design.** It is accurate about
+what `b41c26f29` did and it is **not** the current design — see the root cause in
+the HARD STOP and **🔧 ROUND 2 — THE FINAL DESIGN (R-A)**.
 
 ## The mechanism — it was never a missing supersede
 
@@ -347,6 +360,10 @@ single-writer fork detector is now a **hard red**.
 ✅ **Both fork artifacts cleared** (after the tests went green and their contents
 were recorded above): back to the **32-note** baseline, no `WINDOW-CHECK` notes
 left. The `To Do List` pair is the connectors feature's and was not touched.
+
+⛔ **THAT WAS THEN. The baseline is 33 from 2026-09-10 onward** — 32 plus the ONE
+`(conflicted copy)` preserved from the hard-stop finding, which is **evidence and
+must not be cleared**. See **R-K**.
 
 ## ⭐ THE MUTATION GAUNTLET IS A TOOL — `tools/q1_mutation_gauntlet.py`
 
@@ -891,14 +908,15 @@ starting state of every run in the streak rather than only its verdict.
 
 ---
 
-# 🧾 ROUND-2 RULINGS — R-A … R-I
+# 🧾 ROUND-2 RULINGS — R-A … R-K
 
 ⛔ **Lettered, not numbered, on purpose.** R1–R16 belong to the deploy-#4 round;
 these belong to the round that followed the root cause. Mixing the sequences
 would imply an ordering between two different investigations.
 
-⛔ **All logged `2026-09-10T20:12:45Z`** — the logging time, not the deciding
-time, same rule as R1–R16.
+⛔ **R-A–R-I were logged `2026-09-10T20:12:45Z`; R-J and R-K at
+`2026-09-10T20:40:00Z`**, after deploy #4b went live — the logging time, not the
+deciding time, same rule as R1–R16.
 
 ## R-A — the marker lives in the **meta** store, and two designs were REJECTED
 
@@ -1092,6 +1110,63 @@ whether *this* string looks risky.
 to parse, so it was caught immediately. The same mangling inside a string literal
 would have compiled, run, and quietly matched nothing.
 
+## R-J — the TTL's provenance was corrected before shipping: say MAX, not p99
+
+**`2026-09-10T20:40:00Z` (logged)** · **Decision: the number is unchanged; the
+WORD changes.** `IN_FLIGHT_TTL_MS` is **10 s = MAX 997.6 ms × 10**, not
+"p99 × 10".
+
+**R-D above called 997.6 ms the p99.** At **n = 30**, the nearest-rank p99 **IS
+the max** — the same single sample. Calling it a p99 dresses **one observation in
+the clothes of a percentile estimate**, and reads as more evidence than exists.
+
+The correction lives where it will be read, in the module itself:
+
+> *"⛔ SAY 'MAX', NOT 'p99'. At n=30 the nearest-rank p99 and the max are THE SAME
+> SAMPLE, so calling it p99 dresses one observation as a distribution and reads as
+> more evidence than exists. The number is right; the word matters, because the
+> next person to re-measure needs to know it is one tail sample and not a
+> percentile estimate."*
+> — `app/src/pages/journal-2-0/lib/offline/inFlight.js`
+
+⛔ **This is not pedantry, and the test is who gets hurt.** The next person to
+re-measure needs to know they are comparing against **one tail sample**, not a
+percentile. Told "p99", they would reasonably collect n=30 again, compute a p99,
+get a different number, and conclude the origin had changed.
+
+⭐⭐ **AND NOTE WHO CAUGHT IT: the stream that TOOK the measurement, reading my
+write-up of it.** The measurer checking the reporter. That is the only direction
+this error is catchable from — I had no way to know the shape of a sample I did
+not collect, and the measurer had no reason to re-read their own numbers until
+they saw them described. ⛔ **Whoever takes a measurement should read how it gets
+written down**, and this is the evidence that the loop pays.
+
+⚠️ **R-D is left standing with its original wording**, annotated by this ruling
+rather than silently rewritten — the same treatment deploy #4's record gets. A
+ruling edited to have always been right teaches nothing.
+
+## R-K — the note baseline is **33**, not 32
+
+**`2026-09-10T20:40:00Z` (logged)** · **Decision: 33 is the target, everywhere,
+until the preservation instruction is lifted.**
+
+**33 = the 32-note baseline + the ONE preserved `(conflicted copy)`** from the
+hard-stop finding.
+
+⛔⛔ **32 IS ONLY REACHABLE BY DELETING EVIDENCE, and the preservation instruction
+has not been lifted.** Any run, matrix or checklist that targets 32 is asking to
+be "corrected" by someone tidying up an artifact that is still the only physical
+record of the defect reproducing in production.
+
+**Every future run and the matrix target 33.**
+
+⭐ **Recorded precisely so nobody "corrects" the number later.** A baseline that
+drifts by one is exactly the kind of discrepancy a helpful reader fixes on sight
+— and here the helpful fix destroys the finding. ⚠️ When the preservation
+instruction *is* lifted, that is a decision with a date and an owner, and the
+baseline returns to 32 in the same motion. It does not return quietly because the
+number looked odd.
+
 ---
 
 # 🚨 THE SELF-FORK, AS FOUND — 2026-09-10
@@ -1186,7 +1261,104 @@ other, and there is never a second one.
 asked for a sign-in, and each re-read by hand what the previous one had already
 written down. The cost was not the compute; it was the owner's time.
 
+# ✅✅ DEPLOY #4b — THE SELF-FORK FIX, ROUND 2 — 2026-09-10T20:34:16Z, LIVE 20:36:29Z
+
+**`23f6ce271` is on `master` and live.** ⛔ `OFFLINE_DEFAULT_ON` is **still
+`false`**, on the branch **and** on `master` — unchanged by this deploy. ⛔⛔ **The
+flip is still BLOCKED and the wave is not closed**: #4b ships the round-2 fix, and
+the seven-run streak restarts **from zero** against it.
+
+| | |
+|---|---|
+| pushed | `3c8e5126a..23f6ce271` on `master`, **2026-09-10T20:34:16Z** |
+| live | **2026-09-10T20:36:29Z** — uptime **1733 s → 31 s** |
+| during the swap | **502**, expected — the pod is being replaced |
+| master after | `23f6ce271` |
+| flag | `OFFLINE_DEFAULT_ON = false`, branch and master |
+
+## The member-impact paragraph — **approved by the owner, recorded verbatim**
+
+> "Nothing changes for members. Offline editing stays switched off. This
+> completes the fix from earlier today for a note edited offline reappearing as a
+> duplicate 'conflicted copy' with no other device involved: the earlier release
+> narrowed the window, this one closes it. No member data is read, moved, or
+> deleted."
+
+⛔ **Do not re-word it.** ⭐ Note what it does *not* say: it does not claim the
+member was ever affected, and it does not promise the flip.
+
+## The checklist, as checked AT PUSH TIME
+
+| # | check | result at push time |
+|---|---|---|
+| 1 | gate loop | master moved **6 commits** to `3c8e5126a` mid-cycle → **TIER 2** (charts `ChartsWorkspace` + pattern-vision) → merged at `fb5c74cf5`, **0 behind** at the final re-fetch |
+| 2 | zero-line check | **all SEVEN guarded files changed by 0 lines** — including the new `inFlight.js` |
+| 3 | `journal-2-0` at rest | **237 files / 2483 tests green** |
+| 4 | backend Q1 rails | **25 passed** |
+| 5 | full frontend suite | **1210 files / 18057 tests** · **10 failed vs baseline 10** · **NEW regressions 0** · tree hash `fb5c74cf5…` → `fb5c74cf5…` **identical start→end** · files on disk **1210** reconciles with the summed shard total |
+| 6 | Wave Q1 rails by name | **219 green** (the gauntlet's control) |
+| 7 | mutation gauntlet | **every declared mutation reddened exactly its own rails**, control green **before AND after**. ⛔ **Read the total from the tool; do not type it here.** |
+| 8 | pointer gate | **exit 0** |
+| 9 | flag state | **`false`** on branch and master, as #4b expects |
+
+⛔ **Row 5 is not a green suite**, and the same sentence applies as to #4: ten
+failed against a baseline of ten with zero new is *"no new failures against a
+measured baseline"*, which is the only claim available here.
+
+⭐ **Row 1 is NOT a "lap" under R11.** Master moved **between deploys, before the
+checklist began** — that is the ordinary case the three-tier gate exists to
+absorb. R11's falsifier is a second lap **of a checklist already in flight**, and
+this was not one. ⛔ Do not let the word "moved" collapse the two: R10 (a lap
+mid-checklist, run killed) and this row are different events with different costs.
+
+⛔⛔ **THE SAME HONESTY NOTE AS #4, AND FOR THE SAME REASON: the full suite was
+measured at `fb5c74cf5`, and the tip pushed was `23f6ce271`.** The delta is **one
+comment block**:
+
+```bash
+git diff --stat fb5c74cf5 23f6ce271
+#   1 file changed, 7 insertions(+), 1 deletion(-)   — all comment lines in inFlight.js
+```
+
+**`journal-2-0` WAS re-run at rest on the final tip** (row 3). ⭐ The gap is
+smaller than #4's and the sentence is identical, deliberately: *the suite is a
+measurement of `fb5c74cf5`*, not of what shipped. A gap that shrinks is still a
+gap, and the moment it stops being stated is the moment it stops being noticed.
+
+## ⚠️ ONE RED, CLASSIFIED — and it is ledger row 9 behaving exactly as documented
+
+The **first** at-rest `journal-2-0` run after the full suite failed
+`CaptureHost.test.jsx > "closing returns the dialog to nothing"`.
+
+- **Re-run ALONE: passed in 1.56 s.**
+- **Re-run as a suite at rest: 237 / 2483 green.**
+
+⭐ **It is a NAMED member of row 9's load-sensitive population** — the ledger
+already lists *"closing returns the dialog to nothing"* among the tests that
+appear under sustained load. ⛔ **The ledger's own rule settled it: re-run it
+alone before classifying it.**
+
+⛔ **Not banked as breakage. Not a new offender.** CLAUDE.md's rule applies —
+*a timeout is never banked as permitted breakage* — and banking one would leave a
+slot in the baseline that a real failure could occupy unnoticed.
+
+⭐ **This is what a documented population is FOR.** The first sighting of this
+class cost a session; this one cost a re-run, because the ledger named the test,
+named the trigger, and named the procedure.
+
+---
+
 # ✅✅ DEPLOY #4 — THE SELF-FORK FIX — 2026-09-10T16:42:58Z, LIVE 16:46:28Z
+
+⚠️ **NARROWED, DID NOT CLOSE — see #4b.** This release's main guard was never on
+the path that forks; the defect reproduced on the rig eight minutes after it went
+live.
+
+⛔ **The rest of this record is left exactly as written.** It is the honest
+contemporaneous account, and its checklist was genuinely green — what it lacked
+was a rail on the **WIRE**, which is a thing no row in it claimed to have. ⭐ A
+record rewritten after the fact to look prescient is worth nothing; an annotated
+one tells you what a green checklist could and could not see.
 
 **`f093bf731` is on `master` and live.** ⛔ `OFFLINE_DEFAULT_ON` is **still
 `false`**, on the branch **and** on `master` — unchanged by this deploy. #4 ships
@@ -1603,9 +1775,10 @@ now cannot until the reproduction is explained.
 | §15 canary | ✅ **COMPLETE AND GREEN**, both halves + the conflict fork |
 | Blocked entries surfaced to the member | ✅ **built and DEPLOYED** — `0d7eee792`, shipped in deploy #2 (`eedb58ac8`) and still an ancestor of `master` |
 | The `null` baseline | ⏳ **instrumented, not explained** — the instrument is DEPLOYED (deploy #2, denominator in #3); what is still missing is an explanation, not a shipment |
-| The self-fork | ⚠️ **partial fix DEPLOYED** — deploy #4 (`f093bf731`), 2026-09-10T16:46:28Z, flag unchanged — ⛔⛔ **and it REPRODUCED at 16:54:50Z.** Not closed. |
+| The self-fork | ⚠️ **round-1 fix DEPLOYED** — #4 (`f093bf731`), 16:46:28Z — ⛔⛔ **it REPRODUCED at 16:54:50Z**; ✅ **round-2 fix DEPLOYED** — #4b (`23f6ce271`), 20:36:29Z. Flag unchanged by both. ⛔ Not closed: the streak restarts from zero against #4b. |
 | The root cause | ✅ **FOUND** — guard 1 wired only into `restoreDraft`, never into `commitSave`; guard 2 shares a precondition with it, so the two are one. See the HARD STOP at the top. |
-| The round-2 fix | 🔧 **designed (R-A) and being built** — ⛔ **NOT DEPLOYED.** No deploy #4b record exists here. |
+| The round-2 fix | ✅ **SHIPPED** — deploy #4b, `23f6ce271`, live 2026-09-10T20:36:29Z. Design: **R-A**. Record: **✅✅ DEPLOY #4b**. |
+| The note baseline | ⚠️ **33, not 32** — 32 plus the ONE preserved `(conflicted copy)`. ⛔ 32 is only reachable by deleting evidence. See **R-K**. |
 | ⛔⛔ **The flag flip** | ⛔⛔ **BLOCKED** on that reproduction. Not "next", not "pending the window". |
 | The seven-run streak | ⛔ **STOPPED AT 3.** Restarts from zero, not from three, and against the round-2 fix. |
 | Harness integrity | **green** — identity, ports, controls, mutation-proved |
@@ -1638,7 +1811,8 @@ now cannot until the reproduction is explained.
 | **The daily mini-canary** | **`9dd48f048`** — `window_check.py` grows the §15 happy path, the two finding detectors (`--self-check` 19/19), the Task Scheduler registration, and the 9/17 decision drafted in advance. ⛔ **Tools and docs only** — nothing under `app/` or `api/` moved, so this is NOT a deploy and `master` does not need it. |
 | **Auth + maintained packet** | **`51c22bd32`** — `.env` retired, the rig runs on a persistent hand-signed profile, auth self-heals on 401, conflicts are checked in both directions, and the 9/17 packet is regenerated by the script. `--self-check` **45/45**. ⛔ Tools and docs only — not a deploy. |
 | ✅ **`origin/master` — TIER 1 HARD STOP, since RESOLVED** | **`febe8ee67`**, **34 commits ahead**, and it touched **7 files under `journal-2-0`**. The gate said do not merge and do not deploy. **Obeyed** — the branch sat 34 behind on purpose and that session shipped nothing. Those files were the Journal *trade* side rather than the Notebook offline layer, but that judgement was the owner's to make. ⭐ **Cleared later the same day by the region assessment, not by the argument** — see **✅✅ DEPLOY #4**. |
-| ✅✅ **DEPLOYED #4** | **`f093bf731`** on `master`, 2026-09-10 **16:42:58Z**, live **16:46:28Z**. The self-fork fix. Flag still `false`. Full record + checklist: **✅✅ DEPLOY #4** above. |
+| ✅✅ **DEPLOYED #4** | **`f093bf731`** on `master`, 2026-09-10 **16:42:58Z**, live **16:46:28Z**. The self-fork fix, round 1. Flag still `false`. ⚠️ **Narrowed, did not close** — it reproduced at 16:54:50Z. Full record + checklist: **✅✅ DEPLOY #4** above. |
+| ✅✅ **DEPLOYED #4b** | **`23f6ce271`** on `master`, 2026-09-10 **20:34:16Z**, live **20:36:29Z**. The self-fork fix, **round 2** — built on the root cause. Flag still `false`. Full record + checklist: **✅✅ DEPLOY #4b** above. |
 | **Master merge #6** | **`37e3c0cb1`** — merged `origin/master` `febe8ee67` after the TIER 1 assessment cleared. Only conflict `.gitignore` (both sides appended; both kept). **Zero-line check: all 17 guarded files, 0 lines.** |
 | **Checks 5 + 6** | **`986ee41d3`** — both rows stamped green, mini-canary **6/6** each, and the three instrument bugs the running exposed (`response.ok` on an SPA catch-all · `'ERR'` treated as a list · a reader that *created* a phantom IndexedDB and broke the profile). `--self-check` **60/60**. |
 | **Branch tip** | `986ee41d3` **plus this docs-only commit stamping the table**. `master` is at `febe8ee67`; all three deploys (`cd674ef56`, `eedb58ac8`, `7ed6b2ce5`) are ancestors of it, and the branch is ahead only by tools + docs. ⛔ A doc cannot name its own SHA; that is why this row says what each commit IS rather than pretending to a single "the commit". Read the tip with `git log --oneline -1`, always. |
@@ -2279,7 +2453,7 @@ stale-baseline entry on reconnect.
 | 5–6 · type, three layers hold it | draft + durable + outbox carry the words | all three carried them, and the durable record showed **`baseUpdatedAt: "2026-09-10T02:46:06…"` — a REAL baseline** | ✅ |
 | 7–9 · **offline, type, reload** | the words survive | ⛔ **NOT RUN** — see below | — |
 | 10 · reconnect, queue drains | `dirty:0`, re-based | `dirty:0`, outbox empty, draft cleared, **baseline exactly equals the server's new `updatedAt`** | ✅ |
-| 11 · clean up canonically | note gone, store empty | soft-deleted, list back to **32 notes**, all four stores **0**, no leftover drafts, opted back out, **0 locks** | ✅ |
+| 11 · clean up canonically | note gone, store empty | soft-deleted, list back to **32 notes** *(⛔ the target is **33** from 2026-09-10 onward — see **R-K**; this row records what the run at the time saw)*, all four stores **0**, no leftover drafts, opted back out, **0 locks** | ✅ |
 | conflict path | server byte-unchanged, local kept as a conflicted copy | ⛔ **NOT RUN** — needs a second signed-in context | — |
 
 ## ⭐⭐ The comparison that matters
@@ -2380,8 +2554,13 @@ in in that window; the agent never enters credentials. Budget for that pause.
 **Teardown, always, green or red:** kill the spawned browser process and any
 straggler carrying `canary-chrome-profile` in its command line · delete
 `.worktrees/canary-chrome-profile` · confirm the owner's BROWSER process is
-unchanged · confirm the production end state (32 notes · all four stores 0 ·
+unchanged · confirm the production end state (**33 notes** · all four stores 0 ·
 0 locks · key `'0'`).
+
+⛔⛔ **THE NOTE TARGET IS 33, NOT 32 — see R-K.** 33 = the 32-note baseline **plus
+the ONE preserved `(conflicted copy)`** from the hard-stop finding. **32 is only
+reachable by deleting evidence**, and the preservation instruction has not been
+lifted. ⛔ Do not "correct" this number back.
 
 ⛔⛔ **DO NOT CHECK THE OWNER'S CHROME BY PROCESS COUNT — IT WILL FALSE-ALARM.**
 Measured 2026-09-10: the baseline was 15 `chrome.exe` PIDs; twenty minutes later
@@ -3462,7 +3641,7 @@ top of this file.
 
 | | status |
 |---|---|
-| ⛔⛔ **The self-fork does not recur after the fix** | ⛔⛔ **OPEN — IT REPRODUCED, AND THE CAUSE IS NOW KNOWN.** Run 3 of 7, 2026-09-10T16:54:50Z, forked its own note with deploy #4 live. **Root cause: guard 1 was wired only into `restoreDraft`, never into `commitSave`; guard 2 cannot fire in the window it claims.** Round-2 fix designed (**R-A**) and ⛔ **NOT DEPLOYED**. Streak stopped at 3, restarts from zero against the round-2 fix. Artifact preserved. **The flip is BLOCKED on this**, and no other row can unblock it. |
+| ⛔⛔ **The self-fork does not recur after the fix** | ⛔⛔ **OPEN.** It reproduced against #4 (run 3 of 7, 2026-09-10T16:54:50Z). **Root cause found**: guard 1 was wired only into `restoreDraft`, never into `commitSave`; guard 2 cannot fire in the window it claims. ✅ **Round-2 fix DEPLOYED — #4b, `23f6ce271`, live 20:36:29Z.** ⛔ **Still open**, because the row's claim is *does not recur*, and that is **seven consecutive green runs against #4b, restarting from zero** — not a fix having shipped. Artifact preserved (**R-K**). **The flip is BLOCKED on this**, and no other row can unblock it. |
 | A blocked entry is surfaced to the member | ✅ **CLOSED 2026-09-10** — the notes list (both views) and the open note's header now say it, in the shipped vocabulary, and the sentence names the ACTION. See below. |
 | ~~`baseUpdatedAt: null` explained~~ → **`null` INSTRUMENTED, zero occurrences across the instrument clock** | ⏳ **INSTRUMENT LIVE IN PRODUCTION 2026-09-10T05:06:56Z** (deploy #2 `eedb58ac8`), clock ends 2026-09-17T05:06:56Z. ⛔⛔ **Bounded evidence, not proof** — with the flag off the event can only fire from an OPTED-IN browser, so zero over an empty population says nothing. Record the opted-in count beside it. |
 | A fresh §15 canary on the deployed fix | ✅ **COMPLETE — 2026-09-10.** Online half (happy path + the fix's own signature) and, via the CDP rig, the offline half incl. **the 9/9 red step** and the conflict path through the drain's fork. All green. No `null`/`''` baseline anywhere. ⚠️ **That canary ran from a FRESH opt-in.** The 16:54:50Z fork came from a run that started **already opted in** — an ordering this canary never exercised. Its green is real and it is not evidence about the new finding. |
@@ -3803,9 +3982,11 @@ docs/notebook/inherited-red-ledger.md      the reds this wave INHERITED, blamed
 
 **Sections in this file worth knowing by name:** ⛔⛔ **HARD STOP 2026-09-10**
 (read it first — root cause found, the flip is BLOCKED) · 🔧 **ROUND 2 — THE FINAL
-DESIGN (R-A)** (designed, ⛔ not deployed) · 🧾 **RULINGS** R1–R16 and 🧾 **ROUND-2
-RULINGS** R-A…R-I (decisions taken, with reasons) · ⭐ **THE MUTATION GAUNTLET IS
-A TOOL** · ⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK**
-(⛔ not indicated by the current finding — deploy #4 stays).
+DESIGN (R-A)** (✅ shipped as **#4b**) · ✅✅ **DEPLOY #4b** then ✅✅ **DEPLOY #4**
+(⚠️ #4 narrowed, did not close) · 🧾 **RULINGS** R1–R16 and 🧾 **ROUND-2 RULINGS**
+R-A…R-K (decisions taken, with reasons) · ⭐ **THE MUTATION GAUNTLET IS A TOOL** ·
+⭐ **TIER 1½** (inside the deploy procedure) · 🔙 **ROLLBACK RUNBOOK** (⛔ not
+indicated — both deploys stay).
+⛔ **The note baseline is 33, not 32** (**R-K**) — do not "correct" it.
 
 Memory: `project_notebook_wave_q_offline_2026_09_09` (open it before acting).
