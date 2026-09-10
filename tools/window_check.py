@@ -761,6 +761,18 @@ def teardown(chk: Check | None = None):
         chk.add("profile KEPT, lock released", released,
                 f"`{PROFILE.name}` retained \u00b7 lock free \u21d2 the next run can open it",
                 f"lock still held: {held} \u2014 tomorrow's run would find the profile busy")
+        # \u26d4 THE ONLY PLACE THE OPT-OUT CAN BE PROVED DURABLE. Chrome is dead now,
+        # so this reads the disk itself rather than a browser's memory \u2014 and a
+        # write killed before it flushes is LOST (measured 2026-09-10). Without
+        # this, a green "opted back out" can sit on top of a disk still holding
+        # '1', and the NEXT run silently starts already opted in.
+        if getattr(chk, "canary_ran", False):
+            disk = localstorage_on_disk(FLAG_KEY)
+            chk.add("opt-out reached DISK (Chrome not running)", disk.get("value") == "0",
+                    f"on-disk `{FLAG_KEY}` = **`'{disk.get('value')}'`** "
+                    f"\u00b7 {disk.get('appends')} append(s) \u00b7 tail `{disk.get('sequence','')[-12:]}`",
+                    f"on-disk value is **`{disk.get('value')!r}`**, not `'0'` \u2014 the opt-out "
+                    "did not survive the kill; the NEXT run starts ALREADY OPTED IN")
     return killed, mine_left, others, released, held
 
 
@@ -911,8 +923,62 @@ def _put_baseline(req):
         return "<unreadable>"
 
 
+def localstorage_on_disk(key: str, profile=None) -> dict:
+    """The last value this key was written with, read from the profile's leveldb
+    WITH CHROME NOT RUNNING.
+
+    ⭐ The only instrument that can disagree with the browser. An in-memory
+    read-back cannot tell `written` from `flushed`, and that difference is a real
+    one here: measured 2026-09-10, a localStorage write followed by an IMMEDIATE
+    kill-by-marker is LOST (the value never reaches disk and reads back absent on
+    the next open), while the same write followed by a settle and a navigation
+    survives. So a green "opted back out" can sit on top of a disk that still
+    says '1', and the next run then starts ALREADY OPTED IN — a different code
+    path, with the layer engaged from first paint.
+
+    The log is append-ordered and uncompacted here, so the highest offset is the
+    newest write. Byte layout after the key on this Chrome: `\\x02\\x01<value>`.
+    """
+    profile = PROFILE if profile is None else pathlib.Path(profile)
+    d = profile / "Default" / "Local Storage" / "leveldb"
+    out = {"dir": str(d), "exists": d.exists(), "appends": 0,
+           "sequence": "", "value": None, "raw": []}
+    if not d.exists():
+        return out
+    needle = key.encode("utf-8")
+    hits = []
+    for f in sorted(d.iterdir()):
+        if not f.is_file() or f.name in ("LOCK", "CURRENT"):
+            continue
+        try:
+            blob = f.read_bytes()
+        except OSError:
+            continue
+        start = 0
+        while True:
+            i = blob.find(needle, start)
+            if i < 0:
+                break
+            tail = blob[i + len(needle): i + len(needle) + 3]
+            ch = chr(tail[2]) if len(tail) > 2 and 32 <= tail[2] < 127 else None
+            hits.append((f.name, i, ch, tail.hex()))
+            start = i + 1
+    hits.sort(key=lambda h: (h[0], h[1]))
+    out["appends"] = len(hits)
+    out["sequence"] = "".join(h[2] or "?" for h in hits)
+    out["raw"] = [{"file": h[0], "offset": h[1], "value": h[2], "bytes": h[3]} for h in hits[-8:]]
+    out["value"] = hits[-1][2] if hits else None
+    return out
+
+
 def opt_out(page) -> tuple:
     """Put the browser back to opted-OUT, and READ IT BACK. Returns (ok, value).
+
+    ⛔ IT FORCES A FLUSH BEFORE RETURNING. Measured 2026-09-10: a write killed
+    immediately afterwards never reaches disk, and this call is the LAST thing a
+    run does before `teardown` kills the browser — exactly the losing shape. The
+    settle-and-navigate is not politeness, it is the difference between the next
+    run starting at rest and starting already opted in.
 
     ⛔⛔ THIS USED TO LIVE INSIDE THE CLEANUP BLOCK, WHICH IS THE ONE BRANCH THAT
     DOES NOT ALWAYS RUN. Three ways to skip it, and the log has two of them:
@@ -940,6 +1006,15 @@ def opt_out(page) -> tuple:
         got = page.evaluate(
             "(k) => { try { localStorage.setItem(k, '0'); return localStorage.getItem(k) }"
             "        catch (e) { return 'ERR: ' + e.name } }", FLAG_KEY)
+        # ⛔ THE FLUSH. `/api/health` is a JSON document on the same origin — it
+        # costs one request and runs NO app code, so it cannot mount the notebook
+        # or start a drain while we are only trying to make a write durable.
+        page.wait_for_timeout(1500)
+        page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        page.wait_for_timeout(1500)
+        got = page.evaluate(
+            "(k) => { try { return localStorage.getItem(k) } catch (e) { return 'ERR: ' + e.name } }",
+            FLAG_KEY)
     except Exception as e:  # noqa: BLE001
         got = f"ERR: {type(e).__name__}"
     return got == "0", got
@@ -1668,15 +1743,30 @@ def self_check() -> int:
     # Driven through the REAL control flow, not asserted about it.
     # ══════════════════════════════════════════════════════════════════════════
     class _OptPage:
+        """⭐ Models the STORE, not just the calls — so the read-back after the
+        flush navigation reads what was actually written, and `sticks=False`
+        models the real failure (the write does not take)."""
+
         def __init__(self, sticks=True):
-            self.sticks, self.writes = sticks, []
+            self.sticks, self.writes, self.navigations, self.store = sticks, [], [], {}
+
+        def wait_for_timeout(self, _ms):
+            pass
+
+        def goto(self, url, **_k):
+            self.navigations.append(url)
 
         def evaluate(self, js, arg=None):
             if "setItem(k, '0')" in js:
                 self.writes.append("0")
-                return "0" if self.sticks else "1"
+                self.store[FLAG_KEY] = "0" if self.sticks else "1"
+                return self.store[FLAG_KEY]
             if "setItem(k, '1')" in js:
                 self.writes.append("1")
+                self.store[FLAG_KEY] = "1"
+                return None
+            if "getItem" in js:
+                return self.store.get(FLAG_KEY)
             return None
 
     def _drive(body, sticks=True):
@@ -1687,10 +1777,13 @@ def self_check() -> int:
         except Exception:  # noqa: BLE001
             pass
         step = next((s for s in chk.canary if "opted back out" in s.name), None)
+        _drive.last_page = page
         return page.writes, step
 
     w, s = _drive(lambda *a: "note-id")
     cases.append(("CONTROL: the happy path opts in and back out", w == ["1", "0"] and s and s.ok))
+    cases.append(("…and the opt-out navigates to flush the write to disk",
+                  any("/api/health" in u for u in _drive.last_page.navigations)))
     w, s = _drive(lambda *a: None)                       # the `create a note` early return
     cases.append(("⛔ an EARLY RETURN still opts back out", w == ["1", "0"] and s and s.ok))
     def _raiser(*a):
@@ -1722,6 +1815,25 @@ def self_check() -> int:
                   "'uct.j2.offline.enabled'" in (body_src + "'uct.j2.offline.enabled'")))
     cases.append(("the opt-out is asserted in ONE place, not two",
                   "expected '0'" not in body_src))
+
+    # ⛔ THE WRITE MUST REACH DISK. Measured 2026-09-10: a localStorage write
+    # followed by an IMMEDIATE kill-by-marker is lost, and `opt_out` is the last
+    # thing a run does before the kill. An in-memory read-back cannot see this.
+    optout_src = src_wc.split("def opt_out", 1)[1].split("\ndef _mini_canary", 1)[0]
+    cases.append(("the opt-out forces a flush before the browser can be killed",
+                  "/api/health" in optout_src and "goto" in optout_src))
+    cases.append(("…via a document that runs NO app code (no drain, no notebook)",
+                  "/journal/notebook" not in optout_src))
+    cases.append(("…and it re-reads AFTER the flush, not before",
+                  optout_src.rindex("getItem") > optout_src.index("goto")))
+    cases.append(("teardown proves the value reached DISK, with Chrome dead",
+                  "opt-out reached DISK" in src_wc
+                  and "localstorage_on_disk(FLAG_KEY)" in src_wc))
+    disk = localstorage_on_disk(FLAG_KEY, pathlib.Path(tempfile.gettempdir()))
+    cases.append(("CONTROL: the disk reader reports absence rather than guessing",
+                  disk["value"] is None and disk["appends"] == 0))
+    cases.append(("…and it reads the profile it is GIVEN, not only the rig's",
+                  "profile = PROFILE if profile is None" in src_wc))
 
     bad_ct = 0
     for name, ok in cases:

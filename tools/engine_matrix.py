@@ -875,6 +875,302 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
     return 0 if green else 1
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FORK CAPTURE — READ-ONLY. Preserve an artifact; never touch it.
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ THIS NEVER OPENS THE NOTEBOOK. Both browser visits land on `/api/health`,
+# a JSON document on the same origin — cookies apply, `fetch` works, and NO app
+# code runs at all. Mounting `/journal/notebook` would start the offline layer,
+# and the layer is the thing under investigation: a drain that fires while we are
+# reading would rewrite the artifact we came to preserve.
+#
+# ⛔ AND THE READS RUN FROM A FRESH CONTEXT, not the rig. A fresh profile has no
+# opt-in key at all, so the layer is off BY CONSTRUCTION rather than by our
+# reading a flag correctly. The rig is opened only long enough to lift the
+# cookie — which is also the only place the session exists.
+
+_BLOCK_TYPES = {"paragraph", "heading", "blockquote", "listItem", "codeBlock",
+                "bulletList", "orderedList", "horizontalRule"}
+
+
+def doc_text(node) -> str:
+    """Every text node, in document order, blocks separated by newlines."""
+    parts = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "text" and isinstance(n.get("text"), str):
+                parts.append(n["text"])
+                return
+            for c in (n.get("content") or []):
+                walk(c)
+            if n.get("type") in _BLOCK_TYPES:
+                parts.append("\n")
+        elif isinstance(n, list):
+            for c in n:
+                walk(c)
+
+    walk(node)
+    return "".join(parts).strip()
+
+
+def compare_bodies(a_text: str, b_text: str) -> dict:
+    """⛔ THE QUESTION IS NOT 'DID THEY DIFFER'. It is whether either side is
+    MISSING words the other has — "a fork happened" and "a fork happened and the
+    member lost words" are different severities, and only the second is a charter
+    hard stop. So this reports the diff in BOTH directions and says, separately,
+    whether either text is wholly contained in the other."""
+    from collections import Counter
+    wa, wb = a_text.split(), b_text.split()
+    ca, cb = Counter(wa), Counter(wb)
+    only_a, only_b = sorted((ca - cb).elements()), sorted((cb - ca).elements())
+    return {
+        "identical": a_text == b_text,
+        "words_only_in_original": only_a,
+        "words_only_in_conflicted_copy": only_b,
+        "original_text_is_contained_in_copy": bool(a_text) and a_text in b_text,
+        "copy_text_is_contained_in_original": bool(b_text) and b_text in a_text,
+        "chars": {"original": len(a_text), "conflicted_copy": len(b_text)},
+        "words": {"original": len(wa), "conflicted_copy": len(wb)},
+        "any_words_lost_either_way": bool(only_a or only_b),
+    }
+
+
+# ⛔ READS ONLY. No POST, no PUT, no DELETE, no localStorage write anywhere here.
+#
+# ⭐ IT ALSO READS THE TRASH (`?deleted=true`). The run's own cleanup DELETES the
+# canary note before the fork detector ever runs, so the ORIGINAL half of the pair
+# is not in the live list — asking only the live list would report "the original
+# does not exist" and lose the very comparison this capture is for. The delete is
+# soft (Wave 0 trash), so the original is still readable.
+CAPTURE_JS = """async (prefix) => {
+  const out = {total: 0, trashed_total: 0, list_error: null, trash_error: null,
+               conflicts: [], sentinels: [], full: []};
+  const brief = (n, del) => ({id:n.id, title:n.title, updatedAt:n.updatedAt,
+                              createdAt:n.createdAt, tags:n.tags || [], deleted: del});
+  const wanted = new Map();
+  const sweep = async (url, del) => {
+    const r = await fetch(url, {credentials:'include'});
+    if (!r.ok) return {error: 'HTTP ' + r.status, count: 0};
+    const notes = (await r.json()).notes || [];
+    for (const n of notes) {
+      const conflict = (n.tags || []).includes('sync-conflict');
+      const sentinel = (n.title || '').startsWith(prefix);
+      if (conflict) out.conflicts.push(brief(n, del));
+      if (sentinel) out.sentinels.push(brief(n, del));
+      if (conflict || sentinel) wanted.set(n.id, {row: n, deleted: del});
+    }
+    return {error: null, count: notes.length};
+  };
+  const live = await sweep('/api/j2/notes?limit=500', false);
+  out.list_error = live.error; out.total = live.count;
+  const trash = await sweep('/api/j2/notes?limit=500&deleted=true', true);
+  out.trash_error = trash.error; out.trashed_total = trash.count;
+  for (const [id, meta] of wanted) {
+    const f = await fetch('/api/j2/notes/' + id, {credentials:'include'});
+    if (f.ok) { const b = await f.json();
+                out.full.push({id, deleted: meta.deleted, note: b.note ?? b}); continue }
+    // ⛔ A soft-deleted note may not be fetchable by id. The LIST ROW is then the
+    // only copy there is — record it rather than reporting nothing.
+    out.full.push({id, deleted: meta.deleted, note: meta.row,
+                   note_from: 'list row (direct GET said HTTP ' + f.status + ')'});
+  }
+  return out;
+}"""
+
+
+def _ls_on_disk(profile: pathlib.Path, key: str) -> dict:
+    """The ON-DISK localStorage value, read with no browser running.
+
+    ⭐ This is the only instrument that can disagree with the browser. An
+    in-memory read-back cannot tell you whether the value reached the disk, and
+    "written" vs "flushed" is exactly the gap under investigation.
+    ⛔ Filesystem READ only — nothing is opened for writing, and Chrome must not
+    be running or the answer is whatever leveldb happened to have compacted.
+    """
+    d = profile / "Default" / "Local Storage" / "leveldb"
+    found, scanned = [], []
+    if not d.exists():
+        return {"dir": str(d), "exists": False, "hits": []}
+    needles = {"ascii": key.encode("utf-8"), "utf16le": key.encode("utf-16-le")}
+    for f in sorted(d.iterdir()):
+        if not f.is_file():
+            continue
+        try:
+            blob = f.read_bytes()
+        except OSError as e:
+            scanned.append({"file": f.name, "error": str(e)})
+            continue
+        scanned.append({"file": f.name, "bytes": len(blob)})
+        for enc, needle in needles.items():
+            start = 0
+            while True:
+                i = blob.find(needle, start)
+                if i < 0:
+                    break
+                tail = blob[i + len(needle): i + len(needle) + 12]
+                found.append({"file": f.name, "encoding": enc, "offset": i,
+                              "bytes_after_key": tail.hex(),
+                              "printable_after_key":
+                                  tail.decode("ascii", "replace").replace("\x00", "."), })
+                start = i + 1
+    return {"dir": str(d), "exists": True, "files": scanned, "hits": found}
+
+
+def capture_fork(out_path: pathlib.Path | None = None,
+                 prefix: str = "WINDOW-CHECK-SENTINEL") -> int:
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"fork-capture-{stamp}.json")
+    rec = {"at": utc(), "mode": "fork-capture", "read_only": True, "writes": "none",
+           "origin": PROD, "profile": str(w.PROFILE), "title_prefix": prefix,
+           "status": "INCOMPLETE — the capture did not finish"}
+    _write_json(out, rec)
+    print(f"artifact claimed: {out}\n", flush=True)
+
+    # ── 0. THE DISK, BEFORE ANY BROWSER OPENS IT.
+    rec["localstorage_on_disk_before"] = _ls_on_disk(w.PROFILE, FLAG_KEY)
+    hits = len(rec["localstorage_on_disk_before"].get("hits") or [])
+    print(f"on-disk localStorage scan: {hits} hit(s) for {FLAG_KEY}", flush=True)
+
+    # ── 1. THE RIG, JUST LONG ENOUGH TO LIFT THE COOKIE. `/api/health` — a JSON
+    #      document, no app code, no notebook, nothing that can drain.
+    cookie = None
+    try:
+        proc, endpoint, version = w.spawn_rig()
+    except SystemExit as e:
+        _write_json(out, dict(rec, status=f"REFUSED — {e}"))
+        print(f"⛔ {e}", flush=True)
+        return 1
+    try:
+        if not version:
+            _write_json(out, dict(rec, status="STOPPED — the CDP endpoint never answered"))
+            return 1
+        with sync_playwright() as pw:
+            b = pw.chromium.connect_over_cdp(endpoint)
+            ctx = b.contexts[0]
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+            page.wait_for_timeout(2500)
+            rec["rig_flag_key_in_browser"] = page.evaluate(
+                "(k) => { try { return localStorage.getItem(k) } catch (e) { return 'ERR: ' + e.name } }",
+                FLAG_KEY)
+            print(f"rig, in-browser: {FLAG_KEY} = {rec['rig_flag_key_in_browser']!r}", flush=True)
+            for c in ctx.cookies():
+                if c["name"] == "uct_session":
+                    cookie = {k: c[k] for k in ("name", "value", "domain", "path",
+                                                "httpOnly", "secure", "sameSite") if k in c}
+                    break
+    finally:
+        killed, left, others, released, held = w.teardown(None)
+        rec["rig_teardown"] = {"killed": killed, "survivors": left,
+                               "untouched_browsers": others, "lock_released": released}
+        print(f"rig closed: killed {killed} · {len(left)} left · lock released={released}", flush=True)
+
+    if cookie is None:
+        _write_json(out, dict(rec, status="STOPPED — no session cookie in the rig profile"))
+        return 1
+
+    # ── 2. THE CAPTURE, from a FRESH context. No opt-in key exists there, so the
+    #      offline layer is off by construction, not by our reading a flag right.
+    with sync_playwright() as pw:
+        br = pw.chromium.launch(headless=True)
+        c = br.new_context()
+        c.add_cookies([cookie])
+        p = c.new_page()
+        p.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        p.wait_for_timeout(1500)
+        cap = p.evaluate(CAPTURE_JS, prefix)
+        c.close()
+        br.close()
+
+    rec["notes_total"] = cap.get("total")
+    rec["trashed_total"] = cap.get("trashed_total")
+    rec["list_error"] = cap.get("list_error")
+    rec["trash_error"] = cap.get("trash_error")
+    rec["sync_conflict_notes"] = cap.get("conflicts")
+    rec["sentinel_notes"] = cap.get("sentinels")
+
+    notes = {}
+    for row in cap.get("full") or []:
+        n = row.get("note")
+        if not isinstance(n, dict):
+            notes[row.get("id")] = {"error": row.get("error")}
+            continue
+        body = n.get("bodyJson")
+        text = doc_text(body)
+        # ⭐ `bodyPlain` is the server's own flattening. When bodyJson is absent
+        # (a list row rather than a full fetch) it is the only text there is —
+        # and when both exist, a disagreement between them is itself worth seeing.
+        plain = n.get("bodyPlain") if isinstance(n.get("bodyPlain"), str) else None
+        notes[n.get("id")] = {
+            "id": n.get("id"), "title": n.get("title"), "deleted": row.get("deleted"),
+            "deletedAt": n.get("deletedAt"), "note_from": row.get("note_from", "full GET"),
+            "updatedAt": n.get("updatedAt"), "createdAt": n.get("createdAt"),
+            "baseUpdatedAt": n.get("baseUpdatedAt"), "tags": n.get("tags") or [],
+            "other_fields": sorted(k for k in n.keys() if k not in ("bodyJson",)),
+            "body_text": text or (plain or ""),
+            "body_text_source": "bodyJson" if text else ("bodyPlain" if plain else "empty"),
+            "bodyPlain": plain, "bodyJson": body,
+        }
+    rec["notes"] = notes
+
+    # ── 3. THE PAIRS, and the question that matters.
+    #
+    # ⛔ PAIRED BY EXACT TITLE, never by the shared prefix. Every canary run ever
+    # made a note with this prefix and the trash holds them all, so "the one that
+    # is not the conflicted copy" picks an unrelated run's note and then diffs two
+    # texts that were never related — a comparison that would have read as a
+    # catastrophic word-loss finding. The copy's own title names its original.
+    SUFFIX = " (conflicted copy)"
+    by_title = {}
+    for n in notes.values():
+        by_title.setdefault(n.get("title") or "", []).append(n)
+
+    pairs = []
+    for n in notes.values():
+        t = n.get("title") or ""
+        if not t.endswith(SUFFIX):
+            continue
+        base = t[: -len(SUFFIX)]
+        originals = by_title.get(base) or []
+        entry = {"base_title": base,
+                 "conflicted_copy": {k: v for k, v in n.items() if k != "bodyJson"},
+                 "original": ({k: v for k, v in originals[0].items() if k != "bodyJson"}
+                              if originals else None),
+                 "originals_found": len(originals)}
+        if originals:
+            a, b2 = originals[0]["body_text"], n["body_text"]
+            cmp = compare_bodies(a, b2)
+            cmp["sentinel_in_original"] = prefix in a
+            cmp["sentinel_in_conflicted_copy"] = prefix in b2
+            cmp["original_is_in_trash"] = bool(originals[0].get("deleted"))
+            entry["comparison"] = cmp
+            entry["verdict"] = ("NO WORDS LOST — both sides hold the same words"
+                                if not cmp["any_words_lost_either_way"]
+                                else "⛔ THE TWO SIDES DIFFER — see both word lists")
+        else:
+            entry["comparison"] = None
+            entry["verdict"] = ("⛔ the original is not on the account at all, not "
+                                "even in the trash — nothing to compare against")
+        pairs.append(entry)
+
+    rec["pairs"] = pairs
+    rec["verdict"] = ("; ".join(f"{p['base_title']}: {p['verdict']}" for p in pairs)
+                      if pairs else "no conflicted copy found")
+    verdict = rec["verdict"]
+
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nnotes on the account: {rec['notes_total']} · "
+          f"sync-conflict: {len(rec['sync_conflict_notes'] or [])} · "
+          f"sentinel-titled: {len(rec['sentinel_notes'] or [])}")
+    print(f"VERDICT: {verdict}")
+    print(f"artifact: {out}")
+    return 0
+
+
 # ═══ END OF THE READ-ONLY DRY RUN ════════════════════════════════════════════
 # ⛔ `--self-check`'s read-only sweep is bounded HERE, by name, not by "whatever
 # comes before `def main`". Everything ABOVE this line must contain no write of
@@ -883,6 +1179,99 @@ def dry_run(only: str | None = None, out_path: pathlib.Path | None = None) -> in
 # ⭐ The boundary is a sentinel rather than the next `def` so that reordering the
 # file cannot silently move it — the first version of this sweep swallowed
 # `rig_opt_out` the moment it was added, which is the rail working.
+
+
+PROBE_KEY = "uct.q1.rigprobe.flush"
+
+
+def flush_probe(out_path: pathlib.Path | None = None) -> int:
+    """Does `kill by marker` lose a localStorage value Chrome has not flushed yet?
+
+    ⛔⛔ IT NEVER TOUCHES `uct.j2.offline.enabled`. The question is about the
+    MECHANISM — whether a write survives a hard kill — and the mechanism can be
+    asked with a key this rig owns. Testing it on the product's flag would mean
+    flipping the very state under investigation to measure it.
+
+    ⭐ AND IT ASKS THE DISK, NOT THE BROWSER. An in-memory read-back is exactly
+    the instrument that cannot distinguish "written" from "flushed"; that is the
+    whole hypothesis. Each trial reads the leveldb file with Chrome not running.
+
+    Two trials, because "does a delay save it" is the actionable half:
+      A · write, then kill IMMEDIATELY (no wait, no navigation)
+      B · write, wait, navigate, then kill — what a real run does
+    """
+    from playwright.sync_api import sync_playwright
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    out = out_path or (w.ROOT / ".worktrees" / "q1-dry-run" / f"flush-probe-{stamp}.json")
+    rec = {"at": utc(), "mode": "flush-probe", "profile": str(w.PROFILE),
+           "probe_key": PROBE_KEY,
+           "never_touched": FLAG_KEY,
+           "status": "INCOMPLETE — the probe did not finish", "trials": []}
+    _write_json(out, rec)
+
+    def _visit(fn):
+        proc, endpoint, version = w.spawn_rig()
+        try:
+            if not version:
+                return None
+            with sync_playwright() as pw:
+                b = pw.chromium.connect_over_cdp(endpoint)
+                ctx = b.contexts[0]
+                page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+                page.wait_for_timeout(1200)
+                return fn(page)
+        finally:
+            w.teardown(None)
+
+    for name, settle in (("A · killed IMMEDIATELY after the write", 0),
+                         ("B · killed after a settle + a navigation", 4000)):
+        nonce = f"n{datetime.now(timezone.utc).strftime('%H%M%S%f')}"
+
+        def _write(page, _n=nonce, _s=settle):
+            got = page.evaluate(
+                "([k, v]) => { try { localStorage.setItem(k, v); return localStorage.getItem(k) }"
+                "              catch (e) { return 'ERR: ' + e.name } }", [PROBE_KEY, _n])
+            if _s:
+                page.wait_for_timeout(_s)
+                page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+                page.wait_for_timeout(1200)
+            return got
+
+        in_memory = _visit(_write)
+        on_disk = _ls_on_disk(w.PROFILE, PROBE_KEY)
+        try:
+            d = w.PROFILE / "Default" / "Local Storage" / "leveldb"
+            blob = b"".join(f.read_bytes() for f in sorted(d.iterdir())
+                            if f.is_file() and f.suffix in ("", ".log", ".ldb")
+                            and f.name not in ("LOCK", "CURRENT"))
+            disk_has_nonce = nonce.encode() in blob
+        except OSError:
+            disk_has_nonce = None
+        after_reopen = _visit(lambda p: p.evaluate(
+            "(k) => { try { return localStorage.getItem(k) } catch (e) { return 'ERR: ' + e.name } }",
+            PROBE_KEY))
+        trial = {"trial": name, "settle_ms": settle, "nonce": nonce,
+                 "read_back_in_memory": in_memory,
+                 "found_on_disk_after_kill": disk_has_nonce,
+                 "read_after_reopen": after_reopen,
+                 "survived": after_reopen == nonce,
+                 "key_hits_on_disk": len(on_disk.get("hits") or [])}
+        rec["trials"].append(trial)
+        _write_json(out, rec)
+        print(f"{name}\n    in-memory={in_memory!r}  on-disk={disk_has_nonce}  "
+              f"after-reopen={after_reopen!r}  SURVIVED={trial['survived']}", flush=True)
+
+    survived = [t["survived"] for t in rec["trials"]]
+    rec["verdict"] = (
+        "kill-by-marker does NOT lose a localStorage write — it survived even an "
+        "immediate kill, so an unflushed '0' cannot explain a run starting at '1'"
+        if all(survived) else
+        "⛔ kill-by-marker CAN lose a localStorage write — see which trial failed")
+    _write_json(out, dict(rec, status="COMPLETE"))
+    print(f"\nVERDICT: {rec['verdict']}\nartifact: {out}")
+    return 0
 
 
 def rig_opt_out(out_path: pathlib.Path | None = None) -> int:
@@ -999,6 +1388,13 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="READ-ONLY: auth · offline both ways · cookie provenance · "
                          "Web Locks · cleanup, per engine. Creates nothing.")
+    ap.add_argument("--flush-probe", action="store_true",
+                    help="does kill-by-marker lose an unflushed localStorage write? "
+                         "Uses a rig-owned probe key; never touches the offline flag.")
+    ap.add_argument("--capture-fork", action="store_true",
+                    help="READ-ONLY: preserve the forked pair + every sync-conflict "
+                         "note, and answer whether any words were lost. Never opens "
+                         "the notebook, never writes.")
     ap.add_argument("--rig-opt-out", action="store_true",
                     help="record the rig profile's opt-in key, then restore it to '0' "
                          "(the only write this tool makes to that profile)")
@@ -1020,6 +1416,10 @@ def main() -> int:
     if args.self_check:
         return self_check()
     _out = pathlib.Path(args.out).resolve() if args.out else None
+    if args.capture_fork:
+        return capture_fork(_out)
+    if args.flush_probe:
+        return flush_probe(_out)
     if args.rig_opt_out:
         return rig_opt_out(_out)
     if args.dry_run:
