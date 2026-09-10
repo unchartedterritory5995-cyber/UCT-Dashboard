@@ -165,6 +165,29 @@ def conflict_findings(label: str, server_body, copy_body, mine: str, theirs: str
     return out
 
 
+def _as_list(v) -> list:
+    """⛔ The page-side readers report failure as the STRING 'ERR', not as an
+    empty list. `x or []` passes that straight through and the next `+` blows up
+    — which is exactly how check 5 died on its first run. Coerce, and let the
+    caller notice the layer did not read."""
+    return v if isinstance(v, list) else []
+
+
+def layer_read_failed(layers: dict) -> list:
+    """Which captured layers came back as an error rather than data.
+
+    ⛔ Reported, never silently treated as "empty". "The outbox is empty" and
+    "the outbox could not be read" are opposite conclusions from the same
+    variable, and conflating them is how a canary passes by accident.
+    """
+    bad = []
+    for k in ("draft", "record", "outbox"):
+        v = layers.get(k)
+        if isinstance(v, str) and v.startswith("ERR"):
+            bad.append(f"{k}={v}")
+    return bad
+
+
 def should_clean_up(findings: list) -> bool:
     """⛔⛔ A run that finds something and then deletes the evidence is worse
     than no run."""
@@ -440,8 +463,34 @@ def reauthenticate(page, mint=mint_session_token) -> tuple:
     })
     return True, "session re-issued server-side and installed via CDP"
 
+# ⛔⛔ NEVER `indexedDB.open(name)` BARE FROM AN INSTRUMENT.
+#
+# Open-with-no-version CREATES the database if it is missing — an empty one, with
+# zero object stores — and because the app opens at DB_VERSION 1, no upgrade ever
+# fires afterwards, so the real stores are NEVER created. The reader therefore
+# does not merely observe the layer; it PERMANENTLY BREAKS it. Measured
+# 2026-09-10: three failed check-5 runs, `record=ERR: NotFoundError`, and a rig
+# profile whose Notebook could no longer initialise.
+#
+# `indexedDB.databases()` asks without creating. Everything below goes through
+# this, and a phantom (0-store) database is reported so the caller can repair it.
+OPEN_IF_EXISTS = """
+  async function openIfExists(name) {
+    const known = (await indexedDB.databases()).map(d => d.name);
+    if (!known.includes(name)) return {missing: true, db: null, stores: []};
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open(name);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    const stores = [...db.objectStoreNames];
+    return {missing: false, phantom: stores.length === 0, db, stores};
+  }
+"""
+
 STATE_JS = """async (acct) => {
-  const out = {};
+""" + OPEN_IF_EXISTS + """
+  // ⛔ Read FIRST, before any early return below can skip it.
+  const out = {optInKey: localStorage.getItem('uct.j2.offline.enabled')};
   try {
     const q = await navigator.locks.query();
     out.locks = [...q.held, ...q.pending].filter(l => String(l.name).startsWith('uct.nb.sync.')).length;
@@ -449,12 +498,12 @@ STATE_JS = """async (acct) => {
     out.pending = (q.pending || []).filter(l => String(l.name).startsWith('uct.nb.sync.')).length;
   } catch { out.locks = 'ERR' }
   try {
-    const db = await new Promise((res, rej) => {
-      const r = indexedDB.open('uct_notebook_' + acct);
-      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-    });
+    const h = await openIfExists('uct_notebook_' + acct);
+    if (h.missing) { out.dbOpened = false; out.stores = null; out.storeNames = []; out.dbMissing = true; return out; }
+    if (h.phantom) { out.dbOpened = true; out.stores = null; out.storeNames = []; out.dbPhantom = true; return out; }
+    const db = h.db;
     out.dbOpened = true;
-    out.storeNames = [...db.objectStoreNames];
+    out.storeNames = h.stores;
     const counts = {};
     for (const s of out.storeNames) {
       counts[s] = await new Promise(res => {
@@ -464,18 +513,19 @@ STATE_JS = """async (acct) => {
     }
     out.stores = counts;
   } catch (e) { out.stores = 'ERR: ' + e.name; out.dbOpened = false }
-  out.optInKey = localStorage.getItem('uct.j2.offline.enabled');
   return out;
 }"""
 
 LAYERS_JS = """async ({acct, id}) => {
+""" + OPEN_IF_EXISTS + """
   const out = {noteId: id};
   try { out.draft = JSON.parse(localStorage.getItem('uct.j2.notedraft.' + id) || 'null') } catch { out.draft = 'ERR' }
   try {
-    const db = await new Promise((res, rej) => {
-      const r = indexedDB.open('uct_notebook_' + acct);
-      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-    });
+    const h = await openIfExists('uct_notebook_' + acct);
+    if (h.missing)  { out.record = 'ERR: dbMissing'; out.outbox = 'ERR'; }
+    else if (h.phantom) { out.record = 'ERR: dbPhantom'; out.outbox = 'ERR'; }
+    else {
+    const db = h.db;
     out.record = await new Promise(res => {
       const t = db.transaction('notes','readonly').objectStore('notes').get(id);
       t.onsuccess = () => res(t.result || null); t.onerror = () => res('ERR');
@@ -485,6 +535,7 @@ LAYERS_JS = """async ({acct, id}) => {
       t.onsuccess = () => res(t.result || []); t.onerror = () => res([]);
     });
     out.outbox = all.filter(e => e.noteId === id);
+    }
   } catch (e) { out.record = 'ERR: ' + e.name; out.outbox = 'ERR' }
   try {
     const r = await fetch('/api/j2/notes/' + id, {credentials:'include'});
@@ -516,16 +567,29 @@ ACTIVITY_JS = """async (names) => {
     const hits = rows.filter(x => x.action === n);
     return {count: hits.length, latest: hits.length ? hits[0].created_at : null};
   };
-  const admin = await fetch('/api/admin/activity?limit=200', {credentials:'include'});
-  if (admin.ok) {
-    const rows = await admin.json();
-    const out = {ok:true, scope:'population-wide (admin)', adminStatus:200};
-    for (const n of names) out[n] = count(rows, n);
+  // ⛔⛔ `response.ok` IS NOT PROOF THE ENDPOINT EXISTS. This app serves an SPA
+  // catch-all, so a wrong path comes back **200 text/html** and `.ok` is true —
+  // the same tell as the 2026 broker-sync incident ("GET /connect -> 200 HTML").
+  // Measured here on 2026-09-10: the admin route lives under the auth router's
+  // /api/auth prefix, and calling /api/admin/activity returned the index page.
+  const asJson = async (res) => {
+    if (!res.ok) return null;
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return null;   // the catch-all, not us
+    try { return await res.json() } catch { return null }
+  };
+  const admin = await fetch('/api/auth/admin/activity?limit=200', {credentials:'include'});
+  const adminRows = await asJson(admin);
+  if (Array.isArray(adminRows)) {
+    const out = {ok:true, scope:'population-wide (admin)', adminStatus:admin.status};
+    for (const n of names) out[n] = count(adminRows, n);
     return out;
   }
   const mine = await fetch('/api/auth/export-data', {credentials:'include'});
-  if (!mine.ok) return {ok:false, status:mine.status, adminStatus:admin.status};
-  const rows = (await mine.json()).activity || [];
+  const body = await asJson(mine);
+  if (!body) return {ok:false, status:mine.status, adminStatus:admin.status,
+                     note:'export-data did not return JSON'};
+  const rows = body.activity || [];
   const out = {ok:true, scope:'this account only (export-data)',
                adminStatus:admin.status, rowCap: rows.length >= 100};
   for (const n of names) out[n] = count(rows, n);
@@ -660,10 +724,8 @@ def run_check(label: str, with_canary: bool) -> Check:
                     "CDP offline did not cut the transport")
 
             st = page.evaluate(STATE_JS, ACCOUNT_ID)
-            stores_ok = isinstance(st.get("stores"), dict)
-            chk.add("four durable stores", stores_ok,
-                    " \u00b7 ".join(f"`{k}` {v}" for k, v in st["stores"].items()) if stores_ok else str(st.get("stores")),
-                    "could not read the per-account database")
+            stores_ok, stores_txt = render_stores(st)
+            chk.add("four durable stores", stores_ok, stores_txt, stores_txt)
             chk.add("notebook locks", st.get("locks") != "ERR",
                     f"**{st.get('locks')}** `uct.nb.sync.*`", "navigator.locks unavailable")
             key = st.get("optInKey")
@@ -703,6 +765,33 @@ def run_check(label: str, with_canary: bool) -> Check:
             chk.add("\U0001f6a8 evidence kept", True,
                     f"canary note **`{note_id}`** was NOT deleted \u2014 inspect it before anything else")
     return chk
+
+
+def render_stores(state: dict) -> tuple:
+    """⛔ ABSENCE IS NOT FAILURE WHEN ABSENCE IS THE CORRECT STATE.
+
+    With the offline layer off, there SHOULD be no per-account database — that
+    is the dark posture working, and scoring it as "could not read" made a
+    healthy rig look broken and refused a row that deserved to be stamped.
+
+    The three cases are genuinely different:
+      missing + opted OUT → expected at rest
+      missing + opted IN  → a real failure: the layer should have built it
+      phantom (0 stores)  → an instrument-inflicted break; needs deleting
+    """
+    key = state.get("optInKey")
+    opted_in = key == "1"
+    if state.get("dbPhantom"):
+        return False, ("a PHANTOM database exists with **zero object stores** — "
+                       "something opened it with no version. Delete it so the app can rebuild.")
+    if state.get("dbMissing"):
+        if opted_in:
+            return False, "opted IN but no per-account database exists — the layer did not initialise"
+        return True, "**none** — the layer is off, so there is no per-account database (expected at rest)"
+    stores = state.get("stores")
+    if not isinstance(stores, dict) or not stores:
+        return False, f"could not read the per-account database ({stores!r})"
+    return True, " · ".join(f"`{k}` {v}" for k, v in stores.items())
 
 
 def _render_key(key) -> str:
@@ -786,14 +875,19 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
     rec = after.get("record") if isinstance(after.get("record"), dict) else {}
     draft_ok = _doc_has_text((after.get("draft") or {}).get("bodyJson")) if isinstance(after.get("draft"), dict) else False
     rec_ok = _doc_has_text(rec.get("bodyJson"))
-    ob = after.get("outbox") if isinstance(after.get("outbox"), list) else []
-    chk.step("3 reload (network UP) \u2192 the words survive", rec_ok and (draft_ok or bool(ob)),
+    ob = _as_list(after.get("outbox"))
+    # \u26d4 A layer that could not be READ is not a layer that is empty. Fail the
+    # step and say which, rather than drawing a conclusion from a failed read.
+    unread = layer_read_failed(before) + layer_read_failed(after)
+    chk.step("3 reload (network UP) \u2192 the words survive",
+             rec_ok and (draft_ok or bool(ob)) and not unread,
              f"record holds text: **{rec_ok}** \u00b7 draft holds text: **{draft_ok}** \u00b7 outbox entries: **{len(ob)}** \u00b7 baseline `{rec.get('baseUpdatedAt')}`",
-             "a local layer came back without the member's words \u2014 THE INCIDENT'S SHAPE")
+             ("layers that could not be read: " + ", ".join(unread)) if unread
+             else "a local layer came back without the member's words \u2014 THE INCIDENT'S SHAPE")
     for lab, art in (("pre-reload record", before.get("record")), ("post-reload record", rec)):
         if isinstance(art, dict):
             chk.findings += baseline_findings(lab, art) + empty_document_findings(lab, art)
-    for e in (before.get("outbox") or []) + ob:
+    for e in _as_list(before.get("outbox")) + ob:
         if isinstance(e, dict):
             chk.findings += baseline_findings("outbox entry", e)
 
@@ -804,9 +898,12 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
     srv = settled.get("server") if isinstance(settled.get("server"), dict) else {}
     server_has = _doc_has_text(srv.get("bodyJson"))
     chk.step("4 reconnect \u2192 drained, re-based, server has the words",
-             srec.get("dirty") == 0 and not (settled.get("outbox") or []) and server_has,
-             f"`dirty` **{srec.get('dirty')}** \u00b7 outbox **{len(settled.get('outbox') or [])}** \u00b7 server holds text: **{server_has}** \u00b7 baseline `{srec.get('baseUpdatedAt')}`",
-             f"queue did not settle: dirty={srec.get('dirty')} outbox={len(settled.get('outbox') or [])} serverHasText={server_has}")
+             srec.get("dirty") == 0 and not _as_list(settled.get("outbox"))
+             and server_has and not layer_read_failed(settled),
+             f"`dirty` **{srec.get('dirty')}** \u00b7 outbox **{len(_as_list(settled.get('outbox')))}** \u00b7 server holds text: **{server_has}** \u00b7 baseline `{srec.get('baseUpdatedAt')}`",
+             ("layers that could not be read: " + ", ".join(layer_read_failed(settled)))
+             if layer_read_failed(settled) else
+             f"queue did not settle: dirty={srec.get('dirty')} outbox={len(_as_list(settled.get('outbox')))} serverHasText={server_has}")
     chk.findings += baseline_findings("settled record", srec)
 
     if not should_clean_up(chk.findings):
@@ -815,20 +912,33 @@ def _mini_canary(chk: Check, page, offline, puts) -> str | None:
         return note_id
 
     page.evaluate("""async (id) => { await fetch('/api/j2/notes/' + id, {method:'DELETE', credentials:'include'}) }""", note_id)
+    # ⛔ `indexedDB.open(name)` WITH NO VERSION CREATES THE DATABASE IF IT IS
+    # MISSING — an empty one, with zero object stores. So a reader can conjure a
+    # phantom DB as a side effect, and `transaction([])` then throws
+    # InvalidAccessError, which is what killed check 5's second run. Guard on the
+    # store list rather than assuming the layer has initialised.
     page.evaluate("""async (acct) => {
         const db = await new Promise(res => { const r = indexedDB.open('uct_notebook_'+acct); r.onsuccess = () => res(r.result) });
         const stores = [...db.objectStoreNames];
-        const tx = db.transaction(stores, 'readwrite');
-        stores.forEach(s => tx.objectStore(s).clear());
-        await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
+        if (stores.length) {
+            const tx = db.transaction(stores, 'readwrite');
+            stores.forEach(s => tx.objectStore(s).clear());
+            await new Promise(res => { tx.oncomplete = res; tx.onerror = res });
+        }
         for (const k of Object.keys(localStorage)) if (k.startsWith('uct.j2.notedraft.')) localStorage.removeItem(k);
         localStorage.setItem('uct.j2.offline.enabled','0');
+        return {storesCleared: stores.length};
     }""", ACCOUNT_ID)
     page.goto(PROD + "/journal/notebook", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
     end = page.evaluate(STATE_JS, ACCOUNT_ID)
     end_notes = page.evaluate(NOTES_JS)
-    zeroed = isinstance(end.get("stores"), dict) and all(v == 0 for v in end["stores"].values())
+    # \u26a0\ufe0f An EMPTY store map is not the same as "all four stores read 0". A
+    # phantom database (opened with no version, never initialised) has no stores
+    # at all, and `all()` over nothing is vacuously True \u2014 the exact shape of a
+    # check that passes because it measured nothing.
+    stores = end.get("stores") if isinstance(end.get("stores"), dict) else None
+    zeroed = bool(stores) and all(v == 0 for v in stores.values())
     chk.step("5 cleanup \u2192 stores 0, locks 0, opted out",
              zeroed and end.get("locks") == 0 and end.get("optInKey") == "0" and not (end_notes.get("canary") or []),
              f"stores all zero: **{zeroed}** \u00b7 locks **{end.get('locks')}** \u00b7 key **`'{end.get('optInKey')}'`** \u00b7 leftover canary notes **{len(end_notes.get('canary') or [])}**",
@@ -1207,6 +1317,28 @@ def self_check() -> int:
     cases.append(("a finding SUPPRESSES cleanup", should_clean_up(["x"]) is False))
     cases.append(("CONTROL: no finding allows cleanup", should_clean_up([]) is True))
 
+    # ⛔ The page-side readers report failure as the STRING 'ERR'. `x or []`
+    #    passed that straight into a `+` and killed check 5's first run.
+    cases.append(("'ERR' from a layer coerces to a list, never crashes",
+                  _as_list("ERR") == [] and _as_list([1]) == [1]))
+    cases.append(("a layer that could not be READ is reported, not read as empty",
+                  layer_read_failed({"outbox": "ERR", "record": {}}) == ["outbox=ERR"]))
+    cases.append(("CONTROL: layers that read fine report nothing",
+                  layer_read_failed({"outbox": [], "record": {}, "draft": None}) == []))
+
+    # ⛔ Absence is not failure when absence is the CORRECT state. Scoring the
+    #    dark posture as "could not read" refused check 5 a row it had earned.
+    ok_s, txt_s = render_stores({"dbMissing": True, "optInKey": "0"})
+    cases.append(("no DB while opted OUT is EXPECTED, not a failure", ok_s is True))
+    cases.append(("…and it says why", "expected at rest" in txt_s))
+    ok_s, _ = render_stores({"dbMissing": True, "optInKey": "1"})
+    cases.append(("no DB while opted IN is a real failure", ok_s is False))
+    ok_s, txt_s = render_stores({"dbPhantom": True, "optInKey": "1"})
+    cases.append(("a PHANTOM 0-store database is a failure", ok_s is False))
+    cases.append(("…and it names the repair", "Delete it" in txt_s))
+    ok_s, txt_s = render_stores({"stores": {"notes": 0, "outbox": 0}, "optInKey": "0"})
+    cases.append(("CONTROL: real store counts read fine", ok_s is True and "`notes` 0" in txt_s))
+
     found = Check(label="self-check: a finding")
     found.add("rig", True, "fine"); found.canary_ran = True; found.step("3 reload", True, "fine")
     found.findings = baseline_findings("o", {"baseUpdatedAt": None})
@@ -1242,6 +1374,15 @@ def self_check() -> int:
                   "population-wide (admin)" in ACTIVITY_JS and "this account only" in ACTIVITY_JS))
     cases.append(("a full 100-row export is flagged as a possible truncation",
                   "rowCap" in ACTIVITY_JS))
+    # ⛔ Both routes live under the auth router's /api/auth prefix. Calling
+    #    /api/admin/activity hits the SPA catch-all and returns 200 HTML, which
+    #    `.ok` reports as success — measured 2026-09-10, and it crashed the run.
+    cases.append(("the admin route carries the /api/auth prefix",
+                  "'/api/auth/admin/activity" in ACTIVITY_JS))
+    cases.append(("no bare /api/admin/activity remains",
+                  "'/api/admin/activity" not in ACTIVITY_JS))
+    cases.append(("a 200 that is not JSON is rejected, not parsed",
+                  "application/json" in ACTIVITY_JS and "res.ok" in ACTIVITY_JS))
 
     blk = decision_block(None, "")
     cases.append(("the packet keeps the 36-minute gap", "36-minute gap" in blk))

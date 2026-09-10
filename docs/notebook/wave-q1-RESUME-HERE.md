@@ -1,5 +1,27 @@
 # Wave Q1 — RESUME HERE
 
+# ⛔⛔ STANDING RULE — THE RIG HAS ONE PROFILE, AND ONE SIGN-IN
+
+**`.worktrees/canary-chrome-profile-persistent`.** That is the rig. There is no
+other, and there is never a second one.
+
+- ⛔ **Never deleted, never recreated, never replaced by a "fresh" one.** A fresh
+  profile is a signed-out profile, and a signed-out profile is a wasted morning.
+- ⛔ **Teardown kills the BROWSER by marker and KEEPS the profile.** Always. The
+  only thing teardown proves afterwards is that `SingletonLock` was released so
+  the next run can open it.
+- ⛔ **A SIGN-IN IS A 30-DAY EVENT, NOT A SESSION EVENT.** No session asks the
+  owner to sign in while `/api/auth/me` returns 200. If it returns 401, the
+  script self-heals first and only then writes the SIGN-IN REQUIRED row.
+- ⛔ **DO NOT RE-MEASURE BY HAND WHAT THE SCRIPT ALREADY STAMPS.** The flag on the
+  live bundle, the two telemetry counts, the store and lock state — **read the
+  latest row.** Re-measure only if that row is **older than 24 h** or **master
+  moved under it**.
+
+⚰️ Written 2026-09-10 after three sessions each stood up a throwaway rig, each
+asked for a sign-in, and each re-read by hand what the previous one had already
+written down. The cost was not the compute; it was the owner's time.
+
 # ✅✅ DEPLOY #3 — 2026-09-10 05:41:03 UTC, LIVE 05:42:53 UTC
 
 **`7ed6b2ce5` is on `master` and live.** `OFFLINE_DEFAULT_ON` is still `false`.
@@ -1143,6 +1165,47 @@ its own test, including production's. Mutation-proved on the wire (delete the
 effect in `NotebookTab` ⇒ 1 red), on the allow-list (remove the name ⇒ 2 red),
 and on the "once" property (fire on every mount ⇒ 2 red).
 
+## ✅ THE TIER 1 DRIFT — ASSESSED, RAILED ON MASTER, MERGED (2026-09-10)
+
+`origin/master` `febe8ee67` arrived **34 commits / 122 files** ahead and the gate
+called **TIER 1** on seven of them. Assessed rather than waved through:
+
+| file | change | reaches Wave Q1? |
+|---|---|---|
+| `lib/journal-2-0/calculations.js` | +55 −0 | **no** — 0 offline refs |
+| `lib/journal-2-0/rAtStop.test.js` | +77 −0 | **no** |
+| `components/AddPositionModal.jsx` | +1 −37 | **no** |
+| `components/HoldingsList.jsx` | +3 −0 | **no** |
+| `components/PositionsTable.jsx` | +6 −0 | **no** |
+| `lib/disciplineGuards.js` | +55 −0 | **no** |
+| `tabs/OpenPositionsTab.jsx` | +22 −0 | **no** |
+
+All seven are the Journal **trade** side. Mechanically: **zero** of master's 122
+files touch `lib/offline/**`, `NoteEditorPage`, `outboxDrain`, `useDurableNote`,
+`recoverLocalState`, `useOutboxDrain`, `offlineFlag`, `unsyncedCopy`,
+`blockedNotes`, `useBlockedNotes`, `blockedBaselineEvent`, `offlineOptInEvent`,
+`telemetry.js`, `NoteCard`, `NotesTableView`, `NotebookTab`, `journal_two.py`,
+`notes.py`, or any service worker.
+⚠️ A `baseline.js` "hit" was my own regex — `.` matched `gate-baseline.json` and
+`gate_baseline_diff.py`, not `lib/offline/baseline.js`.
+
+**Rails run ON MASTER**, in a scratch worktree at `febe8ee67` (node_modules
+junction; junction deleted before `git worktree remove`; `Test-Path` verified;
+⛔ **only `master-rails` removed — `.worktrees/` also holds the persistent rig
+profile and must never be deleted wholesale**):
+
+| | result on master |
+|---|---|
+| journal-2-0 at rest | **233 files / 2435 tests green** |
+| backend Q1 rails | **25 green** |
+| every Wave Q1 rail by name | **16 files / 165 tests green** |
+| all nine mutations | **ALL PROVED** — each reddened exactly its own tests |
+
+⇒ no finding ⇒ **merged**. The only conflict was `.gitignore`, where both sides
+had appended a different ignore rule; both kept. **Zero-line check: all 17
+guarded files changed by 0 lines.** Post-merge on the branch: journal-2-0
+**233/2435**, backend rails **25**, live bundle re-read green on all six.
+
 ## 🔑 HOW THE RIG AUTHENTICATES — and why no method could be automated
 
 **Method in use: a hand sign-in, once, into the persistent rig profile.** No
@@ -1188,6 +1251,35 @@ that must then be stored somewhere and rotated again later.
 **3 — New server code.** Explicitly out of scope, and correctly so: an
 auth-minting endpoint deployed to production to solve a test-rig convenience is
 a permanent attack surface bought for a temporary problem.
+
+### ⚠️⚠️ THREE BUGS IN THE INSTRUMENT, FOUND BY RUNNING IT (2026-09-10)
+
+Check 5 failed three times before it stamped. None of the failures were the
+product; all three were the rig, and each is the kind that reads as a green
+check if you are not looking.
+
+1. **`response.ok` is not proof an endpoint exists.** The admin route lives under
+   the auth router's `/api/auth` prefix, so `/api/admin/activity` hit the SPA
+   catch-all and returned **200 text/html**. `.ok` was true and `.json()` threw.
+   Every JSON read now checks `content-type` first.
+2. **`'ERR'` is a string, not an empty list.** The page-side readers report
+   failure as `'ERR'`; `x or []` passed that into a `+` and crashed. Worse than
+   the crash: a layer that could not be READ was about to be scored as a layer
+   that was EMPTY — opposite conclusions from one variable.
+3. ⛔⛔ **THE INSTRUMENT BROKE WHAT IT WAS MEASURING.** `indexedDB.open(name)`
+   with no version **creates** the database if missing — an empty one, zero
+   object stores — and because the app opens at `DB_VERSION 1` no upgrade ever
+   fires afterwards, so the real stores can never be created. The rig profile's
+   Notebook was left permanently unable to initialise. Every reader now goes
+   through `indexedDB.databases()`, which asks without creating, and a phantom
+   0-store database is reported with its repair rather than silently used.
+
+⭐ And a fourth, subtler one: **absence is not failure when absence is correct.**
+With the layer off there *should* be no per-account database; scoring that as
+"could not read" made a healthy rig look broken and refused a row it had earned.
+
+⭐ **The refusal worked exactly as designed throughout** — three bad runs, three
+refusals, zero hollow rows. That is the whole point of it.
 
 ### ⭐ The one thing still needed: **one hand sign-in, and that is all**
 
@@ -1317,6 +1409,54 @@ reads at all. A log whose rows might be partial reads as evidence, and that is
 worse than no log. `--self-check` proves the refusal fires and that a failed
 read still renders as **FAILED** rather than blank — a gate nobody has seen fire
 is not a gate.
+
+### check 6 — **2026-09-10T13:22:28Z**
+
+| | reading |
+|---|---|
+| rig | PID **28408** · Chrome/152.0.7977.83 · CDP `127.0.0.1:54092` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **32** · canary notes 0 · `sync-conflict` 2 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **3** · latest 2026-09-10 13:21:19 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ✅ **6/6** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-10T13:22:46.981172+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 3 reload (network UP) → the words survive | record holds text: **True** · draft holds text: **True** · outbox entries: **1** · baseline `2026-09-10T13:22:54.984057+00:00` |
+|  ↳ 4 reconnect → drained, re-based, server has the words | `dirty` **0** · outbox **0** · server holds text: **True** · baseline `2026-09-10T13:23:18.206536+00:00` |
+|  ↳ 5 cleanup → stores 0, locks 0, opted out | stores all zero: **True** · locks **0** · key **`'0'`** · leftover canary notes **0** |
+
+### check 5 — **2026-09-10T13:21:07Z**
+
+| | reading |
+|---|---|
+| rig | PID **38120** · Chrome/152.0.7977.83 · CDP `127.0.0.1:50087` · **persistent profile** |
+| signed in | `/api/auth/me` **200**, account `7a6d0299-fd98-4017-b8dc-51b849d1ab1d` |
+| offline proven both ways | offline ⇒ `FAILED: TypeError`, `onLine=false` · online ⇒ `ONLINE 200`, `true` |
+| four durable stores | `conflicts` 0 · `meta` 0 · `notes` 0 · `outbox` 0 |
+| notebook locks | **0** `uct.nb.sync.*` |
+| opt-in key | **`'0'`** — the rig's own last opt-out. ⚠️ On a PERSISTENT profile this is the expected reading from run 2 onward; `unset` only ever appears on run 1. |
+| notes | **32** · canary notes 0 · `sync-conflict` 2 |
+| telemetry scope | **population-wide (admin)** |
+| `j2:notebook_blocked_no_baseline` | count **0** · latest **none** · scope: population-wide (admin) |
+| opted-in browsers (`j2:notebook_offline_opt_in`) | count **2** · latest 2026-09-10 13:19:21 · scope: population-wide (admin) |
+| teardown | killed **9** by marker · 0 left · owner's browser [10896] untouched |
+| profile KEPT, lock released | `canary-chrome-profile-persistent` retained · lock free ⇒ the next run can open it |
+| **mini-canary** | ✅ **6/6** steps green |
+|  ↳ 1 opt in → leadership | held **['exclusive']**, pending **0**, DB opened with 4 stores |
+|  ↳ 2 type online → one CAS PUT | **1** PUT(s), baseline(s) `['2026-09-10T13:21:25.623969+00:00']` |
+|  ↳ 3 offline is real | `FAILED: TypeError` |
+|  ↳ 3 reload (network UP) → the words survive | record holds text: **True** · draft holds text: **True** · outbox entries: **1** · baseline `2026-09-10T13:21:33.676932+00:00` |
+|  ↳ 4 reconnect → drained, re-based, server has the words | `dirty` **0** · outbox **0** · server holds text: **True** · baseline `2026-09-10T13:21:56.622866+00:00` |
+|  ↳ 5 cleanup → stores 0, locks 0, opted out | stores all zero: **True** · locks **0** · key **`'0'`** · leftover canary notes **0** |
 
 ### ⭐⭐ AND IT RUNS A MINI-CANARY EVERY DAY
 
@@ -1463,22 +1603,40 @@ overwrites it. Rows 4–9 are static and checked by eye on the day.
 
 <!-- WINDOW-CHECK:DECISION:BEGIN -->
 
-⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of no run yet.**
+⛔ **REGENERATED BY `tools/window_check.py` ON EVERY RUN — as of check 6 — 2026-09-10T13:22:28Z.**
+It is never hand-edited: a decision table maintained by hand is one that
+goes stale exactly when it matters. Rows 4–9 below it are static and
+checked by eye on the day.
 
 | # | condition | latest reading |
 |---|---|---|
-| 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | ⛔ **UNREAD** |
-| 2 | Opted-in browsers (the denominator) | ⛔ **UNREAD** — need ≥ **5** |
-| 3 | Consecutive green daily runs, mini-canary all steps | **0** — need **7** |
+| 1 | Zero `notebook_blocked_no_baseline` across the instrument clock | **0** |
+| 2 | Opted-in browsers (the denominator) | **3** — need ≥ **5** |
+| 3 | Consecutive green daily runs, mini-canary all steps | **2** — need **7** |
 | — | Has a 🚨 NEW FINDING ever fired? | **no** |
 
 ## ⛔ RECOMMENDATION: **NO-GO**
 
+**Met:** zero blocked-baseline events
+
 **What is holding it:**
 
-- the blocked-baseline event count is **UNREAD**
-- the opt-in count is **UNREAD**
-- only **0** green daily run(s), need 7
+- only **3** opted-in browser(s), need ≥ 5 — zero events over a tiny population is not evidence
+- only **2** green daily run(s), need 7
+
+⚠️ **The 36-minute gap stands.** The denominator starts 2026-09-10T05:42:53Z,
+the numerator 05:06:56Z. A browser that opted in inside that window is
+counted by neither, and that does not shrink with time.
+
+⚠️ **What no amount of green buys.** Every opted-in browser in that count is
+a *canary profile on the owner's machine driving the owner's own account*.
+It is not five members on five devices. The flip is still a step from "it
+works when we drive it" to "it works for people", and no amount of green
+here closes that distance — only the flip does, which is why the rollback
+is one line.
+
+⛔ **This script never flips the flag.** It writes a recommendation for the
+owner and nothing else.
 
 <!-- WINDOW-CHECK:DECISION:END -->
 
