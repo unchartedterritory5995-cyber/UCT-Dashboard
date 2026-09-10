@@ -783,6 +783,13 @@
         "web"
       ],
       "note": "Not caught by the ledger's own AST scanner -- a genuine blind spot recorded 2026-09-06: read via `import os as _os; _os.getenv(...)`, and api/services/feature_flag_index.py only recognizes the literal base name `os`, so an aliased import is invisible to it (see the debt-ledger entry for the scanner gap itself). Adds ONE extra check to the existing per-account broker fidelity audit (api/services/journal_two/broker/fidelity_audit.py:224-237): calls SnapTrade's BETA get_balance_history endpoint and cross-checks it against our own stored equity snapshots. Read-only (no writes to any balance/position), best-effort (wrapped in try/except, marked skipped+non-fatal on any error) -- SnapTrade's own comment notes the endpoint is 'disabled by default at SnapTrade', so it is often a no-op. Confirmed armed on web 2026-09-06; owner reviewed and chose to keep it armed with this entry as the recorded rationale (Feature-Flag Governance Sweep, owner check-in)."
+    },
+    "RESEARCH_TECHNICAL_TAB_ENABLED": {
+      "status": "dark",
+      "where": [
+        "web"
+      ],
+      "note": "Research > Technical tab (Chart/Technical Intelligence Convergence Phase B). Ships DARK on purpose: it is the first member-facing change in the Terminal program and the owner wanted an off switch that is not revert-and-redeploy. Read per request in api/routers/auth.py::_access_payload and consumed via AuthContext.researchTechnicalTabEnabled, so flipping it in Railway changes what members see WITHOUT a deploy. Enablement gate, not a kill switch: unset means not-yet-released, never accidentally live. Flag-on decision pending a read of confirmed-verdict coverage across the active set."
     }
   }
 }

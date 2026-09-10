@@ -91,9 +91,9 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled } = useAuth()
   const [searchParams] = useSearchParams()
-  const [active, setActive] = useState(
+  const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
   )
   // Seam 12 fix (Journal / Trade Lifecycle Convergence V1): a member arriving
@@ -102,6 +102,15 @@ export default function ResearchPage() {
   // same convention as `section` above -- this is a one-time entry marker,
   // not live state the tab-switching UI needs to track.
   const [returnTo] = useState(() => parseResearchReturnParam(searchParams.get('from')))
+  // Chart/Technical Intelligence Convergence ships DARK behind
+  // RESEARCH_TECHNICAL_TAB_ENABLED (off by default, read per request off the
+  // auth payload — see api/routers/auth.py::_access_payload). With it off the
+  // tab is absent from the strip AND `?section=technical` falls through to
+  // Overview rather than selecting a tab that is not there, which would render
+  // an empty content area under a strip that never offered it.
+  const tabs = researchTechnicalTabEnabled ? TABS : TABS.filter(t => t !== 'Technical')
+  const active = tabs.includes(rawActive) ? rawActive : 'Overview'
+
   const data = useResearchOverview(rawSym)
   const sym = data.sym
   const { data: ratingsData } = useRatings(sym)
@@ -126,7 +135,7 @@ export default function ResearchPage() {
         onSymbolChange={(s) => s && navigate(`/research/${s.toUpperCase()}`)}
       />
       <nav className={styles.tabs}>
-        {TABS.map(t => (
+        {tabs.map(t => (
           <button
             key={t}
             className={`${styles.tab} ${active === t ? styles.tabOn : ''}`}

@@ -69,7 +69,10 @@ vi.mock('./hooks/useTechnical', () => ({
 }))
 
 // Control auth: mock the whole module so test-utils' AuthProvider is a passthrough.
-const auth = { user: { role: 'user' }, isPaid: true }
+// researchTechnicalTabEnabled defaults TRUE here so the pre-existing Technical
+// assertions below keep exercising the released shape; the two tests at the
+// bottom flip it off and restore it.
+const auth = { user: { role: 'user' }, isPaid: true, researchTechnicalTabEnabled: true }
 vi.mock('../../context/AuthContext', () => ({
   useAuth: () => auth,
   AuthProvider: ({ children }) => children,
@@ -178,6 +181,37 @@ describe('ResearchPage', () => {
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=technical' })
     expect(screen.getByText('Bull Flag')).toBeInTheDocument()
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
+  })
+
+  it('hides the Technical tab when the flag is off', () => {
+    // RESEARCH_TECHNICAL_TAB_ENABLED ships DARK. With it off the tab must be
+    // absent from the strip entirely -- not present-but-empty, which would
+    // advertise a surface nobody decided to release.
+    auth.researchTechnicalTabEnabled = false
+    try {
+      renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+      expect(screen.queryByRole('button', { name: 'Technical' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument()
+    } finally {
+      auth.researchTechnicalTabEnabled = true
+    }
+  })
+
+  it('falls through to Overview for ?section=technical when the flag is off', () => {
+    // The deep link must not select a tab the strip never offered: that renders
+    // an empty content area under a strip with no Technical button -- the orphan
+    // state, which reads as a broken page rather than an unreleased feature.
+    auth.researchTechnicalTabEnabled = false
+    try {
+      renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=technical' })
+      expect(screen.queryByRole('button', { name: 'Technical' })).not.toBeInTheDocument()
+      // Same signals the flag-on test above uses, inverted: Overview's content
+      // is rendered and the Technical tab's is not.
+      expect(screen.queryByText('Bull Flag')).not.toBeInTheDocument()
+      expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+    } finally {
+      auth.researchTechnicalTabEnabled = true
+    }
   })
 
   it('renders the "Technical" tab button', () => {

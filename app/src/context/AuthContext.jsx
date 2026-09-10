@@ -18,6 +18,10 @@ export function AuthProvider({ children }) {
   // to parse, must not silently hide a shipped feature — only an explicit `false`
   // from the server kills it. `=== false` below, never a truthiness test.
   const [hubPreviewEnabled, setHubPreviewEnabled] = useState(true)
+  // Default FALSE, mirroring the server's off-by-default enablement gate:
+  // an unset flag, a failed fetch, or the pre-settle first render must all
+  // read as "not enabled" so the tab can never flash into view unreleased.
+  const [researchTechnicalTabEnabled, setResearchTechnicalTabEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   // R2 (2026-08-22 stress repro): a TRANSIENT failure on session validation
   // (5xx, or the fetch itself threw) must never read as "logged out" — only a
@@ -56,6 +60,7 @@ export function AuthProvider({ children }) {
         setTrial(data.trial || null)
         setAnnualAvailable(!!(data.billing && data.billing.annual_available))
         setHubPreviewEnabled(data.hub_preview_enabled !== false)
+        setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
         setAuthTransient(false)
         return { plan: data.plan, role: data.user?.role }
       } else if (res.status >= 500) {
@@ -98,6 +103,7 @@ export function AuthProvider({ children }) {
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     setHubPreviewEnabled(data.hub_preview_enabled !== false)
+    setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
     return data
   }
 
@@ -121,6 +127,7 @@ export function AuthProvider({ children }) {
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     setHubPreviewEnabled(data.hub_preview_enabled !== false)
+    setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
     return data
   }
 
@@ -142,6 +149,7 @@ export function AuthProvider({ children }) {
     setTrial(data.trial || null)
     setAnnualAvailable(!!(data.billing && data.billing.annual_available))
     setHubPreviewEnabled(data.hub_preview_enabled !== false)
+    setResearchTechnicalTabEnabled(data.research_technical_tab_enabled === true)
     return data
   }
 
@@ -183,7 +191,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

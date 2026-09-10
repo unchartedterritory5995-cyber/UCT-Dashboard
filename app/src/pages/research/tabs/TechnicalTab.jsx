@@ -136,7 +136,8 @@ export default function TechnicalTab({ sym }) {
 
       {!isLoading && !verdicts.length && (
         <div className={styles.fnote} data-testid="technical-empty-state">
-          No confirmed technical setups on {sym} right now.
+          No confirmed technical setups on {sym} right now. Setups are re-checked
+          hourly during market hours.
         </div>
       )}
 
