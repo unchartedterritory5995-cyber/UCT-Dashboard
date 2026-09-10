@@ -7,9 +7,13 @@ import { matchOverlayTool } from './keyboardShortcuts'
 import { hitThreshold, crossedDragSlop, useCoarsePointer } from './coarsePointer'
 import { fmtLevel, visibleOnly } from './drawingObjects'
 import { brightenAnnotationColor, autoLabelInk, UCT_DRAW_GOLD } from './drawingColors'
-import { computeAdvancePct, hitTestDrawing, offsetPoints } from './drawingGeometry'
+import {
+  computeAdvancePct, handleDragGain, handlePointsFor, hitTestDrawing, offsetPoints,
+} from './drawingGeometry'
 import { dashFor } from './drawingStyle'
-import { sectionsFor, defaultsPayloadFor } from './drawingSettingsSchema'
+import { priceFormatterFor } from './drawingLabels'
+import { drawingProp } from './drawingSchema'
+import { sectionsFor, defaultsPayloadFor, newDrawingProps } from './drawingSettingsSchema'
 import {
   PRICE, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
   toPaneFraction, fromPaneFraction,
@@ -333,6 +337,11 @@ export default function ChartDrawingOverlay({
   redo = null,               //   overlay (useChartDrawings). Annotation overlays omit them
   snapshotHistory = null,    //   (no-op), so Ctrl+Z there does nothing.
   onSaveDefaults = null,     // (”Save as default”) persist {color,width,style} to cs.drawingDefaults
+  toolDefaults = null,       // cs.drawingDefaults.byTool — the PER-TOOL half of the saved
+                             //   defaults ({ rect: {fillColor}, arrow: {arrowSize}, … }).
+                             //   Read only when a new drawing of that tool is created, so a
+                             //   Rectangle's saved fill can never reach a Circle. Absent on
+                             //   every read-only/annotation surface, which want the built-ins.
   savedColors = [],          // shared saved-color swatches (same list as Chart Settings)
   onSaveColor = null,        //   → the drawing color picker (ColorPanel) reuses them
   onDeleteColor = null,
@@ -1064,6 +1073,16 @@ export default function ChartDrawingOverlay({
       }
     }
 
+    // ── Label state for THIS frame ────────────────────────────────────────
+    // ⭐ ONE FORMATTER PER FRAME, NOT PER LABEL. `priceFormatterFor` asks the
+    // series for its own `IPriceFormatter`, so a drawing's price reads exactly
+    // like the axis tag beside it. Built once here and handed down.
+    const priceText = priceFormatterFor(seriesRef?.current)
+    // Boxes already placed, so two price labels at nearly the same level step
+    // apart instead of printing on top of each other. Per frame, thrown away
+    // with the frame — see `avoidOverlap`, which is deliberately not a solver.
+    const labelBoxes = []
+
     // Draw completed drawings
     for (const d of visibleDrawings) {
       // A text note being edited is HIDDEN on the canvas while its editor box is
@@ -1130,10 +1149,16 @@ export default function ChartDrawingOverlay({
         case 'trendline': renderTrendline(ctx, pts); break
         case 'ray': renderRay(ctx, pts, rect); break
         case 'extended': renderExtended(ctx, pts, rect); break
-        // `w` (the CANVAS width) is still the label anchor on purpose - see
-        // renderHorizontal. Phase 1 changes where the LINE stops, not where the
-        // (still invisible) label goes; Phase 4 owns that.
-        case 'horizontal': renderHorizontal(ctx, pts, rect, !hidePriceLabels, w); break
+        // ⛔ TWO GATES, AND `hidePriceLabels` IS THE HARD ONE. The SURFACE can
+        // veto the label outright (Model Book setup lines are line-only, by
+        // design and not by the user's choice); only if it does not does the
+        // DRAWING's own toggle get asked. Surface override wins, always.
+        case 'horizontal':
+          renderHorizontal(ctx, pts, rect, {
+            showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel'),
+            ink, fmt: priceText, avoid: labelBoxes,
+          })
+          break
         case 'hray': {
           // Optional right bound (time-anchored): stop the ray at this bar
           // instead of running to the canvas edge. Model Book uses it so that,
@@ -1144,16 +1169,21 @@ export default function ChartDrawingOverlay({
             const bx = toPixel(d.rightBoundTime, pts[0].price)?.x
             if (bx != null) hrayRight = Math.max(pts[0].x ?? rect.x0, Math.min(rect.x1, bx))
           }
-          // No price label on a horizontal ray — the bare line is what the user
-          // wants; the price is already read from the axis/crosshair. (The
-          // full-width horizontal line keeps its right-edge label.)
-          renderHRay(ctx, pts, hrayRight, false)
+          renderHRay(ctx, pts, hrayRight, {
+            showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel'),
+            ink, fmt: priceText, bounds: rect, avoid: labelBoxes,
+          })
           break
         }
         case 'vertical': renderVertical(ctx, pts, rect); break
-        case 'rect': renderRect(ctx, pts); break
+        case 'rect':
+          renderRect(ctx, pts, d, {
+            showPercent: !!drawingProp(d, 'showPercentChange'),
+            bounds: rect,
+          })
+          break
         case 'circle': renderCircle(ctx, pts); break
-        case 'arrow': renderArrow(ctx, pts); break
+        case 'arrow': renderArrow(ctx, pts, d); break
         case 'text': renderText(ctx, pts, d, textOpacity); break
         case 'fib': renderFib(ctx, pts, rect, toPixelY); break
         case 'fibext': renderFibExtension(ctx, pts, rect, toPixelY); break
@@ -1188,7 +1218,12 @@ export default function ChartDrawingOverlay({
       // stroke used), so a green line gets green handles - and they are painted
       // inside the same pane clip, so a handle cannot sit in the other pane
       // either.
-      if (d.id === selectedId) renderSelectionHandles(ctx, pts, ink)
+      // ⭐ AND THEY ARE NOT ALWAYS THE ANCHORS. `handlePointsFor` is the single
+      // place a tool can put its handles somewhere the user can actually see
+      // them — today that is the Circle, whose stored corners sit outside its own
+      // ellipse. The hit test asks the SAME function, so what you grab is always
+      // what you see.
+      if (d.id === selectedId) renderSelectionHandles(ctx, handlePointsFor(d.type, pts), ink)
       ctx.restore()
     }
 
@@ -1204,7 +1239,15 @@ export default function ChartDrawingOverlay({
     // so a half-finished drawing previews inside the pane it will be created in.
     const previewRect = rectForKey(geom, pendingPoints[0]?.pane || mouseCoords?.pane || PRICE)
 
-    if (activeTool && pendingPoints.length > 0) {
+    // ⛔ EXCEPT FOR THE CIRCLE ON A MOUSE. The Circle's first anchor is a bbox
+    // corner that ends up OUTSIDE the finished ellipse, so its marker read as a
+    // stray dot the tool had left behind — the owner's "creation dot". A mouse
+    // never needed it: the live preview under a moving cursor already shows the
+    // ellipse being placed. A FINGER does — it lifts between taps, so with the
+    // dot suppressed tap 1 would draw nothing at all and look like it had not
+    // registered. Pointer type, not platform, decides.
+    const hidePendingDots = activeTool === 'circle' && !coarsePointer
+    if (activeTool && pendingPoints.length > 0 && !hidePendingDots) {
       const anchorPts = resolvePixels(pendingPoints, previewRect)
       if (anchorPts.length) {
         ctx.save()
@@ -1245,11 +1288,18 @@ export default function ChartDrawingOverlay({
           case 'trendline': renderTrendline(ctx, previewPts); break
           case 'ray': renderRay(ctx, previewPts, previewRect); break
           case 'extended': renderExtended(ctx, previewPts, previewRect); break
-          case 'horizontal': renderHorizontal(ctx, previewPts, previewRect, true, w); break
+          // The preview shows the label the FINISHED drawing will have, so what
+          // you see while placing is what you get when you let go.
+          case 'horizontal':
+            renderHorizontal(ctx, previewPts, previewRect, {
+              showLabel: !hidePriceLabels && !!newDrawingProps('horizontal', toolDefaults)?.showPriceLabel,
+              ink: brightenAnnotationColor(color), fmt: priceText,
+            })
+            break
           case 'vertical': renderVertical(ctx, previewPts, previewRect); break
-          case 'rect': renderRect(ctx, previewPts); break
+          case 'rect': renderRect(ctx, previewPts, newDrawingProps('rect', toolDefaults)); break
           case 'circle': renderCircle(ctx, previewPts); break
-          case 'arrow': renderArrow(ctx, previewPts); break
+          case 'arrow': renderArrow(ctx, previewPts, newDrawingProps('arrow', toolDefaults)); break
           case 'fib': renderFib(ctx, previewPts, previewRect, toPixelY); break
           case 'fibext': renderFibExtension(ctx, previewPts, previewRect, toPixelY); break
           case 'pitchfork': renderPitchfork(ctx, previewPts, previewRect); break
@@ -1307,7 +1357,7 @@ export default function ChartDrawingOverlay({
       }
     }
     ctx.restore()   // end plot-area clip
-  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId, measurePanes, rectForDrawing])
+  }, [drawings, visibleDrawings, pendingPoints, mouseCoords, activeTool, color, lineWidth, fontSize, selectedId, toPixel, resolvePixels, timeToIndex, nearestIndex, textInput?.editId, measurePanes, rectForDrawing, coarsePointer, hidePriceLabels, toolDefaults, seriesRef])
 
   // Keep redrawRef in sync — always points to latest redraw
   redrawRef.current = redraw
@@ -1391,7 +1441,12 @@ export default function ChartDrawingOverlay({
     if (!selectedId) return null
     const d = drawings.find(d => d.id === selectedId)
     if (!d) return null
-    const pts = resolvePixels(d.points || [], rectForDrawing(d))
+    // ⭐ THE VISIBLE HANDLE IS THE TARGET. `handlePointsFor` moves the Circle's
+    // dots onto its border for painting; grabbing has to use the same positions
+    // or the cursor would change over one place and the drag start at another.
+    // Index correspondence survives the mapping, so `handleIdx` still names the
+    // stored anchor the drag will move.
+    const pts = handlePointsFor(d.type, resolvePixels(d.points || [], rectForDrawing(d)))
     for (let i = 0; i < pts.length; i++) {
       // INDEX-STABLE: `i` is an index into the STORED points, which is exactly
       // what `handleIdx` means to the drag path. Skipping an unresolvable anchor
@@ -1605,6 +1660,13 @@ export default function ChartDrawingOverlay({
           // started in the candles stays a price drawing even if the second click
           // strays over the divider. A drawing can no longer be half-and-half.
           pane: newPending[0]?.pane || PRICE,
+          // ⛔ NEW DRAWINGS CARRY THEIR OWN SETTINGS; OLD ONES CARRY NOTHING, AND
+          // THAT IS THE DIFFERENCE. A new Horizontal Line is stamped
+          // `showPriceLabel: true` here, while a line drawn last year has no such
+          // property and resolves to the `false` in DRAWING_DEFAULTS. Same code
+          // path, two answers, no migration — and the user's own saved tool
+          // defaults override the built-in.
+          ...(newDrawingProps(activeTool, toolDefaults) || {}),
         }
         if ((activeTool === 'measure' || activeTool === 'dateRange') && newPending.length >= 2) {
           const idx0 = timeToIndex.get(newPending[0].time) || 0
@@ -1651,7 +1713,10 @@ export default function ChartDrawingOverlay({
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId, markTapHintSeen])
+  // `toolDefaults` IS A REAL DEPENDENCY, not a lint appeasement: it is read when
+  // a drawing is created, so a stale copy would mean "Save as default" did not
+  // take effect until something unrelated happened to rebuild this callback.
+  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId, markTapHintSeen, toolDefaults])
 
   const handlePointerMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -1699,17 +1764,25 @@ export default function ChartDrawingOverlay({
         const base = c?.time != null ? (nearestIndex(c.time) ?? 0) : 0
         return base + (Number.isFinite(c?.futureBars) ? c.futureBars : 0)
       }
+      // ⭐ HOW FAR THE ANCHOR MOVES PER PIXEL OF POINTER. It is 1 for every tool
+      // and for every whole-body move; the Circle's border handles are the one
+      // case where the dot the user grabbed is a BLEND of both anchors, so moving
+      // the anchor 1:1 would leave the dot trailing the mouse. See
+      // `handleDragGain` — this is the only place the correction is applied, and
+      // it multiplies the DELTA, so the drag still starts exactly where it was
+      // grabbed and nothing jumps.
+      const gain = handleDragGain(d.type, drag.handleIdx)
       const timeDelta = coords.time && drag.startCoords.time
-        ? effLogical(coords) - effLogical(drag.startCoords)
+        ? Math.round((effLogical(coords) - effLogical(drag.startCoords)) * gain)
         : 0
-      const priceDelta = (coords.price || 0) - (drag.startCoords.price || 0)
+      const priceDelta = ((coords.price || 0) - (drag.startCoords.price || 0)) * gain
       // Vertical anchor handling. Price-pane points keep the existing (log-safe)
       // priceDelta move; volume-pane points move by a pixel-fraction so they stay
       // in the volume pane. A point dragged ACROSS the pane boundary re-anchors to
       // the side it lands on — so an old price-anchored volume label fixes itself
       // permanently once nudged. The boundary is the price pane's bottom edge.
       const H = sizeRef.current.h || 0
-      const pixelDY = (drag.startPixel) ? (pos.y - drag.startPixel.y) : 0
+      const pixelDY = (drag.startPixel) ? (pos.y - drag.startPixel.y) * gain : 0
       const clamp01 = v => Math.max(0, Math.min(1, v))
       // The drawing keeps the pane it was created in for the whole gesture. A
       // drag can no longer convert an anchor - or worse, HALF a drawing - into
@@ -2334,6 +2407,12 @@ export default function ChartDrawingOverlay({
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
+            // ⭐ ONE HANDLER FOR EVERY PER-DRAWING SETTING. A schema control that
+            // edits a named property gets this; adding the next toggle or picker
+            // needs a table entry and nothing here. It goes through the ordinary
+            // `updateDrawing`, so every setting change is one undo step and is
+            // persisted by the same writer as a geometry change.
+            onSetProp={(name, value) => updateDrawing(ctxMenu.drawingId, { [name]: value })}
             onToggleLock={() => { updateDrawing(ctxMenu.drawingId, { locked: !d.locked }); setCtxMenu(null) }}
             onToggleHide={() => { updateDrawing(ctxMenu.drawingId, { hidden: !d.hidden }); if (!d.hidden) setSelectedId(null); setCtxMenu(null) }}
             onDuplicate={() => {
@@ -2590,9 +2669,15 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
  * threading them through.
  */
 export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWidth, onSetStyle, onSetFontSize, onDuplicate, onToggleLock, onToggleHide,
-  onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal }) {
+  onDelete, onSaveDefaults, savedColors = [], onSaveColor, onDeleteColor, onClose, onSetAlert, currentLevel = null, onSetLevel, onMakeHorizontal,
+  onSetProp }) {
   const menuRef = useRef(null)
-  const [colorOpen, setColorOpen] = useState(false)
+  // ⛔ WHICH COLOUR PANEL, NOT WHETHER ONE IS OPEN. A Rectangle has two colour
+  // rows (Border and Fill) and they share one ColorPanel instance, so the state
+  // has to name the control that opened it. Holding the schema ITEM rather than
+  // its id means the panel reads its own title, target property and whether it
+  // shows line controls straight off the table.
+  const [colorPanel, setColorPanel] = useState(null)
   const [levelOpen, setLevelOpen] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
   /* ⭐ TWO ALERT SEMANTICS, AND THE CHOICE IS REMEMBERED (MOB-05). A trader
@@ -2644,6 +2729,10 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   const isText = drawing?.type === 'text'
   const curFontSize = Math.round(drawing?.fontSize || 13)
   const bumpFont = (delta) => onSetFontSize?.(Math.max(8, Math.min(64, curFontSize + delta)))
+  // What a colour row shows, and what its panel edits. A property-backed row
+  // (Fill) falls back to the drawing's colour when it has no value of its own —
+  // which is exactly what it RENDERS as, so the swatch never lies.
+  const swatchOf = (item) => (item?.prop ? (drawing?.[item.prop] || curColor) : curColor)
   // Place the ColorPanel popout beside the menu (to its right; flip left if it would
   // overflow). ~250px wide panel.
   const panelW = 258
@@ -2696,7 +2785,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     drawing,
     points: drawing?.points,
     handlers: {
-      onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert,
+      onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert, onSetProp,
       onDuplicate, onToggleLock, onToggleHide, onSaveDefaults, onDelete,
     },
   })
@@ -2704,26 +2793,123 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // Widgets that are not rows. Each body is the shipped JSX, unchanged — the
   // migration moved WHERE they are chosen, not what they look like.
   const WIDGETS = {
-    colorRow: () => (
-      <button
-        key="color"
-        onClick={() => setColorOpen(o => !o)}
-        style={{
-          ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
-          fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-          background: colorOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
-        }}
-        onMouseEnter={(e) => { if (!colorOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
-        onMouseLeave={(e) => { if (!colorOpen) e.currentTarget.style.background = 'none' }}
-      >
-        <span style={labelStyle}>Color</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          <span style={{ width: sw, height: sw, borderRadius: '50%', background: curColor, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
-          <span style={{ display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: curStyle === 'solid' ? 'solid' : curStyle, borderTopColor: curColor }} />
-          <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{colorOpen ? '▾' : '▸'}</span>
-        </span>
-      </button>
-    ),
+    // ⭐ ONE ROW SERVES "Color", "Border" AND "Fill". What differs is the LABEL,
+    // the property it writes and whether a fill has a line preview — all three
+    // declared in the schema. The body is the shipped row, unchanged.
+    colorRow: (item) => {
+      const open = colorPanel?.id === item.id
+      const showLine = item.line !== false
+      const val = swatchOf(item)
+      return (
+        <button
+          key={item.id}
+          onClick={() => setColorPanel(p => (p?.id === item.id ? null : item))}
+          style={{
+            ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+            fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
+            background: open ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+          }}
+          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'none' }}
+        >
+          <span style={labelStyle}>{item.label}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <span style={{ width: sw, height: sw, borderRadius: '50%', background: val, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
+            {/* ⛔ THE SPACER IS NOT DECORATION. The row is right-aligned, so without
+                it the Fill swatch slides over into the gap where Border's line
+                preview sits and the two swatches in one section sit at different
+                x — which reads as a mistake long before anyone works out why. */}
+            <span
+              aria-hidden="true"
+              style={showLine
+                ? { display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: curStyle === 'solid' ? 'solid' : curStyle, borderTopColor: val }
+                : { display: 'block', width: 22 }}
+            />
+            <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
+          </span>
+        </button>
+      )
+    },
+
+    // ⭐ A GENERIC ON/OFF ROW. Every later "show the …" setting is a table entry
+    // and reuses this — the widget knows a property name and nothing about which
+    // tool it belongs to.
+    toggle: (item) => {
+      const on = !!drawingProp(drawing, item.prop)
+      return (
+        <button
+          key={item.id}
+          role="switch"
+          aria-checked={on}
+          onClick={() => onSetProp?.(item.prop, !on)}
+          style={{
+            ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
+            fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left', background: 'none',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+        >
+          <span style={labelStyle}>{item.label}</span>
+          <span
+            aria-hidden="true"
+            style={{
+              marginLeft: 'auto', width: sheet ? 40 : 30, height: sheet ? 22 : 17, borderRadius: 999,
+              background: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-bg, #0e0e10)',
+              border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+              position: 'relative', transition: 'background 120ms ease',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 1, left: on ? (sheet ? 19 : 14) : 1,
+              width: sheet ? 18 : 13, height: sheet ? 18 : 13, borderRadius: '50%',
+              background: on ? '#0e0e10' : 'var(--menu-text-dim, #8a8a8f)',
+              transition: 'left 120ms ease',
+            }} />
+          </span>
+        </button>
+      )
+    },
+
+    // ⭐ A SEGMENTED PICKER FOR A SHORT, NAMED SCALE. Small / Medium / Large,
+    // never a number field — see the schema's note on why.
+    choice: (item) => {
+      const cur = drawingProp(drawing, item.prop) ?? item.fallback
+      return (
+        <div key={item.id} style={{ ...rowStyle }}>
+          <span style={labelStyle}>{item.label}</span>
+          <span
+            style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}
+            onPointerDown={(e) => e.stopPropagation()}
+            role="radiogroup"
+            aria-label={item.label}
+          >
+            {item.choices.map((c) => {
+              const on = c.value === cur
+              return (
+                <button
+                  key={c.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  title={c.title}
+                  onClick={() => onSetProp?.(item.prop, c.value)}
+                  style={{
+                    width: sheet ? 34 : 24, height: sheet ? 34 : 24,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                    borderRadius: 6,
+                    background: on ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                    color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #8a8a8f)',
+                    cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1,
+                    fontSize: sheet ? 13 : 11,
+                  }}
+                >{c.label}</button>
+              )
+            })}
+          </span>
+        </div>
+      )
+    },
 
     fontStepper: () => (
       <div key="fontSize" style={{ ...rowStyle }}>
@@ -2861,9 +3047,20 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     hide: onToggleHide,
     remove: onDelete,
     saveDefault: () => {
-      onSaveDefaults(defaultsPayloadFor(drawing?.type, {
+      // ⛔ EVERY VALUE THE TOOL *COULD* PERSIST IS OFFERED; `defaultsPayloadFor`
+      // decides which of them this tool actually owns. Booleans go through
+      // `drawingProp` so "off" is a real, savable answer; the optional ones are
+      // omitted when unset, because "no fill" is the absence of a choice rather
+      // than a choice to save.
+      const values = {
         color: curColor, lineWidth: curWidth, lineStyle: curStyle, fontSize: curFontSize,
-      }))
+        showPriceLabel: !!drawingProp(drawing, 'showPriceLabel'),
+        showPercentChange: !!drawingProp(drawing, 'showPercentChange'),
+      }
+      for (const p of ['fillColor', 'fillOpacity', 'arrowSize']) {
+        if (drawing?.[p] !== undefined && drawing?.[p] !== null) values[p] = drawing[p]
+      }
+      onSaveDefaults(defaultsPayloadFor(drawing?.type, values))
       setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1400)
     },
   }
@@ -2909,21 +3106,25 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         </React.Fragment>
       ))}
 
-      {colorOpen && createPortal(
+      {colorPanel && createPortal(
         <div
           data-color-panel
           onPointerDown={(e) => e.stopPropagation()}
           style={{ position: 'fixed', left: panelLeft, top: panelTop, zIndex: 22 }}
         >
           <ColorPanel
-            title="Drawing"
-            value={curColor}
-            onChange={(hex) => onSetColor(hex)}
-            onClose={() => setColorOpen(false)}
+            title={colorPanel.prop ? colorPanel.label : 'Drawing'}
+            value={swatchOf(colorPanel)}
+            onChange={(hex) => (colorPanel.prop ? onSetProp?.(colorPanel.prop, hex) : onSetColor(hex))}
+            onClose={() => setColorPanel(null)}
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
-            line={{
+            /* ⛔ A FILL HAS NO WIDTH AND NO DASH. Passing the line controls to it
+               would show two sliders that belong to the outline under a heading
+               that says Fill — the "confusing duplicate control" the brief warns
+               about. `line: false` in the schema is what turns them off. */
+            line={colorPanel.line === false ? null : {
               width: curWidth,
               style: DRAW_STYLE_TO_NUM[drawing?.lineStyle] ?? 0,
               onWidth: (w) => onSetWidth(w),

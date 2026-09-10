@@ -44,6 +44,8 @@ import { UCT_DRAW_GOLD } from './drawingColors'
 import {
   boundsOf, cupControlPoint, extendLineFar, extendRay, extendToEdges, pointsUsable,
 } from './drawingGeometry'
+import { drawLabel, formatPercent, formatPrice, inkOn, labelBox } from './drawingLabels'
+import { arrowSizeFor, borderFor, fillFor } from './drawingStyle'
 
 /** Index-stable resolution keeps a slot for every stored anchor and marks the
  *  unresolvable ones. A painter must ask before it draws — the alternative is
@@ -100,13 +102,27 @@ export function renderExtended(ctx, pts, rect) {
   ctx.stroke()
 }
 
-/** ⚠️ `showLabel` IS EFFECTIVELY DEAD TODAY AND THE LABEL IS INVISIBLE.
- *  The label is written at `w − textWidth − 4`, but `redraw()` clips to
- *  `plotRight = w − axisWidth − 1`. A ~30px label inside a ~56px price axis is
- *  entirely inside the clipped-away strip, on every chart that has an axis.
- *  That is why the Horizontal Line has never appeared to have a price label.
- *  Phase 4 re-anchors it to `plotRight`; Phase 0 leaves it exactly where it is. */
-export function renderHorizontal(ctx, pts, rect, showLabel = true, labelRight = null) {
+/**
+ * ⚰️ WHAT THIS LABEL USED TO BE. It was `price.toFixed(2)` in bare 10px text at
+ * `canvasWidth − textWidth − 4` — inside the price-axis strip, which `redraw()`
+ * clips away. So the Horizontal Line's price label existed in the source, cost a
+ * `measureText` every frame, and had never been seen by a user on any chart with
+ * a price axis. Phase 4 makes it real: a chip on the INSIDE edge of the plot, in
+ * the line's own colour, behind a per-drawing toggle.
+ *
+ * ⭐ IT HUGS THE PRICE SCALE BECAUSE THAT IS THE QUESTION IT ANSWERS. "What price
+ * is this line at?" is read against the axis, so the answer belongs at the axis —
+ * one row of the scale, in the line's colour, so which line it belongs to needs
+ * no thought. `rect.x1` IS the plot's right edge (the pane zone spans the plot
+ * area), so the chip lands flush against the scale without knowing the axis width.
+ *
+ * @param {object} [o]           label options; omit for a bare line
+ * @param {boolean} [o.showLabel]  false = line only (the shipped behaviour)
+ * @param {string} [o.ink]       the chip fill — the drawing's RENDERED colour
+ * @param {function} [o.fmt]     price → string; defaults to `formatPrice`
+ * @param {Array} [o.avoid]      boxes already placed this frame (mutated)
+ */
+export function renderHorizontal(ctx, pts, rect, o = null) {
   // 'y' ONLY: a horizontal line is a price LEVEL stored as `{ price }` with no
   // `time`, so it has no x and the span comes from the pane rect. Requiring x
   // here made every horizontal line in the product stop rendering.
@@ -115,41 +131,48 @@ export function renderHorizontal(ctx, pts, rect, showLabel = true, labelRight = 
   ctx.moveTo(rect.x0, pts[0].y)
   ctx.lineTo(rect.x1, pts[0].y)
   ctx.stroke()
-  // Price label.
-  // ⛔ `labelRight` IS THE CANVAS WIDTH, NOT `rect.x1`, AND THAT IS DELIBERATE.
-  // Anchoring it to the plot edge would make this label VISIBLE for the first
-  // time — which is Phase 4's feature to ship, with a toggle and a real chip.
-  // Phase 1 changes where the LINE stops, not where the label goes.
-  const w = labelRight != null ? labelRight : rect.x1
-  if (showLabel && pts[0].price != null) {
-    const label = pts[0].price.toFixed(2)
-    ctx.font = '10px "Instrument Sans", sans-serif'
-    ctx.fillStyle = ctx.strokeStyle
-    ctx.fillText(label, w - ctx.measureText(label).width - 4, pts[0].y - 4)
-  }
+  if (!o || !o.showLabel || pts[0].price == null) return
+  const ink = o.ink || ctx.strokeStyle
+  drawLabel(ctx, {
+    text: (o.fmt || formatPrice)(pts[0].price),
+    x: rect.x1 - 1, y: pts[0].y,
+    align: 'right', baseline: 'middle',
+    bg: ink, color: inkOn(ink),
+    bounds: rect, avoid: o.avoid || null,
+  })
 }
 
-/** ⚠️ THE CALLER PASSES `showLabel: false`, ALWAYS. This body already does what
- *  Phase 4's "Horizontal Ray → show price label" asks for — above the anchor, in
- *  the ray's own colour — and the overlay hard-codes `false` at the call site.
- *  Phase 4 replaces that literal with the drawing's own toggle. */
-export function renderHRay(ctx, pts, w, showLabel = true) {
+/**
+ * ⭐ THE RAY'S LABEL DELIBERATELY GOES SOMEWHERE ELSE THAN THE LINE'S. A
+ * horizontal LINE spans the chart, so the only place its price means anything is
+ * the axis. A horizontal RAY starts AT a bar — the setup candle, the breakout —
+ * and the price it names belongs to that bar, so the label sits just above the
+ * starting anchor and travels with it. Two tools, two questions, two placements;
+ * the shipped code already made this call and Phase 4 keeps it.
+ *
+ * ⚰️ WHAT CHANGED IS EVERYTHING ELSE ABOUT IT: bare 10px text became the shared
+ * chip, `toFixed(2)` became the series' own formatter, and `showLabel` — which
+ * the overlay hard-coded to `false`, so this branch had never run — became the
+ * drawing's own toggle.
+ */
+export function renderHRay(ctx, pts, w, o = null) {
   if (!ok(pts, 1)) return
   const x = pts[0].x
   ctx.beginPath()
   ctx.moveTo(x, pts[0].y)
   ctx.lineTo(w, pts[0].y)
   ctx.stroke()
-  // Price label — placed just ABOVE the ray's anchor (the setup bar/start of
-  // the ray), not at the right price scale, so it sits over the candle it marks.
-  if (showLabel && pts[0].price != null) {
-    const label = pts[0].price.toFixed(2)
-    ctx.font = '10px "Instrument Sans", sans-serif'
-    ctx.fillStyle = ctx.strokeStyle
-    ctx.textBaseline = 'bottom'
-    ctx.fillText(label, x, pts[0].y - 5)
-    ctx.textBaseline = 'alphabetic'
-  }
+  if (!o || !o.showLabel || pts[0].price == null) return
+  const ink = o.ink || ctx.strokeStyle
+  drawLabel(ctx, {
+    text: (o.fmt || formatPrice)(pts[0].price),
+    // Sits ON the ray's start: left edge at the anchor, bottom edge a hair above
+    // the line, so the chip reads as a tag on that end rather than as free text.
+    x, y: pts[0].y - 3,
+    align: 'left', baseline: 'bottom',
+    bg: ink, color: inkOn(ink),
+    bounds: o.bounds || null, avoid: o.avoid || null,
+  })
 }
 
 export function renderVertical(ctx, pts, rect) {
@@ -162,23 +185,58 @@ export function renderVertical(ctx, pts, rect) {
 
 // ─── Shapes ──────────────────────────────────────────────────────────────────
 
-export function renderRect(ctx, pts) {
+/**
+ * ⚰️ THE DEAD `.replace()` CHAIN IS GONE. It built a nonsense colour string
+ * (`'c9a84c, 0.08)'`) by chained replaces and assigned it to `fillStyle`; canvas
+ * silently ignores an unparseable value and four lines later `fillStyle` was set
+ * again before anything was filled. Phase 0 kept it because Phase 0 was
+ * behaviour-neutral; the fill test in `drawingRenderers.test.js` is what let it
+ * be deleted here.
+ *
+ * ⭐ BORDER AND FILL ARE NOW SEPARATE QUESTIONS. Border = the outline, and it is
+ * still the drawing's own `color` (so every rectangle ever drawn is untouched,
+ * and the width/style controls keep meaning what they meant). Fill = the inside
+ * tint, its own colour with its own alpha. A rectangle that names no fill tints
+ * itself with its border at the shipped 0.08 — which is exactly what it did.
+ *
+ * ⛔ ONE `fillRect`, ONE `strokeRect`, AND THE LABEL IS OPTIONAL. The percent
+ * label costs a `measureText` only when it is switched on, and it is dropped
+ * outright when the rectangle is too small to hold it — a chip wider than its own
+ * box reads as a bug, not as information.
+ */
+export function renderRect(ctx, pts, drawing = null, o = null) {
   if (!ok(pts, 2)) return
   const { x1: x, y1: y, w, h } = boundsOf(pts)
-  // ⚰️ DEAD LINE, KEPT ON PURPOSE (Phase 0 is behaviour-neutral). This builds a
-  // nonsense colour string by chained .replace() and assigns it; canvas ignores
-  // an unparseable fillStyle, and four lines below fillStyle is set again before
-  // anything is filled. It has never had an effect. Phase 4 (Rectangle
-  // border/fill split) deletes it — as a change with a test in front of it.
-  ctx.fillStyle = ctx.strokeStyle.replace(')', ', 0.08)').replace('rgb', 'rgba').replace('#', '')
-  // Parse hex to rgba fill
-  const sc = ctx.strokeStyle
+  const stroke = ctx.strokeStyle
+  const fill = fillFor(drawing, stroke, 0.08)
   ctx.save()
-  ctx.globalAlpha = 0.08
-  ctx.fillStyle = sc
+  ctx.globalAlpha = fill.opacity
+  ctx.fillStyle = fill.color
   ctx.fillRect(x, y, w, h)
   ctx.restore()
+  ctx.strokeStyle = borderFor(drawing, stroke)
   ctx.strokeRect(x, y, w, h)
+
+  if (!o || !o.showPercent) return
+  // ⛔ ANCHOR ORDER, NOT BOUNDS. `boundsOf` normalises the corners, so reading the
+  // move off it would print +4.2% for a rectangle drawn top-down and bottom-up
+  // alike. The user drew from the first click to the second; that is the
+  // direction of the move, and a drop must read as a drop.
+  const a = pts[0].price, b = pts[1].price
+  if (a == null || b == null || !(Math.abs(a) > 0)) return
+  const text = formatPercent(((b - a) / Math.abs(a)) * 100)
+  // Too small to hold the chip → no chip. Measured with the SAME metrics the
+  // label will be drawn with, so the cutoff moves with the font instead of
+  // being a guess that goes stale the first time the font changes.
+  const box = labelBox(ctx, text, { x: x + w / 2, y: y + h / 2, align: 'center', baseline: 'middle' })
+  if (w < box.w + 6 || h < box.h + 6) return
+  drawLabel(ctx, {
+    text,
+    x: x + w / 2, y: y + h / 2,
+    align: 'center', baseline: 'middle',
+    bg: borderFor(drawing, stroke), color: null,
+    bounds: o.bounds || null,
+  })
 }
 
 export function renderCircle(ctx, pts) {
@@ -197,17 +255,32 @@ export function renderCircle(ctx, pts) {
   ctx.stroke()
 }
 
-/** ⚠️ THE ARROWHEAD SIZE IS THE LITERAL `10`, independent of `lineWidth`.
- *  That independence is what Phase 4's "Arrow size" asks for — the control is
- *  missing, not the separation. */
-export function renderArrow(ctx, pts) {
+/**
+ * ⭐ HEAD SIZE STAYS INDEPENDENT OF LINE WIDTH, and that independence was already
+ * right — the shipped code passed a literal `10` — so Phase 4 adds the control
+ * without changing the model. `arrowSizeFor` returns 10 for any arrow that names
+ * no size, which is every arrow drawn before today, so none of them move.
+ *
+ * ⛔ THE SHAFT STOPS SHORT OF THE TIP. Drawn all the way to `pts[1]`, a thick
+ * shaft under a large head pokes a stub out of the arrow's point — the line's
+ * round-ish end cap sticks past the triangle's apex. Backing the shaft off by
+ * most of the head's length hides the join under the head at every combination of
+ * the three sizes and the four line widths. The head still lands exactly on the
+ * anchor: the ARROW points where the user clicked, which is the whole job.
+ */
+export function renderArrow(ctx, pts, drawing = null) {
   if (!ok(pts, 2)) return
+  const size = arrowSizeFor(drawing)
+  const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y
+  const len = Math.hypot(dx, dy)
+  // Never eat more than 60% of a short arrow, or the shaft disappears entirely.
+  const inset = len > 0 ? Math.min(size * 0.8, len * 0.6) : 0
   ctx.beginPath()
   ctx.moveTo(pts[0].x, pts[0].y)
-  ctx.lineTo(pts[1].x, pts[1].y)
+  ctx.lineTo(pts[1].x - (len ? (dx / len) * inset : 0), pts[1].y - (len ? (dy / len) * inset : 0))
   ctx.stroke()
   ctx.fillStyle = ctx.strokeStyle
-  drawArrowhead(ctx, pts[0], pts[1], 10)
+  drawArrowhead(ctx, pts[0], pts[1], size)
 }
 
 // Cup curve (for cup & handle patterns): a smooth arc through three anchors —

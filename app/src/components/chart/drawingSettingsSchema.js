@@ -29,11 +29,38 @@
  * `drawingSettingsSchema.test.js` compares this table against those conditions,
  * transcribed from the pre-migration source, for all 21 drawing types — so the
  * migration is provably capability-neutral rather than believed to be.
+ *
+ * ─── WHAT PHASE 4 ADDED, AND WHAT IT DID NOT ────────────────────────────────
+ *
+ * ⭐ SEVEN SETTINGS, SIX TABLE ENTRIES, ONE NEW WIDGET FAMILY, AND NOT ONE `if
+ * (type === …)` IN THE MENU. Horizontal Line and Horizontal Ray gained a price
+ * label; Rectangle gained a separate fill and a percent label; Arrow gained a
+ * size. In `DrawingContextMenu` that cost two generic widgets (`toggle`,
+ * `choice`) plus teaching the existing colour row to edit a NAMED property. The
+ * renderer still walks whatever `sectionsFor` returns and knows nothing about
+ * rectangles.
+ *
+ * ⛔ `prop` IS WHAT MADE THAT POSSIBLE. A control that edits one property of the
+ * drawing NAMES that property, so one `toggle` widget serves "Show price label"
+ * and "Show percent change" and every later one, through a single
+ * `onSetProp(name, value)` handler. Without it each setting would have needed its
+ * own prop threaded from the overlay — which is the ladder Phase 3 tore out.
  */
+
+import { ARROW_SIZES, DEFAULT_ARROW_SIZE } from './drawingStyle'
 
 /** Fixed render order. A tool's sections are emitted in this order regardless of
  *  how its entry is written, so no tool can accidentally invent its own layout. */
 export const SECTION_ORDER = ['style', 'appearance', 'label', 'text', 'advanced', 'actions']
+
+/** Headings. ⛔ ONLY WHERE A SECTION NEEDS ONE. `style` and `actions` are the
+ *  menu's spine and have never carried a caption; a shape's Border/Fill pair and
+ *  a line's label toggles are new groupings, and a two-word caption is what makes
+ *  them read as a group rather than as more rows. */
+export const SECTION_TITLES = Object.freeze({
+  appearance: 'Appearance',
+  label: 'Label',
+})
 
 /**
  * Every control the drawing menu can render.
@@ -60,6 +87,61 @@ export const CONTROLS = Object.freeze({
     // The row opens ColorPanel, which edits all three at once — so all three are
     // what this control means, and all three are what it saves.
     persists: ['color', 'lineWidth', 'lineStyle'],
+  },
+
+  // ── appearance ──
+  //
+  // ⛔ "BORDER" IS THE SAME WIDGET AND THE SAME PROPERTIES AS "COLOR" — only the
+  // word changes. A Rectangle's outline colour IS `d.color`; giving it a second
+  // `borderColor` control would have put two rows in one menu that do the same
+  // thing, and would have needed a migration to decide which of them an existing
+  // rectangle obeys. Instead the shape's menu says what the user is looking at:
+  // **Border** = the outline (colour, width, line style), **Fill** = the inside
+  // tint. Same storage, same backward compatibility, no duplicate control.
+  border: {
+    id: 'border', kind: 'custom', widget: 'colorRow', label: 'Border',
+    persists: ['color', 'lineWidth', 'lineStyle'],
+  },
+  fill: {
+    id: 'fill', kind: 'custom', widget: 'colorRow', label: 'Fill',
+    // ⭐ THE PICKER'S OPACITY SLIDER *IS* THE FILL OPACITY. ColorPanel emits
+    // `#rrggbbaa`, so the alpha the user chose travels inside the colour. A
+    // separate "Fill opacity" row would be a second control for one fact, and
+    // the two would disagree the moment either was touched.
+    prop: 'fillColor', needs: 'onSetProp',
+    // No line preview: a fill has no width or dash.
+    line: false,
+    // `fillOpacity` rides along so a tool that later grows a numeric slider
+    // saves it too; today it is absent on every rectangle and resolves to 1.
+    persists: ['fillColor', 'fillOpacity'],
+  },
+
+  // ── label ──
+  showPriceLabel: {
+    id: 'showPriceLabel', kind: 'custom', widget: 'toggle', label: 'Show price label',
+    prop: 'showPriceLabel', needs: 'onSetProp',
+    persists: ['showPriceLabel'],
+  },
+  showPercentChange: {
+    id: 'showPercentChange', kind: 'custom', widget: 'toggle', label: 'Show percent change',
+    prop: 'showPercentChange', needs: 'onSetProp',
+    persists: ['showPercentChange'],
+  },
+
+  // ── arrow ──
+  arrowSize: {
+    id: 'arrowSize', kind: 'custom', widget: 'choice', label: 'Arrow size',
+    prop: 'arrowSize', needs: 'onSetProp',
+    // ⛔ THREE NAMED SIZES, NOT A NUMBER FIELD. Nobody wants to type 13 and see
+    // whether it looks right; they want small, normal, big. The numbers live in
+    // `drawingStyle.ARROW_SIZES` so the painter and the picker cannot drift.
+    choices: [
+      { value: ARROW_SIZES.small, label: 'S', title: 'Small' },
+      { value: ARROW_SIZES.medium, label: 'M', title: 'Medium' },
+      { value: ARROW_SIZES.large, label: 'L', title: 'Large' },
+    ],
+    fallback: DEFAULT_ARROW_SIZE,
+    persists: ['arrowSize'],
   },
 
   // ── text ──
@@ -109,6 +191,13 @@ const ACTIONS = ['duplicate', 'lock', 'hide', 'saveDefault', 'remove']
 /** Colour is the one control every drawing has. */
 const STYLE = ['color']
 
+/** A flat line's price label — the same control on both, different PLACEMENT in
+ *  the painter (the line's hugs the price scale; the ray's tags its own anchor). */
+const PRICE_LABEL = ['showPriceLabel']
+
+/** A shape's outline + inside tint. */
+const SHAPE = ['border', 'fill']
+
 /** Line tools that can be flattened to an exact price, and can carry an alert. */
 const LEVEL = ['setLevel', 'setAlert']
 /** …and the sloped ones can additionally be made horizontal. */
@@ -127,15 +216,21 @@ export const SCHEMA = Object.freeze({
   ray: { style: STYLE, advanced: SLOPED, actions: ACTIONS },
   extended: { style: STYLE, advanced: SLOPED, actions: ACTIONS },
   // flat lines — level, alert (already horizontal)
-  horizontal: { style: STYLE, advanced: LEVEL, actions: ACTIONS },
-  hray: { style: STYLE, advanced: LEVEL, actions: ACTIONS },
+  horizontal: { style: STYLE, label: PRICE_LABEL, advanced: LEVEL, actions: ACTIONS },
+  hray: { style: STYLE, label: PRICE_LABEL, advanced: LEVEL, actions: ACTIONS },
   // text — the only tool with typography today
   text: { style: STYLE, text: ['fontSize'], actions: ACTIONS },
   // everything else: colour + the shared actions
   vertical: { style: STYLE, actions: ACTIONS },
-  rect: { style: STYLE, actions: ACTIONS },
+  // ⛔ THE RECTANGLE HAS NO `style` SECTION. Its colour row moved WHOLESALE into
+  // Appearance as "Border" — it was not copied. One row, one meaning: the thing
+  // the user is looking at is an outline and a tint, and the menu says so.
+  rect: { appearance: SHAPE, label: ['showPercentChange'], actions: ACTIONS },
+  // ⭐ THE CIRCLE IS DELIBERATELY UNCHANGED. Phase 4's shape work is Rectangle's
+  // fill and the Circle's HANDLES; giving the circle a fill picker nobody asked
+  // for is also how a rectangle's saved fill would end up on one.
   circle: { style: STYLE, actions: ACTIONS },
-  arrow: { style: STYLE, actions: ACTIONS },
+  arrow: { style: STYLE, appearance: ['arrowSize'], actions: ACTIONS },
   fib: { style: STYLE, actions: ACTIONS },
   fibext: { style: STYLE, actions: ACTIONS },
   pitchfork: { style: STYLE, actions: ACTIONS },
@@ -193,7 +288,7 @@ export function sectionsFor(ctx) {
       items.push({ ...control, label: labelOf(control, ctx) })
     }
     // ⛔ A SECTION WITH NO ITEMS IS ABSENT, not a heading over nothing.
-    if (items.length) sections.push({ id, title: undefined, items })
+    if (items.length) sections.push({ id, title: SECTION_TITLES[id], items })
   }
   return sections
 }
@@ -211,6 +306,26 @@ export function sectionsFor(ctx) {
  * ⚠️ THE DEFAULTS STORE USES ITS OWN KEY NAMES (`width`, `style`) rather than the
  * drawing's (`lineWidth`, `lineStyle`). That mapping is shipped behaviour in
  * `cs.drawingDefaults` and is preserved exactly.
+ *
+ * ─── SHARED vs TOOL-SPECIFIC (Phase 4) ──────────────────────────────────────
+ *
+ * ⛔ THE PAYLOAD NOW HAS TWO HALVES, AND THE SPLIT IS THE WHOLE POINT.
+ *
+ *   • `{color, width, style, fontSize}` stay FLAT and SHARED, exactly as shipped.
+ *     "My drawing colour is blue" is a statement about drawing, not about
+ *     rectangles; making it per-tool would mean setting the same colour eleven
+ *     times, and would silently change what the Settings page's existing
+ *     "Drawing colour" control means.
+ *
+ *   • Everything a single tool invented — a rectangle's fill, an arrow's head
+ *     size, a line's price label — goes under `byTool[type]`. A Rectangle's fill
+ *     colour is not a fact about Circles, and there is no shape of a shared store
+ *     in which it does not eventually become one. This is the answer to "do not
+ *     let defaults leak between unrelated tools": they are stored under the tool
+ *     that saved them and read back only for that tool.
+ *
+ * The caller merges `byTool` one level deep (see StockChart's `onSaveDefaults`),
+ * so saving a Rectangle's fill cannot wipe an Arrow's saved size.
  */
 const DEFAULT_KEY = { color: 'color', lineWidth: 'width', lineStyle: 'style', fontSize: 'fontSize' }
 
@@ -220,11 +335,41 @@ export function defaultsPayloadFor(type, values) {
     for (const prop of CONTROLS[cid]?.persists || []) wanted.add(prop)
   }
   const out = {}
+  const tool = {}
   for (const prop of wanted) {
-    const key = DEFAULT_KEY[prop]
-    if (!key) continue
     const v = values?.[prop]
-    if (v !== undefined) out[key] = v
+    if (v === undefined) continue
+    const key = DEFAULT_KEY[prop]
+    if (key) out[key] = v
+    else tool[prop] = v
   }
+  if (Object.keys(tool).length) out.byTool = { [type]: tool }
   return out
+}
+
+/**
+ * The properties a NEW drawing of this type is stamped with at creation.
+ *
+ * ⭐ WHY A NEW DRAWING IS STAMPED RATHER THAN LEFT TO A DEFAULT. The owner wants
+ * the price label ON for new Horizontal Lines and OFF for the ones already on
+ * people's charts — the same absent property has to mean two different things.
+ * It cannot, so it stops being absent: a new drawing WRITES `showPriceLabel:
+ * true`, and `DRAWING_DEFAULTS.showPriceLabel` stays `false` so a legacy drawing,
+ * which carries nothing, still resolves OFF. This is exactly the legacy/new
+ * distinction schema versioning was preserved for.
+ *
+ * ⛔ THE USER'S SAVED TOOL DEFAULTS WIN. If they turned the label off and hit
+ * "Save as default", new lines come up off — the built-in only decides what
+ * happens before anyone has an opinion.
+ */
+export const NEW_DRAWING_PROPS = Object.freeze({
+  horizontal: Object.freeze({ showPriceLabel: true }),
+  hray: Object.freeze({ showPriceLabel: true }),
+})
+
+export function newDrawingProps(type, toolDefaults = null) {
+  const saved = toolDefaults && toolDefaults[type]
+  const built = NEW_DRAWING_PROPS[type]
+  if (!saved && !built) return null
+  return { ...built, ...saved }
 }

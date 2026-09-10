@@ -22,6 +22,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { __resetCoarsePointerForTest, HANDLE_FINE, HANDLE_COARSE, HIT_COARSE } from './coarsePointer'
 import { UCT_DRAW_GOLD } from './drawingColors'
+import { _clearLabelCache } from './drawingLabels'
 import {
   drawArrowhead, renderTrendline, renderRay, renderExtended, renderHorizontal,
   renderHRay, renderVertical, renderRect, renderCircle, renderArrow, renderCup,
@@ -30,6 +31,7 @@ import {
   renderAnchoredVwap, renderSelectionHandles, renderCrosshair,
   FIB_LEVELS, FIB_COLORS, FIB_EXT_LEVELS,
 } from './drawingRenderers'
+import { ARROW_SIZES } from './drawingStyle'
 
 // ── the recorder ────────────────────────────────────────────────────────────
 /** A CanvasRenderingContext2D stand-in that remembers everything.
@@ -86,7 +88,13 @@ function setPointer(coarse) {
   }))
   __resetCoarsePointerForTest()
 }
-beforeEach(() => setPointer(false))
+beforeEach(() => {
+  setPointer(false)
+  // The label module caches `measureText` results by font+string, and each test
+  // brings a fresh recorder — without this, a later test's "did it measure?"
+  // assertion could be answered by an earlier test's cache entry.
+  _clearLabelCache()
+})
 afterEach(() => {
   if (origMatchMedia) window.matchMedia = origMatchMedia
   else delete window.matchMedia
@@ -114,7 +122,7 @@ describe('⭐ save/restore balance — the invariant that protects the screensho
     ['renderRay', (c) => renderRay(c, [P(10, 10), P(20, 20)], R)],
     ['renderExtended', (c) => renderExtended(c, [P(10, 10), P(20, 20)], R)],
     ['renderHorizontal', (c) => renderHorizontal(c, [P(10, 50, { price: 1.5 })], R, true, W)],
-    ['renderHRay', (c) => renderHRay(c, [P(10, 50, { price: 1.5 })], W, true)],
+    ['renderHRay', (c) => renderHRay(c, [P(10, 50, { price: 1.5 })], W, { showLabel: true, ink: '#c9a84c' })],
     ['renderVertical', (c) => renderVertical(c, [P(10, 50)], R)],
     ['renderRect', (c) => renderRect(c, [P(10, 10), P(90, 60)])],
     ['renderCircle', (c) => renderCircle(c, [P(10, 10), P(90, 60)])],
@@ -164,7 +172,7 @@ describe('lines', () => {
 
   it('renderHorizontal spans 0 → w at the point’s y', () => {
     const ctx = makeCtx()
-    renderHorizontal(ctx, [P(400, 123)], R, false)
+    renderHorizontal(ctx, [P(400, 123)], R)
     expect(ctx.__find('moveTo')[0].args).toEqual([0, 123])
     expect(ctx.__find('lineTo')[0].args).toEqual([W, 123])
   })
@@ -178,7 +186,7 @@ describe('lines', () => {
 
   it('renderHRay starts AT its anchor, not at the canvas edge', () => {
     const ctx = makeCtx()
-    renderHRay(ctx, [P(250, 90)], W, false)
+    renderHRay(ctx, [P(250, 90)], W)
     expect(ctx.__find('moveTo')[0].args).toEqual([250, 90])
     expect(ctx.__find('lineTo')[0].args).toEqual([W, 90])
   })
@@ -188,7 +196,7 @@ describe('lines', () => {
     // the chart's left edge — a line the user never placed, in a place they never
     // clicked. An unresolvable anchor now renders nothing at all.
     const ctx = makeCtx()
-    renderHRay(ctx, [{ y: 90, valid: false }], W, false)
+    renderHRay(ctx, [{ y: 90, valid: false }], W)
     expect(ctx.__ops()).toEqual([])
   })
 
@@ -210,49 +218,104 @@ describe('lines', () => {
   })
 })
 
-describe('⚠️ CHARACTERISATION — price labels as they ship (Phase 4 changes both)', () => {
-  it('renderHorizontal writes its label INSIDE the price-axis strip, where the clip eats it', () => {
-    // ⚰️ THE HORIZONTAL LINE HAS ALWAYS HAD A PRICE LABEL AND NOBODY HAS SEEN IT.
-    // It is written at `w − textWidth − 4`, but `redraw()` clips to
-    // `plotRight = w − axisWidth − 1`. With a ~56px price axis and a 6-char
-    // label (36px here) the whole label sits inside the clipped-away strip.
+describe('⭐ PRICE LABELS — the Phase 4 feature, on both flat-line tools', () => {
+  // ⚰️ WHAT THESE REPLACE. Both labels used to be bare 10px `toFixed(2)` text.
+  // The Horizontal Line's went at `canvasWidth − textWidth − 4`, i.e. INSIDE the
+  // price-axis strip that `redraw()` clips away, so it had never been visible on
+  // any chart with an axis. The Ray's was already in the right place but the
+  // overlay hard-coded `showLabel: false`, so it had never run at all.
+  const LBL = { showLabel: true, ink: '#c9a84c' }
+
+  it('⛔ OFF BY DEFAULT — no label, and not one wasted measureText', () => {
+    // The legacy path, and the common one. An old drawing carries no
+    // `showPriceLabel`, so the overlay passes `showLabel: false` — and this must
+    // cost nothing at all, on every frame, for every line on the chart.
+    for (const paint of [
+      (c) => renderHorizontal(c, [P(400, 123, { price: 10 })], R),
+      (c) => renderHorizontal(c, [P(400, 123, { price: 10 })], R, { showLabel: false }),
+      (c) => renderHRay(c, [P(250, 90, { price: 10 })], W),
+      (c) => renderHRay(c, [P(250, 90, { price: 10 })], W, { showLabel: false }),
+    ]) {
+      const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+      paint(ctx)
+      expect(ctx.__find('fillText')).toHaveLength(0)
+      expect(ctx.__find('measureText')).toHaveLength(0)
+      expect(ctx.__find('fillRect')).toHaveLength(0)
+      expect(ctx.__find('roundRect')).toHaveLength(0)
+      // …and the LINE itself is still drawn, exactly as before.
+      expect(ctx.__find('stroke')).toHaveLength(1)
+    }
+  })
+
+  it('the horizontal line\u2019s chip hugs the PRICE SCALE, inside the plot', () => {
     const ctx = makeCtx({ strokeStyle: '#c9a84c' })
-    renderHorizontal(ctx, [P(400, 123, { price: 123.456 })], R, true, W)
-    const [text, x] = ctx.__find('fillText')[0].args
-    expect(text).toBe('123.46')                     // fixed 2dp, not tick-aware
-    expect(x).toBe(W - '123.46'.length * 6 - 4)     // = 760
-    const plotRight = W - 56 - 1                    // a typical axis width
-    expect(x).toBeGreaterThan(plotRight)            // → clipped away entirely
+    renderHorizontal(ctx, [P(400, 123, { price: 123.456 })], R, LBL)
+    const [text, tx, ty] = ctx.__find('fillText')[0].args
+    expect(text).toBe('123.46')
+    // Right edge of the chip lands on the plot's right edge, NOT the canvas
+    // width — which is the whole reason it is now visible.
+    const w = '123.46'.length * 6 + 10          // padX 5 either side
+    expect(tx).toBeCloseTo(R.x1 - 1 - w + 5, 6)
+    expect(tx + '123.46'.length * 6).toBeLessThanOrEqual(R.x1)
+    expect(ty).toBeCloseTo(123, 6)              // vertically centred on the line
   })
 
-  it('renderHorizontal paints the label in the LINE colour', () => {
-    const ctx = makeCtx({ strokeStyle: '#1ae51a' })
-    renderHorizontal(ctx, [P(400, 123, { price: 10 })], R, true, W)
-    expect(ctx.__find('set:fillStyle').at(-1).args[0]).toBe('#1ae51a')
+  it('the chip is the LINE\u2019S colour with auto-contrast ink', () => {
+    const dark = makeCtx({ strokeStyle: '#3f7fe0' })
+    renderHorizontal(dark, [P(400, 123, { price: 10 })], R, { showLabel: true, ink: '#3f7fe0' })
+    const fills = dark.__find('set:fillStyle').map((c) => c.args[0])
+    expect(fills[0]).toBe('#3f7fe0')            // the plate
+    expect(fills[1]).toBe('#ffffff')            // readable ink on a dark plate
+
+    const light = makeCtx({ strokeStyle: '#e3cf4a' })
+    renderHorizontal(light, [P(400, 123, { price: 10 })], R, { showLabel: true, ink: '#e3cf4a' })
+    expect(light.__find('set:fillStyle').map((c) => c.args[0])[1]).toBe('#000000')
   })
 
-  it('renderHRay already places its label ABOVE the anchor, in the ray colour', () => {
-    // ⚰️ Phase 4's "Horizontal Ray → show price label" is already implemented
-    // here. The overlay hard-codes `showLabel: false` at the call site; that
-    // literal is the whole of the missing feature.
+  it('⭐ the RAY\u2019S label tags its own anchor instead — two tools, two questions', () => {
     const ctx = makeCtx({ strokeStyle: '#60a5fa' })
-    renderHRay(ctx, [P(250, 90, { price: 42.5 })], W, true)
-    const [text, x, y] = ctx.__find('fillText')[0].args
+    renderHRay(ctx, [P(250, 90, { price: 42.5 })], W, { showLabel: true, ink: '#60a5fa' })
+    const [text, tx, ty] = ctx.__find('fillText')[0].args
     expect(text).toBe('42.50')
-    expect(x).toBe(250)          // at the anchor, not the axis
-    expect(y).toBe(90 - 5)       // just above the line
-    expect(ctx.__find('set:fillStyle').at(-1).args[0]).toBe('#60a5fa')
+    expect(tx).toBeCloseTo(250 + 5, 6)          // starts AT the anchor (+ padding)
+    expect(ty).toBeLessThan(90)                 // above the line
+    expect(ctx.__find('set:fillStyle')[0].args[0]).toBe('#60a5fa')
   })
 
-  it('renderHRay restores textBaseline so the next painter is unaffected', () => {
+  it('⛔ NO MORE toFixed(2) — the caller\u2019s formatter decides the precision', () => {
+    // The series' own formatter is what the overlay passes, so a drawing's price
+    // reads exactly like the axis tag beside it on any instrument.
     const ctx = makeCtx()
-    renderHRay(ctx, [P(250, 90, { price: 42.5 })], W, true)
-    expect(ctx.__state.textBaseline).toBe('alphabetic')
+    renderHorizontal(ctx, [P(400, 123, { price: 0.004213 })], R,
+      { showLabel: true, ink: '#c9a84c', fmt: (v) => `$${v.toFixed(5)}` })
+    expect(ctx.__find('fillText')[0].args[0]).toBe('$0.00421')
+    // …and with no formatter, the shared magnitude-aware default — not 2dp.
+    const d = makeCtx()
+    renderHorizontal(d, [P(400, 123, { price: 0.004213 })], R, LBL)
+    expect(d.__find('fillText')[0].args[0]).toBe('0.0042')
+  })
+
+  it('two labels at the same level step apart instead of printing on top', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    const avoid = []
+    renderHorizontal(ctx, [P(400, 200, { price: 10 })], R, { ...LBL, avoid })
+    renderHorizontal(ctx, [P(400, 201, { price: 11 })], R, { ...LBL, avoid })
+    const ys = ctx.__find('fillText').map((c) => c.args[2])
+    expect(Math.abs(ys[1] - ys[0])).toBeGreaterThan(10)
+    expect(avoid).toHaveLength(2)
+  })
+
+  it('the chip stays inside its pane, so a label cannot cross the divider', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    renderHorizontal(ctx, [P(400, VOL.y0 + 1, { price: 10 })], VOL, LBL)
+    const box = ctx.__find('roundRect')[0] || ctx.__find('rect')[0]
+    expect(box.args[1]).toBeGreaterThanOrEqual(VOL.y0)
+    expect(box.args[1] + box.args[3]).toBeLessThanOrEqual(VOL.y1)
   })
 
   it('neither label is drawn when the point carries no price', () => {
-    const a = makeCtx(); renderHorizontal(a, [P(400, 123)], R, true, W)
-    const b = makeCtx(); renderHRay(b, [P(250, 90)], W, true)
+    const a = makeCtx(); renderHorizontal(a, [P(400, 123)], R, LBL)
+    const b = makeCtx(); renderHRay(b, [P(250, 90)], W, LBL)
     expect(a.__find('fillText')).toHaveLength(0)
     expect(b.__find('fillText')).toHaveLength(0)
   })
@@ -272,13 +335,81 @@ describe('shapes', () => {
     expect(ctx.__state.globalAlpha).toBe(1)
   })
 
-  it('⚠️ renderRect still assigns the dead replace()-chain fillStyle (Phase 4 deletes it)', () => {
-    // Kept verbatim in Phase 0. It builds an unparseable colour string that a
-    // real canvas ignores, and fillStyle is set again before anything is filled.
+  it('✅ the dead replace()-chain fillStyle is GONE', () => {
+    // ⚰️ It built an unparseable colour string ('c9a84c') and assigned it; canvas
+    // ignored it and fillStyle was set again before anything was filled. Phase 0
+    // kept it to stay behaviour-neutral. Nothing writes it now.
     const ctx = makeCtx({ strokeStyle: '#c9a84c' })
     renderRect(ctx, [P(10, 10), P(90, 60)])
-    expect(ctx.__find('set:fillStyle')[0].args[0]).toBe('c9a84c')   // the nonsense value
-    expect(ctx.__find('set:fillStyle')[1].args[0]).toBe('#c9a84c')  // the real one
+    const fills = ctx.__find('set:fillStyle').map((c) => c.args[0])
+    expect(fills).not.toContain('c9a84c')
+    expect(fills[0]).toBe('#c9a84c')
+  })
+
+  it('⛔ A RECTANGLE WITH NO FILL OF ITS OWN IS PIXEL-IDENTICAL TO BEFORE', () => {
+    // Every rectangle anyone has ever drawn is in this case. Border colour =
+    // stroke, fill colour = stroke, alpha = the shipped 0.08.
+    for (const d of [null, {}, { fillColor: null }, { type: 'rect', color: '#c9a84c' }]) {
+      const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+      renderRect(ctx, [P(10, 10), P(90, 60)], d)
+      expect(ctx.__find('set:globalAlpha')[0].args[0]).toBe(0.08)
+      expect(ctx.__find('set:fillStyle')[0].args[0]).toBe('#c9a84c')
+      expect(ctx.__find('fillRect')[0].args).toEqual([10, 10, 80, 50])
+      expect(ctx.__state.globalAlpha).toBe(1)
+    }
+  })
+
+  it('⭐ BORDER AND FILL ARE INDEPENDENT — outline one colour, inside another', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(ctx, [P(10, 10), P(90, 60)], { fillColor: '#3f7fe0', borderColor: '#ff5b5b' })
+    expect(ctx.__find('set:fillStyle')[0].args[0]).toBe('#3f7fe0')
+    // …and an EXPLICIT fill is not dimmed to 8% — the colour carries its own
+    // alpha from the picker, so the opacity slider means what it says.
+    expect(ctx.__find('set:globalAlpha')[0].args[0]).toBe(1)
+    expect(ctx.__find('set:strokeStyle').at(-1).args[0]).toBe('#ff5b5b')
+  })
+
+  it('the percent label is OFF unless asked, and reads the ANCHOR ORDER', () => {
+    const off = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(off, [P(10, 10, { price: 100 }), P(190, 160, { price: 110 })], {})
+    expect(off.__find('fillText')).toHaveLength(0)
+
+    // ⛔ NOT `boundsOf`. Drawn top-down (100 → 110) it is a rise; drawn the other
+    // way round the SAME rectangle is a fall. Normalised bounds would print +10%
+    // for both, which is the bug this test exists to prevent.
+    const up = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(up, [P(10, 160, { price: 100 }), P(190, 10, { price: 110 })], {}, { showPercent: true })
+    expect(up.__find('fillText')[0].args[0]).toBe('+10.00%')
+
+    const down = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(down, [P(190, 10, { price: 110 }), P(10, 160, { price: 100 })], {}, { showPercent: true })
+    expect(down.__find('fillText')[0].args[0]).toBe('-9.09%')
+  })
+
+  it('the percent label sits in the CENTRE of the box, wherever the box is', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(ctx, [P(100, 300, { price: 50 }), P(400, 100, { price: 60 })], {}, { showPercent: true })
+    const [, tx, ty] = ctx.__find('fillText')[0].args
+    const text = '+20.00%'
+    expect(tx + (text.length * 6) / 2).toBeCloseTo(250, 6)   // (100+400)/2
+    expect(ty).toBeCloseTo(200, 6)                            // (300+100)/2
+  })
+
+  it('⛔ a box too small to hold the chip gets NO chip', () => {
+    const tiny = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(tiny, [P(10, 10, { price: 100 }), P(30, 20, { price: 110 })], {}, { showPercent: true })
+    expect(tiny.__find('fillText')).toHaveLength(0)
+    // …but the rectangle itself still draws.
+    expect(tiny.__find('strokeRect')).toHaveLength(1)
+  })
+
+  it('no percent label without two real prices — a volume-pane box says nothing', () => {
+    const ctx = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(ctx, [P(10, 10), P(190, 160)], {}, { showPercent: true })
+    expect(ctx.__find('fillText')).toHaveLength(0)
+    const zero = makeCtx({ strokeStyle: '#c9a84c' })
+    renderRect(zero, [P(10, 10, { price: 0 }), P(190, 160, { price: 5 })], {}, { showPercent: true })
+    expect(zero.__find('fillText')).toHaveLength(0)
   })
 
   it('renderCircle centres an ellipse on the bounding box and never collapses below 1px', () => {
@@ -290,16 +421,67 @@ describe('shapes', () => {
     expect(flat.__find('ellipse')[0].args.slice(2, 4)).toEqual([1, 1])
   })
 
-  it('renderArrow strokes the shaft then fills a head sized 10, independent of lineWidth', () => {
-    // ⚠️ The literal 10 is what Phase 4 turns into `arrowSize`. The separation
-    // from lineWidth already exists — only the control is missing.
-    const ctx = makeCtx({ lineWidth: 3 })
-    renderArrow(ctx, [P(0, 0), P(100, 0)])
-    const head = ctx.__find('lineTo').slice(1)   // first lineTo is the shaft
-    expect(head).toHaveLength(2)
-    expect(head[0].args[0]).toBeCloseTo(100 - 10 * Math.cos(-0.4), 6)
-    expect(ctx.__ops()).toContain('closePath')
-    expect(ctx.__ops().at(-1)).toBe('fill')
+  it('⛔ AN ARROW THAT NAMES NO SIZE IS STILL THE SHIPPED 10px ARROW', () => {
+    // Every arrow drawn before Phase 4 is in this case, and Medium is 10 for
+    // exactly this reason — so legacy arrows are unchanged AND show up correctly
+    // as Medium the first time someone opens the picker.
+    for (const d of [null, {}, { arrowSize: undefined }, { arrowSize: 0 }, { arrowSize: 'big' }]) {
+      const ctx = makeCtx({ lineWidth: 3 })
+      renderArrow(ctx, [P(0, 0), P(100, 0)], d)
+      const head = ctx.__find('lineTo').slice(1)
+      expect(head).toHaveLength(2)
+      expect(head[0].args[0]).toBeCloseTo(100 - 10 * Math.cos(-0.4), 6)
+    }
+    expect(ARROW_SIZES.medium).toBe(10)
+  })
+
+  it('⭐ three sizes, and the head is the only thing that changes', () => {
+    for (const size of [ARROW_SIZES.small, ARROW_SIZES.medium, ARROW_SIZES.large]) {
+      const ctx = makeCtx({ lineWidth: 1 })
+      renderArrow(ctx, [P(0, 0), P(200, 0)], { arrowSize: size })
+      const head = ctx.__find('lineTo').slice(1)
+      expect(head[0].args[0]).toBeCloseTo(200 - size * Math.cos(-0.4), 6)
+      // The head still lands exactly on the anchor: the arrow points where the
+      // user clicked, whatever size it is.
+      expect(ctx.__find('moveTo').at(-1).args).toEqual([200, 0])
+      expect(ctx.__ops()).toContain('closePath')
+      expect(ctx.__ops().at(-1)).toBe('fill')
+    }
+  })
+
+  it('head size is independent of line width, at every combination', () => {
+    for (const lw of [1, 2, 3, 4]) {
+      for (const size of Object.values(ARROW_SIZES)) {
+        const ctx = makeCtx({ lineWidth: lw })
+        renderArrow(ctx, [P(0, 0), P(200, 0)], { arrowSize: size })
+        expect(ctx.__find('lineTo')[1].args[0]).toBeCloseTo(200 - size * Math.cos(-0.4), 6)
+      }
+    }
+  })
+
+  it('⛔ THE SHAFT STOPS SHORT SO IT CANNOT POKE THROUGH THE TIP', () => {
+    // A thick shaft under a big head used to stick a stub out of the arrow's
+    // point. The shaft now ends behind the head; the head still reaches the tip.
+    const ctx = makeCtx({ lineWidth: 4 })
+    renderArrow(ctx, [P(0, 0), P(200, 0)], { arrowSize: ARROW_SIZES.large })
+    const shaftEnd = ctx.__find('lineTo')[0].args
+    expect(shaftEnd[0]).toBeLessThan(200)
+    expect(200 - shaftEnd[0]).toBeCloseTo(ARROW_SIZES.large * 0.8, 6)
+    expect(shaftEnd[1]).toBeCloseTo(0, 6)
+  })
+
+  it('a very short arrow keeps a visible shaft rather than vanishing', () => {
+    const ctx = makeCtx()
+    renderArrow(ctx, [P(0, 0), P(6, 0)], { arrowSize: ARROW_SIZES.large })
+    const shaftEnd = ctx.__find('lineTo')[0].args
+    expect(shaftEnd[0]).toBeCloseTo(6 * 0.4, 6)     // 60% eaten, 40% left
+    expect(shaftEnd[0]).toBeGreaterThan(0)
+  })
+
+  it('a zero-length arrow does not divide by zero', () => {
+    const ctx = makeCtx()
+    expect(() => renderArrow(ctx, [P(50, 50), P(50, 50)], { arrowSize: 16 })).not.toThrow()
+    expect(ctx.__find('lineTo')[0].args).toEqual([50, 50])
   })
 
   it('drawArrowhead points along the from → to vector', () => {

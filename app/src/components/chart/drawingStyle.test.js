@@ -12,7 +12,10 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { LINE_DASH, DEFAULT_LINE_STYLE, dashFor, isLineStyle } from './drawingStyle'
+import {
+  LINE_DASH, DEFAULT_LINE_STYLE, dashFor, isLineStyle,
+  ARROW_SIZES, DEFAULT_ARROW_SIZE, arrowSizeFor, arrowSizeName,
+} from './drawingStyle'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
@@ -144,5 +147,48 @@ describe('✅ the picker maps — fixed in Phase 1', () => {
     expect(TB).toContain("{ value: 0, label: 'Solid' }")
     expect(TB).toContain("{ value: 2, label: 'Dashed' }")
     expect(TB).toContain("{ value: 3, label: 'Dotted' }")
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('arrow sizes — three names, and Medium is the shipped one', () => {
+  it('⛔ MEDIUM IS 10, WHICH IS WHAT renderArrow ALWAYS PASSED', () => {
+    // If Medium were anything else, every arrow ever drawn would either change
+    // size or match no entry in the picker. Both are wrong; 10 is neither.
+    expect(ARROW_SIZES.medium).toBe(10)
+    expect(DEFAULT_ARROW_SIZE).toBe(10)
+  })
+
+  it('offers exactly small / medium / large, ascending', () => {
+    expect(Object.keys(ARROW_SIZES)).toEqual(['small', 'medium', 'large'])
+    const v = Object.values(ARROW_SIZES)
+    expect(v).toEqual([...v].sort((a, b) => a - b))
+    expect(new Set(v).size).toBe(3)
+  })
+
+  it('a drawing that names no size is Medium — that is every legacy arrow', () => {
+    for (const d of [null, undefined, {}, { arrowSize: null }, { arrowSize: undefined }]) {
+      expect(arrowSizeFor(d)).toBe(10)
+      expect(arrowSizeName(d)).toBe('medium')
+    }
+  })
+
+  it('a nonsense size falls back rather than drawing a broken head', () => {
+    for (const bad of [0, -4, NaN, Infinity, 'large', {}]) {
+      expect(arrowSizeFor({ arrowSize: bad }), String(bad)).toBe(10)
+    }
+  })
+
+  it('a stored size is used as-is, and names itself when it matches', () => {
+    expect(arrowSizeFor({ arrowSize: ARROW_SIZES.large })).toBe(ARROW_SIZES.large)
+    expect(arrowSizeName({ arrowSize: ARROW_SIZES.small })).toBe('small')
+    // A size from a future build that is not one of ours still RENDERS…
+    expect(arrowSizeFor({ arrowSize: 13 })).toBe(13)
+    // …it just does not light up a button in the picker.
+    expect(arrowSizeName({ arrowSize: 13 })).toBeNull()
+  })
+
+  it('the table is frozen', () => {
+    expect(Object.isFrozen(ARROW_SIZES)).toBe(true)
   })
 })

@@ -15858,7 +15858,27 @@ export default function StockChart({
             undo={undo}
             redo={redo}
             snapshotHistory={snapshotHistory}
-            onSaveDefaults={(d) => handleUpdateChartSettings({ ...cs, drawingDefaults: { ...cs.drawingDefaults, ...d } })}
+            toolDefaults={cs.drawingDefaults?.byTool || null}
+            /* ⛔ `byTool` MERGES ONE LEVEL DEEP; EVERYTHING ELSE STILL SPREADS FLAT.
+               A plain `{...cs.drawingDefaults, ...d}` would replace the whole
+               byTool map with the one tool that just saved — so saving a
+               Rectangle's fill would silently drop the Arrow size someone saved
+               last week. The flat half (color/width/style/fontSize) keeps its
+               shipped shared behaviour; only the per-tool half is nested. */
+            onSaveDefaults={(d) => {
+              const { byTool, ...flat } = d || {}
+              const prev = cs.drawingDefaults || {}
+              const nextByTool = byTool
+                ? Object.entries(byTool).reduce(
+                  (acc, [tool, props]) => ({ ...acc, [tool]: { ...(acc[tool] || {}), ...props } }),
+                  { ...(prev.byTool || {}) },
+                )
+                : prev.byTool
+              handleUpdateChartSettings({
+                ...cs,
+                drawingDefaults: { ...prev, ...flat, ...(nextByTool ? { byTool: nextByTool } : {}) },
+              })
+            }}
             onSetAlert={handleSetDrawingAlert}
             savedColors={savedColors}
             onSaveColor={onSaveColor}

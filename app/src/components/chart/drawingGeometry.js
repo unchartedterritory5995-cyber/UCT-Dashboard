@@ -416,3 +416,71 @@ export function hitTestDrawing(d, pts, mx, my, rect) {
     default: return false
   }
 }
+
+// ─── Where a tool's HANDLES go (Phase 4) ────────────────────────
+
+/**
+ * ⭐ A HANDLE IS NOT ALWAYS AN ANCHOR, AND THE CIRCLE IS WHY.
+ *
+ * A Circle stores two points — opposite corners of the ellipse's bounding box —
+ * and the ellipse is inscribed in that box. So the anchors themselves sit in
+ * EMPTY SPACE, diagonally outside the shape, and the two gold dots floated off
+ * the drawing with nothing under them. `handlePointsFor` is the seam: every
+ * other tool's handles are still exactly its anchors, and a tool that wants them
+ * somewhere else says so in one place that the painter, the hit test and the
+ * cursor all read.
+ *
+ * ⛔ THE STORED MODEL DOES NOT CHANGE. This maps anchors → pixels for DISPLAY and
+ * HIT TESTING only. Index `i` of the result is still anchor `i`, which is what
+ * `handleIdx` means to the drag path, so dragging goes on moving the same stored
+ * corner it always did.
+ */
+
+/** Where the segment centre→corner crosses the inscribed ellipse.
+ *
+ *  In normalised ellipse space a bbox corner sits at (±1, ±1), so the ray from
+ *  the centre through it meets the ellipse at (±1/√2, ±1/√2) — the point of the
+ *  border facing its own corner. Symmetric, one per anchor, and it degenerates
+ *  gracefully: a zero-width ellipse puts both handles on the vertical it drew. */
+const DIAG = Math.SQRT1_2
+
+export function circleHandlePoints(pts) {
+  if (!pts || pts.length < 2 || !pts[0] || !pts[1]) return pts || []
+  const a = pts[0], b = pts[1]
+  if (a.valid === false || b.valid === false) return pts
+  if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) return pts
+  const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2
+  const rx = Math.abs(b.x - a.x) / 2, ry = Math.abs(b.y - a.y) / 2
+  const on = (p) => ({
+    ...p,
+    x: cx + Math.sign(p.x - cx) * rx * DIAG,
+    y: cy + Math.sign(p.y - cy) * ry * DIAG,
+  })
+  return [on(a), on(b), ...pts.slice(2)]
+}
+
+/**
+ * How far the ANCHOR must move for the HANDLE to keep up with the cursor.
+ *
+ * ⛔ WITHOUT THIS THE HANDLE SLIDES OUT FROM UNDER THE POINTER. A circle handle
+ * is `α·own + (1−α)·other` with α = (1 + 1/√2)/2 ≈ 0.854, so moving the anchor
+ * by δ moves the visible dot by only 0.854δ — drag it 200px and the dot is 29px
+ * behind the mouse. Scaling the drag delta by 1/α makes the dot travel exactly
+ * with the pointer while the STORED anchor still moves by a plain delta.
+ *
+ * ⭐ IT IS 1 FOR EVERY OTHER TOOL AND FOR WHOLE-BODY MOVES. A handle that IS its
+ * anchor needs no correction, and a body drag moves both anchors together (so
+ * the shape translates rigidly and every handle already tracks 1:1).
+ */
+export const CIRCLE_HANDLE_GAIN = 1 / ((1 + Math.SQRT1_2) / 2)
+
+export function handleDragGain(type, handleIdx) {
+  if (handleIdx == null) return 1
+  if (type === 'circle' && (handleIdx === 0 || handleIdx === 1)) return CIRCLE_HANDLE_GAIN
+  return 1
+}
+
+export function handlePointsFor(type, pts) {
+  if (type === 'circle') return circleHandlePoints(pts)
+  return pts
+}

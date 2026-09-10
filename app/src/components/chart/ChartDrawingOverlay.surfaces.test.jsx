@@ -223,14 +223,40 @@ describe('every mount surface survives the Phase 1 pane machinery', () => {
 // canvas makes, and jsdom's canvas records nothing. What can be gated honestly
 // is that the prop still reaches the expression it governs — so a Phase-2+ edit
 // that drops one fails HERE, by name, instead of silently changing Model Book.
-describe('the seven Model Book / surface override props still reach their decisions', () => {
-  const near = (needle, span = 400) => {
-    const i = SRC.indexOf(needle)
-    return i < 0 ? '' : SRC.slice(Math.max(0, i - span), i + span)
-  }
+/** The source around a landmark. Hoisted to module scope in Phase 4 so the
+ *  wiring block below can use it too. */
+const near = (needle, span = 400) => {
+  const i = SRC.indexOf(needle)
+  return i < 0 ? '' : SRC.slice(Math.max(0, i - span), i + span)
+}
 
-  it('hidePriceLabels still gates the Horizontal Line label', () => {
-    expect(SRC).toContain('renderHorizontal(ctx, pts, rect, !hidePriceLabels, w)')
+describe('the seven Model Book / surface override props still reach their decisions', () => {
+
+  it('⛔ hidePriceLabels IS THE HARD OVERRIDE, and the drawing decides the rest', () => {
+    // Phase 4 gave both flat-line tools a per-drawing toggle. The SURFACE veto
+    // still wins outright: a Model Book setup ray is line-only whatever the
+    // drawing says, which is why the two conditions are ANDed in this order.
+    for (const call of ["renderHorizontal(ctx, pts, rect, {", "renderHRay(ctx, pts, hrayRight, {"]) {
+      const block = near(call)
+      expect(block, call).toContain("showLabel: !hidePriceLabels && !!drawingProp(d, 'showPriceLabel')")
+    }
+  })
+
+  it('a drawing that never heard of the toggle resolves it OFF', () => {
+    // `drawingProp` falls back to DRAWING_DEFAULTS, where showPriceLabel is
+    // false — so every line drawn before Phase 4 renders exactly as it did.
+    expect(SRC).toContain("import { drawingProp } from './drawingSchema'")
+  })
+
+  it('⭐ a NEW drawing is stamped with its tool’s own starting settings', () => {
+    expect(near('pane: newPending[0]?.pane || PRICE', 900))
+      .toContain('...(newDrawingProps(activeTool, toolDefaults) || {})')
+  })
+
+  it('the per-tool defaults reach creation, and nothing else', () => {
+    // `toolDefaults` is the byTool half of cs.drawingDefaults. It is read at
+    // creation only — a saved Rectangle fill can never reach a Circle.
+    expect(SRC).toContain('toolDefaults = null,')
   })
 
   it('measurePctOnly still reaches renderMeasure', () => {
@@ -290,9 +316,27 @@ describe('the Phase 1 pane machinery is wired the way the report claims', () => 
     expect(SRC).toContain("ctx.restore()   // end plot-area clip")
   })
 
-  it('handles are painted with the drawing’s resolved ink', () => {
-    expect(SRC).toContain('renderSelectionHandles(ctx, pts, ink)')
+  it('handles are painted with the drawing’s resolved ink, at their VISIBLE positions', () => {
+    // ⭐ `handlePointsFor` is the Phase 4 seam: the Circle's dots move onto its
+    // border, every other tool's stay on its anchors. The painter and the hit
+    // test must ask the SAME function or the cursor and the grab disagree.
+    expect(SRC).toContain('renderSelectionHandles(ctx, handlePointsFor(d.type, pts), ink)')
     expect(SRC).toContain('const ink = brightenAnnotationColor(d.color) || UCT_DRAW_GOLD')
+    expect(near('const hitTestHandle = useCallback', 900))
+      .toContain('handlePointsFor(d.type, resolvePixels(d.points || [], rectForDrawing(d)))')
+  })
+
+  it('the circle’s creation dot is suppressed for a MOUSE only', () => {
+    // A finger lifts between taps, so the pending marker is the only feedback
+    // tap 1 gives. A mouse has the live preview under a moving cursor.
+    expect(SRC).toContain("const hidePendingDots = activeTool === 'circle' && !coarsePointer")
+    expect(SRC).toContain('activeTool && pendingPoints.length > 0 && !hidePendingDots')
+  })
+
+  it('the handle drag gain is applied to the DELTA, so nothing jumps on grab', () => {
+    const block = near('const gain = handleDragGain(d.type, drag.handleIdx)', 700)
+    expect(block).toContain('* gain')
+    expect(block).not.toContain('drag.startPixel =')
   })
 
   it('a vertical-only drag does not rewrite time', () => {

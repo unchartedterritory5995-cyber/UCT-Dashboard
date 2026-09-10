@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   measuredWidth, _clearLabelCache, formatPrice, formatPercent, formatDelta,
-  inkOn, labelBox, drawLabel, LABEL_FONT,
+  inkOn, labelBox, drawLabel, LABEL_FONT, avoidOverlap, priceFormatterFor,
 } from './drawingLabels'
 import { fillFor, borderFor } from './drawingStyle'
 
@@ -231,7 +231,7 @@ describe('drawLabel', () => {
   })
 })
 
-describe('fillFor / borderFor — Phase 1 changes no pixels', () => {
+describe('fillFor / borderFor — an unnamed fill changes no pixels', () => {
   it('defaults ARE the shipped hard-coded alphas', () => {
     // renderRect / renderCircle 0.08, renderMeasure 0.06, pitchfork + channel 0.04.
     expect(fillFor({}, '#c9a84c').opacity).toBe(0.08)
@@ -249,6 +249,21 @@ describe('fillFor / borderFor — Phase 1 changes no pixels', () => {
     expect(fillFor({ fillColor: '#60a5fa' }, '#1ae51a').color).toBe('#60a5fa')
   })
 
+  it('⭐ AN EXPLICIT FILL IS NOT DIMMED TO 8% — the slider would look broken', () => {
+    // ColorPanel emits `#rrggbbaa`, so the alpha the user chose is already IN
+    // the colour. Multiplying it by the shipped 0.08 again would mean dragging
+    // the opacity slider to 100% and getting 8%.
+    expect(fillFor({ fillColor: '#60a5fa' }, '#1ae51a').opacity).toBe(1)
+    expect(fillFor({ fillColor: '#60a5fa80' }, '#1ae51a').opacity).toBe(1)
+    // …while a rectangle that names no fill keeps the shipped tint exactly.
+    expect(fillFor({}, '#1ae51a').opacity).toBe(0.08)
+  })
+
+  it('an explicit fillOpacity still overrides, for either kind of fill', () => {
+    expect(fillFor({ fillColor: '#60a5fa', fillOpacity: 0.5 }, '#111').opacity).toBe(0.5)
+    expect(fillFor({ fillOpacity: 0.5 }, '#111').opacity).toBe(0.5)
+  })
+
   it('respects an explicit 0 opacity — "no fill" is a real choice', () => {
     expect(fillFor({ fillOpacity: 0 }, '#fff').opacity).toBe(0)
   })
@@ -262,5 +277,100 @@ describe('fillFor / borderFor — Phase 1 changes no pixels', () => {
   it('borderFor follows the line unless the drawing names its own', () => {
     expect(borderFor({}, '#c9a84c')).toBe('#c9a84c')
     expect(borderFor({ borderColor: '#ff5b5b' }, '#c9a84c')).toBe('#ff5b5b')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('priceFormatterFor — the series is the authority on precision', () => {
+  const seriesWith = (format) => ({ priceFormatter: () => ({ format }) })
+
+  it('⭐ USES THE SERIES\u2019 OWN FORMATTER, so a label matches the axis tag', () => {
+    const fmt = priceFormatterFor(seriesWith((v) => `${v.toFixed(4)}`))
+    expect(fmt(1.5)).toBe('1.5000')          // a 4dp instrument, not our 2dp guess
+  })
+
+  it('falls back to formatPrice when there is no series at all', () => {
+    for (const s of [null, undefined, {}, { priceFormatter: null }]) {
+      expect(priceFormatterFor(s)(412.5)).toBe('412.50')
+      expect(priceFormatterFor(s)(0.004213)).toBe('0.0042')
+    }
+  })
+
+  it('falls back when the series\u2019 formatter throws or returns nothing', () => {
+    expect(priceFormatterFor(seriesWith(() => { throw new Error('nope') }))(5)).toBe('5.00')
+    expect(priceFormatterFor(seriesWith(() => ''))(5)).toBe('5.00')
+    expect(priceFormatterFor(seriesWith(() => null))(5)).toBe('5.00')
+    expect(priceFormatterFor({ priceFormatter: () => { throw new Error('x') } })(5)).toBe('5.00')
+  })
+
+  it('never prints a number for a non-number', () => {
+    const fmt = priceFormatterFor(seriesWith((v) => String(v)))
+    for (const bad of [null, undefined, '', NaN, Infinity]) expect(fmt(bad)).toBe('')
+  })
+
+  it('works across the magnitudes a trader actually sees', () => {
+    const f = priceFormatterFor(null)
+    expect(f(5000)).toBe('5000.00')          // an index
+    expect(f(412.5)).toBe('412.50')          // a large-cap
+    expect(f(4.2)).toBe('4.20')              // a small-cap
+    expect(f(0.0421)).toBe('0.0421')         // sub-dollar: more decimals, not fewer
+    expect(f(0)).toBe('0.00')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('avoidOverlap — a placement rule, deliberately not a solver', () => {
+  const box = (y, h = 17, x = 0, w = 40) => ({ x, y, w, h })
+
+  it('leaves a box alone when nothing is in its way', () => {
+    const b = box(100)
+    expect(avoidOverlap(b, []).y).toBe(100)
+    expect(avoidOverlap(b, [box(300)]).y).toBe(100)
+    expect(avoidOverlap(b, [box(100, 17, 500)]).y).toBe(100)   // same row, far away
+  })
+
+  it('drops a colliding box CLEAR of the one it hit, not by a fixed step', () => {
+    // A fixed "one row down" step assumes every label is the same height and on
+    // the same grid — a `+10.00%` chip beside a `4,213.50` one is neither, and a
+    // fixed step would leave them still touching. The move is measured off the
+    // box it actually collided with.
+    const b = box(100)
+    avoidOverlap(b, [box(102)])
+    expect(b.y).toBe(102 + 17 + 2)
+    const tall = box(100)
+    avoidOverlap(tall, [box(100, 40)])
+    expect(tall.y).toBe(100 + 40 + 2)
+  })
+
+  it('steps UP when down is also taken', () => {
+    const b = box(100)
+    avoidOverlap(b, [box(100), box(119)])
+    expect(b.y).toBe(100 - 19)
+  })
+
+  it('⛔ DRAWS ANYWAY WHEN IT IS TRULY CROWDED — a hidden price is worse', () => {
+    const taken = [-2, -1, 0, 1, 2].map((k) => box(100 + k * 19))
+    const b = box(100)
+    avoidOverlap(b, taken)
+    expect(b.y).toBe(100)          // gave up and kept its place
+  })
+
+  it('never steps outside the pane it was given', () => {
+    const bounds = { x0: 0, y0: 0, x1: 800, y1: 120 }
+    const b = box(100)
+    avoidOverlap(b, [box(100)], { bounds })
+    // Down would leave the pane (119 + 17 > 120), so it goes up instead.
+    expect(b.y).toBe(81)
+    expect(b.y).toBeGreaterThanOrEqual(bounds.y0)
+    expect(b.y + b.h).toBeLessThanOrEqual(bounds.y1)
+  })
+
+  it('drawLabel reserves what it draws, so the NEXT label sees it', () => {
+    const ctx = makeCtx()
+    const avoid = []
+    const a = drawLabel(ctx, { text: '100.00', x: 700, y: 200, align: 'right', baseline: 'middle', bg: '#c9a84c', avoid })
+    const b = drawLabel(ctx, { text: '100.10', x: 700, y: 201, align: 'right', baseline: 'middle', bg: '#c9a84c', avoid })
+    expect(avoid).toHaveLength(2)
+    expect(Math.abs(b.y - a.y)).toBeGreaterThanOrEqual(a.h)
   })
 })

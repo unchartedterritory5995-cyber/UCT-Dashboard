@@ -24,6 +24,7 @@ import {
   distToSegment, distToLine, clipLineToRect, extendToEdges, extendLineFar,
   extendRay, cupControlPoint, computeAdvancePct, offsetPoints, boundsOf,
   hitTestDrawing, pointsUsable,
+  circleHandlePoints, handlePointsFor, handleDragGain, CIRCLE_HANDLE_GAIN,
 } from './drawingGeometry'
 
 // Every geometry call now takes a pane RECT rather than a bare width/height,
@@ -489,5 +490,107 @@ describe('hitTestDrawing — per type', () => {
     setPointer(true)
     expect(HIT_COARSE).toBeGreaterThan(HIT_FINE)
     expect(hit('trendline', pts, 200, justOutsideFine)).toBe(true)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ CIRCLE HANDLES — on the border, where the drawing actually is', () => {
+  // ⚰️ THE BUG THIS FIXES. A circle stores two BOUNDING-BOX corners and draws an
+  // inscribed ellipse, so both stored anchors sit in empty space diagonally
+  // outside the shape. The two gold handles floated off the drawing with nothing
+  // under them, and grabbing the ellipse's edge did nothing.
+  const P = (x, y, extra = {}) => ({ x, y, ...extra })
+  /** Is this point on the ellipse inscribed in the two corners? */
+  const onEllipse = (h, a, b) => {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2
+    const rx = Math.abs(b.x - a.x) / 2, ry = Math.abs(b.y - a.y) / 2
+    return ((h.x - cx) / rx) ** 2 + ((h.y - cy) / ry) ** 2
+  }
+
+  it('every tool EXCEPT the circle keeps its handles on its anchors', () => {
+    const pts = [P(10, 20), P(30, 40), P(50, 60)]
+    for (const t of ['trendline', 'rect', 'arrow', 'fib', 'pitchfork', 'text', 'measure', undefined]) {
+      expect(handlePointsFor(t, pts), String(t)).toBe(pts)
+    }
+  })
+
+  it('⭐ both circle handles land exactly ON the ellipse', () => {
+    for (const [a, b] of [
+      [P(100, 100), P(300, 200)],     // wide
+      [P(100, 100), P(160, 400)],     // tall
+      [P(100, 100), P(200, 200)],     // near-circular
+      [P(100, 100), P(104, 103)],     // tiny
+      [P(0, 0), P(1200, 700)],        // large
+      [P(300, 200), P(100, 100)],     // REVERSED anchor order
+    ]) {
+      const [h0, h1] = handlePointsFor('circle', [a, b])
+      expect(onEllipse(h0, a, b)).toBeCloseTo(1, 9)
+      expect(onEllipse(h1, a, b)).toBeCloseTo(1, 9)
+    }
+  })
+
+  it('each handle stays on ITS OWN side — they never swap or collapse', () => {
+    const a = P(100, 100), b = P(300, 200)
+    const [h0, h1] = handlePointsFor('circle', [a, b])
+    expect(h0.x).toBeLessThan(h1.x)
+    expect(h0.y).toBeLessThan(h1.y)
+    // …and with the anchors stored the other way round, so does the mapping.
+    const [r0, r1] = handlePointsFor('circle', [b, a])
+    expect(r0.x).toBeGreaterThan(r1.x)
+    expect(r0).toMatchObject({ x: h1.x, y: h1.y })
+  })
+
+  it('⛔ INDEX i IS STILL ANCHOR i — what the drag path depends on', () => {
+    const a = P(100, 100, { time: 111, price: 5 }), b = P(300, 200, { time: 222, price: 9 })
+    const out = handlePointsFor('circle', [a, b])
+    expect(out).toHaveLength(2)
+    // Everything but the pixel position rides along untouched, so nothing
+    // downstream can tell it was handed a display position.
+    expect(out[0].time).toBe(111)
+    expect(out[0].price).toBe(5)
+    expect(out[1].time).toBe(222)
+  })
+
+  it('a degenerate or unresolvable circle is handed back untouched', () => {
+    const flat = [P(100, 100), P(100, 100)]
+    const [f0, f1] = handlePointsFor('circle', flat)
+    expect([f0.x, f0.y, f1.x, f1.y]).toEqual([100, 100, 100, 100])
+    const bad = [P(NaN, 100), P(300, 200)]
+    expect(handlePointsFor('circle', bad)).toBe(bad)
+    const invalid = [{ valid: false }, P(300, 200)]
+    expect(handlePointsFor('circle', invalid)).toBe(invalid)
+    expect(handlePointsFor('circle', [P(1, 1)])).toHaveLength(1)
+  })
+
+  it('⭐ THE DRAG GAIN MAKES THE HANDLE TRACK THE POINTER EXACTLY', () => {
+    // The handle is a blend of both anchors, so moving the anchor 1:1 would leave
+    // it trailing the mouse. Move the anchor by gain × delta and the visible dot
+    // travels by exactly delta.
+    const a = P(100, 100), b = P(300, 200)
+    const before = handlePointsFor('circle', [a, b])[0]
+    const DELTA = 40
+    const gain = handleDragGain('circle', 0)
+    const moved = P(a.x + DELTA * gain, a.y)
+    const after = handlePointsFor('circle', [moved, b])[0]
+    expect(after.x - before.x).toBeCloseTo(DELTA, 9)
+  })
+
+  it('the gain is 1 for everything else, and for a whole-body move', () => {
+    expect(handleDragGain('circle', null)).toBe(1)     // dragging the body
+    expect(handleDragGain('rect', 0)).toBe(1)
+    expect(handleDragGain('trendline', 1)).toBe(1)
+    expect(handleDragGain('circle', 2)).toBe(1)        // a third point it does not have
+    expect(CIRCLE_HANDLE_GAIN).toBeGreaterThan(1)
+    expect(CIRCLE_HANDLE_GAIN).toBeCloseTo(1.171572875, 6)
+  })
+
+  it('a handle is always INSIDE the anchor bounding box, never outside the shape', () => {
+    const a = P(100, 100), b = P(300, 200)
+    for (const h of handlePointsFor('circle', [a, b])) {
+      expect(h.x).toBeGreaterThanOrEqual(100)
+      expect(h.x).toBeLessThanOrEqual(300)
+      expect(h.y).toBeGreaterThanOrEqual(100)
+      expect(h.y).toBeLessThanOrEqual(200)
+    }
   })
 })

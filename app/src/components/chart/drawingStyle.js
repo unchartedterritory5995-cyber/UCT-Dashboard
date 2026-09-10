@@ -64,22 +64,13 @@ export function isLineStyle(style) {
 /**
  * What colour and opacity should this drawing's fill be?
  *
- * ⛔ PHASE 1 BUILDS IT AND CHANGES NOTHING. Five surfaces fill a region today —
+ * ⛔ A SHAPE THAT NAMES NO FILL MUST NOT CHANGE. Five surfaces fill a region —
  * Rectangle, Circle, Measure, Pitchfork's prongs, Parallel Channel's band — and
- * every one of them does the same two lines inline with its own hard-coded
- * alpha (0.08, 0.08, 0.06, 0.04, 0.04). The defaults below ARE those numbers, so
- * routing a painter through this resolver is visually a no-op. Rectangle's
- * separate border/fill colours and Fib's bands are later phases; this is the
- * thing they will ask.
- *
- * ⭐ TWO OPACITIES MULTIPLY, AND THAT IS THE DESIGN. `ColorPanel` already emits
- * `rgba()` when its opacity slider is below 100%, so a drawing's colour can
- * ALREADY carry alpha — that is why `renderRect` fills with `globalAlpha = 0.08`
- * on top of a possibly-translucent stroke colour. Keeping the two multiplicative
- * means the slider goes on meaning "how solid is this drawing" while
- * `fillOpacity` goes on meaning "how much lighter is the fill than its border" —
- * the alternative (one replacing the other) makes the slider look broken on any
- * shape with a fill.
+ * every one of them used to do the same two lines inline with its own hard-coded
+ * alpha (0.08, 0.08, 0.06, 0.04, 0.04). Those numbers arrive here as
+ * `baseOpacity`, so a drawing with no `fillColor` and no `fillOpacity` renders
+ * exactly as it always has. Every rectangle and circle anyone has ever drawn is
+ * in that case, and Phase 4 is not allowed to restyle them.
  *
  * @param {object} drawing
  * @param {string} strokeInk  the drawing's RESOLVED (brightened) stroke colour —
@@ -90,13 +81,55 @@ export function isLineStyle(style) {
  *                            names none
  */
 export function fillFor(drawing, strokeInk, baseOpacity = 0.08) {
+  const clamp = (v, dflt) => (typeof v === 'number' && Number.isFinite(v))
+    ? Math.max(0, Math.min(1, v))
+    : dflt
   const own = drawing ? drawing.fillColor : null
-  const color = (own === undefined || own === null) ? strokeInk : own
-  const o = drawing ? drawing.fillOpacity : undefined
-  const opacity = (typeof o === 'number' && Number.isFinite(o))
-    ? Math.max(0, Math.min(1, o))
-    : baseOpacity
-  return { color, opacity }
+  // ⛔ TWO DEFAULTS, AND THE DIFFERENCE IS THE WHOLE UX.
+  //
+  // NO EXPLICIT FILL — the shape tints itself with its own outline colour at the
+  // shipped 0.08. That is what every existing rectangle and circle does, and it
+  // must keep doing it exactly.
+  //
+  // AN EXPLICIT FILL — the user opened the Fill picker and chose a colour, and
+  // that picker's OPACITY slider is the fill's opacity: it emits `rgba(...)`, so
+  // the alpha they chose is already in the colour. Multiplying it by 0.08 again
+  // would make the slider look broken (drag to 100%, get 8%). So an explicit
+  // fill defaults to a multiplier of 1 and the colour carries the transparency.
+  if (own === undefined || own === null) {
+    return { color: strokeInk, opacity: clamp(drawing && drawing.fillOpacity, baseOpacity) }
+  }
+  return { color: own, opacity: clamp(drawing && drawing.fillOpacity, 1) }
+}
+
+// ─── Arrow head size ────────────────────────────────────────────────────────
+
+/**
+ * The three arrowhead sizes, in SCREEN pixels.
+ *
+ * ⛔ MEDIUM IS 10 BECAUSE 10 IS WHAT SHIPPED. `renderArrow` passed a hard-coded
+ * `10` to `drawArrowhead`, so making Medium anything else would either restyle
+ * every arrow anyone has ever drawn or leave legacy arrows matching no entry in
+ * the picker. At 10 they are Medium, they look identical, and the control shows
+ * them correctly the first time it is opened.
+ *
+ * ⭐ AND THE UNIT IS SCREEN PIXELS, NOT CHART SPACE. An arrowhead is chrome that
+ * points at a place; the SHAFT is the geometry. Scaling the head with the zoom
+ * would make it a blob at 5Y and invisible intraday.
+ */
+export const ARROW_SIZES = Object.freeze({ small: 7, medium: 10, large: 16 })
+export const DEFAULT_ARROW_SIZE = ARROW_SIZES.medium
+
+/** The stored numeric size for a drawing — legacy arrows carry none and are Medium. */
+export const arrowSizeFor = (drawing) => {
+  const v = drawing && drawing.arrowSize
+  return (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : DEFAULT_ARROW_SIZE
+}
+
+/** Which named size is this, for showing the active entry in the picker? */
+export const arrowSizeName = (drawing) => {
+  const v = arrowSizeFor(drawing)
+  return Object.keys(ARROW_SIZES).find((k) => ARROW_SIZES[k] === v) || null
 }
 
 /**

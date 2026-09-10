@@ -16,6 +16,7 @@ const HANDLERS = () => ({
   onDuplicate: vi.fn(), onToggleLock: vi.fn(), onToggleHide: vi.fn(),
   onDelete: vi.fn(), onSaveDefaults: vi.fn(), onClose: vi.fn(),
   onSetAlert: vi.fn(), onSetLevel: vi.fn(), onMakeHorizontal: vi.fn(),
+  onSetProp: vi.fn(),
 })
 
 const draw = (type, extra = {}) => ({
@@ -34,7 +35,7 @@ function open(type, { sheet = false, drawing = {}, props = {} } = {}) {
 /** Row labels, in DOM order.
  *  The colour row's text carries its disclosure caret, and the font stepper's
  *  A− / A+ are controls inside a row rather than rows — neither is a label. */
-const STEPPER = new Set(['A−', 'A+', '✕', 'Set'])
+const STEPPER = new Set(['A−', 'A+', '✕', 'Set', 'S', 'M', 'L'])
 const rowLabels = () => [...document.querySelectorAll('button')]
   .map((b) => (b.textContent || '').trim().replace(/[▸▾]$/, '').trim())
   .filter((t) => t && !STEPPER.has(t))
@@ -69,10 +70,44 @@ describe('the rows come from the schema', () => {
     expect(screen.getByLabelText('Smaller text')).toBeTruthy()
   })
 
-  it('a Rectangle gets colour and the actions only', () => {
+  it('⭐ a Rectangle reads as Border + Fill, then its label toggle', () => {
+    // ⛔ AND IT HAS NO "Color" ROW. The colour row MOVED into Appearance and was
+    // renamed — a shape has an outline and an inside, and a second row that also
+    // set the outline colour would be the duplicate control the brief warns off.
     open('rect')
     expect(rowLabels()).toEqual([
+      'Border', 'Fill', 'Show percent change',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+    expect(screen.getByText('Appearance')).toBeTruthy()
+    expect(screen.getByText('Label')).toBeTruthy()
+  })
+
+  it('a Horizontal Line gains its price label toggle, above the level rows', () => {
+    open('horizontal')
+    expect(rowLabels()).toEqual([
+      'Color', 'Show price label', 'Set level…', 'Set alert…',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+  })
+
+  it('an Arrow gains a size picker and nothing else', () => {
+    open('arrow')
+    // The picker is a row with controls in it, not an action row — same shape as
+    // the Text Note's font stepper, so it is checked the same way.
+    expect(rowLabels()).toEqual([
       'Color', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+    ])
+    expect(screen.getByText('Arrow size')).toBeTruthy()
+    expect(screen.getAllByRole('radio')).toHaveLength(3)
+  })
+
+  it('⛔ a caller with no onSetProp gets none of the new rows', () => {
+    // Every read-only surface is in this shape: a menu cannot offer a setting it
+    // has no way to apply.
+    open('rect', { props: { onSetProp: null } })
+    expect(rowLabels()).toEqual([
+      'Border', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
     ])
   })
 
@@ -118,9 +153,26 @@ describe('the rows do what they say', () => {
   it('Save as default sends the tool’s own properties, and confirms', () => {
     const { h } = open('rect', { drawing: { color: '#60a5fa', lineWidth: 3, lineStyle: 'dotted' } })
     fireEvent.click(screen.getByText('Save as default'))
-    // A rectangle has a colour row and nothing else that persists, so: no fontSize.
-    expect(h.onSaveDefaults).toHaveBeenCalledWith({ color: '#60a5fa', width: 3, style: 'dotted' })
+    // A rectangle's Border row persists colour/width/style; its label toggle is
+    // off and saved as such; it has no font size and no fill of its own yet.
+    expect(h.onSaveDefaults).toHaveBeenCalledWith({
+      color: '#60a5fa', width: 3, style: 'dotted',
+      byTool: { rect: { showPercentChange: false } },
+    })
     expect(screen.getByText('Saved as default ✓')).toBeTruthy()
+  })
+
+  it('⛔ A TOOL-SPECIFIC VALUE IS FILED UNDER ITS TOOL, never in the shared half', () => {
+    const r = open('rect', { drawing: { fillColor: '#3f7fe0aa', showPercentChange: true } })
+    fireEvent.click(screen.getByText('Save as default'))
+    const payload = r.h.onSaveDefaults.mock.calls[0][0]
+    expect(payload.byTool).toEqual({ rect: { fillColor: '#3f7fe0aa', showPercentChange: true } })
+    expect(payload).not.toHaveProperty('fillColor')
+    cleanup()
+    // …and an Arrow saves its size under `arrow`, where a Rectangle can't see it.
+    const a = open('arrow', { drawing: { arrowSize: 16 } })
+    fireEvent.click(screen.getByText('Save as default'))
+    expect(a.h.onSaveDefaults.mock.calls[0][0].byTool).toEqual({ arrow: { arrowSize: 16 } })
   })
 
   it('⭐ a Text Note’s defaults DO carry its font size; a line’s never do', () => {
@@ -250,5 +302,90 @@ describe('touch: the bottom sheet', () => {
     cleanup()
     open('trendline')
     expect(touch).toEqual(rowLabels())
+  })
+})
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ PHASE 4 WIDGETS — two generic ones, no tool-specific branching', () => {
+  it('a toggle reports its state and flips the named property', () => {
+    const { h } = open('horizontal')
+    const sw = screen.getByRole('switch')
+    expect(sw.getAttribute('aria-checked')).toBe('false')   // a legacy line: OFF
+    fireEvent.click(sw)
+    expect(h.onSetProp).toHaveBeenCalledWith('showPriceLabel', true)
+  })
+
+  it('a toggle already ON turns OFF — it is not a one-way switch', () => {
+    const { h } = open('horizontal', { drawing: { showPriceLabel: true } })
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(screen.getByRole('switch'))
+    expect(h.onSetProp).toHaveBeenCalledWith('showPriceLabel', false)
+  })
+
+  it('the Rectangle’s toggle writes ITS property, not the line’s', () => {
+    const { h } = open('rect')
+    fireEvent.click(screen.getByRole('switch'))
+    expect(h.onSetProp).toHaveBeenCalledWith('showPercentChange', true)
+  })
+
+  it('the arrow size picker offers three sizes and marks the current one', () => {
+    const { h } = open('arrow')
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map((r) => r.textContent)).toEqual(['S', 'M', 'L'])
+    // ⛔ A LEGACY ARROW SHOWS AS MEDIUM, because Medium IS the size it is drawn at.
+    expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false'])
+    fireEvent.click(radios[2])
+    expect(h.onSetProp).toHaveBeenCalledWith('arrowSize', 16)
+  })
+
+  it('a stored size lights up its own button', () => {
+    open('arrow', { drawing: { arrowSize: 7 } })
+    expect(screen.getAllByRole('radio').map((r) => r.getAttribute('aria-checked')))
+      .toEqual(['true', 'false', 'false'])
+  })
+
+  it('Border and Fill open the SAME panel, one at a time', () => {
+    open('rect')
+    fireEvent.click(screen.getByText('Border'))
+    expect(document.querySelectorAll('[data-color-panel]')).toHaveLength(1)
+    fireEvent.click(screen.getByText('Fill'))
+    expect(document.querySelectorAll('[data-color-panel]')).toHaveLength(1)
+  })
+
+  it('⛔ THE FILL PANEL HAS NO LINE CONTROLS — a fill has no width or dash', () => {
+    const { h } = open('rect')
+    fireEvent.click(screen.getByText('Fill'))
+    const panel = document.querySelector('[data-color-panel]')
+    for (const s of ['solid', 'dashed', 'dotted']) {
+      expect(panel.querySelector(`button[aria-label="${s}"]`), s).toBeNull()
+    }
+    // …and it writes fillColor, never the drawing's own colour.
+    expect(h.onSetColor).not.toHaveBeenCalled()
+  })
+
+  it('the Border panel keeps the width + line-style controls', () => {
+    open('rect')
+    fireEvent.click(screen.getByText('Border'))
+    const panel = document.querySelector('[data-color-panel]')
+    for (const s of ['solid', 'dashed', 'dotted']) {
+      expect(panel.querySelector(`button[aria-label="${s}"]`), s).toBeTruthy()
+    }
+  })
+
+  it('the Fill swatch shows the drawing’s colour until a fill is chosen', () => {
+    // Which is honest: with no fill of its own, that IS what the inside is tinted.
+    open('rect', { drawing: { color: '#1ae51a' } })
+    const row = screen.getByText('Fill').closest('button')
+    const swatch = [...row.querySelectorAll('span')].find((el) => el.style.borderRadius === '50%')
+    expect(swatch.style.background).toContain('26, 229, 26')
+  })
+
+  it('Delete is still the last row on every Phase 4 tool', () => {
+    for (const type of ['horizontal', 'hray', 'rect', 'arrow']) {
+      cleanup()
+      open(type)
+      expect(rowLabels().at(-1), type).toBe('Delete Drawing')
+    }
   })
 })

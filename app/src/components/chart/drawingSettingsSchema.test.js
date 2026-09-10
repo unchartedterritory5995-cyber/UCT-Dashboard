@@ -8,12 +8,20 @@
  * the overlay computed for it — and every drawing type is compared against the
  * new schema. Not a snapshot of the new behaviour: an independent statement of
  * the old one.
+ *
+ * ⭐ PHASE 4 KEEPS THE MATRIX AND DECLARES ITS ADDITIONS SEPARATELY. The moment a
+ * phase actually adds settings, the temptation is to re-baseline `OLD_MENU` and
+ * lose the guarantee. Instead `PHASE4_ADD` / `PHASE4_RENAME` below state, per
+ * tool, exactly what changed — so the assertion is still "the Phase-3 menu, plus
+ * these named rows, and nothing else". A row that vanished would still fail, and
+ * a row that appeared without being declared would too.
  */
 import { describe, it, expect } from 'vitest'
 import {
   SECTION_ORDER, CONTROLS, SCHEMA, schemaFor, controlIdsFor,
-  sectionsFor, defaultsPayloadFor,
+  sectionsFor, defaultsPayloadFor, newDrawingProps,
 } from './drawingSettingsSchema'
+import { drawingProp } from './drawingSchema'
 import { TOOL_ICONS } from './ChartToolbar'
 
 // Every drawing type that can exist on a chart. `ray` has no toolbar button but
@@ -60,10 +68,41 @@ function oldMenuFor(type, { points = [{}, {}], hasAlert = true, hasHide = true, 
   return ids
 }
 
+// ── what Phase 4 added, transcribed from the brief rather than from the table ──
+//
+//   Horizontal Line / Horizontal Ray  + "Show price label"   (label section)
+//   Rectangle                         Color BECOMES "Border", + "Fill",
+//                                     + "Show percent change"
+//   Arrow                             + "Arrow size"
+//
+// All four new controls need `onSetProp`; a caller that does not wire it gets
+// the Phase-3 menu exactly, which is what every read-only surface still sees.
+const PHASE4_RENAME = { rect: { color: 'border' } }
+const PHASE4_ADD = {
+  horizontal: { color: ['showPriceLabel'] },
+  hray: { color: ['showPriceLabel'] },
+  rect: { border: ['fill', 'showPercentChange'] },
+  arrow: { color: ['arrowSize'] },
+}
+
+/** The old menu, plus Phase 4's declared additions, in render order. */
+function menuFor(type, opts = {}) {
+  const rename = PHASE4_RENAME[type] || {}
+  const add = (opts.hasSetProp === false) ? {} : (PHASE4_ADD[type] || {})
+  const out = []
+  for (const id of oldMenuFor(type, opts)) {
+    const nid = rename[id] || id
+    out.push(nid)
+    for (const extra of add[nid] || []) out.push(extra)
+  }
+  return out
+}
+
 const ALL_HANDLERS = {
   onSetFontSize: () => {}, onSetLevel: () => {}, onMakeHorizontal: () => {},
   onSetAlert: () => {}, onDuplicate: () => {}, onToggleLock: () => {},
   onToggleHide: () => {}, onSaveDefaults: () => {}, onDelete: () => {},
+  onSetProp: () => {},
 }
 const flatIds = (sections) => sections.flatMap((s) => s.items.map((i) => i.id))
 const resolve = (type, opts = {}) => flatIds(sectionsFor({
@@ -75,8 +114,8 @@ const resolve = (type, opts = {}) => flatIds(sectionsFor({
 // ═══════════════════════════════════════════════════════════════════════════
 describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type', () => {
   for (const type of ALL_TYPES) {
-    it(`${type} — identical controls, in identical order`, () => {
-      expect(resolve(type)).toEqual(oldMenuFor(type))
+    it(`${type} — the Phase-3 controls plus its declared Phase-4 additions`, () => {
+      expect(resolve(type)).toEqual(menuFor(type))
     })
   }
 
@@ -92,8 +131,21 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
     const opts = { handlers: { onSetAlert: null, onSaveDefaults: null, onToggleHide: null } }
     for (const type of ALL_TYPES) {
       expect(resolve(type, opts), type).toEqual(
-        oldMenuFor(type, { hasAlert: false, hasSaveDefaults: false, hasHide: false }),
+        menuFor(type, { hasAlert: false, hasSaveDefaults: false, hasHide: false }),
       )
+    }
+  })
+
+  it('⛔ a caller with no onSetProp gets the PHASE-3 MENU, unchanged', () => {
+    // Every read-only / annotation surface is in this shape. Phase 4's settings
+    // are additive to the tool, not to the component: a surface that cannot edit
+    // a drawing does not grow rows it could not action.
+    for (const type of ALL_TYPES) {
+      const got = resolve(type, { handlers: { onSetProp: null } })
+      expect(got, type).toEqual(menuFor(type, { hasSetProp: false }))
+      for (const id of ['showPriceLabel', 'showPercentChange', 'fill', 'arrowSize']) {
+        expect(got, `${type} leaked ${id}`).not.toContain(id)
+      }
     }
   })
 
@@ -101,7 +153,7 @@ describe('⭐ CAPABILITY MATRIX — old menu vs new schema, every drawing type',
     // `horizontalSupported` carried `&& pts.length >= 2`; the schema carries it
     // as the control's own `available()`.
     for (const type of ['trendline', 'ray', 'extended']) {
-      expect(resolve(type, { points: [{}] }), type).toEqual(oldMenuFor(type, { points: [{}] }))
+      expect(resolve(type, { points: [{}] }), type).toEqual(menuFor(type, { points: [{}] }))
       expect(resolve(type, { points: [{}] })).not.toContain('makeHorizontal')
     }
   })
@@ -153,10 +205,14 @@ describe('the table is well-formed', () => {
     }
   })
 
-  it('gives every tool a Delete and a Color', () => {
+  it('gives every tool a Delete and a colour row', () => {
     for (const type of ALL_TYPES) {
       expect(resolve(type), type).toContain('remove')
-      expect(resolve(type), type).toContain('color')
+      // ⛔ THE RECTANGLE'S COLOUR ROW IS CALLED `border` — it MOVED rather than
+      // being duplicated, which is the whole reason the shape has no `color`.
+      const ids = resolve(type)
+      expect(ids.includes('color') || ids.includes('border'), type).toBe(true)
+      expect(ids.includes('color') && ids.includes('border'), `${type} has TWO colour rows`).toBe(false)
     }
   })
 
@@ -211,7 +267,32 @@ describe('labels that depend on the drawing', () => {
     expect(labelOf('rect', 'saveDefault')).toBe('Save as default')
     expect(labelOf('rect', 'remove')).toBe('Delete Drawing')
     expect(labelOf('text', 'fontSize')).toBe('Text size')
-    expect(labelOf('rect', 'color')).toBe('Color')
+    expect(labelOf('trendline', 'color')).toBe('Color')
+  })
+
+  it('⭐ the Rectangle says Border and Fill, because that is what they are', () => {
+    expect(labelOf('rect', 'border')).toBe('Border')
+    expect(labelOf('rect', 'fill')).toBe('Fill')
+    expect(labelOf('rect', 'color')).toBeUndefined()
+  })
+
+  it('the new toggles read as plain statements', () => {
+    expect(labelOf('horizontal', 'showPriceLabel')).toBe('Show price label')
+    expect(labelOf('hray', 'showPriceLabel')).toBe('Show price label')
+    expect(labelOf('rect', 'showPercentChange')).toBe('Show percent change')
+    expect(labelOf('arrow', 'arrowSize')).toBe('Arrow size')
+  })
+
+  it('a section that needs a heading gets one; the spine sections do not', () => {
+    const titled = (type) => sectionsFor({
+      drawing: { type }, points: [{}, {}], handlers: ALL_HANDLERS,
+    }).map((s) => [s.id, s.title])
+    expect(titled('rect')).toEqual([
+      ['appearance', 'Appearance'], ['label', 'Label'], ['actions', undefined],
+    ])
+    expect(titled('trendline')).toEqual([
+      ['style', undefined], ['advanced', undefined], ['actions', undefined],
+    ])
   })
 })
 
@@ -229,6 +310,44 @@ describe('SAVE AS DEFAULT — the payload follows the tool’s own controls', ()
       expect(defaultsPayloadFor(type, VALUES), type).toEqual(expected)
     }
   })
+
+  // ── Phase 4: the tool-specific half ──────────────────────────────────────
+  it('⛔ a tool-specific property is filed UNDER THE TOOL, never flat', () => {
+    const p = defaultsPayloadFor('rect', { ...VALUES, fillColor: '#3f7fe0aa' })
+    expect(p.byTool).toEqual({ rect: { fillColor: '#3f7fe0aa' } })
+    expect(p.fillColor).toBeUndefined()          // not loose in the shared store
+    expect(p.color).toBe('#1ae51a')              // …and the shared half is intact
+  })
+
+  it('⭐ A RECTANGLE\u2019S FILL CANNOT BECOME A CIRCLE\u2019S — the leak this prevents', () => {
+    const rect = defaultsPayloadFor('rect', { ...VALUES, fillColor: '#d24ba8' })
+    expect(Object.keys(rect.byTool)).toEqual(['rect'])
+    // A Circle declares no fill control at all, so it neither saves nor reads one.
+    const circle = defaultsPayloadFor('circle', { ...VALUES, fillColor: '#d24ba8' })
+    expect(circle.byTool).toBeUndefined()
+    expect(newDrawingProps('circle', rect.byTool)).toBeNull()
+  })
+
+  it('each tool saves only what its OWN controls persist', () => {
+    const everything = {
+      ...VALUES, fillColor: '#111111', arrowSize: 16,
+      showPriceLabel: true, showPercentChange: true,
+    }
+    expect(defaultsPayloadFor('arrow', everything).byTool).toEqual({ arrow: { arrowSize: 16 } })
+    expect(defaultsPayloadFor('horizontal', everything).byTool).toEqual({ horizontal: { showPriceLabel: true } })
+    expect(defaultsPayloadFor('rect', everything).byTool).toEqual({
+      rect: { fillColor: '#111111', showPercentChange: true },
+    })
+    // A trend line has none of them.
+    expect(defaultsPayloadFor('trendline', everything).byTool).toBeUndefined()
+  })
+
+  it('saving a toggle OFF is a real answer, saving an absent fill is not', () => {
+    expect(defaultsPayloadFor('horizontal', { ...VALUES, showPriceLabel: false }).byTool)
+      .toEqual({ horizontal: { showPriceLabel: false } })
+    expect(defaultsPayloadFor('rect', VALUES).byTool).toBeUndefined()
+  })
+
 
   it('⭐ a tool never saves a property it has no control for', () => {
     // The rule that makes this survive later phases: a Trend Line has no
@@ -272,5 +391,43 @@ describe('the schema stays in step with the toolbar roster', () => {
       if (skip.has(id)) continue
       expect(SCHEMA[id], `tool '${id}' has an icon but no settings schema`).toBeTruthy()
     }
+  })
+})
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('NEW vs LEGACY — what a freshly drawn tool is stamped with', () => {
+  it('⭐ a NEW horizontal line is born with its price label ON', () => {
+    expect(newDrawingProps('horizontal')).toEqual({ showPriceLabel: true })
+    expect(newDrawingProps('hray')).toEqual({ showPriceLabel: true })
+  })
+
+  it('⛔ …and a LEGACY one is stamped with nothing, so it resolves OFF', () => {
+    // The whole legacy/new distinction: absence means off, presence means the
+    // user (or creation) said so. Nothing is written to an existing drawing.
+    expect(drawingProp({ type: 'horizontal' }, 'showPriceLabel')).toBe(false)
+    expect(drawingProp({ type: 'horizontal', showPriceLabel: true }, 'showPriceLabel')).toBe(true)
+  })
+
+  it('every other tool is stamped with nothing at all', () => {
+    for (const type of ALL_TYPES) {
+      if (type === 'horizontal' || type === 'hray') continue
+      expect(newDrawingProps(type), type).toBeNull()
+    }
+  })
+
+  it('the user\u2019s saved tool defaults beat the built-in', () => {
+    expect(newDrawingProps('horizontal', { horizontal: { showPriceLabel: false } }))
+      .toEqual({ showPriceLabel: false })
+    expect(newDrawingProps('arrow', { arrow: { arrowSize: 16 } }))
+      .toEqual({ arrowSize: 16 })
+  })
+
+  it('a saved default for one tool is invisible to every other tool', () => {
+    const saved = { rect: { fillColor: '#d24ba8' }, arrow: { arrowSize: 7 } }
+    expect(newDrawingProps('rect', saved)).toEqual({ fillColor: '#d24ba8' })
+    expect(newDrawingProps('circle', saved)).toBeNull()
+    expect(newDrawingProps('trendline', saved)).toBeNull()
   })
 })
