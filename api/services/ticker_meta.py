@@ -49,10 +49,31 @@ def _disk_put(ticker: str, data: dict) -> None:
 
 # yfinance reports the exchange as a MIC-ish CODE (SPY → "PCX"); map the common
 # ones to the friendly names a trader recognizes (FMP mislabels SPY as "AMEX").
+#
+# ⭐⭐ THE OTC TIERS WERE ADDED 2026-09-10 ON A VENDOR READING, NOT ON A GUESS.
+# yfinance splits OTC into tiers — PNK (Pink), OQX (OTCQX), OQB (OTCQB) and OID —
+# and only PNK/OTC were mapped, so an OTCQX or OTCQB name fell through
+# ``.get(exch, exch)`` UNMAPPED and the store held the raw code ("OQX"). That is
+# neither the trader-friendly name this map exists to produce nor a key
+# ``symbolScope.json::store_to_pine`` names, so such a symbol REFUSED both
+# vendor-spelled Pine fields rather than answering.
+#
+# ⛔ THE WIDENING WAS GATED ON A MEASUREMENT BECAUSE IT COULD HAVE BEEN WRONG.
+# Collapsing tiers is only correct if TradingView does not distinguish them. It
+# does not: ``tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json``
+# read ``syminfo.prefix`` on LVMUY (PNK tier, mapped) and ADDYY (OQX tier,
+# unmapped) and got the SAME string, "OTC", from both. Had they differed, this
+# widening would have collapsed two real answers into one and must not have
+# happened — which is exactly why ADDYY was carried as a seventh witness.
+#
+# ⚠️ A CODE NOT LISTED HERE STILL FALLS THROUGH UNMAPPED, ON PURPOSE. This map is
+# a whitelist of codes we have a friendly name for, never an enumeration of what
+# yfinance can emit, and a foreign listing must not be silently relabelled.
 _YF_EXCHANGE = {
     "PCX": "NYSE Arca", "NYQ": "NYSE", "ASE": "NYSE American",
     "NMS": "NASDAQ", "NGM": "NASDAQ", "NCM": "NASDAQ", "NIM": "NASDAQ",
-    "BTS": "Cboe BZX", "BATS": "Cboe BZX", "PNK": "OTC", "OTC": "OTC",
+    "BTS": "Cboe BZX", "BATS": "Cboe BZX",
+    "PNK": "OTC", "OTC": "OTC", "OQX": "OTC", "OQB": "OTC", "OID": "OTC",
 }
 
 

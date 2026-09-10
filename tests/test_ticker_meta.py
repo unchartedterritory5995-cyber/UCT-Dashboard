@@ -352,3 +352,84 @@ def test_primary_theme_none_when_no_membership_or_error():
     with patch("api.services.theme_db.get_themes_for_ticker", side_effect=Exception("db down")):
         assert ticker_meta._primary_theme("AAPL") is None
     assert ticker_meta._primary_theme("") is None
+
+
+# ─── ⭐⭐ THE OTC TIER WIDENING (2026-09-10) — pinned against a VENDOR reading ──
+
+
+def test_the_OTC_TIERS_map_to_OTC_and_the_widening_is_backed_by_a_capture():
+    """⭐⭐ OQX / OQB / OID JOIN PNK, AND ONLY BECAUSE THE VENDOR SAID THEY COULD.
+
+    yfinance splits OTC into tiers. Before this, only ``PNK`` and ``OTC`` were
+    mapped, so an OTCQX or OTCQB name fell through ``.get(exch, exch)`` UNMAPPED
+    and the store held the raw code (``"OQX"``) — neither the trader-friendly
+    name this map exists to produce, nor a key ``symbolScope.json::store_to_pine``
+    names, so such a symbol REFUSED both vendor-spelled Pine fields.
+
+    ⛔ COLLAPSING TIERS IS ONLY CORRECT IF THE VENDOR DOES NOT DISTINGUISH THEM,
+    and that was measured rather than assumed:
+    ``tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json``
+    read ``syminfo.prefix`` on LVMUY (PNK tier) and ADDYY (OQX tier) and got the
+    SAME string, ``"OTC"``, from both. Had they differed, this widening would
+    have collapsed two real answers into one.
+    """
+    for code in ("PNK", "OTC", "OQX", "OQB", "OID"):
+        assert ticker_meta._YF_EXCHANGE.get(code) == "OTC", (
+            f"{code} no longer maps to 'OTC' — an OTC-tier symbol will carry a raw "
+            f"yfinance code into the store and refuse the Pine vendor fields")
+
+
+def test_an_UNLISTED_code_still_FALLS_THROUGH_unmapped():
+    """⛔ THE CONTROL, AND WITHOUT IT THE TEST ABOVE PASSES FOR A MAP THAT SWALLOWS
+    EVERYTHING. ``_YF_EXCHANGE`` is a WHITELIST of codes we have a friendly name
+    for, never an enumeration of what yfinance can emit. ``TOR`` is a real
+    yfinance code (Toronto) and a foreign listing must NOT be silently relabelled
+    as a US venue — the fall-through is the behaviour that keeps an unknown
+    exchange honest instead of guessed.
+    """
+    assert "TOR" not in ticker_meta._YF_EXCHANGE
+    assert ticker_meta._YF_EXCHANGE.get("TOR", "TOR") == "TOR"
+
+
+def test_the_widening_ADDS_no_new_store_spelling():
+    """⭐⭐ THE PROPERTY THAT KEEPS `symbolScope.json::confirmed` COMPLETE.
+
+    ``confirmed`` holds one witnessed row per DISTINCT store spelling, and the
+    six it holds are exactly this map's distinct outputs. Adding CODES is safe;
+    adding a new SPELLING would silently create a seventh that no capture has
+    witnessed, and every symbol landing on it would refuse. This asserts the
+    widening moved the code count and NOT the spelling count.
+    """
+    spellings = set(ticker_meta._YF_EXCHANGE.values())
+    assert spellings == {"NYSE Arca", "NYSE", "NYSE American",
+                         "NASDAQ", "Cboe BZX", "OTC"}, (
+        f"the distinct store spellings changed to {sorted(spellings)} — "
+        f"symbolScope.json::confirmed has a witnessed row for each of the six, so "
+        f"a new one is an unwitnessed spelling that will refuse")
+
+
+def test_the_MAPPED_rows_that_existed_before_are_UNCHANGED():
+    """⛔ A WIDENING MUST ADD ONLY. Every pairing that shipped before 2026-09-10 is
+    pinned here, so a future edit that repurposes one of them fails by name rather
+    than quietly relabelling an exchange for every symbol on it."""
+    for code, spelling in (
+        ("PCX", "NYSE Arca"), ("NYQ", "NYSE"), ("ASE", "NYSE American"),
+        ("NMS", "NASDAQ"), ("NGM", "NASDAQ"), ("NCM", "NASDAQ"), ("NIM", "NASDAQ"),
+        ("BTS", "Cboe BZX"), ("BATS", "Cboe BZX"), ("PNK", "OTC"), ("OTC", "OTC"),
+    ):
+        assert ticker_meta._YF_EXCHANGE[code] == spelling, (
+            f"{code} used to map to {spelling!r} and now maps to "
+            f"{ticker_meta._YF_EXCHANGE.get(code)!r}")
+
+
+def test_an_OTCQX_symbol_reaches_the_store_as_OTC_end_to_end():
+    """⭐ THE WIRE, not just the table. ADDYY is the capture's own OQX witness, so
+    this drives ``_from_yfinance`` — the function that actually reads the map — and
+    requires the friendly spelling to come out the other side."""
+    with patch("yfinance.Ticker") as YF:
+        YF.return_value.info = {"longName": "adidas AG", "shortName": "adidas",
+                                "sector": "Consumer Cyclical", "industry": "Footwear",
+                                "exchange": "OQX"}
+        out = ticker_meta._from_yfinance("ADDYY")
+    assert out["exchange"] == "OTC", (
+        "an OTCQX symbol still carries a raw yfinance code into the store")
