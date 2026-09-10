@@ -11,6 +11,24 @@ else here is corroboration.
 
 ---
 
+## ⭐ BOTH SANDBOXES ARE ALREADY RUNNING (2026-09-09)
+
+Booted and seeded ahead of this run — you do not need to start anything:
+
+| Port | LAN URL | `HUB_PREVIEW_ENABLED` | DataDir |
+|---|---|---|---|
+| 8077 | `http://192.168.1.64:8077` | on | `C:\data-hubtest` |
+| 8078 | `http://192.168.1.64:8078` | **off** (for D7d) | `C:\data-hubtest-8078` |
+
+Both carry the same three seeded positions and the same two accounts. The launcher census rail was
+green before each boot, both reported guard mode `enforce` with 73 AST-derived pins, and no main
+`.db` under `C:\data` was modified by either. **Port 8099 belongs to the notebook Wave Q1
+workstream and was untouched throughout.**
+
+The section below is the from-cold procedure, kept for the next run.
+
+---
+
 ## Before you touch a phone
 
 The sandbox must be running and seeded. From `C:\Users\Patrick\uct-worktrees\joystick-hub`:
@@ -242,25 +260,50 @@ gone; turn it back on, reload, the pad is back).
 
 **Screenshot:** `D7c-admin-card-<device>.png`
 
-#### D7d — the kill switch
-⚠️ **The sandbox reads `HUB_PREVIEW_ENABLED` per request, but from the environment of the RUNNING
-process** — `api/routers/auth.py:144-146` reads `os.environ` at request time, and one process
-cannot change another's environment. So this cannot be flipped live against an already-booted
-sandbox.
+#### D7d — the kill switch, MEASURED on glass (two sandboxes)
 
-**To test it, boot a second sandbox with the flag off** (a different port, so it does not fight the
-first — the launcher refuses a busy port by design):
+⭐ **This is measured, not cited.** A second sandbox is already booted on **:8078** with
+`HUB_PREVIEW_ENABLED=0` in that process's environment. The flag is read per request from the
+RUNNING process's environment (`api/routers/auth.py:144-146`), so one process cannot change
+another's — which is why this needs its own server rather than a live toggle.
 
+**Both sandboxes are up and identically seeded. Nothing to start.**
+
+| | URL from your phone | `HUB_PREVIEW_ENABLED` | admin's `joystick_hub` pref |
+|---|---|---|---|
+| Normal | `http://192.168.1.64:8077` | on | never chosen (admin default → hub shows) |
+| Kill switch | `http://192.168.1.64:8078` | **off** | **explicitly `{"enabled": true}`** |
+
+⭐ **Why the preference is explicitly ON in 8078:** so the flag is the ONLY thing that can hide the
+hub. Signed in as an admin *and* with the preference on, if the pad is absent there it can only be
+the kill switch. Without that, an absent pad would have three possible explanations.
+
+⚠️ **Firewall:** the rule from Channel 1 covers 8077 only. Add 8078 (elevated PowerShell):
 ```
-$env:HUB_PREVIEW_ENABLED="0"
-powershell -ExecutionPolicy Bypass -File scripts\hub-sandbox.ps1 -DataDir C:\data-hubtest -Port 8078
+New-NetFirewallRule -DisplayName "UCT hub sandbox 8078 (LAN)" -Direction Inbound `
+  -LocalPort 8078 -Protocol TCP -Action Allow -Profile Private
 ```
 
-Then as **admin**, on `http://192.168.1.64:8078`: **PASS:** no pad anywhere, even for the admin.
+**Step 1 — the kill switch.** On the phone, sign in as **`hubtest@local.dev`** at
+**`http://192.168.1.64:8078`**. Go to `/journal/trades`.
 
-**If you would rather not boot a second sandbox, mark D7d N/A** — the code citation above plus
-`tests/test_hub_preview_flag.py::test_the_flag_is_read_per_request` is the evidence, and that test
-is the load-bearing one (a module-level capture would make the no-redeploy rollback a fiction).
+**PASS:** **no joystick pad**, even though you are an admin with the preference explicitly on.
+**FAIL:** the pad appears — the kill switch does not work, and the rollback path in the runbook is
+fiction. **Stop and report immediately**; this one invalidates the rollback plan.
+
+**Screenshot:** `D7d-killswitch-off-<device>.png`
+
+**Step 2 — THE CONTROL, and it is not optional.** Same account, same phone, now
+**`http://192.168.1.64:8077`**. Go to `/journal/trades`.
+
+**PASS:** the **pad IS present**.
+**FAIL:** no pad here either — then step 1 proved nothing, because the hub was hidden for some
+other reason (viewport, capability floor, sign-in) and you would have credited the flag with it.
+
+⛔ **Step 2 is what makes step 1 evidence.** A hub that is absent everywhere is not a working kill
+switch; it is a broken sandbox. Record BOTH or record neither.
+
+**Screenshot:** `D7d-control-on-<device>.png`
 
 #### D7e — the recovery path, on real glass
 This proves two things at once: that a member who opted in **keeps** their way off (the reason B6
