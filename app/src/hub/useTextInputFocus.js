@@ -13,8 +13,19 @@
 //   * a focused `contenteditable` that does not raise a soft keyboard on that platform.
 //
 // The artifact the spec names is FOCUS. This hook reads that directly; the viewport hook stays,
-// because a soft keyboard can also cover the pad when focus is somewhere this hook cannot see
-// (a cross-origin iframe). The two are OR-ed, and neither is a substitute for the other.
+// because a soft keyboard can also cover the pad when focus is somewhere this hook cannot see.
+//
+// ⚰️ THAT BLIND SPOT WAS WRITTEN AS "a cross-origin iframe" AND IT IS WIDER THAN THAT. Measured
+// 2026-09-10 in Chromium and WebKit: with focus inside ANY nested browsing context, the parent's
+// `document.activeElement` is the IFRAME element, so `isTextEntry` returns false — and a
+// SAME-origin frame measures identically. The origin is not what blinds the hook; the frame is.
+// Cross-origin only removes the workaround (same-origin, a parent could read
+// `contentDocument.activeElement`). Rail: `hub/iframeFocusBlindSpot.test.jsx`.
+//
+// ⚠️ The OTHER half of the justification — that a soft keyboard actually rises in that frame and
+// takes more than 150px — is CLOSED-UNMEASURABLE: no headless engine raises one, jsdom has no
+// viewport, and the device account's Automate quota is expired. The OR stays because half of it is
+// measured and the other half is unfalsifiable here, not because both were proved.
 //
 // ⚠️ IT WRITES NOTHING. Auto-hide is transient and must never touch `hubSessionVisibility` or the
 // stored preference — a member who tapped a search box has not asked to hide the hub, and a hide
