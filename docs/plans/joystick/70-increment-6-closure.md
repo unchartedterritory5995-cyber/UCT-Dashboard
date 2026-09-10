@@ -7,9 +7,12 @@ and this report is committed.
 
 ## ⛔ The verdict, first
 
-**The core list is NOT empty. Two items remain, and one of them cannot be closed by any amount of
-engineering time.** Everything else in the program is done and shipped. This report names what is
-left, what it would cost, and — for the one that is not mine to close — who has to close it.
+**The core list has ONE item left, and it cannot be closed by any amount of engineering time
+because it is not an engineering task.** Everything else in the program is done and shipped.
+
+⭐ **UPDATED after the two-finger Peek gesture shipped** (§C1, `twoFingerPeek.test.jsx`). That was
+the second of the two items this report opened with; it is done, and the count is corrected here
+rather than left to read as it did an hour ago.
 
 That is the whole point of the measurement. A closure report that declares done and leaves the
 owner to discover otherwise is the defect this program has spent a week building rails against.
@@ -80,7 +83,7 @@ never "the detector broke".
 | 7 | Modes | ✅ all ten declared and accounted for |
 | 8 | Settings and polish | ✅ B13 made the schema reachable; `highContrast` got its writer |
 | 9 | Things not to do | ✅ observed — no `api/` file touched by this program, ever |
-| C1 | Gesture vocabulary | ⬜ **two-finger Peek outstanding** (see §3) |
+| C1 | Gesture vocabulary | ✅ **complete** — two-finger Peek shipped |
 | C1.3 | Preview kill switch | ✅ read per request, railed both ways |
 | C2 | Accessibility commitments | ✅ **closed this increment** |
 | C3 | Per-section map | ✅ follows §6 |
@@ -99,14 +102,15 @@ and announcing the section's own readout.
 
 ---
 
-## 3. The open core list — two items
+## 3. The open core list — ONE item
 
-**1. The two-finger Peek gesture (§C1).** Declared in the gesture table. **It is not an
-accessibility gap** — §C2 is explicit that it cannot be Peek's only door and that the compliant door
-already ships; this is an additional affordance for sighted members. Contained work: `useJoystick`
-plus lifting the Actions sheet's open state so a gesture can open it.
+✅ ~~The two-finger Peek gesture (§C1)~~ — **SHIPPED.** `useJoystick` tracks concurrent pointers;
+the second finger unwinds the first (so the hold-to-home timer cannot survive it) and the last lift
+opens the SAME sheet the Actions button opens, `HubActionsButton` having become optionally
+controlled. Four rails hold the safety property: with one pointer, behaviour is byte-identical to
+Phase 2. The discriminator is CONCURRENCY, not count — two SEQUENTIAL taps are two taps.
 
-**2. ⛔ Real-glass D4/D1 on production — NOT MINE TO CLOSE.** It needs a human driving BrowserStack
+**⛔ Real-glass D4/D1 on production — NOT MINE TO CLOSE.** It needs a human driving BrowserStack
 Live. jsdom performs no layout, resolves no `calc()`, applies no `env(safe-area-inset-*)` and
 reports zero for every measured box, so **no local suite can produce this claim, tonight or ever**.
 The row stays **OPEN, not PASS**. This program has already recorded four blank templates being
@@ -132,7 +136,7 @@ mistaken for a pass; absence is not evidence.
 
 ## 5. Rails
 
-**58 rail files** under `app/src/hub/**`. Every line shipped by this program carries one.
+**59 rail files** under `app/src/hub/**`. Every line shipped by this program carries one.
 
 ⭐ The rails written this increment caught **five** defects on their first runs, four of them mine
 and one a real production defect:
