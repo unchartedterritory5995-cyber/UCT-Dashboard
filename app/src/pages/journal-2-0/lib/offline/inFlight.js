@@ -39,10 +39,16 @@
 import { usableBaseline } from './baseline'
 
 /**
- * ⭐ 10 s = max PUT latency 997.6 ms × 10, measured 2026-09-10 against
+ * ⭐ 10 s = MAX PUT latency 997.6 ms × 10, measured 2026-09-10 against
  * production from the rig: n=30 real CAS PUTs, min 81.3 · p50 111.2 ·
  * p95 526.0 · max 997.6 ms. (Guard 2's per-409 GET, same method: n=30,
  * p50 76.1 · max 769.8 ms.)
+ *
+ * ⛔ SAY "MAX", NOT "p99". At n=30 the nearest-rank p99 and the max are THE
+ * SAME SAMPLE, so calling it p99 dresses one observation as a distribution and
+ * reads as more evidence than exists. The number is right; the word matters,
+ * because the next person to re-measure needs to know it is one tail sample and
+ * not a percentile estimate.
  *
  * ⛔ `max × 10`, NOT `p95 × 10` (which would be 5.26 s), and the reason is the
  * shape rather than the summary. 24 of the 30 samples sit in a tight
