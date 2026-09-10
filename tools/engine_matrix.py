@@ -148,7 +148,11 @@ class Result:
         self.caps = {}
         self.facts = {}
 
-    def step(self, name, ok, detail=""):
+    def step(self, name, ok, detail="", error=None):
+        # ⭐ Same shape as `window_check.Check.add`: the failing branch gets to say
+        # something DIFFERENT from the passing one. A row that renders the success
+        # sentence beside a red is how a reader mis-reads which half fired.
+        detail = detail if (ok or error is None) else error
         self.steps.append((name, bool(ok), detail))
         # ⛔ QUIET ONLY IN --self-check, where several cases are SUPPOSED to go
         # red. Printing their reds beside the real ones makes a passing self-check
@@ -489,9 +493,17 @@ def playwright_processes() -> list:
 
     ⛔ Counting by EXE NAME would sweep the owner's own Chrome into the number —
     Playwright's chromium is also `chrome.exe`. The install path cannot.
+
+    ⛔⛔ AND IT MATCHES ON `ExecutablePath`, NOT `CommandLine`. The first version
+    matched command lines, and the very PowerShell process running the query has
+    `*ms-playwright*` in ITS command line — so the sweep counted the instrument,
+    reported one browser "left behind" after a clean run, and named `powershell.exe`
+    as the leak. A probe whose needle appears in the probe cannot see past itself
+    (`lesson_an_instrument_can_reproduce_its_own_blind_spot`). `ExecutablePath` is
+    the identity of the BINARY and is not a string this query carries.
     """
     out = _ps("Get-CimInstance Win32_Process | "
-              "Where-Object { $_.CommandLine -like '*ms-playwright*' } | "
+              "Where-Object { $_.ExecutablePath -like '*ms-playwright*' } | "
               "ForEach-Object { $_.ProcessId.ToString() + '|' + $_.Name }")
     return sorted(line.strip() for line in out.splitlines() if "|" in line)
 
@@ -559,10 +571,21 @@ def _dry_reads(page, res: Result, engine: str) -> dict:
              r.get("locks") is not None,
              f"navigator.locks {'PRESENT' if r.get('locks') else 'ABSENT'} · "
              f"request() {r.get('locksRequestWorks')}")
-    # ⭐ Read, never written. The flag stays OFF and no opt-in key is set.
-    res.step("the opt-in key is still unset (the flag stays OFF)",
-             r.get("optInKey") in (None, "0"),
-             f"{FLAG_KEY} = {r.get('optInKey')!r}")
+    # ⭐ READ, NEVER WRITTEN. The flag stays OFF and no opt-in is performed here.
+    # ⛔ A key found already SET is a fact about the RIG, not about the engine —
+    # so it is raised as a named finding and LEFT ALONE. Clearing it would be a
+    # write, and it would destroy the evidence that something set it.
+    key = r.get("optInKey")
+    key_ok = key in (None, "0")
+    res.step("the opt-in key is unset/'0' at rest (the flag stays OFF)", key_ok,
+             f"{FLAG_KEY} = {key!r}",
+             f"{FLAG_KEY} = {key!r} — this profile is ALREADY OPTED IN; the dry run "
+             "does not change it")
+    if not key_ok:
+        res.findings.append(
+            f"`{engine}` carries `{FLAG_KEY}` = {key!r} AT REST — a per-browser "
+            "opt-in left behind by an earlier session, not set by this run. Left in "
+            "place deliberately: clearing it is a write, and it is evidence.")
     res.step("the note list is readable",
              isinstance(r.get("notes"), int), f"notes={r.get('notes')}")
     return r
@@ -985,6 +1008,17 @@ def self_check() -> int:
                   value_needle not in dry_src))
     cases.append(("CONTROL: that sweep can see the value being touched",
                   value_needle in (dry_src + value_needle)))
+    # ⛔ The sweep counted ITSELF on its first live run: the PowerShell process
+    # running the query carried `ms-playwright` in its command line and was
+    # reported as a browser left behind. Matched on the BINARY now, and driven.
+    cases.append(("the process sweep matches the BINARY, not a string it carries",
+                  "$_.ExecutablePath -like '*ms-playwright*'" in dry_src))
+    _live = playwright_processes()
+    cases.append(("CONTROL: the sweep does not count the instrument running it",
+                  not any(n.split("|", 1)[1].lower()
+                          in ("powershell.exe", "pwsh.exe", "python.exe", "cmd.exe",
+                              "conhost.exe", "node.exe")
+                          for n in _live)))
     cases.append(("the lock probe uses its OWN name, never the product's",
                   LOCK_PROBE_NAME.startswith("uct.q1.") and "uct.nb.sync." not in DRY_READ_JS))
     cases.append(("the results file is CLAIMED before any engine opens",
