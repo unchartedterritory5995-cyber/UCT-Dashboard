@@ -1650,6 +1650,22 @@ def get_snapshot() -> dict:
     return data
 
 
+#: The gap that makes a stock a "mover", in percent, ABSOLUTE.
+#:
+#: ⛔ ONE AUTHORITY, IMPORTED — NOT RE-TYPED. This lived as a bare `3.0` at four
+#: sites in this file plus a fifth hand-typed copy in
+#: `watchlist_intelligence.py`, whose comment said it "matches
+#: massive.py::get_movers()'s own gap-filter threshold". It matched by
+#: coincidence: nothing imported anything, so tuning either one would have left
+#: two different definitions of "notable move" shipping side by side, with the
+#: comment still claiming they agreed. Recorded as Seam 3.
+#:
+#: ⚠️ Do not confuse this with the `connect=3.0` in the httpx timeout above.
+#: Same literal, unrelated meaning — which is exactly why the bare number was
+#: worth naming.
+MOVER_THRESHOLD_PCT = 3.0
+
+
 def _fetch_finviz_movers_live() -> tuple[list, list]:
     """Fetch current session top % movers from Finviz Elite screener.
 
@@ -1717,7 +1733,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
     for row in _fetch_rows("-change"):
         sym = row.get("Ticker", "").strip()
         pct = _parse_pct(row.get("Change", "0"))
-        if not sym or pct < 3.0:
+        if not sym or pct < MOVER_THRESHOLD_PCT:
             break  # sorted descending; once below 3% all remaining are too
         if _is_lev_by_name(row):
             continue
@@ -1728,7 +1744,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
     for row in _fetch_rows("change"):
         sym = row.get("Ticker", "").strip()
         pct = _parse_pct(row.get("Change", "0"))
-        if not sym or pct > -3.0:
+        if not sym or pct > -MOVER_THRESHOLD_PCT:
             break  # sorted ascending; once above -3% all remaining are too
         if _is_lev_by_name(row):
             continue
@@ -1854,8 +1870,8 @@ def get_movers() -> dict:
     # - ripping: must still be >= +3% and positive (faded movers drop off)
     # - drilling: must still be <= -3% and negative (recovered movers drop off)
     # This keeps the list reflecting who is actually moving RIGHT NOW.
-    ripping  = [m for m in ripping  if _abs_pct(m) >= 3.0 and not m["pct"].startswith("-")]
-    drilling = [m for m in drilling if _abs_pct(m) >= 3.0 and     m["pct"].startswith("-")]
+    ripping  = [m for m in ripping  if _abs_pct(m) >= MOVER_THRESHOLD_PCT and not m["pct"].startswith("-")]
+    drilling = [m for m in drilling if _abs_pct(m) >= MOVER_THRESHOLD_PCT and     m["pct"].startswith("-")]
 
     # Re-sort by magnitude so biggest movers stay at the top
     ripping  = sorted(ripping,  key=_abs_pct, reverse=True)

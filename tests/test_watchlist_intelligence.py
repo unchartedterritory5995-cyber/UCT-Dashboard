@@ -200,7 +200,9 @@ class TestEarningsProximityFact:
 
     def test_reporting_outside_the_proximity_window_does_not_fire(self):
         import datetime
-        far = datetime.date.today() + datetime.timedelta(days=wi._EARNINGS_PROXIMITY_DAYS + 5)
+        # Seam 4: the window length is derived from one declaration in
+        # calendar_alerts rather than a module-level literal here.
+        far = datetime.date.today() + datetime.timedelta(days=wi._earnings_proximity_days() + 5)
 
         def fake_reporters(date_str):
             return ({"NVDA"}, True) if date_str == far.isoformat() else (set(), True)

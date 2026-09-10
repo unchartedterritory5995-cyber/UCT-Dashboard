@@ -694,6 +694,17 @@ def get_detections(
         from api.services.pattern_vision import store as pv_store
         pv_store.init_db()
         verdicts = pv_store.get_confirmed(sym, tf)
+        # `min_conf` was accepted and silently ignored on this branch: a caller
+        # asking for >=90 got every confirmed verdict, including 60s. The
+        # analogous field here is the JUDGE's confidence, not the rule engine's.
+        # ⚠️ At the default this filter is a no-op BY CONSTRUCTION and must stay
+        # that way: a verdict is only stored confirmed when its vision
+        # confidence already cleared PATTERN_VISION_MIN_CONFIDENCE (60), which
+        # is above this parameter's default of 50. So the default response is
+        # byte-identical to before, and only a caller who explicitly asks for a
+        # higher bar sees a difference.
+        verdicts = [v for v in verdicts
+                    if float(v.get("vision_confidence") or 0.0) >= min_conf]
         return {"sym": sym.upper(), "tf": tf, "verdicts": verdicts, "count": len(verdicts)}
     pattern_ids = [t.strip() for t in types.split(",")] if types else None
     rows = memory.get_active_detections(sym.upper(), tf, pattern_ids=pattern_ids, min_conf=min_conf)

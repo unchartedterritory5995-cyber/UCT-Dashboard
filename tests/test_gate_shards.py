@@ -23,9 +23,12 @@ is a different thing from a test of the boundary.
 """
 from __future__ import annotations
 
+import json
+import os
 import pathlib
-import sys
 import re
+import subprocess
+import sys
 
 import pytest
 
@@ -403,3 +406,150 @@ def test_say_survives_a_REAL_cp1252_console_subprocess():
         "say() crashed on a real cp1252 console — this is the bug that turned a PASSING gate into "
         f"exit 1. stderr:\n{proc.stderr}")
     assert "UnicodeEncodeError" not in (proc.stderr or "")
+
+# ── The exit code, and the day it disagreed with its own report ───────────────────────────────
+#
+# ⛔ THE DEFECT. `main()` ended in a bare `return 0` under a comment saying the verdict was "a
+# judgement the manifest supports and this script deliberately does not make". So on 2026-09-10 the
+# wrapper printed **"⛔ The failing set DIFFERS from the baseline"** and exited **0**. Anything
+# reading `$?` — a CI step, a `&&` chain, a background-task wrapper — saw success on a run whose own
+# report said otherwise. That is worse than having no exit code: it is a green light nobody audited,
+# and it is the same disease as `lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`.
+#
+# ⭐ WHAT IS ENFORCED IS `new`, NOT SET EQUALITY. `compare_failures` says so itself — "`new` is the
+# only one that can block a merge". `no_longer_failing` means a baseline entry stopped failing:
+# master fixed it, or it stopped running. `test_gate_baseline_diff.py` pins that this direction
+# NEVER blocks, so exiting non-zero on it would fail a branch for making things better — which is
+# exactly how a gate teaches people to stop reading it.
+#
+# These rails execute the REAL script in a REAL process and observe the process's exit status,
+# rather than asserting about a return value in-process (rule 10: every impure boundary gets a rail
+# that executes it for real). Each carries the rule-14 non-vacuity control: a shelled-out rail that
+# cannot distinguish is not a rail, and an empty result is a failed invocation until proven
+# otherwise.
+
+_SCRIPTS = pathlib.Path(__file__).resolve().parent.parent / "scripts"
+
+# A shard log shaped like the real thing: a totals line the parser requires, plus FAIL lines it
+# reads identities from. The ANSI escapes are the hazard, so they are present here too.
+def _shard_log(fail_idents: list[str]) -> str:
+    body = "".join(
+        f"\x1b[31m FAIL \x1b[39m  {ident}\n" for ident in fail_idents
+    )
+    n = len(fail_idents)
+    if n:
+        totals = (
+            f"\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m{n} failed\x1b[39m\x1b[22m | "
+            f"\x1b[1m\x1b[32m10 passed\x1b[39m\x1b[22m\x1b[90m ({10 + n})\x1b[39m\n"
+            f"\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[31m{n} failed\x1b[39m\x1b[22m | "
+            f"\x1b[1m\x1b[32m99 passed\x1b[39m\x1b[22m\x1b[90m ({99 + n})\x1b[39m\n"
+        )
+    else:
+        totals = (
+            "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m10 passed\x1b[39m\x1b[22m\x1b[90m (10)\x1b[39m\n"
+            "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m99 passed\x1b[39m\x1b[22m\x1b[90m (99)\x1b[39m\n"
+        )
+    return body + totals
+
+
+_DRIVER = '''
+import json, pathlib, sys
+sys.path.insert(0, {scripts!r})
+import gate_shards
+
+observed = json.loads(sys.argv[1])
+baseline = json.loads(sys.argv[2])
+out_dir  = sys.argv[3]
+log_text = json.loads(sys.argv[4])
+
+# Real run_gate, real parsing, real compare_failures, real render, real main() -> real exit status.
+_real = gate_shards.run_gate
+gate_shards.load_baseline = lambda: {{"measured_at": "rail", "sha": "0" * 40, "failures": baseline}}
+gate_shards.run_gate = lambda shards, od: _real(
+    shards, od,
+    tree_state_fn=lambda: ("f" * 40, []),
+    run_shard_fn=lambda i: log_text,
+    file_count_fn=lambda: {files_on_disk},
+)
+raise SystemExit(gate_shards.main(["--shards", "1", "--out", out_dir]))
+'''
+
+
+def _drive(tmp_path, observed, baseline):
+    """Run the real wrapper end to end in a child process; return (rc, stdout+stderr)."""
+    log_text = _shard_log(observed)
+    driver = tmp_path / "drive_gate.py"
+    driver.write_text(
+        _DRIVER.format(scripts=str(_SCRIPTS), files_on_disk=10 + len(observed)),
+        encoding="utf-8",
+    )
+    out_dir = tmp_path / "runs"
+    out_dir.mkdir(exist_ok=True)
+    proc = subprocess.run(
+        [sys.executable, str(driver), json.dumps(observed), json.dumps(baseline),
+         str(out_dir), json.dumps(log_text)],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    combined = (proc.stdout or "") + (proc.stderr or "")
+    # ⛔ RULE 14 — an empty result is a failed invocation until proven otherwise. A driver that
+    # died at import would give a tidy non-zero rc and prove nothing about the verdict.
+    assert combined.strip(), (
+        f"the wrapper produced NO output (rc={proc.returncode}) — that is a failed invocation, "
+        f"not a verdict"
+    )
+    assert "# Gate run" in combined, (
+        f"the wrapper never rendered a manifest, so its exit code is not a verdict:\n{combined[:800]}"
+    )
+    return proc.returncode, combined
+
+
+A = "src/a.test.js > d > only the branch fails this"
+B = "src/b.test.js > d > both fail this"
+C = "src/c.test.js > d > only the baseline has this"
+
+
+def test_the_exit_code_is_NONZERO_on_a_real_differing_set(tmp_path):
+    """⛔ The case that shipped green: the report says DIFFERS, so the exit status must agree."""
+    rc, out = _drive(tmp_path, observed=[A, B], baseline=[B])
+    assert "DIFFERS from the baseline" in out, "expected the differing report; fixture is wrong"
+    assert rc == 1, f"a run with a NEW failure exited {rc} — the exit code disagrees with its report"
+    assert A in out, "the NEW failure must be named, not counted"
+
+
+def test_non_vacuity_the_SAME_path_returns_zero_on_a_matching_set(tmp_path):
+    """⛔ THE CONTROL. Without this, `return 1` unconditionally would pass the test above."""
+    rc, out = _drive(tmp_path, observed=[B], baseline=[B])
+    assert "matches the baseline exactly" in out
+    assert rc == 0, f"a run whose failing set matches the baseline exited {rc}"
+
+
+def test_a_baseline_entry_that_stopped_failing_does_NOT_block(tmp_path):
+    """The direction that never blocks — and the manifest still reports the sets as differing.
+
+    ⭐ This is the deliberate disagreement: `matches_baseline` is false while the exit code is 0,
+    because master fixing something is not this branch's regression. Enforcing set equality here
+    would fail a branch for an improvement.
+    """
+    rc, out = _drive(tmp_path, observed=[B], baseline=[B, C])
+    assert rc == 0, f"a stale baseline in the non-blocking direction exited {rc} and blocked a merge"
+    assert "never blocks" in out, "the reason must be stated, or 'differs' reads as a failure"
+
+
+def test_a_refused_run_is_still_distinguishable_from_a_verdict(tmp_path):
+    """Exit 2 is 'this is not a gate run' and must not collide with either verdict."""
+    from gate_shards import EXIT_NEW_FAILURES, EXIT_NO_NEW
+    assert len({EXIT_NO_NEW, EXIT_NEW_FAILURES, 2}) == 3, (
+        "the invalid-run code collides with a verdict code, so a caller cannot tell a broken run "
+        "from a failing one"
+    )
+
+
+def test_the_verdict_reads_the_same_block_the_manifest_publishes(tmp_path):
+    """⛔ A second derivation of 'did anything break' is how the two answers drift apart."""
+    from gate_shards import compare_failures, verdict_exit_code
+    v = compare_failures([A, B], [B])
+    assert verdict_exit_code({"vs_baseline": v}) == 1
+    assert verdict_exit_code({"vs_baseline": compare_failures([B], [B])}) == 0
+    # A manifest with no comparison at all must not silently pass as "nothing new".
+    assert verdict_exit_code({}) == 0, "an absent comparison is the empty-baseline case, not a block"

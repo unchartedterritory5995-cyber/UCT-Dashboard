@@ -790,6 +790,48 @@
         "web"
       ],
       "note": "Research > Technical tab (Chart/Technical Intelligence Convergence Phase B). Ships DARK on purpose: it is the first member-facing change in the Terminal program and the owner wanted an off switch that is not revert-and-redeploy. Read per request in api/routers/auth.py::_access_payload and consumed via AuthContext.researchTechnicalTabEnabled, so flipping it in Railway changes what members see WITHOUT a deploy. Enablement gate, not a kill switch: unset means not-yet-released, never accidentally live. Flag-on decision pending a read of confirmed-verdict coverage across the active set."
+    },
+    "COMPANY_NEWS_INGEST_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Registers the company-news ingest jobs. Off in code so a deploy cannot begin ingesting before it is wanted; set on web, so ingest is running."
+    },
+    "PANEL_PREWARM_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Moves research-panel provider warming onto a schedule instead of the request path. Off in code because it walks providers on the WEB pod and bulk warming has OOM'd this pod before, so it takes a small bounded slice per cycle and holds nothing between symbols."
+    },
+    "FLOW_BOOTSTRAP_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Enables the parts transport in flow_aggregate. The old whole-D path stays authoritative until this is on."
+    },
+    "FLOW_PREPARE_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Starts the first-paint preparer. Self-gated so a caller cannot start it by accident, and additionally requires FLOW_BOOTSTRAP_ENABLED -- warming a transport nobody serves would burn CPU and report healthy while doing it."
+    },
+    "OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED": {
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "Sender half of the OptionsFlow ETF replica. Deliberately DISTINCT from the receiver's flag so one side can be turned off without the other silently looking like the active architecture."
+    },
+    "OPTIONSFLOW_ETF_REPLICA_RECEIVE_ENABLED": {
+      "status": "armed",
+      "where": [
+        "flow-worker"
+      ],
+      "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     }
   }
 }

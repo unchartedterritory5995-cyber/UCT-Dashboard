@@ -927,9 +927,6 @@ def _earnings_evidence(earnings: dict) -> list[dict]:
     return out
 
 
-_DOMAIN_FETCHERS: dict[str, tuple] = {}  # populated below _build_evidence to avoid import cycles
-
-
 def _fetch_news(sym: str) -> list[dict]:
     from api.services.research.news import get_company_news
     news = get_company_news(sym) or {}
@@ -997,6 +994,14 @@ def _fetch_earnings(sym: str) -> list[dict]:
     return _earnings_evidence(get_earnings_ai_evidence(sym) or {})
 
 
+# ⛔ ONE BINDING. There used to be a forward declaration ~70 lines above --
+# `_DOMAIN_FETCHERS: dict[str, tuple] = {}`, commented "populated below
+# _build_evidence to avoid import cycles" -- which this line then rebound.
+# Nothing referenced the placeholder in between, the import-cycle rationale did
+# not apply (every fetcher does its imports lazily inside its own body), and its
+# annotation said `tuple` while the real values are callables. So the file
+# carried two authorities for one name, the first of which was dead AND
+# misdescribed the second. `tests/test_no_shadowed_definitions.py` is the rail.
 _DOMAIN_FETCHERS = {
     "news": _fetch_news,
     "analyst": _fetch_analyst,
