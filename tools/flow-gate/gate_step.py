@@ -207,6 +207,36 @@ def step_final():
     log("Quote observed_s as 'sighting -> first paint', never 'data change -> first paint'.")
 
 
+def step_running_commit():
+    """What commit is flow-worker ACTUALLY running right now?
+
+    Reads the live serviceInstance activeDeployments, not a status badge. Use
+    this after ANY master push by any session -- flow-worker auto-deploys on a
+    push matching its 23-file watch list, and a foreign push could carry our
+    commit off the running container without anyone noticing.
+    """
+    exe = shutil.which("railway") or "railway"
+    try:
+        out = subprocess.run([exe, "status", "--json"], cwd=LINKED,
+                             capture_output=True, text=True, timeout=120)
+        if out.returncode != 0:
+            log("RUNNING COMMIT: railway exit %d" % out.returncode)
+            return
+        d = json.loads(out.stdout)
+        for e in d["environments"]["edges"][0]["node"]["serviceInstances"]["edges"]:
+            n = e["node"]
+            if n["serviceName"] != "flow-worker":
+                continue
+            for a in (n.get("activeDeployments") or []):
+                m = a.get("meta") or {}
+                sha = str(m.get("commitHash"))[:9]
+                flag = "  <-- EXPECTED" if sha == "184a7e77b" else "  <-- NOT THE FIX"
+                log("RUNNING COMMIT: %s %s %s%s"
+                    % (a.get("status"), a.get("id", "")[:8], sha, flag))
+    except Exception as e:
+        log("RUNNING COMMIT failed: %s: %s" % (type(e).__name__, str(e)[:120]))
+
+
 def step_morning():
     """07:45 ET: is the instrument alive, what does it hold, and will the bump
     path authenticate? Runs 15 min before the bump so a token failure surfaces
@@ -218,6 +248,7 @@ def step_morning():
 
 STEPS = {
     "morning": step_morning,
+    "running_commit": step_running_commit,
     "sampler_check": step_sampler_check,
     "probe": step_probe,
     "bump": step_bump,
