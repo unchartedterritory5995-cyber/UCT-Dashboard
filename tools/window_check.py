@@ -1111,9 +1111,20 @@ def opt_out(page) -> tuple:
         # ⛔ THE FLUSH. `/api/health` is a JSON document on the same origin — it
         # costs one request and runs NO app code, so it cannot mount the notebook
         # or start a drain while we are only trying to make a write durable.
-        page.wait_for_timeout(1500)
+        #
+        # ⛔⛔ THESE DURATIONS ARE MEASURED, NOT CHOSEN. A settle of 1.5s + one
+        # navigate + 1.5s was NOT enough: a localStorage removal under exactly
+        # that pattern read back as gone IN MEMORY and was still on disk on the
+        # next open, TWICE (2026-09-10). The pattern below is the one that came
+        # back clean on a verifying reopen. ⚠️ Two points do not establish a rate,
+        # so this is not "the flush time" — it is a bound that has held. The
+        # AUTHORITY is `teardown`'s on-disk check with Chrome dead; if that ever
+        # goes red, lengthen this rather than trusting the in-memory read-back.
+        page.wait_for_timeout(6000)
         page.goto(PROD + "/api/health", wait_until="domcontentloaded")
-        page.wait_for_timeout(1500)
+        page.wait_for_timeout(4000)
+        page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        page.wait_for_timeout(4000)
         got = page.evaluate(
             "(k) => { try { return localStorage.getItem(k) } catch (e) { return 'ERR: ' + e.name } }",
             FLAG_KEY)
