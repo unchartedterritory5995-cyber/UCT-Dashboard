@@ -25,13 +25,17 @@
 // (`hub/navigationAuthority.test.jsx`), and it would also re-answer "what path does mode X live
 // at", which `resolveNavTarget` owns.
 //
-// ⚠️ TAP IS DELIBERATELY NOT WIRED, AND THAT IS NOT AN OVERSIGHT. Spec §C3:905 declares Home's
-// Primary as "last-used section", which means tap has to NAVIGATE — and `useJoystick.js:449` calls
-// `mode?.onTap?.()` with NO arguments, an arity pinned by `contractArity.test.js`. A hub-side
-// controller therefore cannot reach `ctx.navigate` from `onTap`, and the only other doors are a
-// second `useNavigate()` (a rail failure) or a change to `useJoystick`/`HubRoot`, neither of which
-// this stream owns. `registry.js:614` — "AN UNWIRED ACTION IS ABSENT, NEVER PRESENT-AND-INERT" —
-// so no `onTap` is declared rather than one that does nothing. Reported for the owner.
+// ⚰️ TAP IS WIRED NOW, AND THIS PARAGRAPH USED TO SAY IT COULD NEVER BE. The original read:
+// "TAP IS DELIBERATELY NOT WIRED ... useJoystick.js:449 calls mode?.onTap?.() with NO arguments
+// ... a hub-side controller therefore cannot reach ctx.navigate from onTap ... Reported for the
+// owner." That was true and correctly reasoned, and it was the RIGHT call to stop and report
+// rather than reach for a second `useNavigate()`.
+//
+// The owner's answer was to remove the blocker rather than work around it: HubRoot now dispatches
+// all four mode callbacks and passes `ctx` to every one, so `onTap(ctx)` can navigate through the
+// same single seam `onScrubCommit` already used. The stale sentence is kept here in quotation
+// rather than deleted, because the SHAPE of that stop — an unwired action is ABSENT, never
+// present-and-inert (`registry.js`) — is the part worth keeping.
 
 import { useCallback, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
@@ -47,7 +51,16 @@ import { validateActionCtx } from '../contracts'
  * The cursor's list id — DERIVED from the registry (`home.cursor.listId`), never typed, the same
  * way `wireSection.js:69` / `screenerSection.js:120` / `journalSection.js:79` derive theirs.
  */
-export const LIST_ID = modesById[HOME_MODE_ID]?.cursor?.listId ?? HOME_MODE_ID
+export const LIST_ID = modesById[HOME_MODE_ID]?.cursor?.listId ?? HOME_MODE_ID
+
+/**
+ * §C3:905's Reverse destination — "Reverse: Morning Wire".
+ *
+ * A MODE ID, never a path. `resolveNavTarget` reads the route off the registry, so "what path
+ * is Wire at" keeps one authority; a literal '/morning-wire' here would be a second copy of the
+ * registry's own `route` field — the defect this file already avoids in onScrubCommit.
+ */
+const WIRE_MODE_ID = 'wire'
 
 /**
  * The registry's declared route-backed SECTION order, `home` excluded.
@@ -168,6 +181,38 @@ export default function useHomeSection() {
   }, [items, index])
 
   /**
+   * ⭐ PRIMARY — §C3:905 "Primary: last-used section". Now possible: HubRoot dispatches `onTap`
+   * with `ctx`, so a registry-declared mode can reach `ctx.navigate`. Until that landed this was
+   * structurally impossible and the chip's "tap: last section" was a promise nothing could keep.
+   *
+   * ⛔ IT READS `lastSection` DIRECTLY, NEVER `items[0]`, and that is the whole subtlety.
+   * `recentSections(null)` returns the FULL declared order (there is nothing to promote), so
+   * `items[0]` on a first-ever visit is simply the first section in registry order — and
+   * navigating there would violate §C3:915 in the exact way it forbids:
+   *
+   *     "On a first-ever visit with nothing stored, Primary is inert — disabled, no navigation.
+   *      Defaulting it to Wire was rejected: Primary and Reverse would fire the same destination
+   *      on a new account, which reads as a bug rather than a design."
+   *
+   * A stored value that is not a route-backed section is treated as nothing stored, for the same
+   * reason `recentSections` refuses to promote it.
+   */
+  const onTap = useCallback((ctx) => {
+    if (!lastSection || !DECLARED_SECTION_ORDER.includes(lastSection)) return
+    validateActionCtx(ctx, `homeSection (${LIST_ID}) onTap`)
+    ctx?.navigate?.(lastSection)
+  }, [lastSection])
+
+  /**
+   * ⭐ REVERSE — §C3:905 "Reverse: Morning Wire". A mode id, not a path: `resolveNavTarget` reads
+   * the route off the registry, so "what path is Wire at" keeps ONE authority. Unlike Primary this
+   * is never inert — it is a fixed destination that needs nothing stored.
+   */
+  const onDoubleTap = useCallback((ctx) => {
+    validateActionCtx(ctx, `homeSection (${LIST_ID}) onDoubleTap`)
+    ctx?.navigate?.(WIRE_MODE_ID)
+  }, [])
+  /**
    * ⛔ REQUIRED, NOT OPTIONAL. `validateSectionConfig` refuses an `onScrub` without a `readout`
    * because "a scrub the chip cannot narrate is invisible" — and on `/dashboard` that is literally
    * true: nothing on the page moves as the cursor travels, so the chip is the ONLY surface telling
@@ -192,10 +237,12 @@ export default function useHomeSection() {
    */
   const config = useMemo(() => (onRoute ? {
     ...modesById[HOME_MODE_ID],
+    onTap,
+    onDoubleTap,
     onScrub,
     onScrubCommit,
     readout,
-  } : undefined), [onRoute, onScrub, onScrubCommit, readout])
+  } : undefined), [onRoute, onTap, onDoubleTap, onScrub, onScrubCommit, readout])
 
   useHubMode(config)
 
