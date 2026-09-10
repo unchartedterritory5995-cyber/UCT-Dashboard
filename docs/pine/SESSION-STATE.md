@@ -466,3 +466,49 @@ new member-facing surface is a product decision, not a mechanical next step.
 **Items 6–10 are no longer blocked BY THE PRODUCER** — they concern the engine's
 vocabulary, not that route.
 
+---
+
+## ⛔⛔ Runbook item 1 (the bind-time fold) is NOT a one-line wiring — measured 2026-09-10
+
+The runbook calls it *"the single change that clears the largest remaining refusal"* and says
+`fold_bound`/`foldBound` are *"built, railed and cross-lane-pinned but not yet called by the
+door"*. All of that is true. What it does not say is that **there is no door to call it from.**
+
+Measured, with a positive control on each search:
+
+| fact | evidence |
+|---|---|
+| `foldBound` (`bind.js:333`) and `fold_bound` (`ast_bind.py:360`) exist | ✅ |
+| neither has a single NON-TEST call site | ✅ searched both lanes |
+| ⛔ **`bind.js` has ZERO live importers** — the whole module, not just the function | ✅ only tests import it |
+| the door refuses at `pine.js:6980` — `resolved.type !== 'num'` → `pine:window` | ✅ |
+| ⛔ **`translatePine`'s opts carry NO binding constants** | ✅ read the opts surface |
+
+⭐⭐ **AND THAT LAST ROW IS THE WHOLE PROBLEM, NOT AN OVERSIGHT.** `translatePine` runs at
+SAVE time. There is no symbol and no timeframe yet, so it *cannot* fold
+`timeframe.isweekly ? 5 : 20` — and `foldBound`'s own header says why that matters: it returns
+a new tree and mutates nothing, because **the NEXT symbol folds it differently**, and a pass
+that rewrote in place would let the second symbol of a sweep inherit the first's lengths —
+"a defect that shows as a WRONG NUMBER, not an error."
+
+⛔ So the refusal at save time is arguably CORRECT, and "call `foldBound` from the door" would
+be the exact bug the function was written to avoid. The real question is a design one:
+
+1. **Where does the fold run?** It is per-binding, so it belongs in a bind stage between save
+   and compute — a stage `bind.js` was clearly written for and that nothing currently calls.
+2. **What does the door emit instead of refusing?** Today a non-literal length is a hard
+   `pine:window`. To defer it, the door needs a node the bind stage can later fold, and a
+   guarantee that an UNFOLDABLE one still refuses — with the member's own expression named.
+3. **What stops a folded tree being saved?** The saved definition must go on meaning what it
+   said. Whatever is persisted must be the UNFOLDED tree.
+
+⚠️ `pine:window-dependent` is NOT this mechanism — it refuses values that depend on how much
+history was loaded, which is a different question.
+
+⭐ **THE VENDOR HALF IS NOW SETTLED**, which is what changed on 2026-09-10: job B measured that
+the vendor really does fold a timeframe-conditional length to a plain integer at bind time
+(`fold == sma20` on 400/400 daily bars, `fold == sma5` on 400/400 weekly). So the behaviour is
+confirmed and only the placement is open. ⛔ It was NOT attempted here: it is the owner's #1
+item, its failure mode is a wrong number rather than an error, and guessing the placement at
+the end of a long session is how that ships.
+
