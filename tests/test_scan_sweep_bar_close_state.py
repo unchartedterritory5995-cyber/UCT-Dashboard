@@ -11,15 +11,23 @@ running", and the seam asks "is the newest bar still forming". They coincide onl
 while the session is OPEN -- and this cycle's window does not end when the session
 does:
 
-  · `_live_window_reason` gates on `open <= now < open + REGULAR_SESSION_LENGTH`
-  · `REGULAR_SESSION_LENGTH` is a FIXED `6h30m` (`scan_evaluator.py:298`)
-  · its trading-day test is `bars_fetch._is_nyse_holiday`, whose own docstring says
+  · `_live_session_state` gated on `open <= now < open + REGULAR_SESSION_LENGTH`
+  · `REGULAR_SESSION_LENGTH` is a FIXED `6h30m` (grep the constant — this line said
+    `scan_evaluator.py:298` and the declaration has since moved)
+  · its trading-day test was `bars_fetch._is_nyse_holiday`, whose own docstring says
     1pm ET half-days are "intentionally NOT included"
 
-So on a half-day the window runs to 16:00, the sweep keeps firing, `live_bars_for`
-keeps appending a bar the exchange settled at 13:00, and a mode check would have
+So on a half-day the window ran to 16:00, the sweep kept firing, `live_bars_for`
+kept appending a bar the exchange settled at 13:00, and a mode check would have
 called it forming for three hours. That is the exact case
-`_NYSE_EARLY_CLOSES_YYYYMMDD` was wired into `bar_close_state` for.
+`NYSE_EARLY_CLOSES_YYYYMMDD` was wired into `bar_close_state` for.
+
+⭐ THE WINDOW ITSELF WAS FIXED 2026-09-10 (`scan_evaluator._session_length_et` reads
+BOTH leaf sets; `tests/test_scan_live_window_early_close.py`), so the two seams now
+agree on a half-day instead of disagreeing. ⛔ THAT IS NOT A LICENCE TO GO BACK TO
+`mode == LIVE`. A window and a bar are different subjects: the nightly sweep is
+`mode != LIVE` over bars that are equally closed, and every one of the cases below
+is still decided by the instant rather than by which cycle is running.
 """
 from __future__ import annotations
 

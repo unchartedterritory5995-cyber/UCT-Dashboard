@@ -1233,10 +1233,15 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # Measured 1 -> None before the fix.
     #
     # ⚰⚰ IT WAS `newest_bar_is_forming: mode == LIVE` FOR ONE COMMIT. A mode is
-    # not a clock: this cycle's window is `open + REGULAR_SESSION_LENGTH`, a FIXED
-    # 6h30m gated on FULL closures only, so on a 1pm ET half-day it keeps firing
+    # not a clock: this cycle's window was `open + REGULAR_SESSION_LENGTH`, a FIXED
+    # 6h30m gated on FULL closures only, so on a 1pm ET half-day it kept firing
     # until 16:00 and would have called a settled bar "forming" for three hours.
     # Pinned by `tests/test_scan_sweep_bar_close_state.py`.
+    # ⭐ THE WINDOW WAS FIXED 2026-09-10 — `_session_length_et` reads both leaf sets
+    # and the cycle now stops at 13:00 on a half-day
+    # (`tests/test_scan_live_window_early_close.py`). ⛔ The instant still stands:
+    # a window is a property of the SWEEP and the tri-state is a property of the
+    # BAR, and the nightly run is `mode != LIVE` over bars that are equally closed.
     keys = {k.value for k in opts.keys}
     assert keys == {"tf", "symbols", "now"}, keys
     handed = dict(zip([k.value for k in opts.keys], opts.values))

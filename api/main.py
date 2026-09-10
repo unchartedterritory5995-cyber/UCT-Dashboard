@@ -1604,7 +1604,8 @@ def register_screener_jobs(scheduler):
     # ⛔ IT NEVER TAKES `snapshot_builder._BUILD_LOCK`. A four-minute hold would
     # starve the live tier's 60 s cadence with `build_in_flight`; the cycle
     # PROBES `build_in_flight()` between definitions and stops instead. And its
-    # window — the DERIVED open through open + REGULAR_SESSION_LENGTH — is
+    # window — the DERIVED open through open + that day's own `_session_length_et`
+    # (6h30m, or 3h30m on a 1pm ET half-day, and no session at all on a closure) — is
     # disjoint from the 05:00 nightly sweep by derivation, not by two hours
     # chosen to agree (`test_the_live_window_and_the_nightly_sweep_are_DISJOINT`).
     #
